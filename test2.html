@@ -4,9 +4,10 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>AI 語法流暢度挑戰 - A1/A2 教學版</title>
+    <title>AI 語法練習 - 全單字流暢版</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <style>
@@ -56,7 +57,7 @@
             border: 2px solid #1f2937;
             border-radius: 15px;
             min-height: 80px;
-            margin: 20px 0;
+            margin: 15px 0;
             padding: 10px;
             display: flex;
             flex-wrap: wrap;
@@ -73,9 +74,9 @@
             user-select: none;
             transition: 0.2s;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            font-size: 15px;
         }
 
-        /* 詞性配色 */
         .pos-pronoun {
             background: var(--color-pronoun);
         }
@@ -124,19 +125,59 @@
             font-size: 16px;
         }
 
-        button:active {
-            transform: scale(0.98);
-        }
-
         .btn-ai {
             background: #8b5cf6;
             color: white;
+        }
+
+        .btn-img {
+            background: #FF9500;
+            color: white;
+        }
+
+        #imageContainer {
+            margin: 15px 0;
+            display: none;
+            text-align: center;
+        }
+
+        #generatedImage {
+            max-width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
         }
 
         #feedback {
             text-align: center;
             margin: 15px;
             height: 20px;
+            font-weight: bold;
+        }
+
+        .history-section {
+            width: 100%;
+            margin-top: 30px;
+            border-top: 1px solid #1f2937;
+            padding-top: 20px;
+        }
+
+        .history-item {
+            background: #1f2937;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-count {
+            background: #0ea5e9;
+            color: #000;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 6px;
             font-weight: bold;
         }
     </style>
@@ -149,69 +190,80 @@
             <span id="langDisplay" style="font-size: 12px; color: #6b7280;"></span>
         </div>
 
-        <h2 style="text-align: center; margin-top: 0;">AI 語法流暢度挑戰</h2>
-        <button class="btn-ai" id="nextBtn">✨ 生成下一個 AI 題目 (A1-A2)</button>
-        <button style="background: #0ea5e9; color: white;" id="playBtn">🔊 聽題目語音</button>
+        <h2 style="text-align: center; margin-top: 0;">AI 語法排序練習</h2>
+
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-ai" id="nextBtn" style="flex: 1.5;">✨ 生成新題目</button>
+            <button class="btn-img" id="genImageBtn" style="flex: 1;" disabled>🎨 生圖</button>
+        </div>
+        <button style="background: #0ea5e9; color: white;" id="playBtn">🔊 播放語音</button>
+
+        <div id="imageContainer"><img id="generatedImage" src="" alt="AI Image"></div>
 
         <div class="sentence-display" id="workspace"></div>
         <div class="pool" id="wordPool"></div>
 
         <div id="feedback"></div>
-
         <button style="background: #34C759; color:white;" id="checkBtn">送出檢查</button>
-        <p style="font-size: 12px; color: #6b7280; text-align: center;">提示：上方單字可左右拖動調整順序，點擊可移除。</p>
+
+        <div class="history-section">
+            <h3 style="font-size: 16px; margin-bottom: 15px; color: #22d3ee;">📚 學習歷程 (點擊重複練習)</h3>
+            <div id="historyList">
+                <p style="color: #6b7280; font-size: 14px; text-align: center;">完成正確練習後，紀錄會出現在這裡。</p>
+            </div>
+        </div>
     </div>
 
     <script>
-        // 1. 初始化 Firebase
+        // --- 1. 初始化 ---
         const firebaseConfig = { apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM", projectId: "test-5dbba" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
 
-        // 2. 讀取 localStorage 設定
         const sharedLang = localStorage.getItem('userLang') || 'en-US';
         const gptKey = localStorage.getItem('gptApiKey') || '';
         document.getElementById('langDisplay').textContent = `目標語言：${sharedLang}`;
 
         let currentWords = [];
+        let currentSentenceData = null;
         let wordBank = [];
+        let userId = null;
 
-        // 3. 讀取單字庫作為種子
         fetch('swadesh.csv').then(r => r.text()).then(csv => {
             wordBank = Papa.parse(csv, { header: true }).data;
         });
 
-        // 4. AI 出題邏輯：強化 A1-A2 語法與自動翻譯
+        auth.onAuthStateChanged(user => {
+            if (user) { userId = user.uid; loadHistory(); }
+        });
+
+        // --- 2. AI 出題邏輯：重點在於要求 GPT 拆解「整個句子」 ---
         async function getNextExercise() {
             if (!gptKey) return alert("請先回首頁完成登入並設定 API Key！");
 
-            document.getElementById('feedback').textContent = "正在請 AI 老師出題中...";
-            document.getElementById('workspace').innerHTML = "";
-            document.getElementById('wordPool').innerHTML = "";
+            resetUI();
+            document.getElementById('feedback').textContent = "正在生成流暢題目...";
 
-            // 從 CSV 隨機選 5 個英文單字作為靈感
             const seeds = [];
-            for (let i = 0; i < 5; i++) {
-                const row = wordBank[Math.floor(Math.random() * wordBank.length)];
-                seeds.push(row['en-US'] || "water");
-            }
+            for (let i = 0; i < 5; i++) seeds.push(wordBank[Math.floor(Math.random() * wordBank.length)]['en-US'] || "water");
 
-            // 強制 GPT 使用目標語言生成自然句子的提示詞
+            // 強化提示詞：確保 words 陣列包含句子中的「所有單字」
             const prompt = `
-                You are a professional ${sharedLang} teacher.
-                TASK: Create ONE simple, natural sentence at CEFR A1-A2 level based on these concepts: [${seeds.join(', ')}].
+                You are a ${sharedLang} teacher. 
+                TASK: Create ONE natural CEFR A1-A2 sentence using concepts: [${seeds.join(', ')}].
                 
                 REQUIREMENTS:
-                1. The "sentence" and "words" MUST be in ${sharedLang}.
-                2. If the language is NOT English, translate the concepts and use them naturally.
-                3. Add necessary function words (articles, prepositions) to make it a fluent sentence.
-                4. Output JSON ONLY:
+                1. The "sentence" must be a complete, natural sentence in ${sharedLang}.
+                2. IMPORTANT: The "words" array MUST contain EVERY single word from the "sentence" field in their correct order. Do not skip articles or prepositions.
+                3. Provide corresponding part-of-speech tags in "pos" field.
+                
+                Output JSON ONLY:
                 {
-                  "sentence": "The full sentence in ${sharedLang}",
-                  "words": ["word1", "word2", "word3"],
-                  "pos": ["pronoun", "verb", "noun"]
+                  "sentence": "The full natural sentence",
+                  "words": ["word1", "word2", "word3", "..."],
+                  "pos": ["pronoun", "verb", "other", "..."]
                 }
-                POS options: pronoun, verb, noun, adj, other.
             `;
 
             try {
@@ -220,38 +272,101 @@
                     headers: { "Authorization": `Bearer ${gptKey}`, "Content-Type": "application/json" },
                     body: JSON.stringify({
                         model: "gpt-4o-mini",
-                        messages: [{ role: "system", content: "You are a helpful language assistant." }, { role: "user", content: prompt }],
+                        messages: [{ role: "user", content: prompt }],
                         response_format: { type: "json_object" }
                     })
                 });
-
                 const result = await resp.json();
-                const data = JSON.parse(result.choices[0].message.content);
-
-                renderGame(data);
-                // 存入快取
-                db.collection('ai_exercises').add({ ...data, lang: sharedLang, level: "A1-A2", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-            } catch (e) {
-                document.getElementById('feedback').textContent = "❌ 生成失敗，請檢查網路或 Key";
-            }
+                currentSentenceData = JSON.parse(result.choices[0].message.content);
+                document.getElementById('genImageBtn').disabled = false;
+                renderGame(currentSentenceData);
+            } catch (e) { document.getElementById('feedback').textContent = "❌ 生成失敗"; }
         }
 
-        // 5. 遊戲渲染：完全依據 GPT 回傳的單字顯示方塊
+        // --- 3. 重複練習與圖像生成 ---
+        function rePractice(data) {
+            resetUI();
+            currentSentenceData = data;
+            document.getElementById('genImageBtn').disabled = false;
+            renderGame(data);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function generateImage() {
+            if (!currentSentenceData || !gptKey) return;
+            document.getElementById('feedback').textContent = "🎨 正在繪製插圖中...";
+            try {
+                const resp = await fetch("https://api.openai.com/v1/images/generations", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${gptKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "dall-e-3",
+                        prompt: `Educational illustration for: "${currentSentenceData.sentence}" in ${sharedLang}. Clear and simple.`,
+                        size: "1024x1024"
+                    })
+                });
+                const data = await resp.json();
+                if (data.data) {
+                    document.getElementById('generatedImage').src = data.data[0].url;
+                    document.getElementById('imageContainer').style.display = 'block';
+                    document.getElementById('feedback').textContent = "";
+                }
+            } catch (e) { document.getElementById('feedback').textContent = "❌ 生圖失敗"; }
+        }
+
+        // --- 4. 學習歷程紀錄 ---
+        async function updateHistory(data) {
+            if (!userId) return;
+            const docId = btoa(unescape(encodeURIComponent(data.sentence + "_" + sharedLang))).substring(0, 50);
+            const docRef = db.collection('users').doc(userId).collection('history').doc(docId);
+            const doc = await docRef.get();
+            if (doc.exists) {
+                await docRef.update({ count: firebase.firestore.FieldValue.increment(1), lastStudy: firebase.firestore.FieldValue.serverTimestamp() });
+            } else {
+                await docRef.set({ ...data, lang: sharedLang, count: 1, lastStudy: firebase.firestore.FieldValue.serverTimestamp() });
+            }
+            loadHistory();
+        }
+
+        async function loadHistory() {
+            if (!userId) return;
+            const snapshot = await db.collection('users').doc(userId).collection('history')
+                .where('lang', '==', sharedLang).orderBy('lastStudy', 'desc').limit(10).get();
+            const listEl = document.getElementById('historyList');
+            if (snapshot.empty) return;
+            listEl.innerHTML = "";
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `<div><strong>${data.sentence}</strong></div><span class="history-count">練習 ${data.count} 次</span>`;
+                div.onclick = () => rePractice(data); // 點擊直接載入單字方塊，不呼叫 GPT
+                listEl.appendChild(div);
+            });
+        }
+
+        // --- 5. UI 與 遊戲渲染 ---
+        function resetUI() {
+            document.getElementById('workspace').innerHTML = "";
+            document.getElementById('wordPool').innerHTML = "";
+            document.getElementById('imageContainer').style.display = 'none';
+            document.getElementById('genImageBtn').disabled = true;
+            document.getElementById('feedback').textContent = "";
+        }
+
         function renderGame(data) {
-            currentWords = data.words;
+            currentWords = data.words; // 這裡包含句子中所有的單字
             const workspace = document.getElementById('workspace');
             const pool = document.getElementById('wordPool');
 
-            // 隨機打亂 GPT 回傳的單字陣列
+            // 打亂所有單字方塊
             const shuffled = data.words.map((w, i) => ({ w, pos: data.pos[i], id: i }))
                 .sort(() => Math.random() - 0.5);
 
             shuffled.forEach(item => {
                 const chip = document.createElement('div');
                 chip.className = `word-chip pos-${item.pos || 'other'}`;
-                chip.textContent = item.w; // 顯示 GPT 回傳的語言單字
-                chip.dataset.id = item.id;
-
+                chip.textContent = item.w;
                 chip.onclick = () => {
                     if (!chip.classList.contains('selected')) {
                         const clone = chip.cloneNode(true);
@@ -262,18 +377,15 @@
                 };
                 pool.appendChild(chip);
             });
-            document.getElementById('feedback').textContent = "";
         }
 
-        // 6. 初始化 SortableJS 拖拽功能
         new Sortable(document.getElementById('workspace'), { animation: 150 });
 
-        // 7. 按鈕事件綁定
         document.getElementById('nextBtn').onclick = getNextExercise;
-
+        document.getElementById('genImageBtn').onclick = generateImage;
         document.getElementById('playBtn').onclick = () => {
-            if (!currentWords.length) return;
-            const u = new SpeechSynthesisUtterance(currentWords.join(' '));
+            if (!currentSentenceData) return;
+            const u = new SpeechSynthesisUtterance(currentSentenceData.sentence);
             u.lang = sharedLang;
             speechSynthesis.cancel();
             speechSynthesis.speak(u);
@@ -281,10 +393,12 @@
 
         document.getElementById('checkBtn').onclick = () => {
             const userOrder = Array.from(document.getElementById('workspace').children).map(c => c.textContent);
+            // 檢查使用者排出的順序是否與 GPT 給出的 words 陣列一致
             const success = JSON.stringify(userOrder) === JSON.stringify(currentWords);
             const fb = document.getElementById('feedback');
-            fb.textContent = success ? "🎉 順序完全正確！" : "❌ 語法不對，再試試！";
+            fb.textContent = success ? "🎉 完全正確！" : "❌ 順序不對，再聽一次！";
             fb.style.color = success ? "#34C759" : "#ef4444";
+            if (success) updateHistory(currentSentenceData);
         };
     </script>
 </body>
