@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>AI 語法流暢度挑戰 - A1/A2 教學版</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        :root {
+            --bg: #0b1220;
+            --card: #111827;
+            --text: #e5e7eb;
+            --color-pronoun: #AF52DE;
+            --color-verb: #34C759;
+            --color-noun: #007AFF;
+            --color-adj: #FF9500;
+            --color-other: #6b7280;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: sans-serif;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .nav-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .back-link {
+            color: #22d3ee;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .sentence-display {
+            background: var(--card);
+            border: 2px solid #1f2937;
+            border-radius: 15px;
+            min-height: 80px;
+            margin: 20px 0;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .word-chip {
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 詞性配色 */
+        .pos-pronoun {
+            background: var(--color-pronoun);
+        }
+
+        .pos-verb {
+            background: var(--color-verb);
+        }
+
+        .pos-noun {
+            background: var(--color-noun);
+        }
+
+        .pos-adj {
+            background: var(--color-adj);
+        }
+
+        .pos-other {
+            background: var(--color-other);
+        }
+
+        .pool {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            min-height: 50px;
+        }
+
+        .selected {
+            opacity: 0.2;
+            transform: scale(0.9);
+            pointer-events: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: none;
+            font-weight: bold;
+            margin-bottom: 10px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-ai {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        #feedback {
+            text-align: center;
+            margin: 15px;
+            height: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav-header">
+            <a href="index.html" class="back-link">← 返回首頁設定</a>
+            <span id="langDisplay" style="font-size: 12px; color: #6b7280;"></span>
+        </div>
+
+        <h2 style="text-align: center; margin-top: 0;">AI 語法流暢度挑戰</h2>
+        <button class="btn-ai" id="nextBtn">✨ 生成下一個 AI 題目 (A1-A2)</button>
+        <button style="background: #0ea5e9; color: white;" id="playBtn">🔊 聽題目語音</button>
+
+        <div class="sentence-display" id="workspace"></div>
+        <div class="pool" id="wordPool"></div>
+
+        <div id="feedback"></div>
+
+        <button style="background: #34C759; color:white;" id="checkBtn">送出檢查</button>
+        <p style="font-size: 12px; color: #6b7280; text-align: center;">提示：上方單字可左右拖動調整順序，點擊可移除。</p>
+    </div>
+
+    <script>
+        // 1. 初始化 Firebase
+        const firebaseConfig = { apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM", projectId: "test-5dbba" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 2. 讀取 localStorage 設定
+        const sharedLang = localStorage.getItem('userLang') || 'en-US';
+        const gptKey = localStorage.getItem('gptApiKey') || '';
+        document.getElementById('langDisplay').textContent = `目標語言：${sharedLang}`;
+
+        let currentWords = [];
+        let wordBank = [];
+
+        // 3. 讀取單字庫作為種子
+        fetch('swadesh.csv').then(r => r.text()).then(csv => {
+            wordBank = Papa.parse(csv, { header: true }).data;
+        });
+
+        // 4. AI 出題邏輯：強化 A1-A2 語法與自動翻譯
+        async function getNextExercise() {
+            if (!gptKey) return alert("請先回首頁完成登入並設定 API Key！");
+
+            document.getElementById('feedback').textContent = "正在請 AI 老師出題中...";
+            document.getElementById('workspace').innerHTML = "";
+            document.getElementById('wordPool').innerHTML = "";
+
+            // 從 CSV 隨機選 5 個英文單字作為靈感
+            const seeds = [];
+            for (let i = 0; i < 5; i++) {
+                const row = wordBank[Math.floor(Math.random() * wordBank.length)];
+                seeds.push(row['en-US'] || "water");
+            }
+
+            // 強制 GPT 使用目標語言生成自然句子的提示詞
+            const prompt = `
+                You are a professional ${sharedLang} teacher.
+                TASK: Create ONE simple, natural sentence at CEFR A1-A2 level based on these concepts: [${seeds.join(', ')}].
+                
+                REQUIREMENTS:
+                1. The "sentence" and "words" MUST be in ${sharedLang}.
+                2. If the language is NOT English, translate the concepts and use them naturally.
+                3. Add necessary function words (articles, prepositions) to make it a fluent sentence.
+                4. Output JSON ONLY:
+                {
+                  "sentence": "The full sentence in ${sharedLang}",
+                  "words": ["word1", "word2", "word3"],
+                  "pos": ["pronoun", "verb", "noun"]
+                }
+                POS options: pronoun, verb, noun, adj, other.
+            `;
+
+            try {
+                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${gptKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [{ role: "system", content: "You are a helpful language assistant." }, { role: "user", content: prompt }],
+                        response_format: { type: "json_object" }
+                    })
+                });
+
+                const result = await resp.json();
+                const data = JSON.parse(result.choices[0].message.content);
+
+                renderGame(data);
+                // 存入快取
+                db.collection('ai_exercises').add({ ...data, lang: sharedLang, level: "A1-A2", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+            } catch (e) {
+                document.getElementById('feedback').textContent = "❌ 生成失敗，請檢查網路或 Key";
+            }
+        }
+
+        // 5. 遊戲渲染：完全依據 GPT 回傳的單字顯示方塊
+        function renderGame(data) {
+            currentWords = data.words;
+            const workspace = document.getElementById('workspace');
+            const pool = document.getElementById('wordPool');
+
+            // 隨機打亂 GPT 回傳的單字陣列
+            const shuffled = data.words.map((w, i) => ({ w, pos: data.pos[i], id: i }))
+                .sort(() => Math.random() - 0.5);
+
+            shuffled.forEach(item => {
+                const chip = document.createElement('div');
+                chip.className = `word-chip pos-${item.pos || 'other'}`;
+                chip.textContent = item.w; // 顯示 GPT 回傳的語言單字
+                chip.dataset.id = item.id;
+
+                chip.onclick = () => {
+                    if (!chip.classList.contains('selected')) {
+                        const clone = chip.cloneNode(true);
+                        clone.onclick = () => { clone.remove(); chip.classList.remove('selected'); };
+                        workspace.appendChild(clone);
+                        chip.classList.add('selected');
+                    }
+                };
+                pool.appendChild(chip);
+            });
+            document.getElementById('feedback').textContent = "";
+        }
+
+        // 6. 初始化 SortableJS 拖拽功能
+        new Sortable(document.getElementById('workspace'), { animation: 150 });
+
+        // 7. 按鈕事件綁定
+        document.getElementById('nextBtn').onclick = getNextExercise;
+
+        document.getElementById('playBtn').onclick = () => {
+            if (!currentWords.length) return;
+            const u = new SpeechSynthesisUtterance(currentWords.join(' '));
+            u.lang = sharedLang;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(u);
+        };
+
+        document.getElementById('checkBtn').onclick = () => {
+            const userOrder = Array.from(document.getElementById('workspace').children).map(c => c.textContent);
+            const success = JSON.stringify(userOrder) === JSON.stringify(currentWords);
+            const fb = document.getElementById('feedback');
+            fb.textContent = success ? "🎉 順序完全正確！" : "❌ 語法不對，再試試！";
+            fb.style.color = success ? "#34C759" : "#ef4444";
+        };
+    </script>
+</body>
+
+</html>

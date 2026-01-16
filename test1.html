@@ -322,6 +322,10 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
+        // 在 test1.html 的 <script> 中加入此讀取邏輯
+        const sharedLang = localStorage.getItem('userLang') || 'en-US';
+        const sharedCourse = localStorage.getItem('userCourse') || 'all';
+        const sharedKey = localStorage.getItem('gptApiKey') || '';
 
         // === Google TTS 主要口音分組設定 ===
         const VOICE_VARIANTS = {
@@ -717,18 +721,24 @@
 
         function renderChips() {
             if (!window.SAMPLE_TEXTS) return;
-            const samples = window.SAMPLE_TEXTS[langEl.value] || [];
+            const allWords = window.SAMPLE_TEXTS[sharedLang] || [];
             samplesEl.innerHTML = '';
-            samples.forEach(txt => {
-                const chip = document.createElement('div');
-                chip.className = 'chip';
-                chip.textContent = txt;
-                chip.onclick = () => {
-                    textEl.value = txt;
-                    redraw();
-                    if (langEl.value.startsWith('en')) fetchIPA(txt, langEl.value);
-                };
-                samplesEl.appendChild(chip);
+
+            let [start, end] = sharedCourse === 'all' ? [1, 207] : sharedCourse.split('-').map(Number);
+
+            allWords.forEach((txt, i) => {
+                const num = i + 1;
+                if (num >= start && num <= end) {
+                    const chip = document.createElement('div');
+                    chip.className = 'chip';
+                    chip.textContent = txt;
+                    chip.onclick = () => {
+                        textEl.value = txt;
+                        redraw();
+                        speakNow(); // 會自動調用 sharedKey
+                    };
+                    samplesEl.appendChild(chip);
+                }
             });
         }
 
