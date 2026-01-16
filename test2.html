@@ -1,10 +1,9 @@
 <!doctype html>
 <html lang="zh-Hant">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>AI 語法練習 - 全單字流暢版</title>
+    <title>AI 語法練習 - 點擊朗讀進階版</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -12,210 +11,67 @@
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <style>
         :root {
-            --bg: #0b1220;
-            --card: #111827;
-            --text: #e5e7eb;
-            --color-pronoun: #AF52DE;
-            --color-verb: #34C759;
-            --color-noun: #007AFF;
-            --color-adj: #FF9500;
-            --color-other: #6b7280;
+            --bg: #0b1220; --card: #111827; --text: #e5e7eb;
+            --color-pronoun: #AF52DE; --color-verb: #34C759;
+            --color-noun: #007AFF; --color-adj: #FF9500; --color-other: #6b7280;
         }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; margin: 0; }
+        .container { width: 100%; max-width: 500px; }
+        .nav-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .back-link { color: #22d3ee; text-decoration: none; font-size: 14px; }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: sans-serif;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0;
-        }
+        .sentence-display { background: var(--card); border: 2px solid #1f2937; border-radius: 15px; min-height: 80px; margin: 15px 0; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
+        .word-chip { padding: 10px 15px; border-radius: 10px; font-weight: bold; cursor: pointer; user-select: none; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.2); font-size: 15px; }
+        
+        .pos-pronoun { background: var(--color-pronoun); } .pos-verb { background: var(--color-verb); }
+        .pos-noun { background: var(--color-noun); } .pos-adj { background: var(--color-adj); } .pos-other { background: var(--color-other); }
+        
+        .pool { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-height: 50px; }
+        .selected { opacity: 0.2; transform: scale(0.9); pointer-events: none; }
+        
+        button { width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 16px; }
+        .btn-ai { background: #8b5cf6; color: white; }
+        .btn-img { background: #FF9500; color: white; }
+        #imageContainer { margin: 15px 0; display: none; text-align: center; }
+        #generatedImage { max-width: 100%; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        #feedback { text-align:center; margin:15px; height:20px; font-weight: bold; }
 
-        .container {
-            width: 100%;
-            max-width: 500px;
-        }
-
-        .nav-header {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .back-link {
-            color: #22d3ee;
-            text-decoration: none;
-            font-size: 14px;
-        }
-
-        .sentence-display {
-            background: var(--card);
-            border: 2px solid #1f2937;
-            border-radius: 15px;
-            min-height: 80px;
-            margin: 15px 0;
-            padding: 10px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .word-chip {
-            padding: 10px 15px;
-            border-radius: 10px;
-            font-weight: bold;
-            cursor: pointer;
-            user-select: none;
-            transition: 0.2s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-            font-size: 15px;
-        }
-
-        .pos-pronoun {
-            background: var(--color-pronoun);
-        }
-
-        .pos-verb {
-            background: var(--color-verb);
-        }
-
-        .pos-noun {
-            background: var(--color-noun);
-        }
-
-        .pos-adj {
-            background: var(--color-adj);
-        }
-
-        .pos-other {
-            background: var(--color-other);
-        }
-
-        .pool {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
-            border-radius: 15px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            justify-content: center;
-            min-height: 50px;
-        }
-
-        .selected {
-            opacity: 0.2;
-            transform: scale(0.9);
-            pointer-events: none;
-        }
-
-        button {
-            width: 100%;
-            padding: 15px;
-            border-radius: 12px;
-            border: none;
-            font-weight: bold;
-            margin-bottom: 10px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        .btn-ai {
-            background: #8b5cf6;
-            color: white;
-        }
-
-        .btn-img {
-            background: #FF9500;
-            color: white;
-        }
-
-        #imageContainer {
-            margin: 15px 0;
-            display: none;
-            text-align: center;
-        }
-
-        #generatedImage {
-            max-width: 100%;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-        }
-
-        #feedback {
-            text-align: center;
-            margin: 15px;
-            height: 20px;
-            font-weight: bold;
-        }
-
-        .history-section {
-            width: 100%;
-            margin-top: 30px;
-            border-top: 1px solid #1f2937;
-            padding-top: 20px;
-        }
-
-        .history-item {
-            background: #1f2937;
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .history-count {
-            background: #0ea5e9;
-            color: #000;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-weight: bold;
-        }
+        .history-section { width: 100%; margin-top: 30px; border-top: 1px solid #1f2937; padding-top: 20px; }
+        .history-item { background: #1f2937; padding: 15px; border-radius: 12px; margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .history-count { background: #0ea5e9; color: #000; font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: bold; }
     </style>
 </head>
-
 <body>
     <div class="container">
         <div class="nav-header">
-            <a href="index.html" class="back-link">← 返回首頁設定</a>
+            <a href="index.html" class="back-link">← 返回首頁</a>
             <span id="langDisplay" style="font-size: 12px; color: #6b7280;"></span>
         </div>
 
-        <h2 style="text-align: center; margin-top: 0;">AI 語法排序練習</h2>
-
+        <h2 style="text-align: center; margin-top: 0;">AI 語法朗讀練習</h2>
+        
         <div style="display: flex; gap: 10px;">
             <button class="btn-ai" id="nextBtn" style="flex: 1.5;">✨ 生成新題目</button>
             <button class="btn-img" id="genImageBtn" style="flex: 1;" disabled>🎨 生圖</button>
         </div>
-        <button style="background: #0ea5e9; color: white;" id="playBtn">🔊 播放語音</button>
+        <button style="background: #0ea5e9; color: white;" id="playBtn">🔊 播放整句語音</button>
 
         <div id="imageContainer"><img id="generatedImage" src="" alt="AI Image"></div>
 
         <div class="sentence-display" id="workspace"></div>
         <div class="pool" id="wordPool"></div>
-
+        
         <div id="feedback"></div>
         <button style="background: #34C759; color:white;" id="checkBtn">送出檢查</button>
 
         <div class="history-section">
-            <h3 style="font-size: 16px; margin-bottom: 15px; color: #22d3ee;">📚 學習歷程 (點擊重複練習)</h3>
-            <div id="historyList">
-                <p style="color: #6b7280; font-size: 14px; text-align: center;">完成正確練習後，紀錄會出現在這裡。</p>
-            </div>
+            <h3 style="font-size: 16px; margin-bottom: 15px; color: #22d3ee;">📚 學習歷程 (點選重複練習)</h3>
+            <div id="historyList"></div>
         </div>
     </div>
 
     <script>
-        // --- 1. 初始化 ---
+        // --- 初始化 Firebase ---
         const firebaseConfig = { apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM", projectId: "test-5dbba" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -225,56 +81,40 @@
         const gptKey = localStorage.getItem('gptApiKey') || '';
         document.getElementById('langDisplay').textContent = `目標語言：${sharedLang}`;
 
-        let currentWords = [];
-        let currentSentenceData = null;
-        let wordBank = [];
+        let currentSentenceData = null; 
+        let wordBank = []; 
         let userId = null;
 
         fetch('swadesh.csv').then(r => r.text()).then(csv => {
             wordBank = Papa.parse(csv, { header: true }).data;
         });
 
-        auth.onAuthStateChanged(user => {
-            if (user) { userId = user.uid; loadHistory(); }
-        });
+        auth.onAuthStateChanged(user => { if (user) { userId = user.uid; loadHistory(); } });
 
-        // --- 2. AI 出題邏輯：重點在於要求 GPT 拆解「整個句子」 ---
+        // --- 核心：語音朗讀函數 ---
+        function speak(text) {
+            if (!text) return;
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = sharedLang;
+            speechSynthesis.cancel(); // 停止之前的播放
+            speechSynthesis.speak(u);
+        }
+
+        // --- AI 出題邏輯 ---
         async function getNextExercise() {
-            if (!gptKey) return alert("請先回首頁完成登入並設定 API Key！");
-
+            if (!gptKey) return alert("請先登入並設定 API Key！");
             resetUI();
-            document.getElementById('feedback').textContent = "正在生成流暢題目...";
-
+            document.getElementById('feedback').textContent = "AI 老師出題中...";
             const seeds = [];
             for (let i = 0; i < 5; i++) seeds.push(wordBank[Math.floor(Math.random() * wordBank.length)]['en-US'] || "water");
 
-            // 強化提示詞：確保 words 陣列包含句子中的「所有單字」
-            const prompt = `
-                You are a ${sharedLang} teacher. 
-                TASK: Create ONE natural CEFR A1-A2 sentence using concepts: [${seeds.join(', ')}].
-                
-                REQUIREMENTS:
-                1. The "sentence" must be a complete, natural sentence in ${sharedLang}.
-                2. IMPORTANT: The "words" array MUST contain EVERY single word from the "sentence" field in their correct order. Do not skip articles or prepositions.
-                3. Provide corresponding part-of-speech tags in "pos" field.
-                
-                Output JSON ONLY:
-                {
-                  "sentence": "The full natural sentence",
-                  "words": ["word1", "word2", "word3", "..."],
-                  "pos": ["pronoun", "verb", "other", "..."]
-                }
-            `;
+            const prompt = `You are a ${sharedLang} teacher. Create ONE simple CEFR A1-A2 sentence using concepts: [${seeds.join(', ')}]. JSON ONLY: {"sentence": "...", "words": ["w1", "w2"], "pos": ["noun", "verb"]}`;
 
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
                     headers: { "Authorization": `Bearer ${gptKey}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "gpt-4o-mini",
-                        messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" }
-                    })
+                    body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
                 });
                 const result = await resp.json();
                 currentSentenceData = JSON.parse(result.choices[0].message.content);
@@ -283,27 +123,46 @@
             } catch (e) { document.getElementById('feedback').textContent = "❌ 生成失敗"; }
         }
 
-        // --- 3. 重複練習與圖像生成 ---
-        function rePractice(data) {
-            resetUI();
-            currentSentenceData = data;
-            document.getElementById('genImageBtn').disabled = false;
-            renderGame(data);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        // --- 遊戲渲染：加入「點擊朗讀單字」邏輯 ---
+        function renderGame(data) {
+            const workspace = document.getElementById('workspace');
+            const pool = document.getElementById('wordPool');
+            const shuffled = data.words.map((w, i) => ({ w, pos: data.pos[i], id: i })).sort(() => Math.random() - 0.5);
+
+            shuffled.forEach(item => {
+                const chip = document.createElement('div');
+                chip.className = `word-chip pos-${item.pos || 'other'}`;
+                chip.textContent = item.w;
+                
+                chip.onclick = () => {
+                    if (!chip.classList.contains('selected')) {
+                        // 1. 朗讀當前選擇的單字
+                        speak(item.w); 
+                        
+                        // 2. 加入工作區
+                        const clone = chip.cloneNode(true);
+                        clone.onclick = () => { 
+                            clone.remove(); 
+                            chip.classList.remove('selected'); 
+                        };
+                        workspace.appendChild(clone);
+                        chip.classList.add('selected');
+                    }
+                };
+                pool.appendChild(chip);
+            });
+            document.getElementById('feedback').textContent = "";
         }
 
+        // --- 其他功能 (生圖、歷史、檢查) ---
         async function generateImage() {
             if (!currentSentenceData || !gptKey) return;
-            document.getElementById('feedback').textContent = "🎨 正在繪製插圖中...";
+            document.getElementById('feedback').textContent = "🎨 正在繪製插圖...";
             try {
                 const resp = await fetch("https://api.openai.com/v1/images/generations", {
                     method: "POST",
                     headers: { "Authorization": `Bearer ${gptKey}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "dall-e-3",
-                        prompt: `Educational illustration for: "${currentSentenceData.sentence}" in ${sharedLang}. Clear and simple.`,
-                        size: "1024x1024"
-                    })
+                    body: JSON.stringify({ model: "dall-e-3", prompt: `Flashcard illustration for: "${currentSentenceData.sentence}" in ${sharedLang}.`, size: "1024x1024" })
                 });
                 const data = await resp.json();
                 if (data.data) {
@@ -314,24 +173,19 @@
             } catch (e) { document.getElementById('feedback').textContent = "❌ 生圖失敗"; }
         }
 
-        // --- 4. 學習歷程紀錄 ---
         async function updateHistory(data) {
             if (!userId) return;
             const docId = btoa(unescape(encodeURIComponent(data.sentence + "_" + sharedLang))).substring(0, 50);
             const docRef = db.collection('users').doc(userId).collection('history').doc(docId);
             const doc = await docRef.get();
-            if (doc.exists) {
-                await docRef.update({ count: firebase.firestore.FieldValue.increment(1), lastStudy: firebase.firestore.FieldValue.serverTimestamp() });
-            } else {
-                await docRef.set({ ...data, lang: sharedLang, count: 1, lastStudy: firebase.firestore.FieldValue.serverTimestamp() });
-            }
+            if (doc.exists) await docRef.update({ count: firebase.firestore.FieldValue.increment(1), lastStudy: firebase.firestore.FieldValue.serverTimestamp() });
+            else await docRef.set({ ...data, lang: sharedLang, count: 1, lastStudy: firebase.firestore.FieldValue.serverTimestamp() });
             loadHistory();
         }
 
         async function loadHistory() {
             if (!userId) return;
-            const snapshot = await db.collection('users').doc(userId).collection('history')
-                .where('lang', '==', sharedLang).orderBy('lastStudy', 'desc').limit(10).get();
+            const snapshot = await db.collection('users').doc(userId).collection('history').where('lang', '==', sharedLang).orderBy('lastStudy', 'desc').limit(10).get();
             const listEl = document.getElementById('historyList');
             if (snapshot.empty) return;
             listEl.innerHTML = "";
@@ -339,68 +193,34 @@
                 const data = doc.data();
                 const div = document.createElement('div');
                 div.className = 'history-item';
-                div.innerHTML = `<div><strong>${data.sentence}</strong></div><span class="history-count">練習 ${data.count} 次</span>`;
-                div.onclick = () => rePractice(data); // 點擊直接載入單字方塊，不呼叫 GPT
+                div.innerHTML = `<div><strong>${data.sentence}</strong></div><span class="history-count">${data.count}次</span>`;
+                div.onclick = () => { resetUI(); currentSentenceData = data; renderGame(data); document.getElementById('genImageBtn').disabled = false; };
                 listEl.appendChild(div);
             });
         }
 
-        // --- 5. UI 與 遊戲渲染 ---
         function resetUI() {
             document.getElementById('workspace').innerHTML = "";
             document.getElementById('wordPool').innerHTML = "";
             document.getElementById('imageContainer').style.display = 'none';
-            document.getElementById('genImageBtn').disabled = true;
             document.getElementById('feedback').textContent = "";
         }
 
-        function renderGame(data) {
-            currentWords = data.words; // 這裡包含句子中所有的單字
-            const workspace = document.getElementById('workspace');
-            const pool = document.getElementById('wordPool');
-
-            // 打亂所有單字方塊
-            const shuffled = data.words.map((w, i) => ({ w, pos: data.pos[i], id: i }))
-                .sort(() => Math.random() - 0.5);
-
-            shuffled.forEach(item => {
-                const chip = document.createElement('div');
-                chip.className = `word-chip pos-${item.pos || 'other'}`;
-                chip.textContent = item.w;
-                chip.onclick = () => {
-                    if (!chip.classList.contains('selected')) {
-                        const clone = chip.cloneNode(true);
-                        clone.onclick = () => { clone.remove(); chip.classList.remove('selected'); };
-                        workspace.appendChild(clone);
-                        chip.classList.add('selected');
-                    }
-                };
-                pool.appendChild(chip);
-            });
-        }
-
         new Sortable(document.getElementById('workspace'), { animation: 150 });
-
         document.getElementById('nextBtn').onclick = getNextExercise;
         document.getElementById('genImageBtn').onclick = generateImage;
-        document.getElementById('playBtn').onclick = () => {
-            if (!currentSentenceData) return;
-            const u = new SpeechSynthesisUtterance(currentSentenceData.sentence);
-            u.lang = sharedLang;
-            speechSynthesis.cancel();
-            speechSynthesis.speak(u);
-        };
-
+        document.getElementById('playBtn').onclick = () => speak(currentSentenceData?.sentence);
         document.getElementById('checkBtn').onclick = () => {
             const userOrder = Array.from(document.getElementById('workspace').children).map(c => c.textContent);
-            // 檢查使用者排出的順序是否與 GPT 給出的 words 陣列一致
-            const success = JSON.stringify(userOrder) === JSON.stringify(currentWords);
+            const success = JSON.stringify(userOrder) === JSON.stringify(currentSentenceData.words);
             const fb = document.getElementById('feedback');
-            fb.textContent = success ? "🎉 完全正確！" : "❌ 順序不對，再聽一次！";
+            fb.textContent = success ? "🎉 太棒了！順序正確" : "❌ 順序不對，再試試";
             fb.style.color = success ? "#34C759" : "#ef4444";
-            if (success) updateHistory(currentSentenceData);
+            if (success) { 
+                speak(currentSentenceData.sentence); // 正確後再讀一次整句
+                updateHistory(currentSentenceData); 
+            }
         };
     </script>
 </body>
-
 </html>
