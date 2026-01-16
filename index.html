@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行動版導覽首頁</title>
+    <style>
+        /* 基礎設定 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f4f4f9;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        /* 方塊容器：使用 Grid 佈局 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            /* 手機端預設兩欄 */
+            gap: 15px;
+            width: 100%;
+            max-width: 500px;
+            /* 限制平板以上的最大寬度 */
+        }
+
+        /* 單個方塊樣式 */
+        .nav-box {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #007AFF;
+            /* 蘋果藍 */
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border-radius: 15px;
+            aspect-ratio: 1 / 1;
+            /* 保持正方形 */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.1s, background-color 0.2s;
+        }
+
+        /* 點擊時的反饋效果 */
+        .nav-box:active {
+            transform: scale(0.95);
+            background-color: #0056b3;
+        }
+
+        /* 不同方塊可以給不同顏色（可選） */
+        .box-1 {
+            background-color: #FF9500;
+        }
+
+        /* 橘色 */
+        .box-2 {
+            background-color: #34C759;
+        }
+
+        /* 綠色 */
+        .box-3 {
+            background-color: #AF52DE;
+        }
+
+        /* 紫色 */
+        .box-4 {
+            background-color: #FF3B30;
+        }
+
+        /* 紅色 */
+    </style>
+</head>
+
+<body>
+
+    <h1>請選擇項目</h1>
+
+    <div class="grid-container">
+        <a href="test1.html" class="nav-box box-1">分頁 1</a>
+        <a href="test2.html" class="nav-box box-2">分頁 2</a>
+        <a href="test3.html" class="nav-box box-3">分頁 3</a>
+        <a href="test4.html" class="nav-box box-4">分頁 4</a>
+    </div>
+
+</body>
+
+</html>
