@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>多語手寫朗讀工具</title>
+    <meta name="theme-color" content="#0ea5e9" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b1220;
+            --card: #111827;
+            --muted: #6b7280;
+            --text: #e5e7eb;
+            --accent: #22d3ee;
+            --btn: #0ea5e9;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            background: linear-gradient(180deg, #0b1220, #0f172a);
+            color: var(--text);
+            font-family: 'Noto Sans', sans-serif;
+        }
+
+        .wrap {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: clamp(16px, 5vw, 28px);
+        }
+
+        .app {
+            background: linear-gradient(180deg, #0c1222, #0c1827);
+            border: 1px solid #1f2937;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+        }
+
+        header {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid #1f2937;
+            background: #0b1220;
+        }
+
+        .header-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        header .logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: radial-gradient(circle at 30% 30%, #22d3ee, #0ea5e9 60%, #0369a1);
+        }
+
+        .section {
+            padding: 16px
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px
+        }
+
+        .label {
+            font-size: 13px;
+            color: #cbd5e1
+        }
+
+        textarea,
+        select,
+        input,
+        input[type=range] {
+            width: 100%;
+            border-radius: 14px;
+            border: 1px solid #1f2937;
+            background: #0b1220;
+            color: var(--text);
+            padding: 14px;
+            font-size: 16px;
+            resize: vertical;
+        }
+
+        canvas {
+            width: 100%;
+            height: 50vh;
+            background: #111827;
+            border-radius: 16px;
+            touch-action: none;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 8px 0
+        }
+
+        .chip {
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid #1f2937;
+            background: #0b1220;
+            color: #cbd5e1;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        button {
+            flex: 1;
+            border: none;
+            border-radius: 14px;
+            padding: 14px 16px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .primary {
+            background: var(--btn);
+            color: #00111a
+        }
+
+        .danger {
+            background: var(--danger);
+            color: #fff
+        }
+
+        #ipa {
+            color: #22d3ee;
+            text-align: center;
+            padding: 8px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 1.2em;
+        }
+
+        /* ---- 並排 row ---- */
+        .row-fields {
+            display: flex;
+            flex-direction: row;
+            gap: 16px;
+            margin-bottom: 14px;
+            flex-wrap: nowrap;
+        }
+
+        .row-fields .sub-field {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .pad-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #loginPanel {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: flex-start;
+            margin-top: 10px;
+        }
+
+        #userInfo {
+            font-size: 12px;
+            color: var(--accent);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="wrap">
+        <div class="app">
+            <header>
+                <div class="header-top">
+                    <div class="logo" aria-hidden="true"></div>
+                    <div>
+                        <h1 style="margin:0;font-size:18px;">多語手寫語音工具</h1>
+                        <p style="margin:0;font-size:12px;color:#6b7280">支援手寫 + 語音 + IPA · Mobile-first</p>
+                    </div>
+                </div>
+
+                <div id="loginPanel">
+                    <div style="display:flex; gap:10px; width:100%">
+                        <button id="loginBtn" class="primary" style="font-size:14px; padding:8px;">使用 Google 登入</button>
+                        <button id="logoutBtn" class="danger hidden" style="font-size:14px; padding:8px;">登出</button>
+                    </div>
+                    <span id="userInfo"></span>
+                </div>
+
+                <div id="keyWrapper" class="hidden" style="margin-top:10px; width:100%;">
+                    <button id="toggleKeyBtn"
+                        style="width:100%; background:#1f2937; color:#fff; font-size:12px; padding:8px;">▼ 設定 GPT API
+                        Key</button>
+                    <div id="keySection"
+                        style="display:none; margin-top:10px; padding:10px; background:#111827; border-radius:10px;">
+                        <input id="gptKey" type="password" placeholder="輸入 OpenAI API Key (sk-...)"
+                            style="margin-bottom:8px;">
+                        <button id="saveKeyBtn" class="primary" style="width:100%">儲存 Key</button>
+                        <p id="status" style="font-size:12px; margin:5px 0 0 0; color:#aaa;"></p>
+                    </div>
+                </div>
+            </header>
+
+            <div class="section">
+                <div class="row-fields">
+                    <div class="sub-field">
+                        <label class="label" for="lang">選擇語言</label>
+                        <select id="lang">
+                            <option value="en-US">English 🇺🇸</option>
+                            <option value="it-IT">Italiano 🇮🇹</option>
+                            <option value="zh-TW">中文 (繁體) 🇹🇼</option>
+                            <option value="ja-JP">日本語 🇯🇵</option>
+                            <option value="fr-FR">Français 🇫🇷</option>
+                            <option value="de-DE">Deutsch 🇩🇪</option>
+                            <option value="es-ES">Español 🇪🇸</option>
+                            <option value="pt-PT">Português 🇵🇹</option>
+                            <option value="ru-RU">Русский 🇷🇺</option>
+                            <option value="hi-IN">हिन्दी / اُردُو 🇮🇳</option>
+                            <option value="bn-BD">বাংলা 🇧🇩</option>
+                            <option value="fa-IR">فارسی 🇮🇷</option>
+                            <option value="ta-IN">தமிழ் 🇮🇳</option>
+                            <option value="ar-SA">العربية 🇸🇦</option>
+                            <option value="tr-TR">Türkçe 🇹🇷</option>
+                            <option value="ko-KR">한국어 🇰🇷</option>
+                            <option value="vi-VN">Tiếng Việt 🇻🇳</option>
+                            <option value="id-ID">Bahasa Indonesia / Melayu 🇮🇩</option>
+                            <option value="th-TH">ไทย 🇹🇭</option>
+                            <option value="sw-KE">Kiswahili 🇰🇪</option>
+                        </select>
+                    </div>
+                    <div class="sub-field">
+                        <label class="label" for="voice">語音選擇</label>
+                        <select id="voice"></select>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label">輸入要練習的內容</label>
+                    <textarea id="text" placeholder="例如：Ciao! Come stai?"></textarea>
+                    <div class="chips" id="samples"></div>
+                </div>
+
+                <div class="row-fields">
+                    <div class="sub-field">
+                        <label class="label">語速 <span id="rateVal">1.0</span></label>
+                        <input type="range" id="rate" min="0.6" max="1.6" step="0.1" value="1.0">
+                    </div>
+                    <div class="sub-field">
+                        <label class="label">音高 <span id="pitchVal">1.0</span></label>
+                        <input type="range" id="pitch" min="0.6" max="1.4" step="0.1" value="1.0">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label">字體大小 <span id="fontSizeVal">72</span> px</label>
+                    <input type="range" id="fontSize" min="16" max="240" step="1" value="72">
+                </div>
+
+                <div id="ipaWrap" style="display:none; text-align:center; margin-top:8px;">
+                    <img id="ipaImg" src="" alt=""
+                        style="max-width:100%; max-height:120px; display:none; margin: 0 auto 6px auto;">
+                    <div id="ipa"></div>
+                </div>
+
+                <div class="field">
+                    <label class="label">手寫練習區</label>
+                    <canvas id="pad"></canvas>
+                    <div class="pad-actions">
+                        <button class="danger" id="clearBtn">🧹 清除畫布</button>
+                        <button class="primary" id="speakBtn">▶ 開始朗讀</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+    <script>
+        // --- Firebase 初始化 ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM",
+            authDomain: "test-5dbba.firebaseapp.com",
+            projectId: "test-5dbba",
+            storageBucket: "test-5dbba.appspot.com",
+            messagingSenderId: "878665537417",
+            appId: "1:878665537417:web:xxxxxx"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // === Google TTS 主要口音分組設定 ===
+        const VOICE_VARIANTS = {
+            "zh-TW": { include: ["cmn-TW", "cmn-CN", "zh-TW", "zh-CN"], labels: { "cmn-TW": "台灣", "cmn-CN": "中國", "zh-TW": "台灣", "zh-CN": "中國" } },
+            "en-US": { include: ["en-US", "en-GB", "en-AU", "en-CA"], labels: { "en-US": "美式", "en-GB": "英式", "en-AU": "澳洲", "en-CA": "加拿大" } },
+            "de-DE": { include: ["de-DE", "de-AT", "de-CH"], labels: { "de-DE": "德國", "de-AT": "奧地利", "de-CH": "瑞士" } },
+            "es-ES": { include: ["es-ES", "es-MX", "es-US", "es-AR"], labels: { "es-ES": "西班牙", "es-MX": "墨西哥", "es-US": "美國", "es-AR": "阿根廷" } },
+            "pt-PT": { include: ["pt-PT", "pt-BR"], labels: { "pt-PT": "歐洲", "pt-BR": "巴西" } },
+            "fr-FR": { include: ["fr-FR", "fr-CA"], labels: { "fr-FR": "法國", "fr-CA": "加拿大" } },
+            "it-IT": { include: ["it-IT"], labels: { "it-IT": "義大利" } },
+            "ru-RU": { include: ["ru-RU"], labels: { "ru-RU": "俄羅斯" } },
+            "hi-IN": { include: ["hi-IN", "ur-PK"], labels: { "hi-IN": "印地語", "ur-PK": "烏爾都語" } },
+            "bn-BD": { include: ["bn-BD", "bn-IN"], labels: { "bn-BD": "孟加拉", "bn-IN": "印度孟加拉" } },
+            "fa-IR": { include: ["fa-IR", "fa-AF"], labels: { "fa-IR": "伊朗", "fa-AF": "阿富汗" } },
+            "ta-IN": { include: ["ta-IN", "ta-LK"], labels: { "ta-IN": "印度", "ta-LK": "斯里蘭卡" } },
+            "ar-SA": { include: ["ar-SA", "ar-EG", "ar-XA"], labels: { "ar-SA": "沙烏地", "ar-EG": "埃及", "ar-XA": "汎阿拉伯" } },
+            "tr-TR": { include: ["tr-TR"], labels: { "tr-TR": "土耳其" } },
+            "ja-JP": { include: ["ja-JP"], labels: { "ja-JP": "日本" } },
+            "ko-KR": { include: ["ko-KR"], labels: { "ko-KR": "韓國" } },
+            "vi-VN": { include: ["vi-VN"], labels: { "vi-VN": "越南（北部）" } },
+            "id-ID": { include: ["id-ID", "ms-MY"], labels: { "id-ID": "印尼語", "ms-MY": "馬來語" } },
+            "th-TH": { include: ["th-TH"], labels: { "th-TH": "泰國" } },
+            "sw-KE": { include: ["sw-KE", "sw-TZ"], labels: { "sw-KE": "肯亞", "sw-TZ": "坦尚尼亞" } }
+        };
+
+        // --- UI 元素 ---
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userInfo = document.getElementById('userInfo');
+        const keyWrapper = document.getElementById('keyWrapper');
+        const keySection = document.getElementById('keySection');
+        const toggleKeyBtn = document.getElementById('toggleKeyBtn');
+        const gptKeyInput = document.getElementById('gptKey');
+        const saveKeyBtn = document.getElementById('saveKeyBtn');
+        const statusEl = document.getElementById('status');
+
+        const langEl = document.getElementById('lang');
+        const voiceEl = document.getElementById('voice');
+        const textEl = document.getElementById('text');
+        const rateEl = document.getElementById('rate');
+        const pitchEl = document.getElementById('pitch');
+        const rateVal = document.getElementById('rateVal');
+        const pitchVal = document.getElementById('pitchVal');
+        const fontSizeEl = document.getElementById('fontSize');
+        const fontSizeVal = document.getElementById('fontSizeVal');
+        const ipaWrap = document.getElementById('ipaWrap');
+        const ipaEl = document.getElementById('ipa');
+        const ipaImg = document.getElementById('ipaImg');
+        const canvas = document.getElementById('pad');
+        const ctx = canvas.getContext('2d');
+        const samplesEl = document.getElementById('samples');
+
+        let lastIPAQuery = { text: '', lang: '', ipa: '' };
+
+        // === 登入 / 登出 ===
+        loginBtn.onclick = () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider)
+                .catch(err => alert("登入失敗：" + err.message));
+        };
+        logoutBtn.onclick = () => auth.signOut();
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+                userInfo.textContent = `已登入：${user.email}`;
+                keyWrapper.classList.remove('hidden');
+
+                // 讀取 Firestore 使用者的 Key
+                try {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    const savedKey = doc.exists ? doc.data().gptApiKey : null;
+                    if (savedKey) {
+                        gptKeyInput.value = savedKey;
+                        statusEl.textContent = "✅ 已載入 Firestore 中的 Key";
+                    } else {
+                        statusEl.textContent = "⚠️ 尚未儲存 API Key";
+                    }
+                } catch (e) {
+                    statusEl.textContent = "❌ 讀取失敗：" + e.message;
+                }
+            } else {
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+                userInfo.textContent = '';
+                keyWrapper.classList.add('hidden');
+                gptKeyInput.value = '';
+            }
+        });
+
+        // Toggle Key Section
+        toggleKeyBtn.addEventListener('click', () => {
+            const isHidden = keySection.style.display === 'none';
+            keySection.style.display = isHidden ? 'block' : 'none';
+            toggleKeyBtn.textContent = isHidden ? '▲ 隱藏 GPT 設定' : '▼ 設定 GPT API Key';
+        });
+
+        // Save Key
+        saveKeyBtn.onclick = async () => {
+            if (!auth.currentUser) return alert("請先登入！");
+            const key = gptKeyInput.value.trim();
+            if (!key) return alert("請輸入 API Key");
+            try {
+                await db.collection('users').doc(auth.currentUser.uid).set({
+                    gptApiKey: key,
+                    gptUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                statusEl.textContent = "✅ 已儲存到 Firestore！";
+            } catch (err) {
+                statusEl.textContent = "❌ 儲存失敗：" + err.message;
+            }
+        };
+
+
+        // === Canvas & TTS ===
+        const DPR = window.devicePixelRatio || 1;
+        let strokes = []; let isDrawing = false; let currentStroke = null;
+        let customFontSize = 72;
+
+        async function loadSwadeshCSV() {
+            try {
+                const resp = await fetch('swadesh.csv');
+                if (!resp.ok) throw new Error("CSV not found");
+                const csvText = await resp.text();
+                const data = Papa.parse(csvText, { header: true }).data;
+                const SAMPLE_TEXTS = {};
+
+                data.forEach(row => {
+                    for (const [lang, word] of Object.entries(row)) {
+                        if (!word) continue;
+                        if (!SAMPLE_TEXTS[lang]) SAMPLE_TEXTS[lang] = [];
+                        SAMPLE_TEXTS[lang].push(word);
+                    }
+                });
+
+                window.SAMPLE_TEXTS = SAMPLE_TEXTS;
+                renderChips();
+            } catch (e) {
+                console.log("No Swadesh CSV found or parsing error, skipping.");
+                window.SAMPLE_TEXTS = {};
+            }
+        }
+
+        loadSwadeshCSV();
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * DPR; canvas.height = rect.height * DPR;
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = '#22d3ee';
+            redraw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function wrapTextSmart(text, maxW, fontSize) {
+            ctx.font = `${fontSize}px sans-serif`;
+            const useWords = /\s/.test(text);
+            const units = useWords ? text.split(/\s+/) : [...text];
+            const lines = []; let line = '';
+            for (const u of units) {
+                const test = line ? (useWords ? line + ' ' + u : line + u) : u;
+                if (ctx.measureText(test).width > maxW * 0.92 && line) { lines.push(line); line = u; }
+                else line = test;
+            }
+            if (line) lines.push(line);
+            return lines.slice(0, 6);
+        }
+
+        function drawBackgroundText() {
+            const text = textEl.value.trim();
+            ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(200,200,200,0.25)';
+            const maxW = canvas.width / DPR, maxH = canvas.height / DPR;
+            if (text) {
+                const fs = customFontSize;
+                const lines = wrapTextSmart(text, maxW, fs);
+                ctx.font = `${fs}px sans-serif`; const lh = fs * 1.2;
+                const startY = (maxH / 2) - ((lines.length - 1) * lh / 2);
+                lines.forEach((line, i) => ctx.fillText(line, maxW / 2, startY + i * lh));
+            } else { ctx.font = '20px sans-serif'; ctx.fillText('在此手寫…', maxW / 2, maxH / 2); }
+            ctx.restore();
+        }
+
+        function drawStrokes() {
+            ctx.save(); ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+            const draw = s => {
+                if (!s || s.length < 2) return; ctx.beginPath(); ctx.moveTo(s[0].x, s[0].y);
+                for (let i = 1; i < s.length; i++)ctx.lineTo(s[i].x, s[i].y); ctx.stroke();
+            };
+            strokes.forEach(draw); if (currentStroke) draw(currentStroke); ctx.restore();
+        }
+
+        function redraw() { ctx.clearRect(0, 0, canvas.width, canvas.height); drawBackgroundText(); drawStrokes(); }
+
+        function posFromEvent(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+        canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); isDrawing = true; currentStroke = [posFromEvent(e)]; redraw(); });
+        canvas.addEventListener('pointermove', e => { if (!isDrawing) return; currentStroke.push(posFromEvent(e)); redraw(); });
+        function endStroke() { if (isDrawing && currentStroke?.length) { strokes.push(currentStroke); currentStroke = null; redraw(); } isDrawing = false; }
+        canvas.addEventListener('pointerup', endStroke);
+        canvas.addEventListener('pointercancel', endStroke);
+        canvas.addEventListener('pointerleave', endStroke);
+        document.getElementById('clearBtn').addEventListener('click', () => { strokes = []; redraw(); });
+
+        // TTS Voices
+        function loadVoices() {
+            let voices = speechSynthesis.getVoices();
+            if (!voices.length) return;
+
+            const lang = langEl.value;
+            voiceEl.innerHTML = '';
+
+            const variant = VOICE_VARIANTS[lang];
+            let list = [];
+
+            if (variant) {
+                list = voices.filter(v =>
+                    variant.include.some(code => v.lang?.toLowerCase().replace('_', '-').startsWith(code.toLowerCase()))
+                );
+            }
+            if (!list.length) {
+                list = voices.filter(v => v.lang?.toLowerCase().replace('_', '-').startsWith(lang.toLowerCase().split('-')[0]));
+            }
+
+            // Fallback: 如果都沒找到，顯示所有
+            const finalVoices = list.length ? list : voices;
+
+            finalVoices.forEach(v => {
+                const opt = document.createElement('option');
+                const label = variant?.labels?.[v.lang] || v.lang;
+                opt.value = v.name;
+                opt.textContent = `${v.name} (${label})`;
+                voiceEl.appendChild(opt);
+            });
+        }
+
+        function waitForVoices() {
+            return new Promise(resolve => {
+                let id = setInterval(() => {
+                    if (speechSynthesis.getVoices().length) {
+                        clearInterval(id);
+                        resolve();
+                    }
+                }, 250);
+            });
+        }
+
+        speechSynthesis.onvoiceschanged = loadVoices;
+        waitForVoices().then(loadVoices);
+
+        voiceEl.addEventListener('change', () => {
+            if (textEl.value.trim()) {
+                // 不自動朗讀，避免太吵，只更新 voice
+            }
+        });
+
+        langEl.addEventListener('change', () => {
+            loadVoices();
+            if (window.SAMPLE_TEXTS && window.SAMPLE_TEXTS[langEl.value]) {
+                textEl.placeholder = window.SAMPLE_TEXTS[langEl.value][0];
+            } else {
+                textEl.placeholder = "輸入文字...";
+            }
+            renderChips();
+        });
+
+        // Speak & Fetch IPA
+        async function speakNow() {
+            const text = textEl.value.trim();
+            if (!text) return;
+
+            // TTS
+            const u = new SpeechSynthesisUtterance(text);
+            const voices = speechSynthesis.getVoices();
+            const sel = voices.find(v => v.name === voiceEl.value);
+            if (sel) u.voice = sel;
+            u.lang = langEl.value;
+            u.rate = parseFloat(rateEl.value);
+            u.pitch = parseFloat(pitchEl.value);
+            speechSynthesis.cancel();
+            speechSynthesis.speak(u);
+
+            // Fetch IPA
+            if (lastIPAQuery.text !== text || lastIPAQuery.lang !== langEl.value) {
+                await fetchIPA(text, langEl.value);
+            } else {
+                ipaWrap.style.display = 'block';
+                ipaEl.textContent = `📘 IPA: ${lastIPAQuery.ipa}`;
+            }
+        }
+
+        // 修改後的 fetchIPA 函數，加入快取機制
+        async function fetchIPA(text, langCode) {
+            const sentence = text.trim();
+            if (!sentence) return;
+
+            ipaWrap.style.display = 'block';
+            ipaEl.textContent = '🔄 查詢中...';
+
+            // 產生存放於資料庫的唯一 ID (語言+文字)
+            const cacheId = `${langCode}_${sentence}`.replace(/[\/\.#$\[\]]/g, '_');
+
+            try {
+                // --- 步驟 1: 檢查 Firestore 快取 ---
+                const cacheDoc = await db.collection('ipa_cache').doc(cacheId).get();
+                if (cacheDoc.exists) {
+                    const cachedIpa = cacheDoc.data().ipa;
+                    ipaEl.textContent = `📘 IPA (快取): ${cachedIpa}`;
+                    lastIPAQuery = { text: sentence, lang: langCode, ipa: cachedIpa };
+                    showWordImage(sentence);
+                    return; // 找到快取，直接結束，不呼叫 GPT
+                }
+
+                // --- 步驟 2: 如果沒有快取，則呼叫 GPT ---
+                const gptKey = gptKeyInput.value.trim();
+                if (!gptKey) {
+                    ipaEl.textContent = '⚠️ 請設定 GPT Key 以取得 IPA';
+                    return;
+                }
+
+                const langName = langEl.options[langEl.selectedIndex].textContent.replace(/ ?[^\w\s\(\)]/g, '').trim();
+                const prompt = `Please write the full International Phonetic Alphabet (IPA) transcription for the following sentence in ${langName}: "${sentence}". Only output the IPA transcription, no explanations.`;
+
+                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${gptKey}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [{ role: "user", content: prompt }],
+                        temperature: 0
+                    })
+                });
+
+                const data = await resp.json();
+                if (resp.ok && data.choices?.[0]?.message?.content) {
+                    const ipa = data.choices[0].message.content.trim();
+
+                    // --- 步驟 3: 將結果存入 Firestore 快取 ---
+                    await db.collection('ipa_cache').doc(cacheId).set({
+                        text: sentence,
+                        lang: langCode,
+                        ipa: ipa,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    ipaEl.textContent = `📘 IPA: ${ipa}`;
+                    lastIPAQuery = { text: sentence, lang: langCode, ipa };
+                } else {
+                    throw new Error(data.error?.message || "GPT 查詢失敗");
+                }
+
+            } catch (e) {
+                console.error("IPA 處理錯誤", e);
+                ipaEl.textContent = `❌ 錯誤: ${e.message}`;
+            }
+
+            showWordImage(sentence);
+        }
+        function showWordImage(word) {
+            // 注意：這裡假設 swadesh 資料夾存在，若沒有則會隱藏圖片
+            const base = `swadesh/${encodeURIComponent(word)}`;
+            ipaImg.style.display = 'none';
+
+            // 簡單的圖片載入嘗試
+            const tryImg = new Image();
+            tryImg.onload = () => {
+                ipaImg.src = tryImg.src;
+                ipaImg.style.display = 'block';
+            };
+            tryImg.onerror = () => {
+                // 試試 png
+                const tryPng = new Image();
+                tryPng.onload = () => {
+                    ipaImg.src = tryPng.src;
+                    ipaImg.style.display = 'block';
+                };
+                tryPng.src = `${base}.png`;
+            };
+            tryImg.src = `${base}.jpg`;
+        }
+
+        // Listeners
+        rateEl.addEventListener('input', () => { rateVal.textContent = rateEl.value; });
+        pitchEl.addEventListener('input', () => { pitchVal.textContent = pitchEl.value; });
+        fontSizeEl.addEventListener('input', () => {
+            customFontSize = parseInt(fontSizeEl.value, 10);
+            fontSizeVal.textContent = customFontSize; redraw();
+        });
+        textEl.addEventListener('input', () => redraw());
+        document.getElementById('speakBtn').addEventListener('click', speakNow);
+
+        function renderChips() {
+            if (!window.SAMPLE_TEXTS) return;
+            const samples = window.SAMPLE_TEXTS[langEl.value] || [];
+            samplesEl.innerHTML = '';
+            samples.forEach(txt => {
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.textContent = txt;
+                chip.onclick = () => {
+                    textEl.value = txt;
+                    redraw();
+                    if (langEl.value.startsWith('en')) fetchIPA(txt, langEl.value);
+                };
+                samplesEl.appendChild(chip);
+            });
+        }
+
+        // Init
+        renderChips();
+        resizeCanvas();
+    </script>
+</body>
+
+</html>
