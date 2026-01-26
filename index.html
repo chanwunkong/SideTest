@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>語言學習控制中心</title>
+    <title>學習控制中心</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -32,13 +32,14 @@
             padding: 20px;
             border-radius: 20px;
             border: 1px solid #1f2937;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         h1 {
             font-size: 1.5rem;
             margin-bottom: 20px;
             color: #22d3ee;
+            text-align: center;
         }
 
         label {
@@ -49,6 +50,7 @@
         }
 
         select,
+        input,
         button {
             width: 100%;
             padding: 12px;
@@ -79,11 +81,6 @@
             border-radius: 15px;
             aspect-ratio: 1/1;
             transition: 0.2s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        }
-
-        .nav-box:active {
-            transform: scale(0.95);
         }
 
         .box-1 {
@@ -98,28 +95,35 @@
             display: none !important;
         }
 
-        #userInfo {
+        #statusMsg {
             font-size: 12px;
             color: #22d3ee;
-            margin-top: 10px;
-            display: block;
+            margin-top: 8px;
             text-align: center;
+            display: block;
         }
     </style>
 </head>
 
 <body>
-    <h1>學習設定中心</h1>
+    <h1>學習控制中心</h1>
 
     <div class="card">
         <div id="loginSection">
-            <button id="loginBtn" style="background: #0ea5e9; color: #000;">使用 Google 登入</button>
+            <button id="loginBtn" style="background: #0ea5e9; color: #000; font-weight: bold;">使用 Google 登入同步</button>
         </div>
         <div id="logoutSection" class="hidden">
-            <span id="userInfo"></span>
+            <p id="userInfo" style="font-size:12px; text-align:center; color:#aaa;"></p>
             <button id="logoutBtn"
-                style="background: #ef4444; color: white; padding: 8px; font-size: 12px;">登出帳號</button>
+                style="background: #ef4444; color: white; padding: 8px; font-size: 12px; margin-top:8px;">登出帳號</button>
         </div>
+
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #1f2937;">
+
+        <label>OpenAI API Key (用於生成 IPA 標音)</label>
+        <input type="password" id="globalKey" placeholder="sk-...">
+        <button id="saveKeyBtn" style="background: #22d3ee; color: #000; font-weight: bold;">儲存所有設定</button>
+        <span id="statusMsg"></span>
 
         <label>目標學習語言</label>
         <select id="globalLang">
@@ -138,14 +142,8 @@
     </div>
 
     <div class="grid">
-        <a href="test1.html" class="nav-box box-1">
-            <span style="font-size: 2rem;">✍️</span>
-            <span>手寫練習</span>
-        </a>
-        <a href="test2.html" class="nav-box box-2">
-            <span style="font-size: 2rem;">🧩</span>
-            <span>語法排序</span>
-        </a>
+        <a href="test1.html" class="nav-box box-1"><span>✍️ 手寫練習</span></a>
+        <a href="test2.html" class="nav-box box-2"><span>🧩 語法排序</span></a>
     </div>
 
     <script>
@@ -154,39 +152,69 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // 儲存設定到 localStorage
-        const syncSettings = () => {
-            localStorage.setItem('userLang', document.getElementById('globalLang').value);
-            localStorage.setItem('userCourse', document.getElementById('globalCourse').value);
+        const keyInput = document.getElementById('globalKey');
+        const langInput = document.getElementById('globalLang');
+        const courseInput = document.getElementById('globalCourse');
+        const statusMsg = document.getElementById('statusMsg');
+
+        // 儲存設定到 LocalStorage 與 Firestore
+        const saveAllSettings = async () => {
+            const key = keyInput.value.trim();
+            const lang = langInput.value;
+            const course = courseInput.value;
+
+            localStorage.setItem('gptApiKey', key);
+            localStorage.setItem('userLang', lang);
+            localStorage.setItem('userCourse', course);
+
+            if (auth.currentUser) {
+                await db.collection('users').doc(auth.currentUser.uid).set({
+                    gptApiKey: key,
+                    userLang: lang,
+                    userCourse: course,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                statusMsg.textContent = "✅ 已同步至雲端帳號";
+            } else {
+                statusMsg.textContent = "💾 已儲存至此瀏覽器";
+            }
         };
 
-        document.getElementById('globalLang').onchange = syncSettings;
-        document.getElementById('globalCourse').onchange = syncSettings;
+        document.getElementById('saveKeyBtn').onclick = saveAllSettings;
+        langInput.onchange = saveAllSettings;
+        courseInput.onchange = saveAllSettings;
 
-        // 登入監聽：獲取 Key 並存入 localStorage
+        // 登入狀態監聽
         auth.onAuthStateChanged(user => {
             if (user) {
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('logoutSection').classList.remove('hidden');
                 document.getElementById('userInfo').textContent = `已登入：${user.email}`;
+
                 db.collection('users').doc(user.uid).get().then(doc => {
-                    if (doc.exists) localStorage.setItem('gptApiKey', doc.data().gptApiKey);
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (data.gptApiKey) {
+                            keyInput.value = data.gptApiKey;
+                            localStorage.setItem('gptApiKey', data.gptApiKey);
+                        }
+                        if (data.userLang) langInput.value = data.userLang;
+                        if (data.userCourse) courseInput.value = data.userCourse;
+                    }
                 });
             } else {
                 document.getElementById('loginSection').classList.remove('hidden');
                 document.getElementById('logoutSection').classList.add('hidden');
-                localStorage.removeItem('gptApiKey');
+                keyInput.value = localStorage.getItem('gptApiKey') || '';
             }
         });
 
         document.getElementById('loginBtn').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
         document.getElementById('logoutBtn').onclick = () => auth.signOut();
 
-        // 初始載入設定
         window.onload = () => {
-            if (localStorage.getItem('userLang')) document.getElementById('globalLang').value = localStorage.getItem('userLang');
-            if (localStorage.getItem('userCourse')) document.getElementById('globalCourse').value = localStorage.getItem('userCourse');
-            syncSettings();
+            if (localStorage.getItem('userLang')) langInput.value = localStorage.getItem('userLang');
+            if (localStorage.getItem('userCourse')) courseInput.value = localStorage.getItem('userCourse');
         };
     </script>
 </body>
