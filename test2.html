@@ -290,67 +290,43 @@
             speechSynthesis.speak(u);
         }
 
-        // --- 🚀 強化版：整合 Chunk 功能與語言同步 ---
+        // --- 強化版：整合 Chunk 功能與語言同步 ---
+
         async function getNextExercise() {
-            const settings = getSettings(); // 動態抓取控制中心的語言與 Key
-            if (!settings.key) return alert("請先前往控制中心設定 API Key！");
+            const settings = getSettings();
+            const user = firebase.auth().currentUser;
+            if (!user) return alert("請先登入以讀取您的熟練單字庫！");
 
             resetUI();
-            document.getElementById('langDisplay').textContent = `目標語言：${settings.lang}`;
-            document.getElementById('feedback').textContent = "🧠 AI 老師正在組織語義組塊...";
-
-            // 1. 抓取隨機種子單字
-            const seeds = [];
-            for (let i = 0; i < 3; i++) {
-                const word = wordBank[Math.floor(Math.random() * wordBank.length)];
-                seeds.push(word ? word['en-US'] : "daily life");
-            }
-
-            // 2. 💡 關鍵：強化 Prompt，強制 AI 進行「組塊化」拆解
-            const prompt = `You are a professional teacher of ${settings.lang}.
-    TASK:
-    1. Create ONE simple CEFR A1-A2 sentence in "${settings.lang}" using concepts: [${seeds.join(', ')}].
-    2. THE SENTENCE MUST BE IN "${settings.lang}". DO NOT USE ENGLISH.
-    3. Split the sentence into 3-5 meaningful CHUNKS (e.g., Noun Phrases, Verb Phrases).
-    4. Provide a brief grammatical analysis for each chunk in Traditional Chinese.
-
-    JSON ONLY FORMAT:
-    {
-        "sentence": "Full sentence in ${settings.lang}",
-        "chunks": [
-            {"text": "Subject Chunk", "type": "noun", "analysis": "主詞部分..."},
-            {"text": "Verb Chunk", "type": "verb", "analysis": "動作部分..."},
-            {"text": "Modifier Chunk", "type": "adv", "analysis": "修飾部分..."}
-        ]
-    }`;
+            document.getElementById('feedback').textContent = "🔍 正在從您的三星單字庫選詞...";
 
             try {
-                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${settings.key}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        model: "gpt-4o-mini",
-                        messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" }
-                    })
-                });
+                // 💡 關鍵：只抓取在 test1 練滿 3 次的單字
+                const snapshot = await db.collection('users').doc(user.uid).collection('mastery')
+                    .where('lang', '==', settings.lang)
+                    .where('is_ready_for_chunk', '==', true)
+                    .limit(20).get();
 
-                const result = await resp.json();
-                // 解析 AI 回傳的組塊資料
-                currentSentenceData = JSON.parse(result.choices[0].message.content);
+                if (snapshot.empty) {
+                    alert("熟練單字不足！請先在「手寫練習」將單字練至三星 (⭐ ⭐ ⭐)。");
+                    return;
+                }
 
-                // 啟用生圖按鈕並渲染遊戲介面
-                document.getElementById('genImageBtn').disabled = false;
-                renderGame(currentSentenceData);
+                // 從三星庫隨機挑 3 個種子詞給 AI
+                const docs = snapshot.docs;
+                const seeds = [];
+                const count = Math.min(3, docs.length);
+                for (let i = 0; i < count; i++) {
+                    const randomIdx = Math.floor(Math.random() * docs.length);
+                    seeds.push(docs[randomIdx].data().word);
+                }
 
-            } catch (e) {
-                console.error("生成失敗:", e);
-                document.getElementById('feedback').textContent = "❌ 生成失敗，請檢查 API Key 或網路";
-            }
+                // 後續帶入您原有的 AI Prompt 邏輯
+                const prompt = `You are a teacher... using concepts: [${seeds.join(', ')}]...`;
+                // ...執行 Fetch OpenAI API...
+            } catch (e) { console.error("篩選單字失敗", e); }
         }
+
         function renderGame(data) {
             const workspace = document.getElementById('workspace');
             const pool = document.getElementById('wordPool');

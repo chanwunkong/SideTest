@@ -391,6 +391,27 @@
 
         loadSwadeshCSV();
 
+        async function updateWordMastery(word) {
+            const user = firebase.auth().currentUser;
+            if (!user) return;
+
+            const settings = getGlobalSettings();
+            const wordId = btoa(unescape(encodeURIComponent(`${settings.lang}_${word}`))).substring(0, 50);
+            const wordRef = db.collection('users').doc(user.uid).collection('mastery').doc(wordId);
+
+            await wordRef.set({
+                word: word,
+                lang: settings.lang,
+                count: firebase.firestore.FieldValue.increment(1),
+                lastStudied: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            const doc = await wordRef.get();
+            if (doc.data().count >= 3) {
+                await wordRef.update({ is_ready_for_chunk: true });
+            }
+            renderChips(); // 重新渲染以即時顯示星星
+        }
         function resizeCanvas() {
             const rect = canvas.getBoundingClientRect();
             canvas.width = rect.width * DPR; canvas.height = rect.height * DPR;
@@ -605,6 +626,7 @@
 
             showWordImage(sentence);
         }
+
         function showWordImage(word) {
             // 注意：這裡假設 swadesh 資料夾存在，若沒有則會隱藏圖片
             const base = `swadesh/${encodeURIComponent(word)}`;
@@ -638,29 +660,43 @@
         textEl.addEventListener('input', () => redraw());
         document.getElementById('speakBtn').addEventListener('click', speakNow);
 
-        function renderChips() {
-            if (!window.SAMPLE_TEXTS) return;
-            const allWords = window.SAMPLE_TEXTS[sharedLang] || [];
+        async function renderChips() {
+            const settings = getGlobalSettings();
+            const samplesEl = document.getElementById('samples');
+
+            // 從 Firebase 抓取目前的熟練度地圖
+            let masteryMap = {};
+            if (userId) {
+                const snap = await db.collection('users').doc(userId).collection('mastery')
+                    .where('lang', '==', settings.lang).get();
+                snap.forEach(doc => masteryMap[doc.data().word] = doc.data().count);
+            }
+
             samplesEl.innerHTML = '';
+            // 根據 Stage 篩選單字 (例如 Stage 1: Core 40)
+            const stageFilter = settings.course === 'all' ? '' : settings.course;
 
-            let [start, end] = sharedCourse === 'all' ? [1, 207] : sharedCourse.split('-').map(Number);
-
-            allWords.forEach((txt, i) => {
-                const num = i + 1;
-                if (num >= start && num <= end) {
+            window.allWordData.forEach((row) => {
+                const word = row[settings.lang];
+                if (word && (stageFilter === '' || row['Stage'] === stageFilter)) {
                     const chip = document.createElement('div');
                     chip.className = 'chip';
-                    chip.textContent = txt;
+
+                    // 視覺化星星：滿三顆即解鎖
+                    const count = masteryMap[word] || 0;
+                    const stars = '⭐'.repeat(Math.min(count, 3));
+
+                    chip.innerHTML = `${word}<small style="display:block; font-size:10px; opacity:0.6;">${stars || '☆☆☆'}</small>`;
+
                     chip.onclick = () => {
-                        textEl.value = txt;
-                        redraw();
-                        speakNow(); // 會自動調用 sharedKey
+                        document.getElementById('text').value = word;
+                        speakNow(word);
+                        updateWordMastery(word); // 每次點擊即練習一次
                     };
                     samplesEl.appendChild(chip);
                 }
             });
         }
-
         // Init
         renderChips();
         resizeCanvas();
