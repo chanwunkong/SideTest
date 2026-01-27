@@ -207,27 +207,6 @@
                         <p style="margin:0;font-size:12px;color:#6b7280">支援手寫 + 語音 + IPA · Mobile-first</p>
                     </div>
                 </div>
-
-                <div id="loginPanel">
-                    <div style="display:flex; gap:10px; width:100%">
-                        <button id="loginBtn" class="primary" style="font-size:14px; padding:8px;">使用 Google 登入</button>
-                        <button id="logoutBtn" class="danger hidden" style="font-size:14px; padding:8px;">登出</button>
-                    </div>
-                    <span id="userInfo"></span>
-                </div>
-
-                <div id="keyWrapper" class="hidden" style="margin-top:10px; width:100%;">
-                    <button id="toggleKeyBtn"
-                        style="width:100%; background:#1f2937; color:#fff; font-size:12px; padding:8px;">▼ 設定 GPT API
-                        Key</button>
-                    <div id="keySection"
-                        style="display:none; margin-top:10px; padding:10px; background:#111827; border-radius:10px;">
-                        <input id="gptKey" type="password" placeholder="輸入 OpenAI API Key (sk-...)"
-                            style="margin-bottom:8px;">
-                        <button id="saveKeyBtn" class="primary" style="width:100%">儲存 Key</button>
-                        <p id="status" style="font-size:12px; margin:5px 0 0 0; color:#aaa;"></p>
-                    </div>
-                </div>
             </header>
 
             <div class="section">
@@ -379,66 +358,6 @@
         const samplesEl = document.getElementById('samples');
 
         let lastIPAQuery = { text: '', lang: '', ipa: '' };
-
-        // === 登入 / 登出 ===
-        loginBtn.onclick = () => {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider)
-                .catch(err => alert("登入失敗：" + err.message));
-        };
-        logoutBtn.onclick = () => auth.signOut();
-
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                loginBtn.classList.add('hidden');
-                logoutBtn.classList.remove('hidden');
-                userInfo.textContent = `已登入：${user.email}`;
-                keyWrapper.classList.remove('hidden');
-
-                // 讀取 Firestore 使用者的 Key
-                try {
-                    const doc = await db.collection('users').doc(user.uid).get();
-                    const savedKey = doc.exists ? doc.data().gptApiKey : null;
-                    if (savedKey) {
-                        gptKeyInput.value = savedKey;
-                        statusEl.textContent = "✅ 已載入 Firestore 中的 Key";
-                    } else {
-                        statusEl.textContent = "⚠️ 尚未儲存 API Key";
-                    }
-                } catch (e) {
-                    statusEl.textContent = "❌ 讀取失敗：" + e.message;
-                }
-            } else {
-                loginBtn.classList.remove('hidden');
-                logoutBtn.classList.add('hidden');
-                userInfo.textContent = '';
-                keyWrapper.classList.add('hidden');
-                gptKeyInput.value = '';
-            }
-        });
-
-        // Toggle Key Section
-        toggleKeyBtn.addEventListener('click', () => {
-            const isHidden = keySection.style.display === 'none';
-            keySection.style.display = isHidden ? 'block' : 'none';
-            toggleKeyBtn.textContent = isHidden ? '▲ 隱藏 GPT 設定' : '▼ 設定 GPT API Key';
-        });
-
-        // Save Key
-        saveKeyBtn.onclick = async () => {
-            if (!auth.currentUser) return alert("請先登入！");
-            const key = gptKeyInput.value.trim();
-            if (!key) return alert("請輸入 API Key");
-            try {
-                await db.collection('users').doc(auth.currentUser.uid).set({
-                    gptApiKey: key,
-                    gptUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-                statusEl.textContent = "✅ 已儲存到 Firestore！";
-            } catch (err) {
-                statusEl.textContent = "❌ 儲存失敗：" + err.message;
-            }
-        };
 
 
         // === Canvas & TTS ===

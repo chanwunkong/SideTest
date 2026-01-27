@@ -107,7 +107,6 @@
 
 <body>
     <h1>學習控制中心</h1>
-
     <div class="card">
         <div id="loginSection">
             <button id="loginBtn" style="background: #0ea5e9; color: #000; font-weight: bold;">使用 Google 登入同步</button>
@@ -117,14 +116,11 @@
             <button id="logoutBtn"
                 style="background: #ef4444; color: white; padding: 8px; font-size: 12px; margin-top:8px;">登出帳號</button>
         </div>
-
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid #1f2937;">
-
-        <label>OpenAI API Key (用於生成 IPA 標音)</label>
+        <label>OpenAI API Key (用於 IPA 與 AI 出題)</label>
         <input type="password" id="globalKey" placeholder="sk-...">
         <button id="saveKeyBtn" style="background: #22d3ee; color: #000; font-weight: bold;">儲存所有設定</button>
         <span id="statusMsg"></span>
-
         <label>目標學習語言</label>
         <select id="globalLang">
             <option value="en-US">English 🇺🇸</option>
@@ -132,7 +128,6 @@
             <option value="zh-TW">中文 (繁體) 🇹🇼</option>
             <option value="ja-JP">日本語 🇯🇵</option>
         </select>
-
         <label>學習課程進度</label>
         <select id="globalCourse">
             <option value="all">全部單字</option>
@@ -140,14 +135,17 @@
             <option value="31-60">課程 2 (31-60)</option>
         </select>
     </div>
-
     <div class="grid">
         <a href="test1.html" class="nav-box box-1"><span>✍️ 手寫練習</span></a>
         <a href="test2.html" class="nav-box box-2"><span>🧩 語法排序</span></a>
     </div>
 
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM", projectId: "test-5dbba" };
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM",
+            authDomain: "test-5dbba.firebaseapp.com", // 修正：登入必要參數
+            projectId: "test-5dbba"
+        };
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
@@ -157,7 +155,6 @@
         const courseInput = document.getElementById('globalCourse');
         const statusMsg = document.getElementById('statusMsg');
 
-        // 儲存設定到 LocalStorage 與 Firestore
         const saveAllSettings = async () => {
             const key = keyInput.value.trim();
             const lang = langInput.value;
@@ -169,37 +166,28 @@
 
             if (auth.currentUser) {
                 await db.collection('users').doc(auth.currentUser.uid).set({
-                    gptApiKey: key,
-                    userLang: lang,
-                    userCourse: course,
+                    gptApiKey: key, userLang: lang, userCourse: course,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
                 statusMsg.textContent = "✅ 已同步至雲端帳號";
-            } else {
-                statusMsg.textContent = "💾 已儲存至此瀏覽器";
-            }
+            } else { statusMsg.textContent = "💾 已儲存至此瀏覽器"; }
         };
 
         document.getElementById('saveKeyBtn').onclick = saveAllSettings;
         langInput.onchange = saveAllSettings;
         courseInput.onchange = saveAllSettings;
 
-        // 登入狀態監聽
         auth.onAuthStateChanged(user => {
             if (user) {
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('logoutSection').classList.remove('hidden');
                 document.getElementById('userInfo').textContent = `已登入：${user.email}`;
-
                 db.collection('users').doc(user.uid).get().then(doc => {
                     if (doc.exists) {
                         const data = doc.data();
-                        if (data.gptApiKey) {
-                            keyInput.value = data.gptApiKey;
-                            localStorage.setItem('gptApiKey', data.gptApiKey);
-                        }
-                        if (data.userLang) langInput.value = data.userLang;
-                        if (data.userCourse) courseInput.value = data.userCourse;
+                        if (data.gptApiKey) { keyInput.value = data.gptApiKey; localStorage.setItem('gptApiKey', data.gptApiKey); }
+                        if (data.userLang) { langInput.value = data.userLang; localStorage.setItem('userLang', data.userLang); }
+                        if (data.userCourse) { courseInput.value = data.userCourse; localStorage.setItem('userCourse', data.userCourse); }
                     }
                 });
             } else {
@@ -209,12 +197,23 @@
             }
         });
 
-        document.getElementById('loginBtn').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-        document.getElementById('logoutBtn').onclick = () => auth.signOut();
+        document.getElementById('loginBtn').onclick = () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(err => alert("登入失敗：" + err.message));
+        };
+        document.getElementById('logoutBtn').onclick = () => {
+            // 1. 清除 Firebase 登入狀態
+            auth.signOut().then(() => {
+                // 2. 強制清除本地儲存的敏感資料
+                localStorage.removeItem('gptApiKey');
+                localStorage.removeItem('userLang');
+                localStorage.removeItem('userCourse');
 
-        window.onload = () => {
-            if (localStorage.getItem('userLang')) langInput.value = localStorage.getItem('userLang');
-            if (localStorage.getItem('userCourse')) courseInput.value = localStorage.getItem('userCourse');
+                // 3. 清空輸入框並通知使用者
+                document.getElementById('globalKey').value = '';
+                alert("已登出並清除本地設定紀錄");
+                location.reload(); // 重新整理頁面以確保狀態重置
+            });
         };
     </script>
 </body>
