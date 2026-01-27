@@ -52,7 +52,6 @@
             font-weight: bold;
         }
 
-        /* 組塊放置區 */
         .sentence-display {
             background: var(--card);
             border: 2px dashed #334155;
@@ -72,7 +71,6 @@
             background: #064e3b;
         }
 
-        /* 組塊積木 */
         .word-chip {
             padding: 12px 18px;
             border-radius: 12px;
@@ -232,26 +230,18 @@
             <a href="index.html" class="back-link">← 返回控制中心</a>
             <span id="langDisplay" style="font-size: 12px; color: #94a3b8;">載入中...</span>
         </div>
-
         <h2 style="text-align: center; margin: 0 0 20px 0;">AI 組塊語法練習</h2>
-
         <div class="controls">
             <button class="btn-ai" id="nextBtn">✨ 生成新題目</button>
             <button class="btn-img" id="genImageBtn" disabled>🎨 生圖</button>
         </div>
         <button class="btn-play" id="playBtn">🔊 播放整句語音</button>
-
         <div id="imageContainer"><img id="generatedImage" src="" alt="AI Image"></div>
-
         <div id="feedback"></div>
-
         <div class="sentence-display" id="workspace"></div>
         <div class="pool" id="wordPool"></div>
-
         <button class="btn-check" id="checkBtn">送出檢查</button>
-
         <div id="analysisPane"></div>
-
         <div class="history-section">
             <h3 style="font-size: 16px; margin-bottom: 15px; color: #22d3ee;">📚 最近練習紀錄</h3>
             <div id="historyList"></div>
@@ -259,33 +249,35 @@
     </div>
 
     <script>
-        // --- 初始化 Firebase ---
         const firebaseConfig = { apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM", projectId: "test-5dbba" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
 
-        // 💡 關鍵：動態獲取 LocalStorage 資料的函式
         const getSettings = () => ({
             lang: localStorage.getItem('userLang') || 'en-US',
             key: localStorage.getItem('gptApiKey') || ''
         });
 
-        // 初始化顯示
         document.getElementById('langDisplay').textContent = `目標語言：${getSettings().lang}`;
 
         let currentSentenceData = null;
         let wordBank = [];
         let userId = null;
 
-        // 載入字庫
         fetch('swadesh.csv').then(r => r.text()).then(csv => {
             wordBank = Papa.parse(csv, { header: true }).data;
         });
 
-        auth.onAuthStateChanged(user => { if (user) { userId = user.uid; loadHistory(); } });
+        // 監聽登入狀態
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                userId = user.uid;
+                console.log("✅ Firebase 已登入:", userId);
+                loadHistory();
+            }
+        });
 
-        // 監聽跨分頁的資料變更
         window.addEventListener('storage', () => {
             document.getElementById('langDisplay').textContent = `目標語言：${getSettings().lang}`;
         });
@@ -298,66 +290,77 @@
             speechSynthesis.speak(u);
         }
 
-        // --- AI 出題：Chunking 模式 ---
+        // --- 🚀 強化版：整合 Chunk 功能與語言同步 ---
         async function getNextExercise() {
-            const settings = getSettings();
-            if (!settings.key) return alert("請先設定 API Key！");
+            const settings = getSettings(); // 動態抓取控制中心的語言與 Key
+            if (!settings.key) return alert("請先前往控制中心設定 API Key！");
 
             resetUI();
             document.getElementById('langDisplay').textContent = `目標語言：${settings.lang}`;
-            document.getElementById('feedback').textContent = "🧠 AI 老師正在撰寫義大利文組塊...";
+            document.getElementById('feedback').textContent = "🧠 AI 老師正在組織語義組塊...";
 
+            // 1. 抓取隨機種子單字
             const seeds = [];
             for (let i = 0; i < 3; i++) {
                 const word = wordBank[Math.floor(Math.random() * wordBank.length)];
-                seeds.push(word ? word['en-US'] : "family");
+                seeds.push(word ? word['en-US'] : "daily life");
             }
 
-            // 💡 關鍵：明確要求 OUTPUT LANGUAGE
+            // 2. 💡 關鍵：強化 Prompt，強制 AI 進行「組塊化」拆解
             const prompt = `You are a professional teacher of ${settings.lang}.
     TASK:
-    1. Create ONE simple CEFR A1-A2 sentence in "${settings.lang}" based on the concepts: [${seeds.join(', ')}].
+    1. Create ONE simple CEFR A1-A2 sentence in "${settings.lang}" using concepts: [${seeds.join(', ')}].
     2. THE SENTENCE MUST BE IN "${settings.lang}". DO NOT USE ENGLISH.
-    3. Split the "${settings.lang}" sentence into 3-5 meaningful CHUNKS.
-    4. Provide the grammatical analysis in Traditional Chinese.
+    3. Split the sentence into 3-5 meaningful CHUNKS (e.g., Noun Phrases, Verb Phrases).
+    4. Provide a brief grammatical analysis for each chunk in Traditional Chinese.
 
-    JSON ONLY: {
-        "sentence": "The full sentence in ${settings.lang}",
+    JSON ONLY FORMAT:
+    {
+        "sentence": "Full sentence in ${settings.lang}",
         "chunks": [
-            {"text": "Chunk in ${settings.lang}", "type": "noun|verb|adv", "analysis": "這部分是..."}
+            {"text": "Subject Chunk", "type": "noun", "analysis": "主詞部分..."},
+            {"text": "Verb Chunk", "type": "verb", "analysis": "動作部分..."},
+            {"text": "Modifier Chunk", "type": "adv", "analysis": "修飾部分..."}
         ]
     }`;
 
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
-                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
+                    headers: {
+                        "Authorization": `Bearer ${settings.key}`,
+                        "Content-Type": "application/json"
+                    },
                     body: JSON.stringify({
                         model: "gpt-4o-mini",
                         messages: [{ role: "user", content: prompt }],
                         response_format: { type: "json_object" }
                     })
                 });
+
                 const result = await resp.json();
+                // 解析 AI 回傳的組塊資料
                 currentSentenceData = JSON.parse(result.choices[0].message.content);
+
+                // 啟用生圖按鈕並渲染遊戲介面
                 document.getElementById('genImageBtn').disabled = false;
                 renderGame(currentSentenceData);
-            } catch (e) { document.getElementById('feedback').textContent = "❌ 生成失敗"; }
-        }
 
+            } catch (e) {
+                console.error("生成失敗:", e);
+                document.getElementById('feedback').textContent = "❌ 生成失敗，請檢查 API Key 或網路";
+            }
+        }
         function renderGame(data) {
             const workspace = document.getElementById('workspace');
             const pool = document.getElementById('wordPool');
             currentSentenceData.correctOrder = data.chunks.map(c => c.text);
-
             const shuffled = [...data.chunks].sort(() => Math.random() - 0.5);
             const labels = { 'noun': '名詞組', 'verb': '動詞組', 'adv': '修飾語' };
-
             shuffled.forEach(item => {
                 const chip = document.createElement('div');
                 chip.className = `word-chip pos-${item.type || 'other'}`;
                 chip.innerHTML = `${item.text}<small>${labels[item.type] || '組塊'}</small>`;
-
                 chip.onclick = () => {
                     if (!chip.classList.contains('selected')) {
                         speak(item.text);
@@ -372,32 +375,95 @@
             document.getElementById('feedback').textContent = "請拼湊正確的組塊順序";
         }
 
-        function showAnalysis() {
-            const pane = document.getElementById('analysisPane');
-            pane.style.display = 'block';
-            pane.innerHTML = `<b style="color:#22d3ee">🔍 組塊解析：</b><br>` +
-                currentSentenceData.chunks.map(c => `<b>${c.text}</b>: ${c.analysis}`).join('<br>');
-        }
-
         document.getElementById('checkBtn').onclick = () => {
             const userOrder = Array.from(document.getElementById('workspace').children).map(c => c.childNodes[0].textContent.trim());
             const success = JSON.stringify(userOrder) === JSON.stringify(currentSentenceData.correctOrder);
             const fb = document.getElementById('feedback');
-
             if (success) {
                 fb.textContent = "🎉 太棒了！順序正確";
                 fb.style.color = "#10b981";
                 document.getElementById('workspace').classList.add('correct');
                 speak(currentSentenceData.sentence);
-                showAnalysis();
-                updateHistory(currentSentenceData);
+                document.getElementById('analysisPane').style.display = 'block';
+                document.getElementById('analysisPane').innerHTML = `<b style="color:#22d3ee">🔍 組塊解析：</b><br>` + currentSentenceData.chunks.map(c => `<b>${c.text}</b>: ${c.analysis}`).join('<br>');
+                updateHistory(currentSentenceData); // 💡 強制觸發上傳
             } else {
                 fb.textContent = "❌ 順序不對，再試試看";
                 fb.style.color = "#ef4444";
             }
         };
 
-        // --- 輔助功能 ---
+        // --- 🚀 Firebase 強制上傳修正邏輯 ---
+        async function updateHistory(data) {
+            // 💡 修正 1：即時獲取目前登入者，防止 userId 為 null
+            const currentUser = firebase.auth().currentUser;
+            if (!currentUser) {
+                console.warn("⚠️ 未登入，無法儲存至雲端");
+                return;
+            }
+
+            const settings = getSettings();
+            const docId = btoa(unescape(encodeURIComponent(data.sentence + "_" + settings.lang))).substring(0, 50);
+
+            try {
+                // 💡 修正 2：明確定義子集合路徑
+                const docRef = db.collection('users').doc(currentUser.uid).collection('history').doc(docId);
+
+                await docRef.set({
+                    sentence: data.sentence,
+                    chunks: data.chunks,
+                    lang: settings.lang,
+                    lastStudy: firebase.firestore.FieldValue.serverTimestamp(),
+                    count: firebase.firestore.FieldValue.increment(1)
+                }, { merge: true });
+
+                console.log("🚀 Firebase 上傳成功:", data.sentence);
+                loadHistory();
+            } catch (e) {
+                console.error("❌ Firebase 上傳失敗:", e);
+            }
+        }
+
+        async function loadHistory() {
+            const listEl = document.getElementById('historyList');
+            const settings = getSettings();
+            const currentUser = firebase.auth().currentUser;
+
+            if (!currentUser) {
+                listEl.innerHTML = "<div style='color:#6b7280; font-size:12px;'>登入後即可同步雲端紀錄</div>";
+                return;
+            }
+
+            try {
+                // 💡 修正 3：先讀取「不排序」的版本，防止因為沒設索引導致整個函式報錯停止
+                let snapshot = await db.collection('users').doc(currentUser.uid)
+                    .collection('history')
+                    .where('lang', '==', settings.lang)
+                    .limit(5)
+                    .get();
+
+                // 💡 修正 4：如果基礎讀取有資料，就顯示。
+                listEl.innerHTML = snapshot.empty ? "<div style='color:#6b7280; font-size:12px;'>尚無練習紀錄</div>" : "";
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const div = document.createElement('div');
+                    div.className = 'history-item';
+                    div.innerHTML = `<div style="display:flex; justify-content:space-between;"><strong>${data.sentence}</strong><small>${data.count || 1}次</small></div>`;
+                    div.onclick = () => {
+                        resetUI();
+                        currentSentenceData = data;
+                        renderGame(data);
+                        document.getElementById('feedback').textContent = "🔄 重新練習舊題目";
+                    };
+                    listEl.appendChild(div);
+                });
+            } catch (e) {
+                console.error("❌ 讀取歷史失敗:", e);
+                listEl.innerHTML = "讀取紀錄時發生錯誤";
+            }
+        }
+
         function resetUI() {
             document.getElementById('workspace').innerHTML = "";
             document.getElementById('workspace').classList.remove('correct');
@@ -407,36 +473,9 @@
             document.getElementById('feedback').textContent = "";
         }
 
-        async function updateHistory(data) {
-            if (!userId) return;
-            const settings = getSettings();
-            const docId = btoa(unescape(encodeURIComponent(data.sentence + "_" + settings.lang))).substring(0, 50);
-            await db.collection('users').doc(userId).collection('history').doc(docId).set({
-                ...data, lang: settings.lang, lastStudy: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-            loadHistory();
-        }
-
-        async function loadHistory() {
-            if (!userId) return;
-            const settings = getSettings();
-            const snapshot = await db.collection('users').doc(userId).collection('history').where('lang', '==', settings.lang).orderBy('lastStudy', 'desc').limit(5).get();
-            const listEl = document.getElementById('historyList');
-            listEl.innerHTML = "";
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const div = document.createElement('div');
-                div.className = 'history-item';
-                div.innerHTML = `<strong>${data.sentence}</strong>`;
-                div.onclick = () => { resetUI(); currentSentenceData = data; renderGame(data); };
-                listEl.appendChild(div);
-            });
-        }
-
         new Sortable(document.getElementById('workspace'), { animation: 150 });
         document.getElementById('nextBtn').onclick = getNextExercise;
         document.getElementById('playBtn').onclick = () => speak(currentSentenceData?.sentence);
-
     </script>
 </body>
 
