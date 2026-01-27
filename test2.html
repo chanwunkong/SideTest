@@ -295,36 +295,78 @@
         async function getNextExercise() {
             const settings = getSettings();
             const user = firebase.auth().currentUser;
-            if (!user) return alert("請先登入以讀取您的熟練單字庫！");
+            if (!user) return alert("請先登入！");
+
+            if (!settings.key) return alert("請先在控制中心設定 OpenAI API Key！");
 
             resetUI();
-            document.getElementById('feedback').textContent = "🔍 正在從您的三星單字庫選詞...";
+            document.getElementById('feedback').textContent = `🔍 正在搜尋 ${settings.lang} 的三星單字...`;
 
             try {
-                // 💡 關鍵：只抓取在 test1 練滿 3 次的單字
+                // 1. 搜尋符合語系且達標三星的單字
                 const snapshot = await db.collection('users').doc(user.uid).collection('mastery')
                     .where('lang', '==', settings.lang)
                     .where('is_ready_for_chunk', '==', true)
                     .limit(20).get();
 
                 if (snapshot.empty) {
-                    alert("熟練單字不足！請先在「手寫練習」將單字練至三星 (⭐ ⭐ ⭐)。");
+                    alert(`在 [${settings.lang}] 中找不到三星單字！\n請先在「手寫練習」將單字練至三星。`);
+                    document.getElementById('feedback').textContent = "等待單字達標...";
                     return;
                 }
 
-                // 從三星庫隨機挑 3 個種子詞給 AI
+                // 2. 隨機挑選 3 個單字作為題目種子
                 const docs = snapshot.docs;
                 const seeds = [];
-                const count = Math.min(3, docs.length);
-                for (let i = 0; i < count; i++) {
-                    const randomIdx = Math.floor(Math.random() * docs.length);
-                    seeds.push(docs[randomIdx].data().word);
+                const selectionCount = Math.min(3, docs.length);
+                const shuffled = docs.sort(() => Math.random() - 0.5);
+                for (let i = 0; i < selectionCount; i++) {
+                    seeds.push(shuffled[i].data().word);
                 }
 
-                // 後續帶入您原有的 AI Prompt 邏輯
-                const prompt = `You are a teacher... using concepts: [${seeds.join(', ')}]...`;
-                // ...執行 Fetch OpenAI API...
-            } catch (e) { console.error("篩選單字失敗", e); }
+                document.getElementById('feedback').textContent = `🤖 AI 正在使用 [${seeds.join(', ')}] 編寫題目...`;
+
+                // 3. 呼叫 OpenAI API
+                const prompt = `You are a professional language teacher. 
+Create a natural sentence in ${settings.lang} using the concepts: [${seeds.join(', ')}].
+Return the result in JSON format ONLY:
+{
+  "sentence": "Full sentence here",
+  "chunks": [
+    {"text": "subject phrase", "type": "noun", "analysis": "grammar explanation"},
+    {"text": "verb phrase", "type": "verb", "analysis": "grammar explanation"},
+    {"text": "object/modifier", "type": "adj", "analysis": "grammar explanation"}
+  ]
+}`;
+
+                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${settings.key}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [{ role: "user", content: prompt }],
+                        response_format: { type: "json_object" },
+                        temperature: 0.7
+                    })
+                });
+
+                const result = await resp.json();
+                if (result.error) throw new Error(result.error.message);
+
+                const aiData = JSON.parse(result.choices[0].message.content);
+
+                // 4. 渲染遊戲畫面
+                currentSentenceData = aiData;
+                renderGame(aiData);
+                document.getElementById('genImageBtn').disabled = false;
+
+            } catch (e) {
+                console.error("生成題目失敗:", e);
+                document.getElementById('feedback').textContent = "❌ 生成失敗: " + e.message;
+            }
         }
 
         function renderGame(data) {

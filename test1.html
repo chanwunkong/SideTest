@@ -349,22 +349,30 @@
             }
         }
 
-        async function updateConceptMastery() {
-            const conceptId = textEl.dataset.conceptId;
-            if (!userId || !conceptId) return;
-            const settings = getGlobalSettings();
-            const masteryId = `${settings.lang}_${conceptId}`.replace(/[\/\.#$\[\]]/g, '_');
-            const wordRef = db.collection('users').doc(userId).collection('mastery').doc(masteryId);
-            await wordRef.set({
-                conceptId,
-                lang: settings.lang,
-                count: firebase.firestore.FieldValue.increment(1),
-                lastStudied: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+async function updateConceptMastery() {
+    const conceptId = textEl.dataset.conceptId; // 這通常是英文，如 "eat"
+    if (!userId || !conceptId) return;
+    const settings = getGlobalSettings();
+    const masteryId = `${settings.lang}_${conceptId}`.replace(/[\/\.#$\[\]]/g, '_');
+    const wordRef = db.collection('users').doc(userId).collection('mastery').doc(masteryId);
+    
+    // 1. 先獲取目前的次數
+    const doc = await wordRef.get();
+    const currentCount = (doc.exists ? (doc.data().count || 0) : 0) + 1;
 
-            // 僅局部更新該單字的星星，不重刷整頁
-            renderChips();
-        }
+    // 2. 存入資料，包含 test2.html 需要的 is_ready_for_chunk 與 word 欄位
+    await wordRef.set({ 
+        conceptId: conceptId,
+        word: conceptId,          // 💡 重要：test2.html 用這個欄位當種子詞
+        lang: settings.lang, 
+        count: currentCount,
+        is_ready_for_chunk: currentCount >= 3, // 💡 重要：達到 3 星時設為 true
+        lastStudied: firebase.firestore.FieldValue.serverTimestamp() 
+    }, { merge: true });
+    
+    console.log(`單字 ${conceptId} 進度更新：${currentCount}次`);
+    renderChips(); // 更新畫面星星
+}
 
         function drawBackgroundText() {
             const text = textEl.value.trim();
