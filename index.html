@@ -177,19 +177,28 @@
             const lang = langInput.value;
             const course = courseInput.value;
 
+            // ✅ 新增：立即存入本地，確保其他分頁（test1, test2）能立刻讀到
             localStorage.setItem('gptApiKey', key);
             localStorage.setItem('userLang', lang);
             localStorage.setItem('userCourse', course);
 
-            if (auth.currentUser) {
-                await db.collection('users').doc(auth.currentUser.uid).set({
-                    gptApiKey: key, userLang: lang, userCourse: course,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-                statusMsg.textContent = "✅ 已同步至雲端帳號";
-            } else { statusMsg.textContent = "💾 已儲存至此瀏覽器"; }
-        };
-
+            const user = auth.currentUser;
+            if (user) {
+                try {
+                    await db.collection('users').doc(user.uid).set({
+                        gptApiKey: key,
+                        userLang: lang,
+                        userCourse: course,
+                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    alert("設定已儲存至雲端與本地！");
+                } catch (e) {
+                    alert("雲端儲存失敗：" + e.message);
+                }
+            } else {
+                alert("設定已儲存至本地（未登入雲端）");
+            }
+        }
         document.getElementById('saveKeyBtn').onclick = saveAllSettings;
         langInput.onchange = saveAllSettings;
         courseInput.onchange = saveAllSettings;
