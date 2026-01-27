@@ -93,6 +93,8 @@
             cursor: pointer;
             border: 1px solid transparent;
             transition: 0.2s;
+            min-width: 60px;
+            text-align: center;
         }
 
         .chip:hover {
@@ -188,6 +190,8 @@
                 <span id="langDisplay" style="font-size: 12px; color: #94a3b8;">載入中...</span>
             </div>
 
+            <div id="status" style="font-size: 12px; text-align: center; margin-bottom: 5px; color: #6b7280;"></div>
+
             <div class="chips" id="samples"></div>
 
             <textarea id="text" readonly placeholder="點擊單字開始"></textarea>
@@ -230,28 +234,10 @@
             key: localStorage.getItem('gptApiKey') || ''
         });
 
-        // 更新語言顯示的函式
         function updateLangDisplay() {
             const settings = getGlobalSettings();
             document.getElementById('langDisplay').textContent = `目標語言：${settings.lang}`;
         }
-
-        // 監聽登入狀態與語系顯示
-        auth.onAuthStateChanged(user => {
-            userId = user ? user.uid : null;
-            // 移除原本的 status 文字，改為顯示目標語言
-            updateLangDisplay();
-            loadSwadeshCSV();
-        });
-
-        // 監聽 LocalStorage 變化 (當你在控制中心切換語言時，這邊會同步更新)
-        window.addEventListener('storage', () => {
-            updateLangDisplay();
-            renderChips(); // 重新渲染單字晶片
-        });
-
-        // 初始化時也執行一次
-        updateLangDisplay();
 
         const canvas = document.getElementById('pad');
         const ctx = canvas.getContext('2d');
@@ -260,6 +246,7 @@
         const samplesEl = document.getElementById('samples');
         const fontSizeEl = document.getElementById('fontSize');
         const fontSizeVal = document.getElementById('fontSizeVal');
+        const statusEl = document.getElementById('status');
 
         let userId = null;
         let isDrawing = false;
@@ -268,8 +255,14 @@
 
         auth.onAuthStateChanged(user => {
             userId = user ? user.uid : null;
-            document.getElementById('status').textContent = user ? `學習者：${user.email.split('@')[0]}` : "尚未登入";
+            statusEl.textContent = user ? `學習者：${user.email.split('@')[0]}` : "尚未登入";
+            updateLangDisplay();
             loadSwadeshCSV();
+        });
+
+        window.addEventListener('storage', () => {
+            updateLangDisplay();
+            renderChips();
         });
 
         async function loadSwadeshCSV() {
@@ -284,13 +277,18 @@
         async function getTranslatedWord(englishWord, targetLang) {
             if (!englishWord) return "";
             if (targetLang.startsWith('en')) return englishWord;
+
+            // 修正：快取 ID 必須包含語言，否則不同語言會讀到同一個快取
             const cacheId = `trans_${targetLang}_${englishWord}`.replace(/[\/\.#$\[\]]/g, '_');
             const transRef = db.collection('translation_cache').doc(cacheId);
+
             try {
                 const cacheDoc = await transRef.get();
                 if (cacheDoc.exists) return cacheDoc.data().translatedText;
+
                 const settings = getGlobalSettings();
-                if (!settings.key) return englishWord;
+                if (!settings.key) return englishWord + " (需Key)";
+
                 const prompt = `Translate the English concept "${englishWord}" into ${targetLang}. Provide ONLY the simplest dictionary form. No periods.`;
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
@@ -298,16 +296,21 @@
                     body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], temperature: 0 })
                 });
                 const data = await resp.json();
+                if (data.error) throw new Error(data.error.message);
+
                 const translatedText = data.choices[0].message.content.trim();
                 await transRef.set({ english: englishWord, translatedText, lang: targetLang });
                 return translatedText;
-            } catch (e) { return englishWord; }
+            } catch (e) {
+                console.warn("翻譯失敗:", e);
+                return englishWord;
+            }
         }
 
         async function renderChips() {
             if (!window.allWordData) return;
             const settings = getGlobalSettings();
-            samplesEl.innerHTML = '<div style="color:var(--accent); text-align:center; width:100%;">🌍 語言意象同步中...</div>';
+            samplesEl.innerHTML = '';
 
             let masteryMap = {};
             if (userId) {
@@ -321,32 +324,29 @@
             const stageFilter = settings.course;
             const filteredRows = window.allWordData.filter(row => row['en-US'] && (stageFilter === 'all' || row['Stage'] === stageFilter));
 
-            try {
-                // 💡 修正 1：物件結構統一
-                const chipData = await Promise.all(filteredRows.map(async (row) => {
-                    const englishWord = row['en-US'];
-                    const translated = await getTranslatedWord(englishWord, settings.lang);
-                    return { cid: englishWord, txt: translated };
-                }));
+            // 優化：逐一生成 Chip，避免 API 請求過於集中導致卡死
+            for (const row of filteredRows) {
+                const englishWord = row['en-US'];
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.innerHTML = `<span>...</span><small style="display:block; font-size:10px; opacity:0.6;">☆☆☆</small>`;
+                samplesEl.appendChild(chip);
 
-                samplesEl.innerHTML = '';
-                chipData.forEach((item) => {
-                    const chip = document.createElement('div');
-                    chip.className = 'chip';
-                    const count = masteryMap[item.cid] || 0;
+                // 非同步更新該 Chip 的內容
+                getTranslatedWord(englishWord, settings.lang).then(translated => {
+                    const count = masteryMap[englishWord] || 0;
                     const stars = '⭐'.repeat(Math.min(count, 3));
-                    // 💡 修正 2：明確渲染翻譯內容
-                    chip.innerHTML = `${item.txt}<small style="display:block; font-size:10px; opacity:0.6;">${stars || '☆☆☆'}</small>`;
+                    chip.innerHTML = `${translated}<small style="display:block; font-size:10px; opacity:0.6;">${stars || '☆☆☆'}</small>`;
+
                     chip.onclick = () => {
-                        textEl.dataset.conceptId = item.cid;
-                        textEl.value = item.txt;
+                        textEl.dataset.conceptId = englishWord;
+                        textEl.value = translated;
                         strokes = [];
                         redraw();
-                        speakAndFetchIPA(item.txt);
+                        speakAndFetchIPA(translated);
                     };
-                    samplesEl.appendChild(chip);
                 });
-            } catch (err) { samplesEl.innerHTML = '⚠️ 同步失敗'; }
+            }
         }
 
         async function updateConceptMastery() {
@@ -355,7 +355,14 @@
             const settings = getGlobalSettings();
             const masteryId = `${settings.lang}_${conceptId}`.replace(/[\/\.#$\[\]]/g, '_');
             const wordRef = db.collection('users').doc(userId).collection('mastery').doc(masteryId);
-            await wordRef.set({ conceptId, lang: settings.lang, count: firebase.firestore.FieldValue.increment(1), lastStudied: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            await wordRef.set({
+                conceptId,
+                lang: settings.lang,
+                count: firebase.firestore.FieldValue.increment(1),
+                lastStudied: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            // 僅局部更新該單字的星星，不重刷整頁
             renderChips();
         }
 
@@ -390,22 +397,26 @@
             redraw();
         }
 
-        canvas.onpointerdown = (e) => { isDrawing = true; strokes.push([{ x: e.offsetX, y: e.offsetY }]); };
+        canvas.onpointerdown = (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            strokes.push([{ x: e.clientX - rect.left, y: e.clientY - rect.top }]);
+        };
         canvas.onpointermove = (e) => {
             if (!isDrawing) return;
-            const pos = { x: e.offsetX, y: e.offsetY };
+            const rect = canvas.getBoundingClientRect();
+            const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
             strokes[strokes.length - 1].push(pos);
-            ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 5; ctx.lineCap = 'round';
-            ctx.lineTo(pos.x, pos.y); ctx.stroke();
+            redraw();
         };
-        canvas.onpointerup = () => { isDrawing = false; redraw(); };
+        canvas.onpointerup = () => { isDrawing = false; };
         fontSizeEl.oninput = (e) => { customFontSize = e.target.value; fontSizeVal.textContent = customFontSize; redraw(); };
         document.getElementById('clearBtn').onclick = () => { strokes = []; redraw(); };
 
         async function recognizeHandwriting() {
             if (strokes.length === 0) return alert("請先寫字！");
             const settings = getGlobalSettings();
-            document.getElementById('status').textContent = "🔍 AI 辨識中...";
+            statusEl.textContent = "🔍 AI 辨識中...";
             const trace = strokes.map(s => [s.map(p => Math.round(p.x)), s.map(p => Math.round(p.y))]);
             try {
                 const resp = await fetch("https://www.google.com.tw/inputtools/request?ime=handwriting&app=autotags&cs=1&oe=UTF-8", {
@@ -415,7 +426,7 @@
                 });
                 const data = await resp.json();
                 if (data[0] === "SUCCESS") checkSimilarity(data[1][0][1][0]);
-            } catch (e) { console.error(e); }
+            } catch (e) { statusEl.textContent = "辨識服務錯誤"; }
         }
 
         function checkSimilarity(aiText) {
@@ -426,11 +437,10 @@
             document.getElementById('aiText').textContent = aiText;
             document.getElementById('simVal').textContent = similarity;
             if (similarity >= 80) {
-                document.getElementById('status').textContent = "✨ 辨識成功！";
-                // 💡 修正 3：呼叫正確的加星函式
+                statusEl.textContent = "✨ 辨識成功！";
                 updateConceptMastery();
             } else {
-                document.getElementById('status').textContent = "❌ 相似度不足";
+                statusEl.textContent = "❌ 相似度不足";
             }
         }
 
