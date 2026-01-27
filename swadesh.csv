@@ -1,6 +1,6 @@
 en-US,POS,zh-TW,Stage,Tag
 I,pronoun,我,Stage 1,AAC Core
-you (singular),pronoun,你,Stage 1,AAC Core
+you,pronoun,你,Stage 1,AAC Core
 want,verb,要,Stage 1,AAC Core
 go,verb,去,Stage 1,AAC Core
 good,adj,好,Stage 1,AAC Core
@@ -41,7 +41,7 @@ woman,noun,女人,Stage 1,AAC Core
 child,noun,兒童,Stage 1,AAC Core
 he,pronoun,他,Stage 2,Swadesh
 we,pronoun,我們,Stage 2,Swadesh
-you (plural),pronoun,你們,Stage 2,Swadesh
+you,pronoun,你們,Stage 2,Swadesh
 they,pronoun,他們,Stage 2,Swadesh
 that,pronoun,那,Stage 2,Swadesh
 there,other,那裡,Stage 2,Swadesh
@@ -82,7 +82,7 @@ fruit,noun,水果,Stage 2,Swadesh
 seed,noun,種子,Stage 2,Swadesh
 leaf,noun,葉子,Stage 2,Swadesh
 root,noun,根,Stage 2,Swadesh
-bark (of a tree),noun,樹皮,Stage 2,Swadesh
+bark,noun,樹皮,Stage 2,Swadesh
 flower,noun,花,Stage 2,Swadesh
 grass,noun,草,Stage 2,Swadesh
 rope,noun,繩,Stage 2,Swadesh
@@ -90,7 +90,7 @@ skin,noun,皮膚,Stage 2,Swadesh
 meat,noun,肉,Stage 2,Swadesh
 blood,noun,血,Stage 2,Swadesh
 bone,noun,骨,Stage 2,Swadesh
-fat (noun),noun,脂肪,Stage 2,Swadesh
+fat,noun,脂肪,Stage 2,Swadesh
 egg,noun,蛋,Stage 2,Swadesh
 horn,noun,角,Stage 2,Swadesh
 tail,noun,尾巴,Stage 2,Swadesh
@@ -143,10 +143,10 @@ dig,verb,挖,Stage 2,Swadesh
 swim,verb,游泳,Stage 2,Swadesh
 fly,verb,飛,Stage 2,Swadesh
 walk,verb,走路,Stage 2,Swadesh
-lie (as in a bed),verb,躺,Stage 2,Swadesh
+lie,verb,躺,Stage 2,Swadesh
 sit,verb,坐,Stage 2,Swadesh
 stand,verb,站,Stage 2,Swadesh
-turn (vertical),verb,轉,Stage 2,Swadesh
+turn,verb,轉,Stage 2,Swadesh
 fall,verb,落下,Stage 2,Swadesh
 squeeze,verb,擠,Stage 2,Swadesh
 rub,verb,擦,Stage 2,Swadesh
