@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>單字手寫練習 - AI 辨識版</title>
+    <title>單字手寫練習 - 意象主導 AI 版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -45,7 +45,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             border-bottom: 1px solid #334155;
             padding-bottom: 10px;
         }
@@ -184,8 +184,8 @@
     <div class="wrap">
         <div class="app">
             <div class="header">
-                <a href="index.html" class="back-link">← 控制中心</a>
-                <div id="status" style="font-size: 12px; color: #94a3b8;">載入中...</div>
+                <a href="index.html" class="back-link">← 返回控制中心</a>
+                <span id="langDisplay" style="font-size: 12px; color: #94a3b8;">載入中...</span>
             </div>
 
             <div class="chips" id="samples"></div>
@@ -230,6 +230,29 @@
             key: localStorage.getItem('gptApiKey') || ''
         });
 
+        // 更新語言顯示的函式
+        function updateLangDisplay() {
+            const settings = getGlobalSettings();
+            document.getElementById('langDisplay').textContent = `目標語言：${settings.lang}`;
+        }
+
+        // 監聽登入狀態與語系顯示
+        auth.onAuthStateChanged(user => {
+            userId = user ? user.uid : null;
+            // 移除原本的 status 文字，改為顯示目標語言
+            updateLangDisplay();
+            loadSwadeshCSV();
+        });
+
+        // 監聽 LocalStorage 變化 (當你在控制中心切換語言時，這邊會同步更新)
+        window.addEventListener('storage', () => {
+            updateLangDisplay();
+            renderChips(); // 重新渲染單字晶片
+        });
+
+        // 初始化時也執行一次
+        updateLangDisplay();
+
         const canvas = document.getElementById('pad');
         const ctx = canvas.getContext('2d');
         const textEl = document.getElementById('text');
@@ -258,35 +281,82 @@
             } catch (e) { console.error("CSV 加載錯誤", e); }
         }
 
+        async function getTranslatedWord(englishWord, targetLang) {
+            if (!englishWord) return "";
+            if (targetLang.startsWith('en')) return englishWord;
+            const cacheId = `trans_${targetLang}_${englishWord}`.replace(/[\/\.#$\[\]]/g, '_');
+            const transRef = db.collection('translation_cache').doc(cacheId);
+            try {
+                const cacheDoc = await transRef.get();
+                if (cacheDoc.exists) return cacheDoc.data().translatedText;
+                const settings = getGlobalSettings();
+                if (!settings.key) return englishWord;
+                const prompt = `Translate the English concept "${englishWord}" into ${targetLang}. Provide ONLY the simplest dictionary form. No periods.`;
+                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], temperature: 0 })
+                });
+                const data = await resp.json();
+                const translatedText = data.choices[0].message.content.trim();
+                await transRef.set({ english: englishWord, translatedText, lang: targetLang });
+                return translatedText;
+            } catch (e) { return englishWord; }
+        }
+
         async function renderChips() {
             if (!window.allWordData) return;
             const settings = getGlobalSettings();
+            samplesEl.innerHTML = '<div style="color:var(--accent); text-align:center; width:100%;">🌍 語言意象同步中...</div>';
+
             let masteryMap = {};
             if (userId) {
-                const snap = await db.collection('users').doc(userId).collection('mastery')
-                    .where('lang', '==', settings.lang).get();
-                snap.forEach(doc => masteryMap[doc.data().word] = doc.data().count);
+                try {
+                    const snap = await db.collection('users').doc(userId).collection('mastery')
+                        .where('lang', '==', settings.lang).get();
+                    snap.forEach(doc => { masteryMap[doc.data().conceptId] = doc.data().count || 0; });
+                } catch (e) { console.error("熟練度載入失敗", e); }
             }
-            samplesEl.innerHTML = '';
+
             const stageFilter = settings.course;
-            window.allWordData.forEach((row) => {
-                const word = row[settings.lang];
-                if (word && (stageFilter === 'all' || row['Stage'] === stageFilter)) {
+            const filteredRows = window.allWordData.filter(row => row['en-US'] && (stageFilter === 'all' || row['Stage'] === stageFilter));
+
+            try {
+                // 💡 修正 1：物件結構統一
+                const chipData = await Promise.all(filteredRows.map(async (row) => {
+                    const englishWord = row['en-US'];
+                    const translated = await getTranslatedWord(englishWord, settings.lang);
+                    return { cid: englishWord, txt: translated };
+                }));
+
+                samplesEl.innerHTML = '';
+                chipData.forEach((item) => {
                     const chip = document.createElement('div');
                     chip.className = 'chip';
-                    const count = masteryMap[word] || 0;
-                    chip.innerHTML = `${word}<small>${'⭐'.repeat(Math.min(count, 3)) || '☆☆☆'}</small>`;
+                    const count = masteryMap[item.cid] || 0;
+                    const stars = '⭐'.repeat(Math.min(count, 3));
+                    // 💡 修正 2：明確渲染翻譯內容
+                    chip.innerHTML = `${item.txt}<small style="display:block; font-size:10px; opacity:0.6;">${stars || '☆☆☆'}</small>`;
                     chip.onclick = () => {
-                        textEl.value = word;
+                        textEl.dataset.conceptId = item.cid;
+                        textEl.value = item.txt;
                         strokes = [];
                         redraw();
-                        speakAndFetchIPA(word);
-                        document.getElementById('aiText').textContent = "-";
-                        document.getElementById('simVal').textContent = "0";
+                        speakAndFetchIPA(item.txt);
                     };
                     samplesEl.appendChild(chip);
-                }
-            });
+                });
+            } catch (err) { samplesEl.innerHTML = '⚠️ 同步失敗'; }
+        }
+
+        async function updateConceptMastery() {
+            const conceptId = textEl.dataset.conceptId;
+            if (!userId || !conceptId) return;
+            const settings = getGlobalSettings();
+            const masteryId = `${settings.lang}_${conceptId}`.replace(/[\/\.#$\[\]]/g, '_');
+            const wordRef = db.collection('users').doc(userId).collection('mastery').doc(masteryId);
+            await wordRef.set({ conceptId, lang: settings.lang, count: firebase.firestore.FieldValue.increment(1), lastStudied: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            renderChips();
         }
 
         function drawBackgroundText() {
@@ -295,11 +365,7 @@
             ctx.save();
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-            let fontSize = parseInt(customFontSize);
-            ctx.font = `bold ${fontSize}px sans-serif`;
-            while (ctx.measureText(text).width > canvas.width * 0.9 && fontSize > 20) {
-                fontSize -= 5; ctx.font = `bold ${fontSize}px sans-serif`;
-            }
+            ctx.font = `bold ${customFontSize}px sans-serif`;
             ctx.fillText(text, canvas.width / 2, canvas.height / 2);
             ctx.restore();
         }
@@ -309,10 +375,10 @@
             drawBackgroundText();
             ctx.save();
             ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-            strokes.forEach(stroke => {
-                if (stroke.length < 2) return;
-                ctx.beginPath(); ctx.moveTo(stroke[0].x, stroke[0].y);
-                for (let i = 1; i < stroke.length; i++) ctx.lineTo(stroke[i].x, stroke[i].y);
+            strokes.forEach(s => {
+                if (s.length < 2) return;
+                ctx.beginPath(); ctx.moveTo(s[0].x, s[0].y);
+                for (let i = 1; i < s.length; i++) ctx.lineTo(s[i].x, s[i].y);
                 ctx.stroke();
             });
             ctx.restore();
@@ -324,12 +390,7 @@
             redraw();
         }
 
-        canvas.onpointerdown = (e) => {
-            isDrawing = true;
-            const pos = { x: e.offsetX, y: e.offsetY };
-            strokes.push([pos]);
-            ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
-        };
+        canvas.onpointerdown = (e) => { isDrawing = true; strokes.push([{ x: e.offsetX, y: e.offsetY }]); };
         canvas.onpointermove = (e) => {
             if (!isDrawing) return;
             const pos = { x: e.offsetX, y: e.offsetY };
@@ -341,125 +402,67 @@
         fontSizeEl.oninput = (e) => { customFontSize = e.target.value; fontSizeVal.textContent = customFontSize; redraw(); };
         document.getElementById('clearBtn').onclick = () => { strokes = []; redraw(); };
 
-        // 💡 AI 辨識邏輯
-
         async function recognizeHandwriting() {
-            if (strokes.length === 0) {
-                alert("請先在畫布上寫字！");
-                return;
-            }
-
+            if (strokes.length === 0) return alert("請先寫字！");
             const settings = getGlobalSettings();
-            document.getElementById('status').textContent = "🔍 AI 正在辨識中...";
-            document.getElementById('checkBtn').disabled = true; // 防止重複點擊
-
-            // 1. 轉換筆跡並確保座標為整數
-            const trace = strokes.map(stroke => [
-                stroke.map(p => Math.round(p.x)),
-                stroke.map(p => Math.round(p.y)),
-                []
-            ]);
-
-            // 2. 使用 HTTPS 網址
-            const url = "https://www.google.com.tw/inputtools/request?ime=handwriting&app=autotags&cs=1&oe=UTF-8";
-            const body = {
-                options: "enable_pre_space",
-                requests: [{
-                    writing_guide: { width: canvas.width, height: canvas.height },
-                    ink: trace,
-                    language: settings.lang // 確保語系與控制中心同步
-                }]
-            };
-
+            document.getElementById('status').textContent = "🔍 AI 辨識中...";
+            const trace = strokes.map(s => [s.map(p => Math.round(p.x)), s.map(p => Math.round(p.y))]);
             try {
-                const resp = await fetch(url, {
+                const resp = await fetch("https://www.google.com.tw/inputtools/request?ime=handwriting&app=autotags&cs=1&oe=UTF-8", {
                     method: 'POST',
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({ options: "enable_pre_space", requests: [{ writing_guide: { width: canvas.width, height: canvas.height }, ink: trace, language: settings.lang }] })
                 });
-
-                if (!resp.ok) throw new Error(`API 回傳錯誤: ${resp.status}`);
-
                 const data = await resp.json();
-
-                if (data[0] === "SUCCESS" && data[1][0][1].length > 0) {
-                    const aiResult = data[1][0][1][0]; // 取得候選字
-                    checkSimilarity(aiResult);
-                } else {
-                    document.getElementById('status').textContent = "❌ AI 無法辨識，請寫清楚一點";
-                }
-            } catch (e) {
-                console.error("辨識詳細錯誤:", e);
-                document.getElementById('status').textContent = "⚠️ 網路或 API 連線失敗";
-                alert("辨識發生問題，請檢查網路連線或稍後再試。");
-            } finally {
-                document.getElementById('checkBtn').disabled = false;
-            }
+                if (data[0] === "SUCCESS") checkSimilarity(data[1][0][1][0]);
+            } catch (e) { console.error(e); }
         }
+
         function checkSimilarity(aiText) {
             const target = textEl.value.trim().toLowerCase();
             const input = aiText.trim().toLowerCase();
             const distance = levenshtein(target, input);
-            const maxLen = Math.max(target.length, input.length);
-            const similarity = Math.round(((maxLen - distance) / maxLen) * 100);
-
+            const similarity = Math.round(((Math.max(target.length, input.length) - distance) / Math.max(target.length, input.length)) * 100);
             document.getElementById('aiText').textContent = aiText;
             document.getElementById('simVal').textContent = similarity;
-
             if (similarity >= 80) {
-                document.getElementById('status').textContent = "✨ 辨識成功！熟練度提升";
-                updateWordMastery(target);
+                document.getElementById('status').textContent = "✨ 辨識成功！";
+                // 💡 修正 3：呼叫正確的加星函式
+                updateConceptMastery();
             } else {
-                document.getElementById('status').textContent = "❌ 相似度不足，請重寫";
+                document.getElementById('status').textContent = "❌ 相似度不足";
             }
         }
 
         function levenshtein(a, b) {
-            const matrix = [];
-            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+            const m = [];
+            for (let i = 0; i <= b.length; i++) m[i] = [i];
+            for (let j = 0; j <= a.length; j++) m[0][j] = j;
             for (let i = 1; i <= b.length; i++) {
                 for (let j = 1; j <= a.length; j++) {
-                    if (b.charAt(i - 1) === a.charAt(j - 1)) matrix[i][j] = matrix[i - 1][j - 1];
-                    else matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+                    m[i][j] = b[i - 1] === a[j - 1] ? m[i - 1][j - 1] : Math.min(m[i - 1][j - 1] + 1, m[i][j - 1] + 1, m[i - 1][j] + 1);
                 }
             }
-            return matrix[b.length][a.length];
-        }
-
-        async function updateWordMastery(word) {
-            if (!userId) return;
-            const settings = getGlobalSettings();
-            const wordId = btoa(unescape(encodeURIComponent(`${settings.lang}_${word}`))).substring(0, 50);
-            const wordRef = db.collection('users').doc(userId).collection('mastery').doc(wordId);
-            await wordRef.set({ word, lang: settings.lang, count: firebase.firestore.FieldValue.increment(1), lastStudied: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            const doc = await wordRef.get();
-            if (doc.data().count >= 3) await wordRef.update({ is_ready_for_chunk: true });
-            renderChips();
+            return m[b.length][a.length];
         }
 
         async function speakAndFetchIPA(word) {
             const settings = getGlobalSettings();
+            speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(word); u.lang = settings.lang;
-            speechSynthesis.cancel(); speechSynthesis.speak(u);
-            ipaEl.textContent = "🔍 IPA 查詢中...";
-            const cacheId = `${settings.lang}_${word}`.replace(/[\/\.#$\[\]]/g, '_');
+            speechSynthesis.speak(u);
+            ipaEl.textContent = "🔍 IPA...";
             try {
-                const cacheDoc = await db.collection('ipa_cache').doc(cacheId).get();
-                if (cacheDoc.exists) { ipaEl.textContent = `[ ${cacheDoc.data().ipa} ]`; return; }
-                if (!settings.key) { ipaEl.textContent = "無 API Key"; return; }
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST", headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
                     body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: `Provide the IPA for "${word}" in ${settings.lang}. Output IPA only.` }] })
                 });
                 const result = await resp.json();
-                const ipaText = result.choices[0].message.content.trim();
-                await db.collection('ipa_cache').doc(cacheId).set({ ipa: ipaText, lang: settings.lang });
-                ipaEl.textContent = `[ ${ipaText} ]`;
+                ipaEl.textContent = `[ ${result.choices[0].message.content.trim()} ]`;
             } catch (e) { ipaEl.textContent = "IPA 失敗"; }
         }
 
-        window.onload = initCanvas; window.onresize = initCanvas;
+        window.onload = initCanvas;
         document.getElementById('checkBtn').onclick = recognizeHandwriting;
         document.getElementById('speakBtn').onclick = () => speakAndFetchIPA(textEl.value);
     </script>

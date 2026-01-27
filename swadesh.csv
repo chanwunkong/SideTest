@@ -1,225 +1,225 @@
-en-US,POS,zh-TW,Stage,Tag
-I,pronoun,我,Stage 1,AAC Core
-you,pronoun,你,Stage 1,AAC Core
-want,verb,要,Stage 1,AAC Core
-go,verb,去,Stage 1,AAC Core
-good,adj,好,Stage 1,AAC Core
-no,other,不,Stage 1,AAC Core
-eat,verb,吃,Stage 1,AAC Core
-drink,verb,喝,Stage 1,AAC Core
-here,other,這裡,Stage 1,AAC Core
-this,pronoun,這,Stage 1,AAC Core
-more,adj,還要,Stage 1,AAC Core
-finish,verb,完成,Stage 1,AAC Core
-help,verb,幫忙,Stage 1,AAC Core
-look,verb,看,Stage 1,AAC Core
-come,verb,來,Stage 1,AAC Core
-mine,pronoun,我的,Stage 1,AAC Core
-it,pronoun,它,Stage 1,AAC Core
-big,adj,大,Stage 1,AAC Core
-small,adj,小,Stage 1,AAC Core
-happy,adj,開心,Stage 1,AAC Core
-pain,noun,痛,Stage 1,AAC Core
-where,other,哪裡,Stage 1,AAC Core
-what,pronoun,什麼,Stage 1,AAC Core
-who,pronoun,誰,Stage 1,AAC Core
-on,other,上面,Stage 1,AAC Core
-under,other,下面,Stage 1,AAC Core
-please,other,請,Stage 1,AAC Core
-thanks,other,謝謝,Stage 1,AAC Core
-now,other,現在,Stage 1,AAC Core
-wait,verb,等一下,Stage 1,AAC Core
-give,verb,給,Stage 1,AAC Core
-stop,verb,停止,Stage 1,AAC Core
-play,verb,玩,Stage 1,AAC Core
-sleep,verb,睡覺,Stage 1,AAC Core
-toilet,noun,廁所,Stage 1,AAC Core
-water,noun,水,Stage 1,AAC Core
-food,noun,食物,Stage 1,AAC Core
-man,noun,男人,Stage 1,AAC Core
-woman,noun,女人,Stage 1,AAC Core
-child,noun,兒童,Stage 1,AAC Core
-he,pronoun,他,Stage 2,Swadesh
-we,pronoun,我們,Stage 2,Swadesh
-you,pronoun,你們,Stage 2,Swadesh
-they,pronoun,他們,Stage 2,Swadesh
-that,pronoun,那,Stage 2,Swadesh
-there,other,那裡,Stage 2,Swadesh
-when,other,什麼時候,Stage 2,Swadesh
-how,other,如何,Stage 2,Swadesh
-all,adj,全部,Stage 2,Swadesh
-many,adj,多,Stage 2,Swadesh
-some,adj,一些,Stage 2,Swadesh
-few,adj,少,Stage 2,Swadesh
-other,adj,其他,Stage 2,Swadesh
-one,adj,一,Stage 2,Swadesh
-two,adj,二,Stage 2,Swadesh
-three,adj,三,Stage 2,Swadesh
-four,adj,四,Stage 2,Swadesh
-five,adj,五,Stage 2,Swadesh
-long,adj,長,Stage 2,Swadesh
-wide,adj,寬,Stage 2,Swadesh
-thick,adj,厚,Stage 2,Swadesh
-heavy,adj,重,Stage 2,Swadesh
-short,adj,短,Stage 2,Swadesh
-narrow,adj,窄,Stage 2,Swadesh
-thin,adj,薄,Stage 2,Swadesh
-wife,noun,妻子,Stage 2,Swadesh
-husband,noun,丈夫,Stage 2,Swadesh
-mother,noun,母親,Stage 2,Swadesh
-father,noun,父親,Stage 2,Swadesh
-animal,noun,動物,Stage 2,Swadesh
-fish,noun,魚,Stage 2,Swadesh
-bird,noun,鳥,Stage 2,Swadesh
-dog,noun,狗,Stage 2,Swadesh
-louse,noun,蝨子,Stage 2,Swadesh
-snake,noun,蛇,Stage 2,Swadesh
-worm,noun,蟲,Stage 2,Swadesh
-tree,noun,樹,Stage 2,Swadesh
-forest,noun,森林,Stage 2,Swadesh
-stick,noun,枝條,Stage 2,Swadesh
-fruit,noun,水果,Stage 2,Swadesh
-seed,noun,種子,Stage 2,Swadesh
-leaf,noun,葉子,Stage 2,Swadesh
-root,noun,根,Stage 2,Swadesh
-bark,noun,樹皮,Stage 2,Swadesh
-flower,noun,花,Stage 2,Swadesh
-grass,noun,草,Stage 2,Swadesh
-rope,noun,繩,Stage 2,Swadesh
-skin,noun,皮膚,Stage 2,Swadesh
-meat,noun,肉,Stage 2,Swadesh
-blood,noun,血,Stage 2,Swadesh
-bone,noun,骨,Stage 2,Swadesh
-fat,noun,脂肪,Stage 2,Swadesh
-egg,noun,蛋,Stage 2,Swadesh
-horn,noun,角,Stage 2,Swadesh
-tail,noun,尾巴,Stage 2,Swadesh
-feather,noun,羽毛,Stage 2,Swadesh
-hair,noun,頭髮,Stage 2,Swadesh
-head,noun,頭,Stage 2,Swadesh
-ear,noun,耳朵,Stage 2,Swadesh
-eye,noun,眼睛,Stage 2,Swadesh
-nose,noun,鼻子,Stage 2,Swadesh
-mouth,noun,嘴,Stage 2,Swadesh
-tooth,noun,牙齒,Stage 2,Swadesh
-tongue,noun,舌頭,Stage 2,Swadesh
-fingernail,noun,指甲,Stage 2,Swadesh
-foot,noun,腳,Stage 2,Swadesh
-leg,noun,腿,Stage 2,Swadesh
-knee,noun,膝蓋,Stage 2,Swadesh
-hand,noun,手,Stage 2,Swadesh
-wing,noun,翅膀,Stage 2,Swadesh
-belly,noun,肚子,Stage 2,Swadesh
-guts,noun,內臟,Stage 2,Swadesh
-neck,noun,脖子,Stage 2,Swadesh
-back,noun,背,Stage 2,Swadesh
-breast,noun,乳房,Stage 2,Swadesh
-heart,noun,心臟,Stage 2,Swadesh
-liver,noun,肝臟,Stage 2,Swadesh
-bite,verb,咬,Stage 2,Swadesh
-suck,verb,吸,Stage 2,Swadesh
-spit,verb,吐,Stage 2,Swadesh
-vomit,verb,嘔吐,Stage 2,Swadesh
-blow,verb,吹,Stage 2,Swadesh
-breathe,verb,呼吸,Stage 2,Swadesh
-laugh,verb,笑,Stage 2,Swadesh
-see,verb,看,Stage 2,Swadesh
-hear,verb,聽,Stage 2,Swadesh
-know,verb,知道,Stage 2,Swadesh
-think,verb,想,Stage 2,Swadesh
-smell,verb,聞,Stage 2,Swadesh
-fear,verb,害怕,Stage 2,Swadesh
-live,verb,活,Stage 2,Swadesh
-die,verb,死,Stage 2,Swadesh
-kill,verb,殺,Stage 2,Swadesh
-fight,verb,打鬥,Stage 2,Swadesh
-hunt,verb,狩獵,Stage 2,Swadesh
-hit,verb,打,Stage 2,Swadesh
-cut,verb,切,Stage 2,Swadesh
-split,verb,裂開,Stage 2,Swadesh
-stab,verb,刺,Stage 2,Swadesh
-scratch,verb,抓,Stage 2,Swadesh
-dig,verb,挖,Stage 2,Swadesh
-swim,verb,游泳,Stage 2,Swadesh
-fly,verb,飛,Stage 2,Swadesh
-walk,verb,走路,Stage 2,Swadesh
-lie,verb,躺,Stage 2,Swadesh
-sit,verb,坐,Stage 2,Swadesh
-stand,verb,站,Stage 2,Swadesh
-turn,verb,轉,Stage 2,Swadesh
-fall,verb,落下,Stage 2,Swadesh
-squeeze,verb,擠,Stage 2,Swadesh
-rub,verb,擦,Stage 2,Swadesh
-wash,verb,洗,Stage 2,Swadesh
-wipe,verb,抹,Stage 2,Swadesh
-pull,verb,拉,Stage 2,Swadesh
-push,verb,推,Stage 2,Swadesh
-throw,verb,丟,Stage 2,Swadesh
-tie,verb,綁,Stage 2,Swadesh
-sew,verb,縫,Stage 2,Swadesh
-count,verb,數,Stage 2,Swadesh
-say,verb,說,Stage 2,Swadesh
-sing,verb,唱,Stage 2,Swadesh
-float,verb,浮,Stage 2,Swadesh
-flow,verb,流,Stage 2,Swadesh
-freeze,verb,結冰,Stage 2,Swadesh
-swell,verb,膨脹,Stage 2,Swadesh
-sun,noun,太陽,Stage 2,Swadesh
-moon,noun,月亮,Stage 2,Swadesh
-star,noun,星星,Stage 2,Swadesh
-rain,noun,雨,Stage 2,Swadesh
-river,noun,河,Stage 2,Swadesh
-lake,noun,湖,Stage 2,Swadesh
-sea,noun,海,Stage 2,Swadesh
-salt,noun,鹽,Stage 2,Swadesh
-stone,noun,石頭,Stage 2,Swadesh
-sand,noun,沙,Stage 2,Swadesh
-dust,noun,灰塵,Stage 2,Swadesh
-earth,noun,地,Stage 2,Swadesh
-cloud,noun,雲,Stage 2,Swadesh
-fog,noun,霧,Stage 2,Swadesh
-sky,noun,天空,Stage 2,Swadesh
-wind,noun,風,Stage 2,Swadesh
-snow,noun,雪,Stage 2,Swadesh
-ice,noun,冰,Stage 2,Swadesh
-smoke,noun,煙,Stage 2,Swadesh
-fire,noun,火,Stage 2,Swadesh
-ash,noun,灰,Stage 2,Swadesh
-burn,verb,燃燒,Stage 2,Swadesh
-road,noun,路,Stage 2,Swadesh
-mountain,noun,山,Stage 2,Swadesh
-red,adj,紅,Stage 2,Swadesh
-green,adj,綠,Stage 2,Swadesh
-yellow,adj,黃,Stage 2,Swadesh
-white,adj,白,Stage 2,Swadesh
-black,adj,黑,Stage 2,Swadesh
-night,noun,夜,Stage 2,Swadesh
-day,noun,日,Stage 2,Swadesh
-year,noun,年,Stage 2,Swadesh
-warm,adj,暖,Stage 2,Swadesh
-cold,adj,冷,Stage 2,Swadesh
-full,adj,滿,Stage 2,Swadesh
-new,adj,新,Stage 2,Swadesh
-old,adj,舊,Stage 2,Swadesh
-bad,adj,壞,Stage 2,Swadesh
-rotten,adj,腐爛,Stage 2,Swadesh
-dirty,adj,髒,Stage 2,Swadesh
-straight,adj,直,Stage 2,Swadesh
-round,adj,圓,Stage 2,Swadesh
-sharp,adj,尖,Stage 2,Swadesh
-dull,adj,鈍,Stage 2,Swadesh
-smooth,adj,平滑,Stage 2,Swadesh
-wet,adj,濕,Stage 2,Swadesh
-dry,adj,乾,Stage 2,Swadesh
-correct,adj,正確,Stage 2,Swadesh
-near,adj,近,Stage 2,Swadesh
-far,adj,遠,Stage 2,Swadesh
-right,other,右,Stage 2,Swadesh
-left,other,左,Stage 2,Swadesh
-at,other,在,Stage 2,Swadesh
-in,other,在...裡,Stage 2,Swadesh
-with,other,與,Stage 2,Swadesh
-and,other,和,Stage 2,Swadesh
-if,other,如果,Stage 2,Swadesh
-because,other,因為,Stage 2,Swadesh
-name,noun,名字,Stage 2,Swadesh
+﻿en-US,POS,Stage,Tag
+I,pronoun,Stage 1,AAC Core
+you,pronoun,Stage 1,AAC Core
+want,verb,Stage 1,AAC Core
+go,verb,Stage 1,AAC Core
+good,adj,Stage 1,AAC Core
+no,other,Stage 1,AAC Core
+eat,verb,Stage 1,AAC Core
+drink,verb,Stage 1,AAC Core
+here,other,Stage 1,AAC Core
+this,pronoun,Stage 1,AAC Core
+more,adj,Stage 1,AAC Core
+finish,verb,Stage 1,AAC Core
+help,verb,Stage 1,AAC Core
+look,verb,Stage 1,AAC Core
+come,verb,Stage 1,AAC Core
+mine,pronoun,Stage 1,AAC Core
+it,pronoun,Stage 1,AAC Core
+big,adj,Stage 1,AAC Core
+small,adj,Stage 1,AAC Core
+happy,adj,Stage 1,AAC Core
+pain,noun,Stage 1,AAC Core
+where,other,Stage 1,AAC Core
+what,pronoun,Stage 1,AAC Core
+who,pronoun,Stage 1,AAC Core
+on,other,Stage 1,AAC Core
+under,other,Stage 1,AAC Core
+please,other,Stage 1,AAC Core
+thanks,other,Stage 1,AAC Core
+now,other,Stage 1,AAC Core
+wait,verb,Stage 1,AAC Core
+give,verb,Stage 1,AAC Core
+stop,verb,Stage 1,AAC Core
+play,verb,Stage 1,AAC Core
+sleep,verb,Stage 1,AAC Core
+toilet,noun,Stage 1,AAC Core
+water,noun,Stage 1,AAC Core
+food,noun,Stage 1,AAC Core
+man,noun,Stage 1,AAC Core
+woman,noun,Stage 1,AAC Core
+child,noun,Stage 1,AAC Core
+he,pronoun,Stage 2,Swadesh
+we,pronoun,Stage 2,Swadesh
+you,pronoun,Stage 2,Swadesh
+they,pronoun,Stage 2,Swadesh
+that,pronoun,Stage 2,Swadesh
+there,other,Stage 2,Swadesh
+when,other,Stage 2,Swadesh
+how,other,Stage 2,Swadesh
+all,adj,Stage 2,Swadesh
+many,adj,Stage 2,Swadesh
+some,adj,Stage 2,Swadesh
+few,adj,Stage 2,Swadesh
+other,adj,Stage 2,Swadesh
+one,adj,Stage 2,Swadesh
+two,adj,Stage 2,Swadesh
+three,adj,Stage 2,Swadesh
+four,adj,Stage 2,Swadesh
+five,adj,Stage 2,Swadesh
+long,adj,Stage 2,Swadesh
+wide,adj,Stage 2,Swadesh
+thick,adj,Stage 2,Swadesh
+heavy,adj,Stage 2,Swadesh
+short,adj,Stage 2,Swadesh
+narrow,adj,Stage 2,Swadesh
+thin,adj,Stage 2,Swadesh
+wife,noun,Stage 2,Swadesh
+husband,noun,Stage 2,Swadesh
+mother,noun,Stage 2,Swadesh
+father,noun,Stage 2,Swadesh
+animal,noun,Stage 2,Swadesh
+fish,noun,Stage 2,Swadesh
+bird,noun,Stage 2,Swadesh
+dog,noun,Stage 2,Swadesh
+louse,noun,Stage 2,Swadesh
+snake,noun,Stage 2,Swadesh
+worm,noun,Stage 2,Swadesh
+tree,noun,Stage 2,Swadesh
+forest,noun,Stage 2,Swadesh
+stick,noun,Stage 2,Swadesh
+fruit,noun,Stage 2,Swadesh
+seed,noun,Stage 2,Swadesh
+leaf,noun,Stage 2,Swadesh
+root,noun,Stage 2,Swadesh
+bark,noun,Stage 2,Swadesh
+flower,noun,Stage 2,Swadesh
+grass,noun,Stage 2,Swadesh
+rope,noun,Stage 2,Swadesh
+skin,noun,Stage 2,Swadesh
+meat,noun,Stage 2,Swadesh
+blood,noun,Stage 2,Swadesh
+bone,noun,Stage 2,Swadesh
+fat,noun,Stage 2,Swadesh
+egg,noun,Stage 2,Swadesh
+horn,noun,Stage 2,Swadesh
+tail,noun,Stage 2,Swadesh
+feather,noun,Stage 2,Swadesh
+hair,noun,Stage 2,Swadesh
+head,noun,Stage 2,Swadesh
+ear,noun,Stage 2,Swadesh
+eye,noun,Stage 2,Swadesh
+nose,noun,Stage 2,Swadesh
+mouth,noun,Stage 2,Swadesh
+tooth,noun,Stage 2,Swadesh
+tongue,noun,Stage 2,Swadesh
+fingernail,noun,Stage 2,Swadesh
+foot,noun,Stage 2,Swadesh
+leg,noun,Stage 2,Swadesh
+knee,noun,Stage 2,Swadesh
+hand,noun,Stage 2,Swadesh
+wing,noun,Stage 2,Swadesh
+belly,noun,Stage 2,Swadesh
+guts,noun,Stage 2,Swadesh
+neck,noun,Stage 2,Swadesh
+back,noun,Stage 2,Swadesh
+breast,noun,Stage 2,Swadesh
+heart,noun,Stage 2,Swadesh
+liver,noun,Stage 2,Swadesh
+bite,verb,Stage 2,Swadesh
+suck,verb,Stage 2,Swadesh
+spit,verb,Stage 2,Swadesh
+vomit,verb,Stage 2,Swadesh
+blow,verb,Stage 2,Swadesh
+breathe,verb,Stage 2,Swadesh
+laugh,verb,Stage 2,Swadesh
+see,verb,Stage 2,Swadesh
+hear,verb,Stage 2,Swadesh
+know,verb,Stage 2,Swadesh
+think,verb,Stage 2,Swadesh
+smell,verb,Stage 2,Swadesh
+fear,verb,Stage 2,Swadesh
+live,verb,Stage 2,Swadesh
+die,verb,Stage 2,Swadesh
+kill,verb,Stage 2,Swadesh
+fight,verb,Stage 2,Swadesh
+hunt,verb,Stage 2,Swadesh
+hit,verb,Stage 2,Swadesh
+cut,verb,Stage 2,Swadesh
+split,verb,Stage 2,Swadesh
+stab,verb,Stage 2,Swadesh
+scratch,verb,Stage 2,Swadesh
+dig,verb,Stage 2,Swadesh
+swim,verb,Stage 2,Swadesh
+fly,verb,Stage 2,Swadesh
+walk,verb,Stage 2,Swadesh
+lie,verb,Stage 2,Swadesh
+sit,verb,Stage 2,Swadesh
+stand,verb,Stage 2,Swadesh
+turn,verb,Stage 2,Swadesh
+fall,verb,Stage 2,Swadesh
+squeeze,verb,Stage 2,Swadesh
+rub,verb,Stage 2,Swadesh
+wash,verb,Stage 2,Swadesh
+wipe,verb,Stage 2,Swadesh
+pull,verb,Stage 2,Swadesh
+push,verb,Stage 2,Swadesh
+throw,verb,Stage 2,Swadesh
+tie,verb,Stage 2,Swadesh
+sew,verb,Stage 2,Swadesh
+count,verb,Stage 2,Swadesh
+say,verb,Stage 2,Swadesh
+sing,verb,Stage 2,Swadesh
+float,verb,Stage 2,Swadesh
+flow,verb,Stage 2,Swadesh
+freeze,verb,Stage 2,Swadesh
+swell,verb,Stage 2,Swadesh
+sun,noun,Stage 2,Swadesh
+moon,noun,Stage 2,Swadesh
+star,noun,Stage 2,Swadesh
+rain,noun,Stage 2,Swadesh
+river,noun,Stage 2,Swadesh
+lake,noun,Stage 2,Swadesh
+sea,noun,Stage 2,Swadesh
+salt,noun,Stage 2,Swadesh
+stone,noun,Stage 2,Swadesh
+sand,noun,Stage 2,Swadesh
+dust,noun,Stage 2,Swadesh
+earth,noun,Stage 2,Swadesh
+cloud,noun,Stage 2,Swadesh
+fog,noun,Stage 2,Swadesh
+sky,noun,Stage 2,Swadesh
+wind,noun,Stage 2,Swadesh
+snow,noun,Stage 2,Swadesh
+ice,noun,Stage 2,Swadesh
+smoke,noun,Stage 2,Swadesh
+fire,noun,Stage 2,Swadesh
+ash,noun,Stage 2,Swadesh
+burn,verb,Stage 2,Swadesh
+road,noun,Stage 2,Swadesh
+mountain,noun,Stage 2,Swadesh
+red,adj,Stage 2,Swadesh
+green,adj,Stage 2,Swadesh
+yellow,adj,Stage 2,Swadesh
+white,adj,Stage 2,Swadesh
+black,adj,Stage 2,Swadesh
+night,noun,Stage 2,Swadesh
+day,noun,Stage 2,Swadesh
+year,noun,Stage 2,Swadesh
+warm,adj,Stage 2,Swadesh
+cold,adj,Stage 2,Swadesh
+full,adj,Stage 2,Swadesh
+new,adj,Stage 2,Swadesh
+old,adj,Stage 2,Swadesh
+bad,adj,Stage 2,Swadesh
+rotten,adj,Stage 2,Swadesh
+dirty,adj,Stage 2,Swadesh
+straight,adj,Stage 2,Swadesh
+round,adj,Stage 2,Swadesh
+sharp,adj,Stage 2,Swadesh
+dull,adj,Stage 2,Swadesh
+smooth,adj,Stage 2,Swadesh
+wet,adj,Stage 2,Swadesh
+dry,adj,Stage 2,Swadesh
+correct,adj,Stage 2,Swadesh
+near,adj,Stage 2,Swadesh
+far,adj,Stage 2,Swadesh
+right,other,Stage 2,Swadesh
+left,other,Stage 2,Swadesh
+at,other,Stage 2,Swadesh
+in,other,Stage 2,Swadesh
+with,other,Stage 2,Swadesh
+and,other,Stage 2,Swadesh
+if,other,Stage 2,Swadesh
+because,other,Stage 2,Swadesh
+name,noun,Stage 2,Swadesh
