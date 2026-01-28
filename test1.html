@@ -329,23 +329,23 @@
                 const englishWord = row['en-US'];
                 const chip = document.createElement('div');
                 chip.className = 'chip';
-                chip.innerHTML = `<span>...</span><small style="display:block; font-size:10px; opacity:0.6;">☆☆☆</small>`;
+                // 💡 這裡確保 ID 與之後查詢時一致
+                chip.id = `chip-${englishWord.replace(/\s+/g, '_')}`;
+                chip.innerHTML = `<span>...</span><small class="star-text" style="display:block; font-size:10px; opacity:0.6;">☆☆☆</small>`;
                 samplesEl.appendChild(chip);
 
-                // 非同步更新該 Chip 的內容
                 getTranslatedWord(englishWord, settings.lang).then(translated => {
                     const count = masteryMap[englishWord] || 0;
                     const stars = '⭐'.repeat(Math.min(count, 3));
-                    chip.innerHTML = `${translated}<small style="display:block; font-size:10px; opacity:0.6;">${stars || '☆☆☆'}</small>`;
 
-                    // 在 renderChips 函式的 chip.onclick 處修改
+                    // 💡 修正：保留 small 的 class="star-text"
+                    chip.innerHTML = `<span>${translated}</span><small class="star-text" style="display:block; font-size:10px; opacity:0.6;">${stars || '☆☆☆'}</small>`;
+
                     chip.onclick = () => {
                         textEl.dataset.conceptId = englishWord;
                         textEl.value = translated;
                         strokes = [];
                         redraw();
-
-                        // 這裡觸發：朗讀 + 查詢 IPA
                         speakWord(translated);
                         fetchIPA(translated);
                     };
@@ -375,7 +375,14 @@
             }, { merge: true });
 
             console.log(`單字 ${conceptId} 進度更新：${currentCount}次`);
-            renderChips(); // 更新畫面星星
+            // 💡 修正：不要執行 renderChips()。改為局部更新星星：
+            const targetChip = document.getElementById(`chip-${conceptId.replace(/\s+/g, '_')}`);
+            if (targetChip) {
+                const starEl = targetChip.querySelector('.star-text');
+                if (starEl) {
+                    starEl.textContent = '⭐'.repeat(Math.min(currentCount, 3));
+                }
+            }
         }
 
         function drawBackgroundText() {
@@ -494,11 +501,22 @@
         }
 
         // 僅執行 IPA 查詢
-        async function fetchIPA(word) {
+        async function fetchIPA(translatedWord) {
             const settings = getGlobalSettings();
-            if (!settings.key) return; // 沒有 Key 就不執行
+            const englishWord = textEl.dataset.conceptId; // 取得原始英文單字
+            if (!settings.key || !translatedWord || !englishWord) return;
 
             ipaEl.textContent = "🔍 IPA...";
+
+            // 嚴格要求輸出格式的 Prompt
+            const prompt = `You are a phonetic expert. 
+            Provide the International Phonetic Alphabet (IPA) for the word "${translatedWord}" (which means "${englishWord}" in English) in the language "${settings.lang}".
+
+            Requirements:
+            1. Provide only the standard IPA symbols.
+            2. Return the result in JSON format: {"ipa": "/.../"}
+            3. No explanation or additional text.`;
+
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
@@ -508,16 +526,24 @@
                     },
                     body: JSON.stringify({
                         model: "gpt-4o-mini",
-                        messages: [{ role: "user", content: `Provide the IPA for "${word}" in ${settings.lang}. Output IPA only.` }]
+                        messages: [{ role: "user", content: prompt }],
+                        response_format: { type: "json_object" }, // 強制 AI 回傳 JSON
+                        temperature: 0
                     })
                 });
-                const result = await resp.json();
-                ipaEl.textContent = `[ ${result.choices[0].message.content.trim()} ]`;
+
+                const data = await resp.json();
+                if (data.error) throw new Error(data.error.message);
+
+                // 解析 JSON 內容
+                const result = JSON.parse(data.choices[0].message.content);
+                ipaEl.textContent = result.ipa || "無音標資料";
+
             } catch (e) {
+                console.error("IPA 查詢失敗:", e);
                 ipaEl.textContent = "IPA 失敗";
             }
         }
-
         window.onload = initCanvas;
         document.getElementById('checkBtn').onclick = recognizeHandwriting;
         document.getElementById('speakBtn').onclick = () => {
