@@ -198,8 +198,8 @@
             <div id="ipa"></div>
 
             <div class="field" style="margin-top: 15px;">
-                <label class="label">底字大小：<span id="fontSizeVal">120</span>px</label>
-                <input type="range" id="fontSize" min="40" max="240" step="10" value="120">
+                <label class="label">底字大小：<span id="fontSizeVal">240</span>px</label>
+                <input type="range" id="fontSize" min="40" max="240" step="10" value="240">
             </div>
 
             <canvas id="pad"></canvas>
@@ -251,7 +251,7 @@
         let userId = null;
         let isDrawing = false;
         let strokes = [];
-        let customFontSize = 120;
+        let customFontSize = 240;
 
         auth.onAuthStateChanged(user => {
             userId = user ? user.uid : null;
@@ -338,41 +338,45 @@
                     const stars = '⭐'.repeat(Math.min(count, 3));
                     chip.innerHTML = `${translated}<small style="display:block; font-size:10px; opacity:0.6;">${stars || '☆☆☆'}</small>`;
 
+                    // 在 renderChips 函式的 chip.onclick 處修改
                     chip.onclick = () => {
                         textEl.dataset.conceptId = englishWord;
                         textEl.value = translated;
                         strokes = [];
                         redraw();
-                        speakAndFetchIPA(translated);
+
+                        // 這裡觸發：朗讀 + 查詢 IPA
+                        speakWord(translated);
+                        fetchIPA(translated);
                     };
                 });
             }
         }
 
-async function updateConceptMastery() {
-    const conceptId = textEl.dataset.conceptId; // 這通常是英文，如 "eat"
-    if (!userId || !conceptId) return;
-    const settings = getGlobalSettings();
-    const masteryId = `${settings.lang}_${conceptId}`.replace(/[\/\.#$\[\]]/g, '_');
-    const wordRef = db.collection('users').doc(userId).collection('mastery').doc(masteryId);
-    
-    // 1. 先獲取目前的次數
-    const doc = await wordRef.get();
-    const currentCount = (doc.exists ? (doc.data().count || 0) : 0) + 1;
+        async function updateConceptMastery() {
+            const conceptId = textEl.dataset.conceptId; // 這通常是英文，如 "eat"
+            if (!userId || !conceptId) return;
+            const settings = getGlobalSettings();
+            const masteryId = `${settings.lang}_${conceptId}`.replace(/[\/\.#$\[\]]/g, '_');
+            const wordRef = db.collection('users').doc(userId).collection('mastery').doc(masteryId);
 
-    // 2. 存入資料，包含 test2.html 需要的 is_ready_for_chunk 與 word 欄位
-    await wordRef.set({ 
-        conceptId: conceptId,
-        word: conceptId,          // 💡 重要：test2.html 用這個欄位當種子詞
-        lang: settings.lang, 
-        count: currentCount,
-        is_ready_for_chunk: currentCount >= 3, // 💡 重要：達到 3 星時設為 true
-        lastStudied: firebase.firestore.FieldValue.serverTimestamp() 
-    }, { merge: true });
-    
-    console.log(`單字 ${conceptId} 進度更新：${currentCount}次`);
-    renderChips(); // 更新畫面星星
-}
+            // 1. 先獲取目前的次數
+            const doc = await wordRef.get();
+            const currentCount = (doc.exists ? (doc.data().count || 0) : 0) + 1;
+
+            // 2. 存入資料，包含 test2.html 需要的 is_ready_for_chunk 與 word 欄位
+            await wordRef.set({
+                conceptId: conceptId,
+                word: conceptId,          // 💡 重要：test2.html 用這個欄位當種子詞
+                lang: settings.lang,
+                count: currentCount,
+                is_ready_for_chunk: currentCount >= 3, // 💡 重要：達到 3 星時設為 true
+                lastStudied: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            console.log(`單字 ${conceptId} 進度更新：${currentCount}次`);
+            renderChips(); // 更新畫面星星
+        }
 
         function drawBackgroundText() {
             const text = textEl.value.trim();
@@ -464,25 +468,64 @@ async function updateConceptMastery() {
             return m[b.length][a.length];
         }
 
-        async function speakAndFetchIPA(word) {
+        // async function speakAndFetchIPA(word) {
+        //     const settings = getGlobalSettings();
+        //     speechSynthesis.cancel();
+        //     const u = new SpeechSynthesisUtterance(word); u.lang = settings.lang;
+        //     speechSynthesis.speak(u);
+        //     ipaEl.textContent = "🔍 IPA...";
+        //     try {
+        //         const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+        //             method: "POST", headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
+        //             body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: `Provide the IPA for "${word}" in ${settings.lang}. Output IPA only.` }] })
+        //         });
+        //         const result = await resp.json();
+        //         ipaEl.textContent = `[ ${result.choices[0].message.content.trim()} ]`;
+        //     } catch (e) { ipaEl.textContent = "IPA 失敗"; }
+        // }
+
+        // 僅執行朗讀
+        function speakWord(word) {
             const settings = getGlobalSettings();
             speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(word); u.lang = settings.lang;
+            const u = new SpeechSynthesisUtterance(word);
+            u.lang = settings.lang;
             speechSynthesis.speak(u);
+        }
+
+        // 僅執行 IPA 查詢
+        async function fetchIPA(word) {
+            const settings = getGlobalSettings();
+            if (!settings.key) return; // 沒有 Key 就不執行
+
             ipaEl.textContent = "🔍 IPA...";
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                    method: "POST", headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: `Provide the IPA for "${word}" in ${settings.lang}. Output IPA only.` }] })
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${settings.key}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [{ role: "user", content: `Provide the IPA for "${word}" in ${settings.lang}. Output IPA only.` }]
+                    })
                 });
                 const result = await resp.json();
                 ipaEl.textContent = `[ ${result.choices[0].message.content.trim()} ]`;
-            } catch (e) { ipaEl.textContent = "IPA 失敗"; }
+            } catch (e) {
+                ipaEl.textContent = "IPA 失敗";
+            }
         }
 
         window.onload = initCanvas;
         document.getElementById('checkBtn').onclick = recognizeHandwriting;
-        document.getElementById('speakBtn').onclick = () => speakAndFetchIPA(textEl.value);
+        document.getElementById('speakBtn').onclick = () => {
+            const currentWord = textEl.value;
+            if (currentWord) {
+                speakWord(currentWord); // 僅朗讀，不查詢 IPA
+            }
+        };
     </script>
 </body>
 
