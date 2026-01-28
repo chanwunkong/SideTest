@@ -328,16 +328,22 @@
 
                 // 3. 呼叫 OpenAI API
                 const prompt = `You are a professional language teacher. 
-Create a natural sentence in ${settings.lang} using the concepts: [${seeds.join(', ')}].
-Return the result in JSON format ONLY:
-{
-  "sentence": "Full sentence here",
-  "chunks": [
-    {"text": "subject phrase", "type": "noun", "analysis": "grammar explanation"},
-    {"text": "verb phrase", "type": "verb", "analysis": "grammar explanation"},
-    {"text": "object/modifier", "type": "adj", "analysis": "grammar explanation"}
-  ]
-}`;
+                Create a natural sentence in ${settings.lang} using the concepts: [${seeds.join(', ')}].
+
+                Requirements:
+                1. The 'sentence' must be in ${settings.lang}.
+                2. The 'chunks' should break the sentence into logical grammatical parts.
+                3. The 'analysis' for each chunk MUST be written in Traditional Chinese (繁體中文).
+                4. Provide a clear grammar explanation for each part so a learner can understand the structure.
+
+                Return the result in JSON format ONLY:
+                {
+                "sentence": "Full sentence in ${settings.lang}",
+                "chunks": [
+                    {"text": "chunk text", "type": "noun/verb/adj/adv", "analysis": "用繁體中文解釋此組塊的文法功能"},
+                    {"text": "chunk text", "type": "...", "analysis": "..."}
+                ]
+                }`;
 
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
