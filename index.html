@@ -117,8 +117,16 @@
                 style="background: #ef4444; color: white; padding: 8px; font-size: 12px; margin-top:8px;">登出帳號</button>
         </div>
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid #1f2937;">
-        <label>OpenAI API Key (用於 IPA 與 AI 出題)</label>
-        <input type="password" id="globalKey" placeholder="sk-...">
+
+        <div class="field">
+            <label class="label">OpenAI API Key(用於 IPA 與 AI 出題)</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="password" id="gptApiKey" placeholder="已從雲端同步 sk-..." disabled
+                    style="flex: 1; opacity: 0.6; cursor: not-allowed;">
+                <button id="unlockBtn" onclick="toggleUnlock()"
+                    style="width: 80px; background: var(--accent); color: #000;">🔓 解鎖</button>
+            </div>
+        </div>
         <button id="saveKeyBtn" style="background: #22d3ee; color: #000; font-weight: bold;">儲存所有設定</button>
         <span id="statusMsg"></span>
         <label>目標學習語言</label>
@@ -158,87 +166,136 @@
     </div>
 
     <script>
+        let isDataLoaded = false;
+        let isUnlocked = false;
+
         const firebaseConfig = {
             apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM",
-            authDomain: "test-5dbba.firebaseapp.com", // 修正：登入必要參數
+            authDomain: "test-5dbba.firebaseapp.com",
             projectId: "test-5dbba"
         };
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        const keyInput = document.getElementById('globalKey');
+        // 統一 ID 抓取
+        const keyInput = document.getElementById('gptApiKey');
         const langInput = document.getElementById('globalLang');
         const courseInput = document.getElementById('globalCourse');
         const statusMsg = document.getElementById('statusMsg');
 
-        const saveAllSettings = async () => {
-            const key = keyInput.value.trim();
+        function toggleUnlock() {
+            if (!isDataLoaded) {
+                alert("資料同步中，請稍候...");
+                return;
+            }
+
+            const btn = document.getElementById('unlockBtn');
+            isUnlocked = !isUnlocked;
+
+            if (isUnlocked) {
+                keyInput.disabled = false;
+                keyInput.type = "text";
+                keyInput.style.opacity = "1";
+                keyInput.style.cursor = "text";
+                btn.textContent = "🔒 鎖定";
+                btn.style.background = "#94a3b8";
+            } else {
+                keyInput.disabled = true;
+                keyInput.type = "password";
+                keyInput.style.opacity = "0.6";
+                keyInput.style.cursor = "not-allowed";
+                btn.textContent = "🔓 解鎖";
+                btn.style.background = "#22d3ee";
+            }
+        }
+
+        async function saveSettings() {
+            if (!isDataLoaded) return;
+
+            // 如果未解鎖，只准儲存語言與課程，不准覆蓋 Key
+            const key = isUnlocked ? keyInput.value.trim() : localStorage.getItem('gptApiKey');
             const lang = langInput.value;
             const course = courseInput.value;
 
-            // ✅ 新增：立即存入本地，確保其他分頁（test1, test2）能立刻讀到
-            localStorage.setItem('gptApiKey', key);
+            // 更新本地快取
+            if (isUnlocked) localStorage.setItem('gptApiKey', key);
             localStorage.setItem('userLang', lang);
             localStorage.setItem('userCourse', course);
 
             const user = auth.currentUser;
             if (user) {
                 try {
-                    await db.collection('users').doc(user.uid).set({
-                        gptApiKey: key,
+                    const updateData = {
                         userLang: lang,
                         userCourse: course,
                         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                    alert("設定已儲存至雲端與本地！");
+                    };
+                    // 只有解鎖狀態才把 Key 寫回雲端
+                    if (isUnlocked) updateData.gptApiKey = key;
+
+                    await db.collection('users').doc(user.uid).set(updateData, { merge: true });
+                    alert("設定已儲存！");
                 } catch (e) {
                     alert("雲端儲存失敗：" + e.message);
                 }
             } else {
-                alert("設定已儲存至本地（未登入雲端）");
+                alert("設定已儲存至本地");
             }
         }
-        document.getElementById('saveKeyBtn').onclick = saveAllSettings;
-        langInput.onchange = saveAllSettings;
-        courseInput.onchange = saveAllSettings;
+
+        // 綁定事件
+        document.getElementById('saveKeyBtn').onclick = saveSettings;
+        langInput.onchange = saveSettings;
+        courseInput.onchange = saveSettings;
 
         auth.onAuthStateChanged(user => {
             if (user) {
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('logoutSection').classList.remove('hidden');
-                document.getElementById('userInfo').textContent = `已登入：${user.email}`;
+                document.getElementById('userInfo').textContent = `登入中: ${user.email}`;
+
+                keyInput.placeholder = "正在從雲端同步設定...";
+
                 db.collection('users').doc(user.uid).get().then(doc => {
                     if (doc.exists) {
                         const data = doc.data();
-                        if (data.gptApiKey) { keyInput.value = data.gptApiKey; localStorage.setItem('gptApiKey', data.gptApiKey); }
-                        if (data.userLang) { langInput.value = data.userLang; localStorage.setItem('userLang', data.userLang); }
-                        if (data.userCourse) { courseInput.value = data.userCourse; localStorage.setItem('userCourse', data.userCourse); }
+                        if (data.gptApiKey) {
+                            keyInput.value = data.gptApiKey;
+                            localStorage.setItem('gptApiKey', data.gptApiKey);
+                        }
+                        if (data.userLang) {
+                            langInput.value = data.userLang;
+                            localStorage.setItem('userLang', data.userLang);
+                        }
+                        if (data.userCourse) {
+                            courseInput.value = data.userCourse;
+                            localStorage.setItem('userCourse', data.userCourse);
+                        }
                     }
+                    isDataLoaded = true;
+                    keyInput.placeholder = "已加密儲存 (點擊解鎖修改)";
+                }).catch(err => {
+                    isDataLoaded = true;
+                    console.error("載入失敗", err);
                 });
             } else {
                 document.getElementById('loginSection').classList.remove('hidden');
                 document.getElementById('logoutSection').classList.add('hidden');
                 keyInput.value = localStorage.getItem('gptApiKey') || '';
+                isDataLoaded = true;
             }
         });
 
         document.getElementById('loginBtn').onclick = () => {
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider).catch(err => alert("登入失敗：" + err.message));
+            auth.signInWithPopup(provider);
         };
-        document.getElementById('logoutBtn').onclick = () => {
-            // 1. 清除 Firebase 登入狀態
-            auth.signOut().then(() => {
-                // 2. 強制清除本地儲存的敏感資料
-                localStorage.removeItem('gptApiKey');
-                localStorage.removeItem('userLang');
-                localStorage.removeItem('userCourse');
 
-                // 3. 清空輸入框並通知使用者
-                document.getElementById('globalKey').value = '';
-                alert("已登出並清除本地設定紀錄");
-                location.reload(); // 重新整理頁面以確保狀態重置
+        document.getElementById('logoutBtn').onclick = () => {
+            auth.signOut().then(() => {
+                localStorage.clear();
+                location.reload();
             });
         };
     </script>
