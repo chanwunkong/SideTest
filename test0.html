@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>音位診斷 - 嚴格比對回播版</title>
+    <title>音位診斷 - 錄音回播整合版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -83,6 +83,14 @@
         .chip:hover {
             border-color: var(--accent);
             background: #2d3748;
+        }
+
+        .chip .pos-tag {
+            font-size: 9px;
+            color: var(--accent);
+            text-transform: uppercase;
+            opacity: 0.8;
+            display: block;
         }
 
         #wordDisplay {
@@ -212,7 +220,9 @@
                 <a href="index.html" class="back-link">← 返回控制中心</a>
                 <span id="langDisplay" style="font-size: 12px; color: #94a3b8;">載入中...</span>
             </div>
+
             <div id="status" style="font-size: 12px; text-align: center; margin-bottom: 5px; color: #6b7280;"></div>
+
             <div class="chips" id="samples"></div>
 
             <div id="wordDisplay">點擊單字開始</div>
@@ -300,6 +310,7 @@
             const settings = getGlobalSettings();
             const container = document.getElementById('samples');
             container.innerHTML = '';
+
             window.allWordData.filter(row => row['en-US'] && (settings.course === 'all' || row['Stage'] === settings.course))
                 .forEach(row => {
                     const englishWord = row['en-US'], pos = row['POS'] || '';
@@ -307,6 +318,7 @@
                     chip.className = 'chip';
                     chip.innerHTML = `<span class="pos-tag">${pos}</span><span class="word-txt">...</span>`;
                     container.appendChild(chip);
+
                     getTranslatedWord(englishWord, pos, settings.lang).then(data => {
                         chip.querySelector('.word-txt').textContent = data.text;
                         chip.onclick = () => {
@@ -323,6 +335,7 @@
             if (!settings.key) return;
             const el = document.getElementById('ipaDisplay');
             el.textContent = "🔍 查詢中...";
+
             const prompt = `Phonetic expert: Provide IPA for "${word}" in ${settings.lang} based on reading "${reading}". Output JSON: {"ipa": "/.../"}`;
             const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
@@ -337,6 +350,7 @@
             el.textContent = JSON.parse(d.choices[0].message.content).ipa;
         }
 
+        // --- 錄音功能與回播 ---
         document.getElementById('recordBtn').onclick = () => (recorder && recorder.recording) ? stopRec() : startRec();
 
         function startRec() {
@@ -388,10 +402,24 @@
             } catch (e) { console.error(e); }
         }
 
+        // --- 中文診斷邏輯 ---
         async function getDiagnosis(userIpa) {
             const key = getGlobalSettings().key;
             const target = document.getElementById('ipaDisplay').textContent;
-            const prompt = `你現在是精確的語音比對專家。請對比標準音標 "${target}" 與實際發音 "${userIpa}"。任務：1. 字元級比對，符號相同則 isCorrect 必為 true。2. 僅符號明顯不同時為 false。3. 以繁體中文提供建議。JSON: {"comparison": [{"char": "音素", "isCorrect": bool, "actual": "實際音"}], "phonemes": [{"s": "音素", "guide": "建議", "pos": "位置"}]}`;
+
+            const prompt = `
+            你現在是專業的語音對齊比對系統。
+            標準音標 (Target): "${target}"
+            實際辨識 (Actual): "${userIpa}"
+
+            任務指令：
+            1. 請對兩者進行字元級對比。
+            2. 只有符號「字面長相完全不同」時才將 isCorrect 標為 false。
+            3. 回傳繁體中文 JSON 格式：
+            {
+              "comparison": [{"char": "正確音標字元", "actual": "實際辨識字元", "isCorrect": true/false}],
+              "phonemes": [{"s": "音素", "guide": "肌肉調整建議", "pos": "發音位置"}]
+            }`;
 
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -407,18 +435,23 @@
                 const res = JSON.parse(d.choices[0].message.content);
                 renderComparison(res.comparison);
                 renderPhonemes(res.phonemes);
-                document.getElementById('recordStatus').textContent = "✅ 分析完成";
-            } catch (e) { document.getElementById('recordStatus').textContent = "❌ 診斷失敗"; }
+                document.getElementById('recordStatus').textContent = "✅ 比對完成";
+            } catch (e) {
+                document.getElementById('recordStatus').textContent = "❌ 診斷失敗";
+            }
         }
 
         function renderComparison(list) {
             const wrap = document.getElementById('ipa-result');
             wrap.innerHTML = "";
+
             list.forEach(item => {
                 const span = document.createElement('span');
                 span.textContent = item.char;
-                // 嚴格比對邏輯：符號相同則強制正確
+
+                // 核心修復：強制比對字元，只要長相一樣就給綠色
                 const isMatch = (item.isCorrect === true || item.char === item.actual);
+
                 if (isMatch) {
                     span.className = "char-correct";
                 } else {
