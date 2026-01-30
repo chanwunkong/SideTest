@@ -408,10 +408,20 @@
             const target = document.getElementById('ipaDisplay').textContent;
 
             // 使用中文 Prompt
-            const prompt = `你現在是專業語言矯正專家。目標音標 "${target}"，使用者發音 "${userIpa}"。
-            請以繁體中文進行字符比對與肌肉調整建議。回傳 JSON: 
-            {"comparison": [{"char": "音素", "isCorrect": bool, "actual": "誤讀音"}], 
-             "phonemes": [{"s": "音素", "guide": "中文具體肌肉調整建議", "pos": "中文發音位置描述"}]}`;
+            const prompt = `
+            你現在是精確的語音比對系統。
+            請對比兩組音標符號：標準 ["${target}"] 與 實際 ["${userIpa}"]。
+
+            比對原則：
+            1. 逐一比對每個音素字元。
+            2. 只有當字元符號「明顯不同」時，isCorrect 才給 false。
+            3. 若字元相同，則 isCorrect 必須為 true，即使發音位置有微小偏差。
+
+            回傳繁體中文 JSON：
+            {
+            "comparison": [{"char": "正確字元", "isCorrect": true/false, "actual": "實際字元"}],
+            "phonemes": [{"s": "不同的音素", "guide": "肌肉調整建議", "pos": "位置描述"}]
+            }`;
 
             const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
@@ -435,8 +445,17 @@
             list.forEach(item => {
                 const span = document.createElement('span');
                 span.textContent = item.char;
-                span.className = item.isCorrect ? "char-correct" : "char-wrong";
-                if (!item.isCorrect) span.title = `實際讀為: ${item.actual}`;
+
+                // 嚴格比對原則：如果符號長得一模一樣，或者是 GPT 判定正確，皆顯示綠色
+                const isStrictlyMatch = (item.char === item.actual);
+
+                if (isStrictlyMatch || item.isCorrect === true) {
+                    span.className = "char-correct";
+                } else {
+                    // 只有符號真的不一樣時，才標註紅色與底線
+                    span.className = "char-wrong";
+                    span.title = `實際讀為: ${item.actual}`;
+                }
                 wrap.appendChild(span);
             });
         }
