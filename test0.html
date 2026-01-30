@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>音位診斷 - 錄音回播整合版</title>
+    <title>音位診斷 - 嚴格比對整合版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -350,7 +350,6 @@
             el.textContent = JSON.parse(d.choices[0].message.content).ipa;
         }
 
-        // --- 錄音功能與回播 ---
         document.getElementById('recordBtn').onclick = () => (recorder && recorder.recording) ? stopRec() : startRec();
 
         function startRec() {
@@ -376,7 +375,7 @@
             gumStream.getAudioTracks()[0].stop();
             clearInterval(timerInterval);
             document.getElementById('recordBtn').classList.remove('active');
-            document.getElementById('recordStatus').textContent = "診斷中...";
+            document.getElementById('recordStatus').textContent = "分析中...";
             recorder.exportWAV(blob => {
                 if (lastRecordingUrl) URL.revokeObjectURL(lastRecordingUrl);
                 lastRecordingUrl = URL.createObjectURL(blob);
@@ -402,61 +401,53 @@
             } catch (e) { console.error(e); }
         }
 
-        // --- 中文診斷邏輯 ---
         async function getDiagnosis(userIpa) {
             const key = getGlobalSettings().key;
             const target = document.getElementById('ipaDisplay').textContent;
 
-            const prompt = `
-            你現在是專業的語音對齊比對系統。
-            標準音標 (Target): "${target}"
-            實際辨識 (Actual): "${userIpa}"
-
+            const prompt = `你現在是精確的語音分析專家。目標音標 "${target}"，實際發音 "${userIpa}"。
             任務指令：
-            1. 請對兩者進行字元級對比。
-            2. 只有符號「字面長相完全不同」時才將 isCorrect 標為 false。
-            3. 回傳繁體中文 JSON 格式：
-            {
-              "comparison": [{"char": "正確音標字元", "actual": "實際辨識字元", "isCorrect": true/false}],
-              "phonemes": [{"s": "音素", "guide": "肌肉調整建議", "pos": "發音位置"}]
-            }`;
+            1. 執行字元級比對。禁止在 JSON 中加入任何空格、點號 (.) 或節拍符號。
+            2. 如果符號長得一樣，isCorrect 必須為 true。
+            3. 針對多讀、漏讀或符號不同處，提供繁體中文建議。
+            回傳 JSON: 
+            {"comparison": [{"char": "標準音素", "isCorrect": bool, "actual": "實際音素"}], 
+             "phonemes": [{"s": "音素", "guide": "繁體中文肌肉調整建議", "pos": "繁體中文發音位置描述"}]}`;
 
-            try {
-                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "gpt-4o-mini",
-                        messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" }
-                    })
-                });
-                const d = await resp.json();
-                const res = JSON.parse(d.choices[0].message.content);
-                renderComparison(res.comparison);
-                renderPhonemes(res.phonemes);
-                document.getElementById('recordStatus').textContent = "✅ 比對完成";
-            } catch (e) {
-                document.getElementById('recordStatus').textContent = "❌ 診斷失敗";
-            }
+            const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "gpt-4o-mini",
+                    messages: [{ role: "user", content: prompt }],
+                    response_format: { type: "json_object" }
+                })
+            });
+            const d = await resp.json();
+            const res = JSON.parse(d.choices[0].message.content);
+            renderComparison(res.comparison);
+            renderPhonemes(res.phonemes);
+            document.getElementById('recordStatus').textContent = "✅ 分析完成，可點擊音素或回播錄音";
         }
 
         function renderComparison(list) {
             const wrap = document.getElementById('ipa-result');
             wrap.innerHTML = "";
-
             list.forEach(item => {
                 const span = document.createElement('span');
+                // 硬性清洗點號與空格
+                const expected = (item.char || "").replace(/[.\s]/g, '').normalize('NFC');
+                const actual = (item.actual || "").replace(/[.\s]/g, '').normalize('NFC');
+
                 span.textContent = item.char;
+                // 嚴格比對：符號一致即為綠色
+                const isMatch = (expected !== "" && expected === actual);
 
-                // 核心修復：強制比對字元，只要長相一樣就給綠色
-                const isMatch = (item.isCorrect === true || item.char === item.actual);
-
-                if (isMatch) {
+                if (isMatch || item.isCorrect) {
                     span.className = "char-correct";
                 } else {
                     span.className = "char-wrong";
-                    span.title = `實際辨識為: ${item.actual}`;
+                    span.title = actual === "" ? "此音漏讀了" : `實際辨識為: ${actual}`;
                 }
                 wrap.appendChild(span);
             });
