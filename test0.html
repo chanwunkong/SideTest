@@ -409,18 +409,23 @@
 
             // 使用中文 Prompt
             const prompt = `
-            你現在是精確的語音比對系統。
-            請對比兩組音標符號：標準 ["${target}"] 與 實際 ["${userIpa}"]。
+            你現在是專業的語音對齊比對系統。
+            標準音標 (Target): "${target}"
+            實際辨識 (Actual): "${userIpa}"
 
-            比對原則：
-            1. 逐一比對每個音素字元。
-            2. 只有當字元符號「明顯不同」時，isCorrect 才給 false。
-            3. 若字元相同，則 isCorrect 必須為 true，即使發音位置有微小偏差。
-
-            回傳繁體中文 JSON：
+            請執行對齊分析，找出兩者之間的對應關係。即使長度不同，也要對齊正確的音節。
+            回傳格式 JSON：
             {
-            "comparison": [{"char": "正確字元", "isCorrect": true/false, "actual": "實際字元"}],
-            "phonemes": [{"s": "不同的音素", "guide": "肌肉調整建議", "pos": "位置描述"}]
+            "comparison": [
+                {
+                "char": "標準音標中的音素",
+                "actual": "使用者對應發出的音素 (若漏讀則為空字串)",
+                "isCorrect": true/false (字元完全一致才給 true)
+                }
+            ],
+            "phonemes": [
+                {"s": "錯誤或漏讀的音素", "guide": "中文肌肉調整建議", "pos": "發音位置"}
+            ]
             }`;
 
             const resp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -442,19 +447,19 @@
         function renderComparison(list) {
             const wrap = document.getElementById('ipa-result');
             wrap.innerHTML = "";
+
             list.forEach(item => {
                 const span = document.createElement('span');
-                span.textContent = item.char;
+                span.textContent = item.char || "(漏)"; // 如果標準有但使用者沒讀，顯示符號
 
-                // 嚴格比對原則：如果符號長得一模一樣，或者是 GPT 判定正確，皆顯示綠色
-                const isStrictlyMatch = (item.char === item.actual);
+                // 嚴格符號比對：字元相同即為正確
+                const isMatch = (item.char === item.actual && item.char !== "");
 
-                if (isStrictlyMatch || item.isCorrect === true) {
+                if (isMatch || item.isCorrect === true) {
                     span.className = "char-correct";
                 } else {
-                    // 只有符號真的不一樣時，才標註紅色與底線
                     span.className = "char-wrong";
-                    span.title = `實際讀為: ${item.actual}`;
+                    span.title = item.actual === "" ? "漏讀此音" : `實際讀為: ${item.actual}`;
                 }
                 wrap.appendChild(span);
             });
