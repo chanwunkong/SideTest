@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>音位診斷 - 嚴格比對整合版</title>
+    <title>音位診斷 - 終極嚴格比對版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -145,7 +145,6 @@
             }
         }
 
-        /* 字符對比顯示區 */
         #ipa-result {
             text-align: center;
             font-size: 36px;
@@ -279,7 +278,7 @@
                 const text = await resp.text();
                 window.allWordData = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
                 renderChips();
-            } catch (e) { console.error("CSV 加載出錯", e); }
+            } catch (e) { console.error("CSV error", e); }
         }
 
         async function getTranslatedWord(englishWord, pos, targetLang) {
@@ -292,7 +291,7 @@
             const settings = getGlobalSettings();
             if (!settings.key) return { text: englishWord, reading: englishWord };
 
-            const prompt = `Translate "${englishWord}" (${pos}) into ${targetLang}. JSON format: {"text": "word to write", "reading": "phonetic reading"}.`;
+            const prompt = `Translate "${englishWord}" (${pos}) into ${targetLang}. JSON format: {"text": "word", "reading": "phonetic reading"}.`;
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
@@ -339,8 +338,7 @@
             if (!settings.key) return;
             const el = document.getElementById('ipaDisplay');
             el.textContent = "🔍 查詢中...";
-
-            const prompt = `Provide IPA for "${word}" in ${settings.lang} based on reading "${reading}". Output JSON: {"ipa": "/.../"}`;
+            const prompt = `Provide IPA for "${word}" in ${settings.lang} based on reading "${reading}". JSON: {"ipa": "/.../"}`;
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
@@ -356,7 +354,6 @@
             } catch (e) { el.textContent = "N/A"; }
         }
 
-        // --- 錄音與回播 ---
         document.getElementById('recordBtn').onclick = () => (recorder && recorder.recording) ? stopRec() : startRec();
 
         function startRec() {
@@ -405,14 +402,13 @@
             } catch (e) { document.getElementById('recordStatus').textContent = "辨識失敗"; }
         }
 
-        // --- 診斷邏輯：將對錯判定權收回前端 ---
         async function getDiagnosis(userIpa) {
             const key = getGlobalSettings().key;
             const target = document.getElementById('ipaDisplay').textContent;
-
+            // 強化 Prompt：要求移除所有空格與點號，強制對齊
             const prompt = `你現在是精確的語音對齊專家。標準音標 "${target}"，實際辨識 "${userIpa}"。
-            任務：將兩者一對一對齊。禁止在輸出加入點號(.)或空格。漏讀請留空。提供繁體中文建議。
-            JSON 格式: {"comparison": [{"char": "標準符號", "actual": "實際符號"}], "phonemes": [{"s": "字元", "guide": "肌肉調整建議", "pos": "發音位置"}]}`;
+            任務：移除標準與實際音標中所有的點號(.)與空格後一對一對齊。漏讀請留空。
+            提供繁體中文建議。JSON: {"comparison": [{"char": "符號", "actual": "符號"}], "phonemes": [...]}`;
 
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -428,25 +424,24 @@
                 const res = JSON.parse(d.choices[0].message.content);
                 renderComparison(res.comparison);
                 renderPhonemes(res.phonemes);
-                document.getElementById('recordStatus').textContent = "✅ 分析完成，可點擊音素或回播錄音";
+                document.getElementById('recordStatus').textContent = "✅ 分析完成";
             } catch (e) { document.getElementById('recordStatus').textContent = "❌ 診斷失敗"; }
         }
 
-        // --- 核心硬性比對渲染：只要符號長得一樣，就是綠色 ---
+        // --- 核心容錯比對：解決符號一致卻顯紅的問題 ---
         function renderComparison(list) {
             const wrap = document.getElementById('ipa-result');
             wrap.innerHTML = "";
             list.forEach(item => {
                 const span = document.createElement('span');
+                const clean = (str) => (str || "").replace(/[.\s\/\(\)\[\]\u200B-\u200D\uFEFF]/g, '').normalize('NFC');
 
-                // 清洗符號：剔除點號、空格，統一編碼
-                const expected = (item.char || "").replace(/[.\s]/g, '').normalize('NFC');
-                const actual = (item.actual || "").replace(/[.\s]/g, '').normalize('NFC');
+                const expected = clean(item.char);
+                const actual = clean(item.actual);
 
                 span.textContent = item.char;
-
-                // 硬核比對邏輯
-                const isMatch = (expected !== "" && expected === actual);
+                // 只要主體符號一致，強制綠色
+                const isMatch = (expected !== "" && (expected === actual || actual.includes(expected) || expected.includes(actual)));
 
                 if (isMatch) {
                     span.className = "char-correct";
