@@ -145,10 +145,11 @@
             }
         }
 
+        /* 字符對比顯示區 */
         #ipa-result {
             text-align: center;
-            font-size: 32px;
-            margin-top: 25px;
+            font-size: 36px;
+            margin: 25px 0;
             font-family: 'Charis SIL', 'Segoe UI', monospace;
             letter-spacing: 4px;
         }
@@ -221,11 +222,11 @@
                 <span id="langDisplay" style="font-size: 12px; color: #94a3b8;">載入中...</span>
             </div>
 
-            <div id="status" style="font-size: 12px; text-align: center; margin-bottom: 5px; color: #6b7280;"></div>
+            <div id="status" style="font-size: 12px; text-align: center; margin-bottom: 5px; color: #6b7280;">尚未登入</div>
 
             <div class="chips" id="samples"></div>
 
-            <div id="wordDisplay">點擊單字開始</div>
+            <div id="wordDisplay">選擇單字開始</div>
             <div id="ipaDisplay">[ 標準 IPA ]</div>
 
             <div class="record-container">
@@ -236,6 +237,7 @@
             </div>
 
             <div id="ipa-result"></div>
+
             <div id="phoneme-wrap" style="text-align: center; margin: 15px 0;"></div>
 
             <div id="diag-box">
@@ -257,8 +259,7 @@
         const db = firebase.firestore(), auth = firebase.auth();
 
         let audioContext, recorder, gumStream, timerInterval, seconds = 0;
-        let currentTargetReading = "";
-        let lastRecordingUrl = null;
+        let currentTargetReading = "", lastRecordingUrl = null;
 
         const getGlobalSettings = () => ({
             lang: localStorage.getItem('userLang') || 'en-US',
@@ -267,6 +268,7 @@
         });
 
         auth.onAuthStateChanged(user => {
+            document.getElementById('status').textContent = user ? `學習者：${user.email.split('@')[0]}` : "尚未登入";
             document.getElementById('langDisplay').textContent = `目標語言：${getGlobalSettings().lang}`;
             loadSwadeshCSV();
         });
@@ -277,7 +279,7 @@
                 const text = await resp.text();
                 window.allWordData = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
                 renderChips();
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("CSV 加載出錯", e); }
         }
 
         async function getTranslatedWord(englishWord, pos, targetLang) {
@@ -290,20 +292,22 @@
             const settings = getGlobalSettings();
             if (!settings.key) return { text: englishWord, reading: englishWord };
 
-            const prompt = `Translate "${englishWord}" (${pos}) into ${targetLang}. Return JSON: {"text": "word", "reading": "phonetic reading"}.`;
-            const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    model: "gpt-4o-mini",
-                    messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" }
-                })
-            });
-            const data = await resp.json();
-            const result = JSON.parse(data.choices[0].message.content);
-            await transRef.set({ text: result.text, reading: result.reading, lang: targetLang });
-            return result;
+            const prompt = `Translate "${englishWord}" (${pos}) into ${targetLang}. JSON format: {"text": "word to write", "reading": "phonetic reading"}.`;
+            try {
+                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [{ role: "user", content: prompt }],
+                        response_format: { type: "json_object" }
+                    })
+                });
+                const data = await resp.json();
+                const result = JSON.parse(data.choices[0].message.content);
+                await transRef.set({ text: result.text, reading: result.reading, lang: targetLang });
+                return result;
+            } catch (e) { return { text: englishWord, reading: englishWord }; }
         }
 
         async function renderChips() {
@@ -336,20 +340,23 @@
             const el = document.getElementById('ipaDisplay');
             el.textContent = "🔍 查詢中...";
 
-            const prompt = `Phonetic expert: Provide IPA for "${word}" in ${settings.lang} based on reading "${reading}". Output JSON: {"ipa": "/.../"}`;
-            const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    model: "gpt-4o-mini",
-                    messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" }
-                })
-            });
-            const d = await resp.json();
-            el.textContent = JSON.parse(d.choices[0].message.content).ipa;
+            const prompt = `Provide IPA for "${word}" in ${settings.lang} based on reading "${reading}". Output JSON: {"ipa": "/.../"}`;
+            try {
+                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [{ role: "user", content: prompt }],
+                        response_format: { type: "json_object" }
+                    })
+                });
+                const d = await resp.json();
+                el.textContent = JSON.parse(d.choices[0].message.content).ipa;
+            } catch (e) { el.textContent = "N/A"; }
         }
 
+        // --- 錄音與回播 ---
         document.getElementById('recordBtn').onclick = () => (recorder && recorder.recording) ? stopRec() : startRec();
 
         function startRec() {
@@ -375,7 +382,7 @@
             gumStream.getAudioTracks()[0].stop();
             clearInterval(timerInterval);
             document.getElementById('recordBtn').classList.remove('active');
-            document.getElementById('recordStatus').textContent = "分析中...";
+            document.getElementById('recordStatus').textContent = "分析診斷中...";
             recorder.exportWAV(blob => {
                 if (lastRecordingUrl) URL.revokeObjectURL(lastRecordingUrl);
                 lastRecordingUrl = URL.createObjectURL(blob);
@@ -385,10 +392,7 @@
         }
 
         function playLastRecording() {
-            if (lastRecordingUrl) {
-                const audio = new Audio(lastRecordingUrl);
-                audio.play();
-            }
+            if (lastRecordingUrl) new Audio(lastRecordingUrl).play();
         }
 
         async function processAudio(blob) {
@@ -398,56 +402,57 @@
                 const resp = await fetch(ALLOSAURUS_API, { method: "POST", body: formData });
                 const data = await resp.json();
                 getDiagnosis(data.ipa);
-            } catch (e) { console.error(e); }
+            } catch (e) { document.getElementById('recordStatus').textContent = "辨識失敗"; }
         }
 
+        // --- 診斷邏輯：將對錯判定權收回前端 ---
         async function getDiagnosis(userIpa) {
             const key = getGlobalSettings().key;
             const target = document.getElementById('ipaDisplay').textContent;
 
-            const prompt = `你現在是精確的語音分析專家。目標音標 "${target}"，實際發音 "${userIpa}"。
-            任務指令：
-            1. 執行字元級比對。禁止在 JSON 中加入任何空格、點號 (.) 或節拍符號。
-            2. 如果符號長得一樣，isCorrect 必須為 true。
-            3. 針對多讀、漏讀或符號不同處，提供繁體中文建議。
-            回傳 JSON: 
-            {"comparison": [{"char": "標準音素", "isCorrect": bool, "actual": "實際音素"}], 
-             "phonemes": [{"s": "音素", "guide": "繁體中文肌肉調整建議", "pos": "繁體中文發音位置描述"}]}`;
+            const prompt = `你現在是精確的語音對齊專家。標準音標 "${target}"，實際辨識 "${userIpa}"。
+            任務：將兩者一對一對齊。禁止在輸出加入點號(.)或空格。漏讀請留空。提供繁體中文建議。
+            JSON 格式: {"comparison": [{"char": "標準符號", "actual": "實際符號"}], "phonemes": [{"s": "字元", "guide": "肌肉調整建議", "pos": "發音位置"}]}`;
 
-            const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    model: "gpt-4o-mini",
-                    messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" }
-                })
-            });
-            const d = await resp.json();
-            const res = JSON.parse(d.choices[0].message.content);
-            renderComparison(res.comparison);
-            renderPhonemes(res.phonemes);
-            document.getElementById('recordStatus').textContent = "✅ 分析完成，可點擊音素或回播錄音";
+            try {
+                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [{ role: "user", content: prompt }],
+                        response_format: { type: "json_object" }
+                    })
+                });
+                const d = await resp.json();
+                const res = JSON.parse(d.choices[0].message.content);
+                renderComparison(res.comparison);
+                renderPhonemes(res.phonemes);
+                document.getElementById('recordStatus').textContent = "✅ 分析完成，可點擊音素或回播錄音";
+            } catch (e) { document.getElementById('recordStatus').textContent = "❌ 診斷失敗"; }
         }
 
+        // --- 核心硬性比對渲染：只要符號長得一樣，就是綠色 ---
         function renderComparison(list) {
             const wrap = document.getElementById('ipa-result');
             wrap.innerHTML = "";
             list.forEach(item => {
                 const span = document.createElement('span');
-                // 硬性清洗點號與空格
+
+                // 清洗符號：剔除點號、空格，統一編碼
                 const expected = (item.char || "").replace(/[.\s]/g, '').normalize('NFC');
                 const actual = (item.actual || "").replace(/[.\s]/g, '').normalize('NFC');
 
                 span.textContent = item.char;
-                // 嚴格比對：符號一致即為綠色
+
+                // 硬核比對邏輯
                 const isMatch = (expected !== "" && expected === actual);
 
-                if (isMatch || item.isCorrect) {
+                if (isMatch) {
                     span.className = "char-correct";
                 } else {
                     span.className = "char-wrong";
-                    span.title = actual === "" ? "此音漏讀了" : `實際辨識為: ${actual}`;
+                    span.title = actual === "" ? "漏讀" : `辨識為: ${actual}`;
                 }
                 wrap.appendChild(span);
             });
