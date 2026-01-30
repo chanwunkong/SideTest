@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>音位診斷 - 三層精準比對版</title>
+    <title>音位診斷 - 語音教練版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -26,8 +26,9 @@
             margin: 0;
             background: var(--bg);
             color: var(--text);
-            font-family: sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             padding: 20px;
+            line-height: 1.5;
         }
 
         .wrap {
@@ -38,77 +39,65 @@
         .app {
             background: var(--card);
             border: 1px solid #1f2937;
-            border-radius: 20px;
-            padding: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
         }
 
         .header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
             margin-bottom: 20px;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 10px;
+            font-size: 13px;
+            color: #64748b;
         }
 
-        .back-link {
-            color: var(--accent);
-            text-decoration: none;
-            font-size: 14px;
-        }
-
+        /* 單字卡布局保持不變 */
         .chips {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin: 15px 0;
+            margin-bottom: 20px;
             max-height: 120px;
             overflow-y: auto;
-            padding: 5px;
         }
 
         .chip {
             padding: 8px 12px;
             border-radius: 12px;
             background: #1f2937;
-            color: #cbd5e1;
-            font-size: 14px;
             cursor: pointer;
             border: 1px solid transparent;
-            transition: 0.2s;
-            min-width: 70px;
             text-align: center;
+            min-width: 60px;
         }
 
         .chip:hover {
             border-color: var(--accent);
-            background: #2d3748;
         }
 
-        .chip .pos-tag {
+        .pos-tag {
             font-size: 9px;
             color: var(--accent);
-            text-transform: uppercase;
             display: block;
+            text-transform: uppercase;
         }
 
         #wordDisplay {
-            font-size: 42px;
+            font-size: 48px;
             font-weight: bold;
             color: var(--accent);
             text-align: center;
-            margin: 20px 0 5px 0;
+            margin: 10px 0;
         }
 
-        /* --- 新增：三層診斷布局 --- */
-        .diag-layer {
-            margin: 15px 0;
-            padding: 12px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.03);
+        /* 三層診斷 UI */
+        .layer {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
             text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .layer-label {
@@ -121,30 +110,59 @@
         }
 
         #ipaDisplay {
-            color: var(--text);
             font-size: 24px;
             font-family: monospace;
         }
 
         #raw-ipa-result {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: bold;
             color: var(--warning);
-            letter-spacing: 2px;
             font-family: 'Charis SIL', monospace;
         }
 
         #ipa-result {
-            font-size: 32px;
+            font-size: 36px;
             font-family: 'Charis SIL', monospace;
             letter-spacing: 4px;
         }
 
-        /* ----------------------- */
+        .char-correct {
+            color: var(--success);
+        }
 
-        .record-container {
-            text-align: center;
-            margin: 20px 0;
+        .char-wrong {
+            color: var(--danger);
+            text-decoration: underline wavy;
+        }
+
+        /* 音標方塊 */
+        .ph-block {
+            display: inline-block;
+            padding: 12px 18px;
+            background: #1f2937;
+            border-radius: 12px;
+            cursor: pointer;
+            margin: 6px;
+            border: 2px solid #334155;
+            font-size: 20px;
+            transition: 0.2s;
+        }
+
+        .ph-block:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        /* 診斷建議框 */
+        #diag-box {
+            background: #0f172a;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid var(--accent);
+            display: none;
+            text-align: left;
         }
 
         .record-btn {
@@ -154,14 +172,13 @@
             background: var(--danger);
             border: none;
             cursor: pointer;
-            font-size: 30px;
-            margin: 10px auto;
+            font-size: 32px;
+            margin: 20px auto;
             display: block;
         }
 
         .record-btn.active {
             animation: pulse 1.5s infinite;
-            background: #991b1b;
         }
 
         @keyframes pulse {
@@ -178,52 +195,19 @@
             }
         }
 
-        .char-correct {
-            color: var(--success);
-        }
-
-        .char-wrong {
-            color: var(--danger);
-            text-decoration: underline wavy;
-            cursor: help;
-        }
-
-        .ph-block {
-            display: inline-block;
-            padding: 8px 14px;
-            background: #1f2937;
-            border-radius: 10px;
-            cursor: pointer;
-            margin: 5px;
-            border: 1px solid #334155;
-        }
-
-        #diag-box {
-            background: #0b1220;
-            border-radius: 12px;
-            padding: 15px;
-            margin-top: 15px;
-            border: 1px solid var(--accent);
-            display: none;
-            font-size: 14px;
-            line-height: 1.6;
-            text-align: left;
-        }
-
         .action-group {
             display: flex;
             gap: 10px;
-            margin-top: 15px;
+            margin-top: 20px;
         }
 
-        button.action-btn {
+        .action-btn {
             flex: 1;
+            padding: 16px;
             border-radius: 14px;
-            padding: 15px;
             font-weight: bold;
             border: none;
             cursor: pointer;
-            font-size: 15px;
         }
 
         .primary {
@@ -242,29 +226,26 @@
     <div class="wrap">
         <div class="app">
             <div class="header">
-                <a href="index.html" class="back-link">← 返回控制中心</a>
-                <span id="langDisplay" style="font-size: 12px; color: #94a3b8;">載入中...</span>
+                <span id="status">檢查登入中...</span>
+                <span id="langDisplay">目標語言</span>
             </div>
-
-            <div id="status" style="font-size: 12px; text-align: center; margin-bottom: 5px; color: #6b7280;">尚未登入</div>
 
             <div class="chips" id="samples"></div>
 
-            <div id="wordDisplay">選擇單字開始</div>
+            <h1 id="wordDisplay">選擇單字</h1>
 
-            <div class="diag-layer">
-                <span class="layer-label">1. 標準 IPA (字典建議)</span>
+            <div class="layer">
+                <span class="layer-label">Step 1: 標準發音 (字典)</span>
                 <div id="ipaDisplay">[ -- ]</div>
             </div>
 
-            <div class="diag-layer"
-                style="background: rgba(245, 158, 11, 0.05); border: 1px dashed rgba(245, 158, 11, 0.2);">
-                <span class="layer-label">2. 辨識結果 (API 第一手資訊)</span>
+            <div class="layer" style="border: 1px dashed var(--warning);">
+                <span class="layer-label">Step 2: 您的原始辨識 (API)</span>
                 <div id="raw-ipa-result">--</div>
             </div>
 
-            <div class="diag-layer">
-                <span class="layer-label">3. 差異診斷 (比對分析)</span>
+            <div class="layer">
+                <span class="layer-label">Step 3: 差異比對與矯正建議 (點擊方塊聽示範)</span>
                 <div id="ipa-result"></div>
                 <div id="phoneme-wrap"></div>
                 <div id="diag-box">
@@ -273,13 +254,12 @@
             </div>
 
             <div class="record-container">
-                <div id="timer" style="color:#6b7280; font-size:14px;">00:00 / 00:05</div>
                 <button class="record-btn" id="recordBtn">🎤</button>
-                <div id="recordStatus" style="font-size: 13px; color: var(--accent); margin-top: 10px;">點擊錄音</div>
+                <div id="recordStatus" style="text-align:center; color:var(--accent);">點擊錄音</div>
             </div>
 
             <div class="action-group">
-                <button onclick="speakCurrentWord()" class="action-btn primary">▶ 播放標準範例音</button>
+                <button onclick="speakCurrentWord()" class="action-btn primary">▶ 播放單字標準音</button>
                 <button id="replayBtn" onclick="playLastRecording()" class="action-btn secondary" disabled>👂
                     回播我的錄音</button>
             </div>
@@ -287,20 +267,29 @@
     </div>
 
     <script>
+        // 設定與 API
         const ALLOSAURUS_API = "https://allosaurus-api-878665537417.asia-east1.run.app/recognize";
         const firebaseConfig = { apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM", authDomain: "test-5dbba.firebaseapp.com", projectId: "test-5dbba" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore(), auth = firebase.auth();
 
-        let audioContext, recorder, gumStream, timerInterval, seconds = 0;
-        let currentTargetReading = "", lastRecordingUrl = null;
+        let audioContext, recorder, gumStream, currentTargetReading = "", lastRecordingUrl = null;
+
+        // IPA 音檔映射表 (Wikimedia 資源)
+        const ipaAudioMap = {
+            "t": "Voiceless_alveolar_plosive.ogg", "u": "Close_back_rounded_vowel.ogg",
+            "ə": "Mid-central_vowel.ogg", "ɾ": "Alveolar_tap.ogg",
+            "i": "Close_front_unrounded_vowel.ogg", "a": "Open_front_unrounded_vowel.ogg",
+            "o": "Close-mid_back_rounded_vowel.ogg", "p": "Voiceless_bilabial_plosive.ogg"
+        };
 
         const getGlobalSettings = () => ({
-            lang: localStorage.getItem('userLang') || 'en-US',
+            lang: localStorage.getItem('userLang') || 'it-IT',
             key: localStorage.getItem('gptApiKey') || '',
             course: localStorage.getItem('userCourse') || 'all'
         });
 
+        // 初始化
         auth.onAuthStateChanged(user => {
             document.getElementById('status').textContent = user ? `學習者：${user.email.split('@')[0]}` : "尚未登入";
             document.getElementById('langDisplay').textContent = `目標語言：${getGlobalSettings().lang}`;
@@ -313,108 +302,76 @@
                 const text = await resp.text();
                 window.allWordData = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
                 renderChips();
-            } catch (e) { console.error("CSV error", e); }
+            } catch (e) { console.error(e); }
         }
 
         async function getTranslatedWord(englishWord, pos, targetLang) {
-            if (targetLang.startsWith('en')) return { text: englishWord, reading: englishWord };
             const cacheId = `trans_${targetLang}_${englishWord}_${pos}`.replace(/[\/\.#$\[\]\s]/g, '_');
-            const transRef = db.collection('translation_cache').doc(cacheId);
-            const cacheDoc = await transRef.get();
-            if (cacheDoc.exists && cacheDoc.data().reading) return cacheDoc.data();
+            const cacheDoc = await db.collection('translation_cache').doc(cacheId).get();
+            if (cacheDoc.exists) return cacheDoc.data();
 
-            const settings = getGlobalSettings();
-            if (!settings.key) return { text: englishWord, reading: englishWord };
-
-            const prompt = `Translate "${englishWord}" (${pos}) into ${targetLang}. JSON format: {"text": "word", "reading": "phonetic reading"}.`;
-            try {
-                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "gpt-4o-mini",
-                        messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" }
-                    })
-                });
-                const data = await resp.json();
-                const result = JSON.parse(data.choices[0].message.content);
-                await transRef.set({ text: result.text, reading: result.reading, lang: targetLang });
-                return result;
-            } catch (e) { return { text: englishWord, reading: englishWord }; }
+            const prompt = `Translate "${englishWord}" (${pos}) into ${targetLang}. JSON: {"text": "word", "reading": "phonetic"}`;
+            const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
+            });
+            const res = JSON.parse((await resp.json()).choices[0].message.content);
+            await db.collection('translation_cache').doc(cacheId).set(res);
+            return res;
         }
 
-        async function renderChips() {
-            const settings = getGlobalSettings();
+        function renderChips() {
             const container = document.getElementById('samples');
             container.innerHTML = '';
-
-            window.allWordData.filter(row => row['en-US'] && (settings.course === 'all' || row['Stage'] === settings.course))
-                .forEach(row => {
-                    const englishWord = row['en-US'], pos = row['POS'] || '';
-                    const chip = document.createElement('div');
-                    chip.className = 'chip';
-                    chip.innerHTML = `<span class="pos-tag">${pos}</span><span class="word-txt">...</span>`;
-                    container.appendChild(chip);
-
-                    getTranslatedWord(englishWord, pos, settings.lang).then(data => {
-                        chip.querySelector('.word-txt').textContent = data.text;
-                        chip.onclick = () => {
-                            document.getElementById('wordDisplay').textContent = data.text;
-                            currentTargetReading = data.reading;
-                            fetchIPA(data.text, data.reading);
-                        };
-                    });
+            window.allWordData.filter(row => row['en-US']).forEach(row => {
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.innerHTML = `<span class="pos-tag">${row['POS']}</span>...`;
+                container.appendChild(chip);
+                getTranslatedWord(row['en-US'], row['POS'], getGlobalSettings().lang).then(data => {
+                    chip.innerHTML = `<span class="pos-tag">${row['POS']}</span>${data.text}`;
+                    chip.onclick = () => {
+                        document.getElementById('wordDisplay').textContent = data.text;
+                        currentTargetReading = data.reading;
+                        fetchIPA(data.text, data.reading);
+                    };
                 });
+            });
         }
 
         async function fetchIPA(word, reading) {
-            const settings = getGlobalSettings();
-            if (!settings.key) return;
             const el = document.getElementById('ipaDisplay');
-            el.textContent = "🔍 查詢中...";
-            const prompt = `Provide IPA for "${word}" in ${settings.lang} based on reading "${reading}". JSON: {"ipa": "/.../"}`;
-            try {
-                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "gpt-4o-mini",
-                        messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" }
-                    })
-                });
-                const d = await resp.json();
-                el.textContent = JSON.parse(d.choices[0].message.content).ipa;
-            } catch (e) { el.textContent = "N/A"; }
+            el.textContent = "🔍 查詢標準音標...";
+            const prompt = `Provide precise IPA for "${word}" in ${getGlobalSettings().lang}. JSON: {"ipa": "/.../"}`;
+            const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
+            });
+            const d = await resp.json();
+            el.textContent = JSON.parse(d.choices[0].message.content).ipa;
         }
 
+        // 錄音邏輯
         document.getElementById('recordBtn').onclick = () => (recorder && recorder.recording) ? stopRec() : startRec();
 
         function startRec() {
             navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioContext = new AudioContext();
                 gumStream = stream;
                 recorder = new Recorder(audioContext.createMediaStreamSource(stream), { numChannels: 1 });
                 recorder.record();
                 document.getElementById('recordBtn').classList.add('active');
-                document.getElementById('recordStatus').textContent = "正在收音...";
-                seconds = 0;
-                timerInterval = setInterval(() => {
-                    seconds++;
-                    document.getElementById('timer').textContent = `00:0${seconds} / 00:05`;
-                    if (seconds >= 5) stopRec();
-                }, 1000);
+                document.getElementById('recordStatus').textContent = "正在聽你發音...";
             });
         }
 
         function stopRec() {
-            if (!recorder) return;
             recorder.stop();
             gumStream.getAudioTracks()[0].stop();
-            clearInterval(timerInterval);
             document.getElementById('recordBtn').classList.remove('active');
-            document.getElementById('recordStatus').textContent = "診斷中...";
+            document.getElementById('recordStatus').textContent = "教練正在分析中...";
             recorder.exportWAV(blob => {
                 lastRecordingUrl = URL.createObjectURL(blob);
                 document.getElementById('replayBtn').disabled = false;
@@ -425,55 +382,35 @@
         async function processAudio(blob) {
             const formData = new FormData();
             formData.append("file", blob, "rec.wav");
-            try {
-                const resp = await fetch(ALLOSAURUS_API, { method: "POST", body: formData });
-                const data = await resp.json();
-
-                // 第一時間填入層級 2：原始數據
-                document.getElementById('raw-ipa-result').textContent = data.ipa || "(未偵測到發音)";
-
-                getDiagnosis(data.ipa);
-            } catch (e) { document.getElementById('recordStatus').textContent = "辨識失敗"; }
+            const resp = await fetch(ALLOSAURUS_API, { method: "POST", body: formData });
+            const data = await resp.json();
+            document.getElementById('raw-ipa-result').textContent = data.ipa || "(未偵測到發音)";
+            getDiagnosis(data.ipa);
         }
 
+        // 診斷邏輯
         async function getDiagnosis(userIpa) {
-            const key = getGlobalSettings().key;
             const target = document.getElementById('ipaDisplay').textContent;
-
-            // 強化 Prompt：要求 GPT 不得隨意刪減 userIpa 中的符號，並進行精確對齊
-            const prompt = `你現在是專業語音矯正教練。
-            標準發音 (Target): "${target}"
-            學生發音 (Actual): "${userIpa}"
-
+            const prompt = `你現在是語音學教練。
+            目標音標: "${target}"
+            學生發音: "${userIpa}"
             任務：
-            1. comparison: 將兩者對齊。
-            2. phonemes: 針對學生發出的每個音標符號（尤其是與標準音不同的部分），提供以下分析：
-            - "s": 音標符號
-            - "diff": 描述學生的發音與標準音在「生理動作」上的差異。
-            - "guide": 給出具體的修正指令（例如：舌尖向下移動、嘴唇再圓一點、不要送氣）。
-
-            JSON 格式：
-            {
-            "comparison": [{"char": "標", "actual": "辨"}],
-            "phonemes": [{"s": "音標", "diff": "差異描述", "guide": "修正建議"}]
+            1. 將兩者對齊到 comparison。
+            2. 針對學生發出的 "${userIpa}" 每個符號，分析「生理動作差異」與「修正具體步驟」。
+            JSON: {
+              "comparison": [{"char": "標", "actual": "辨"}],
+              "phonemes": [{"s": "符號", "diff": "為什麼會發出這個音的生理原因", "guide": "具體修正動作"}]
             }`;
 
-            try {
-                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "gpt-4o-mini",
-                        messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" }
-                    })
-                });
-                const d = await resp.json();
-                const res = JSON.parse(d.choices[0].message.content);
-                renderComparison(res.comparison);
-                renderPhonemes(res.phonemes);
-                document.getElementById('recordStatus').textContent = "✅ 分析完成";
-            } catch (e) { document.getElementById('recordStatus').textContent = "❌ 診斷失敗"; }
+            const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
+            });
+            const res = JSON.parse((await resp.json()).choices[0].message.content);
+            renderComparison(res.comparison);
+            renderPhonemes(res.phonemes);
+            document.getElementById('recordStatus').textContent = "✅ 分析完成，點擊下方方塊查看建議";
         }
 
         function renderComparison(list) {
@@ -481,21 +418,22 @@
             wrap.innerHTML = "";
             list.forEach(item => {
                 const span = document.createElement('span');
-                const clean = (str) => (str || "").replace(/[.\s\/\(\)\[\]]/g, '').normalize('NFC');
-                const expected = clean(item.char);
-                const actual = clean(item.actual);
-
-                span.textContent = item.actual || item.char; // 顯示辨識到的內容
-                const isMatch = (expected !== "" && (expected === actual));
-
-                if (isMatch) {
-                    span.className = "char-correct";
-                } else {
-                    span.className = "char-wrong";
-                    span.title = `標準應為: ${item.char}`;
-                }
+                span.textContent = item.actual || item.char;
+                span.className = (item.char === item.actual) ? "char-correct" : "char-wrong";
                 wrap.appendChild(span);
             });
+        }
+
+        function playIpaSound(symbol) {
+            const cleanSym = symbol.replace(/[\/\(\)\[\]]/g, '').trim().toLowerCase();
+            const fileName = ipaAudioMap[cleanSym];
+            if (fileName) {
+                new Audio(`https://commons.wikimedia.org/wiki/Special:FilePath/${fileName}`).play();
+            } else {
+                const msg = new SpeechSynthesisUtterance(cleanSym);
+                msg.lang = 'it-IT';
+                speechSynthesis.speak(msg);
+            }
         }
 
         function renderPhonemes(phs) {
@@ -504,19 +442,15 @@
             phs.forEach(p => {
                 const d = document.createElement('div');
                 d.className = 'ph-block';
-                // 如果這個音不在標準音裡面，給它一個警告色
-                d.style.borderColor = document.getElementById('ipaDisplay').textContent.includes(p.s) ? 'var(--success)' : 'var(--danger)';
                 d.textContent = p.s;
-
                 d.onclick = () => {
+                    playIpaSound(p.s);
                     document.getElementById('diag-box').style.display = 'block';
                     document.getElementById('diag-content').innerHTML = `
-                <div style="border-left: 4px solid var(--accent); padding-left: 10px;">
-                    <h3 style="margin: 0 0 10px 0; color: var(--accent);">音標 [${p.s}] 調整建議</h3>
-                    <p><b>🔍 為什麼會這樣：</b><br>${p.diff || "發音位置基本正確"}</p>
-                    <p><b>💡 如何修正：</b><br><span style="color: var(--success); font-weight: bold;">${p.guide}</span></p>
-                </div>
-            `;
+                        <h3 style="color:var(--accent); margin-top:0;">音標 [${p.s}] 教練診斷</h3>
+                        <p><b>❌ 差異分析：</b><br>${p.diff}</p>
+                        <p><b>💡 修正建議：</b><br><span style="color:var(--success); font-weight:bold;">${p.guide}</span></p>
+                    `;
                 };
                 wrap.appendChild(d);
             });
