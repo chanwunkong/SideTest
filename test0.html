@@ -441,11 +441,22 @@
             const target = document.getElementById('ipaDisplay').textContent;
 
             // 強化 Prompt：要求 GPT 不得隨意刪減 userIpa 中的符號，並進行精確對齊
-            const prompt = `你現在是語音學家。標準目標 "${target}"，學生發音 "${userIpa}"。
+            const prompt = `你現在是專業語音矯正教練。
+            標準發音 (Target): "${target}"
+            學生發音 (Actual): "${userIpa}"
+
             任務：
-            1. 將 "${target}" 與 "${userIpa}" 進行字符對齊。不得刪減學生發出的任何符號。
-            2. 為 "${userIpa}" 每個符號提供發音細節。
-            JSON: {"comparison": [{"char": "標", "actual": "辨"}], "phonemes": [{"s": "音標", "pos": "位置", "guide": "建議"}]}`;
+            1. comparison: 將兩者對齊。
+            2. phonemes: 針對學生發出的每個音標符號（尤其是與標準音不同的部分），提供以下分析：
+            - "s": 音標符號
+            - "diff": 描述學生的發音與標準音在「生理動作」上的差異。
+            - "guide": 給出具體的修正指令（例如：舌尖向下移動、嘴唇再圓一點、不要送氣）。
+
+            JSON 格式：
+            {
+            "comparison": [{"char": "標", "actual": "辨"}],
+            "phonemes": [{"s": "音標", "diff": "差異描述", "guide": "修正建議"}]
+            }`;
 
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -493,10 +504,19 @@
             phs.forEach(p => {
                 const d = document.createElement('div');
                 d.className = 'ph-block';
+                // 如果這個音不在標準音裡面，給它一個警告色
+                d.style.borderColor = document.getElementById('ipaDisplay').textContent.includes(p.s) ? 'var(--success)' : 'var(--danger)';
                 d.textContent = p.s;
+
                 d.onclick = () => {
                     document.getElementById('diag-box').style.display = 'block';
-                    document.getElementById('diag-content').innerHTML = `<b>音標：[${p.s}]</b><br><b>位置：</b>${p.pos}<br><b>建議：</b>${p.guide}`;
+                    document.getElementById('diag-content').innerHTML = `
+                <div style="border-left: 4px solid var(--accent); padding-left: 10px;">
+                    <h3 style="margin: 0 0 10px 0; color: var(--accent);">音標 [${p.s}] 調整建議</h3>
+                    <p><b>🔍 為什麼會這樣：</b><br>${p.diff || "發音位置基本正確"}</p>
+                    <p><b>💡 如何修正：</b><br><span style="color: var(--success); font-weight: bold;">${p.guide}</span></p>
+                </div>
+            `;
                 };
                 wrap.appendChild(d);
             });
