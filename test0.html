@@ -40,7 +40,7 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         }
 
-        /* 錄音按鈕動畫 */
+        /* 錄音按鈕 */
         .record-btn {
             width: 90px;
             height: 90px;
@@ -48,7 +48,7 @@
             background: var(--record);
             border: none;
             cursor: pointer;
-            margin: 20px 0;
+            margin: 10px 0;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
@@ -76,7 +76,19 @@
             }
         }
 
-        /* 狀態文字與動畫 */
+        /* 計時器樣式 */
+        #timer {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 18px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        #timer.recording {
+            color: var(--record);
+        }
+
         #status {
             margin-top: 15px;
             font-size: 15px;
@@ -103,7 +115,6 @@
             }
         }
 
-        /* IPA 顯示區 */
         #ipa-full {
             font-size: 32px;
             font-family: "Lucida Sans Unicode", sans-serif;
@@ -141,7 +152,6 @@
             font-weight: bold;
         }
 
-        /* 診斷盒 */
         #diag-box {
             display: none;
             margin-top: 25px;
@@ -178,7 +188,9 @@
     <div class="container">
         <div class="app-card">
             <h1 style="margin-bottom: 5px;">Allosaurus 音位導航</h1>
-            <p style="font-size: 14px; color: #94a3b8;">提取發音的真實物理特徵，不受字典修正影響</p>
+            <p style="font-size: 14px; color: #94a3b8;">提取發音的真實物理特徵</p>
+
+            <div id="timer">00:00</div>
 
             <button class="record-btn" id="recordBtn">
                 <svg viewBox="0 0 24 24" width="36" height="36" fill="white">
@@ -202,24 +214,48 @@
     </div>
 
     <script>
-        // 設定讀取 (API Key 存放在 localStorage)
         const getSettings = () => ({
             lang: localStorage.getItem('userLang') || 'en-US',
             key: localStorage.getItem('gptApiKey') || ''
         });
 
-        // 你的 Cloud Run 伺服器
         const ALLOSAURUS_API = "https://allosaurus-api-878665537417.asia-east1.run.app/recognize";
 
         let mediaRecorder;
         let audioChunks = [];
+        let timerInterval;
+        let seconds = 0;
 
         const recordBtn = document.getElementById('recordBtn');
         const status = document.getElementById('status');
+        const timerDisplay = document.getElementById('timer');
+
+        // 計時器邏輯
+        function startTimer() {
+            seconds = 0;
+            timerDisplay.textContent = "00:00";
+            timerDisplay.classList.add('recording');
+            timerInterval = setInterval(() => {
+                seconds++;
+                const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const secs = (seconds % 60).toString().padStart(2, '0');
+                timerDisplay.textContent = `${mins}:${secs}`;
+
+                if (seconds >= 10) {
+                    status.innerHTML = `<span style="color:var(--record)">建議停止錄音（已超過 10 秒）</span>`;
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerDisplay.classList.remove('recording');
+        }
 
         recordBtn.onclick = async function () {
             if (mediaRecorder && mediaRecorder.state === "recording") {
                 mediaRecorder.stop();
+                stopTimer();
                 this.classList.remove('active');
                 return;
             }
@@ -230,6 +266,7 @@
                 audioChunks = [];
                 this.classList.add('active');
                 status.textContent = "正在錄音...";
+                startTimer();
 
                 mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                 mediaRecorder.onstop = () => {
@@ -253,13 +290,11 @@
             const phonemeWrap = document.getElementById('phoneme-wrap');
             const diagBox = document.getElementById('diag-box');
 
-            // 重置 UI
             ipaFull.textContent = "";
             phonemeWrap.innerHTML = "";
             diagBox.style.display = "none";
 
             try {
-                // 階段 1：Allosaurus 辨識
                 status.innerHTML = `<span class="loading-dots">步驟 1/2：Allosaurus 正在提取物理音位</span><small>(伺服器冷啟動可能需 15-20 秒)</small>`;
 
                 const formData = new FormData();
@@ -274,11 +309,9 @@
                 const realIPA = alloData.ipa;
                 ipaFull.textContent = `[ ${realIPA} ]`;
 
-                // 階段 2：GPT 物理分析
                 status.innerHTML = `<span class="loading-dots">步驟 2/2：AI 正在計算肌肉診斷</span>`;
 
-                const prompt = `你現在是語音物理學家。Allosaurus 辨識出使用者的發音為 "${realIPA}"。請根據這些真實音位提供物理肌肉指令。
-                回傳 JSON 格式：{"phonemes": [{"s": "音素", "guide": "肌肉調整指令(繁中)", "pos": "口腔座標"}]}`;
+                const prompt = `你現在是語音物理學家。Allosaurus 辨識出使用者的發音為 "${realIPA}"。請根據這些真實音位提供物理肌肉指令。回傳 JSON 格式：{"phonemes": [{"s": "音素", "guide": "肌肉調整指令(繁中)", "pos": "口腔座標"}]}`;
 
                 const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
@@ -297,7 +330,6 @@
                 status.innerHTML = `<span style="color:var(--success)">✅ 診斷完成</span>`;
 
             } catch (e) {
-                console.error(e);
                 status.innerHTML = `<span style="color:var(--record)">❌ 錯誤：${e.message}</span>`;
             }
         }
@@ -305,7 +337,6 @@
         function renderUI(data) {
             const wrap = document.getElementById('phoneme-wrap');
             wrap.innerHTML = "";
-
             data.phonemes.forEach(ph => {
                 const div = document.createElement('div');
                 div.className = "ph-block";
@@ -318,12 +349,6 @@
                         <div style="margin-bottom:10px;"><b>口腔座標：</b><span style="color:var(--accent)">${ph.pos}</span></div>
                         <div><b>調整指令：</b>${ph.guide}</div>
                     `;
-
-                    // 語音範本參考
-                    window.speechSynthesis.cancel();
-                    const u = new SpeechSynthesisUtterance(ph.s);
-                    u.lang = getSettings().lang;
-                    window.speechSynthesis.speak(u);
                 };
                 wrap.appendChild(div);
             });
