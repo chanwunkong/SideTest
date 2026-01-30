@@ -4,28 +4,26 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>test0 - Allosaurus 通用音位導航</title>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <title>Allosaurus 物理音位診斷器</title>
     <style>
         :root {
             --bg: #0b1220;
             --card: #111827;
             --text: #e5e7eb;
             --accent: #22d3ee;
-            --btn: #0ea5e9;
             --record: #ef4444;
+            --success: #10b981;
         }
 
         body {
             background: var(--bg);
             color: var(--text);
-            font-family: sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px;
+            min-height: 100vh;
         }
 
         .container {
@@ -36,73 +34,141 @@
         .app-card {
             background: var(--card);
             border-radius: 24px;
-            padding: 24px;
+            padding: 30px;
             border: 1px solid #1f2937;
             text-align: center;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         }
 
+        /* 錄音按鈕動畫 */
         .record-btn {
-            width: 80px;
-            height: 80px;
+            width: 90px;
+            height: 90px;
             border-radius: 50%;
             background: var(--record);
             border: none;
             cursor: pointer;
             margin: 20px 0;
-            transition: 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
         }
 
         .record-btn.active {
             animation: pulse 1.5s infinite;
             background: #991b1b;
+            transform: scale(0.9);
         }
 
         @keyframes pulse {
             0% {
-                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
             }
 
-            50% {
-                transform: scale(1.1);
+            70% {
+                box-shadow: 0 0 0 20px rgba(239, 68, 68, 0);
             }
 
             100% {
-                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
             }
+        }
+
+        /* 狀態文字與動畫 */
+        #status {
+            margin-top: 15px;
+            font-size: 15px;
+            min-height: 1.5em;
+            color: var(--accent);
+        }
+
+        .loading-dots::after {
+            content: '.';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0% {
+                content: '.';
+            }
+
+            33% {
+                content: '..';
+            }
+
+            66% {
+                content: '...';
+            }
+        }
+
+        /* IPA 顯示區 */
+        #ipa-full {
+            font-size: 32px;
+            font-family: "Lucida Sans Unicode", sans-serif;
+            color: var(--accent);
+            margin: 20px 0;
+            letter-spacing: 4px;
         }
 
         #phoneme-wrap {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 12px;
             justify-content: center;
-            margin-top: 20px;
+            margin-top: 10px;
         }
 
         .ph-block {
-            padding: 10px 15px;
+            padding: 12px 20px;
             background: #1f2937;
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: pointer;
             border: 1px solid #334155;
+            font-size: 20px;
+            transition: 0.2s;
+        }
+
+        .ph-block:hover {
+            border-color: var(--accent);
+            background: #2d3748;
         }
 
         .ph-block.active {
             background: var(--accent);
             color: #000;
+            font-weight: bold;
         }
 
+        /* 診斷盒 */
         #diag-box {
             display: none;
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(34, 211, 238, 0.1);
-            border-radius: 12px;
-            border-left: 4px solid var(--accent);
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(34, 211, 238, 0.05);
+            border-radius: 16px;
+            border-left: 5px solid var(--accent);
             text-align: left;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        small {
+            color: #64748b;
+            display: block;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -111,11 +177,11 @@
 
     <div class="container">
         <div class="app-card">
-            <h1>Allosaurus 音位導航</h1>
-            <p style="font-size: 13px; color: #94a3b8;">請錄製一段發音，系統將提取通用音位特徵</p>
+            <h1 style="margin-bottom: 5px;">Allosaurus 音位導航</h1>
+            <p style="font-size: 14px; color: #94a3b8;">提取發音的真實物理特徵，不受字典修正影響</p>
 
             <button class="record-btn" id="recordBtn">
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="white">
+                <svg viewBox="0 0 24 24" width="36" height="36" fill="white">
                     <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
                     <path
                         d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
@@ -123,107 +189,120 @@
             </button>
 
             <div id="status">準備就緒</div>
-            <div id="ipa-full" style="font-size: 24px; color: var(--accent); margin-top: 15px;"></div>
+            <div id="ipa-full"></div>
             <div id="phoneme-wrap"></div>
 
             <div id="diag-box">
-                <div style="font-weight: bold; margin-bottom: 5px;">📍 物理發音定位指令：</div>
-                <div id="diag-content" style="font-size: 14px; line-height: 1.6;"></div>
+                <div
+                    style="font-size: 12px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">
+                    肌肉定位指令</div>
+                <div id="diag-content" style="font-size: 15px; line-height: 1.7;"></div>
             </div>
         </div>
     </div>
 
     <script>
+        // 設定讀取 (API Key 存放在 localStorage)
         const getSettings = () => ({
             lang: localStorage.getItem('userLang') || 'en-US',
             key: localStorage.getItem('gptApiKey') || ''
         });
 
+        // 你的 Cloud Run 伺服器
+        const ALLOSAURUS_API = "https://allosaurus-api-878665537417.asia-east1.run.app/recognize";
+
         let mediaRecorder;
         let audioChunks = [];
 
-        document.getElementById('recordBtn').onclick = async function () {
+        const recordBtn = document.getElementById('recordBtn');
+        const status = document.getElementById('status');
+
+        recordBtn.onclick = async function () {
             if (mediaRecorder && mediaRecorder.state === "recording") {
                 mediaRecorder.stop();
                 this.classList.remove('active');
                 return;
             }
 
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
-            this.classList.add('active');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                this.classList.add('active');
+                status.textContent = "正在錄音...";
 
-            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = async () => {
-                const blob = new Blob(audioChunks, { type: 'audio/wav' });
-                analyzeWithAllosaurusLogic(blob);
-            };
-            mediaRecorder.start();
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/wav' });
+                    processAudio(blob);
+                };
+                mediaRecorder.start();
+            } catch (err) {
+                status.innerHTML = `<span style="color:var(--record)">無法存取麥克風</span>`;
+            }
         };
 
-        async function analyzeWithAllosaurusLogic(blob) {// 你的 Cloud Run 伺服器網址
-            const ALLOSAURUS_API = "https://allosaurus-api-878665537417.asia-east1.run.app/recognize";
+        async function processAudio(blob) {
+            const settings = getSettings();
+            if (!settings.key) {
+                status.innerHTML = `<span style="color:var(--record)">請先在主頁設定 GPT API Key</span>`;
+                return;
+            }
 
-            async function analyzeWithAllosaurusLogic(blob) {
-                const settings = getSettings();
-                const status = document.getElementById('status');
-                status.textContent = "正在連結物理辨識器 (Allosaurus)...";
+            const ipaFull = document.getElementById('ipa-full');
+            const phonemeWrap = document.getElementById('phoneme-wrap');
+            const diagBox = document.getElementById('diag-box');
 
-                // 1. 呼叫你的 Cloud Run 伺服器獲取「真實 IPA」
-                const apiData = new FormData();
-                apiData.append("file", blob, "recording.wav");
+            // 重置 UI
+            ipaFull.textContent = "";
+            phonemeWrap.innerHTML = "";
+            diagBox.style.display = "none";
 
-                try {
-                    const alloResp = await fetch(ALLOSAURUS_API, {
-                        method: "POST",
-                        body: apiData
-                    });
-                    const alloData = await alloResp.json();
+            try {
+                // 階段 1：Allosaurus 辨識
+                status.innerHTML = `<span class="loading-dots">步驟 1/2：Allosaurus 正在提取物理音位</span><small>(伺服器冷啟動可能需 15-20 秒)</small>`;
 
-                    // 這是 Allosaurus 輸出的真實物理音位 (例如: "æ l u s ɔ ɹ s")
-                    const realIPA = alloData.ipa;
-                    document.getElementById('ipa-full').textContent = `物理辨識結果：${realIPA}`;
+                const formData = new FormData();
+                formData.append("file", blob, "recording.wav");
 
-                    // 2. 將真實 IPA 交給 GPT 進行「發音肌肉定位」解釋
-                    status.textContent = "正在生成肌肉定位指令...";
-                    const prompt = `你現在是語音物理學家。
-        Allosaurus 辨識器從使用者的發音中提取了以下真實音位： "${realIPA}"。
-        請根據這些「實際發出的音素」，為每個音素提供：
-        1. 精確的口腔物理座標 (例如：舌位高度、前後、聲帶震動)。
-        2. 針對該音素的肌肉調整指令 (繁體中文)。
-        
-        請回傳 JSON 格式：
-        {"phonemes": [{"s": "音素符號", "guide": "肌肉定位指令", "pos": "物理座標"}]}`;
+                const alloResp = await fetch(ALLOSAURUS_API, { method: "POST", body: formData });
+                if (!alloResp.ok) throw new Error("Cloud Run 伺服器響應失敗");
 
-                    const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
-                        method: "POST",
-                        headers: {
-                            "Authorization": `Bearer ${settings.key}`,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            model: "gpt-4o-mini",
-                            messages: [{ role: "user", content: prompt }],
-                            response_format: { type: "json_object" }
-                        })
-                    });
+                const alloData = await alloResp.json();
+                if (alloData.error) throw new Error(alloData.error);
 
-                    const aiData = await aiResp.json();
-                    const finalResult = JSON.parse(aiData.choices[0].message.content);
+                const realIPA = alloData.ipa;
+                ipaFull.textContent = `[ ${realIPA} ]`;
 
-                    renderUI(finalResult);
-                    status.textContent = "分析完成 (基於真實物理特徵)";
+                // 階段 2：GPT 物理分析
+                status.innerHTML = `<span class="loading-dots">步驟 2/2：AI 正在計算肌肉診斷</span>`;
 
-                } catch (e) {
-                    status.textContent = "錯誤：" + e.message;
-                    console.error(e);
-                }
+                const prompt = `你現在是語音物理學家。Allosaurus 辨識出使用者的發音為 "${realIPA}"。請根據這些真實音位提供物理肌肉指令。
+                回傳 JSON 格式：{"phonemes": [{"s": "音素", "guide": "肌肉調整指令(繁中)", "pos": "口腔座標"}]}`;
+
+                const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [{ role: "user", content: prompt }],
+                        response_format: { type: "json_object" }
+                    })
+                });
+
+                const aiData = await aiResp.json();
+                const result = JSON.parse(aiData.choices[0].message.content);
+
+                renderUI(result);
+                status.innerHTML = `<span style="color:var(--success)">✅ 診斷完成</span>`;
+
+            } catch (e) {
+                console.error(e);
+                status.innerHTML = `<span style="color:var(--record)">❌ 錯誤：${e.message}</span>`;
             }
         }
 
         function renderUI(data) {
-            document.getElementById('ipa-full').textContent = data.ipa;
             const wrap = document.getElementById('phoneme-wrap');
             wrap.innerHTML = "";
 
@@ -235,13 +314,16 @@
                     document.querySelectorAll('.ph-block').forEach(b => b.classList.remove('active'));
                     div.classList.add('active');
                     document.getElementById('diag-box').style.display = "block";
-                    document.getElementById('diag-content').innerHTML = `<b>座標：</b>${ph.pos}<br><b>指令：</b>${ph.guide}`;
+                    document.getElementById('diag-content').innerHTML = `
+                        <div style="margin-bottom:10px;"><b>口腔座標：</b><span style="color:var(--accent)">${ph.pos}</span></div>
+                        <div><b>調整指令：</b>${ph.guide}</div>
+                    `;
 
-                    // 語音範例
-                    speechSynthesis.cancel();
+                    // 語音範本參考
+                    window.speechSynthesis.cancel();
                     const u = new SpeechSynthesisUtterance(ph.s);
                     u.lang = getSettings().lang;
-                    speechSynthesis.speak(u);
+                    window.speechSynthesis.speak(u);
                 };
                 wrap.appendChild(div);
             });
