@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>音位診斷 - 終極嚴格比對版</title>
+    <title>音位診斷 - 三層精準比對版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -19,6 +19,7 @@
             --btn: #0ea5e9;
             --danger: #ef4444;
             --success: #10b981;
+            --warning: #f59e0b;
         }
 
         body {
@@ -62,7 +63,7 @@
             flex-wrap: wrap;
             gap: 8px;
             margin: 15px 0;
-            max-height: 180px;
+            max-height: 120px;
             overflow-y: auto;
             padding: 5px;
         }
@@ -89,7 +90,6 @@
             font-size: 9px;
             color: var(--accent);
             text-transform: uppercase;
-            opacity: 0.8;
             display: block;
         }
 
@@ -101,13 +101,46 @@
             margin: 20px 0 5px 0;
         }
 
-        #ipaDisplay {
-            color: #94a3b8;
+        /* --- 新增：三層診斷布局 --- */
+        .diag-layer {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
             text-align: center;
-            font-size: 18px;
-            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .layer-label {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        #ipaDisplay {
+            color: var(--text);
+            font-size: 24px;
             font-family: monospace;
         }
+
+        #raw-ipa-result {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--warning);
+            letter-spacing: 2px;
+            font-family: 'Charis SIL', monospace;
+        }
+
+        #ipa-result {
+            font-size: 32px;
+            font-family: 'Charis SIL', monospace;
+            letter-spacing: 4px;
+        }
+
+        /* ----------------------- */
 
         .record-container {
             text-align: center;
@@ -145,21 +178,13 @@
             }
         }
 
-        #ipa-result {
-            text-align: center;
-            font-size: 36px;
-            margin: 25px 0;
-            font-family: 'Charis SIL', 'Segoe UI', monospace;
-            letter-spacing: 4px;
-        }
-
         .char-correct {
             color: var(--success);
         }
 
         .char-wrong {
             color: var(--danger);
-            text-decoration: underline;
+            text-decoration: underline wavy;
             cursor: help;
         }
 
@@ -171,7 +196,6 @@
             cursor: pointer;
             margin: 5px;
             border: 1px solid #334155;
-            font-size: 16px;
         }
 
         #diag-box {
@@ -179,10 +203,11 @@
             border-radius: 12px;
             padding: 15px;
             margin-top: 15px;
-            border: 1px solid #1f2937;
+            border: 1px solid var(--accent);
             display: none;
             font-size: 14px;
             line-height: 1.6;
+            text-align: left;
         }
 
         .action-group {
@@ -226,21 +251,31 @@
             <div class="chips" id="samples"></div>
 
             <div id="wordDisplay">選擇單字開始</div>
-            <div id="ipaDisplay">[ 標準 IPA ]</div>
+
+            <div class="diag-layer">
+                <span class="layer-label">1. 標準 IPA (字典建議)</span>
+                <div id="ipaDisplay">[ -- ]</div>
+            </div>
+
+            <div class="diag-layer"
+                style="background: rgba(245, 158, 11, 0.05); border: 1px dashed rgba(245, 158, 11, 0.2);">
+                <span class="layer-label">2. 辨識結果 (API 第一手資訊)</span>
+                <div id="raw-ipa-result">--</div>
+            </div>
+
+            <div class="diag-layer">
+                <span class="layer-label">3. 差異診斷 (比對分析)</span>
+                <div id="ipa-result"></div>
+                <div id="phoneme-wrap"></div>
+                <div id="diag-box">
+                    <div id="diag-content"></div>
+                </div>
+            </div>
 
             <div class="record-container">
                 <div id="timer" style="color:#6b7280; font-size:14px;">00:00 / 00:05</div>
                 <button class="record-btn" id="recordBtn">🎤</button>
-                <div id="recordStatus" style="font-size: 13px; color: var(--accent); margin-top: 10px;">點擊錄音 (限時 5 秒)
-                </div>
-            </div>
-
-            <div id="ipa-result"></div>
-
-            <div id="phoneme-wrap" style="text-align: center; margin: 15px 0;"></div>
-
-            <div id="diag-box">
-                <div id="diag-content"></div>
+                <div id="recordStatus" style="font-size: 13px; color: var(--accent); margin-top: 10px;">點擊錄音</div>
             </div>
 
             <div class="action-group">
@@ -379,17 +414,12 @@
             gumStream.getAudioTracks()[0].stop();
             clearInterval(timerInterval);
             document.getElementById('recordBtn').classList.remove('active');
-            document.getElementById('recordStatus').textContent = "分析診斷中...";
+            document.getElementById('recordStatus').textContent = "診斷中...";
             recorder.exportWAV(blob => {
-                if (lastRecordingUrl) URL.revokeObjectURL(lastRecordingUrl);
                 lastRecordingUrl = URL.createObjectURL(blob);
                 document.getElementById('replayBtn').disabled = false;
                 processAudio(blob);
             });
-        }
-
-        function playLastRecording() {
-            if (lastRecordingUrl) new Audio(lastRecordingUrl).play();
         }
 
         async function processAudio(blob) {
@@ -398,6 +428,10 @@
             try {
                 const resp = await fetch(ALLOSAURUS_API, { method: "POST", body: formData });
                 const data = await resp.json();
+
+                // 第一時間填入層級 2：原始數據
+                document.getElementById('raw-ipa-result').textContent = data.ipa || "(未偵測到發音)";
+
                 getDiagnosis(data.ipa);
             } catch (e) { document.getElementById('recordStatus').textContent = "辨識失敗"; }
         }
@@ -405,10 +439,13 @@
         async function getDiagnosis(userIpa) {
             const key = getGlobalSettings().key;
             const target = document.getElementById('ipaDisplay').textContent;
-            // 強化 Prompt：要求移除所有空格與點號，強制對齊
-            const prompt = `你現在是精確的語音對齊專家。標準音標 "${target}"，實際辨識 "${userIpa}"。
-            任務：移除標準與實際音標中所有的點號(.)與空格後一對一對齊。漏讀請留空。
-            提供繁體中文建議。JSON: {"comparison": [{"char": "符號", "actual": "符號"}], "phonemes": [...]}`;
+
+            // 強化 Prompt：要求 GPT 不得隨意刪減 userIpa 中的符號，並進行精確對齊
+            const prompt = `你現在是語音學家。標準目標 "${target}"，學生發音 "${userIpa}"。
+            任務：
+            1. 將 "${target}" 與 "${userIpa}" 進行字符對齊。不得刪減學生發出的任何符號。
+            2. 為 "${userIpa}" 每個符號提供發音細節。
+            JSON: {"comparison": [{"char": "標", "actual": "辨"}], "phonemes": [{"s": "音標", "pos": "位置", "guide": "建議"}]}`;
 
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -428,26 +465,23 @@
             } catch (e) { document.getElementById('recordStatus').textContent = "❌ 診斷失敗"; }
         }
 
-        // --- 核心容錯比對：解決符號一致卻顯紅的問題 ---
         function renderComparison(list) {
             const wrap = document.getElementById('ipa-result');
             wrap.innerHTML = "";
             list.forEach(item => {
                 const span = document.createElement('span');
-                const clean = (str) => (str || "").replace(/[.\s\/\(\)\[\]\u200B-\u200D\uFEFF]/g, '').normalize('NFC');
-
+                const clean = (str) => (str || "").replace(/[.\s\/\(\)\[\]]/g, '').normalize('NFC');
                 const expected = clean(item.char);
                 const actual = clean(item.actual);
 
-                span.textContent = item.char;
-                // 只要主體符號一致，強制綠色
-                const isMatch = (expected !== "" && (expected === actual || actual.includes(expected) || expected.includes(actual)));
+                span.textContent = item.actual || item.char; // 顯示辨識到的內容
+                const isMatch = (expected !== "" && (expected === actual));
 
                 if (isMatch) {
                     span.className = "char-correct";
                 } else {
                     span.className = "char-wrong";
-                    span.title = actual === "" ? "漏讀" : `辨識為: ${actual}`;
+                    span.title = `標準應為: ${item.char}`;
                 }
                 wrap.appendChild(span);
             });
@@ -462,12 +496,13 @@
                 d.textContent = p.s;
                 d.onclick = () => {
                     document.getElementById('diag-box').style.display = 'block';
-                    document.getElementById('diag-content').innerHTML = `<b>發音位置：</b>${p.pos}<br><b>建議：</b>${p.guide}`;
+                    document.getElementById('diag-content').innerHTML = `<b>音標：[${p.s}]</b><br><b>位置：</b>${p.pos}<br><b>建議：</b>${p.guide}`;
                 };
                 wrap.appendChild(d);
             });
         }
 
+        function playLastRecording() { if (lastRecordingUrl) new Audio(lastRecordingUrl).play(); }
         function speakCurrentWord() {
             const u = new SpeechSynthesisUtterance(currentTargetReading || document.getElementById('wordDisplay').textContent);
             u.lang = getGlobalSettings().lang;
