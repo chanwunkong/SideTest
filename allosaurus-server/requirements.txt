@@ -1,0 +1,5 @@
+allosaurus
+fastapi
+uvicorn
+python-multipart
+libsndfile1
