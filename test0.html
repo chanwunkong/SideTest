@@ -162,49 +162,63 @@
             mediaRecorder.start();
         };
 
-        async function analyzeWithAllosaurusLogic(blob) {
-            const settings = getSettings();
-            const status = document.getElementById('status');
-            status.textContent = "正在提取音位特徵...";
+        async function analyzeWithAllosaurusLogic(blob) {// 你的 Cloud Run 伺服器網址
+            const ALLOSAURUS_API = "https://allosaurus-api-878665537417.asia-east1.run.app/recognize";
 
-            // 1. 先透過 Whisper 辨識出文字
-            const formData = new FormData();
-            formData.append("file", blob, "audio.wav");
-            formData.append("model", "whisper-1");
+            async function analyzeWithAllosaurusLogic(blob) {
+                const settings = getSettings();
+                const status = document.getElementById('status');
+                status.textContent = "正在連結物理辨識器 (Allosaurus)...";
 
-            try {
-                const whisperResp = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${settings.key}` },
-                    body: formData
-                });
-                const whisperData = await whisperResp.json();
-                const text = whisperData.text;
+                // 1. 呼叫你的 Cloud Run 伺服器獲取「真實 IPA」
+                const apiData = new FormData();
+                apiData.append("file", blob, "recording.wav");
 
-                // 2. 模擬 Allosaurus 通用音位辨識與診斷
-                const prompt = `You are an expert Phonetician using Allosaurus universal phone recognizer logic.
-            The user said: "${text}" in ${settings.lang}.
-            1. Provide the universal IPA phonemes.
-            2. For each phoneme, give a precise physical articulation guide in Traditional Chinese.
-            Return JSON: {"ipa": "/.../", "phonemes": [{"s": "symbol", "guide": "肌肉定位指令", "pos": "舌位座標"}]}`;
+                try {
+                    const alloResp = await fetch(ALLOSAURUS_API, {
+                        method: "POST",
+                        body: apiData
+                    });
+                    const alloData = await alloResp.json();
 
-                const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "gpt-4o-mini",
-                        messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" }
-                    })
-                });
+                    // 這是 Allosaurus 輸出的真實物理音位 (例如: "æ l u s ɔ ɹ s")
+                    const realIPA = alloData.ipa;
+                    document.getElementById('ipa-full').textContent = `物理辨識結果：${realIPA}`;
 
-                const aiData = await aiResp.json();
-                const result = JSON.parse(aiData.choices[0].message.content);
+                    // 2. 將真實 IPA 交給 GPT 進行「發音肌肉定位」解釋
+                    status.textContent = "正在生成肌肉定位指令...";
+                    const prompt = `你現在是語音物理學家。
+        Allosaurus 辨識器從使用者的發音中提取了以下真實音位： "${realIPA}"。
+        請根據這些「實際發出的音素」，為每個音素提供：
+        1. 精確的口腔物理座標 (例如：舌位高度、前後、聲帶震動)。
+        2. 針對該音素的肌肉調整指令 (繁體中文)。
+        
+        請回傳 JSON 格式：
+        {"phonemes": [{"s": "音素符號", "guide": "肌肉定位指令", "pos": "物理座標"}]}`;
 
-                renderUI(result);
-                status.textContent = "分析完成";
-            } catch (e) {
-                status.textContent = "錯誤：" + e.message;
+                    const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${settings.key}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            model: "gpt-4o-mini",
+                            messages: [{ role: "user", content: prompt }],
+                            response_format: { type: "json_object" }
+                        })
+                    });
+
+                    const aiData = await aiResp.json();
+                    const finalResult = JSON.parse(aiData.choices[0].message.content);
+
+                    renderUI(finalResult);
+                    status.textContent = "分析完成 (基於真實物理特徵)";
+
+                } catch (e) {
+                    status.textContent = "錯誤：" + e.message;
+                    console.error(e);
+                }
             }
         }
 
