@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>音位診斷 - 布局整合版</title>
+    <title>音位診斷 - 錄音回播整合版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -93,12 +93,6 @@
             display: block;
         }
 
-        .star-text {
-            display: block;
-            font-size: 10px;
-            color: #fbbf24;
-        }
-
         #wordDisplay {
             font-size: 42px;
             font-weight: bold;
@@ -155,7 +149,7 @@
             text-align: center;
             font-size: 32px;
             margin-top: 25px;
-            font-family: monospace;
+            font-family: 'Charis SIL', 'Segoe UI', monospace;
             letter-spacing: 4px;
         }
 
@@ -191,16 +185,30 @@
             line-height: 1.6;
         }
 
-        button.primary-btn {
-            width: 100%;
+        .action-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button.action-btn {
+            flex: 1;
             border-radius: 14px;
             padding: 15px;
             font-weight: bold;
             border: none;
             cursor: pointer;
+            font-size: 15px;
+        }
+
+        .primary {
             background: var(--btn);
             color: #000;
-            margin-top: 10px;
+        }
+
+        .secondary {
+            background: #374151;
+            color: #fff;
         }
     </style>
 </head>
@@ -234,7 +242,11 @@
                 <div id="diag-content"></div>
             </div>
 
-            <button onclick="speakCurrentWord()" class="primary-btn">▶ 播放標準範例音</button>
+            <div class="action-group">
+                <button onclick="speakCurrentWord()" class="action-btn primary">▶ 播放標準範例音</button>
+                <button id="replayBtn" onclick="playLastRecording()" class="action-btn secondary" disabled>👂
+                    回播我的錄音</button>
+            </div>
         </div>
     </div>
 
@@ -246,6 +258,7 @@
 
         let audioContext, recorder, gumStream, timerInterval, seconds = 0;
         let currentTargetReading = "";
+        let lastRecordingUrl = null;
 
         const getGlobalSettings = () => ({
             lang: localStorage.getItem('userLang') || 'en-US',
@@ -321,9 +334,9 @@
             const settings = getGlobalSettings();
             if (!settings.key) return;
             const el = document.getElementById('ipaDisplay');
-            el.textContent = "🔍 IPA...";
+            el.textContent = "🔍 查詢中...";
 
-            const prompt = `Phonetic expert: Provide IPA for "${word}" in ${settings.lang} based on reading "${reading}". JSON: {"ipa": "/.../"}`;
+            const prompt = `Phonetic expert: Provide IPA for "${word}" in ${settings.lang} based on reading "${reading}". Output JSON: {"ipa": "/.../"}`;
             const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
@@ -337,7 +350,7 @@
             el.textContent = JSON.parse(d.choices[0].message.content).ipa;
         }
 
-        // --- 錄音功能 ---
+        // --- 錄音功能與回播 ---
         document.getElementById('recordBtn').onclick = () => (recorder && recorder.recording) ? stopRec() : startRec();
 
         function startRec() {
@@ -347,6 +360,7 @@
                 recorder = new Recorder(audioContext.createMediaStreamSource(stream), { numChannels: 1 });
                 recorder.record();
                 document.getElementById('recordBtn').classList.add('active');
+                document.getElementById('recordStatus').textContent = "正在收音...";
                 seconds = 0;
                 timerInterval = setInterval(() => {
                     seconds++;
@@ -361,8 +375,21 @@
             gumStream.getAudioTracks()[0].stop();
             clearInterval(timerInterval);
             document.getElementById('recordBtn').classList.remove('active');
-            document.getElementById('recordStatus').textContent = "分析中...";
-            recorder.exportWAV(blob => processAudio(blob));
+            document.getElementById('recordStatus').textContent = "診斷中...";
+            recorder.exportWAV(blob => {
+                // 儲存當次錄音 URL
+                if (lastRecordingUrl) URL.revokeObjectURL(lastRecordingUrl);
+                lastRecordingUrl = URL.createObjectURL(blob);
+                document.getElementById('replayBtn').disabled = false;
+                processAudio(blob);
+            });
+        }
+
+        function playLastRecording() {
+            if (lastRecordingUrl) {
+                const audio = new Audio(lastRecordingUrl);
+                audio.play();
+            }
         }
 
         async function processAudio(blob) {
@@ -375,10 +402,17 @@
             } catch (e) { console.error(e); }
         }
 
+        // --- 中文診斷邏輯 ---
         async function getDiagnosis(userIpa) {
             const key = getGlobalSettings().key;
             const target = document.getElementById('ipaDisplay').textContent;
-            const prompt = `Correct IPA: "${target}". User IPA: "${userIpa}". Compare and diagnose. JSON: {"comparison": [{"char": "symbol", "isCorrect": bool, "actual": "actual"}], "phonemes": [{"s": "char", "guide": "tip", "pos": "pos"}]}`;
+
+            // 使用中文 Prompt
+            const prompt = `你現在是專業語言矯正專家。目標音標 "${target}"，使用者發音 "${userIpa}"。
+            請以繁體中文進行字符比對與肌肉調整建議。回傳 JSON: 
+            {"comparison": [{"char": "音素", "isCorrect": bool, "actual": "誤讀音"}], 
+             "phonemes": [{"s": "音素", "guide": "中文具體肌肉調整建議", "pos": "中文發音位置描述"}]}`;
+
             const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
@@ -392,7 +426,7 @@
             const res = JSON.parse(d.choices[0].message.content);
             renderComparison(res.comparison);
             renderPhonemes(res.phonemes);
-            document.getElementById('recordStatus').textContent = "✅ 分析完成";
+            document.getElementById('recordStatus').textContent = "✅ 分析完成，可點擊音素或回播錄音";
         }
 
         function renderComparison(list) {
@@ -402,7 +436,7 @@
                 const span = document.createElement('span');
                 span.textContent = item.char;
                 span.className = item.isCorrect ? "char-correct" : "char-wrong";
-                if (!item.isCorrect) span.title = `辨識為: ${item.actual}`;
+                if (!item.isCorrect) span.title = `實際讀為: ${item.actual}`;
                 wrap.appendChild(span);
             });
         }
@@ -416,7 +450,7 @@
                 d.textContent = p.s;
                 d.onclick = () => {
                     document.getElementById('diag-box').style.display = 'block';
-                    document.getElementById('diag-content').innerHTML = `<b>發音建議：</b>${p.guide}`;
+                    document.getElementById('diag-content').innerHTML = `<b>發音位置：</b>${p.pos}<br><b>建議：</b>${p.guide}`;
                 };
                 wrap.appendChild(d);
             });
