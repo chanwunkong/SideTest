@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>音位診斷 - 語音教練版</title>
+    <title>音位診斷 - 語音教練完整版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -26,7 +26,7 @@
             margin: 0;
             background: var(--bg);
             color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, sans-serif;
             padding: 20px;
             line-height: 1.5;
         }
@@ -52,7 +52,6 @@
             color: #64748b;
         }
 
-        /* 單字卡布局保持不變 */
         .chips {
             display: flex;
             flex-wrap: wrap;
@@ -91,7 +90,6 @@
             margin: 10px 0;
         }
 
-        /* 三層診斷 UI */
         .layer {
             margin-bottom: 15px;
             padding: 15px;
@@ -136,7 +134,6 @@
             text-decoration: underline wavy;
         }
 
-        /* 音標方塊 */
         .ph-block {
             display: inline-block;
             padding: 12px 18px;
@@ -154,7 +151,6 @@
             transform: translateY(-2px);
         }
 
-        /* 診斷建議框 */
         #diag-box {
             background: #0f172a;
             border-radius: 16px;
@@ -229,9 +225,7 @@
                 <span id="status">檢查登入中...</span>
                 <span id="langDisplay">目標語言</span>
             </div>
-
             <div class="chips" id="samples"></div>
-
             <h1 id="wordDisplay">選擇單字</h1>
 
             <div class="layer">
@@ -245,7 +239,7 @@
             </div>
 
             <div class="layer">
-                <span class="layer-label">Step 3: 差異比對與矯正建議 (點擊方塊聽示範)</span>
+                <span class="layer-label">Step 3: 矯正教學 (點擊方塊聽示範)</span>
                 <div id="ipa-result"></div>
                 <div id="phoneme-wrap"></div>
                 <div id="diag-box">
@@ -254,6 +248,8 @@
             </div>
 
             <div class="record-container">
+                <div id="timer" style="text-align:center; color:#6b7280; font-size:14px; margin-bottom:5px;">00:00 /
+                    00:05</div>
                 <button class="record-btn" id="recordBtn">🎤</button>
                 <div id="recordStatus" style="text-align:center; color:var(--accent);">點擊錄音</div>
             </div>
@@ -267,21 +263,12 @@
     </div>
 
     <script>
-        // 設定與 API
         const ALLOSAURUS_API = "https://allosaurus-api-878665537417.asia-east1.run.app/recognize";
         const firebaseConfig = { apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM", authDomain: "test-5dbba.firebaseapp.com", projectId: "test-5dbba" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore(), auth = firebase.auth();
 
-        let audioContext, recorder, gumStream, currentTargetReading = "", lastRecordingUrl = null;
-
-        // IPA 音檔映射表 (Wikimedia 資源)
-        const ipaAudioMap = {
-            "t": "Voiceless_alveolar_plosive.ogg", "u": "Close_back_rounded_vowel.ogg",
-            "ə": "Mid-central_vowel.ogg", "ɾ": "Alveolar_tap.ogg",
-            "i": "Close_front_unrounded_vowel.ogg", "a": "Open_front_unrounded_vowel.ogg",
-            "o": "Close-mid_back_rounded_vowel.ogg", "p": "Voiceless_bilabial_plosive.ogg"
-        };
+        let audioContext, recorder, gumStream, currentTargetReading = "", lastRecordingUrl = null, timerInterval, seconds = 0;
 
         const getGlobalSettings = () => ({
             lang: localStorage.getItem('userLang') || 'it-IT',
@@ -289,7 +276,6 @@
             course: localStorage.getItem('userCourse') || 'all'
         });
 
-        // 初始化
         auth.onAuthStateChanged(user => {
             document.getElementById('status').textContent = user ? `學習者：${user.email.split('@')[0]}` : "尚未登入";
             document.getElementById('langDisplay').textContent = `目標語言：${getGlobalSettings().lang}`;
@@ -299,8 +285,7 @@
         async function loadSwadeshCSV() {
             try {
                 const resp = await fetch('swadesh.csv');
-                const text = await resp.text();
-                window.allWordData = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+                window.allWordData = Papa.parse(await resp.text(), { header: true, skipEmptyLines: true }).data;
                 renderChips();
             } catch (e) { console.error(e); }
         }
@@ -312,8 +297,7 @@
 
             const prompt = `Translate "${englishWord}" (${pos}) into ${targetLang}. JSON: {"text": "word", "reading": "phonetic"}`;
             const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
+                method: "POST", headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
                 body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
             });
             const res = JSON.parse((await resp.json()).choices[0].message.content);
@@ -326,8 +310,7 @@
             container.innerHTML = '';
             window.allWordData.filter(row => row['en-US']).forEach(row => {
                 const chip = document.createElement('div');
-                chip.className = 'chip';
-                chip.innerHTML = `<span class="pos-tag">${row['POS']}</span>...`;
+                chip.className = 'chip'; chip.innerHTML = `<span class="pos-tag">${row['POS']}</span>...`;
                 container.appendChild(chip);
                 getTranslatedWord(row['en-US'], row['POS'], getGlobalSettings().lang).then(data => {
                     chip.innerHTML = `<span class="pos-tag">${row['POS']}</span>${data.text}`;
@@ -342,36 +325,35 @@
 
         async function fetchIPA(word, reading) {
             const el = document.getElementById('ipaDisplay');
-            el.textContent = "🔍 查詢標準音標...";
-            const prompt = `Provide precise IPA for "${word}" in ${getGlobalSettings().lang}. JSON: {"ipa": "/.../"}`;
+            el.textContent = "🔍 查詢中...";
+            const prompt = `Provide IPA for "${word}" in ${getGlobalSettings().lang} based on reading "${reading}". JSON: {"ipa": "/.../"}`;
             const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
+                method: "POST", headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
                 body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
             });
-            const d = await resp.json();
-            el.textContent = JSON.parse(d.choices[0].message.content).ipa;
+            el.textContent = JSON.parse((await resp.json()).choices[0].message.content).ipa;
         }
 
-        // 錄音邏輯
         document.getElementById('recordBtn').onclick = () => (recorder && recorder.recording) ? stopRec() : startRec();
 
         function startRec() {
             navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-                audioContext = new AudioContext();
-                gumStream = stream;
+                audioContext = new AudioContext(); gumStream = stream;
                 recorder = new Recorder(audioContext.createMediaStreamSource(stream), { numChannels: 1 });
-                recorder.record();
-                document.getElementById('recordBtn').classList.add('active');
-                document.getElementById('recordStatus').textContent = "正在聽你發音...";
+                recorder.record(); document.getElementById('recordBtn').classList.add('active');
+                seconds = 0;
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    document.getElementById('timer').textContent = `00:0${seconds} / 00:05`;
+                    if (seconds >= 5) stopRec();
+                }, 1000);
             });
         }
 
         function stopRec() {
-            recorder.stop();
-            gumStream.getAudioTracks()[0].stop();
+            recorder.stop(); gumStream.getAudioTracks()[0].stop();
+            clearInterval(timerInterval);
             document.getElementById('recordBtn').classList.remove('active');
-            document.getElementById('recordStatus').textContent = "教練正在分析中...";
             recorder.exportWAV(blob => {
                 lastRecordingUrl = URL.createObjectURL(blob);
                 document.getElementById('replayBtn').disabled = false;
@@ -380,42 +362,32 @@
         }
 
         async function processAudio(blob) {
-            const formData = new FormData();
-            formData.append("file", blob, "rec.wav");
+            const formData = new FormData(); formData.append("file", blob, "rec.wav");
             const resp = await fetch(ALLOSAURUS_API, { method: "POST", body: formData });
             const data = await resp.json();
-            document.getElementById('raw-ipa-result').textContent = data.ipa || "(未偵測到發音)";
+            document.getElementById('raw-ipa-result').textContent = data.ipa || "(無偵測)";
             getDiagnosis(data.ipa);
         }
 
-        // 診斷邏輯
         async function getDiagnosis(userIpa) {
             const target = document.getElementById('ipaDisplay').textContent;
-            const prompt = `你現在是語音學教練。
-            目標音標: "${target}"
-            學生發音: "${userIpa}"
-            任務：
-            1. 將兩者對齊到 comparison。
-            2. 針對學生發出的 "${userIpa}" 每個符號，分析「生理動作差異」與「修正具體步驟」。
-            JSON: {
-              "comparison": [{"char": "標", "actual": "辨"}],
-              "phonemes": [{"s": "符號", "diff": "為什麼會發出這個音的生理原因", "guide": "具體修正動作"}]
-            }`;
+            const prompt = `你現在是語音學教練。針對 "${userIpa}"：
+            1. 對齊到 comparison。
+            2. 針對符號提供生理差異(diff)與修正動作(guide)。
+            3. 找出對應 Wikipedia 的標準音檔檔名 (audioName)（如 "Alveolar tap.ogg"）。
+            JSON: {"comparison": [{"char": "標", "actual": "辨"}], "phonemes": [{"s": "符號", "diff": "生理原因", "guide": "修正", "audioName": "檔名.ogg"}]}`;
 
             const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
+                method: "POST", headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
                 body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
             });
             const res = JSON.parse((await resp.json()).choices[0].message.content);
             renderComparison(res.comparison);
             renderPhonemes(res.phonemes);
-            document.getElementById('recordStatus').textContent = "✅ 分析完成，點擊下方方塊查看建議";
         }
 
         function renderComparison(list) {
-            const wrap = document.getElementById('ipa-result');
-            wrap.innerHTML = "";
+            const wrap = document.getElementById('ipa-result'); wrap.innerHTML = "";
             list.forEach(item => {
                 const span = document.createElement('span');
                 span.textContent = item.actual || item.char;
@@ -424,33 +396,24 @@
             });
         }
 
-        function playIpaSound(symbol) {
-            const cleanSym = symbol.replace(/[\/\(\)\[\]]/g, '').trim().toLowerCase();
-            const fileName = ipaAudioMap[cleanSym];
-            if (fileName) {
-                new Audio(`https://commons.wikimedia.org/wiki/Special:FilePath/${fileName}`).play();
-            } else {
-                const msg = new SpeechSynthesisUtterance(cleanSym);
-                msg.lang = 'it-IT';
-                speechSynthesis.speak(msg);
-            }
+        function playIpaSound(p) {
+            if (p.audioName && p.audioName !== "N/A") {
+                new Audio(`https://commons.wikimedia.org/wiki/Special:FilePath/${p.audioName}`).play().catch(() => useFallback(p.s));
+            } else { useFallback(p.s); }
+        }
+        function useFallback(s) {
+            const u = new SpeechSynthesisUtterance(s.replace(/[\/\(\)\[\]]/g, ''));
+            u.lang = 'it-IT'; speechSynthesis.speak(u);
         }
 
         function renderPhonemes(phs) {
-            const wrap = document.getElementById('phoneme-wrap');
-            wrap.innerHTML = "";
+            const wrap = document.getElementById('phoneme-wrap'); wrap.innerHTML = "";
             phs.forEach(p => {
-                const d = document.createElement('div');
-                d.className = 'ph-block';
-                d.textContent = p.s;
+                const d = document.createElement('div'); d.className = 'ph-block'; d.textContent = p.s;
                 d.onclick = () => {
-                    playIpaSound(p.s);
+                    playIpaSound(p);
                     document.getElementById('diag-box').style.display = 'block';
-                    document.getElementById('diag-content').innerHTML = `
-                        <h3 style="color:var(--accent); margin-top:0;">音標 [${p.s}] 教練診斷</h3>
-                        <p><b>❌ 差異分析：</b><br>${p.diff}</p>
-                        <p><b>💡 修正建議：</b><br><span style="color:var(--success); font-weight:bold;">${p.guide}</span></p>
-                    `;
+                    document.getElementById('diag-content').innerHTML = `<h3>[${p.s}] 調整建議</h3><p><b>🔍 原因：</b>${p.diff}</p><p><b>💡 修正：</b>${p.guide}</p>`;
                 };
                 wrap.appendChild(d);
             });
@@ -459,8 +422,7 @@
         function playLastRecording() { if (lastRecordingUrl) new Audio(lastRecordingUrl).play(); }
         function speakCurrentWord() {
             const u = new SpeechSynthesisUtterance(currentTargetReading || document.getElementById('wordDisplay').textContent);
-            u.lang = getGlobalSettings().lang;
-            speechSynthesis.speak(u);
+            u.lang = getGlobalSettings().lang; speechSynthesis.speak(u);
         }
     </script>
 </body>
