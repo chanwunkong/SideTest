@@ -234,18 +234,18 @@
             <div class="chips" id="samples"></div>
             <h1 id="wordDisplay">選擇單字</h1>
 
-            <div class="layer">
-                <span class="layer-label">Step 1: 標準發音 (字典)</span>
-                <div id="ipaDisplay">[ -- ]</div>
+            <div class="layer" onclick="speakIPA()" style="cursor: pointer;">
+                <span class="layer-label">Step 1: 標準發音</span>
+                <div id="ipaDisplay" style="color: var(--accent); text-decoration: underline dotted;">[ -- ]</div>
             </div>
 
             <div class="layer" style="border: 1px dashed var(--warning);">
-                <span class="layer-label">Step 2: 您的原始辨識 (API)</span>
+                <span class="layer-label">Step 2: 錄音辨識 (API)</span>
                 <div id="raw-ipa-result">--</div>
             </div>
 
             <div class="layer">
-                <span class="layer-label">Step 3: 矯正教學 (點擊方塊聽示範)</span>
+                <span class="layer-label">Step 3: 矯正教學 </span>
                 <div id="ipa-result"></div>
                 <div id="phoneme-wrap"></div>
                 <div id="diag-box">
@@ -332,12 +332,38 @@
         async function fetchIPA(word, reading) {
             const el = document.getElementById('ipaDisplay');
             el.textContent = "🔍 查詢中...";
-            const prompt = `Provide IPA for "${word}" in ${getGlobalSettings().lang} based on reading "${reading}". JSON: {"ipa": "/.../"}`;
+            // 修改 Prompt 要求回傳音檔名稱
+            const prompt = `Provide IPA for "${word}" in ${getGlobalSettings().lang}. 
+    JSON: {"ipa": "/.../", "mainAudio": "Alveolar tap.ogg"}`;
+
             const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST", headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
+                method: "POST",
+                headers: { "Authorization": `Bearer ${getGlobalSettings().key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "gpt-4o-mini",
+                    messages: [{ role: "user", content: prompt }],
+                    response_format: { type: "json_object" }
+                })
             });
-            el.textContent = JSON.parse((await resp.json()).choices[0].message.content).ipa;
+
+            const res = JSON.parse((await resp.json()).choices[0].message.content);
+            el.textContent = res.ipa;
+            // 將音檔名稱存在 element 的 dataset 中，點擊時調用
+            el.dataset.audio = res.mainAudio;
+        }
+
+        // 放在 script 標籤內的任意位置
+        function speakIPA() {
+            const ipaText = document.getElementById('ipaDisplay').textContent;
+            if (ipaText === "[ -- ]" || ipaText === "🔍 查詢中...") return;
+
+            // 清除 IPA 常見的斜槓或括號以便合成器讀取
+            const cleanIpa = ipaText.replace(/[\/\(\)\[\]]/g, '');
+            const u = new SpeechSynthesisUtterance(cleanIpa);
+
+            // 設定為目標語言
+            u.lang = getGlobalSettings().lang;
+            speechSynthesis.speak(u);
         }
 
         document.getElementById('recordBtn').onclick = () => (recorder && recorder.recording) ? stopRec() : startRec();
