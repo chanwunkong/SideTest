@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hex Grid Prototype</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #222;
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="hexCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('hexCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- 設定區 ---
+        const hexSize = 40; // 六邊形外接圓半徑
+        const gap = 5;      // 間隙
+        const hexRows = 20; // 初始地圖大小
+        const hexCols = 20;
+
+        let scale = 1.0;
+        let offsetX = window.innerWidth / 4;
+        let offsetY = window.innerHeight / 4;
+
+        // 儲存格子的狀態
+        const grid = [];
+        for (let r = 0; r < hexRows; r++) {
+            for (let c = 0; c < hexCols; c++) {
+                grid.push({ r, c, selected: false, longPressed: false });
+            }
+        }
+
+        // --- 六邊形座標計算 ---
+        // 平頂 (Flat Topped) 六邊形寬高計算
+        const hexWidth = hexSize * 2;
+        const hexHeight = Math.sqrt(3) * hexSize;
+        const horizDist = hexWidth * 3 / 4 + gap;
+        const vertDist = hexHeight + gap;
+
+        function getHexCorner(center, size, i) {
+            const angleDeg = 60 * i;
+            const angleRad = Math.PI / 180 * angleDeg;
+            return {
+                x: center.x + size * Math.cos(angleRad),
+                y: center.y + size * Math.sin(angleRad)
+            };
+        }
+
+        function getHexCenter(r, c) {
+            let x = c * horizDist;
+            let y = r * vertDist;
+            if (c % 2 !== 0) y += vertDist / 2;
+            return { x, y };
+        }
+
+        // --- 繪製主邏輯 ---
+        function draw() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(scale, scale);
+
+            grid.forEach(hex => {
+                const center = getHexCenter(hex.r, hex.c);
+
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const corner = getHexCorner(center, hexSize - gap / 2, i);
+                    if (i === 0) ctx.moveTo(corner.x, corner.y);
+                    else ctx.lineTo(corner.x, corner.y);
+                }
+                ctx.closePath();
+
+                // 顏色判斷
+                if (hex.longPressed) ctx.fillStyle = '#888';
+                else ctx.fillStyle = '#FFD700'; // 黃色
+
+                ctx.fill();
+
+                // 選取邊框
+                if (hex.selected) {
+                    ctx.strokeStyle = '#FF4500';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            });
+            ctx.restore();
+        }
+
+        // --- 互動邏輯 ---
+        let isPanning = false;
+        let startX, startY;
+        let longPressTimer;
+        let lastClickTime = 0;
+
+        // 將畫面座標轉為世界(Canvas內)座標
+        function screenToWorld(screenX, screenY) {
+            return {
+                x: (screenX - offsetX) / scale,
+                y: (screenY - offsetY) / scale
+            };
+        }
+
+        // 簡單的點與六邊形距離偵測 (優化版可用座標轉換)
+        function findClickedHex(worldX, worldY) {
+            return grid.find(hex => {
+                const center = getHexCenter(hex.r, hex.c);
+                const dist = Math.hypot(worldX - center.x, worldY - center.y);
+                return dist < hexSize * 0.8;
+            });
+        }
+
+        // 縮放事件
+        window.addEventListener('wheel', e => {
+            e.preventDefault();
+            const zoomSpeed = 0.001;
+            scale -= e.deltaY * zoomSpeed;
+            scale = Math.min(Math.max(0.2, scale), 3); // 限制縮放範圍
+            draw();
+        }, { passive: false });
+
+        // 點擊與長按
+        canvas.addEventListener('pointerdown', e => {
+            isPanning = true;
+            startX = e.clientX - offsetX;
+            startY = e.clientY - offsetY;
+
+            const world = screenToWorld(e.clientX, e.clientY);
+            const hex = findClickedHex(world.x, world.y);
+
+            if (hex) {
+                // 長按計時器 (500ms 變灰)
+                longPressTimer = setTimeout(() => {
+                    hex.longPressed = !hex.longPressed;
+                    isPanning = false; // 長按時取消平移
+                    draw();
+                }, 600);
+            }
+        });
+
+        canvas.addEventListener('pointermove', e => {
+            if (isPanning) {
+                offsetX = e.clientX - startX;
+                offsetY = e.clientY - startY;
+                clearTimeout(longPressTimer); // 移動就取消長按
+                draw();
+            }
+        });
+
+        canvas.addEventListener('pointerup', e => {
+            if (isPanning) {
+                const world = screenToWorld(e.clientX, e.clientY);
+                const hex = findClickedHex(world.x, world.y);
+                if (hex) {
+                    // 切換選取狀態
+                    grid.forEach(h => h.selected = false);
+                    hex.selected = true;
+                }
+            }
+            isPanning = false;
+            clearTimeout(longPressTimer);
+            draw();
+        });
+
+        window.addEventListener('resize', draw);
+        draw();
+    </script>
+</body>
+
+</html>

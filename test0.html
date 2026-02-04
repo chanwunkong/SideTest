@@ -270,14 +270,25 @@
 
     <script>
         const ALLOSAURUS_API = "https://allosaurus-api-878665537417.asia-east1.run.app/recognize";
-        const firebaseConfig = { apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM", authDomain: "test-5dbba.firebaseapp.com", projectId: "test-5dbba" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore(), auth = firebase.auth();
 
-        let audioContext, recorder, gumStream, currentTargetReading = "", lastRecordingUrl = null, timerInterval, seconds = 0;
+        // --- 核心修復：從本地快取讀取 index.html 派發的配置 ---
+        const savedConfig = localStorage.getItem('firebaseConfig');
+        if (savedConfig) {
+            // 動態初始化 Firebase 所有的功能 (含 Storage, Firestore, Auth)
+            firebase.initializeApp(JSON.parse(savedConfig));
+        } else {
+            // 安全檢查：若未從首頁初始化，強制導回
+            alert("未偵測到授權配置，請從控制中心登入");
+            window.location.href = "index.html";
+        }
 
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // ... 原有的變數與邏輯 ...
         const getGlobalSettings = () => ({
             lang: localStorage.getItem('userLang') || 'it-IT',
+            // 這裡同樣改從快取拿取您存在 Firestore 的個人 GPT Key
             key: localStorage.getItem('gptApiKey') || '',
             course: localStorage.getItem('userCourse') || 'all'
         });

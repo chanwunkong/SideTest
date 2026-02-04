@@ -203,8 +203,15 @@
     </div>
 
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM", authDomain: "test-5dbba.firebaseapp.com", projectId: "test-5dbba" };
-        firebase.initializeApp(firebaseConfig);
+        // --- 核心修復：從本地快取讀取 index.html 派發的配置 ---
+        const savedConfig = localStorage.getItem('firebaseConfig');
+        if (savedConfig) {
+            firebase.initializeApp(JSON.parse(savedConfig));
+        } else {
+            alert("未偵測到授權配置，請從控制中心登入");
+            window.location.href = "index.html";
+        }
+
         const db = firebase.firestore(), auth = firebase.auth();
 
         const getGlobalSettings = () => ({
@@ -229,8 +236,7 @@
         async function loadSwadeshCSV() {
             try {
                 const resp = await fetch('swadesh.csv');
-                const csvText = await resp.text();
-                window.allWordData = Papa.parse(csvText, { header: true, skipEmptyLines: true }).data;
+                window.allWordData = Papa.parse(await resp.text(), { header: true, skipEmptyLines: true }).data;
                 renderChips();
             } catch (e) { console.error("CSV 加載錯誤", e); }
         }
@@ -247,19 +253,11 @@
                 const settings = getGlobalSettings();
                 if (!settings.key) return { text: englishWord, reading: englishWord };
 
-                // 💡 強制 AI 同時回傳漢字與讀音（假名/拼音）
-                const prompt = `Translate "${englishWord}" (${pos}) into ${targetLang}. 
-                Return JSON format: {"text": "word to write", "reading": "phonetic reading (e.g. Hiragana for Japanese)"}.`;
-
+                const prompt = `Translate "${englishWord}" (${pos}) into ${targetLang}. Return JSON format: {"text": "word to write", "reading": "phonetic reading"}.`;
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
                     headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "gpt-4o-mini",
-                        messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" },
-                        temperature: 0
-                    })
+                    body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
                 });
                 const data = await resp.json();
                 const result = JSON.parse(data.choices[0].message.content);
@@ -293,11 +291,9 @@
                         chip.querySelector('.star-text').textContent = '⭐'.repeat(Math.min(count, 3)) || '☆☆☆';
                         chip.onclick = () => {
                             textEl.dataset.conceptId = englishWord;
-                            textEl.dataset.reading = data.reading; // 💡 存入正確讀音（わたし）
-                            textEl.value = data.text; // 顯示漢字（私）
+                            textEl.dataset.reading = data.reading;
+                            textEl.value = data.text;
                             strokes = []; redraw();
-
-                            // 💡 執行動作：依據讀音發聲與查詢 IPA
                             speakWord(data.reading);
                             fetchIPA(data.text, data.reading, englishWord, pos);
                         };
@@ -318,23 +314,12 @@
             const settings = getGlobalSettings();
             if (!settings.key) return;
             ipaEl.textContent = "🔍 IPA...";
-
-            // 💡 改良 Prompt：同時傳入漢字與假名，要求依照假名給 IPA
-            const prompt = `You are a phonetic expert. 
-            Provide the IPA for the word "${word}" in ${settings.lang}.
-            CRITICAL: The specific reading/pronunciation is "${reading}" (English concept: "${english}", POS: ${pos}).
-            Output only the IPA symbols in JSON: {"ipa": "/.../"}.`;
-
+            const prompt = `Provide the IPA for the word "${word}" in ${settings.lang} for the reading "${reading}". Output JSON: {"ipa": "/.../"}.`;
             try {
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
                     headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "gpt-4o-mini",
-                        messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" },
-                        temperature: 0
-                    })
+                    body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
                 });
                 const data = await resp.json();
                 const result = JSON.parse(data.choices[0].message.content);
@@ -342,7 +327,6 @@
             } catch (e) { ipaEl.textContent = "N/A"; }
         }
 
-        // --- 畫布邏輯 (Levenshtein, redraw 等保持不變) ---
         function redraw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const text = textEl.value.trim();
@@ -361,10 +345,36 @@
             }); ctx.restore();
         }
 
-        function initCanvas() { const rect = canvas.getBoundingClientRect(); canvas.width = rect.width; canvas.height = rect.height; redraw(); }
-        canvas.onpointerdown = (e) => { isDrawing = true; const rect = canvas.getBoundingClientRect(); strokes.push([{ x: e.clientX - rect.left, y: e.clientY - rect.top }]); };
-        canvas.onpointermove = (e) => { if (!isDrawing) return; const rect = canvas.getBoundingClientRect(); strokes[strokes.length - 1].push({ x: e.clientX - rect.left, y: e.clientY - rect.top }); redraw(); };
+        function getCanvasPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        function initCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            redraw();
+        }
+
+        canvas.onpointerdown = (e) => {
+            isDrawing = true;
+            const pos = getCanvasPos(e);
+            strokes.push([{ x: pos.x, y: pos.y }]);
+        };
+        canvas.onpointermove = (e) => {
+            if (!isDrawing) return;
+            const pos = getCanvasPos(e);
+            strokes[strokes.length - 1].push({ x: pos.x, y: pos.y });
+            redraw();
+        };
         canvas.onpointerup = () => isDrawing = false;
+
         fontSizeEl.oninput = (e) => { customFontSize = e.target.value; document.getElementById('fontSizeVal').textContent = customFontSize; redraw(); };
         document.getElementById('clearBtn').onclick = () => { strokes = []; redraw(); };
 
@@ -410,8 +420,6 @@
             const doc = await wordRef.get();
             const newCount = (doc.exists ? (doc.data().count || 0) : 0) + 1;
             await wordRef.set({ conceptId, word: conceptId, lang: settings.lang, count: newCount, is_ready_for_chunk: newCount >= 3, lastStudied: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            const targetChip = document.getElementById(`chip-${conceptId.replace(/\s+/g, '_')}`);
-            if (targetChip) targetChip.querySelector('.star-text').textContent = '⭐'.repeat(Math.min(newCount, 3));
         }
 
         window.onload = initCanvas;

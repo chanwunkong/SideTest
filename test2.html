@@ -81,7 +81,6 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
             font-size: 16px;
             text-align: center;
-            position: relative;
         }
 
         .word-chip small {
@@ -190,18 +189,6 @@
             line-height: 1.6;
         }
 
-        #imageContainer {
-            margin: 15px 0;
-            display: none;
-            text-align: center;
-        }
-
-        #generatedImage {
-            max-width: 100%;
-            border-radius: 20px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-        }
-
         .history-section {
             width: 100%;
             margin-top: 40px;
@@ -236,7 +223,10 @@
             <button class="btn-img" id="genImageBtn" disabled>🎨 生圖</button>
         </div>
         <button class="btn-play" id="playBtn">🔊 播放整句語音</button>
-        <div id="imageContainer"><img id="generatedImage" src="" alt="AI Image"></div>
+        <div id="imageContainer" style="display:none; text-align:center; margin:15px 0;">
+            <img id="generatedImage"
+                style="max-width:100%; border-radius:20px; box-shadow:0 10px 20px rgba(0,0,0,0.5);">
+        </div>
         <div id="feedback"></div>
         <div class="sentence-display" id="workspace"></div>
         <div class="pool" id="wordPool"></div>
@@ -249,8 +239,15 @@
     </div>
 
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM", projectId: "test-5dbba" };
-        firebase.initializeApp(firebaseConfig);
+        // --- 1. 動態初始化 Firebase ---
+        const savedConfig = localStorage.getItem('firebaseConfig');
+        if (savedConfig) {
+            firebase.initializeApp(JSON.parse(savedConfig));
+        } else {
+            alert("未偵測到授權配置，請從控制中心登入");
+            window.location.href = "index.html";
+        }
+
         const db = firebase.firestore();
         const auth = firebase.auth();
 
@@ -269,17 +266,11 @@
             wordBank = Papa.parse(csv, { header: true }).data;
         });
 
-        // 監聽登入狀態
         auth.onAuthStateChanged(user => {
             if (user) {
                 userId = user.uid;
-                console.log("✅ Firebase 已登入:", userId);
                 loadHistory();
             }
-        });
-
-        window.addEventListener('storage', () => {
-            document.getElementById('langDisplay').textContent = `目標語言：${getSettings().lang}`;
         });
 
         function speak(text) {
@@ -290,87 +281,55 @@
             speechSynthesis.speak(u);
         }
 
-        // --- 強化版：整合 Chunk 功能與語言同步 ---
-
         async function getNextExercise() {
             const settings = getSettings();
             const user = firebase.auth().currentUser;
             if (!user) return alert("請先登入！");
-
             if (!settings.key) return alert("請先在控制中心設定 OpenAI API Key！");
 
             resetUI();
-            document.getElementById('feedback').textContent = `🔍 正在搜尋 ${settings.lang} 的三星單字...`;
+            document.getElementById('feedback').textContent = "🔍 搜尋三星單字中...";
 
             try {
-                // 1. 搜尋符合語系且達標三星的單字
                 const snapshot = await db.collection('users').doc(user.uid).collection('mastery')
                     .where('lang', '==', settings.lang)
                     .where('is_ready_for_chunk', '==', true)
                     .limit(20).get();
 
                 if (snapshot.empty) {
-                    alert(`在 [${settings.lang}] 中找不到三星單字！\n請先在「手寫練習」將單字練至三星。`);
-                    document.getElementById('feedback').textContent = "等待單字達標...";
+                    alert(`找不到三星單字！請先在手寫練習將單字練至三星。`);
                     return;
                 }
 
-                // 2. 隨機挑選 3 個單字作為題目種子
                 const docs = snapshot.docs;
-                const seeds = [];
-                const selectionCount = Math.min(3, docs.length);
-                const shuffled = docs.sort(() => Math.random() - 0.5);
-                for (let i = 0; i < selectionCount; i++) {
-                    seeds.push(shuffled[i].data().word);
-                }
+                const seeds = docs.sort(() => Math.random() - 0.5).slice(0, 3).map(d => d.data().conceptId);
 
-                document.getElementById('feedback').textContent = `🤖 AI 正在使用 [${seeds.join(', ')}] 編寫題目...`;
+                document.getElementById('feedback').textContent = "🤖 AI 出題中...";
 
-                // 3. 呼叫 OpenAI API
-                const prompt = `You are a professional language teacher. 
-                Create a natural sentence in ${settings.lang} using the concepts: [${seeds.join(', ')}].
-
-                Requirements:
-                1. The 'sentence' must be in ${settings.lang}.
-                2. The 'chunks' should break the sentence into logical grammatical parts.
-                3. The 'analysis' for each chunk MUST be written in Traditional Chinese (繁體中文).
-                4. Provide a clear grammar explanation for each part so a learner can understand the structure.
-
-                Return the result in JSON format ONLY:
+                const prompt = `You are a professional language teacher. Create a natural sentence in ${settings.lang} using the concepts: [${seeds.join(', ')}]. JSON format ONLY:
                 {
-                "sentence": "Full sentence in ${settings.lang}",
-                "chunks": [
-                    {"text": "chunk text", "type": "noun/verb/adj/adv", "analysis": "用繁體中文解釋此組塊的文法功能"},
-                    {"text": "chunk text", "type": "...", "analysis": "..."}
-                ]
+                    "sentence": "Full sentence",
+                    "chunks": [
+                        {"text": "chunk text", "type": "noun/verb/adj/adv", "analysis": "用繁體中文解釋文法功能"}
+                    ]
                 }`;
 
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${settings.key}`,
-                        "Content-Type": "application/json"
-                    },
+                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
                     body: JSON.stringify({
                         model: "gpt-4o-mini",
                         messages: [{ role: "user", content: prompt }],
-                        response_format: { type: "json_object" },
-                        temperature: 0.7
+                        response_format: { type: "json_object" }
                     })
                 });
 
                 const result = await resp.json();
-                if (result.error) throw new Error(result.error.message);
-
                 const aiData = JSON.parse(result.choices[0].message.content);
-
-                // 4. 渲染遊戲畫面
                 currentSentenceData = aiData;
                 renderGame(aiData);
                 document.getElementById('genImageBtn').disabled = false;
-
             } catch (e) {
-                console.error("生成題目失敗:", e);
                 document.getElementById('feedback').textContent = "❌ 生成失敗: " + e.message;
             }
         }
@@ -381,6 +340,7 @@
             currentSentenceData.correctOrder = data.chunks.map(c => c.text);
             const shuffled = [...data.chunks].sort(() => Math.random() - 0.5);
             const labels = { 'noun': '名詞組', 'verb': '動詞組', 'adv': '修飾語' };
+
             shuffled.forEach(item => {
                 const chip = document.createElement('div');
                 chip.className = `word-chip pos-${item.type || 'other'}`;
@@ -402,90 +362,51 @@
         document.getElementById('checkBtn').onclick = () => {
             const userOrder = Array.from(document.getElementById('workspace').children).map(c => c.childNodes[0].textContent.trim());
             const success = JSON.stringify(userOrder) === JSON.stringify(currentSentenceData.correctOrder);
-            const fb = document.getElementById('feedback');
             if (success) {
-                fb.textContent = "🎉 太棒了！順序正確";
-                fb.style.color = "#10b981";
+                document.getElementById('feedback').textContent = "🎉 太棒了！順序正確";
                 document.getElementById('workspace').classList.add('correct');
                 speak(currentSentenceData.sentence);
                 document.getElementById('analysisPane').style.display = 'block';
-                document.getElementById('analysisPane').innerHTML = `<b style="color:#22d3ee">🔍 組塊解析：</b><br>` + currentSentenceData.chunks.map(c => `<b>${c.text}</b>: ${c.analysis}`).join('<br>');
-                updateHistory(currentSentenceData); // 💡 強制觸發上傳
+                document.getElementById('analysisPane').innerHTML = `<b style="color:#22d3ee">🔍 解析：</b><br>` + currentSentenceData.chunks.map(c => `<b>${c.text}</b>: ${c.analysis}`).join('<br>');
+                updateHistory(currentSentenceData);
             } else {
-                fb.textContent = "❌ 順序不對，再試試看";
-                fb.style.color = "#ef4444";
+                document.getElementById('feedback').textContent = "❌ 順序不對，再試試看";
             }
         };
 
-        // --- 🚀 Firebase 強制上傳修正邏輯 ---
         async function updateHistory(data) {
-            // 💡 修正 1：即時獲取目前登入者，防止 userId 為 null
-            const currentUser = firebase.auth().currentUser;
-            if (!currentUser) {
-                console.warn("⚠️ 未登入，無法儲存至雲端");
-                return;
-            }
-
+            if (!userId) return;
             const settings = getSettings();
             const docId = btoa(unescape(encodeURIComponent(data.sentence + "_" + settings.lang))).substring(0, 50);
-
             try {
-                // 💡 修正 2：明確定義子集合路徑
-                const docRef = db.collection('users').doc(currentUser.uid).collection('history').doc(docId);
-
-                await docRef.set({
+                await db.collection('users').doc(userId).collection('history').doc(docId).set({
                     sentence: data.sentence,
                     chunks: data.chunks,
                     lang: settings.lang,
                     lastStudy: firebase.firestore.FieldValue.serverTimestamp(),
                     count: firebase.firestore.FieldValue.increment(1)
                 }, { merge: true });
-
-                console.log("🚀 Firebase 上傳成功:", data.sentence);
                 loadHistory();
-            } catch (e) {
-                console.error("❌ Firebase 上傳失敗:", e);
-            }
+            } catch (e) { console.error("上傳失敗", e); }
         }
 
         async function loadHistory() {
-            const listEl = document.getElementById('historyList');
+            if (!userId) return;
             const settings = getSettings();
-            const currentUser = firebase.auth().currentUser;
-
-            if (!currentUser) {
-                listEl.innerHTML = "<div style='color:#6b7280; font-size:12px;'>登入後即可同步雲端紀錄</div>";
-                return;
-            }
-
+            const listEl = document.getElementById('historyList');
             try {
-                // 💡 修正 3：先讀取「不排序」的版本，防止因為沒設索引導致整個函式報錯停止
-                let snapshot = await db.collection('users').doc(currentUser.uid)
-                    .collection('history')
-                    .where('lang', '==', settings.lang)
-                    .limit(5)
-                    .get();
-
-                // 💡 修正 4：如果基礎讀取有資料，就顯示。
-                listEl.innerHTML = snapshot.empty ? "<div style='color:#6b7280; font-size:12px;'>尚無練習紀錄</div>" : "";
-
+                const snapshot = await db.collection('users').doc(userId).collection('history')
+                    .where('lang', '==', settings.lang).limit(5).get();
+                listEl.innerHTML = snapshot.empty ? "尚無紀錄" : "";
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const div = document.createElement('div');
                     div.className = 'history-item';
-                    div.innerHTML = `<div style="display:flex; justify-content:space-between;"><strong>${data.sentence}</strong><small>${data.count || 1}次</small></div>`;
-                    div.onclick = () => {
-                        resetUI();
-                        currentSentenceData = data;
-                        renderGame(data);
-                        document.getElementById('feedback').textContent = "🔄 重新練習舊題目";
-                    };
+                    div.innerHTML = `<strong>${data.sentence}</strong> <small>(${data.count || 1}次)</small>`;
+                    div.onclick = () => { resetUI(); currentSentenceData = data; renderGame(data); };
                     listEl.appendChild(div);
                 });
-            } catch (e) {
-                console.error("❌ 讀取歷史失敗:", e);
-                listEl.innerHTML = "讀取紀錄時發生錯誤";
-            }
+            } catch (e) { console.error(e); }
         }
 
         function resetUI() {
@@ -493,7 +414,6 @@
             document.getElementById('workspace').classList.remove('correct');
             document.getElementById('wordPool').innerHTML = "";
             document.getElementById('analysisPane').style.display = 'none';
-            document.getElementById('imageContainer').style.display = 'none';
             document.getElementById('feedback').textContent = "";
         }
 
