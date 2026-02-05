@@ -4,298 +4,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習控制中心</title>
+    <title>語言練習</title>
+    <link rel="stylesheet" href="style.css">
+
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, sans-serif;
-        }
 
-        body {
-            background-color: #0b1220;
-            color: white;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .card {
-            background: #111827;
-            width: 100%;
-            max-width: 500px;
-            padding: 20px;
-            border-radius: 20px;
-            border: 1px solid #1f2937;
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            color: #22d3ee;
-            text-align: center;
-        }
-
-        label {
-            font-size: 13px;
-            color: #cbd5e1;
-            margin-top: 15px;
-            display: block;
-        }
-
-        select,
-        input,
-        button {
-            width: 100%;
-            padding: 12px;
-            margin-top: 8px;
-            border-radius: 12px;
-            border: 1px solid #1f2937;
-            background: #0b1220;
-            color: white;
-            font-size: 16px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            width: 100%;
-            max-width: 500px;
-        }
-
-        .nav-box {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            text-decoration: none;
-            font-weight: bold;
-            border-radius: 15px;
-            aspect-ratio: 1/1;
-            transition: 0.2s;
-        }
-
-        .box-0 {
-            background: #007AFF;
-        }
-
-        .box-1 {
-            background: #34C759;
-        }
-
-        .box-2 {
-            background: #ff7b00;
-        }
-
-        .box-3 {
-            background: #ff0000;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        #statusMsg {
-            font-size: 12px;
-            color: #22d3ee;
-            margin-top: 8px;
-            text-align: center;
-            display: block;
-        }
-    </style>
+    <script src="config.js"></script>
 </head>
 
 <body>
-    <h1>學習控制中心</h1>
-    <div class="card">
-        <div id="loginSection">
-            <button id="loginBtn" style="background: #0ea5e9; color: #000; font-weight: bold;">使用 Google 登入同步</button>
+    <div class="wrap">
+        <div class="header">
+            <span id="userEmail">未登入</span>
+            <a href="#" class="back-link" id="logoutBtn">登出</a>
         </div>
-        <div id="logoutSection" class="hidden">
-            <p id="userInfo" style="font-size:12px; text-align:center; color:#aaa;"></p>
-            <button id="logoutBtn"
-                style="background: #ef4444; color: white; padding: 8px; font-size: 12px; margin-top:8px;">登出帳號</button>
+
+        <h1>學習控制中心</h1>
+
+        <div class="card">
+            <button id="loginBtn">使用 Google 登入</button>
+
+            <label>GPT API KEY</label>
+            <input type="password" id="gptApiKey" placeholder="sk-...">
+
+            <label>目標學習語言</label>
+            <select id="userLang">
+                <option value="en-US">English 🇺🇸</option>
+                <option value="it-IT">Italiano 🇮🇹</option>
+                <option value="zh-TW">中文 (繁體) 🇹🇼</option>
+                <option value="ja-JP">日本語 🇯🇵</option>
+                <option value="fr-FR">Français 🇫🇷</option>
+                <option value="de-DE">Deutsch 🇩🇪</option>
+                <option value="es-ES">Español 🇪🇸</option>
+                <option value="pt-PT">Português 🇵🇹</option>
+                <option value="ru-RU">Русский 🇷🇺</option>
+                <option value="hi-IN">हिन्दी / اُردُو 🇮🇳</option>
+                <option value="bn-BD">বাংলা 🇧🇩</option>
+                <option value="fa-IR">فارسی 🇮🇷</option>
+                <option value="ta-IN">தமிழ் 🇮🇳</option>
+                <option value="ar-SA">العربية 🇸🇦</option>
+                <option value="tr-TR">Türkçe 🇹🇷</option>
+                <option value="ko-KR">한국어 🇰🇷</option>
+                <option value="vi-VN">Tiếng Việt 🇻🇳</option>
+                <option value="id-ID">Bahasa Indonesia / Melayu 🇮🇩</option>
+                <option value="th-TH">ไทย 🇹🇭</option>
+                <option value="sw-KE">Kiswahili 🇰🇪</option>
+            </select>
+            <label>學習課程進度</label>
+            <select id="userCourse">
+                <option value="all">全部單字</option>
+                <option value="Stage 1">Stage 1: Core 40 (核心詞)</option>
+                <option value="Stage 2">Stage 2: Swadesh (基礎詞)</option>
+                <option value="Stage 3">Stage 3: CEFR (分級單字)</option>
+            </select>
+
+            <button id="saveKeyBtn" style="background: var(--btn); color: white; margin-top: 15px;">儲存設定</button>
         </div>
-        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #1f2937;">
 
-        <div class="field">
-            <label class="label">OpenAI API Key (用於 IPA 與 AI 出題)</label>
-            <div style="display: flex; gap: 10px;">
-                <input type="password" id="gptApiKey" placeholder="已從雲端同步 sk-..." disabled
-                    style="flex: 1; opacity: 0.6; cursor: not-allowed;">
-                <button id="unlockBtn" onclick="toggleUnlock()"
-                    style="width: 80px; background: #22d3ee; color: #000;">🔓 解鎖</button>
-            </div>
+        <div class="grid">
+            <a href="test0.html" class="nav-box box-0">音位診斷</a>
+            <a href="test1.html" class="nav-box box-1">單字手寫</a>
+            <a href="test2.html" class="nav-box box-2">語法排序</a>
+            <a href="#" class="nav-box box-3">學習數據</a>
         </div>
-        <button id="saveKeyBtn" style="background: #22d3ee; color: #000; font-weight: bold;">儲存所有設定</button>
-        <span id="statusMsg"></span>
-
-        <label>目標學習語言</label>
-        <select id="globalLang">
-            <option value="en-US">English 🇺🇸</option>
-            <option value="it-IT">Italiano 🇮🇹</option>
-            <option value="zh-TW">中文 (繁體) 🇹🇼</option>
-            <option value="ja-JP">日本語 🇯🇵</option>
-        </select>
-
-        <label>學習課程進度</label>
-        <select id="globalCourse">
-            <option value="all">全部單字</option>
-            <option value="Stage 1">Stage 1: Core 40</option>
-            <option value="Stage 2">Stage 2: Swadesh</option>
-        </select>
-    </div>
-
-    <div class="grid">
-        <a href="test0.html" class="nav-box box-0"><span>👄 IPA音標</span></a>
-        <a href="test1.html" class="nav-box box-1"><span>✍️ 手寫練習</span></a>
-        <a href="test2.html" class="nav-box box-2"><span>🧩 語塊排序</span></a>
-        <a href="test3.html" class="nav-box box-3"><span>🤷 情境</span></a>
     </div>
 
     <script>
-        // --- 1. 配置與初始化 ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyBqZLFskqgyiAEc127dh95rXsOPQVLSurM",
-            authDomain: "test-5dbba.firebaseapp.com",
-            projectId: "test-5dbba"
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const saveKeyBtn = document.getElementById('saveKeyBtn');
+        const userEmailSpan = document.getElementById('userEmail');
+        const keyInput = document.getElementById('gptApiKey');
+        const langSelect = document.getElementById('userLang');
+        const courseSelect = document.getElementById('userCourse');
+
+        // 1. 初始載入：從 config.js 定義的 getGlobalSettings 獲取本地快取
+        const settings = getGlobalSettings();
+        keyInput.value = settings.key;
+        langSelect.value = settings.lang;
+        courseSelect.value = settings.course;
+
+        // 2. 登入邏輯
+        loginBtn.onclick = () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithRedirect(provider);
         };
 
-        // 啟動時立刻存入 localStorage 供分頁抓取
-        localStorage.setItem('firebaseConfig', JSON.stringify(firebaseConfig));
-        firebase.initializeApp(firebaseConfig);
+        logoutBtn.onclick = (e) => {
+            e.preventDefault();
+            auth.signOut().then(() => location.reload());
+        };
 
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        let isDataLoaded = false;
-        let isUnlocked = false;
-
-        const keyInput = document.getElementById('gptApiKey');
-        const langInput = document.getElementById('globalLang');
-        const courseInput = document.getElementById('globalCourse');
-
-        // --- 2. 介面控制函式 ---
-        function toggleUnlock() {
-            if (!isDataLoaded) {
-                alert("資料同步中，請稍候...");
-                return;
-            }
-            const btn = document.getElementById('unlockBtn');
-            isUnlocked = !isUnlocked;
-            if (isUnlocked) {
-                keyInput.disabled = false;
-                keyInput.type = "text";
-                keyInput.style.opacity = "1";
-                keyInput.style.cursor = "text";
-                btn.textContent = "🔒 鎖定";
-                btn.style.background = "#94a3b8";
-            } else {
-                keyInput.disabled = true;
-                keyInput.type = "password";
-                keyInput.style.opacity = "0.6";
-                keyInput.style.cursor = "not-allowed";
-                btn.textContent = "🔓 解鎖";
-                btn.style.background = "#22d3ee";
-            }
-        }
-
-        async function saveSettings() {
-            if (!isDataLoaded) return;
-            const key = isUnlocked ? keyInput.value.trim() : localStorage.getItem('gptApiKey');
-            const lang = langInput.value;
-            const course = courseInput.value;
-
-            if (isUnlocked) localStorage.setItem('gptApiKey', key);
-            localStorage.setItem('userLang', lang);
-            localStorage.setItem('userCourse', course);
-
-            const user = auth.currentUser;
+        // 3. 登入狀態監聽與雲端同步
+        auth.onAuthStateChanged(async (user) => {
             if (user) {
+                userEmailSpan.textContent = user.email;
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+
+                // 同步雲端設定到本地
                 try {
-                    const updateData = {
-                        userLang: lang,
-                        userCourse: course,
-                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-                    if (isUnlocked) updateData.gptApiKey = key;
-                    await db.collection('users').doc(user.uid).set(updateData, { merge: true });
-                    alert("雲端同步成功！");
-                } catch (e) {
-                    alert("儲存失敗：" + e.message);
-                }
-            } else {
-                alert("已儲存至本地");
-            }
-        }
-
-        // --- 3. 登入狀態監聽 ---
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('logoutSection').classList.remove('hidden');
-                document.getElementById('userInfo').textContent = `登入中: ${user.email}`;
-                keyInput.placeholder = "雲端同步中...";
-
-                db.collection('users').doc(user.uid).get().then(doc => {
+                    const doc = await db.collection('users').doc(user.uid).get();
                     if (doc.exists) {
                         const data = doc.data();
                         if (data.gptApiKey) {
                             keyInput.value = data.gptApiKey;
                             localStorage.setItem('gptApiKey', data.gptApiKey);
                         }
-                        if (data.userLang) langInput.value = data.userLang;
-                        if (data.userCourse) courseInput.value = data.userCourse;
+                        if (data.userLang) {
+                            langSelect.value = data.userLang;
+                            localStorage.setItem('userLang', data.userLang);
+                        }
+                        if (data.userCourse) {
+                            courseSelect.value = data.userCourse;
+                            localStorage.setItem('userCourse', data.userCourse);
+                        }
                     }
-                    isDataLoaded = true;
-                    keyInput.placeholder = "已同步 (點擊解鎖修改)";
-                });
+                } catch (e) {
+                    console.error("雲端讀取失敗", e);
+                }
             } else {
-                document.getElementById('loginSection').classList.remove('hidden');
-                document.getElementById('logoutSection').classList.add('hidden');
-                keyInput.value = localStorage.getItem('gptApiKey') || '';
-                isDataLoaded = true;
+                userEmailSpan.textContent = "未登入";
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
             }
         });
 
-        document.getElementById('loginBtn').onclick = () => {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider);
-        };
+        // 4. 儲存設定 (同步更新本地與雲端)
+        saveKeyBtn.onclick = async () => {
+            const key = keyInput.value.trim();
+            const lang = langSelect.value;
+            const course = courseSelect.value;
 
-        // --- 修正後的登出按鈕邏輯 ---
-        document.getElementById('logoutBtn').onclick = async () => {
-            try {
-                // 1. 先執行 Firebase 登出
-                await auth.signOut();
+            // 更新本地快取
+            localStorage.setItem('gptApiKey', key);
+            localStorage.setItem('userLang', lang);
+            localStorage.setItem('userCourse', course);
 
-                // 2. 清除所有本地暫存 (包含 API Config 與 Key)
-                localStorage.clear();
-                sessionStorage.clear();
-
-                // 3. 強制跳轉/重新整理，確保所有狀態重置
-                console.log("✅ 已成功登出並清理暫存");
-                window.location.reload();
-            } catch (error) {
-                console.error("❌ 登出失敗:", error);
-                alert("登出過程發生錯誤，請稍後再試");
+            // 更新雲端 (若已登入)
+            const user = auth.currentUser;
+            if (user) {
+                try {
+                    await db.collection('users').doc(user.uid).set({
+                        gptApiKey: key,
+                        userLang: lang,
+                        userCourse: course
+                    }, { merge: true });
+                    alert("設定已儲存並同步雲端");
+                } catch (e) {
+                    alert("雲端儲存失敗");
+                }
+            } else {
+                alert("設定已儲存於本地");
             }
         };
-
-        // 確保其他按鈕綁定正確，不要蓋到 logoutBtn
-        document.getElementById('saveKeyBtn').onclick = saveSettings;
-        document.getElementById('globalLang').onchange = saveSettings;
-        document.getElementById('globalCourse').onchange = saveSettings;
-        langInput.onchange = saveSettings;
-        courseInput.onchange = saveSettings;
     </script>
 </body>
 

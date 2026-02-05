@@ -9,164 +9,10 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <style>
-        :root {
-            --bg: #0b1220;
-            --card: #111827;
-            --text: #e5e7eb;
-            --accent: #22d3ee;
-            --btn: #0ea5e9;
-            --danger: #ef4444;
-            --success: #10b981;
-        }
 
-        body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
-            font-family: sans-serif;
-            padding: 20px;
-        }
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="style.css">
 
-        .wrap {
-            max-width: 680px;
-            margin: 0 auto;
-        }
-
-        .app {
-            background: var(--card);
-            border: 1px solid #1f2937;
-            border-radius: 20px;
-            padding: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 10px;
-        }
-
-        textarea {
-            width: 100%;
-            border-radius: 14px;
-            background: #0b1220;
-            color: var(--accent);
-            padding: 14px;
-            font-size: 32px;
-            font-weight: bold;
-            border: 1px solid #1f2937;
-            text-align: center;
-            resize: none;
-        }
-
-        canvas {
-            width: 100%;
-            height: 40vh;
-            background: #0b1220;
-            border-radius: 16px;
-            touch-action: none;
-            margin-top: 15px;
-            border: 1px solid #334155;
-            cursor: crosshair;
-        }
-
-        .chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 15px 0;
-            max-height: 180px;
-            overflow-y: auto;
-            padding: 5px;
-        }
-
-        .chip {
-            padding: 8px 12px;
-            border-radius: 12px;
-            background: #1f2937;
-            color: #cbd5e1;
-            font-size: 14px;
-            cursor: pointer;
-            border: 1px solid transparent;
-            transition: 0.2s;
-            min-width: 70px;
-            text-align: center;
-        }
-
-        .chip:hover {
-            border-color: var(--accent);
-            background: #2d3748;
-        }
-
-        .chip .pos-tag {
-            font-size: 9px;
-            color: var(--accent);
-            text-transform: uppercase;
-            opacity: 0.8;
-            display: block;
-        }
-
-        .star-text {
-            display: block;
-            font-size: 10px;
-            color: #fbbf24;
-        }
-
-        .pad-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        button {
-            flex: 1;
-            border-radius: 14px;
-            padding: 15px;
-            font-weight: bold;
-            border: none;
-            cursor: pointer;
-            font-size: 15px;
-            transition: 0.2s;
-        }
-
-        .primary {
-            background: var(--btn);
-            color: #000;
-        }
-
-        .success-btn {
-            background: var(--success);
-            color: #fff;
-        }
-
-        .danger {
-            background: var(--danger);
-            color: #fff;
-        }
-
-        #ipa {
-            color: var(--accent);
-            text-align: center;
-            font-size: 22px;
-            margin: 10px 0;
-            min-height: 1.2em;
-        }
-
-        .back-link {
-            color: var(--accent);
-            text-decoration: none;
-            font-size: 14px;
-        }
-
-        .label {
-            font-size: 13px;
-            color: #cbd5e1;
-        }
-    </style>
 </head>
 
 <body>
@@ -203,35 +49,31 @@
     </div>
 
     <script>
-        // --- 核心修復：從本地快取讀取 index.html 派發的配置 ---
-        const savedConfig = localStorage.getItem('firebaseConfig');
-        if (savedConfig) {
-            firebase.initializeApp(JSON.parse(savedConfig));
-        } else {
-            alert("未偵測到授權配置，請從控制中心登入");
-            window.location.href = "index.html";
-        }
-
-        const db = firebase.firestore(), auth = firebase.auth();
-
-        const getGlobalSettings = () => ({
-            lang: localStorage.getItem('userLang') || 'en-US',
-            course: localStorage.getItem('userCourse') || 'all',
-            key: localStorage.getItem('gptApiKey') || ''
-        });
-
         const canvas = document.getElementById('pad'), ctx = canvas.getContext('2d');
         const textEl = document.getElementById('text'), ipaEl = document.getElementById('ipa');
         const samplesEl = document.getElementById('samples'), fontSizeEl = document.getElementById('fontSize');
         const statusEl = document.getElementById('status');
 
-        let userId = null, isDrawing = false, strokes = [], customFontSize = 240;
+        let currentUserId = null, isDrawing = false, strokes = [], customFontSize = 240;
 
-        auth.onAuthStateChanged(user => {
-            userId = user ? user.uid : null;
-            document.getElementById('langDisplay').textContent = `目標語言：${getGlobalSettings().lang}`;
+        // 初始化：不論登入狀態都先載入介面
+        function initPage() {
+            const settings = getGlobalSettings();
+            document.getElementById('langDisplay').textContent = `目標語言：${settings.lang}`;
+            initCanvas();
             loadSwadeshCSV();
+        }
+
+        // 登入狀態監聽
+        auth.onAuthStateChanged(user => {
+            currentUserId = user ? user.uid : null;
+            if (user) {
+                renderChips(); // 登入後更新星星
+            }
         });
+
+        // 執行頁面初始化
+        initPage();
 
         async function loadSwadeshCSV() {
             try {
@@ -271,34 +113,38 @@
             if (!window.allWordData) return;
             const settings = getGlobalSettings();
             samplesEl.innerHTML = '';
+
             let masteryMap = {};
-            if (userId) {
-                const snap = await db.collection('users').doc(userId).collection('mastery').where('lang', '==', settings.lang).get();
+            if (currentUserId) {
+                const snap = await db.collection('users').doc(currentUserId).collection('mastery').where('lang', '==', settings.lang).get();
                 snap.forEach(doc => { masteryMap[doc.data().conceptId] = doc.data().count || 0; });
             }
 
-            window.allWordData.filter(row => row['en-US'] && (settings.course === 'all' || row['Stage'] === settings.course))
-                .forEach(row => {
-                    const englishWord = row['en-US'], pos = row['POS'] || '';
-                    const chip = document.createElement('div');
-                    chip.className = 'chip';
-                    chip.innerHTML = `<span class="pos-tag">${pos}</span><span class="word-txt">...</span><small class="star-text">☆☆☆</small>`;
-                    samplesEl.appendChild(chip);
+            // 依照課程設定過濾單字
+            const filteredData = window.allWordData.filter(row => row['en-US'] && (settings.course === 'all' || row['Stage'] === settings.course));
 
-                    getTranslatedWord(englishWord, pos, settings.lang).then(data => {
-                        const count = masteryMap[englishWord] || 0;
-                        chip.querySelector('.word-txt').textContent = data.text;
-                        chip.querySelector('.star-text').textContent = '⭐'.repeat(Math.min(count, 3)) || '☆☆☆';
-                        chip.onclick = () => {
-                            textEl.dataset.conceptId = englishWord;
-                            textEl.dataset.reading = data.reading;
-                            textEl.value = data.text;
-                            strokes = []; redraw();
-                            speakWord(data.reading);
-                            fetchIPA(data.text, data.reading, englishWord, pos);
-                        };
-                    });
+            filteredData.forEach(row => {
+                const englishWord = row['en-US'], pos = row['POS'] || '';
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                // 保持原有的單字卡排版：POS標籤 -> 單字 -> 星星
+                chip.innerHTML = `<span class="pos-tag">${pos}</span><span class="word-txt">...</span><small class="star-text">☆☆☆</small>`;
+                samplesEl.appendChild(chip);
+
+                getTranslatedWord(englishWord, pos, settings.lang).then(data => {
+                    const count = masteryMap[englishWord] || 0;
+                    chip.querySelector('.word-txt').textContent = data.text;
+                    chip.querySelector('.star-text').textContent = '⭐'.repeat(Math.min(count, 3)) || '☆☆☆';
+                    chip.onclick = () => {
+                        textEl.dataset.conceptId = englishWord;
+                        textEl.dataset.reading = data.reading;
+                        textEl.value = data.text;
+                        strokes = []; redraw();
+                        speakWord(data.reading);
+                        fetchIPA(data.text, data.reading, englishWord, pos);
+                    };
                 });
+            });
         }
 
         function speakWord(reading) {
@@ -349,30 +195,19 @@
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            return {
-                x: (e.clientX - rect.left) * scaleX,
-                y: (e.clientY - rect.top) * scaleY
-            };
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
         }
 
         function initCanvas() {
             const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
+            canvas.width = rect.width; canvas.height = rect.height;
             redraw();
         }
 
-        canvas.onpointerdown = (e) => {
-            isDrawing = true;
-            const pos = getCanvasPos(e);
-            strokes.push([{ x: pos.x, y: pos.y }]);
-        };
-        canvas.onpointermove = (e) => {
-            if (!isDrawing) return;
-            const pos = getCanvasPos(e);
-            strokes[strokes.length - 1].push({ x: pos.x, y: pos.y });
-            redraw();
-        };
+        canvas.onpointerdown = (e) => { isDrawing = true; const pos = getCanvasPos(e); strokes.push([{ x: pos.x, y: pos.y }]); };
+        canvas.onpointermove = (e) => { if (!isDrawing) return; const pos = getCanvasPos(e); strokes[strokes.length - 1].push({ x: pos.x, y: pos.y }); redraw(); };
         canvas.onpointerup = () => isDrawing = false;
 
         fontSizeEl.oninput = (e) => { customFontSize = e.target.value; document.getElementById('fontSizeVal').textContent = customFontSize; redraw(); };
@@ -413,16 +248,18 @@
 
         async function updateConceptMastery() {
             const conceptId = textEl.dataset.conceptId;
-            if (!userId || !conceptId) return;
+            if (!currentUserId || !conceptId) return;
             const settings = getGlobalSettings();
             const masteryId = `${settings.lang}_${conceptId}`.replace(/[\/\.#$\[\]\s]/g, '_');
-            const wordRef = db.collection('users').doc(userId).collection('mastery').doc(masteryId);
+            const wordRef = db.collection('users').doc(currentUserId).collection('mastery').doc(masteryId);
             const doc = await wordRef.get();
             const newCount = (doc.exists ? (doc.data().count || 0) : 0) + 1;
             await wordRef.set({ conceptId, word: conceptId, lang: settings.lang, count: newCount, is_ready_for_chunk: newCount >= 3, lastStudied: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            renderChips();
         }
 
         window.onload = initCanvas;
+        window.onresize = initCanvas;
         document.getElementById('checkBtn').onclick = recognizeHandwriting;
         document.getElementById('speakBtn').onclick = () => speakWord(textEl.dataset.reading || textEl.value);
     </script>

@@ -10,205 +10,10 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <style>
-        :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --text: #f8fafc;
-            --color-noun: #3b82f6;
-            --color-verb: #22c55e;
-            --color-adj: #f59e0b;
-            --color-other: #94a3b8;
-        }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: sans-serif;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0;
-        }
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="style.css">
 
-        .container {
-            width: 100%;
-            max-width: 600px;
-        }
-
-        .nav-header {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .back-link {
-            color: #22d3ee;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        .sentence-display {
-            background: var(--card);
-            border: 2px dashed #334155;
-            border-radius: 20px;
-            min-height: 100px;
-            margin: 20px 0;
-            padding: 15px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .sentence-display.correct {
-            border: 2px solid var(--color-verb);
-            background: #064e3b;
-        }
-
-        .word-chip {
-            padding: 12px 18px;
-            border-radius: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            user-select: none;
-            transition: 0.2s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            font-size: 16px;
-            text-align: center;
-        }
-
-        .word-chip small {
-            display: block;
-            font-size: 10px;
-            opacity: 0.7;
-            font-weight: normal;
-            margin-top: 4px;
-        }
-
-        .pos-noun {
-            background: var(--color-noun);
-            border-bottom: 4px solid #1d4ed8;
-        }
-
-        .pos-verb {
-            background: var(--color-verb);
-            border-bottom: 4px solid #15803d;
-        }
-
-        .pos-adj {
-            background: var(--color-adj);
-            border-bottom: 4px solid #b45309;
-        }
-
-        .pos-other {
-            background: var(--color-other);
-            border-bottom: 4px solid #475569;
-        }
-
-        .pool {
-            background: rgba(255, 255, 255, 0.03);
-            padding: 20px;
-            border-radius: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-            min-height: 60px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .selected {
-            opacity: 0.1;
-            transform: scale(0.9);
-            pointer-events: none;
-        }
-
-        .controls {
-            display: grid;
-            grid-template-columns: 1.5fr 1fr;
-            gap: 10px;
-            margin-bottom: 10px;
-            width: 100%;
-        }
-
-        button {
-            padding: 16px;
-            border-radius: 14px;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        .btn-ai {
-            background: #8b5cf6;
-            color: white;
-        }
-
-        .btn-img {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .btn-play {
-            background: #0ea5e9;
-            color: white;
-            width: 100%;
-            margin-bottom: 10px;
-        }
-
-        .btn-check {
-            background: #10b981;
-            color: white;
-            width: 100%;
-            margin-top: 15px;
-            font-size: 18px;
-        }
-
-        #feedback {
-            text-align: center;
-            margin: 15px 0;
-            font-weight: bold;
-            font-size: 18px;
-            min-height: 24px;
-        }
-
-        #analysisPane {
-            display: none;
-            background: #1e293b;
-            border-radius: 15px;
-            padding: 15px;
-            margin-top: 15px;
-            border: 1px solid #334155;
-            line-height: 1.6;
-        }
-
-        .history-section {
-            width: 100%;
-            margin-top: 40px;
-            border-top: 1px solid #334155;
-            padding-top: 20px;
-        }
-
-        .history-item {
-            background: var(--card);
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            border: 1px solid transparent;
-        }
-
-        .history-item:hover {
-            border-color: #22d3ee;
-        }
-    </style>
 </head>
 
 <body>
@@ -239,59 +44,51 @@
     </div>
 
     <script>
-        // --- 1. 動態初始化 Firebase ---
-        const savedConfig = localStorage.getItem('firebaseConfig');
-        if (savedConfig) {
-            firebase.initializeApp(JSON.parse(savedConfig));
-        } else {
-            alert("未偵測到授權配置，請從控制中心登入");
-            window.location.href = "index.html";
-        }
-
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-
-        const getSettings = () => ({
-            lang: localStorage.getItem('userLang') || 'en-US',
-            key: localStorage.getItem('gptApiKey') || ''
-        });
-
-        document.getElementById('langDisplay').textContent = `目標語言：${getSettings().lang}`;
-
         let currentSentenceData = null;
         let wordBank = [];
-        let userId = null;
+        let currentUserId = null;
 
-        fetch('swadesh.csv').then(r => r.text()).then(csv => {
-            wordBank = Papa.parse(csv, { header: true }).data;
-        });
+        // 初始載入設定與語系顯示
+        function initPage() {
+            const settings = getGlobalSettings();
+            document.getElementById('langDisplay').textContent = `目標語言：${settings.lang}`;
 
+            fetch('swadesh.csv').then(r => r.text()).then(csv => {
+                wordBank = Papa.parse(csv, { header: true }).data;
+            });
+        }
+
+        // 監聽登入狀態與載入歷史
         auth.onAuthStateChanged(user => {
             if (user) {
-                userId = user.uid;
+                currentUserId = user.uid;
                 loadHistory();
             }
         });
 
+        // 啟動初始化
+        initPage();
+
         function speak(text) {
             if (!text) return;
+            const settings = getGlobalSettings();
             const u = new SpeechSynthesisUtterance(text);
-            u.lang = getSettings().lang;
+            u.lang = settings.lang;
             speechSynthesis.cancel();
             speechSynthesis.speak(u);
         }
 
         async function getNextExercise() {
-            const settings = getSettings();
-            const user = firebase.auth().currentUser;
-            if (!user) return alert("請先登入！");
+            const settings = getGlobalSettings();
+            if (!auth.currentUser) return alert("請先登入！");
             if (!settings.key) return alert("請先在控制中心設定 OpenAI API Key！");
 
             resetUI();
             document.getElementById('feedback').textContent = "🔍 搜尋三星單字中...";
 
             try {
-                const snapshot = await db.collection('users').doc(user.uid).collection('mastery')
+                // 從 Firestore 抓取已達標的單字作為出題種子
+                const snapshot = await db.collection('users').doc(auth.currentUser.uid).collection('mastery')
                     .where('lang', '==', settings.lang)
                     .where('is_ready_for_chunk', '==', true)
                     .limit(20).get();
@@ -375,11 +172,11 @@
         };
 
         async function updateHistory(data) {
-            if (!userId) return;
-            const settings = getSettings();
+            if (!currentUserId) return;
+            const settings = getGlobalSettings();
             const docId = btoa(unescape(encodeURIComponent(data.sentence + "_" + settings.lang))).substring(0, 50);
             try {
-                await db.collection('users').doc(userId).collection('history').doc(docId).set({
+                await db.collection('users').doc(currentUserId).collection('history').doc(docId).set({
                     sentence: data.sentence,
                     chunks: data.chunks,
                     lang: settings.lang,
@@ -387,15 +184,15 @@
                     count: firebase.firestore.FieldValue.increment(1)
                 }, { merge: true });
                 loadHistory();
-            } catch (e) { console.error("上傳失敗", e); }
+            } catch (e) { console.error("歷史紀錄更新失敗", e); }
         }
 
         async function loadHistory() {
-            if (!userId) return;
-            const settings = getSettings();
+            if (!currentUserId) return;
+            const settings = getGlobalSettings();
             const listEl = document.getElementById('historyList');
             try {
-                const snapshot = await db.collection('users').doc(userId).collection('history')
+                const snapshot = await db.collection('users').doc(currentUserId).collection('history')
                     .where('lang', '==', settings.lang).limit(5).get();
                 listEl.innerHTML = snapshot.empty ? "尚無紀錄" : "";
                 snapshot.forEach(doc => {

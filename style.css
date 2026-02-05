@@ -1,0 +1,301 @@
+/* style.css - 統一全域樣式表 */
+:root {
+    --bg: #0b1220;
+    --card: #111827;
+    --text: #e5e7eb;
+    --accent: #22d3ee;
+    --btn: #0ea5e9;
+    --danger: #ef4444;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --muted: #64748b;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 20px;
+    line-height: 1.5;
+}
+
+/* 基礎容器 */
+.wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.card,
+.app {
+    background: var(--card);
+    border: 1px solid #1f2937;
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    margin-bottom: 20px;
+}
+
+/* 導航頭部 */
+.header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    font-size: 13px;
+    align-items: center;
+}
+
+.back-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+/* 標題與標籤 */
+h1 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    color: var(--accent);
+    text-align: center;
+}
+
+label {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 15px;
+    display: block;
+    text-transform: uppercase;
+}
+
+/* 表單元件 */
+select,
+input,
+button,
+textarea {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    border-radius: 12px;
+    border: 1px solid #1f2937;
+    background: #0b1220;
+    color: white;
+    font-size: 16px;
+    transition: 0.2s;
+}
+
+button {
+    cursor: pointer;
+    font-weight: bold;
+    border: none;
+}
+
+button:hover {
+    filter: brightness(1.1);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 功能性顏色按鈕 */
+.primary {
+    background: var(--btn);
+    color: white;
+}
+
+.success-btn {
+    background: var(--success);
+    color: white;
+}
+
+.danger {
+    background: var(--danger);
+    color: white;
+}
+
+.warning {
+    background: var(--warning);
+    color: white;
+}
+
+/* 單字卡片 (Chips) - 統一 test0 與 test1 */
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 15px 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.chip {
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: #1f2937;
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-align: center;
+    min-width: 60px;
+    font-size: 14px;
+}
+
+.chip:hover {
+    border-color: var(--accent);
+    background: #2d3748;
+}
+
+.chip .pos-tag {
+    font-size: 9px;
+    color: var(--accent);
+    display: block;
+    text-transform: uppercase;
+}
+
+.star-text {
+    display: block;
+    font-size: 10px;
+    color: #fbbf24;
+}
+
+/* --- 音位診斷 (test0) 專屬元件 --- */
+#wordDisplay {
+    font-size: 48px;
+    font-weight: bold;
+    color: var(--accent);
+    text-align: center;
+    margin: 10px 0;
+}
+
+.layer {
+    margin-bottom: 15px;
+    padding: 15px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    text-align: center;
+}
+
+.layer-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.record-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--danger);
+    font-size: 32px;
+    margin: 20px auto;
+    display: block;
+}
+
+.record-btn.active {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 20px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* --- 手寫練習 (test1) 專屬元件 --- */
+canvas#pad {
+    width: 100%;
+    height: 40vh;
+    background: #000;
+    border-radius: 16px;
+    border: 1px solid #334155;
+    touch-action: none;
+    margin-top: 15px;
+}
+
+#ipa {
+    color: var(--accent);
+    text-align: center;
+    font-size: 22px;
+    margin: 10px 0;
+    min-height: 1.2em;
+}
+
+/* --- 語法排序 (test2) 專屬元件 --- */
+.sentence-display {
+    background: var(--card);
+    border: 2px dashed #334155;
+    border-radius: 20px;
+    min-height: 100px;
+    margin: 20px 0;
+    padding: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+}
+
+.sentence-display.correct {
+    border: 2px solid var(--success);
+    background: #064e3b;
+}
+
+.word-chip {
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.pos-noun {
+    background: #3b82f6;
+    border-bottom: 4px solid #1d4ed8;
+}
+
+.pos-verb {
+    background: #22c55e;
+    border-bottom: 4px solid #15803d;
+}
+
+.pos-adj {
+    background: #f59e0b;
+    border-bottom: 4px solid #b45309;
+}
+
+/* 通用工具 */
+.hidden {
+    display: none !important;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.nav-box {
+    aspect-ratio: 1/1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 15px;
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+}
