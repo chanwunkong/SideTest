@@ -158,32 +158,44 @@
         });
 
         // 4. 儲存設定按鈕 (可視需求加入存到 Firestore 的功能)
-        saveKeyBtn.onclick = async () => {
+        saveKeyBtn.onclick = async (e) => {
+            if (e) e.preventDefault(); // 防止某些瀏覽器下按鈕觸發頁面刷新
+
+            // 禁用按鈕防止重複點擊
+            saveKeyBtn.disabled = true;
+            saveKeyBtn.textContent = "儲存中...";
+
             const settings = {
-                gptApiKey: keyInput.value,
+                gptApiKey: keyInput.value.trim(), // 去除前後空格
                 userLang: langSelect.value,
                 userCourse: courseSelect.value,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp() // 紀錄更新時間
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            // 1. 儲存到本地 (確保離線可用)
+            // 1. 本地備份
             localStorage.setItem('gptApiKey', settings.gptApiKey);
             localStorage.setItem('userLang', settings.userLang);
             localStorage.setItem('userCourse', settings.userCourse);
 
-            // 2. 儲存到雲端 Firestore (核心修正)
+            // 2. 雲端同步
             const user = auth.currentUser;
             if (user) {
                 try {
+                    // 指定 Document ID 為 user.uid 確保資料唯一性
                     await db.collection('users').doc(user.uid).set(settings, { merge: true });
                     alert('✅ 雲端同步成功！');
-                } catch (e) {
-                    console.error("雲端同步失敗:", e);
-                    alert('❌ 儲存失敗：請檢查 Firestore 權限設定');
+                } catch (error) {
+                    console.error("Firestore Error:", error);
+                    // 常見錯誤：權限不足 (Firebase Rules 未設好)
+                    alert('❌ 雲端儲存失敗：請檢查資料庫 Rules 是否允許寫入');
                 }
             } else {
-                alert('⚠️ 未登入，設定僅儲存於此瀏覽器。');
+                alert('⚠️ 目前為離線模式（未登入），設定僅存於此瀏覽器。');
             }
+
+            // 恢復按鈕狀態
+            saveKeyBtn.disabled = false;
+            saveKeyBtn.textContent = "儲存設定";
         };
     </script>
 </body>
