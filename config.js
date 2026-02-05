@@ -1,7 +1,7 @@
 // config.js - 統一設定管理中心
 const ALLOSAURUS_API = "https://allosaurus-api-878665537417.asia-east1.run.app/recognize";
 const firebaseConfig = {
-    apiKey: "AIzaSyAI5lx2XT3ysBhTREBW637s_AlWC49LYJQ",
+    apiKey: "AIzaSyD8oEe02SY2PCDe3d40NtTprrApqW_DhB8",
     authDomain: "test-5dbba.firebaseapp.com",
     projectId: "test-5dbba"
 };
