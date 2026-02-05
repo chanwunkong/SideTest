@@ -24,7 +24,7 @@
             </div>
             <div id="status" style="font-size: 12px; text-align: center; margin-bottom: 5px; color: #6b7280;"></div>
             <div class="chips" id="samples"></div>
-            <textarea id="text" readonly placeholder="點擊單字開始"></textarea>
+            <textarea id="text" placeholder="點擊單字開始"></textarea>
             <div id="ipa"></div>
             <div class="field" style="margin-top: 10px;">
                 <label class="label">底字大小：<span id="fontSizeVal">240</span>px</label>
@@ -32,6 +32,7 @@
             </div>
             <canvas id="pad"></canvas>
             <div class="pad-actions">
+                <button class="warning" id="fetchIpaBtn">📖 查音標</button>
                 <button class="danger" id="clearBtn">🧹 清除</button>
                 <button class="success-btn" id="checkBtn">🔍 檢查準確度</button>
                 <button class="primary" id="speakBtn">▶ 朗讀</button>
@@ -206,6 +207,18 @@
             redraw();
         }
 
+        let debounceTimer;
+        // 監聽手動輸入事件，僅即時更新畫布底字
+        textEl.oninput = () => {
+            redraw(); // 更新畫布背景字
+
+            // 清除舊資料，但保留輸入內容供稍後查詢
+            delete textEl.dataset.conceptId;
+            delete textEl.dataset.reading;
+            ipaEl.textContent = "";
+            statusEl.textContent = "";
+        };
+
         canvas.onpointerdown = (e) => { isDrawing = true; const pos = getCanvasPos(e); strokes.push([{ x: pos.x, y: pos.y }]); };
         canvas.onpointermove = (e) => { if (!isDrawing) return; const pos = getCanvasPos(e); strokes[strokes.length - 1].push({ x: pos.x, y: pos.y }); redraw(); };
         canvas.onpointerup = () => isDrawing = false;
@@ -262,6 +275,21 @@
         window.onresize = initCanvas;
         document.getElementById('checkBtn').onclick = recognizeHandwriting;
         document.getElementById('speakBtn').onclick = () => speakWord(textEl.dataset.reading || textEl.value);
+
+        document.getElementById('fetchIpaBtn').onclick = async () => {
+            const word = textEl.value.trim();
+            if (!word) {
+                statusEl.textContent = "⚠️ 請先輸入單字";
+                return;
+            }
+
+            // 補上讀音資訊，讓朗讀按鈕也能運作
+            textEl.dataset.reading = word;
+
+            // 呼叫原本就有的 fetchIPA 函式
+            // 參數：單字, 讀音, 英文原意(手動輸入填word), 詞性(手動輸入填custom)
+            await fetchIPA(word, word, word, "custom");
+        };
     </script>
 </body>
 

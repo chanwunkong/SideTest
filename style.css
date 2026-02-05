@@ -299,3 +299,47 @@ canvas#pad {
     text-decoration: none;
     font-weight: bold;
 }
+
+.box-0 {
+    background-color: #3b82f6;
+    /* 藍色 (Blue) */
+}
+
+.box-1 {
+    background-color: #10b981;
+    /* 綠色 (Emerald/Green) */
+}
+
+.box-2 {
+    background-color: #f59e0b;
+    /* 黃色 (Amber/Yellow) */
+}
+
+.box-3 {
+    background-color: #ef4444;
+    /* 紅色 (Red) */
+}
+
+/* 讓按鈕排成一排 */
+.pad-actions {
+    display: flex;
+    /* 使用 Flexbox 佈局 */
+    gap: 10px;
+    /* 設定按鈕之間的間距 */
+    margin-top: 15px;
+    /* 整個區塊與上方的距離 */
+}
+
+/* 調整按鈕細節 */
+.pad-actions button {
+    flex: 1;
+    /* 讓三個按鈕平均分配寬度 */
+    margin-top: 0;
+    /* 強制覆蓋掉你原本設定的 8px margin-top，確保對齊 */
+    white-space: nowrap;
+    /* 防止文字在寬度不足時斷行 */
+    font-size: 14px;
+    /* 稍微縮小字體以確保在小螢幕也能塞下三個按鈕 */
+    padding: 12px 5px;
+    /* 減少左右內距 */
+}
