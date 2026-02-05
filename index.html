@@ -18,13 +18,12 @@
     <div class="wrap">
         <div class="header">
             <span id="userEmail">未登入</span>
-            <a href="#" class="back-link" id="logoutBtn">登出</a>
         </div>
 
         <h1>學習控制中心</h1>
 
         <div class="card">
-            <button id="loginBtn">使用 Google 登入</button>
+            <button id="authBtn">使用 Google 登入</button>
 
             <label>GPT API KEY</label>
             <input type="password" id="gptApiKey" placeholder="sk-...">
@@ -72,55 +71,40 @@
     </div>
 
     <script>
-        // index.html 修正版腳本
-        const loginBtn = document.getElementById('loginBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
+        // 1. 取得元件 (僅保留目前 HTML 存在的 ID)
+        const authBtn = document.getElementById('authBtn');
         const saveKeyBtn = document.getElementById('saveKeyBtn');
         const userEmailSpan = document.getElementById('userEmail');
         const keyInput = document.getElementById('gptApiKey');
         const langSelect = document.getElementById('userLang');
         const courseSelect = document.getElementById('userCourse');
 
-        // 1. 初始化頁面：從 config.js 讀取本地快取
+        // 2. 初始化頁面：從 config.js 讀取本地快取
         function loadLocalSettings() {
-            const settings = getGlobalSettings(); // 引用自 config.js
+            const settings = getGlobalSettings();
             if (keyInput) keyInput.value = settings.key;
             if (langSelect) langSelect.value = settings.lang;
             if (courseSelect) courseSelect.value = settings.course;
         }
-
         loadLocalSettings();
 
-        // 2. 登入按鈕綁定 (修正重點)
-        if (loginBtn) {
-            loginBtn.onclick = () => {
-                console.log("觸發 Google 登入...");
-                const provider = new firebase.auth.GoogleAuthProvider();
-                // 確保使用 config.js 中初始化的 auth 物件
-                auth.signInWithRedirect(provider);
-            };
-        }
-
-        // 3. 登出按鈕綁定
-        if (logoutBtn) {
-            logoutBtn.onclick = (e) => {
-                e.preventDefault();
-                auth.signOut().then(() => {
-                    console.log("已登出");
-                    location.reload();
-                });
-            };
-        }
-
-        // 4. 監聽登入狀態並更新 UI (解決沒反應的視覺錯覺)
+        // 3. 監聽登入狀態並更新單一按鈕 UI
         auth.onAuthStateChanged(async (user) => {
             if (user) {
+                // --- 已登入狀態 ---
                 console.log("使用者已登入:", user.email);
                 userEmailSpan.textContent = user.email;
 
-                // 徹底切換 UI 顯示狀態
-                loginBtn.style.display = 'none';
-                logoutBtn.classList.remove('hidden');
+                // 更新按鈕外觀與行為為「登出」
+                authBtn.textContent = "登出帳號";
+                authBtn.style.background = "#ff4d4d";
+                authBtn.onclick = (e) => {
+                    e.preventDefault();
+                    auth.signOut().then(() => {
+                        console.log("已登出");
+                        location.reload();
+                    });
+                };
 
                 // 同步雲端資料到本地
                 try {
@@ -144,12 +128,28 @@
                     console.error("雲端資料讀取失敗", e);
                 }
             } else {
+                // --- 未登入狀態 ---
                 console.log("使用者未登入");
                 userEmailSpan.textContent = "未登入";
-                loginBtn.style.display = 'block';
-                logoutBtn.classList.add('hidden');
+
+                // 更新按鈕外觀與行為為「登入」
+                authBtn.textContent = "使用 Google 登入";
+                authBtn.style.background = "var(--btn)";
+                authBtn.onclick = () => {
+                    console.log("觸發 Google 登入...");
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    auth.signInWithRedirect(provider);
+                };
             }
         });
+
+        // 4. 儲存設定按鈕 (可視需求加入存到 Firestore 的功能)
+        saveKeyBtn.onclick = () => {
+            localStorage.setItem('gptApiKey', keyInput.value);
+            localStorage.setItem('userLang', langSelect.value);
+            localStorage.setItem('userCourse', courseSelect.value);
+            alert('設定已儲存到本地！');
+        };
     </script>
 </body>
 
