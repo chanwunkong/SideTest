@@ -4,129 +4,401 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>對話紀錄與日曆 - 語音教練</title>
+    <title>語義驗證場</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="config.js"></script>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 日曆專屬樣式，確保符合您的視覺風格 */
-        .calendar-section {
-            margin-top: 20px;
+        /* 戰術儀表板風格 */
+        .hud-header {
+            background: #0f172a;
             padding: 15px;
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 20px;
-            border: 1px solid #1f2937;
+            border-bottom: 2px solid #334155;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
-            margin-top: 15px;
+        .mission-label {
+            font-size: 12px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
         }
 
-        .date-chip {
-            padding: 8px 0;
-            background: #1f2937;
-            border-radius: 12px;
-            text-align: center;
-            border: 1px solid transparent;
-            min-height: 55px;
+        /* 裝備 (彈藥) 欄 */
+        .ammo-rack {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+        }
+
+        .ammo-chip {
+            background: #1e293b;
+            border: 1px solid #475569;
+            color: #e2e8f0;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+        }
+
+        /* 狀態：已命中 (綠) */
+        .ammo-chip.hit {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: #10b981;
+            color: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+        }
+
+        /* 狀態：生鏽/未使用 (黃/紅) */
+        .ammo-chip.rust {
+            border-color: #f59e0b;
+            color: #f59e0b;
+            opacity: 0.7;
+        }
+
+        /* 對話區 */
+        .comm-log {
+            padding: 15px;
+            height: calc(100vh - 200px);
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            transition: 0.2s;
+            gap: 15px;
         }
 
-        .date-chip:hover {
-            border-color: var(--accent);
+        .msg {
+            max-width: 85%;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            line-height: 1.5;
         }
 
-        .date-chip.today {
+        .msg.ai {
+            align-self: flex-start;
             background: #1e293b;
-            border: 1px solid var(--accent);
+            border-left: 4px solid #3b82f6;
         }
 
-        .date-num {
-            font-size: 11px;
-            color: var(--muted);
-            margin-bottom: 2px;
+        .msg.user {
+            align-self: flex-end;
+            background: #0f4c81;
+            /* 深藍色 */
+            color: white;
+            border-right: 4px solid #22d3ee;
         }
 
-        .chat-preview {
-            background: #0b1220;
-            border-radius: 12px;
+        /* 關鍵字高亮 (Understanding Filter) */
+        .highlight-word {
+            color: #38bdf8;
+            /* 亮藍色 */
+            font-weight: bold;
+            text-decoration: underline dotted;
+            cursor: help;
+        }
+
+        /* 錄音按鈕區 */
+        .control-deck {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #0f172a;
             padding: 15px;
-            margin-top: 15px;
-            border-left: 4px solid var(--accent);
-            font-style: italic;
-            color: #94a3b8;
+            border-top: 1px solid #334155;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .ptt-btn {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #ef4444;
+            border: 4px solid #7f1d1d;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            transition: 0.1s;
+        }
+
+        .ptt-btn:active {
+            transform: scale(0.95);
+            background: #dc2626;
+        }
+
+        .ptt-btn.listening {
+            animation: pulse-red 1.5s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="wrap">
-        <div class="app">
-            <div class="header">
-                <a href="index.html" class="back-link">← 返回控制中心</a>
-                <span id="langDisplay" style="color: #94a3b8;">目標語言：載入中...</span>
+    <div class="wrap" style="padding:0;">
+
+        <div class="hud-header">
+            <div class="header" style="margin-bottom:10px; padding:0;">
+                <a href="index.html" class="back-link" style="font-size:14px;">← ABORT (返回)</a>
+                <span id="status-light" style="font-size:12px; color:#10b981;">● SYSTEM ONLINE</span>
             </div>
-
-            <h1>對話練習與足跡</h1>
-
-            <div class="layer">
-                <span class="layer-label">模擬情境</span>
-                <div id="scenario-text" style="margin-bottom: 15px;">點擊下方按鈕開始 AI 對話練習</div>
-                <button class="primary" id="startChatBtn">🎤 開始情境對話</button>
-            </div>
-
-            <div id="dayDetail" class="chat-preview" style="display:none;">
-                <div class="layer-label">當日練習摘要</div>
-                <div id="detailContent"></div>
+            <div class="mission-label">ACTIVE MUNITIONS (本局任務裝備)</div>
+            <div class="ammo-rack" id="ammoRack">
+                <div class="ammo-chip">Loading...</div>
             </div>
         </div>
+
+        <div class="comm-log" id="chatBox">
+            <div class="msg ai">
+                系統初始化...<br>正在從資料庫提取三星裝備...
+            </div>
+        </div>
+
+        <div class="control-deck">
+            <button id="hintBtn" style="background:#334155; color:#fff; border-radius:8px; padding:0 15px;">SOS</button>
+            <button id="micBtn" class="ptt-btn">🎤</button>
+        </div>
+
+        <div id="sttPreview"
+            style="position:fixed; bottom:90px; left:0; width:100%; text-align:center; color:#94a3b8; font-size:12px; pointer-events:none;">
+        </div>
+
     </div>
 
     <script>
         let currentUserId = null;
+        let missionWords = []; // 本局要用的單字/語塊
+        let recognition;
+        let isRecording = false;
+        let conversationHistory = [];
 
-        function initPage() {
-            const settings = getGlobalSettings();
-            document.getElementById('langDisplay').textContent = `目標語言：${settings.lang}`;
-            renderCalendar();
+        function init() {
+            initSpeech();
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    currentUserId = user.uid;
+                    loadMissionProfile();
+                }
+            });
         }
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                currentUserId = user.uid;
-                renderCalendar();
-            }
-        });
+        // 1. 載入任務 (Load Mission Profile)
+        async function loadMissionProfile() {
+            const settings = getGlobalSettings();
+            const rack = document.getElementById('ammoRack');
 
-        initPage();
+            try {
+                // 從 Firestore 撈取三星單字
+                const snap = await db.collection('users').doc(currentUserId).collection('mastery')
+                    .where('lang', '==', settings.lang)
+                    .where('is_ready_for_chunk', '==', true) // 代表 Test 1 & 2 通過
+                    .limit(50).get();
 
+                if (snap.empty) {
+                    rack.innerHTML = '<div class="ammo-chip rust">NO DATA</div>';
+                    appendMsg('ai', '資料庫無可用裝備。請先完成 [單字手寫] 與 [組塊排序] 訓練。');
+                    return;
+                }
+
+                // 隨機選 3 個作為本局彈藥
+                const docs = snap.docs.sort(() => 0.5 - Math.random()).slice(0, 3);
+                missionWords = docs.map(d => ({
+                    id: d.id,
+                    text: d.data().conceptId,
+                    used: false
+                }));
+
+                renderAmmoRack();
+                startSimulation();
+
+            } catch (e) { console.error(e); }
+        }
+
+        function renderAmmoRack() {
+            const rack = document.getElementById('ammoRack');
+            rack.innerHTML = '';
+            missionWords.forEach(w => {
+                const chip = document.createElement('div');
+                chip.className = `ammo-chip ${w.used ? 'hit' : ''}`;
+                chip.innerHTML = `${w.used ? '✔' : '⚡'} ${w.text}`;
+                rack.appendChild(chip);
+            });
+        }
+
+        // 2. 啟動模擬 (Start Simulation)
+        async function startSimulation() {
+            const settings = getGlobalSettings();
+            const targets = missionWords.map(w => w.text).join(', ');
+
+            // Prompt: 要求 AI 創造一個需要用到這些單字的情境
+            const prompt = `
+            Create a roleplay scenario in ${settings.lang} that naturally leads the user to use these words: [${targets}].
+            Start the conversation. 
+            Output JSON: { "text": "AI speech", "keywords": ["key1", "key2"] }
+            (Keywords are words important for understanding, to be highlighted).
+            `;
+
+            conversationHistory = [{ role: "system", content: "You are a mission simulator." }];
+            await fetchAI(prompt);
+        }
+
+        async function fetchAI(userInput) {
+            const settings = getGlobalSettings();
+            const chatBox = document.getElementById('chatBox');
+
+            // 轉圈圈
+            const loading = document.createElement('div');
+            loading.className = 'msg ai'; loading.innerText = '...';
+            chatBox.appendChild(loading);
+
+            try {
+                // 將使用者輸入加入歷史
+                conversationHistory.push({ role: "user", content: userInput });
+
+                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: conversationHistory,
+                        response_format: { type: "json_object" }
+                    })
+                });
+
+                const data = await resp.json();
+                const aiData = JSON.parse(data.choices[0].message.content);
+
+                loading.remove();
+                appendAIMsg(aiData.text, aiData.keywords || []);
+                conversationHistory.push({ role: "assistant", content: JSON.stringify(aiData) });
+
+            } catch (e) { loading.innerText = "連線中斷"; }
+        }
+
+        // 3. 顯示 AI 訊息 (包含理解濾鏡)
+        function appendAIMsg(text, keywords) {
+            const chatBox = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = 'msg ai';
+
+            // 簡單的關鍵字高亮邏輯
+            let html = text;
+            keywords.forEach(kw => {
+                const reg = new RegExp(`(${kw})`, 'gi');
+                html = html.replace(reg, '<span class="highlight-word" onclick="speak(\'$1\')">$1</span>');
+            });
+
+            // 添加播放按鈕
+            div.innerHTML = html + ` <span style="cursor:pointer; opacity:0.5" onclick="speak('${text.replace(/'/g, "\\'")}')">🔊</span>`;
+            chatBox.appendChild(div);
+            speak(text);
+        }
+
+        // 4. 語音輸入與命中驗證 (The Core Logic)
+        function initSpeech() {
+            if (!('webkitSpeechRecognition' in window)) return alert("請使用 Chrome");
+            const settings = getGlobalSettings();
+            recognition = new webkitSpeechRecognition();
+            recognition.lang = settings.lang;
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => document.getElementById('micBtn').classList.add('listening');
+            recognition.onend = () => document.getElementById('micBtn').classList.remove('listening');
+
+            recognition.onresult = (e) => {
+                const txt = e.results[0][0].transcript;
+                document.getElementById('sttPreview').innerText = txt;
+                if (e.results[0].isFinal) {
+                    processUserResponse(txt);
+                }
+            };
+
+            document.getElementById('micBtn').onclick = () => recognition.start();
+        }
+
+        async function processUserResponse(text) {
+            const chatBox = document.getElementById('chatBox');
+            // 顯示使用者訊息
+            const div = document.createElement('div');
+            div.className = 'msg user';
+            div.innerText = text;
+            chatBox.appendChild(div);
+
+            // A. 本地端：檢查命中 (Hit Check)
+            // 這裡簡單比對字串，實際可擴充為比對「語塊結構」
+            let hitAny = false;
+            missionWords.forEach(w => {
+                if (text.toLowerCase().includes(w.text.toLowerCase()) && !w.used) {
+                    w.used = true;
+                    hitAny = true;
+                    // TODO: 這裡可以播放一個「鎖定音效」
+                }
+            });
+            renderAmmoRack(); // 更新儀表板狀態
+
+            // B. 傳送給 AI 進行下一輪 (並附帶命中資訊)
+            // 告訴 AI 使用者是否用到了裝備，讓 AI 給予相應的回應
+            const prompt = `User said: "${text}". 
+            Did they make sense? 
+            Target words used: ${hitAny ? "YES" : "NO"}.
+            Continue the roleplay. If they used target words, acknowledge it naturally. 
+            If they didn't, gently guide them.
+            Output JSON: { "text": "...", "keywords": [...] }`;
+
+            await fetchAI(prompt);
+
+            // C. 打卡 (Log)
+            logActivity();
+        }
+
+        function speak(txt) {
+            speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(txt);
+            u.lang = getGlobalSettings().lang;
+            speechSynthesis.speak(u);
+        }
 
         async function logActivity() {
             if (!currentUserId) return;
             const today = new Date().toISOString().split('T')[0];
-            const ref = db.collection('users').doc(currentUserId).collection('calendar').doc(today);
-
-            await ref.set({
-                count: firebase.firestore.FieldValue.increment(1),
-                lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+            await db.collection('users').doc(currentUserId).collection('calendar').doc(today).set({
+                count: firebase.firestore.FieldValue.increment(1)
             }, { merge: true });
-
-            renderCalendar(); // 即時刷新
         }
 
-        // 模擬點擊練習後的打卡行為
-        document.getElementById('startChatBtn').onclick = () => {
-            alert("對話練習模擬中...完成後將自動打卡並增加星星！");
-            logActivity();
+        // SOS 按鈕：請求降維
+        document.getElementById('hintBtn').onclick = () => {
+            fetchAI("I don't understand. Please explain simply using my known words.");
         };
+
+        init();
     </script>
 </body>
 
