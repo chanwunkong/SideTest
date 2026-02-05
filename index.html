@@ -72,6 +72,7 @@
     </div>
 
     <script>
+        // index.html 修正版腳本
         const loginBtn = document.getElementById('loginBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const saveKeyBtn = document.getElementById('saveKeyBtn');
@@ -80,31 +81,48 @@
         const langSelect = document.getElementById('userLang');
         const courseSelect = document.getElementById('userCourse');
 
-        // 1. 初始載入：從 config.js 定義的 getGlobalSettings 獲取本地快取
-        const settings = getGlobalSettings();
-        keyInput.value = settings.key;
-        langSelect.value = settings.lang;
-        courseSelect.value = settings.course;
+        // 1. 初始化頁面：從 config.js 讀取本地快取
+        function loadLocalSettings() {
+            const settings = getGlobalSettings(); // 引用自 config.js
+            if (keyInput) keyInput.value = settings.key;
+            if (langSelect) langSelect.value = settings.lang;
+            if (courseSelect) courseSelect.value = settings.course;
+        }
 
-        // 2. 登入邏輯
-        loginBtn.onclick = () => {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithRedirect(provider);
-        };
+        loadLocalSettings();
 
-        logoutBtn.onclick = (e) => {
-            e.preventDefault();
-            auth.signOut().then(() => location.reload());
-        };
+        // 2. 登入按鈕綁定 (修正重點)
+        if (loginBtn) {
+            loginBtn.onclick = () => {
+                console.log("觸發 Google 登入...");
+                const provider = new firebase.auth.GoogleAuthProvider();
+                // 確保使用 config.js 中初始化的 auth 物件
+                auth.signInWithRedirect(provider);
+            };
+        }
 
-        // 3. 登入狀態監聽與雲端同步
+        // 3. 登出按鈕綁定
+        if (logoutBtn) {
+            logoutBtn.onclick = (e) => {
+                e.preventDefault();
+                auth.signOut().then(() => {
+                    console.log("已登出");
+                    location.reload();
+                });
+            };
+        }
+
+        // 4. 監聽登入狀態並更新 UI (解決沒反應的視覺錯覺)
         auth.onAuthStateChanged(async (user) => {
             if (user) {
+                console.log("使用者已登入:", user.email);
                 userEmailSpan.textContent = user.email;
-                loginBtn.classList.add('hidden');
+
+                // 徹底切換 UI 顯示狀態
+                loginBtn.style.display = 'none';
                 logoutBtn.classList.remove('hidden');
 
-                // 同步雲端設定到本地
+                // 同步雲端資料到本地
                 try {
                     const doc = await db.collection('users').doc(user.uid).get();
                     if (doc.exists) {
@@ -123,43 +141,15 @@
                         }
                     }
                 } catch (e) {
-                    console.error("雲端讀取失敗", e);
+                    console.error("雲端資料讀取失敗", e);
                 }
             } else {
+                console.log("使用者未登入");
                 userEmailSpan.textContent = "未登入";
-                loginBtn.classList.remove('hidden');
+                loginBtn.style.display = 'block';
                 logoutBtn.classList.add('hidden');
             }
         });
-
-        // 4. 儲存設定 (同步更新本地與雲端)
-        saveKeyBtn.onclick = async () => {
-            const key = keyInput.value.trim();
-            const lang = langSelect.value;
-            const course = courseSelect.value;
-
-            // 更新本地快取
-            localStorage.setItem('gptApiKey', key);
-            localStorage.setItem('userLang', lang);
-            localStorage.setItem('userCourse', course);
-
-            // 更新雲端 (若已登入)
-            const user = auth.currentUser;
-            if (user) {
-                try {
-                    await db.collection('users').doc(user.uid).set({
-                        gptApiKey: key,
-                        userLang: lang,
-                        userCourse: course
-                    }, { merge: true });
-                    alert("設定已儲存並同步雲端");
-                } catch (e) {
-                    alert("雲端儲存失敗");
-                }
-            } else {
-                alert("設定已儲存於本地");
-            }
-        };
     </script>
 </body>
 
