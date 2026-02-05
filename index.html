@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>語言練習</title>
+    <title>語言練習 - 控制中心</title>
     <link rel="stylesheet" href="style.css">
 
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -12,6 +12,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
     <script src="config.js"></script>
+    <style>
+
+    </style>
 </head>
 
 <body>
@@ -62,6 +65,28 @@
             <button id="saveKeyBtn" style="background: var(--btn); color: white; margin-top: 15px;">儲存設定</button>
         </div>
 
+        <div class="card" style="padding: 15px;">
+            <div id="calendarHeader"
+                style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <h3 style="font-size: 16px; margin: 0;">📅 學習足跡 <span id="streakDisplay"
+                        style="margin-left:10px; color:#fbbf24; font-size:14px;">🔥 0 天</span></h3>
+                <span id="toggleIcon">▼</span>
+            </div>
+
+            <div id="calendarCollapse" style="display: none; margin-top: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <button id="prevMonth" style="width: auto; padding: 5px 10px; margin: 0;">＜</button>
+                    <span id="currentMonthLabel" style="font-weight: bold; color: var(--accent);">2026 / 02</span>
+                    <button id="nextMonth" style="width: auto; padding: 5px 10px; margin: 0;">＞</button>
+                </div>
+
+                <div class="calendar-grid" id="calendarGrid"></div>
+                <div id="dayDetail" style="font-size: 12px; color: var(--muted); margin-top: 10px; text-align: center;">
+                    點擊日期查看細節
+                </div>
+            </div>
+        </div>
+
         <div class="grid">
             <a href="test0.html" class="nav-box box-0">音位診斷</a>
             <a href="test1.html" class="nav-box box-1">單字手寫</a>
@@ -71,7 +96,6 @@
     </div>
 
     <script>
-        // 1. 取得元件 (僅保留目前 HTML 存在的 ID)
         const authBtn = document.getElementById('authBtn');
         const saveKeyBtn = document.getElementById('saveKeyBtn');
         const userEmailSpan = document.getElementById('userEmail');
@@ -79,7 +103,10 @@
         const langSelect = document.getElementById('userLang');
         const courseSelect = document.getElementById('userCourse');
 
-        // 2. 初始化頁面：從 config.js 讀取本地快取
+        let viewDate = new Date();
+        let calendarStats = null; // null 表示尚未加載
+
+        // 初始化
         function loadLocalSettings() {
             const settings = getGlobalSettings();
             if (keyInput) keyInput.value = settings.key;
@@ -88,112 +115,152 @@
         }
         loadLocalSettings();
 
-        // 3. 監聽登入狀態並更新單一按鈕 UI
+        // 登入狀態監聽
         auth.onAuthStateChanged(async (user) => {
             if (user) {
-                // --- 已登入狀態 ---
-                console.log("使用者已登入:", user.email);
                 userEmailSpan.textContent = user.email;
-
-                // 更新按鈕外觀與行為為「登出」
                 authBtn.textContent = "登出帳號";
                 authBtn.style.background = "#ff4d4d";
-                authBtn.onclick = () => {
-                    console.log("觸發 Google 彈出式登入...");
-                    const provider = new firebase.auth.GoogleAuthProvider();
+                authBtn.onclick = () => auth.signOut();
 
-                    // 改用 Popup，避免 GitHub Page 重新整理導致狀態遺失
-                    auth.signInWithPopup(provider)
-                        .then((result) => {
-                            console.log("登入成功，使用者：", result.user.email);
-                            // 成功後不需要手動 reload，onAuthStateChanged 會自動偵測
-                        })
-                        .catch((error) => {
-                            console.error("登入失敗詳情：", error.code, error.message);
-                            alert("登入失敗：" + error.message);
-                        });
-                };
-
-                // 同步雲端資料到本地
                 try {
                     const doc = await db.collection('users').doc(user.uid).get();
                     if (doc.exists) {
                         const data = doc.data();
-                        if (data.gptApiKey) {
-                            keyInput.value = data.gptApiKey;
-                            localStorage.setItem('gptApiKey', data.gptApiKey);
-                        }
-                        if (data.userLang) {
-                            langSelect.value = data.userLang;
-                            localStorage.setItem('userLang', data.userLang);
-                        }
-                        if (data.userCourse) {
-                            courseSelect.value = data.userCourse;
-                            localStorage.setItem('userCourse', data.userCourse);
-                        }
+                        if (data.gptApiKey) { keyInput.value = data.gptApiKey; localStorage.setItem('gptApiKey', data.gptApiKey); }
+                        if (data.userLang) { langSelect.value = data.userLang; localStorage.setItem('userLang', data.userLang); }
+                        if (data.userCourse) { courseSelect.value = data.userCourse; localStorage.setItem('userCourse', data.userCourse); }
                     }
-                } catch (e) {
-                    console.error("雲端資料讀取失敗", e);
-                }
-            } else {
-                // --- 未登入狀態 ---
-                console.log("使用者未登入");
-                userEmailSpan.textContent = "未登入";
+                } catch (e) { console.error(e); }
 
-                // 更新按鈕外觀與行為為「登入」
+                calendarStats = null; // 重置數據以重新抓取
+                renderIndexCalendar();
+            } else {
+                userEmailSpan.textContent = "未登入";
                 authBtn.textContent = "使用 Google 登入";
                 authBtn.style.background = "var(--btn)";
-                authBtn.onclick = () => {
-                    const provider = new firebase.auth.GoogleAuthProvider();
-                    // 強制改用彈出視窗
-                    auth.signInWithPopup(provider)
-                        .then((result) => {
-                            console.log("登入成功！");
-                        })
-                        .catch((err) => {
-                            console.error("Popup 錯誤詳情：", err);
-                        });
-                };
+                authBtn.onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+                calendarStats = {};
+                renderIndexCalendar();
             }
         });
 
-        // 4. 儲存設定按鈕 (可視需求加入存到 Firestore 的功能)
-        saveKeyBtn.onclick = async (e) => {
-            if (e) e.preventDefault(); // 防止某些瀏覽器下按鈕觸發頁面刷新
+        // 折疊功能
+        const calendarHeader = document.getElementById('calendarHeader');
+        const calendarCollapse = document.getElementById('calendarCollapse');
+        const toggleIcon = document.getElementById('toggleIcon');
 
-            // 禁用按鈕防止重複點擊
+        calendarHeader.onclick = () => {
+            const isHidden = calendarCollapse.style.display === 'none';
+            calendarCollapse.style.display = isHidden ? 'block' : 'none';
+            toggleIcon.textContent = isHidden ? '▲' : '▼';
+            if (isHidden) renderIndexCalendar();
+        };
+
+        // 月份切換
+        document.getElementById('prevMonth').onclick = (e) => {
+            e.stopPropagation();
+            viewDate.setMonth(viewDate.getMonth() - 1);
+            renderIndexCalendar();
+        };
+
+        document.getElementById('nextMonth').onclick = (e) => {
+            e.stopPropagation();
+            viewDate.setMonth(viewDate.getMonth() + 1);
+            renderIndexCalendar();
+        };
+
+        // 連勝紀錄
+        function calculateStreak(stats) {
+            let streak = 0;
+            let checkDate = new Date();
+            checkDate.setHours(0, 0, 0, 0);
+
+            while (true) {
+                const dateStr = checkDate.toISOString().split('T')[0];
+                if (stats[dateStr] > 0) {
+                    streak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    if (dateStr === todayStr) {
+                        checkDate.setDate(checkDate.getDate() - 1);
+                        continue;
+                    }
+                    break;
+                }
+            }
+            document.getElementById('streakDisplay').textContent = `🔥 ${streak} 天`;
+        }
+
+        // 核心渲染
+        async function renderIndexCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const label = document.getElementById('currentMonthLabel');
+            grid.innerHTML = "";
+
+            const user = auth.currentUser;
+            label.textContent = `${viewDate.getFullYear()} / ${String(viewDate.getMonth() + 1).padStart(2, '0')}`;
+
+            // 僅在登入且數據為空時抓取一次
+            if (user && calendarStats === null) {
+                calendarStats = {};
+                const snap = await db.collection('users').doc(user.uid).collection('calendar').get();
+                snap.forEach(doc => calendarStats[doc.id] = doc.data().count || 0);
+                calculateStreak(calendarStats);
+            }
+
+            const stats = calendarStats || {};
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            // 填補空白
+            for (let i = 0; i < firstDay; i++) {
+                grid.appendChild(document.createElement('div'));
+            }
+
+            // 生成日期
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const count = stats[dateStr] || 0;
+                const isToday = dateStr === todayStr;
+
+                const chip = document.createElement('div');
+                chip.className = `date-chip ${isToday ? 'today' : ''}`;
+                const stars = count > 0 ? '⭐'.repeat(Math.min(count, 3)) : '<span style="opacity:0.1">☆☆☆</span>';
+
+                chip.innerHTML = `<span>${i}</span><div class="star-text">${stars}</div>`;
+                chip.onclick = (e) => {
+                    e.stopPropagation();
+                    document.getElementById('dayDetail').textContent = `${dateStr}：練習了 ${count} 次`;
+                };
+                grid.appendChild(chip);
+            }
+        }
+
+        // 儲存設定
+        saveKeyBtn.onclick = async () => {
             saveKeyBtn.disabled = true;
             saveKeyBtn.textContent = "儲存中...";
-
             const settings = {
-                gptApiKey: keyInput.value.trim(), // 去除前後空格
+                gptApiKey: keyInput.value.trim(),
                 userLang: langSelect.value,
                 userCourse: courseSelect.value,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
-
-            // 1. 本地備份
             localStorage.setItem('gptApiKey', settings.gptApiKey);
             localStorage.setItem('userLang', settings.userLang);
             localStorage.setItem('userCourse', settings.userCourse);
 
-            // 2. 雲端同步
-            const user = auth.currentUser;
-            if (user) {
-                try {
-                    // 指定 Document ID 為 user.uid 確保資料唯一性
-                    await db.collection('users').doc(user.uid).set(settings, { merge: true });
-                    alert('✅ 雲端同步成功！');
-                } catch (error) {
-                    console.error("Firestore Error:", error);
-                    // 常見錯誤：權限不足 (Firebase Rules 未設好)
-                    alert('❌ 雲端儲存失敗：請檢查資料庫 Rules 是否允許寫入');
-                }
+            if (auth.currentUser) {
+                await db.collection('users').doc(auth.currentUser.uid).set(settings, { merge: true });
+                alert('✅ 雲端同步成功！');
             } else {
-                alert('⚠️ 目前為離線模式（未登入），設定僅存於此瀏覽器。');
+                alert('⚠️ 離線儲存。');
             }
-
-            // 恢復按鈕狀態
             saveKeyBtn.disabled = false;
             saveKeyBtn.textContent = "儲存設定";
         };

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>對話紀錄與日曆 - 語音教練</title>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 日曆專屬樣式，確保符合您的視覺風格 */
+        .calendar-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 20px;
+            border: 1px solid #1f2937;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .date-chip {
+            padding: 8px 0;
+            background: #1f2937;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid transparent;
+            min-height: 55px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: 0.2s;
+        }
+
+        .date-chip:hover {
+            border-color: var(--accent);
+        }
+
+        .date-chip.today {
+            background: #1e293b;
+            border: 1px solid var(--accent);
+        }
+
+        .date-num {
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 2px;
+        }
+
+        .chat-preview {
+            background: #0b1220;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            border-left: 4px solid var(--accent);
+            font-style: italic;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="app">
+            <div class="header">
+                <a href="index.html" class="back-link">← 返回控制中心</a>
+                <span id="langDisplay" style="color: #94a3b8;">目標語言：載入中...</span>
+            </div>
+
+            <h1>對話練習與足跡</h1>
+
+            <div class="layer">
+                <span class="layer-label">模擬情境</span>
+                <div id="scenario-text" style="margin-bottom: 15px;">點擊下方按鈕開始 AI 對話練習</div>
+                <button class="primary" id="startChatBtn">🎤 開始情境對話</button>
+            </div>
+
+            <div id="dayDetail" class="chat-preview" style="display:none;">
+                <div class="layer-label">當日練習摘要</div>
+                <div id="detailContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUserId = null;
+
+        function initPage() {
+            const settings = getGlobalSettings();
+            document.getElementById('langDisplay').textContent = `目標語言：${settings.lang}`;
+            renderCalendar();
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUserId = user.uid;
+                renderCalendar();
+            }
+        });
+
+        initPage();
+
+
+        async function logActivity() {
+            if (!currentUserId) return;
+            const today = new Date().toISOString().split('T')[0];
+            const ref = db.collection('users').doc(currentUserId).collection('calendar').doc(today);
+
+            await ref.set({
+                count: firebase.firestore.FieldValue.increment(1),
+                lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            renderCalendar(); // 即時刷新
+        }
+
+        // 模擬點擊練習後的打卡行為
+        document.getElementById('startChatBtn').onclick = () => {
+            alert("對話練習模擬中...完成後將自動打卡並增加星星！");
+            logActivity();
+        };
+    </script>
+</body>
+
+</html>
