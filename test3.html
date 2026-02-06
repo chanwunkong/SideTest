@@ -4,24 +4,35 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v2.6 - 顏色同步版</title>
+    <title>語塊流動場 v2.9 - 協議同步版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="config.js"></script>
-    <link rel="stylesheet" href="style.css">
 
+    <script src="config.js"></script>
+    <script src="prompts.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 佈局專用樣式 */
+        #initOverlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
 </head>
 
 <body>
     <div id="initOverlay">
         <div class="init-card">
             <h2>語塊協議啟動</h2>
-            <input type="text" id="sceneInput" placeholder="輸入對話場景（如：咖啡廳、面試）">
+            <input type="text" id="sceneInput" placeholder="輸入場景（如：咖啡廳、面試）">
             <button onclick="startProtocol(document.getElementById('sceneInput').value)"
-                style="width: 100%;">開始對話</button>
-            <button onclick="startProtocol(null)"
-                style="width: 100%; background: #1e293b; margin-top: 10px;">隨機場景</button>
+                style="width: 100%;">開始實戰</button>
         </div>
     </div>
 
@@ -36,173 +47,101 @@
     </div>
 
     <div class="input-area">
-        <input type="text" id="userInput" placeholder="輸入回應或用語音輸入..." autocomplete="off">
-        <button id="sendBtn">傳送</button>
+        <input type="text" id="userInput" placeholder="手動覆寫或輸入...">
+        <button id="sendBtn">發送</button>
     </div>
 
     <script>
-        let currentUserId = null;
         let wordAssets = {};
         let currentScene = "";
 
-        // 同步自 test2 的分級定義，修正 Stage 1 為 Swadesh Core 40
-        const PROTOCOL_STAGES = {
-            "Stage 1": { desc: "Survival level. Use ONLY Core 40 words (Pronouns, Nouns, Verbs, Numbers). Max 3 chunks per response.", colors: ["noun", "verb"] },
-            "Stage 2": { desc: "Social level. Basic daily phrases with adjectives.", colors: ["noun", "verb", "adj"] },
-            "Stage 3": { desc: "CEFR A1. Basic functional chunks.", colors: ["noun", "verb", "adj"] },
-            "Stage 4": { desc: "CEFR A2. Describe environment with adverbs.", colors: ["noun", "verb", "adj", "adv"] },
-            "Stage 5": { desc: "CEFR B1. Negotiating problems.", colors: "all" },
-            "Stage 6": { desc: "CEFR B2. Sophisticated language.", colors: "all" },
-            "Stage 7": { desc: "CEFR C1. Idiomatic chunks.", colors: "all" },
-            "Stage 8": { desc: "CEFR C2. Master level nuance.", colors: "all" }
-        };
-
+        // 徹底清潔 API Key，防止 ISO-8859-1 錯誤
         function getActiveSettings() {
+            let rawKey = localStorage.getItem('gptApiKey') || "";
+            const cleanKey = rawKey.replace(/[^\x00-\x7F]/g, "").trim();
             return {
-                key: localStorage.getItem('gptApiKey'),
+                key: cleanKey,
                 lang: localStorage.getItem('userLang') || 'en-US',
                 course: localStorage.getItem('userCourse') || 'Stage 1'
             };
         }
 
-        auth.onAuthStateChanged(user => {
-            currentUserId = user ? user.uid : null;
-            if (user) loadAssets(); else loadDefaultAssets();
-        });
-
-        async function loadAssets() {
+        async function startProtocol(scene) {
+            document.getElementById('initOverlay').style.display = 'none';
+            currentScene = scene || "Daily Conversation";
             const settings = getActiveSettings();
-            try {
-                const snapshot = await db.collection('users').doc(currentUserId)
-                    .collection('mastery').where('lang', '==', settings.lang).limit(5).get();
-                if (snapshot.empty) return loadDefaultAssets();
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    wordAssets[data.word] = { level: data.count || 0, heat: 'Cold' };
-                    renderWord(data.word);
-                });
-            } catch (e) { loadDefaultAssets(); }
+
+            // 透過 prompts.js 獲取指令
+            const prompt = `Start roleplay in ${currentScene}. Return AI opening chunks. JSON: {"s": [{"t": "Hello", "p": "other"}]}`;
+            const res = await fetchGPT(prompt);
+            const data = JSON.parse(res);
+            renderTurn(data.s);
         }
 
-        function loadDefaultAssets() {
-            // 預設生存語塊
-            ["I", "want", "eat", "this"].forEach(w => {
-                wordAssets[w] = { level: 0, heat: 'Cold' };
-                renderWord(w);
+        async function renderTurn(aiChunks) {
+            appendMsg("AI", aiChunks);
+            const settings = getActiveSettings();
+
+            // 調用外部 prompts.js 的發牌指令
+            const prompt = CHUNK_PROMPTS.getTest3Prompt(settings.lang, settings.course, currentScene);
+            const res = await fetchGPT(prompt);
+            const options = JSON.parse(res);
+
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = "";
+            ['heavy', 'light', 'distractor'].forEach(type => {
+                const btn = document.createElement('button');
+                btn.className = 'signal-option';
+                options[type].forEach(c => {
+                    const span = document.createElement('span');
+                    span.className = `chunk ${c.p}`;
+                    span.innerText = c.t;
+                    btn.appendChild(span);
+                });
+                btn.onclick = () => handleChoice(options[type]);
+                container.appendChild(btn);
             });
         }
 
-        function renderWord(word) {
-            const rack = document.getElementById('assetRack');
-            let el = document.getElementById(`asset-${word}`);
-            if (!el) {
-                el = document.createElement('div');
-                el.id = `asset-${word}`; el.className = 'word-asset';
-                rack.appendChild(el);
-            }
-            const data = wordAssets[word];
-            el.className = `word-asset ${data.heat.toLowerCase()}`;
-            el.innerHTML = `${word.toUpperCase()} <small>Lv.${Math.floor(data.level / 3)}</small>`;
-        }
-
-        async function startProtocol(customScene) {
+        async function handleChoice(chunks) {
+            appendMsg("User", chunks);
+            const text = chunks.map(c => c.t).join(" ");
             const settings = getActiveSettings();
-            document.getElementById('initOverlay').style.display = 'none';
-            currentScene = customScene || "Daily Chat";
 
-            // 初次生成也必須帶有組塊標註
-            const prompt = `Start roleplay in ${currentScene}. Level: ${settings.course}. 
-            Return AI opening as CHUNKS. JSON: {"s": [{"t": "Welcome", "p": "other"}]}`;
-
+            const prompt = `Scene: ${currentScene}. User said: "${text}". Reply with chunks. JSON: {"s": [{"t": "...", "p": "pos"}]}`;
             const res = await fetchGPT(prompt);
-            const data = JSON.parse(res);
-            await nextTurn(data.s);
+            renderTurn(JSON.parse(res).s);
         }
 
-        async function nextTurn(aiSpeechChunks) {
-            appendColoredMessage("AI", aiSpeechChunks);
-            const settings = getActiveSettings();
-            const config = PROTOCOL_STAGES[settings.course];
-            const words = Object.keys(wordAssets).join(", ");
-
-            const prompt = `Scene: ${currentScene}. Targets: [${words}]. 
-            Level: ${settings.course}. Constraint: ${config.desc}
-            Generate 3 signaling options in CHUNKS with POS tags (noun, verb, adj, adv, other).
-            JSON: {"heavy": [{"t": "...", "p": "pos"}], "light": [...], "distractor": [...]}`;
-
-            const response = await fetchGPT(prompt);
-            renderOptions(JSON.parse(response));
-        }
-
-        function renderOptions(options) {
-            const container = document.getElementById('optionsContainer');
-            container.innerHTML = "";
-            for (let type in options) {
-                const btn = document.createElement('button');
-                btn.className = 'signal-option';
-                options[type].forEach(chunk => {
-                    const span = document.createElement('span');
-                    span.className = `chunk ${chunk.p}`;
-                    span.innerText = chunk.t;
-                    btn.appendChild(span);
-                });
-                btn.onclick = () => handleInput(options[type].map(c => c.t).join(" "), type.toUpperCase());
-                container.appendChild(btn);
-            }
-        }
-
-        async function handleInput(text, signalType) {
-            if (!text.trim()) return;
-            // 使用者輸入組塊化顯示
-            appendColoredMessage("User", [{ "t": text, "p": "other" }]);
-            updateAssets(text, signalType);
-
-            const settings = getActiveSettings();
-            const prompt = `Scene: ${currentScene}. User: "${text}". 
-            Reply in CHUNKS at ${settings.course} level. JSON: {"s": [{"t": "...", "p": "pos"}]}`;
-
-            const res = await fetchGPT(prompt);
-            nextTurn(JSON.parse(res).s);
-            document.getElementById('userInput').value = "";
-        }
-
-        function appendColoredMessage(role, chunks) {
+        function appendMsg(role, chunks) {
             const box = document.getElementById('chatBox');
-            const settings = getActiveSettings();
-            const config = PROTOCOL_STAGES[settings.course];
             const div = document.createElement('div');
             div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
 
-            chunks.forEach(chunk => {
+            chunks.forEach(c => {
                 const span = document.createElement('span');
-                // 依等級決定是否上色
-                const shouldColor = (config.colors === "all" || config.colors.includes(chunk.p));
-                span.className = `chunk ${shouldColor ? chunk.p : 'other'}`;
-                span.innerText = chunk.t + " ";
+                span.className = `chunk ${c.p}`;
+                span.innerText = c.t + " ";
                 div.appendChild(span);
             });
 
-            const hint = document.createElement('small');
-            hint.className = 'replay-hint';
-            hint.innerHTML = '<br>🔊 Click to replay';
-            div.appendChild(hint);
-
-            const fullText = chunks.map(c => c.t).join(" ");
-            div.onclick = () => speak(fullText);
-
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
-            speak(fullText);
+            speak(chunks.map(c => c.t).join(" "));
         }
 
         async function fetchGPT(prompt) {
             const settings = getActiveSettings();
-            if (!settings.key) return JSON.stringify({ s: [{ "t": "Key Missing", "p": "other" }], heavy: [], light: [], distractor: [] });
+            if (!settings.key) return alert("API Key Missing");
+
             const res = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${settings.key}` },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${settings.key}`
+                },
                 body: JSON.stringify({
-                    model: "gpt-3.5-turbo",
+                    model: "gpt-4o-mini",
                     messages: [{ role: "user", content: prompt }],
                     response_format: { type: "json_object" }
                 })
@@ -211,25 +150,12 @@
             return data.choices[0].message.content;
         }
 
-        function speak(txt) {
+        function speak(text) {
             speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(txt);
+            const u = new SpeechSynthesisUtterance(text);
             u.lang = getActiveSettings().lang;
             speechSynthesis.speak(u);
         }
-
-        function updateAssets(text, type) {
-            for (let word in wordAssets) {
-                if (text.toLowerCase().includes(word.toLowerCase())) {
-                    wordAssets[word].heat = (type === 'HEAVY') ? 'Overheat' : 'Warm';
-                    wordAssets[word].level += (type === 'HEAVY') ? 2 : 1;
-                    renderWord(word);
-                }
-            }
-        }
-
-        document.getElementById('sendBtn').onclick = () => handleInput(document.getElementById('userInput').value, 'USER_INPUT');
-        document.getElementById('userInput').onkeypress = (e) => { if (e.key === 'Enter') handleInput(e.target.value, 'USER_INPUT'); };
     </script>
 </body>
 
