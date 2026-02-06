@@ -1,4 +1,5 @@
-/* style.css - 統一全域樣式表 */
+/* style.css - 語塊流動協議 v3.5.1 [全功能兼容版] */
+
 :root {
     --bg: #0b1220;
     --card: #111827;
@@ -11,6 +12,7 @@
     --muted: #64748b;
 }
 
+/* 1. 全域重設與基礎佈局 */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -25,7 +27,6 @@ body {
     line-height: 1.5;
 }
 
-/* 基礎容器 */
 .wrap {
     max-width: 680px;
     margin: 0 auto;
@@ -57,7 +58,6 @@ body {
     font-weight: bold;
 }
 
-/* 標題與標籤 */
 h1 {
     font-size: 1.5rem;
     margin-bottom: 20px;
@@ -65,19 +65,11 @@ h1 {
     text-align: center;
 }
 
-label {
-    font-size: 13px;
-    color: var(--muted);
-    margin-top: 15px;
-    display: block;
-    text-transform: uppercase;
-}
-
-/* 表單元件 */
+/* 2. 表單元件與按鈕 (兼容所有 test) */
 select,
 input,
-button,
-textarea {
+textarea,
+button {
     width: 100%;
     padding: 12px;
     margin-top: 8px;
@@ -99,12 +91,10 @@ button:hover {
     filter: brightness(1.1);
 }
 
-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+button:active {
+    transform: scale(0.98);
 }
 
-/* 功能性顏色按鈕 */
 .primary {
     background: var(--btn);
     color: white;
@@ -125,7 +115,7 @@ button:disabled {
     color: white;
 }
 
-/* 單字卡片 (Chips) - 統一 test0 與 test1 */
+/* 3. 單字卡 (test0, test1 使用) */
 .chips {
     display: flex;
     flex-wrap: wrap;
@@ -164,7 +154,7 @@ button:disabled {
     color: #fbbf24;
 }
 
-/* --- 音位診斷 (test0) 專屬元件 --- */
+/* 4. 音位診斷 (test0) & 手寫 (test1) 專屬樣式 */
 #wordDisplay {
     font-size: 48px;
     font-weight: bold;
@@ -173,20 +163,22 @@ button:disabled {
     margin: 10px 0;
 }
 
-.layer {
-    margin-bottom: 15px;
-    padding: 15px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.02);
+#ipa {
+    color: var(--accent);
     text-align: center;
+    font-size: 22px;
+    margin: 10px 0;
+    min-height: 1.2em;
 }
 
-.layer-label {
-    font-size: 11px;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    display: block;
+canvas#pad {
+    width: 100%;
+    height: 40vh;
+    background: #000;
+    border-radius: 16px;
+    border: 1px solid #334155;
+    touch-action: none;
+    margin-top: 15px;
 }
 
 .record-btn {
@@ -217,56 +209,22 @@ button:disabled {
     }
 }
 
-/* --- 手寫練習 (test1) 專屬元件 --- */
-canvas#pad {
-    width: 100%;
-    height: 40vh;
-    background: #000;
-    border-radius: 16px;
-    border: 1px solid #334155;
-    touch-action: none;
-    margin-top: 15px;
-}
-
-#ipa {
-    color: var(--accent);
-    text-align: center;
-    font-size: 22px;
-    margin: 10px 0;
-    min-height: 1.2em;
-}
-
-/* --- 語法排序 (test2) 專屬元件 --- */
-.sentence-display {
-    background: var(--card);
-    border: 2px dashed #334155;
-    border-radius: 20px;
-    min-height: 100px;
-    margin: 20px 0;
-    padding: 15px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    justify-content: center;
-}
-
-.sentence-display.correct {
-    border: 2px solid var(--success);
-    background: #064e3b;
-}
-
-/* 1. 語塊晶片基礎排版：改為 flex 以便標籤垂直排列 */
+/* 5. 語法排序 (test2) & 對話場 (test3) 核心語塊協議 */
+/* 統一所有語塊的上色與垂直排版邏輯 */
 .word-chip {
     display: inline-flex !important;
     flex-direction: column !important;
+    /* 確保標籤在文字正下方 */
     align-items: center !important;
-    padding: 6px 12px !important;
-    border-radius: 8px !important;
+    padding: 8px 14px !important;
+    border-radius: 12px !important;
     margin: 4px !important;
     border: none !important;
-    /* 移除預設邊框 */
+    font-weight: 600 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
 }
 
+/* 協議顯色：藍(名)、紅(動)、綠(形)、橘(副)、黃(他) */
 .word-chip.pos-noun {
     background-color: #3b82f6 !important;
     border-bottom: 4px solid #1d4ed8 !important;
@@ -299,102 +257,64 @@ canvas#pad {
 
 .word-chip small {
     display: block !important;
-    font-size: 10px !important;
-    margin-top: 2px !important;
+    font-size: 11px !important;
+    margin-top: 3px !important;
+    opacity: 0.9 !important;
+    line-height: 1 !important;
     pointer-events: none;
 }
 
-/* 4. 訊息容器修正：背景透明化以利晶片顯示 */
-.message {
-    background: transparent !important;
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    max-width: 90% !important;
-}
-
-.pos-noun {
-    background: #3b82f6;
-    border-bottom: 4px solid #1d4ed8;
-}
-
-.pos-verb {
-    background: #22c55e;
-    border-bottom: 4px solid #15803d;
-}
-
-.pos-adj {
-    background: #f59e0b;
-    border-bottom: 4px solid #b45309;
-}
-
-/* 通用工具 */
-.hidden {
-    display: none !important;
-}
-
-.grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+/* 對話練習容器 (test3) */
+#chatBox {
+    height: 45vh;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
     gap: 15px;
 }
 
-.nav-box {
-    aspect-ratio: 1/1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 15px;
-    color: white;
-    text-decoration: none;
-    font-weight: bold;
+/* 訊息外層容器：確保背景透明，讓語塊顏色正確呈現 */
+.message {
+    background: transparent !important;
+    border: none !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    max-width: 90% !important;
+    padding: 8px !important;
 }
 
-.box-0 {
-    background-color: #3b82f6;
-    /* 藍色 (Blue) */
+.ai-msg {
+    align-self: flex-start;
 }
 
-.box-1 {
-    background-color: #10b981;
-    /* 綠色 (Emerald/Green) */
+.user-msg {
+    align-self: flex-end;
+    justify-content: flex-end;
 }
 
-.box-2 {
-    background-color: #f59e0b;
-    /* 黃色 (Amber/Yellow) */
+/* 發牌區 (test3) */
+.dealer-tray {
+    padding: 15px;
+    background: #020617;
+    border-top: 1px solid #1e293b;
 }
 
-.box-3 {
-    background-color: #ef4444;
-    /* 紅色 (Red) */
+.signal-option {
+    cursor: pointer;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 15px !important;
+    width: 100%;
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 16px !important;
+    margin-bottom: 12px !important;
 }
 
-/* 讓按鈕排成一排 */
-.pad-actions {
-    display: flex;
-    /* 使用 Flexbox 佈局 */
-    gap: 10px;
-    /* 設定按鈕之間的間距 */
-    margin-top: 15px;
-    /* 整個區塊與上方的距離 */
-}
-
-/* 調整按鈕細節 */
-.pad-actions button {
-    flex: 1;
-    /* 讓三個按鈕平均分配寬度 */
-    margin-top: 0;
-    /* 強制覆蓋掉你原本設定的 8px margin-top，確保對齊 */
-    white-space: nowrap;
-    /* 防止文字在寬度不足時斷行 */
-    font-size: 14px;
-    /* 稍微縮小字體以確保在小螢幕也能塞下三個按鈕 */
-    padding: 12px 5px;
-    /* 減少左右內距 */
-}
-
-/* 日曆格子佈局 */
+/* 6. 日曆相關樣式 (index 使用) */
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -420,73 +340,7 @@ canvas#pad {
     box-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
 }
 
-.star-text {
-    font-size: 10px;
-    margin-top: 2px;
-}
-
-#prevMonth,
-#nextMonth {
-    background: #1f2937;
-    color: var(--accent);
-    border: 1px solid #374151;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-
-
-
-:root {
-    /* 依照 test2 規範更新顏色：藍(名)、紅(動)、綠(形)、橘(副)、黃(他) */
-    --pos-noun: #3b82f6;
-    /* 藍色 */
-    --pos-verb: #ef4444;
-    /* 紅色 */
-    --pos-adj: #22c55e;
-    /* 綠色 */
-    --pos-adv: #f59e0b;
-    /* 橘色 */
-    --pos-other: #eab308;
-    /* 黃色 */
-}
-
-/* 語塊著色樣式 */
-.chunk {
-    display: inline-block;
-    margin: 0 2px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    border-bottom: 2px solid transparent;
-}
-
-/* 同步 test2 的著色類別 */
-.chunk.noun {
-    color: var(--pos-noun);
-    border-bottom-color: var(--pos-noun);
-}
-
-.chunk.verb {
-    color: var(--pos-verb);
-    border-bottom-color: var(--pos-verb);
-}
-
-.chunk.adj {
-    color: var(--pos-adj);
-    border-bottom-color: var(--pos-adj);
-}
-
-.chunk.adv {
-    color: var(--pos-adv);
-    border-bottom-color: var(--pos-adv);
-}
-
-.chunk.other {
-    color: var(--pos-other);
-    border-bottom-color: var(--pos-other);
-}
-
-/* 介面排版優化 */
+/* 7. 介面遮罩 (Overlay) */
 #initOverlay {
     position: fixed;
     inset: 0;
@@ -506,137 +360,4 @@ canvas#pad {
     border-radius: 24px;
     border: 1px solid #334155;
     text-align: center;
-}
-
-.init-card input {
-    width: 100%;
-    padding: 12px;
-    margin: 15px 0;
-    background: #0f172a;
-    border: 1px solid #334155;
-    color: white;
-    border-radius: 8px;
-}
-
-.hud-header {
-    background: #0f172a;
-    padding: 20px;
-    border-bottom: 2px solid #334155;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-.asset-rack {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding-bottom: 10px;
-}
-
-.word-asset {
-    padding: 6px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--cold);
-    font-size: 13px;
-    white-space: nowrap;
-    transition: 0.3s;
-}
-
-.word-asset.warm {
-    border-color: var(--warm);
-    color: var(--warm);
-}
-
-.word-asset.overheat {
-    border-color: var(--overheat);
-    color: var(--overheat);
-    font-weight: bold;
-    box-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
-}
-
-#chatBox {
-    height: 40vh;
-    overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.message {
-    max-width: 85%;
-    padding: 12px 16px;
-    border-radius: 18px;
-    line-height: 1.5;
-    position: relative;
-    cursor: pointer;
-}
-
-.ai-msg {
-    background: #1e293b;
-    align-self: flex-start;
-    border-bottom-left-radius: 2px;
-}
-
-.user-msg {
-    background: #334155;
-    align-self: flex-end;
-    border-bottom-right-radius: 2px;
-}
-
-.replay-hint {
-    font-size: 10px;
-    color: var(--accent);
-    display: block;
-    margin-top: 5px;
-    opacity: 0.6;
-}
-
-.dealer-tray {
-    padding: 15px;
-    background: #020617;
-    border-top: 1px solid #1e293b;
-    min-height: 100px;
-}
-
-.signal-option {
-    display: block;
-    width: 100%;
-    padding: 12px;
-    margin-bottom: 8px;
-    text-align: left;
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: #e2e8f0;
-    border-radius: 8px;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.input-area {
-    display: flex;
-    gap: 10px;
-    padding: 15px;
-    background: #0f172a;
-    border-top: 1px solid #1e293b;
-}
-
-#userInput {
-    flex: 1;
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: white;
-    padding: 12px;
-    border-radius: 8px;
-}
-
-#sendBtn {
-    width: 80px;
-    background: var(--btn);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
 }

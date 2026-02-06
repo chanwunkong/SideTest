@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v3.5.1</title>
+    <title>語塊流動場 v3.5.1 - 統一協議版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -23,17 +23,29 @@
             justify-content: center;
         }
 
-        /* 繼承 style.css 的 message 佈局，並優化內部語塊排列 */
         .message {
             display: flex;
             flex-wrap: wrap;
             gap: 4px;
             align-items: center;
+            background: transparent !important;
+            /* 確保不遮擋語塊顏色 */
+            border: none !important;
         }
 
         .signal-option {
             cursor: pointer;
             transition: transform 0.1s;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 15px;
+            width: 100%;
+            text-align: left;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            margin-bottom: 10px;
         }
 
         .signal-option:active {
@@ -52,6 +64,12 @@
         </div>
     </div>
 
+    <div class="nav-header">
+        <a href="index.html" class="back-link">← 返回控制中心</a>
+        <span id="langDisplay" style="font-size: 12px; color: #94a3b8;">載入中...</span>
+        <span id="stageDisplay" style="font-size: 12px; color: var(--accent); margin-left:10px;"></span>
+    </div>
+
     <div class="hud-header">
         <div id="assetRack" class="asset-rack"></div>
     </div>
@@ -68,12 +86,11 @@
     </div>
 
     <script>
-        let lastAiMessage = ""; // 記錄語境，維持對話連續性
+        let lastAiMessage = "";
         const posLabels = { 'noun': '名詞', 'verb': '動詞', 'adj': '形容', 'adv': '副詞', 'other': '結構' };
 
         function getActiveSettings() {
             let rawKey = localStorage.getItem('gptApiKey') || "";
-            // 移除所有非 ASCII 字元以符合 ISO-8859-1 規範
             const cleanKey = rawKey.replace(/[^\x00-\x7F]/g, "").trim();
             return {
                 key: cleanKey,
@@ -82,12 +99,29 @@
             };
         }
 
+        // 唯一渲染入口：完全廢除 type/text，只認 t/p
+        function appendColoredMessage(role, chunks) {
+            const box = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
+
+            chunks.forEach(item => {
+                const chip = document.createElement('div');
+                // 嚴格對齊 CSS 選擇器 .word-chip.pos-other
+                chip.className = `word-chip pos-${item.p}`;
+                chip.innerHTML = `${item.t}<small>${posLabels[item.p] || '結構'}</small>`;
+                div.appendChild(chip);
+            });
+
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
         async function startProtocol(scene) {
             document.getElementById('initOverlay').style.display = 'none';
             const currentScene = scene || "Daily Chat";
-            const settings = getActiveSettings();
 
-            // 獲取 AI 開場語塊
+            // 強制 AI 第一次回覆也要符合 t/p 格式
             const prompt = `Start roleplay in ${currentScene}. Reply as AI in CHUNKS. JSON: {"s": [{"t": "Welcome", "p": "other"}]}`;
             const res = await fetchGPT(prompt);
             const data = JSON.parse(res);
@@ -99,7 +133,6 @@
 
         async function getNextDealerTurn(scene) {
             const settings = getActiveSettings();
-            // 從外部 prompts.js 獲取發牌指令
             const prompt = CHUNK_PROMPTS.getTest3Prompt(settings.lang, settings.course, scene, lastAiMessage);
             const res = await fetchGPT(prompt);
             renderOptions(JSON.parse(res));
@@ -112,17 +145,10 @@
             ['heavy', 'light', 'distractor'].forEach(type => {
                 const btn = document.createElement('button');
                 btn.className = 'signal-option';
-                // 確保語塊在按鈕內橫向並排
-                btn.style.display = "flex";
-                btn.style.flexWrap = "wrap";
-                btn.style.gap = "8px";
-                btn.style.padding = "15px";
-
                 const chunkArray = options[type];
 
                 chunkArray.forEach(item => {
                     const chip = document.createElement('div');
-                    // 套用規格：文字在上，small 標籤在下
                     chip.className = `word-chip pos-${item.p}`;
                     chip.innerHTML = `${item.t}<small>${posLabels[item.p] || '結構'}</small>`;
                     btn.appendChild(chip);
@@ -133,49 +159,28 @@
             });
         }
 
+        // 統一處理邏輯：合併 AI 與 User 的工作流
         async function handleChoice(chunks) {
-            const userText = chunks.map(c => c.t).join(" ");
+            // 1. 渲染使用者選取的語塊
             appendColoredMessage("User", chunks);
+            const userText = chunks.map(c => c.t).join(" ");
 
+            // 2. 獲取 AI 回應（要求符合 t, p 規格）
             const prompt = CHUNK_PROMPTS.getAiResponsePrompt(userText);
             const res = await fetchGPT(prompt);
 
             try {
                 const data = JSON.parse(res);
-                // 確保 data.s 存在且為陣列
                 if (data.s && Array.isArray(data.s)) {
                     lastAiMessage = data.s.map(c => c.t).join(" ");
+                    // 3. 渲染 AI 語塊（使用同一個渲染器）
                     appendColoredMessage("AI", data.s);
                 }
             } catch (e) {
-                console.error("JSON 解析失敗:", e);
+                console.error("解析失敗", e);
             }
 
-            // 觸發下一輪發牌
-            await getNextDealerTurn("Conversation");
-        }
-
-        function appendColoredMessage(role, chunks) {
-            const box = document.getElementById('chatBox');
-            const div = document.createElement('div');
-            // 確保容器背景不會干擾語塊顯色
-            div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
-            div.style.background = "transparent";
-
-            chunks.forEach(item => {
-                // 關鍵：強制相容兩種屬性名稱 (t/text, p/type)
-                const text = item.t || item.text;
-                const pos = item.p || item.type;
-
-                const chip = document.createElement('div');
-                // 強制套用 pos- 前綴，確保對應 CSS
-                chip.className = `word-chip pos-${pos}`;
-                chip.innerHTML = `${text}<small>${posLabels[pos] || '結構'}</small>`;
-                div.appendChild(chip);
-            });
-
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
+            await getNextDealerTurn(document.getElementById('sceneInput').value || "Conversation");
         }
 
         async function fetchGPT(prompt) {
@@ -194,15 +199,9 @@
             return data.choices[0].message.content;
         }
 
-        function speak(text) {
-            speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = getActiveSettings().lang;
-            speechSynthesis.speak(u);
-        }
-
         document.getElementById('sendBtn').onclick = () => {
             const val = document.getElementById('userInput').value;
+            // 手動輸入也統一封裝成符合協議的物件格式
             if (val) handleChoice([{ t: val, p: 'other' }]);
             document.getElementById('userInput').value = "";
         };
