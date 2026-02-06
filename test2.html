@@ -4,17 +4,30 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>AI 語塊語法排序練習 v2.5</title>
+    <title>AI 語塊語法排序練習 v2.9</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
     <script src="config.js"></script>
+    <script src="prompts.js"></script>
     <link rel="stylesheet" href="style.css">
-    <style>
 
+    <style>
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #feedback {
+            text-align: center;
+            margin: 15px 0;
+            min-height: 24px;
+            font-weight: bold;
+            color: var(--accent);
+        }
     </style>
 </head>
 
@@ -25,21 +38,25 @@
             <span id="langDisplay" style="font-size: 12px; color: #94a3b8;">載入中...</span>
             <span id="stageDisplay" style="font-size: 12px; color: var(--accent); margin-left:10px;"></span>
         </div>
+
         <h2 style="text-align: center; margin: 0 0 20px 0;">AI 語塊語法練習</h2>
+
         <div class="controls">
-            <button class="btn-ai" id="nextBtn">✨ 生成新題目</button>
-            <button class="btn-img" id="genImageBtn" disabled>🎨 生圖</button>
+            <button class="btn-ai" id="nextBtn" style="flex:2">✨ 生成新題目</button>
+            <button class="btn-img" id="genImageBtn" disabled style="flex:1">🎨 生圖</button>
         </div>
-        <button class="btn-play" id="playBtn">🔊 播放整句語音</button>
-        <div id="imageContainer" style="display:none; text-align:center; margin:15px 0;">
-            <img id="generatedImage"
-                style="max-width:100%; border-radius:20px; box-shadow:0 10px 20px rgba(0,0,0,0.5);">
-        </div>
+
+        <button id="playBtn"
+            style="width: 100%; background: #1e293b; color: white; margin-bottom: 15px; border-radius: 12px; padding: 10px; border:none;">🔊
+            播放整句語音</button>
+
         <div id="feedback"></div>
         <div class="sentence-display" id="workspace"></div>
         <div class="pool" id="wordPool"></div>
+
         <button class="btn-check" id="checkBtn">送出檢查</button>
         <div id="analysisPane"></div>
+
         <div class="history-section">
             <h3 style="font-size: 16px; margin-bottom: 15px; color: #22d3ee;">📚 最近練習紀錄</h3>
             <div id="historyList"></div>
@@ -48,23 +65,15 @@
 
     <script>
         let currentSentenceData = null;
-        let currentUserId = null;
 
-        // 分級協議定義：決定語塊拆分的邏輯
-        const PROTOCOL_STAGES = {
-            "Stage 1": "Survival level. Use ONLY Core 40 words from swadesh.csv (Nouns, Verbs, Pronouns, Numbers). Max 3 chunks.",
-            "Stage 2": "Social. Simple phrases. Include Adjectives.",
-            "Stage 3": "CEFR A1. Basic sentences, clear functional chunks.",
-            "Stage 4": "CEFR A2. Longer chunks with Adverbs.",
-            "Stage 5": "CEFR B1. Complex chunks with conjunctions.",
-            "Stage 6": "CEFR B2. Sophisticated language chunks.",
-            "Stage 7": "CEFR C1. Advanced professional chunks.",
-            "Stage 8": "CEFR C2. Master level nuanced chunks."
-        };
-
+        // 徹底修復：過濾非 ISO-8859-1 字元
         function getActiveSettings() {
+            let rawKey = localStorage.getItem('gptApiKey') || "";
+            // 正規表達式移除所有非 ASCII 字元
+            const cleanKey = rawKey.replace(/[^\x00-\x7F]/g, "").trim();
+
             return {
-                key: localStorage.getItem('gptApiKey'),
+                key: cleanKey,
                 lang: localStorage.getItem('userLang') || 'en-US',
                 course: localStorage.getItem('userCourse') || 'Stage 1'
             };
@@ -76,21 +85,13 @@
             document.getElementById('stageDisplay').textContent = `難度：${settings.course}`;
         }
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                currentUserId = user.uid;
-                loadHistory();
-            }
-        });
-
         initPage();
 
         function speak(text) {
             if (!text) return;
-            const settings = getActiveSettings();
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = settings.lang;
             speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = getActiveSettings().lang;
             speechSynthesis.speak(u);
         }
 
@@ -99,27 +100,18 @@
             if (!settings.key) return alert("請先設定 API Key！");
 
             resetUI();
-            document.getElementById('feedback').textContent = "🔍 正在根據您的等級生成語塊題目...";
+            document.getElementById('feedback').textContent = "📡 正在調用語塊協議...";
 
             try {
-                // 抓取種子單字 (簡化版，實際可加入 Firestore 篩選)
-                const seeds = ["eat", "book", "water", "go"];
-
-                const prompt = `
-                Role: Language Teacher. 
-                Task: Create a sentence in ${settings.lang} for ${settings.course}.
-                Constraint: ${PROTOCOL_STAGES[settings.course]}
-                Output JSON ONLY:
-                {
-                    "sentence": "Full sentence",
-                    "chunks": [
-                        {"text": "Meaningful chunk", "type": "noun/verb/adj/adv", "analysis": "解釋"}
-                    ]
-                }`;
+                // 從 prompts.js 獲取指令
+                const prompt = CHUNK_PROMPTS.getTest2Prompt(settings.lang, settings.course);
 
                 const resp = await fetch("https://api.openai.com/v1/chat/completions", {
                     method: "POST",
-                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
+                    headers: {
+                        "Authorization": `Bearer ${settings.key}`, // 已清潔過的 Key
+                        "Content-Type": "application/json"
+                    },
                     body: JSON.stringify({
                         model: "gpt-4o-mini",
                         messages: [{ role: "user", content: prompt }],
@@ -128,52 +120,50 @@
                 });
 
                 const result = await resp.json();
-                const aiData = JSON.parse(result.choices[0].message.content);
-                currentSentenceData = aiData;
-                renderGame(aiData);
+                if (result.error) throw new Error(result.error.message);
+
+                const data = JSON.parse(result.choices[0].message.content);
+                currentSentenceData = data;
+                renderGame(data);
+                document.getElementById('feedback').textContent = "✅ 語塊載入完成";
             } catch (e) {
-                document.getElementById('feedback').textContent = "❌ 生成失敗: " + e.message;
+                document.getElementById('feedback').textContent = "❌ 錯誤: " + e.message;
             }
         }
 
         function renderGame(data) {
-            const workspace = document.getElementById('workspace');
             const pool = document.getElementById('wordPool');
-            currentSentenceData.correctOrder = data.chunks.map(c => c.text);
             const shuffled = [...data.chunks].sort(() => Math.random() - 0.5);
-
-            // 語塊標籤定義
-            const labels = { 'noun': '名詞組', 'verb': '動詞組', 'adj': '形容詞組', 'adv': '修飾語' };
+            const labels = { 'noun': '名詞', 'verb': '動詞', 'adj': '形容', 'adv': '副詞', 'other': '結構' };
 
             shuffled.forEach(item => {
                 const chip = document.createElement('div');
-                chip.className = `word-chip pos-${item.type || 'other'}`;
+                chip.className = `word-chip pos-${item.type}`;
                 chip.innerHTML = `${item.text}<small>${labels[item.type] || '組塊'}</small>`;
                 chip.onclick = () => {
-                    if (!chip.classList.contains('selected')) {
-                        speak(item.text);
-                        const clone = chip.cloneNode(true);
-                        clone.onclick = () => { clone.remove(); chip.classList.remove('selected'); };
-                        workspace.appendChild(clone);
-                        chip.classList.add('selected');
-                    }
+                    const target = chip.parentElement.id === 'wordPool' ? 'workspace' : 'wordPool';
+                    if (target === 'workspace') speak(item.text);
+                    document.getElementById(target).appendChild(chip);
                 };
                 pool.appendChild(chip);
             });
-            document.getElementById('feedback').textContent = `[${getActiveSettings().course}] 請排列語塊順序`;
         }
 
         document.getElementById('checkBtn').onclick = () => {
-            const userOrder = Array.from(document.getElementById('workspace').children).map(c => c.childNodes[0].textContent.trim());
-            const success = JSON.stringify(userOrder) === JSON.stringify(currentSentenceData.correctOrder);
-            if (success) {
-                document.getElementById('feedback').textContent = "🎉 協議達成！語序正確";
-                document.getElementById('workspace').classList.add('correct');
+            if (!currentSentenceData) return;
+            const workspace = document.getElementById('workspace');
+            const userOrder = Array.from(workspace.children).map(c => c.childNodes[0].textContent.trim());
+            const correctOrder = currentSentenceData.chunks.map(c => c.text);
+
+            if (JSON.stringify(userOrder) === JSON.stringify(correctOrder)) {
+                document.getElementById('feedback').textContent = "🎉 協議達成！";
+                workspace.classList.add('correct');
                 speak(currentSentenceData.sentence);
                 document.getElementById('analysisPane').style.display = 'block';
-                document.getElementById('analysisPane').innerHTML = `<b style="color:#22d3ee">🔍 解析：</b><br>` + currentSentenceData.chunks.map(c => `<b>${c.text}</b>: ${c.analysis}`).join('<br>');
+                document.getElementById('analysisPane').innerHTML = `<b>解析：</b><br>` +
+                    currentSentenceData.chunks.map(c => `<b>${c.text}</b>: ${c.analysis}`).join('<br>');
             } else {
-                document.getElementById('feedback').textContent = "❌ 語法不匹配，請重新排列";
+                document.getElementById('feedback').textContent = "❌ 語序不匹配";
             }
         };
 
