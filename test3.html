@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v2.9 - 協議同步版</title>
+    <title>語塊流動場 v3.0 - 協議同步版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -13,7 +13,6 @@
     <script src="prompts.js"></script>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 佈局專用樣式 */
         #initOverlay {
             position: fixed;
             inset: 0;
@@ -23,16 +22,33 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* 繼承 style.css 的 message 佈局，並優化內部語塊排列 */
+        .message {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .signal-option {
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .signal-option:active {
+            transform: scale(0.98);
+        }
     </style>
 </head>
 
 <body>
     <div id="initOverlay">
         <div class="init-card">
-            <h2>語塊協議啟動</h2>
-            <input type="text" id="sceneInput" placeholder="輸入場景（如：咖啡廳、面試）">
+            <h2 style="color: var(--accent); margin-bottom: 20px;">語塊協議：流動場啟動</h2>
+            <input type="text" id="sceneInput" placeholder="輸入場景（如：機艙、面試、約會）">
             <button onclick="startProtocol(document.getElementById('sceneInput').value)"
-                style="width: 100%;">開始實戰</button>
+                style="width: 100%;">進入實戰</button>
         </div>
     </div>
 
@@ -47,17 +63,17 @@
     </div>
 
     <div class="input-area">
-        <input type="text" id="userInput" placeholder="手動覆寫或輸入...">
-        <button id="sendBtn">發送</button>
+        <input type="text" id="userInput" placeholder="手動覆寫語塊或直接輸入..." autocomplete="off">
+        <button id="sendBtn" class="btn-ai">傳送</button>
     </div>
 
     <script>
-        let wordAssets = {};
-        let currentScene = "";
+        let lastAiMessage = ""; // 記錄語境，維持對話連續性
+        const posLabels = { 'noun': '名詞', 'verb': '動詞', 'adj': '形容', 'adv': '副詞', 'other': '結構' };
 
-        // 徹底清潔 API Key，防止 ISO-8859-1 錯誤
         function getActiveSettings() {
             let rawKey = localStorage.getItem('gptApiKey') || "";
+            // 徹底清潔 API Key，防止本地端編碼錯誤
             const cleanKey = rawKey.replace(/[^\x00-\x7F]/g, "").trim();
             return {
                 key: cleanKey,
@@ -68,78 +84,93 @@
 
         async function startProtocol(scene) {
             document.getElementById('initOverlay').style.display = 'none';
-            currentScene = scene || "Daily Conversation";
+            const currentScene = scene || "Daily Chat";
             const settings = getActiveSettings();
 
-            // 透過 prompts.js 獲取指令
-            const prompt = `Start roleplay in ${currentScene}. Return AI opening chunks. JSON: {"s": [{"t": "Hello", "p": "other"}]}`;
+            // 獲取 AI 開場語塊
+            const prompt = `Start roleplay in ${currentScene}. Reply as AI in CHUNKS. JSON: {"s": [{"t": "Welcome", "p": "other"}]}`;
             const res = await fetchGPT(prompt);
             const data = JSON.parse(res);
-            renderTurn(data.s);
+
+            lastAiMessage = data.s.map(c => c.t).join(" ");
+            appendColoredMessage("AI", data.s);
+            await getNextDealerTurn(currentScene);
         }
 
-        async function renderTurn(aiChunks) {
-            appendMsg("AI", aiChunks);
+        async function getNextDealerTurn(scene) {
             const settings = getActiveSettings();
-
-            // 調用外部 prompts.js 的發牌指令
-            const prompt = CHUNK_PROMPTS.getTest3Prompt(settings.lang, settings.course, currentScene);
+            // 從外部 prompts.js 獲取發牌指令
+            const prompt = CHUNK_PROMPTS.getTest3Prompt(settings.lang, settings.course, scene, lastAiMessage);
             const res = await fetchGPT(prompt);
-            const options = JSON.parse(res);
+            renderOptions(JSON.parse(res));
+        }
 
+        function renderOptions(options) {
             const container = document.getElementById('optionsContainer');
             container.innerHTML = "";
+
             ['heavy', 'light', 'distractor'].forEach(type => {
                 const btn = document.createElement('button');
                 btn.className = 'signal-option';
-                options[type].forEach(c => {
-                    const span = document.createElement('span');
-                    span.className = `chunk ${c.p}`;
-                    span.innerText = c.t;
-                    btn.appendChild(span);
+
+                options[type].forEach(item => {
+                    const chip = document.createElement('div');
+                    // 完全套用 test2 與 style.css 的類別與樣式
+                    chip.className = `word-chip pos-${item.p}`;
+                    chip.innerHTML = `${item.t}<small>${posLabels[item.p] || '組塊'}</small>`;
+                    btn.appendChild(chip);
                 });
+
                 btn.onclick = () => handleChoice(options[type]);
                 container.appendChild(btn);
             });
         }
 
         async function handleChoice(chunks) {
-            appendMsg("User", chunks);
             const text = chunks.map(c => c.t).join(" ");
-            const settings = getActiveSettings();
+            appendColoredMessage("User", chunks);
 
-            const prompt = `Scene: ${currentScene}. User said: "${text}". Reply with chunks. JSON: {"s": [{"t": "...", "p": "pos"}]}`;
+            const settings = getActiveSettings();
+            const prompt = `Scene: Roleplay. User said: "${text}". Reply as AI in CHUNKS. JSON: {"s": [{"t": "...", "p": "pos"}]}`;
+
             const res = await fetchGPT(prompt);
-            renderTurn(JSON.parse(res).s);
+            const data = JSON.parse(res);
+            lastAiMessage = data.s.map(c => c.t).join(" ");
+            appendColoredMessage("AI", data.s);
+
+            // 繼續下一輪發牌
+            await getNextDealerTurn("Roleplay Context");
         }
 
-        function appendMsg(role, chunks) {
+        function appendColoredMessage(role, chunks) {
             const box = document.getElementById('chatBox');
             const div = document.createElement('div');
             div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
 
-            chunks.forEach(c => {
-                const span = document.createElement('span');
-                span.className = `chunk ${c.p}`;
-                span.innerText = c.t + " ";
-                div.appendChild(span);
+            chunks.forEach(item => {
+                const chip = document.createElement('div');
+                // 視覺同步：套用與 test2 相同的 word-chip 類別
+                chip.className = `word-chip pos-${item.p || item.type}`;
+                chip.innerHTML = `${item.t || item.text}<small>${posLabels[item.p || item.type] || '組塊'}</small>`;
+
+                chip.onclick = (e) => {
+                    e.stopPropagation();
+                    speak(item.t || item.text);
+                };
+                div.appendChild(chip);
             });
 
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
-            speak(chunks.map(c => c.t).join(" "));
+            speak(chunks.map(c => c.t || c.text).join(" "));
         }
 
         async function fetchGPT(prompt) {
             const settings = getActiveSettings();
             if (!settings.key) return alert("API Key Missing");
-
             const res = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${settings.key}`
-                },
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${settings.key}` },
                 body: JSON.stringify({
                     model: "gpt-4o-mini",
                     messages: [{ role: "user", content: prompt }],
@@ -156,6 +187,12 @@
             u.lang = getActiveSettings().lang;
             speechSynthesis.speak(u);
         }
+
+        document.getElementById('sendBtn').onclick = () => {
+            const val = document.getElementById('userInput').value;
+            if (val) handleChoice([{ t: val, p: 'other' }]);
+            document.getElementById('userInput').value = "";
+        };
     </script>
 </body>
 

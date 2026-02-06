@@ -37,27 +37,22 @@ const CHUNK_PROMPTS = {
     },
 
     // 4. Test 3 專用：生成對話選項的指令
-    getTest3Prompt(lang, stage, scene) {
+    getTest3Prompt(lang, stage, scene, lastMsg) {
         return `
-        ${this.SYSTEM_RULES}
-        Role: A smart conversational dealer.
+        Role: Linguistic Dealer. Target: ${lang}, Stage: ${stage}.
         Scenario: ${scene}.
-        
-        CRITICAL INSTRUCTION:
-        1. Generate 3 options (Heavy, Light, Distractor) that respond to the SAME last sentence.
-        2. EACH option MUST be an array of PHRASAL CHUNKS (not single words).
-        3. All 3 options must be contextually related but differ in complexity.
-        
-        Example Mapping:
-        - Heavy: [{"t": "I would appreciate", "p": "verb"}, {"t": "a cup of hot coffee", "p": "noun"}]
-        - Light: [{"t": "Coffee", "p": "noun"}, {"t": "please", "p": "other"}]
-        - Distractor: [{"t": "The weather", "p": "noun"}, {"t": "is nice", "p": "verb"}] (Off-topic)
+        Last Context: "${lastMsg}"
 
-        Output JSON ONLY:
+        Generate 3 DIFFERENT response paths for the user.
+        EACH path MUST be a SINGLE sentence broken into phrasal chunks.
+        
+        Colors: noun(blue), verb(red), adj(green), adv(orange), other(yellow).
+
+        Output JSON:
         {
-            "heavy": [{"t": "...", "p": "pos"}],
-            "light": [...],
-            "distractor": [...]
+            "heavy": [{"t": "Complex phrase", "p": "pos"}],
+            "light": [{"t": "Simple phrase", "p": "pos"}],
+            "distractor": [{"t": "Off-topic phrase", "p": "pos"}]
         }
     `;
     }
