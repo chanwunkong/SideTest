@@ -258,18 +258,15 @@ canvas#pad {
 /* 1. 語塊晶片基礎排版：改為 flex 以便標籤垂直排列 */
 .word-chip {
     display: inline-flex !important;
-    flex-direction: column;
-    align-items: center;
-    padding: 8px 16px !important;
-    border-radius: 12px !important;
-    font-weight: bold !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
     margin: 4px !important;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
-    min-width: 80px;
-    line-height: 1.2;
+    border: none !important;
+    /* 移除預設邊框 */
 }
 
-/* 2. 強制顯色原則：加入 !important 確保不被灰色背景覆蓋 */
 .word-chip.pos-noun {
     background-color: #3b82f6 !important;
     border-bottom: 4px solid #1d4ed8 !important;
@@ -300,12 +297,11 @@ canvas#pad {
     color: black !important;
 }
 
-/* 3. 標籤縮小排版 */
 .word-chip small {
     display: block !important;
     font-size: 10px !important;
-    opacity: 0.8 !important;
-    margin-top: 4px !important;
+    margin-top: 2px !important;
+    pointer-events: none;
 }
 
 /* 4. 訊息容器修正：背景透明化以利晶片顯示 */

@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v3.4</title>
+    <title>語塊流動場 v3.5</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -137,15 +137,21 @@
             const userText = chunks.map(c => c.t).join(" ");
             appendColoredMessage("User", chunks);
 
-            // 修正：使用專門的回覆 Prompt
             const prompt = CHUNK_PROMPTS.getAiResponsePrompt(userText);
             const res = await fetchGPT(prompt);
-            const data = JSON.parse(res);
 
-            lastAiMessage = data.s.map(c => c.t).join(" ");
-            appendColoredMessage("AI", data.s);
+            try {
+                const data = JSON.parse(res);
+                // 確保 data.s 存在且為陣列
+                if (data.s && Array.isArray(data.s)) {
+                    lastAiMessage = data.s.map(c => c.t).join(" ");
+                    appendColoredMessage("AI", data.s);
+                }
+            } catch (e) {
+                console.error("JSON 解析失敗:", e);
+            }
 
-            // 根據 AI 的新回覆生成新的發牌選項
+            // 觸發下一輪發牌
             await getNextDealerTurn("Conversation");
         }
 

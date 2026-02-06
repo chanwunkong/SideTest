@@ -42,11 +42,12 @@ const CHUNK_PROMPTS = {
     // 用於生成 AI 的回覆
     getAiResponsePrompt(userText) {
         return `
-            ${this.SYSTEM_RULES}
-            User said: "${userText}"
-            Task: Respond to the user naturally as a partner. 
-            Output JSON: {"s": [{"t": "Your response", "p": "pos"}]}
-        `;
+        ${this.SYSTEM_RULES}
+        User said: "${userText}"
+        Task: Respond naturally. 
+        CRITICAL: Break your response into CHUNKS (1-5 words).
+        Output JSON ONLY: {"s": [{"t": "chunk text", "p": "noun/verb/adj/adv/other"}]}
+    `;
     },
 
     // 用於生成使用者的發牌選項
