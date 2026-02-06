@@ -3,9 +3,9 @@
 const CHUNK_PROMPTS = {
     // 1. 核心規則：定義語塊拆分原則與色彩協議
     SYSTEM_RULES: `
-        ROLE: You are a conversation partner. 
-        CRITICAL: DO NOT repeat or echo the user's input. RESPOND to it naturally.
-        CHUNK RULE: MAX 5 words per chunk. Break sentences into phrases.
+        ROLE: You are an active conversation partner. 
+        CRITICAL: DO NOT repeat or echo the user's words. RESPOND to them naturally.
+        CHUNK RULE: MAX 3 words per chunk. Break every sentence into phrases.
         Example: "I am" (verb), "going to" (other), "the park" (noun).
         Colors: noun(blue), verb(red), adj(green), adv(orange), other(yellow).
     `,
@@ -40,15 +40,29 @@ const CHUNK_PROMPTS = {
     },
 
     // 4. Test 3 專用：生成對話流發牌選項
-    getTest3Prompt(lang, stage, scene, lastMsg) {
+    // 用於生成 AI 的回覆
+    getAiResponsePrompt(userText) {
         return `
             ${this.SYSTEM_RULES}
-            Scene: ${scene}. 
-            Last message from User: "${lastMsg}"
-            
-            TASK: Generate 3 DIFFERENT ways for the AI to RESPOND to the user.
-            Each option MUST be a unique reply, split into chunks.
-            JSON ONLY: {"heavy": [{"t": "...", "p": "pos"}], "light": [...], "distractor": [...]}
+            User said: "${userText}"
+            Task: Respond to the user naturally as a partner. 
+            Output JSON: {"s": [{"t": "Your response", "p": "pos"}]}
         `;
+    },
+
+    // 用於生成使用者的發牌選項
+    getTest3Prompt(lang, stage, scene, lastMsg) {
+        return `
+        ${this.SYSTEM_RULES}
+        Scenario: ${scene}.
+        AI partner's last words: "${lastMsg}"
+        
+        TASK: Generate 3 path options for the USER:
+        1. "heavy": Advanced response. Uses complex structures or sophisticated vocabulary to push the conversation forward aggressively (Skip Logic).
+        2. "light": Standard response. Polite, clear, and maintains the current flow.
+        3. "distractor": A slightly awkward or indirect response that requires the AI to gently steer the conversation back (Repair Bridge).
+        
+        JSON ONLY: {"heavy": [...chunks], "light": [...chunks], "distractor": [...chunks]}
+    `;
     }
 };

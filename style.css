@@ -453,10 +453,6 @@ canvas#pad {
     /* 橘色 */
     --pos-other: #eab308;
     /* 黃色 */
-
-    --overheat: #f43f5e;
-    --warm: #fbbf24;
-    --cold: #94a3b8;
 }
 
 /* 語塊著色樣式 */
