@@ -39,15 +39,26 @@ const CHUNK_PROMPTS = {
     // 4. Test 3 專用：生成對話選項的指令
     getTest3Prompt(lang, stage, scene) {
         return `
-            ${this.SYSTEM_RULES}
-            Context: Scene is ${scene}. Stage is ${stage}. Target language: ${lang}.
-            Task: Generate 3 signaling options (Heavy/Light/Distractor).
-            Output JSON ONLY:
-            {
-                "heavy": [{"t": "advanced phrase", "p": "noun/verb/adj/adv/other"}],
-                "light": [...],
-                "distractor": [...]
-            }
-        `;
+        ${this.SYSTEM_RULES}
+        Role: A smart conversational dealer.
+        Scenario: ${scene}.
+        
+        CRITICAL INSTRUCTION:
+        1. Generate 3 options (Heavy, Light, Distractor) that respond to the SAME last sentence.
+        2. EACH option MUST be an array of PHRASAL CHUNKS (not single words).
+        3. All 3 options must be contextually related but differ in complexity.
+        
+        Example Mapping:
+        - Heavy: [{"t": "I would appreciate", "p": "verb"}, {"t": "a cup of hot coffee", "p": "noun"}]
+        - Light: [{"t": "Coffee", "p": "noun"}, {"t": "please", "p": "other"}]
+        - Distractor: [{"t": "The weather", "p": "noun"}, {"t": "is nice", "p": "verb"}] (Off-topic)
+
+        Output JSON ONLY:
+        {
+            "heavy": [{"t": "...", "p": "pos"}],
+            "light": [...],
+            "distractor": [...]
+        }
+    `;
     }
 };
