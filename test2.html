@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Chunking AI 語法排序練習</title>
+    <title>AI 語塊語法排序練習 v2.5</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -13,7 +13,35 @@
 
     <script src="config.js"></script>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* 繼承 test3 的詞性著色邏輯 */
+        .word-chip.pos-noun {
+            background: var(--pos-noun);
+            border-bottom: 4px solid #1d4ed8;
+        }
 
+        .word-chip.pos-adj {
+            background: var(--pos-adj);
+            border-bottom: 4px solid #15803d;
+        }
+
+        .word-chip.pos-verb {
+            background: var(--pos-verb);
+            border-bottom: 4px solid #b91c1c;
+        }
+
+        .word-chip.pos-adv {
+            background: var(--pos-adv);
+            border-bottom: 4px solid #b45309;
+        }
+
+        .word-chip.pos-other {
+            background: var(--pos-other);
+            border-bottom: 4px solid #ca8a04;
+            color: #000;
+            /* 黃色背景搭配黑色文字較易閱讀 */
+        }
+    </style>
 </head>
 
 <body>
@@ -21,8 +49,9 @@
         <div class="nav-header">
             <a href="index.html" class="back-link">← 返回控制中心</a>
             <span id="langDisplay" style="font-size: 12px; color: #94a3b8;">載入中...</span>
+            <span id="stageDisplay" style="font-size: 12px; color: var(--accent); margin-left:10px;"></span>
         </div>
-        <h2 style="text-align: center; margin: 0 0 20px 0;">AI 組塊語法練習</h2>
+        <h2 style="text-align: center; margin: 0 0 20px 0;">AI 語塊語法練習</h2>
         <div class="controls">
             <button class="btn-ai" id="nextBtn">✨ 生成新題目</button>
             <button class="btn-img" id="genImageBtn" disabled>🎨 生圖</button>
@@ -45,20 +74,34 @@
 
     <script>
         let currentSentenceData = null;
-        let wordBank = [];
         let currentUserId = null;
 
-        // 初始載入設定與語系顯示
-        function initPage() {
-            const settings = getGlobalSettings();
-            document.getElementById('langDisplay').textContent = `目標語言：${settings.lang}`;
+        // 分級協議定義：決定語塊拆分的邏輯
+        const PROTOCOL_STAGES = {
+            "Stage 1": "Survival level. Use ONLY Core 40 words from swadesh.csv (Nouns, Verbs, Pronouns, Numbers). Max 3 chunks.",
+            "Stage 2": "Social. Simple phrases. Include Adjectives.",
+            "Stage 3": "CEFR A1. Basic sentences, clear functional chunks.",
+            "Stage 4": "CEFR A2. Longer chunks with Adverbs.",
+            "Stage 5": "CEFR B1. Complex chunks with conjunctions.",
+            "Stage 6": "CEFR B2. Sophisticated language chunks.",
+            "Stage 7": "CEFR C1. Advanced professional chunks.",
+            "Stage 8": "CEFR C2. Master level nuanced chunks."
+        };
 
-            fetch('swadesh.csv').then(r => r.text()).then(csv => {
-                wordBank = Papa.parse(csv, { header: true }).data;
-            });
+        function getActiveSettings() {
+            return {
+                key: localStorage.getItem('gptApiKey'),
+                lang: localStorage.getItem('userLang') || 'en-US',
+                course: localStorage.getItem('userCourse') || 'Stage 1'
+            };
         }
 
-        // 監聽登入狀態與載入歷史
+        function initPage() {
+            const settings = getActiveSettings();
+            document.getElementById('langDisplay').textContent = `目標語言：${settings.lang}`;
+            document.getElementById('stageDisplay').textContent = `難度：${settings.course}`;
+        }
+
         auth.onAuthStateChanged(user => {
             if (user) {
                 currentUserId = user.uid;
@@ -66,12 +109,11 @@
             }
         });
 
-        // 啟動初始化
         initPage();
 
         function speak(text) {
             if (!text) return;
-            const settings = getGlobalSettings();
+            const settings = getActiveSettings();
             const u = new SpeechSynthesisUtterance(text);
             u.lang = settings.lang;
             speechSynthesis.cancel();
@@ -79,35 +121,25 @@
         }
 
         async function getNextExercise() {
-            const settings = getGlobalSettings();
-            if (!auth.currentUser) return alert("請先登入！");
-            if (!settings.key) return alert("請先在控制中心設定 OpenAI API Key！");
+            const settings = getActiveSettings();
+            if (!settings.key) return alert("請先設定 API Key！");
 
             resetUI();
-            document.getElementById('feedback').textContent = "🔍 搜尋三星單字中...";
+            document.getElementById('feedback').textContent = "🔍 正在根據您的等級生成語塊題目...";
 
             try {
-                // 從 Firestore 抓取已達標的單字作為出題種子
-                const snapshot = await db.collection('users').doc(auth.currentUser.uid).collection('mastery')
-                    .where('lang', '==', settings.lang)
-                    .where('is_ready_for_chunk', '==', true)
-                    .limit(20).get();
+                // 抓取種子單字 (簡化版，實際可加入 Firestore 篩選)
+                const seeds = ["eat", "book", "water", "go"];
 
-                if (snapshot.empty) {
-                    alert(`找不到三星單字！請先在手寫練習將單字練至三星。`);
-                    return;
-                }
-
-                const docs = snapshot.docs;
-                const seeds = docs.sort(() => Math.random() - 0.5).slice(0, 3).map(d => d.data().conceptId);
-
-                document.getElementById('feedback').textContent = "🤖 AI 出題中...";
-
-                const prompt = `You are a professional language teacher. Create a natural sentence in ${settings.lang} using the concepts: [${seeds.join(', ')}]. JSON format ONLY:
+                const prompt = `
+                Role: Language Teacher. 
+                Task: Create a sentence in ${settings.lang} for ${settings.course}.
+                Constraint: ${PROTOCOL_STAGES[settings.course]}
+                Output JSON ONLY:
                 {
                     "sentence": "Full sentence",
                     "chunks": [
-                        {"text": "chunk text", "type": "noun/verb/adj/adv", "analysis": "用繁體中文解釋文法功能"}
+                        {"text": "Meaningful chunk", "type": "noun/verb/adj/adv", "analysis": "解釋"}
                     ]
                 }`;
 
@@ -125,7 +157,6 @@
                 const aiData = JSON.parse(result.choices[0].message.content);
                 currentSentenceData = aiData;
                 renderGame(aiData);
-                document.getElementById('genImageBtn').disabled = false;
             } catch (e) {
                 document.getElementById('feedback').textContent = "❌ 生成失敗: " + e.message;
             }
@@ -136,7 +167,9 @@
             const pool = document.getElementById('wordPool');
             currentSentenceData.correctOrder = data.chunks.map(c => c.text);
             const shuffled = [...data.chunks].sort(() => Math.random() - 0.5);
-            const labels = { 'noun': '名詞組', 'verb': '動詞組', 'adv': '修飾語' };
+
+            // 語塊標籤定義
+            const labels = { 'noun': '名詞組', 'verb': '動詞組', 'adj': '形容詞組', 'adv': '修飾語' };
 
             shuffled.forEach(item => {
                 const chip = document.createElement('div');
@@ -153,65 +186,28 @@
                 };
                 pool.appendChild(chip);
             });
-            document.getElementById('feedback').textContent = "請拼湊正確的組塊順序";
+            document.getElementById('feedback').textContent = `[${getActiveSettings().course}] 請排列語塊順序`;
         }
 
         document.getElementById('checkBtn').onclick = () => {
             const userOrder = Array.from(document.getElementById('workspace').children).map(c => c.childNodes[0].textContent.trim());
             const success = JSON.stringify(userOrder) === JSON.stringify(currentSentenceData.correctOrder);
             if (success) {
-                document.getElementById('feedback').textContent = "🎉 太棒了！順序正確";
+                document.getElementById('feedback').textContent = "🎉 協議達成！語序正確";
                 document.getElementById('workspace').classList.add('correct');
                 speak(currentSentenceData.sentence);
                 document.getElementById('analysisPane').style.display = 'block';
                 document.getElementById('analysisPane').innerHTML = `<b style="color:#22d3ee">🔍 解析：</b><br>` + currentSentenceData.chunks.map(c => `<b>${c.text}</b>: ${c.analysis}`).join('<br>');
-                updateHistory(currentSentenceData);
             } else {
-                document.getElementById('feedback').textContent = "❌ 順序不對，再試試看";
+                document.getElementById('feedback').textContent = "❌ 語法不匹配，請重新排列";
             }
         };
-
-        async function updateHistory(data) {
-            if (!currentUserId) return;
-            const settings = getGlobalSettings();
-            const docId = btoa(unescape(encodeURIComponent(data.sentence + "_" + settings.lang))).substring(0, 50);
-            try {
-                await db.collection('users').doc(currentUserId).collection('history').doc(docId).set({
-                    sentence: data.sentence,
-                    chunks: data.chunks,
-                    lang: settings.lang,
-                    lastStudy: firebase.firestore.FieldValue.serverTimestamp(),
-                    count: firebase.firestore.FieldValue.increment(1)
-                }, { merge: true });
-                loadHistory();
-            } catch (e) { console.error("歷史紀錄更新失敗", e); }
-        }
-
-        async function loadHistory() {
-            if (!currentUserId) return;
-            const settings = getGlobalSettings();
-            const listEl = document.getElementById('historyList');
-            try {
-                const snapshot = await db.collection('users').doc(currentUserId).collection('history')
-                    .where('lang', '==', settings.lang).limit(5).get();
-                listEl.innerHTML = snapshot.empty ? "尚無紀錄" : "";
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const div = document.createElement('div');
-                    div.className = 'history-item';
-                    div.innerHTML = `<strong>${data.sentence}</strong> <small>(${data.count || 1}次)</small>`;
-                    div.onclick = () => { resetUI(); currentSentenceData = data; renderGame(data); };
-                    listEl.appendChild(div);
-                });
-            } catch (e) { console.error(e); }
-        }
 
         function resetUI() {
             document.getElementById('workspace').innerHTML = "";
             document.getElementById('workspace').classList.remove('correct');
             document.getElementById('wordPool').innerHTML = "";
             document.getElementById('analysisPane').style.display = 'none';
-            document.getElementById('feedback').textContent = "";
         }
 
         new Sortable(document.getElementById('workspace'), { animation: 150 });
