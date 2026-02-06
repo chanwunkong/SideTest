@@ -3,15 +3,11 @@
 const CHUNK_PROMPTS = {
     // 1. 核心規則：定義語塊拆分原則與色彩協議
     SYSTEM_RULES: `
-        CRITICAL RULE: NEVER output a full sentence as one chunk. 
-        A "chunk" must be a meaningful phrase of 1-3 words.
-        Example of CORRECT chunking: 
-        - "Right now," (adv)
-        - "I am focused" (verb)
-        - "on Japanese" (noun)
-        - "and Korean." (other)
-
-        Coloring Protocol: noun(blue), verb(red), adj(green), adv(orange), other(yellow).
+        CRITICAL: NEVER output a full sentence as one chunk.
+        MAX 3 words per chunk. 
+        - Bad: [{"t": "Right now, I am focused on Japanese", "p": "verb"}]
+        - Good: [{"t": "Right now,", "p": "adv"}, {"t": "I am focused", "p": "verb"}, {"t": "on Japanese", "p": "noun"}]
+        Colors: noun, verb, adj, adv, other.
     `,
 
     // 2. 階段定義：對應 Stage 1-8 難度
@@ -49,16 +45,9 @@ const CHUNK_PROMPTS = {
             ${this.SYSTEM_RULES}
             Target Language: ${lang}. Stage: ${stage}. Scene: ${scene}.
             Last Context: "${lastMsg}"
-
-            TASK: Generate 3 response options for the user. 
-            Each option MUST be an array of MULTIPLE small phrasal chunks.
-
-            JSON structure:
-            {
-                "heavy": [{"t": "Phrase 1", "p": "noun/verb/adj/adv/other"}, {"t": "Phrase 2", "p": "..."}],
-                "light": [...],
-                "distractor": [...]
-            }
+            Task: Generate 3 response options (heavy/light/distractor). 
+            Each option MUST be an ARRAY of multiple short chunks.
+            JSON ONLY: {"heavy": [{"t": "...", "p": "pos"}], ...}
         `;
     }
 };

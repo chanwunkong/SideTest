@@ -255,12 +255,66 @@ canvas#pad {
     background: #064e3b;
 }
 
+/* 1. 語塊晶片基礎排版：改為 flex 以便標籤垂直排列 */
 .word-chip {
-    padding: 12px 18px;
-    border-radius: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    display: inline-flex !important;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 16px !important;
+    border-radius: 12px !important;
+    font-weight: bold !important;
+    margin: 4px !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+    min-width: 80px;
+    line-height: 1.2;
+}
+
+/* 2. 強制顯色原則：加入 !important 確保不被灰色背景覆蓋 */
+.word-chip.pos-noun {
+    background-color: #3b82f6 !important;
+    border-bottom: 4px solid #1d4ed8 !important;
+    color: white !important;
+}
+
+.word-chip.pos-verb {
+    background-color: #ef4444 !important;
+    border-bottom: 4px solid #b91c1c !important;
+    color: white !important;
+}
+
+.word-chip.pos-adj {
+    background-color: #22c55e !important;
+    border-bottom: 4px solid #15803d !important;
+    color: white !important;
+}
+
+.word-chip.pos-adv {
+    background-color: #f59e0b !important;
+    border-bottom: 4px solid #b45309 !important;
+    color: white !important;
+}
+
+.word-chip.pos-other {
+    background-color: #eab308 !important;
+    border-bottom: 4px solid #ca8a04 !important;
+    color: black !important;
+}
+
+/* 3. 標籤縮小排版 */
+.word-chip small {
+    display: block !important;
+    font-size: 10px !important;
+    opacity: 0.8 !important;
+    margin-top: 4px !important;
+}
+
+/* 4. 訊息容器修正：背景透明化以利晶片顯示 */
+.message {
+    background: transparent !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    max-width: 90% !important;
 }
 
 .pos-noun {
@@ -384,36 +438,7 @@ canvas#pad {
     cursor: pointer;
 }
 
-/* style.css 修正 */
-.word-chip.pos-noun {
-    background-color: var(--pos-noun) !important;
-    color: white !important;
-    border-bottom: 4px solid #1d4ed8 !important;
-}
 
-.word-chip.pos-verb {
-    background-color: var(--pos-verb) !important;
-    color: white !important;
-    border-bottom: 4px solid #b91c1c !important;
-}
-
-.word-chip.pos-adj {
-    background-color: var(--pos-adj) !important;
-    color: white !important;
-    border-bottom: 4px solid #15803d !important;
-}
-
-.word-chip.pos-adv {
-    background-color: var(--pos-adv) !important;
-    color: white !important;
-    border-bottom: 4px solid #b45309 !important;
-}
-
-.word-chip.pos-other {
-    background-color: var(--pos-other) !important;
-    color: black !important;
-    border-bottom: 4px solid #ca8a04 !important;
-}
 
 
 :root {

@@ -73,7 +73,7 @@
 
         function getActiveSettings() {
             let rawKey = localStorage.getItem('gptApiKey') || "";
-            // 徹底清潔 API Key，防止本地端編碼錯誤
+            // 移除所有非 ASCII 字元以符合 ISO-8859-1 規範
             const cleanKey = rawKey.replace(/[^\x00-\x7F]/g, "").trim();
             return {
                 key: cleanKey,
@@ -134,45 +134,36 @@
             appendColoredMessage("User", chunks);
 
             const settings = getActiveSettings();
-            // 這裡加入 SYSTEM_RULES 確保 AI 的回覆也被正確切割
             const prompt = `
         ${CHUNK_PROMPTS.SYSTEM_RULES}
-        Scene: Roleplay. User said: "${text}". 
-        Reply as AI in MULTIPLE SHORT CHUNKS.
-        JSON: {"s": [{"t": "...", "p": "pos"}, {"t": "...", "p": "pos"}]}
+        Scene: Roleplay. User: "${text}". 
+        Reply as AI in MULTIPLE SHORT CHUNKS (Max 3 words each).
+        JSON: {"s": [{"t": "...", "p": "pos"}]}
     `;
 
             const res = await fetchGPT(prompt);
             const data = JSON.parse(res);
             lastAiMessage = data.s.map(c => c.t).join(" ");
             appendColoredMessage("AI", data.s);
-
             await getNextDealerTurn("Roleplay Context");
         }
 
         function appendColoredMessage(role, chunks) {
             const box = document.getElementById('chatBox');
             const div = document.createElement('div');
-            // 修正：使用 flex 並排，不再占用一整行
             div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
-            div.style.display = "flex";
-            div.style.flexWrap = "wrap";
-            div.style.gap = "8px";
 
             chunks.forEach(item => {
                 const type = item.p || item.type;
                 const text = item.t || item.text;
-
                 const chip = document.createElement('div');
-                // 同步 test2 樣式與依詞性上色
+
+                // 套用強化後的 CSS 類別
                 chip.className = `word-chip pos-${type}`;
-                // 修正：移除多餘文字，將標籤放入 <small>
+                // 排版優化：標籤位於下方
                 chip.innerHTML = `${text}<small>${posLabels[type] || ''}</small>`;
 
-                chip.onclick = (e) => {
-                    e.stopPropagation();
-                    speak(text);
-                };
+                chip.onclick = () => speak(text);
                 div.appendChild(chip);
             });
 
