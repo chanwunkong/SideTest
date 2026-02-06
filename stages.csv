@@ -1,0 +1,9 @@
+Stage,Level,Word_Limit,Grammar_Boundary,Example
+Stage 1,Survival,1-3 words,Nouns/verbs only. No grammar.,"Water, please."
+Stage 2,Basic,3-5 words,Simple S-V-O. Single adj.,"I like red apples."
+Stage 3,A1,5-8 words,Present tense. Simple connectors.,"I am drinking tea."
+Stage 4,A2,8-12 words,Past/Future simple. Frequency adverbs.,"I went home early."
+Stage 5,B1,12-18 words,Present perfect. Relative clauses.,"He is the man who won."
+Stage 6,B2,18-25 words,Passive voice. Conditionals.,"The cake was eaten."
+Stage 7,C1,Unlimited,Idioms and professional jargon.,"Let's touch base."
+Stage 8,C2,Unlimited,Native nuance and rhetoric.,"The rhetoric was profound."
