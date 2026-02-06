@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v3.5.3</title>
+    <title>語塊流動場 v3.5.4</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -101,62 +101,65 @@
         const labels = { noun: '名詞', verb: '動詞', adj: '形容', adv: '副詞', other: '結構' };
         let state = { lastMsg: "", scene: "" };
 
-        // --- 簡化邏輯 1：唯一渲染器 ---
-        // 不再區分數據來源，只認 t (text) 與 p (pos)
+        /* 1. 唯一渲染器：確保 t 與 p 格式統一 */
         function renderMsg(role, chunks) {
+            const box = document.getElementById('chatBox');
             const div = document.createElement('div');
             div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
 
             chunks.forEach(c => {
                 const chip = document.createElement('div');
-                const pos = c.p || 'other'; // 確保 p 不存在時預設為黃色結構
-                chip.className = `word-chip pos-${pos}`;
+                const pos = c.p || 'other';
+                chip.className = `word-chip pos-${pos}`; // 強制對應 CSS 顏色
                 chip.innerHTML = `${c.t}<small>${labels[pos] || '結構'}</small>`;
                 div.appendChild(chip);
             });
 
-            document.getElementById('chatBox').appendChild(div);
-            document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
         }
 
-        // --- 簡化邏輯 2：流動循環 (Flow) ---
-        // 合併「顯示使用者選擇 -> 獲取 AI 回應 -> 重新發牌」為單一同步鏈條
+        /* 2. 核心流動循環：徹底切開 AI 回應與發牌 */
         async function flow(chunks) {
+            // A. 立即清空舊選項，防止重複點擊
+            const tray = document.getElementById('optionsContainer');
+            tray.innerHTML = "<div style='color:gray; padding:10px;'>📡 協議傳輸中...</div>";
+
             if (chunks.length > 0) {
                 renderMsg("User", chunks);
                 state.lastMsg = chunks.map(c => c.t).join(" ");
             }
 
-            // 1. 調用 AI 回應協議
+            // B. 第一階段：獲取 AI 單一回應
             const aiData = await callGPT(CHUNK_PROMPTS.getAiResponsePrompt(state.lastMsg));
             if (aiData.s) {
                 renderMsg("AI", aiData.s);
                 state.lastMsg = aiData.s.map(c => c.t).join(" ");
             }
 
-            // 2. 自動刷新智慧發牌員選項
+            // C. 第二階段：獲取給使用者的三路選項
             const settings = {
                 lang: localStorage.getItem('userLang') || 'en-US',
                 course: localStorage.getItem('userCourse') || 'Stage 1'
             };
             const dealerData = await callGPT(CHUNK_PROMPTS.getTest3Prompt(settings.lang, settings.course, state.scene, state.lastMsg));
+
+            // D. 最後才刷新發牌區
             renderOptions(dealerData);
         }
 
-        // --- 簡化邏輯 3：選項生成器 ---
+        /* 3. 選項渲染器 */
         function renderOptions(data) {
             const tray = document.getElementById('optionsContainer');
-            tray.innerHTML = "";
+            tray.innerHTML = ""; // 確保徹底清空舊內容
             ['heavy', 'light', 'distractor'].forEach(key => {
                 if (!data[key]) return;
                 const btn = document.createElement('button');
                 btn.className = 'signal-option';
-                // 按鈕內部渲染也使用與對話框相同的格式
                 data[key].forEach(c => {
-                    const pos = c.p || 'other';
-                    btn.innerHTML += `<div class="word-chip pos-${pos}" style="font-size:0.9em">${c.t}<small>${labels[pos]}</small></div>`;
+                    btn.innerHTML += `<div class="word-chip pos-${c.p || 'other'}">${c.t}<small>${labels[c.p || 'other']}</small></div>`;
                 });
-                btn.onclick = () => flow(data[key]);
+                btn.onclick = () => flow(data[key]); // 點擊後進入下一個循環
                 tray.appendChild(btn);
             });
         }

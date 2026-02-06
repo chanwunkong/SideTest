@@ -1,9 +1,7 @@
-/* prompts.js - 語塊協議標準化總部 (v3.5.3 極簡對齊版) */
-
 const CHUNK_PROMPTS = {
     // 1. 核心規則：定義唯一的數據格式協議
     SYSTEM_RULES: `
-        ROLE: Natural partner.
+        ROLE: Natural partner. NO repetition.
         RULE: 1-5 words per chunk. NO repetition.
         FORMAT: JSON ONLY. Use "t" for text, "p" for pos.
         POS: noun, verb, adj, adv, other.
@@ -26,8 +24,8 @@ const CHUNK_PROMPTS = {
         return `
             ${this.SYSTEM_RULES}
             User: "${userText}"
-            Task: One natural response sentence.
-            Output: {"s": [{"t": "...", "p": "..."}]}
+            Task: One coherent response sentence.
+            Output JSON: {"s": [{"t": "...", "p": "..."}]}
         `;
     },
 
