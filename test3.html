@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v3.0 - 協議同步版</title>
+    <title>語塊流動場 v3.1</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -134,14 +134,19 @@
             appendColoredMessage("User", chunks);
 
             const settings = getActiveSettings();
-            const prompt = `Scene: Roleplay. User said: "${text}". Reply as AI in CHUNKS. JSON: {"s": [{"t": "...", "p": "pos"}]}`;
+            // 這裡加入 SYSTEM_RULES 確保 AI 的回覆也被正確切割
+            const prompt = `
+        ${CHUNK_PROMPTS.SYSTEM_RULES}
+        Scene: Roleplay. User said: "${text}". 
+        Reply as AI in MULTIPLE SHORT CHUNKS.
+        JSON: {"s": [{"t": "...", "p": "pos"}, {"t": "...", "p": "pos"}]}
+    `;
 
             const res = await fetchGPT(prompt);
             const data = JSON.parse(res);
             lastAiMessage = data.s.map(c => c.t).join(" ");
             appendColoredMessage("AI", data.s);
 
-            // 繼續下一輪發牌
             await getNextDealerTurn("Roleplay Context");
         }
 

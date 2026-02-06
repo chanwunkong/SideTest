@@ -3,9 +3,14 @@
 const CHUNK_PROMPTS = {
     // 1. 核心規則：定義語塊拆分原則與色彩協議
     SYSTEM_RULES: `
-        CRITICAL RULE: Break the sentence into 3-5 MEANINGFUL CHUNKS (phrases), NOT single words.
-        - Bad: ["The", "big", "apple"]
-        - Good: ["The big apple"]
+        CRITICAL RULE: NEVER output a full sentence as one chunk. 
+        A "chunk" must be a meaningful phrase of 1-3 words.
+        Example of CORRECT chunking: 
+        - "Right now," (adv)
+        - "I am focused" (verb)
+        - "on Japanese" (noun)
+        - "and Korean." (other)
+
         Coloring Protocol: noun(blue), verb(red), adj(green), adv(orange), other(yellow).
     `,
 
@@ -42,22 +47,17 @@ const CHUNK_PROMPTS = {
     getTest3Prompt(lang, stage, scene, lastMsg) {
         return `
             ${this.SYSTEM_RULES}
-            Role: Linguistic Dealer. Target: ${lang}, Stage: ${stage}.
-            Scenario: ${scene}.
-            Last Context from AI: "${lastMsg}"
+            Target Language: ${lang}. Stage: ${stage}. Scene: ${scene}.
+            Last Context: "${lastMsg}"
 
-            TASK: Generate 3 DIFFERENT ways for the USER to respond to the AI.
-            CRITICAL: Each path (heavy/light/distractor) MUST be a SINGLE coherent sentence, split into chunks.
-            
-            - heavy: Advanced/Complex phrasal chunks.
-            - light: Simple/Direct phrasal chunks.
-            - distractor: Slightly awkward or off-topic phrasal chunks.
+            TASK: Generate 3 response options for the user. 
+            Each option MUST be an array of MULTIPLE small phrasal chunks.
 
-            Output JSON:
+            JSON structure:
             {
-                "heavy": [{"t": "Complex phrase", "p": "noun/verb/adj/adv/other"}],
-                "light": [{"t": "Simple phrase", "p": "noun/verb/adj/adv/other"}],
-                "distractor": [{"t": "Off-topic phrase", "p": "noun/verb/adj/adv/other"}]
+                "heavy": [{"t": "Phrase 1", "p": "noun/verb/adj/adv/other"}, {"t": "Phrase 2", "p": "..."}],
+                "light": [...],
+                "distractor": [...]
             }
         `;
     }
