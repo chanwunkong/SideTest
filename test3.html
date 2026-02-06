@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v2.3 - 文字輸入版</title>
+    <title>語塊流動場 v2.5 - Stage 1-8 全上色版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -18,6 +18,7 @@
             --pos-noun: #3b82f6;
             --pos-verb: #22c55e;
             --pos-adj: #f59e0b;
+            --pos-adv: #a855f7;
             --pos-other: #94a3b8;
         }
 
@@ -103,9 +104,7 @@
             padding: 12px 16px;
             border-radius: 18px;
             line-height: 1.5;
-            position: relative;
             cursor: pointer;
-            transition: opacity 0.2s;
         }
 
         .ai-msg {
@@ -130,9 +129,7 @@
 
         .chunk {
             display: inline-block;
-            margin: 2px;
-            padding: 2px 4px;
-            border-radius: 4px;
+            margin: 0 2px;
             border-bottom: 2px solid transparent;
         }
 
@@ -151,6 +148,11 @@
             border-bottom-color: var(--pos-adj);
         }
 
+        .chunk.adv {
+            color: var(--pos-adv);
+            border-bottom-color: var(--pos-adv);
+        }
+
         .chunk.other {
             color: var(--pos-other);
         }
@@ -159,6 +161,7 @@
             padding: 15px;
             background: #020617;
             border-top: 1px solid #1e293b;
+            min-height: 100px;
         }
 
         .signal-option {
@@ -175,7 +178,6 @@
             cursor: pointer;
         }
 
-        /* 底部輸入框區域 */
         .input-area {
             display: flex;
             gap: 10px;
@@ -191,7 +193,6 @@
             color: white;
             padding: 12px;
             border-radius: 8px;
-            font-size: 16px;
         }
 
         #sendBtn {
@@ -201,6 +202,7 @@
             border: none;
             border-radius: 8px;
             font-weight: bold;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -209,7 +211,7 @@
     <div id="initOverlay">
         <div class="init-card">
             <h2>語塊協議啟動</h2>
-            <input type="text" id="sceneInput" placeholder="輸入場景（如：面試）">
+            <input type="text" id="sceneInput" placeholder="輸入場景（如：面試、租屋簽約...）">
             <button onclick="startProtocol(document.getElementById('sceneInput').value)"
                 style="width: 100%;">開始練習</button>
             <button onclick="startProtocol(null)"
@@ -228,7 +230,7 @@
     </div>
 
     <div class="input-area">
-        <input type="text" id="userInput" placeholder="輸入文字或使用輸入法語音..." autocomplete="off">
+        <input type="text" id="userInput" placeholder="輸入文字..." autocomplete="off">
         <button id="sendBtn">傳送</button>
     </div>
 
@@ -237,20 +239,29 @@
         let wordAssets = {};
         let currentScene = "";
 
+        // 核心：Stage 1-8 協議定義
+        const PROTOCOL_STAGES = {
+            "Stage 1": { desc: "Survival level. Simple words, max 3 chunks.", colorRules: ["noun", "verb"] },
+            "Stage 2": { desc: "Social level. Basic daily phrases.", colorRules: ["noun", "verb", "adj"] },
+            "Stage 3": { desc: "CEFR A1. Basic facts, very slow pace.", colorRules: ["noun", "verb", "adj"] },
+            "Stage 4": { desc: "CEFR A2. Describe environment/past.", colorRules: ["noun", "verb", "adj", "adv"] },
+            "Stage 5": { desc: "CEFR B1. Negotiating problems.", colorRules: ["noun", "verb", "adj", "adv", "other"] },
+            "Stage 6": { desc: "CEFR B2. Explaining complex views.", colorRules: "all" },
+            "Stage 7": { desc: "CEFR C1. Professional negotiation.", colorRules: "all" },
+            "Stage 8": { desc: "CEFR C2. Master level debate/nuance.", colorRules: "all" }
+        };
+
         function getActiveSettings() {
             return {
                 key: localStorage.getItem('gptApiKey'),
                 lang: localStorage.getItem('userLang') || 'en-US',
-                course: localStorage.getItem('userCourse') || 'all' // 新增課程進度
+                course: localStorage.getItem('userCourse') || 'Stage 1'
             };
         }
+
         auth.onAuthStateChanged(user => {
-            if (user) {
-                currentUserId = user.uid;
-                loadAssets();
-            } else {
-                loadDefaultAssets();
-            }
+            currentUserId = user ? user.uid : null;
+            if (user) loadAssets(); else loadDefaultAssets();
         });
 
         async function loadAssets() {
@@ -288,38 +299,29 @@
         }
 
         async function startProtocol(customScene) {
+            const settings = getActiveSettings();
             document.getElementById('initOverlay').style.display = 'none';
             currentScene = customScene || "Daily Chat";
-            await nextTurn("Protocol engaged. You can type or use system voice input.");
+
+            // 初始化時要求 AI 依照分級生成開場
+            const prompt = `Start roleplay in ${currentScene}. Protocol: ${settings.course}. 
+            Respond in CHUNKS with POS. JSON: {"s": [{"t": "Welcome", "p": "other"}]}`;
+
+            const res = await fetchGPT(prompt);
+            const data = JSON.parse(res);
+            await nextTurn(data.s);
         }
 
-        async function nextTurn(aiSpeech) {
-            appendMessage("AI", aiSpeech);
+        async function nextTurn(aiSpeechChunks) {
+            appendColoredMessage("AI", aiSpeechChunks);
             const settings = getActiveSettings();
+            const config = PROTOCOL_STAGES[settings.course] || PROTOCOL_STAGES["Stage 1"];
             const words = Object.keys(wordAssets).join(", ");
 
-            // 根據 course 設定定義難度指令
-            let levelConstraint = "";
-            if (settings.course === "Stage 1") levelConstraint = "Use ONLY extremely basic vocabulary (Core 40 level).";
-            else if (settings.course === "Stage 2") levelConstraint = "Use simple daily vocabulary (Swadesh list level).";
-            else if (settings.course === "Stage 3") levelConstraint = "Use intermediate vocabulary suitable for CEFR learners.";
-
-            const prompt = `
-            Role: Smart Dealer. 
-            Language: ${settings.lang}. 
-            Target Level: ${settings.course}. ${levelConstraint}
-            Current Scene: ${currentScene}. 
-            User Mastery Words: [${words}].
-            
-            Task: Generate 3 signaling options for the user. 
-            Constraint: The options MUST align with the ${settings.course} proficiency level.
-            
-            Return JSON Format:
-            {
-                "heavy": [{"t": "advanced chunk", "p": "pos"}],
-                "light": [{"t": "basic chunk", "p": "pos"}],
-                "distractor": [{"t": "filler chunk", "p": "pos"}]
-            }`;
+            const prompt = `Role: Smart Dealer. Stage: ${settings.course}. Scene: ${currentScene}.
+            Constraint: ${config.desc}. Targets: [${words}]. 
+            Task: Generate 3 signaling options (Heavy/Light/Distractor) in CHUNKS with POS tags.
+            JSON: {"heavy": [{"t": "...", "p": "noun/verb/adj/adv/other"}], "light": [...], "distractor": [...]}`;
 
             const response = await fetchGPT(prompt);
             renderOptions(JSON.parse(response));
@@ -337,75 +339,72 @@
                     span.innerText = chunk.t;
                     btn.appendChild(span);
                 });
-                btn.onclick = () => {
-                    const fullText = options[type].map(c => c.t).join(" ");
-                    handleInput(fullText, type.toUpperCase());
-                };
+                btn.onclick = () => handleInput(options[type].map(c => c.t).join(" "), type.toUpperCase());
                 container.appendChild(btn);
             }
         }
 
         async function handleInput(text, signalType) {
             if (!text.trim()) return;
-            appendMessage("User", text);
+            const settings = getActiveSettings();
+
+            // 使用者輸入也進行組塊化渲染（標註為 other）
+            appendColoredMessage("User", [{ "t": text, "p": "other" }]);
             updateAssets(text, signalType);
 
-            const settings = getActiveSettings();
-            const prompt = `
-            Scene: ${currentScene}. 
-            User Level: ${settings.course}.
-            User Input: "${text}".
-            
-            Response Guidance:
-            - Respond as an AI interlocutor.
-            - Keep your response's complexity at the ${settings.course} level.
-            - If the user input was 'HEAVY', move the conversation forward significantly.
-            
-            Return JSON: {"s": "Your simple and clear response"}
-            `;
+            const prompt = `Stage: ${settings.course}. Scene: ${currentScene}. User: "${text}". 
+            Reply in CHUNKS with POS tags matching the stage complexity. 
+            JSON: {"s": [{"t": "...", "p": "noun/verb/adj/adv/other"}]}`;
 
             const res = await fetchGPT(prompt);
-            const data = JSON.parse(res);
-            nextTurn(data.s);
+            nextTurn(JSON.parse(res).s);
             document.getElementById('userInput').value = "";
         }
 
-        function updateAssets(text, type) {
-            for (let word in wordAssets) {
-                if (text.toLowerCase().includes(word.toLowerCase())) {
-                    wordAssets[word].heat = (type === 'HEAVY') ? 'Overheat' : 'Warm';
-                    wordAssets[word].level += (type === 'HEAVY') ? 2 : 1;
-                    renderWord(word);
-                    if (currentUserId) saveToFirebase(word, wordAssets[word].level);
-                }
-            }
+        function appendColoredMessage(role, chunks) {
+            const box = document.getElementById('chatBox');
+            const settings = getActiveSettings();
+            const config = PROTOCOL_STAGES[settings.course] || PROTOCOL_STAGES["Stage 1"];
+
+            const div = document.createElement('div');
+            div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
+
+            chunks.forEach(chunk => {
+                const span = document.createElement('span');
+                // 依分級決定是否上色
+                const shouldColor = (config.colorRules === "all" || config.colorRules.includes(chunk.p));
+                span.className = `chunk ${shouldColor ? chunk.p : 'other'}`;
+                span.innerText = chunk.t + " ";
+                div.appendChild(span);
+            });
+
+            const hint = document.createElement('small');
+            hint.className = 'replay-hint';
+            hint.innerHTML = '<br>🔊 Click to replay';
+            div.appendChild(hint);
+
+            const fullText = chunks.map(c => c.t).join(" ");
+            div.onclick = () => speak(fullText);
+
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+            speak(fullText);
         }
 
         async function fetchGPT(prompt) {
             const settings = getActiveSettings();
-            if (!settings.key) return JSON.stringify({ heavy: [], light: [], distractor: [] });
+            if (!settings.key) return JSON.stringify({ s: [{ "t": "Key Missing", "p": "other" }], heavy: [], light: [], distractor: [] });
             const res = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${settings.key}` },
                 body: JSON.stringify({
                     model: "gpt-3.5-turbo",
-                    messages: [{ role: "user", content: prompt }],
+                    messages: [{ role: "system", content: "Linguistic Protocol Dealer." }, { role: "user", content: prompt }],
                     response_format: { type: "json_object" }
                 })
             });
             const data = await res.json();
             return data.choices[0].message.content;
-        }
-
-        function appendMessage(role, text) {
-            const box = document.getElementById('chatBox');
-            const div = document.createElement('div');
-            div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
-            div.innerHTML = `<span>${text}</span><small class="replay-hint">🔊 Click to replay</small>`;
-            div.onclick = () => speak(text);
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
-            speak(text);
         }
 
         function speak(txt) {
@@ -415,24 +414,18 @@
             speechSynthesis.speak(u);
         }
 
-        async function saveToFirebase(word, count) {
-            const settings = getActiveSettings();
-            const masteryId = `${settings.lang}_${word}`.replace(/[\/\.#$\[\]\s]/g, '_');
-            await db.collection('users').doc(currentUserId).collection('mastery').doc(masteryId).set({
-                count: count, lastStudied: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+        function updateAssets(text, type) {
+            for (let word in wordAssets) {
+                if (text.toLowerCase().includes(word.toLowerCase())) {
+                    wordAssets[word].heat = (type === 'HEAVY') ? 'Overheat' : 'Warm';
+                    wordAssets[word].level += (type === 'HEAVY') ? 2 : 1;
+                    renderWord(word);
+                }
+            }
         }
 
-        // 送出按鈕與 Enter 鍵偵聽
-        document.getElementById('sendBtn').onclick = () => {
-            const val = document.getElementById('userInput').value;
-            handleInput(val, 'USER_TYPING');
-        };
-        document.getElementById('userInput').onkeypress = (e) => {
-            if (e.key === 'Enter') {
-                handleInput(e.target.value, 'USER_TYPING');
-            }
-        };
+        document.getElementById('sendBtn').onclick = () => handleInput(document.getElementById('userInput').value, 'USER_INPUT');
+        document.getElementById('userInput').onkeypress = (e) => { if (e.key === 'Enter') handleInput(e.target.value, 'USER_INPUT'); };
     </script>
 </body>
 
