@@ -62,6 +62,7 @@ const CHUNK_PROMPTS = {
             
             TASK: Generate 3 DISTINCT paths for the USER to respond.
             Each path must be ONE COMPLETE SENTENCE broken into CHUNKS (1-5 words each).
+            Do NOT default to 'other' unless it's a particle or conjunction.
 
             - "heavy": Advanced path. Pushes the dialogue forward.
             - "light": Standard path. Natural and polite.

@@ -214,14 +214,8 @@ canvas#pad {
 .word-chip {
     display: inline-flex !important;
     flex-direction: column !important;
-    /* 確保標籤在文字正下方 */
+    /* 確保標籤垂直置底 */
     align-items: center !important;
-    padding: 8px 14px !important;
-    border-radius: 12px !important;
-    margin: 4px !important;
-    border: none !important;
-    font-weight: 600 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* 協議顯色：藍(名)、紅(動)、綠(形)、橘(副)、黃(他) */
@@ -278,11 +272,6 @@ canvas#pad {
 .message {
     background: transparent !important;
     border: none !important;
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 6px !important;
-    max-width: 90% !important;
-    padding: 8px !important;
 }
 
 .ai-msg {

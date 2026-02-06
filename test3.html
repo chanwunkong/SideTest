@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v3.5.1 - 統一協議版</title>
+    <title>語塊流動場 v3.5.2</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -161,26 +161,22 @@
 
         // 統一處理邏輯：合併 AI 與 User 的工作流
         async function handleChoice(chunks) {
-            // 1. 渲染使用者選取的語塊
+            // 1. 立即渲染使用者選取的彩色語塊
             appendColoredMessage("User", chunks);
             const userText = chunks.map(c => c.t).join(" ");
 
-            // 2. 獲取 AI 回應（要求符合 t, p 規格）
-            const prompt = CHUNK_PROMPTS.getAiResponsePrompt(userText);
-            const res = await fetchGPT(prompt);
-
+            // 2. 獲取 AI 的彩色語塊回應
+            const res = await fetchGPT(CHUNK_PROMPTS.getAiResponsePrompt(userText));
             try {
                 const data = JSON.parse(res);
-                if (data.s && Array.isArray(data.s)) {
+                if (data.s) {
+                    appendColoredMessage("AI", data.s); // 確保 AI 回應也是彩色的
                     lastAiMessage = data.s.map(c => c.t).join(" ");
-                    // 3. 渲染 AI 語塊（使用同一個渲染器）
-                    appendColoredMessage("AI", data.s);
                 }
-            } catch (e) {
-                console.error("解析失敗", e);
-            }
+            } catch (e) { console.error("解析失敗"); }
 
-            await getNextDealerTurn(document.getElementById('sceneInput').value || "Conversation");
+            // 3. 自動生成下一輪發牌
+            await getNextDealerTurn(document.getElementById('sceneInput').value || "Daily Chat");
         }
 
         async function fetchGPT(prompt) {
