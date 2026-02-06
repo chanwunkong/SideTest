@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v3.5.4</title>
+    <title>語塊流動場 v3.5.4 - 語音增強版</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -29,6 +29,8 @@
             max-width: 90%;
             background: transparent !important;
             border: none !important;
+            cursor: pointer;
+            /* 點擊訊息可重複播放 */
         }
 
         .user-msg {
@@ -101,57 +103,80 @@
         const labels = { noun: '名詞', verb: '動詞', adj: '形容', adv: '副詞', other: '結構' };
         let state = { lastMsg: "", scene: "" };
 
-        /* 1. 唯一渲染器：確保 t 與 p 格式統一 */
+        // --- 核心功能：發音控制 ---
+        function speak(text) {
+            if (!text) return;
+            // 停止當前所有發音
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            // 取得當前設定的目標語言
+            utterance.lang = localStorage.getItem('userLang') || 'en-US';
+            utterance.rate = 0.9; // 稍微調慢速度增加清晰度
+            window.speechSynthesis.speak(utterance);
+        }
+
+        /* 1. 唯一渲染器：增加發音觸發 */
         function renderMsg(role, chunks) {
             const box = document.getElementById('chatBox');
             const div = document.createElement('div');
             div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
 
+            const fullText = chunks.map(c => c.t).join(" ");
+
             chunks.forEach(c => {
                 const chip = document.createElement('div');
                 const pos = c.p || 'other';
-                chip.className = `word-chip pos-${pos}`; // 強制對應 CSS 顏色
+                chip.className = `word-chip pos-${pos}`;
                 chip.innerHTML = `${c.t}<small>${labels[pos] || '結構'}</small>`;
                 div.appendChild(chip);
             });
 
+            // 點擊訊息框可重新播放該句語音
+            div.onclick = () => speak(fullText);
+
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
+
+            // 自動為 AI 的回覆發音
+            if (role === 'AI') {
+                speak(fullText);
+            }
         }
 
-        /* 2. 核心流動循環：徹底切開 AI 回應與發牌 */
+        /* 2. 核心流動循環：傳遞語言與等級參數 */
         async function flow(chunks) {
-            // A. 立即清空舊選項，防止重複點擊
             const tray = document.getElementById('optionsContainer');
             tray.innerHTML = "<div style='color:gray; padding:10px;'>📡 協議傳輸中...</div>";
+
+            const settings = {
+                lang: localStorage.getItem('userLang') || 'en-US',
+                course: localStorage.getItem('userCourse') || 'Stage 1'
+            };
 
             if (chunks.length > 0) {
                 renderMsg("User", chunks);
                 state.lastMsg = chunks.map(c => c.t).join(" ");
             }
 
-            // B. 第一階段：獲取 AI 單一回應
-            const aiData = await callGPT(CHUNK_PROMPTS.getAiResponsePrompt(state.lastMsg));
+            // B. 第一階段：獲取 AI 單一回應 (傳入語言與等級)
+            const aiData = await callGPT(CHUNK_PROMPTS.getAiResponsePrompt(state.lastMsg, settings.lang, settings.course));
             if (aiData.s) {
                 renderMsg("AI", aiData.s);
                 state.lastMsg = aiData.s.map(c => c.t).join(" ");
             }
 
             // C. 第二階段：獲取給使用者的三路選項
-            const settings = {
-                lang: localStorage.getItem('userLang') || 'en-US',
-                course: localStorage.getItem('userCourse') || 'Stage 1'
-            };
             const dealerData = await callGPT(CHUNK_PROMPTS.getTest3Prompt(settings.lang, settings.course, state.scene, state.lastMsg));
 
-            // D. 最後才刷新發牌區
+            // D. 最後刷新發牌區
             renderOptions(dealerData);
         }
 
         /* 3. 選項渲染器 */
         function renderOptions(data) {
             const tray = document.getElementById('optionsContainer');
-            tray.innerHTML = ""; // 確保徹底清空舊內容
+            tray.innerHTML = "";
             ['heavy', 'light', 'distractor'].forEach(key => {
                 if (!data[key]) return;
                 const btn = document.createElement('button');
@@ -159,22 +184,28 @@
                 data[key].forEach(c => {
                     btn.innerHTML += `<div class="word-chip pos-${c.p || 'other'}">${c.t}<small>${labels[c.p || 'other']}</small></div>`;
                 });
-                btn.onclick = () => flow(data[key]); // 點擊後進入下一個循環
+                btn.onclick = () => flow(data[key]);
                 tray.appendChild(btn);
             });
         }
 
         // --- 基礎設施 ---
         async function bootSystem() {
+            const settings = {
+                lang: localStorage.getItem('userLang') || 'en-US',
+                course: localStorage.getItem('userCourse') || 'Stage 1'
+            };
+
             state.scene = document.getElementById('sceneInput').value || "Daily Chat";
             document.getElementById('initOverlay').style.display = 'none';
-            document.getElementById('langDisplay').textContent = `場景：${state.scene}`;
+            document.getElementById('langDisplay').textContent = `場景：${state.scene} (${settings.lang})`;
 
-            // 啟動首句對話
-            const start = await callGPT(`Start roleplay in ${state.scene}. JSON: {"s": [{"t": "Welcome!", "p": "other"}]}`);
+            const startPrompt = `Start a roleplay in ${state.scene} in ${settings.lang} for ${settings.course} level. Say something brief to start. Output JSON: {"s": [{"t": "...", "p": "..."}]}`;
+            const start = await callGPT(startPrompt);
+
             renderMsg("AI", start.s);
             state.lastMsg = start.s.map(c => c.t).join(" ");
-            flow([]); // 觸發第一次發牌
+            flow([]);
         }
 
         async function callGPT(prompt) {
@@ -194,7 +225,6 @@
 
         function manualSend() {
             const val = document.getElementById('userInput').value;
-            // 手動輸入也必須封裝成符合協議的 t, p 格式
             if (val) flow([{ t: val, p: 'other' }]);
             document.getElementById('userInput').value = "";
         }

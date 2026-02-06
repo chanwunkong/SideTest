@@ -20,11 +20,11 @@ const CHUNK_PROMPTS = {
     },
 
     // 3. AI 回應協議：確保產出單一連續的回應流
-    getAiResponsePrompt(userText) {
+    getAiResponsePrompt(userText, lang, stage) {
         return `
             ${this.SYSTEM_RULES}
             User: "${userText}"
-            Task: One coherent response sentence.
+            Task: Respond naturally in ${lang} at ${stage} level.
             Output JSON: {"s": [{"t": "...", "p": "..."}]}
         `;
     },
