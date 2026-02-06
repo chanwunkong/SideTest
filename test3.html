@@ -4,216 +4,22 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v2.5 - Stage 1-8 全上色版</title>
+    <title>語塊流動場 v2.6 - 顏色同步版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="config.js"></script>
     <link rel="stylesheet" href="style.css">
-    <style>
-        :root {
-            --overheat: #f43f5e;
-            --warm: #fbbf24;
-            --cold: #94a3b8;
-            --pos-noun: #3b82f6;
-            --pos-verb: #22c55e;
-            --pos-adj: #f59e0b;
-            --pos-adv: #a855f7;
-            --pos-other: #94a3b8;
-        }
 
-        #initOverlay {
-            position: fixed;
-            inset: 0;
-            background: var(--bg);
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .init-card {
-            width: 100%;
-            max-width: 400px;
-            background: var(--card);
-            padding: 30px;
-            border-radius: 24px;
-            border: 1px solid #334155;
-            text-align: center;
-        }
-
-        .init-card input {
-            width: 100%;
-            padding: 12px;
-            margin: 15px 0;
-            background: #0f172a;
-            border: 1px solid #334155;
-            color: white;
-            border-radius: 8px;
-        }
-
-        .hud-header {
-            background: #0f172a;
-            padding: 20px;
-            border-bottom: 2px solid #334155;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        .asset-rack {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 10px;
-        }
-
-        .word-asset {
-            padding: 6px 12px;
-            border-radius: 8px;
-            border: 1px solid var(--cold);
-            font-size: 13px;
-            white-space: nowrap;
-            transition: all 0.3s;
-        }
-
-        .word-asset.warm {
-            border-color: var(--warm);
-            color: var(--warm);
-        }
-
-        .word-asset.overheat {
-            border-color: var(--overheat);
-            color: var(--overheat);
-            font-weight: bold;
-            box-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
-        }
-
-        #chatBox {
-            height: 40vh;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .message {
-            max-width: 85%;
-            padding: 12px 16px;
-            border-radius: 18px;
-            line-height: 1.5;
-            cursor: pointer;
-        }
-
-        .ai-msg {
-            background: #1e293b;
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-        }
-
-        .user-msg {
-            background: #334155;
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
-        }
-
-        .replay-hint {
-            font-size: 10px;
-            color: var(--accent);
-            display: block;
-            margin-top: 5px;
-            opacity: 0.6;
-        }
-
-        .chunk {
-            display: inline-block;
-            margin: 0 2px;
-            border-bottom: 2px solid transparent;
-        }
-
-        .chunk.noun {
-            color: var(--pos-noun);
-            border-bottom-color: var(--pos-noun);
-        }
-
-        .chunk.verb {
-            color: var(--pos-verb);
-            border-bottom-color: var(--pos-verb);
-        }
-
-        .chunk.adj {
-            color: var(--pos-adj);
-            border-bottom-color: var(--pos-adj);
-        }
-
-        .chunk.adv {
-            color: var(--pos-adv);
-            border-bottom-color: var(--pos-adv);
-        }
-
-        .chunk.other {
-            color: var(--pos-other);
-        }
-
-        .dealer-tray {
-            padding: 15px;
-            background: #020617;
-            border-top: 1px solid #1e293b;
-            min-height: 100px;
-        }
-
-        .signal-option {
-            display: block;
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 8px;
-            text-align: left;
-            background: #1e293b;
-            border: 1px solid #334155;
-            color: #e2e8f0;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .input-area {
-            display: flex;
-            gap: 10px;
-            padding: 15px;
-            background: #0f172a;
-            border-top: 1px solid #1e293b;
-        }
-
-        #userInput {
-            flex: 1;
-            background: #1e293b;
-            border: 1px solid #334155;
-            color: white;
-            padding: 12px;
-            border-radius: 8px;
-        }
-
-        #sendBtn {
-            width: 80px;
-            background: var(--btn);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-    </style>
 </head>
 
 <body>
     <div id="initOverlay">
         <div class="init-card">
             <h2>語塊協議啟動</h2>
-            <input type="text" id="sceneInput" placeholder="輸入場景（如：面試、租屋簽約...）">
+            <input type="text" id="sceneInput" placeholder="輸入對話場景（如：咖啡廳、面試）">
             <button onclick="startProtocol(document.getElementById('sceneInput').value)"
-                style="width: 100%;">開始練習</button>
+                style="width: 100%;">開始對話</button>
             <button onclick="startProtocol(null)"
                 style="width: 100%; background: #1e293b; margin-top: 10px;">隨機場景</button>
         </div>
@@ -230,7 +36,7 @@
     </div>
 
     <div class="input-area">
-        <input type="text" id="userInput" placeholder="輸入文字..." autocomplete="off">
+        <input type="text" id="userInput" placeholder="輸入回應或用語音輸入..." autocomplete="off">
         <button id="sendBtn">傳送</button>
     </div>
 
@@ -239,16 +45,16 @@
         let wordAssets = {};
         let currentScene = "";
 
-        // 核心：Stage 1-8 協議定義
+        // 同步自 test2 的分級定義，修正 Stage 1 為 Swadesh Core 40
         const PROTOCOL_STAGES = {
-            "Stage 1": { desc: "Survival level. Simple words, max 3 chunks.", colorRules: ["noun", "verb"] },
-            "Stage 2": { desc: "Social level. Basic daily phrases.", colorRules: ["noun", "verb", "adj"] },
-            "Stage 3": { desc: "CEFR A1. Basic facts, very slow pace.", colorRules: ["noun", "verb", "adj"] },
-            "Stage 4": { desc: "CEFR A2. Describe environment/past.", colorRules: ["noun", "verb", "adj", "adv"] },
-            "Stage 5": { desc: "CEFR B1. Negotiating problems.", colorRules: ["noun", "verb", "adj", "adv", "other"] },
-            "Stage 6": { desc: "CEFR B2. Explaining complex views.", colorRules: "all" },
-            "Stage 7": { desc: "CEFR C1. Professional negotiation.", colorRules: "all" },
-            "Stage 8": { desc: "CEFR C2. Master level debate/nuance.", colorRules: "all" }
+            "Stage 1": { desc: "Survival level. Use ONLY Core 40 words (Pronouns, Nouns, Verbs, Numbers). Max 3 chunks per response.", colors: ["noun", "verb"] },
+            "Stage 2": { desc: "Social level. Basic daily phrases with adjectives.", colors: ["noun", "verb", "adj"] },
+            "Stage 3": { desc: "CEFR A1. Basic functional chunks.", colors: ["noun", "verb", "adj"] },
+            "Stage 4": { desc: "CEFR A2. Describe environment with adverbs.", colors: ["noun", "verb", "adj", "adv"] },
+            "Stage 5": { desc: "CEFR B1. Negotiating problems.", colors: "all" },
+            "Stage 6": { desc: "CEFR B2. Sophisticated language.", colors: "all" },
+            "Stage 7": { desc: "CEFR C1. Idiomatic chunks.", colors: "all" },
+            "Stage 8": { desc: "CEFR C2. Master level nuance.", colors: "all" }
         };
 
         function getActiveSettings() {
@@ -279,7 +85,8 @@
         }
 
         function loadDefaultAssets() {
-            ["book", "need", "time"].forEach(w => {
+            // 預設生存語塊
+            ["I", "want", "eat", "this"].forEach(w => {
                 wordAssets[w] = { level: 0, heat: 'Cold' };
                 renderWord(w);
             });
@@ -303,9 +110,9 @@
             document.getElementById('initOverlay').style.display = 'none';
             currentScene = customScene || "Daily Chat";
 
-            // 初始化時要求 AI 依照分級生成開場
-            const prompt = `Start roleplay in ${currentScene}. Protocol: ${settings.course}. 
-            Respond in CHUNKS with POS. JSON: {"s": [{"t": "Welcome", "p": "other"}]}`;
+            // 初次生成也必須帶有組塊標註
+            const prompt = `Start roleplay in ${currentScene}. Level: ${settings.course}. 
+            Return AI opening as CHUNKS. JSON: {"s": [{"t": "Welcome", "p": "other"}]}`;
 
             const res = await fetchGPT(prompt);
             const data = JSON.parse(res);
@@ -315,13 +122,13 @@
         async function nextTurn(aiSpeechChunks) {
             appendColoredMessage("AI", aiSpeechChunks);
             const settings = getActiveSettings();
-            const config = PROTOCOL_STAGES[settings.course] || PROTOCOL_STAGES["Stage 1"];
+            const config = PROTOCOL_STAGES[settings.course];
             const words = Object.keys(wordAssets).join(", ");
 
-            const prompt = `Role: Smart Dealer. Stage: ${settings.course}. Scene: ${currentScene}.
-            Constraint: ${config.desc}. Targets: [${words}]. 
-            Task: Generate 3 signaling options (Heavy/Light/Distractor) in CHUNKS with POS tags.
-            JSON: {"heavy": [{"t": "...", "p": "noun/verb/adj/adv/other"}], "light": [...], "distractor": [...]}`;
+            const prompt = `Scene: ${currentScene}. Targets: [${words}]. 
+            Level: ${settings.course}. Constraint: ${config.desc}
+            Generate 3 signaling options in CHUNKS with POS tags (noun, verb, adj, adv, other).
+            JSON: {"heavy": [{"t": "...", "p": "pos"}], "light": [...], "distractor": [...]}`;
 
             const response = await fetchGPT(prompt);
             renderOptions(JSON.parse(response));
@@ -346,15 +153,13 @@
 
         async function handleInput(text, signalType) {
             if (!text.trim()) return;
-            const settings = getActiveSettings();
-
-            // 使用者輸入也進行組塊化渲染（標註為 other）
+            // 使用者輸入組塊化顯示
             appendColoredMessage("User", [{ "t": text, "p": "other" }]);
             updateAssets(text, signalType);
 
-            const prompt = `Stage: ${settings.course}. Scene: ${currentScene}. User: "${text}". 
-            Reply in CHUNKS with POS tags matching the stage complexity. 
-            JSON: {"s": [{"t": "...", "p": "noun/verb/adj/adv/other"}]}`;
+            const settings = getActiveSettings();
+            const prompt = `Scene: ${currentScene}. User: "${text}". 
+            Reply in CHUNKS at ${settings.course} level. JSON: {"s": [{"t": "...", "p": "pos"}]}`;
 
             const res = await fetchGPT(prompt);
             nextTurn(JSON.parse(res).s);
@@ -364,15 +169,14 @@
         function appendColoredMessage(role, chunks) {
             const box = document.getElementById('chatBox');
             const settings = getActiveSettings();
-            const config = PROTOCOL_STAGES[settings.course] || PROTOCOL_STAGES["Stage 1"];
-
+            const config = PROTOCOL_STAGES[settings.course];
             const div = document.createElement('div');
             div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
 
             chunks.forEach(chunk => {
                 const span = document.createElement('span');
-                // 依分級決定是否上色
-                const shouldColor = (config.colorRules === "all" || config.colorRules.includes(chunk.p));
+                // 依等級決定是否上色
+                const shouldColor = (config.colors === "all" || config.colors.includes(chunk.p));
                 span.className = `chunk ${shouldColor ? chunk.p : 'other'}`;
                 span.innerText = chunk.t + " ";
                 div.appendChild(span);
@@ -399,7 +203,7 @@
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${settings.key}` },
                 body: JSON.stringify({
                     model: "gpt-3.5-turbo",
-                    messages: [{ role: "system", content: "Linguistic Protocol Dealer." }, { role: "user", content: prompt }],
+                    messages: [{ role: "user", content: prompt }],
                     response_format: { type: "json_object" }
                 })
             });
