@@ -4,401 +4,435 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語義驗證場</title>
+    <title>語塊流動場 v2.3 - 文字輸入版</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="config.js"></script>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 戰術儀表板風格 */
+        :root {
+            --overheat: #f43f5e;
+            --warm: #fbbf24;
+            --cold: #94a3b8;
+            --pos-noun: #3b82f6;
+            --pos-verb: #22c55e;
+            --pos-adj: #f59e0b;
+            --pos-other: #94a3b8;
+        }
+
+        #initOverlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .init-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card);
+            padding: 30px;
+            border-radius: 24px;
+            border: 1px solid #334155;
+            text-align: center;
+        }
+
+        .init-card input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            border-radius: 8px;
+        }
+
         .hud-header {
             background: #0f172a;
-            padding: 15px;
+            padding: 20px;
             border-bottom: 2px solid #334155;
             position: sticky;
             top: 0;
             z-index: 10;
         }
 
-        .mission-label {
-            font-size: 12px;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-
-        /* 裝備 (彈藥) 欄 */
-        .ammo-rack {
+        .asset-rack {
             display: flex;
             gap: 10px;
             overflow-x: auto;
+            padding-bottom: 10px;
         }
 
-        .ammo-chip {
-            background: #1e293b;
-            border: 1px solid #475569;
-            color: #e2e8f0;
+        .word-asset {
             padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 8px;
+            border: 1px solid var(--cold);
+            font-size: 13px;
             white-space: nowrap;
-            display: flex;
-            align-items: center;
-            gap: 5px;
             transition: all 0.3s;
         }
 
-        /* 狀態：已命中 (綠) */
-        .ammo-chip.hit {
-            background: rgba(16, 185, 129, 0.2);
-            border-color: #10b981;
-            color: #10b981;
-            box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+        .word-asset.warm {
+            border-color: var(--warm);
+            color: var(--warm);
         }
 
-        /* 狀態：生鏽/未使用 (黃/紅) */
-        .ammo-chip.rust {
-            border-color: #f59e0b;
-            color: #f59e0b;
-            opacity: 0.7;
+        .word-asset.overheat {
+            border-color: var(--overheat);
+            color: var(--overheat);
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
         }
 
-        /* 對話區 */
-        .comm-log {
-            padding: 15px;
-            height: calc(100vh - 200px);
+        #chatBox {
+            height: 40vh;
             overflow-y: auto;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             gap: 15px;
         }
 
-        .msg {
+        .message {
             max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+            position: relative;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .ai-msg {
+            background: #1e293b;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        .user-msg {
+            background: #334155;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .replay-hint {
+            font-size: 10px;
+            color: var(--accent);
+            display: block;
+            margin-top: 5px;
+            opacity: 0.6;
+        }
+
+        .chunk {
+            display: inline-block;
+            margin: 2px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .chunk.noun {
+            color: var(--pos-noun);
+            border-bottom-color: var(--pos-noun);
+        }
+
+        .chunk.verb {
+            color: var(--pos-verb);
+            border-bottom-color: var(--pos-verb);
+        }
+
+        .chunk.adj {
+            color: var(--pos-adj);
+            border-bottom-color: var(--pos-adj);
+        }
+
+        .chunk.other {
+            color: var(--pos-other);
+        }
+
+        .dealer-tray {
+            padding: 15px;
+            background: #020617;
+            border-top: 1px solid #1e293b;
+        }
+
+        .signal-option {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 8px;
+            text-align: left;
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* 底部輸入框區域 */
+        .input-area {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            background: #0f172a;
+            border-top: 1px solid #1e293b;
+        }
+
+        #userInput {
+            flex: 1;
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: white;
             padding: 12px;
             border-radius: 8px;
             font-size: 16px;
-            line-height: 1.5;
         }
 
-        .msg.ai {
-            align-self: flex-start;
-            background: #1e293b;
-            border-left: 4px solid #3b82f6;
-        }
-
-        .msg.user {
-            align-self: flex-end;
-            background: #0f4c81;
-            /* 深藍色 */
+        #sendBtn {
+            width: 80px;
+            background: var(--btn);
             color: white;
-            border-right: 4px solid #22d3ee;
-        }
-
-        /* 關鍵字高亮 (Understanding Filter) */
-        .highlight-word {
-            color: #38bdf8;
-            /* 亮藍色 */
+            border: none;
+            border-radius: 8px;
             font-weight: bold;
-            text-decoration: underline dotted;
-            cursor: help;
-        }
-
-        /* 錄音按鈕區 */
-        .control-deck {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: #0f172a;
-            padding: 15px;
-            border-top: 1px solid #334155;
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-
-        .ptt-btn {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            background: #ef4444;
-            border: 4px solid #7f1d1d;
-            color: white;
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-            transition: 0.1s;
-        }
-
-        .ptt-btn:active {
-            transform: scale(0.95);
-            background: #dc2626;
-        }
-
-        .ptt-btn.listening {
-            animation: pulse-red 1.5s infinite;
-        }
-
-        @keyframes pulse-red {
-            0% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-            }
-
-            70% {
-                box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-            }
         }
     </style>
 </head>
 
 <body>
-    <div class="wrap" style="padding:0;">
-
-        <div class="hud-header">
-            <div class="header" style="margin-bottom:10px; padding:0;">
-                <a href="index.html" class="back-link" style="font-size:14px;">← ABORT (返回)</a>
-                <span id="status-light" style="font-size:12px; color:#10b981;">● SYSTEM ONLINE</span>
-            </div>
-            <div class="mission-label">ACTIVE MUNITIONS (本局任務裝備)</div>
-            <div class="ammo-rack" id="ammoRack">
-                <div class="ammo-chip">Loading...</div>
-            </div>
+    <div id="initOverlay">
+        <div class="init-card">
+            <h2>語塊協議啟動</h2>
+            <input type="text" id="sceneInput" placeholder="輸入場景（如：面試）">
+            <button onclick="startProtocol(document.getElementById('sceneInput').value)"
+                style="width: 100%;">開始練習</button>
+            <button onclick="startProtocol(null)"
+                style="width: 100%; background: #1e293b; margin-top: 10px;">隨機場景</button>
         </div>
+    </div>
 
-        <div class="comm-log" id="chatBox">
-            <div class="msg ai">
-                系統初始化...<br>正在從資料庫提取三星裝備...
-            </div>
-        </div>
+    <div class="hud-header">
+        <div id="assetRack" class="asset-rack"></div>
+    </div>
 
-        <div class="control-deck">
-            <button id="hintBtn" style="background:#334155; color:#fff; border-radius:8px; padding:0 15px;">SOS</button>
-            <button id="micBtn" class="ptt-btn">🎤</button>
-        </div>
+    <div id="chatBox"></div>
 
-        <div id="sttPreview"
-            style="position:fixed; bottom:90px; left:0; width:100%; text-align:center; color:#94a3b8; font-size:12px; pointer-events:none;">
-        </div>
+    <div class="dealer-tray">
+        <div id="optionsContainer"></div>
+    </div>
 
+    <div class="input-area">
+        <input type="text" id="userInput" placeholder="輸入文字或使用輸入法語音..." autocomplete="off">
+        <button id="sendBtn">傳送</button>
     </div>
 
     <script>
         let currentUserId = null;
-        let missionWords = []; // 本局要用的單字/語塊
-        let recognition;
-        let isRecording = false;
-        let conversationHistory = [];
+        let wordAssets = {};
+        let currentScene = "";
 
-        function init() {
-            initSpeech();
-            auth.onAuthStateChanged(user => {
-                if (user) {
-                    currentUserId = user.uid;
-                    loadMissionProfile();
-                }
-            });
+        function getActiveSettings() {
+            return {
+                key: localStorage.getItem('gptApiKey'),
+                lang: localStorage.getItem('userLang') || 'en-US',
+                course: localStorage.getItem('userCourse') || 'all' // 新增課程進度
+            };
         }
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUserId = user.uid;
+                loadAssets();
+            } else {
+                loadDefaultAssets();
+            }
+        });
 
-        // 1. 載入任務 (Load Mission Profile)
-        async function loadMissionProfile() {
-            const settings = getGlobalSettings();
-            const rack = document.getElementById('ammoRack');
-
+        async function loadAssets() {
+            const settings = getActiveSettings();
             try {
-                // 從 Firestore 撈取三星單字
-                const snap = await db.collection('users').doc(currentUserId).collection('mastery')
-                    .where('lang', '==', settings.lang)
-                    .where('is_ready_for_chunk', '==', true) // 代表 Test 1 & 2 通過
-                    .limit(50).get();
-
-                if (snap.empty) {
-                    rack.innerHTML = '<div class="ammo-chip rust">NO DATA</div>';
-                    appendMsg('ai', '資料庫無可用裝備。請先完成 [單字手寫] 與 [組塊排序] 訓練。');
-                    return;
-                }
-
-                // 隨機選 3 個作為本局彈藥
-                const docs = snap.docs.sort(() => 0.5 - Math.random()).slice(0, 3);
-                missionWords = docs.map(d => ({
-                    id: d.id,
-                    text: d.data().conceptId,
-                    used: false
-                }));
-
-                renderAmmoRack();
-                startSimulation();
-
-            } catch (e) { console.error(e); }
+                const snapshot = await db.collection('users').doc(currentUserId)
+                    .collection('mastery').where('lang', '==', settings.lang).limit(5).get();
+                if (snapshot.empty) return loadDefaultAssets();
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    wordAssets[data.word] = { level: data.count || 0, heat: 'Cold' };
+                    renderWord(data.word);
+                });
+            } catch (e) { loadDefaultAssets(); }
         }
 
-        function renderAmmoRack() {
-            const rack = document.getElementById('ammoRack');
-            rack.innerHTML = '';
-            missionWords.forEach(w => {
-                const chip = document.createElement('div');
-                chip.className = `ammo-chip ${w.used ? 'hit' : ''}`;
-                chip.innerHTML = `${w.used ? '✔' : '⚡'} ${w.text}`;
-                rack.appendChild(chip);
+        function loadDefaultAssets() {
+            ["book", "need", "time"].forEach(w => {
+                wordAssets[w] = { level: 0, heat: 'Cold' };
+                renderWord(w);
             });
         }
 
-        // 2. 啟動模擬 (Start Simulation)
-        async function startSimulation() {
-            const settings = getGlobalSettings();
-            const targets = missionWords.map(w => w.text).join(', ');
+        function renderWord(word) {
+            const rack = document.getElementById('assetRack');
+            let el = document.getElementById(`asset-${word}`);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = `asset-${word}`; el.className = 'word-asset';
+                rack.appendChild(el);
+            }
+            const data = wordAssets[word];
+            el.className = `word-asset ${data.heat.toLowerCase()}`;
+            el.innerHTML = `${word.toUpperCase()} <small>Lv.${Math.floor(data.level / 3)}</small>`;
+        }
 
-            // Prompt: 要求 AI 創造一個需要用到這些單字的情境
+        async function startProtocol(customScene) {
+            document.getElementById('initOverlay').style.display = 'none';
+            currentScene = customScene || "Daily Chat";
+            await nextTurn("Protocol engaged. You can type or use system voice input.");
+        }
+
+        async function nextTurn(aiSpeech) {
+            appendMessage("AI", aiSpeech);
+            const settings = getActiveSettings();
+            const words = Object.keys(wordAssets).join(", ");
+
+            // 根據 course 設定定義難度指令
+            let levelConstraint = "";
+            if (settings.course === "Stage 1") levelConstraint = "Use ONLY extremely basic vocabulary (Core 40 level).";
+            else if (settings.course === "Stage 2") levelConstraint = "Use simple daily vocabulary (Swadesh list level).";
+            else if (settings.course === "Stage 3") levelConstraint = "Use intermediate vocabulary suitable for CEFR learners.";
+
             const prompt = `
-            Create a roleplay scenario in ${settings.lang} that naturally leads the user to use these words: [${targets}].
-            Start the conversation. 
-            Output JSON: { "text": "AI speech", "keywords": ["key1", "key2"] }
-            (Keywords are words important for understanding, to be highlighted).
+            Role: Smart Dealer. 
+            Language: ${settings.lang}. 
+            Target Level: ${settings.course}. ${levelConstraint}
+            Current Scene: ${currentScene}. 
+            User Mastery Words: [${words}].
+            
+            Task: Generate 3 signaling options for the user. 
+            Constraint: The options MUST align with the ${settings.course} proficiency level.
+            
+            Return JSON Format:
+            {
+                "heavy": [{"t": "advanced chunk", "p": "pos"}],
+                "light": [{"t": "basic chunk", "p": "pos"}],
+                "distractor": [{"t": "filler chunk", "p": "pos"}]
+            }`;
+
+            const response = await fetchGPT(prompt);
+            renderOptions(JSON.parse(response));
+        }
+
+        function renderOptions(options) {
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = "";
+            for (let type in options) {
+                const btn = document.createElement('button');
+                btn.className = 'signal-option';
+                options[type].forEach(chunk => {
+                    const span = document.createElement('span');
+                    span.className = `chunk ${chunk.p}`;
+                    span.innerText = chunk.t;
+                    btn.appendChild(span);
+                });
+                btn.onclick = () => {
+                    const fullText = options[type].map(c => c.t).join(" ");
+                    handleInput(fullText, type.toUpperCase());
+                };
+                container.appendChild(btn);
+            }
+        }
+
+        async function handleInput(text, signalType) {
+            if (!text.trim()) return;
+            appendMessage("User", text);
+            updateAssets(text, signalType);
+
+            const settings = getActiveSettings();
+            const prompt = `
+            Scene: ${currentScene}. 
+            User Level: ${settings.course}.
+            User Input: "${text}".
+            
+            Response Guidance:
+            - Respond as an AI interlocutor.
+            - Keep your response's complexity at the ${settings.course} level.
+            - If the user input was 'HEAVY', move the conversation forward significantly.
+            
+            Return JSON: {"s": "Your simple and clear response"}
             `;
 
-            conversationHistory = [{ role: "system", content: "You are a mission simulator." }];
-            await fetchAI(prompt);
+            const res = await fetchGPT(prompt);
+            const data = JSON.parse(res);
+            nextTurn(data.s);
+            document.getElementById('userInput').value = "";
         }
 
-        async function fetchAI(userInput) {
-            const settings = getGlobalSettings();
-            const chatBox = document.getElementById('chatBox');
-
-            // 轉圈圈
-            const loading = document.createElement('div');
-            loading.className = 'msg ai'; loading.innerText = '...';
-            chatBox.appendChild(loading);
-
-            try {
-                // 將使用者輸入加入歷史
-                conversationHistory.push({ role: "user", content: userInput });
-
-                const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${settings.key}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "gpt-4o-mini",
-                        messages: conversationHistory,
-                        response_format: { type: "json_object" }
-                    })
-                });
-
-                const data = await resp.json();
-                const aiData = JSON.parse(data.choices[0].message.content);
-
-                loading.remove();
-                appendAIMsg(aiData.text, aiData.keywords || []);
-                conversationHistory.push({ role: "assistant", content: JSON.stringify(aiData) });
-
-            } catch (e) { loading.innerText = "連線中斷"; }
+        function updateAssets(text, type) {
+            for (let word in wordAssets) {
+                if (text.toLowerCase().includes(word.toLowerCase())) {
+                    wordAssets[word].heat = (type === 'HEAVY') ? 'Overheat' : 'Warm';
+                    wordAssets[word].level += (type === 'HEAVY') ? 2 : 1;
+                    renderWord(word);
+                    if (currentUserId) saveToFirebase(word, wordAssets[word].level);
+                }
+            }
         }
 
-        // 3. 顯示 AI 訊息 (包含理解濾鏡)
-        function appendAIMsg(text, keywords) {
-            const chatBox = document.getElementById('chatBox');
-            const div = document.createElement('div');
-            div.className = 'msg ai';
-
-            // 簡單的關鍵字高亮邏輯
-            let html = text;
-            keywords.forEach(kw => {
-                const reg = new RegExp(`(${kw})`, 'gi');
-                html = html.replace(reg, '<span class="highlight-word" onclick="speak(\'$1\')">$1</span>');
+        async function fetchGPT(prompt) {
+            const settings = getActiveSettings();
+            if (!settings.key) return JSON.stringify({ heavy: [], light: [], distractor: [] });
+            const res = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${settings.key}` },
+                body: JSON.stringify({
+                    model: "gpt-3.5-turbo",
+                    messages: [{ role: "user", content: prompt }],
+                    response_format: { type: "json_object" }
+                })
             });
+            const data = await res.json();
+            return data.choices[0].message.content;
+        }
 
-            // 添加播放按鈕
-            div.innerHTML = html + ` <span style="cursor:pointer; opacity:0.5" onclick="speak('${text.replace(/'/g, "\\'")}')">🔊</span>`;
-            chatBox.appendChild(div);
+        function appendMessage(role, text) {
+            const box = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
+            div.innerHTML = `<span>${text}</span><small class="replay-hint">🔊 Click to replay</small>`;
+            div.onclick = () => speak(text);
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
             speak(text);
-        }
-
-        // 4. 語音輸入與命中驗證 (The Core Logic)
-        function initSpeech() {
-            if (!('webkitSpeechRecognition' in window)) return alert("請使用 Chrome");
-            const settings = getGlobalSettings();
-            recognition = new webkitSpeechRecognition();
-            recognition.lang = settings.lang;
-            recognition.continuous = false;
-            recognition.interimResults = true;
-
-            recognition.onstart = () => document.getElementById('micBtn').classList.add('listening');
-            recognition.onend = () => document.getElementById('micBtn').classList.remove('listening');
-
-            recognition.onresult = (e) => {
-                const txt = e.results[0][0].transcript;
-                document.getElementById('sttPreview').innerText = txt;
-                if (e.results[0].isFinal) {
-                    processUserResponse(txt);
-                }
-            };
-
-            document.getElementById('micBtn').onclick = () => recognition.start();
-        }
-
-        async function processUserResponse(text) {
-            const chatBox = document.getElementById('chatBox');
-            // 顯示使用者訊息
-            const div = document.createElement('div');
-            div.className = 'msg user';
-            div.innerText = text;
-            chatBox.appendChild(div);
-
-            // A. 本地端：檢查命中 (Hit Check)
-            // 這裡簡單比對字串，實際可擴充為比對「語塊結構」
-            let hitAny = false;
-            missionWords.forEach(w => {
-                if (text.toLowerCase().includes(w.text.toLowerCase()) && !w.used) {
-                    w.used = true;
-                    hitAny = true;
-                    // TODO: 這裡可以播放一個「鎖定音效」
-                }
-            });
-            renderAmmoRack(); // 更新儀表板狀態
-
-            // B. 傳送給 AI 進行下一輪 (並附帶命中資訊)
-            // 告訴 AI 使用者是否用到了裝備，讓 AI 給予相應的回應
-            const prompt = `User said: "${text}". 
-            Did they make sense? 
-            Target words used: ${hitAny ? "YES" : "NO"}.
-            Continue the roleplay. If they used target words, acknowledge it naturally. 
-            If they didn't, gently guide them.
-            Output JSON: { "text": "...", "keywords": [...] }`;
-
-            await fetchAI(prompt);
-
-            // C. 打卡 (Log)
-            logActivity();
         }
 
         function speak(txt) {
             speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(txt);
-            u.lang = getGlobalSettings().lang;
+            u.lang = getActiveSettings().lang;
             speechSynthesis.speak(u);
         }
 
-        async function logActivity() {
-            if (!currentUserId) return;
-            const today = new Date().toISOString().split('T')[0];
-            await db.collection('users').doc(currentUserId).collection('calendar').doc(today).set({
-                count: firebase.firestore.FieldValue.increment(1)
+        async function saveToFirebase(word, count) {
+            const settings = getActiveSettings();
+            const masteryId = `${settings.lang}_${word}`.replace(/[\/\.#$\[\]\s]/g, '_');
+            await db.collection('users').doc(currentUserId).collection('mastery').doc(masteryId).set({
+                count: count, lastStudied: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
         }
 
-        // SOS 按鈕：請求降維
-        document.getElementById('hintBtn').onclick = () => {
-            fetchAI("I don't understand. Please explain simply using my known words.");
+        // 送出按鈕與 Enter 鍵偵聽
+        document.getElementById('sendBtn').onclick = () => {
+            const val = document.getElementById('userInput').value;
+            handleInput(val, 'USER_TYPING');
         };
-
-        init();
+        document.getElementById('userInput').onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                handleInput(e.target.value, 'USER_TYPING');
+            }
+        };
     </script>
 </body>
 
