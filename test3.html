@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v3.5</title>
+    <title>語塊流動場 v3.5.1</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -158,17 +158,19 @@
         function appendColoredMessage(role, chunks) {
             const box = document.getElementById('chatBox');
             const div = document.createElement('div');
+            // 確保容器背景不會干擾語塊顯色
             div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
+            div.style.background = "transparent";
 
             chunks.forEach(item => {
-                const type = item.p || item.type;
+                // 關鍵：強制相容兩種屬性名稱 (t/text, p/type)
                 const text = item.t || item.text;
+                const pos = item.p || item.type;
+
                 const chip = document.createElement('div');
-                chip.className = `word-chip pos-${type}`;
-
-                // 修正：移除贅字，將標籤放入 small
-                chip.innerHTML = `${text}<small>${posLabels[type] || ''}</small>`;
-
+                // 強制套用 pos- 前綴，確保對應 CSS
+                chip.className = `word-chip pos-${pos}`;
+                chip.innerHTML = `${text}<small>${posLabels[pos] || '結構'}</small>`;
                 div.appendChild(chip);
             });
 
