@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v3.1</title>
+    <title>語塊流動場 v3.2</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -130,47 +130,54 @@
         }
 
         async function handleChoice(chunks) {
-            const text = chunks.map(c => c.t).join(" ");
-            appendColoredMessage("User", chunks);
+            const userText = chunks.map(c => c.t).join(" ");
+            appendColoredMessage("User", chunks); // 顯示使用者的選擇
 
             const settings = getActiveSettings();
+            // 傳送使用者剛說的話給 AI，要求 AI 給出回覆
             const prompt = `
-        ${CHUNK_PROMPTS.SYSTEM_RULES}
-        Scene: Roleplay. User: "${text}". 
-        Reply as AI in MULTIPLE SHORT CHUNKS (Max 3 words each).
-        JSON: {"s": [{"t": "...", "p": "pos"}]}
-    `;
+                ${CHUNK_PROMPTS.SYSTEM_RULES}
+                Scene: Roleplay. The user just said: "${userText}". 
+                Reply as the AI in MULTIPLE SHORT CHUNKS to keep the conversation going.
+                JSON: {"s": [{"t": "...", "p": "pos"}]}
+            `;
 
             const res = await fetchGPT(prompt);
             const data = JSON.parse(res);
+
+            // 記錄 AI 的回覆作為下一次發牌的語境
             lastAiMessage = data.s.map(c => c.t).join(" ");
             appendColoredMessage("AI", data.s);
+
+            // 基於 AI 的回覆，生成新的發牌選項供使用者選擇
             await getNextDealerTurn("Roleplay Context");
         }
 
         function appendColoredMessage(role, chunks) {
             const box = document.getElementById('chatBox');
             const div = document.createElement('div');
+            // 使用 flex-wrap 解決語塊佔用整行的問題
             div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
+            div.style.display = "flex";
+            div.style.flexWrap = "wrap";
+            div.style.gap = "8px";
 
             chunks.forEach(item => {
                 const type = item.p || item.type;
                 const text = item.t || item.text;
                 const chip = document.createElement('div');
 
-                // 套用強化後的 CSS 類別
+                // 套用具備 4px 底線的類別
                 chip.className = `word-chip pos-${type}`;
-                // 排版優化：標籤位於下方
+                // 標籤放置於 small 內，避免贅字
                 chip.innerHTML = `${text}<small>${posLabels[type] || ''}</small>`;
 
-                chip.onclick = () => speak(text);
                 div.appendChild(chip);
             });
 
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
         }
-
         async function fetchGPT(prompt) {
             const settings = getActiveSettings();
             if (!settings.key) return alert("API Key Missing");

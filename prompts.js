@@ -3,11 +3,11 @@
 const CHUNK_PROMPTS = {
     // 1. 核心規則：定義語塊拆分原則與色彩協議
     SYSTEM_RULES: `
-        CRITICAL: NEVER output a full sentence as one chunk.
-        MAX 3 words per chunk. 
-        - Bad: [{"t": "Right now, I am focused on Japanese", "p": "verb"}]
-        - Good: [{"t": "Right now,", "p": "adv"}, {"t": "I am focused", "p": "verb"}, {"t": "on Japanese", "p": "noun"}]
-        Colors: noun, verb, adj, adv, other.
+        ROLE: You are a conversation partner. 
+        CRITICAL: DO NOT repeat or echo the user's input. RESPOND to it naturally.
+        CHUNK RULE: MAX 5 words per chunk. Break sentences into phrases.
+        Example: "I am" (verb), "going to" (other), "the park" (noun).
+        Colors: noun(blue), verb(red), adj(green), adv(orange), other(yellow).
     `,
 
     // 2. 階段定義：對應 Stage 1-8 難度
@@ -43,11 +43,12 @@ const CHUNK_PROMPTS = {
     getTest3Prompt(lang, stage, scene, lastMsg) {
         return `
             ${this.SYSTEM_RULES}
-            Target Language: ${lang}. Stage: ${stage}. Scene: ${scene}.
-            Last Context: "${lastMsg}"
-            Task: Generate 3 response options (heavy/light/distractor). 
-            Each option MUST be an ARRAY of multiple short chunks.
-            JSON ONLY: {"heavy": [{"t": "...", "p": "pos"}], ...}
+            Scene: ${scene}. 
+            Last message from User: "${lastMsg}"
+            
+            TASK: Generate 3 DIFFERENT ways for the AI to RESPOND to the user.
+            Each option MUST be a unique reply, split into chunks.
+            JSON ONLY: {"heavy": [{"t": "...", "p": "pos"}], "light": [...], "distractor": [...]}
         `;
     }
 };
