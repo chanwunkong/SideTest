@@ -112,12 +112,15 @@
             ['heavy', 'light', 'distractor'].forEach(type => {
                 const btn = document.createElement('button');
                 btn.className = 'signal-option';
+                btn.style.display = "flex";
+                btn.style.flexWrap = "wrap";
+                btn.style.gap = "6px";
 
                 options[type].forEach(item => {
                     const chip = document.createElement('div');
-                    // 完全套用 test2 與 style.css 的類別與樣式
+                    // 發牌區語塊同樣套用 4px 底線與顏色
                     chip.className = `word-chip pos-${item.p}`;
-                    chip.innerHTML = `${item.t}<small>${posLabels[item.p] || '組塊'}</small>`;
+                    chip.innerHTML = `${item.t}<small>${posLabels[item.p] || ''}</small>`;
                     btn.appendChild(chip);
                 });
 
@@ -145,24 +148,31 @@
         function appendColoredMessage(role, chunks) {
             const box = document.getElementById('chatBox');
             const div = document.createElement('div');
+            // 修正：使用 flex 並排，不再占用一整行
             div.className = `message ${role === 'AI' ? 'ai-msg' : 'user-msg'}`;
+            div.style.display = "flex";
+            div.style.flexWrap = "wrap";
+            div.style.gap = "8px";
 
             chunks.forEach(item => {
+                const type = item.p || item.type;
+                const text = item.t || item.text;
+
                 const chip = document.createElement('div');
-                // 視覺同步：套用與 test2 相同的 word-chip 類別
-                chip.className = `word-chip pos-${item.p || item.type}`;
-                chip.innerHTML = `${item.t || item.text}<small>${posLabels[item.p || item.type] || '組塊'}</small>`;
+                // 同步 test2 樣式與依詞性上色
+                chip.className = `word-chip pos-${type}`;
+                // 修正：移除多餘文字，將標籤放入 <small>
+                chip.innerHTML = `${text}<small>${posLabels[type] || ''}</small>`;
 
                 chip.onclick = (e) => {
                     e.stopPropagation();
-                    speak(item.t || item.text);
+                    speak(text);
                 };
                 div.appendChild(chip);
             });
 
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
-            speak(chunks.map(c => c.t || c.text).join(" "));
         }
 
         async function fetchGPT(prompt) {
