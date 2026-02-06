@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>語塊流動場 v3.3</title>
+    <title>語塊流動場 v3.4</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -112,19 +112,23 @@
             ['heavy', 'light', 'distractor'].forEach(type => {
                 const btn = document.createElement('button');
                 btn.className = 'signal-option';
+                // 確保語塊在按鈕內橫向並排
                 btn.style.display = "flex";
                 btn.style.flexWrap = "wrap";
-                btn.style.gap = "6px";
+                btn.style.gap = "8px";
+                btn.style.padding = "15px";
 
-                options[type].forEach(item => {
+                const chunkArray = options[type];
+
+                chunkArray.forEach(item => {
                     const chip = document.createElement('div');
-                    // 發牌區語塊同樣套用 4px 底線與顏色
+                    // 套用規格：文字在上，small 標籤在下
                     chip.className = `word-chip pos-${item.p}`;
-                    chip.innerHTML = `${item.t}<small>${posLabels[item.p] || ''}</small>`;
+                    chip.innerHTML = `${item.t}<small>${posLabels[item.p] || '結構'}</small>`;
                     btn.appendChild(chip);
                 });
 
-                btn.onclick = () => handleChoice(options[type]);
+                btn.onclick = () => handleChoice(chunkArray);
                 container.appendChild(btn);
             });
         }

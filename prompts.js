@@ -5,8 +5,7 @@ const CHUNK_PROMPTS = {
     SYSTEM_RULES: `
         ROLE: You are an active conversation partner. 
         CRITICAL: DO NOT repeat or echo the user's words. RESPOND to them naturally.
-        CHUNK RULE: MAX 3 words per chunk. Break every sentence into phrases.
-        Example: "I am" (verb), "going to" (other), "the park" (noun).
+        CHUNK RULE: 1-5 words per chunk. Break every response into meaningful phrases.
         Colors: noun(blue), verb(red), adj(green), adv(orange), other(yellow).
     `,
 
@@ -53,16 +52,23 @@ const CHUNK_PROMPTS = {
     // 用於生成使用者的發牌選項
     getTest3Prompt(lang, stage, scene, lastMsg) {
         return `
-        ${this.SYSTEM_RULES}
-        Scenario: ${scene}.
-        AI partner's last words: "${lastMsg}"
-        
-        TASK: Generate 3 path options for the USER:
-        1. "heavy": Advanced response. Uses complex structures or sophisticated vocabulary to push the conversation forward aggressively (Skip Logic).
-        2. "light": Standard response. Polite, clear, and maintains the current flow.
-        3. "distractor": A slightly awkward or indirect response that requires the AI to gently steer the conversation back (Repair Bridge).
-        
-        JSON ONLY: {"heavy": [...chunks], "light": [...chunks], "distractor": [...chunks]}
-    `;
+            ${this.SYSTEM_RULES}
+            Scenario: ${scene}.
+            AI's Last Words: "${lastMsg}"
+            
+            TASK: Generate 3 DISTINCT paths for the USER to respond.
+            Each path must be ONE COMPLETE SENTENCE broken into CHUNKS (1-5 words each).
+
+            - "heavy": Advanced path. Pushes the dialogue forward.
+            - "light": Standard path. Natural and polite.
+            - "distractor": Repair path. Slightly off-topic or awkward.
+
+            JSON ONLY:
+            {
+                "heavy": [{"t": "...", "p": "pos"}, {"t": "...", "p": "pos"}],
+                "light": [...],
+                "distractor": [...]
+            }
+        `;
     }
 };
