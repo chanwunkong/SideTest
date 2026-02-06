@@ -1,76 +1,47 @@
-/* prompts.js - 語塊協議標準化總部 (v3.5.1 統一協議版) */
+/* prompts.js - 語塊協議標準化總部 (v3.5.3 極簡對齊版) */
 
 const CHUNK_PROMPTS = {
-    // 1. 核心規則：定義語塊拆分原則與唯一的資料格式協議
+    // 1. 核心規則：定義唯一的數據格式協議
     SYSTEM_RULES: `
-        ROLE: You are an active conversation partner. 
-        CRITICAL: DO NOT repeat or echo the user's words. RESPOND to them naturally.
-        CHUNK RULE: 1-5 words per chunk. Break every response into meaningful phrases.
-        DATA FORMAT: JSON ONLY. Use "t" for text and "p" for pos.
-        POS TYPES: noun, verb, adj, adv, other.
-        Colors: noun(blue), verb(red), adj(green), adv(orange), other(yellow).
+        ROLE: Natural partner.
+        RULE: 1-5 words per chunk. NO repetition.
+        FORMAT: JSON ONLY. Use "t" for text, "p" for pos.
+        POS: noun, verb, adj, adv, other.
     `,
 
-    // 2. 階段定義：對應 Stage 1-8 難度
+    // 2. 階段定義 (供發牌員參考)
     STAGES: {
-        "Stage 1": "Survival level. Use ONLY Core 40 words. Extremely short chunks (1-2 words).",
-        "Stage 2": "Social level. Basic phrases with Adjectives.",
-        "Stage 3": "CEFR A1. Basic functional chunks.",
-        "Stage 4": "CEFR A2. Chunks with frequency adverbs.",
-        "Stage 5": "CEFR B1. Complex verb chunks.",
-        "Stage 6": "CEFR B2. Sophisticated language.",
-        "Stage 7": "CEFR C1. Idiomatic professional chunks.",
-        "Stage 8": "CEFR C2. Master level nuance."
+        "Stage 1": "Core survival, short chunks.",
+        "Stage 2": "Basic phrases.",
+        "Stage 3": "A1 tasks.",
+        "Stage 4": "A2 base.",
+        "Stage 5": "B1 threshold.",
+        "Stage 6": "B2 vantage.",
+        "Stage 7": "C1 proficiency.",
+        "Stage 8": "C2 mastery."
     },
 
-    // 3. Test 2 專用：生成排序練習 (統一使用 t, p)
-    getTest2Prompt(lang, stage) {
-        return `
-            ${this.SYSTEM_RULES}
-            Task: Create a natural sentence in ${lang} for a ${stage} learner.
-            Constraint: ${this.STAGES[stage]}
-            Example Chunking: [{"t": "The big apple", "p": "noun"}, {"t": "is sitting", "p": "verb"}]
-            Output JSON ONLY:
-            {
-                "sentence": "Full string",
-                "chunks": [
-                    {"t": "phrase text", "p": "noun/verb/adj/adv/other"}
-                ]
-            }
-        `;
-    },
-
-    // 4. Test 3 專用：生成對話流發牌選項 (統一使用 t, p)
-
-    // AI 自身的回覆：強制將回應切碎為標準語塊
+    // 3. AI 回應協議：確保產出單一連續的回應流
     getAiResponsePrompt(userText) {
         return `
             ${this.SYSTEM_RULES}
-            User said: "${userText}"
-            Task: Respond naturally. 
-            CRITICAL: Break your response into CHUNKS (1-5 words).
-            Output JSON ONLY: {"s": [{"t": "chunk text", "p": "noun/verb/adj/adv/other"}]}
+            User: "${userText}"
+            Task: One natural response sentence.
+            Output: {"s": [{"t": "...", "p": "..."}]}
         `;
     },
 
-    // 生成使用者的發牌選項：三路路徑
+    // 4. 發牌員協議：確保三路選項皆為獨立的連貫長句
     getTest3Prompt(lang, stage, scene, lastMsg) {
         return `
             ${this.SYSTEM_RULES}
-            Scenario: ${scene}.
-            AI's Last Words: "${lastMsg}"
+            Scenario: ${scene}. AI: "${lastMsg}"
+            Task: Generate 3 DISTINCT paths (heavy/light/distractor) for User.
+            Rule: Each path is ONE long, coherent sentence broken into chunks.
             
-            TASK: Generate 3 DISTINCT paths for the USER to respond.
-            Each path must be ONE COMPLETE SENTENCE broken into CHUNKS (1-5 words each).
-            Do NOT default to 'other' unless it's a particle or conjunction.
-
-            - "heavy": Advanced path. Pushes the dialogue forward.
-            - "light": Standard path. Natural and polite.
-            - "distractor": Repair path. Slightly off-topic or awkward.
-
-            JSON ONLY:
-            {
-                "heavy": [{"t": "chunk", "p": "pos"}, {"t": "chunk", "p": "pos"}],
+            POS Rule: Only use "other" for particles/conjunctions. 
+            Output: {
+                "heavy": [{"t": "...", "p": "..."}],
                 "light": [{"t": "...", "p": "..."}],
                 "distractor": [{"t": "...", "p": "..."}]
             }
