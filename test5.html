@@ -3,229 +3,244 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣人口過濾器 (邏輯修正版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>台灣人口過濾器 (UI修復版)</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&family=Noto+Sans+TC:wght@400;700;900&display=swap"
+        rel="stylesheet">
     <style>
         body {
-            font-family: 'Noto Sans TC', sans-serif;
-            background-color: #f8fafc;
-            color: #1e293b;
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
         }
 
-        /* 漏斗條動畫 */
+        /* 動畫設定 */
         .funnel-bar {
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.5s ease;
         }
 
-        /* 自定義滑桿樣式 */
+        /* 滑桿設定 */
         input[type=range] {
             -webkit-appearance: none;
             background: transparent;
-        }
-
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            background: #4f46e5;
+            height: 24px;
             cursor: pointer;
-            margin-top: -8px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
         }
 
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: #cbd5e1;
-            border-radius: 2px;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 999px;
         }
 
-        .card {
-            @apply bg-white p-5 rounded-xl shadow-sm border border-gray-100;
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 22px;
+            width: 22px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid #6366f1;
+            margin-top: -8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        .label-head {
-            @apply text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block;
+        /* 共用樣式 */
+        .control-card {
+            @apply bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4;
         }
 
-        .value-display {
-            @apply text-indigo-600 font-bold ml-1;
+        .label-main {
+            @apply text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 block;
+        }
+
+        .select-input {
+            @apply w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus: ring-indigo-500 focus:border-indigo-500 block p-2.5 outline-none;
+        }
+
+        .wrapper {
+            overflow-x: hidden;
+        }
+
+        /* 避免數字換行 */
+        .stat-number {
+            white-space: nowrap;
         }
     </style>
 </head>
 
 <body>
 
-    <div id="app" class="max-w-7xl mx-auto p-4 md:p-8">
+    <div id="app" class="wrapper max-w-7xl mx-auto p-4 lg:p-8">
 
-        <header class="flex flex-col md:flex-row justify-between items-end border-b border-gray-200 pb-6 mb-6">
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-end border-b border-gray-200 pb-6">
             <div>
-                <h1 class="text-3xl font-black text-slate-800 tracking-tight">台灣人口殘酷過濾器 <span
-                        class="text-sm bg-indigo-100 text-indigo-700 px-2 py-1 rounded ml-2 align-middle font-bold">2024
-                        Final</span></h1>
-                <p class="text-slate-500 mt-2 text-sm">基於內政部人口統計、主計處薪資分佈與常態分佈模型推估</p>
+                <h1 class="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">台灣人口殘酷過濾器</h1>
+                <p class="text-gray-500 mt-2 text-sm font-medium">資料來源：113年主計總處受僱員工薪資 (2024數據)</p>
             </div>
-            <div class="text-right mt-4 md:mt-0">
-                <p class="text-xs text-slate-400">總母體概算</p>
-                <p class="text-2xl font-mono font-bold text-slate-700">23,400,000</p>
+            <div class="mt-4 md:mt-0 text-right">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Population</span>
+                <p class="text-2xl font-mono font-bold text-indigo-600">23,420,000</p>
             </div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-            <div class="lg:col-span-4 space-y-5 h-fit sticky top-6 z-10">
+            <div class="lg:col-span-4 h-fit lg:sticky lg:top-8 z-30 space-y-4">
 
-                <div class="card border-l-4 border-blue-500">
-                    <span class="label-head">STEP 1: 鎖定母體</span>
-
-                    <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="control-card border-l-4 border-slate-400">
+                    <h3 class="text-sm font-bold text-gray-800 mb-4">1. 鎖定母體 (BASIS)</h3>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="text-xs text-gray-500 mb-1 block">性別</label>
-                            <select v-model="inputs.gender"
-                                class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <label class="label-main">生理性別</label>
+                            <select v-model="inputs.gender" class="select-input">
                                 <option value="male">男性</option>
                                 <option value="female">女性</option>
                             </select>
                         </div>
                         <div>
-                            <label class="text-xs text-gray-500 mb-1 block">地區</label>
-                            <select v-model="inputs.region"
-                                class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none">
+                            <label class="label-main">居住地區</label>
+                            <select v-model="inputs.region" class="select-input">
                                 <option value="all">全台灣 (100%)</option>
                                 <option value="north_w">北北基桃 (46%)</option>
+                                <option value="hsinchu">新竹縣市 (5%)</option>
                                 <option value="central">中彰投 (20%)</option>
                                 <option value="south">南高屏 (22%)</option>
-                                <option value="hsinchu">新竹縣市 (5%)</option>
                             </select>
                         </div>
                     </div>
-
-                    <div class="mb-4">
-                        <div class="flex justify-between text-sm mb-1">
-                            <span>年齡區間</span>
-                            <span class="font-bold text-slate-700">{{ inputs.ageMin }} - {{ inputs.ageMax }} 歲</span>
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label class="label-main">年齡區間</label>
+                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{{
+                                inputs.ageMin }} - {{ inputs.ageMax }} 歲</span>
                         </div>
-                        <div class="flex gap-4 px-1">
-                            <input type="range" v-model.number="inputs.ageMin" min="20" max="65" class="w-full h-1">
-                            <input type="range" v-model.number="inputs.ageMax" min="20" max="65" class="w-full h-1">
+                        <div class="flex gap-2 items-center px-1">
+                            <input type="range" v-model.number="inputs.ageMin" min="20" max="65" class="w-full">
+                            <input type="range" v-model.number="inputs.ageMax" min="20" max="65" class="w-full">
                         </div>
-                    </div>
-
-                    <div class="flex items-center bg-blue-50 p-2 rounded cursor-pointer"
-                        @click="inputs.excludeMarried = !inputs.excludeMarried">
-                        <div
-                            class="w-4 h-4 rounded border border-blue-500 bg-white flex items-center justify-center mr-2">
-                            <div v-if="inputs.excludeMarried" class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        </div>
-                        <span class="text-sm text-blue-800 font-bold">排除已婚者 (僅未婚/離婚)</span>
                     </div>
                 </div>
 
-                <div class="card border-l-4 border-purple-500">
-                    <span class="label-head">STEP 2: 設定門檻</span>
-
-                    <div class="mb-6">
-                        <div class="flex justify-between text-sm mb-2">
-                            <span>身高 > <span class="value-display">{{ inputs.height }}</span> cm</span>
-                            <span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded">PR {{ stats.heightPR
-                                }}</span>
-                        </div>
-                        <input type="range" v-model.number="inputs.height" min="145" max="190" class="w-full">
-                        <div class="flex justify-between text-[10px] text-gray-400 mt-1">
-                            <span>寬鬆</span>
-                            <span>平均 {{ genderData.height.mean }}</span>
-                            <span>嚴苛</span>
+                <div class="control-card border-l-4 border-blue-500">
+                    <h3 class="text-sm font-bold text-gray-800 mb-4">2. 社會門檻 (SOCIAL)</h3>
+                    <div class="mb-4">
+                        <label class="label-main">婚姻狀態</label>
+                        <div class="flex items-center p-3 border rounded-lg cursor-pointer transition-colors"
+                            @click="inputs.excludeMarried = !inputs.excludeMarried"
+                            :class="inputs.excludeMarried ? 'border-blue-200 bg-blue-50' : 'border-gray-200'">
+                            <div class="w-4 h-4 rounded-full border-2 flex items-center justify-center mr-3"
+                                :class="inputs.excludeMarried ? 'border-blue-500 bg-blue-500' : 'border-gray-300'">
+                                <div v-if="inputs.excludeMarried" class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                            </div>
+                            <span class="text-sm font-medium"
+                                :class="inputs.excludeMarried ? 'text-blue-700' : 'text-gray-500'">排除已婚 (僅單身)</span>
                         </div>
                     </div>
-
-                    <div class="mb-6">
-                        <div class="flex justify-between text-sm mb-2">
-                            <span>年收 > <span class="value-display">{{ inputs.income }}</span> 萬</span>
-                            <span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded">Top {{
-                                stats.incomeTop }}%</span>
-                        </div>
-                        <input type="range" v-model.number="inputs.income" min="30" max="300" step="10" class="w-full">
-                    </div>
-
-                    <div class="mb-6">
-                        <label class="text-sm text-gray-600 block mb-2">最低學歷要求</label>
-                        <select v-model="inputs.education"
-                            class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none">
+                    <div>
+                        <label class="label-main">學歷門檻</label>
+                        <select v-model="inputs.education" class="select-input">
                             <option value="none">不限 (100%)</option>
                             <option value="univ">大學/專科以上 (~70%)</option>
                             <option value="master">碩士以上 (~18%)</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="control-card border-l-4 border-indigo-600">
+                    <h3 class="text-sm font-bold text-gray-800 mb-4">3. 個人條件 (PERSONAL)</h3>
+
+                    <div class="mb-5">
+                        <div class="flex justify-between mb-2">
+                            <label class="label-main">身高</label>
+                            <span class="text-sm font-bold text-indigo-600">{{ inputs.height }} cm <span
+                                    class="text-xs text-gray-400 font-normal">(Top {{ stats.heightTop }}%)</span></span>
+                        </div>
+                        <input type="range" v-model.number="inputs.height" min="145" max="190" class="w-full">
+                    </div>
+
+                    <div class="mb-5">
+                        <div class="flex justify-between mb-2">
+                            <label class="label-main">年收入 (萬)</label>
+                            <span class="text-sm font-bold text-indigo-600">{{ inputs.income }} 萬 <span
+                                    class="text-xs text-gray-400 font-normal">(Top {{ stats.incomeTop }}%)</span></span>
+                        </div>
+                        <input type="range" v-model.number="inputs.income" min="30" max="300" step="10" class="w-full">
+                        <div class="flex justify-between text-[10px] text-gray-400 mt-1">
+                            <span>D1: 32.9萬</span>
+                            <span>中位數: 54.6萬</span>
+                            <span>D9: 133萬</span>
+                        </div>
+                    </div>
 
                     <div>
-                        <div class="flex justify-between text-sm mb-2">
-                            <span>顏值 > <span class="value-display">{{ inputs.appearance }}</span> 分</span>
-                            <span class="text-xs text-gray-400">主觀評分</span>
+                        <div class="flex justify-between mb-2">
+                            <label class="label-main">外貌評分</label>
+                            <span class="text-sm font-bold text-indigo-600">{{ inputs.appearance }} 分</span>
                         </div>
                         <input type="range" v-model.number="inputs.appearance" min="1" max="9" step="1" class="w-full">
-                        <div class="flex justify-between text-[10px] text-gray-400 mt-1">
-                            <span>1分(大眾)</span>
-                            <span>5分(平均)</span>
-                            <span>9分(極品)</span>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="lg:col-span-8 flex flex-col items-center pt-2">
+            <div class="lg:col-span-8 flex flex-col items-center pt-4">
+                <div class="w-full max-w-3xl space-y-6">
 
-                <div class="w-full max-w-2xl space-y-3 relative">
-                    <h3 class="text-center text-gray-400 font-bold mb-6 tracking-widest text-sm">POPULATION FUNNEL</h3>
+                    <div v-for="(step, index) in funnelSteps" :key="index" class="relative w-full group">
 
-                    <div v-for="(step, index) in funnelSteps" :key="index"
-                        class="group relative w-full flex flex-col items-center">
+                        <div class="w-full flex justify-center z-10 relative h-14 items-center">
 
-                        <div class="funnel-bar h-14 rounded-lg flex items-center justify-center text-white shadow-lg relative cursor-default hover:brightness-110 z-0"
-                            :class="getBarColor(index)"
-                            :style="{ width: Math.max((step.count / stats.basePop) * 100, 8) + '%' }">
+                            <div class="funnel-bar h-12 md:h-14 rounded-xl flex items-center justify-center shadow-lg relative cursor-default"
+                                :class="getBarGradient(index)"
+                                :style="{ width: Math.max((step.count / stats.basePop) * 100, 2) + '%' }">
 
-                            <span
-                                class="font-bold text-lg md:text-xl drop-shadow-md whitespace-nowrap overflow-hidden px-2"
-                                v-if="(step.count / stats.basePop) > 0.12">
-                                {{ formatNumber(step.count) }}
-                            </span>
+                                <span class="font-bold text-lg text-white drop-shadow-sm px-2 stat-number"
+                                    v-if="(step.count / stats.basePop) > 0.15">
+                                    {{ formatNumber(step.count) }}
+                                </span>
+                            </div>
+
+                            <div v-if="(step.count / stats.basePop) <= 0.15"
+                                class="absolute left-1/2 flex items-center h-full"
+                                :style="{ marginLeft: `calc(${Math.max((step.count / stats.basePop) * 50, 1)}% + 10px)` }">
+                                <span class="font-bold text-lg text-gray-600 stat-number">
+                                    {{ formatNumber(step.count) }}
+                                </span>
+                            </div>
+
                         </div>
 
-                        <div class="hidden md:block absolute left-0 top-4 w-[25%] text-right pr-4">
-                            <div class="text-sm font-bold text-gray-600">{{ step.label }}</div>
+                        <div
+                            class="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 w-[25%] text-right pr-6 pointer-events-none">
+                            <div class="text-sm font-bold text-gray-700">{{ index + 1 }}. {{ step.label }}</div>
                             <div class="text-xs text-gray-400">{{ step.detail }}</div>
                         </div>
+                        <div
+                            class="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 w-[25%] text-left pl-6 pointer-events-none">
+                            <span class="text-sm font-bold text-gray-500">剩 {{ (step.rate * 100).toFixed(1) }}%</span>
+                        </div>
 
-                        <div class="hidden md:block absolute right-0 top-4 w-[25%] text-left pl-4">
-                            <div class="text-sm font-bold"
-                                :class="index === funnelSteps.length -1 ? 'text-red-500' : 'text-gray-500'">
-                                剩餘 {{ (step.rate * 100).toFixed(1) }}%
+                        <div class="md:hidden flex justify-between w-full px-2 mt-1 mb-3 text-xs">
+                            <span class="font-bold text-gray-700">{{ index + 1 }}. {{ step.label }}</span>
+                            <div class="text-right">
+                                <span class="text-gray-400">剩餘 {{ (step.rate * 100).toFixed(1) }}%</span>
                             </div>
                         </div>
-
-                        <div class="md:hidden flex justify-between w-full px-2 mt-1 text-xs text-gray-500 mb-2">
-                            <span>{{ step.label }}: {{ step.detail }}</span>
-                            <span>{{ formatNumber(step.count) }}人</span>
-                        </div>
-
-                        <div v-if="index < funnelSteps.length - 1" class="h-3 w-0.5 bg-gray-200 my-0.5"></div>
                     </div>
 
                     <div
-                        class="mt-10 text-center p-8 bg-slate-900 rounded-2xl shadow-2xl transform hover:scale-105 transition duration-500">
-                        <p class="text-gray-400 text-sm font-bold uppercase tracking-widest mb-2">The One Percent</p>
+                        class="mt-12 p-8 bg-gray-900 rounded-2xl text-center shadow-2xl transition transform hover:scale-[1.01] duration-500">
+                        <p class="text-indigo-300 text-xs font-bold tracking-widest uppercase mb-4">Final Selection</p>
                         <div
-                            class="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500">
-                            {{ formatNumber(finalCount) }} <span class="text-2xl text-gray-500">人</span>
+                            class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-200">
+                            {{ formatNumber(finalCount) }}
                         </div>
                         <p class="text-gray-400 text-sm mt-4">
-                            在目標族群中，僅有 <span class="text-white font-bold">{{ (finalCount / stats.basePop *
-                                100).toFixed(3) }}%</span> 符合您的所有標準
+                            倖存率 <span class="text-white font-bold">{{ (finalCount / stats.basePop * 100).toFixed(4)
+                                }}%</span>
                         </p>
                     </div>
 
@@ -239,133 +254,83 @@
 
         createApp({
             setup() {
-                // --- 核心資料 (2024 參數修正版) ---
+                // 資料集: 113年 (2024) 
+                const INCOME_DECILES = {
+                    total: [0, 32.9, 38.3, 43.0, 48.4, 54.6, 62.5, 74.9, 95.4, 133.0, 312],
+                    percentiles: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
+                };
+
                 const DATA = {
                     population: 23420000,
-                    // 身高參數 (Mean, SD) - 衛福部 19-44歲
-                    height: {
-                        male: { mean: 173.5, sd: 5.8 },
-                        female: { mean: 160.4, sd: 5.4 }
-                    },
-                    // 收入參數 (Median, P90) - 主計總處受僱員工薪資
-                    income: {
-                        male: { median: 58, p90: 128 },
-                        female: { median: 48, p90: 105 }
-                    },
-                    // 地區權重
-                    regions: {
-                        all: 1.0, north_w: 0.46, central: 0.20, south: 0.22, hsinchu: 0.05
-                    },
-                    // 學歷通過率
-                    education: { univ: 0.70, master: 0.18 }
+                    height: { male: { mean: 173.5, sd: 5.8 }, female: { mean: 160.4, sd: 5.4 } },
+                    regions: { all: 1.0, north_w: 0.46, central: 0.20, south: 0.22, hsinchu: 0.05 },
+                    education: { univ: 0.70, master: 0.18 },
+                    maritalRates: {
+                        male: { 20: 0.98, 25: 0.90, 30: 0.65, 35: 0.45, 40: 0.35, 45: 0.30, 50: 0.25, 55: 0.22, 60: 0.20 },
+                        female: { 20: 0.97, 25: 0.85, 30: 0.55, 35: 0.35, 40: 0.28, 45: 0.25, 50: 0.23, 55: 0.22, 60: 0.22 }
+                    }
                 };
 
                 const inputs = reactive({
-                    gender: 'male',
-                    region: 'all',
-                    ageMin: 28,
-                    ageMax: 35,
-                    excludeMarried: true,
-                    height: 170,     // 預設寬鬆一點
-                    income: 60,      // 預設中位數
-                    education: 'univ',
-                    appearance: 5    // 預設平均
+                    gender: 'male', region: 'all', ageMin: 28, ageMax: 38,
+                    excludeMarried: true, height: 170, income: 55, education: 'univ', appearance: 5
                 });
 
-                // --- 數學模型 ---
+                function getRealIncomeSurvival(income, gender) {
+                    const factor = gender === 'male' ? 1.07 : 0.94;
+                    const adjIncome = income / factor;
+                    const d = INCOME_DECILES.total;
+                    const p = INCOME_DECILES.percentiles;
 
-                // 1. 常態分佈生存函數 (Survival Function)
-                // 計算 P(X > x)。即「有多少比例的人超過這個數值」
+                    if (adjIncome < d[1]) return 0.95;
+                    for (let i = 1; i < d.length - 1; i++) {
+                        if (adjIncome >= d[i] && adjIncome < d[i + 1]) {
+                            const ratio = (adjIncome - d[i]) / (d[i + 1] - d[i]);
+                            return 1 - (p[i] + ratio * (p[i + 1] - p[i]));
+                        }
+                    }
+                    if (adjIncome >= d[9]) return Math.max(0.001, 0.1 * Math.exp(-(adjIncome - d[9]) / 100));
+                    return 0.5;
+                }
+
                 function getSurvivalRate(x, mean, sd) {
                     let z = (x - mean) / sd;
-                    // 使用誤差函數 (ERF) 近似計算 CDF
-                    // CDF = P(X < x)
                     let t = 1.0 / (1.0 + 0.2316419 * Math.abs(z));
                     let d = 0.3989423 * Math.exp(-z * z / 2);
                     let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
-
-                    // 若 z > 0 (高於平均)，CDF 是 1-p (大面積)，Survivor 是 p (小尾巴)
-                    // 若 z < 0 (低於平均)，CDF 是 p (小尾巴)，Survivor 是 1-p (大面積)
-                    if (z > 0) {
-                        return p; // 右尾
-                    } else {
-                        return 1 - p; // 左尾補數 -> 全大於
-                    }
+                    return z > 0 ? p : 1 - p;
                 }
 
-                // 2. 收入生存函數 (簡易擬真 Log-Normal)
-                function getIncomeSurvival(val, median, p90) {
-                    if (val <= median) {
-                        // 低於中位數：生存率很高 (接近 100% -> 50%)
-                        // 線性插值：30萬 -> 90%, median -> 50%
-                        return 1 - (0.5 * (val / median));
-                    } else {
-                        // 高於中位數：生存率快速下降 (50% -> 10% -> 0%)
-                        if (val >= p90) {
-                            // 極端高薪，指數遞減
-                            return Math.max(0.001, 0.1 * Math.exp(-(val - p90) / 60));
-                        }
-                        // 中高薪區間
-                        let range = p90 - median;
-                        return 0.5 - (0.4 * ((val - median) / range));
-                    }
-                }
-
-                // 3. 婚姻狀態估算 (隨年齡變動)
                 function getMaritalSurvival(exclude, ageMin, ageMax, gender) {
                     if (!exclude) return 1.0;
-
-                    // 簡易模型：年齡越大，未婚率越低
-                    // 男性 25歲(85%) -> 35歲(40%) -> 45歲(20%)
-                    // 女性 25歲(78%) -> 35歲(30%) -> 45歲(15%)
-
-                    let avgAge = (ageMin + ageMax) / 2;
-                    let rate;
-
-                    if (gender === 'male') {
-                        // 線性擬合 25-45
-                        rate = 0.85 - ((avgAge - 25) * 0.0325);
-                    } else {
-                        rate = 0.78 - ((avgAge - 25) * 0.0315);
+                    const table = DATA.maritalRates[gender];
+                    let totalRate = 0, count = 0;
+                    for (let age = ageMin; age <= ageMax; age++) {
+                        let bracket = Math.floor(age / 5) * 5;
+                        if (bracket < 20) bracket = 20; if (bracket > 60) bracket = 60;
+                        totalRate += table[bracket]; count++;
                     }
-                    return Math.max(0.1, Math.min(0.95, rate));
+                    return totalRate / count;
                 }
 
-                // --- 計算核心 ---
-
-                const genderData = computed(() => inputs.gender === 'male' ? DATA.height.male : DATA.height.female);
-
                 const stats = computed(() => {
-                    // A. 基礎母體
                     const ageSpan = inputs.ageMax - inputs.ageMin + 1;
-                    // 台灣單一年齡層約佔 1.35%，除以2 (分性別)
                     const basePop = Math.round(DATA.population * 0.0135 * ageSpan * 0.5);
-
-                    // B. 各項機率
                     const regionRate = DATA.regions[inputs.region];
-
                     const maritalRate = getMaritalSurvival(inputs.excludeMarried, inputs.ageMin, inputs.ageMax, inputs.gender);
 
                     let eduRate = 1.0;
                     if (inputs.education === 'univ') eduRate = DATA.education.univ;
                     if (inputs.education === 'master') eduRate = DATA.education.master;
 
-                    // 修正：身高使用生存函數 (越高越少人)
                     const hParams = inputs.gender === 'male' ? DATA.height.male : DATA.height.female;
                     const heightRate = getSurvivalRate(inputs.height, hParams.mean, hParams.sd);
-
-                    // 修正：收入使用生存函數 (越高越少人)
-                    const iParams = inputs.gender === 'male' ? DATA.income.male : DATA.income.female;
-                    const incomeRate = getIncomeSurvival(inputs.income, iParams.median, iParams.p90);
-
-                    // 修正：顏值使用生存函數 (越高越少人, Mean=5, SD=1.5)
+                    const incomeRate = getRealIncomeSurvival(inputs.income, inputs.gender);
                     const looksRate = getSurvivalRate(inputs.appearance, 5, 1.5);
 
                     return {
-                        basePop,
-                        regionRate, maritalRate, eduRate, heightRate, incomeRate, looksRate,
-                        // 顯示用的 PR 值 (CDF)
-                        heightPR: Math.round((1 - heightRate) * 100),
+                        basePop, regionRate, maritalRate, eduRate, heightRate, incomeRate, looksRate,
+                        heightTop: Math.round(heightRate * 100),
                         incomeTop: Math.round(incomeRate * 100)
                     };
                 });
@@ -375,55 +340,33 @@
                     let c = s.basePop;
                     const list = [];
 
-                    // 1. 母體 (年齡+性別)
-                    list.push({
-                        label: '初始母體',
-                        detail: `${inputs.ageMin}-${inputs.ageMax}歲 ${inputs.gender === 'male' ? '男' : '女'}`,
-                        rate: 1.0,
-                        count: c
-                    });
-
-                    // 2. 地區
-                    c *= s.regionRate;
-                    list.push({ label: '居住地', detail: inputs.region, rate: s.regionRate, count: c });
-
-                    // 3. 婚姻
-                    c *= s.maritalRate;
-                    list.push({ label: '婚姻狀態', detail: inputs.excludeMarried ? '剔除已婚' : '不限', rate: s.maritalRate, count: c });
-
-                    // 4. 學歷
-                    c *= s.eduRate;
-                    list.push({ label: '學歷門檻', detail: inputs.education, rate: s.eduRate, count: c });
-
-                    // 5. 身高
-                    c *= s.heightRate;
-                    list.push({ label: '身高要求', detail: `>${inputs.height}cm`, rate: s.heightRate, count: c });
-
-                    // 6. 收入
-                    c *= s.incomeRate;
-                    list.push({ label: '經濟條件', detail: `>${inputs.income}萬`, rate: s.incomeRate, count: c });
-
-                    // 7. 顏值
-                    c *= s.looksRate;
-                    list.push({ label: '外貌要求', detail: `>${inputs.appearance}分`, rate: s.looksRate, count: c });
+                    list.push({ label: '初始母體', detail: `${inputs.ageMin}-${inputs.ageMax}歲 ${inputs.gender === 'male' ? '男' : '女'}`, rate: 1.0, count: c });
+                    c *= s.regionRate; list.push({ label: '居住地', detail: inputs.region, rate: s.regionRate, count: c });
+                    c *= s.maritalRate; list.push({ label: '婚姻狀態', detail: inputs.excludeMarried ? '排除已婚' : '不限', rate: s.maritalRate, count: c });
+                    c *= s.eduRate; list.push({ label: '學歷門檻', detail: inputs.education, rate: s.eduRate, count: c });
+                    c *= s.heightRate; list.push({ label: '身高要求', detail: `>${inputs.height}cm`, rate: s.heightRate, count: c });
+                    c *= s.incomeRate; list.push({ label: '經濟條件', detail: `>${inputs.income}萬`, rate: s.incomeRate, count: c });
+                    c *= s.looksRate; list.push({ label: '外貌要求', detail: `>${inputs.appearance}分`, rate: s.looksRate, count: c });
 
                     return list;
                 });
 
                 const finalCount = computed(() => Math.round(funnelSteps.value[funnelSteps.value.length - 1].count));
-
                 const formatNumber = (n) => new Intl.NumberFormat('zh-TW').format(Math.round(n));
-
-                const getBarColor = (i) => {
-                    // 漸層色階
-                    const colors = [
-                        'bg-slate-300', 'bg-slate-400', 'bg-blue-300', 'bg-blue-400',
-                        'bg-indigo-400', 'bg-indigo-500', 'bg-violet-600'
+                const getBarGradient = (i) => {
+                    const gradients = [
+                        'bg-gradient-to-r from-slate-300 to-slate-400',
+                        'bg-gradient-to-r from-blue-300 to-blue-400',
+                        'bg-gradient-to-r from-blue-400 to-blue-500',
+                        'bg-gradient-to-r from-indigo-400 to-indigo-500',
+                        'bg-gradient-to-r from-indigo-500 to-indigo-600',
+                        'bg-gradient-to-r from-violet-500 to-violet-600',
+                        'bg-gradient-to-r from-purple-600 to-purple-700'
                     ];
-                    return colors[i] || 'bg-gray-800';
+                    return gradients[i] || 'bg-gray-800';
                 };
 
-                return { inputs, stats, funnelSteps, finalCount, formatNumber, getBarColor, genderData };
+                return { inputs, stats, funnelSteps, finalCount, formatNumber, getBarGradient };
             }
         }).mount('#app');
     </script>
