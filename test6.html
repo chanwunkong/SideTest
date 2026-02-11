@@ -73,12 +73,88 @@
             ring-color: #3b82f6;
         }
 
-        .crop-mask {
+        /* Crop Overlay: Flex Center for Fixed Frame */
+        .crop-overlay {
             position: absolute;
-            border: 2px dashed rgba(255, 255, 255, 0.8);
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             pointer-events: none;
-            transition: all 0.3s ease;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            /* Ensure shadow doesn't cause scrollbars */
+        }
+
+        .crop-frame {
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            /* Combined shadow: crisp line + huge dimming area */
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 0 9999px rgba(0, 0, 0, 0.7);
+            transition: width 0.2s ease, height 0.2s ease;
+            position: relative;
+        }
+
+        /* Thirds grid */
+        .crop-frame::before {
+            content: '';
+            position: absolute;
+            top: 33.33%;
+            left: 0;
+            right: 0;
+            height: 33.33%;
+            border-top: 1px dashed rgba(255, 255, 255, 0.4);
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        .crop-frame::after {
+            content: '';
+            position: absolute;
+            left: 33.33%;
+            top: 0;
+            bottom: 0;
+            width: 33.33%;
+            border-left: 1px dashed rgba(255, 255, 255, 0.4);
+            border-right: 1px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        /* Backdrop Layer behind image for crop preview */
+        #crop-backdrop {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            /* Behind Image (z-10) */
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .tool-btn.active {
+            background-color: #2563eb;
+            color: white;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .tool-btn {
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover:not(.active) {
+            background-color: #f3f4f6;
+            color: #111827;
+        }
+
+        /* Snap Lines */
+        .snap-line {
+            position: absolute;
+            background-color: #3b82f6;
+            z-index: 60;
+            pointer-events: none;
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
         }
     </style>
 </head>
@@ -94,7 +170,7 @@
                 </path>
             </svg>
             <h1 class="text-base font-bold text-gray-900 truncate" data-i18n="appName">HoldFocus <span
-                    class="text-xs font-normal text-gray-500 ml-1 hidden sm:inline">v8.4</span></h1>
+                    class="text-xs font-normal text-gray-500 ml-1 hidden sm:inline">v9.5</span></h1>
 
             <div class="flex ml-4 border-l border-gray-200 pl-4 space-x-1">
                 <button id="undo-btn"
@@ -172,6 +248,16 @@
                                 尚未圈選
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Brush Size Control -->
+                    <div id="brush-controls" class="hidden border-t border-gray-200 pt-4 bg-blue-50/50 -mx-4 px-4 pb-4">
+                        <div class="flex justify-between mb-1">
+                            <label class="text-xs font-bold text-blue-800 uppercase tracking-wider"
+                                data-i18n="brushSize">筆刷大小</label>
+                            <span id="brush-size-val" class="text-xs text-blue-600 font-mono">20px</span>
+                        </div>
+                        <input type="range" id="brush-size" min="5" max="100" value="20" class="accent-blue-600">
                     </div>
 
                     <!-- Merged Adjustments -->
@@ -336,26 +422,43 @@
             id="canvas-container">
             <!-- Toolbar -->
             <div id="floating-toolbar"
-                class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur shadow-lg rounded-full px-4 py-2 flex items-center gap-4 z-50 border border-gray-200 transition-all duration-300">
+                class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur shadow-lg rounded-full px-4 py-2 flex items-center gap-4 z-[60] border border-gray-200 transition-all duration-300">
+
                 <div id="tool-switcher" class="flex bg-gray-100 rounded-full p-1">
-                    <button id="tool-hand"
-                        class="p-2 rounded-full hover:bg-white text-gray-500 hover:text-gray-900 transition-colors"
-                        title="Move">
+                    <button id="tool-hand" class="tool-btn p-2 rounded-full" title="Move">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11">
                             </path>
                         </svg>
                     </button>
-                    <button id="tool-lasso" class="p-2 rounded-full bg-blue-600 text-white shadow-sm" title="Lasso">
+                    <button id="tool-lasso" class="tool-btn p-2 rounded-full" title="Lasso (Auto)">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                             </path>
                         </svg>
                     </button>
+                    <div class="w-px h-6 bg-gray-300 mx-1"></div>
+                    <button id="tool-brush" class="tool-btn p-2 rounded-full" title="Brush (Add)">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                            </path>
+                        </svg>
+                        <span class="absolute top-0 right-0 text-[10px] font-bold text-green-600">+</span>
+                    </button>
+                    <button id="tool-eraser" class="tool-btn p-2 rounded-full" title="Eraser (Sub)">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                            </path>
+                        </svg>
+                    </button>
                 </div>
+
                 <div id="tool-divider" class="w-px h-6 bg-gray-300"></div>
+
                 <div class="flex items-center gap-2">
                     <button id="crop-btn"
                         class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 font-bold"
@@ -366,6 +469,11 @@
                             </path>
                         </svg>
                     </button>
+
+                    <button id="crop-bg-color"
+                        class="hidden w-6 h-6 rounded-full border border-gray-300 bg-white shadow-sm"
+                        title="Toggle Border Color"></button>
+
                     <span id="crop-label" class="text-[10px] text-blue-600 font-mono hidden">Orig</span>
                 </div>
             </div>
@@ -383,15 +491,32 @@
                 <h3 class="text-lg font-medium text-white/80" data-i18n="dragDrop">拖放照片至此</h3>
             </div>
 
+            <!-- Crop Backdrop (Fill Layer) -->
+            <div id="crop-backdrop" class="absolute hidden transition-all duration-200"></div>
+
+            <!-- Canvas Wrapper for Transform -->
             <div id="canvas-transform-root"
-                class="w-full h-full flex items-center justify-center origin-center transition-transform duration-75 ease-linear">
+                class="w-full h-full flex items-center justify-center origin-center transition-transform duration-75 ease-linear relative z-10">
                 <div id="canvas-wrapper" class="relative shadow-2xl hidden inline-block">
                     <canvas id="canvas" class="block"></canvas>
                     <canvas id="canvas-overlay"
                         class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
-                    <div id="crop-mask" class="crop-mask hidden"></div>
                 </div>
             </div>
+
+            <!-- Crop Mask Overlay (Top) -->
+            <div id="crop-mask-container" class="crop-overlay hidden">
+                <div id="crop-frame" class="crop-frame"></div>
+            </div>
+
+            <!-- Snap Lines (New) -->
+            <div id="snap-v"
+                class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-blue-500 hidden z-[60] transform -translate-x-1/2 shadow-[0_0_4px_rgba(255,255,255,0.8)]">
+            </div>
+            <div id="snap-h"
+                class="absolute left-0 right-0 top-1/2 h-0.5 bg-blue-500 hidden z-[60] transform -translate-y-1/2 shadow-[0_0_4px_rgba(255,255,255,0.8)]">
+            </div>
+
         </section>
     </main>
 
@@ -405,7 +530,17 @@
             overlay: document.getElementById('canvas-overlay'),
             wrapper: document.getElementById('canvas-wrapper'),
             placeholder: document.getElementById('placeholder-msg'),
-            cropMask: document.getElementById('crop-mask'),
+
+            // Crop UI
+            cropMaskContainer: document.getElementById('crop-mask-container'),
+            cropFrame: document.getElementById('crop-frame'),
+            cropBackdrop: document.getElementById('crop-backdrop'),
+            cropBgColor: document.getElementById('crop-bg-color'),
+
+            // Snap
+            snapV: document.getElementById('snap-v'),
+            snapH: document.getElementById('snap-h'),
+
             langToggle: document.getElementById('lang-toggle'),
             undoBtn: document.getElementById('undo-btn'),
             redoBtn: document.getElementById('redo-btn'),
@@ -435,6 +570,11 @@
             toolDivider: document.getElementById('tool-divider'),
             toolHand: document.getElementById('tool-hand'),
             toolLasso: document.getElementById('tool-lasso'),
+            toolBrush: document.getElementById('tool-brush'),
+            toolEraser: document.getElementById('tool-eraser'),
+            brushControls: document.getElementById('brush-controls'),
+            brushSize: document.getElementById('brush-size'),
+            brushSizeVal: document.getElementById('brush-size-val'),
             cropBtn: document.getElementById('crop-btn'),
             cropLabel: document.getElementById('crop-label'),
 
@@ -457,15 +597,17 @@
         const COLORS = ['#FFFFFF', '#000000', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
         const CROPS = [
             { id: 'orig', label: 'Orig', w: 0, h: 0 },
+            { id: '1:1', label: '1:1', w: 1, h: 1 },
             { id: '4:5', label: '4:5', w: 4, h: 5 },
+            { id: '16:9', label: '16:9', w: 16, h: 9 },
             { id: '9:16', label: '9:16', w: 9, h: 16 }
         ];
 
         const translations = {
             zh: {
-                appName: "HoldFocus <span class='text-xs font-normal text-gray-500 ml-1 hidden sm:inline'>v8.4</span>",
+                appName: "HoldFocus <span class='text-xs font-normal text-gray-500 ml-1 hidden sm:inline'>v9.5</span>",
                 openBtn: "開啟", downloadBtn: "下載", tabRoute: "路線編輯", tabText: "文字/標記",
-                instrTitle: "操作指引", instrText: "1. 選擇下方<b>圈選模式</b><br>2. 圈選岩點，系統將自動擴展<br>3. 畫在已有範圍上可<b>合併</b>選取",
+                instrTitle: "操作指引", instrText: "1. 圈選岩點自動擴展<br>2. 筆刷/橡皮擦可手動修補",
                 selectedRanges: "已選範圍", clearBtn: "清空", noSelection: "尚未圈選",
                 bgStyleTitle: "背景風格", bgSat: "飽和度", bgDim: "壓暗", bgBlur: "模糊",
                 globalAdjust: "影像調整", brightness: "亮度", contrast: "對比度",
@@ -473,11 +615,12 @@
                 addTextBtn: "+ 新增文字", colorLabel: "顏色", textBgLabel: "底色", deleteItemBtn: "刪除物件",
                 processing: "運算中...", dragDrop: "拖放照片至此", zoomFit: "適中", rangePrefix: "範圍 #",
                 fillHoles: "補洞", tolerance: "色彩容許度 (0-255)", expand: "邊緣擴展", textPlaceholder: "輸入文字...",
+                brushSize: "筆刷大小"
             },
             en: {
-                appName: "HoldFocus <span class='text-xs font-normal text-gray-500 ml-1 hidden sm:inline'>v8.4</span>",
+                appName: "HoldFocus <span class='text-xs font-normal text-gray-500 ml-1 hidden sm:inline'>v9.5</span>",
                 openBtn: "Open", downloadBtn: "Save", tabRoute: "Route", tabText: "Text/Tags",
-                instrTitle: "Instructions", instrText: "1. Use <b>Lasso Mode</b><br>2. Circle holds to auto-select.<br>3. Draw over existing to <b>merge</b>.",
+                instrTitle: "Instructions", instrText: "1. Lasso to auto-select.<br>2. Brush/Eraser to fix.",
                 selectedRanges: "Selections", clearBtn: "Clear", noSelection: "No selection",
                 bgStyleTitle: "Background Style", bgSat: "Saturation", bgDim: "Dim", bgBlur: "Blur",
                 globalAdjust: "Adjustments", brightness: "Brightness", contrast: "Contrast",
@@ -485,6 +628,7 @@
                 addTextBtn: "+ Add Text", colorLabel: "Color", textBgLabel: "Background", deleteItemBtn: "Delete Item",
                 processing: "Processing...", dragDrop: "Drag & Drop Image", zoomFit: "Fit", rangePrefix: "Area #",
                 fillHoles: "Fill Holes", tolerance: "Tolerance", expand: "Expand", textPlaceholder: "Enter text...",
+                brushSize: "Brush Size"
             }
         };
 
@@ -493,9 +637,12 @@
             history: [], historyIndex: -1,
             rotation: 0, brightness: 100, contrast: 100, bgSat: 0, bgDim: 0, bgBlur: 0,
             selections: [], nextSelectionId: 1, texts: [], nextTextId: 1,
-            cropIndex: 0, viewScale: 1, viewX: 0, viewY: 0,
+            cropIndex: 0, cropBgWhite: true,
+            viewScale: 1, viewX: 0, viewY: 0,
             activeTab: 'route', tool: 'lasso', dragType: null, isDragging: false, activeItemId: null,
+            activeSelectionId: null,
             dragStartItem: { x: 0, y: 0 }, startPan: { x: 0, y: 0 }, currentBrushPath: [],
+            brushSize: 20, isPinching: false, pinchStartDist: 0, pinchStartVal: 0, pinchMode: null,
             currentImageData: null
         };
 
@@ -519,21 +666,75 @@
             };
             [els.bgSat, els.bgDim, els.bgBlur].forEach(el => { el.addEventListener('input', () => { updateBg(); requestFullRender(); }); el.addEventListener('change', () => pushHistory()); });
 
-            els.toolHand.addEventListener('click', () => setTool('hand')); els.toolLasso.addEventListener('click', () => setTool('lasso'));
+            els.toolHand.addEventListener('click', () => setTool('hand'));
+            els.toolLasso.addEventListener('click', () => setTool('lasso'));
+            els.toolBrush.addEventListener('click', () => setTool('brush'));
+            els.toolEraser.addEventListener('click', () => setTool('eraser'));
+
+            els.brushSize.addEventListener('input', e => { state.brushSize = parseInt(e.target.value); els.brushSizeVal.innerText = state.brushSize + 'px'; });
+
             els.cropBtn.addEventListener('click', toggleCrop);
+            els.cropBgColor.addEventListener('click', toggleCropBg);
 
             els.canvasContainer.addEventListener('mousedown', handlePointerDown);
             window.addEventListener('mousemove', handlePointerMove); window.addEventListener('mouseup', handlePointerUp);
-            els.canvasContainer.addEventListener('touchstart', e => { if (e.touches.length === 1) handlePointerDown(e.touches[0]); }, { passive: false });
-            window.addEventListener('touchmove', e => { if (e.touches.length === 1) handlePointerMove(e.touches[0]); }, { passive: false });
-            window.addEventListener('touchend', handlePointerUp);
+            els.canvasContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+            window.addEventListener('touchmove', handleTouchMove, { passive: false });
+            window.addEventListener('touchend', handleTouchEnd);
             els.canvasContainer.addEventListener('wheel', e => { e.preventDefault(); updateZoom(e.deltaY > 0 ? -0.1 : 0.1); }, { passive: false });
 
-            els.clearColorsBtn.addEventListener('click', () => { state.selections = []; updateColorListUI(); pushHistory(); requestFullRender(); });
+            els.clearColorsBtn.addEventListener('click', () => { state.selections = []; state.activeSelectionId = null; updateColorListUI(); pushHistory(); requestFullRender(); });
             initTextUI();
         }
 
-        // --- Core Algorithm (v8.4 - Multi-Path + Merge) ---
+        // --- Touch Pinch Logic ---
+        function getTouchDist(t1, t2) { return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY); }
+
+        function handleTouchStart(e) {
+            if (e.touches.length === 2) {
+                state.isPinching = true;
+                state.pinchStartDist = getTouchDist(e.touches[0], e.touches[1]);
+                if (state.activeItemId && state.activeTab === 'text') {
+                    const item = state.texts.find(t => t.id === state.activeItemId);
+                    state.pinchStartVal = item.fontSize;
+                    state.pinchMode = 'item';
+                } else {
+                    state.pinchStartVal = state.viewScale;
+                    state.pinchMode = 'view';
+                }
+            } else if (e.touches.length === 1) {
+                handlePointerDown(e.touches[0]);
+            }
+        }
+
+        function handleTouchMove(e) {
+            if (state.isPinching && e.touches.length === 2) {
+                e.preventDefault();
+                const dist = getTouchDist(e.touches[0], e.touches[1]);
+                const scale = dist / state.pinchStartDist;
+                if (state.pinchMode === 'item') {
+                    const newVal = Math.max(10, Math.min(200, state.pinchStartVal * scale));
+                    updateActiveItem('fontSize', newVal);
+                    els.textSize.value = newVal;
+                } else if (state.pinchMode === 'view') {
+                    state.viewScale = Math.max(0.1, Math.min(5, state.pinchStartVal * scale));
+                    applyTransform();
+                }
+            } else if (e.touches.length === 1 && !state.isPinching) {
+                handlePointerMove(e.touches[0]);
+            }
+        }
+
+        function handleTouchEnd(e) {
+            if (state.isPinching && e.touches.length < 2) {
+                state.isPinching = false;
+                if (state.pinchMode === 'item') pushHistory();
+                state.pinchMode = null;
+            }
+            handlePointerUp(e);
+        }
+
+        // --- Core Algorithm (v8.6 - Multi-Path + Merge + Manual Edits) ---
         function calculateLassoAndExpandMask(selection, width, height, data) {
             if (selection.mask && !selection._dirty) return;
             const mask = new Uint8Array(width * height);
@@ -541,39 +742,22 @@
             const samples = [];
             const queue = [];
 
-            // Loop through ALL paths in this selection (merged regions)
             const paths = Array.isArray(selection.seeds[0]) ? selection.seeds : [selection.seeds];
-
             paths.forEach(path => {
                 if (path.length < 3) return;
-
-                // BBox for this path
                 let minX = width, maxX = 0, minY = height, maxY = 0;
-                path.forEach(p => {
-                    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-                    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-                });
-                minX = Math.max(0, Math.floor(minX)); minY = Math.max(0, Math.floor(minY));
-                maxX = Math.min(width, Math.ceil(maxX)); maxY = Math.min(height, Math.ceil(maxY));
+                path.forEach(p => { if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; });
+                minX = Math.max(0, Math.floor(minX)); minY = Math.max(0, Math.floor(minY)); maxX = Math.min(width, Math.ceil(maxX)); maxY = Math.min(height, Math.ceil(maxY));
 
-                // 1. Geometric Selection & Sampling
                 for (let y = minY; y < maxY; y++) {
                     for (let x = minX; x < maxX; x++) {
                         if (isPointInPolygon({ x, y }, path)) {
                             const idx = y * width + x;
-
-                            // Force select inside lasso
                             mask[idx] = 1;
-
-                            // Use as seed for expansion
                             if (visited[idx] === 0) {
-                                visited[idx] = 1;
-                                queue.push(x); queue.push(y);
-
-                                // Collect sample
+                                visited[idx] = 1; queue.push(x); queue.push(y);
                                 if (samples.length < 200 && (x + y) % 3 === 0) {
-                                    const pIdx = idx * 4;
-                                    samples.push({ r: data[pIdx], g: data[pIdx + 1], b: data[pIdx + 2] });
+                                    const pIdx = idx * 4; samples.push({ r: data[pIdx], g: data[pIdx + 1], b: data[pIdx + 2] });
                                 }
                             }
                         }
@@ -581,39 +765,26 @@
                 }
             });
 
-            // Fallback for samples if empty
-            if (samples.length === 0 && queue.length > 0) {
-                const x = queue[0], y = queue[1];
-                const idx = (y * width + x) * 4;
-                samples.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] });
-            }
-
-            // 2. Flood Fill Expansion
-            const tolerance = selection.tolerance;
-            let head = 0;
-            const dx = [0, 1, 0, -1]; const dy = [-1, 0, 1, 0];
-
-            while (head < queue.length) {
-                const x = queue[head++]; const y = queue[head++];
-                for (let i = 0; i < 4; i++) {
-                    const nx = x + dx[i]; const ny = y + dy[i];
-                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                        const nIdx = ny * width + nx;
-                        if (visited[nIdx] === 0) {
-                            visited[nIdx] = 1;
-                            const nPixIdx = nIdx * 4;
-                            const r = data[nPixIdx]; const g = data[nPixIdx + 1]; const b = data[nPixIdx + 2];
-
-                            let isMatch = false;
-                            for (let s = 0; s < samples.length; s++) {
-                                const sample = samples[s];
-                                const dist = Math.abs(r - sample.r) + Math.abs(g - sample.g) + Math.abs(b - sample.b);
-                                if (dist <= tolerance) { isMatch = true; break; }
-                            }
-
-                            if (isMatch) {
-                                mask[nIdx] = 1;
-                                queue.push(nx); queue.push(ny);
+            if (samples.length > 0) {
+                const tolerance = selection.tolerance;
+                let head = 0;
+                const dx = [0, 1, 0, -1], dy = [-1, 0, 1, 0];
+                while (head < queue.length) {
+                    const x = queue[head++]; const y = queue[head++];
+                    for (let i = 0; i < 4; i++) {
+                        const nx = x + dx[i]; const ny = y + dy[i];
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                            const nIdx = ny * width + nx;
+                            if (visited[nIdx] === 0) {
+                                visited[nIdx] = 1;
+                                const nPixIdx = nIdx * 4;
+                                const r = data[nPixIdx], g = data[nPixIdx + 1], b = data[nPixIdx + 2];
+                                let isMatch = false;
+                                for (let s = 0; s < samples.length; s++) {
+                                    const dist = Math.abs(r - samples[s].r) + Math.abs(g - samples[s].g) + Math.abs(b - samples[s].b);
+                                    if (dist <= tolerance) { isMatch = true; break; }
+                                }
+                                if (isMatch) { mask[nIdx] = 1; queue.push(nx); queue.push(ny); }
                             }
                         }
                     }
@@ -622,14 +793,46 @@
 
             if (selection.expand > 0) performExpansion(mask, width, height, selection.expand);
             if (selection.fillHoles) performHoleFilling(mask, width, height);
+
+            if (selection.manualEdits && selection.manualEdits.length > 0) {
+                applyManualEdits(mask, width, height, selection.manualEdits);
+            }
+
             selection.mask = mask;
+        }
+
+        function applyManualEdits(mask, width, height, edits) {
+            edits.forEach(edit => {
+                const isAdd = edit.type === 'add';
+                const rad = edit.size / 2;
+                const radSq = rad * rad;
+                edit.points.forEach(p => {
+                    const cx = Math.floor(p.x); const cy = Math.floor(p.y);
+                    const minX = Math.max(0, Math.floor(cx - rad)); const maxX = Math.min(width, Math.ceil(cx + rad));
+                    const minY = Math.max(0, Math.floor(cy - rad)); const maxY = Math.min(height, Math.ceil(cy + rad));
+                    for (let y = minY; y < maxY; y++) {
+                        for (let x = minX; x < maxX; x++) {
+                            const dx = x - cx; const dy = y - cy;
+                            if (dx * dx + dy * dy <= radSq) mask[y * width + x] = isAdd ? 1 : 0;
+                        }
+                    }
+                });
+            });
         }
 
         // --- Standard Logic ---
         function pushHistory() {
             if (state.historyIndex < state.history.length - 1) state.history = state.history.slice(0, state.historyIndex + 1);
-            const snapshot = JSON.stringify({ rotation: state.rotation, brightness: state.brightness, contrast: state.contrast, bgSat: state.bgSat, bgDim: state.bgDim, bgBlur: state.bgBlur, selections: state.selections, texts: state.texts, cropIndex: state.cropIndex });
-            state.history.push(snapshot); state.historyIndex++; updateUndoRedoUI();
+            const safeSelections = state.selections.map(s => { const { mask, ...rest } = s; return rest; });
+            const snapshot = JSON.stringify({
+                rotation: state.rotation, brightness: state.brightness, contrast: state.contrast,
+                bgSat: state.bgSat, bgDim: state.bgDim, bgBlur: state.bgBlur,
+                selections: safeSelections, texts: state.texts, cropIndex: state.cropIndex, cropBgWhite: state.cropBgWhite,
+                activeSelectionId: state.activeSelectionId
+            });
+            state.history.push(snapshot); state.historyIndex++;
+            if (state.history.length > 20) { state.history.shift(); state.historyIndex--; }
+            updateUndoRedoUI();
         }
         function undo() { if (state.historyIndex > 0) { state.historyIndex--; restoreState(state.history[state.historyIndex]); } }
         function redo() { if (state.historyIndex < state.history.length - 1) { state.historyIndex++; restoreState(state.history[state.historyIndex]); } }
@@ -651,6 +854,12 @@
         }
         function addItem(type, subtype = null) {
             let item = { id: state.nextTextId++, type: type, subtype: subtype, x: 0, y: 0, fontSize: 40, color: '#FFFFFF', bgColor: null };
+
+            // Center of view
+            const cx = -state.viewX / state.viewScale;
+            const cy = -state.viewY / state.viewScale;
+            item.x = cx; item.y = cy;
+
             if (type === 'text') { const text = els.textInput.value.trim(); if (!text) return; item.text = text; els.textInput.value = ''; } else { item.text = subtype === 'start' ? 'S' : 'T'; item.color = subtype === 'start' ? '#10B981' : '#EF4444'; item.fontSize = 60; }
             state.texts.push(item); state.activeItemId = item.id; updateTextControlsUI(); pushHistory(); requestFullRender(); switchTab('text');
         }
@@ -664,35 +873,68 @@
             } else { els.textControls.classList.add('opacity-50', 'pointer-events-none'); }
         }
 
-        function toggleCrop() { state.cropIndex = (state.cropIndex + 1) % CROPS.length; updateCropUI(); pushHistory(); }
+        function toggleCrop() {
+            state.cropIndex = (state.cropIndex + 1) % CROPS.length;
+            if (state.cropIndex !== 0 && state.image) {
+                fitImageToScreen();
+                setTool('hand');
+            }
+            updateCropUI();
+            pushHistory();
+        }
+        function toggleCropBg() { state.cropBgWhite = !state.cropBgWhite; updateCropUI(); }
+
         function updateCropUI() {
             const crop = CROPS[state.cropIndex]; els.cropLabel.innerText = crop.label; els.cropLabel.classList.remove('hidden');
-            if (state.cropIndex === 0) { els.cropMask.classList.add('hidden'); } else {
-                els.cropMask.classList.remove('hidden'); if (!state.image) return;
-                const aspect = crop.w / crop.h; const rect = els.canvas.getBoundingClientRect();
-                let w = rect.width; let h = w / aspect; if (h > rect.height) { h = rect.height; w = h * aspect; }
-                els.cropMask.style.width = w + 'px'; els.cropMask.style.height = h + 'px'; els.cropMask.style.left = (rect.width - w) / 2 + 'px'; els.cropMask.style.top = (rect.height - h) / 2 + 'px';
+
+            if (state.cropIndex === 0) {
+                els.cropMaskContainer.classList.add('hidden'); els.cropBgColor.classList.add('hidden'); els.cropBackdrop.classList.add('hidden');
+            } else {
+                els.cropMaskContainer.classList.remove('hidden'); els.cropBgColor.classList.remove('hidden'); els.cropBackdrop.classList.remove('hidden');
+                els.cropBgColor.style.backgroundColor = state.cropBgWhite ? 'white' : 'black';
+                els.cropBackdrop.style.backgroundColor = state.cropBgWhite ? 'white' : 'black';
+
+                if (state.activeTab === 'route') setTool('hand');
+
+                if (!state.image) return;
+                const containerRect = els.canvasContainer.getBoundingClientRect();
+                const containerW = containerRect.width; const containerH = containerRect.height;
+                const pad = 40; const aspect = crop.w / crop.h;
+                let w = containerW - pad; let h = w / aspect;
+                if (h > containerH - pad) { h = containerH - pad; w = h * aspect; }
+
+                els.cropFrame.style.width = w + 'px'; els.cropFrame.style.height = h + 'px';
+                els.cropBackdrop.style.width = w + 'px'; els.cropBackdrop.style.height = h + 'px';
             }
         }
 
         async function requestFullRender(recalcSelectionId = null) { els.processingBar.classList.remove('hidden'); return new Promise(resolve => { setTimeout(async () => { await render(recalcSelectionId); els.processingBar.classList.add('hidden'); resolve(); }, 10); }); }
+
         async function render(recalcSelectionId) {
             if (!state.image) return;
-            const w = Math.abs(state.rotation) % 180 !== 0 ? state.image.naturalHeight : state.image.naturalWidth;
-            const h = Math.abs(state.rotation) % 180 !== 0 ? state.image.naturalWidth : state.image.naturalHeight;
+            const w = state.image.naturalWidth; const h = state.image.naturalHeight;
             els.canvas.width = w; els.canvas.height = h; els.overlay.width = w; els.overlay.height = h;
-            ctx.save(); ctx.translate(w / 2, h / 2); ctx.rotate(state.rotation * Math.PI / 180);
+
+            ctx.save(); ctx.translate(w / 2, h / 2);
 
             const offCanvas = document.createElement('canvas'); offCanvas.width = w; offCanvas.height = h;
-            const offCtx = offCanvas.getContext('2d'); offCtx.translate(w / 2, h / 2); offCtx.rotate(state.rotation * Math.PI / 180);
+            const offCtx = offCanvas.getContext('2d'); offCtx.translate(w / 2, h / 2);
             offCtx.filter = `brightness(${state.brightness}%) contrast(${state.contrast}%)`;
-            offCtx.drawImage(state.image, -state.image.naturalWidth / 2, -state.image.naturalHeight / 2);
+            offCtx.drawImage(state.image, -w / 2, -h / 2);
 
             ctx.filter = `saturate(${state.bgSat}%) brightness(${100 - state.bgDim}%) blur(${state.bgBlur}px)`;
             ctx.drawImage(offCanvas, -w / 2, -h / 2); ctx.filter = 'none';
 
             const imgData = offCtx.getImageData(0, 0, w, h); state.currentImageData = imgData;
-            if (recalcSelectionId) { const sel = state.selections.find(s => s.id === recalcSelectionId); if (sel) calculateLassoAndExpandMask(sel, w, h, imgData.data); } else { for (let sel of state.selections) { if (!sel.mask) calculateLassoAndExpandMask(sel, w, h, imgData.data); } }
+
+            if (recalcSelectionId) {
+                const sel = state.selections.find(s => s.id === recalcSelectionId);
+                if (sel) calculateLassoAndExpandMask(sel, w, h, imgData.data);
+            } else {
+                for (let sel of state.selections) {
+                    if (!sel.mask) calculateLassoAndExpandMask(sel, w, h, imgData.data);
+                }
+            }
 
             if (state.selections.length > 0) {
                 const maskCanvas = document.createElement('canvas'); maskCanvas.width = w; maskCanvas.height = h;
@@ -702,15 +944,12 @@
                     maskData[i * 4] = 0; maskData[i * 4 + 1] = 0; maskData[i * 4 + 2] = 0; maskData[i * 4 + 3] = selected * 255;
                 }
                 maskCtx.putImageData(maskImgData, 0, 0);
-
-                // Composite: Mask + Source In
-                maskCtx.globalCompositeOperation = 'source-in';
-                maskCtx.drawImage(offCanvas, 0, 0);
-
+                maskCtx.globalCompositeOperation = 'source-in'; maskCtx.drawImage(offCanvas, 0, 0);
                 ctx.save(); ctx.resetTransform(); ctx.drawImage(maskCanvas, 0, 0); ctx.restore();
-                ctx.translate(w / 2, h / 2); ctx.rotate(state.rotation * Math.PI / 180);
+                ctx.translate(w / 2, h / 2);
             }
-            renderOverlays(ctx); ctx.restore(); updateCropUI();
+            renderOverlays(ctx); ctx.restore();
+            updateCropUI();
         }
 
         function renderOverlays(ctx) {
@@ -718,10 +957,15 @@
                 const x = t.x; const y = t.y; const p = 8;
                 if (t.type === 'tag') {
                     ctx.save(); ctx.translate(x, y); ctx.fillStyle = t.color; ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 4;
+                    const s = t.fontSize / 60; ctx.scale(s, s);
                     ctx.rotate(-15 * Math.PI / 180); ctx.fillRect(-25, -8, 50, 16); ctx.rotate(30 * Math.PI / 180); ctx.fillRect(-25, -8, 50, 16);
                     ctx.rotate(-15 * Math.PI / 180); ctx.shadowBlur = 0; ctx.fillStyle = 'white'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t.text, 0, 0);
-                    if (t.id === state.activeItemId && state.activeTab === 'text') { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.strokeRect(-30, -30, 60, 60); }
                     ctx.restore();
+                    if (t.id === state.activeItemId && state.activeTab === 'text') {
+                        ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+                        ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2 / s; ctx.setLineDash([5 / s, 3 / s]); ctx.strokeRect(-30, -30, 60, 60);
+                        ctx.restore();
+                    }
                 } else {
                     ctx.font = `bold ${t.fontSize}px sans-serif`; ctx.textBaseline = 'top'; const metrics = ctx.measureText(t.text); const w = metrics.width; const h = t.fontSize;
                     if (t.bgColor) { ctx.fillStyle = t.bgColor; ctx.beginPath(); ctx.roundRect(x - p, y - p, w + p * 2, h + p * 1.5, 8); ctx.fill(); }
@@ -734,16 +978,21 @@
         function handlePointerDown(e) {
             if (!state.image) return; if (e.target.closest('button') || e.target.closest('input')) return;
             const coords = getCanvasCoords(e);
+
             if (state.activeTab === 'text') {
                 const cx = els.canvas.width / 2; const cy = els.canvas.height / 2;
                 const dx = coords.x - cx; const dy = coords.y - cy;
-                const rad = -state.rotation * Math.PI / 180;
-                const rx = dx * Math.cos(rad) - dy * Math.sin(rad); const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+                const rx = dx; const ry = dy;
                 let hitItem = null;
                 for (let i = state.texts.length - 1; i >= 0; i--) {
                     const t = state.texts[i]; let hit = false;
-                    if (t.type === 'tag') { if (rx >= t.x - 30 && rx <= t.x + 30 && ry >= t.y - 30 && ry <= t.y + 30) hit = true; }
-                    else { ctx.font = `bold ${t.fontSize}px sans-serif`; const m = ctx.measureText(t.text); if (rx >= t.x && rx <= t.x + m.width && ry >= t.y && ry <= t.y + t.fontSize) hit = true; }
+                    if (t.type === 'tag') {
+                        const s = t.fontSize / 60; const w = 60 * s; const h = 60 * s;
+                        if (rx >= t.x - w / 2 && rx <= t.x + w / 2 && ry >= t.y - h / 2 && ry <= t.y + h / 2) hit = true;
+                    } else {
+                        ctx.font = `bold ${t.fontSize}px sans-serif`; const m = ctx.measureText(t.text);
+                        if (rx >= t.x && rx <= t.x + m.width && ry >= t.y && ry <= t.y + t.fontSize) hit = true;
+                    }
                     if (hit) { hitItem = t; break; }
                 }
                 if (hitItem) {
@@ -754,10 +1003,15 @@
                 state.isDragging = true; state.dragType = 'pan'; state.startPan = { x: e.clientX - state.viewX, y: e.clientY - state.viewY }; els.canvasContainer.style.cursor = 'grabbing';
                 return;
             }
+
             if (state.activeTab === 'route') {
                 state.isDragging = true;
                 if (state.tool === 'hand') {
                     state.dragType = 'pan'; state.startPan = { x: e.clientX - state.viewX, y: e.clientY - state.viewY }; els.canvasContainer.style.cursor = 'grabbing';
+                } else if (state.tool === 'brush' || state.tool === 'eraser') {
+                    state.dragType = state.tool;
+                    state.currentBrushPath = [coords];
+                    overlayCtx.clearRect(0, 0, els.overlay.width, els.overlay.height); overlayCtx.beginPath(); overlayCtx.arc(coords.x, coords.y, state.brushSize / 2, 0, Math.PI * 2); overlayCtx.fillStyle = state.tool === 'brush' ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'; overlayCtx.fill();
                 } else {
                     state.dragType = 'lasso'; state.currentBrushPath = [];
                     overlayCtx.clearRect(0, 0, els.overlay.width, els.overlay.height); overlayCtx.beginPath(); overlayCtx.strokeStyle = 'rgba(255, 230, 0, 0.9)'; overlayCtx.lineWidth = 3 / state.viewScale; overlayCtx.setLineDash([5, 5]); overlayCtx.moveTo(coords.x, coords.y); state.currentBrushPath.push(coords);
@@ -767,24 +1021,42 @@
 
         function handlePointerMove(e) {
             if (!state.isDragging) return;
-            if (state.dragType === 'item' && state.draggingTextId !== null) {
+
+            if (state.dragType === 'pan') {
+                let nx = e.clientX - state.startPan.x;
+                let ny = e.clientY - state.startPan.y;
+
+                // Snap to center
+                const SNAP_DIST = 20;
+                if (Math.abs(nx) < SNAP_DIST) { nx = 0; els.snapV.classList.remove('hidden'); } else els.snapV.classList.add('hidden');
+                if (Math.abs(ny) < SNAP_DIST) { ny = 0; els.snapH.classList.remove('hidden'); } else els.snapH.classList.add('hidden');
+
+                state.viewX = nx;
+                state.viewY = ny;
+                applyTransform();
+            }
+            else if (state.dragType === 'item' && state.draggingTextId !== null) {
                 const coords = getCanvasCoords(e); const cx = els.canvas.width / 2; const cy = els.canvas.height / 2;
                 const dx = coords.x - cx; const dy = coords.y - cy;
-                const rad = -state.rotation * Math.PI / 180;
-                const rx = dx * Math.cos(rad) - dy * Math.sin(rad); const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+                const rx = dx; const ry = dy;
                 const item = state.texts.find(t => t.id === state.draggingTextId);
                 if (item) { item.x = rx - state.dragStartItem.x; item.y = ry - state.dragStartItem.y; requestFullRender(); }
-            } else if (state.dragType === 'pan') {
-                state.viewX = e.clientX - state.startPan.x; state.viewY = e.clientY - state.startPan.y; applyTransform();
             } else if (state.dragType === 'lasso') {
                 const pos = getCanvasCoords(e); overlayCtx.lineTo(pos.x, pos.y); overlayCtx.stroke(); state.currentBrushPath.push(pos);
+            } else if (state.dragType === 'brush' || state.dragType === 'eraser') {
+                const pos = getCanvasCoords(e); state.currentBrushPath.push(pos); overlayCtx.lineTo(pos.x, pos.y); overlayCtx.stroke(); overlayCtx.beginPath(); overlayCtx.arc(pos.x, pos.y, state.brushSize / 2, 0, Math.PI * 2); overlayCtx.fillStyle = state.dragType === 'brush' ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'; overlayCtx.fill();
             }
         }
 
         function handlePointerUp(e) {
             if (!state.isDragging) return; state.isDragging = false;
-            if (state.dragType === 'pan') { els.canvasContainer.style.cursor = state.tool === 'hand' && state.activeTab === 'route' ? 'grab' : 'default'; }
-            else if (state.dragType === 'lasso') {
+
+            els.snapV.classList.add('hidden');
+            els.snapH.classList.add('hidden');
+
+            if (state.dragType === 'pan') {
+                els.canvasContainer.style.cursor = state.tool === 'hand' && state.activeTab === 'route' ? 'grab' : 'default';
+            } else if (state.dragType === 'lasso') {
                 if (state.currentBrushPath.length > 2) { const start = state.currentBrushPath[0]; overlayCtx.lineTo(start.x, start.y); overlayCtx.stroke(); overlayCtx.fillStyle = 'rgba(255, 230, 0, 0.2)'; overlayCtx.fill(); }
                 setTimeout(() => overlayCtx.clearRect(0, 0, els.overlay.width, els.overlay.height), 500);
 
@@ -797,36 +1069,34 @@
                     state.dragType = null; state.draggingTextId = null; return;
                 }
 
-                // Check for MERGE (v8.4 logic)
-                const startX = Math.floor(state.currentBrushPath[0].x);
-                const startY = Math.floor(state.currentBrushPath[0].y);
-                const canvasW = els.canvas.width;
-                let mergeTargetId = null;
-
-                // Check intersection with existing masks
-                for (let i = state.selections.length - 1; i >= 0; i--) {
-                    const sel = state.selections[i];
-                    if (sel.mask) {
-                        // Check start point
-                        const idx = startY * canvasW + startX;
-                        if (sel.mask[idx] === 1) {
-                            mergeTargetId = sel.id;
-                            break;
-                        }
+                const startX = Math.floor(state.currentBrushPath[0].x); const startY = Math.floor(state.currentBrushPath[0].y); const canvasW = els.canvas.width; let mergeTargetId = null;
+                for (let i = 0; i < state.selections.length; i++) {
+                    const sel = state.selections[i]; if (!sel.mask) continue;
+                    let hit = false;
+                    for (let p = 0; p < state.currentBrushPath.length; p += 5) {
+                        const px = Math.floor(state.currentBrushPath[p].x); const py = Math.floor(state.currentBrushPath[p].y);
+                        if (px >= 0 && px < canvasW && py >= 0 && sel.mask[py * canvasW + px]) { hit = true; break; }
                     }
+                    if (hit) { mergeTargetId = sel.id; break; }
                 }
 
                 if (mergeTargetId !== null) {
-                    const sel = state.selections.find(s => s.id === mergeTargetId);
-                    // Ensure it's array of arrays (in case of old data, though we reset on load)
-                    if (!Array.isArray(sel.seeds[0])) sel.seeds = [sel.seeds];
-                    sel.seeds.push(state.currentBrushPath);
-                    sel.mask = null; // Invalidate to re-calculate
-                    pushHistory();
-                    requestFullRender(sel.id);
+                    const sel = state.selections.find(s => s.id === mergeTargetId); if (!Array.isArray(sel.seeds[0])) sel.seeds = [sel.seeds]; sel.seeds.push(state.currentBrushPath); sel.mask = null; pushHistory(); requestFullRender(sel.id);
                 } else {
-                    const newSelection = { id: state.nextSelectionId++, seeds: [state.currentBrushPath], tolerance: 60, expand: 0, fillHoles: true, mask: null };
-                    state.selections.push(newSelection); updateColorListUI(); pushHistory(); requestFullRender(newSelection.id);
+                    const newSelection = { id: state.nextSelectionId++, seeds: [state.currentBrushPath], tolerance: 60, expand: 0, fillHoles: true, mask: null, manualEdits: [] };
+                    state.selections.push(newSelection); state.activeSelectionId = newSelection.id; updateColorListUI(); pushHistory(); requestFullRender(newSelection.id);
+                }
+            } else if (state.dragType === 'brush' || state.dragType === 'eraser') {
+                setTimeout(() => overlayCtx.clearRect(0, 0, els.overlay.width, els.overlay.height), 200);
+                let targetId = state.activeSelectionId;
+                if (!targetId && state.selections.length > 0) targetId = state.selections[state.selections.length - 1].id;
+                if (targetId) {
+                    const sel = state.selections.find(s => s.id === targetId);
+                    if (sel) {
+                        if (!sel.manualEdits) sel.manualEdits = [];
+                        sel.manualEdits.push({ type: state.dragType === 'brush' ? 'add' : 'sub', points: state.currentBrushPath, size: state.brushSize });
+                        sel.mask = null; pushHistory(); requestFullRender(sel.id);
+                    }
                 }
             } else if (state.dragType === 'item') { pushHistory(); }
             state.dragType = null; state.draggingTextId = null;
@@ -838,12 +1108,24 @@
         function performHoleFilling(mask, w, h) { const visited = new Uint8Array(w * h); const q = []; for (let x = 0; x < w; x++) { if (!mask[x]) { q.push(x, 0); visited[x] = 1; } if (!mask[(h - 1) * w + x]) { q.push(x, h - 1); visited[(h - 1) * w + x] = 1; } } for (let y = 0; y < h; y++) { if (!mask[y * w] && !visited[y * w]) { q.push(0, y); visited[y * w] = 1; } if (!mask[y * w + w - 1] && !visited[y * w + w - 1]) { q.push(w - 1, y); visited[y * w + w - 1] = 1; } } let head = 0; const dx = [0, 1, 0, -1], dy = [-1, 0, 1, 0]; while (head < q.length) { const x = q[head++], y = q[head++]; for (let i = 0; i < 4; i++) { const nx = x + dx[i], ny = y + dy[i]; if (nx >= 0 && nx < w && ny >= 0 && ny < h && !mask[ny * w + nx] && !visited[ny * w + nx]) { visited[ny * w + nx] = 1; q.push(nx, ny); } } } for (let i = 0; i < w * h; i++) if (!mask[i] && !visited[i]) mask[i] = 1; }
         function toggleLanguage() { state.lang = state.lang === 'zh' ? 'en' : 'zh'; els.langToggle.textContent = state.lang === 'zh' ? 'EN' : '中'; updateUIText(); }
         function updateUIText() { const t = translations[state.lang]; document.querySelectorAll('[data-i18n]').forEach(el => { if (t[el.getAttribute('data-i18n')]) el.innerHTML = t[el.getAttribute('data-i18n')]; }); els.textInput.placeholder = t.textPlaceholder; els.instrText.innerHTML = t.instrText; updateColorListUI(); }
-        function setTool(t) { state.tool = t; els.toolHand.className = t === 'hand' ? "p-2 rounded-full bg-blue-600 text-white shadow-sm" : "p-2 rounded-full hover:bg-white text-gray-500 hover:text-gray-900 transition-colors"; els.toolLasso.className = t === 'lasso' ? "p-2 rounded-full bg-blue-600 text-white shadow-sm" : "p-2 rounded-full hover:bg-white text-gray-500 hover:text-gray-900 transition-colors"; els.canvasContainer.style.cursor = t === 'hand' ? 'grab' : 'crosshair'; }
+        function setTool(t) {
+            state.tool = t;
+            ['hand', 'lasso', 'brush', 'eraser'].forEach(tool => {
+                const el = els['tool' + tool.charAt(0).toUpperCase() + tool.slice(1)];
+                if (tool === t) el.className = "p-2 rounded-full bg-blue-600 text-white shadow-sm";
+                else el.className = "p-2 rounded-full hover:bg-white text-gray-500 hover:text-gray-900 transition-colors";
+            });
+            els.canvasContainer.style.cursor = t === 'hand' ? 'grab' : 'crosshair';
+
+            // Show brush controls if needed
+            if (t === 'brush' || t === 'eraser') els.brushControls.classList.remove('hidden');
+            else els.brushControls.classList.add('hidden');
+        }
         function updateZoom(d) { state.viewScale = Math.max(0.1, Math.min(5, state.viewScale + d)); applyTransform(); }
         function applyTransform() { els.transformRoot.style.transform = `translate(${state.viewX}px, ${state.viewY}px) scale(${state.viewScale})`; }
         function getCanvasCoords(e) { const r = els.canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) * (els.canvas.width / r.width), y: (e.clientY - r.top) * (els.canvas.height / r.height) }; }
         function processFile(f) { const r = new FileReader(); r.onload = e => { const i = new Image(); i.onload = () => { state.image = i; state.rotation = 0; state.selections = []; state.texts = []; state.history = []; state.historyIndex = -1; pushHistory(); requestFullRender().then(() => fitImageToScreen()); els.wrapper.classList.remove('hidden'); els.placeholder.classList.add('hidden'); els.downloadBtn.disabled = false; }; i.src = e.target.result; }; r.readAsDataURL(f); }
-        function fitImageToScreen() { if (!state.image) return; const cw = els.canvasContainer.clientWidth, ch = els.canvasContainer.clientHeight; const r90 = Math.abs(state.rotation) % 180 !== 0; const w = r90 ? state.image.naturalHeight : state.image.naturalWidth, h = r90 ? state.image.naturalWidth : state.image.naturalHeight; state.viewScale = Math.min((cw - 40) / w, (ch - 40) / h, 1); state.viewX = 0; state.viewY = 0; applyTransform(); }
+        function fitImageToScreen() { if (!state.image) return; const cw = els.canvasContainer.clientWidth, ch = els.canvasContainer.clientHeight; const w = state.image.naturalWidth, h = state.image.naturalHeight; state.viewScale = Math.min((cw - 40) / w, (ch - 40) / h, 1); state.viewX = 0; state.viewY = 0; applyTransform(); }
         function switchTab(t) { state.activeTab = t; els.panelRoute.classList.add('hidden'); els.panelText.classList.add('hidden'); els.tabRoute.className = "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700"; els.tabText.className = "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700"; if (t === 'route') { els.panelRoute.classList.remove('hidden'); els.tabRoute.className = "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50"; els.floatingToolbar.classList.remove('opacity-0', 'pointer-events-none'); setTool(state.tool); } else { els.panelText.classList.remove('hidden'); els.tabText.className = "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50"; els.floatingToolbar.classList.add('opacity-0', 'pointer-events-none'); els.canvasContainer.style.cursor = 'default'; } }
         function handleFileSelect(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
         function updateGlobalFilterDisplay() { state.brightness = parseInt(els.brightness.value); state.contrast = parseInt(els.contrast.value); document.getElementById('brightness-val').innerText = state.brightness + '%'; document.getElementById('contrast-val').innerText = state.contrast + '%'; }
@@ -852,12 +1134,21 @@
             if (state.selections.length === 0) { list.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs italic border-2 border-dashed border-gray-100 rounded-lg">${t.noSelection}</div>`; els.clearColorsBtn.classList.add('hidden'); return; }
             els.clearColorsBtn.classList.remove('hidden');
             state.selections.forEach((sel, i) => {
-                const d = document.createElement('div'); d.className = "bg-white border border-gray-200 rounded-lg p-3 shadow-sm";
+                const isActive = sel.id === state.activeSelectionId;
+                const d = document.createElement('div');
+                d.className = `bg-white border ${isActive ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-200'} rounded-lg p-3 shadow-sm cursor-pointer transition-all`;
+                d.onclick = (e) => {
+                    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'svg' && e.target.tagName !== 'path') {
+                        state.activeSelectionId = sel.id;
+                        updateColorListUI();
+                    }
+                };
                 d.innerHTML = `<div class="flex items-center gap-2 mb-2"><div class="w-5 h-5 rounded bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[10px] shrink-0">${i + 1}</div><div class="flex-1 min-w-0 flex items-center justify-between mr-2"><div class="text-xs font-bold text-gray-700 whitespace-nowrap mr-2">${t.rangePrefix}${i + 1}</div><label class="inline-flex items-center cursor-pointer" title="${t.fillHoles}"><input type="checkbox" onchange="updateSelectionParam(${sel.id}, 'fillHoles', this.checked)" ${sel.fillHoles ? 'checked' : ''} class="sr-only peer"><div class="relative w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div><span class="ms-1 text-[10px] text-gray-500">${t.fillHoles}</span></label></div><button onclick="removeSelection(${sel.id})" class="text-gray-400 hover:text-red-500 p-1 shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div><div class="space-y-3 pl-1"><div><div class="flex justify-between mb-1"><label class="text-[10px] text-gray-500 font-medium">${t.tolerance}</label><span class="text-[10px] text-blue-600 font-mono">${sel.tolerance}</span></div><input type="range" min="0" max="255" value="${sel.tolerance}" onchange="updateSelectionParam(${sel.id}, 'tolerance', this.value)" oninput="this.previousElementSibling.lastElementChild.innerText=this.value" class="h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"></div><div><div class="flex justify-between mb-1"><label class="text-[10px] text-gray-500 font-medium">${t.expand}</label><span class="text-[10px] text-purple-600 font-mono">${sel.expand}px</span></div><input type="range" min="0" max="20" value="${sel.expand}" onchange="updateSelectionParam(${sel.id}, 'expand', this.value)" oninput="this.previousElementSibling.lastElementChild.innerText=this.value+'px'" class="h-1 bg-purple-100 rounded-lg appearance-none cursor-pointer"></div></div>`;
                 list.appendChild(d);
             });
         }
-        window.removeSelection = id => { state.selections = state.selections.filter(s => s.id !== id); updateColorListUI(); pushHistory(); requestFullRender(); };
+        window.removeSelection = id => { state.selections = state.selections.filter(s => s.id !== id); if (state.activeSelectionId === id) state.activeSelectionId = null; updateColorListUI(); pushHistory(); requestFullRender(); };
+        window.updateLabel = (el, suffix = '') => { const span = el.previousElementSibling.lastElementChild; if (span) span.innerText = el.value + suffix; }
         window.updateSelectionParam = (id, k, v) => { const s = state.selections.find(x => x.id === id); if (s) { s[k] = k === 'fillHoles' ? v : parseInt(v); s.mask = null; if (k !== 'fillHoles') pushHistory(); requestFullRender(id); } };
         function downloadImage() {
             if (!state.image) return;
@@ -865,15 +1156,49 @@
             const nameParts = state.fileName.split('.');
             const ext = nameParts.length > 1 ? nameParts.pop() : 'png';
             link.download = `${nameParts.join('.')}-HoldFocus.${ext}`;
-            const canvas = els.canvas; let exportCanvas = canvas;
-            if (state.cropIndex > 0) {
-                const crop = CROPS[state.cropIndex]; const aspect = crop.w / crop.h; const w = canvas.width; const h = canvas.height;
-                let cw = w; let ch = w / aspect; if (ch > h) { ch = h; cw = ch * aspect; }
-                const cx = (w - cw) / 2; const cy = (h - ch) / 2;
-                const temp = document.createElement('canvas'); temp.width = cw; temp.height = ch;
-                temp.getContext('2d').drawImage(canvas, cx, cy, cw, ch, 0, 0, cw, ch);
-                exportCanvas = temp;
+
+            // v9.0 Export Logic
+            const crop = CROPS[state.cropIndex];
+            const MAX_DIM = 2160;
+
+            let outW, outH;
+            if (state.cropIndex === 0) {
+                outW = els.canvas.width;
+                outH = els.canvas.height;
+            } else {
+                const aspect = crop.w / crop.h;
+                if (aspect > 1) { outW = MAX_DIM; outH = Math.round(MAX_DIM / aspect); }
+                else { outH = MAX_DIM; outW = Math.round(MAX_DIM * aspect); }
             }
+
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = outW;
+            exportCanvas.height = outH;
+            const eCtx = exportCanvas.getContext('2d');
+
+            if (state.cropIndex > 0) {
+                eCtx.fillStyle = state.cropBgWhite ? '#ffffff' : '#000000';
+                eCtx.fillRect(0, 0, outW, outH);
+            }
+
+            const maskRect = els.cropFrame.getBoundingClientRect();
+            const imgRect = els.canvas.getBoundingClientRect();
+
+            const S = state.cropIndex === 0 ? 1 : (outW / maskRect.width);
+
+            let drawX, drawY, drawW, drawH;
+
+            if (state.cropIndex === 0) {
+                drawX = 0; drawY = 0; drawW = outW; drawH = outH;
+            } else {
+                drawX = (imgRect.left - maskRect.left) * S;
+                drawY = (imgRect.top - maskRect.top) * S;
+                drawW = imgRect.width * S;
+                drawH = imgRect.height * S;
+            }
+
+            eCtx.drawImage(els.canvas, drawX, drawY, drawW, drawH);
+
             link.href = exportCanvas.toDataURL(`image/${ext === 'png' ? 'png' : 'jpeg'}`, 0.9);
             link.click();
         }
@@ -883,3 +1208,16 @@
 </body>
 
 </html>
+});
+}
+window.removeSelection = id => { state.selections = state.selections.filter(s => s.id !== id);
+if(state.activeSelectionId === id) state.activeSelectionId = null; updateColorListUI(); pushHistory();
+requestFullRender(); };
+window.updateLabel = (el, suffix = '') => { const span = el.previousElementSibling.lastElementChild; if(span)
+span.innerText = el.value + suffix; }
+window.updateSelectionParam = (id, k, v) => { const s = state.selections.find(x => x.id === id); if(s) { s[k] =
+k==='fillHoles'?v:parseInt(v); s.mask = null; if(k !== 'fillHoles') pushHistory(); requestFullRender(id); } };
+function downloadImage() {
+if (!state.image) return;
+const link = document.createElement('a');
+const nameParts = state.fileName.split('.');
