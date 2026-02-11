@@ -4,111 +4,323 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HoldFocus - v10.2 Color Fix</title>
+    <title>HoldFocus - v10.5 Precision Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* --- 基礎樣式 --- */
-        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; margin-top: -6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.1s; }
-        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e5e7eb; border-radius: 2px; }
-        #file-upload { display: none; }
-        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            transition: transform 0.1s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e5e7eb;
+            border-radius: 2px;
+        }
+
+        #file-upload {
+            display: none;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
         .checkerboard {
             background-color: #f0f0f0;
             background-image: linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(-45deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(-45deg, transparent 75%, #ddd 75%);
-            background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
         }
-        .color-btn.selected { ring: 2px; ring-offset: 2px; ring-color: #3b82f6; transform: scale(1.15); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        .color-btn.selected {
+            ring: 2px;
+            ring-offset: 2px;
+            ring-color: #3b82f6;
+            transform: scale(1.15);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
 
         /* --- 架構樣式 --- */
-        .canvas-stack { position: relative; width: 0; height: 0; }
-        .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        #layer-bg { z-index: 1; }
-        #layer-mask { z-index: 2; mix-blend-mode: normal; }
-        #layer-ui { z-index: 3; pointer-events: none; }
+        .canvas-stack {
+            position: relative;
+            width: 0;
+            height: 0;
+        }
+
+        .layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #layer-bg {
+            z-index: 1;
+        }
+
+        #layer-mask {
+            z-index: 2;
+            mix-blend-mode: normal;
+        }
+
+        #layer-ui {
+            z-index: 3;
+            pointer-events: none;
+        }
 
         /* Crop & UI Tools */
-        .crop-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 50; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .crop-frame { border: 2px solid rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 0 9999px rgba(0, 0, 0, 0.7); position: relative; transition: all 0.2s ease; }
-        .crop-frame::before { content: ''; position: absolute; top: 33.33%; left: 0; right: 0; height: 33.33%; border-top: 1px dashed rgba(255, 255, 255, 0.4); border-bottom: 1px dashed rgba(255, 255, 255, 0.4); }
-        .crop-frame::after { content: ''; position: absolute; left: 33.33%; top: 0; bottom: 0; width: 33.33%; border-left: 1px dashed rgba(255, 255, 255, 0.4); border-right: 1px dashed rgba(255, 255, 255, 0.4); }
-        #crop-backdrop { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; pointer-events: none; }
-        
-        .tool-btn.active { background-color: #2563eb; color: white; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
-        .tool-btn { color: #6b7280; transition: all 0.2s; }
-        .tool-btn:hover:not(.active) { background-color: #f3f4f6; color: #111827; }
-        .snap-line { position: absolute; background-color: #3b82f6; z-index: 60; pointer-events: none; box-shadow: 0 0 4px rgba(255, 255, 255, 0.8); }
+        .crop-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .crop-frame {
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 0 9999px rgba(0, 0, 0, 0.7);
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .crop-frame::before {
+            content: '';
+            position: absolute;
+            top: 33.33%;
+            left: 0;
+            right: 0;
+            height: 33.33%;
+            border-top: 1px dashed rgba(255, 255, 255, 0.4);
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        .crop-frame::after {
+            content: '';
+            position: absolute;
+            left: 33.33%;
+            top: 0;
+            bottom: 0;
+            width: 33.33%;
+            border-left: 1px dashed rgba(255, 255, 255, 0.4);
+            border-right: 1px dashed rgba(255, 255, 255, 0.4);
+        }
+
+        #crop-backdrop {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .tool-btn.active {
+            background-color: #2563eb;
+            color: white;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .tool-btn {
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover:not(.active) {
+            background-color: #f3f4f6;
+            color: #111827;
+        }
+
+        .snap-line {
+            position: absolute;
+            background-color: #3b82f6;
+            z-index: 70;
+            pointer-events: none;
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+        }
 
         /* Slider Controls */
-        .slider-group { display: flex; align-items: center; gap: 6px; }
-        .slider-btn { width: 22px; height: 22px; border-radius: 6px; background: #f3f4f6; color: #4b5563; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; cursor: pointer; flex-shrink: 0; transition: background 0.2s; }
-        .slider-btn:hover { background: #e5e7eb; color: #111827; }
-        .slider-btn:active { background: #d1d5db; transform: scale(0.95); }
-        
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .slider-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            background: #f3f4f6;
+            color: #4b5563;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+
+        .slider-btn:hover {
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        .slider-btn:active {
+            background: #d1d5db;
+            transform: scale(0.95);
+        }
+
         /* Toggle Switch */
-        .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
-        .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
-        
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #3b82f6;
+        }
+
+        .toggle-checkbox:checked+.toggle-label {
+            background-color: #3b82f6;
+        }
+
         /* List Item Animations */
-        .list-item { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .list-item:hover { border-color: #bfdbfe; }
+        .list-item {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .list-item:hover {
+            border-color: #bfdbfe;
+        }
+
+        /* Loupe Magnifier */
+        #loupe {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border: 4px solid white;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            display: none;
+            background: #000;
+        }
     </style>
 </head>
 
 <body class="bg-gray-100 text-gray-800 h-screen flex flex-col overflow-hidden font-sans">
 
     <!-- Header -->
-    <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-sm">
+    <header
+        class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-sm">
         <div class="flex items-center gap-2 overflow-hidden">
-            <h1 class="text-base font-bold text-gray-900 truncate">HoldFocus <span class="text-xs font-normal text-gray-500 ml-1">v10.2</span></h1>
+            <h1 class="text-base font-bold text-gray-900 truncate">HoldFocus <span
+                    class="text-xs font-normal text-gray-500 ml-1">v10.5</span></h1>
             <div class="flex ml-4 border-l border-gray-200 pl-4 space-x-1">
-                <button id="undo-btn" class="p-1.5 text-gray-500 hover:text-gray-900 rounded hover:bg-gray-100 disabled:opacity-30 transition-colors" disabled title="Undo">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                <button id="undo-btn"
+                    class="p-1.5 text-gray-500 hover:text-gray-900 rounded hover:bg-gray-100 disabled:opacity-30 transition-colors"
+                    disabled title="Undo">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                    </svg>
                 </button>
-                <button id="redo-btn" class="p-1.5 text-gray-500 hover:text-gray-900 rounded hover:bg-gray-100 disabled:opacity-30 transition-colors" disabled title="Redo">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path></svg>
+                <button id="redo-btn"
+                    class="p-1.5 text-gray-500 hover:text-gray-900 rounded hover:bg-gray-100 disabled:opacity-30 transition-colors"
+                    disabled title="Redo">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path>
+                    </svg>
                 </button>
             </div>
         </div>
         <div class="flex space-x-2 items-center">
-            <label for="file-upload" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition-colors">開啟</label>
+            <label for="file-upload"
+                class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition-colors">開啟</label>
             <input id="file-upload" type="file" accept="image/*">
-            <button id="download-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50 shadow-sm" disabled>下載</button>
+            <button id="download-btn"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
+                disabled>下載</button>
         </div>
     </header>
 
     <main class="flex-1 flex flex-col-reverse md:flex-row overflow-hidden relative">
 
-        <!-- Sidebar -->
-        <aside class="w-full md:w-80 bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col z-10 shrink-0 h-[40%] md:h-full transition-all duration-300 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] md:shadow-none">
+        <aside
+            class="w-full md:w-80 bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col z-10 shrink-0 h-[40%] md:h-full transition-all duration-300 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] md:shadow-none">
             <div class="flex border-b border-gray-200 shrink-0">
-                <button id="tab-route" class="flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors">路線編輯</button>
-                <button id="tab-text" class="flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">文字/標記</button>
+                <button id="tab-route"
+                    class="flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors">路線編輯</button>
+                <button id="tab-text"
+                    class="flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">文字/標記</button>
             </div>
 
             <div class="flex-1 overflow-y-auto custom-scrollbar relative p-4">
-                <!-- Panel: Route -->
                 <div id="panel-route" class="space-y-4">
                     <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                        <p class="text-sm text-blue-800 font-medium leading-relaxed">點擊下方 <b class="inline-flex items-center justify-center w-5 h-5 bg-blue-600 text-white rounded-full text-xs mx-0.5 align-middle shadow-sm">+</b> 號，開始圈選岩點</p>
+                        <p class="text-sm text-blue-800 font-medium leading-relaxed">1. 右上角開啟照片<br>2. 點擊下方 <b
+                                class="inline-flex items-center justify-center w-5 h-5 bg-blue-600 text-white rounded-full text-xs mx-0.5 align-middle shadow-sm">+</b>
+                            號，開始圈選岩點</p>
                     </div>
 
-                    <!-- Selection List -->
                     <div class="flex-1 flex flex-col min-h-0">
                         <div class="flex items-center justify-between mb-2">
-                            <h3 class="text-sm font-bold text-gray-700" data-i18n="selectedRanges">已選岩點</h3>
-                            <button id="clear-colors" class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded transition-colors hidden">清空</button>
+                            <h3 class="text-sm font-bold text-gray-700">已選岩點</h3>
+                            <button id="clear-colors"
+                                class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded transition-colors hidden">清空</button>
                         </div>
                         <div id="color-list" class="space-y-2 pb-2 overflow-y-auto pr-1">
-                            <div class="text-center py-8 text-gray-400 text-sm italic border-2 border-dashed border-gray-100 rounded-lg">尚未圈選</div>
+                            <div
+                                class="text-center py-8 text-gray-400 text-sm italic border-2 border-dashed border-gray-100 rounded-lg">
+                                尚未圈選</div>
                         </div>
                     </div>
 
-                    <!-- Eraser Size Control -->
                     <div id="brush-controls" class="hidden border-t border-gray-200 pt-4">
-                        <div class="flex justify-between mb-1"><label class="text-xs font-bold text-blue-800 uppercase tracking-wider">橡皮擦大小</label><span id="brush-size-val" class="text-xs text-blue-600 font-mono">20px</span></div>
+                        <div class="flex justify-between mb-1"><label
+                                class="text-xs font-bold text-blue-800 uppercase tracking-wider">橡皮擦大小</label><span
+                                id="brush-size-val" class="text-xs text-blue-600 font-mono">20px</span></div>
                         <div class="slider-group">
                             <button class="slider-btn" onclick="app.adjSlider('brush-size', -5)">-</button>
                             <input type="range" id="brush-size" min="5" max="100" value="20" class="accent-blue-600">
@@ -116,19 +328,26 @@
                         </div>
                     </div>
 
-                    <!-- Global Adjustments -->
                     <div class="border-t border-gray-200 pt-4">
                         <details class="group">
-                            <summary class="flex justify-between items-center font-bold text-xs text-gray-500 uppercase tracking-wider cursor-pointer list-none hover:text-gray-700 transition-colors py-1">
+                            <summary
+                                class="flex justify-between items-center font-bold text-xs text-gray-500 uppercase tracking-wider cursor-pointer list-none hover:text-gray-700 transition-colors py-1">
                                 <span>影像調整 (全域)</span>
-                                <span class="transition-transform group-open:rotate-180 duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></span>
+                                <span class="transition-transform group-open:rotate-180 duration-200"><svg
+                                        class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 9l-7 7-7-7"></path>
+                                    </svg></span>
                             </summary>
                             <div class="mt-3 space-y-4 pb-2 px-1">
                                 <div>
-                                    <div class="flex justify-between mb-1"><label class="text-xs font-medium text-gray-600">對比度</label><span id="contrast-val" class="text-xs text-gray-400">100%</span></div>
+                                    <div class="flex justify-between mb-1"><label
+                                            class="text-xs font-medium text-gray-600">對比度</label><span id="contrast-val"
+                                            class="text-xs text-gray-400">100%</span></div>
                                     <div class="slider-group">
                                         <button class="slider-btn" onclick="app.adjSlider('contrast', -5)">-</button>
-                                        <input type="range" id="contrast" min="50" max="150" value="100" class="accent-gray-600">
+                                        <input type="range" id="contrast" min="50" max="150" value="100"
+                                            class="accent-gray-600">
                                         <button class="slider-btn" onclick="app.adjSlider('contrast', 5)">+</button>
                                     </div>
                                 </div>
@@ -137,27 +356,42 @@
                                     <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">背景風格</h4>
                                     <div class="space-y-3">
                                         <div>
-                                            <div class="flex justify-between mb-1"><label class="text-xs font-medium text-gray-600">飽和度</label><span id="bg-sat-val" class="text-xs text-gray-400">0%</span></div>
+                                            <div class="flex justify-between mb-1"><label
+                                                    class="text-xs font-medium text-gray-600">飽和度</label><span
+                                                    id="bg-sat-val" class="text-xs text-gray-400">0%</span></div>
                                             <div class="slider-group">
-                                                <button class="slider-btn" onclick="app.adjSlider('bg-sat', -5)">-</button>
-                                                <input type="range" id="bg-sat" min="0" max="100" value="0" class="accent-gray-600">
-                                                <button class="slider-btn" onclick="app.adjSlider('bg-sat', 5)">+</button>
+                                                <button class="slider-btn"
+                                                    onclick="app.adjSlider('bg-sat', -5)">-</button>
+                                                <input type="range" id="bg-sat" min="0" max="100" value="0"
+                                                    class="accent-gray-600">
+                                                <button class="slider-btn"
+                                                    onclick="app.adjSlider('bg-sat', 5)">+</button>
                                             </div>
                                         </div>
                                         <div>
-                                            <div class="flex justify-between mb-1"><label class="text-xs font-medium text-gray-600">壓暗</label><span id="bg-dim-val" class="text-xs text-gray-400">0%</span></div>
+                                            <div class="flex justify-between mb-1"><label
+                                                    class="text-xs font-medium text-gray-600">壓暗</label><span
+                                                    id="bg-dim-val" class="text-xs text-gray-400">0%</span></div>
                                             <div class="slider-group">
-                                                <button class="slider-btn" onclick="app.adjSlider('bg-dim', -5)">-</button>
-                                                <input type="range" id="bg-dim" min="0" max="90" value="0" class="accent-gray-600">
-                                                <button class="slider-btn" onclick="app.adjSlider('bg-dim', 5)">+</button>
+                                                <button class="slider-btn"
+                                                    onclick="app.adjSlider('bg-dim', -5)">-</button>
+                                                <input type="range" id="bg-dim" min="0" max="90" value="0"
+                                                    class="accent-gray-600">
+                                                <button class="slider-btn"
+                                                    onclick="app.adjSlider('bg-dim', 5)">+</button>
                                             </div>
                                         </div>
                                         <div>
-                                            <div class="flex justify-between mb-1"><label class="text-xs font-medium text-gray-600">模糊</label><span id="bg-blur-val" class="text-xs text-gray-400">0px</span></div>
+                                            <div class="flex justify-between mb-1"><label
+                                                    class="text-xs font-medium text-gray-600">模糊</label><span
+                                                    id="bg-blur-val" class="text-xs text-gray-400">0px</span></div>
                                             <div class="slider-group">
-                                                <button class="slider-btn" onclick="app.adjSlider('bg-blur', -0.5)">-</button>
-                                                <input type="range" id="bg-blur" min="0" max="10" step="0.5" value="0" class="accent-gray-600">
-                                                <button class="slider-btn" onclick="app.adjSlider('bg-blur', 0.5)">+</button>
+                                                <button class="slider-btn"
+                                                    onclick="app.adjSlider('bg-blur', -0.5)">-</button>
+                                                <input type="range" id="bg-blur" min="0" max="10" step="0.5" value="0"
+                                                    class="accent-gray-600">
+                                                <button class="slider-btn"
+                                                    onclick="app.adjSlider('bg-blur', 0.5)">+</button>
                                             </div>
                                         </div>
                                     </div>
@@ -167,77 +401,124 @@
                     </div>
                 </div>
 
-                <!-- Panel: Text -->
                 <div id="panel-text" class="space-y-5 hidden">
                     <div>
                         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">標記 (Tags)</h3>
                         <div class="grid grid-cols-2 gap-2">
-                            <button id="add-start-tag" class="flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 py-2 rounded text-sm font-medium transition-all hover:shadow-sm">S Start</button>
-                            <button id="add-top-tag" class="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 py-2 rounded text-sm font-medium transition-all hover:shadow-sm">T Top</button>
+                            <button id="add-start-tag"
+                                class="flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 py-2 rounded text-sm font-medium transition-all hover:shadow-sm">S
+                                Start</button>
+                            <button id="add-top-tag"
+                                class="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 py-2 rounded text-sm font-medium transition-all hover:shadow-sm">T
+                                Top</button>
                         </div>
                     </div>
                     <div class="border-t border-gray-200 pt-4">
                         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">文字 (Text)</h3>
                         <div class="flex gap-2 mb-3">
-                            <input type="text" id="text-input" placeholder="輸入文字..." class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-shadow" />
-                            <button id="add-text-btn" class="bg-gray-800 hover:bg-gray-900 text-white px-3 rounded text-sm font-medium transition-colors shadow-sm">+</button>
+                            <input type="text" id="text-input" placeholder="輸入文字..."
+                                class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                            <button id="add-text-btn"
+                                class="bg-gray-800 hover:bg-gray-900 text-white px-3 rounded text-sm font-medium transition-colors shadow-sm">+</button>
                         </div>
-                        <div id="text-controls" class="space-y-4 opacity-50 pointer-events-none transition-opacity bg-gray-50 p-3 rounded-lg border border-gray-200">
-                            <div><div class="flex flex-wrap gap-2" id="color-palette"></div></div>
+                        <div id="text-controls"
+                            class="space-y-4 opacity-50 pointer-events-none transition-opacity bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <div>
+                                <div class="flex flex-wrap gap-2" id="color-palette"></div>
+                            </div>
                             <div class="flex items-center justify-between">
                                 <label class="flex items-center cursor-pointer">
-                                    <div class="relative"><input type="checkbox" id="text-bg-toggle" class="sr-only"><div class="w-8 h-4 bg-gray-300 rounded-full shadow-inner transition-colors" id="text-bg-track"></div><div class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform" id="text-bg-dot"></div></div>
+                                    <div class="relative"><input type="checkbox" id="text-bg-toggle" class="sr-only">
+                                        <div class="w-8 h-4 bg-gray-300 rounded-full shadow-inner transition-colors"
+                                            id="text-bg-track"></div>
+                                        <div class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform"
+                                            id="text-bg-dot"></div>
+                                    </div>
                                     <div class="ml-2 text-xs font-medium text-gray-700">底色</div>
                                 </label>
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs text-gray-500">Size</span>
                                     <div class="slider-group w-24">
                                         <button class="slider-btn" onclick="app.adjSlider('text-size', -5)">-</button>
-                                        <input type="range" id="text-size" min="10" max="150" value="40" class="accent-gray-700">
+                                        <input type="range" id="text-size" min="10" max="150" value="40"
+                                            class="accent-gray-700">
                                         <button class="slider-btn" onclick="app.adjSlider('text-size', 5)">+</button>
                                     </div>
                                 </div>
                             </div>
-                            <button id="delete-item-btn" class="w-full border border-red-200 text-red-500 hover:bg-red-50 py-1.5 rounded text-xs font-medium transition-colors">刪除物件</button>
+                            <button id="delete-item-btn"
+                                class="w-full border border-red-200 text-red-500 hover:bg-red-50 py-1.5 rounded text-xs font-medium transition-colors">刪除物件</button>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <div id="processing-bar" class="bg-blue-600 text-white text-xs py-2 px-4 flex items-center justify-center gap-2 hidden shrink-0 shadow-inner">
+
+            <div id="processing-bar"
+                class="bg-blue-600 text-white text-xs py-2 px-4 flex items-center justify-center gap-2 hidden shrink-0 shadow-inner">
                 <div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div><span>運算中...</span>
             </div>
         </aside>
 
-        <!-- Canvas -->
-        <section class="flex-1 bg-gray-800 relative overflow-hidden h-[60%] md:h-full checkerboard touch-none" id="canvas-container">
-            <!-- Toolbar -->
-            <div id="floating-toolbar" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-xl rounded-full px-4 py-2 flex items-center gap-4 z-[60] border border-gray-200 transition-all duration-300">
+        <section class="flex-1 bg-gray-800 relative overflow-hidden h-[60%] md:h-full checkerboard touch-none"
+            id="canvas-container">
+            <div id="loupe"><canvas id="loupe-canvas"></canvas></div>
+            <div id="floating-toolbar"
+                class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-xl rounded-full px-4 py-2 flex items-center gap-4 z-[60] border border-gray-200 transition-all duration-300">
                 <div id="tool-switcher" class="flex bg-gray-100 rounded-full p-1">
-                    <button id="tool-hand" class="tool-btn p-2 rounded-full transition-all duration-200"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"></path></svg></button>
-                    <button id="tool-lasso" class="tool-btn p-2 rounded-full transition-all duration-200"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg></button>
-                    <button id="tool-eraser" class="tool-btn p-2 rounded-full transition-all duration-200" title="Eraser">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0zM4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l1.41-1.41-6.36-6.36-1.42 1.41c-.78.79-.78 2.05 0 2.83z"/></svg>
+                    <button id="tool-hand" class="tool-btn p-2 rounded-full transition-all duration-200"><svg
+                            class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11">
+                            </path>
+                        </svg></button>
+                    <button id="tool-lasso" class="tool-btn p-2 rounded-full transition-all duration-200"><svg
+                            class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg></button>
+                    <button id="tool-eraser" class="tool-btn p-2 rounded-full transition-all duration-200"
+                        title="Eraser">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0zM4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l1.41-1.41-6.36-6.36-1.42 1.41c-.78.79-.78 2.05 0 2.83z" />
+                        </svg>
                     </button>
                 </div>
                 <div class="w-px h-6 bg-gray-300"></div>
                 <div class="flex items-center gap-2">
-                    <button id="crop-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 font-bold transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></button>
-                    <button id="crop-bg-color" class="hidden w-6 h-6 rounded-full border border-gray-300 bg-white shadow-sm transition-all hover:scale-110" title="Toggle Black/White"></button>
+                    <button id="crop-btn"
+                        class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 font-bold transition-all"><svg
+                            class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                            </path>
+                        </svg></button>
+                    <button id="crop-bg-color"
+                        class="hidden w-6 h-6 rounded-full border border-gray-300 bg-white shadow-sm transition-all hover:scale-110"
+                        title="Toggle Black/White"></button>
                     <span id="crop-label" class="text-[10px] text-blue-600 font-mono hidden">Orig</span>
                 </div>
             </div>
 
-            <div id="placeholder-msg" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
-                <div class="mx-auto w-16 h-16 bg-gray-700/50 text-white/50 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <div id="placeholder-msg"
+                class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
+                <div
+                    class="mx-auto w-16 h-16 bg-gray-700/50 text-white/50 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                        </path>
+                    </svg>
                 </div>
                 <h3 class="text-lg font-medium text-white/80">拖放照片至此</h3>
             </div>
 
+            <div id="guide-v" class="snap-line w-px h-full left-1/2 hidden transform -translate-x-1/2"></div>
+            <div id="guide-h" class="snap-line h-px w-full top-1/2 hidden transform -translate-y-1/2"></div>
             <div id="crop-backdrop" class="absolute hidden transition-all duration-200"></div>
 
-            <div id="canvas-transform-root" class="w-full h-full flex items-center justify-center origin-center transition-transform duration-75 ease-linear relative z-10">
+            <div id="canvas-transform-root"
+                class="w-full h-full flex items-center justify-center origin-center transition-transform duration-75 ease-linear relative z-10">
                 <div id="canvas-wrapper" class="canvas-stack shadow-2xl hidden">
                     <canvas id="layer-bg" class="layer"></canvas>
                     <canvas id="layer-mask" class="layer"></canvas>
@@ -245,15 +526,167 @@
                 </div>
             </div>
 
-            <div id="crop-mask-container" class="crop-overlay hidden"><div id="crop-frame" class="crop-frame"></div></div>
-            <div id="snap-v" class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-blue-500 hidden z-[60] transform -translate-x-1/2"></div>
-            <div id="snap-h" class="absolute left-0 right-0 top-1/2 h-0.5 bg-blue-500 hidden z-[60] transform -translate-y-1/2"></div>
+            <div id="crop-mask-container" class="crop-overlay hidden">
+                <div id="crop-frame" class="crop-frame"></div>
+            </div>
         </section>
     </main>
 
     <script>
-        // Updated Color Palette (Removed #FF00FF)
-        const COLORS = ['#FFFFFF', '#000000', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
+        const workerCode = `
+            self.onmessage = function(e) {
+                const { type, sel, w, h, bgData } = e.data;
+                if (type === 'CALC_MASK') {
+                    const mask = calculateMaskInternal(sel, w, h, bgData);
+                    const borderMask = sel.params.border ? getBorderInternal(mask, w, h, sel.params.borderThickness || 5) : null;
+                    self.postMessage({ id: sel.id, mask, borderMask });
+                }
+            };
+            function colorDist(r1, g1, b1, r2, g2, b2) {
+                const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
+                return Math.sqrt(2 * dr * dr + 4 * dg * dg + 3 * db * db);
+            }
+            function isPointInPolygon(p, poly) {
+                let inside = false;
+                for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+                    const xi = poly[i].x, yi = poly[i].y;
+                    const xj = poly[j].x, yj = poly[j].y;
+                    const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
+                    if (intersect) inside = !inside;
+                }
+                return inside;
+            }
+            function calculateMaskInternal(sel, w, h, bgData) {
+                const mask = new Uint8Array(w * h), visited = new Uint8Array(w * h);
+                const tolerance = sel.params.tolerance, palette = [], queue = [];
+                if (sel.seeds && sel.seeds.length > 0) {
+                    const paths = Array.isArray(sel.seeds[0]) ? sel.seeds : [sel.seeds];
+                    paths.forEach(path => {
+                        if (path.length < 3) return;
+                        let minX = w, maxX = 0, minY = h, maxY = 0;
+                        path.forEach(p => { if(p.x<minX) minX=p.x; if(p.x>maxX) maxX=p.x; if(p.y<minY) minY=p.y; if(p.y>maxY) maxY=p.y; });
+                        minX = Math.max(0, Math.floor(minX)); minY = Math.max(0, Math.floor(minY));
+                        maxX = Math.min(w, Math.ceil(maxX)); maxY = Math.min(h, Math.ceil(maxY));
+                        for (let y = minY; y < maxY; y++) {
+                            const row = y * w;
+                            for (let x = minX; x < maxX; x++) {
+                                if (isPointInPolygon({ x, y }, path)) {
+                                    const idx = row + x; mask[idx] = 1;
+                                    if (visited[idx] === 0) {
+                                        visited[idx] = 1; queue.push(x, y);
+                                        if (palette.length < 400 && (x + y) % 4 === 0) {
+                                            const pIdx = idx * 4;
+                                            palette.push({ r: bgData[pIdx], g: bgData[pIdx+1], b: bgData[pIdx+2] });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                if (palette.length > 0) {
+                    let head = 0; const dx = [0, 1, 0, -1], dy = [-1, 0, 1, 0];
+                    while (head < queue.length) {
+                        const x = queue[head++], y = queue[head++];
+                        for (let i = 0; i < 4; i++) {
+                            const nx = x + dx[i], ny = y + dy[i];
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                const nIdx = ny * w + nx;
+                                if (visited[nIdx] === 0) {
+                                    visited[nIdx] = 1; const pIdx = nIdx * 4;
+                                    const r = bgData[pIdx], g = bgData[pIdx+1], b = bgData[pIdx+2];
+                                    let isMatch = false;
+                                    for(let s=0; s<palette.length; s+=2) { 
+                                        if (colorDist(r, g, b, palette[s].r, palette[s].g, palette[s].b) <= tolerance) { isMatch = true; break; }
+                                    }
+                                    if (isMatch) { mask[nIdx] = 1; queue.push(nx, ny); }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (sel.params.expand > 0) expandInternal(mask, w, h, sel.params.expand);
+                if (sel.params.fillHoles) fillHolesInternal(mask, w, h);
+                if (sel.manualEdits) sel.manualEdits.forEach(edit => applyEditInternal(mask, w, h, edit));
+                return keepLargestInternal(mask, w, h);
+            }
+            function expandInternal(mask, w, h, rad) {
+                const old = new Uint8Array(mask);
+                for(let y=0; y<h; y++) {
+                    const row = y * w;
+                    for(let x=0; x<w; x++) {
+                        if(old[row + x]) {
+                            let isEdge = (x==0 || x==w-1 || y==0 || y==h-1);
+                            if(!isEdge) if(!old[row+x-1] || !old[row+x+1] || !old[row-w+x] || !old[row+w+x]) isEdge = true;
+                            if (isEdge) {
+                                for(let ky=-rad; ky<=rad; ky++) for(let kx=-rad; kx<=rad; kx++) {
+                                    const ny = y+ky, nx = x+kx; if(nx>=0 && nx<w && ny>=0 && ny<h) mask[ny*w+nx] = 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            function fillHolesInternal(mask, w, h) {
+                const visited = new Uint8Array(w*h), q = [];
+                for(let x=0; x<w; x++) { if(!mask[x]) { q.push(x,0); visited[x]=1; } if(!mask[(h-1)*w+x]) { q.push(x,h-1); visited[(h-1)*w+x]=1; } }
+                for(let y=0; y<h; y++) { if(!mask[y*w] && !visited[y*w]) { q.push(0,y); visited[y*w]=1; } if(!mask[y*w+w-1] && !visited[y*w+w-1]) { q.push(w-1,y); visited[y*w+w-1]=1; } }
+                let head = 0; const dx=[1,-1,0,0], dy=[0,0,1,-1];
+                while(head < q.length) {
+                    const x = q[head++], y = q[head++];
+                    for(let i=0; i<4; i++) {
+                        const nx=x+dx[i], ny=y+dy[i];
+                        if(nx>=0 && nx<w && ny>=0 && ny<h && !mask[ny*w+nx] && !visited[ny*w+nx]) { visited[ny*w+nx] = 1; q.push(nx,ny); }
+                    }
+                }
+                for(let i=0; i<w*h; i++) if(!mask[i] && !visited[i]) mask[i] = 1;
+            }
+            function applyEditInternal(mask, w, h, edit) {
+                const { type, points, size } = edit, rad = size / 2, r2 = rad * rad;
+                points.forEach(p => {
+                    const cx = Math.floor(p.x), cy = Math.floor(p.y);
+                    const minY = Math.max(0, cy-rad), maxY = Math.min(h, cy+rad);
+                    const minX = Math.max(0, cx-rad), maxX = Math.min(w, cx+rad);
+                    for(let y=minY; y<maxY; y++) for(let x=minX; x<maxX; x++) {
+                        if ((x-cx)*(x-cx) + (y-cy)*(y-cy) <= r2) mask[Math.floor(y)*w+Math.floor(x)] = (type === 'add' ? 1 : 0);
+                    }
+                });
+            }
+            function keepLargestInternal(mask, w, h) {
+                const visited = new Uint8Array(w * h); let maxCount = 0, maxLabel = 0, currentLabel = 1;
+                const labels = new Int32Array(w * h);
+                for (let i = 0; i < w * h; i++) {
+                    if (mask[i] === 1 && visited[i] === 0) {
+                        let count = 0; const q = [i]; visited[i] = 1; labels[i] = currentLabel;
+                        let head = 0;
+                        while(head < q.length) {
+                            const idx = q[head++]; count++; const cx = idx % w, cy = Math.floor(idx / w);
+                            const dx = [1, -1, 0, 0], dy = [0, 0, 1, -1];
+                            for(let d=0; d<4; d++) {
+                                const nx = cx + dx[d], ny = cy + dy[d];
+                                if(nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                    const nIdx = ny * w + nx; if(mask[nIdx] === 1 && visited[nIdx] === 0) { visited[nIdx] = 1; labels[nIdx] = currentLabel; q.push(nIdx); }
+                                }
+                            }
+                        }
+                        if (count > maxCount) { maxCount = count; maxLabel = currentLabel; }
+                        currentLabel++;
+                    }
+                }
+                const result = new Uint8Array(w*h);
+                if (maxLabel > 0) for (let i = 0; i < w * h; i++) if (labels[i] === maxLabel) result[i] = 1;
+                return result;
+            }
+            function getBorderInternal(mask, w, h, thickness) {
+                const expanded = new Uint8Array(mask.length); expanded.set(mask);
+                expandInternal(expanded, w, h, thickness);
+                const border = new Uint8Array(mask.length);
+                for(let i=0; i<mask.length; i++) if (expanded[i] && !mask[i]) border[i] = 1;
+                return border;
+            }
+        `;
+
+        const COLORS_LIST = ['#FFFFFF', '#000000', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
         const CROPS = [
             { id: 'orig', label: 'Orig', w: 0, h: 0 },
             { id: '1:1', label: '1:1', w: 1, h: 1 },
@@ -268,308 +701,21 @@
 
         class StateManager {
             constructor(onHistoryChange) {
-                this.history = [];
-                this.historyIndex = -1;
-                this.onHistoryChange = onHistoryChange;
-                
-                this.data = {
-                    filters: { brightness: 100, contrast: 100, bgSat: 0, bgDim: 0, bgBlur: 0 },
-                    selections: [], 
-                    objects: [],    
-                    crop: { index: 0, bgWhite: true },
-                    nextSelId: 1,
-                    nextObjId: 1
-                };
-
-                this.view = {
-                    scale: 1, x: 0, y: 0,
-                    tool: 'lasso', 
-                    activeTab: 'route',
-                    activeSelId: null,
-                    activeObjId: null,
-                    brushSize: 20,
-                    isDragging: false,
-                    dragType: null,
-                    tempPath: []
-                };
+                this.history = []; this.historyIndex = -1; this.onHistoryChange = onHistoryChange;
+                this.data = { filters: { contrast: 100, bgSat: 0, bgDim: 0, bgBlur: 0 }, selections: [], objects: [], crop: { index: 0, bgWhite: true }, nextSelId: 1, nextObjId: 1 };
+                this.view = { scale: 1, x: 0, y: 0, tool: 'lasso', activeTab: 'route', activeSelId: null, activeObjId: null, brushSize: 20, isDragging: false, dragType: null, tempPath: [] };
             }
-
             pushHistory() {
-                const safeSelections = this.data.selections.map(s => { const { mask, borderMask, ...rest } = s; return rest; });
-                const snapshot = JSON.stringify({ ...this.data, selections: safeSelections });
-
-                if (this.historyIndex < this.history.length - 1) {
-                    this.history = this.history.slice(0, this.historyIndex + 1);
-                }
-                this.history.push(snapshot);
-                this.historyIndex++;
+                const safe = this.data.selections.map(s => { const { mask, borderMask, ...rest } = s; return rest; });
+                const snapshot = JSON.stringify({ ...this.data, selections: safe });
+                if (this.historyIndex < this.history.length - 1) this.history = this.history.slice(0, this.historyIndex + 1);
+                this.history.push(snapshot); this.historyIndex++;
                 if (this.history.length > 20) { this.history.shift(); this.historyIndex--; }
                 this.onHistoryChange();
             }
-
             undo() { if (this.historyIndex > 0) { this.historyIndex--; this.restore(this.history[this.historyIndex]); } }
             redo() { if (this.historyIndex < this.history.length - 1) { this.historyIndex++; this.restore(this.history[this.historyIndex]); } }
-            
-            restore(json) {
-                this.data = JSON.parse(json);
-                this.onHistoryChange(true); 
-            }
-        }
-
-        class MaskEngine {
-            constructor() {
-                this.buffers = { visited: null, mask: null, width: 0, height: 0 };
-            }
-
-            ensureBuffers(w, h) {
-                const size = w * h;
-                if (this.buffers.width !== w || this.buffers.height !== h) {
-                    this.buffers.visited = new Uint8Array(size);
-                    this.buffers.mask = new Uint8Array(size);
-                    this.buffers.width = w; this.buffers.height = h;
-                } else {
-                    this.buffers.visited.fill(0); this.buffers.mask.fill(0);
-                }
-            }
-
-            isPointInPolygon(p, poly) {
-                let inside = false;
-                for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-                    const xi = poly[i].x, yi = poly[i].y;
-                    const xj = poly[j].x, yj = poly[j].y;
-                    const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
-                    if (intersect) inside = !inside;
-                }
-                return inside;
-            }
-
-            colorDist(r1, g1, b1, r2, g2, b2) {
-                const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
-                return Math.sqrt(2 * dr * dr + 4 * dg * dg + 3 * db * db);
-            }
-
-            getBorder(mask, w, h, thickness, bounds) {
-                const expanded = new Uint8Array(mask.length);
-                expanded.set(mask);
-                this.expand(expanded, w, h, thickness, bounds);
-                const border = new Uint8Array(mask.length);
-                const minX = Math.max(0, bounds.minX - thickness);
-                const maxX = Math.min(w, bounds.maxX + thickness);
-                const minY = Math.max(0, bounds.minY - thickness);
-                const maxY = Math.min(h, bounds.maxY + thickness);
-                for(let y = minY; y < maxY; y++) {
-                    const rowOffset = y * w;
-                    for(let x = minX; x < maxX; x++) {
-                        const i = rowOffset + x;
-                        if (expanded[i] && !mask[i]) border[i] = 1;
-                    }
-                }
-                return border;
-            }
-
-            calculateMask(sel, w, h, bgData) {
-                if (sel.mask && (!sel.params.border || sel.borderMask)) return sel.mask;
-                if (!bgData) return new Uint8Array(w * h);
-
-                this.ensureBuffers(w, h);
-                const mask = this.buffers.mask;
-                const visited = this.buffers.visited;
-                const tolerance = sel.params.tolerance;
-                const seeds = [];
-                const queue = [];
-                let bounds = { minX: w, maxX: 0, minY: h, maxY: 0 };
-
-                if (sel.seeds && sel.seeds.length > 0) {
-                    const paths = Array.isArray(sel.seeds[0]) ? sel.seeds : [sel.seeds];
-                    paths.forEach(path => {
-                        if (path.length < 3) return;
-                        let minX = w, maxX = 0, minY = h, maxY = 0;
-                        path.forEach(p => {
-                            if(p.x < minX) minX = p.x; if(p.x > maxX) maxX = p.x;
-                            if(p.y < minY) minY = p.y; if(p.y > maxY) maxY = p.y;
-                        });
-                        minX = Math.max(0, Math.floor(minX)); minY = Math.max(0, Math.floor(minY));
-                        maxX = Math.min(w, Math.ceil(maxX)); maxY = Math.min(h, Math.ceil(maxY));
-                        for (let y = minY; y < maxY; y++) {
-                            const rowOffset = y * w;
-                            for (let x = minX; x < maxX; x++) {
-                                if (this.isPointInPolygon({ x, y }, path)) {
-                                    const idx = rowOffset + x;
-                                    mask[idx] = 1; 
-                                    if(x < bounds.minX) bounds.minX = x; if(x > bounds.maxX) bounds.maxX = x;
-                                    if(y < bounds.minY) bounds.minY = y; if(y > bounds.maxY) bounds.maxY = y;
-                                    if (visited[idx] === 0) {
-                                        visited[idx] = 1;
-                                        queue.push(x, y);
-                                        if (seeds.length < 200 && (x + y) % 3 === 0) {
-                                            const pIdx = idx * 4;
-                                            seeds.push({ r: bgData[pIdx], g: bgData[pIdx+1], b: bgData[pIdx+2] });
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                if (seeds.length > 0) {
-                    let head = 0;
-                    const dx = [0, 1, 0, -1], dy = [-1, 0, 1, 0];
-                    while (head < queue.length) {
-                        const x = queue[head++], y = queue[head++];
-                        for (let i = 0; i < 4; i++) {
-                            const nx = x + dx[i], ny = y + dy[i];
-                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                const nIdx = ny * w + nx;
-                                if (visited[nIdx] === 0) {
-                                    visited[nIdx] = 1;
-                                    const pIdx = nIdx * 4;
-                                    const r = bgData[pIdx], g = bgData[pIdx+1], b = bgData[pIdx+2];
-                                    let isMatch = false;
-                                    for(let s=0; s<seeds.length; s++) {
-                                        if (this.colorDist(r, g, b, seeds[s].r, seeds[s].g, seeds[s].b) <= tolerance) { isMatch = true; break; }
-                                    }
-                                    if (isMatch) {
-                                        mask[nIdx] = 1;
-                                        queue.push(nx, ny);
-                                        if(nx < bounds.minX) bounds.minX = nx; if(nx > bounds.maxX) bounds.maxX = nx;
-                                        if(ny < bounds.minY) bounds.minY = ny; if(ny > bounds.maxY) bounds.maxY = ny;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                bounds.minX = Math.max(0, bounds.minX); bounds.minY = Math.max(0, bounds.minY);
-                bounds.maxX = Math.min(w, bounds.maxX); bounds.maxY = Math.min(h, bounds.maxY);
-
-                if (sel.params.expand > 0) this.expand(mask, w, h, sel.params.expand, bounds);
-                if (sel.params.fillHoles) this.fillHoles(mask, w, h, bounds);
-                if (sel.manualEdits) sel.manualEdits.forEach(edit => this.applyEdit(mask, w, h, edit, bounds));
-                this.keepLargestComponent(mask, w, h, bounds);
-
-                const resultMask = new Uint8Array(mask);
-                if (sel.params.border) {
-                    const thick = sel.params.borderThickness || 5; 
-                    bounds.minX = Math.max(0, bounds.minX - thick); bounds.minY = Math.max(0, bounds.minY - thick);
-                    bounds.maxX = Math.min(w, bounds.maxX + thick); bounds.maxY = Math.min(h, bounds.maxY + thick);
-                    sel.borderMask = this.getBorder(resultMask, w, h, thick, bounds);
-                } else {
-                    sel.borderMask = null;
-                }
-                sel.mask = resultMask;
-                return resultMask;
-            }
-
-            keepLargestComponent(mask, w, h, bounds) {
-                const visited = new Uint8Array(w * h); 
-                let maxCount = 0, maxLabel = 0, currentLabel = 1;
-                const labels = new Int32Array(w * h);
-                for (let y = bounds.minY; y < bounds.maxY; y++) {
-                    const rowOffset = y * w;
-                    for (let x = bounds.minX; x < bounds.maxX; x++) {
-                        const i = rowOffset + x;
-                        if (mask[i] === 1 && visited[i] === 0) {
-                            let count = 0;
-                            const q = [i];
-                            visited[i] = 1; labels[i] = currentLabel;
-                            let head = 0;
-                            while(head < q.length) {
-                                const idx = q[head++];
-                                count++;
-                                const cx = idx % w, cy = Math.floor(idx / w);
-                                const dx = [1, -1, 0, 0], dy = [0, 0, 1, -1];
-                                for(let d=0; d<4; d++) {
-                                    const nx = cx + dx[d], ny = cy + dy[d];
-                                    if(nx >= bounds.minX && nx < bounds.maxX && ny >= bounds.minY && ny < bounds.maxY) {
-                                        const nIdx = ny * w + nx;
-                                        if(mask[nIdx] === 1 && visited[nIdx] === 0) {
-                                            visited[nIdx] = 1; labels[nIdx] = currentLabel; q.push(nIdx);
-                                        }
-                                    }
-                                }
-                            }
-                            if (count > maxCount) { maxCount = count; maxLabel = currentLabel; }
-                            currentLabel++;
-                        }
-                    }
-                }
-                if (maxLabel > 0) {
-                    for (let y = bounds.minY; y < bounds.maxY; y++) {
-                        const rowOffset = y * w;
-                        for (let x = bounds.minX; x < bounds.maxX; x++) {
-                            const i = rowOffset + x;
-                            if (mask[i] === 1 && labels[i] !== maxLabel) mask[i] = 0;
-                        }
-                    }
-                }
-            }
-
-            expand(mask, w, h, rad, bounds) {
-                const old = new Uint8Array(mask);
-                const minX = Math.max(0, bounds.minX - rad), maxX = Math.min(w, bounds.maxX + rad);
-                const minY = Math.max(0, bounds.minY - rad), maxY = Math.min(h, bounds.maxY + rad);
-                bounds.minX = minX; bounds.maxX = maxX; bounds.minY = minY; bounds.maxY = maxY;
-                for(let y=minY; y<maxY; y++) {
-                    const rowOffset = y * w;
-                    for(let x=minX; x<maxX; x++) {
-                        const idx = rowOffset + x;
-                        if(old[idx]) {
-                            let isBorder = false;
-                            if (x>0 && !old[idx-1]) isBorder=true; else if (x<w-1 && !old[idx+1]) isBorder=true;
-                            else if (y>0 && !old[idx-w]) isBorder=true; else if (y<h-1 && !old[idx+w]) isBorder=true;
-                            if (isBorder) {
-                                for(let ky=-rad; ky<=rad; ky++) {
-                                    for(let kx=-rad; kx<=rad; kx++) {
-                                        const ny = y+ky, nx = x+kx;
-                                        if(nx>=0 && nx<w && ny>=0 && ny<h) mask[ny*w+nx] = 1;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            fillHoles(mask, w, h, bounds) {
-                const visited = new Uint8Array(w*h);
-                const q = [];
-                for(let x=0; x<w; x++) { if(!mask[x]) { q.push(x,0); visited[x]=1; } if(!mask[(h-1)*w+x]) { q.push(x,h-1); visited[(h-1)*w+x]=1; } }
-                for(let y=0; y<h; y++) { if(!mask[y*w] && !visited[y*w]) { q.push(0,y); visited[y*w]=1; } if(!mask[y*w+w-1] && !visited[y*w+w-1]) { q.push(w-1,y); visited[y*w+w-1]=1; } }
-                let head = 0;
-                const dx=[1,-1,0,0], dy=[0,0,1,-1];
-                while(head < q.length) {
-                    const x = q[head++], y = q[head++];
-                    for(let i=0; i<4; i++) {
-                        const nx=x+dx[i], ny=y+dy[i];
-                        if(nx>=0 && nx<w && ny>=0 && ny<h && !mask[ny*w+nx] && !visited[ny*w+nx]) {
-                            visited[ny*w+nx] = 1; q.push(nx,ny);
-                        }
-                    }
-                }
-                for(let i=0; i<w*h; i++) if(!mask[i] && !visited[i]) mask[i] = 1;
-            }
-
-            applyEdit(mask, w, h, edit, bounds) {
-                const { type, points, size } = edit;
-                const rad = size / 2, r2 = rad * rad;
-                points.forEach(p => {
-                    const cx = Math.floor(p.x), cy = Math.floor(p.y);
-                    const minX = Math.max(0, cx - rad), maxX = Math.min(w, cx + rad);
-                    const minY = Math.max(0, cy - rad), maxY = Math.min(h, cy + rad);
-                    if(minX < bounds.minX) bounds.minX = minX; if(maxX > bounds.maxX) bounds.maxX = maxX;
-                    if(minY < bounds.minY) bounds.minY = minY; if(maxY > bounds.maxY) bounds.maxY = maxY;
-                    for(let y=minY; y<maxY; y++) {
-                        const rowOffset = y * w;
-                        for(let x=minX; x<maxX; x++) {
-                            if ((x-cx)*(x-cx) + (y-cy)*(y-cy) <= r2) {
-                                mask[rowOffset + x] = (type === 'add' ? 1 : 0);
-                            }
-                        }
-                    }
-                });
-            }
+            restore(json) { this.data = JSON.parse(json); this.onHistoryChange(true); }
         }
 
         class LayerManager {
@@ -577,771 +723,293 @@
                 this.bgCtx = document.getElementById('layer-bg').getContext('2d');
                 this.maskCtx = document.getElementById('layer-mask').getContext('2d');
                 this.uiCtx = document.getElementById('layer-ui').getContext('2d');
+                this.loupeCtx = document.getElementById('loupe-canvas').getContext('2d');
                 this.wrapper = document.getElementById('canvas-wrapper');
-                this.width = 0; this.height = 0;
-                this.image = null;
-                this.bgBuffer = null;
+                this.width = this.height = 0; this.image = this.bgBuffer = null;
             }
-
             resize(w, h) {
                 this.width = w; this.height = h;
-                this.wrapper.style.width = w+'px'; this.wrapper.style.height = h+'px';
-                [this.bgCtx, this.maskCtx, this.uiCtx].forEach(ctx => { ctx.canvas.width=w; ctx.canvas.height=h; });
+                this.wrapper.style.width = w + 'px'; this.wrapper.style.height = h + 'px';
+                [this.bgCtx, this.maskCtx, this.uiCtx].forEach(ctx => { ctx.canvas.width = w; ctx.canvas.height = h; });
             }
-
             drawBg(img, filters) {
-                if(!img) return;
-                this.image = img;
-                const ctx = this.bgCtx;
-                ctx.clearRect(0,0,this.width,this.height);
-                ctx.filter = `contrast(${filters.contrast}%)`; // Removed brightness
-                ctx.drawImage(img, 0, 0);
-                ctx.filter = 'none';
-                this.bgBuffer = ctx.getImageData(0,0,this.width,this.height).data;
+                if (!img) return; this.image = img;
+                const ctx = this.bgCtx; ctx.clearRect(0, 0, this.width, this.height);
+                ctx.filter = `contrast(${filters.contrast}%)`; ctx.drawImage(img, 0, 0); ctx.filter = 'none';
+                this.bgBuffer = ctx.getImageData(0, 0, this.width, this.height).data;
             }
-
-            drawMasks(selections, maskEngine, filters) {
-                if(!this.bgBuffer) return;
-                const ctx = this.maskCtx;
-                ctx.clearRect(0,0,this.width,this.height);
-                
-                ctx.save();
-                ctx.filter = `saturate(${filters.bgSat}%) brightness(${100-filters.bgDim}%) blur(${filters.bgBlur}px)`;
-                ctx.drawImage(this.bgCtx.canvas, 0, 0);
-                ctx.restore();
-
+            drawMasks(selections, filters) {
+                if (!this.bgBuffer) return; const ctx = this.maskCtx; ctx.clearRect(0, 0, this.width, this.height);
+                ctx.save(); ctx.filter = `saturate(${filters.bgSat}%) brightness(${100 - filters.bgDim}%) blur(${filters.bgBlur}px)`;
+                ctx.drawImage(this.bgCtx.canvas, 0, 0); ctx.restore();
                 ctx.globalCompositeOperation = 'destination-out';
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = this.width; tempCanvas.height = this.height;
-                const tCtx = tempCanvas.getContext('2d');
-                const iData = tCtx.createImageData(this.width, this.height);
-                
+                const tempC = document.createElement('canvas'); tempC.width = this.width; tempC.height = this.height;
+                const tCtx = tempC.getContext('2d'); const iData = tCtx.createImageData(this.width, this.height);
                 let hasMask = false;
-                selections.forEach(sel => {
-                    const mask = maskEngine.calculateMask(sel, this.width, this.height, this.bgBuffer);
-                    for(let i=0; i<mask.length; i++) {
-                        if(mask[i]) { iData.data[i*4+3] = 255; hasMask=true; }
-                    }
-                });
-                
-                if(hasMask) {
-                    tCtx.putImageData(iData, 0, 0);
-                    ctx.drawImage(tempCanvas, 0, 0);
-                }
+                selections.forEach(sel => { if (sel.mask) for (let i = 0; i < sel.mask.length; i++) if (sel.mask[i]) { iData.data[i * 4 + 3] = 255; hasMask = true; } });
+                if (hasMask) { tCtx.putImageData(iData, 0, 0); ctx.save(); ctx.filter = 'blur(1.5px)'; ctx.drawImage(tempC, 0, 0); ctx.restore(); }
                 ctx.globalCompositeOperation = 'source-over';
-
                 selections.forEach(sel => {
                     if (sel.params.border && sel.borderMask) {
-                        const borderImg = ctx.createImageData(this.width, this.height);
-                        let color = {r:255, g:255, b:255};
-                        if (sel.params.borderColor) {
-                            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(sel.params.borderColor);
-                            if(result) color = { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) };
-                        }
-                        let hasBorder = false;
-                        for(let i=0; i<sel.borderMask.length; i++) {
-                            if (sel.borderMask[i]) {
-                                borderImg.data[i*4] = color.r; borderImg.data[i*4+1] = color.g;
-                                borderImg.data[i*4+2] = color.b; borderImg.data[i*4+3] = 255;
-                                hasBorder = true;
-                            }
-                        }
-                        if (hasBorder) {
-                            const bCanvas = document.createElement('canvas');
-                            bCanvas.width = this.width; bCanvas.height = this.height;
-                            bCanvas.getContext('2d').putImageData(borderImg, 0, 0);
-                            ctx.drawImage(bCanvas, 0, 0);
-                        }
+                        const bImg = ctx.createImageData(this.width, this.height);
+                        let col = { r: 236, g: 72, b: 153 }; const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(sel.params.borderColor || '#EC4899');
+                        if (res) col = { r: parseInt(res[1], 16), g: parseInt(res[2], 16), b: parseInt(res[3], 16) };
+                        for (let i = 0; i < sel.borderMask.length; i++) if (sel.borderMask[i]) { const p = i * 4; bImg.data[p] = col.r; bImg.data[p + 1] = col.g; bImg.data[p + 2] = col.b; bImg.data[p + 3] = 255; }
+                        const bC = document.createElement('canvas'); bC.width = this.width; bC.height = this.height;
+                        bC.getContext('2d').putImageData(bImg, 0, 0); ctx.drawImage(bC, 0, 0);
                     }
                 });
             }
-
             drawUi(state) {
-                const ctx = this.uiCtx;
-                ctx.clearRect(0,0,this.width,this.height);
+                const ctx = this.uiCtx; ctx.clearRect(0, 0, this.width, this.height);
                 if (state.view.isDragging && state.view.tempPath.length > 0) {
-                    const path = state.view.tempPath;
-                    ctx.beginPath();
-                    ctx.moveTo(path[0].x, path[0].y);
-                    for(let i=1; i<path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-                    if (state.view.dragType === 'lasso') {
-                        ctx.strokeStyle = 'rgba(255, 230, 0, 0.9)'; ctx.lineWidth = 2 / state.view.scale;
-                        ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
-                    } else if (state.view.dragType === 'eraser') {
-                        ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = state.view.brushSize;
-                        ctx.strokeStyle = 'rgba(255,0,0,0.5)'; ctx.stroke();
+                    const p = state.view.tempPath; ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
+                    for (let i = 1; i < p.length; i++) ctx.lineTo(p[i].x, p[i].y);
+                    if (state.view.dragType === 'lasso') { ctx.strokeStyle = 'rgba(255, 230, 0, 0.9)'; ctx.lineWidth = 2 / state.view.scale; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]); }
+                    else if (state.view.dragType === 'eraser') { ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = state.view.brushSize; ctx.strokeStyle = 'rgba(255,0,0,0.5)'; ctx.stroke(); }
+                }
+                state.data.objects.forEach(obj => {
+                    const isS = obj.id === state.view.activeObjId && state.view.activeTab === 'text';
+                    ctx.save(); ctx.translate(obj.x, obj.y);
+                    if (obj.type === 'text') {
+                        ctx.font = `bold ${obj.fontSize}px sans-serif`; ctx.textBaseline = 'top'; const m = ctx.measureText(obj.text);
+                        if (obj.bgColor) { ctx.fillStyle = obj.bgColor; ctx.roundRect(-8, -8, m.width + 16, obj.fontSize + 12, 8); ctx.fill(); }
+                        ctx.fillStyle = obj.color; ctx.fillText(obj.text, 0, 0);
+                        if (isS) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.strokeRect(-4, -4, m.width + 8, obj.fontSize + 8); }
+                    } else {
+                        const s = obj.fontSize / 60; ctx.scale(s, s); ctx.fillStyle = obj.color; ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 4;
+                        ctx.save(); ctx.rotate(-0.26); ctx.fillRect(-25, -8, 50, 16); ctx.rotate(0.52); ctx.fillRect(-25, -8, 50, 16); ctx.restore();
+                        ctx.shadowBlur = 0; ctx.fillStyle = 'white'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(obj.text, 0, 0);
+                        if (isS) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3; ctx.setLineDash([5, 3]); ctx.strokeRect(-30, -30, 60, 60); }
                     }
-                }
-                if (state.view.activeTab === 'text') {
-                    state.data.objects.forEach(obj => {
-                        const isSel = obj.id === state.view.activeObjId;
-                        ctx.save(); ctx.translate(obj.x, obj.y);
-                        if (obj.type === 'text') {
-                            ctx.font = `bold ${obj.fontSize}px sans-serif`; ctx.textBaseline = 'top';
-                            const m = ctx.measureText(obj.text);
-                            if (obj.bgColor) {
-                                ctx.fillStyle = obj.bgColor; const p = 8;
-                                ctx.roundRect(-p, -p, m.width+p*2, obj.fontSize+p*1.5, 8); ctx.fill();
-                            }
-                            ctx.fillStyle = obj.color; ctx.fillText(obj.text, 0, 0);
-                            if (isSel) {
-                                ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.setLineDash([5,3]);
-                                ctx.strokeRect(-4, -4, m.width+8, obj.fontSize+8);
-                            }
-                        } else {
-                            const s = obj.fontSize / 60; ctx.scale(s, s);
-                            ctx.fillStyle = obj.color; ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 4;
-                            ctx.save(); ctx.rotate(-15 * Math.PI / 180); ctx.fillRect(-25, -8, 50, 16);
-                            ctx.rotate(30 * Math.PI / 180); ctx.fillRect(-25, -8, 50, 16); ctx.restore();
-                            ctx.shadowBlur = 0; ctx.fillStyle = 'white'; ctx.font = 'bold 20px sans-serif';
-                            ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(obj.text, 0, 0);
-                            if (isSel) {
-                                ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3; ctx.setLineDash([5,3]);
-                                ctx.strokeRect(-30, -30, 60, 60);
-                            }
-                        }
-                        ctx.restore();
-                    });
-                }
+                    ctx.restore();
+                });
             }
+            updateLoupe(pos, scale) {
+                const containerRect = document.getElementById('canvas-container').getBoundingClientRect();
+                const l = document.getElementById('loupe'), lc = document.getElementById('loupe-canvas');
+                l.style.display = 'block';
+                l.style.left = (pos.screenX - containerRect.left - 60) + 'px';
+                l.style.top = (pos.screenY - containerRect.top - 140) + 'px';
+                lc.width = lc.height = 120;
+                const ctx = this.loupeCtx; ctx.clearRect(0, 0, 120, 120);
+                ctx.drawImage(this.bgCtx.canvas, pos.x - 30 / scale, pos.y - 30 / scale, 60 / scale, 60 / scale, 0, 0, 120, 120);
+                ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(60, 0); ctx.lineTo(60, 120); ctx.moveTo(0, 60); ctx.lineTo(120, 60); ctx.stroke();
+            }
+            hideLoupe() { document.getElementById('loupe').style.display = 'none'; }
         }
 
         class App {
             constructor() {
-                this.state = new StateManager((force) => this.updateUI(force));
+                this.state = new StateManager((f) => this.updateUI(f));
                 this.layers = new LayerManager();
-                this.maskEngine = new MaskEngine();
                 this.flags = { bg: false, mask: false, ui: false };
                 this.els = this.cacheDOM();
-                this.initListeners();
-                this.loop();
+                this.initWorker(); this.initListeners(); this.loop();
             }
-
-            cacheDOM() {
-                const ids = ['contrast', 'bg-sat', 'bg-dim', 'bg-blur', // Removed brightness
-                           'tool-hand', 'tool-lasso', 'tool-eraser',
-                           'brush-size', 'text-input', 'text-size', 'text-bg-toggle',
-                           'color-palette', 'color-list', 'file-upload', 'download-btn',
-                           'canvas-container', 'canvas-transform-root',
-                           'panel-route', 'panel-text', 'tab-route', 'tab-text',
-                           'undo-btn', 'redo-btn', 'delete-item-btn',
-                           'crop-btn', 'crop-frame', 'crop-backdrop', 'crop-mask-container',
-                           'layer-ui', 'crop-bg-color'];
-                const els = {};
-                ids.forEach(id => els[id] = document.getElementById(id));
-                return els;
-            }
-
-            initListeners() {
-                if (this.els['file-upload']) this.els['file-upload'].addEventListener('change', e => this.loadFile(e.target.files[0]));
-                if (this.els['download-btn']) this.els['download-btn'].addEventListener('click', () => this.export());
-                
-                ['contrast'].forEach(k => { // Removed brightness
-                    if (this.els[k]) {
-                        this.els[k].addEventListener('input', e => {
-                            this.state.data.filters[k] = parseInt(e.target.value);
-                            const valEl = document.getElementById(`${k}-val`);
-                            if (valEl) valEl.innerText = e.target.value + '%';
-                            this.flags.bg = true; this.flags.mask = true;
-                        });
-                        this.els[k].addEventListener('change', () => this.state.pushHistory());
-                    }
-                });
-
-                const maskMap = { 'bg-sat': 'bgSat', 'bg-dim': 'bgDim', 'bg-blur': 'bgBlur' };
-                Object.keys(maskMap).forEach(id => {
-                    if (this.els[id]) {
-                        this.els[id].addEventListener('input', e => {
-                            const k = maskMap[id];
-                            let val = parseFloat(e.target.value);
-                            this.state.data.filters[k] = val;
-                            const valEl = document.getElementById(`${id}-val`);
-                            if(valEl) valEl.innerText = val + (id.includes('blur') ? 'px' : '%');
-                            this.flags.mask = true;
-                        });
-                        this.els[id].addEventListener('change', () => this.state.pushHistory());
-                    }
-                });
-
-                ['hand', 'lasso', 'eraser'].forEach(t => {
-                    const toolBtn = this.els[`tool-${t}`];
-                    if (toolBtn) toolBtn.addEventListener('click', () => this.setTool(t));
-                });
-
-                if (this.els['brush-size']) {
-                    this.els['brush-size'].addEventListener('input', e => {
-                        this.state.view.brushSize = parseInt(e.target.value);
-                        const valEl = document.getElementById('brush-size-val');
-                        if (valEl) valEl.innerText = e.target.value + 'px';
-                    });
-                }
-
-                if (this.els['tab-route']) this.els['tab-route'].addEventListener('click', () => this.switchTab('route'));
-                if (this.els['tab-text']) this.els['tab-text'].addEventListener('click', () => this.switchTab('text'));
-
-                const addTextBtn = document.getElementById('add-text-btn');
-                if (addTextBtn) addTextBtn.addEventListener('click', () => this.addObj('text'));
-                const addStartTag = document.getElementById('add-start-tag');
-                if (addStartTag) addStartTag.addEventListener('click', () => this.addObj('tag', 'S', '#10B981'));
-                const addTopTag = document.getElementById('add-top-tag');
-                if (addTopTag) addTopTag.addEventListener('click', () => this.addObj('tag', 'T', '#EF4444'));
-
-                if (this.els['delete-item-btn']) {
-                    this.els['delete-item-btn'].addEventListener('click', () => {
-                        if(this.state.view.activeObjId) {
-                            this.state.data.objects = this.state.data.objects.filter(o => o.id !== this.state.view.activeObjId);
-                            this.state.view.activeObjId = null;
-                            this.flags.ui = true; this.updateUI(); this.state.pushHistory();
-                        }
-                    });
-                }
-                
-                if (this.els['text-size']) {
-                    this.els['text-size'].addEventListener('input', e => {
-                        const obj = this.state.data.objects.find(o => o.id === this.state.view.activeObjId);
-                        if(obj) { obj.fontSize = parseInt(e.target.value); this.flags.ui = true; }
-                    });
-                    this.els['text-size'].addEventListener('change', () => this.state.pushHistory());
-                }
-                
-                if (this.els['text-bg-toggle']) {
-                    this.els['text-bg-toggle'].addEventListener('change', e => {
-                        const obj = this.state.data.objects.find(o => o.id === this.state.view.activeObjId);
-                        if(obj) { obj.bgColor = e.target.checked ? 'rgba(0,0,0,0.7)' : null; this.flags.ui = true; this.state.pushHistory(); }
-                    });
-                }
-
-                if (this.els['color-palette']) {
-                    COLORS.forEach(c => {
-                        const b = document.createElement('button');
-                        b.className = 'color-btn w-6 h-6 rounded-full border border-gray-200 shadow-sm transition-transform';
-                        b.style.backgroundColor = c;
-                        b.onclick = () => {
-                            const obj = this.state.data.objects.find(o => o.id === this.state.view.activeObjId);
-                            if(obj) { obj.color = c; this.flags.ui = true; this.state.pushHistory(); this.updateUI(); }
-                        };
-                        this.els['color-palette'].appendChild(b);
-                    });
-                }
-
-                if (this.els['canvas-container']) {
-                    this.els['canvas-container'].addEventListener('mousedown', e => this.pointerDown(e));
-                    window.addEventListener('mousemove', e => this.pointerMove(e));
-                    window.addEventListener('mouseup', e => this.pointerUp(e));
-                    this.els['canvas-container'].addEventListener('wheel', e => this.handleWheel(e));
-                }
-                
-                if (this.els['undo-btn']) this.els['undo-btn'].addEventListener('click', () => { this.state.undo(); });
-                if (this.els['redo-btn']) this.els['redo-btn'].addEventListener('click', () => { this.state.redo(); });
-                if (this.els['crop-btn']) this.els['crop-btn'].addEventListener('click', () => this.toggleCrop());
-                if (this.els['crop-bg-color']) this.els['crop-bg-color'].addEventListener('click', () => this.toggleCropBg());
-            }
-
-            adjSlider(id, delta) {
-                const el = document.getElementById(id);
-                if (el) {
-                    const newVal = parseFloat(el.value) + delta;
-                    el.value = newVal;
-                    el.dispatchEvent(new Event('input'));
-                    el.dispatchEvent(new Event('change'));
-                }
-            }
-
-            loadFile(file) {
-                if(!file) return;
-                const r = new FileReader();
-                r.onload = e => {
-                    const img = new Image();
-                    img.onload = () => {
-                        this.img = img;
-                        this.layers.resize(img.naturalWidth, img.naturalHeight);
-                        this.layers.drawBg(img, this.state.data.filters);
-                        
-                        this.state.data.selections = [];
-                        this.state.data.objects = [];
-                        this.state.history = [];
-                        this.state.historyIndex = -1;
-                        this.state.pushHistory();
-                        
-                        const cw = this.els['canvas-container'].clientWidth;
-                        const ch = this.els['canvas-container'].clientHeight;
-                        this.state.view.scale = Math.min((cw-40)/img.naturalWidth, (ch-40)/img.naturalHeight);
-                        this.updateTransform();
-                        
-                        document.getElementById('canvas-wrapper').classList.remove('hidden');
-                        document.getElementById('placeholder-msg').classList.add('hidden');
-                        this.els['download-btn'].disabled = false;
-                        this.fullRedraw();
-                    };
-                    img.src = e.target.result;
+            initWorker() {
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                this.worker = new Worker(URL.createObjectURL(blob));
+                this.worker.onmessage = (e) => {
+                    const sel = this.state.data.selections.find(s => s.id === e.data.id);
+                    if (sel) { sel.mask = e.data.mask; sel.borderMask = e.data.borderMask; }
+                    this.flags.mask = true; document.getElementById('processing-bar').classList.add('hidden');
                 };
-                r.readAsDataURL(file);
             }
-
+            cacheDOM() {
+                const ids = ['contrast', 'bg-sat', 'bg-dim', 'bg-blur', 'tool-hand', 'tool-lasso', 'tool-eraser', 'brush-size', 'text-input', 'text-size', 'text-bg-toggle', 'color-palette', 'color-list', 'file-upload', 'download-btn', 'canvas-container', 'canvas-transform-root', 'panel-route', 'panel-text', 'tab-route', 'tab-text', 'undo-btn', 'redo-btn', 'delete-item-btn', 'crop-btn', 'crop-frame', 'crop-backdrop', 'crop-mask-container', 'layer-ui', 'crop-bg-color', 'guide-v', 'guide-h'];
+                const els = {}; ids.forEach(id => els[id] = document.getElementById(id)); return els;
+            }
+            initListeners() {
+                this.els['file-upload'].addEventListener('change', e => this.loadFile(e.target.files[0]));
+                this.els['download-btn'].addEventListener('click', () => this.export());
+                this.els['contrast'].addEventListener('input', e => { this.state.data.filters.contrast = parseInt(e.target.value); document.getElementById('contrast-val').innerText = e.target.value + '%'; this.flags.bg = this.flags.mask = true; });
+                ['bg-sat', 'bg-dim', 'bg-blur'].forEach(id => this.els[id].addEventListener('input', e => {
+                    const k = id.replace('-s', 'S').replace('-d', 'D').replace('-b', 'B').replace('-', '');
+                    this.state.data.filters[k] = parseFloat(e.target.value); document.getElementById(`${id}-val`).innerText = e.target.value + (id.includes('blur') ? 'px' : '%'); this.flags.mask = true;
+                }));
+                ['hand', 'lasso', 'eraser'].forEach(t => { if (this.els[`tool-${t}`]) this.els[`tool-${t}`].addEventListener('click', () => this.setTool(t)); });
+                this.els['brush-size'].addEventListener('input', e => { this.state.view.brushSize = parseInt(e.target.value); document.getElementById('brush-size-val').innerText = e.target.value + 'px'; });
+                this.els['tab-route'].addEventListener('click', () => this.switchTab('route'));
+                this.els['tab-text'].addEventListener('click', () => this.switchTab('text'));
+                document.getElementById('add-text-btn').addEventListener('click', () => this.addObj('text'));
+                document.getElementById('add-start-tag').addEventListener('click', () => this.addObj('tag', 'S', '#10B981'));
+                document.getElementById('add-top-tag').addEventListener('click', () => this.addObj('tag', 'T', '#EF4444'));
+                this.els['delete-item-btn'].addEventListener('click', () => { if (this.state.view.activeObjId) { this.state.data.objects = this.state.data.objects.filter(o => o.id !== this.state.view.activeObjId); this.state.view.activeObjId = null; this.flags.ui = true; this.updateUI(); this.state.pushHistory(); } });
+                this.els['text-size'].addEventListener('input', e => { const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId); if (o) { o.fontSize = parseInt(e.target.value); this.flags.ui = true; } });
+                COLORS_LIST.forEach(c => { const b = document.createElement('button'); b.className = 'color-btn w-6 h-6 rounded-full border border-gray-200 shadow-sm transition-transform'; b.style.backgroundColor = c; b.onclick = () => { const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId); if (o) { o.color = c; this.flags.ui = true; this.state.pushHistory(); this.updateUI(); } }; this.els['color-palette'].appendChild(b); });
+                this.els['canvas-container'].addEventListener('mousedown', e => this.pointerDown(e));
+                window.addEventListener('mousemove', e => this.pointerMove(e));
+                window.addEventListener('mouseup', e => this.pointerUp(e));
+                this.els['canvas-container'].addEventListener('wheel', e => { e.preventDefault(); this.state.view.scale = Math.max(0.1, Math.min(5, this.state.view.scale * (e.deltaY > 0 ? 0.9 : 1.1))); this.updateTransform(); });
+                this.els['undo-btn'].addEventListener('click', () => this.state.undo());
+                this.els['redo-btn'].addEventListener('click', () => this.state.redo());
+                this.els['crop-btn'].addEventListener('click', () => this.toggleCrop());
+                this.els['crop-bg-color'].addEventListener('click', () => this.toggleCropBg());
+            }
+            adjSlider(id, v) { const el = document.getElementById(id); if (el) { el.value = parseFloat(el.value) + v; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); } }
+            loadFile(file) {
+                if (!file) return; const r = new FileReader();
+                r.onload = e => {
+                    const img = new Image(); img.onload = () => {
+                        this.img = img; this.layers.resize(img.naturalWidth, img.naturalHeight); this.layers.drawBg(img, this.state.data.filters);
+                        this.state.data.selections = []; this.state.data.objects = []; this.state.history = []; this.state.historyIndex = -1; this.state.pushHistory();
+                        const cw = this.els['canvas-container'].clientWidth, ch = this.els['canvas-container'].clientHeight;
+                        this.state.view.scale = Math.min((cw - 40) / img.naturalWidth, (ch - 40) / img.naturalHeight);
+                        this.updateTransform(); document.getElementById('canvas-wrapper').classList.remove('hidden'); document.getElementById('placeholder-msg').classList.add('hidden');
+                        this.els['download-btn'].disabled = false; this.fullRedraw();
+                    }; img.src = e.target.result;
+                }; r.readAsDataURL(file);
+            }
             loop() {
-                if(this.flags.bg) { this.layers.drawBg(this.img, this.state.data.filters); this.flags.bg=false; }
-                if(this.flags.mask) { this.layers.drawMasks(this.state.data.selections, this.maskEngine, this.state.data.filters); this.flags.mask=false; }
-                if(this.flags.ui) { this.layers.drawUi(this.state); this.flags.ui=false; }
+                if (this.flags.bg) { this.layers.drawBg(this.img, this.state.data.filters); this.flags.bg = false; }
+                if (this.flags.mask) { this.layers.drawMasks(this.state.data.selections, this.state.data.filters); this.flags.mask = false; }
+                if (this.flags.ui) { this.layers.drawUi(this.state); this.flags.ui = false; }
                 requestAnimationFrame(() => this.loop());
             }
-            fullRedraw() { this.flags.bg=true; this.flags.mask=true; this.flags.ui=true; }
-
+            fullRedraw() { this.flags.bg = this.flags.mask = this.flags.ui = true; }
             setTool(t) {
                 this.state.view.tool = t;
                 ['hand', 'lasso', 'eraser'].forEach(tool => {
                     const el = this.els[`tool-${tool}`];
-                    if (el) {
-                        el.classList.toggle('active', t === tool);
-                        el.classList.toggle('text-white', t === tool);
-                    }
+                    if (el) { el.classList.toggle('active', t === tool); el.classList.toggle('text-white', t === tool); }
                 });
-                if (this.els['canvas-container']) {
-                    this.els['canvas-container'].style.cursor = t === 'hand' ? 'grab' : 'crosshair';
-                }
-                const brushCtrl = document.getElementById('brush-controls');
-                if (brushCtrl) brushCtrl.classList.toggle('hidden', t !== 'eraser');
+                this.els['canvas-container'].style.cursor = t === 'hand' ? 'grab' : 'crosshair';
+                this.els['brush-controls'].classList.toggle('hidden', t !== 'eraser');
+                this.flags.ui = true; // Ensure selection box visibility updates correctly
             }
-
             switchTab(t) {
                 this.state.view.activeTab = t;
-                if (this.els['panel-route']) this.els['panel-route'].classList.toggle('hidden', t !== 'route');
-                if (this.els['panel-text']) this.els['panel-text'].classList.toggle('hidden', t !== 'text');
-                if (this.els['tab-route']) {
-                    this.els['tab-route'].className = t === 'route' ? "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors" : "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors";
-                }
-                if (this.els['tab-text']) {
-                    this.els['tab-text'].className = t === 'text' ? "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors" : "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors";
-                }
+                this.els['panel-route'].classList.toggle('hidden', t !== 'route'); this.els['panel-text'].classList.toggle('hidden', t !== 'text');
+                this.els['tab-route'].className = t === 'route' ? "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors" : "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors";
+                this.els['tab-text'].className = t === 'text' ? "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors" : "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors";
                 this.setTool(t === 'route' ? 'lasso' : 'hand');
-                if (this.els['canvas-container']) this.els['canvas-container'].style.cursor = t === 'route' ? 'crosshair' : 'default';
-                
-                const toolbar = document.getElementById('floating-toolbar');
-                if (toolbar) {
-                    toolbar.classList.toggle('opacity-0', t !== 'route');
-                    toolbar.classList.toggle('pointer-events-none', t !== 'route');
-                }
+                document.getElementById('floating-toolbar').classList.toggle('opacity-0', t !== 'route');
+                document.getElementById('floating-toolbar').classList.toggle('pointer-events-none', t !== 'route');
                 this.flags.ui = true;
             }
-
             addObj(type, text, color) {
-                const cx = this.layers.width/2;
-                const cy = this.layers.height/2;
-                this.state.data.objects.push({
-                    id: this.state.data.nextObjId++,
-                    type, x: cx, y: cy,
-                    text: text || (document.getElementById('text-input').value || 'Text'),
-                    color: color || '#FFFFFF',
-                    fontSize: type === 'tag' ? 60 : 40
-                });
-                const input = document.getElementById('text-input');
-                if (input) input.value = '';
+                const rect = this.els['canvas-container'].getBoundingClientRect();
+                const p = this.getCoords({ clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
+                this.state.data.objects.push({ id: this.state.data.nextObjId++, type, x: p.x, y: p.y, text: text || (document.getElementById('text-input').value || 'Text'), color: color || '#FFFFFF', fontSize: type === 'tag' ? 60 : 40 });
+                document.getElementById('text-input').value = '';
                 this.switchTab('text');
-                this.state.view.activeObjId = this.state.data.nextObjId-1;
+                this.state.view.activeObjId = this.state.data.nextObjId - 1;
                 this.updateUI();
                 this.state.pushHistory();
                 this.flags.ui = true;
             }
-
-            getCoords(e) {
-                const r = this.els['layer-ui'].getBoundingClientRect();
-                return { 
-                    x: (e.clientX - r.left) * (this.layers.width / r.width),
-                    y: (e.clientY - r.top) * (this.layers.height / r.height)
-                };
-            }
-
+            getCoords(e) { const r = this.els['layer-ui'].getBoundingClientRect(); return { x: (e.clientX - r.left) * (this.layers.width / r.width), y: (e.clientY - r.top) * (this.layers.height / r.height), screenX: e.clientX, screenY: e.clientY }; }
             pointerDown(e) {
-                if(!this.img) return;
-                const p = this.getCoords(e);
-                this.state.view.isDragging = true;
-
+                if (!this.img) return; const p = this.getCoords(e); this.state.view.isDragging = true;
                 if (this.state.view.activeTab === 'text') {
-                    const hit = this.state.data.objects.slice().reverse().find(o => Math.hypot(o.x-p.x, o.y-p.y) < 50);
-                    if(hit) {
-                        this.state.view.activeObjId = hit.id;
-                        this.state.view.dragType = 'object';
-                        this.dragStart = { x: p.x, y: p.y, ox: hit.x, oy: hit.y };
-                        this.updateUI(); this.flags.ui = true; return;
-                    } else {
-                        this.state.view.activeObjId = null;
-                        this.updateUI();
-                        this.state.view.dragType = 'pan'; 
-                        this.dragStart = { cx: e.clientX, cy: e.clientY, vx: this.state.view.x, vy: this.state.view.y };
-                    }
+                    const hit = this.state.data.objects.slice().reverse().find(o => Math.hypot(o.x - p.x, o.y - p.y) < 50);
+                    if (hit) { this.state.view.activeObjId = hit.id; this.state.view.dragType = 'object'; this.dragStart = { x: p.x, y: p.y, ox: hit.x, oy: hit.y }; }
+                    else { this.state.view.activeObjId = null; this.state.view.dragType = 'pan'; this.dragStart = { cx: e.clientX, cy: e.clientY, vx: this.state.view.x, vy: this.state.view.y }; }
                 } else {
-                    if (this.state.view.tool === 'hand') {
-                        this.state.view.dragType = 'pan';
-                        this.dragStart = { cx: e.clientX, cy: e.clientY, vx: this.state.view.x, vy: this.state.view.y };
-                        this.els['canvas-container'].style.cursor = 'grabbing';
-                    } else {
-                        this.state.view.dragType = this.state.view.tool;
-                        this.state.view.tempPath = [p];
-                        this.flags.ui = true;
-                    }
+                    if (this.state.view.tool === 'hand') { this.state.view.dragType = 'pan'; this.dragStart = { cx: e.clientX, cy: e.clientY, vx: this.state.view.x, vy: this.state.view.y }; }
+                    else { this.state.view.dragType = this.state.view.tool; this.state.view.tempPath = [p]; this.layers.updateLoupe(p, this.state.view.scale); }
                 }
+                this.updateUI(); this.flags.ui = true;
             }
-
             pointerMove(e) {
-                if(!this.state.view.isDragging) return;
-                const p = this.getCoords(e);
-
+                if (!this.state.view.isDragging) return; const p = this.getCoords(e);
                 if (this.state.view.dragType === 'pan') {
-                    const dx = e.clientX - this.dragStart.cx;
-                    const dy = e.clientY - this.dragStart.cy;
-                    this.state.view.x = this.dragStart.vx + dx;
-                    this.state.view.y = this.dragStart.vy + dy;
-                    this.updateTransform();
+                    let nx = this.dragStart.vx + (e.clientX - this.dragStart.cx), ny = this.dragStart.vy + (e.clientY - this.dragStart.cy);
+                    const snapDist = 20; this.els['guide-v'].classList.toggle('hidden', Math.abs(nx) > snapDist); this.els['guide-h'].classList.toggle('hidden', Math.abs(ny) > snapDist);
+                    if (Math.abs(nx) < snapDist) nx = 0; if (Math.abs(ny) < snapDist) ny = 0;
+                    this.state.view.x = nx; this.state.view.y = ny; this.updateTransform();
                 } else if (this.state.view.dragType === 'object') {
-                    const obj = this.state.data.objects.find(o => o.id === this.state.view.activeObjId);
-                    if(obj) {
-                        obj.x = this.dragStart.ox + (p.x - this.dragStart.x);
-                        obj.y = this.dragStart.oy + (p.y - this.dragStart.y);
-                        this.flags.ui = true;
+                    const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId);
+                    if (o) {
+                        let nx = this.dragStart.ox + (p.x - this.dragStart.x), ny = this.dragStart.oy + (p.y - this.dragStart.y);
+                        const snapDist = 20 / this.state.view.scale; this.els['guide-v'].classList.toggle('hidden', Math.abs(nx) > snapDist); this.els['guide-h'].classList.toggle('hidden', Math.abs(ny) > snapDist);
+                        if (Math.abs(nx) < snapDist) nx = 0; if (Math.abs(ny) < snapDist) ny = 0;
+                        o.x = nx; o.y = ny; this.flags.ui = true;
                     }
-                } else {
-                    this.state.view.tempPath.push(p);
-                    this.flags.ui = true;
-                }
+                } else { this.state.view.tempPath.push(p); this.flags.ui = true; this.layers.updateLoupe(p, this.state.view.scale); }
             }
-
-            pointerUp(e) {
-                if(!this.state.view.isDragging) return;
-                this.state.view.isDragging = false;
-                
-                const type = this.state.view.dragType;
-                const path = this.state.view.tempPath;
-
-                if (type === 'object') {
-                    this.state.pushHistory();
-                } else if (type === 'lasso' && path.length > 3) {
-                    let mergeId = null;
-                    const w = this.layers.width;
-                    const h = this.layers.height;
-                    
-                    for (const sel of this.state.data.selections) {
-                        if (sel.mask) {
-                            for (const p of path) {
-                                const ix = Math.floor(p.x);
-                                const iy = Math.floor(p.y);
-                                if (ix >= 0 && ix < w && iy >= 0 && iy < h) {
-                                    if (sel.mask[iy * w + ix]) {
-                                        mergeId = sel.id;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        if (mergeId) break;
-                    }
-
-                    if (mergeId) {
-                        const sel = this.state.data.selections.find(s => s.id === mergeId);
-                        sel.seeds.push(path);
-                        sel.mask = null;
-                        sel.borderMask = null;
-                        this.state.view.activeSelId = mergeId;
-                    } else {
-                        const id = this.state.data.nextSelId++;
-                        this.state.data.selections.push({
-                            id, seeds: [path], 
-                            params: { 
-                                tolerance: 60, expand: 0, fillHoles: true, 
-                                border: true, borderThickness: 5, borderColor: '#EC4899' 
-                            }, 
-                            manualEdits: [], mask: null, borderMask: null
-                        });
-                        this.state.view.activeSelId = id;
-                    }
-
-                    this.flags.mask = true;
-                    this.state.pushHistory();
-                    this.updateUI();
+            pointerUp() {
+                if (!this.state.view.isDragging) return; this.state.view.isDragging = false;
+                this.layers.hideLoupe(); this.els['guide-v'].classList.add('hidden'); this.els['guide-h'].classList.add('hidden');
+                const type = this.state.view.dragType, path = this.state.view.tempPath;
+                if (type === 'lasso' && path.length > 3) {
+                    let mId = null; const w = this.layers.width;
+                    for (const s of this.state.data.selections) if (s.mask) { for (const p of path) if (s.mask[Math.floor(p.y) * w + Math.floor(p.x)]) { mId = s.id; break; } if (mId) break; }
+                    let sel;
+                    if (mId) { sel = this.state.data.selections.find(s => s.id === mId); sel.seeds.push(path); sel.mask = sel.borderMask = null; this.state.view.activeSelId = mId; }
+                    else { const id = this.state.data.nextSelId++; sel = { id, seeds: [path], params: { tolerance: 60, expand: 0, fillHoles: true, border: true, borderThickness: 5, borderColor: '#EC4899' }, manualEdits: [], mask: null, borderMask: null }; this.state.data.selections.push(sel); this.state.view.activeSelId = id; }
+                    this.requestWorker(sel); this.state.pushHistory(); this.updateUI();
                 } else if (type === 'eraser' && path.length > 0) {
-                    let sel = this.state.data.selections.find(s => s.id === this.state.view.activeSelId);
-                    if (!sel && this.state.data.selections.length > 0) sel = this.state.data.selections[this.state.data.selections.length-1];
-                    
-                    if (sel) {
-                        sel.manualEdits.push({ type: 'sub', points: path, size: this.state.view.brushSize });
-                        sel.mask = null;
-                        sel.borderMask = null;
-                        this.flags.mask = true;
-                        this.state.pushHistory();
-                    }
-                }
-
-                this.state.view.tempPath = [];
-                this.state.view.dragType = null;
-                this.flags.ui = true;
-                this.els['canvas-container'].style.cursor = this.state.view.tool === 'hand' ? 'grab' : 'crosshair';
+                    let sel = this.state.data.selections.find(s => s.id === this.state.view.activeSelId) || this.state.data.selections[this.state.data.selections.length - 1];
+                    if (sel) { sel.manualEdits.push({ type: 'sub', points: path, size: this.state.view.brushSize }); sel.mask = sel.borderMask = null; this.requestWorker(sel); this.state.pushHistory(); }
+                } else if (type === 'object') this.state.pushHistory();
+                this.state.view.tempPath = []; this.state.view.dragType = null; this.flags.ui = true;
             }
-
-            handleWheel(e) {
-                e.preventDefault();
-                const d = e.deltaY > 0 ? 0.9 : 1.1;
-                this.state.view.scale = Math.max(0.1, Math.min(5, this.state.view.scale * d));
-                this.updateTransform();
-            }
-
-            updateTransform() {
-                this.els['canvas-transform-root'].style.transform = `translate(${this.state.view.x}px, ${this.state.view.y}px) scale(${this.state.view.scale})`;
-            }
-
-            updateUI(forceRedraw = false) {
-                if (forceRedraw) this.fullRedraw();
-                
-                this.els['undo-btn'].disabled = this.state.historyIndex <= 0;
-                this.els['redo-btn'].disabled = this.state.historyIndex >= this.state.history.length - 1;
-
-                if (forceRedraw) {
-                    const f = this.state.data.filters;
-                    ['contrast', 'bg-sat', 'bg-dim', 'bg-blur'].forEach(k => {
-                        const map = { 'bg-sat': 'bgSat', 'bg-dim': 'bgDim', 'bg-blur': 'bgBlur' };
-                        const key = map[k] || k;
-                        const el = document.getElementById(k);
-                        if(el) {
-                            el.value = f[key];
-                            const valEl = document.getElementById(`${k}-val`);
-                            if(valEl) valEl.innerText = f[key] + (k === 'bg-blur' ? 'px' : '%');
-                        }
+            requestWorker(sel) { document.getElementById('processing-bar').classList.remove('hidden'); this.worker.postMessage({ type: 'CALC_MASK', sel, w: this.layers.width, h: this.layers.height, bgData: this.layers.bgBuffer }); }
+            updateTransform() { this.els['canvas-transform-root'].style.transform = `translate(${this.state.view.x}px, ${this.state.view.y}px) scale(${this.state.view.scale})`; }
+            updateUI(force) {
+                if (force) this.fullRedraw();
+                this.els['undo-btn'].disabled = this.state.historyIndex <= 0; this.els['redo-btn'].disabled = this.state.historyIndex >= this.state.history.length - 1;
+                const list = this.els['color-list']; if (!list) return; list.innerHTML = '';
+                if (this.state.data.selections.length === 0) { list.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm italic border-2 border-dashed border-gray-100 rounded-lg">尚未圈選</div>`; document.getElementById('clear-colors').classList.add('hidden'); }
+                else {
+                    document.getElementById('clear-colors').classList.remove('hidden');
+                    this.state.data.selections.forEach((sel, i) => {
+                        const active = sel.id === this.state.view.activeSelId;
+                        const div = document.createElement('div');
+                        div.className = `list-item bg-white border ${active ? 'border-blue-500 shadow-md ring-1 ring-blue-100' : 'border-gray-200'} rounded-lg transition-all duration-200 overflow-hidden mb-2`;
+                        div.onclick = (e) => { if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && !e.target.classList.contains('toggle-checkbox')) { this.state.view.activeSelId = (active ? null : sel.id); this.updateUI(); } };
+                        const cols = COLORS_LIST.map(c => { const isS = (sel.params.borderColor || '#EC4899').toLowerCase() === c.toLowerCase(); return `<button class="w-5 h-5 rounded-full border border-gray-200 shadow-sm transition-transform ${isS ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : 'hover:scale-110'}" style="background-color: ${c}" onclick="app.updateSelParam(${sel.id}, 'borderColor', '${c}')"></button>`; }).join('');
+                        const expanded = active ? `
+                            <div class="p-3 bg-gray-50 border-t border-gray-100 space-y-3">
+                                <div><div class="flex justify-between mb-1 text-[10px] font-bold text-gray-500 uppercase">容許度 <span class="text-blue-600" id="tol-val-${sel.id}">${sel.params.tolerance}</span></div><div class="slider-group"><button class="slider-btn" onclick="app.adjSlider('sel-tol-${sel.id}', -5)">-</button><input type="range" id="sel-tol-${sel.id}" min="0" max="127" value="${sel.params.tolerance}" onchange="app.updateSelParam(${sel.id}, 'tolerance', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-blue-500"><button class="slider-btn" onclick="app.adjSlider('sel-tol-${sel.id}', 5)">+</button></div></div>
+                                <div><div class="flex justify-between mb-1 text-[10px] font-bold text-gray-500 uppercase">擴展 <span class="text-purple-600" id="exp-val-${sel.id}">${sel.params.expand}px</span></div><div class="slider-group"><button class="slider-btn" onclick="app.adjSlider('sel-exp-${sel.id}', -1)">-</button><input type="range" id="sel-exp-${sel.id}" min="0" max="20" value="${sel.params.expand}" onchange="app.updateSelParam(${sel.id}, 'expand', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-purple-500"><button class="slider-btn" onclick="app.adjSlider('sel-exp-${sel.id}', 1)">+</button></div></div>
+                                <div class="flex items-center justify-between pt-2">
+                                    <label class="flex items-center text-xs text-gray-700 font-medium cursor-pointer"><input type="checkbox" onchange="app.updateSelParam(${sel.id}, 'fillHoles', this.checked)" ${sel.params.fillHoles ? 'checked' : ''} class="mr-2">自動補洞</label>
+                                    <label class="flex items-center text-xs text-gray-700 font-medium cursor-pointer"><div class="relative inline-block w-9 mr-2 align-middle select-none transition duration-200 ease-in"><input type="checkbox" name="toggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-2 border-gray-300 appearance-none cursor-pointer transition-all duration-200" onchange="app.updateSelParam(${sel.id}, 'border', this.checked)" ${sel.params.border ? 'checked' : ''}/><label for="toggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-200"></label></div>顯示框線</label>
+                                </div>
+                                ${sel.params.border ? `<div class="mt-3 pt-3 border-t border-gray-100"><div class="flex items-center justify-between mb-2 text-[10px] font-bold text-gray-500 uppercase">框線粗細<div class="slider-group"><button class="slider-btn w-6 h-6 text-xs" onclick="app.adjSlider('sel-bt-${sel.id}', -1)">-</button><span class="text-xs w-6 text-center font-mono text-gray-700">${sel.params.borderThickness}</span><button class="slider-btn w-6 h-6 text-xs" onclick="app.adjSlider('sel-bt-${sel.id}', 1)">+</button></div><input type="range" id="sel-bt-${sel.id}" min="1" max="20" value="${sel.params.borderThickness}" class="hidden" onchange="app.updateSelParam(${sel.id}, 'borderThickness', this.value)"></div><div class="flex flex-wrap gap-2 pt-1">${cols}</div></div>` : ''}
+                            </div>` : '';
+                        div.innerHTML = `<div class="flex items-center p-3 cursor-pointer hover:bg-gray-50 transition-colors"><div class="w-6 h-6 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shadow-sm">${i + 1}</div><div class="flex-1 ml-3 text-sm font-bold text-gray-700">岩點 #${i + 1}</div><button onclick="app.removeSel(${sel.id})" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div>${expanded}`;
+                        list.appendChild(div);
                     });
                 }
-
-                const list = this.els['color-list'];
-                if (list) {
-                    list.innerHTML = '';
-                    if(this.state.data.selections.length === 0) {
-                        list.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm italic border-2 border-dashed border-gray-100 rounded-lg">尚未圈選</div>`;
-                        const clear = document.getElementById('clear-colors');
-                        if (clear) clear.classList.add('hidden');
-                    } else {
-                        const clear = document.getElementById('clear-colors');
-                        if (clear) {
-                            clear.classList.remove('hidden');
-                            clear.onclick = () => {
-                                this.state.data.selections = [];
-                                this.state.view.activeSelId = null;
-                                this.flags.mask = true; this.updateUI(); this.state.pushHistory();
-                            };
-                        }
-                        
-                        this.state.data.selections.forEach((sel, i) => {
-                            const isActive = sel.id === this.state.view.activeSelId;
-                            const div = document.createElement('div');
-                            // UI OPT: Expanded vs Collapsed styling
-                            div.className = `list-item bg-white border ${isActive ? 'border-blue-500 shadow-md ring-1 ring-blue-100' : 'border-gray-200'} rounded-lg transition-all duration-200 overflow-hidden`;
-                            div.onclick = (e) => {
-                                if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && !e.target.classList.contains('toggle-checkbox')) {
-                                    // Toggle selection
-                                    this.state.view.activeSelId = (this.state.view.activeSelId === sel.id) ? null : sel.id;
-                                    this.updateUI();
-                                }
-                            };
-                            
-                            // UI OPT: Color Swatches for Border
-                            const colorsHtml = COLORS.map(c => {
-                                const isSel = (sel.params.borderColor || '#FFFFFF').toLowerCase() === c.toLowerCase();
-                                const activeClass = isSel ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : 'hover:scale-110 hover:shadow-md';
-                                return `<button class="w-5 h-5 rounded-full border border-gray-200 shadow-sm transition-transform ${activeClass}" style="background-color: ${c}" onclick="app.updateSelParam(${sel.id}, 'borderColor', '${c}')"></button>`;
-                            }).join('');
-
-                            const borderControls = sel.params.border ? `
-                                <div class="mt-3 pt-3 border-t border-gray-100">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">框線粗細</span>
-                                        <div class="slider-group">
-                                            <button class="slider-btn w-6 h-6 text-xs" onclick="app.adjSelParam(${sel.id}, 'borderThickness', -1)">-</button>
-                                            <span class="text-xs w-6 text-center font-mono text-gray-700">${sel.params.borderThickness}</span>
-                                            <button class="slider-btn w-6 h-6 text-xs" onclick="app.adjSelParam(${sel.id}, 'borderThickness', 1)">+</button>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-wrap gap-2 justify-start pt-1">
-                                        ${colorsHtml}
-                                    </div>
-                                </div>
-                            ` : '';
-
-                            // UI OPT: Expanded Content
-                            const expandedContent = isActive ? `
-                                <div class="p-3 bg-gray-50 border-t border-gray-100 space-y-3">
-                                    <div>
-                                        <div class="flex justify-between mb-1"><label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">容許度</label><span class="text-xs text-blue-600 font-mono" id="tol-val-${sel.id}">${sel.params.tolerance}</span></div>
-                                        <div class="slider-group">
-                                            <button class="slider-btn" onclick="app.adjSelParam(${sel.id}, 'tolerance', -5)">-</button>
-                                            <input type="range" min="0" max="255" value="${sel.params.tolerance}" onchange="app.updateSelParam(${sel.id}, 'tolerance', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-blue-500">
-                                            <button class="slider-btn" onclick="app.adjSelParam(${sel.id}, 'tolerance', 5)">+</button>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="flex justify-between mb-1"><label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">擴展</label><span class="text-xs text-purple-600 font-mono" id="exp-val-${sel.id}">${sel.params.expand}px</span></div>
-                                        <div class="slider-group">
-                                            <button class="slider-btn" onclick="app.adjSelParam(${sel.id}, 'expand', -1)">-</button>
-                                            <input type="range" min="0" max="20" value="${sel.params.expand}" onchange="app.updateSelParam(${sel.id}, 'expand', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-purple-500">
-                                            <button class="slider-btn" onclick="app.adjSelParam(${sel.id}, 'expand', 1)">+</button>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center justify-between pt-2">
-                                        <label class="flex items-center text-xs text-gray-700 font-medium cursor-pointer hover:text-blue-600 transition-colors">
-                                            <input type="checkbox" onchange="app.updateSelParam(${sel.id}, 'fillHoles', this.checked)" ${sel.params.fillHoles ? 'checked' : ''} class="mr-2 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"> 
-                                            自動補洞
-                                        </label>
-                                        <label class="flex items-center text-xs text-gray-700 font-medium cursor-pointer hover:text-blue-600 transition-colors">
-                                            <div class="relative inline-block w-9 mr-2 align-middle select-none transition duration-200 ease-in">
-                                                <input type="checkbox" name="toggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-2 border-gray-300 appearance-none cursor-pointer transition-all duration-200" onchange="app.updateSelParam(${sel.id}, 'border', this.checked)" ${sel.params.border ? 'checked' : ''}/>
-                                                <label for="toggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-200"></label>
-                                            </div>
-                                            顯示框線
-                                        </label>
-                                    </div>
-                                    ${borderControls}
-                                </div>
-                            ` : '';
-
-                            div.innerHTML = `
-                                <div class="flex items-center p-3 cursor-pointer hover:bg-gray-50 transition-colors">
-                                    <div class="w-6 h-6 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shadow-sm">${i+1}</div>
-                                    <div class="flex-1 ml-3 text-sm font-bold text-gray-700">岩點 #${i+1} <span class="font-normal text-gray-400 text-xs ml-1">${isActive ? '(編輯中)' : ''}</span></div>
-                                    <button onclick="app.removeSel(${sel.id})" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition-all">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                    </button>
-                                </div>
-                                ${expandedContent}
-                            `;
-                            list.appendChild(div);
-                        });
-                    }
-                }
-
-                // Text Controls
-                const activeObj = this.state.data.objects.find(o => o.id === this.state.view.activeObjId);
-                const textCtrl = document.getElementById('text-controls');
-                if (textCtrl) {
-                    if(activeObj && this.state.view.activeTab === 'text') {
-                        textCtrl.classList.remove('opacity-50', 'pointer-events-none');
-                        if (this.els['text-size']) this.els['text-size'].value = activeObj.fontSize;
-                        if (this.els['text-bg-toggle']) this.els['text-bg-toggle'].checked = !!activeObj.bgColor;
-                        if (this.els['color-palette']) {
-                            Array.from(this.els['color-palette'].children).forEach((b, i) => {
-                                 b.classList.toggle('selected', COLORS[i] === activeObj.color);
-                            });
-                        }
-                    } else {
-                        textCtrl.classList.add('opacity-50', 'pointer-events-none');
-                    }
+                const activeO = this.state.data.objects.find(o => o.id === this.state.view.activeObjId);
+                const tCtrl = document.getElementById('text-controls');
+                if (tCtrl) {
+                    if (activeO && this.state.view.activeTab === 'text') {
+                        tCtrl.classList.remove('opacity-50', 'pointer-events-none'); this.els['text-size'].value = activeO.fontSize;
+                        Array.from(this.els['color-palette'].children).forEach((b, i) => b.classList.toggle('selected', COLORS_LIST[i] === activeO.color));
+                    } else tCtrl.classList.add('opacity-50', 'pointer-events-none');
                 }
             }
-
-            removeSel(id) {
-                this.state.data.selections = this.state.data.selections.filter(s => s.id !== id);
-                if(this.state.view.activeSelId === id) this.state.view.activeSelId = null;
-                this.flags.mask = true; this.updateUI(); this.state.pushHistory();
-            }
-
-            adjSelParam(id, k, delta) {
-                const s = this.state.data.selections.find(x => x.id === id);
-                if(s) {
-                    let newVal = s.params[k] + delta;
-                    if(k === 'tolerance') newVal = Math.max(0, Math.min(255, newVal));
-                    if(k === 'expand') newVal = Math.max(0, Math.min(50, newVal));
-                    if(k === 'borderThickness') newVal = Math.max(1, Math.min(20, newVal));
-                    
-                    this.updateSelParam(id, k, newVal);
-                    this.updateUI();
-                }
-            }
-
-            updateSelParam(id, k, v) {
-                const s = this.state.data.selections.find(x => x.id === id);
-                if(s) {
-                    s.params[k] = (k === 'fillHoles' || k === 'border' || k === 'borderColor') ? v : parseInt(v);
-                    
-                    if (k === 'borderColor') {
-                        this.flags.mask = true;
-                    } else if (k === 'border' || k === 'borderThickness') {
-                        s.borderMask = null; 
-                        this.flags.mask = true;
-                    } else {
-                        s.mask = null; 
-                        s.borderMask = null;
-                        this.flags.mask = true;
-                    }
-                    this.state.pushHistory();
-                    
-                    const label = document.getElementById(k === 'tolerance' ? `tol-val-${id}` : `exp-val-${id}`);
-                    if(label) label.innerText = v + (k === 'expand' ? 'px' : '');
-                    
-                    if (k === 'border') this.updateUI();
-                }
-            }
-            
+            removeSel(id) { this.state.data.selections = this.state.data.selections.filter(s => s.id !== id); if (this.state.view.activeSelId === id) this.state.view.activeSelId = null; this.flags.mask = true; this.updateUI(); this.state.pushHistory(); }
+            updateSelParam(id, k, v) { const s = this.state.data.selections.find(x => x.id === id); if (s) { s.params[k] = (k === 'fillHoles' || k === 'border' || k === 'borderColor') ? v : parseInt(v); if (k === 'borderColor') this.flags.mask = true; else { s.mask = s.borderMask = null; this.requestWorker(s); } this.state.pushHistory(); if (k === 'border') this.updateUI(); } }
             toggleCrop() {
-                let idx = this.state.data.crop.index;
-                idx = (idx + 1) % CROPS.length;
-                this.state.data.crop.index = idx;
-                
-                const crop = CROPS[idx];
-                const label = document.getElementById('crop-label');
-                if (label) {
-                    label.innerText = crop.label;
-                    label.classList.toggle('hidden', idx === 0);
-                }
-                
-                const frame = this.els['crop-frame'];
-                const backdrop = this.els['crop-backdrop'];
-                const container = this.els['crop-mask-container'];
-                
+                let idx = this.state.data.crop.index; idx = (idx + 1) % CROPS.length; this.state.data.crop.index = idx;
+                const crop = CROPS[idx], label = document.getElementById('crop-label'); if (label) { label.innerText = crop.label; label.classList.toggle('hidden', idx === 0); }
+                const frame = this.els['crop-frame'], backdrop = this.els['crop-backdrop'], container = this.els['crop-mask-container'];
                 if (frame && backdrop && container) {
-                    if (idx === 0) {
-                        container.classList.add('hidden');
-                        backdrop.classList.add('hidden');
-                        const bgCol = document.getElementById('crop-bg-color');
-                        if (bgCol) bgCol.classList.add('hidden');
-                    } else {
-                        container.classList.remove('hidden');
-                        backdrop.classList.remove('hidden');
-                        const bgCol = document.getElementById('crop-bg-color');
-                        if (bgCol) bgCol.classList.remove('hidden');
-                        
-                        const rect = this.els['canvas-container'].getBoundingClientRect();
-                        const aspect = crop.w / crop.h;
-                        let w = rect.width - 40;
-                        let h = w / aspect;
-                        if (h > rect.height - 40) { h = rect.height - 40; w = h * aspect; }
-                        
-                        frame.style.width = w + 'px'; frame.style.height = h + 'px';
-                        backdrop.style.width = w + 'px'; backdrop.style.height = h + 'px';
-                        backdrop.style.backgroundColor = this.state.data.crop.bgWhite ? 'white' : 'black';
+                    if (idx === 0) { container.classList.add('hidden'); backdrop.classList.add('hidden'); document.getElementById('crop-bg-color').classList.add('hidden'); }
+                    else {
+                        container.classList.remove('hidden'); backdrop.classList.remove('hidden'); document.getElementById('crop-bg-color').classList.remove('hidden');
+                        const r = this.els['canvas-container'].getBoundingClientRect(), aspect = crop.w / crop.h;
+                        let w = r.width - 40, h = w / aspect; if (h > r.height - 40) { h = r.height - 40; w = h * aspect; }
+                        frame.style.width = w + 'px'; frame.style.height = h + 'px'; backdrop.style.width = w + 'px'; backdrop.style.height = h + 'px'; backdrop.style.backgroundColor = this.state.data.crop.bgWhite ? 'white' : 'black';
                     }
                 }
-                
-                if (idx !== 0) {
-                    this.setTool('hand');
-                    this.switchTab('route');
-                }
+                if (idx !== 0) { this.setTool('hand'); this.switchTab('route'); }
             }
-
-            toggleCropBg() {
-                this.state.data.crop.bgWhite = !this.state.data.crop.bgWhite;
-                const backdrop = this.els['crop-backdrop'];
-                if (backdrop) backdrop.style.backgroundColor = this.state.data.crop.bgWhite ? 'white' : 'black';
-            }
-
+            toggleCropBg() { this.state.data.crop.bgWhite = !this.state.data.crop.bgWhite; const b = this.els['crop-backdrop']; if (b) b.style.backgroundColor = this.state.data.crop.bgWhite ? 'white' : 'black'; }
             export() {
-                const outC = document.createElement('canvas');
-                outC.width = this.layers.width; outC.height = this.layers.height;
-                const ctx = outC.getContext('2d');
-                ctx.drawImage(document.getElementById('layer-bg'),0,0);
-                ctx.drawImage(document.getElementById('layer-mask'),0,0);
-                ctx.drawImage(document.getElementById('layer-ui'),0,0);
-                const a = document.createElement('a');
-                a.download = 'holdfocus_export.png';
-                a.href = outC.toDataURL();
-                a.click();
+                const outC = document.createElement('canvas'); outC.width = this.layers.width; outC.height = this.layers.height;
+                const ctx = outC.getContext('2d'); ctx.drawImage(document.getElementById('layer-bg'), 0, 0); ctx.drawImage(document.getElementById('layer-mask'), 0, 0); ctx.drawImage(document.getElementById('layer-ui'), 0, 0);
+                const a = document.createElement('a'); a.download = 'holdfocus_export.png'; a.href = outC.toDataURL(); a.click();
             }
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            window.app = new App();
-        });
+        document.addEventListener('DOMContentLoaded', () => window.app = new App());
     </script>
 </body>
+
 </html>
