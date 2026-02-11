@@ -73,7 +73,7 @@
             ring-color: #3b82f6;
         }
 
-        /* Crop Overlay: Flex Center for Fixed Frame */
+        /* Crop Overlay */
         .crop-overlay {
             position: absolute;
             top: 0;
@@ -86,12 +86,10 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            /* Ensure shadow doesn't cause scrollbars */
         }
 
         .crop-frame {
             border: 2px solid rgba(255, 255, 255, 0.9);
-            /* Combined shadow: crisp line + huge dimming area */
             box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 0 9999px rgba(0, 0, 0, 0.7);
             transition: width 0.2s ease, height 0.2s ease;
             position: relative;
@@ -120,14 +118,13 @@
             border-right: 1px dashed rgba(255, 255, 255, 0.4);
         }
 
-        /* Backdrop Layer behind image for crop preview */
+        /* Backdrop Layer */
         #crop-backdrop {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 5;
-            /* Behind Image (z-10) */
             pointer-events: none;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
@@ -170,7 +167,7 @@
                 </path>
             </svg>
             <h1 class="text-base font-bold text-gray-900 truncate" data-i18n="appName">HoldFocus <span
-                    class="text-xs font-normal text-gray-500 ml-1 hidden sm:inline">v9.5</span></h1>
+                    class="text-xs font-normal text-gray-500 ml-1 hidden sm:inline">v9.8</span></h1>
 
             <div class="flex ml-4 border-l border-gray-200 pl-4 space-x-1">
                 <button id="undo-btn"
@@ -325,20 +322,6 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                <div class="w-full h-px bg-gray-100 my-2"></div>
-
-                                <!-- Rotation -->
-                                <div class="flex gap-2 pt-1">
-                                    <button id="rotate-left"
-                                        class="flex-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 py-1.5 rounded text-xs text-gray-600 flex items-center justify-center gap-1">
-                                        <span data-i18n="rotateLeft">↺ 左轉</span>
-                                    </button>
-                                    <button id="rotate-right"
-                                        class="flex-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 py-1.5 rounded text-xs text-gray-600 flex items-center justify-center gap-1">
-                                        <span data-i18n="rotateRight">↻ 右轉</span>
-                                    </button>
-                                </div>
                             </div>
                         </details>
                     </div>
@@ -432,14 +415,16 @@
                             </path>
                         </svg>
                     </button>
+                    <!-- Crosshair for Lasso -->
                     <button id="tool-lasso" class="tool-btn p-2 rounded-full" title="Lasso (Auto)">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
-                            </path>
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                         </svg>
                     </button>
                     <div class="w-px h-6 bg-gray-300 mx-1"></div>
+
+                    <!-- Updated Brush Icon (Paintbrush) -->
                     <button id="tool-brush" class="tool-btn p-2 rounded-full" title="Brush (Add)">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -448,10 +433,12 @@
                         </svg>
                         <span class="absolute top-0 right-0 text-[10px] font-bold text-green-600">+</span>
                     </button>
+
+                    <!-- Updated Eraser Icon (Block Eraser) -->
                     <button id="tool-eraser" class="tool-btn p-2 rounded-full" title="Eraser (Sub)">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                             </path>
                         </svg>
                     </button>
@@ -556,8 +543,8 @@
 
             brightness: document.getElementById('brightness'),
             contrast: document.getElementById('contrast'),
-            rotateL: document.getElementById('rotate-left'),
-            rotateR: document.getElementById('rotate-right'),
+            // rotateL: document.getElementById('rotate-left'),
+            // rotateR: document.getElementById('rotate-right'),
             bgSat: document.getElementById('bg-sat'),
             bgDim: document.getElementById('bg-dim'),
             bgBlur: document.getElementById('bg-blur'),
@@ -605,26 +592,26 @@
 
         const translations = {
             zh: {
-                appName: "HoldFocus <span class='text-xs font-normal text-gray-500 ml-1 hidden sm:inline'>v9.5</span>",
+                appName: "HoldFocus <span class='text-xs font-normal text-gray-500 ml-1 hidden sm:inline'>v9.7</span>",
                 openBtn: "開啟", downloadBtn: "下載", tabRoute: "路線編輯", tabText: "文字/標記",
                 instrTitle: "操作指引", instrText: "1. 圈選岩點自動擴展<br>2. 筆刷/橡皮擦可手動修補",
                 selectedRanges: "已選範圍", clearBtn: "清空", noSelection: "尚未圈選",
                 bgStyleTitle: "背景風格", bgSat: "飽和度", bgDim: "壓暗", bgBlur: "模糊",
                 globalAdjust: "影像調整", brightness: "亮度", contrast: "對比度",
-                rotateLeft: "↺ 左轉", rotateRight: "↻ 右轉", tagsTitle: "標記 (Tags)", textTitle: "文字 (Text)",
+                tagsTitle: "標記 (Tags)", textTitle: "文字 (Text)",
                 addTextBtn: "+ 新增文字", colorLabel: "顏色", textBgLabel: "底色", deleteItemBtn: "刪除物件",
                 processing: "運算中...", dragDrop: "拖放照片至此", zoomFit: "適中", rangePrefix: "範圍 #",
                 fillHoles: "補洞", tolerance: "色彩容許度 (0-255)", expand: "邊緣擴展", textPlaceholder: "輸入文字...",
                 brushSize: "筆刷大小"
             },
             en: {
-                appName: "HoldFocus <span class='text-xs font-normal text-gray-500 ml-1 hidden sm:inline'>v9.5</span>",
+                appName: "HoldFocus <span class='text-xs font-normal text-gray-500 ml-1 hidden sm:inline'>v9.7</span>",
                 openBtn: "Open", downloadBtn: "Save", tabRoute: "Route", tabText: "Text/Tags",
                 instrTitle: "Instructions", instrText: "1. Lasso to auto-select.<br>2. Brush/Eraser to fix.",
                 selectedRanges: "Selections", clearBtn: "Clear", noSelection: "No selection",
                 bgStyleTitle: "Background Style", bgSat: "Saturation", bgDim: "Dim", bgBlur: "Blur",
                 globalAdjust: "Adjustments", brightness: "Brightness", contrast: "Contrast",
-                rotateLeft: "↺ Rotate L", rotateRight: "↻ Rotate R", tagsTitle: "Tags", textTitle: "Text",
+                tagsTitle: "Tags", textTitle: "Text",
                 addTextBtn: "+ Add Text", colorLabel: "Color", textBgLabel: "Background", deleteItemBtn: "Delete Item",
                 processing: "Processing...", dragDrop: "Drag & Drop Image", zoomFit: "Fit", rangePrefix: "Area #",
                 fillHoles: "Fill Holes", tolerance: "Tolerance", expand: "Expand", textPlaceholder: "Enter text...",
@@ -657,8 +644,6 @@
 
             const updateAndRender = () => { pushHistory(); requestFullRender(); };
             [els.brightness, els.contrast].forEach(el => { el.addEventListener('change', updateAndRender); el.addEventListener('input', updateGlobalFilterDisplay); });
-            els.rotateL.addEventListener('click', () => { state.rotation = (state.rotation - 90) % 360; updateAndRender(); });
-            els.rotateR.addEventListener('click', () => { state.rotation = (state.rotation + 90) % 360; updateAndRender(); });
 
             const updateBg = () => {
                 state.bgSat = parseInt(els.bgSat.value); state.bgDim = parseInt(els.bgDim.value); state.bgBlur = parseFloat(els.bgBlur.value);
@@ -916,9 +901,11 @@
             els.canvas.width = w; els.canvas.height = h; els.overlay.width = w; els.overlay.height = h;
 
             ctx.save(); ctx.translate(w / 2, h / 2);
+            // No rotation applied
 
             const offCanvas = document.createElement('canvas'); offCanvas.width = w; offCanvas.height = h;
             const offCtx = offCanvas.getContext('2d'); offCtx.translate(w / 2, h / 2);
+            // No rotation applied
             offCtx.filter = `brightness(${state.brightness}%) contrast(${state.contrast}%)`;
             offCtx.drawImage(state.image, -w / 2, -h / 2);
 
@@ -944,15 +931,21 @@
                     maskData[i * 4] = 0; maskData[i * 4 + 1] = 0; maskData[i * 4 + 2] = 0; maskData[i * 4 + 3] = selected * 255;
                 }
                 maskCtx.putImageData(maskImgData, 0, 0);
-                maskCtx.globalCompositeOperation = 'source-in'; maskCtx.drawImage(offCanvas, 0, 0);
+
+                maskCtx.globalCompositeOperation = 'source-in';
+                maskCtx.drawImage(offCanvas, 0, 0);
+
                 ctx.save(); ctx.resetTransform(); ctx.drawImage(maskCanvas, 0, 0); ctx.restore();
                 ctx.translate(w / 2, h / 2);
             }
-            renderOverlays(ctx); ctx.restore();
+            // Ensure overlays are rendered last (on top of everything)
+            renderOverlays(ctx);
+            ctx.restore();
             updateCropUI();
         }
 
         function renderOverlays(ctx) {
+            // Context is already translated to center (w/2, h/2)
             state.texts.forEach(t => {
                 const x = t.x; const y = t.y; const p = 8;
                 if (t.type === 'tag') {
@@ -1012,6 +1005,14 @@
                     state.dragType = state.tool;
                     state.currentBrushPath = [coords];
                     overlayCtx.clearRect(0, 0, els.overlay.width, els.overlay.height); overlayCtx.beginPath(); overlayCtx.arc(coords.x, coords.y, state.brushSize / 2, 0, Math.PI * 2); overlayCtx.fillStyle = state.tool === 'brush' ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'; overlayCtx.fill();
+
+                    // Auto-create selection if none exists
+                    if (state.selections.length === 0) {
+                        const newSelection = { id: state.nextSelectionId++, seeds: [], tolerance: 60, expand: 0, fillHoles: true, mask: new Uint8Array(els.canvas.width * els.canvas.height), manualEdits: [] };
+                        state.selections.push(newSelection);
+                        state.activeSelectionId = newSelection.id;
+                        updateColorListUI();
+                    }
                 } else {
                     state.dragType = 'lasso'; state.currentBrushPath = [];
                     overlayCtx.clearRect(0, 0, els.overlay.width, els.overlay.height); overlayCtx.beginPath(); overlayCtx.strokeStyle = 'rgba(255, 230, 0, 0.9)'; overlayCtx.lineWidth = 3 / state.viewScale; overlayCtx.setLineDash([5, 5]); overlayCtx.moveTo(coords.x, coords.y); state.currentBrushPath.push(coords);
@@ -1138,6 +1139,7 @@
                 const d = document.createElement('div');
                 d.className = `bg-white border ${isActive ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-200'} rounded-lg p-3 shadow-sm cursor-pointer transition-all`;
                 d.onclick = (e) => {
+                    // Prevent triggering when clicking controls inside
                     if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'svg' && e.target.tagName !== 'path') {
                         state.activeSelectionId = sel.id;
                         updateColorListUI();
@@ -1208,16 +1210,3 @@
 </body>
 
 </html>
-});
-}
-window.removeSelection = id => { state.selections = state.selections.filter(s => s.id !== id);
-if(state.activeSelectionId === id) state.activeSelectionId = null; updateColorListUI(); pushHistory();
-requestFullRender(); };
-window.updateLabel = (el, suffix = '') => { const span = el.previousElementSibling.lastElementChild; if(span)
-span.innerText = el.value + suffix; }
-window.updateSelectionParam = (id, k, v) => { const s = state.selections.find(x => x.id === id); if(s) { s[k] =
-k==='fillHoles'?v:parseInt(v); s.mask = null; if(k !== 'fillHoles') pushHistory(); requestFullRender(id); } };
-function downloadImage() {
-if (!state.image) return;
-const link = document.createElement('a');
-const nameParts = state.fileName.split('.');
