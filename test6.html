@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>攀岩路線強調工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定義滑桿 */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e5e7eb;
+            border-radius: 2px;
+        }
+
+        #file-upload {
+            display: none;
+        }
+
+        /* 載入動畫 */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 20px;
+            height: 20px;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 格紋背景 (透明圖層) */
+        .checkerboard {
+            background-color: #f0f0f0;
+            background-image:
+                linear-gradient(45deg, #ddd 25%, transparent 25%),
+                linear-gradient(-45deg, #ddd 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #ddd 75%),
+                linear-gradient(-45deg, transparent 75%, #ddd 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        /* 色票選取樣式 */
+        .color-btn.selected {
+            ring: 2px;
+            ring-offset: 2px;
+            ring-color: #3b82f6;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-800 h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Header -->
+    <header
+        class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-sm">
+        <div class="flex items-center gap-2">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
+                </path>
+            </svg>
+            <h1 class="text-base font-bold text-gray-900 truncate">攀岩修圖 <span
+                    class="text-xs font-normal text-gray-500 ml-1 hidden sm:inline">v7.2 (整合版)</span></h1>
+        </div>
+        <div class="flex space-x-2">
+            <label for="file-upload"
+                class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition-colors whitespace-nowrap">
+                開啟
+            </label>
+            <input id="file-upload" type="file" accept="image/*">
+            <button id="download-btn"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
+                disabled>
+                <span>下載</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col-reverse md:flex-row overflow-hidden relative">
+
+        <!-- Sidebar Controls -->
+        <aside
+            class="w-full md:w-80 bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col z-10 shrink-0 h-[45%] md:h-full shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] md:shadow-none">
+
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200 shrink-0">
+                <button id="tab-route"
+                    class="flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50">路線編輯</button>
+                <button id="tab-text"
+                    class="flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">文字裝飾</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scrollbar relative p-4">
+
+                <!-- Tab: Route Highlight -->
+                <div id="panel-route" class="space-y-4">
+                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-bold text-blue-900">操作指引</h3>
+                        </div>
+                        <p class="text-xs text-blue-700 mb-2 leading-relaxed">
+                            1. 切換至 <span class="font-bold">圈選模式</span> (畫筆圖示)<br>
+                            2. 圈選岩點範圍 (系統自動擴展)
+                        </p>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-bold text-gray-700">已選範圍</h3>
+                            <button id="clear-colors"
+                                class="text-xs text-red-500 hover:text-red-700 underline hidden">清空</button>
+                        </div>
+                        <div id="color-list" class="space-y-3 pb-4">
+                            <div
+                                class="text-center py-6 text-gray-400 text-xs italic border-2 border-dashed border-gray-100 rounded-lg">
+                                尚未圈選
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Merged Basic Adjustments -->
+                    <div class="border-t border-gray-200 pt-4 mt-4">
+                        <details class="group">
+                            <summary
+                                class="flex justify-between items-center font-medium cursor-pointer list-none text-sm text-gray-700">
+                                <span>全域影像調整</span>
+                                <span class="transition group-open:rotate-180">
+                                    <svg fill="none" height="24" shape-rendering="geometricPrecision"
+                                        stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                        stroke-width="1.5" viewBox="0 0 24 24" width="24">
+                                        <path d="M6 9l6 6 6-6"></path>
+                                    </svg>
+                                </span>
+                            </summary>
+                            <div class="text-neutral-600 mt-3 group-open:animate-fadeIn space-y-4">
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <label class="text-xs font-medium text-gray-600">亮度</label>
+                                        <span id="brightness-val" class="text-xs text-gray-400">100%</span>
+                                    </div>
+                                    <input type="range" id="brightness" min="50" max="150" value="100">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <label class="text-xs font-medium text-gray-600">對比度</label>
+                                        <span id="contrast-val" class="text-xs text-gray-400">100%</span>
+                                    </div>
+                                    <input type="range" id="contrast" min="50" max="150" value="100">
+                                </div>
+                                <div class="flex gap-2 pt-2">
+                                    <button id="rotate-left"
+                                        class="flex-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 py-2 rounded text-xs text-gray-600 flex items-center justify-center gap-1">
+                                        ↺ 左轉
+                                    </button>
+                                    <button id="rotate-right"
+                                        class="flex-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 py-2 rounded text-xs text-gray-600 flex items-center justify-center gap-1">
+                                        ↻ 右轉
+                                    </button>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Tab: Text Overlay -->
+                <div id="panel-text" class="space-y-4 hidden">
+                    <div class="space-y-3">
+                        <input type="text" id="text-input" placeholder="輸入文字..."
+                            class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                        <button id="add-text-btn"
+                            class="w-full bg-gray-800 hover:bg-gray-900 text-white py-2 rounded text-sm font-medium transition-colors">
+                            + 新增文字
+                        </button>
+                    </div>
+
+                    <div id="text-controls"
+                        class="space-y-4 border-t border-gray-100 pt-4 opacity-50 pointer-events-none transition-opacity">
+                        <!-- Colors -->
+                        <div>
+                            <label
+                                class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">顏色</label>
+                            <div class="flex flex-wrap gap-2" id="color-palette"></div>
+                        </div>
+
+                        <!-- Style Options -->
+                        <div class="flex items-center justify-between">
+                            <label class="flex items-center cursor-pointer">
+                                <div class="relative">
+                                    <input type="checkbox" id="text-bg-toggle" class="sr-only">
+                                    <div class="w-9 h-5 bg-gray-200 rounded-full shadow-inner transition-colors"
+                                        id="text-bg-track"></div>
+                                    <div class="dot absolute left-1 top-1 w-3 h-3 bg-white rounded-full shadow transition-transform"
+                                        id="text-bg-dot"></div>
+                                </div>
+                                <div class="ml-2 text-xs font-medium text-gray-700">文字底色 (A)</div>
+                            </label>
+                        </div>
+
+                        <!-- Size Slider -->
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs font-medium text-gray-600">大小</label>
+                                <span id="text-size-val" class="text-xs text-gray-400">40</span>
+                            </div>
+                            <input type="range" id="text-size" min="10" max="200" value="40">
+                        </div>
+
+                        <!-- Delete -->
+                        <button id="delete-text-btn"
+                            class="w-full border border-red-200 text-red-500 hover:bg-red-50 py-2 rounded text-sm transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                </path>
+                            </svg>
+                            刪除選中文字
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Process Indicator -->
+            <div id="processing-bar"
+                class="bg-blue-600 text-white text-xs py-2 px-4 flex items-center justify-center gap-2 hidden shrink-0">
+                <div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div>
+                <span>運算中...</span>
+            </div>
+        </aside>
+
+        <!-- Canvas Area -->
+        <section class="flex-1 bg-gray-800 relative overflow-hidden h-[55%] md:h-full checkerboard touch-none"
+            id="canvas-container">
+
+            <!-- Floating Toolbar (Only for Route Mode) -->
+            <div id="floating-toolbar"
+                class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur shadow-lg rounded-full px-4 py-2 flex items-center gap-4 z-50 border border-gray-200">
+
+                <div id="tool-switcher" class="flex bg-gray-100 rounded-full p-1">
+                    <button id="tool-hand"
+                        class="p-2 rounded-full hover:bg-white text-gray-500 hover:text-gray-900 transition-colors"
+                        title="移動/縮放">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11">
+                            </path>
+                        </svg>
+                    </button>
+                    <button id="tool-lasso" class="p-2 rounded-full bg-blue-600 text-white shadow-sm" title="圈選模式">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="tool-divider" class="w-px h-6 bg-gray-300"></div>
+
+                <div class="flex items-center gap-2">
+                    <button id="zoom-out"
+                        class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 font-bold">-</button>
+                    <span id="zoom-level" class="text-xs font-mono w-10 text-center">100%</span>
+                    <button id="zoom-in"
+                        class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 font-bold">+</button>
+                    <button id="zoom-fit"
+                        class="ml-1 text-xs text-blue-600 font-medium px-2 py-1 hover:bg-blue-50 rounded">適中</button>
+                </div>
+            </div>
+
+            <div id="placeholder-msg"
+                class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
+                <div
+                    class="mx-auto w-16 h-16 bg-gray-700/50 text-white/50 rounded-full flex items-center justify-center mb-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-white/80">拖放照片至此</h3>
+            </div>
+
+            <!-- Canvas Wrapper for Transform -->
+            <div id="canvas-transform-root"
+                class="w-full h-full flex items-center justify-center origin-center transition-transform duration-75 ease-linear">
+                <div id="canvas-wrapper" class="relative shadow-2xl hidden inline-block">
+                    <canvas id="canvas" class="block"></canvas>
+                    <canvas id="canvas-overlay"
+                        class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+        const els = {
+            fileInput: document.getElementById('file-upload'),
+            downloadBtn: document.getElementById('download-btn'),
+            canvasContainer: document.getElementById('canvas-container'),
+            transformRoot: document.getElementById('canvas-transform-root'),
+            canvas: document.getElementById('canvas'),
+            overlay: document.getElementById('canvas-overlay'),
+            wrapper: document.getElementById('canvas-wrapper'),
+            placeholder: document.getElementById('placeholder-msg'),
+
+            // Sidebar Panels
+            colorList: document.getElementById('color-list'),
+            clearColorsBtn: document.getElementById('clear-colors'),
+            processingBar: document.getElementById('processing-bar'),
+
+            // Tab Buttons
+            tabRoute: document.getElementById('tab-route'),
+            tabText: document.getElementById('tab-text'),
+
+            // Panels
+            panelRoute: document.getElementById('panel-route'),
+            panelText: document.getElementById('panel-text'),
+
+            // Basic Controls
+            brightness: document.getElementById('brightness'),
+            contrast: document.getElementById('contrast'),
+            rotateL: document.getElementById('rotate-left'),
+            rotateR: document.getElementById('rotate-right'),
+
+            // Toolbar
+            floatingToolbar: document.getElementById('floating-toolbar'),
+            toolSwitcher: document.getElementById('tool-switcher'),
+            toolDivider: document.getElementById('tool-divider'),
+            toolHand: document.getElementById('tool-hand'),
+            toolLasso: document.getElementById('tool-lasso'),
+            zoomIn: document.getElementById('zoom-in'),
+            zoomOut: document.getElementById('zoom-out'),
+            zoomFit: document.getElementById('zoom-fit'),
+            zoomLevel: document.getElementById('zoom-level'),
+
+            // Text Controls
+            textInput: document.getElementById('text-input'),
+            addTextBtn: document.getElementById('add-text-btn'),
+            textControls: document.getElementById('text-controls'),
+            colorPalette: document.getElementById('color-palette'),
+            textBgToggle: document.getElementById('text-bg-toggle'),
+            textBgTrack: document.getElementById('text-bg-track'),
+            textBgDot: document.getElementById('text-bg-dot'),
+            textSize: document.getElementById('text-size'),
+            textSizeVal: document.getElementById('text-size-val'),
+            deleteTextBtn: document.getElementById('delete-text-btn')
+        };
+
+        const ctx = els.canvas.getContext('2d', { willReadFrequently: true });
+        const overlayCtx = els.overlay.getContext('2d');
+
+        const COLORS = [
+            '#FFFFFF', '#000000', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'
+        ];
+
+        let state = {
+            image: null,
+            fileName: 'climbing_route.png',
+
+            // Filter State
+            rotation: 0,
+            brightness: 100,
+            contrast: 100,
+
+            // Selection State
+            selections: [],
+            nextSelectionId: 1,
+            currentImageData: null,
+
+            // Text State
+            texts: [],
+            activeTextId: null,
+            nextTextId: 1,
+
+            // Interaction State
+            activeTab: 'route', // 'route' | 'text'
+            tool: 'lasso', // 'hand' or 'lasso' (User preference for Route tab)
+            dragType: null, // 'pan', 'lasso', 'text'
+            isDragging: false,
+            draggingTextId: null,
+            currentBrushPath: [],
+
+            // View State
+            viewScale: 1,
+            viewX: 0,
+            viewY: 0,
+            startPan: { x: 0, y: 0 },
+            dragStartText: { x: 0, y: 0 }
+        };
+
+        function init() {
+            // File & UI Init
+            els.fileInput.addEventListener('change', handleFileSelect);
+            els.downloadBtn.addEventListener('click', downloadImage);
+            els.canvasContainer.addEventListener('dragover', (e) => e.preventDefault());
+            els.canvasContainer.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+            });
+
+            // Tab Switching
+            els.tabRoute.addEventListener('click', () => switchTab('route'));
+            els.tabText.addEventListener('click', () => switchTab('text'));
+
+            // Basic Adjustments
+            els.brightness.addEventListener('input', updateGlobalFilterDisplay);
+            els.contrast.addEventListener('input', updateGlobalFilterDisplay);
+            els.brightness.addEventListener('change', requestFullRender);
+            els.contrast.addEventListener('change', requestFullRender);
+            els.rotateL.addEventListener('click', () => { state.rotation = (state.rotation - 90) % 360; requestFullRender(); });
+            els.rotateR.addEventListener('click', () => { state.rotation = (state.rotation + 90) % 360; requestFullRender(); });
+
+            // Text Logic
+            initTextUI();
+
+            // Tools & Zoom
+            els.toolHand.addEventListener('click', () => setTool('hand'));
+            els.toolLasso.addEventListener('click', () => setTool('lasso'));
+            els.zoomIn.addEventListener('click', () => updateZoom(0.1));
+            els.zoomOut.addEventListener('click', () => updateZoom(-0.1));
+            els.zoomFit.addEventListener('click', fitImageToScreen);
+
+            // Canvas Interaction
+            els.canvasContainer.addEventListener('mousedown', handlePointerDown);
+            window.addEventListener('mousemove', handlePointerMove);
+            window.addEventListener('mouseup', handlePointerUp);
+
+            els.canvasContainer.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) handlePointerDown(e.touches[0]);
+            }, { passive: false });
+            window.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 1) handlePointerMove(e.touches[0]);
+            }, { passive: false });
+            window.addEventListener('touchend', handlePointerUp);
+
+            els.canvasContainer.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                updateZoom(e.deltaY > 0 ? -0.1 : 0.1);
+            }, { passive: false });
+
+            els.clearColorsBtn.addEventListener('click', () => {
+                state.selections = [];
+                updateColorListUI();
+                requestFullRender();
+            });
+        }
+
+        // --- Text UI ---
+        function initTextUI() {
+            els.colorPalette.innerHTML = '';
+            COLORS.forEach(color => {
+                const btn = document.createElement('button');
+                btn.className = `color-btn w-6 h-6 rounded-full border border-gray-200 shadow-sm transition-transform hover:scale-110`;
+                btn.style.backgroundColor = color;
+                btn.onclick = () => updateActiveText('color', color);
+                els.colorPalette.appendChild(btn);
+            });
+
+            els.addTextBtn.addEventListener('click', () => {
+                const text = els.textInput.value.trim();
+                if (!text) return;
+                const newText = {
+                    id: state.nextTextId++,
+                    text: text,
+                    x: 0,
+                    y: 0,
+                    color: '#FFFFFF',
+                    bgColor: null,
+                    fontSize: 40
+                };
+                state.texts.push(newText);
+                state.activeTextId = newText.id;
+                els.textInput.value = '';
+                updateTextControlsUI();
+                requestFullRender();
+                switchTab('text');
+            });
+
+            els.textBgToggle.addEventListener('change', (e) => {
+                const color = e.target.checked ? 'rgba(0,0,0,0.7)' : null;
+                updateActiveText('bgColor', color);
+                if (e.target.checked) {
+                    els.textBgTrack.className = "w-9 h-5 bg-blue-600 rounded-full shadow-inner transition-colors";
+                    els.textBgDot.className = "dot absolute left-1 top-1 w-3 h-3 bg-white rounded-full shadow transition-transform transform translate-x-4";
+                } else {
+                    els.textBgTrack.className = "w-9 h-5 bg-gray-200 rounded-full shadow-inner transition-colors";
+                    els.textBgDot.className = "dot absolute left-1 top-1 w-3 h-3 bg-white rounded-full shadow transition-transform";
+                }
+            });
+
+            els.textSize.addEventListener('input', (e) => {
+                els.textSizeVal.innerText = e.target.value;
+                updateActiveText('fontSize', parseInt(e.target.value));
+            });
+
+            els.deleteTextBtn.addEventListener('click', () => {
+                if (state.activeTextId !== null) {
+                    state.texts = state.texts.filter(t => t.id !== state.activeTextId);
+                    state.activeTextId = null;
+                    updateTextControlsUI();
+                    requestFullRender();
+                }
+            });
+        }
+
+        function updateActiveText(prop, val) {
+            if (state.activeTextId === null) return;
+            const text = state.texts.find(t => t.id === state.activeTextId);
+            if (text) {
+                text[prop] = val;
+                requestFullRender();
+            }
+        }
+
+        function updateTextControlsUI() {
+            const hasActive = state.activeTextId !== null;
+            if (hasActive) {
+                els.textControls.classList.remove('opacity-50', 'pointer-events-none');
+                const text = state.texts.find(t => t.id === state.activeTextId);
+                els.textSize.value = text.fontSize;
+                els.textSizeVal.innerText = text.fontSize;
+                const hasBg = !!text.bgColor;
+                els.textBgToggle.checked = hasBg;
+                if (hasBg) {
+                    els.textBgTrack.className = "w-9 h-5 bg-blue-600 rounded-full";
+                    els.textBgDot.className = "dot absolute left-1 top-1 w-3 h-3 bg-white rounded-full transform translate-x-4";
+                } else {
+                    els.textBgTrack.className = "w-9 h-5 bg-gray-200 rounded-full";
+                    els.textBgDot.className = "dot absolute left-1 top-1 w-3 h-3 bg-white rounded-full";
+                }
+                Array.from(els.colorPalette.children).forEach(btn => btn.classList.remove('selected'));
+            } else {
+                els.textControls.classList.add('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        // --- Core Interaction Logic ---
+
+        function handlePointerDown(e) {
+            if (!state.image) return;
+            if (e.target.closest('button') || e.target.closest('input')) return;
+
+            const coords = getCanvasCoords(e);
+
+            if (state.activeTab === 'text') {
+                const cx = els.canvas.width / 2;
+                const cy = els.canvas.height / 2;
+                const dx = coords.x - cx;
+                const dy = coords.y - cy;
+                const rad = -state.rotation * Math.PI / 180;
+                const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+                const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+                let hitText = null;
+                for (let i = state.texts.length - 1; i >= 0; i--) {
+                    const t = state.texts[i];
+                    ctx.font = `bold ${t.fontSize}px sans-serif`;
+                    const m = ctx.measureText(t.text);
+                    const w = m.width;
+                    const h = t.fontSize;
+                    if (rx >= t.x && rx <= t.x + w && ry >= t.y && ry <= t.y + h) {
+                        hitText = t;
+                        break;
+                    }
+                }
+
+                if (hitText) {
+                    state.activeTextId = hitText.id;
+                    state.draggingTextId = hitText.id;
+                    state.isDragging = true;
+                    state.dragType = 'text';
+                    state.dragStartText = { x: rx - hitText.x, y: ry - hitText.y };
+                    updateTextControlsUI();
+                    requestFullRender();
+                    return;
+                }
+
+                state.activeTextId = null;
+                updateTextControlsUI();
+                requestFullRender();
+
+                state.isDragging = true;
+                state.dragType = 'pan';
+                state.startPan = { x: e.clientX - state.viewX, y: e.clientY - state.viewY };
+                els.canvasContainer.style.cursor = 'grabbing';
+                return;
+            }
+
+            if (state.activeTab === 'route') {
+                state.isDragging = true;
+                if (state.tool === 'hand') {
+                    state.dragType = 'pan';
+                    state.startPan = { x: e.clientX - state.viewX, y: e.clientY - state.viewY };
+                    els.canvasContainer.style.cursor = 'grabbing';
+                } else {
+                    state.dragType = 'lasso';
+                    state.currentBrushPath = [];
+                    overlayCtx.clearRect(0, 0, els.overlay.width, els.overlay.height);
+                    overlayCtx.beginPath();
+                    overlayCtx.strokeStyle = 'rgba(255, 230, 0, 0.9)';
+                    overlayCtx.lineWidth = 3 / state.viewScale;
+                    overlayCtx.setLineDash([5, 5]);
+                    overlayCtx.moveTo(coords.x, coords.y);
+                    state.currentBrushPath.push(coords);
+                }
+                return;
+            }
+        }
+
+        function handlePointerMove(e) {
+            if (!state.isDragging) return;
+
+            if (state.dragType === 'text' && state.draggingTextId !== null) {
+                const coords = getCanvasCoords(e);
+                const cx = els.canvas.width / 2;
+                const cy = els.canvas.height / 2;
+                const dx = coords.x - cx;
+                const dy = coords.y - cy;
+                const rad = -state.rotation * Math.PI / 180;
+                const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+                const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+                const text = state.texts.find(t => t.id === state.draggingTextId);
+                if (text) {
+                    text.x = rx - state.dragStartText.x;
+                    text.y = ry - state.dragStartText.y;
+                    requestFullRender();
+                }
+            }
+            else if (state.dragType === 'pan') {
+                state.viewX = e.clientX - state.startPan.x;
+                state.viewY = e.clientY - state.startPan.y;
+                applyTransform();
+            }
+            else if (state.dragType === 'lasso') {
+                const pos = getCanvasCoords(e);
+                overlayCtx.lineTo(pos.x, pos.y);
+                overlayCtx.stroke();
+                state.currentBrushPath.push(pos);
+            }
+        }
+
+        function handlePointerUp(e) {
+            if (!state.isDragging) return;
+            state.isDragging = false;
+
+            if (state.dragType === 'pan') {
+                els.canvasContainer.style.cursor = state.tool === 'hand' && state.activeTab === 'route' ? 'grab' : 'default';
+            }
+            else if (state.dragType === 'lasso') {
+                if (state.currentBrushPath.length > 2) {
+                    const start = state.currentBrushPath[0];
+                    overlayCtx.lineTo(start.x, start.y);
+                    overlayCtx.stroke();
+                    overlayCtx.fillStyle = 'rgba(255, 230, 0, 0.2)';
+                    overlayCtx.fill();
+                }
+                setTimeout(() => overlayCtx.clearRect(0, 0, els.overlay.width, els.overlay.height), 500);
+
+                if (state.currentBrushPath.length < 3) return;
+
+                const newSelection = {
+                    id: state.nextSelectionId++,
+                    seeds: state.currentBrushPath,
+                    tolerance: 60,
+                    expand: 0,
+                    fillHoles: true,
+                    mask: null
+                };
+                state.selections.push(newSelection);
+                updateColorListUI();
+                requestFullRender(newSelection.id);
+            }
+
+            state.dragType = null;
+            state.draggingTextId = null;
+        }
+
+        function setTool(tool) {
+            state.tool = tool;
+            if (tool === 'hand') {
+                els.toolHand.className = "p-2 rounded-full bg-blue-600 text-white shadow-sm";
+                els.toolLasso.className = "p-2 rounded-full hover:bg-white text-gray-500 hover:text-gray-900 transition-colors";
+                els.canvasContainer.style.cursor = 'grab';
+            } else {
+                els.toolLasso.className = "p-2 rounded-full bg-blue-600 text-white shadow-sm";
+                els.toolHand.className = "p-2 rounded-full hover:bg-white text-gray-500 hover:text-gray-900 transition-colors";
+                els.canvasContainer.style.cursor = 'crosshair';
+            }
+        }
+
+        function updateZoom(delta) {
+            let newScale = state.viewScale + delta;
+            newScale = Math.max(0.1, Math.min(5, newScale));
+            state.viewScale = newScale;
+            applyTransform();
+        }
+
+        function fitImageToScreen() {
+            if (!state.image) return;
+            const containerW = els.canvasContainer.clientWidth;
+            const containerH = els.canvasContainer.clientHeight;
+            const isRot90 = Math.abs(state.rotation) % 180 !== 0;
+            const imgW = isRot90 ? state.image.naturalHeight : state.image.naturalWidth;
+            const imgH = isRot90 ? state.image.naturalWidth : state.image.naturalHeight;
+            const scale = Math.min((containerW - 40) / imgW, (containerH - 40) / imgH, 1);
+            state.viewScale = scale;
+            state.viewX = 0; state.viewY = 0;
+            applyTransform();
+        }
+
+        function applyTransform() {
+            els.transformRoot.style.transform = `translate(${state.viewX}px, ${state.viewY}px) scale(${state.viewScale})`;
+            els.zoomLevel.innerText = Math.round(state.viewScale * 100) + '%';
+        }
+
+        function getCanvasCoords(e) {
+            const rect = els.canvas.getBoundingClientRect();
+            const scaleX = els.canvas.width / rect.width;
+            const scaleY = els.canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        function processFile(file) {
+            state.fileName = file.name;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    state.image = img;
+                    state.rotation = 0;
+                    state.selections = [];
+                    state.texts = [];
+                    updateColorListUI();
+                    updateTextControlsUI();
+                    els.wrapper.classList.remove('hidden');
+                    els.placeholder.classList.add('hidden');
+                    els.downloadBtn.disabled = false;
+                    requestFullRender().then(() => fitImageToScreen());
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleFileSelect(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
+
+        function switchTab(tab) {
+            state.activeTab = tab;
+
+            els.panelRoute.classList.add('hidden');
+            els.panelText.classList.add('hidden');
+
+            els.tabRoute.className = "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700";
+            els.tabText.className = "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700";
+
+            if (tab === 'route') {
+                els.panelRoute.classList.remove('hidden');
+                els.tabRoute.className = "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50";
+
+                els.toolSwitcher.classList.remove('hidden');
+                els.toolDivider.classList.remove('hidden');
+                setTool(state.tool);
+            } else {
+                els.panelText.classList.remove('hidden');
+                els.tabText.className = "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50";
+
+                els.toolSwitcher.classList.add('hidden');
+                els.toolDivider.classList.add('hidden');
+                els.canvasContainer.style.cursor = 'default';
+            }
+        }
+
+        function updateGlobalFilterDisplay(e) {
+            if (e.target.id === 'brightness') {
+                state.brightness = parseInt(e.target.value);
+                document.getElementById('brightness-val').innerText = state.brightness + '%';
+            } else {
+                state.contrast = parseInt(e.target.value);
+                document.getElementById('contrast-val').innerText = state.contrast + '%';
+            }
+        }
+
+        async function requestFullRender(recalcSelectionId = null) {
+            els.processingBar.classList.remove('hidden');
+            return new Promise(resolve => {
+                setTimeout(async () => {
+                    await render(recalcSelectionId);
+                    els.processingBar.classList.add('hidden');
+                    resolve();
+                }, 50);
+            });
+        }
+
+        async function render(recalcSelectionId) {
+            if (!state.image) return;
+            const isRotated = Math.abs(state.rotation) % 180 !== 0;
+            const width = isRotated ? state.image.naturalHeight : state.image.naturalWidth;
+            const height = isRotated ? state.image.naturalWidth : state.image.naturalHeight;
+
+            els.canvas.width = width;
+            els.canvas.height = height;
+            els.overlay.width = width;
+            els.overlay.height = height;
+
+            ctx.save();
+            ctx.translate(width / 2, height / 2);
+            ctx.rotate(state.rotation * Math.PI / 180);
+
+            ctx.filter = `brightness(${state.brightness}%) contrast(${state.contrast}%)`;
+            ctx.drawImage(state.image, -state.image.naturalWidth / 2, -state.image.naturalHeight / 2);
+            ctx.filter = 'none';
+
+            state.currentImageData = ctx.getImageData(0, 0, width, height);
+
+            ctx.restore();
+
+            if (recalcSelectionId) {
+                const sel = state.selections.find(s => s.id === recalcSelectionId);
+                if (sel) calculateLassoAndExpandMask(sel, width, height, state.currentImageData.data);
+            } else {
+                for (let sel of state.selections) {
+                    if (!sel.mask) calculateLassoAndExpandMask(sel, width, height, state.currentImageData.data);
+                }
+            }
+            applyCompositeMask(width, height);
+
+            ctx.save();
+            ctx.translate(width / 2, height / 2);
+            ctx.rotate(state.rotation * Math.PI / 180);
+            renderTexts(ctx);
+            ctx.restore();
+        }
+
+        function renderTexts(ctx) {
+            state.texts.forEach(t => {
+                ctx.font = `bold ${t.fontSize}px sans-serif`;
+                ctx.textBaseline = 'top';
+                const metrics = ctx.measureText(t.text);
+                const w = metrics.width;
+                const h = t.fontSize;
+                const p = 8;
+
+                const x = t.x;
+                const y = t.y;
+
+                if (t.bgColor) {
+                    ctx.fillStyle = t.bgColor;
+                    ctx.beginPath();
+                    ctx.roundRect(x - p, y - p, w + p * 2, h + p * 1.5, 8);
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = t.color;
+                ctx.fillText(t.text, x, y);
+
+                if (t.id === state.activeTextId && state.activeTab === 'text') {
+                    ctx.strokeStyle = '#3b82f6';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 3]);
+                    ctx.strokeRect(x - p - 2, y - p - 2, w + p * 2 + 4, h + p * 1.5 + 4);
+                    ctx.setLineDash([]);
+                }
+            });
+        }
+
+        function calculateLassoAndExpandMask(selection, width, height, data) {
+            if (selection.mask && !selection._dirty) return;
+            const mask = new Uint8Array(width * height);
+            const visited = new Uint8Array(width * height);
+            const path = selection.seeds;
+            const samples = [];
+            const queue = [];
+            if (path.length < 3) return;
+
+            let minX = width, maxX = 0, minY = height, maxY = 0;
+            path.forEach(p => {
+                if (p.x < minX) minX = p.x;
+                if (p.x > maxX) maxX = p.x;
+                if (p.y < minY) minY = p.y;
+                if (p.y > maxY) maxY = p.y;
+            });
+            minX = Math.max(0, Math.floor(minX));
+            minY = Math.max(0, Math.floor(minY));
+            maxX = Math.min(width, Math.ceil(maxX));
+            maxY = Math.min(height, Math.ceil(maxY));
+
+            for (let y = minY; y < maxY; y++) {
+                for (let x = minX; x < maxX; x++) {
+                    if (isPointInPolygon({ x, y }, path)) {
+                        const idx = y * width + x;
+                        if (visited[idx] === 0) {
+                            visited[idx] = 1;
+                            mask[idx] = 1;
+                            queue.push(x); queue.push(y);
+                            if (samples.length < 50 && (x + y) % 3 === 0) {
+                                const pIdx = idx * 4;
+                                samples.push({ r: data[pIdx], g: data[pIdx + 1], b: data[pIdx + 2] });
+                            }
+                        }
+                    }
+                }
+            }
+            if (samples.length === 0 && queue.length > 0) {
+                const x = queue[0], y = queue[1];
+                const idx = (y * width + x) * 4;
+                samples.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] });
+            }
+
+            const tolerance = selection.tolerance;
+            let head = 0;
+            const dx = [0, 1, 0, -1];
+            const dy = [-1, 0, 1, 0];
+            while (head < queue.length) {
+                const x = queue[head++];
+                const y = queue[head++];
+                for (let i = 0; i < 4; i++) {
+                    const nx = x + dx[i];
+                    const ny = y + dy[i];
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        const nIdx = ny * width + nx;
+                        if (visited[nIdx] === 0) {
+                            visited[nIdx] = 1;
+                            const nPixIdx = nIdx * 4;
+                            const r = data[nPixIdx];
+                            const g = data[nPixIdx + 1];
+                            const b = data[nPixIdx + 2];
+                            let isMatch = false;
+                            for (let s = 0; s < samples.length; s++) {
+                                const sample = samples[s];
+                                const dist = Math.abs(r - sample.r) + Math.abs(g - sample.g) + Math.abs(b - sample.b);
+                                if (dist <= tolerance) { isMatch = true; break; }
+                            }
+                            if (isMatch) {
+                                mask[nIdx] = 1;
+                                queue.push(nx); queue.push(ny);
+                            }
+                        }
+                    }
+                }
+            }
+            if (selection.expand > 0) performExpansion(mask, width, height, selection.expand);
+            if (selection.fillHoles) performHoleFilling(mask, width, height);
+            selection.mask = mask;
+        }
+
+        function isPointInPolygon(p, polygon) {
+            let inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const xi = polygon[i].x, yi = polygon[i].y;
+                const xj = polygon[j].x, yj = polygon[j].y;
+                const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        function performExpansion(mask, width, height, radius) {
+            const expandQueue = [];
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    if (mask[idx] === 1) {
+                        let isEdge = false;
+                        if (x > 0 && mask[idx - 1] === 0) isEdge = true;
+                        else if (x < width - 1 && mask[idx + 1] === 0) isEdge = true;
+                        else if (y > 0 && mask[idx - width] === 0) isEdge = true;
+                        else if (y < height - 1 && mask[idx + width] === 0) isEdge = true;
+                        if (isEdge) expandQueue.push({ x, y, d: 0 });
+                    }
+                }
+            }
+            const dx = [0, 1, 0, -1];
+            const dy = [-1, 0, 1, 0];
+            let head = 0;
+            while (head < expandQueue.length) {
+                const item = expandQueue[head++];
+                if (item.d >= radius) continue;
+                for (let i = 0; i < 4; i++) {
+                    const nx = item.x + dx[i];
+                    const ny = item.y + dy[i];
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        const nIdx = ny * width + nx;
+                        if (mask[nIdx] === 0) {
+                            mask[nIdx] = 1;
+                            expandQueue.push({ x: nx, y: ny, d: item.d + 1 });
+                        }
+                    }
+                }
+            }
+        }
+
+        function performHoleFilling(mask, width, height) {
+            const visited = new Uint8Array(width * height);
+            const queue = [];
+            for (let x = 0; x < width; x++) {
+                if (mask[x] === 0) { queue.push(x); queue.push(0); visited[x] = 1; }
+                let idx = (height - 1) * width + x;
+                if (mask[idx] === 0) { queue.push(x); queue.push(height - 1); visited[idx] = 1; }
+            }
+            for (let y = 0; y < height; y++) {
+                let idx = y * width;
+                if (mask[idx] === 0 && visited[idx] === 0) { queue.push(0); queue.push(y); visited[idx] = 1; }
+                idx = y * width + (width - 1);
+                if (mask[idx] === 0 && visited[idx] === 0) { queue.push(width - 1); queue.push(y); visited[idx] = 1; }
+            }
+            let head = 0;
+            const dx = [0, 1, 0, -1];
+            const dy = [-1, 0, 1, 0];
+            while (head < queue.length) {
+                const x = queue[head++];
+                const y = queue[head++];
+                for (let i = 0; i < 4; i++) {
+                    const nx = x + dx[i];
+                    const ny = y + dy[i];
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        const nIdx = ny * width + nx;
+                        if (mask[nIdx] === 0 && visited[nIdx] === 0) {
+                            visited[nIdx] = 1;
+                            queue.push(nx); queue.push(ny);
+                        }
+                    }
+                }
+            }
+            for (let i = 0; i < width * height; i++) {
+                if (mask[i] === 0 && visited[i] === 0) mask[i] = 1;
+            }
+        }
+
+        function applyCompositeMask(width, height) {
+            const imageData = state.currentImageData;
+            const data = imageData.data;
+            const len = data.length;
+            const selections = state.selections;
+            const globalMask = new Uint8Array(width * height);
+
+            if (selections.length > 0) {
+                selections.forEach(sel => {
+                    if (!sel.mask) return;
+                    for (let i = 0; i < globalMask.length; i++) {
+                        if (sel.mask[i] === 1) globalMask[i] = 1;
+                    }
+                });
+            }
+
+            for (let i = 0; i < len; i += 4) {
+                const pixelIndex = i / 4;
+                if (selections.length > 0 && globalMask[pixelIndex] === 0) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                    data[i] = gray;
+                    data[i + 1] = gray;
+                    data[i + 2] = gray;
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function updateColorListUI() {
+            const list = els.colorList;
+            list.innerHTML = '';
+
+            if (state.selections.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-6 text-gray-400 text-xs italic border-2 border-dashed border-gray-100 rounded-lg">
+                        尚未圈選
+                    </div>`;
+                els.clearColorsBtn.classList.add('hidden');
+                return;
+            }
+
+            els.clearColorsBtn.classList.remove('hidden');
+
+            state.selections.forEach((sel, index) => {
+                const item = document.createElement('div');
+                item.className = "bg-white border border-gray-200 rounded-lg p-3 shadow-sm";
+                item.innerHTML = `
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-5 h-5 rounded bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[10px] shrink-0">
+                            ${index + 1}
+                        </div>
+                        <div class="flex-1 min-w-0 flex items-center justify-between mr-2">
+                            <div class="text-xs font-bold text-gray-700 whitespace-nowrap mr-2">範圍 #${index + 1}</div>
+                            <label class="inline-flex items-center cursor-pointer" title="填補內部孔洞">
+                                <input type="checkbox" onchange="updateSelectionParam(${sel.id}, 'fillHoles', this.checked)" ${sel.fillHoles ? 'checked' : ''} class="sr-only peer">
+                                <div class="relative w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                                <span class="ms-1 text-[10px] text-gray-500">補洞</span>
+                            </label>
+                        </div>
+                        <button onclick="removeSelection(${sel.id})" class="text-gray-400 hover:text-red-500 p-1 shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                    <div class="space-y-3 pl-1">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-[10px] text-gray-500 font-medium">色彩容許度 (0-255)</label>
+                                <span class="text-[10px] text-blue-600 font-mono">${sel.tolerance}</span>
+                            </div>
+                            <input type="range" min="0" max="255" value="${sel.tolerance}" 
+                                onchange="updateSelectionParam(${sel.id}, 'tolerance', this.value)" 
+                                oninput="updateLabel(this)" class="h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-[10px] text-gray-500 font-medium">邊緣擴展</label>
+                                <span class="text-[10px] text-purple-600 font-mono">${sel.expand}px</span>
+                            </div>
+                            <input type="range" min="0" max="20" value="${sel.expand}" 
+                                onchange="updateSelectionParam(${sel.id}, 'expand', this.value)" 
+                                oninput="updateLabel(this, 'px')" class="h-1 bg-purple-100 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        window.removeSelection = (id) => {
+            state.selections = state.selections.filter(s => s.id !== id);
+            updateColorListUI();
+            requestFullRender();
+        };
+        window.updateLabel = (el, suffix = '') => {
+            const span = el.previousElementSibling.lastElementChild;
+            if (span) span.innerText = el.value + suffix;
+        }
+        window.updateSelectionParam = (id, param, val) => {
+            const sel = state.selections.find(s => s.id === id);
+            if (sel) {
+                sel[param] = param === 'fillHoles' ? val : parseInt(val);
+                sel.mask = null;
+                requestFullRender(sel.id);
+            }
+        };
+        function downloadImage() {
+            if (!state.image) return;
+            const link = document.createElement('a');
+            const nameParts = state.fileName.split('.');
+            const ext = nameParts.length > 1 ? nameParts.pop() : 'png';
+            link.download = `${nameParts.join('.')}-edited.${ext}`;
+            link.href = els.canvas.toDataURL(`image/${ext === 'png' ? 'png' : 'jpeg'}`, 0.9);
+            link.click();
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
