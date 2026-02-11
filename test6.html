@@ -4,12 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HoldFocus - v9.9.7 UI Polish</title>
+    <title>HoldFocus - v10.2 Color Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* --- 基礎樣式 --- */
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; margin-top: -6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; margin-top: -6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.1s; }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e5e7eb; border-radius: 2px; }
         #file-upload { display: none; }
         .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; }
@@ -19,7 +20,7 @@
             background-image: linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(-45deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(-45deg, transparent 75%, #ddd 75%);
             background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
         }
-        .color-btn.selected { ring: 2px; ring-offset: 2px; ring-color: #3b82f6; transform: scale(1.1); }
+        .color-btn.selected { ring: 2px; ring-offset: 2px; ring-color: #3b82f6; transform: scale(1.15); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
         /* --- 架構樣式 --- */
         .canvas-stack { position: relative; width: 0; height: 0; }
@@ -41,14 +42,18 @@
         .snap-line { position: absolute; background-color: #3b82f6; z-index: 60; pointer-events: none; box-shadow: 0 0 4px rgba(255, 255, 255, 0.8); }
 
         /* Slider Controls */
-        .slider-group { display: flex; align-items: center; gap: 4px; }
-        .slider-btn { width: 20px; height: 20px; border-radius: 4px; background: #f3f4f6; color: #4b5563; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; cursor: pointer; flex-shrink: 0; }
+        .slider-group { display: flex; align-items: center; gap: 6px; }
+        .slider-btn { width: 22px; height: 22px; border-radius: 6px; background: #f3f4f6; color: #4b5563; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; cursor: pointer; flex-shrink: 0; transition: background 0.2s; }
         .slider-btn:hover { background: #e5e7eb; color: #111827; }
-        .slider-btn:active { background: #d1d5db; }
+        .slider-btn:active { background: #d1d5db; transform: scale(0.95); }
         
         /* Toggle Switch */
         .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
         .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
+        
+        /* List Item Animations */
+        .list-item { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .list-item:hover { border-color: #bfdbfe; }
     </style>
 </head>
 
@@ -57,12 +62,12 @@
     <!-- Header -->
     <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-sm">
         <div class="flex items-center gap-2 overflow-hidden">
-            <h1 class="text-base font-bold text-gray-900 truncate">HoldFocus <span class="text-xs font-normal text-gray-500 ml-1">v9.9.7</span></h1>
+            <h1 class="text-base font-bold text-gray-900 truncate">HoldFocus <span class="text-xs font-normal text-gray-500 ml-1">v10.2</span></h1>
             <div class="flex ml-4 border-l border-gray-200 pl-4 space-x-1">
-                <button id="undo-btn" class="p-1.5 text-gray-500 hover:text-gray-900 rounded hover:bg-gray-100 disabled:opacity-30" disabled title="Undo">
+                <button id="undo-btn" class="p-1.5 text-gray-500 hover:text-gray-900 rounded hover:bg-gray-100 disabled:opacity-30 transition-colors" disabled title="Undo">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
                 </button>
-                <button id="redo-btn" class="p-1.5 text-gray-500 hover:text-gray-900 rounded hover:bg-gray-100 disabled:opacity-30" disabled title="Redo">
+                <button id="redo-btn" class="p-1.5 text-gray-500 hover:text-gray-900 rounded hover:bg-gray-100 disabled:opacity-30 transition-colors" disabled title="Redo">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path></svg>
                 </button>
             </div>
@@ -70,66 +75,60 @@
         <div class="flex space-x-2 items-center">
             <label for="file-upload" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition-colors">開啟</label>
             <input id="file-upload" type="file" accept="image/*">
-            <button id="download-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50" disabled>下載</button>
+            <button id="download-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50 shadow-sm" disabled>下載</button>
         </div>
     </header>
 
     <main class="flex-1 flex flex-col-reverse md:flex-row overflow-hidden relative">
 
         <!-- Sidebar -->
-        <aside class="w-full md:w-80 bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col z-10 shrink-0 h-[50%] md:h-full">
+        <aside class="w-full md:w-80 bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col z-10 shrink-0 h-[40%] md:h-full transition-all duration-300 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] md:shadow-none">
             <div class="flex border-b border-gray-200 shrink-0">
-                <button id="tab-route" class="flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50">路線編輯</button>
-                <button id="tab-text" class="flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">文字/標記</button>
+                <button id="tab-route" class="flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors">路線編輯</button>
+                <button id="tab-text" class="flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">文字/標記</button>
             </div>
 
             <div class="flex-1 overflow-y-auto custom-scrollbar relative p-4">
                 <!-- Panel: Route -->
                 <div id="panel-route" class="space-y-4">
                     <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                        <p class="text-sm text-blue-800 font-medium leading-relaxed">點擊下方 <b class="text-base inline-block align-baseline">+</b> 號圈選岩點，系統將自動擴展。</p>
+                        <p class="text-sm text-blue-800 font-medium leading-relaxed">點擊下方 <b class="inline-flex items-center justify-center w-5 h-5 bg-blue-600 text-white rounded-full text-xs mx-0.5 align-middle shadow-sm">+</b> 號，開始圈選岩點</p>
                     </div>
 
-                    <div>
+                    <!-- Selection List -->
+                    <div class="flex-1 flex flex-col min-h-0">
                         <div class="flex items-center justify-between mb-2">
                             <h3 class="text-sm font-bold text-gray-700" data-i18n="selectedRanges">已選岩點</h3>
-                            <button id="clear-colors" class="text-xs text-red-500 hover:text-red-700 underline hidden">清空</button>
+                            <button id="clear-colors" class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded transition-colors hidden">清空</button>
                         </div>
-                        <div id="color-list" class="space-y-3 pb-2 overflow-y-auto">
-                            <div class="text-center py-6 text-gray-400 text-xs italic border-2 border-dashed border-gray-100 rounded-lg">尚未圈選</div>
+                        <div id="color-list" class="space-y-2 pb-2 overflow-y-auto pr-1">
+                            <div class="text-center py-8 text-gray-400 text-sm italic border-2 border-dashed border-gray-100 rounded-lg">尚未圈選</div>
                         </div>
                     </div>
 
                     <!-- Eraser Size Control -->
                     <div id="brush-controls" class="hidden border-t border-gray-200 pt-4">
-                        <div class="flex justify-between mb-1"><label class="text-xs font-bold text-blue-800">橡皮擦大小</label><span id="brush-size-val" class="text-xs text-blue-600 font-mono">20px</span></div>
+                        <div class="flex justify-between mb-1"><label class="text-xs font-bold text-blue-800 uppercase tracking-wider">橡皮擦大小</label><span id="brush-size-val" class="text-xs text-blue-600 font-mono">20px</span></div>
                         <div class="slider-group">
                             <button class="slider-btn" onclick="app.adjSlider('brush-size', -5)">-</button>
-                            <input type="range" id="brush-size" min="5" max="100" value="20">
+                            <input type="range" id="brush-size" min="5" max="100" value="20" class="accent-blue-600">
                             <button class="slider-btn" onclick="app.adjSlider('brush-size', 5)">+</button>
                         </div>
                     </div>
 
+                    <!-- Global Adjustments -->
                     <div class="border-t border-gray-200 pt-4">
-                        <details class="group" open>
-                            <summary class="flex justify-between items-center font-medium cursor-pointer list-none text-sm text-gray-700">
-                                <span>影像調整</span>
-                                <span class="transition group-open:rotate-180"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></span>
+                        <details class="group">
+                            <summary class="flex justify-between items-center font-bold text-xs text-gray-500 uppercase tracking-wider cursor-pointer list-none hover:text-gray-700 transition-colors py-1">
+                                <span>影像調整 (全域)</span>
+                                <span class="transition-transform group-open:rotate-180 duration-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></span>
                             </summary>
                             <div class="mt-3 space-y-4 pb-2 px-1">
-                                <div>
-                                    <div class="flex justify-between mb-1"><label class="text-xs font-medium text-gray-600">亮度</label><span id="brightness-val" class="text-xs text-gray-400">100%</span></div>
-                                    <div class="slider-group">
-                                        <button class="slider-btn" onclick="app.adjSlider('brightness', -5)">-</button>
-                                        <input type="range" id="brightness" min="50" max="150" value="100">
-                                        <button class="slider-btn" onclick="app.adjSlider('brightness', 5)">+</button>
-                                    </div>
-                                </div>
                                 <div>
                                     <div class="flex justify-between mb-1"><label class="text-xs font-medium text-gray-600">對比度</label><span id="contrast-val" class="text-xs text-gray-400">100%</span></div>
                                     <div class="slider-group">
                                         <button class="slider-btn" onclick="app.adjSlider('contrast', -5)">-</button>
-                                        <input type="range" id="contrast" min="50" max="150" value="100">
+                                        <input type="range" id="contrast" min="50" max="150" value="100" class="accent-gray-600">
                                         <button class="slider-btn" onclick="app.adjSlider('contrast', 5)">+</button>
                                     </div>
                                 </div>
@@ -141,7 +140,7 @@
                                             <div class="flex justify-between mb-1"><label class="text-xs font-medium text-gray-600">飽和度</label><span id="bg-sat-val" class="text-xs text-gray-400">0%</span></div>
                                             <div class="slider-group">
                                                 <button class="slider-btn" onclick="app.adjSlider('bg-sat', -5)">-</button>
-                                                <input type="range" id="bg-sat" min="0" max="100" value="0">
+                                                <input type="range" id="bg-sat" min="0" max="100" value="0" class="accent-gray-600">
                                                 <button class="slider-btn" onclick="app.adjSlider('bg-sat', 5)">+</button>
                                             </div>
                                         </div>
@@ -149,7 +148,7 @@
                                             <div class="flex justify-between mb-1"><label class="text-xs font-medium text-gray-600">壓暗</label><span id="bg-dim-val" class="text-xs text-gray-400">0%</span></div>
                                             <div class="slider-group">
                                                 <button class="slider-btn" onclick="app.adjSlider('bg-dim', -5)">-</button>
-                                                <input type="range" id="bg-dim" min="0" max="90" value="0">
+                                                <input type="range" id="bg-dim" min="0" max="90" value="0" class="accent-gray-600">
                                                 <button class="slider-btn" onclick="app.adjSlider('bg-dim', 5)">+</button>
                                             </div>
                                         </div>
@@ -157,7 +156,7 @@
                                             <div class="flex justify-between mb-1"><label class="text-xs font-medium text-gray-600">模糊</label><span id="bg-blur-val" class="text-xs text-gray-400">0px</span></div>
                                             <div class="slider-group">
                                                 <button class="slider-btn" onclick="app.adjSlider('bg-blur', -0.5)">-</button>
-                                                <input type="range" id="bg-blur" min="0" max="10" step="0.5" value="0">
+                                                <input type="range" id="bg-blur" min="0" max="10" step="0.5" value="0" class="accent-gray-600">
                                                 <button class="slider-btn" onclick="app.adjSlider('bg-blur', 0.5)">+</button>
                                             </div>
                                         </div>
@@ -173,15 +172,15 @@
                     <div>
                         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">標記 (Tags)</h3>
                         <div class="grid grid-cols-2 gap-2">
-                            <button id="add-start-tag" class="flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 py-2 rounded text-sm font-medium">S Start</button>
-                            <button id="add-top-tag" class="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 py-2 rounded text-sm font-medium">T Top</button>
+                            <button id="add-start-tag" class="flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 py-2 rounded text-sm font-medium transition-all hover:shadow-sm">S Start</button>
+                            <button id="add-top-tag" class="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 py-2 rounded text-sm font-medium transition-all hover:shadow-sm">T Top</button>
                         </div>
                     </div>
                     <div class="border-t border-gray-200 pt-4">
                         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">文字 (Text)</h3>
                         <div class="flex gap-2 mb-3">
-                            <input type="text" id="text-input" placeholder="輸入文字..." class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-                            <button id="add-text-btn" class="bg-gray-800 hover:bg-gray-900 text-white px-3 rounded text-sm font-medium">+</button>
+                            <input type="text" id="text-input" placeholder="輸入文字..." class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-shadow" />
+                            <button id="add-text-btn" class="bg-gray-800 hover:bg-gray-900 text-white px-3 rounded text-sm font-medium transition-colors shadow-sm">+</button>
                         </div>
                         <div id="text-controls" class="space-y-4 opacity-50 pointer-events-none transition-opacity bg-gray-50 p-3 rounded-lg border border-gray-200">
                             <div><div class="flex flex-wrap gap-2" id="color-palette"></div></div>
@@ -194,43 +193,43 @@
                                     <span class="text-xs text-gray-500">Size</span>
                                     <div class="slider-group w-24">
                                         <button class="slider-btn" onclick="app.adjSlider('text-size', -5)">-</button>
-                                        <input type="range" id="text-size" min="10" max="150" value="40">
+                                        <input type="range" id="text-size" min="10" max="150" value="40" class="accent-gray-700">
                                         <button class="slider-btn" onclick="app.adjSlider('text-size', 5)">+</button>
                                     </div>
                                 </div>
                             </div>
-                            <button id="delete-item-btn" class="w-full border border-red-200 text-red-500 hover:bg-red-50 py-1.5 rounded text-xs font-medium">刪除物件</button>
+                            <button id="delete-item-btn" class="w-full border border-red-200 text-red-500 hover:bg-red-50 py-1.5 rounded text-xs font-medium transition-colors">刪除物件</button>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <div id="processing-bar" class="bg-blue-600 text-white text-xs py-2 px-4 flex items-center justify-center gap-2 hidden shrink-0">
+            <div id="processing-bar" class="bg-blue-600 text-white text-xs py-2 px-4 flex items-center justify-center gap-2 hidden shrink-0 shadow-inner">
                 <div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div><span>運算中...</span>
             </div>
         </aside>
 
         <!-- Canvas -->
-        <section class="flex-1 bg-gray-800 relative overflow-hidden h-[50%] md:h-full checkerboard touch-none" id="canvas-container">
+        <section class="flex-1 bg-gray-800 relative overflow-hidden h-[60%] md:h-full checkerboard touch-none" id="canvas-container">
             <!-- Toolbar -->
-            <div id="floating-toolbar" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur shadow-lg rounded-full px-4 py-2 flex items-center gap-4 z-[60] border border-gray-200 transition-all duration-300">
+            <div id="floating-toolbar" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-xl rounded-full px-4 py-2 flex items-center gap-4 z-[60] border border-gray-200 transition-all duration-300">
                 <div id="tool-switcher" class="flex bg-gray-100 rounded-full p-1">
-                    <button id="tool-hand" class="tool-btn p-2 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"></path></svg></button>
-                    <button id="tool-lasso" class="tool-btn p-2 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg></button>
-                    <button id="tool-eraser" class="tool-btn p-2 rounded-full" title="Eraser">
+                    <button id="tool-hand" class="tool-btn p-2 rounded-full transition-all duration-200"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"></path></svg></button>
+                    <button id="tool-lasso" class="tool-btn p-2 rounded-full transition-all duration-200"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg></button>
+                    <button id="tool-eraser" class="tool-btn p-2 rounded-full transition-all duration-200" title="Eraser">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0zM4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l1.41-1.41-6.36-6.36-1.42 1.41c-.78.79-.78 2.05 0 2.83z"/></svg>
                     </button>
                 </div>
                 <div class="w-px h-6 bg-gray-300"></div>
                 <div class="flex items-center gap-2">
-                    <button id="crop-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 font-bold"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></button>
-                    <button id="crop-bg-color" class="hidden w-6 h-6 rounded-full border border-gray-300 bg-white shadow-sm" title="Toggle Black/White"></button>
+                    <button id="crop-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 font-bold transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></button>
+                    <button id="crop-bg-color" class="hidden w-6 h-6 rounded-full border border-gray-300 bg-white shadow-sm transition-all hover:scale-110" title="Toggle Black/White"></button>
                     <span id="crop-label" class="text-[10px] text-blue-600 font-mono hidden">Orig</span>
                 </div>
             </div>
 
             <div id="placeholder-msg" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
-                <div class="mx-auto w-16 h-16 bg-gray-700/50 text-white/50 rounded-full flex items-center justify-center mb-4">
+                <div class="mx-auto w-16 h-16 bg-gray-700/50 text-white/50 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                 </div>
                 <h3 class="text-lg font-medium text-white/80">拖放照片至此</h3>
@@ -253,6 +252,7 @@
     </main>
 
     <script>
+        // Updated Color Palette (Removed #FF00FF)
         const COLORS = ['#FFFFFF', '#000000', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
         const CROPS = [
             { id: 'orig', label: 'Orig', w: 0, h: 0 },
@@ -317,6 +317,21 @@
         }
 
         class MaskEngine {
+            constructor() {
+                this.buffers = { visited: null, mask: null, width: 0, height: 0 };
+            }
+
+            ensureBuffers(w, h) {
+                const size = w * h;
+                if (this.buffers.width !== w || this.buffers.height !== h) {
+                    this.buffers.visited = new Uint8Array(size);
+                    this.buffers.mask = new Uint8Array(size);
+                    this.buffers.width = w; this.buffers.height = h;
+                } else {
+                    this.buffers.visited.fill(0); this.buffers.mask.fill(0);
+                }
+            }
+
             isPointInPolygon(p, poly) {
                 let inside = false;
                 for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -328,36 +343,46 @@
                 return inside;
             }
 
-            getBorder(mask, w, h, thickness) {
-                // Generate expanded mask
-                const expanded = new Uint8Array(mask);
-                this.expand(expanded, w, h, thickness);
-                
-                // Subtract original mask to get outer stroke
-                const border = new Uint8Array(w * h);
-                for(let i=0; i<mask.length; i++) {
-                    if (expanded[i] && !mask[i]) border[i] = 1;
+            colorDist(r1, g1, b1, r2, g2, b2) {
+                const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
+                return Math.sqrt(2 * dr * dr + 4 * dg * dg + 3 * db * db);
+            }
+
+            getBorder(mask, w, h, thickness, bounds) {
+                const expanded = new Uint8Array(mask.length);
+                expanded.set(mask);
+                this.expand(expanded, w, h, thickness, bounds);
+                const border = new Uint8Array(mask.length);
+                const minX = Math.max(0, bounds.minX - thickness);
+                const maxX = Math.min(w, bounds.maxX + thickness);
+                const minY = Math.max(0, bounds.minY - thickness);
+                const maxY = Math.min(h, bounds.maxY + thickness);
+                for(let y = minY; y < maxY; y++) {
+                    const rowOffset = y * w;
+                    for(let x = minX; x < maxX; x++) {
+                        const i = rowOffset + x;
+                        if (expanded[i] && !mask[i]) border[i] = 1;
+                    }
                 }
                 return border;
             }
 
             calculateMask(sel, w, h, bgData) {
-                // If mask exists and only border logic needed, optimize
-                // But simplified for now: re-run all if mask is null
                 if (sel.mask && (!sel.params.border || sel.borderMask)) return sel.mask;
                 if (!bgData) return new Uint8Array(w * h);
 
-                const mask = new Uint8Array(w * h);
-                const visited = new Uint8Array(w * h);
+                this.ensureBuffers(w, h);
+                const mask = this.buffers.mask;
+                const visited = this.buffers.visited;
                 const tolerance = sel.params.tolerance;
                 const seeds = [];
                 const queue = [];
+                let bounds = { minX: w, maxX: 0, minY: h, maxY: 0 };
 
                 if (sel.seeds && sel.seeds.length > 0) {
                     const paths = Array.isArray(sel.seeds[0]) ? sel.seeds : [sel.seeds];
                     paths.forEach(path => {
                         if (path.length < 3) return;
-                        
                         let minX = w, maxX = 0, minY = h, maxY = 0;
                         path.forEach(p => {
                             if(p.x < minX) minX = p.x; if(p.x > maxX) maxX = p.x;
@@ -365,12 +390,14 @@
                         });
                         minX = Math.max(0, Math.floor(minX)); minY = Math.max(0, Math.floor(minY));
                         maxX = Math.min(w, Math.ceil(maxX)); maxY = Math.min(h, Math.ceil(maxY));
-
                         for (let y = minY; y < maxY; y++) {
+                            const rowOffset = y * w;
                             for (let x = minX; x < maxX; x++) {
                                 if (this.isPointInPolygon({ x, y }, path)) {
-                                    const idx = y * w + x;
+                                    const idx = rowOffset + x;
                                     mask[idx] = 1; 
+                                    if(x < bounds.minX) bounds.minX = x; if(x > bounds.maxX) bounds.maxX = x;
+                                    if(y < bounds.minY) bounds.minY = y; if(y > bounds.maxY) bounds.maxY = y;
                                     if (visited[idx] === 0) {
                                         visited[idx] = 1;
                                         queue.push(x, y);
@@ -389,8 +416,7 @@
                     let head = 0;
                     const dx = [0, 1, 0, -1], dy = [-1, 0, 1, 0];
                     while (head < queue.length) {
-                        const x = queue[head++];
-                        const y = queue[head++];
+                        const x = queue[head++], y = queue[head++];
                         for (let i = 0; i < 4; i++) {
                             const nx = x + dx[i], ny = y + dy[i];
                             if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
@@ -401,12 +427,13 @@
                                     const r = bgData[pIdx], g = bgData[pIdx+1], b = bgData[pIdx+2];
                                     let isMatch = false;
                                     for(let s=0; s<seeds.length; s++) {
-                                        const dist = Math.abs(r - seeds[s].r) + Math.abs(g - seeds[s].g) + Math.abs(b - seeds[s].b);
-                                        if (dist <= tolerance) { isMatch = true; break; }
+                                        if (this.colorDist(r, g, b, seeds[s].r, seeds[s].g, seeds[s].b) <= tolerance) { isMatch = true; break; }
                                     }
                                     if (isMatch) {
                                         mask[nIdx] = 1;
                                         queue.push(nx, ny);
+                                        if(nx < bounds.minX) bounds.minX = nx; if(nx > bounds.maxX) bounds.maxX = nx;
+                                        if(ny < bounds.minY) bounds.minY = ny; if(ny > bounds.maxY) bounds.maxY = ny;
                                     }
                                 }
                             }
@@ -414,87 +441,84 @@
                     }
                 }
 
-                if (sel.params.expand > 0) this.expand(mask, w, h, sel.params.expand);
-                if (sel.params.fillHoles) this.fillHoles(mask, w, h);
+                bounds.minX = Math.max(0, bounds.minX); bounds.minY = Math.max(0, bounds.minY);
+                bounds.maxX = Math.min(w, bounds.maxX); bounds.maxY = Math.min(h, bounds.maxY);
 
-                if (sel.manualEdits) {
-                    sel.manualEdits.forEach(edit => this.applyEdit(mask, w, h, edit));
-                }
+                if (sel.params.expand > 0) this.expand(mask, w, h, sel.params.expand, bounds);
+                if (sel.params.fillHoles) this.fillHoles(mask, w, h, bounds);
+                if (sel.manualEdits) sel.manualEdits.forEach(edit => this.applyEdit(mask, w, h, edit, bounds));
+                this.keepLargestComponent(mask, w, h, bounds);
 
-                this.keepLargestComponent(mask, w, h);
-
+                const resultMask = new Uint8Array(mask);
                 if (sel.params.border) {
-                    sel.borderMask = this.getBorder(mask, w, h, sel.params.borderThickness || 3);
+                    const thick = sel.params.borderThickness || 5; 
+                    bounds.minX = Math.max(0, bounds.minX - thick); bounds.minY = Math.max(0, bounds.minY - thick);
+                    bounds.maxX = Math.min(w, bounds.maxX + thick); bounds.maxY = Math.min(h, bounds.maxY + thick);
+                    sel.borderMask = this.getBorder(resultMask, w, h, thick, bounds);
                 } else {
                     sel.borderMask = null;
                 }
-
-                sel.mask = mask;
-                return mask;
+                sel.mask = resultMask;
+                return resultMask;
             }
 
-            keepLargestComponent(mask, w, h) {
-                const visited = new Uint8Array(w * h);
-                let maxCount = 0;
-                let maxLabel = 0;
-                let currentLabel = 1;
+            keepLargestComponent(mask, w, h, bounds) {
+                const visited = new Uint8Array(w * h); 
+                let maxCount = 0, maxLabel = 0, currentLabel = 1;
                 const labels = new Int32Array(w * h);
-                
-                for (let i = 0; i < w * h; i++) {
-                    if (mask[i] === 1 && visited[i] === 0) {
-                        let count = 0;
-                        const q = [i];
-                        visited[i] = 1;
-                        labels[i] = currentLabel;
-                        
-                        let head = 0;
-                        while(head < q.length) {
-                            const idx = q[head++];
-                            count++;
-                            const x = idx % w;
-                            const y = Math.floor(idx / w);
-                            
-                            const dx = [1, -1, 0, 0];
-                            const dy = [0, 0, 1, -1];
-                            for(let d=0; d<4; d++) {
-                                const nx = x + dx[d];
-                                const ny = y + dy[d];
-                                if(nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                    const nIdx = ny * w + nx;
-                                    if(mask[nIdx] === 1 && visited[nIdx] === 0) {
-                                        visited[nIdx] = 1;
-                                        labels[nIdx] = currentLabel;
-                                        q.push(nIdx);
+                for (let y = bounds.minY; y < bounds.maxY; y++) {
+                    const rowOffset = y * w;
+                    for (let x = bounds.minX; x < bounds.maxX; x++) {
+                        const i = rowOffset + x;
+                        if (mask[i] === 1 && visited[i] === 0) {
+                            let count = 0;
+                            const q = [i];
+                            visited[i] = 1; labels[i] = currentLabel;
+                            let head = 0;
+                            while(head < q.length) {
+                                const idx = q[head++];
+                                count++;
+                                const cx = idx % w, cy = Math.floor(idx / w);
+                                const dx = [1, -1, 0, 0], dy = [0, 0, 1, -1];
+                                for(let d=0; d<4; d++) {
+                                    const nx = cx + dx[d], ny = cy + dy[d];
+                                    if(nx >= bounds.minX && nx < bounds.maxX && ny >= bounds.minY && ny < bounds.maxY) {
+                                        const nIdx = ny * w + nx;
+                                        if(mask[nIdx] === 1 && visited[nIdx] === 0) {
+                                            visited[nIdx] = 1; labels[nIdx] = currentLabel; q.push(nIdx);
+                                        }
                                     }
                                 }
                             }
+                            if (count > maxCount) { maxCount = count; maxLabel = currentLabel; }
+                            currentLabel++;
                         }
-                        
-                        if (count > maxCount) {
-                            maxCount = count;
-                            maxLabel = currentLabel;
-                        }
-                        currentLabel++;
                     }
                 }
-
                 if (maxLabel > 0) {
-                    for (let i = 0; i < w * h; i++) {
-                        mask[i] = (labels[i] === maxLabel) ? 1 : 0;
+                    for (let y = bounds.minY; y < bounds.maxY; y++) {
+                        const rowOffset = y * w;
+                        for (let x = bounds.minX; x < bounds.maxX; x++) {
+                            const i = rowOffset + x;
+                            if (mask[i] === 1 && labels[i] !== maxLabel) mask[i] = 0;
+                        }
                     }
                 }
             }
 
-            expand(mask, w, h, rad) {
+            expand(mask, w, h, rad, bounds) {
                 const old = new Uint8Array(mask);
-                for(let y=0; y<h; y++) {
-                    for(let x=0; x<w; x++) {
-                        if(old[y*w+x]) {
+                const minX = Math.max(0, bounds.minX - rad), maxX = Math.min(w, bounds.maxX + rad);
+                const minY = Math.max(0, bounds.minY - rad), maxY = Math.min(h, bounds.maxY + rad);
+                bounds.minX = minX; bounds.maxX = maxX; bounds.minY = minY; bounds.maxY = maxY;
+                for(let y=minY; y<maxY; y++) {
+                    const rowOffset = y * w;
+                    for(let x=minX; x<maxX; x++) {
+                        const idx = rowOffset + x;
+                        if(old[idx]) {
                             let isBorder = false;
-                            if (x>0 && !old[y*w+x-1]) isBorder=true;
-                            else if (x<w-1 && !old[y*w+x+1]) isBorder=true;
-                            else if (y>0 && !old[(y-1)*w+x]) isBorder=true;
-                            else if (y<h-1 && !old[(y+1)*w+x]) isBorder=true;
+                            if (x>0 && !old[idx-1]) isBorder=true; else if (x<w-1 && !old[idx+1]) isBorder=true;
+                            else if (y>0 && !old[idx-w]) isBorder=true; else if (y<h-1 && !old[idx+w]) isBorder=true;
                             if (isBorder) {
                                 for(let ky=-rad; ky<=rad; ky++) {
                                     for(let kx=-rad; kx<=rad; kx++) {
@@ -508,7 +532,7 @@
                 }
             }
 
-            fillHoles(mask, w, h) {
+            fillHoles(mask, w, h, bounds) {
                 const visited = new Uint8Array(w*h);
                 const q = [];
                 for(let x=0; x<w; x++) { if(!mask[x]) { q.push(x,0); visited[x]=1; } if(!mask[(h-1)*w+x]) { q.push(x,h-1); visited[(h-1)*w+x]=1; } }
@@ -527,18 +551,20 @@
                 for(let i=0; i<w*h; i++) if(!mask[i] && !visited[i]) mask[i] = 1;
             }
 
-            applyEdit(mask, w, h, edit) {
+            applyEdit(mask, w, h, edit, bounds) {
                 const { type, points, size } = edit;
-                const rad = size / 2;
-                const r2 = rad * rad;
+                const rad = size / 2, r2 = rad * rad;
                 points.forEach(p => {
                     const cx = Math.floor(p.x), cy = Math.floor(p.y);
                     const minX = Math.max(0, cx - rad), maxX = Math.min(w, cx + rad);
                     const minY = Math.max(0, cy - rad), maxY = Math.min(h, cy + rad);
+                    if(minX < bounds.minX) bounds.minX = minX; if(maxX > bounds.maxX) bounds.maxX = maxX;
+                    if(minY < bounds.minY) bounds.minY = minY; if(maxY > bounds.maxY) bounds.maxY = maxY;
                     for(let y=minY; y<maxY; y++) {
+                        const rowOffset = y * w;
                         for(let x=minX; x<maxX; x++) {
                             if ((x-cx)*(x-cx) + (y-cy)*(y-cy) <= r2) {
-                                mask[Math.floor(y)*w+Math.floor(x)] = (type === 'add' ? 1 : 0);
+                                mask[rowOffset + x] = (type === 'add' ? 1 : 0);
                             }
                         }
                     }
@@ -568,7 +594,7 @@
                 this.image = img;
                 const ctx = this.bgCtx;
                 ctx.clearRect(0,0,this.width,this.height);
-                ctx.filter = `brightness(${filters.brightness}%) contrast(${filters.contrast}%)`;
+                ctx.filter = `contrast(${filters.contrast}%)`; // Removed brightness
                 ctx.drawImage(img, 0, 0);
                 ctx.filter = 'none';
                 this.bgBuffer = ctx.getImageData(0,0,this.width,this.height).data;
@@ -604,7 +630,6 @@
                 }
                 ctx.globalCompositeOperation = 'source-over';
 
-                // Draw Borders
                 selections.forEach(sel => {
                     if (sel.params.border && sel.borderMask) {
                         const borderImg = ctx.createImageData(this.width, this.height);
@@ -613,14 +638,11 @@
                             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(sel.params.borderColor);
                             if(result) color = { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) };
                         }
-
                         let hasBorder = false;
                         for(let i=0; i<sel.borderMask.length; i++) {
                             if (sel.borderMask[i]) {
-                                borderImg.data[i*4] = color.r;
-                                borderImg.data[i*4+1] = color.g;
-                                borderImg.data[i*4+2] = color.b;
-                                borderImg.data[i*4+3] = 255;
+                                borderImg.data[i*4] = color.r; borderImg.data[i*4+1] = color.g;
+                                borderImg.data[i*4+2] = color.b; borderImg.data[i*4+3] = 255;
                                 hasBorder = true;
                             }
                         }
@@ -637,61 +659,42 @@
             drawUi(state) {
                 const ctx = this.uiCtx;
                 ctx.clearRect(0,0,this.width,this.height);
-                
                 if (state.view.isDragging && state.view.tempPath.length > 0) {
                     const path = state.view.tempPath;
                     ctx.beginPath();
                     ctx.moveTo(path[0].x, path[0].y);
                     for(let i=1; i<path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-                    
                     if (state.view.dragType === 'lasso') {
-                        ctx.strokeStyle = 'rgba(255, 230, 0, 0.9)';
-                        ctx.lineWidth = 2 / state.view.scale;
-                        ctx.setLineDash([5, 5]);
-                        ctx.stroke();
-                        ctx.setLineDash([]);
+                        ctx.strokeStyle = 'rgba(255, 230, 0, 0.9)'; ctx.lineWidth = 2 / state.view.scale;
+                        ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
                     } else if (state.view.dragType === 'eraser') {
-                        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-                        ctx.lineWidth = state.view.brushSize;
-                        ctx.strokeStyle = 'rgba(255,0,0,0.5)';
-                        ctx.stroke();
+                        ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = state.view.brushSize;
+                        ctx.strokeStyle = 'rgba(255,0,0,0.5)'; ctx.stroke();
                     }
                 }
-
                 if (state.view.activeTab === 'text') {
                     state.data.objects.forEach(obj => {
                         const isSel = obj.id === state.view.activeObjId;
-                        ctx.save();
-                        ctx.translate(obj.x, obj.y);
+                        ctx.save(); ctx.translate(obj.x, obj.y);
                         if (obj.type === 'text') {
-                            ctx.font = `bold ${obj.fontSize}px sans-serif`;
-                            ctx.textBaseline = 'top';
+                            ctx.font = `bold ${obj.fontSize}px sans-serif`; ctx.textBaseline = 'top';
                             const m = ctx.measureText(obj.text);
                             if (obj.bgColor) {
-                                ctx.fillStyle = obj.bgColor;
-                                const p = 8;
-                                ctx.roundRect(-p, -p, m.width+p*2, obj.fontSize+p*1.5, 8);
-                                ctx.fill();
+                                ctx.fillStyle = obj.bgColor; const p = 8;
+                                ctx.roundRect(-p, -p, m.width+p*2, obj.fontSize+p*1.5, 8); ctx.fill();
                             }
-                            ctx.fillStyle = obj.color;
-                            ctx.fillText(obj.text, 0, 0);
+                            ctx.fillStyle = obj.color; ctx.fillText(obj.text, 0, 0);
                             if (isSel) {
                                 ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.setLineDash([5,3]);
                                 ctx.strokeRect(-4, -4, m.width+8, obj.fontSize+8);
                             }
                         } else {
-                            const s = obj.fontSize / 60;
-                            ctx.scale(s, s);
-                            ctx.fillStyle = obj.color;
-                            ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 4;
-                            ctx.save();
-                            ctx.rotate(-15 * Math.PI / 180); ctx.fillRect(-25, -8, 50, 16);
-                            ctx.rotate(30 * Math.PI / 180); ctx.fillRect(-25, -8, 50, 16);
-                            ctx.restore();
-                            ctx.shadowBlur = 0;
-                            ctx.fillStyle = 'white'; ctx.font = 'bold 20px sans-serif';
-                            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                            ctx.fillText(obj.text, 0, 0);
+                            const s = obj.fontSize / 60; ctx.scale(s, s);
+                            ctx.fillStyle = obj.color; ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 4;
+                            ctx.save(); ctx.rotate(-15 * Math.PI / 180); ctx.fillRect(-25, -8, 50, 16);
+                            ctx.rotate(30 * Math.PI / 180); ctx.fillRect(-25, -8, 50, 16); ctx.restore();
+                            ctx.shadowBlur = 0; ctx.fillStyle = 'white'; ctx.font = 'bold 20px sans-serif';
+                            ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(obj.text, 0, 0);
                             if (isSel) {
                                 ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3; ctx.setLineDash([5,3]);
                                 ctx.strokeRect(-30, -30, 60, 60);
@@ -715,7 +718,7 @@
             }
 
             cacheDOM() {
-                const ids = ['brightness', 'contrast', 'bg-sat', 'bg-dim', 'bg-blur', 
+                const ids = ['contrast', 'bg-sat', 'bg-dim', 'bg-blur', // Removed brightness
                            'tool-hand', 'tool-lasso', 'tool-eraser',
                            'brush-size', 'text-input', 'text-size', 'text-bg-toggle',
                            'color-palette', 'color-list', 'file-upload', 'download-btn',
@@ -733,7 +736,7 @@
                 if (this.els['file-upload']) this.els['file-upload'].addEventListener('change', e => this.loadFile(e.target.files[0]));
                 if (this.els['download-btn']) this.els['download-btn'].addEventListener('click', () => this.export());
                 
-                ['brightness', 'contrast'].forEach(k => {
+                ['contrast'].forEach(k => { // Removed brightness
                     if (this.els[k]) {
                         this.els[k].addEventListener('input', e => {
                             this.state.data.filters[k] = parseInt(e.target.value);
@@ -811,7 +814,7 @@
                 if (this.els['color-palette']) {
                     COLORS.forEach(c => {
                         const b = document.createElement('button');
-                        b.className = 'color-btn w-6 h-6 rounded-full border border-gray-200 shadow-sm';
+                        b.className = 'color-btn w-6 h-6 rounded-full border border-gray-200 shadow-sm transition-transform';
                         b.style.backgroundColor = c;
                         b.onclick = () => {
                             const obj = this.state.data.objects.find(o => o.id === this.state.view.activeObjId);
@@ -903,8 +906,12 @@
                 this.state.view.activeTab = t;
                 if (this.els['panel-route']) this.els['panel-route'].classList.toggle('hidden', t !== 'route');
                 if (this.els['panel-text']) this.els['panel-text'].classList.toggle('hidden', t !== 'text');
-                if (this.els['tab-route']) this.els['tab-route'].className = t === 'route' ? "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50" : "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700";
-                if (this.els['tab-text']) this.els['tab-text'].className = t === 'text' ? "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50" : "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700";
+                if (this.els['tab-route']) {
+                    this.els['tab-route'].className = t === 'route' ? "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors" : "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors";
+                }
+                if (this.els['tab-text']) {
+                    this.els['tab-text'].className = t === 'text' ? "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors" : "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors";
+                }
                 this.setTool(t === 'route' ? 'lasso' : 'hand');
                 if (this.els['canvas-container']) this.els['canvas-container'].style.cursor = t === 'route' ? 'crosshair' : 'default';
                 
@@ -1031,6 +1038,7 @@
                         const sel = this.state.data.selections.find(s => s.id === mergeId);
                         sel.seeds.push(path);
                         sel.mask = null;
+                        sel.borderMask = null;
                         this.state.view.activeSelId = mergeId;
                     } else {
                         const id = this.state.data.nextSelId++;
@@ -1038,9 +1046,9 @@
                             id, seeds: [path], 
                             params: { 
                                 tolerance: 60, expand: 0, fillHoles: true, 
-                                border: false, borderThickness: 3, borderColor: '#FFFFFF' 
+                                border: true, borderThickness: 5, borderColor: '#EC4899' 
                             }, 
-                            manualEdits: [], mask: null
+                            manualEdits: [], mask: null, borderMask: null
                         });
                         this.state.view.activeSelId = id;
                     }
@@ -1055,6 +1063,7 @@
                     if (sel) {
                         sel.manualEdits.push({ type: 'sub', points: path, size: this.state.view.brushSize });
                         sel.mask = null;
+                        sel.borderMask = null;
                         this.flags.mask = true;
                         this.state.pushHistory();
                     }
@@ -1085,23 +1094,23 @@
 
                 if (forceRedraw) {
                     const f = this.state.data.filters;
-                    const br = document.getElementById('brightness'); if(br) br.value = f.brightness;
-                    const brV = document.getElementById('brightness-val'); if(brV) brV.innerText = f.brightness + '%';
-                    const co = document.getElementById('contrast'); if(co) co.value = f.contrast;
-                    const coV = document.getElementById('contrast-val'); if(coV) coV.innerText = f.contrast + '%';
-                    const bs = document.getElementById('bg-sat'); if(bs) bs.value = f.bgSat;
-                    const bsV = document.getElementById('bg-sat-val'); if(bsV) bsV.innerText = f.bgSat + '%';
-                    const bd = document.getElementById('bg-dim'); if(bd) bd.value = f.bgDim;
-                    const bdV = document.getElementById('bg-dim-val'); if(bdV) bdV.innerText = f.bgDim + '%';
-                    const bb = document.getElementById('bg-blur'); if(bb) bb.value = f.bgBlur;
-                    const bbV = document.getElementById('bg-blur-val'); if(bbV) bbV.innerText = f.bgBlur + 'px';
+                    ['contrast', 'bg-sat', 'bg-dim', 'bg-blur'].forEach(k => {
+                        const map = { 'bg-sat': 'bgSat', 'bg-dim': 'bgDim', 'bg-blur': 'bgBlur' };
+                        const key = map[k] || k;
+                        const el = document.getElementById(k);
+                        if(el) {
+                            el.value = f[key];
+                            const valEl = document.getElementById(`${k}-val`);
+                            if(valEl) valEl.innerText = f[key] + (k === 'bg-blur' ? 'px' : '%');
+                        }
+                    });
                 }
 
                 const list = this.els['color-list'];
                 if (list) {
                     list.innerHTML = '';
                     if(this.state.data.selections.length === 0) {
-                        list.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs italic border-2 border-dashed border-gray-100 rounded-lg">尚未圈選</div>`;
+                        list.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm italic border-2 border-dashed border-gray-100 rounded-lg">尚未圈選</div>`;
                         const clear = document.getElementById('clear-colors');
                         if (clear) clear.classList.add('hidden');
                     } else {
@@ -1118,79 +1127,91 @@
                         this.state.data.selections.forEach((sel, i) => {
                             const isActive = sel.id === this.state.view.activeSelId;
                             const div = document.createElement('div');
-                            div.className = `bg-white border ${isActive ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-200'} rounded-lg p-3 shadow-sm cursor-pointer`;
+                            // UI OPT: Expanded vs Collapsed styling
+                            div.className = `list-item bg-white border ${isActive ? 'border-blue-500 shadow-md ring-1 ring-blue-100' : 'border-gray-200'} rounded-lg transition-all duration-200 overflow-hidden`;
                             div.onclick = (e) => {
                                 if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && !e.target.classList.contains('toggle-checkbox')) {
-                                    this.state.view.activeSelId = sel.id;
+                                    // Toggle selection
+                                    this.state.view.activeSelId = (this.state.view.activeSelId === sel.id) ? null : sel.id;
                                     this.updateUI();
                                 }
                             };
                             
+                            // UI OPT: Color Swatches for Border
                             const colorsHtml = COLORS.map(c => {
                                 const isSel = (sel.params.borderColor || '#FFFFFF').toLowerCase() === c.toLowerCase();
-                                const activeClass = isSel ? 'ring-1 ring-offset-1 ring-blue-500 scale-110' : 'hover:scale-110';
-                                return `<button class="w-4 h-4 rounded-full border border-gray-200 shadow-sm transition-transform ${activeClass}" style="background-color: ${c}" onclick="app.updateSelParam(${sel.id}, 'borderColor', '${c}')"></button>`;
+                                const activeClass = isSel ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : 'hover:scale-110 hover:shadow-md';
+                                return `<button class="w-5 h-5 rounded-full border border-gray-200 shadow-sm transition-transform ${activeClass}" style="background-color: ${c}" onclick="app.updateSelParam(${sel.id}, 'borderColor', '${c}')"></button>`;
                             }).join('');
 
                             const borderControls = sel.params.border ? `
-                                <div class="mt-2 pt-2 border-t border-gray-100">
+                                <div class="mt-3 pt-3 border-t border-gray-100">
                                     <div class="flex items-center justify-between mb-2">
-                                        <span class="text-[10px] text-gray-500">粗細</span>
+                                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">框線粗細</span>
                                         <div class="slider-group">
-                                            <button class="slider-btn w-5 h-5 text-xs" onclick="app.adjSelParam(${sel.id}, 'borderThickness', -1)">-</button>
-                                            <span class="text-[10px] w-4 text-center font-mono">${sel.params.borderThickness}</span>
-                                            <button class="slider-btn w-5 h-5 text-xs" onclick="app.adjSelParam(${sel.id}, 'borderThickness', 1)">+</button>
+                                            <button class="slider-btn w-6 h-6 text-xs" onclick="app.adjSelParam(${sel.id}, 'borderThickness', -1)">-</button>
+                                            <span class="text-xs w-6 text-center font-mono text-gray-700">${sel.params.borderThickness}</span>
+                                            <button class="slider-btn w-6 h-6 text-xs" onclick="app.adjSelParam(${sel.id}, 'borderThickness', 1)">+</button>
                                         </div>
                                     </div>
-                                    <div class="flex flex-wrap gap-1.5 justify-start">
+                                    <div class="flex flex-wrap gap-2 justify-start pt-1">
                                         ${colorsHtml}
                                     </div>
                                 </div>
                             ` : '';
 
-                            div.innerHTML = `
-                                <div class="flex items-center gap-2 mb-2">
-                                    <div class="w-5 h-5 rounded bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[10px]">${i+1}</div>
-                                    <div class="flex-1 text-xs font-bold text-gray-700">範圍 #${i+1}</div>
-                                    <button onclick="app.removeSel(${sel.id})" class="text-gray-400 hover:text-red-500 p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                                </div>
-                                <div class="space-y-3 pl-1">
+                            // UI OPT: Expanded Content
+                            const expandedContent = isActive ? `
+                                <div class="p-3 bg-gray-50 border-t border-gray-100 space-y-3">
                                     <div>
-                                        <div class="flex justify-between mb-1"><label class="text-[10px] text-gray-500">容許度</label><span class="text-[10px] text-blue-600" id="tol-val-${sel.id}">${sel.params.tolerance}</span></div>
+                                        <div class="flex justify-between mb-1"><label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">容許度</label><span class="text-xs text-blue-600 font-mono" id="tol-val-${sel.id}">${sel.params.tolerance}</span></div>
                                         <div class="slider-group">
                                             <button class="slider-btn" onclick="app.adjSelParam(${sel.id}, 'tolerance', -5)">-</button>
-                                            <input type="range" min="0" max="255" value="${sel.params.tolerance}" onchange="app.updateSelParam(${sel.id}, 'tolerance', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none">
+                                            <input type="range" min="0" max="255" value="${sel.params.tolerance}" onchange="app.updateSelParam(${sel.id}, 'tolerance', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-blue-500">
                                             <button class="slider-btn" onclick="app.adjSelParam(${sel.id}, 'tolerance', 5)">+</button>
                                         </div>
                                     </div>
                                     <div>
-                                        <div class="flex justify-between mb-1"><label class="text-[10px] text-gray-500">擴展</label><span class="text-[10px] text-purple-600" id="exp-val-${sel.id}">${sel.params.expand}px</span></div>
+                                        <div class="flex justify-between mb-1"><label class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">擴展</label><span class="text-xs text-purple-600 font-mono" id="exp-val-${sel.id}">${sel.params.expand}px</span></div>
                                         <div class="slider-group">
                                             <button class="slider-btn" onclick="app.adjSelParam(${sel.id}, 'expand', -1)">-</button>
-                                            <input type="range" min="0" max="20" value="${sel.params.expand}" onchange="app.updateSelParam(${sel.id}, 'expand', this.value)" class="h-1 bg-purple-100 rounded-lg appearance-none">
+                                            <input type="range" min="0" max="20" value="${sel.params.expand}" onchange="app.updateSelParam(${sel.id}, 'expand', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-purple-500">
                                             <button class="slider-btn" onclick="app.adjSelParam(${sel.id}, 'expand', 1)">+</button>
                                         </div>
                                     </div>
-                                    <div class="flex items-center justify-between pt-1">
-                                        <label class="flex items-center text-[10px] text-gray-600">
-                                            <input type="checkbox" onchange="app.updateSelParam(${sel.id}, 'fillHoles', this.checked)" ${sel.params.fillHoles ? 'checked' : ''} class="mr-1"> 補洞
+                                    <div class="flex items-center justify-between pt-2">
+                                        <label class="flex items-center text-xs text-gray-700 font-medium cursor-pointer hover:text-blue-600 transition-colors">
+                                            <input type="checkbox" onchange="app.updateSelParam(${sel.id}, 'fillHoles', this.checked)" ${sel.params.fillHoles ? 'checked' : ''} class="mr-2 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"> 
+                                            自動補洞
                                         </label>
-                                        <label class="flex items-center text-[10px] text-gray-600 cursor-pointer">
-                                            <div class="relative inline-block w-8 mr-1 align-middle select-none transition duration-200 ease-in">
-                                                <input type="checkbox" name="toggle" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-2 appearance-none cursor-pointer" onchange="app.updateSelParam(${sel.id}, 'border', this.checked)" ${sel.params.border ? 'checked' : ''}/>
-                                                <label for="toggle" class="toggle-label block overflow-hidden h-4 rounded-full bg-gray-300 cursor-pointer"></label>
+                                        <label class="flex items-center text-xs text-gray-700 font-medium cursor-pointer hover:text-blue-600 transition-colors">
+                                            <div class="relative inline-block w-9 mr-2 align-middle select-none transition duration-200 ease-in">
+                                                <input type="checkbox" name="toggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-2 border-gray-300 appearance-none cursor-pointer transition-all duration-200" onchange="app.updateSelParam(${sel.id}, 'border', this.checked)" ${sel.params.border ? 'checked' : ''}/>
+                                                <label for="toggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-200"></label>
                                             </div>
-                                            框線
+                                            顯示框線
                                         </label>
                                     </div>
                                     ${borderControls}
                                 </div>
+                            ` : '';
+
+                            div.innerHTML = `
+                                <div class="flex items-center p-3 cursor-pointer hover:bg-gray-50 transition-colors">
+                                    <div class="w-6 h-6 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shadow-sm">${i+1}</div>
+                                    <div class="flex-1 ml-3 text-sm font-bold text-gray-700">岩點 #${i+1} <span class="font-normal text-gray-400 text-xs ml-1">${isActive ? '(編輯中)' : ''}</span></div>
+                                    <button onclick="app.removeSel(${sel.id})" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition-all">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </button>
+                                </div>
+                                ${expandedContent}
                             `;
                             list.appendChild(div);
                         });
                     }
                 }
 
+                // Text Controls
                 const activeObj = this.state.data.objects.find(o => o.id === this.state.view.activeObjId);
                 const textCtrl = document.getElementById('text-controls');
                 if (textCtrl) {
@@ -1234,10 +1255,13 @@
                     s.params[k] = (k === 'fillHoles' || k === 'border' || k === 'borderColor') ? v : parseInt(v);
                     
                     if (k === 'borderColor') {
-                        // Optimization: Color change only requires redraw, not re-calc
+                        this.flags.mask = true;
+                    } else if (k === 'border' || k === 'borderThickness') {
+                        s.borderMask = null; 
                         this.flags.mask = true;
                     } else {
-                        s.mask = null; // Re-calc needed
+                        s.mask = null; 
+                        s.borderMask = null;
                         this.flags.mask = true;
                     }
                     this.state.pushHistory();
@@ -1245,7 +1269,6 @@
                     const label = document.getElementById(k === 'tolerance' ? `tol-val-${id}` : `exp-val-${id}`);
                     if(label) label.innerText = v + (k === 'expand' ? 'px' : '');
                     
-                    // Force UI update for border toggle
                     if (k === 'border') this.updateUI();
                 }
             }
