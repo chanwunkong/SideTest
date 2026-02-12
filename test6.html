@@ -73,6 +73,22 @@
         .slider-btn {
             touch-action: none;
             user-select: none;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f3f4f6;
+            border-radius: 6px;
+            font-weight: bold;
+            color: #4b5563;
+            flex-shrink: 0;
+            transition: transform 0.1s;
+        }
+
+        .slider-btn:active {
+            transform: scale(0.9);
+            background-color: #e5e7eb;
         }
 
         /* --- 畫布層級與轉化 --- */
@@ -250,7 +266,7 @@
                     class="flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">文字/標記</button>
             </div>
 
-            <div class="flex-1 overflow-y-auto custom-scrollbar relative p-4">
+            <div class="flex-1 overflow-y-auto custom-scrollbar relative p-4 pb-28">
                 <!-- 路線分頁 -->
                 <div id="panel-route" class="space-y-4">
                     <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-center md:text-left">
@@ -274,13 +290,11 @@
                         <div class="flex justify-between mb-1"><label
                                 class="text-xs font-bold text-blue-800 uppercase">橡皮擦大小</label><span id="brush-size-val"
                                 class="text-xs text-blue-600 font-mono">20px</span></div>
-                        <div class="slider-group flex items-center">
-                            <button class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                data-target="brush-size" data-delta="-1">-</button>
+                        <div class="slider-group flex items-center gap-2">
+                            <button class="slider-btn" data-target="brush-size" data-delta="-1">-</button>
                             <input type="range" id="brush-size" min="5" max="100" value="20"
-                                class="accent-blue-600 flex-1 mx-2">
-                            <button class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                data-target="brush-size" data-delta="1">+</button>
+                                class="accent-blue-600 flex-1">
+                            <button class="slider-btn" data-target="brush-size" data-delta="1">+</button>
                         </div>
                     </div>
 
@@ -300,15 +314,11 @@
                                     <div class="flex justify-between mb-1"><label
                                             class="text-xs font-medium text-gray-600">對比度</label><span id="contrast-val"
                                             class="text-xs text-gray-400">100%</span></div>
-                                    <div class="slider-group flex items-center">
-                                        <button
-                                            class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                            data-target="contrast" data-delta="-1">-</button>
+                                    <div class="slider-group flex items-center gap-2">
+                                        <button class="slider-btn" data-target="contrast" data-delta="-1">-</button>
                                         <input type="range" id="contrast" min="50" max="150" value="100"
-                                            class="accent-gray-600 flex-1 mx-2">
-                                        <button
-                                            class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                            data-target="contrast" data-delta="1">+</button>
+                                            class="accent-gray-600 flex-1">
+                                        <button class="slider-btn" data-target="contrast" data-delta="1">+</button>
                                     </div>
                                 </div>
                                 <div class="w-full h-px bg-gray-100"></div>
@@ -318,45 +328,33 @@
                                         <div class="flex justify-between mb-1"><label
                                                 class="text-xs font-medium text-gray-600">飽和度</label><span
                                                 id="bg-sat-val" class="text-xs text-gray-400">50%</span></div>
-                                        <div class="slider-group flex items-center">
-                                            <button
-                                                class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                data-target="bg-sat" data-delta="-1">-</button>
+                                        <div class="slider-group flex items-center gap-2">
+                                            <button class="slider-btn" data-target="bg-sat" data-delta="-1">-</button>
                                             <input type="range" id="bg-sat" min="0" max="100" value="50"
-                                                class="accent-gray-600 flex-1 mx-2">
-                                            <button
-                                                class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                data-target="bg-sat" data-delta="1">+</button>
+                                                class="accent-gray-600 flex-1">
+                                            <button class="slider-btn" data-target="bg-sat" data-delta="1">+</button>
                                         </div>
                                     </div>
                                     <div>
                                         <div class="flex justify-between mb-1"><label
                                                 class="text-xs font-medium text-gray-600">壓暗</label><span
                                                 id="bg-dim-val" class="text-xs text-gray-400">50%</span></div>
-                                        <div class="slider-group flex items-center">
-                                            <button
-                                                class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                data-target="bg-dim" data-delta="-1">-</button>
+                                        <div class="slider-group flex items-center gap-2">
+                                            <button class="slider-btn" data-target="bg-dim" data-delta="-1">-</button>
                                             <input type="range" id="bg-dim" min="0" max="100" value="50"
-                                                class="accent-gray-600 flex-1 mx-2">
-                                            <button
-                                                class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                data-target="bg-dim" data-delta="1">+</button>
+                                                class="accent-gray-600 flex-1">
+                                            <button class="slider-btn" data-target="bg-dim" data-delta="1">+</button>
                                         </div>
                                     </div>
                                     <div>
                                         <div class="flex justify-between mb-1"><label
                                                 class="text-xs font-medium text-gray-600">模糊</label><span
                                                 id="bg-blur-val" class="text-xs text-gray-400">10px</span></div>
-                                        <div class="slider-group flex items-center">
-                                            <button
-                                                class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                data-target="bg-blur" data-delta="-1">-</button>
+                                        <div class="slider-group flex items-center gap-2">
+                                            <button class="slider-btn" data-target="bg-blur" data-delta="-1">-</button>
                                             <input type="range" id="bg-blur" min="0" max="20" value="10"
-                                                class="accent-gray-600 flex-1 mx-2">
-                                            <button
-                                                class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                data-target="bg-blur" data-delta="1">+</button>
+                                                class="accent-gray-600 flex-1">
+                                            <button class="slider-btn" data-target="bg-blur" data-delta="1">+</button>
                                         </div>
                                     </div>
                                 </div>
@@ -384,7 +382,7 @@
                             <input type="text" id="text-input" placeholder="輸入文字..."
                                 class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none" />
                             <button id="add-text-btn"
-                                class="bg-gray-800 text-white px-4 rounded-lg text-sm font-bold active:scale-95">+</button>
+                                class="bg-gray-800 text-white w-10 rounded-lg text-sm font-bold active:scale-95">+</button>
                         </div>
                         <div id="text-controls"
                             class="space-y-4 opacity-50 pointer-events-none bg-gray-50 p-3 rounded-xl border border-gray-200">
@@ -397,25 +395,21 @@
                                 <div class="flex flex-wrap gap-2" id="text-bg-color-palette"></div>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-gray-500 uppercase">大小 (Size)</span>
-                                <div class="slider-group w-32 flex items-center">
-                                    <button class="slider-btn text-gray-500 px-1" data-target="text-size"
-                                        data-delta="-1">-</button>
+                                <span class="text-[10px] font-bold text-gray-500 uppercase">大小</span>
+                                <div class="slider-group w-36 flex items-center gap-1">
+                                    <button class="slider-btn" data-target="text-size" data-delta="-1">-</button>
                                     <input type="range" id="text-size" min="10" max="300" value="40"
                                         class="accent-gray-700 flex-1">
-                                    <button class="slider-btn text-gray-500 px-1" data-target="text-size"
-                                        data-delta="1">+</button>
+                                    <button class="slider-btn" data-target="text-size" data-delta="1">+</button>
                                 </div>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-gray-500 uppercase">旋轉 (Rotate)</span>
-                                <div class="slider-group w-32 flex items-center">
-                                    <button class="slider-btn text-gray-500 px-1" data-target="text-rotation"
-                                        data-delta="-1">-</button>
+                                <span class="text-[10px] font-bold text-gray-500 uppercase">旋轉</span>
+                                <div class="slider-group w-36 flex items-center gap-1">
+                                    <button class="slider-btn" data-target="text-rotation" data-delta="-1">-</button>
                                     <input type="range" id="text-rotation" min="-180" max="180" value="0"
                                         class="accent-gray-700 flex-1">
-                                    <button class="slider-btn text-gray-500 px-1" data-target="text-rotation"
-                                        data-delta="1">+</button>
+                                    <button class="slider-btn" data-target="text-rotation" data-delta="1">+</button>
                                 </div>
                             </div>
                             <button id="delete-item-btn"
@@ -445,6 +439,8 @@
             <div id="canvas-transform-root"
                 class="w-full h-full flex items-center justify-center origin-center transition-transform duration-75 ease-linear relative z-10">
                 <div id="canvas-wrapper" class="canvas-stack shadow-2xl hidden shrink-0">
+                    <!-- 圖片內層底色 -->
+                    <div id="crop-inner-backdrop" class="absolute inset-0 z-0"></div>
                     <canvas id="layer-bg" class="layer"></canvas>
                     <canvas id="layer-mask" class="layer"></canvas>
                     <canvas id="layer-ui" class="layer"></canvas>
@@ -525,12 +521,8 @@
         const CROPS = [
             { label: 'Orig', w: 0, h: 0 },
             { label: '1:1', w: 1, h: 1 },
-            { label: '5:4', w: 5, h: 4 },
             { label: '4:5', w: 4, h: 5 },
-            { label: '16:9', w: 16, h: 9 },
-            { label: '9:16', w: 9, h: 16 },
-            { label: '3:2', w: 3, h: 2 },
-            { label: '2:3', w: 3, h: 2 }
+            { label: '16:9', w: 16, h: 9 }
         ];
 
         // --- Web Worker 邏輯 ---
@@ -813,7 +805,7 @@
                     maxY: Math.min(h - 1, maxY + thickness)
                 });
                 
-                for(let y = Math.max(0, minX - thickness); y <= Math.min(h - 1, maxY + thickness); y++) {
+                for(let y = Math.max(0, minY - thickness); y <= Math.min(h - 1, maxY + thickness); y++) {
                     for(let x = Math.max(0, minX - thickness); x <= Math.min(w - 1, maxX + thickness); x++) {
                         const i = y * w + x;
                         if (expanded[i] && !mask[i]) border[i] = 1;
@@ -1337,9 +1329,7 @@
                         let prevParams = { tolerance: 60, expand: 0, fillHoles: true, border: true, borderThickness: 5, borderColor: '#EC4899' };
                         const sourceSel = this.state.data.selections.find(s => s.id === this.state.view.activeSelId) || this.state.data.selections[this.state.data.selections.length - 1];
                         if (sourceSel) {
-                            prevParams.border = sourceSel.params.border;
-                            prevParams.borderThickness = sourceSel.params.borderThickness;
-                            prevParams.borderColor = sourceSel.params.borderColor;
+                            prevParams = { ...sourceSel.params };
                         }
 
                         const id = this.state.data.nextSelId++;
