@@ -70,6 +70,11 @@
             transform: scale(1.15);
         }
 
+        .slider-btn {
+            touch-action: none;
+            user-select: none;
+        }
+
         /* --- 畫布層級與轉化 --- */
         .canvas-stack {
             position: relative;
@@ -271,11 +276,11 @@
                                 class="text-xs text-blue-600 font-mono">20px</span></div>
                         <div class="slider-group flex items-center">
                             <button class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                onclick="app.adjSlider('brush-size', -5)">-</button>
+                                data-target="brush-size" data-delta="-1">-</button>
                             <input type="range" id="brush-size" min="5" max="100" value="20"
                                 class="accent-blue-600 flex-1 mx-2">
                             <button class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                onclick="app.adjSlider('brush-size', 5)">+</button>
+                                data-target="brush-size" data-delta="1">+</button>
                         </div>
                     </div>
 
@@ -298,12 +303,12 @@
                                     <div class="slider-group flex items-center">
                                         <button
                                             class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                            onclick="app.adjSlider('contrast', -5)">-</button>
+                                            data-target="contrast" data-delta="-1">-</button>
                                         <input type="range" id="contrast" min="50" max="150" value="100"
                                             class="accent-gray-600 flex-1 mx-2">
                                         <button
                                             class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                            onclick="app.adjSlider('contrast', 5)">+</button>
+                                            data-target="contrast" data-delta="1">+</button>
                                     </div>
                                 </div>
                                 <div class="w-full h-px bg-gray-100"></div>
@@ -312,46 +317,46 @@
                                     <div>
                                         <div class="flex justify-between mb-1"><label
                                                 class="text-xs font-medium text-gray-600">飽和度</label><span
-                                                id="bg-sat-val" class="text-xs text-gray-400">0%</span></div>
+                                                id="bg-sat-val" class="text-xs text-gray-400">50%</span></div>
                                         <div class="slider-group flex items-center">
                                             <button
                                                 class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                onclick="app.adjSlider('bg-sat', -5)">-</button>
-                                            <input type="range" id="bg-sat" min="0" max="100" value="0"
+                                                data-target="bg-sat" data-delta="-1">-</button>
+                                            <input type="range" id="bg-sat" min="0" max="100" value="50"
                                                 class="accent-gray-600 flex-1 mx-2">
                                             <button
                                                 class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                onclick="app.adjSlider('bg-sat', 5)">+</button>
+                                                data-target="bg-sat" data-delta="1">+</button>
                                         </div>
                                     </div>
                                     <div>
                                         <div class="flex justify-between mb-1"><label
                                                 class="text-xs font-medium text-gray-600">壓暗</label><span
-                                                id="bg-dim-val" class="text-xs text-gray-400">0%</span></div>
+                                                id="bg-dim-val" class="text-xs text-gray-400">50%</span></div>
                                         <div class="slider-group flex items-center">
                                             <button
                                                 class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                onclick="app.adjSlider('bg-dim', -5)">-</button>
-                                            <input type="range" id="bg-dim" min="0" max="90" value="0"
+                                                data-target="bg-dim" data-delta="-1">-</button>
+                                            <input type="range" id="bg-dim" min="0" max="100" value="50"
                                                 class="accent-gray-600 flex-1 mx-2">
                                             <button
                                                 class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                onclick="app.adjSlider('bg-dim', 5)">+</button>
+                                                data-target="bg-dim" data-delta="1">+</button>
                                         </div>
                                     </div>
                                     <div>
                                         <div class="flex justify-between mb-1"><label
                                                 class="text-xs font-medium text-gray-600">模糊</label><span
-                                                id="bg-blur-val" class="text-xs text-gray-400">0px</span></div>
+                                                id="bg-blur-val" class="text-xs text-gray-400">10px</span></div>
                                         <div class="slider-group flex items-center">
                                             <button
                                                 class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                onclick="app.adjSlider('bg-blur', -1)">-</button>
-                                            <input type="range" id="bg-blur" min="0" max="20" value="0"
+                                                data-target="bg-blur" data-delta="-1">-</button>
+                                            <input type="range" id="bg-blur" min="0" max="20" value="10"
                                                 class="accent-gray-600 flex-1 mx-2">
                                             <button
                                                 class="slider-btn px-2 text-gray-500 font-bold hover:bg-gray-100 rounded"
-                                                onclick="app.adjSlider('bg-blur', 1)">+</button>
+                                                data-target="bg-blur" data-delta="1">+</button>
                                         </div>
                                     </div>
                                 </div>
@@ -383,31 +388,38 @@
                         </div>
                         <div id="text-controls"
                             class="space-y-4 opacity-50 pointer-events-none bg-gray-50 p-3 rounded-xl border border-gray-200">
-                            <div class="flex flex-wrap gap-2" id="color-palette"></div>
+                            <div>
+                                <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">文字顏色</div>
+                                <div class="flex flex-wrap gap-2" id="text-color-palette"></div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">文字底色</div>
+                                <div class="flex flex-wrap gap-2" id="text-bg-color-palette"></div>
+                            </div>
                             <div class="flex items-center justify-between">
-                                <label class="flex items-center cursor-pointer">
-                                    <div class="relative"><input type="checkbox" id="text-bg-toggle" class="sr-only">
-                                        <div class="w-8 h-4 bg-gray-300 rounded-full shadow-inner transition-colors"
-                                            id="text-bg-track"></div>
-                                        <div class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform"
-                                            id="text-bg-dot"></div>
-                                    </div>
-                                    <div class="ml-2 text-xs font-medium text-gray-700">底色</div>
-                                </label>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs text-gray-500 font-mono">Size</span>
-                                    <div class="slider-group w-24 flex items-center">
-                                        <button class="slider-btn text-gray-500 px-1"
-                                            onclick="app.adjSlider('text-size', -5)">-</button>
-                                        <input type="range" id="text-size" min="10" max="300" value="40"
-                                            class="accent-gray-700 flex-1">
-                                        <button class="slider-btn text-gray-500 px-1"
-                                            onclick="app.adjSlider('text-size', 5)">+</button>
-                                    </div>
+                                <span class="text-[10px] font-bold text-gray-500 uppercase">大小 (Size)</span>
+                                <div class="slider-group w-32 flex items-center">
+                                    <button class="slider-btn text-gray-500 px-1" data-target="text-size"
+                                        data-delta="-1">-</button>
+                                    <input type="range" id="text-size" min="10" max="300" value="40"
+                                        class="accent-gray-700 flex-1">
+                                    <button class="slider-btn text-gray-500 px-1" data-target="text-size"
+                                        data-delta="1">+</button>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-bold text-gray-500 uppercase">旋轉 (Rotate)</span>
+                                <div class="slider-group w-32 flex items-center">
+                                    <button class="slider-btn text-gray-500 px-1" data-target="text-rotation"
+                                        data-delta="-1">-</button>
+                                    <input type="range" id="text-rotation" min="-180" max="180" value="0"
+                                        class="accent-gray-700 flex-1">
+                                    <button class="slider-btn text-gray-500 px-1" data-target="text-rotation"
+                                        data-delta="1">+</button>
                                 </div>
                             </div>
                             <button id="delete-item-btn"
-                                class="w-full bg-white border border-red-200 text-red-500 py-2 rounded-lg text-xs font-bold active:bg-red-50">刪除物件</button>
+                                class="w-full bg-white border border-red-200 text-red-500 py-2 rounded-lg text-xs font-bold active:bg-red-50 hover:bg-red-50 transition-colors">刪除物件</button>
                         </div>
                     </div>
                 </div>
@@ -422,14 +434,17 @@
         <!-- 畫布區域 -->
         <section class="flex-1 bg-gray-800 relative overflow-hidden h-[55%] md:h-full checkerboard"
             id="canvas-container">
-            <!-- 裁切底色背景層 -->
-            <div id="crop-canvas-bg" class="absolute inset-0"></div>
 
+            <!-- 裁切底色層 (真實位於圖片下方，尺寸同步裁切框) -->
+            <div id="crop-bg-container"
+                class="absolute inset-0 flex items-center justify-center pointer-events-none z-0 hidden">
+                <div id="crop-bg-layer" class="transition-colors duration-200"></div>
+            </div>
+
+            <!-- 畫布平移縮放控制層 -->
             <div id="canvas-transform-root"
                 class="w-full h-full flex items-center justify-center origin-center transition-transform duration-75 ease-linear relative z-10">
                 <div id="canvas-wrapper" class="canvas-stack shadow-2xl hidden shrink-0">
-                    <!-- 圖片內層底色 -->
-                    <div id="crop-inner-backdrop" class="absolute inset-0 z-0"></div>
                     <canvas id="layer-bg" class="layer"></canvas>
                     <canvas id="layer-mask" class="layer"></canvas>
                     <canvas id="layer-ui" class="layer"></canvas>
@@ -437,8 +452,9 @@
             </div>
 
             <!-- 固定導引線與裁切層 (用於畫布 Pan) -->
-            <div id="guide-v" class="snap-line w-px h-full top-0 left-1/2 hidden transform -translate-x-1/2"></div>
-            <div id="guide-h" class="snap-line h-px w-full left-0 top-1/2 hidden transform -translate-y-1/2"></div>
+            <div id="guide-v" class="snap-line w-px h-full top-0 left-1/2 hidden transform -translate-x-1/2 z-20"></div>
+            <div id="guide-h" class="snap-line h-px w-full left-0 top-1/2 hidden transform -translate-y-1/2 z-20"></div>
+
             <div id="crop-mask-container" class="crop-overlay hidden">
                 <div id="crop-frame" class="crop-frame"></div>
             </div>
@@ -505,160 +521,304 @@
     </main>
 
     <script>
-        // --- 定義常量 ---
-        const COLORS_LIST = ['#EC4899', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#FFFFFF', '#000000'];
+        const SHARED_COLORS = ['#EC4899', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#FFFFFF', '#000000'];
         const CROPS = [
             { label: 'Orig', w: 0, h: 0 },
             { label: '1:1', w: 1, h: 1 },
+            { label: '5:4', w: 5, h: 4 },
             { label: '4:5', w: 4, h: 5 },
-            { label: '16:9', w: 16, h: 9 }
+            { label: '16:9', w: 16, h: 9 },
+            { label: '9:16', w: 9, h: 16 },
+            { label: '3:2', w: 3, h: 2 },
+            { label: '2:3', w: 3, h: 2 }
         ];
 
         // --- Web Worker 邏輯 ---
         const workerCode = `
+            let gVisited = null;
+            let gQueue = null;
+            let gLabels = null;
+
             self.onmessage = function(e) {
                 const { type, sel, w, h, bgData } = e.data;
                 if (type === 'CALC_MASK') {
+                    const size = w * h;
+                    if (!gVisited || gVisited.length < size) {
+                        gVisited = new Uint8Array(size);
+                        gQueue = new Int32Array(size * 2);
+                        gLabels = new Int32Array(size);
+                    }
                     const res = calculateMaskInternal(sel, w, h, bgData);
-                    const borderMask = sel.params.border ? getBorderInternal(res.mask, w, h, sel.params.borderThickness || 5) : null;
-                    self.postMessage({ id: sel.id, mask: res.mask, borderMask, detectedColor: res.color });
+                    let borderMask = null;
+                    if (sel.params.border && res.bounds) {
+                        borderMask = getBorderInternal(res.mask, w, h, sel.params.borderThickness || 5, res.bounds);
+                    }
+                    self.postMessage({ id: sel.id, mask: res.mask, borderMask, detectedColor: res.color }, [res.mask.buffer, borderMask ? borderMask.buffer : null].filter(Boolean));
                 }
             };
-            function colorDist(r1, g1, b1, r2, g2, b2) {
-                const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
-                return Math.sqrt(2 * dr * dr + 4 * dg * dg + 3 * db * db);
+            
+            function distToSegmentSquared(px, py, vx, vy, wx, wy) {
+                const l2 = (wx - vx) ** 2 + (wy - vy) ** 2;
+                if (l2 === 0) return (px - vx) ** 2 + (py - vy) ** 2;
+                let t = ((px - vx) * (wx - vx) + (py - vy) * (wy - vy)) / l2;
+                t = Math.max(0, Math.min(1, t));
+                return (px - (vx + t * (wx - vx))) ** 2 + (py - (vy + t * (wy - vy))) ** 2;
             }
-            function isPointInPolygon(p, poly) {
-                let inside = false;
-                for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-                    const xi = poly[i].x, yi = poly[i].y;
-                    const xj = poly[j].x, yj = poly[j].y;
-                    const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
-                    if (intersect) inside = !inside;
-                }
-                return inside;
-            }
+
             function calculateMaskInternal(sel, w, h, bgData) {
-                const mask = new Uint8Array(w * h), visited = new Uint8Array(w * h);
-                const tolerance = sel.params.tolerance, palette = [], queue = [];
-                let rSum = 0, gSum = 0, bSum = 0, count = 0;
-                if (sel.seeds && sel.seeds.length > 0) {
-                    const paths = Array.isArray(sel.seeds[0]) ? sel.seeds : [sel.seeds];
-                    paths.forEach(path => {
-                        if (path.length < 3) return;
-                        let minX = w, maxX = 0, minY = h, maxY = 0;
-                        path.forEach(p => { if(p.x<minX) minX=p.x; if(p.x>maxX) maxX=p.x; if(p.y<minY) minY=p.y; if(p.y>maxY) maxY=p.y; });
-                        minX = Math.max(0, Math.floor(minX)); minY = Math.max(0, Math.floor(minY));
-                        maxX = Math.min(w, Math.ceil(maxX)); maxY = Math.min(h, Math.ceil(maxY));
-                        for (let y = minY; y < maxY; y++) {
-                            const rOff = y * w;
-                            for (let x = minX; x < maxX; x++) {
-                                if (isPointInPolygon({ x, y }, path)) {
-                                    const idx = rOff + x; mask[idx] = 1;
-                                    if (visited[idx] === 0) {
-                                        visited[idx] = 1; queue.push(x, y);
-                                        const pIdx = idx * 4; rSum += bgData[pIdx]; gSum += bgData[pIdx+1]; bSum += bgData[pIdx+2]; count++;
+                const mask = new Uint8Array(w * h);
+                const tolerance = sel.params.tolerance;
+                let rSum = 0, gSum = 0, bSum = 0, colorCount = 0;
+                let bMinX = w, bMaxX = 0, bMinY = h, bMaxY = 0;
+
+                function addPoint(x, y) {
+                    if (x < bMinX) bMinX = x; if (x > bMaxX) bMaxX = x;
+                    if (y < bMinY) bMinY = y; if (y > bMaxY) bMaxY = y;
+                }
+
+                if (!sel.actions || sel.actions.length === 0) {
+                    return { mask, color: null, bounds: null };
+                }
+
+                gVisited.fill(0);
+
+                for (const action of sel.actions) {
+                    if (action.type === 'lasso') {
+                        let qTail = 0;
+                        let qHead = 0;
+                        const palette = [];
+                        const path = action.path;
+
+                        let pMinX = w, pMaxX = 0, pMinY = h, pMaxY = 0;
+                        path.forEach(p => { if(p.x<pMinX) pMinX=p.x; if(p.x>pMaxX) pMaxX=p.x; if(p.y<pMinY) pMinY=p.y; if(p.y>pMaxY) pMaxY=p.y; });
+                        pMinX = Math.max(0, Math.floor(pMinX)); pMinY = Math.max(0, Math.floor(pMinY));
+                        pMaxX = Math.min(w - 1, Math.ceil(pMaxX)); pMaxY = Math.min(h - 1, Math.ceil(pMaxY));
+
+                        // Scanline Fill 
+                        for (let y = pMinY; y <= pMaxY; y++) {
+                            let nodes = [];
+                            let j = path.length - 1;
+                            for (let i = 0; i < path.length; i++) {
+                                if ((path[i].y < y && path[j].y >= y) || (path[j].y < y && path[i].y >= y)) {
+                                    nodes.push(path[i].x + (y - path[i].y) / (path[j].y - path[i].y) * (path[j].x - path[i].x));
+                                }
+                                j = i;
+                            }
+                            nodes.sort((a, b) => a - b);
+                            for (let i = 0; i < nodes.length; i += 2) {
+                                if (nodes[i+1] === undefined) break;
+                                let sx = Math.max(pMinX, Math.floor(nodes[i]));
+                                let ex = Math.min(pMaxX, Math.ceil(nodes[i+1]));
+                                for (let x = sx; x <= ex; x++) {
+                                    const idx = y * w + x;
+                                    mask[idx] = 1;
+                                    addPoint(x, y);
+                                    if (gVisited[idx] === 0) {
+                                        gVisited[idx] = 1;
+                                        gQueue[qTail++] = x; gQueue[qTail++] = y;
+                                        const pIdx = idx << 2;
                                         if (palette.length < 400 && (x + y) % 4 === 0) palette.push({ r: bgData[pIdx], g: bgData[pIdx+1], b: bgData[pIdx+2] });
+                                        if (colorCount < 100 && (x + y) % 7 === 0) {
+                                            rSum += bgData[pIdx]; gSum += bgData[pIdx+1]; bSum += bgData[pIdx+2]; colorCount++;
+                                        }
                                     }
                                 }
                             }
                         }
-                    });
-                }
-                if (palette.length > 0) {
-                    let head = 0; const dx = [0, 1, 0, -1], dy = [-1, 0, 1, 0];
-                    while (head < queue.length) {
-                        const x = queue[head++], y = queue[head++];
-                        for (let i = 0; i < 4; i++) {
-                            const nx = x + dx[i], ny = y + dy[i];
-                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                const nIdx = ny * w + nx;
-                                if (visited[nIdx] === 0) {
-                                    visited[nIdx] = 1; const pIdx = nIdx * 4;
-                                    const r = bgData[pIdx], g = bgData[pIdx+1], b = bgData[pIdx+2];
-                                    let match = false;
-                                    for(let s=0; s<palette.length; s+=2) if (colorDist(r, g, b, palette[s].r, palette[s].g, palette[s].b) <= tolerance) { match = true; break; }
-                                    if (match) { mask[nIdx] = 1; queue.push(nx, ny); rSum += r; gSum += g; bSum += b; count++; }
+
+                        if (palette.length > 0) {
+                            const tolSq = tolerance * tolerance;
+                            while (qHead < qTail) {
+                                const x = gQueue[qHead++];
+                                const y = gQueue[qHead++];
+                                
+                                const process = (nx, ny) => {
+                                    const nIdx = ny * w + nx;
+                                    if (gVisited[nIdx] === 0) {
+                                        gVisited[nIdx] = 1;
+                                        const pIdx = nIdx << 2;
+                                        const r = bgData[pIdx], g = bgData[pIdx+1], b = bgData[pIdx+2];
+                                        let match = false;
+                                        for(let s=0; s<palette.length; s++) {
+                                            const dr = r - palette[s].r, dg = g - palette[s].g, db = b - palette[s].b;
+                                            if ((2*dr*dr + 4*dg*dg + 3*db*db) <= tolSq) { match = true; break; }
+                                        }
+                                        if (match) {
+                                            mask[nIdx] = 1;
+                                            addPoint(nx, ny);
+                                            gQueue[qTail++] = nx; gQueue[qTail++] = ny;
+                                        }
+                                    }
+                                };
+                                if (y > 0) process(x, y - 1);
+                                if (x < w - 1) process(x + 1, y);
+                                if (y < h - 1) process(x, y + 1);
+                                if (x > 0) process(x - 1, y);
+                            }
+                        }
+                    } else if (action.type === 'erase') {
+                        const { path, size } = action;
+                        const rad = size / 2, r2 = rad * rad;
+                        
+                        const fPath = [path[0]];
+                        for (let i = 1; i < path.length; i++) {
+                            const prev = fPath[fPath.length - 1];
+                            const d2 = (path[i].x - prev.x)**2 + (path[i].y - prev.y)**2;
+                            if (d2 >= (rad / 3)**2 || i === path.length - 1) {
+                                fPath.push(path[i]);
+                            }
+                        }
+
+                        if (fPath.length === 1) {
+                            const cx = Math.floor(fPath[0].x), cy = Math.floor(fPath[0].y);
+                            for(let y=Math.max(0, Math.floor(cy-rad)); y<=Math.min(h-1, Math.ceil(cy+rad)); y++) {
+                                for(let x=Math.max(0, Math.floor(cx-rad)); x<=Math.min(w-1, Math.ceil(cx+rad)); x++) {
+                                    if ((x-cx)**2 + (y-cy)**2 <= r2) mask[y*w+x] = 0;
+                                }
+                            }
+                        } else {
+                            for (let i = 0; i < fPath.length - 1; i++) {
+                                const p1 = fPath[i], p2 = fPath[i+1];
+                                const cMinX = Math.max(0, Math.floor(Math.min(p1.x, p2.x) - rad));
+                                const cMaxX = Math.min(w - 1, Math.ceil(Math.max(p1.x, p2.x) + rad));
+                                const cMinY = Math.max(0, Math.floor(Math.min(p1.y, p2.y) - rad));
+                                const cMaxY = Math.min(h - 1, Math.ceil(Math.max(p1.y, p2.y) + rad));
+
+                                for (let y = cMinY; y <= cMaxY; y++) {
+                                    for (let x = cMinX; x <= cMaxX; x++) {
+                                        if (distToSegmentSquared(x, y, p1.x, p1.y, p2.x, p2.y) <= r2) mask[y * w + x] = 0;
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                if (sel.params.expand > 0) expandInternal(mask, w, h, sel.params.expand);
-                if (sel.params.fillHoles) fillHolesInternal(mask, w, h);
-                if (sel.manualEdits) sel.manualEdits.forEach(edit => applyEditInternal(mask, w, h, edit));
-                const final = keepLargestInternal(mask, w, h);
-                const hex = count > 0 ? '#' + [rSum/count, gSum/count, bSum/count].map(v => Math.round(v).toString(16).padStart(2, '0')).join('') : '#EC4899';
-                return { mask: final, color: hex };
+
+                if (bMinX > bMaxX) return { mask, color: null, bounds: null };
+
+                const pad = Math.max(sel.params.expand, 2);
+                bMinX = Math.max(0, bMinX - pad); bMaxX = Math.min(w - 1, bMaxX + pad);
+                bMinY = Math.max(0, bMinY - pad); bMaxY = Math.min(h - 1, bMaxY + pad);
+                const bounds = { minX: bMinX, maxX: bMaxX, minY: bMinY, maxY: bMaxY };
+
+                if (sel.params.expand > 0) expandInternal(mask, w, h, sel.params.expand, bounds);
+                if (sel.params.fillHoles) fillHolesInternal(mask, w, h, bounds);
+                keepLargestInternal(mask, w, h, bounds);
+                
+                const hex = colorCount > 0 ? '#' + [rSum/colorCount, gSum/colorCount, bSum/colorCount].map(v => Math.round(v).toString(16).padStart(2, '0')).join('') : null;
+                return { mask, color: hex, bounds };
             }
-            function expandInternal(mask, w, h, rad) {
+
+            function expandInternal(mask, w, h, rad, bounds) {
+                const { minX, maxX, minY, maxY } = bounds;
                 const old = new Uint8Array(mask);
-                for(let y=0; y<h; y++) {
+                for(let y = minY; y <= maxY; y++) {
                     const row = y * w;
-                    for(let x=0; x<w; x++) {
+                    for(let x = minX; x <= maxX; x++) {
                         if(old[row + x]) {
-                            let isE = (x==0 || x==w-1 || y==0 || y==h-1);
-                            if(!isE) if(!old[row+x-1] || !old[row+x+1] || !old[row-w+x] || !old[row+w+x]) isE = true;
-                            if (isE) for(let ky=-rad; ky<=rad; ky++) for(let kx=-rad; kx<=rad; kx++) {
-                                const ny = y+ky, nx = x+kx; if(nx>=0 && nx<w && ny>=0 && ny<h) mask[ny*w+nx] = 1;
-                            }
-                        }
-                    }
-                }
-            }
-            function fillHolesInternal(mask, w, h) {
-                const visited = new Uint8Array(w*h), q = [];
-                for(let x=0; x<w; x++) { if(!mask[x]) { q.push(x,0); visited[x]=1; } if(!mask[(h-1)*w+x]) { q.push(x,h-1); visited[(h-1)*w+x]=1; } }
-                for(let y=0; y<h; y++) { if(!mask[y*w] && !visited[y*w]) { q.push(0,y); visited[y*w]=1; } if(!mask[y*w+w-1] && !visited[y*w+w-1]) { q.push(w-1,y); visited[y*w+w-1]=1; } }
-                let head = 0; const dx=[1,-1,0,0], dy=[0,0,1,-1];
-                while(head < q.length) {
-                    const x = q[head++], y = q[head++];
-                    for(let i=0; i<4; i++) {
-                        const nx=x+dx[i], ny=y+dy[i];
-                        if(nx>=0 && nx<w && ny>=0 && ny<h && !mask[ny*w+nx] && !visited[ny*w+nx]) { visited[ny*w+nx] = 1; q.push(nx,ny); }
-                    }
-                }
-                for(let i=0; i<w*h; i++) if(!mask[i] && !visited[i]) mask[i] = 1;
-            }
-            function applyEditInternal(mask, w, h, edit) {
-                const { type, points, size } = edit, rad = size / 2, r2 = rad * rad;
-                points.forEach(p => {
-                    const cx = Math.floor(p.x), cy = Math.floor(p.y);
-                    for(let y=Math.floor(cy-rad); y<cy+rad; y++) for(let x=Math.floor(cx-rad); x<cx+rad; x++) {
-                        if (x>=0 && x<w && y>=0 && y<h && (x-cx)*(x-cx) + (y-cy)*(y-cy) <= r2) mask[y*w+x] = (type === 'add' ? 1 : 0);
-                    }
-                });
-            }
-            function keepLargestInternal(mask, w, h) {
-                const visited = new Uint8Array(w * h); let maxC = 0, maxL = 0, curL = 1;
-                const labels = new Int32Array(w * h);
-                for (let i = 0; i < w * h; i++) {
-                    if (mask[i] === 1 && visited[i] === 0) {
-                        let c = 0; const q = [i]; visited[i] = 1; labels[i] = curL;
-                        let head = 0;
-                        while(head < q.length) {
-                            const idx = q[head++]; c++; const cx = idx % w, cy = Math.floor(idx / w);
-                            const dx = [1, -1, 0, 0], dy = [0, 0, 1, -1];
-                            for(let d=0; d<4; d++) {
-                                const nx = cx + dx[d], ny = cy + dy[d];
-                                if(nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                    const nIdx = ny * w + nx; if(mask[nIdx] === 1 && visited[nIdx] === 0) { visited[nIdx] = 1; labels[nIdx] = curL; q.push(nIdx); }
+                            let isE = (x===minX || x===maxX || y===minY || y===maxY);
+                            if(!isE && (!old[row+x-1] || !old[row+x+1] || !old[row-w+x] || !old[row+w+x])) isE = true;
+                            if (isE) {
+                                for(let ky=-rad; ky<=rad; ky++) {
+                                    for(let kx=-rad; kx<=rad; kx++) {
+                                        const ny = y+ky, nx = x+kx; 
+                                        if(nx>=0 && nx<w && ny>=0 && ny<h) mask[ny*w+nx] = 1;
+                                    }
                                 }
                             }
                         }
-                        if (c > maxC) { maxC = c; maxL = curL; }
-                        curL++;
                     }
                 }
-                const res = new Uint8Array(w*h);
-                if (maxL > 0) for (let i = 0; i < w * h; i++) if (labels[i] === maxL) res[i] = 1;
-                return res;
             }
-            function getBorderInternal(mask, w, h, thickness) {
-                const expanded = new Uint8Array(mask.length); expanded.set(mask);
-                expandInternal(expanded, w, h, thickness);
+
+            function fillHolesInternal(mask, w, h, bounds) {
+                const { minX, maxX, minY, maxY } = bounds;
+                gVisited.fill(0);
+                let qHead = 0, qTail = 0;
+                
+                for(let x = minX; x <= maxX; x++) { 
+                    if(!mask[minY*w+x]) { gQueue[qTail++]=x; gQueue[qTail++]=minY; gVisited[minY*w+x]=1; } 
+                    if(!mask[maxY*w+x]) { gQueue[qTail++]=x; gQueue[qTail++]=maxY; gVisited[maxY*w+x]=1; } 
+                }
+                for(let y = minY; y <= maxY; y++) { 
+                    if(!mask[y*w+minX] && !gVisited[y*w+minX]) { gQueue[qTail++]=minX; gQueue[qTail++]=y; gVisited[y*w+minX]=1; } 
+                    if(!mask[y*w+maxX] && !gVisited[y*w+maxX]) { gQueue[qTail++]=maxX; gQueue[qTail++]=y; gVisited[y*w+maxX]=1; } 
+                }
+                
+                while(qHead < qTail) {
+                    const x = gQueue[qHead++], y = gQueue[qHead++];
+                    let nIdx;
+                    if(y > minY) { nIdx = (y-1)*w+x; if(!mask[nIdx] && !gVisited[nIdx]) { gVisited[nIdx] = 1; gQueue[qTail++]=x; gQueue[qTail++]=y-1; } }
+                    if(x < maxX) { nIdx = y*w+(x+1); if(!mask[nIdx] && !gVisited[nIdx]) { gVisited[nIdx] = 1; gQueue[qTail++]=x+1; gQueue[qTail++]=y; } }
+                    if(y < maxY) { nIdx = (y+1)*w+x; if(!mask[nIdx] && !gVisited[nIdx]) { gVisited[nIdx] = 1; gQueue[qTail++]=x; gQueue[qTail++]=y+1; } }
+                    if(x > minX) { nIdx = y*w+(x-1); if(!mask[nIdx] && !gVisited[nIdx]) { gVisited[nIdx] = 1; gQueue[qTail++]=x-1; gQueue[qTail++]=y; } }
+                }
+                for(let y = minY; y <= maxY; y++) {
+                    for(let x = minX; x <= maxX; x++) {
+                        const idx = y*w+x;
+                        if(!mask[idx] && !gVisited[idx]) mask[idx] = 1;
+                    }
+                }
+            }
+
+            function keepLargestInternal(mask, w, h, bounds) {
+                const { minX, maxX, minY, maxY } = bounds;
+                gVisited.fill(0);
+                gLabels.fill(0);
+                let maxC = 0, maxL = 0, curL = 1;
+                
+                for(let y = minY; y <= maxY; y++) {
+                    for(let x = minX; x <= maxX; x++) {
+                        const i = y * w + x;
+                        if (mask[i] === 1 && gVisited[i] === 0) {
+                            let c = 0; 
+                            let qHead = 0, qTail = 0;
+                            gQueue[qTail++] = x; gQueue[qTail++] = y;
+                            gVisited[i] = 1; gLabels[i] = curL;
+                            
+                            while(qHead < qTail) {
+                                const cx = gQueue[qHead++];
+                                const cy = gQueue[qHead++];
+                                c++;
+                                
+                                let nIdx;
+                                if(cy > minY) { nIdx = (cy-1)*w+cx; if(mask[nIdx] === 1 && gVisited[nIdx] === 0) { gVisited[nIdx] = 1; gLabels[nIdx] = curL; gQueue[qTail++]=cx; gQueue[qTail++]=cy-1; } }
+                                if(cx < maxX) { nIdx = cy*w+(cx+1); if(mask[nIdx] === 1 && gVisited[nIdx] === 0) { gVisited[nIdx] = 1; gLabels[nIdx] = curL; gQueue[qTail++]=cx+1; gQueue[qTail++]=cy; } }
+                                if(cy < maxY) { nIdx = (cy+1)*w+cx; if(mask[nIdx] === 1 && gVisited[nIdx] === 0) { gVisited[nIdx] = 1; gLabels[nIdx] = curL; gQueue[qTail++]=cx; gQueue[qTail++]=cy+1; } }
+                                if(cx > minX) { nIdx = cy*w+(cx-1); if(mask[nIdx] === 1 && gVisited[nIdx] === 0) { gVisited[nIdx] = 1; gLabels[nIdx] = curL; gQueue[qTail++]=cx-1; gQueue[qTail++]=cy; } }
+                            }
+                            if (c > maxC) { maxC = c; maxL = curL; }
+                            curL++;
+                        }
+                    }
+                }
+                if (maxL > 0) {
+                    for(let y = minY; y <= maxY; y++) {
+                        for(let x = minX; x <= maxX; x++) {
+                            const i = y * w + x;
+                            mask[i] = (gLabels[i] === maxL) ? 1 : 0;
+                        }
+                    }
+                }
+            }
+
+            function getBorderInternal(mask, w, h, thickness, bounds) {
+                const { minX, maxX, minY, maxY } = bounds;
                 const border = new Uint8Array(mask.length);
-                for(let i=0; i<mask.length; i++) if (expanded[i] && !mask[i]) border[i] = 1;
+                const expanded = new Uint8Array(mask);
+                expandInternal(expanded, w, h, thickness, {
+                    minX: Math.max(0, minX - thickness),
+                    maxX: Math.min(w - 1, maxX + thickness),
+                    minY: Math.max(0, minY - thickness),
+                    maxY: Math.min(h - 1, maxY + thickness)
+                });
+                
+                for(let y = Math.max(0, minX - thickness); y <= Math.min(h - 1, maxY + thickness); y++) {
+                    for(let x = Math.max(0, minX - thickness); x <= Math.min(w - 1, maxX + thickness); x++) {
+                        const i = y * w + x;
+                        if (expanded[i] && !mask[i]) border[i] = 1;
+                    }
+                }
                 return border;
             }
         `;
@@ -666,7 +826,7 @@
         class StateManager {
             constructor(onHistoryChange) {
                 this.history = []; this.historyIndex = -1; this.onHistoryChange = onHistoryChange;
-                this.data = { filters: { contrast: 100, bgSat: 0, bgDim: 0, bgBlur: 0 }, selections: [], objects: [], crop: { index: 0, bgWhite: true }, nextSelId: 1, nextObjId: 1 };
+                this.data = { filters: { contrast: 100, bgSat: 50, bgDim: 50, bgBlur: 10 }, selections: [], objects: [], crop: { index: 0, bgWhite: true }, nextSelId: 1, nextObjId: 1 };
                 this.view = { scale: 1, x: 0, y: 0, tool: 'lasso', activeTab: 'route', activeSelId: null, activeObjId: null, brushSize: 20, isDragging: false, dragType: null, tempPath: [], snapObjX: false, snapObjY: false };
             }
             pushHistory() {
@@ -690,12 +850,25 @@
                 const loupeC = document.getElementById('loupe-canvas');
                 this.loupeCtx = loupeC ? loupeC.getContext('2d') : null;
                 this.width = this.height = 0;
+
+                this.tempC = document.createElement('canvas');
+                this.tCtx = this.tempC.getContext('2d', { willReadFrequently: true });
+                this.borderC = document.createElement('canvas');
+                this.bCtx = this.borderC.getContext('2d', { willReadFrequently: true });
             }
             resize(w, h) {
                 this.width = w; this.height = h;
                 const wrapper = document.getElementById('canvas-wrapper');
                 if (wrapper) { wrapper.style.width = w + 'px'; wrapper.style.height = h + 'px'; }
                 [this.bgCtx, this.maskCtx, this.uiCtx].forEach(ctx => { if (ctx) { ctx.canvas.width = w; ctx.canvas.height = h; } });
+
+                this.tempC.width = w; this.tempC.height = h;
+                this.iData = this.tCtx.createImageData(w, h);
+                this.iData32 = new Uint32Array(this.iData.data.buffer);
+
+                this.borderC.width = w; this.borderC.height = h;
+                this.bImg = this.bCtx.createImageData(w, h);
+                this.bImg32 = new Uint32Array(this.bImg.data.buffer);
             }
             drawBg(img, filters) {
                 if (!img || !this.bgCtx) return;
@@ -709,20 +882,43 @@
                 ctx.save(); ctx.filter = `saturate(${filters.bgSat}%) brightness(${100 - filters.bgDim}%) blur(${filters.bgBlur}px)`;
                 ctx.drawImage(this.bgCtx.canvas, 0, 0); ctx.restore();
                 ctx.globalCompositeOperation = 'destination-out';
-                const tempC = document.createElement('canvas'); tempC.width = this.width; tempC.height = this.height;
-                const tCtx = tempC.getContext('2d'); const iData = tCtx.createImageData(this.width, this.height);
+
+                this.iData32.fill(0);
                 let hasM = false;
-                selections.forEach(s => { if (s.mask) for (let i = 0; i < s.mask.length; i++) if (s.mask[i]) { iData.data[i * 4 + 3] = 255; hasM = true; } });
-                if (hasM) { tCtx.putImageData(iData, 0, 0); ctx.save(); ctx.filter = 'blur(1.5px)'; ctx.drawImage(tempC, 0, 0); ctx.restore(); }
+                selections.forEach(s => {
+                    if (s.mask) {
+                        for (let i = 0; i < s.mask.length; i++) {
+                            if (s.mask[i]) {
+                                this.iData.data[(i << 2) + 3] = 255;
+                                hasM = true;
+                            }
+                        }
+                    }
+                });
+
+                if (hasM) {
+                    this.tCtx.putImageData(this.iData, 0, 0);
+                    ctx.save(); ctx.filter = 'blur(1.5px)'; ctx.drawImage(this.tempC, 0, 0); ctx.restore();
+                }
+
                 ctx.globalCompositeOperation = 'source-over';
                 selections.forEach(s => {
                     if (s.params.border && s.borderMask) {
-                        const bImg = ctx.createImageData(this.width, this.height);
-                        let col = { r: 236, g: 72, b: 153 }; const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(s.params.borderColor || '#EC4899');
+                        this.bImg32.fill(0);
+                        let col = { r: 236, g: 72, b: 153 };
+                        const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(s.params.borderColor || '#EC4899');
                         if (res) col = { r: parseInt(res[1], 16), g: parseInt(res[2], 16), b: parseInt(res[3], 16) };
-                        for (let i = 0; i < s.borderMask.length; i++) if (s.borderMask[i]) { const p = i * 4; bImg.data[p] = col.r; bImg.data[p + 1] = col.g; bImg.data[p + 2] = col.b; bImg.data[p + 3] = 255; }
-                        const bC = document.createElement('canvas'); bC.width = this.width; bC.height = this.height;
-                        bC.getContext('2d').putImageData(bImg, 0, 0); ctx.drawImage(bC, 0, 0);
+                        const col32 = (255 << 24) | (col.b << 16) | (col.g << 8) | col.r;
+
+                        const mask = s.borderMask;
+                        const len = mask.length;
+                        for (let i = 0; i < len; i++) {
+                            if (mask[i]) {
+                                this.bImg32[i] = col32;
+                            }
+                        }
+                        this.bCtx.putImageData(this.bImg, 0, 0);
+                        ctx.drawImage(this.borderC, 0, 0);
                     }
                 });
             }
@@ -730,7 +926,6 @@
                 if (!this.uiCtx) return;
                 const ctx = this.uiCtx; ctx.clearRect(0, 0, this.width, this.height);
 
-                // 拖曳物體的對準輔助線 (針對圖片中心)
                 if (state.view.isDragging && state.view.dragType === 'object') {
                     const cx = this.width / 2, cy = this.height / 2;
                     ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2 / state.view.scale; ctx.setLineDash([5, 5]);
@@ -748,10 +943,18 @@
 
                 state.data.objects.forEach(obj => {
                     const isS = obj.id === state.view.activeObjId && state.view.activeTab === 'text';
-                    ctx.save(); ctx.translate(obj.x, obj.y);
+                    ctx.save();
+                    ctx.translate(obj.x, obj.y);
+                    if (obj.rotation) ctx.rotate(obj.rotation);
+
                     if (obj.type === 'text') {
                         ctx.font = `bold ${obj.fontSize}px sans-serif`; ctx.textBaseline = 'top'; const m = ctx.measureText(obj.text);
-                        if (obj.bgColor) { ctx.fillStyle = obj.bgColor; ctx.roundRect(-8, -8, m.width + 16, obj.fontSize + 12, 8); ctx.fill(); }
+                        if (obj.bgColor) {
+                            ctx.beginPath();
+                            ctx.fillStyle = obj.bgColor;
+                            ctx.roundRect(-8, -8, m.width + 16, obj.fontSize + 12, 8);
+                            ctx.fill();
+                        }
                         ctx.fillStyle = obj.color; ctx.fillText(obj.text, 0, 0);
                         if (isS) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.strokeRect(-4, -4, m.width + 8, obj.fontSize + 8); }
                     } else {
@@ -791,6 +994,10 @@
                 this.layers = new LayerManager();
                 this.flags = { bg: false, mask: false, ui: false };
                 this.els = this.cacheDOM();
+                this.pointers = new Map();
+                this.adjustTimeout = null;
+                this.adjustInterval = null;
+                this.cachedRect = null;
                 this.initWorker(); this.initListeners(); this.loop();
             }
             initWorker() {
@@ -801,17 +1008,40 @@
                     if (sel) {
                         sel.mask = e.data.mask;
                         sel.borderMask = e.data.borderMask;
-                        sel.detectedColor = e.data.detectedColor;
+                        if (e.data.detectedColor) sel.detectedColor = e.data.detectedColor;
                     }
                     this.flags.mask = true; this.updateUI();
                     document.getElementById('processing-bar')?.classList.add('hidden');
                 };
             }
             cacheDOM() {
-                const ids = ['contrast', 'bg-sat', 'bg-dim', 'bg-blur', 'tool-hand', 'tool-lasso', 'tool-eraser', 'brush-size', 'text-input', 'text-size', 'text-bg-toggle', 'color-palette', 'color-list', 'file-upload', 'download-btn', 'canvas-container', 'canvas-transform-root', 'panel-route', 'panel-text', 'tab-route', 'tab-text', 'undo-btn', 'redo-btn', 'delete-item-btn', 'crop-btn', 'crop-frame', 'crop-bg-color', 'guide-v', 'guide-h', 'crop-mask-container', 'crop-inner-backdrop', 'layer-ui'];
+                const ids = ['contrast', 'bg-sat', 'bg-dim', 'bg-blur', 'tool-hand', 'tool-lasso', 'tool-eraser', 'brush-size', 'text-input', 'text-size', 'text-rotation', 'color-list', 'file-upload', 'download-btn', 'canvas-container', 'canvas-transform-root', 'panel-route', 'panel-text', 'tab-route', 'tab-text', 'undo-btn', 'redo-btn', 'delete-item-btn', 'crop-btn', 'crop-frame', 'crop-bg-color', 'guide-v', 'guide-h', 'crop-mask-container', 'crop-inner-backdrop', 'layer-ui'];
                 const els = {}; ids.forEach(id => els[id] = document.getElementById(id)); return els;
             }
+            startAdjust(id, delta) {
+                this.adjSlider(id, delta);
+                this.adjustTimeout = setTimeout(() => {
+                    this.adjustInterval = setInterval(() => {
+                        this.adjSlider(id, delta);
+                    }, 50);
+                }, 400);
+            }
+            stopAdjust() {
+                clearTimeout(this.adjustTimeout);
+                clearInterval(this.adjustInterval);
+            }
             initListeners() {
+                document.addEventListener('pointerdown', e => {
+                    const btn = e.target.closest('.slider-btn');
+                    if (btn && btn.dataset.target) {
+                        e.preventDefault();
+                        btn.setPointerCapture(e.pointerId);
+                        this.startAdjust(btn.dataset.target, parseFloat(btn.dataset.delta));
+                    }
+                });
+                window.addEventListener('pointerup', () => this.stopAdjust());
+                window.addEventListener('pointercancel', () => this.stopAdjust());
+
                 this.els['file-upload']?.addEventListener('change', e => this.loadFile(e.target.files[0]));
                 this.els['download-btn']?.addEventListener('click', () => this.export());
                 this.els['contrast']?.addEventListener('input', e => { this.state.data.filters.contrast = parseInt(e.target.value); const v = document.getElementById('contrast-val'); if (v) v.innerText = e.target.value + '%'; this.flags.bg = this.flags.mask = true; });
@@ -834,15 +1064,16 @@
                 this.els['delete-item-btn']?.addEventListener('click', () => { if (this.state.view.activeObjId) { this.state.data.objects = this.state.data.objects.filter(o => o.id !== this.state.view.activeObjId); this.state.view.activeObjId = null; this.flags.ui = true; this.updateUI(); this.state.pushHistory(); } });
 
                 this.els['text-size']?.addEventListener('input', e => { const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId); if (o) { o.fontSize = parseInt(e.target.value); this.flags.ui = true; } });
-                this.els['text-bg-toggle']?.addEventListener('change', e => { const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId); if (o) { o.bgColor = e.target.checked ? 'rgba(0,0,0,0.6)' : null; this.flags.ui = true; this.updateUI(); this.state.pushHistory(); } });
-
-                COLORS_LIST.forEach(c => { const b = document.createElement('button'); b.className = 'color-btn w-6 h-6 rounded-full border border-gray-200 shadow-sm transition-transform'; b.style.backgroundColor = c; b.onclick = () => { const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId); if (o) { o.color = c; this.flags.ui = true; this.updateUI(); this.state.pushHistory(); } }; this.els['color-palette']?.appendChild(b); });
+                this.els['text-size']?.addEventListener('change', e => { this.state.pushHistory(); });
+                this.els['text-rotation']?.addEventListener('input', e => { const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId); if (o) { o.rotation = parseInt(e.target.value) * Math.PI / 180; this.flags.ui = true; } });
+                this.els['text-rotation']?.addEventListener('change', e => { this.state.pushHistory(); });
 
                 const cc = this.els['canvas-container'];
                 if (cc) {
                     cc.addEventListener('pointerdown', e => { this.pointerDown(e); });
                     window.addEventListener('pointermove', e => { this.pointerMove(e); });
                     window.addEventListener('pointerup', e => { this.pointerUp(e); });
+                    cc.addEventListener('pointercancel', e => { this.pointerUp(e); });
                     cc.addEventListener('wheel', e => { e.preventDefault(); this.state.view.scale = Math.max(0.1, Math.min(5, this.state.view.scale * (e.deltaY > 0 ? 0.9 : 1.1))); this.updateTransform(); }, { passive: false });
                 }
                 this.els['undo-btn']?.addEventListener('click', () => this.state.undo());
@@ -853,7 +1084,7 @@
             getCoords(e) {
                 const uiLayer = document.getElementById('layer-ui');
                 if (!uiLayer) return { x: 0, y: 0, screenX: e.clientX, screenY: e.clientY };
-                const r = uiLayer.getBoundingClientRect();
+                const r = this.cachedRect || uiLayer.getBoundingClientRect();
                 return { x: (e.clientX - r.left) * (this.layers.width / r.width), y: (e.clientY - r.top) * (this.layers.height / r.height), screenX: e.clientX, screenY: e.clientY };
             }
             loadFile(file) {
@@ -903,19 +1134,67 @@
                 if (!container) return;
                 const rect = container.getBoundingClientRect();
                 const p = this.getCoords({ clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
-                this.state.data.objects.push({ id: this.state.data.nextObjId++, type, x: p.x, y: p.y, text: text || (document.getElementById('text-input')?.value || 'Text'), color: color || '#FFFFFF', fontSize: type === 'tag' ? 60 : 40, bgColor: null });
+                this.state.data.objects.push({ id: this.state.data.nextObjId++, type, x: p.x, y: p.y, text: text || (document.getElementById('text-input')?.value || 'Text'), color: color || '#FFFFFF', fontSize: type === 'tag' ? 60 : 40, bgColor: null, rotation: 0 });
                 const ti = document.getElementById('text-input'); if (ti) ti.value = '';
                 this.state.view.activeObjId = this.state.data.nextObjId - 1;
                 this.state.pushHistory();
                 this.flags.ui = true;
-                this.layers.drawUi(this.state);
+                this.updateUI();
             }
             pointerDown(e) {
-                if (!this.img) return; const p = this.getCoords(e); this.state.view.isDragging = true;
+                if (!this.img) return;
+                this.cachedRect = document.getElementById('layer-ui')?.getBoundingClientRect();
+                this.pointers.set(e.pointerId, e);
+                const p = this.getCoords(e);
+                this.state.view.isDragging = true;
+
+                if (this.pointers.size === 2) {
+                    const pts = Array.from(this.pointers.values());
+                    const p1 = this.getCoords(pts[0]);
+                    const p2 = this.getCoords(pts[1]);
+                    this.initialPinchDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                    this.initialPinchAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+                    if (this.state.view.activeObjId && this.state.view.activeTab === 'text') {
+                        this.state.view.dragType = 'pinch-obj';
+                        const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId);
+                        this.initialObjFontSize = o.fontSize;
+                        this.initialObjRotation = o.rotation || 0;
+                    } else {
+                        this.state.view.dragType = 'pinch-canvas';
+                        this.initialCanvasScale = this.state.view.scale;
+                    }
+                    this.state.view.tempPath = [];
+                    return;
+                }
+
                 if (this.state.view.activeTab === 'text') {
-                    const hit = this.state.data.objects.slice().reverse().find(o => Math.hypot(o.x - p.x, o.y - p.y) < 50);
-                    if (hit) { this.state.view.activeObjId = hit.id; this.state.view.dragType = 'object'; this.dragStart = { x: p.x, y: p.y, ox: hit.x, oy: hit.y }; }
-                    else { this.state.view.activeObjId = null; this.state.view.dragType = 'pan'; this.dragStart = { cx: e.clientX, cy: e.clientY, vx: this.state.view.x, vy: this.state.view.y }; }
+                    const hit = this.state.data.objects.slice().reverse().find(o => {
+                        let rx = p.x - o.x, ry = p.y - o.y;
+                        if (o.rotation) {
+                            const cos = Math.cos(-o.rotation);
+                            const sin = Math.sin(-o.rotation);
+                            const nx = rx * cos - ry * sin;
+                            const ny = rx * sin + ry * cos;
+                            rx = nx; ry = ny;
+                        }
+                        if (o.type === 'text') {
+                            if (this.layers.uiCtx) this.layers.uiCtx.font = `bold ${o.fontSize}px sans-serif`;
+                            const w = this.layers.uiCtx ? this.layers.uiCtx.measureText(o.text).width : o.fontSize * o.text.length;
+                            return rx >= -20 && rx <= w + 20 && ry >= -20 && ry <= o.fontSize + 20;
+                        } else {
+                            const s = o.fontSize / 60;
+                            return rx >= -40 * s - 20 && rx <= 40 * s + 20 && ry >= -40 * s - 20 && ry <= 40 * s + 20;
+                        }
+                    });
+
+                    if (hit) {
+                        this.state.view.activeObjId = hit.id; this.state.view.dragType = 'object'; this.dragStart = { x: p.x, y: p.y, ox: hit.x, oy: hit.y };
+                    } else {
+                        this.state.view.activeObjId = null;
+                        this.state.view.dragType = 'pan';
+                        this.dragStart = { cx: e.clientX, cy: e.clientY, vx: this.state.view.x, vy: this.state.view.y };
+                    }
                 } else {
                     if (this.state.view.tool === 'hand') { this.state.view.dragType = 'pan'; this.dragStart = { cx: e.clientX, cy: e.clientY, vx: this.state.view.x, vy: this.state.view.y }; }
                     else { this.state.view.dragType = this.state.view.tool; this.state.view.tempPath = [p]; this.layers.updateLoupe(p, this.state.view.scale); }
@@ -923,7 +1202,36 @@
                 this.updateUI(); this.flags.ui = true;
             }
             pointerMove(e) {
-                if (!this.state.view.isDragging) return; const p = this.getCoords(e);
+                if (!this.state.view.isDragging) return;
+                this.pointers.set(e.pointerId, e);
+
+                if (this.pointers.size === 2) {
+                    const pts = Array.from(this.pointers.values());
+                    const p1 = this.getCoords(pts[0]);
+                    const p2 = this.getCoords(pts[1]);
+                    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                    const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+                    if (this.state.view.dragType === 'pinch-obj') {
+                        const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId);
+                        if (o) {
+                            const scaleFactor = dist / this.initialPinchDist;
+                            o.fontSize = Math.max(10, Math.min(300, this.initialObjFontSize * scaleFactor));
+                            o.rotation = this.initialObjRotation + (angle - this.initialPinchAngle);
+                            this.flags.ui = true;
+                            this.updateUI();
+                        }
+                    } else if (this.state.view.dragType === 'pinch-canvas') {
+                        const scaleFactor = dist / this.initialPinchDist;
+                        this.state.view.scale = Math.max(0.1, Math.min(5, this.initialCanvasScale * scaleFactor));
+                        this.updateTransform();
+                    }
+                    return;
+                }
+
+                if (this.state.view.dragType && this.state.view.dragType.startsWith('pinch')) return;
+
+                const p = this.getCoords(e);
                 if (this.state.view.dragType === 'pan') {
                     let nx = this.dragStart.vx + (e.clientX - this.dragStart.cx), ny = this.dragStart.vy + (e.clientY - this.dragStart.cy);
                     const snapD = 20; let snapX = false, snapY = false;
@@ -943,7 +1251,14 @@
                         if (Math.abs(ny - cy) < snapD) { ny = cy; this.state.view.snapObjY = true; }
                         o.x = nx; o.y = ny; this.flags.ui = true;
                     }
-                } else { this.state.view.tempPath.push(p); this.flags.ui = true; this.layers.updateLoupe(p, this.state.view.scale); }
+                } else if (this.state.view.dragType === 'lasso' || this.state.view.dragType === 'eraser') {
+                    const lastP = this.state.view.tempPath[this.state.view.tempPath.length - 1];
+                    if (!lastP || (p.x - lastP.x) ** 2 + (p.y - lastP.y) ** 2 > (2 / this.state.view.scale) ** 2) {
+                        this.state.view.tempPath.push(p);
+                    }
+                    this.flags.ui = true;
+                    this.layers.updateLoupe(p, this.state.view.scale);
+                }
             }
             isPointInPoly(p, poly) {
                 let inside = false;
@@ -954,8 +1269,24 @@
                 }
                 return inside;
             }
-            pointerUp() {
-                if (!this.state.view.isDragging) return; this.state.view.isDragging = false;
+            pointerUp(e) {
+                this.pointers.delete(e.pointerId);
+
+                if (this.pointers.size === 0) {
+                    this.cachedRect = null;
+                }
+
+                if (this.state.view.dragType && this.state.view.dragType.startsWith('pinch')) {
+                    if (this.pointers.size === 0) {
+                        if (this.state.view.dragType === 'pinch-obj') this.state.pushHistory();
+                        this.state.view.isDragging = false;
+                        this.state.view.dragType = null;
+                    }
+                    return;
+                }
+
+                if (!this.state.view.isDragging) return;
+
                 this.layers.hideLoupe();
                 if (this.els['guide-v']) this.els['guide-v'].classList.add('hidden');
                 if (this.els['guide-h']) this.els['guide-h'].classList.add('hidden');
@@ -968,52 +1299,95 @@
 
                     for (const s of this.state.data.selections) {
                         if (!s.mask) continue;
-                        // 1. 檢查圈選路徑是否直接碰到現有的岩點範圍 (加強容錯)
+
+                        let isOverlap = false;
                         for (let i = 0; i < path.length; i += 2) {
                             const px = Math.floor(path[i].x), py = Math.floor(path[i].y);
                             for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
                                 const nx = px + dx, ny = py + dy;
-                                if (nx >= 0 && nx < w && ny >= 0 && ny < h && s.mask[ny * w + nx]) { mId = s.id; break; }
+                                if (nx >= 0 && nx < w && ny >= 0 && ny < h && s.mask[ny * w + nx]) { isOverlap = true; break; }
                             }
-                            if (mId) break;
+                            if (isOverlap) break;
                         }
-                        if (mId) break;
+                        if (isOverlap) { mId = s.id; break; }
 
-                        // 2. 檢查現有的岩點是不是被「整個包在這次新畫的圈選範圍內」
-                        let matched = false;
-                        for (let y = Math.floor(minY); y <= Math.ceil(maxY); y += 4) {
-                            for (let x = Math.floor(minX); x <= Math.ceil(maxX); x += 4) {
+                        let samplePoint = null;
+                        for (let y = Math.floor(minY); y <= Math.ceil(maxY); y += 5) {
+                            for (let x = Math.floor(minX); x <= Math.ceil(maxX); x += 5) {
                                 if (y >= 0 && y < h && x >= 0 && x < w && s.mask[y * w + x]) {
-                                    if (this.isPointInPoly({ x, y }, path)) {
-                                        mId = s.id; matched = true; break;
-                                    }
+                                    samplePoint = { x, y };
+                                    break;
                                 }
                             }
-                            if (matched) break;
+                            if (samplePoint) break;
+                        }
+                        if (samplePoint && this.isPointInPoly(samplePoint, path)) {
+                            mId = s.id;
                         }
                         if (mId) break;
                     }
 
                     let sel;
-                    if (mId) { sel = this.state.data.selections.find(s => s.id === mId); sel.seeds.push(path); sel.mask = sel.borderMask = null; this.state.view.activeSelId = mId; }
-                    else { const id = this.state.data.nextSelId++; sel = { id, seeds: [path], params: { tolerance: 60, expand: 0, fillHoles: true, border: true, borderThickness: 5, borderColor: '#EC4899' }, manualEdits: [], mask: null, borderMask: null, detectedColor: '#EC4899' }; this.state.data.selections.push(sel); this.state.view.activeSelId = id; }
+                    if (mId) {
+                        sel = this.state.data.selections.find(s => s.id === mId);
+                        sel.actions.push({ type: 'lasso', path });
+                        sel.mask = sel.borderMask = null;
+                        this.state.view.activeSelId = mId;
+                    } else {
+                        let prevParams = { tolerance: 60, expand: 0, fillHoles: true, border: true, borderThickness: 5, borderColor: '#EC4899' };
+                        const sourceSel = this.state.data.selections.find(s => s.id === this.state.view.activeSelId) || this.state.data.selections[this.state.data.selections.length - 1];
+                        if (sourceSel) {
+                            prevParams.border = sourceSel.params.border;
+                            prevParams.borderThickness = sourceSel.params.borderThickness;
+                            prevParams.borderColor = sourceSel.params.borderColor;
+                        }
+
+                        const id = this.state.data.nextSelId++;
+                        sel = {
+                            id,
+                            actions: [{ type: 'lasso', path }],
+                            params: prevParams,
+                            mask: null, borderMask: null, detectedColor: null
+                        };
+                        this.state.data.selections.push(sel);
+                        this.state.view.activeSelId = id;
+                    }
                     this.requestWorker(sel); this.state.pushHistory(); this.updateUI();
                 } else if (type === 'eraser' && path.length > 0) {
-                    let sel = this.state.data.selections.find(s => s.id === this.state.view.activeSelId) || this.state.data.selections[this.state.data.selections.length - 1];
-                    if (sel) { sel.manualEdits.push({ type: 'sub', points: path, size: this.state.view.brushSize }); sel.mask = sel.borderMask = null; this.requestWorker(sel); this.state.pushHistory(); }
+                    if (this.state.view.activeSelId) {
+                        let sel = this.state.data.selections.find(s => s.id === this.state.view.activeSelId);
+                        if (sel) {
+                            sel.actions.push({ type: 'erase', path, size: this.state.view.brushSize });
+                            sel.mask = sel.borderMask = null;
+                            this.requestWorker(sel);
+                            this.state.pushHistory();
+                        }
+                    }
                 } else if (type === 'object') {
                     this.state.pushHistory();
+                } else if (type === 'pan') {
+                    // Empty path for pan
                 }
 
                 this.state.view.tempPath = [];
                 this.state.view.dragType = null;
                 this.state.view.snapObjX = false;
                 this.state.view.snapObjY = false;
+                this.state.view.isDragging = false;
                 this.flags.ui = true;
             }
             adjSlider(id, v) {
                 const el = document.getElementById(id);
                 if (el) { el.value = parseFloat(el.value) + v; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }
+            }
+            updateObjParam(k, v) {
+                const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId);
+                if (o) {
+                    o[k] = v;
+                    this.flags.ui = true;
+                    this.updateUI();
+                    this.state.pushHistory();
+                }
             }
             requestWorker(sel) { const pb = document.getElementById('processing-bar'); if (pb) pb.classList.remove('hidden'); this.worker.postMessage({ type: 'CALC_MASK', sel, w: this.layers.width, h: this.layers.height, bgData: this.layers.bgBuffer }); }
             updateTransform() { const r = document.getElementById('canvas-transform-root'); if (r) r.style.transform = `translate(${this.state.view.x}px, ${this.state.view.y}px) scale(${this.state.view.scale})`; }
@@ -1028,17 +1402,29 @@
                         const div = document.createElement('div');
                         div.className = `list-item bg-white border ${active ? 'border-blue-500 shadow-md ring-1 ring-blue-100' : 'border-gray-200'} rounded-lg overflow-hidden mb-2`;
                         div.onclick = (e) => { if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') { this.state.view.activeSelId = (active ? null : sel.id); this.updateUI(); } };
-                        const cols = COLORS_LIST.map(c => { const isS = (sel.params.borderColor || '#EC4899').toLowerCase() === c.toLowerCase(); return `<button class="w-6 h-6 rounded-full border border-gray-200 shadow-sm ${isS ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''}" style="background-color: ${c}" onclick="app.updateSelParam(${sel.id}, 'borderColor', '${c}')"></button>`; }).join('');
+                        const cols = SHARED_COLORS.map(c => { const isS = (sel.params.borderColor || '#EC4899').toLowerCase() === c.toLowerCase(); return `<button class="w-6 h-6 rounded-full border border-gray-200 shadow-sm ${isS ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''}" style="background-color: ${c}" onclick="app.updateSelParam(${sel.id}, 'borderColor', '${c}')"></button>`; }).join('');
+
                         const badgeColor = sel.detectedColor || '#EC4899';
+
                         const expanded = active ? `
                             <div class="p-3 bg-gray-50 border-t border-gray-100 space-y-4">
-                                <div><div class="flex justify-between mb-1 text-[10px] font-bold text-gray-500 uppercase">容許度 <span class="text-blue-600">${sel.params.tolerance}</span></div><div class="slider-group flex items-center"><button class="slider-btn text-gray-500 px-1" onclick="app.adjSlider('sel-tol-${sel.id}', -5)">-</button><input type="range" id="sel-tol-${sel.id}" min="0" max="127" value="${sel.params.tolerance}" onchange="app.updateSelParam(${sel.id}, 'tolerance', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-blue-500 mx-1"><button class="slider-btn text-gray-500 px-1" onclick="app.adjSlider('sel-tol-${sel.id}', 5)">+</button></div></div>
-                                <div><div class="flex justify-between mb-1 text-[10px] font-bold text-gray-500 uppercase">擴展 <span class="text-purple-600">${sel.params.expand}px</span></div><div class="slider-group flex items-center"><button class="slider-btn text-gray-500 px-1" onclick="app.adjSlider('sel-exp-${sel.id}', -1)">-</button><input type="range" id="sel-exp-${sel.id}" min="0" max="20" value="${sel.params.expand}" onchange="app.updateSelParam(${sel.id}, 'expand', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-purple-500 mx-1"><button class="slider-btn text-gray-500 px-1" onclick="app.adjSlider('sel-exp-${sel.id}', 1)">+</button></div></div>
+                                <div><div class="flex justify-between mb-1 text-[10px] font-bold text-gray-500 uppercase">容許度 <span class="text-blue-600">${sel.params.tolerance}</span></div><div class="slider-group flex items-center"><button class="slider-btn text-gray-500 px-1" data-target="sel-tol-${sel.id}" data-delta="-1">-</button><input type="range" id="sel-tol-${sel.id}" min="0" max="127" value="${sel.params.tolerance}" onchange="app.updateSelParam(${sel.id}, 'tolerance', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-blue-500 mx-1"><button class="slider-btn text-gray-500 px-1" data-target="sel-tol-${sel.id}" data-delta="1">+</button></div></div>
+                                <div><div class="flex justify-between mb-1 text-[10px] font-bold text-gray-500 uppercase">擴展 <span class="text-purple-600">${sel.params.expand}px</span></div><div class="slider-group flex items-center"><button class="slider-btn text-gray-500 px-1" data-target="sel-exp-${sel.id}" data-delta="-1">-</button><input type="range" id="sel-exp-${sel.id}" min="0" max="20" value="${sel.params.expand}" onchange="app.updateSelParam(${sel.id}, 'expand', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-purple-500 mx-1"><button class="slider-btn text-gray-500 px-1" data-target="sel-exp-${sel.id}" data-delta="1">+</button></div></div>
                                 <div class="flex items-center justify-between pt-1">
                                     <label class="flex items-center text-xs text-gray-700 font-bold"><input type="checkbox" onchange="app.updateSelParam(${sel.id}, 'fillHoles', this.checked)" ${sel.params.fillHoles ? 'checked' : ''} class="mr-2 w-4 h-4">自動補洞</label>
                                     <label class="flex items-center text-xs text-gray-700 font-bold"><input type="checkbox" onchange="app.updateSelParam(${sel.id}, 'border', this.checked)" ${sel.params.border ? 'checked' : ''} class="mr-2 w-4 h-4">顯示框線</label>
                                 </div>
-                                ${sel.params.border ? `<div class="mt-3 pt-3 border-t border-gray-100"><div class="flex items-center justify-between mb-2 text-[10px] font-bold text-gray-500 uppercase">框線粗細<div class="slider-group flex items-center"><button class="slider-btn text-gray-500 px-1" onclick="app.adjSlider('sel-bt-inp-${sel.id}', -1)">-</button><span class="text-xs w-6 text-center font-mono font-bold">${sel.params.borderThickness}</span><button class="slider-btn text-gray-500 px-1" onclick="app.adjSlider('sel-bt-inp-${sel.id}', 1)">+</button></div><input type="range" id="sel-bt-inp-${sel.id}" min="1" max="20" value="${sel.params.borderThickness}" class="hidden" onchange="app.updateSelParam(${sel.id}, 'borderThickness', this.value)"></div><div class="flex flex-wrap gap-2 pt-1">${cols}</div></div>` : ''}
+                                ${sel.params.border ? `<div class="mt-3 pt-3 border-t border-gray-100">
+                                    <div class="flex items-center justify-between mb-2 text-[10px] font-bold text-gray-500 uppercase">
+                                        <span>框線粗細 <span class="text-blue-600">${sel.params.borderThickness}px</span></span>
+                                        <div class="slider-group flex items-center w-24">
+                                            <button class="slider-btn text-gray-500 px-1" data-target="sel-bt-inp-${sel.id}" data-delta="-1">-</button>
+                                            <input type="range" id="sel-bt-inp-${sel.id}" min="1" max="20" value="${sel.params.borderThickness}" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-blue-500 mx-1" onchange="app.updateSelParam(${sel.id}, 'borderThickness', this.value)">
+                                            <button class="slider-btn text-gray-500 px-1" data-target="sel-bt-inp-${sel.id}" data-delta="1">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2 pt-1">${cols}</div>
+                                </div>` : ''}
                             </div>` : '';
                         div.innerHTML = `<div class="flex items-center p-3 cursor-pointer hover:bg-gray-50 transition-colors"><div class="w-6 h-6 rounded flex items-center justify-center font-bold text-[10px] shadow-sm border border-black/10" style="background-color: ${badgeColor}; color: ${badgeColor === '#FFFFFF' ? '#000' : '#FFF'};">${i + 1}</div><div class="flex-1 ml-3 text-sm font-bold text-gray-700">岩點 #${i + 1}</div><button onclick="app.removeSel(${sel.id})" class="text-gray-400 hover:text-red-500 p-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div>${expanded}`;
                         list.appendChild(div);
@@ -1050,13 +1436,23 @@
                     if (actO && this.state.view.activeTab === 'text') {
                         tc.classList.remove('opacity-50', 'pointer-events-none');
                         const ts = document.getElementById('text-size'); if (ts) ts.value = actO.fontSize;
-                        const tb = document.getElementById('text-bg-toggle');
-                        if (tb) {
-                            tb.checked = !!actO.bgColor;
-                            document.getElementById('text-bg-track')?.classList.toggle('bg-blue-500', tb.checked);
-                            document.getElementById('text-bg-dot')?.classList.toggle('translate-x-4', tb.checked);
+                        const tr = document.getElementById('text-rotation'); if (tr) tr.value = Math.round((actO.rotation || 0) * 180 / Math.PI);
+
+                        const tcp = document.getElementById('text-color-palette');
+                        if (tcp) {
+                            tcp.innerHTML = SHARED_COLORS.map(c => `<button class="w-6 h-6 rounded-full border border-gray-200 shadow-sm ${actO.color === c ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''}" style="background-color: ${c}" onclick="app.updateObjParam('color', '${c}')"></button>`).join('');
                         }
-                    } else tc.classList.add('opacity-50', 'pointer-events-none');
+
+                        const tbgp = document.getElementById('text-bg-color-palette');
+                        if (tbgp) {
+                            const noneBtn = `<button class="w-6 h-6 rounded-full border border-gray-200 shadow-sm flex items-center justify-center ${!actO.bgColor ? 'ring-2 ring-offset-1 ring-red-500 scale-110' : ''}" style="background-color: white" onclick="app.updateObjParam('bgColor', null)"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>`;
+                            const colorBtns = SHARED_COLORS.map(c => `<button class="w-6 h-6 rounded-full border border-gray-200 shadow-sm ${actO.bgColor === c ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''}" style="background-color: ${c}" onclick="app.updateObjParam('bgColor', '${c}')"></button>`).join('');
+                            tbgp.innerHTML = colorBtns + noneBtn;
+                        }
+
+                    } else {
+                        tc.classList.add('opacity-50', 'pointer-events-none');
+                    }
                 }
             }
             updateSelParam(id, k, v) { const s = this.state.data.selections.find(x => x.id === id); if (s) { s.params[k] = (k === 'fillHoles' || k === 'border' || k === 'borderColor') ? v : parseInt(v); if (k === 'borderColor') { this.flags.mask = true; this.updateUI(); } else { s.mask = s.borderMask = null; this.requestWorker(s); } this.state.pushHistory(); if (k === 'border') this.updateUI(); } }
@@ -1064,28 +1460,76 @@
                 let idx = (this.state.data.crop.index + 1) % CROPS.length; this.state.data.crop.index = idx;
                 const crop = CROPS[idx];
                 const cl = document.getElementById('crop-label'); if (cl) { cl.innerText = crop.label; cl.classList.toggle('hidden', idx === 0); }
-                const cf = document.getElementById('crop-frame'), cc = document.getElementById('crop-mask-container'), cb = document.getElementById('crop-inner-backdrop'), cbg = document.getElementById('crop-canvas-bg');
-                if (cf && cc && cb) {
-                    if (idx === 0) { cc.classList.add('hidden'); cf.style.display = 'none'; cb.style.display = 'none'; if (cbg) cbg.style.backgroundColor = 'transparent'; document.getElementById('crop-bg-color')?.classList.add('hidden'); }
-                    else {
-                        cc.classList.remove('hidden'); cf.style.display = 'block'; cb.style.display = 'block';
-                        cb.style.width = this.layers.width + 'px'; cb.style.height = this.layers.height + 'px';
-                        cb.style.backgroundColor = this.state.data.crop.bgWhite ? 'white' : 'black';
-                        if (cbg) cbg.style.backgroundColor = 'rgba(0,0,0,0.6)';
+                const cf = document.getElementById('crop-frame'), cc = document.getElementById('crop-mask-container');
+                const cbgc = document.getElementById('crop-bg-container'), cbgl = document.getElementById('crop-bg-layer');
+
+                if (cf && cc && cbgc && cbgl) {
+                    if (idx === 0) {
+                        cc.classList.add('hidden'); cf.style.display = 'none';
+                        cbgc.classList.add('hidden'); document.getElementById('crop-bg-color')?.classList.add('hidden');
+                    } else {
+                        cc.classList.remove('hidden'); cf.style.display = 'block';
+                        cbgc.classList.remove('hidden');
+                        cbgl.style.backgroundColor = this.state.data.crop.bgWhite ? 'white' : 'black';
                         document.getElementById('crop-bg-color')?.classList.remove('hidden');
+
                         const r = document.getElementById('canvas-container').getBoundingClientRect(), aspect = crop.w / crop.h;
                         let w = r.width - 40, h = w / aspect; if (h > r.height - 40) { h = r.height - 40; w = h * aspect; }
                         cf.style.width = w + 'px'; cf.style.height = h + 'px';
+                        cbgl.style.width = w + 'px'; cbgl.style.height = h + 'px';
                     }
                 }
-                if (idx !== 0) { this.setTool('hand'); this.switchTab('route'); }
+                if (idx !== 0) {
+                    if (this.state.view.activeTab === 'route') {
+                        this.setTool('hand');
+                    }
+                }
             }
-            toggleCropBg() { this.state.data.crop.bgWhite = !this.state.data.crop.bgWhite; const b = document.getElementById('crop-inner-backdrop'); if (b) b.style.backgroundColor = this.state.data.crop.bgWhite ? 'white' : 'black'; }
+            toggleCropBg() {
+                this.state.data.crop.bgWhite = !this.state.data.crop.bgWhite;
+                const cbgl = document.getElementById('crop-bg-layer');
+                if (cbgl) cbgl.style.backgroundColor = this.state.data.crop.bgWhite ? 'white' : 'black';
+            }
             removeSel(id) { this.state.data.selections = this.state.data.selections.filter(s => s.id !== id); if (this.state.view.activeSelId === id) this.state.view.activeSelId = null; this.flags.mask = true; this.updateUI(); this.state.pushHistory(); }
             export() {
-                const outC = document.createElement('canvas'); outC.width = this.layers.width; outC.height = this.layers.height;
-                const ctx = outC.getContext('2d'); ctx.drawImage(document.getElementById('layer-bg'), 0, 0); ctx.drawImage(document.getElementById('layer-mask'), 0, 0); ctx.drawImage(document.getElementById('layer-ui'), 0, 0);
-                const a = document.createElement('a'); a.download = 'holdfocus_export.png'; a.href = outC.toDataURL(); a.click();
+                const crop = CROPS[this.state.data.crop.index];
+                let outW = this.layers.width;
+                let outH = this.layers.height;
+                let srcRect = { x: 0, y: 0, w: outW, h: outH };
+
+                if (crop.w > 0 && crop.h > 0) {
+                    const r = document.getElementById('canvas-container').getBoundingClientRect();
+                    const aspect = crop.w / crop.h;
+                    let cw = r.width - 40, ch = cw / aspect;
+                    if (ch > r.height - 40) { ch = r.height - 40; cw = ch * aspect; }
+
+                    outW = Math.round(cw / this.state.view.scale);
+                    outH = Math.round(ch / this.state.view.scale);
+
+                    srcRect.x = Math.round((this.layers.width / 2) - (this.state.view.x / this.state.view.scale) - (outW / 2));
+                    srcRect.y = Math.round((this.layers.height / 2) - (this.state.view.y / this.state.view.scale) - (outH / 2));
+                    srcRect.w = outW;
+                    srcRect.h = outH;
+                }
+
+                const outC = document.createElement('canvas');
+                outC.width = outW;
+                outC.height = outH;
+                const ctx = outC.getContext('2d');
+
+                if (crop.w > 0 && crop.h > 0) {
+                    ctx.fillStyle = this.state.data.crop.bgWhite ? 'white' : 'black';
+                    ctx.fillRect(0, 0, outW, outH);
+                }
+
+                ctx.save();
+                ctx.translate(-srcRect.x, -srcRect.y);
+                ctx.drawImage(document.getElementById('layer-bg'), 0, 0);
+                ctx.drawImage(document.getElementById('layer-mask'), 0, 0);
+                ctx.drawImage(document.getElementById('layer-ui'), 0, 0);
+                ctx.restore();
+
+                const a = document.createElement('a'); a.download = 'holdfocus_export.png'; a.href = outC.toDataURL('image/png', 1.0); a.click();
             }
         }
         document.addEventListener('DOMContentLoaded', () => { window.app = new App(); });
