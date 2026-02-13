@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Climbing Toolbox - 指力訓練</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- 拖曳套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <!-- 共用設定 -->
+    <script src="config.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* 視圖切換 */
+        .view-section {
+            display: none;
+            height: 100%;
+            overflow-y: auto;
+            padding-bottom: 80px;
+        }
+
+        .view-section.active {
+            display: block;
+        }
+
+        /* 模態視窗過渡 */
+        .modal {
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(100%);
+        }
+
+        .modal.open {
+            transform: translateY(0);
+        }
+
+        /* 隱藏捲軸 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* 積木樣式 */
+        .block-item {
+            touch-action: none;
+            transition: transform 0.1s;
+        }
+
+        .block-item:active {
+            transform: scale(0.98);
+        }
+
+        .block-loop {
+            border-left: 4px solid #8b5cf6;
+            background: #f5f3ff;
+        }
+
+        .block-timer {
+            border-left: 4px solid #f59e0b;
+            background: white;
+        }
+
+        .block-reps {
+            border-left: 4px solid #3b82f6;
+            background: #eff6ff;
+        }
+
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #e5e7eb;
+            border: 1px dashed #9ca3af;
+        }
+
+        .sortable-drag {
+            opacity: 0.9;
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 巢狀縮排線條 */
+        .nested-container {
+            min-height: 50px;
+            margin-top: 0.5rem;
+            border-radius: 0.5rem;
+            background-color: rgba(0, 0, 0, 0.03);
+            border: 1px dashed #cbd5e1;
+        }
+
+        /* 屬性面板 */
+        #prop-sheet {
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900 h-[100dvh] w-full overflow-hidden flex flex-col">
+
+    <!-- 主要內容區 -->
+    <main id="app-container" class="flex-1 relative overflow-hidden w-full max-w-md mx-auto bg-white shadow-2xl">
+
+        <!-- 1. 日曆與紀錄 (Calendar) -->
+        <div id="view-calendar" class="view-section active">
+            <div class="p-6">
+                <h1 class="text-2xl font-extrabold mb-6">訓練紀錄</h1>
+                <div class="bg-gray-900 text-white rounded-2xl p-6 mb-8 shadow-lg">
+                    <div class="text-sm text-gray-400 mb-1">本週訓練</div>
+                    <div class="text-4xl font-mono font-bold mb-4">3 <span
+                            class="text-lg font-normal text-gray-500">次</span></div>
+                    <div class="flex gap-4 text-sm border-t border-gray-700 pt-4">
+                        <div>
+                            <div class="text-gray-400">總時長</div>
+                            <div class="font-bold">45m</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-400">最大負重</div>
+                            <div class="font-bold text-yellow-500">+20kg</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-2 mb-4 text-center text-sm text-gray-400">
+                    <div>M</div>
+                    <div>T</div>
+                    <div>W</div>
+                    <div>T</div>
+                    <div>F</div>
+                    <div>S</div>
+                    <div>S</div>
+                </div>
+                <div class="grid grid-cols-7 gap-2" id="calendar-grid"></div>
+            </div>
+        </div>
+
+        <!-- 2. 課表管理 (Routines) -->
+        <div id="view-routines" class="view-section">
+            <div
+                class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center">
+                <h1 class="text-2xl font-extrabold">我的課表</h1>
+                <button onclick="editor.open()"
+                    class="bg-gray-900 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="routine-list" class="p-4 space-y-3 pb-24">
+                <div class="text-center text-gray-400 mt-10">載入中...</div>
+            </div>
+        </div>
+
+        <!-- 3. 設定 (Settings) -->
+        <div id="view-settings" class="view-section">
+            <div class="p-6">
+                <h1 class="text-2xl font-extrabold mb-6">設定</h1>
+                <div class="space-y-6">
+                    <div class="bg-white border rounded-xl p-4 flex items-center gap-4">
+                        <div class="w-12 h-12 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden">
+                            <img id="avatar-img" class="w-full h-full object-cover hidden">
+                            <div id="avatar-placeholder"
+                                class="w-full h-full flex items-center justify-center text-gray-400">👤</div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div id="settings-email" class="font-bold truncate">未登入</div>
+                            <div class="text-xs text-gray-500">同步您的訓練數據</div>
+                        </div>
+                        <button id="auth-btn" class="text-sm text-blue-600 font-bold whitespace-nowrap">登入</button>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">裝置連線</h3>
+                        <div class="bg-white border rounded-xl overflow-hidden">
+                            <button class="w-full p-4 flex justify-between items-center hover:bg-gray-50 border-b">
+                                <span class="font-medium">連接藍芽吊秤</span>
+                                <span class="text-gray-400 text-sm">未連線</span>
+                            </button>
+                            <button class="w-full p-4 flex justify-between items-center hover:bg-gray-50">
+                                <span class="font-medium">感測器歸零</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 底部導覽列 -->
+    <nav
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 max-w-md mx-auto z-40 flex justify-around items-center">
+        <button onclick="router.go('calendar')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900 active"
+            data-target="view-calendar">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <span class="text-[10px] font-bold">紀錄</span>
+        </button>
+        <button onclick="router.go('routines')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            data-target="view-routines">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                </path>
+            </svg>
+            <span class="text-[10px] font-bold">課表</span>
+        </button>
+        <button onclick="router.go('settings')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            data-target="view-settings">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                </path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            <span class="text-[10px] font-bold">設定</span>
+        </button>
+    </nav>
+
+    <!-- 模態視窗: 編輯器 (Editor Modal) -->
+    <div id="modal-editor" class="modal fixed inset-0 z-50 bg-gray-100 flex flex-col">
+        <div class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0">
+            <button onclick="editor.close()" class="text-gray-500 font-bold px-2">取消</button>
+            <input type="text" id="editor-title"
+                class="text-center font-bold text-lg bg-transparent border-none focus:ring-0 w-48" placeholder="輸入課表名稱">
+            <button onclick="editor.save()" class="text-blue-600 font-bold px-2">儲存</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 pb-32" id="editor-canvas">
+            <!-- 積木將在此生成 -->
+            <div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>
+        </div>
+
+        <!-- 底部工具箱 -->
+        <div class="bg-white border-t p-4 shrink-0 shadow-xl z-10 pb-8">
+            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">拖曳新增</div>
+            <div id="editor-palette" class="flex gap-3 overflow-x-auto no-scrollbar">
+                <div class="palette-item shrink-0 w-20 h-16 bg-violet-50 border-2 border-violet-200 rounded-lg flex flex-col items-center justify-center cursor-grab"
+                    data-type="loop">
+                    <span class="text-xs font-bold text-violet-700">循環 Loop</span>
+                </div>
+                <div class="palette-item shrink-0 w-20 h-16 bg-orange-50 border-2 border-orange-200 rounded-lg flex flex-col items-center justify-center cursor-grab"
+                    data-type="timer">
+                    <span class="text-xs font-bold text-orange-700">計時 Timer</span>
+                </div>
+                <div class="palette-item shrink-0 w-20 h-16 bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-grab"
+                    data-type="reps">
+                    <span class="text-xs font-bold text-blue-700">計數 Reps</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 屬性編輯面板 (Property Sheet) -->
+        <div id="prop-sheet"
+            class="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl transform translate-y-full transition-transform duration-300 z-[60] p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">編輯積木</h3>
+                <button onclick="editor.closeProps()" class="p-2 bg-gray-100 rounded-full">✕</button>
+            </div>
+            <div id="prop-form" class="space-y-4">
+                <!-- JS 動態生成 -->
+            </div>
+            <div class="mt-6 flex gap-3">
+                <button onclick="editor.deleteCurrentBlock()"
+                    class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-100">刪除</button>
+                <button onclick="editor.saveProps()"
+                    class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態視窗: 全螢幕計時器 (Active Timer Modal) -->
+    <div id="modal-active-timer" class="modal fixed inset-0 z-[60] bg-gray-900 text-white flex flex-col">
+        <!-- 頂部資訊 -->
+        <div class="p-6 flex justify-between items-start shrink-0">
+            <div>
+                <h3 id="active-title" class="font-bold text-lg opacity-90">Routine Name</h3>
+                <div class="text-xs text-gray-400 font-mono mt-1" id="active-total-time">Total: 00:00</div>
+            </div>
+            <button onclick="timer.stop()" class="p-2 bg-white/10 rounded-full hover:bg-white/20">✕</button>
+        </div>
+
+        <!-- 主要顯示區 -->
+        <div class="flex-1 flex flex-col items-center justify-center relative">
+            <!-- 循環狀態 -->
+            <div id="active-loops"
+                class="absolute top-4 text-sm font-mono text-gray-400 bg-black/30 px-3 py-1 rounded-full">
+                Loop 1/3
+            </div>
+
+            <div class="text-[8rem] font-mono font-black leading-none tracking-tighter tabular-nums"
+                id="active-countdown">00</div>
+            <div class="text-2xl font-bold mt-2 text-yellow-400 uppercase tracking-widest" id="active-status">READY
+            </div>
+
+            <!-- 累計與剩餘時間 -->
+            <div class="flex gap-8 mt-8 text-sm font-mono text-gray-400">
+                <div class="text-center">
+                    <div class="text-xs uppercase opacity-50">Elapsed</div>
+                    <div id="active-elapsed" class="text-white text-lg">00:00</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xs uppercase opacity-50">Remaining</div>
+                    <div id="active-remaining" class="text-white text-lg">00:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下一步與控制 -->
+        <div class="bg-gray-800 p-8 pb-12 rounded-t-3xl shrink-0">
+            <!-- 下一步預告 -->
+            <div class="flex items-center gap-3 mb-8 bg-gray-700/50 p-3 rounded-xl border border-gray-600/30">
+                <div class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap px-2">Next</div>
+                <div id="active-next" class="text-white font-bold truncate">Rest (3s)</div>
+            </div>
+
+            <div class="flex justify-center gap-8">
+                <button onclick="timer.skip(-1)"
+                    class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center text-xl">⏮</button>
+                <button onclick="timer.toggle()"
+                    class="w-20 h-20 bg-white text-gray-900 rounded-full text-3xl flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
+                    <span id="active-play-icon">⏸</span>
+                </button>
+                <button onclick="timer.skip(1)"
+                    class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center text-xl">⏭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 工具函式 ---
+        const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+        const formatTime = (s) => {
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        };
+
+        // --- 1. Router ---
+        const router = {
+            go(viewId) {
+                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.nav-btn').forEach(el => {
+                    el.classList.remove('text-gray-900', 'text-blue-600');
+                    el.classList.add('text-gray-400');
+                });
+                document.getElementById(`view-${viewId}`).classList.add('active');
+                const btn = document.querySelector(`.nav-btn[data-target="view-${viewId}"]`);
+                if (btn) {
+                    btn.classList.remove('text-gray-400');
+                    btn.classList.add('text-gray-900');
+                }
+            }
+        };
+
+        // --- 2. Store ---
+        const store = {
+            routines: [],
+            user: null,
+
+            init() {
+                if (typeof auth !== 'undefined') {
+                    auth.onAuthStateChanged(user => {
+                        this.user = user;
+                        this.updateUserUI();
+                        user ? this.loadRoutines() : this.loadLocalRoutines();
+                    });
+                } else {
+                    setTimeout(() => this.init(), 500);
+                }
+            },
+
+            updateUserUI() {
+                const emailEl = document.getElementById('settings-email');
+                const btn = document.getElementById('auth-btn');
+                const avatar = document.getElementById('avatar-img');
+                const placeholder = document.getElementById('avatar-placeholder');
+
+                if (this.user) {
+                    emailEl.textContent = this.user.email;
+                    btn.textContent = '登出';
+                    btn.onclick = () => auth.signOut();
+                    if (this.user.photoURL) {
+                        avatar.src = this.user.photoURL;
+                        avatar.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                    }
+                } else {
+                    emailEl.textContent = '未登入';
+                    btn.textContent = '登入';
+                    btn.onclick = () => {
+                        const provider = new firebase.auth.GoogleAuthProvider();
+                        auth.signInWithPopup(provider).catch(e => alert(e.message));
+                    };
+                    avatar.classList.add('hidden');
+                    placeholder.classList.remove('hidden');
+                }
+            },
+
+            async loadRoutines() {
+                const list = document.getElementById('routine-list');
+                list.innerHTML = '<div class="text-center text-gray-400 mt-4">同步中...</div>';
+                try {
+                    const snap = await db.collection('users').doc(this.user.uid).collection('routines').orderBy('updatedAt', 'desc').get();
+                    this.routines = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.renderRoutines();
+                } catch (e) { console.error(e); }
+            },
+
+            loadLocalRoutines() {
+                const saved = localStorage.getItem('localRoutines');
+                this.routines = saved ? JSON.parse(saved) : [];
+                this.renderRoutines();
+            },
+
+            async deleteRoutine(id) {
+                if (!confirm('確定要刪除這個課表嗎？')) return;
+
+                if (this.user) {
+                    await db.collection('users').doc(this.user.uid).collection('routines').doc(id).delete();
+                    this.loadRoutines();
+                } else {
+                    this.routines = this.routines.filter(r => r.id !== id);
+                    localStorage.setItem('localRoutines', JSON.stringify(this.routines));
+                    this.renderRoutines();
+                }
+            },
+
+            renderRoutines() {
+                const list = document.getElementById('routine-list');
+                list.innerHTML = '';
+                if (this.routines.length === 0) {
+                    list.innerHTML = '<div class="text-center text-gray-400 mt-10">尚無課表，點擊右上角 + 新增</div>';
+                    return;
+                }
+
+                this.routines.forEach(r => {
+                    const el = document.createElement('div');
+                    el.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group";
+                    const blockCount = r.blocks ? r.blocks.length : 0;
+
+                    el.innerHTML = `
+                        <div onclick="timer.start('${r.id}')" class="flex-1 cursor-pointer">
+                            <div class="font-bold text-lg text-gray-800">${r.title}</div>
+                            <div class="text-xs text-gray-500 mt-1">${blockCount} 個區塊</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                             <button onclick="editor.load('${r.id}')" class="text-gray-400 hover:text-blue-600 p-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                            <button onclick="store.deleteRoutine('${r.id}')" class="text-gray-400 hover:text-red-600 p-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    `;
+                    list.appendChild(el);
+                });
+            }
+        };
+
+        // --- 3. Editor ---
+        const editor = {
+            currentId: null,
+            activeBlock: null, // DOM element currently editing
+
+            init() {
+                new Sortable(document.getElementById('editor-palette'), {
+                    group: { name: 'shared', pull: 'clone', put: false },
+                    sort: false,
+                    onClone: (evt) => { evt.clone.dataset.tempId = Date.now(); }
+                });
+                this.initSortable(document.getElementById('editor-canvas'));
+            },
+
+            initSortable(el) {
+                new Sortable(el, {
+                    group: 'shared', animation: 150, fallbackOnBody: true, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
+                    onAdd: (evt) => {
+                        const type = evt.item.dataset.type;
+                        // 替換佔位元素為真實積木
+                        evt.item.replaceWith(this.createBlock({ type, id: uuid() }));
+                    }
+                });
+            },
+
+            createBlock(data) {
+                const el = document.createElement('div');
+                // 初始化屬性
+                const props = data.props || this.getDefaultProps(data.type);
+                el.className = `block-item p-3 mb-2 rounded border bg-white ${this.getBlockClass(data.type)}`;
+                el.dataset.type = data.type;
+                el.dataset.id = data.id || uuid();
+                el.dataset.props = JSON.stringify(props);
+
+                // 標題列
+                const header = document.createElement('div');
+                header.className = "flex justify-between items-center cursor-pointer";
+                header.innerHTML = `
+                    <div class="flex items-center gap-2 pointer-events-none">
+                        <span class="text-xs font-bold uppercase opacity-60">${data.type}</span>
+                        <span class="font-bold text-sm block-label">${this.getLabel(data.type, props)}</span>
+                    </div>
+                `;
+                // 點擊開啟屬性
+                header.onclick = (e) => {
+                    e.stopPropagation();
+                    this.openProps(el);
+                };
+                el.appendChild(header);
+
+                // 循環積木的子容器
+                if (data.type === 'loop') {
+                    const inner = document.createElement('div');
+                    inner.className = "nested-container pl-2 pr-2 pb-2 pt-2";
+                    el.appendChild(inner);
+                    this.initSortable(inner);
+                    // 遞迴渲染子項目
+                    if (data.children) {
+                        data.children.forEach(c => inner.appendChild(this.createBlock(c)));
+                    }
+                }
+
+                return el;
+            },
+
+            getDefaultProps(type) {
+                if (type === 'loop') return { iterations: 3 };
+                if (type === 'timer') return { duration: 10, label: 'Hang' };
+                if (type === 'reps') return { count: 5, duration: 30, label: 'Pull Ups' }; // duration 用於計時
+                return {};
+            },
+
+            getLabel(type, props) {
+                if (type === 'loop') return `x ${props.iterations} 次`;
+                if (type === 'timer') return `${props.label} (${props.duration}s)`;
+                if (type === 'reps') return `${props.label} x${props.count}`;
+                return type;
+            },
+
+            getBlockClass(type) {
+                if (type === 'loop') return 'block-loop border-violet-200';
+                if (type === 'timer') return 'block-timer border-orange-200';
+                if (type === 'reps') return 'block-reps border-blue-200';
+                return '';
+            },
+
+            openProps(el) {
+                this.activeBlock = el;
+                const type = el.dataset.type;
+                const props = JSON.parse(el.dataset.props);
+                const form = document.getElementById('prop-form');
+
+                let html = `
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-1">標籤 (Label)</label>
+                        <input type="text" id="inp-label" class="w-full border rounded-lg p-3" value="${props.label || ''}" placeholder="例如: 懸掛, 休息...">
+                    </div>`;
+
+                if (type === 'loop') {
+                    html = `
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-1">循環次數</label>
+                        <input type="number" id="inp-iterations" class="w-full border rounded-lg p-3 text-lg" value="${props.iterations}">
+                    </div>`;
+                } else if (type === 'timer') {
+                    html += `
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-1">時間 (秒)</label>
+                        <input type="number" id="inp-duration" class="w-full border rounded-lg p-3 text-lg" value="${props.duration}">
+                    </div>`;
+                } else if (type === 'reps') {
+                    html += `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">次數 (Reps)</label>
+                            <input type="number" id="inp-count" class="w-full border rounded-lg p-3 text-lg" value="${props.count}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">預估時間 (秒)</label>
+                            <input type="number" id="inp-duration" class="w-full border rounded-lg p-3 text-lg" value="${props.duration}" placeholder="計時用">
+                        </div>
+                    </div>`;
+                }
+
+                form.innerHTML = html;
+                document.getElementById('prop-sheet').classList.remove('translate-y-full');
+            },
+
+            saveProps() {
+                if (!this.activeBlock) return;
+                const type = this.activeBlock.dataset.type;
+                let props = JSON.parse(this.activeBlock.dataset.props);
+
+                if (type === 'loop') {
+                    props.iterations = Number(document.getElementById('inp-iterations').value);
+                } else {
+                    props.label = document.getElementById('inp-label').value;
+                    props.duration = Number(document.getElementById('inp-duration').value);
+                    if (type === 'reps') props.count = Number(document.getElementById('inp-count').value);
+                }
+
+                this.activeBlock.dataset.props = JSON.stringify(props);
+                this.activeBlock.querySelector('.block-label').textContent = this.getLabel(type, props);
+                this.closeProps();
+            },
+
+            deleteCurrentBlock() {
+                if (this.activeBlock) {
+                    this.activeBlock.remove();
+                    this.closeProps();
+                }
+            },
+
+            closeProps() {
+                document.getElementById('prop-sheet').classList.add('translate-y-full');
+                this.activeBlock = null;
+            },
+
+            serialize(container = document.getElementById('editor-canvas')) {
+                const blocks = [];
+                // 只抓第一層的 block-item
+                Array.from(container.children).forEach(el => {
+                    if (!el.classList.contains('block-item')) return;
+                    const block = {
+                        id: el.dataset.id,
+                        type: el.dataset.type,
+                        props: JSON.parse(el.dataset.props)
+                    };
+                    if (block.type === 'loop') {
+                        const inner = el.querySelector('.nested-container');
+                        block.children = this.serialize(inner);
+                    }
+                    blocks.push(block);
+                });
+                return blocks;
+            },
+
+            open() {
+                this.currentId = null;
+                document.getElementById('editor-title').value = '';
+                document.getElementById('editor-canvas').innerHTML = '<div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>';
+                document.getElementById('modal-editor').classList.add('open');
+            },
+
+            load(id) {
+                const r = store.routines.find(x => x.id === id);
+                if (!r) return;
+                this.currentId = id;
+                document.getElementById('editor-title').value = r.title;
+                const canvas = document.getElementById('editor-canvas');
+                canvas.innerHTML = '';
+                if (r.blocks) {
+                    r.blocks.forEach(b => canvas.appendChild(this.createBlock(b)));
+                }
+                document.getElementById('modal-editor').classList.add('open');
+            },
+
+            close() { document.getElementById('modal-editor').classList.remove('open'); },
+
+            async save() {
+                const title = document.getElementById('editor-title').value || '未命名課表';
+                const blocks = this.serialize();
+                const data = { title, blocks, updatedAt: Date.now() };
+
+                if (store.user) {
+                    const col = db.collection('users').doc(store.user.uid).collection('routines');
+                    this.currentId ? await col.doc(this.currentId).set(data, { merge: true }) : await col.add(data);
+                    store.loadRoutines();
+                } else {
+                    const newId = this.currentId || 'local_' + Date.now();
+                    const idx = store.routines.findIndex(r => r.id === newId);
+                    if (idx > -1) store.routines[idx] = { id: newId, ...data };
+                    else store.routines.unshift({ id: newId, ...data });
+                    localStorage.setItem('localRoutines', JSON.stringify(store.routines));
+                    store.renderRoutines();
+                }
+                this.close();
+            }
+        };
+
+        // --- 4. Timer Engine (核心邏輯) ---
+        const timer = {
+            queue: [],
+            totalDuration: 0,
+            currentIndex: 0,
+            elapsed: 0,
+            interval: null,
+            isPaused: false,
+
+            // 將巢狀結構攤平為線性任務
+            flatten(blocks, parentLoops = []) {
+                let res = [];
+                blocks.forEach(b => {
+                    if (b.type === 'loop') {
+                        const count = b.props.iterations || 1;
+                        for (let i = 1; i <= count; i++) {
+                            // 記錄這層迴圈的狀態
+                            const currentLoopInfo = { current: i, total: count };
+                            const newParentLoops = [...parentLoops, currentLoopInfo];
+                            res = res.concat(this.flatten(b.children || [], newParentLoops));
+                        }
+                    } else {
+                        res.push({
+                            ...b,
+                            loopState: parentLoops // 每個動作都知道自己在第幾層迴圈的第幾次
+                        });
+                    }
+                });
+                return res;
+            },
+
+            start(routineId) {
+                const routine = store.routines.find(r => r.id === routineId);
+                if (!routine || !routine.blocks) return;
+
+                // 1. 建構執行隊列
+                this.queue = this.flatten(routine.blocks);
+                if (this.queue.length === 0) return alert('課表是空的');
+
+                // 2. 加入準備時間
+                this.queue.unshift({ type: 'prepare', props: { duration: 5, label: 'Get Ready' }, loopState: [] });
+                this.queue.push({ type: 'finish', props: { duration: 0, label: 'Done' }, loopState: [] });
+
+                // 3. 計算總時間
+                this.totalDuration = this.queue.reduce((acc, item) => acc + (item.props.duration || 0), 0);
+
+                // 4. 初始化狀態
+                this.currentIndex = 0;
+                this.elapsed = 0;
+                this.isPaused = false;
+
+                // 5. UI 設定
+                document.getElementById('active-title').textContent = routine.title;
+                document.getElementById('active-play-icon').textContent = '⏸';
+                document.getElementById('modal-active-timer').classList.add('open');
+
+                // 6. 啟動
+                this.runStep();
+                this.startTicker();
+            },
+
+            runStep() {
+                const step = this.queue[this.currentIndex];
+                if (!step) return this.stop();
+
+                // 設置倒數
+                this.stepDuration = step.props.duration || 0;
+                this.stepLeft = this.stepDuration;
+
+                // 更新 UI 文字
+                document.getElementById('active-status').textContent = step.props.label;
+
+                // 更新顏色與狀態
+                const statusEl = document.getElementById('active-status');
+                const modalEl = document.getElementById('modal-active-timer');
+                modalEl.className = "modal fixed inset-0 z-[60] flex flex-col open transition-colors duration-500"; // Reset base
+
+                if (step.type === 'prepare') {
+                    modalEl.classList.add('bg-blue-600');
+                    statusEl.className = "text-2xl font-bold mt-2 text-blue-100 uppercase tracking-widest";
+                } else if (step.type === 'timer') { // Work
+                    if (step.props.label.includes('Rest')) { // Simple logic to detect rest
+                        modalEl.classList.add('bg-emerald-600');
+                        statusEl.className = "text-2xl font-bold mt-2 text-emerald-100 uppercase tracking-widest";
+                    } else {
+                        modalEl.classList.add('bg-orange-600');
+                        statusEl.className = "text-2xl font-bold mt-2 text-white uppercase tracking-widest";
+                    }
+                } else if (step.type === 'reps') {
+                    modalEl.classList.add('bg-indigo-600');
+                    statusEl.className = "text-2xl font-bold mt-2 text-indigo-100 uppercase tracking-widest";
+                } else if (step.type === 'finish') {
+                    modalEl.classList.add('bg-gray-900');
+                    statusEl.textContent = "FINISHED";
+                    this.stop();
+                    return;
+                } else {
+                    modalEl.classList.add('bg-gray-900');
+                }
+
+                this.updateDisplay();
+            },
+
+            startTicker() {
+                if (this.interval) clearInterval(this.interval);
+                this.interval = setInterval(() => {
+                    if (this.isPaused) return;
+
+                    if (this.stepLeft > 0) {
+                        this.stepLeft--;
+                        this.elapsed++;
+                    } else {
+                        // 下一步
+                        this.currentIndex++;
+                        if (this.currentIndex < this.queue.length) {
+                            this.runStep();
+                        } else {
+                            this.stop();
+                        }
+                    }
+                    this.updateDisplay();
+                }, 1000);
+            },
+
+            updateDisplay() {
+                const step = this.queue[this.currentIndex];
+
+                // 倒數數字
+                const displayNum = step.type === 'reps' && this.stepLeft > 0
+                    ? `${step.props.count}<span class="text-4xl ml-2 opacity-50">reps</span>`
+                    : (this.stepLeft < 10 ? '0' + this.stepLeft : this.stepLeft);
+
+                document.getElementById('active-countdown').innerHTML = displayNum;
+
+                // 時間資訊
+                const remaining = Math.max(0, this.totalDuration - this.elapsed);
+                document.getElementById('active-elapsed').textContent = formatTime(this.elapsed);
+                document.getElementById('active-remaining').textContent = formatTime(remaining);
+                document.getElementById('active-total-time').textContent = `Total: ${formatTime(this.totalDuration)}`;
+
+                // 循環資訊 (例如 Loop 1/3)
+                const loopState = step.loopState;
+                const loopEl = document.getElementById('active-loops');
+                if (loopState && loopState.length > 0) {
+                    // 取最內層的循環顯示，或顯示路徑
+                    // 格式: Loop 1/3 > Loop 2/5
+                    const text = loopState.map(l => `Loop ${l.current}/${l.total}`).join(' > ');
+                    loopEl.textContent = text;
+                    loopEl.classList.remove('hidden');
+                } else {
+                    loopEl.classList.add('hidden');
+                }
+
+                // 下一步預告
+                const nextStep = this.queue[this.currentIndex + 1];
+                const nextEl = document.getElementById('active-next');
+                if (nextStep) {
+                    let desc = nextStep.props.label;
+                    if (nextStep.type === 'timer' || nextStep.type === 'prepare') desc += ` (${nextStep.props.duration}s)`;
+                    if (nextStep.type === 'reps') desc += ` x${nextStep.props.count}`;
+                    nextEl.textContent = desc;
+                } else {
+                    nextEl.textContent = "Finish";
+                }
+            },
+
+            toggle() {
+                this.isPaused = !this.isPaused;
+                document.getElementById('active-play-icon').textContent = this.isPaused ? '▶' : '⏸';
+            },
+
+            skip(dir) {
+                // 簡單跳過：直接移動索引並重置該步驟時間
+                const newIndex = this.currentIndex + dir;
+                if (newIndex >= 0 && newIndex < this.queue.length) {
+                    // 需要調整 elapsed 以保持準確性? 簡化起見暫不調整 total accuracy
+                    this.currentIndex = newIndex;
+                    this.runStep();
+                }
+            },
+
+            stop() {
+                clearInterval(this.interval);
+                document.getElementById('modal-active-timer').classList.remove('open');
+            }
+        };
+
+        // --- 初始化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            store.init();
+            editor.init();
+
+            // 隨機日曆點點
+            const calGrid = document.getElementById('calendar-grid');
+            for (let i = 0; i < 28; i++) {
+                const d = document.createElement('div');
+                d.className = `aspect-square rounded-full flex items-center justify-center text-xs ${Math.random() > 0.7 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`;
+                d.textContent = i + 1;
+                calGrid.appendChild(d);
+            }
+        });
+
+    </script>
+</body>
+
+</html>
