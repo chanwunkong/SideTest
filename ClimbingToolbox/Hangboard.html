@@ -1,0 +1,1894 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Climbing Toolbox - 指力訓練</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            750: '#2d3748',
+                            850: '#1a202c',
+                            950: '#0f1419',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- 拖曳套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <!-- 共用設定 -->
+    <script src="config.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* 視圖切換 */
+        .view-section {
+            display: none;
+            height: 100%;
+            overflow-y: auto;
+            padding-bottom: 80px;
+        }
+
+        .view-section.active {
+            display: block;
+        }
+
+        /* 模態視窗過渡 */
+        .modal {
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(100%);
+        }
+
+        .modal.open {
+            transform: translateY(0);
+        }
+
+        /* 隱藏捲軸 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* 積木樣式基礎 */
+        .block-item {
+            touch-action: none;
+            transition: transform 0.1s;
+        }
+
+        .block-item:active {
+            transform: scale(0.98);
+        }
+
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #e5e7eb;
+            border: 1px dashed #9ca3af;
+        }
+
+        .sortable-drag {
+            opacity: 0.9;
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 巢狀縮排線條 */
+        .nested-container {
+            min-height: 50px;
+            margin-top: 0.5rem;
+            border-radius: 0.5rem;
+            background-color: rgba(0, 0, 0, 0.03);
+            border: 1px dashed #cbd5e1;
+        }
+
+        /* Dark Mode 巢狀樣式 */
+        .dark .nested-container {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: #4b5563;
+        }
+
+        /* 屬性面板 */
+        #prop-sheet {
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 顏色選擇器樣式 */
+        .color-btn {
+            transition: all 0.2s;
+        }
+
+        .color-btn.selected {
+            transform: scale(1.1);
+            ring-width: 2px;
+            --tw-ring-offset-width: 2px;
+            --tw-ring-color: #3b82f6;
+            box-shadow: 0 0 0 2px white, 0 0 0 4px currentColor;
+        }
+
+        .dark .color-btn.selected {
+            box-shadow: 0 0 0 2px #1f2937, 0 0 0 4px currentColor;
+        }
+
+        /* 語音狀態動畫 */
+        .mic-listening {
+            animation: pulse-red 1.5s infinite;
+            background-color: #ef4444 !important;
+            color: white !important;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        /* 急迫感呼吸燈效果 (背景) */
+        @keyframes urgent-pulse {
+
+            0%,
+            100% {
+                filter: brightness(1);
+            }
+
+            50% {
+                filter: brightness(1.3);
+            }
+        }
+
+        .pulse-urgent {
+            animation: urgent-pulse 0.5s infinite ease-in-out;
+        }
+
+        /* Toggle Switch Style */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #3b82f6;
+        }
+
+        .toggle-checkbox:checked+.toggle-label {
+            background-color: #3b82f6;
+        }
+
+        /* 鎖定遮罩樣式 */
+        #lock-overlay {
+            backdrop-filter: blur(2px);
+            background: rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body
+    class="bg-gray-50 text-gray-900 h-[100dvh] w-full overflow-hidden flex flex-col dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
+
+    <!-- 主要內容區 -->
+    <main id="app-container"
+        class="flex-1 relative overflow-hidden w-full max-w-md mx-auto bg-white shadow-2xl dark:bg-gray-800 transition-colors duration-300">
+
+        <!-- 1. 日曆與紀錄 (Calendar) -->
+        <div id="view-calendar" class="view-section active">
+            <div class="p-6">
+                <div class="flex items-center mb-6">
+                    <a href="index.html"
+                        class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
+                        title="Home">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                            </path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-extrabold dark:text-white">訓練紀錄</h1>
+                </div>
+
+                <div class="bg-gray-900 text-white rounded-2xl p-6 mb-8 shadow-lg dark:bg-gray-700">
+                    <div class="text-sm text-gray-400 mb-1">本週訓練</div>
+                    <div class="text-4xl font-mono font-bold mb-4">3 <span
+                            class="text-lg font-normal text-gray-500">次</span></div>
+                    <div class="flex gap-4 text-sm border-t border-gray-700 pt-4">
+                        <div>
+                            <div class="text-gray-400">總時長</div>
+                            <div class="font-bold">45m</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-400">最大負重</div>
+                            <div class="font-bold text-yellow-500">+20kg</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-2 mb-4 text-center text-sm text-gray-400 dark:text-gray-500">
+                    <div>M</div>
+                    <div>T</div>
+                    <div>W</div>
+                    <div>T</div>
+                    <div>F</div>
+                    <div>S</div>
+                    <div>S</div>
+                </div>
+                <div class="grid grid-cols-7 gap-2" id="calendar-grid"></div>
+            </div>
+        </div>
+
+        <!-- 2. 課表管理 (Routines) -->
+        <div id="view-routines" class="view-section">
+            <div
+                class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
+                <div class="flex items-center">
+                    <a href="index.html"
+                        class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
+                        title="Home">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                            </path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-extrabold dark:text-white">我的課表</h1>
+                </div>
+                <button onclick="editor.open()"
+                    class="bg-gray-900 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform dark:bg-blue-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 快速範本區 -->
+            <div class="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+                <button onclick="store.addTemplate('max')"
+                    class="shrink-0 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition-colors dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                    ⚡️ Max Hangs
+                </button>
+                <button onclick="store.addTemplate('repeaters')"
+                    class="shrink-0 bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-violet-100 transition-colors dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800">
+                    🔄 Repeaters
+                </button>
+                <button onclick="editor.open()"
+                    class="shrink-0 bg-gray-50 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-gray-100 transition-colors dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
+                    ＋ 空白課表
+                </button>
+            </div>
+
+            <div id="routine-list" class="p-4 space-y-3 pb-24">
+                <div class="text-center text-gray-400 mt-10">載入中...</div>
+            </div>
+        </div>
+
+        <!-- 3. 設定 (Settings) -->
+        <div id="view-settings" class="view-section">
+            <div class="p-6">
+                <div class="flex items-center mb-6">
+                    <a href="index.html"
+                        class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
+                        title="Home">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                            </path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-extrabold dark:text-white">設定</h1>
+                </div>
+
+                <div class="space-y-6 pb-12">
+
+                    <!-- 1. 外觀與個人資料 (Appearance & Profile) -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">個人化</h3>
+                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+
+                            <!-- Dark Mode -->
+                            <div
+                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <span class="font-medium">外觀模式</span>
+                                <select id="set-theme-mode" onchange="themeManager.setMode(this.value)"
+                                    class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    <option value="system">跟隨系統</option>
+                                    <option value="light">淺色</option>
+                                    <option value="dark">深色</option>
+                                </select>
+                            </div>
+
+                            <!-- Weight & Unit -->
+                            <div class="p-4 flex justify-between items-center">
+                                <span class="font-medium">體重設定</span>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" id="set-weight-val" placeholder="0"
+                                        class="w-16 border border-gray-200 rounded-lg p-1.5 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    <select id="set-weight-unit"
+                                        class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                        <option value="kg">kg</option>
+                                        <option value="lbs">lbs</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 音效詳細設定 (Sound & Audio) -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">音效與語音</h3>
+                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+
+                            <!-- Master Sound Switch -->
+                            <div
+                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <span class="font-medium">主音效開關</span>
+                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                    <input type="checkbox" id="set-sound-enabled"
+                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                    <label for="set-sound-enabled"
+                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
+                                </div>
+                            </div>
+
+                            <!-- Sound Details Checkboxes -->
+                            <div class="p-4 grid grid-cols-3 gap-2 border-b border-gray-100 dark:border-gray-700">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="set-sound-start"
+                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                    <span class="text-sm">開始音</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="set-sound-countdown"
+                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                    <span class="text-sm">倒數音</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="set-sound-finish"
+                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                    <span class="text-sm">結束音</span>
+                                </label>
+                            </div>
+
+                            <!-- TTS Switch -->
+                            <div
+                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <span class="font-medium">朗讀項目 (TTS)</span>
+                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                    <input type="checkbox" id="set-tts-enabled"
+                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                    <label for="set-tts-enabled"
+                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
+                                </div>
+                            </div>
+
+                            <!-- Countdown Trigger -->
+                            <div
+                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <span class="font-medium">倒數提示時機</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm text-gray-500">最後</span>
+                                    <input type="number" id="set-countdown-sec"
+                                        class="w-16 border border-gray-300 rounded-lg p-1 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                        value="3" min="0" max="60">
+                                    <span class="text-sm text-gray-500">秒</span>
+                                </div>
+                            </div>
+
+                            <!-- Speech Rate -->
+                            <div class="p-4">
+                                <div class="flex justify-between mb-2">
+                                    <span class="font-medium">語音語速</span>
+                                    <span id="lbl-speech-rate"
+                                        class="text-sm font-bold text-blue-600 dark:text-blue-400">1.0x</span>
+                                </div>
+                                <input type="range" id="set-speech-rate" min="0.5" max="2" step="0.1"
+                                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Account & Device (Sync) -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">帳號與裝置</h3>
+                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+                            <!-- Auth Section -->
+                            <div class="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
+                                <div
+                                    class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden dark:bg-gray-600">
+                                    <img id="avatar-img" class="w-full h-full object-cover hidden">
+                                    <div id="avatar-placeholder"
+                                        class="w-full h-full flex items-center justify-center text-gray-400">👤</div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div id="settings-email" class="font-bold truncate dark:text-white">未登入</div>
+                                    <div class="text-xs text-gray-500">雲端同步</div>
+                                </div>
+                                <button id="auth-btn"
+                                    class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
+                            </div>
+
+                            <button
+                                class="w-full p-4 flex justify-between items-center hover:bg-gray-50 border-b dark:hover:bg-gray-700 dark:border-gray-700">
+                                <span class="font-medium">連接藍芽吊秤</span>
+                                <span class="text-gray-400 text-sm">未連線</span>
+                            </button>
+                            <button
+                                class="w-full p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <span class="font-medium">感測器歸零</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 底部導覽列 -->
+    <nav
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 w-full max-w-md mx-auto z-50 flex justify-around items-center shadow-[0_-2px_10px_rgba(0,0,0,0.05)] dark:bg-gray-800 dark:border-gray-700">
+        <button onclick="router.go('calendar')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900 active"
+            data-target="view-calendar">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <span class="text-[10px] font-bold">紀錄</span>
+        </button>
+        <button onclick="router.go('routines')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            data-target="view-routines">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                </path>
+            </svg>
+            <span class="text-[10px] font-bold">課表</span>
+        </button>
+        <button onclick="router.go('settings')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            data-target="view-settings">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                </path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            <span class="text-[10px] font-bold">設定</span>
+        </button>
+    </nav>
+
+    <!-- 模態視窗: 編輯器 (Editor Modal) -->
+    <div id="modal-editor" class="modal fixed inset-0 z-50 bg-gray-100 flex flex-col dark:bg-gray-900">
+        <div
+            class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0 dark:bg-gray-800 dark:border-gray-700">
+            <button onclick="editor.close()" class="text-gray-500 font-bold px-2">取消</button>
+            <input type="text" id="editor-title"
+                class="text-center font-bold text-lg bg-transparent border-none focus:ring-0 w-48 dark:text-white"
+                placeholder="輸入課表名稱">
+            <button onclick="editor.save()" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
+        </div>
+
+        <!-- 視覺化時間軸 (Visual Timeline) -->
+        <div class="bg-white pt-2 px-4 pb-0 shrink-0 dark:bg-gray-800">
+            <div class="flex justify-between items-end mb-1">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">預估結構</span>
+                <span id="editor-total-time"
+                    class="text-xs font-mono font-bold text-gray-600 dark:text-gray-300">00:00</span>
+            </div>
+            <div id="editor-timeline" class="h-4 w-full bg-gray-100 rounded-full flex overflow-hidden dark:bg-gray-700">
+                <!-- JS 動態生成 -->
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 pb-32" id="editor-canvas">
+            <!-- 積木將在此生成 -->
+            <div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>
+        </div>
+
+        <!-- 底部工具箱 -->
+        <div class="bg-white border-t p-4 shrink-0 shadow-xl z-10 pb-8 dark:bg-gray-800 dark:border-gray-700">
+            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">拖曳新增</div>
+            <div id="editor-palette" class="flex gap-3 overflow-x-auto no-scrollbar">
+                <div class="palette-item shrink-0 w-20 h-16 bg-violet-50 border-2 border-violet-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-violet-900/40 dark:border-violet-700"
+                    data-type="loop">
+                    <span class="text-xs font-bold text-violet-700 dark:text-violet-300">循環 Loop</span>
+                </div>
+                <div class="palette-item shrink-0 w-20 h-16 bg-orange-50 border-2 border-orange-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-orange-900/40 dark:border-orange-700"
+                    data-type="timer">
+                    <span class="text-xs font-bold text-orange-700 dark:text-orange-300">計時 Timer</span>
+                </div>
+                <div class="palette-item shrink-0 w-20 h-16 bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-blue-900/40 dark:border-blue-700"
+                    data-type="reps">
+                    <span class="text-xs font-bold text-blue-700 dark:text-blue-300">計數 Reps</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 屬性編輯面板 (Property Sheet) -->
+        <div id="prop-sheet"
+            class="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl transform translate-y-full transition-transform duration-300 z-[60] p-6 pb-12 dark:bg-gray-800 dark:text-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">編輯積木</h3>
+                <button onclick="editor.closeProps()" class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
+            </div>
+
+            <div id="prop-form" class="space-y-4">
+                <!-- JS 動態生成 -->
+            </div>
+
+            <!-- 顏色選擇器 -->
+            <div class="mt-4">
+                <label class="block text-sm font-bold text-gray-500 mb-2">顏色標記</label>
+                <div id="color-palette" class="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                    <!-- JS 生成色票 -->
+                </div>
+            </div>
+
+            <div class="mt-6 flex gap-3">
+                <button onclick="editor.deleteCurrentBlock()"
+                    class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-100 dark:bg-red-900/30 dark:border-red-900 dark:text-red-300">刪除</button>
+                <button onclick="editor.saveProps()"
+                    class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold dark:bg-blue-600">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態視窗: 全螢幕計時器 (Active Timer Modal) -->
+    <div id="modal-active-timer" class="modal fixed inset-0 z-[60] bg-gray-900 text-white flex flex-col">
+
+        <!-- 防誤觸鎖定遮罩 (z-index 高於控制項但低於解鎖按鈕) -->
+        <div id="lock-overlay" class="absolute inset-0 z-[70] hidden flex items-center justify-center">
+            <div class="text-center p-4">
+                <svg class="w-12 h-12 text-white/50 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                    </path>
+                </svg>
+                <p class="text-white/70 font-bold">螢幕已鎖定</p>
+            </div>
+        </div>
+
+        <!-- 頂部資訊 (Header) -->
+        <div class="p-6 flex justify-between items-start shrink-0 relative z-[80]">
+            <div class="flex items-start gap-3">
+                <!-- 語音控制按鈕 -->
+                <button id="btn-mic-toggle" onclick="voiceCommander.toggle()"
+                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
+                        </path>
+                    </svg>
+                </button>
+                <div>
+                    <h3 id="active-title" class="font-bold text-lg opacity-90 leading-tight">Routine Name</h3>
+                    <div class="text-xs text-gray-300 font-mono mt-1" id="active-total-time">Total: 00:00</div>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <!-- 鎖定按鈕 -->
+                <button id="btn-lock" onclick="timer.toggleLock()"
+                    class="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                        </path>
+                    </svg>
+                </button>
+                <!-- 關閉按鈕 -->
+                <button onclick="timer.stop()" class="p-2 bg-white/10 rounded-full hover:bg-white/20">✕</button>
+            </div>
+        </div>
+
+        <!-- 主要顯示區 (Main Display) -->
+        <div class="flex-1 flex flex-col items-center justify-center relative w-full max-w-sm mx-auto">
+            <!-- 循環狀態 -->
+            <div id="active-loops"
+                class="absolute top-0 text-sm font-mono text-gray-200 bg-black/20 px-4 py-1.5 rounded-full backdrop-blur-sm border border-white/10">
+                Loop 1/3
+            </div>
+
+            <!-- 倒數數字 -->
+            <div class="text-[8rem] font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl"
+                id="active-countdown">00</div>
+
+            <!-- 視覺進度條 (Visual Progress Bar) -->
+            <div class="w-full h-2 bg-white/20 rounded-full mt-4 overflow-hidden max-w-[200px]">
+                <div id="active-progress-bar" class="h-full bg-white transition-all duration-1000 ease-linear w-full">
+                </div>
+            </div>
+
+            <!-- 當前狀態名稱 -->
+            <div class="text-3xl font-extrabold mt-6 text-white uppercase tracking-widest drop-shadow-md"
+                id="active-status">READY
+            </div>
+
+        </div>
+
+        <!-- 底部控制區 (Footer Controls) -->
+        <div
+            class="bg-gray-800 p-8 pb-12 rounded-t-3xl shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-[60] relative dark:bg-gray-950">
+
+            <!-- 累計與剩餘時間 (高對比優化) -->
+            <div class="grid grid-cols-3 gap-4 mb-8 text-center border-b border-gray-700 pb-6">
+                <div>
+                    <div class="text-[10px] font-bold uppercase text-white/50 mb-1">Elapsed</div>
+                    <div id="active-elapsed" class="text-white text-xl font-mono font-bold tracking-tight">00:00</div>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold uppercase text-white/50 mb-1">Remaining</div>
+                    <div id="active-remaining" class="text-white text-xl font-mono font-bold tracking-tight">00:00</div>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold uppercase text-white/50 mb-1">Total</div>
+                    <div id="active-total-display" class="text-white text-xl font-mono font-bold tracking-tight">00:00
+                    </div>
+                </div>
+            </div>
+
+            <!-- 下一步預告 -->
+            <div
+                class="flex items-center gap-3 mb-8 bg-gray-700/50 p-3 rounded-xl border border-gray-600/30 backdrop-blur-sm">
+                <div class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap px-2">Next</div>
+                <div id="active-next-badge" class="w-3 h-3 rounded-full bg-gray-500 shadow-sm"></div>
+                <div id="active-next" class="text-white font-bold truncate">Rest (3s)</div>
+            </div>
+
+            <div class="grid grid-cols-4 gap-4">
+                <!-- 上一步 -->
+                <button onclick="timer.skip(-1)" class="flex flex-col items-center gap-2 group">
+                    <div
+                        class="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">上一步</span>
+                </button>
+
+                <!-- 暫停/繼續 -->
+                <button onclick="timer.toggle()" class="flex flex-col items-center gap-2 group">
+                    <div
+                        class="w-14 h-14 bg-white text-gray-900 rounded-full flex items-center justify-center shadow-lg group-active:scale-95 transition-transform hover:bg-gray-100">
+                        <svg id="icon-play-pause" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6">
+                            </path>
+                        </svg>
+                    </div>
+                    <span id="lbl-play-pause"
+                        class="text-[10px] text-white font-bold uppercase tracking-wider">暫停</span>
+                </button>
+
+                <!-- 下一步 -->
+                <button onclick="timer.skip(1)" class="flex flex-col items-center gap-2 group">
+                    <div
+                        class="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">下一步</span>
+                </button>
+
+                <!-- 結束 -->
+                <button onclick="timer.stop()" class="flex flex-col items-center gap-2 group">
+                    <div
+                        class="w-12 h-12 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-red-500/30">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 6h12v12H6z" />
+                        </svg>
+                    </div>
+                    <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">結束</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自動完成資料清單 -->
+    <datalist id="history-list"></datalist>
+
+    <script>
+        // --- 工具函式 ---
+        const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+        const formatTime = (s) => {
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        };
+
+        // --- Utils: 靜態計算總時間 (Recursive) ---
+        const calculateDuration = (blocks) => {
+            let total = 0;
+            blocks.forEach(b => {
+                if (b.type === 'loop') {
+                    const childrenTime = calculateDuration(b.children || []);
+                    total += childrenTime * (b.props.iterations || 1);
+                } else {
+                    total += (b.props.duration || 0);
+                }
+            });
+            return total;
+        };
+
+        // --- 0. Theme Manager ---
+        const themeManager = {
+            mode: 'system', // system, light, dark
+
+            init() {
+                this.mode = localStorage.getItem('themeMode') || 'system';
+                document.getElementById('set-theme-mode').value = this.mode;
+                this.apply();
+
+                // System listener
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                    if (this.mode === 'system') this.apply();
+                });
+            },
+
+            setMode(val) {
+                this.mode = val;
+                localStorage.setItem('themeMode', val);
+                this.apply();
+            },
+
+            apply() {
+                const isDark = this.mode === 'dark' || (this.mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
+        };
+
+        // --- 1. Settings (Sound & Profile) Manager ---
+        const settingsManager = {
+            // Default Settings
+            data: {
+                // Sound
+                soundEnabled: true,
+                ttsEnabled: true,
+                countdownSec: 3,
+                speechRate: 1.0,
+                soundStart: true,
+                soundCountdown: true,
+                soundFinish: true,
+
+                // Profile
+                weightVal: '',
+                weightUnit: 'kg'
+            },
+
+            init() {
+                const saved = localStorage.getItem('appSettings');
+                if (saved) {
+                    this.data = { ...this.data, ...JSON.parse(saved) };
+                }
+                this.bindUI();
+            },
+
+            save() {
+                localStorage.setItem('appSettings', JSON.stringify(this.data));
+            },
+
+            bindUI() {
+                // Helper to bind checkboxes
+                const bindCheck = (id, key) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.checked = this.data[key];
+                    el.onchange = (e) => { this.data[key] = e.target.checked; this.save(); };
+                };
+
+                // Helper to bind inputs
+                const bindVal = (id, key, isNum = false) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.value = this.data[key];
+                    el.oninput = (e) => {
+                        this.data[key] = isNum ? parseFloat(e.target.value) : e.target.value;
+                        this.save();
+                    };
+                };
+
+                // Sound Binds
+                bindCheck('set-sound-enabled', 'soundEnabled');
+                bindCheck('set-tts-enabled', 'ttsEnabled');
+                bindCheck('set-sound-start', 'soundStart');
+                bindCheck('set-sound-countdown', 'soundCountdown');
+                bindCheck('set-sound-finish', 'soundFinish');
+
+                bindVal('set-countdown-sec', 'countdownSec', true);
+
+                // Rate
+                const elRate = document.getElementById('set-speech-rate');
+                const lblRate = document.getElementById('lbl-speech-rate');
+                if (elRate) {
+                    elRate.value = this.data.speechRate;
+                    lblRate.textContent = this.data.speechRate + 'x';
+                    elRate.oninput = (e) => {
+                        this.data.speechRate = parseFloat(e.target.value);
+                        lblRate.textContent = this.data.speechRate + 'x';
+                        this.save();
+                    };
+                }
+
+                // Profile Binds
+                bindVal('set-weight-val', 'weightVal'); // Keep string for empty state
+                bindVal('set-weight-unit', 'weightUnit');
+            },
+
+            // --- Sound Actions ---
+            beep(type) {
+                if (!this.data.soundEnabled) return;
+
+                // Check granular settings
+                if (type === 'start' && !this.data.soundStart) return;
+                if (type === 'countdown' && !this.data.soundCountdown) return;
+                if (type === 'finish' && !this.data.soundFinish) return;
+
+                // Freq Logic
+                let freq = 880;
+                let wave = 'sine';
+                let dur = 0.1;
+
+                if (type === 'countdown') { freq = 440; }
+                if (type === 'start') { freq = 880; wave = 'square'; dur = 0.2; }
+                if (type === 'finish') { freq = 523.25; wave = 'triangle'; dur = 0.4; } // C5
+
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) return;
+                    const ctx = new AudioContext();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = freq;
+                    osc.type = wave;
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + dur);
+                    osc.start();
+                    osc.stop(ctx.currentTime + dur);
+
+                    // Double beep for finish
+                    if (type === 'finish') {
+                        setTimeout(() => {
+                            const osc2 = ctx.createOscillator();
+                            const gain2 = ctx.createGain();
+                            osc2.connect(gain2);
+                            gain2.connect(ctx.destination);
+                            osc2.frequency.value = freq * 1.25; // E5
+                            osc2.type = wave;
+                            gain2.gain.setValueAtTime(0.1, ctx.currentTime);
+                            gain2.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + dur);
+                            osc2.start();
+                            osc2.stop(ctx.currentTime + dur);
+                        }, 150);
+                    }
+                } catch (e) { console.error(e); }
+            },
+
+            speak(text) {
+                if (!this.data.soundEnabled || !this.data.ttsEnabled) return;
+                if (!window.speechSynthesis) return;
+
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = this.data.speechRate;
+                u.lang = 'en-US';
+                window.speechSynthesis.speak(u);
+            }
+        };
+
+        // --- Voice Commander ---
+        const voiceCommander = {
+            recognition: null,
+            isListening: false,
+            shouldRestart: false,
+
+            init() {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    console.log("Browser does not support Speech Recognition");
+                    return;
+                }
+
+                this.recognition = new SpeechRecognition();
+                this.recognition.continuous = false;
+                this.recognition.lang = 'en-US';
+                this.recognition.interimResults = false;
+                this.recognition.maxAlternatives = 1;
+
+                this.recognition.onstart = () => {
+                    this.isListening = true;
+                    this.updateUI(true);
+                };
+
+                this.recognition.onend = () => {
+                    this.isListening = false;
+                    if (this.shouldRestart) {
+                        try { this.recognition.start(); } catch (e) { }
+                    } else {
+                        this.updateUI(false);
+                    }
+                };
+
+                this.recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript.toLowerCase();
+                    console.log("Voice Command:", transcript);
+                    this.handleCommand(transcript);
+                };
+            },
+
+            toggle() {
+                if (!this.recognition) return alert("您的瀏覽器不支援語音控制");
+                if (this.isListening) { this.stop(); } else { this.start(); }
+            },
+
+            start() {
+                this.shouldRestart = true;
+                try { this.recognition.start(); } catch (e) { console.error(e); }
+            },
+
+            stop() {
+                this.shouldRestart = false;
+                try { this.recognition.stop(); } catch (e) { console.error(e); }
+            },
+
+            updateUI(isActive) {
+                const btn = document.getElementById('btn-mic-toggle');
+                if (!btn) return;
+
+                if (isActive) {
+                    btn.classList.add('mic-listening');
+                    btn.classList.remove('text-white/50');
+                    btn.classList.add('text-white');
+                } else {
+                    btn.classList.remove('mic-listening');
+                    btn.classList.add('text-white/50');
+                    btn.classList.remove('text-white');
+                }
+            },
+
+            handleCommand(text) {
+                if (timer.isLocked) return; // 鎖定時禁用語音控制
+
+                if (text.includes('start') || text.includes('go') || text.includes('resume') || text.includes('begin') || text.includes('開始')) {
+                    if (timer.isPaused) timer.toggle();
+                }
+                else if (text.includes('stop') || text.includes('pause') || text.includes('wait') || text.includes('hold') || text.includes('暫停')) {
+                    if (!timer.isPaused) timer.toggle();
+                }
+                else if (text.includes('next') || text.includes('skip') || text.includes('jump') || text.includes('下一步')) {
+                    timer.skip(1);
+                }
+                else if (text.includes('back') || text.includes('previous') || text.includes('上一步')) {
+                    timer.skip(-1);
+                }
+                else if (text.includes('finish') || text.includes('exit') || text.includes('end') || text.includes('結束')) {
+                    timer.stop();
+                }
+            }
+        };
+
+        // --- 1. Router ---
+        const router = {
+            go(viewId) {
+                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.nav-btn').forEach(el => {
+                    el.classList.remove('text-gray-900', 'text-blue-600');
+                    el.classList.add('text-gray-400');
+                    // Reset Dark Mode active state styles
+                    el.classList.remove('dark:text-white');
+                    el.classList.add('dark:text-gray-400');
+                });
+                document.getElementById(`view-${viewId}`).classList.add('active');
+                const btn = document.querySelector(`.nav-btn[data-target="view-${viewId}"]`);
+                if (btn) {
+                    btn.classList.remove('text-gray-400', 'dark:text-gray-400');
+                    btn.classList.add('text-gray-900', 'dark:text-white');
+                }
+            }
+        };
+
+        // --- 2. Store ---
+        const store = {
+            routines: [],
+            user: null,
+
+            init() {
+                if (typeof auth !== 'undefined') {
+                    auth.onAuthStateChanged(user => {
+                        this.user = user;
+                        this.updateUserUI();
+                        user ? this.loadRoutines() : this.loadLocalRoutines();
+                    });
+                } else {
+                    setTimeout(() => this.init(), 500);
+                }
+            },
+
+            updateUserUI() {
+                const emailEl = document.getElementById('settings-email');
+                const btn = document.getElementById('auth-btn');
+                const avatar = document.getElementById('avatar-img');
+                const placeholder = document.getElementById('avatar-placeholder');
+
+                if (this.user) {
+                    emailEl.textContent = this.user.email;
+                    btn.textContent = '登出';
+                    btn.onclick = () => auth.signOut();
+                    if (this.user.photoURL) {
+                        avatar.src = this.user.photoURL;
+                        avatar.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                    }
+                } else {
+                    emailEl.textContent = '未登入';
+                    btn.textContent = '登入';
+                    btn.onclick = () => {
+                        const provider = new firebase.auth.GoogleAuthProvider();
+                        auth.signInWithPopup(provider).catch(e => alert(e.message));
+                    };
+                    avatar.classList.add('hidden');
+                    placeholder.classList.remove('hidden');
+                }
+            },
+
+            async loadRoutines() {
+                const list = document.getElementById('routine-list');
+                list.innerHTML = '<div class="text-center text-gray-400 mt-4">同步中...</div>';
+                try {
+                    const snap = await db.collection('users').doc(this.user.uid).collection('routines').orderBy('updatedAt', 'desc').get();
+                    this.routines = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.renderRoutines();
+                } catch (e) { console.error(e); }
+            },
+
+            loadLocalRoutines() {
+                const saved = localStorage.getItem('localRoutines');
+                this.routines = saved ? JSON.parse(saved) : [];
+                this.renderRoutines();
+            },
+
+            async duplicateRoutine(id) {
+                const r = this.routines.find(x => x.id === id);
+                if (!r) return;
+
+                const newData = {
+                    ...r,
+                    title: r.title + ' (Copy)',
+                    updatedAt: Date.now()
+                };
+                delete newData.id; // ensure new ID
+
+                if (this.user) {
+                    await db.collection('users').doc(this.user.uid).collection('routines').add(newData);
+                    this.loadRoutines();
+                } else {
+                    const newId = 'local_' + Date.now();
+                    this.routines.unshift({ id: newId, ...newData });
+                    localStorage.setItem('localRoutines', JSON.stringify(this.routines));
+                    this.renderRoutines();
+                }
+            },
+
+            async addTemplate(type) {
+                let blocks = [];
+                let title = "New Routine";
+
+                if (type === 'max') {
+                    title = "Max Hangs";
+                    // Warmup -> (Hang 10s + Rest 3m) x 5
+                    blocks = [
+                        { type: 'timer', id: uuid(), props: { duration: 60, label: 'Warmup', color: 'blue' } },
+                        {
+                            type: 'loop', id: uuid(), props: { iterations: 5, color: 'violet' },
+                            children: [
+                                { type: 'timer', id: uuid(), props: { duration: 10, label: 'Hang (Max)', color: 'orange' } },
+                                { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest', color: 'gray' } }
+                            ]
+                        }
+                    ];
+                } else if (type === 'repeaters') {
+                    title = "7/3 Repeaters";
+                    // (Hang 7s + Rest 3s) x 6 = One Set. Rest 3m. x 3 Sets.
+                    blocks = [
+                        {
+                            type: 'loop', id: uuid(), props: { iterations: 3, color: 'indigo' },
+                            children: [
+                                {
+                                    type: 'loop', id: uuid(), props: { iterations: 6, color: 'violet' },
+                                    children: [
+                                        { type: 'timer', id: uuid(), props: { duration: 7, label: 'Hang', color: 'orange' } },
+                                        { type: 'timer', id: uuid(), props: { duration: 3, label: 'Rest', color: 'gray' } }
+                                    ]
+                                },
+                                { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest (Set)', color: 'gray' } }
+                            ]
+                        }
+                    ];
+                }
+
+                // Load into editor immediately
+                editor.currentId = null;
+                document.getElementById('editor-title').value = title;
+                const canvas = document.getElementById('editor-canvas');
+                canvas.innerHTML = '';
+                blocks.forEach(b => canvas.appendChild(editor.createBlock(b)));
+                document.getElementById('modal-editor').classList.add('open');
+                editor.appendFooter(false); // Default false for skip rest
+                editor.updateTimeline();
+            },
+
+            async deleteRoutine(id) {
+                if (!confirm('確定要刪除這個課表嗎？')) return;
+
+                if (this.user) {
+                    await db.collection('users').doc(this.user.uid).collection('routines').doc(id).delete();
+                    this.loadRoutines();
+                } else {
+                    this.routines = this.routines.filter(r => r.id !== id);
+                    localStorage.setItem('localRoutines', JSON.stringify(this.routines));
+                    this.renderRoutines();
+                }
+            },
+
+            renderRoutines() {
+                const list = document.getElementById('routine-list');
+                list.innerHTML = '';
+                if (this.routines.length === 0) {
+                    list.innerHTML = '<div class="text-center text-gray-400 mt-10">尚無課表，請點選上方按鈕建立</div>';
+                    return;
+                }
+
+                this.routines.forEach(r => {
+                    const el = document.createElement('div');
+                    el.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group dark:bg-gray-750 dark:border-gray-600";
+
+                    const blockCount = r.blocks ? r.blocks.length : 0;
+
+                    // Calculate estimated total time
+                    let totalSec = 0;
+                    if (r.blocks) totalSec = calculateDuration(r.blocks);
+                    // Handle Skip Last Rest for visual estimation (approximate)
+                    if (r.skipLastRest && r.blocks && r.blocks.length > 0) {
+                        const last = r.blocks[r.blocks.length - 1];
+                        if (last.type === 'timer') totalSec -= (last.props.duration || 0);
+                    }
+                    const timeStr = formatTime(Math.max(0, totalSec));
+
+                    el.innerHTML = `
+                        <div onclick="timer.start('${r.id}')" class="flex-1 cursor-pointer">
+                            <div class="font-bold text-lg text-gray-800 dark:text-gray-100">${r.title}</div>
+                            <div class="flex gap-3 mt-1 text-xs text-gray-500 font-mono dark:text-gray-400">
+                                <span class="bg-gray-100 px-2 py-0.5 rounded dark:bg-gray-600 dark:text-gray-300">⏱ ${timeStr}</span>
+                                <span>${blockCount} 區塊</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1">
+                             <button onclick="store.duplicateRoutine('${r.id}')" class="text-gray-400 hover:text-blue-600 p-2 dark:hover:text-blue-400" title="複製">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            </button>
+                             <button onclick="editor.load('${r.id}')" class="text-gray-400 hover:text-blue-600 p-2 dark:hover:text-blue-400" title="編輯">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                            <button onclick="store.deleteRoutine('${r.id}')" class="text-gray-400 hover:text-red-600 p-2 dark:hover:text-red-400" title="刪除">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    `;
+                    list.appendChild(el);
+                });
+            }
+        };
+
+        // --- 3. Editor ---
+        const editor = {
+            currentId: null,
+            activeBlock: null,
+            // 顏色列表
+            colors: ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'indigo', 'violet', 'pink'],
+            // 暫存選擇的顏色
+            selectedColor: 'gray',
+
+            // 預設選項 (統一為 Title Case English)
+            defaultSuggestions: {
+                'timer': [
+                    { label: 'Prepare', color: 'blue' },
+                    { label: 'Hang', color: 'orange' },
+                    { label: 'Rest', color: 'green' }
+                ],
+                'reps': [
+                    { label: 'Pull Ups', color: 'indigo' },
+                    { label: 'Push Ups', color: 'pink' }
+                ],
+                'loop': []
+            },
+
+            init() {
+                new Sortable(document.getElementById('editor-palette'), {
+                    group: { name: 'shared', pull: 'clone', put: false },
+                    sort: false,
+                    onClone: (evt) => { evt.clone.dataset.tempId = Date.now(); }
+                });
+                this.initSortable(document.getElementById('editor-canvas'));
+            },
+
+            initSortable(el) {
+                new Sortable(el, {
+                    group: 'shared',
+                    animation: 150,
+                    fallbackOnBody: true,
+                    ghostClass: 'sortable-ghost',
+                    dragClass: 'sortable-drag',
+                    draggable: '.block-item', // 限制只有 block-item 可以拖曳
+                    onAdd: (evt) => {
+                        const type = evt.item.dataset.type;
+                        evt.item.replaceWith(this.createBlock({ type, id: uuid() }));
+                        this.updateTimeline();
+                    },
+                    onUpdate: () => this.updateTimeline(),
+                    onRemove: () => this.updateTimeline()
+                });
+            },
+
+            // 取得積木類別 (根據 props.color)
+            getBlockClass(type, props) {
+                const c = props.color || 'gray';
+                return `border-l-4 border-l-${c}-500 bg-${c}-50 border-${c}-200 dark:bg-${c}-900/20 dark:border-${c}-800`;
+            },
+
+            createBlock(data) {
+                const el = document.createElement('div');
+                const props = data.props || this.getDefaultProps(data.type);
+
+                el.className = `block-item p-3 mb-2 rounded border bg-white ${this.getBlockClass(data.type, props)}`;
+                el.dataset.type = data.type;
+                el.dataset.id = data.id || uuid();
+                el.dataset.props = JSON.stringify(props);
+
+                const header = document.createElement('div');
+                header.className = "flex justify-between items-center cursor-pointer";
+                header.innerHTML = `
+                    <div class="flex items-center gap-2 pointer-events-none">
+                        <span class="text-xs font-bold uppercase opacity-60 dark:text-gray-400">${data.type}</span>
+                        <span class="font-bold text-sm block-label dark:text-white">${this.getLabel(data.type, props)}</span>
+                    </div>
+                `;
+                header.onclick = (e) => {
+                    e.stopPropagation();
+                    this.openProps(el);
+                };
+                el.appendChild(header);
+
+                if (data.type === 'loop') {
+                    const inner = document.createElement('div');
+                    inner.className = "nested-container pl-2 pr-2 pb-2 pt-2";
+                    el.appendChild(inner);
+                    this.initSortable(inner);
+                    if (data.children) {
+                        data.children.forEach(c => inner.appendChild(this.createBlock(c)));
+                    }
+                }
+
+                return el;
+            },
+
+            getDefaultProps(type) {
+                if (type === 'loop') return { iterations: 3, color: 'violet' };
+                if (type === 'timer') return { duration: 10, label: 'Hang', color: 'orange' };
+                if (type === 'reps') return { count: 5, duration: 30, label: 'Pull Ups', color: 'blue' };
+                return { color: 'gray' };
+            },
+
+            getLabel(type, props) {
+                if (type === 'loop') return `x ${props.iterations} 次`;
+                if (type === 'timer') return `${props.label} (${props.duration}s)`;
+                if (type === 'reps') return `${props.label} x${props.count}`;
+                return type;
+            },
+
+            // 掃描所有課表，建立歷史紀錄 (Name -> Color)
+            getHistory(type) {
+                const history = new Map();
+                store.routines.forEach(r => {
+                    const traverse = (blocks) => {
+                        blocks.forEach(b => {
+                            if (b.type === type && b.props.label) {
+                                history.set(b.props.label, b.props.color || 'gray');
+                            }
+                            if (b.children) traverse(b.children);
+                        });
+                    };
+                    if (r.blocks) traverse(r.blocks);
+                });
+                return history;
+            },
+
+            openProps(el) {
+                this.activeBlock = el;
+                const type = el.dataset.type;
+                const props = JSON.parse(el.dataset.props);
+                const form = document.getElementById('prop-form');
+
+                // 1. 生成表單內容
+                let html = '';
+                if (type !== 'loop') {
+                    // Create Options String for Select
+                    let optionsHtml = '<option value="" disabled selected>Select from history...</option>';
+
+                    const historyMap = this.getHistory(type);
+                    const defaults = this.defaultSuggestions[type] || [];
+
+                    // Add Defaults to history map for color lookup
+                    defaults.forEach(def => {
+                        if (!historyMap.has(def.label)) historyMap.set(def.label, def.color);
+                    });
+
+                    // Build Options (Unique)
+                    const addedLabels = new Set();
+
+                    // Add Defaults
+                    defaults.forEach(def => {
+                        optionsHtml += `<option value="${def.label}">${def.label}</option>`;
+                        addedLabels.add(def.label);
+                    });
+
+                    // Add History
+                    historyMap.forEach((color, label) => {
+                        if (!addedLabels.has(label)) {
+                            optionsHtml += `<option value="${label}">${label}</option>`;
+                        }
+                    });
+
+                    html += `
+                        <div>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">標籤 (Label)</label>
+                            <div class="flex flex-col gap-2">
+                                <input type="text" id="inp-label" class="w-full border rounded-lg p-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.label || ''}" placeholder="Type custom name...">
+                                <select id="sel-label" class="w-full border rounded-lg p-2 text-sm text-gray-600 bg-gray-50 dark:bg-gray-600 dark:text-gray-300 dark:border-gray-500">
+                                    ${optionsHtml}
+                                </select>
+                            </div>
+                        </div>`;
+
+                    // Store map for color lookup in event listener
+                    this.tempHistoryMap = historyMap;
+                }
+
+                if (type === 'loop') {
+                    html += `
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-1">循環次數</label>
+                        <input type="number" id="inp-iterations" class="w-full border rounded-lg p-3 text-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.iterations}">
+                    </div>`;
+                } else if (type === 'timer') {
+                    html += `
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-1">時間 (秒)</label>
+                        <input type="number" id="inp-duration" class="w-full border rounded-lg p-3 text-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.duration}">
+                    </div>`;
+                } else if (type === 'reps') {
+                    html += `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">次數 (Reps)</label>
+                            <input type="number" id="inp-count" class="w-full border rounded-lg p-3 text-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.count}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">預估時間 (秒)</label>
+                            <input type="number" id="inp-duration" class="w-full border rounded-lg p-3 text-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.duration}" placeholder="計時用">
+                        </div>
+                    </div>`;
+                }
+                form.innerHTML = html;
+
+                // 2. 生成顏色選擇器
+                this.selectedColor = props.color || 'gray';
+                const palette = document.getElementById('color-palette');
+                palette.innerHTML = '';
+                this.colors.forEach(c => {
+                    const btn = document.createElement('div');
+                    btn.className = `color-btn w-8 h-8 rounded-full cursor-pointer shrink-0 bg-${c}-500 ${c === this.selectedColor ? 'selected' : ''}`;
+                    btn.onclick = () => {
+                        this.selectedColor = c;
+                        // Update UI selection
+                        Array.from(palette.children).forEach(child => child.classList.remove('selected'));
+                        btn.classList.add('selected');
+                    };
+                    palette.appendChild(btn);
+                });
+
+                // 3. 綁定事件 (Select -> Input & Color)
+                const selLabel = document.getElementById('sel-label');
+                const inpLabel = document.getElementById('inp-label');
+
+                if (selLabel && inpLabel) {
+                    selLabel.addEventListener('change', (e) => {
+                        const val = e.target.value;
+                        inpLabel.value = val;
+
+                        // Auto-select color
+                        if (this.tempHistoryMap && this.tempHistoryMap.has(val)) {
+                            const historyColor = this.tempHistoryMap.get(val);
+                            this.selectedColor = historyColor;
+                            // Update Palette UI
+                            Array.from(palette.children).forEach(child => {
+                                child.classList.remove('selected');
+                                if (child.classList.contains(`bg-${historyColor}-500`)) {
+                                    child.classList.add('selected');
+                                }
+                            });
+                        }
+                    });
+                }
+
+                document.getElementById('prop-sheet').classList.remove('translate-y-full');
+            },
+
+            saveProps() {
+                if (!this.activeBlock) return;
+                const type = this.activeBlock.dataset.type;
+                let props = JSON.parse(this.activeBlock.dataset.props);
+
+                // 更新基本屬性
+                if (type === 'loop') {
+                    props.iterations = Number(document.getElementById('inp-iterations').value);
+                } else {
+                    props.label = document.getElementById('inp-label').value;
+                    props.duration = Number(document.getElementById('inp-duration').value);
+                    if (type === 'reps') props.count = Number(document.getElementById('inp-count').value);
+                }
+
+                // 更新顏色
+                props.color = this.selectedColor;
+
+                // 寫回 DOM
+                this.activeBlock.dataset.props = JSON.stringify(props);
+                this.activeBlock.className = `block-item p-3 mb-2 rounded border bg-white ${this.getBlockClass(type, props)}`;
+                this.activeBlock.querySelector('.block-label').textContent = this.getLabel(type, props);
+                this.closeProps();
+                this.updateTimeline();
+            },
+
+            deleteCurrentBlock() {
+                if (this.activeBlock) {
+                    this.activeBlock.remove();
+                    this.closeProps();
+                    this.updateTimeline();
+                }
+            },
+
+            closeProps() {
+                document.getElementById('prop-sheet').classList.add('translate-y-full');
+                this.activeBlock = null;
+            },
+
+            serialize(container = document.getElementById('editor-canvas')) {
+                const blocks = [];
+                Array.from(container.children).forEach(el => {
+                    if (!el.classList.contains('block-item')) return;
+                    const block = {
+                        id: el.dataset.id,
+                        type: el.dataset.type,
+                        props: JSON.parse(el.dataset.props)
+                    };
+                    if (block.type === 'loop') {
+                        const inner = el.querySelector('.nested-container');
+                        block.children = this.serialize(inner);
+                    }
+                    blocks.push(block);
+                });
+                return blocks;
+            },
+
+            // --- 視覺化時間軸計算 ---
+            updateTimeline() {
+                const blocks = this.serialize();
+                const container = document.getElementById('editor-timeline');
+
+                // Temporarily flatten to calculate segments without side effects
+                // Reuse timer.flatten logic but purely for data extraction
+                const flattened = timer.flatten(blocks);
+                const totalDuration = flattened.reduce((acc, b) => acc + (b.props.duration || 0), 0);
+
+                document.getElementById('editor-total-time').textContent = formatTime(totalDuration);
+
+                if (totalDuration === 0) {
+                    container.innerHTML = '';
+                    return;
+                }
+
+                let html = '';
+                flattened.forEach(b => {
+                    const dur = b.props.duration || 0;
+                    if (dur <= 0) return;
+                    const pct = (dur / totalDuration) * 100;
+                    const color = b.props.color || 'gray';
+                    html += `<div style="width: ${pct}%" class="h-full bg-${color}-400 border-r border-white/20" title="${b.props.label} (${dur}s)"></div>`;
+                });
+                container.innerHTML = html;
+            },
+
+            open() {
+                this.currentId = null;
+                document.getElementById('editor-title').value = '';
+                document.getElementById('editor-canvas').innerHTML = '<div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>';
+                document.getElementById('modal-editor').classList.add('open');
+
+                // NEW: Reset checkbox by appending footer
+                this.appendFooter(false);
+                this.updateTimeline();
+            },
+
+            load(id) {
+                const r = store.routines.find(x => x.id === id);
+                if (!r) return;
+                this.currentId = id;
+                document.getElementById('editor-title').value = r.title;
+                const canvas = document.getElementById('editor-canvas');
+                canvas.innerHTML = '';
+                if (r.blocks) {
+                    r.blocks.forEach(b => canvas.appendChild(this.createBlock(b)));
+                }
+                document.getElementById('modal-editor').classList.add('open');
+
+                // NEW: Load checkbox state
+                this.appendFooter(!!r.skipLastRest);
+                this.updateTimeline();
+            },
+
+            appendFooter(isChecked) {
+                const container = document.getElementById('editor-canvas');
+                // Remove existing footer if any (prevent duplication)
+                const existing = container.querySelector('.editor-footer');
+                if (existing) existing.remove();
+
+                const footer = document.createElement('div');
+                footer.className = "editor-footer mt-6 py-4 border-t border-gray-100 flex items-center justify-center gap-3 dark:border-gray-700";
+                footer.innerHTML = `
+                    <label for="editor-skip-rest" class="text-sm font-bold text-gray-500 cursor-pointer dark:text-gray-400">跳過最後休息</label>
+                    <div class="relative inline-block w-12 align-middle select-none">
+                        <input type="checkbox" id="editor-skip-rest" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" ${isChecked ? 'checked' : ''}/>
+                        <label for="editor-skip-rest" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
+                    </div>
+                `;
+                container.appendChild(footer);
+            },
+
+            close() { document.getElementById('modal-editor').classList.remove('open'); },
+
+            async save() {
+                const title = document.getElementById('editor-title').value || '未命名課表';
+                const blocks = this.serialize();
+                // NEW: Save checkbox
+                const skipLastRest = document.getElementById('editor-skip-rest') ? document.getElementById('editor-skip-rest').checked : false;
+
+                const data = { title, blocks, skipLastRest, updatedAt: Date.now() };
+
+                if (store.user) {
+                    const col = db.collection('users').doc(store.user.uid).collection('routines');
+                    this.currentId ? await col.doc(this.currentId).set(data, { merge: true }) : await col.add(data);
+                    store.loadRoutines();
+                } else {
+                    const newId = this.currentId || 'local_' + Date.now();
+                    const idx = store.routines.findIndex(r => r.id === newId);
+                    if (idx > -1) store.routines[idx] = { id: newId, ...data };
+                    else store.routines.unshift({ id: newId, ...data });
+                    localStorage.setItem('localRoutines', JSON.stringify(store.routines));
+                    store.renderRoutines();
+                }
+                this.close();
+            }
+        };
+
+        // --- 4. Timer Engine (核心邏輯) ---
+        const timer = {
+            queue: [],
+            totalDuration: 0,
+            currentIndex: 0,
+            elapsed: 0,
+            interval: null,
+            isPaused: false,
+            isLocked: false, // 螢幕鎖定狀態
+
+            flatten(blocks, parentLoops = []) {
+                let res = [];
+                blocks.forEach(b => {
+                    if (b.type === 'loop') {
+                        const count = b.props.iterations || 1;
+                        for (let i = 1; i <= count; i++) {
+                            const currentLoopInfo = { current: i, total: count };
+                            const newParentLoops = [...parentLoops, currentLoopInfo];
+                            res = res.concat(this.flatten(b.children || [], newParentLoops));
+                        }
+                    } else {
+                        res.push({
+                            ...b,
+                            loopState: parentLoops
+                        });
+                    }
+                });
+                return res;
+            },
+
+            start(routineId) {
+                const routine = store.routines.find(r => r.id === routineId);
+                if (!routine || !routine.blocks) return;
+
+                this.queue = this.flatten(routine.blocks);
+
+                // Skip Last Timer 邏輯
+                if (routine.skipLastRest && this.queue.length > 0) {
+                    const last = this.queue[this.queue.length - 1];
+                    if (last.type === 'timer') {
+                        this.queue.pop();
+                    }
+                }
+
+                if (this.queue.length === 0) return alert('課表是空的');
+
+                // 加入結束標記
+                this.queue.push({ type: 'finish', props: { duration: 0, label: 'Done', color: 'gray' }, loopState: [] });
+
+                this.totalDuration = this.queue.reduce((acc, item) => acc + (item.props.duration || 0), 0);
+                this.currentIndex = 0;
+                this.elapsed = 0;
+                this.isPaused = false;
+                this.isLocked = false; // 重置鎖定狀態
+
+                document.getElementById('active-title').textContent = routine.title;
+                document.getElementById('active-total-display').textContent = formatTime(this.totalDuration);
+                document.getElementById('modal-active-timer').classList.add('open');
+
+                // 重置鎖定 UI
+                this.updateLockUI();
+
+                this.updateControlUI();
+                this.runStep();
+                this.startTicker();
+                voiceCommander.init();
+            },
+
+            toggleLock() {
+                this.isLocked = !this.isLocked;
+                this.updateLockUI();
+            },
+
+            updateLockUI() {
+                const overlay = document.getElementById('lock-overlay');
+                const lockBtn = document.getElementById('btn-lock');
+
+                if (this.isLocked) {
+                    overlay.classList.remove('hidden');
+                    // 變更鎖頭圖示為 "解鎖"
+                    lockBtn.innerHTML = '<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>';
+                    lockBtn.classList.add('bg-white', 'hover:bg-gray-100');
+                    lockBtn.classList.remove('bg-white/10', 'hover:bg-white/20');
+                } else {
+                    overlay.classList.add('hidden');
+                    // 變更鎖頭圖示為 "鎖定"
+                    lockBtn.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>';
+                    lockBtn.classList.remove('bg-white', 'hover:bg-gray-100');
+                    lockBtn.classList.add('bg-white/10', 'hover:bg-white/20');
+                }
+            },
+
+            runStep() {
+                const step = this.queue[this.currentIndex];
+                if (!step) return this.stop();
+
+                this.stepDuration = step.props.duration || 0;
+                this.stepLeft = this.stepDuration;
+
+                document.getElementById('active-status').textContent = step.props.label;
+
+                const statusEl = document.getElementById('active-status');
+                const modalEl = document.getElementById('modal-active-timer');
+
+                // 移除所有可能的顏色類別
+                modalEl.className = modalEl.className.replace(/bg-\w+-600/g, '').trim();
+                // 移除急迫閃爍
+                modalEl.classList.remove('pulse-urgent');
+
+                const color = step.props.color || 'gray';
+                modalEl.classList.add(`bg-${color}-600`);
+
+                // 調整文字顏色
+                if (step.type === 'finish') {
+                    statusEl.textContent = "FINISHED";
+                    this.stop();
+                    return;
+                }
+
+                // 重置進度條
+                document.getElementById('active-progress-bar').style.width = '100%';
+
+                // TTS 朗讀 (使用 settingsManager)
+                settingsManager.speak(step.props.label);
+
+                // Play Start Sound
+                settingsManager.beep('start');
+
+                this.updateDisplay();
+            },
+
+            startTicker() {
+                if (this.interval) clearInterval(this.interval);
+                this.interval = setInterval(() => {
+                    if (this.isPaused) return;
+
+                    if (this.stepLeft > 0) {
+                        this.stepLeft--;
+                        this.elapsed++;
+
+                        // 倒數提示音 (Beep) & 視覺閃爍
+                        if (this.stepLeft <= settingsManager.data.countdownSec) {
+                            settingsManager.beep('countdown');
+
+                            // 最後3秒觸發背景閃爍
+                            const modalEl = document.getElementById('modal-active-timer');
+                            if (!modalEl.classList.contains('pulse-urgent')) {
+                                modalEl.classList.add('pulse-urgent');
+                            }
+                        }
+
+                    } else {
+                        // 轉換邏輯：結束當前步驟
+                        this.currentIndex++;
+                        if (this.currentIndex < this.queue.length) {
+                            this.runStep();
+                        } else {
+                            // 完成
+                            settingsManager.beep('finish');
+                            this.stop();
+                        }
+                    }
+                    this.updateDisplay();
+                }, 1000);
+            },
+
+            updateDisplay() {
+                const step = this.queue[this.currentIndex];
+                if (!step) return;
+
+                const displayNum = step.type === 'reps' && this.stepLeft > 0
+                    ? `${step.props.count}<span class="text-4xl ml-2 opacity-50">reps</span>`
+                    : (this.stepLeft < 10 ? '0' + this.stepLeft : this.stepLeft);
+
+                document.getElementById('active-countdown').innerHTML = displayNum;
+
+                // 更新進度條
+                if (this.stepDuration > 0) {
+                    const progressPct = (this.stepLeft / this.stepDuration) * 100;
+                    document.getElementById('active-progress-bar').style.width = `${progressPct}%`;
+                } else {
+                    document.getElementById('active-progress-bar').style.width = `0%`;
+                }
+
+                const remaining = Math.max(0, this.totalDuration - this.elapsed);
+                document.getElementById('active-elapsed').textContent = formatTime(this.elapsed);
+                document.getElementById('active-remaining').textContent = formatTime(remaining);
+                // active-total-display is static per routine start, but nice to keep formatted
+
+                const loopState = step.loopState;
+                const loopEl = document.getElementById('active-loops');
+                if (loopState && loopState.length > 0) {
+                    const text = loopState.map(l => `Loop ${l.current}/${l.total}`).join(' > ');
+                    loopEl.textContent = text;
+                    loopEl.classList.remove('hidden');
+                } else {
+                    loopEl.classList.add('hidden');
+                }
+
+                // 下一步預告與顏色點
+                const nextStep = this.queue[this.currentIndex + 1];
+                const nextEl = document.getElementById('active-next');
+                const nextBadge = document.getElementById('active-next-badge');
+                if (nextStep) {
+                    let desc = nextStep.props.label;
+                    if (nextStep.type === 'timer') desc += ` (${nextStep.props.duration}s)`;
+                    if (nextStep.type === 'reps') desc += ` x${nextStep.props.count}`;
+                    nextEl.textContent = desc;
+
+                    // 下一步顏色
+                    const nc = nextStep.props.color || 'gray';
+                    nextBadge.className = `w-3 h-3 rounded-full bg-${nc}-400 shadow-sm`;
+                } else {
+                    nextEl.textContent = "Finish";
+                    nextBadge.className = `w-3 h-3 rounded-full bg-gray-500`;
+                }
+            },
+
+            toggle() {
+                if (this.isLocked) return; // 鎖定狀態下無法暫停/繼續 (除非解鎖)
+                this.isPaused = !this.isPaused;
+                this.updateControlUI();
+            },
+
+            updateControlUI() {
+                const iconEl = document.getElementById('icon-play-pause');
+                const labelEl = document.getElementById('lbl-play-pause');
+
+                if (this.isPaused) {
+                    iconEl.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>';
+                    labelEl.textContent = '繼續';
+                } else {
+                    iconEl.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"></path>';
+                    labelEl.textContent = '暫停';
+                }
+            },
+
+            skip(dir) {
+                if (this.isLocked) return; // 鎖定狀態下無法跳過
+                const newIndex = this.currentIndex + dir;
+                if (newIndex >= 0 && newIndex < this.queue.length) {
+                    this.currentIndex = newIndex;
+                    this.runStep();
+                }
+            },
+
+            stop() {
+                // Stop 不需要鎖定檢查，安全起見
+                clearInterval(this.interval);
+                voiceCommander.stop();
+                document.getElementById('modal-active-timer').classList.remove('open');
+                document.getElementById('modal-active-timer').classList.remove('pulse-urgent');
+            }
+        };
+
+        // --- 初始化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            store.init();
+            editor.init();
+            settingsManager.init();
+            themeManager.init();
+
+            const calGrid = document.getElementById('calendar-grid');
+            for (let i = 0; i < 28; i++) {
+                const d = document.createElement('div');
+                d.className = `aspect-square rounded-full flex items-center justify-center text-xs ${Math.random() > 0.7 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'}`;
+                d.textContent = i + 1;
+                calGrid.appendChild(d);
+            }
+        });
+
+    </script>
+</body>
+
+</html>
