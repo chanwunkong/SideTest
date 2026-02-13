@@ -4,1579 +4,1079 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HoldFocus - v10.15</title>
+    <title>Climbing Toolbox - 指力訓練</title>
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- 拖曳套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <!-- 共用設定 -->
+    <script src="config.js"></script>
+
     <style>
-        /* --- 基礎樣式與滑桿控制 --- */
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 18px;
-            width: 18px;
-            border-radius: 50%;
-            background: #3b82f6;
-            cursor: pointer;
-            margin-top: -7px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-            transition: transform 0.1s;
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
         }
 
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: #e5e7eb;
-            border-radius: 2px;
-        }
-
-        #file-upload {
+        /* 視圖切換 */
+        .view-section {
             display: none;
-        }
-
-        .loader {
-            border: 3px solid #f3f3f3;
-            border-radius: 50%;
-            border-top: 3px solid #3b82f6;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .color-btn.selected {
-            ring: 2px;
-            ring-offset: 2px;
-            ring-color: #3b82f6;
-            transform: scale(1.15);
-        }
-
-        .slider-btn {
-            touch-action: none;
-            user-select: none;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #f3f4f6;
-            border-radius: 6px;
-            font-weight: bold;
-            color: #4b5563;
-            flex-shrink: 0;
-            transition: transform 0.1s;
-        }
-
-        .slider-btn:active {
-            transform: scale(0.9);
-            background-color: #e5e7eb;
-        }
-
-        /* --- 畫布層級與轉化 --- */
-        .canvas-stack {
-            position: relative;
-            width: 0;
-            height: 0;
-            max-width: none !important;
-            max-height: none !important;
-        }
-
-        .layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
             height: 100%;
-            max-width: none !important;
-            max-height: none !important;
+            overflow-y: auto;
+            padding-bottom: 80px;
         }
 
-        #layer-bg {
-            z-index: 1;
+        .view-section.active {
+            display: block;
         }
 
-        #layer-mask {
-            z-index: 2;
-            mix-blend-mode: normal;
+        /* 模態視窗過渡 */
+        .modal {
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(100%);
         }
 
-        #layer-ui {
-            z-index: 3;
-            pointer-events: none;
+        .modal.open {
+            transform: translateY(0);
         }
 
-        .crop-overlay {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            z-index: 50;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .crop-frame {
-            border: 2px solid rgba(255, 255, 255, 0.9);
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
-            position: relative;
+        /* 隱藏捲軸 */
+        .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
 
-        .crop-frame::before {
-            content: '';
-            position: absolute;
-            top: 33.33%;
-            left: 0;
-            right: 0;
-            height: 33.33%;
-            border-top: 1px dashed rgba(255, 255, 255, 0.3);
-            border-bottom: 1px dashed rgba(255, 255, 255, 0.3);
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
 
-        .crop-frame::after {
-            content: '';
-            position: absolute;
-            left: 33.33%;
-            top: 0;
-            bottom: 0;
-            width: 33.33%;
-            border-left: 1px dashed rgba(255, 255, 255, 0.3);
-            border-right: 1px dashed rgba(255, 255, 255, 0.3);
-        }
-
-        #crop-inner-backdrop {
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            display: none;
-        }
-
-        .tool-btn.active {
-            background-color: #2563eb;
-            color: white;
-        }
-
-        .tool-btn {
-            color: #6b7280;
-            transition: all 0.2s;
-            touch-action: manipulation;
-        }
-
-        .snap-line {
-            position: absolute;
-            background-color: #3b82f6;
-            z-index: 70;
-            pointer-events: none;
-            box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
-        }
-
-        #loupe {
-            position: absolute;
-            width: 130px;
-            height: 130px;
-            border: 3px solid white;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 100;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-            display: none;
-            background: #000;
-        }
-
-        #canvas-container {
+        /* 積木樣式 */
+        .block-item {
             touch-action: none;
-            overflow: hidden;
+            transition: transform 0.1s;
         }
 
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
+        .block-item:active {
+            transform: scale(0.98);
         }
 
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 10px;
+        .block-loop {
+            border-left: 4px solid #8b5cf6;
+            background: #f5f3ff;
         }
 
-        /* 視覺反饋動畫 */
-        @keyframes flash-highlight {
+        .block-timer {
+            border-left: 4px solid #f59e0b;
+            background: white;
+        }
+
+        .block-reps {
+            border-left: 4px solid #3b82f6;
+            background: #eff6ff;
+        }
+
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #e5e7eb;
+            border: 1px dashed #9ca3af;
+        }
+
+        .sortable-drag {
+            opacity: 0.9;
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 巢狀縮排線條 */
+        .nested-container {
+            min-height: 50px;
+            margin-top: 0.5rem;
+            border-radius: 0.5rem;
+            background-color: rgba(0, 0, 0, 0.03);
+            border: 1px dashed #cbd5e1;
+        }
+
+        /* 屬性面板 */
+        #prop-sheet {
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 語音狀態動畫 */
+        .mic-listening {
+            animation: pulse-red 1.5s infinite;
+            background-color: #ef4444 !important;
+            /* red-500 */
+            color: white !important;
+        }
+
+        @keyframes pulse-red {
             0% {
-                background-color: #FEF08A;
-                transform: scale(1.02);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
             }
 
             100% {
-                background-color: white;
-                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
             }
-        }
-
-        .flash-active {
-            animation: flash-highlight 0.5s ease-out;
         }
     </style>
 </head>
 
-<body class="bg-gray-100 text-gray-800 h-screen flex flex-col overflow-hidden font-sans select-none">
+<body class="bg-gray-50 text-gray-900 h-[100dvh] w-full overflow-hidden flex flex-col">
 
-    <header
-        class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-sm">
-        <div class="flex items-center gap-2 overflow-hidden">
-            <a href="index.html" class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-1" title="Home">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-                    </path>
-                </svg>
-            </a>
-            <h1 class="text-base font-bold text-gray-900 truncate">HoldFocus <span
-                    class="text-xs font-normal text-gray-500 ml-1">v10.15</span></h1>
-            <div class="flex ml-2 border-l border-gray-200 pl-2 space-x-1">
-                <button id="undo-btn" class="p-1.5 text-gray-500 disabled:opacity-20 transition-opacity" disabled><svg
-                        class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
-                    </svg></button>
-                <button id="redo-btn" class="p-1.5 text-gray-500 disabled:opacity-20 transition-opacity" disabled><svg
-                        class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path>
-                    </svg></button>
+    <!-- 主要內容區 -->
+    <main id="app-container" class="flex-1 relative overflow-hidden w-full max-w-md mx-auto bg-white shadow-2xl">
+
+        <!-- 1. 日曆與紀錄 (Calendar) -->
+        <div id="view-calendar" class="view-section active">
+            <div class="p-6">
+                <div class="flex items-center mb-6">
+                    <a href="index.html" class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2"
+                        title="Home">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                            </path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-extrabold">訓練紀錄</h1>
+                </div>
+
+                <div class="bg-gray-900 text-white rounded-2xl p-6 mb-8 shadow-lg">
+                    <div class="text-sm text-gray-400 mb-1">本週訓練</div>
+                    <div class="text-4xl font-mono font-bold mb-4">3 <span
+                            class="text-lg font-normal text-gray-500">次</span></div>
+                    <div class="flex gap-4 text-sm border-t border-gray-700 pt-4">
+                        <div>
+                            <div class="text-gray-400">總時長</div>
+                            <div class="font-bold">45m</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-400">最大負重</div>
+                            <div class="font-bold text-yellow-500">+20kg</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-2 mb-4 text-center text-sm text-gray-400">
+                    <div>M</div>
+                    <div>T</div>
+                    <div>W</div>
+                    <div>T</div>
+                    <div>F</div>
+                    <div>S</div>
+                    <div>S</div>
+                </div>
+                <div class="grid grid-cols-7 gap-2" id="calendar-grid"></div>
             </div>
         </div>
-        <div class="flex space-x-2 items-center">
-            <button id="lang-btn"
-                class="text-xs font-bold text-gray-500 hover:text-gray-800 mr-2 px-2 py-1 rounded border border-gray-200">EN</button>
-            <label for="file-upload"
-                class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm font-bold transition-colors"
-                data-i18n="open">開啟</label>
-            <input id="file-upload" type="file" accept="image/*">
-            <button id="download-btn"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors disabled:opacity-50 shadow-sm"
-                disabled data-i18n="download">下載</button>
-        </div>
-    </header>
 
-    <main class="flex-1 flex flex-col-reverse md:flex-row overflow-hidden relative">
-        <aside
-            class="w-full md:w-80 bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col z-10 shrink-0 h-[45%] md:h-full transition-all duration-300 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-            <div class="flex border-b border-gray-200 shrink-0">
-                <button id="tab-route"
-                    class="flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors"
-                    data-i18n="tabRoute">路線編輯</button>
-                <button id="tab-text"
-                    class="flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
-                    data-i18n="tabText">文字/標記</button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto custom-scrollbar relative p-4 pb-28">
-                <!-- 路線分頁 -->
-                <div id="panel-route" class="space-y-4">
-                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-center md:text-left">
-                        <p class="text-xs text-blue-800 font-bold leading-relaxed" data-i18n="instruction">1.
-                            右上角開啟照片<br>2. 點擊下方 <b
-                                class="inline-flex items-center justify-center w-4 h-4 bg-blue-600 text-white rounded-full text-[10px] align-middle shadow-sm">+</b>
-                            號，開始圈選岩點</p>
-                    </div>
-
-                    <div class="flex-1 flex flex-col min-h-0">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="text-sm font-bold text-gray-700" data-i18n="selectedHolds">已選岩點</h3>
-                        </div>
-                        <div id="color-list" class="space-y-2 pb-2 overflow-y-auto">
-                            <div class="text-center py-6 text-gray-400 text-sm italic border-2 border-dashed border-gray-100 rounded-lg"
-                                data-i18n="emptySelection">尚未圈選</div>
-                        </div>
-                    </div>
-
-                    <div id="brush-controls" class="hidden border-t border-gray-200 pt-3">
-                        <div class="flex justify-between mb-1"><label class="text-xs font-bold text-blue-800 uppercase"
-                                data-i18n="eraserSize">橡皮擦大小</label><span id="brush-size-val"
-                                class="text-xs text-blue-600 font-mono">20px</span></div>
-                        <div class="slider-group flex items-center gap-2">
-                            <button class="slider-btn" data-target="brush-size" data-delta="-1">-</button>
-                            <input type="range" id="brush-size" min="5" max="100" value="20"
-                                class="accent-blue-600 flex-1">
-                            <button class="slider-btn" data-target="brush-size" data-delta="1">+</button>
-                        </div>
-                    </div>
-
-                    <div class="border-t border-gray-200 pt-3">
-                        <details class="group">
-                            <summary
-                                class="flex justify-between items-center font-bold text-xs text-gray-500 cursor-pointer list-none py-1">
-                                <span data-i18n="imageAdjustment">影像調整 (全域)</span>
-                                <span class="transition-transform group-open:rotate-180 duration-200"><svg
-                                        class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M19 9l-7 7-7-7"></path>
-                                    </svg></span>
-                            </summary>
-                            <div class="mt-3 space-y-4 pb-2 px-1">
-                                <div>
-                                    <div class="flex justify-between mb-1"><label
-                                            class="text-xs font-medium text-gray-600"
-                                            data-i18n="contrast">對比度</label><span id="contrast-val"
-                                            class="text-xs text-gray-400">100%</span></div>
-                                    <div class="slider-group flex items-center gap-2">
-                                        <button class="slider-btn" data-target="contrast" data-delta="-1">-</button>
-                                        <input type="range" id="contrast" min="50" max="150" value="100"
-                                            class="accent-gray-600 flex-1">
-                                        <button class="slider-btn" data-target="contrast" data-delta="1">+</button>
-                                    </div>
-                                </div>
-                                <div class="w-full h-px bg-gray-100"></div>
-                                <div class="space-y-3">
-                                    <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"
-                                        data-i18n="bgStyle">背景風格</h4>
-                                    <div>
-                                        <div class="flex justify-between mb-1"><label
-                                                class="text-xs font-medium text-gray-600"
-                                                data-i18n="saturation">飽和度</label><span id="bg-sat-val"
-                                                class="text-xs text-gray-400">50%</span></div>
-                                        <div class="slider-group flex items-center gap-2">
-                                            <button class="slider-btn" data-target="bg-sat" data-delta="-1">-</button>
-                                            <input type="range" id="bg-sat" min="0" max="100" value="50"
-                                                class="accent-gray-600 flex-1">
-                                            <button class="slider-btn" data-target="bg-sat" data-delta="1">+</button>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="flex justify-between mb-1"><label
-                                                class="text-xs font-medium text-gray-600"
-                                                data-i18n="dim">壓暗</label><span id="bg-dim-val"
-                                                class="text-xs text-gray-400">50%</span></div>
-                                        <div class="slider-group flex items-center gap-2">
-                                            <button class="slider-btn" data-target="bg-dim" data-delta="-1">-</button>
-                                            <input type="range" id="bg-dim" min="0" max="100" value="50"
-                                                class="accent-gray-600 flex-1">
-                                            <button class="slider-btn" data-target="bg-dim" data-delta="1">+</button>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="flex justify-between mb-1"><label
-                                                class="text-xs font-medium text-gray-600"
-                                                data-i18n="blur">模糊</label><span id="bg-blur-val"
-                                                class="text-xs text-gray-400">10px</span></div>
-                                        <div class="slider-group flex items-center gap-2">
-                                            <button class="slider-btn" data-target="bg-blur" data-delta="-1">-</button>
-                                            <input type="range" id="bg-blur" min="0" max="20" value="10"
-                                                class="accent-gray-600 flex-1">
-                                            <button class="slider-btn" data-target="bg-blur" data-delta="1">+</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </details>
-                    </div>
-                </div>
-
-                <!-- 文字分頁 -->
-                <div id="panel-text" class="space-y-4 hidden">
-                    <div>
-                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2" data-i18n="tags">標記
-                            (Tags)</h3>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button id="add-start-tag"
-                                class="flex items-center justify-center gap-2 bg-green-50 text-green-700 py-3 rounded-lg text-sm font-bold border border-green-200 shadow-sm active:scale-95">S
-                                Start</button>
-                            <button id="add-top-tag"
-                                class="flex items-center justify-center gap-2 bg-red-50 text-red-700 py-3 rounded-lg text-sm font-bold border border-red-200 shadow-sm active:scale-95">T
-                                Top</button>
-                        </div>
-                    </div>
-                    <div class="border-t border-gray-200 pt-4">
-                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2" data-i18n="text">文字
-                            (Text)</h3>
-                        <div class="flex gap-2 mb-3">
-                            <input type="text" id="text-input" placeholder="輸入文字..."
-                                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none"
-                                data-i18n-ph="textPlaceholder" />
-                            <button id="add-text-btn"
-                                class="bg-gray-800 text-white w-10 rounded-lg text-sm font-bold active:scale-95">+</button>
-                        </div>
-                        <div id="text-controls"
-                            class="space-y-4 opacity-50 pointer-events-none bg-gray-50 p-3 rounded-xl border border-gray-200">
-                            <div>
-                                <div class="text-[10px] font-bold text-gray-500 uppercase mb-2" data-i18n="textColor">
-                                    文字顏色</div>
-                                <div class="flex flex-wrap gap-2" id="text-color-palette"></div>
-                            </div>
-                            <div>
-                                <div class="text-[10px] font-bold text-gray-500 uppercase mb-2" data-i18n="textBgColor">
-                                    文字底色</div>
-                                <div class="flex flex-wrap gap-2" id="text-bg-color-palette"></div>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-gray-500 uppercase" data-i18n="size">大小</span>
-                                <div class="slider-group w-36 flex items-center gap-1">
-                                    <button class="slider-btn" data-target="text-size" data-delta="-1">-</button>
-                                    <input type="range" id="text-size" min="10" max="300" value="40"
-                                        class="accent-gray-700 flex-1">
-                                    <button class="slider-btn" data-target="text-size" data-delta="1">+</button>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-gray-500 uppercase"
-                                    data-i18n="rotation">旋轉</span>
-                                <div class="slider-group w-36 flex items-center gap-1">
-                                    <button class="slider-btn" data-target="text-rotation" data-delta="-1">-</button>
-                                    <input type="range" id="text-rotation" min="-180" max="180" value="0"
-                                        class="accent-gray-700 flex-1">
-                                    <button class="slider-btn" data-target="text-rotation" data-delta="1">+</button>
-                                </div>
-                            </div>
-                            <button id="delete-item-btn"
-                                class="w-full bg-white border border-red-200 text-red-500 py-2 rounded-lg text-xs font-bold active:bg-red-50 hover:bg-red-50 transition-colors"
-                                data-i18n="deleteObj">刪除物件</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="processing-bar"
-                class="bg-blue-600 text-white text-xs py-2 px-4 flex items-center justify-center gap-2 hidden shrink-0 shadow-inner">
-                <div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div><span
-                    data-i18n="processing">處理中...</span>
-            </div>
-        </aside>
-
-        <!-- 畫布區域 -->
-        <section class="flex-1 bg-gray-400 relative overflow-hidden h-[55%] md:h-full" id="canvas-container">
-            <div id="crop-bg-container"
-                class="absolute inset-0 flex items-center justify-center pointer-events-none z-0 hidden">
-                <div id="crop-bg-layer" class="transition-colors duration-200"></div>
-            </div>
-
-            <div id="canvas-transform-root"
-                class="w-full h-full flex items-center justify-center origin-center transition-transform duration-75 ease-linear relative z-10">
-                <div id="canvas-wrapper" class="canvas-stack shadow-2xl hidden shrink-0">
-                    <div id="crop-inner-backdrop" class="absolute inset-0 z-0"></div>
-                    <canvas id="layer-bg" class="layer"></canvas>
-                    <canvas id="layer-mask" class="layer"></canvas>
-                    <canvas id="layer-ui" class="layer"></canvas>
-                </div>
-            </div>
-
-            <div id="guide-v" class="snap-line w-px h-full top-0 left-1/2 hidden transform -translate-x-1/2 z-20"></div>
-            <div id="guide-h" class="snap-line h-px w-full left-0 top-1/2 hidden transform -translate-y-1/2 z-20"></div>
-
-            <div id="crop-mask-container" class="crop-overlay hidden">
-                <div id="crop-frame" class="crop-frame"></div>
-            </div>
-
-            <div id="floating-toolbar"
-                class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-xl rounded-full px-4 py-2 flex items-center gap-4 z-[60] border border-gray-200 transition-all duration-300">
-                <div id="tool-switcher" class="flex bg-gray-100 rounded-full p-1">
-                    <button id="tool-hand" class="tool-btn p-2 rounded-full active:bg-gray-200"><svg class="w-5 h-5"
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- 2. 課表管理 (Routines) -->
+        <div id="view-routines" class="view-section">
+            <div
+                class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center">
+                <div class="flex items-center">
+                    <a href="index.html" class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2"
+                        title="Home">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11">
+                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
                             </path>
-                        </svg></button>
-                    <button id="tool-lasso" class="tool-btn p-2 rounded-full active:bg-gray-200"><svg class="w-5 h-5"
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg></button>
-                    <button id="tool-eraser" class="tool-btn p-2 rounded-full active:bg-gray-200" title="Eraser"><svg
-                            class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round" viewBox="0 0 24 24">
-                            <path
-                                d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21">
-                            </path>
-                            <path d="M22 21H7"></path>
-                            <path d="m5 11 9 9"></path>
-                        </svg></button>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-extrabold">我的課表</h1>
                 </div>
-                <div class="w-px h-6 bg-gray-300"></div>
-                <div class="flex items-center gap-2">
-                    <button id="crop-btn"
-                        class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 font-bold active:bg-gray-200"><svg
-                            class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
-                            </path>
-                        </svg></button>
-                    <button id="crop-bg-color"
-                        class="hidden w-6 h-6 rounded-full border border-gray-300 bg-white shadow-sm"></button>
-                    <span id="crop-label" class="text-[10px] text-blue-600 font-mono hidden">Orig</span>
-                </div>
-            </div>
-
-            <div id="placeholder-msg"
-                class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
-                <div
-                    class="mx-auto w-12 h-12 bg-gray-700/50 text-white/50 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm">
+                <button onclick="editor.open()"
+                    class="bg-gray-900 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
-                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
-                </div>
-                <h3 class="text-sm font-bold text-white/80" data-i18n="openPhotoPrompt">請開啟照片</h3>
+                </button>
             </div>
+            <div id="routine-list" class="p-4 space-y-3 pb-24">
+                <div class="text-center text-gray-400 mt-10">載入中...</div>
+            </div>
+        </div>
 
-            <div id="loupe"><canvas id="loupe-canvas"></canvas></div>
-        </section>
+        <!-- 3. 設定 (Settings) -->
+        <div id="view-settings" class="view-section">
+            <div class="p-6">
+                <div class="flex items-center mb-6">
+                    <a href="index.html" class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2"
+                        title="Home">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                            </path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-extrabold">設定</h1>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-white border rounded-xl p-4 flex items-center gap-4">
+                        <div class="w-12 h-12 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden">
+                            <img id="avatar-img" class="w-full h-full object-cover hidden">
+                            <div id="avatar-placeholder"
+                                class="w-full h-full flex items-center justify-center text-gray-400">👤</div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div id="settings-email" class="font-bold truncate">未登入</div>
+                            <div class="text-xs text-gray-500">同步您的訓練數據</div>
+                        </div>
+                        <button id="auth-btn" class="text-sm text-blue-600 font-bold whitespace-nowrap">登入</button>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">裝置連線</h3>
+                        <div class="bg-white border rounded-xl overflow-hidden">
+                            <button class="w-full p-4 flex justify-between items-center hover:bg-gray-50 border-b">
+                                <span class="font-medium">連接藍芽吊秤</span>
+                                <span class="text-gray-400 text-sm">未連線</span>
+                            </button>
+                            <button class="w-full p-4 flex justify-between items-center hover:bg-gray-50">
+                                <span class="font-medium">感測器歸零</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
-    <script>
-        const SHARED_COLORS = ['#EC4899', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#FFFFFF', '#000000'];
-        const CROPS = [{ label: 'Orig', w: 0, h: 0 }, { label: '1:1', w: 1, h: 1 }, { label: '4:5', w: 4, h: 5 }, { label: '16:9', w: 16, h: 9 }];
+    <!-- 底部導覽列 -->
+    <nav
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 max-w-md mx-auto z-40 flex justify-around items-center">
+        <button onclick="router.go('calendar')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900 active"
+            data-target="view-calendar">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <span class="text-[10px] font-bold">紀錄</span>
+        </button>
+        <button onclick="router.go('routines')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            data-target="view-routines">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                </path>
+            </svg>
+            <span class="text-[10px] font-bold">課表</span>
+        </button>
+        <button onclick="router.go('settings')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            data-target="view-settings">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                </path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            <span class="text-[10px] font-bold">設定</span>
+        </button>
+    </nav>
 
-        // --- 多國語系字典 ---
-        const I18N = {
-            zh: {
-                open: '開啟', download: '下載', tabRoute: '路線編輯', tabText: '文字/標記',
-                instruction: '1. 右上角開啟照片<br>2. 點擊下方 <b class="inline-flex items-center justify-center w-4 h-4 bg-blue-600 text-white rounded-full text-[10px] align-middle shadow-sm">+</b> 號，開始圈選岩點',
-                selectedHolds: '已選岩點', emptySelection: '尚未圈選', eraserSize: '橡皮擦大小', imageAdjustment: '影像調整 (全域)',
-                contrast: '對比度', bgStyle: '背景風格', saturation: '飽和度', dim: '壓暗', blur: '模糊', tags: '標記 (Tags)',
-                text: '文字 (Text)', textPlaceholder: '輸入文字...', textColor: '文字顏色', textBgColor: '文字底色', size: '大小', rotation: '旋轉',
-                deleteObj: '刪除物件', processing: '處理中...', openPhotoPrompt: '請開啟照片',
-                holdNum: '岩點 #', tolerance: '容許度', expand: '擴展', autoFill: '自動補洞', showBorder: '顯示框線', borderThickness: '框線粗細'
+    <!-- 模態視窗: 編輯器 (Editor Modal) -->
+    <div id="modal-editor" class="modal fixed inset-0 z-50 bg-gray-100 flex flex-col">
+        <div class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0">
+            <button onclick="editor.close()" class="text-gray-500 font-bold px-2">取消</button>
+            <input type="text" id="editor-title"
+                class="text-center font-bold text-lg bg-transparent border-none focus:ring-0 w-48" placeholder="輸入課表名稱">
+            <button onclick="editor.save()" class="text-blue-600 font-bold px-2">儲存</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 pb-32" id="editor-canvas">
+            <!-- 積木將在此生成 -->
+            <div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>
+        </div>
+
+        <!-- 底部工具箱 -->
+        <div class="bg-white border-t p-4 shrink-0 shadow-xl z-10 pb-8">
+            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">拖曳新增</div>
+            <div id="editor-palette" class="flex gap-3 overflow-x-auto no-scrollbar">
+                <div class="palette-item shrink-0 w-20 h-16 bg-violet-50 border-2 border-violet-200 rounded-lg flex flex-col items-center justify-center cursor-grab"
+                    data-type="loop">
+                    <span class="text-xs font-bold text-violet-700">循環 Loop</span>
+                </div>
+                <div class="palette-item shrink-0 w-20 h-16 bg-orange-50 border-2 border-orange-200 rounded-lg flex flex-col items-center justify-center cursor-grab"
+                    data-type="timer">
+                    <span class="text-xs font-bold text-orange-700">計時 Timer</span>
+                </div>
+                <div class="palette-item shrink-0 w-20 h-16 bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-grab"
+                    data-type="reps">
+                    <span class="text-xs font-bold text-blue-700">計數 Reps</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 屬性編輯面板 (Property Sheet) -->
+        <div id="prop-sheet"
+            class="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl transform translate-y-full transition-transform duration-300 z-[60] p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">編輯積木</h3>
+                <button onclick="editor.closeProps()" class="p-2 bg-gray-100 rounded-full">✕</button>
+            </div>
+            <div id="prop-form" class="space-y-4">
+                <!-- JS 動態生成 -->
+            </div>
+            <div class="mt-6 flex gap-3">
+                <button onclick="editor.deleteCurrentBlock()"
+                    class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-100">刪除</button>
+                <button onclick="editor.saveProps()"
+                    class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態視窗: 全螢幕計時器 (Active Timer Modal) -->
+    <div id="modal-active-timer" class="modal fixed inset-0 z-[60] bg-gray-900 text-white flex flex-col">
+        <!-- 頂部資訊 -->
+        <div class="p-6 flex justify-between items-start shrink-0">
+            <div class="flex items-start gap-3">
+                <!-- 語音控制按鈕 -->
+                <button id="btn-mic-toggle" onclick="voiceCommander.toggle()"
+                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
+                        </path>
+                    </svg>
+                </button>
+                <div>
+                    <h3 id="active-title" class="font-bold text-lg opacity-90 leading-tight">Routine Name</h3>
+                    <div class="text-xs text-gray-400 font-mono mt-1" id="active-total-time">Total: 00:00</div>
+                </div>
+            </div>
+            <button onclick="timer.stop()" class="p-2 bg-white/10 rounded-full hover:bg-white/20">✕</button>
+        </div>
+
+        <!-- 主要顯示區 -->
+        <div class="flex-1 flex flex-col items-center justify-center relative">
+            <!-- 循環狀態 -->
+            <div id="active-loops"
+                class="absolute top-4 text-sm font-mono text-gray-400 bg-black/30 px-3 py-1 rounded-full">
+                Loop 1/3
+            </div>
+
+            <div class="text-[8rem] font-mono font-black leading-none tracking-tighter tabular-nums"
+                id="active-countdown">00</div>
+            <div class="text-2xl font-bold mt-2 text-yellow-400 uppercase tracking-widest" id="active-status">READY
+            </div>
+
+            <!-- 累計與剩餘時間 -->
+            <div class="flex gap-8 mt-8 text-sm font-mono text-gray-400">
+                <div class="text-center">
+                    <div class="text-xs uppercase opacity-50">Elapsed</div>
+                    <div id="active-elapsed" class="text-white text-lg">00:00</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xs uppercase opacity-50">Remaining</div>
+                    <div id="active-remaining" class="text-white text-lg">00:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下一步與控制 -->
+        <div class="bg-gray-800 p-8 pb-12 rounded-t-3xl shrink-0">
+            <!-- 下一步預告 -->
+            <div class="flex items-center gap-3 mb-8 bg-gray-700/50 p-3 rounded-xl border border-gray-600/30">
+                <div class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap px-2">Next</div>
+                <div id="active-next" class="text-white font-bold truncate">Rest (3s)</div>
+            </div>
+
+            <div class="flex justify-center gap-8">
+                <button onclick="timer.skip(-1)"
+                    class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center text-xl">⏮</button>
+                <button onclick="timer.toggle()"
+                    class="w-20 h-20 bg-white text-gray-900 rounded-full text-3xl flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
+                    <span id="active-play-icon">⏸</span>
+                </button>
+                <button onclick="timer.skip(1)"
+                    class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center text-xl">⏭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 工具函式 ---
+        const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+        const formatTime = (s) => {
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        };
+
+        // --- Voice Commander ---
+        const voiceCommander = {
+            recognition: null,
+            isListening: false,
+            // 解決自動斷開的標記
+            shouldRestart: false,
+
+            init() {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    console.log("Browser does not support Speech Recognition");
+                    return;
+                }
+
+                this.recognition = new SpeechRecognition();
+                this.recognition.continuous = false; // 手動控制重啟以獲得最佳相容性
+                this.recognition.lang = 'en-US'; // 預設英文，也可支援中文
+                this.recognition.interimResults = false;
+                this.recognition.maxAlternatives = 1;
+
+                this.recognition.onstart = () => {
+                    this.isListening = true;
+                    this.updateUI(true);
+                };
+
+                this.recognition.onend = () => {
+                    this.isListening = false;
+                    // 自動重啟機制
+                    if (this.shouldRestart) {
+                        try {
+                            this.recognition.start();
+                        } catch (e) { console.log('Re-start error', e); }
+                    } else {
+                        this.updateUI(false);
+                    }
+                };
+
+                this.recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript.toLowerCase();
+                    console.log("Voice Command:", transcript);
+                    this.handleCommand(transcript);
+                };
             },
-            en: {
-                open: 'Open', download: 'Save', tabRoute: 'Route', tabText: 'Text/Tags',
-                instruction: '1. Open a photo (top right)<br>2. Click <b class="inline-flex items-center justify-center w-4 h-4 bg-blue-600 text-white rounded-full text-[10px] align-middle shadow-sm">+</b> to start lassoing holds',
-                selectedHolds: 'Selected Holds', emptySelection: 'No holds selected', eraserSize: 'Eraser Size', imageAdjustment: 'Global Adjustments',
-                contrast: 'Contrast', bgStyle: 'Background Style', saturation: 'Saturation', dim: 'Dim', blur: 'Blur', tags: 'Tags',
-                text: 'Text', textPlaceholder: 'Type here...', textColor: 'Text Color', textBgColor: 'Background', size: 'Size', rotation: 'Rotation',
-                deleteObj: 'Delete Item', processing: 'Processing...', openPhotoPrompt: 'Please open a photo',
-                holdNum: 'Hold #', tolerance: 'Tolerance', expand: 'Expand', autoFill: 'Fill Holes', showBorder: 'Show Border', borderThickness: 'Border Width'
+
+            toggle() {
+                if (!this.recognition) return alert("您的瀏覽器不支援語音控制");
+
+                if (this.isListening) {
+                    this.stop();
+                } else {
+                    this.start();
+                }
+            },
+
+            start() {
+                this.shouldRestart = true;
+                try {
+                    this.recognition.start();
+                } catch (e) { console.error(e); }
+            },
+
+            stop() {
+                this.shouldRestart = false;
+                try {
+                    this.recognition.stop();
+                } catch (e) { console.error(e); }
+            },
+
+            updateUI(isActive) {
+                const btn = document.getElementById('btn-mic-toggle');
+                if (!btn) return;
+
+                if (isActive) {
+                    btn.classList.add('mic-listening');
+                    btn.classList.remove('text-white/50');
+                    btn.classList.add('text-white');
+                } else {
+                    btn.classList.remove('mic-listening');
+                    btn.classList.add('text-white/50');
+                    btn.classList.remove('text-white');
+                }
+            },
+
+            handleCommand(text) {
+                // 指令模糊比對
+                if (text.includes('start') || text.includes('go') || text.includes('resume') || text.includes('begin') || text.includes('開始')) {
+                    if (timer.isPaused) timer.toggle();
+                }
+                else if (text.includes('stop') || text.includes('pause') || text.includes('wait') || text.includes('hold') || text.includes('暫停')) {
+                    if (!timer.isPaused) timer.toggle();
+                }
+                else if (text.includes('next') || text.includes('skip') || text.includes('jump') || text.includes('下一步')) {
+                    timer.skip(1);
+                }
+                else if (text.includes('back') || text.includes('previous') || text.includes('上一步')) {
+                    timer.skip(-1);
+                }
+                else if (text.includes('finish') || text.includes('exit') || text.includes('end') || text.includes('結束')) {
+                    timer.stop();
+                }
             }
         };
 
-        // --- Web Worker 邏輯 ---
-        const workerCode = `
-            let gVisited = null;
-            let gQueue = null;
-            let gLabels = null;
 
-            self.onmessage = function(e) {
-                const { type, sel, w, h, bgData } = e.data;
-                if (type === 'CALC_MASK') {
-                    const size = w * h;
-                    if (!gVisited || gVisited.length < size) {
-                        gVisited = new Uint8Array(size);
-                        gQueue = new Int32Array(size * 2);
-                        gLabels = new Int32Array(size);
-                    }
-                    const res = calculateMaskInternal(sel, w, h, bgData);
-                    let borderMask = null;
-                    if (sel.params.border && res.bounds) {
-                        borderMask = getBorderInternal(res.mask, w, h, sel.params.borderThickness || 5, res.bounds);
-                    }
-                    // 優化1: 邊緣平滑處理 (高斯/盒狀模糊近似)
-                    let finalMask = res.mask;
-                    if (res.bounds) {
-                        finalMask = blurMaskInternal(res.mask, w, h, 2, res.bounds);
-                    }
-                    
-                    self.postMessage({ id: sel.id, mask: finalMask, borderMask, detectedColor: res.color }, [finalMask.buffer, borderMask ? borderMask.buffer : null].filter(Boolean));
-                }
-            };
-            
-            function distToSegmentSquared(px, py, vx, vy, wx, wy) {
-                const l2 = (wx - vx) ** 2 + (wy - vy) ** 2;
-                if (l2 === 0) return (px - vx) ** 2 + (py - vy) ** 2;
-                let t = ((px - vx) * (wx - vx) + (py - vy) * (wy - vy)) / l2;
-                t = Math.max(0, Math.min(1, t));
-                return (px - (vx + t * (wx - vx))) ** 2 + (py - (vy + t * (wy - vy))) ** 2;
-            }
-
-            function calculateMaskInternal(sel, w, h, bgData) {
-                const mask = new Uint8Array(w * h);
-                const tolerance = sel.params.tolerance;
-                let rSum = 0, gSum = 0, bSum = 0, colorCount = 0;
-                let bMinX = w, bMaxX = 0, bMinY = h, bMaxY = 0;
-
-                function addPoint(x, y) {
-                    if (x < bMinX) bMinX = x; if (x > bMaxX) bMaxX = x;
-                    if (y < bMinY) bMinY = y; if (y > bMaxY) bMaxY = y;
-                }
-
-                if (!sel.actions || sel.actions.length === 0) return { mask, color: null, bounds: null };
-
-                gVisited.fill(0);
-
-                for (const action of sel.actions) {
-                    if (action.type === 'lasso') {
-                        let qTail = 0, qHead = 0;
-                        const palette = [];
-                        const path = action.path;
-
-                        let pMinX = w, pMaxX = 0, pMinY = h, pMaxY = 0;
-                        path.forEach(p => { if(p.x<pMinX) pMinX=p.x; if(p.x>pMaxX) pMaxX=p.x; if(p.y<pMinY) pMinY=p.y; if(p.y>pMaxY) pMaxY=p.y; });
-                        pMinX = Math.max(0, Math.floor(pMinX)); pMinY = Math.max(0, Math.floor(pMinY));
-                        pMaxX = Math.min(w - 1, Math.ceil(pMaxX)); pMaxY = Math.min(h - 1, Math.ceil(pMaxY));
-
-                        // Scanline Fill 
-                        for (let y = pMinY; y <= pMaxY; y++) {
-                            let nodes = [];
-                            let j = path.length - 1;
-                            for (let i = 0; i < path.length; i++) {
-                                if ((path[i].y < y && path[j].y >= y) || (path[j].y < y && path[i].y >= y)) {
-                                    nodes.push(path[i].x + (y - path[i].y) / (path[j].y - path[i].y) * (path[j].x - path[i].x));
-                                }
-                                j = i;
-                            }
-                            nodes.sort((a, b) => a - b);
-                            for (let i = 0; i < nodes.length; i += 2) {
-                                if (nodes[i+1] === undefined) break;
-                                let sx = Math.max(pMinX, Math.floor(nodes[i]));
-                                let ex = Math.min(pMaxX, Math.ceil(nodes[i+1]));
-                                for (let x = sx; x <= ex; x++) {
-                                    const idx = y * w + x;
-                                    mask[idx] = 255; // 內部邏輯改用 255 代表 100% 不透明
-                                    addPoint(x, y);
-                                    if (gVisited[idx] === 0) {
-                                        gVisited[idx] = 1;
-                                        gQueue[qTail++] = x; gQueue[qTail++] = y;
-                                        const pIdx = idx << 2;
-                                        if (palette.length < 400 && (x + y) % 4 === 0) palette.push({ r: bgData[pIdx], g: bgData[pIdx+1], b: bgData[pIdx+2] });
-                                        if (colorCount < 100 && (x + y) % 7 === 0) {
-                                            rSum += bgData[pIdx]; gSum += bgData[pIdx+1]; bSum += bgData[pIdx+2]; colorCount++;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (palette.length > 0) {
-                            const tolSq = tolerance * tolerance;
-                            while (qHead < qTail) {
-                                const x = gQueue[qHead++], y = gQueue[qHead++];
-                                const process = (nx, ny) => {
-                                    const nIdx = ny * w + nx;
-                                    if (gVisited[nIdx] === 0) {
-                                        gVisited[nIdx] = 1;
-                                        const pIdx = nIdx << 2;
-                                        const r = bgData[pIdx], g = bgData[pIdx+1], b = bgData[pIdx+2];
-                                        let match = false;
-                                        for(let s=0; s<palette.length; s++) {
-                                            const dr = r - palette[s].r, dg = g - palette[s].g, db = b - palette[s].b;
-                                            if ((2*dr*dr + 4*dg*dg + 3*db*db) <= tolSq) { match = true; break; }
-                                        }
-                                        if (match) { mask[nIdx] = 255; addPoint(nx, ny); gQueue[qTail++] = nx; gQueue[qTail++] = ny; }
-                                    }
-                                };
-                                if (y > 0) process(x, y - 1);
-                                if (x < w - 1) process(x + 1, y);
-                                if (y < h - 1) process(x, y + 1);
-                                if (x > 0) process(x - 1, y);
-                            }
-                        }
-                    } else if (action.type === 'erase') {
-                        const { path, size } = action;
-                        const rad = size / 2, r2 = rad * rad;
-                        const fPath = [path[0]];
-                        for (let i = 1; i < path.length; i++) {
-                            const prev = fPath[fPath.length - 1];
-                            const d2 = (path[i].x - prev.x)**2 + (path[i].y - prev.y)**2;
-                            if (d2 >= (rad / 3)**2 || i === path.length - 1) fPath.push(path[i]);
-                        }
-                        if (fPath.length === 1) {
-                            const cx = Math.floor(fPath[0].x), cy = Math.floor(fPath[0].y);
-                            for(let y=Math.max(0, Math.floor(cy-rad)); y<=Math.min(h-1, Math.ceil(cy+rad)); y++) {
-                                for(let x=Math.max(0, Math.floor(cx-rad)); x<=Math.min(w-1, Math.ceil(cx+rad)); x++) {
-                                    if ((x-cx)**2 + (y-cy)**2 <= r2) mask[y*w+x] = 0;
-                                }
-                            }
-                        } else {
-                            for (let i = 0; i < fPath.length - 1; i++) {
-                                const p1 = fPath[i], p2 = fPath[i+1];
-                                const cMinX = Math.max(0, Math.floor(Math.min(p1.x, p2.x) - rad));
-                                const cMaxX = Math.min(w - 1, Math.ceil(Math.max(p1.x, p2.x) + rad));
-                                const cMinY = Math.max(0, Math.floor(Math.min(p1.y, p2.y) - rad));
-                                const cMaxY = Math.min(h - 1, Math.ceil(Math.max(p1.y, p2.y) + rad));
-                                for (let y = cMinY; y <= cMaxY; y++) {
-                                    for (let x = cMinX; x <= cMaxX; x++) {
-                                        if (distToSegmentSquared(x, y, p1.x, p1.y, p2.x, p2.y) <= r2) mask[y * w + x] = 0;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (bMinX > bMaxX) return { mask, color: null, bounds: null };
-
-                const pad = Math.max(sel.params.expand, 2);
-                bMinX = Math.max(0, bMinX - pad); bMaxX = Math.min(w - 1, bMaxX + pad);
-                bMinY = Math.max(0, bMinY - pad); bMaxY = Math.min(h - 1, bMaxY + pad);
-                const bounds = { minX: bMinX, maxX: bMaxX, minY: bMinY, maxY: bMaxY };
-
-                if (sel.params.expand > 0) expandInternal(mask, w, h, sel.params.expand, bounds);
-                if (sel.params.fillHoles) fillHolesInternal(mask, w, h, bounds);
-                keepLargestInternal(mask, w, h, bounds);
-                
-                const hex = colorCount > 0 ? '#' + [rSum/colorCount, gSum/colorCount, bSum/colorCount].map(v => Math.round(v).toString(16).padStart(2, '0')).join('') : null;
-                return { mask, color: hex, bounds };
-            }
-
-            // Box blur 柔化邊緣
-            function blurMaskInternal(mask, w, h, rad, bounds) {
-                const temp = new Uint8Array(mask.length);
-                const { minX, maxX, minY, maxY } = bounds;
-                const bMinX = Math.max(0, minX - rad), bMaxX = Math.min(w - 1, maxX + rad);
-                const bMinY = Math.max(0, minY - rad), bMaxY = Math.min(h - 1, maxY + rad);
-
-                for (let y = bMinY; y <= bMaxY; y++) {
-                    for (let x = bMinX; x <= bMaxX; x++) {
-                        let sum = 0, count = 0;
-                        for (let dy = -rad; dy <= rad; dy++) {
-                            for (let dx = -rad; dx <= rad; dx++) {
-                                const nx = x + dx, ny = y + dy;
-                                if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                    sum += mask[ny * w + nx] === 255 ? 1 : 0;
-                                    count++;
-                                }
-                            }
-                        }
-                        temp[y * w + x] = Math.round((sum / count) * 255);
-                    }
-                }
-                return temp;
-            }
-
-            function expandInternal(mask, w, h, rad, bounds) {
-                const { minX, maxX, minY, maxY } = bounds;
-                const old = new Uint8Array(mask);
-                for(let y = minY; y <= maxY; y++) {
-                    const row = y * w;
-                    for(let x = minX; x <= maxX; x++) {
-                        if(old[row + x]) {
-                            let isE = (x===minX || x===maxX || y===minY || y===maxY);
-                            if(!isE && (!old[row+x-1] || !old[row+x+1] || !old[row-w+x] || !old[row+w+x])) isE = true;
-                            if (isE) {
-                                for(let ky=-rad; ky<=rad; ky++) {
-                                    for(let kx=-rad; kx<=rad; kx++) {
-                                        const ny = y+ky, nx = x+kx; 
-                                        if(nx>=0 && nx<w && ny>=0 && ny<h) mask[ny*w+nx] = 255;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            function fillHolesInternal(mask, w, h, bounds) {
-                const { minX, maxX, minY, maxY } = bounds;
-                gVisited.fill(0);
-                let qHead = 0, qTail = 0;
-                
-                for(let x = minX; x <= maxX; x++) { 
-                    if(!mask[minY*w+x]) { gQueue[qTail++]=x; gQueue[qTail++]=minY; gVisited[minY*w+x]=1; } 
-                    if(!mask[maxY*w+x]) { gQueue[qTail++]=x; gQueue[qTail++]=maxY; gVisited[maxY*w+x]=1; } 
-                }
-                for(let y = minY; y <= maxY; y++) { 
-                    if(!mask[y*w+minX] && !gVisited[y*w+minX]) { gQueue[qTail++]=minX; gQueue[qTail++]=y; gVisited[y*w+minX]=1; } 
-                    if(!mask[y*w+maxX] && !gVisited[y*w+maxX]) { gQueue[qTail++]=maxX; gQueue[qTail++]=y; gVisited[y*w+maxX]=1; } 
-                }
-                
-                while(qHead < qTail) {
-                    const x = gQueue[qHead++], y = gQueue[qHead++];
-                    let nIdx;
-                    if(y > minY) { nIdx = (y-1)*w+x; if(!mask[nIdx] && !gVisited[nIdx]) { gVisited[nIdx] = 1; gQueue[qTail++]=x; gQueue[qTail++]=y-1; } }
-                    if(x < maxX) { nIdx = y*w+(x+1); if(!mask[nIdx] && !gVisited[nIdx]) { gVisited[nIdx] = 1; gQueue[qTail++]=x+1; gQueue[qTail++]=y; } }
-                    if(y < maxY) { nIdx = (y+1)*w+x; if(!mask[nIdx] && !gVisited[nIdx]) { gVisited[nIdx] = 1; gQueue[qTail++]=x; gQueue[qTail++]=y+1; } }
-                    if(x > minX) { nIdx = y*w+(x-1); if(!mask[nIdx] && !gVisited[nIdx]) { gVisited[nIdx] = 1; gQueue[qTail++]=x-1; gQueue[qTail++]=y; } }
-                }
-                for(let y = minY; y <= maxY; y++) {
-                    for(let x = minX; x <= maxX; x++) {
-                        const idx = y*w+x;
-                        if(!mask[idx] && !gVisited[idx]) mask[idx] = 255;
-                    }
-                }
-            }
-
-            function keepLargestInternal(mask, w, h, bounds) {
-                const { minX, maxX, minY, maxY } = bounds;
-                gVisited.fill(0);
-                gLabels.fill(0);
-                let maxC = 0, maxL = 0, curL = 1;
-                
-                for(let y = minY; y <= maxY; y++) {
-                    for(let x = minX; x <= maxX; x++) {
-                        const i = y * w + x;
-                        if (mask[i] === 255 && gVisited[i] === 0) {
-                            let c = 0, qHead = 0, qTail = 0;
-                            gQueue[qTail++] = x; gQueue[qTail++] = y;
-                            gVisited[i] = 1; gLabels[i] = curL;
-                            
-                            while(qHead < qTail) {
-                                const cx = gQueue[qHead++], cy = gQueue[qHead++];
-                                c++;
-                                let nIdx;
-                                if(cy > minY) { nIdx = (cy-1)*w+cx; if(mask[nIdx] === 255 && gVisited[nIdx] === 0) { gVisited[nIdx] = 1; gLabels[nIdx] = curL; gQueue[qTail++]=cx; gQueue[qTail++]=cy-1; } }
-                                if(cx < maxX) { nIdx = cy*w+(cx+1); if(mask[nIdx] === 255 && gVisited[nIdx] === 0) { gVisited[nIdx] = 1; gLabels[nIdx] = curL; gQueue[qTail++]=cx+1; gQueue[qTail++]=cy; } }
-                                if(cy < maxY) { nIdx = (cy+1)*w+cx; if(mask[nIdx] === 255 && gVisited[nIdx] === 0) { gVisited[nIdx] = 1; gLabels[nIdx] = curL; gQueue[qTail++]=cx; gQueue[qTail++]=cy+1; } }
-                                if(cx > minX) { nIdx = cy*w+(cx-1); if(mask[nIdx] === 255 && gVisited[nIdx] === 0) { gVisited[nIdx] = 1; gLabels[nIdx] = curL; gQueue[qTail++]=cx-1; gQueue[qTail++]=cy; } }
-                            }
-                            if (c > maxC) { maxC = c; maxL = curL; }
-                            curL++;
-                        }
-                    }
-                }
-                if (maxL > 0) {
-                    for(let y = minY; y <= maxY; y++) {
-                        for(let x = minX; x <= maxX; x++) {
-                            const i = y * w + x;
-                            mask[i] = (gLabels[i] === maxL) ? 255 : 0;
-                        }
-                    }
-                }
-            }
-
-            function getBorderInternal(mask, w, h, thickness, bounds) {
-                const { minX, maxX, minY, maxY } = bounds;
-                const border = new Uint8Array(mask.length);
-                const expanded = new Uint8Array(mask);
-                // Convert soft mask back to binary for border calc
-                for(let i=0; i<mask.length; i++) expanded[i] = mask[i] > 128 ? 255 : 0;
-                
-                expandInternal(expanded, w, h, thickness, {
-                    minX: Math.max(0, minX - thickness), maxX: Math.min(w - 1, maxX + thickness),
-                    minY: Math.max(0, minY - thickness), maxY: Math.min(h - 1, maxY + thickness)
+        // --- 1. Router ---
+        const router = {
+            go(viewId) {
+                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.nav-btn').forEach(el => {
+                    el.classList.remove('text-gray-900', 'text-blue-600');
+                    el.classList.add('text-gray-400');
                 });
-                
-                for(let y = Math.max(0, minY - thickness); y <= Math.min(h - 1, maxY + thickness); y++) {
-                    for(let x = Math.max(0, minX - thickness); x <= Math.min(w - 1, maxX + thickness); x++) {
-                        const i = y * w + x;
-                        if (expanded[i] && mask[i] < 128) border[i] = 1;
-                    }
+                document.getElementById(`view-${viewId}`).classList.add('active');
+                const btn = document.querySelector(`.nav-btn[data-target="view-${viewId}"]`);
+                if (btn) {
+                    btn.classList.remove('text-gray-400');
+                    btn.classList.add('text-gray-900');
                 }
-                return border;
             }
-        `;
+        };
 
-        class StateManager {
-            constructor(onHistoryChange) {
-                this.history = []; this.historyIndex = -1; this.onHistoryChange = onHistoryChange;
-                this.data = { filters: { contrast: 100, bgSat: 50, bgDim: 50, bgBlur: 10 }, selections: [], objects: [], crop: { index: 0, bgWhite: true }, nextSelId: 1, nextObjId: 1 };
-                this.view = { scale: 1, x: 0, y: 0, tool: 'lasso', activeTab: 'route', activeSelId: null, activeObjId: null, brushSize: 20, isDragging: false, dragType: null, tempPath: [], snapObjX: false, snapObjY: false };
-            }
-            pushHistory() {
-                const safe = this.data.selections.map(s => { const { mask, borderMask, ...rest } = s; return rest; });
-                // 儲存資料的同時，連同當前「選取狀態」一起儲存，符合使用者退回時的預期
-                const snapshot = JSON.stringify({
-                    data: { ...this.data, selections: safe },
-                    viewState: { activeSelId: this.view.activeSelId, activeObjId: this.view.activeObjId, activeTab: this.view.activeTab }
-                });
-                if (this.historyIndex < this.history.length - 1) this.history = this.history.slice(0, this.historyIndex + 1);
-                this.history.push(snapshot); this.historyIndex++;
-                if (this.history.length > 20) { this.history.shift(); this.historyIndex--; }
-                this.onHistoryChange();
-            }
-            undo() { if (this.historyIndex > 0) { this.historyIndex--; this.restore(this.history[this.historyIndex]); } }
-            redo() { if (this.historyIndex < this.history.length - 1) { this.historyIndex++; this.restore(this.history[this.historyIndex]); } }
-            restore(json) {
-                const parsed = JSON.parse(json);
-                if (parsed.viewState) {
-                    this.data = parsed.data;
-                    this.view.activeSelId = parsed.viewState.activeSelId;
-                    this.view.activeObjId = parsed.viewState.activeObjId;
-                    this.view.activeTab = parsed.viewState.activeTab;
+        // --- 2. Store ---
+        const store = {
+            routines: [],
+            user: null,
+
+            init() {
+                if (typeof auth !== 'undefined') {
+                    auth.onAuthStateChanged(user => {
+                        this.user = user;
+                        this.updateUserUI();
+                        user ? this.loadRoutines() : this.loadLocalRoutines();
+                    });
                 } else {
-                    this.data = parsed; // 相容舊紀錄
+                    setTimeout(() => this.init(), 500);
                 }
-                this.onHistoryChange(true);
-            }
-        }
+            },
 
-        class LayerManager {
-            constructor() {
-                this.bgCtx = document.getElementById('layer-bg')?.getContext('2d');
-                this.maskCtx = document.getElementById('layer-mask')?.getContext('2d');
-                this.uiCtx = document.getElementById('layer-ui')?.getContext('2d');
-                const loupeC = document.getElementById('loupe-canvas');
-                this.loupeCtx = loupeC ? loupeC.getContext('2d') : null;
-                this.width = this.height = 0;
-                this.tempC = document.createElement('canvas');
-                this.tCtx = this.tempC.getContext('2d', { willReadFrequently: true });
-                this.borderC = document.createElement('canvas');
-                this.bCtx = this.borderC.getContext('2d', { willReadFrequently: true });
-            }
-            resize(w, h) {
-                this.width = w; this.height = h;
-                const wrapper = document.getElementById('canvas-wrapper');
-                if (wrapper) { wrapper.style.width = w + 'px'; wrapper.style.height = h + 'px'; }
-                [this.bgCtx, this.maskCtx, this.uiCtx].forEach(ctx => { if (ctx) { ctx.canvas.width = w; ctx.canvas.height = h; } });
-                this.tempC.width = w; this.tempC.height = h;
-                this.iData = this.tCtx.createImageData(w, h);
-                this.iData32 = new Uint32Array(this.iData.data.buffer);
-                this.borderC.width = w; this.borderC.height = h;
-                this.bImg = this.bCtx.createImageData(w, h);
-                this.bImg32 = new Uint32Array(this.bImg.data.buffer);
-            }
-            drawBg(img, filters) {
-                if (!img || !this.bgCtx) return;
-                const ctx = this.bgCtx; ctx.clearRect(0, 0, this.width, this.height);
-                ctx.filter = `contrast(${filters.contrast}%)`; ctx.drawImage(img, 0, 0); ctx.filter = 'none';
-                this.bgBuffer = ctx.getImageData(0, 0, this.width, this.height).data;
-            }
-            drawMasks(selections, filters) {
-                if (!this.bgBuffer || !this.maskCtx) return;
-                const ctx = this.maskCtx; ctx.clearRect(0, 0, this.width, this.height);
-                ctx.save(); ctx.filter = `saturate(${filters.bgSat}%) brightness(${100 - filters.bgDim}%) blur(${filters.bgBlur}px)`;
-                ctx.drawImage(this.bgCtx.canvas, 0, 0); ctx.restore();
-                ctx.globalCompositeOperation = 'destination-out';
+            updateUserUI() {
+                const emailEl = document.getElementById('settings-email');
+                const btn = document.getElementById('auth-btn');
+                const avatar = document.getElementById('avatar-img');
+                const placeholder = document.getElementById('avatar-placeholder');
 
-                this.iData32.fill(0);
-                let hasM = false;
-                selections.forEach(s => {
-                    if (s.mask && s.visible !== false) {
-                        for (let i = 0; i < s.mask.length; i++) {
-                            if (s.mask[i] > 0) {
-                                // 將平滑處理後的 0-255 值賦予 alpha 通道
-                                this.iData.data[(i << 2) + 3] = s.mask[i];
-                                hasM = true;
-                            }
-                        }
+                if (this.user) {
+                    emailEl.textContent = this.user.email;
+                    btn.textContent = '登出';
+                    btn.onclick = () => auth.signOut();
+                    if (this.user.photoURL) {
+                        avatar.src = this.user.photoURL;
+                        avatar.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                    }
+                } else {
+                    emailEl.textContent = '未登入';
+                    btn.textContent = '登入';
+                    btn.onclick = () => {
+                        const provider = new firebase.auth.GoogleAuthProvider();
+                        auth.signInWithPopup(provider).catch(e => alert(e.message));
+                    };
+                    avatar.classList.add('hidden');
+                    placeholder.classList.remove('hidden');
+                }
+            },
+
+            async loadRoutines() {
+                const list = document.getElementById('routine-list');
+                list.innerHTML = '<div class="text-center text-gray-400 mt-4">同步中...</div>';
+                try {
+                    const snap = await db.collection('users').doc(this.user.uid).collection('routines').orderBy('updatedAt', 'desc').get();
+                    this.routines = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.renderRoutines();
+                } catch (e) { console.error(e); }
+            },
+
+            loadLocalRoutines() {
+                const saved = localStorage.getItem('localRoutines');
+                this.routines = saved ? JSON.parse(saved) : [];
+                this.renderRoutines();
+            },
+
+            async deleteRoutine(id) {
+                if (!confirm('確定要刪除這個課表嗎？')) return;
+
+                if (this.user) {
+                    await db.collection('users').doc(this.user.uid).collection('routines').doc(id).delete();
+                    this.loadRoutines();
+                } else {
+                    this.routines = this.routines.filter(r => r.id !== id);
+                    localStorage.setItem('localRoutines', JSON.stringify(this.routines));
+                    this.renderRoutines();
+                }
+            },
+
+            renderRoutines() {
+                const list = document.getElementById('routine-list');
+                list.innerHTML = '';
+                if (this.routines.length === 0) {
+                    list.innerHTML = '<div class="text-center text-gray-400 mt-10">尚無課表，點擊右上角 + 新增</div>';
+                    return;
+                }
+
+                this.routines.forEach(r => {
+                    const el = document.createElement('div');
+                    el.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group";
+                    const blockCount = r.blocks ? r.blocks.length : 0;
+
+                    el.innerHTML = `
+                        <div onclick="timer.start('${r.id}')" class="flex-1 cursor-pointer">
+                            <div class="font-bold text-lg text-gray-800">${r.title}</div>
+                            <div class="text-xs text-gray-500 mt-1">${blockCount} 個區塊</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                             <button onclick="editor.load('${r.id}')" class="text-gray-400 hover:text-blue-600 p-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                            <button onclick="store.deleteRoutine('${r.id}')" class="text-gray-400 hover:text-red-600 p-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    `;
+                    list.appendChild(el);
+                });
+            }
+        };
+
+        // --- 3. Editor ---
+        const editor = {
+            currentId: null,
+            activeBlock: null, // DOM element currently editing
+
+            init() {
+                new Sortable(document.getElementById('editor-palette'), {
+                    group: { name: 'shared', pull: 'clone', put: false },
+                    sort: false,
+                    onClone: (evt) => { evt.clone.dataset.tempId = Date.now(); }
+                });
+                this.initSortable(document.getElementById('editor-canvas'));
+            },
+
+            initSortable(el) {
+                new Sortable(el, {
+                    group: 'shared', animation: 150, fallbackOnBody: true, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
+                    onAdd: (evt) => {
+                        const type = evt.item.dataset.type;
+                        // 替換佔位元素為真實積木
+                        evt.item.replaceWith(this.createBlock({ type, id: uuid() }));
                     }
                 });
+            },
 
-                if (hasM) {
-                    this.tCtx.putImageData(this.iData, 0, 0);
-                    ctx.drawImage(this.tempC, 0, 0);
-                }
+            createBlock(data) {
+                const el = document.createElement('div');
+                // 初始化屬性
+                const props = data.props || this.getDefaultProps(data.type);
+                el.className = `block-item p-3 mb-2 rounded border bg-white ${this.getBlockClass(data.type)}`;
+                el.dataset.type = data.type;
+                el.dataset.id = data.id || uuid();
+                el.dataset.props = JSON.stringify(props);
 
-                ctx.globalCompositeOperation = 'source-over';
-                selections.forEach(s => {
-                    if (s.params.border && s.borderMask && s.visible !== false) {
-                        this.bImg32.fill(0);
-                        let col = { r: 236, g: 72, b: 153 };
-                        const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(s.params.borderColor || '#EC4899');
-                        if (res) col = { r: parseInt(res[1], 16), g: parseInt(res[2], 16), b: parseInt(res[3], 16) };
-                        const col32 = (255 << 24) | (col.b << 16) | (col.g << 8) | col.r;
+                // 標題列
+                const header = document.createElement('div');
+                header.className = "flex justify-between items-center cursor-pointer";
+                header.innerHTML = `
+                    <div class="flex items-center gap-2 pointer-events-none">
+                        <span class="text-xs font-bold uppercase opacity-60">${data.type}</span>
+                        <span class="font-bold text-sm block-label">${this.getLabel(data.type, props)}</span>
+                    </div>
+                `;
+                // 點擊開啟屬性
+                header.onclick = (e) => {
+                    e.stopPropagation();
+                    this.openProps(el);
+                };
+                el.appendChild(header);
 
-                        const mask = s.borderMask;
-                        const len = mask.length;
-                        for (let i = 0; i < len; i++) {
-                            if (mask[i]) this.bImg32[i] = col32;
-                        }
-                        this.bCtx.putImageData(this.bImg, 0, 0);
-                        ctx.drawImage(this.borderC, 0, 0);
+                // 循環積木的子容器
+                if (data.type === 'loop') {
+                    const inner = document.createElement('div');
+                    inner.className = "nested-container pl-2 pr-2 pb-2 pt-2";
+                    el.appendChild(inner);
+                    this.initSortable(inner);
+                    // 遞迴渲染子項目
+                    if (data.children) {
+                        data.children.forEach(c => inner.appendChild(this.createBlock(c)));
                     }
+                }
+
+                return el;
+            },
+
+            getDefaultProps(type) {
+                if (type === 'loop') return { iterations: 3 };
+                if (type === 'timer') return { duration: 10, label: 'Hang' };
+                if (type === 'reps') return { count: 5, duration: 30, label: 'Pull Ups' }; // duration 用於計時
+                return {};
+            },
+
+            getLabel(type, props) {
+                if (type === 'loop') return `x ${props.iterations} 次`;
+                if (type === 'timer') return `${props.label} (${props.duration}s)`;
+                if (type === 'reps') return `${props.label} x${props.count}`;
+                return type;
+            },
+
+            getBlockClass(type) {
+                if (type === 'loop') return 'block-loop border-violet-200';
+                if (type === 'timer') return 'block-timer border-orange-200';
+                if (type === 'reps') return 'block-reps border-blue-200';
+                return '';
+            },
+
+            openProps(el) {
+                this.activeBlock = el;
+                const type = el.dataset.type;
+                const props = JSON.parse(el.dataset.props);
+                const form = document.getElementById('prop-form');
+
+                let html = `
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-1">標籤 (Label)</label>
+                        <input type="text" id="inp-label" class="w-full border rounded-lg p-3" value="${props.label || ''}" placeholder="例如: 懸掛, 休息...">
+                    </div>`;
+
+                if (type === 'loop') {
+                    html = `
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-1">循環次數</label>
+                        <input type="number" id="inp-iterations" class="w-full border rounded-lg p-3 text-lg" value="${props.iterations}">
+                    </div>`;
+                } else if (type === 'timer') {
+                    html += `
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-1">時間 (秒)</label>
+                        <input type="number" id="inp-duration" class="w-full border rounded-lg p-3 text-lg" value="${props.duration}">
+                    </div>`;
+                } else if (type === 'reps') {
+                    html += `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">次數 (Reps)</label>
+                            <input type="number" id="inp-count" class="w-full border rounded-lg p-3 text-lg" value="${props.count}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">預估時間 (秒)</label>
+                            <input type="number" id="inp-duration" class="w-full border rounded-lg p-3 text-lg" value="${props.duration}" placeholder="計時用">
+                        </div>
+                    </div>`;
+                }
+
+                form.innerHTML = html;
+                document.getElementById('prop-sheet').classList.remove('translate-y-full');
+            },
+
+            saveProps() {
+                if (!this.activeBlock) return;
+                const type = this.activeBlock.dataset.type;
+                let props = JSON.parse(this.activeBlock.dataset.props);
+
+                if (type === 'loop') {
+                    props.iterations = Number(document.getElementById('inp-iterations').value);
+                } else {
+                    props.label = document.getElementById('inp-label').value;
+                    props.duration = Number(document.getElementById('inp-duration').value);
+                    if (type === 'reps') props.count = Number(document.getElementById('inp-count').value);
+                }
+
+                this.activeBlock.dataset.props = JSON.stringify(props);
+                this.activeBlock.querySelector('.block-label').textContent = this.getLabel(type, props);
+                this.closeProps();
+            },
+
+            deleteCurrentBlock() {
+                if (this.activeBlock) {
+                    this.activeBlock.remove();
+                    this.closeProps();
+                }
+            },
+
+            closeProps() {
+                document.getElementById('prop-sheet').classList.add('translate-y-full');
+                this.activeBlock = null;
+            },
+
+            serialize(container = document.getElementById('editor-canvas')) {
+                const blocks = [];
+                // 只抓第一層的 block-item
+                Array.from(container.children).forEach(el => {
+                    if (!el.classList.contains('block-item')) return;
+                    const block = {
+                        id: el.dataset.id,
+                        type: el.dataset.type,
+                        props: JSON.parse(el.dataset.props)
+                    };
+                    if (block.type === 'loop') {
+                        const inner = el.querySelector('.nested-container');
+                        block.children = this.serialize(inner);
+                    }
+                    blocks.push(block);
                 });
+                return blocks;
+            },
+
+            open() {
+                this.currentId = null;
+                document.getElementById('editor-title').value = '';
+                document.getElementById('editor-canvas').innerHTML = '<div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>';
+                document.getElementById('modal-editor').classList.add('open');
+            },
+
+            load(id) {
+                const r = store.routines.find(x => x.id === id);
+                if (!r) return;
+                this.currentId = id;
+                document.getElementById('editor-title').value = r.title;
+                const canvas = document.getElementById('editor-canvas');
+                canvas.innerHTML = '';
+                if (r.blocks) {
+                    r.blocks.forEach(b => canvas.appendChild(this.createBlock(b)));
+                }
+                document.getElementById('modal-editor').classList.add('open');
+            },
+
+            close() { document.getElementById('modal-editor').classList.remove('open'); },
+
+            async save() {
+                const title = document.getElementById('editor-title').value || '未命名課表';
+                const blocks = this.serialize();
+                const data = { title, blocks, updatedAt: Date.now() };
+
+                if (store.user) {
+                    const col = db.collection('users').doc(store.user.uid).collection('routines');
+                    this.currentId ? await col.doc(this.currentId).set(data, { merge: true }) : await col.add(data);
+                    store.loadRoutines();
+                } else {
+                    const newId = this.currentId || 'local_' + Date.now();
+                    const idx = store.routines.findIndex(r => r.id === newId);
+                    if (idx > -1) store.routines[idx] = { id: newId, ...data };
+                    else store.routines.unshift({ id: newId, ...data });
+                    localStorage.setItem('localRoutines', JSON.stringify(store.routines));
+                    store.renderRoutines();
+                }
+                this.close();
             }
-            drawUi(state) {
-                if (!this.uiCtx) return;
-                const ctx = this.uiCtx; ctx.clearRect(0, 0, this.width, this.height);
+        };
 
-                if (state.view.isDragging && state.view.dragType === 'object') {
-                    const cx = this.width / 2, cy = this.height / 2;
-                    ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2 / state.view.scale; ctx.setLineDash([5, 5]);
-                    if (state.view.snapObjX) { ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, this.height); ctx.stroke(); }
-                    if (state.view.snapObjY) { ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(this.width, cy); ctx.stroke(); }
-                    ctx.setLineDash([]);
-                }
+        // --- 4. Timer Engine (核心邏輯) ---
+        const timer = {
+            queue: [],
+            totalDuration: 0,
+            currentIndex: 0,
+            elapsed: 0,
+            interval: null,
+            isPaused: false,
 
-                if (state.view.isDragging && state.view.tempPath.length > 0) {
-                    const p = state.view.tempPath; ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
-                    for (let i = 1; i < p.length; i++) ctx.lineTo(p[i].x, p[i].y);
-                    if (state.view.dragType === 'lasso') { ctx.strokeStyle = 'rgba(255,230,0,0.9)'; ctx.lineWidth = 2 / state.view.scale; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]); }
-                    else if (state.view.dragType === 'eraser') { ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = state.view.brushSize; ctx.strokeStyle = 'rgba(255,0,0,0.5)'; ctx.stroke(); }
-                }
-
-                state.data.objects.forEach(obj => {
-                    const isS = obj.id === state.view.activeObjId && state.view.activeTab === 'text';
-                    ctx.save(); ctx.translate(obj.x, obj.y); if (obj.rotation) ctx.rotate(obj.rotation);
-                    if (obj.type === 'text') {
-                        ctx.font = `bold ${obj.fontSize}px sans-serif`; ctx.textBaseline = 'top'; const m = ctx.measureText(obj.text);
-                        if (obj.bgColor) {
-                            ctx.beginPath(); ctx.fillStyle = obj.bgColor; ctx.roundRect(-8, -8, m.width + 16, obj.fontSize + 12, 8); ctx.fill();
+            // 將巢狀結構攤平為線性任務
+            flatten(blocks, parentLoops = []) {
+                let res = [];
+                blocks.forEach(b => {
+                    if (b.type === 'loop') {
+                        const count = b.props.iterations || 1;
+                        for (let i = 1; i <= count; i++) {
+                            // 記錄這層迴圈的狀態
+                            const currentLoopInfo = { current: i, total: count };
+                            const newParentLoops = [...parentLoops, currentLoopInfo];
+                            res = res.concat(this.flatten(b.children || [], newParentLoops));
                         }
-                        ctx.fillStyle = obj.color; ctx.fillText(obj.text, 0, 0);
-                        if (isS) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.strokeRect(-4, -4, m.width + 8, obj.fontSize + 8); }
                     } else {
-                        const s = obj.fontSize / 60; ctx.scale(s, s); ctx.fillStyle = obj.color; ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 4;
-                        ctx.save(); ctx.rotate(-0.26); ctx.fillRect(-25, -8, 50, 16); ctx.rotate(0.52); ctx.fillRect(-25, -8, 50, 16); ctx.restore();
-                        ctx.shadowBlur = 0; ctx.fillStyle = 'white'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(obj.text, 0, 0);
-                        if (isS) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3; ctx.setLineDash([5, 3]); ctx.strokeRect(-30, -30, 60, 60); }
-                    }
-                    ctx.restore();
-                });
-            }
-            updateLoupe(pos, scale) {
-                if (!this.loupeCtx || !this.bgCtx) return;
-                const container = document.getElementById('canvas-container'), rect = container.getBoundingClientRect();
-                const l = document.getElementById('loupe'), lc = document.getElementById('loupe-canvas');
-                l.style.display = 'block'; l.style.left = (pos.screenX - rect.left - 65) + 'px'; l.style.top = (pos.screenY - rect.top - 150) + 'px';
-                lc.width = lc.height = 130; const ctx = this.loupeCtx; ctx.clearRect(0, 0, 130, 130);
-                [this.bgCtx, this.maskCtx, this.uiCtx].forEach(c => { if (c) ctx.drawImage(c.canvas, pos.x - 32 / scale, pos.y - 32 / scale, 64 / scale, 64 / scale, 0, 0, 130, 130); });
-                ctx.strokeStyle = 'white'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(65, 0); ctx.lineTo(65, 130); ctx.moveTo(0, 65); ctx.lineTo(130, 65); ctx.stroke();
-            }
-            hideLoupe() { const l = document.getElementById('loupe'); if (l) l.style.display = 'none'; }
-        }
-
-        class App {
-            constructor() {
-                this.lang = 'zh';
-                this.state = new StateManager((isRestore) => {
-                    this.updateUI(isRestore);
-                    this.flags.ui = true;
-                    if (isRestore) {
-                        this.flags.bg = true;
-                        this.flags.mask = true;
-                        // 以使用者邏輯：復原時應立即重新計算並顯示先前的蒙版
-                        this.state.data.selections.forEach(sel => {
-                            if (sel.actions && sel.actions.length > 0) {
-                                this.requestWorker(sel);
-                            }
+                        res.push({
+                            ...b,
+                            loopState: parentLoops // 每個動作都知道自己在第幾層迴圈的第幾次
                         });
                     }
                 });
-                this.layers = new LayerManager();
-                this.flags = { bg: false, mask: false, ui: false };
-                this.els = this.cacheDOM();
-                this.pointers = new Map();
-                this.adjustTimeout = null; this.adjustInterval = null; this.cachedRect = null;
-                this.initWorker(); this.initListeners(); this.updateAllText(); this.loop();
-            }
+                return res;
+            },
 
-            // i18n 多國語系更新
-            t(key) { return I18N[this.lang][key] || key; }
-            updateAllText() {
-                document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = this.t(el.getAttribute('data-i18n')); });
-                document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = this.t(el.getAttribute('data-i18n-ph')); });
-                document.getElementById('lang-btn').innerText = this.lang === 'zh' ? 'EN' : '中';
-                this.updateUI();
-            }
-            toggleLang() {
-                this.lang = this.lang === 'zh' ? 'en' : 'zh';
-                this.updateAllText();
-            }
+            start(routineId) {
+                const routine = store.routines.find(r => r.id === routineId);
+                if (!routine || !routine.blocks) return;
 
-            initWorker() {
-                const blob = new Blob([workerCode], { type: 'application/javascript' });
-                this.worker = new Worker(URL.createObjectURL(blob));
-                this.worker.onmessage = (e) => {
-                    const sel = this.state.data.selections.find(s => s.id === e.data.id);
-                    if (sel) {
-                        sel.mask = e.data.mask; sel.borderMask = e.data.borderMask;
-                        if (e.data.detectedColor) sel.detectedColor = e.data.detectedColor;
-                    }
-                    this.flags.mask = true; this.updateUI();
-                    document.getElementById('processing-bar')?.classList.add('hidden');
-                };
-            }
-            cacheDOM() {
-                const ids = ['contrast', 'bg-sat', 'bg-dim', 'bg-blur', 'tool-hand', 'tool-lasso', 'tool-eraser', 'brush-size', 'text-input', 'text-size', 'text-rotation', 'color-list', 'file-upload', 'download-btn', 'canvas-container', 'canvas-transform-root', 'panel-route', 'panel-text', 'tab-route', 'tab-text', 'undo-btn', 'redo-btn', 'delete-item-btn', 'crop-btn', 'crop-frame', 'crop-bg-color', 'guide-v', 'guide-h', 'crop-mask-container', 'crop-inner-backdrop', 'layer-ui', 'lang-btn'];
-                const els = {}; ids.forEach(id => els[id] = document.getElementById(id)); return els;
-            }
-            startAdjust(id, delta) { this.adjSlider(id, delta); this.adjustTimeout = setTimeout(() => { this.adjustInterval = setInterval(() => { this.adjSlider(id, delta); }, 50); }, 400); }
-            stopAdjust() { clearTimeout(this.adjustTimeout); clearInterval(this.adjustInterval); }
-            initListeners() {
-                document.addEventListener('pointerdown', e => { const btn = e.target.closest('.slider-btn'); if (btn && btn.dataset.target) { e.preventDefault(); btn.setPointerCapture(e.pointerId); this.startAdjust(btn.dataset.target, parseFloat(btn.dataset.delta)); } });
-                window.addEventListener('pointerup', () => this.stopAdjust()); window.addEventListener('pointercancel', () => this.stopAdjust());
+                // 1. 建構執行隊列
+                this.queue = this.flatten(routine.blocks);
+                if (this.queue.length === 0) return alert('課表是空的');
 
-                this.els['lang-btn']?.addEventListener('click', () => this.toggleLang());
-                this.els['file-upload']?.addEventListener('change', e => this.loadFile(e.target.files[0]));
-                this.els['download-btn']?.addEventListener('click', () => this.export());
-                this.els['contrast']?.addEventListener('input', e => { this.state.data.filters.contrast = parseInt(e.target.value); const v = document.getElementById('contrast-val'); if (v) v.innerText = e.target.value + '%'; this.flags.bg = this.flags.mask = true; });
-                ['bg-sat', 'bg-dim', 'bg-blur'].forEach(id => {
-                    this.els[id]?.addEventListener('input', e => {
-                        const k = id.replace('-s', 'S').replace('-d', 'D').replace('-b', 'B').replace('-', '');
-                        this.state.data.filters[k] = parseFloat(e.target.value); const v = document.getElementById(`${id}-val`); if (v) v.innerText = e.target.value + (id.includes('blur') ? 'px' : '%'); this.flags.mask = true;
-                    });
-                });
-                ['hand', 'lasso', 'eraser'].forEach(t => { const btn = document.getElementById(`tool-${t}`); if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); this.setTool(t); }); });
-                this.els['brush-size']?.addEventListener('input', e => { this.state.view.brushSize = parseInt(e.target.value); const v = document.getElementById('brush-size-val'); if (v) v.innerText = e.target.value + 'px'; });
-                this.els['tab-route']?.addEventListener('click', () => this.switchTab('route')); this.els['tab-text']?.addEventListener('click', () => this.switchTab('text'));
-                document.getElementById('add-text-btn')?.addEventListener('click', () => this.addObj('text'));
-                document.getElementById('add-start-tag')?.addEventListener('click', () => this.addObj('tag', 'S', '#10B981'));
-                document.getElementById('add-top-tag')?.addEventListener('click', () => this.addObj('tag', 'T', '#EF4444'));
-                this.els['delete-item-btn']?.addEventListener('click', () => { if (this.state.view.activeObjId) { this.state.data.objects = this.state.data.objects.filter(o => o.id !== this.state.view.activeObjId); this.state.view.activeObjId = null; this.flags.ui = true; this.updateUI(); this.state.pushHistory(); } });
+                // 2. 加入準備時間
+                this.queue.unshift({ type: 'prepare', props: { duration: 5, label: 'Get Ready' }, loopState: [] });
+                this.queue.push({ type: 'finish', props: { duration: 0, label: 'Done' }, loopState: [] });
 
-                this.els['text-size']?.addEventListener('input', e => { const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId); if (o) { o.fontSize = parseInt(e.target.value); this.flags.ui = true; } });
-                this.els['text-size']?.addEventListener('change', e => { this.state.pushHistory(); });
-                this.els['text-rotation']?.addEventListener('input', e => { const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId); if (o) { o.rotation = parseInt(e.target.value) * Math.PI / 180; this.flags.ui = true; } });
-                this.els['text-rotation']?.addEventListener('change', e => { this.state.pushHistory(); });
+                // 3. 計算總時間
+                this.totalDuration = this.queue.reduce((acc, item) => acc + (item.props.duration || 0), 0);
 
-                const cc = this.els['canvas-container'];
-                if (cc) {
-                    cc.addEventListener('pointerdown', e => { this.pointerDown(e); });
-                    window.addEventListener('pointermove', e => { this.pointerMove(e); });
-                    window.addEventListener('pointerup', e => { this.pointerUp(e); });
-                    cc.addEventListener('pointercancel', e => { this.pointerUp(e); });
-                    cc.addEventListener('wheel', e => { e.preventDefault(); this.state.view.scale = Math.max(0.1, Math.min(5, this.state.view.scale * (e.deltaY > 0 ? 0.9 : 1.1))); this.updateTransform(); }, { passive: false });
-                }
-                this.els['undo-btn']?.addEventListener('click', () => this.state.undo());
-                this.els['redo-btn']?.addEventListener('click', () => this.state.redo());
-                this.els['crop-btn']?.addEventListener('click', () => this.toggleCrop());
-                this.els['crop-bg-color']?.addEventListener('click', () => this.toggleCropBg());
-            }
-            getCoords(e) {
-                const uiLayer = document.getElementById('layer-ui');
-                if (!uiLayer) return { x: 0, y: 0, screenX: e.clientX, screenY: e.clientY };
-                const r = this.cachedRect || uiLayer.getBoundingClientRect();
-                return { x: (e.clientX - r.left) * (this.layers.width / r.width), y: (e.clientY - r.top) * (this.layers.height / r.height), screenX: e.clientX, screenY: e.clientY };
-            }
-            loadFile(file) {
-                if (!file) return; const r = new FileReader();
-                r.onload = e => {
-                    const img = new Image(); img.onload = () => {
-                        this.img = img; this.layers.resize(img.naturalWidth, img.naturalHeight); this.layers.drawBg(img, this.state.data.filters);
-                        this.state.data.selections = []; this.state.data.objects = []; this.state.history = []; this.state.historyIndex = -1; this.state.pushHistory();
-                        const cc = this.els['canvas-container'];
-                        if (cc) this.state.view.scale = Math.min((cc.clientWidth - 20) / img.naturalWidth, (cc.clientHeight - 20) / img.naturalHeight);
-                        this.state.view.x = 0; this.state.view.y = 0; this.updateTransform();
-                        document.getElementById('canvas-wrapper')?.classList.remove('hidden'); document.getElementById('placeholder-msg')?.classList.add('hidden');
-                        if (this.els['download-btn']) this.els['download-btn'].disabled = false;
-                        this.fullRedraw();
-                    }; img.src = e.target.result;
-                }; r.readAsDataURL(file);
-            }
-            loop() {
-                if (this.flags.bg) { this.layers.drawBg(this.img, this.state.data.filters); this.flags.bg = false; }
-                if (this.flags.mask) { this.layers.drawMasks(this.state.data.selections, this.state.data.filters); this.flags.mask = false; }
-                if (this.flags.ui) { this.layers.drawUi(this.state); this.flags.ui = false; }
-                requestAnimationFrame(() => this.loop());
-            }
-            fullRedraw() { this.flags.bg = this.flags.mask = this.flags.ui = true; }
-            setTool(t) {
-                this.state.view.tool = t;
-                ['hand', 'lasso', 'eraser'].forEach(tool => {
-                    const btn = document.getElementById(`tool-${tool}`);
-                    if (btn) { btn.classList.toggle('active', t === tool); btn.classList.toggle('text-white', t === tool); }
-                });
-                if (this.els['canvas-container']) this.els['canvas-container'].style.cursor = t === 'hand' ? 'grab' : 'crosshair';
-                if (this.els['brush-controls']) this.els['brush-controls'].classList.toggle('hidden', t !== 'eraser');
-                this.flags.ui = true;
-            }
-            switchTab(t) {
-                this.state.view.activeTab = t;
-                if (this.els['panel-route']) this.els['panel-route'].classList.toggle('hidden', t !== 'route');
-                if (this.els['panel-text']) this.els['panel-text'].classList.toggle('hidden', t !== 'text');
-                if (this.els['tab-route']) this.els['tab-route'].className = t === 'route' ? "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors" : "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors";
-                if (this.els['tab-text']) this.els['tab-text'].className = t === 'text' ? "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors" : "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors";
-                this.setTool(t === 'route' ? 'lasso' : 'hand');
-            }
-            addObj(type, text, color) {
-                const container = document.getElementById('canvas-container'); if (!container) return;
-                const rect = container.getBoundingClientRect();
-                const p = this.getCoords({ clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
-                this.state.data.objects.push({ id: this.state.data.nextObjId++, type, x: p.x, y: p.y, text: text || (document.getElementById('text-input')?.value || 'Text'), color: color || '#FFFFFF', fontSize: type === 'tag' ? 60 : 40, bgColor: null, rotation: 0 });
-                const ti = document.getElementById('text-input'); if (ti) ti.value = '';
-                this.state.view.activeObjId = this.state.data.nextObjId - 1;
-                this.state.pushHistory(); this.flags.ui = true; this.updateUI();
-            }
-            pointerDown(e) {
-                if (!this.img) return;
-                this.cachedRect = document.getElementById('layer-ui')?.getBoundingClientRect();
-                this.pointers.set(e.pointerId, e);
-                const p = this.getCoords(e);
-                this.state.view.isDragging = true;
+                // 4. 初始化狀態
+                this.currentIndex = 0;
+                this.elapsed = 0;
+                this.isPaused = false;
 
-                if (this.pointers.size === 2) {
-                    const pts = Array.from(this.pointers.values());
-                    const p1 = this.getCoords(pts[0]), p2 = this.getCoords(pts[1]);
-                    this.initialPinchDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-                    this.initialPinchAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                // 5. UI 設定
+                document.getElementById('active-title').textContent = routine.title;
+                document.getElementById('active-play-icon').textContent = '⏸';
+                document.getElementById('modal-active-timer').classList.add('open');
 
-                    if (this.state.view.activeObjId && this.state.view.activeTab === 'text') {
-                        this.state.view.dragType = 'pinch-obj';
-                        const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId);
-                        this.initialObjFontSize = o.fontSize; this.initialObjRotation = o.rotation || 0;
+                // 6. 啟動
+                this.runStep();
+                this.startTicker();
+
+                // 7. 初始化語音控制 (如果已授權)
+                voiceCommander.init();
+            },
+
+            runStep() {
+                const step = this.queue[this.currentIndex];
+                if (!step) return this.stop();
+
+                // 設置倒數
+                this.stepDuration = step.props.duration || 0;
+                this.stepLeft = this.stepDuration;
+
+                // 更新 UI 文字
+                document.getElementById('active-status').textContent = step.props.label;
+
+                // 更新顏色與狀態
+                const statusEl = document.getElementById('active-status');
+                const modalEl = document.getElementById('modal-active-timer');
+                modalEl.className = "modal fixed inset-0 z-[60] flex flex-col open transition-colors duration-500"; // Reset base
+
+                if (step.type === 'prepare') {
+                    modalEl.classList.add('bg-blue-600');
+                    statusEl.className = "text-2xl font-bold mt-2 text-blue-100 uppercase tracking-widest";
+                } else if (step.type === 'timer') { // Work
+                    if (step.props.label.includes('Rest')) { // Simple logic to detect rest
+                        modalEl.classList.add('bg-emerald-600');
+                        statusEl.className = "text-2xl font-bold mt-2 text-emerald-100 uppercase tracking-widest";
                     } else {
-                        this.state.view.dragType = 'pinch-canvas'; this.initialCanvasScale = this.state.view.scale;
+                        modalEl.classList.add('bg-orange-600');
+                        statusEl.className = "text-2xl font-bold mt-2 text-white uppercase tracking-widest";
                     }
-                    this.state.view.tempPath = []; return;
-                }
-
-                if (this.state.view.activeTab === 'text') {
-                    const hit = this.state.data.objects.slice().reverse().find(o => {
-                        let rx = p.x - o.x, ry = p.y - o.y;
-                        if (o.rotation) {
-                            const cos = Math.cos(-o.rotation), sin = Math.sin(-o.rotation);
-                            const nx = rx * cos - ry * sin, ny = rx * sin + ry * cos;
-                            rx = nx; ry = ny;
-                        }
-                        if (o.type === 'text') {
-                            if (this.layers.uiCtx) this.layers.uiCtx.font = `bold ${o.fontSize}px sans-serif`;
-                            const w = this.layers.uiCtx ? this.layers.uiCtx.measureText(o.text).width : o.fontSize * o.text.length;
-                            return rx >= -20 && rx <= w + 20 && ry >= -20 && ry <= o.fontSize + 20;
-                        } else {
-                            const s = o.fontSize / 60; return rx >= -40 * s - 20 && rx <= 40 * s + 20 && ry >= -40 * s - 20 && ry <= 40 * s + 20;
-                        }
-                    });
-
-                    if (hit) {
-                        this.state.view.activeObjId = hit.id; this.state.view.dragType = 'object'; this.dragStart = { x: p.x, y: p.y, ox: hit.x, oy: hit.y };
-                    } else {
-                        this.state.view.activeObjId = null; this.state.view.dragType = 'pan'; this.dragStart = { cx: e.clientX, cy: e.clientY, vx: this.state.view.x, vy: this.state.view.y };
-                    }
+                } else if (step.type === 'reps') {
+                    modalEl.classList.add('bg-indigo-600');
+                    statusEl.className = "text-2xl font-bold mt-2 text-indigo-100 uppercase tracking-widest";
+                } else if (step.type === 'finish') {
+                    modalEl.classList.add('bg-gray-900');
+                    statusEl.textContent = "FINISHED";
+                    this.stop();
+                    return;
                 } else {
-                    if (this.state.view.tool === 'hand') { this.state.view.dragType = 'pan'; this.dragStart = { cx: e.clientX, cy: e.clientY, vx: this.state.view.x, vy: this.state.view.y }; }
-                    else { this.state.view.dragType = this.state.view.tool; this.state.view.tempPath = [p]; this.layers.updateLoupe(p, this.state.view.scale); }
-                }
-                this.updateUI(); this.flags.ui = true;
-            }
-            pointerMove(e) {
-                if (!this.state.view.isDragging) return;
-                this.pointers.set(e.pointerId, e);
-
-                if (this.pointers.size === 2) {
-                    const pts = Array.from(this.pointers.values());
-                    const p1 = this.getCoords(pts[0]), p2 = this.getCoords(pts[1]);
-                    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y), angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-
-                    if (this.state.view.dragType === 'pinch-obj') {
-                        const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId);
-                        if (o) {
-                            const scaleFactor = dist / this.initialPinchDist;
-                            o.fontSize = Math.max(10, Math.min(300, this.initialObjFontSize * scaleFactor));
-                            o.rotation = this.initialObjRotation + (angle - this.initialPinchAngle);
-                            this.flags.ui = true; this.updateUI();
-                        }
-                    } else if (this.state.view.dragType === 'pinch-canvas') {
-                        const scaleFactor = dist / this.initialPinchDist;
-                        this.state.view.scale = Math.max(0.1, Math.min(5, this.initialCanvasScale * scaleFactor));
-                        this.updateTransform();
-                    }
-                    return;
+                    modalEl.classList.add('bg-gray-900');
                 }
 
-                if (this.state.view.dragType && this.state.view.dragType.startsWith('pinch')) return;
+                this.updateDisplay();
+            },
 
-                const p = this.getCoords(e);
-                if (this.state.view.dragType === 'pan') {
-                    let nx = this.dragStart.vx + (e.clientX - this.dragStart.cx), ny = this.dragStart.vy + (e.clientY - this.dragStart.cy);
-                    const snapD = 20; let snapX = false, snapY = false;
-                    if (Math.abs(nx) < snapD) { nx = 0; snapX = true; }
-                    if (Math.abs(ny) < snapD) { ny = 0; snapY = true; }
-                    if (this.els['guide-v']) this.els['guide-v'].classList.toggle('hidden', !snapX);
-                    if (this.els['guide-h']) this.els['guide-h'].classList.toggle('hidden', !snapY);
-                    this.state.view.x = nx; this.state.view.y = ny; this.updateTransform();
-                } else if (this.state.view.dragType === 'object') {
-                    const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId);
-                    if (o) {
-                        let nx = this.dragStart.ox + (p.x - this.dragStart.x), ny = this.dragStart.oy + (p.y - this.dragStart.y);
-                        const snapD = 20 / this.state.view.scale;
-                        this.state.view.snapObjX = false; this.state.view.snapObjY = false;
-                        const cx = this.layers.width / 2, cy = this.layers.height / 2;
-                        if (Math.abs(nx - cx) < snapD) { nx = cx; this.state.view.snapObjX = true; }
-                        if (Math.abs(ny - cy) < snapD) { ny = cy; this.state.view.snapObjY = true; }
-                        o.x = nx; o.y = ny; this.flags.ui = true;
-                    }
-                } else if (this.state.view.dragType === 'lasso' || this.state.view.dragType === 'eraser') {
-                    const lastP = this.state.view.tempPath[this.state.view.tempPath.length - 1];
-                    if (!lastP || (p.x - lastP.x) ** 2 + (p.y - lastP.y) ** 2 > (2 / this.state.view.scale) ** 2) {
-                        this.state.view.tempPath.push(p);
-                    }
-                    this.flags.ui = true; this.layers.updateLoupe(p, this.state.view.scale);
-                }
-            }
+            startTicker() {
+                if (this.interval) clearInterval(this.interval);
+                this.interval = setInterval(() => {
+                    if (this.isPaused) return;
 
-            // 優化3: Douglas-Peucker 路徑簡化
-            getSqSegDist(p, p1, p2) {
-                let x = p1.x, y = p1.y, dx = p2.x - x, dy = p2.y - y;
-                if (dx !== 0 || dy !== 0) {
-                    let t = ((p.x - x) * dx + (p.y - y) * dy) / (dx * dx + dy * dy);
-                    if (t > 1) { x = p2.x; y = p2.y; } else if (t > 0) { x += dx * t; y += dy * t; }
-                }
-                dx = p.x - x; dy = p.y - y; return dx * dx + dy * dy;
-            }
-            simplifyDPStep(points, first, last, sqTolerance, simplified) {
-                let maxSqDist = sqTolerance, index;
-                for (let i = first + 1; i < last; i++) {
-                    let sqDist = this.getSqSegDist(points[i], points[first], points[last]);
-                    if (sqDist > maxSqDist) { index = i; maxSqDist = sqDist; }
-                }
-                if (maxSqDist > sqTolerance) {
-                    if (index - first > 1) this.simplifyDPStep(points, first, index, sqTolerance, simplified);
-                    simplified.push(points[index]);
-                    if (last - index > 1) this.simplifyDPStep(points, index, last, sqTolerance, simplified);
-                }
-            }
-            simplifyPath(points, tolerance) {
-                if (points.length <= 2) return points;
-                const sqTolerance = tolerance * tolerance;
-                const simplified = [points[0]];
-                this.simplifyDPStep(points, 0, points.length - 1, sqTolerance, simplified);
-                simplified.push(points[points.length - 1]);
-                return simplified;
-            }
-
-            isPointInPoly(p, poly) {
-                let inside = false;
-                for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-                    const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
-                    const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
-                    if (intersect) inside = !inside;
-                }
-                return inside;
-            }
-
-            triggerFlash(id) {
-                const el = document.getElementById(`sel-item-${id}`);
-                if (el) {
-                    el.classList.remove('flash-active');
-                    void el.offsetWidth; // trigger reflow
-                    el.classList.add('flash-active');
-                }
-            }
-
-            pointerUp(e) {
-                this.pointers.delete(e.pointerId);
-                if (this.pointers.size === 0) this.cachedRect = null;
-
-                if (this.state.view.dragType && this.state.view.dragType.startsWith('pinch')) {
-                    if (this.pointers.size === 0) {
-                        if (this.state.view.dragType === 'pinch-obj') this.state.pushHistory();
-                        this.state.view.isDragging = false; this.state.view.dragType = null;
-                    }
-                    return;
-                }
-
-                if (!this.state.view.isDragging) return;
-
-                this.layers.hideLoupe();
-                if (this.els['guide-v']) this.els['guide-v'].classList.add('hidden');
-                if (this.els['guide-h']) this.els['guide-h'].classList.add('hidden');
-
-                const type = this.state.view.dragType;
-
-                // 簡化路徑，容許度根據縮放比例動態調整
-                const path = this.simplifyPath(this.state.view.tempPath, 2.5 / this.state.view.scale);
-
-                if (type === 'lasso' && path.length > 3) {
-                    let mId = null; const w = this.layers.width, h = this.layers.height;
-                    let minX = w, maxX = 0, minY = h, maxY = 0;
-                    path.forEach(p => { if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; });
-
-                    for (const s of this.state.data.selections) {
-                        if (!s.mask || s.locked || s.visible === false) continue; // 鎖定或隱藏則跳過碰撞
-
-                        let isOverlap = false;
-                        for (let i = 0; i < path.length; i += 2) {
-                            const px = Math.floor(path[i].x), py = Math.floor(path[i].y);
-                            for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
-                                const nx = px + dx, ny = py + dy;
-                                if (nx >= 0 && nx < w && ny >= 0 && ny < h && s.mask[ny * w + nx] > 0) { isOverlap = true; break; }
-                            }
-                            if (isOverlap) break;
-                        }
-                        if (isOverlap) { mId = s.id; break; }
-
-                        let samplePoint = null;
-                        for (let y = Math.floor(minY); y <= Math.ceil(maxY); y += 5) {
-                            for (let x = Math.floor(minX); x <= Math.ceil(maxX); x += 5) {
-                                if (y >= 0 && y < h && x >= 0 && x < w && s.mask[y * w + x] > 0) {
-                                    samplePoint = { x, y }; break;
-                                }
-                            }
-                            if (samplePoint) break;
-                        }
-                        if (samplePoint && this.isPointInPoly(samplePoint, path)) {
-                            mId = s.id;
-                        }
-                        if (mId) break;
-                    }
-
-                    let sel;
-                    if (mId) {
-                        sel = this.state.data.selections.find(s => s.id === mId);
-                        sel.actions.push({ type: 'lasso', path });
-                        sel.mask = sel.borderMask = null;
-                        this.state.view.activeSelId = mId;
-                        // 優化4: 合併閃爍反饋
-                        this.triggerFlash(mId);
+                    if (this.stepLeft > 0) {
+                        this.stepLeft--;
+                        this.elapsed++;
                     } else {
-                        let prevParams = { tolerance: 60, expand: 0, fillHoles: true, border: true, borderThickness: 5, borderColor: '#EC4899' };
-                        const sourceSel = this.state.data.selections.find(s => s.id === this.state.view.activeSelId) || this.state.data.selections[this.state.data.selections.length - 1];
-                        if (sourceSel) prevParams = { ...sourceSel.params };
-
-                        const id = this.state.data.nextSelId++;
-                        sel = {
-                            id, actions: [{ type: 'lasso', path }], params: prevParams,
-                            mask: null, borderMask: null, detectedColor: null, visible: true, locked: false
-                        };
-                        this.state.data.selections.push(sel);
-                        this.state.view.activeSelId = id;
-                    }
-                    this.requestWorker(sel); this.state.pushHistory(); this.updateUI();
-                } else if (type === 'eraser' && path.length > 0) {
-                    if (this.state.view.activeSelId) {
-                        let sel = this.state.data.selections.find(s => s.id === this.state.view.activeSelId);
-                        if (sel && !sel.locked && sel.visible !== false) {
-                            sel.actions.push({ type: 'erase', path, size: this.state.view.brushSize });
-                            sel.mask = sel.borderMask = null;
-                            this.requestWorker(sel); this.state.pushHistory();
+                        // 下一步
+                        this.currentIndex++;
+                        if (this.currentIndex < this.queue.length) {
+                            this.runStep();
+                        } else {
+                            this.stop();
                         }
                     }
-                } else if (type === 'object') {
-                    this.state.pushHistory();
+                    this.updateDisplay();
+                }, 1000);
+            },
+
+            updateDisplay() {
+                const step = this.queue[this.currentIndex];
+
+                // 倒數數字
+                const displayNum = step.type === 'reps' && this.stepLeft > 0
+                    ? `${step.props.count}<span class="text-4xl ml-2 opacity-50">reps</span>`
+                    : (this.stepLeft < 10 ? '0' + this.stepLeft : this.stepLeft);
+
+                document.getElementById('active-countdown').innerHTML = displayNum;
+
+                // 時間資訊
+                const remaining = Math.max(0, this.totalDuration - this.elapsed);
+                document.getElementById('active-elapsed').textContent = formatTime(this.elapsed);
+                document.getElementById('active-remaining').textContent = formatTime(remaining);
+                document.getElementById('active-total-time').textContent = `Total: ${formatTime(this.totalDuration)}`;
+
+                // 循環資訊 (例如 Loop 1/3)
+                const loopState = step.loopState;
+                const loopEl = document.getElementById('active-loops');
+                if (loopState && loopState.length > 0) {
+                    // 取最內層的循環顯示，或顯示路徑
+                    // 格式: Loop 1/3 > Loop 2/5
+                    const text = loopState.map(l => `Loop ${l.current}/${l.total}`).join(' > ');
+                    loopEl.textContent = text;
+                    loopEl.classList.remove('hidden');
+                } else {
+                    loopEl.classList.add('hidden');
                 }
 
-                this.state.view.tempPath = []; this.state.view.dragType = null;
-                this.state.view.snapObjX = false; this.state.view.snapObjY = false;
-                this.state.view.isDragging = false; this.flags.ui = true;
-            }
-            adjSlider(id, v) {
-                const el = document.getElementById(id);
-                if (el) { el.value = parseFloat(el.value) + v; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }
-            }
-            updateObjParam(k, v) {
-                const o = this.state.data.objects.find(obj => obj.id === this.state.view.activeObjId);
-                if (o) { o[k] = v; this.flags.ui = true; this.updateUI(); this.state.pushHistory(); }
-            }
-            requestWorker(sel) { const pb = document.getElementById('processing-bar'); if (pb) pb.classList.remove('hidden'); this.worker.postMessage({ type: 'CALC_MASK', sel, w: this.layers.width, h: this.layers.height, bgData: this.layers.bgBuffer }); }
-            updateTransform() { const r = document.getElementById('canvas-transform-root'); if (r) r.style.transform = `translate(${this.state.view.x}px, ${this.state.view.y}px) scale(${this.state.view.scale})`; }
-
-            toggleSelVisibility(id) {
-                const s = this.state.data.selections.find(x => x.id === id);
-                if (s) { s.visible = s.visible === false ? true : false; this.flags.mask = true; this.updateUI(); this.state.pushHistory(); }
-            }
-            toggleSelLock(id) {
-                const s = this.state.data.selections.find(x => x.id === id);
-                if (s) { s.locked = !s.locked; this.updateUI(); this.state.pushHistory(); }
-            }
-
-            updateUI(force) {
-                if (force) this.fullRedraw();
-                if (this.els['undo-btn']) this.els['undo-btn'].disabled = this.state.historyIndex <= 0; if (this.els['redo-btn']) this.els['redo-btn'].disabled = this.state.historyIndex >= this.state.history.length - 1;
-                const list = this.els['color-list']; if (!list) return; list.innerHTML = '';
-                if (this.state.data.selections.length === 0) { list.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm italic border-2 border-dashed border-gray-100 rounded-lg">${this.t('emptySelection')}</div>`; }
-                else {
-                    this.state.data.selections.forEach((sel, i) => {
-                        const active = sel.id === this.state.view.activeSelId;
-                        const div = document.createElement('div');
-                        div.id = `sel-item-${sel.id}`;
-                        div.className = `list-item bg-white border ${active ? 'border-blue-500 shadow-md ring-1 ring-blue-100' : 'border-gray-200'} rounded-lg overflow-hidden mb-2`;
-
-                        div.onclick = (e) => {
-                            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
-                                this.state.view.activeSelId = (active ? null : sel.id); this.updateUI();
-                            }
-                        };
-
-                        const cols = SHARED_COLORS.map(c => { const isS = (sel.params.borderColor || '#EC4899').toLowerCase() === c.toLowerCase(); return `<button class="w-6 h-6 rounded-full border border-gray-200 shadow-sm ${isS ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''}" style="background-color: ${c}" onclick="app.updateSelParam(${sel.id}, 'borderColor', '${c}')"></button>`; }).join('');
-                        const badgeColor = sel.detectedColor || '#EC4899';
-                        const locked = sel.locked;
-                        const visible = sel.visible !== false;
-
-                        const expanded = active ? `
-                            <div class="p-3 bg-gray-50 border-t border-gray-100 space-y-4 ${locked ? 'opacity-50 pointer-events-none' : ''}">
-                                <div><div class="flex justify-between mb-1 text-[10px] font-bold text-gray-500 uppercase">${this.t('tolerance')} <span class="text-blue-600">${sel.params.tolerance}</span></div><div class="slider-group flex items-center"><button class="slider-btn text-gray-500 px-1" data-target="sel-tol-${sel.id}" data-delta="-1">-</button><input type="range" id="sel-tol-${sel.id}" min="0" max="127" value="${sel.params.tolerance}" onchange="app.updateSelParam(${sel.id}, 'tolerance', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-blue-500 mx-1"><button class="slider-btn text-gray-500 px-1" data-target="sel-tol-${sel.id}" data-delta="1">+</button></div></div>
-                                <div><div class="flex justify-between mb-1 text-[10px] font-bold text-gray-500 uppercase">${this.t('expand')} <span class="text-purple-600">${sel.params.expand}px</span></div><div class="slider-group flex items-center"><button class="slider-btn text-gray-500 px-1" data-target="sel-exp-${sel.id}" data-delta="-1">-</button><input type="range" id="sel-exp-${sel.id}" min="0" max="20" value="${sel.params.expand}" onchange="app.updateSelParam(${sel.id}, 'expand', this.value)" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-purple-500 mx-1"><button class="slider-btn text-gray-500 px-1" data-target="sel-exp-${sel.id}" data-delta="1">+</button></div></div>
-                                <div class="flex items-center justify-between pt-1">
-                                    <label class="flex items-center text-xs text-gray-700 font-bold"><input type="checkbox" onchange="app.updateSelParam(${sel.id}, 'fillHoles', this.checked)" ${sel.params.fillHoles ? 'checked' : ''} class="mr-2 w-4 h-4">${this.t('autoFill')}</label>
-                                    <label class="flex items-center text-xs text-gray-700 font-bold"><input type="checkbox" onchange="app.updateSelParam(${sel.id}, 'border', this.checked)" ${sel.params.border ? 'checked' : ''} class="mr-2 w-4 h-4">${this.t('showBorder')}</label>
-                                </div>
-                                ${sel.params.border ? `<div class="mt-3 pt-3 border-t border-gray-100">
-                                    <div class="flex items-center justify-between mb-2 text-[10px] font-bold text-gray-500 uppercase">
-                                        <span>${this.t('borderThickness')} <span class="text-blue-600">${sel.params.borderThickness}px</span></span>
-                                        <div class="slider-group flex items-center w-24"><button class="slider-btn text-gray-500 px-1" data-target="sel-bt-inp-${sel.id}" data-delta="-1">-</button><input type="range" id="sel-bt-inp-${sel.id}" min="1" max="20" value="${sel.params.borderThickness}" class="h-1 bg-gray-200 rounded-lg appearance-none flex-1 accent-blue-500 mx-1" onchange="app.updateSelParam(${sel.id}, 'borderThickness', this.value)"><button class="slider-btn text-gray-500 px-1" data-target="sel-bt-inp-${sel.id}" data-delta="1">+</button></div>
-                                    </div>
-                                    <div class="flex flex-wrap gap-2 pt-1">${cols}</div>
-                                </div>` : ''}
-                            </div>` : '';
-
-                        // 優化2: 圖層管理按鈕 (顯示/隱藏, 鎖定)
-                        div.innerHTML = `<div class="flex items-center p-3 cursor-pointer hover:bg-gray-50 transition-colors ${!visible ? 'opacity-50' : ''}">
-                            <div class="w-6 h-6 rounded flex items-center justify-center font-bold text-[10px] shadow-sm border border-black/10" style="background-color: ${badgeColor}; color: ${badgeColor === '#FFFFFF' ? '#000' : '#FFF'};">${i + 1}</div>
-                            <div class="flex-1 ml-3 text-sm font-bold text-gray-700 truncate">${this.t('holdNum')}${i + 1}</div>
-                            
-                            <div class="flex items-center gap-1">
-                                <button onclick="app.toggleSelVisibility(${sel.id})" class="text-gray-400 hover:text-blue-500 p-1.5" title="Toggle Visibility">
-                                    ${visible ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>` :
-                                `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path></svg>`}
-                                </button>
-                                <button onclick="app.toggleSelLock(${sel.id})" class="text-gray-400 hover:text-blue-500 p-1.5" title="Lock/Unlock">
-                                    ${locked ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>` :
-                                `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>`}
-                                </button>
-                                <button onclick="app.removeSel(${sel.id})" class="text-gray-400 hover:text-red-500 p-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
-                            </div>
-                        </div>${expanded}`;
-                        list.appendChild(div);
-                    });
+                // 下一步預告
+                const nextStep = this.queue[this.currentIndex + 1];
+                const nextEl = document.getElementById('active-next');
+                if (nextStep) {
+                    let desc = nextStep.props.label;
+                    if (nextStep.type === 'timer' || nextStep.type === 'prepare') desc += ` (${nextStep.props.duration}s)`;
+                    if (nextStep.type === 'reps') desc += ` x${nextStep.props.count}`;
+                    nextEl.textContent = desc;
+                } else {
+                    nextEl.textContent = "Finish";
                 }
-                const actO = this.state.data.objects.find(o => o.id === this.state.view.activeObjId);
-                const tc = document.getElementById('text-controls');
-                if (tc) {
-                    if (actO && this.state.view.activeTab === 'text') {
-                        tc.classList.remove('opacity-50', 'pointer-events-none');
-                        const ts = document.getElementById('text-size'); if (ts) ts.value = actO.fontSize;
-                        const tr = document.getElementById('text-rotation'); if (tr) tr.value = Math.round((actO.rotation || 0) * 180 / Math.PI);
-                        const tcp = document.getElementById('text-color-palette');
-                        if (tcp) tcp.innerHTML = SHARED_COLORS.map(c => `<button class="w-6 h-6 rounded-full border border-gray-200 shadow-sm ${actO.color === c ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''}" style="background-color: ${c}" onclick="app.updateObjParam('color', '${c}')"></button>`).join('');
-                        const tbgp = document.getElementById('text-bg-color-palette');
-                        if (tbgp) {
-                            const noneBtn = `<button class="w-6 h-6 rounded-full border border-gray-200 shadow-sm flex items-center justify-center ${!actO.bgColor ? 'ring-2 ring-offset-1 ring-red-500 scale-110' : ''}" style="background-color: white" onclick="app.updateObjParam('bgColor', null)"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>`;
-                            const colorBtns = SHARED_COLORS.map(c => `<button class="w-6 h-6 rounded-full border border-gray-200 shadow-sm ${actO.bgColor === c ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''}" style="background-color: ${c}" onclick="app.updateObjParam('bgColor', '${c}')"></button>`).join('');
-                            tbgp.innerHTML = colorBtns + noneBtn;
-                        }
-                    } else {
-                        tc.classList.add('opacity-50', 'pointer-events-none');
-                    }
+            },
+
+            toggle() {
+                this.isPaused = !this.isPaused;
+                document.getElementById('active-play-icon').textContent = this.isPaused ? '▶' : '⏸';
+            },
+
+            skip(dir) {
+                // 簡單跳過：直接移動索引並重置該步驟時間
+                const newIndex = this.currentIndex + dir;
+                if (newIndex >= 0 && newIndex < this.queue.length) {
+                    // 需要調整 elapsed 以保持準確性? 簡化起見暫不調整 total accuracy
+                    this.currentIndex = newIndex;
+                    this.runStep();
                 }
+            },
+
+            stop() {
+                clearInterval(this.interval);
+                // 停止語音以節省資源
+                voiceCommander.stop();
+                document.getElementById('modal-active-timer').classList.remove('open');
             }
-            updateSelParam(id, k, v) { const s = this.state.data.selections.find(x => x.id === id); if (s) { s.params[k] = (k === 'fillHoles' || k === 'border' || k === 'borderColor') ? v : parseInt(v); if (k === 'borderColor') { this.flags.mask = true; this.updateUI(); } else { s.mask = s.borderMask = null; this.requestWorker(s); } this.state.pushHistory(); if (k === 'border') this.updateUI(); } }
-            toggleCrop() {
-                let idx = (this.state.data.crop.index + 1) % CROPS.length; this.state.data.crop.index = idx;
-                const crop = CROPS[idx];
-                const cl = document.getElementById('crop-label'); if (cl) { cl.innerText = crop.label; cl.classList.toggle('hidden', idx === 0); }
-                const cf = document.getElementById('crop-frame'), cc = document.getElementById('crop-mask-container');
-                const cbgc = document.getElementById('crop-bg-container'), cbgl = document.getElementById('crop-bg-layer');
+        };
 
-                if (cf && cc && cbgc && cbgl) {
-                    if (idx === 0) {
-                        cc.classList.add('hidden'); cf.style.display = 'none'; cbgc.classList.add('hidden'); document.getElementById('crop-bg-color')?.classList.add('hidden');
-                    } else {
-                        cc.classList.remove('hidden'); cf.style.display = 'block'; cbgc.classList.remove('hidden');
-                        cbgl.style.backgroundColor = this.state.data.crop.bgWhite ? 'white' : 'black'; document.getElementById('crop-bg-color')?.classList.remove('hidden');
-                        const r = document.getElementById('canvas-container').getBoundingClientRect(), aspect = crop.w / crop.h;
-                        let w = r.width - 40, h = w / aspect; if (h > r.height - 40) { h = r.height - 40; w = h * aspect; }
-                        cf.style.width = w + 'px'; cf.style.height = h + 'px'; cbgl.style.width = w + 'px'; cbgl.style.height = h + 'px';
-                    }
-                }
-                if (idx !== 0 && this.state.view.activeTab === 'route') this.setTool('hand');
+        // --- 初始化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            store.init();
+            editor.init();
+
+            // 隨機日曆點點
+            const calGrid = document.getElementById('calendar-grid');
+            for (let i = 0; i < 28; i++) {
+                const d = document.createElement('div');
+                d.className = `aspect-square rounded-full flex items-center justify-center text-xs ${Math.random() > 0.7 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`;
+                d.textContent = i + 1;
+                calGrid.appendChild(d);
             }
-            toggleCropBg() { this.state.data.crop.bgWhite = !this.state.data.crop.bgWhite; const cbgl = document.getElementById('crop-bg-layer'); if (cbgl) cbgl.style.backgroundColor = this.state.data.crop.bgWhite ? 'white' : 'black'; }
-            removeSel(id) { this.state.data.selections = this.state.data.selections.filter(s => s.id !== id); if (this.state.view.activeSelId === id) this.state.view.activeSelId = null; this.flags.mask = true; this.updateUI(); this.state.pushHistory(); }
-            export() {
-                const crop = CROPS[this.state.data.crop.index];
-                let outW = this.layers.width, outH = this.layers.height, srcRect = { x: 0, y: 0, w: outW, h: outH };
+        });
 
-                if (crop.w > 0 && crop.h > 0) {
-                    const r = document.getElementById('canvas-container').getBoundingClientRect(), aspect = crop.w / crop.h;
-                    let cw = r.width - 40, ch = cw / aspect; if (ch > r.height - 40) { ch = r.height - 40; cw = ch * aspect; }
-                    outW = Math.round(cw / this.state.view.scale); outH = Math.round(ch / this.state.view.scale);
-                    srcRect.x = Math.round((this.layers.width / 2) - (this.state.view.x / this.state.view.scale) - (outW / 2));
-                    srcRect.y = Math.round((this.layers.height / 2) - (this.state.view.y / this.state.view.scale) - (outH / 2));
-                    srcRect.w = outW; srcRect.h = outH;
-                }
-
-                const outC = document.createElement('canvas'); outC.width = outW; outC.height = outH; const ctx = outC.getContext('2d');
-                if (crop.w > 0 && crop.h > 0) { ctx.fillStyle = this.state.data.crop.bgWhite ? 'white' : 'black'; ctx.fillRect(0, 0, outW, outH); }
-
-                ctx.save(); ctx.translate(-srcRect.x, -srcRect.y);
-                ctx.drawImage(document.getElementById('layer-bg'), 0, 0); ctx.drawImage(document.getElementById('layer-mask'), 0, 0); ctx.drawImage(document.getElementById('layer-ui'), 0, 0);
-                ctx.restore();
-
-                const a = document.createElement('a'); a.download = 'holdfocus_export.png'; a.href = outC.toDataURL('image/png', 1.0); a.click();
-            }
-        }
-        document.addEventListener('DOMContentLoaded', () => { window.app = new App(); });
     </script>
 </body>
 
