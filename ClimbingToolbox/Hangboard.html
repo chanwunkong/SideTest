@@ -370,6 +370,15 @@
             <button onclick="editor.save()" class="text-blue-600 font-bold px-2">儲存</button>
         </div>
 
+        <!-- 課表設定列 -->
+        <div class="px-4 py-2 bg-gray-50 border-b flex items-center justify-between text-xs text-gray-500 shrink-0">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" id="editor-skip-rest"
+                    class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300">
+                <span class="font-medium">跳過最後休息</span>
+            </label>
+        </div>
+
         <div class="flex-1 overflow-y-auto p-4 pb-32" id="editor-canvas">
             <!-- 積木將在此生成 -->
             <div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>
@@ -1164,10 +1173,6 @@
 
             appendFooter(isChecked) {
                 const container = document.getElementById('editor-canvas');
-                // Remove existing footer if any (simple check by class or ID if needed, but for now we append)
-                // Actually, since we clear innerHTML, we just append.
-                // But wait, if placeholder exists, we should append after it.
-
                 const footer = document.createElement('div');
                 footer.className = "mt-6 flex items-center justify-center gap-3 opacity-80 hover:opacity-100 transition-opacity";
                 footer.innerHTML = `
@@ -1241,13 +1246,11 @@
 
                 this.queue = this.flatten(routine.blocks);
 
-                // *** 修改：套用 Skip Last Rest 邏輯 ***
+                // *** 修改：套用 Skip Last Timer 邏輯 (Based on Type) ***
                 if (routine.skipLastRest && this.queue.length > 0) {
                     const last = this.queue[this.queue.length - 1];
-                    // 判斷是否為休息 (標籤包含 Rest/休息 或 顏色為綠色系)
-                    const isRest = /rest|休息/i.test(last.props.label || '') || ['green', 'emerald', 'teal'].includes(last.props.color);
-
-                    if (isRest) {
+                    // 只要最後一個是計時類型 (Timer)，就移除
+                    if (last.type === 'timer') {
                         this.queue.pop(); // 移除最後一項
                     }
                 }
