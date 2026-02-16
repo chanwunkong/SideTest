@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力監測系統 V21 (穩定修正版)</title>
+    <title>指力監測系統 V14.1 (全位元穩定版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -83,7 +83,7 @@
             font-family: monospace;
         }
 
-        .debug-panel {
+        .mode-panel {
             background: #1a1a1a;
             padding: 10px;
             border-radius: 8px;
@@ -92,6 +92,12 @@
             justify-content: space-between;
             align-items: center;
             border: 1px solid #333;
+        }
+
+        .mode-info {
+            font-size: 13px;
+            color: #00bcd4;
+            font-weight: bold;
         }
 
         .hex-monitor {
@@ -128,6 +134,12 @@
             grid-column: span 2;
         }
 
+        #btn-mode {
+            background-color: #FF5722;
+            color: white;
+            grid-column: span 2;
+        }
+
         #btn-tare {
             background-color: #FF9800;
             color: black;
@@ -145,7 +157,7 @@
 
     <div class="container">
         <div class="header">
-            <div style="font-weight:bold;">WH-C06 Tracker V21</div>
+            <div style="font-weight:bold;">WH-C06 Tracker V14.1</div>
             <div id="status" class="status-badge">未連線</div>
         </div>
 
@@ -158,16 +170,20 @@
             <div class="unit">KG</div>
         </div>
 
-        <div class="debug-panel">
-            <div style="font-size:12px; color:#666;">15-bit Unsigned Mode</div>
+        <div class="mode-panel">
+            <div>
+                <div style="font-size:10px; color:#666;">數據狀態</div>
+                <div id="mode-name" class="mode-info">Mode 1: Full 16-bit Signed</div>
+            </div>
             <div style="text-align:right;">
-                <div style="font-size:10px; color:#444;">RAW HEX</div>
+                <div style="font-size:10px; color:#666;">RAW HEX</div>
                 <div id="val-hex" class="hex-monitor">-- --</div>
             </div>
         </div>
 
         <div class="grid-controls">
             <button id="btn-scan">連線 (Connect)</button>
+            <button id="btn-mode" disabled>切換解碼算法 (Switch Mode)</button>
             <button id="btn-tare" disabled>歸零 (Tare)</button>
             <button id="btn-stop" disabled>斷線</button>
         </div>
@@ -179,22 +195,27 @@
         const TARGET_COMPANY_ID = 0x0100;
         const DEFAULT_RATIO = 0.01;
         const NOISE_BUFFER = 0.15;
-        const MASK_15BIT = 0x7FFF; // 保留 Bit 0-14，過濾 Bit 15 (符號/狀態位)
+
+        const MODES = [
+            { name: "Mode 1: 全位元解碼 (Signed 16-bit)", desc: "考慮所有位元" },
+            { name: "Mode 2: Mask 0x7FFF", desc: "過濾最高位元" },
+            { name: "Mode 3: Mask 0x3FFF", desc: "過濾前兩位元" }
+        ];
+        let currentModeIndex = 0;
 
         let bluetoothDevice;
-        let tareOffset = 0;
+        let initialNoiseKg = null;
         let maxWeight = 0;
         let wakeLock = null;
         let isChartUpdatePending = false;
         let lastUpdateTime = 0;
 
-        const elStatus = document.getElementById('status');
-        const elValKg = document.getElementById('val-kg');
-        const elValMax = document.getElementById('val-max');
-        const elValHex = document.getElementById('val-hex');
         const btnScan = document.getElementById('btn-scan');
         const btnStop = document.getElementById('btn-stop');
         const btnTare = document.getElementById('btn-tare');
+        const btnMode = document.getElementById('btn-mode');
+        const elStatus = document.getElementById('status');
+        const elModeName = document.getElementById('mode-name');
 
         const ctx = document.getElementById('chart').getContext('2d');
         const chart = new Chart(ctx, {
@@ -239,6 +260,7 @@
                 btnScan.disabled = true;
                 btnStop.disabled = false;
                 btnTare.disabled = false;
+                btnMode.disabled = false;
                 await requestWakeLock();
 
             } catch (error) { elStatus.textContent = '連線失敗'; }
@@ -247,7 +269,6 @@
         function processData(event) {
             if (!event.manufacturerData || !event.manufacturerData.has(TARGET_COMPANY_ID)) return;
 
-            // 限制處理頻率，避免 V14 之後版本可能出現的過載
             const now = Date.now();
             if (now - lastUpdateTime < 30) return;
             lastUpdateTime = now;
@@ -258,31 +279,45 @@
             const b11 = dv.getUint8(11);
             const b12 = dv.getUint8(12);
 
-            // 更新 Hex 文字
-            elValHex.textContent = `${b11.toString(16).padStart(2, '0').toUpperCase()} ${b12.toString(16).padStart(2, '0').toUpperCase()}`;
+            document.getElementById('val-hex').textContent =
+                `${b11.toString(16).padStart(2, '0').toUpperCase()} ${b12.toString(16).padStart(2, '0').toUpperCase()}`;
 
-            // 15-bit 解碼邏輯：打通 5.12kg 進位位元，同時過濾 Bit 15 產生的 655kg 異常跳動
-            let weightRaw = (((b12 << 8) | b11) & MASK_15BIT);
+            // --- 核心演算法：改回全位元 Signed 16-bit 邏輯 ---
+            let weightRaw = (b12 << 8) | b11;
 
-            // 換算淨重
-            let val = (weightRaw - tareOffset) * DEFAULT_RATIO;
-
-            // 死區與負值防護
-            if (Math.abs(val) <= NOISE_BUFFER) val = 0;
-            if (val < 0) val = 0;
-
-            // 更新峰值
-            if (val > maxWeight) {
-                maxWeight = val;
-                elValMax.textContent = maxWeight.toFixed(2);
+            switch (currentModeIndex) {
+                case 0: // Signed 16-bit
+                    if (weightRaw > 32767) weightRaw -= 65536;
+                    break;
+                case 1: // Mask 0x7FFF
+                    weightRaw = weightRaw & 0x7FFF;
+                    break;
+                case 2: // Mask 0x3FFF
+                    weightRaw = weightRaw & 0x3FFF;
+                    break;
             }
 
-            // 更新數值
-            elValKg.textContent = val.toFixed(2);
+            let currentKg = weightRaw * DEFAULT_RATIO;
 
-            // 圖表更新
+            if (initialNoiseKg === null) initialNoiseKg = currentKg;
+
+            if (Math.abs(currentKg - initialNoiseKg) <= NOISE_BUFFER) {
+                currentKg = 0;
+            } else {
+                currentKg = currentKg - initialNoiseKg;
+            }
+
+            if (currentKg < 0) currentKg = 0;
+
+            if (currentKg > maxWeight) {
+                maxWeight = currentKg;
+                document.getElementById('val-max').textContent = maxWeight.toFixed(2);
+            }
+
+            document.getElementById('val-kg').textContent = currentKg.toFixed(2);
+
             const dataArr = chart.data.datasets[0].data;
-            dataArr.push(val);
+            dataArr.push(currentKg);
             dataArr.shift();
 
             if (!isChartUpdatePending) {
@@ -306,19 +341,21 @@
             btnScan.disabled = false;
             btnStop.disabled = true;
             btnTare.disabled = true;
-            tareOffset = 0;
+            btnMode.disabled = true;
+            initialNoiseKg = null;
         }
 
+        btnMode.addEventListener('click', () => {
+            currentModeIndex = (currentModeIndex + 1) % MODES.length;
+            elModeName.textContent = MODES[currentModeIndex].name;
+            maxWeight = 0;
+            document.getElementById('val-max').textContent = "0.00";
+        });
+
         btnTare.addEventListener('click', () => {
-            // 抓取當前 Hex 對應的 Raw 值作為 Offset
-            const hexParts = elValHex.textContent.split(' ');
-            if (hexParts.length === 2) {
-                const b11 = parseInt(hexParts[0], 16);
-                const b12 = parseInt(hexParts[1], 16);
-                tareOffset = (((b12 << 8) | b11) & MASK_15BIT);
-                maxWeight = 0;
-                elValMax.textContent = "0.00";
-            }
+            maxWeight = 0;
+            document.getElementById('val-max').textContent = "0.00";
+            initialNoiseKg = null;
         });
 
         document.addEventListener('visibilitychange', async () => {
