@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力發力率監測系統 V10 (高靈敏度版)</title>
+    <title>指力發力率監測系統 V12 (雙通道診斷版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -47,6 +47,7 @@
             gap: 10px;
             margin-bottom: 20px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         button {
@@ -74,6 +75,10 @@
             background-color: #FF9800;
         }
 
+        #btn-snapshot {
+            background-color: #2196F3;
+        }
+
         .dashboard {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -83,7 +88,7 @@
 
         .data-box {
             background-color: #1e1e1e;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             text-align: center;
             border: 1px solid #333;
@@ -95,6 +100,11 @@
             border-color: #3f51b5;
         }
 
+        .debug-box {
+            border: 1px dashed #555;
+            background-color: #111;
+        }
+
         .data-label {
             font-size: 14px;
             color: #aaa;
@@ -102,15 +112,22 @@
         }
 
         .data-value {
-            font-size: 28px;
+            font-size: 24px;
             font-family: monospace;
             color: #fff;
         }
 
         .main-value {
-            font-size: 72px;
+            font-size: 64px;
             color: #00E676;
             text-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
+        }
+
+        .hex-text {
+            font-family: monospace;
+            color: #FFeb3b;
+            font-size: 16px;
+            letter-spacing: 1px;
         }
 
         canvas {
@@ -118,7 +135,7 @@
             border-radius: 8px;
             padding: 10px;
             border: 1px solid #333;
-            height: 400px;
+            height: 350px;
             width: 100%;
         }
 
@@ -133,30 +150,44 @@
 
     <div class="container">
         <div class="instruction-panel">
-            <h3>使用說明</h3>
-            <p>1. Chrome 設定：<code>chrome://flags/#enable-experimental-web-platform-features</code> 設為 Enabled。</p>
-            <p>2. <strong>請保持網頁在前台顯示</strong>以維持連線。</p>
+            <h3>V12 診斷說明</h3>
+            <p>如果大重量數值異常，請觀察 <strong>通道 B</strong> 是否正常。</p>
+            <p>若都不對，請在用力時按下 <strong>[快照 HEX]</strong>，並將那行黃色代碼抄錄分析。</p>
         </div>
 
         <div class="controls">
             <button id="btn-scan">連線設備</button>
             <button id="btn-stop" disabled>斷線</button>
-            <button id="btn-reset" disabled>重置峰值 (Reset)</button>
+            <button id="btn-reset" disabled>重置峰值</button>
+            <button id="btn-snapshot" disabled>📸 快照 HEX</button>
             <span id="status-text">狀態: 未連線</span>
         </div>
 
         <div class="dashboard">
+            <!-- 主顯示區 -->
             <div class="data-box main-box">
-                <div class="data-label">即時拉力 (Kg)</div>
+                <div class="data-label">即時拉力 (Kg) - 通道 A</div>
                 <div id="val-kg" class="data-value main-value">0.00</div>
             </div>
-            <div class="data-box">
-                <div class="data-label">原始數值 (Raw)</div>
-                <div id="val-raw" class="data-value" style="color:#aaa;">0</div>
+
+            <!-- 診斷區 A -->
+            <div class="data-box debug-box">
+                <div class="data-label">通道 A (Byte 11-12)</div>
+                <div id="val-raw-a" class="data-value" style="color:#aaa;">0</div>
+                <div style="font-size:12px; color:#666;">原始數值</div>
             </div>
-            <div class="data-box">
-                <div class="data-label">峰值紀錄 (Max Kg)</div>
-                <div id="val-max" class="data-value" style="color:#FF9800;">0.00</div>
+
+            <!-- 診斷區 B -->
+            <div class="data-box debug-box">
+                <div class="data-label">通道 B (Byte 13-14)</div>
+                <div id="val-raw-b" class="data-value" style="color:#00bcd4;">0</div>
+                <div style="font-size:12px; color:#666;">備用數值</div>
+            </div>
+
+            <!-- Hex 顯示 -->
+            <div class="data-box" style="grid-column: span 2;">
+                <div class="data-label">原始 Hex (Byte 11 12 | 13 14)</div>
+                <div id="val-hex" class="data-value hex-text">-- -- | -- --</div>
             </div>
         </div>
 
@@ -166,18 +197,19 @@
     <script>
         const TARGET_COMPANY_ID = 0x0100;
         const DEFAULT_RATIO = 0.01;
-
-        const NOISE_BUFFER = 0.3;
+        const NOISE_BUFFER = 0.15;
 
         let bluetoothDevice;
         let initialNoiseKg = null;
         let maxWeight = 0;
         let wakeLock = null;
-        let isChartUpdatePending = false; // 用於圖表節流
+        let isChartUpdatePending = false;
+        let isSnapshotFrozen = false; // 快照凍結狀態
 
         const btnScan = document.getElementById('btn-scan');
         const btnStop = document.getElementById('btn-stop');
         const btnReset = document.getElementById('btn-reset');
+        const btnSnapshot = document.getElementById('btn-snapshot');
         const statusText = document.getElementById('status-text');
 
         const ctx = document.getElementById('chart').getContext('2d');
@@ -205,11 +237,7 @@
         });
 
         async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) { console.error(err); }
+            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) { }
         }
 
         async function startScan() {
@@ -227,45 +255,58 @@
                 btnScan.disabled = true;
                 btnStop.disabled = false;
                 btnReset.disabled = false;
+                btnSnapshot.disabled = false;
                 await requestWakeLock();
 
-            } catch (error) {
-                statusText.textContent = `連線失敗`;
-            }
+            } catch (error) { statusText.textContent = `連線失敗`; }
         }
 
         function processData(event) {
             if (!event.manufacturerData || !event.manufacturerData.has(TARGET_COMPANY_ID)) return;
 
-            const buffer = new Uint8Array(event.manufacturerData.get(TARGET_COMPANY_ID).buffer);
-            if (buffer.length < 17) return;
+            const dataView = event.manufacturerData.get(TARGET_COMPANY_ID);
+            if (dataView.byteLength < 17) return;
 
-            let weightRaw = (buffer[12] << 8) | buffer[11];
-            if (weightRaw > 32767) weightRaw -= 65536;
+            // 讀取原始 Byte
+            const b11 = dataView.getUint8(11);
+            const b12 = dataView.getUint8(12);
+            const b13 = dataView.getUint8(13);
+            const b14 = dataView.getUint8(14);
 
-            // 優先更新 Raw，確保無延遲
-            document.getElementById('val-raw').textContent = weightRaw;
-
-            let currentKg = weightRaw * DEFAULT_RATIO;
-
-            if (initialNoiseKg === null) {
-                initialNoiseKg = currentKg;
+            // 如果沒有按下快照，持續更新 Hex 顯示
+            if (!isSnapshotFrozen) {
+                const hexStr = `${b11.toString(16).padStart(2, '0').toUpperCase()} ${b12.toString(16).padStart(2, '0').toUpperCase()} | ${b13.toString(16).padStart(2, '0').toUpperCase()} ${b14.toString(16).padStart(2, '0').toUpperCase()}`;
+                document.getElementById('val-hex').textContent = hexStr;
             }
 
-            // 判斷邏輯
-            if (currentKg <= initialNoiseKg + NOISE_BUFFER) {
-                currentKg = 0;
-            }
+            // --- 通道 A 解析 (Byte 11-12) ---
+            // 嘗試濾除高位元 (Bit Masking): 只取低 15 bits，避免 Signed bit 干擾
+            // 0x7F = 0111 1111 (二進位)
+            let rawA = ((b12 & 0x7F) << 8) | b11;
+            document.getElementById('val-raw-a').textContent = rawA;
 
+            // --- 通道 B 解析 (Byte 13-14) ---
+            let rawB = ((b14 & 0x7F) << 8) | b13;
+            document.getElementById('val-raw-b').textContent = rawB;
+
+            // --- 主邏輯 (目前使用通道 A) ---
+            let currentKg = rawA * DEFAULT_RATIO;
+
+            if (initialNoiseKg === null) initialNoiseKg = currentKg;
+
+            // 底噪屏蔽
+            if (currentKg <= initialNoiseKg + NOISE_BUFFER) currentKg = 0;
+
+            // 更新最大值
             if (currentKg > maxWeight) {
                 maxWeight = currentKg;
-                document.getElementById('val-max').textContent = maxWeight.toFixed(2);
+                // 若正在快照凍結中，不更新畫面上的 Max 文字，以免混淆
+                if (!isSnapshotFrozen) document.getElementById('val-max').textContent = maxWeight.toFixed(2);
             }
 
-            document.getElementById('val-kg').textContent = currentKg.toFixed(2);
+            if (!isSnapshotFrozen) document.getElementById('val-kg').textContent = currentKg.toFixed(2);
 
-            // 【修正 2】圖表更新優化
-            // 將數據推入陣列，但不立即重繪，而是等待瀏覽器準備好下一幀
+            // 圖表更新
             const dataArr = chart.data.datasets[0].data;
             dataArr.push(currentKg);
             dataArr.shift();
@@ -290,18 +331,30 @@
             btnScan.disabled = false;
             btnStop.disabled = true;
             btnReset.disabled = true;
+            btnSnapshot.disabled = true;
             initialNoiseKg = null;
         }
 
         document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible') {
-                await requestWakeLock();
-            }
+            if (wakeLock !== null && document.visibilityState === 'visible') await requestWakeLock();
         });
 
         btnReset.addEventListener('click', () => {
             maxWeight = 0;
             document.getElementById('val-max').textContent = "0.00";
+        });
+
+        // 快照功能：點擊後凍結 Hex 顯示，方便抄寫
+        btnSnapshot.addEventListener('click', () => {
+            isSnapshotFrozen = !isSnapshotFrozen;
+            const btn = document.getElementById('btn-snapshot');
+            if (isSnapshotFrozen) {
+                btn.textContent = "🛑 已凍結 (再次點擊解鎖)";
+                btn.style.backgroundColor = "#f44336";
+            } else {
+                btn.textContent = "📸 快照 HEX";
+                btn.style.backgroundColor = "#2196F3";
+            }
         });
 
         btnScan.addEventListener('click', startScan);
