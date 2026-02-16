@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力發力率監測系統 V14.2 (全位元修正版)</title>
+    <title>指力發力率監測系統 V14.2 (進位累加版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -125,8 +125,8 @@
 
     <div class="container">
         <div class="instruction-panel">
-            <h3>全位元解碼模式</h3>
-            <p>系統已採用 16-bit Signed 解碼。連線後請保持感測器空載，系統將自動歸零。</p>
+            <h3>512 累加修正模式</h3>
+            <p>系統將偵測每 512 單位（5.12kg）的數據翻轉並自動累加進位，解決硬體標記位干擾問題。</p>
         </div>
 
         <div class="controls">
@@ -142,7 +142,7 @@
                 <div id="val-kg" class="data-value main-value">0.00</div>
             </div>
             <div class="data-box">
-                <div class="data-label">原始總重量 (Raw)</div>
+                <div class="data-label">累加原始值 (Total Raw)</div>
                 <div id="val-raw" class="data-value" style="color:#aaa;">0</div>
             </div>
             <div class="data-box">
@@ -157,13 +157,17 @@
     <script>
         const TARGET_COMPANY_ID = 0x0100;
         const DEFAULT_RATIO = 0.01;
-        const NOISE_BUFFER = 0.15; // 0.15kg 抖動過濾
+        const NOISE_BUFFER = 0.15;
 
         let bluetoothDevice;
-        let tareWeightKg = null; // 零點偏移量
+        let tareWeightKg = null;
         let maxWeight = 0;
         let wakeLock = null;
         let isChartUpdatePending = false;
+
+        // 累加邏輯變數
+        let last9BitVal = null;
+        let rolloverCount = 0;
 
         const btnScan = document.getElementById('btn-scan');
         const btnStop = document.getElementById('btn-stop');
@@ -223,29 +227,39 @@
             const buffer = new Uint8Array(event.manufacturerData.get(TARGET_COMPANY_ID).buffer);
             if (buffer.length < 17) return;
 
-            // 全位元解碼 (不使用遮罩，確保進位完整)
-            let weightRaw = (buffer[12] << 8) | buffer[11];
-            if (weightRaw > 32767) weightRaw -= 65536;
+            // 提取 9 位元數據 (0-511)
+            // b11 是全部 8 位元，b12 取最低位元作為第 9 位
+            let current9Bit = ((buffer[12] & 0x01) << 8) | buffer[11];
 
-            document.getElementById('val-raw').textContent = weightRaw;
+            // 偵測翻轉 (Rollover Detection)
+            if (last9BitVal !== null) {
+                // 如果數值突然從大變小（例如 500 跳到 10），視為正向進位
+                if (current9Bit < 100 && last9BitVal > 412) {
+                    rolloverCount++;
+                }
+                // 如果數值突然從小變大（例如 10 跳到 500），視為負向退位（回彈）
+                else if (current9Bit > 412 && last9BitVal < 100) {
+                    rolloverCount--;
+                }
+            }
+            last9BitVal = current9Bit;
 
-            let absoluteKg = weightRaw * DEFAULT_RATIO;
+            // 重構總重量原始值
+            let totalRaw = (rolloverCount * 512) + current9Bit;
+            document.getElementById('val-raw').textContent = totalRaw;
 
-            // 連線後第一筆數據自動設為零點
+            let absoluteKg = totalRaw * DEFAULT_RATIO;
+
+            // 自動歸零
             if (tareWeightKg === null) {
                 tareWeightKg = absoluteKg;
             }
 
-            // 計算淨重
             let currentKg = absoluteKg - tareWeightKg;
 
-            // 抖動屏蔽與負值校正
-            if (Math.abs(currentKg) <= NOISE_BUFFER) {
-                currentKg = 0;
-            }
+            if (Math.abs(currentKg) <= NOISE_BUFFER) currentKg = 0;
             if (currentKg < 0) currentKg = 0;
 
-            // 更新峰值
             if (currentKg > maxWeight) {
                 maxWeight = currentKg;
                 document.getElementById('val-max').textContent = maxWeight.toFixed(2);
@@ -253,7 +267,6 @@
 
             document.getElementById('val-kg').textContent = currentKg.toFixed(2);
 
-            // 圖表節流更新
             const dataArr = chart.data.datasets[0].data;
             dataArr.push(currentKg);
             dataArr.shift();
@@ -279,6 +292,8 @@
             btnStop.disabled = true;
             btnReset.disabled = true;
             tareWeightKg = null;
+            last9BitVal = null;
+            rolloverCount = 0;
         }
 
         document.addEventListener('visibilitychange', async () => {
@@ -286,9 +301,8 @@
         });
 
         btnReset.addEventListener('click', () => {
-            // 手動歸零：將當前讀數設為基準，並重置峰值
-            const rawText = document.getElementById('val-raw').textContent;
-            tareWeightKg = parseFloat(rawText) * DEFAULT_RATIO;
+            const rawVal = parseInt(document.getElementById('val-raw').textContent) || 0;
+            tareWeightKg = rawVal * DEFAULT_RATIO;
             maxWeight = 0;
             document.getElementById('val-max').textContent = "0.00";
         });
