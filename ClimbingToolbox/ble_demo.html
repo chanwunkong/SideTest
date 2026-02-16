@@ -4,15 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力發力率監測系統 V13 (全域解鎖版)</title>
+    <title>指力監測系統 V14 (萬用解碼版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
-            background-color: #121212;
-            color: #e0e0e0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #000;
+            color: #eee;
+            font-family: -apple-system, sans-serif;
             padding: 20px;
-            line-height: 1.5;
         }
 
         .container {
@@ -20,78 +19,35 @@
             margin: 0 auto;
         }
 
-        /* 狀態與說明 */
-        .status-bar {
+        /* 頂部數據區 */
+        .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
-            background: #222;
-            padding: 10px 15px;
-            border-radius: 8px;
+        }
+
+        .status-badge {
+            font-size: 12px;
+            background: #333;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #888;
+        }
+
+        .status-connected {
+            color: #00E676;
+            border: 1px solid #00E676;
+        }
+
+        /* 主顯示 */
+        .display-card {
+            background: #111;
             border: 1px solid #333;
-        }
-
-        .status-dot {
-            height: 10px;
-            width: 10px;
-            background-color: #555;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-
-        .status-active {
-            background-color: #00E676;
-            box-shadow: 0 0 8px #00E676;
-        }
-
-        /* 控制按鈕 */
-        .controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        button {
-            padding: 15px;
-            font-size: 16px;
-            border: none;
-            cursor: pointer;
-            color: #fff;
-            background-color: #333;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: 0.2s;
-        }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-        #btn-scan {
-            background-color: #2196F3;
-            grid-column: span 2;
-        }
-
-        #btn-stop {
-            background-color: #f44336;
-        }
-
-        #btn-tare {
-            background-color: #FF9800;
-            color: #000;
-        }
-
-        /* 主數據顯示 */
-        .main-display {
-            background: #1a1a1a;
-            padding: 30px 20px;
             border-radius: 12px;
+            padding: 20px;
             text-align: center;
-            margin-bottom: 20px;
-            border: 1px solid #333;
+            margin-bottom: 15px;
             position: relative;
         }
 
@@ -101,62 +57,102 @@
             color: #fff;
             line-height: 1;
             font-family: monospace;
-            letter-spacing: -2px;
+            letter-spacing: -3px;
         }
 
-        .main-unit {
-            font-size: 24px;
-            color: #666;
-            font-weight: 400;
-            margin-top: 10px;
+        .unit {
+            font-size: 20px;
+            color: #555;
         }
 
-        .peak-value {
+        .peak-box {
             position: absolute;
             top: 15px;
-            right: 20px;
-            font-size: 18px;
-            color: #FF9800;
-            font-family: monospace;
+            right: 15px;
+            text-align: right;
         }
 
         .peak-label {
             font-size: 12px;
             color: #666;
             display: block;
-            text-align: right;
         }
 
-        /* 原始數據監控 */
-        .debug-panel {
-            background: #111;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px dashed #444;
+        .peak-val {
+            font-size: 20px;
+            color: #FF9800;
+            font-weight: bold;
             font-family: monospace;
-            font-size: 14px;
-            color: #888;
         }
 
-        .hex-code {
+        /* 模式切換與 Raw 監控 */
+        .mode-panel {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #333;
+        }
+
+        .mode-info {
+            font-size: 13px;
             color: #00bcd4;
             font-weight: bold;
-            letter-spacing: 1px;
-            font-size: 16px;
         }
 
-        .raw-dec {
-            color: #aaa;
+        .hex-monitor {
+            font-family: monospace;
+            font-size: 14px;
+            color: #666;
+        }
+
+        /* 按鈕群 */
+        .grid-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 14px;
+            font-size: 15px;
+            border: none;
+            cursor: pointer;
+            color: #fff;
+            background-color: #333;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        button:active {
+            background-color: #555;
+        }
+
+        #btn-scan {
+            background-color: #2196F3;
+            color: white;
+            grid-column: span 2;
+        }
+
+        #btn-mode {
+            background-color: #FF5722;
+            color: white;
+            grid-column: span 2;
+        }
+
+        #btn-tare {
+            background-color: #FF9800;
+            color: black;
         }
 
         canvas {
-            background-color: #1a1a1a;
-            border-radius: 12px;
-            padding: 10px;
-            height: 300px;
+            height: 250px;
             width: 100%;
-            border: 1px solid #333;
+            border-bottom: 1px solid #333;
         }
     </style>
 </head>
@@ -164,29 +160,36 @@
 <body>
 
     <div class="container">
-        <div class="status-bar">
-            <div><span id="dot" class="status-dot"></span><span id="status-text">等待連線</span></div>
-            <div style="font-size: 12px; color: #666;">V13 Unrestricted</div>
+        <div class="header">
+            <div style="font-weight:bold;">WH-C06 Tracker</div>
+            <div id="status" class="status-badge">未連線</div>
         </div>
 
-        <div class="main-display">
-            <div class="peak-value">
+        <div class="display-card">
+            <div class="peak-box">
                 <span class="peak-label">PEAK</span>
-                <span id="val-max">0.00</span>
+                <span class="peak-val" id="val-max">0.00</span>
             </div>
             <div id="val-kg" class="main-value">0.00</div>
-            <div class="main-unit">kg</div>
+            <div class="unit">KG</div>
         </div>
 
-        <div class="controls">
-            <button id="btn-scan">連線設備 (Connect)</button>
-            <button id="btn-tare" disabled>歸零 / 重置 (Tare)</button>
-            <button id="btn-stop" disabled>斷線 (Stop)</button>
+        <div class="mode-panel">
+            <div>
+                <div style="font-size:10px; color:#666;">解碼模式</div>
+                <div id="mode-name" class="mode-info">Mode 2: Mask 0x3F</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:10px; color:#666;">RAW HEX</div>
+                <div id="val-hex" class="hex-monitor">-- --</div>
+            </div>
         </div>
 
-        <div class="debug-panel">
-            <div>RAW HEX: <span id="val-hex" class="hex-code">-- --</span></div>
-            <div style="margin-top:5px;">RAW DEC: <span id="val-raw" class="raw-dec">0</span> (Unsigned)</div>
+        <div class="grid-controls">
+            <button id="btn-scan">連線 (Connect)</button>
+            <button id="btn-mode" disabled>切換解碼算法 (Switch Mode)</button>
+            <button id="btn-tare" disabled>歸零 (Tare)</button>
+            <button id="btn-stop" disabled>斷線</button>
         </div>
 
         <canvas id="chart"></canvas>
@@ -197,6 +200,15 @@
         const DEFAULT_RATIO = 0.01;
         const NOISE_BUFFER = 0.15; // 0.15kg 死區
 
+        // 解碼模式定義
+        const MODES = [
+            { name: "Mode 1: 標準 (V13)", desc: "無過濾" },
+            { name: "Mode 2: Mask 0x3F", desc: "過濾 Bit 6,7 (推薦)" },
+            { name: "Mode 3: Mask 0x1F", desc: "過濾 Bit 5,6,7 (強力)" },
+            { name: "Mode 4: 通道 B", desc: "使用 Byte 13-14" }
+        ];
+        let currentModeIndex = 1; // 預設使用 Mode 2 (Mask 0x3F)
+
         let bluetoothDevice;
         let initialNoiseKg = null;
         let maxWeight = 0;
@@ -206,8 +218,9 @@
         const btnScan = document.getElementById('btn-scan');
         const btnStop = document.getElementById('btn-stop');
         const btnTare = document.getElementById('btn-tare');
-        const statusText = document.getElementById('status-text');
-        const statusDot = document.getElementById('dot');
+        const btnMode = document.getElementById('btn-mode');
+        const elStatus = document.getElementById('status');
+        const elModeName = document.getElementById('mode-name');
 
         const ctx = document.getElementById('chart').getContext('2d');
         const chart = new Chart(ctx, {
@@ -216,22 +229,17 @@
                 labels: Array(100).fill(''),
                 datasets: [{
                     data: Array(100).fill(0),
-                    borderColor: '#fff',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    borderColor: '#00E676',
                     borderWidth: 2,
                     pointRadius: 0,
-                    fill: true,
-                    tension: 0.2
+                    tension: 0.1
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
-                scales: {
-                    y: { beginAtZero: true, grid: { color: '#333' }, ticks: { color: '#666' } },
-                    x: { display: false }
-                },
+                scales: { y: { display: false }, x: { display: false } },
                 plugins: { legend: { display: false } }
             }
         });
@@ -242,7 +250,7 @@
 
         async function startScan() {
             try {
-                statusText.textContent = '掃描中...';
+                elStatus.textContent = '掃描中...';
                 bluetoothDevice = await navigator.bluetooth.requestDevice({
                     acceptAllDevices: true,
                     optionalManufacturerData: [TARGET_COMPANY_ID]
@@ -251,50 +259,59 @@
                 bluetoothDevice.addEventListener('advertisementreceived', processData);
                 await bluetoothDevice.watchAdvertisements();
 
-                statusText.textContent = '已連線';
-                statusDot.classList.add('status-active');
+                elStatus.textContent = '已連線';
+                elStatus.classList.add('status-connected');
+
                 btnScan.disabled = true;
                 btnStop.disabled = false;
                 btnTare.disabled = false;
+                btnMode.disabled = false;
                 await requestWakeLock();
 
-            } catch (error) {
-                statusText.textContent = '連線取消或失敗';
-            }
+            } catch (error) { elStatus.textContent = '連線失敗'; }
         }
 
         function processData(event) {
             if (!event.manufacturerData || !event.manufacturerData.has(TARGET_COMPANY_ID)) return;
+            const dv = event.manufacturerData.get(TARGET_COMPANY_ID);
+            if (dv.byteLength < 17) return;
 
-            const dataView = event.manufacturerData.get(TARGET_COMPANY_ID);
-            if (dataView.byteLength < 17) return;
+            const b11 = dv.getUint8(11);
+            const b12 = dv.getUint8(12);
+            const b13 = dv.getUint8(13);
+            const b14 = dv.getUint8(14);
 
-            const b11 = dataView.getUint8(11);
-            const b12 = dataView.getUint8(12);
+            // 顯示 Hex
+            document.getElementById('val-hex').textContent =
+                `${b11.toString(16).padStart(2, '0').toUpperCase()} ${b12.toString(16).padStart(2, '0').toUpperCase()}`;
 
-            // HEX 監控：顯示原始 Hex 碼
-            document.getElementById('val-hex').textContent = `${b11.toString(16).padStart(2, '0').toUpperCase()} ${b12.toString(16).padStart(2, '0').toUpperCase()}`;
+            let weightRaw = 0;
 
-            // 【V13 核心修正】完全移除 0x7F 遮罩與負數判斷
-            // 直接將兩個 Byte 視為標準的無符號 16 位元整數 (0~65535)
-            // 這樣即使重量 > 10kg (高位元組有值)，也不會被過濾掉
-            let weightRaw = (b12 << 8) | b11;
-
-            document.getElementById('val-raw').textContent = weightRaw;
+            // --- 核心解碼邏輯切換 ---
+            switch (currentModeIndex) {
+                case 0: // Mode 1: 標準無過濾
+                    weightRaw = (b12 << 8) | b11;
+                    break;
+                case 1: // Mode 2: Mask 0x3F (過濾 0xC0) -> 解決 Bit 6 鎖定標記干擾
+                    weightRaw = ((b12 & 0x3F) << 8) | b11;
+                    break;
+                case 2: // Mode 3: Mask 0x1F (過濾 0xE0) -> 更強力的過濾
+                    weightRaw = ((b12 & 0x1F) << 8) | b11;
+                    break;
+                case 3: // Mode 4: 使用通道 B
+                    weightRaw = ((b14 & 0x3F) << 8) | b13; // 同樣套用 0x3F 保護
+                    break;
+            }
 
             let currentKg = weightRaw * DEFAULT_RATIO;
 
-            // 自動歸零判定
-            if (initialNoiseKg === null) {
-                initialNoiseKg = currentKg;
-            }
+            // 自動歸零
+            if (initialNoiseKg === null) initialNoiseKg = currentKg;
 
             // 死區過濾
-            if (currentKg <= initialNoiseKg + NOISE_BUFFER) {
-                currentKg = 0;
-            }
+            if (currentKg <= initialNoiseKg + NOISE_BUFFER) currentKg = 0;
 
-            // 更新最大值
+            // 峰值更新
             if (currentKg > maxWeight) {
                 maxWeight = currentKg;
                 document.getElementById('val-max').textContent = maxWeight.toFixed(2);
@@ -302,7 +319,7 @@
 
             document.getElementById('val-kg').textContent = currentKg.toFixed(2);
 
-            // 圖表更新
+            // 圖表更新 (節流)
             const dataArr = chart.data.datasets[0].data;
             dataArr.push(currentKg);
             dataArr.shift();
@@ -323,23 +340,37 @@
             }
             if (wakeLock !== null) { await wakeLock.release(); wakeLock = null; }
 
-            statusText.textContent = '已斷線';
-            statusDot.classList.remove('status-active');
+            elStatus.textContent = '已斷線';
+            elStatus.classList.remove('status-connected');
             btnScan.disabled = false;
             btnStop.disabled = true;
             btnTare.disabled = true;
+            btnMode.disabled = true;
             initialNoiseKg = null;
         }
 
-        document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible') await requestWakeLock();
+        // 模式切換按鈕事件
+        btnMode.addEventListener('click', () => {
+            currentModeIndex = (currentModeIndex + 1) % MODES.length;
+            elModeName.textContent = MODES[currentModeIndex].name;
+            // 重置峰值以防切換時數值跳動
+            maxWeight = 0;
+            document.getElementById('val-max').textContent = "0.00";
         });
 
         btnTare.addEventListener('click', () => {
             maxWeight = 0;
             document.getElementById('val-max').textContent = "0.00";
-            // 重置底噪基準，適應新的掛重
-            initialNoiseKg = parseFloat(document.getElementById('val-raw').textContent) * DEFAULT_RATIO;
+            // 重新抓取當前 Raw 值作為底噪
+            const hexTxt = document.getElementById('val-hex').textContent.split(' ');
+            if (hexTxt.length >= 2) {
+                // 簡單重置，這裡暫不進行複雜反推，直接讓使用者在空載時按
+                initialNoiseKg = null;
+            }
+        });
+
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') await requestWakeLock();
         });
 
         btnScan.addEventListener('click', startScan);
