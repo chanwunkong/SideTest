@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WH-C06 藍芽原始數據掃描器</title>
+    <style>
+        :root { --bg: #1a1a1a; --text: #e0e0e0; --accent: #00d4ff; --log-bg: #111; }
+        body { font-family: monospace; background: var(--bg); color: var(--text); padding: 20px; max-width: 800px; margin: 0 auto; }
+        h2 { border-bottom: 1px solid #333; padding-bottom: 10px; }
+        button { background: var(--accent); color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-right: 10px; }
+        button:disabled { background: #555; cursor: not-allowed; }
+        button.stop { background: #ff4d4d; color: white; }
+        #status { margin: 15px 0; padding: 10px; background: #333; border-radius: 4px; }
+        #log { background: var(--log-bg); border: 1px solid #333; height: 400px; overflow-y: auto; padding: 10px; white-space: pre-wrap; font-size: 0.9rem; }
+        .entry { border-bottom: 1px solid #222; padding: 4px 0; display: flex; }
+        .ts { color: #888; width: 80px; flex-shrink: 0; }
+        .uuid { color: #aaa; width: 120px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-right: 10px; flex-shrink: 0; }
+        .data { color: var(--accent); font-weight: bold; }
+        .info { color: #4dff4d; }
+        .error { color: #ff4d4d; }
+    </style>
+</head>
+<body>
+
+    <h2>WH-C06 Raw Data Scanner</h2>
+    
+    <div>
+        <button id="btnScan">掃描並連線</button>
+        <button id="btnDisconnect" class="stop" disabled>斷線</button>
+    </div>
+
+    <div id="status">狀態: 等待操作...</div>
+    <div id="log"></div>
+
+    <script>
+        const btnScan = document.getElementById('btnScan');
+        const btnDisconnect = document.getElementById('btnDisconnect');
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+
+        let deviceCache = null;
+
+        // 常見的藍芽串口服務 UUID，列在此處以增加掃描到的機率
+        const OPTIONAL_SERVICES = [
+            0xFFE0, // HM-10 Default
+            0xFF00, 
+            "0000ffe0-0000-1000-8000-00805f9b34fb",
+            "6e400001-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART
+            "000018f0-0000-1000-8000-00805f9b34fb"  // Scale generic
+        ];
+
+        function log(msg, type = 'normal') {
+            const entry = document.createElement('div');
+            entry.className = 'entry';
+            const ts = new Date().toLocaleTimeString().split(' ')[0];
+            
+            if (type === 'data') {
+                entry.innerHTML = `<span class="ts">${ts}</span> ${msg}`;
+            } else {
+                entry.innerHTML = `<span class="ts">${ts}</span> <span class="${type}">${msg}</span>`;
+            }
+            
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(msg) {
+            statusDiv.textContent = `狀態: ${msg}`;
+        }
+
+        function toHex(dataView) {
+            let hex = [];
+            for (let i = 0; i < dataView.byteLength; i++) {
+                let byte = dataView.getUint8(i).toString(16).toUpperCase();
+                if (byte.length < 2) byte = '0' + byte;
+                hex.push(byte);
+            }
+            return hex.join(' ');
+        }
+
+        async function onDataChanged(event) {
+            const value = event.target.value;
+            const uuid = event.target.uuid.substring(0, 8); // 簡化顯示 UUID
+            const hexStr = toHex(value);
+            
+            // 這裡顯示：[UUID前8碼] 原始 HEX 數據
+            log(`<span class="uuid">${uuid}...</span> <span class="data">${hexStr}</span>`, 'data');
+        }
+
+        async function startScan() {
+            try {
+                log('開始請求藍芽設備...', 'info');
+                
+                // 1. 請求設備 (掃描所有，並嘗試匹配常見服務)
+                deviceCache = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: OPTIONAL_SERVICES 
+                });
+
+                updateStatus(`已選取: ${deviceCache.name || 'Unknown Device'}`);
+                log(`連接中: ${deviceCache.name}`, 'info');
+                
+                deviceCache.addEventListener('gattserverdisconnected', onDisconnected);
+                btnScan.disabled = true;
+                btnDisconnect.disabled = false;
+
+                // 2. 連接 GATT Server
+                const server = await deviceCache.gatt.connect();
+                log('GATT Server 已連接', 'info');
+                updateStatus('正在搜尋 Services...');
+
+                // 3. 獲取所有 Services
+                const services = await server.getPrimaryServices();
+                log(`發現 ${services.length} 個服務`, 'info');
+
+                let notifyCount = 0;
+
+                // 4. 遍歷 Service 尋找 Characteristics
+                for (const service of services) {
+                    log(`檢查 Service: ${service.uuid}`, 'normal');
+                    try {
+                        const characteristics = await service.getCharacteristics();
+                        
+                        for (const char of characteristics) {
+                            // 檢查是否支援 Notify 或 Indicate
+                            if (char.properties.notify || char.properties.indicate) {
+                                log(`  -> 訂閱特徵值: ${char.uuid.substring(0,8)}...`, 'info');
+                                await char.startNotifications();
+                                char.addEventListener('characteristicvaluechanged', onDataChanged);
+                                notifyCount++;
+                            } else {
+                                log(`  -> 忽略特徵值 (無Notify): ${char.uuid.substring(0,8)}...`, 'normal');
+                            }
+                        }
+                    } catch (err) {
+                        log(`  無法存取 Service 特徵值 (可能受保護): ${err}`, 'error');
+                    }
+                }
+
+                if (notifyCount === 0) {
+                    updateStatus('警告：未找到可監聽的特徵值。');
+                    log('請確認設備是否為標準藍芽串口協議，或嘗試其他 Service。', 'error');
+                } else {
+                    updateStatus('監聽中... 請拉動吊秤觀察數據');
+                    log('=== 準備就緒，請操作設備 ===', 'info');
+                }
+
+            } catch (error) {
+                log(`錯誤: ${error}`, 'error');
+                updateStatus('連接失敗');
+                btnScan.disabled = false;
+            }
+        }
+
+        function onDisconnected() {
+            log('設備已斷線', 'error');
+            updateStatus('已斷線');
+            btnScan.disabled = false;
+            btnDisconnect.disabled = true;
+            deviceCache = null;
+        }
+
+        btnScan.addEventListener('click', startScan);
+        btnDisconnect.addEventListener('click', () => {
+            if (deviceCache && deviceCache.gatt.connected) {
+                deviceCache.gatt.disconnect();
+            }
+        });
+    </script>
+</body>
+</html>
