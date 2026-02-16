@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力訓練監測 V4 - 具備校準功能</title>
+    <title>指力訓練監測 V4</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -19,43 +19,16 @@
             margin: 0 auto;
         }
 
-        /* 系統提示區塊 */
-        .sys-notice {
-            background-color: #1e1e1e;
-            padding: 15px;
-            border-left: 4px solid #00bcd4;
-            margin-bottom: 20px;
-        }
-
-        .sys-notice input {
-            width: 350px;
-            padding: 5px;
-            background: #333;
-            color: #fff;
-            border: 1px solid #555;
-        }
-
-        /* 控制區塊 */
-        .panel {
-            background-color: #1e1e1e;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            margin-bottom: 20px;
-        }
-
         .controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
+            margin-bottom: 20px;
         }
 
         button {
-            padding: 8px 16px;
-            font-size: 15px;
+            padding: 10px 20px;
+            font-size: 16px;
             border: none;
             cursor: pointer;
+            margin-right: 10px;
             color: #fff;
             background-color: #00bcd4;
             border-radius: 4px;
@@ -74,56 +47,40 @@
             background-color: #f44336;
         }
 
-        #btn-cal {
-            background-color: #4CAF50;
-        }
-
-        input[type="number"] {
-            width: 80px;
-            padding: 8px;
-            font-size: 15px;
-            background: #333;
-            color: #fff;
-            border: 1px solid #555;
-            border-radius: 4px;
-        }
-
-        /* 數據顯示區塊 */
-        .data-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-top: 20px;
+        .data-panel {
+            display: flex;
+            justify-content: space-between;
+            background-color: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            margin-bottom: 20px;
         }
 
         .data-box {
             text-align: center;
-            padding: 15px;
-            background: #2a2a2a;
-            border-radius: 8px;
+            flex: 1;
+            border-right: 1px solid #333;
+        }
+
+        .data-box:last-child {
+            border-right: none;
         }
 
         .data-label {
-            font-size: 14px;
+            font-size: 13px;
             color: #888;
             margin-bottom: 5px;
         }
 
         .data-value {
-            font-size: 28px;
+            font-size: 22px;
             font-family: monospace;
+            color: #4CAF50;
             font-weight: bold;
         }
 
-        .text-gray {
-            color: #aaa;
-        }
-
-        .text-green {
-            color: #4CAF50;
-        }
-
-        .text-blue {
+        .net-value {
             color: #00bcd4;
         }
 
@@ -139,39 +96,28 @@
 <body>
 
     <div class="container">
-        <div class="sys-notice">
-            <div>開啟廣播監聽功能 (瀏覽器限制，無法直接點擊連結，請複製後貼上至網址列)：</div>
-            <div style="margin-top: 10px;">
-                <input type="text" id="flag-url" value="chrome://flags/#enable-experimental-web-platform-features"
-                    readonly>
-                <button onclick="copyFlagUrl()">複製網址</button>
-            </div>
+        <div class="controls">
+            <button id="btn-scan">連線設備</button>
+            <button id="btn-stop" disabled>停止</button>
+            <button id="btn-tare" disabled>歸零 (Tare)</button>
         </div>
 
-        <div class="panel">
-            <div class="controls">
-                <button id="btn-scan">連線設備 (IF_B7)</button>
-                <button id="btn-stop" disabled>停止</button>
-                <div style="width: 100%; height: 1px; background: #333; margin: 10px 0;"></div>
-                <button id="btn-tare" disabled>1. 歸零 (Tare)</button>
-                <input type="number" id="cal-weight" placeholder="重量" min="1" step="0.1" disabled>
-                <span style="color: #888;">kg</span>
-                <button id="btn-cal" disabled>2. 設定已知重量校準</button>
+        <div class="data-panel">
+            <div class="data-box">
+                <div class="data-label">重量讀數 (Byte 11-12)</div>
+                <div id="val-weight" class="data-value">0</div>
             </div>
-
-            <div class="data-grid">
-                <div class="data-box">
-                    <div class="data-label">原始讀數 (Raw)</div>
-                    <div id="raw-dec" class="data-value text-gray">0</div>
-                </div>
-                <div class="data-box">
-                    <div class="data-label">相對讀數 (Net)</div>
-                    <div id="net-dec" class="data-value text-green">0</div>
-                </div>
-                <div class="data-box" style="border: 2px solid #00bcd4;">
-                    <div class="data-label">計算重量 (Kg)</div>
-                    <div id="weight-kg" class="data-value text-blue">0.00</div>
-                </div>
+            <div class="data-box">
+                <div class="data-label">淨重 (Net)</div>
+                <div id="val-net" class="data-value net-value">0</div>
+            </div>
+            <div class="data-box">
+                <div class="data-label">常數 (Byte 13-14)</div>
+                <div id="val-const" class="data-value" style="color:#FF9800;">0</div>
+            </div>
+            <div class="data-box">
+                <div class="data-label">計數器 (Byte 15-16)</div>
+                <div id="val-time" class="data-value" style="color:#aaa;">0</div>
             </div>
         </div>
 
@@ -179,41 +125,24 @@
     </div>
 
     <script>
-        // 複製網址功能
-        function copyFlagUrl() {
-            const copyText = document.getElementById("flag-url");
-            copyText.select();
-            document.execCommand("copy");
-            alert("已複製網址，請開新分頁貼上並設定為 Enabled");
-        }
-
         const btnScan = document.getElementById('btn-scan');
         const btnStop = document.getElementById('btn-stop');
         const btnTare = document.getElementById('btn-tare');
-        const btnCal = document.getElementById('btn-cal');
-        const inputCalWeight = document.getElementById('cal-weight');
-
-        const rawDecDisplay = document.getElementById('raw-dec');
-        const netDecDisplay = document.getElementById('net-dec');
-        const weightKgDisplay = document.getElementById('weight-kg');
 
         let bluetoothDevice;
         const TARGET_COMPANY_ID = 0x0100;
 
-        // 核心數據變數
-        let currentRawValue = 0;
+        let currentRawWeight = 0;
         let tareOffset = 0;
-        let weightSlope = 1; // 預設斜率為 1
 
-        // Chart.js 初始化
         const ctx = document.getElementById('forceChart').getContext('2d');
         const forceChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: Array(60).fill(''),
+                labels: Array(50).fill(''),
                 datasets: [{
-                    label: '力量 (Kg)',
-                    data: Array(60).fill(0),
+                    label: '淨重曲線',
+                    data: Array(50).fill(0),
                     borderColor: '#00bcd4',
                     borderWidth: 2,
                     pointRadius: 0,
@@ -224,7 +153,7 @@
                 responsive: true,
                 animation: false,
                 scales: {
-                    y: { beginAtZero: true, grid: { color: '#333' } },
+                    y: { grid: { color: '#333' } },
                     x: { grid: { display: false } }
                 },
                 plugins: { legend: { display: false } }
@@ -251,9 +180,6 @@
                 btnScan.disabled = true;
                 btnStop.disabled = false;
                 btnTare.disabled = false;
-                btnCal.disabled = false;
-                inputCalWeight.disabled = false;
-
             } catch (error) {
                 console.error(error);
             }
@@ -262,26 +188,29 @@
         function handleAdvertisement(event) {
             if (event.manufacturerData && event.manufacturerData.has(TARGET_COMPANY_ID)) {
                 const dataView = event.manufacturerData.get(TARGET_COMPANY_ID);
+                // 獲取底層緩衝區，確保索引與 Hex 字串完全對應
+                const buffer = new Uint8Array(dataView.buffer);
 
-                if (dataView.byteLength >= 17) {
-                    const byte15 = dataView.getUint8(15);
-                    const byte16 = dataView.getUint8(16);
+                if (buffer.length >= 17) {
+                    // Little-Endian 解析: (High Byte << 8) | Low Byte
+                    let weightRaw = (buffer[12] << 8) | buffer[11];
+                    let constantVal = (buffer[14] << 8) | buffer[13];
+                    let counterVal = (buffer[16] << 8) | buffer[15];
 
-                    // 解析原始數值 (需確認端序，目前以 Big Endian 計算)
-                    currentRawValue = (byte15 << 8) | byte16;
+                    // 處理可能的二補數負值 (針對重量)
+                    if (weightRaw > 32767) {
+                        weightRaw -= 65536;
+                    }
 
-                    // 扣除空載零點
-                    let netValue = currentRawValue - tareOffset;
+                    currentRawWeight = weightRaw;
+                    let netWeight = currentRawWeight - tareOffset;
 
-                    // 乘上校準係數得出公斤
-                    let weightKg = netValue * weightSlope;
+                    document.getElementById('val-weight').textContent = currentRawWeight;
+                    document.getElementById('val-net').textContent = netWeight;
+                    document.getElementById('val-const').textContent = constantVal;
+                    document.getElementById('val-time').textContent = counterVal;
 
-                    // 更新畫面
-                    rawDecDisplay.textContent = currentRawValue;
-                    netDecDisplay.textContent = netValue;
-                    weightKgDisplay.textContent = weightKg.toFixed(2);
-
-                    updateChart(weightKg);
+                    updateChart(netWeight);
                 }
             }
         }
@@ -294,34 +223,11 @@
             btnScan.disabled = false;
             btnStop.disabled = true;
             btnTare.disabled = true;
-            btnCal.disabled = true;
-            inputCalWeight.disabled = true;
         }
 
-        // 歸零按鈕邏輯
         btnTare.addEventListener('click', () => {
-            tareOffset = currentRawValue;
-            netDecDisplay.textContent = 0;
-            weightKgDisplay.textContent = "0.00";
-        });
-
-        // 校準按鈕邏輯
-        btnCal.addEventListener('click', () => {
-            const knownWeight = parseFloat(inputCalWeight.value);
-            if (isNaN(knownWeight) || knownWeight <= 0) {
-                alert('請輸入有效的已知重量 (大於 0 的數值)。');
-                return;
-            }
-
-            const netRaw = currentRawValue - tareOffset;
-            if (netRaw === 0) {
-                alert('讀數無變化。請確保已完成「歸零」，並將重物掛上後再進行校準。');
-                return;
-            }
-
-            // 計算斜率
-            weightSlope = knownWeight / netRaw;
-            alert(`校準完成。\n當前淨讀數: ${netRaw}\n設定重量: ${knownWeight} kg\n計算係數: ${weightSlope.toFixed(6)}`);
+            tareOffset = currentRawWeight;
+            document.getElementById('val-net').textContent = 0;
         });
 
         btnScan.addEventListener('click', startScanning);
