@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力發力率監測系統 (雙軌校準版)</title>
+    <title>指力發力率監測系統 V6</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -20,7 +20,6 @@
             margin: 0 auto;
         }
 
-        /* 系統提示區塊 */
         .instruction-panel {
             background-color: #1e1e1e;
             border-left: 4px solid #00bcd4;
@@ -43,23 +42,22 @@
             user-select: all;
         }
 
-        /* 控制列 */
         .controls {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
             align-items: center;
-            flex-wrap: wrap;
         }
 
         button {
-            padding: 10px 16px;
-            font-size: 15px;
+            padding: 12px 20px;
+            font-size: 16px;
             border: none;
             cursor: pointer;
             color: #fff;
             background-color: #4CAF50;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-weight: bold;
         }
 
         button:disabled {
@@ -74,96 +72,59 @@
 
         #btn-tare {
             background-color: #FF9800;
-            font-weight: bold;
         }
 
-        /* 校準區塊 */
-        .cal-panel {
-            background-color: #2a2a2a;
-            padding: 15px;
-            border-radius: 6px;
-            border: 1px solid #444;
-            margin-bottom: 20px;
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .cal-panel input {
-            width: 70px;
-            padding: 8px;
-            text-align: center;
-            background: #111;
-            color: #fff;
-            border: 1px solid #555;
-            border-radius: 4px;
-        }
-
-        #btn-cal {
-            background-color: #2196F3;
-        }
-
-        #btn-reset-cal {
-            background-color: #607D8B;
-        }
-
-        .mode-indicator {
-            margin-left: auto;
-            font-size: 14px;
-            color: #aaa;
-        }
-
-        .mode-active {
-            color: #00E676;
-            font-weight: bold;
-        }
-
-        /* 數據儀表板 */
         .dashboard {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 15px;
             margin-bottom: 20px;
         }
 
         .data-box {
             background-color: #1e1e1e;
-            padding: 15px;
-            border-radius: 6px;
+            padding: 20px;
+            border-radius: 8px;
             text-align: center;
             border: 1px solid #333;
         }
 
         .main-box {
-            grid-column: span 3;
+            grid-column: span 2;
             background-color: #1a237e;
             border-color: #3f51b5;
         }
 
         .data-label {
-            font-size: 13px;
+            font-size: 14px;
             color: #aaa;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         .data-value {
-            font-size: 24px;
+            font-size: 28px;
             font-family: monospace;
             color: #fff;
         }
 
         .main-value {
-            font-size: 56px;
+            font-size: 72px;
             color: #00E676;
+            text-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
         }
 
         canvas {
             background-color: #1e1e1e;
-            border-radius: 6px;
+            border-radius: 8px;
             padding: 10px;
             border: 1px solid #333;
-            height: 350px;
+            height: 400px;
             width: 100%;
+        }
+
+        #status-text {
+            margin-left: auto;
+            color: #aaa;
         }
     </style>
 </head>
@@ -172,43 +133,30 @@
 
     <div class="container">
         <div class="instruction-panel">
-            <h3>必要前置設定 (瀏覽器權限)</h3>
-            <p>1. 複製並於網址列貼上：<code>chrome://flags/#enable-experimental-web-platform-features</code></p>
-            <p>2. 將該選項設為 <strong>Enabled</strong>，點擊右下角 Relaunch 重啟瀏覽器。</p>
-            <p>3. 確保手機系統藍芽設定中<strong>未配對</strong>該設備 (若有配對請點擊忘記裝置)。</p>
+            <h3>啟用藍芽接收功能</h3>
+            <p>請於網址列輸入：<code>chrome://flags/#enable-experimental-web-platform-features</code> 並設為
+                <strong>Enabled</strong> 後重啟瀏覽器。並確保手機系統藍芽未與設備配對。</p>
         </div>
 
         <div class="controls">
             <button id="btn-scan">連線設備</button>
             <button id="btn-stop" disabled>斷線</button>
-            <button id="btn-tare" disabled>歸零 (Tare)</button>
-            <span id="status-text" style="margin-left:auto; color:#aaa; font-size:14px;">未連線</span>
-        </div>
-
-        <div class="cal-panel">
-            <span style="font-size:14px; color:#ddd;">進階校準：</span>
-            <input type="number" id="input-weight" placeholder="公斤" disabled>
-            <button id="btn-cal" disabled>設定已知重量</button>
-            <button id="btn-reset-cal" disabled>恢復硬體預設</button>
-            <div class="mode-indicator">當前模式: <span id="mode-text">硬體預設</span></div>
+            <button id="btn-tare" disabled>歸零 (扣除把手重量)</button>
+            <span id="status-text">狀態: 未連線</span>
         </div>
 
         <div class="dashboard">
             <div class="data-box main-box">
-                <div class="data-label">計算重量 (Kg)</div>
+                <div class="data-label">即時拉力 (Kg)</div>
                 <div id="val-kg" class="data-value main-value">0.00</div>
             </div>
             <div class="data-box">
-                <div class="data-label">原始數值 (Raw)</div>
+                <div class="data-label">藍芽原始訊號</div>
                 <div id="val-raw" class="data-value" style="color:#aaa;">0</div>
             </div>
             <div class="data-box">
-                <div class="data-label">淨原始值 (Net Raw)</div>
-                <div id="val-net-raw" class="data-value" style="color:#FF9800;">0</div>
-            </div>
-            <div class="data-box">
-                <div class="data-label">換算常數 (Ratio)</div>
-                <div id="val-ratio" class="data-value" style="color:#00bcd4; font-size: 18px;">--</div>
+                <div class="data-label">峰值紀錄 (Max Kg)</div>
+                <div id="val-max" class="data-value" style="color:#FF9800;">0.00</div>
             </div>
         </div>
 
@@ -217,41 +165,20 @@
 
     <script>
         const TARGET_COMPANY_ID = 0x0100;
-        const DEFAULT_RATIO = 0.01; // 預設硬體換算常數 (假設 100 raw = 1 kg，可依實際情況調整)
+        // 若藍芽傳 1535 代表 15.35kg，此處為 0.01。若傳 153 代表 15.3kg，請改為 0.1。
+        const DEFAULT_RATIO = 0.01;
+        // 軟體零點追蹤閥值：低於此重量(kg)強制顯示 0，過濾空載雜訊
+        const ZERO_TRACKING_THRESHOLD = 0.05;
 
         let bluetoothDevice;
-        let currentRaw = 0;
         let tareOffset = 0;
-        let activeRatio = DEFAULT_RATIO;
-        let isCustomMode = false;
+        let maxWeight = 0;
 
-        // UI 元素
         const btnScan = document.getElementById('btn-scan');
         const btnStop = document.getElementById('btn-stop');
         const btnTare = document.getElementById('btn-tare');
-        const btnCal = document.getElementById('btn-cal');
-        const btnResetCal = document.getElementById('btn-reset-cal');
-        const inputWeight = document.getElementById('input-weight');
-        const modeText = document.getElementById('mode-text');
         const statusText = document.getElementById('status-text');
 
-        // 初始化儲存的設定
-        function loadSettings() {
-            const savedRatio = localStorage.getItem('whc06_custom_ratio');
-            if (savedRatio) {
-                activeRatio = parseFloat(savedRatio);
-                isCustomMode = true;
-                updateModeUI();
-            }
-            document.getElementById('val-ratio').textContent = activeRatio.toFixed(5);
-        }
-
-        function updateModeUI() {
-            modeText.textContent = isCustomMode ? "自訂校準" : "硬體預設";
-            modeText.className = isCustomMode ? "mode-active" : "";
-        }
-
-        // 圖表設定
         const ctx = document.getElementById('chart').getContext('2d');
         const chart = new Chart(ctx, {
             type: 'line',
@@ -260,8 +187,10 @@
                 datasets: [{
                     data: Array(100).fill(0),
                     borderColor: '#00E676',
-                    borderWidth: 2,
+                    backgroundColor: 'rgba(0, 230, 118, 0.1)',
+                    borderWidth: 3,
                     pointRadius: 0,
+                    fill: true,
                     tension: 0.1
                 }]
             },
@@ -276,7 +205,7 @@
 
         async function startScan() {
             try {
-                statusText.textContent = '連線中...';
+                statusText.textContent = '狀態: 連線中...';
                 bluetoothDevice = await navigator.bluetooth.requestDevice({
                     acceptAllDevices: true,
                     optionalManufacturerData: [TARGET_COMPANY_ID]
@@ -285,15 +214,12 @@
                 bluetoothDevice.addEventListener('advertisementreceived', processData);
                 await bluetoothDevice.watchAdvertisements();
 
-                statusText.textContent = `已連線`;
+                statusText.textContent = `狀態: 已連線`;
                 btnScan.disabled = true;
                 btnStop.disabled = false;
                 btnTare.disabled = false;
-                btnCal.disabled = false;
-                btnResetCal.disabled = false;
-                inputWeight.disabled = false;
             } catch (error) {
-                statusText.textContent = `連線失敗: ${error.message}`;
+                statusText.textContent = `連線失敗`;
             }
         }
 
@@ -306,14 +232,23 @@
             let weightRaw = (buffer[12] << 8) | buffer[11];
             if (weightRaw > 32767) weightRaw -= 65536;
 
-            currentRaw = weightRaw;
-            const netRaw = currentRaw - tareOffset;
-            let calcKg = netRaw * activeRatio;
+            document.getElementById('val-raw').textContent = weightRaw;
 
-            if (Math.abs(calcKg) < 0.1) calcKg = 0; // 濾除微小雜訊
+            // 計算淨重
+            const netRaw = weightRaw - tareOffset;
+            let calcKg = netRaw * DEFAULT_RATIO;
 
-            document.getElementById('val-raw').textContent = currentRaw;
-            document.getElementById('val-net-raw').textContent = netRaw;
+            // 【核心修正】軟體零點追蹤：若重量介於 ±0.05kg 之間，強制歸零，解決空載跳動
+            if (Math.abs(calcKg) < ZERO_TRACKING_THRESHOLD) {
+                calcKg = 0;
+            }
+
+            // 紀錄最大峰值 (Peak Force)
+            if (calcKg > maxWeight) {
+                maxWeight = calcKg;
+                document.getElementById('val-max').textContent = maxWeight.toFixed(2);
+            }
+
             document.getElementById('val-kg').textContent = calcKg.toFixed(2);
 
             // 更新圖表
@@ -328,52 +263,23 @@
                 bluetoothDevice.removeEventListener('advertisementreceived', processData);
                 try { await bluetoothDevice.unwatchAdvertisements(); } catch (e) { }
             }
-            statusText.textContent = '已斷線';
+            statusText.textContent = '狀態: 已斷線';
             btnScan.disabled = false;
             btnStop.disabled = true;
             btnTare.disabled = true;
-            btnCal.disabled = true;
-            btnResetCal.disabled = true;
-            inputWeight.disabled = true;
         }
 
-        // 操作事件
+        // 歸零按鈕：不僅扣除雜訊，也可用來扣除訓練把手的重量
         btnTare.addEventListener('click', () => {
-            tareOffset = currentRaw;
-            document.getElementById('val-net-raw').textContent = 0;
+            // 抓取當前畫面的 Raw 數據作為新的零點
+            tareOffset = parseInt(document.getElementById('val-raw').textContent) || 0;
+            maxWeight = 0; // 重置峰值
             document.getElementById('val-kg').textContent = "0.00";
-        });
-
-        btnCal.addEventListener('click', () => {
-            const weight = parseFloat(inputWeight.value);
-            const netRaw = currentRaw - tareOffset;
-
-            if (isNaN(weight) || weight <= 0) return alert('請輸入有效重量');
-            if (Math.abs(netRaw) < 5) return alert('淨原始值過低，請確保已掛載重物');
-
-            activeRatio = weight / netRaw;
-            isCustomMode = true;
-            localStorage.setItem('whc06_custom_ratio', activeRatio.toString());
-
-            document.getElementById('val-ratio').textContent = activeRatio.toFixed(5);
-            updateModeUI();
-            alert('自訂校準完成');
-        });
-
-        btnResetCal.addEventListener('click', () => {
-            activeRatio = DEFAULT_RATIO;
-            isCustomMode = false;
-            localStorage.removeItem('whc06_custom_ratio');
-
-            document.getElementById('val-ratio').textContent = activeRatio.toFixed(5);
-            updateModeUI();
-            alert('已恢復硬體預設常數');
+            document.getElementById('val-max').textContent = "0.00";
         });
 
         btnScan.addEventListener('click', startScan);
         btnStop.addEventListener('click', stopScan);
-
-        loadSettings();
     </script>
 
 </body>
