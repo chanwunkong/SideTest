@@ -1,234 +1,334 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力監測系統 V20 (高穩定架構版)</title>
+    <title>指力監測系統 V21 (穩定修正版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background-color: #121212; color: #e0e0e0; font-family: -apple-system, sans-serif; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
-        .status-badge { font-size: 12px; background: #333; padding: 4px 8px; border-radius: 4px; color: #888; border: 1px solid transparent; }
-        .status-connected { color: #00E676; border: 1px solid #00E676; }
+        body {
+            background-color: #000;
+            color: #eee;
+            font-family: -apple-system, sans-serif;
+            padding: 20px;
+        }
 
-        .display-card { background: #111; border: 1px solid #333; border-radius: 12px; padding: 30px 20px; text-align: center; margin-bottom: 20px; position: relative; }
-        .main-value { font-size: 90px; font-weight: 700; color: #fff; line-height: 1; font-family: monospace; letter-spacing: -4px; margin: 10px 0; }
-        .unit { font-size: 20px; color: #555; }
-        
-        .peak-box { position: absolute; top: 15px; right: 20px; text-align: right; }
-        .peak-label { font-size: 12px; color: #666; display: block; }
-        .peak-val { font-size: 24px; color: #FF9800; font-weight: bold; font-family: monospace; }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
 
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-        button { padding: 16px; font-size: 16px; border: none; cursor: pointer; color: #fff; background-color: #333; border-radius: 8px; font-weight: 600; }
-        button:active { transform: scale(0.98); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        #btn-scan { background-color: #2196F3; grid-column: span 2; }
-        #btn-tare { background-color: #FF9800; color: #000; }
-        #btn-stop { background-color: #f44336; }
-        
-        .debug-bar { font-family: monospace; font-size: 12px; color: #555; text-align: center; margin-top: -10px; margin-bottom: 20px; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
 
-        canvas { height: 250px; width: 100%; border-top: 1px solid #333; padding-top: 10px;}
+        .status-badge {
+            font-size: 12px;
+            background: #333;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #888;
+        }
+
+        .status-connected {
+            color: #00E676;
+            border: 1px solid #00E676;
+        }
+
+        .display-card {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .main-value {
+            font-size: 80px;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1;
+            font-family: monospace;
+            letter-spacing: -3px;
+        }
+
+        .unit {
+            font-size: 20px;
+            color: #555;
+        }
+
+        .peak-box {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            text-align: right;
+        }
+
+        .peak-label {
+            font-size: 12px;
+            color: #666;
+            display: block;
+        }
+
+        .peak-val {
+            font-size: 20px;
+            color: #FF9800;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .debug-panel {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #333;
+        }
+
+        .hex-monitor {
+            font-family: monospace;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .grid-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 14px;
+            font-size: 15px;
+            border: none;
+            cursor: pointer;
+            color: #fff;
+            background-color: #333;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        button:active {
+            background-color: #555;
+        }
+
+        #btn-scan {
+            background-color: #2196F3;
+            color: white;
+            grid-column: span 2;
+        }
+
+        #btn-tare {
+            background-color: #FF9800;
+            color: black;
+        }
+
+        canvas {
+            height: 250px;
+            width: 100%;
+            border-bottom: 1px solid #333;
+        }
     </style>
 </head>
+
 <body>
 
-<div class="container">
-    <div class="header">
-        <div style="font-weight:bold;">WH-C06 Tracker V20</div>
-        <div id="status" class="status-badge">未連線</div>
-    </div>
-
-    <div class="display-card">
-        <div class="peak-box">
-            <span class="peak-label">PEAK</span>
-            <span class="peak-val" id="val-max">0.00</span>
+    <div class="container">
+        <div class="header">
+            <div style="font-weight:bold;">WH-C06 Tracker V21</div>
+            <div id="status" class="status-badge">未連線</div>
         </div>
-        <div id="val-kg" class="main-value">0.00</div>
-        <div class="unit">KG</div>
+
+        <div class="display-card">
+            <div class="peak-box">
+                <span class="peak-label">PEAK</span>
+                <span class="peak-val" id="val-max">0.00</span>
+            </div>
+            <div id="val-kg" class="main-value">0.00</div>
+            <div class="unit">KG</div>
+        </div>
+
+        <div class="debug-panel">
+            <div style="font-size:12px; color:#666;">15-bit Unsigned Mode</div>
+            <div style="text-align:right;">
+                <div style="font-size:10px; color:#444;">RAW HEX</div>
+                <div id="val-hex" class="hex-monitor">-- --</div>
+            </div>
+        </div>
+
+        <div class="grid-controls">
+            <button id="btn-scan">連線 (Connect)</button>
+            <button id="btn-tare" disabled>歸零 (Tare)</button>
+            <button id="btn-stop" disabled>斷線</button>
+        </div>
+
+        <canvas id="chart"></canvas>
     </div>
 
-    <div class="debug-bar">
-        RAW: <span id="val-raw" style="color:#00bcd4">0</span> | 
-        HEX: <span id="val-hex" style="color:#00bcd4">-- --</span>
-    </div>
+    <script>
+        const TARGET_COMPANY_ID = 0x0100;
+        const DEFAULT_RATIO = 0.01;
+        const NOISE_BUFFER = 0.15;
+        const MASK_15BIT = 0x7FFF; // 保留 Bit 0-14，過濾 Bit 15 (符號/狀態位)
 
-    <div class="controls">
-        <button id="btn-scan">連線 (Connect)</button>
-        <button id="btn-tare" disabled>歸零 (Tare)</button>
-        <button id="btn-stop" disabled>斷線 (Disconnect)</button>
-    </div>
+        let bluetoothDevice;
+        let tareOffset = 0;
+        let maxWeight = 0;
+        let wakeLock = null;
+        let isChartUpdatePending = false;
+        let lastUpdateTime = 0;
 
-    <canvas id="chart"></canvas>
-</div>
+        const elStatus = document.getElementById('status');
+        const elValKg = document.getElementById('val-kg');
+        const elValMax = document.getElementById('val-max');
+        const elValHex = document.getElementById('val-hex');
+        const btnScan = document.getElementById('btn-scan');
+        const btnStop = document.getElementById('btn-stop');
+        const btnTare = document.getElementById('btn-tare');
 
-<script>
-    const TARGET_COMPANY_ID = 0x0100;
-    const DEFAULT_RATIO = 0.01; 
-    const NOISE_BUFFER = 0.15;
-    const MASK_HIGH_BYTE = 0x7F; 
+        const ctx = document.getElementById('chart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(100).fill(''),
+                datasets: [{
+                    data: Array(100).fill(0),
+                    borderColor: '#00E676',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: { y: { display: false }, x: { display: false } },
+                plugins: { legend: { display: false } }
+            }
+        });
 
-    // 數據狀態緩存 (Data State)
-    let state = {
-        connected: false,
-        rawWeight: 0,
-        hexStr: "-- --",
-        tareOffset: 0,
-        maxWeight: 0,
-        currentKg: 0,
-        dataQueue: Array(100).fill(0)
-    };
-
-    let bluetoothDevice;
-    let wakeLock = null;
-    let animationId = null;
-
-    const elStatus = document.getElementById('status');
-    const elValKg = document.getElementById('val-kg');
-    const elValMax = document.getElementById('val-max');
-    const elValRaw = document.getElementById('val-raw');
-    const elValHex = document.getElementById('val-hex');
-    const btnScan = document.getElementById('btn-scan');
-    const btnStop = document.getElementById('btn-stop');
-    const btnTare = document.getElementById('btn-tare');
-
-    const ctx = document.getElementById('chart').getContext('2d');
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: Array(100).fill(''),
-            datasets: [{
-                data: state.dataQueue,
-                borderColor: '#00E676',
-                borderWidth: 2,
-                pointRadius: 0,
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            parsing: false,
-            normalized: true,
-            scales: { y: { display:false }, x: { display: false } },
-            plugins: { legend: { display: false } }
+        async function requestWakeLock() {
+            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) { }
         }
-    });
 
-    // 請求螢幕常亮
-    async function requestWakeLock() {
-        try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
-    }
+        async function startScan() {
+            try {
+                elStatus.textContent = '掃描中...';
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalManufacturerData: [TARGET_COMPANY_ID]
+                });
 
-    // 渲染循環 (Render Loop) - 每秒約 60 次
-    function updateUI() {
-        if (!state.connected) return;
+                bluetoothDevice.addEventListener('advertisementreceived', processData);
+                await bluetoothDevice.watchAdvertisements();
 
-        // 更新文字
-        elValKg.textContent = state.currentKg.toFixed(2);
-        elValMax.textContent = state.maxWeight.toFixed(2);
-        elValRaw.textContent = state.rawWeight;
-        elValHex.textContent = state.hexStr;
+                elStatus.textContent = '已連線';
+                elStatus.classList.add('status-connected');
 
-        // 更新圖表
-        chart.update('none'); 
+                btnScan.disabled = true;
+                btnStop.disabled = false;
+                btnTare.disabled = false;
+                await requestWakeLock();
 
-        animationId = requestAnimationFrame(updateUI);
-    }
-
-    async function startScan() {
-        try {
-            elStatus.textContent = '掃描中...';
-            bluetoothDevice = await navigator.bluetooth.requestDevice({
-                acceptAllDevices: true,
-                optionalManufacturerData: [TARGET_COMPANY_ID]
-            });
-
-            bluetoothDevice.addEventListener('advertisementreceived', handleDataReceived);
-            await bluetoothDevice.watchAdvertisements();
-            
-            state.connected = true;
-            elStatus.textContent = '已連線';
-            elStatus.classList.add('status-connected');
-            
-            btnScan.disabled = true;
-            btnStop.disabled = false;
-            btnTare.disabled = false;
-            
-            await requestWakeLock();
-            animationId = requestAnimationFrame(updateUI);
-
-        } catch (error) { 
-            elStatus.textContent = '連線失敗'; 
-            console.error(error);
+            } catch (error) { elStatus.textContent = '連線失敗'; }
         }
-    }
 
-    // 藍牙事件處理 - 僅負責數據寫入
-    function handleDataReceived(event) {
-        if (!event.manufacturerData || !event.manufacturerData.has(TARGET_COMPANY_ID)) return;
-        
-        const dv = event.manufacturerData.get(TARGET_COMPANY_ID);
-        if (dv.byteLength < 17) return;
+        function processData(event) {
+            if (!event.manufacturerData || !event.manufacturerData.has(TARGET_COMPANY_ID)) return;
 
-        const b11 = dv.getUint8(11);
-        const b12 = dv.getUint8(12);
+            // 限制處理頻率，避免 V14 之後版本可能出現的過載
+            const now = Date.now();
+            if (now - lastUpdateTime < 30) return;
+            lastUpdateTime = now;
 
-        // 寫入變數 (極輕量)
-        const raw = ((b12 & MASK_HIGH_BYTE) << 8) | b11;
-        state.rawWeight = raw;
-        state.hexStr = `${b11.toString(16).padStart(2,'0').toUpperCase()} ${b12.toString(16).padStart(2,'0').toUpperCase()}`;
+            const dv = event.manufacturerData.get(TARGET_COMPANY_ID);
+            if (dv.byteLength < 17) return;
 
-        // 計算
-        let val = (raw - state.tareOffset) * DEFAULT_RATIO;
-        if (Math.abs(val) <= NOISE_BUFFER) val = 0;
-        if (val < 0) val = 0;
+            const b11 = dv.getUint8(11);
+            const b12 = dv.getUint8(12);
 
-        state.currentKg = val;
-        if (val > state.maxWeight) state.maxWeight = val;
+            // 更新 Hex 文字
+            elValHex.textContent = `${b11.toString(16).padStart(2, '0').toUpperCase()} ${b12.toString(16).padStart(2, '0').toUpperCase()}`;
 
-        // 圖表數據隊列
-        state.dataQueue.push(val);
-        state.dataQueue.shift();
-    }
+            // 15-bit 解碼邏輯：打通 5.12kg 進位位元，同時過濾 Bit 15 產生的 655kg 異常跳動
+            let weightRaw = (((b12 << 8) | b11) & MASK_15BIT);
 
-    async function stopScan() {
-        state.connected = false;
-        if (animationId) cancelAnimationFrame(animationId);
+            // 換算淨重
+            let val = (weightRaw - tareOffset) * DEFAULT_RATIO;
 
-        if (bluetoothDevice) {
-            bluetoothDevice.removeEventListener('advertisementreceived', handleDataReceived);
-            try { await bluetoothDevice.unwatchAdvertisements(); } catch(e){}
+            // 死區與負值防護
+            if (Math.abs(val) <= NOISE_BUFFER) val = 0;
+            if (val < 0) val = 0;
+
+            // 更新峰值
+            if (val > maxWeight) {
+                maxWeight = val;
+                elValMax.textContent = maxWeight.toFixed(2);
+            }
+
+            // 更新數值
+            elValKg.textContent = val.toFixed(2);
+
+            // 圖表更新
+            const dataArr = chart.data.datasets[0].data;
+            dataArr.push(val);
+            dataArr.shift();
+
+            if (!isChartUpdatePending) {
+                isChartUpdatePending = true;
+                requestAnimationFrame(() => {
+                    chart.update();
+                    isChartUpdatePending = false;
+                });
+            }
         }
-        if (wakeLock !== null) { await wakeLock.release(); wakeLock = null; }
-        
-        elStatus.textContent = '已斷線';
-        elStatus.classList.remove('status-connected');
-        btnScan.disabled = false;
-        btnStop.disabled = true;
-        btnTare.disabled = true;
-    }
 
-    btnTare.addEventListener('click', () => {
-        state.tareOffset = state.rawWeight;
-        state.maxWeight = 0;
-    });
+        async function stopScan() {
+            if (bluetoothDevice) {
+                bluetoothDevice.removeEventListener('advertisementreceived', processData);
+                try { await bluetoothDevice.unwatchAdvertisements(); } catch (e) { }
+            }
+            if (wakeLock !== null) { await wakeLock.release(); wakeLock = null; }
 
-    document.addEventListener('visibilitychange', async () => {
-        if (state.connected && document.visibilityState === 'visible') {
-            await requestWakeLock();
-            if (!animationId) animationId = requestAnimationFrame(updateUI);
+            elStatus.textContent = '已斷線';
+            elStatus.classList.remove('status-connected');
+            btnScan.disabled = false;
+            btnStop.disabled = true;
+            btnTare.disabled = true;
+            tareOffset = 0;
         }
-    });
 
-    btnScan.addEventListener('click', startScan);
-    btnStop.addEventListener('click', stopScan);
-</script>
+        btnTare.addEventListener('click', () => {
+            // 抓取當前 Hex 對應的 Raw 值作為 Offset
+            const hexParts = elValHex.textContent.split(' ');
+            if (hexParts.length === 2) {
+                const b11 = parseInt(hexParts[0], 16);
+                const b12 = parseInt(hexParts[1], 16);
+                tareOffset = (((b12 << 8) | b11) & MASK_15BIT);
+                maxWeight = 0;
+                elValMax.textContent = "0.00";
+            }
+        });
+
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') await requestWakeLock();
+        });
+
+        btnScan.addEventListener('click', startScan);
+        btnStop.addEventListener('click', stopScan);
+    </script>
 
 </body>
+
 </html>
