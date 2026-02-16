@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力監測系統 V14 (萬用解碼版)</title>
+    <title>指力監測系統 V16 (回歸 V14 架構優化版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -19,7 +19,6 @@
             margin: 0 auto;
         }
 
-        /* 頂部數據區 */
         .header {
             display: flex;
             justify-content: space-between;
@@ -40,7 +39,6 @@
             border: 1px solid #00E676;
         }
 
-        /* 主顯示 */
         .display-card {
             background: #111;
             border: 1px solid #333;
@@ -85,7 +83,6 @@
             font-family: monospace;
         }
 
-        /* 模式切換與 Raw 監控 */
         .mode-panel {
             background: #1a1a1a;
             padding: 10px;
@@ -109,7 +106,6 @@
             color: #666;
         }
 
-        /* 按鈕群 */
         .grid-controls {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -161,7 +157,7 @@
 
     <div class="container">
         <div class="header">
-            <div style="font-weight:bold;">WH-C06 Tracker</div>
+            <div style="font-weight:bold;">WH-C06 Tracker V16</div>
             <div id="status" class="status-badge">未連線</div>
         </div>
 
@@ -198,30 +194,38 @@
     <script>
         const TARGET_COMPANY_ID = 0x0100;
         const DEFAULT_RATIO = 0.01;
-        const NOISE_BUFFER = 0.15; // 0.15kg 死區
+        const NOISE_BUFFER = 0.15;
 
-        // 解碼模式定義
+        // 解碼模式
         const MODES = [
             { name: "Mode 1: 標準 (V13)", desc: "無過濾" },
             { name: "Mode 2: Mask 0x3F", desc: "過濾 Bit 6,7 (推薦)" },
-            { name: "Mode 3: Mask 0x1F", desc: "過濾 Bit 5,6,7 (強力)" },
+            { name: "Mode 3: Mask 0x1F", desc: "過濾 Bit 5,6,7" },
             { name: "Mode 4: 通道 B", desc: "使用 Byte 13-14" }
         ];
-        let currentModeIndex = 1; // 預設使用 Mode 2 (Mask 0x3F)
+        let currentModeIndex = 1; // 預設 Mode 2
 
+        // 全域變數
         let bluetoothDevice;
+        let wakeLock = null;
         let initialNoiseKg = null;
         let maxWeight = 0;
-        let wakeLock = null;
         let isChartUpdatePending = false;
+        let lastUpdateTime = 0; // 用於限制更新頻率
+
+        // UI 元素
+        const elStatus = document.getElementById('status');
+        const elValKg = document.getElementById('val-kg');
+        const elValMax = document.getElementById('val-max');
+        const elValHex = document.getElementById('val-hex');
+        const elModeName = document.getElementById('mode-name');
 
         const btnScan = document.getElementById('btn-scan');
         const btnStop = document.getElementById('btn-stop');
         const btnTare = document.getElementById('btn-tare');
         const btnMode = document.getElementById('btn-mode');
-        const elStatus = document.getElementById('status');
-        const elModeName = document.getElementById('mode-name');
 
+        // 圖表初始化
         const ctx = document.getElementById('chart').getContext('2d');
         const chart = new Chart(ctx, {
             type: 'line',
@@ -239,6 +243,8 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
+                parsing: false,
+                normalized: true,
                 scales: { y: { display: false }, x: { display: false } },
                 plugins: { legend: { display: false } }
             }
@@ -266,13 +272,21 @@
                 btnStop.disabled = false;
                 btnTare.disabled = false;
                 btnMode.disabled = false;
+
                 await requestWakeLock();
 
             } catch (error) { elStatus.textContent = '連線失敗'; }
         }
 
+        // 回歸 V14 的即時處理架構，但加入 30ms 頻率限制以防崩潰
         function processData(event) {
             if (!event.manufacturerData || !event.manufacturerData.has(TARGET_COMPANY_ID)) return;
+
+            // 頻率限制：限制在約 30 FPS，避免過度渲染導致崩潰
+            const now = Date.now();
+            if (now - lastUpdateTime < 30) return;
+            lastUpdateTime = now;
+
             const dv = event.manufacturerData.get(TARGET_COMPANY_ID);
             if (dv.byteLength < 17) return;
 
@@ -281,47 +295,39 @@
             const b13 = dv.getUint8(13);
             const b14 = dv.getUint8(14);
 
-            // 顯示 Hex
-            document.getElementById('val-hex').textContent =
-                `${b11.toString(16).padStart(2, '0').toUpperCase()} ${b12.toString(16).padStart(2, '0').toUpperCase()}`;
+            // 更新 Hex
+            elValHex.textContent = `${b11.toString(16).padStart(2, '0').toUpperCase()} ${b12.toString(16).padStart(2, '0').toUpperCase()}`;
 
             let weightRaw = 0;
 
-            // --- 核心解碼邏輯切換 ---
+            // 解碼邏輯 (保留 Mode 切換以解決大重量問題)
             switch (currentModeIndex) {
-                case 0: // Mode 1: 標準無過濾
-                    weightRaw = (b12 << 8) | b11;
-                    break;
-                case 1: // Mode 2: Mask 0x3F (過濾 0xC0) -> 解決 Bit 6 鎖定標記干擾
-                    weightRaw = ((b12 & 0x3F) << 8) | b11;
-                    break;
-                case 2: // Mode 3: Mask 0x1F (過濾 0xE0) -> 更強力的過濾
-                    weightRaw = ((b12 & 0x1F) << 8) | b11;
-                    break;
-                case 3: // Mode 4: 使用通道 B
-                    weightRaw = ((b14 & 0x3F) << 8) | b13; // 同樣套用 0x3F 保護
-                    break;
+                case 0: weightRaw = (b12 << 8) | b11; break;
+                case 1: weightRaw = ((b12 & 0x3F) << 8) | b11; break;
+                case 2: weightRaw = ((b12 & 0x1F) << 8) | b11; break;
+                case 3: weightRaw = ((b14 & 0x3F) << 8) | b13; break;
             }
 
-            let currentKg = weightRaw * DEFAULT_RATIO;
+            let val = weightRaw * DEFAULT_RATIO;
 
             // 自動歸零
-            if (initialNoiseKg === null) initialNoiseKg = currentKg;
+            if (initialNoiseKg === null) initialNoiseKg = val;
 
             // 死區過濾
-            if (currentKg <= initialNoiseKg + NOISE_BUFFER) currentKg = 0;
+            if (val <= initialNoiseKg + NOISE_BUFFER) val = 0;
 
-            // 峰值更新
-            if (currentKg > maxWeight) {
-                maxWeight = currentKg;
-                document.getElementById('val-max').textContent = maxWeight.toFixed(2);
+            // 更新最大值
+            if (val > maxWeight) {
+                maxWeight = val;
+                elValMax.textContent = maxWeight.toFixed(2);
             }
 
-            document.getElementById('val-kg').textContent = currentKg.toFixed(2);
+            // 即時更新畫面
+            elValKg.textContent = val.toFixed(2);
 
-            // 圖表更新 (節流)
+            // 圖表更新
             const dataArr = chart.data.datasets[0].data;
-            dataArr.push(currentKg);
+            dataArr.push(val);
             dataArr.shift();
 
             if (!isChartUpdatePending) {
@@ -349,24 +355,17 @@
             initialNoiseKg = null;
         }
 
-        // 模式切換按鈕事件
         btnMode.addEventListener('click', () => {
             currentModeIndex = (currentModeIndex + 1) % MODES.length;
             elModeName.textContent = MODES[currentModeIndex].name;
-            // 重置峰值以防切換時數值跳動
             maxWeight = 0;
-            document.getElementById('val-max').textContent = "0.00";
+            elValMax.textContent = "0.00";
         });
 
         btnTare.addEventListener('click', () => {
             maxWeight = 0;
-            document.getElementById('val-max').textContent = "0.00";
-            // 重新抓取當前 Raw 值作為底噪
-            const hexTxt = document.getElementById('val-hex').textContent.split(' ');
-            if (hexTxt.length >= 2) {
-                // 簡單重置，這裡暫不進行複雜反推，直接讓使用者在空載時按
-                initialNoiseKg = null;
-            }
+            elValMax.textContent = "0.00";
+            initialNoiseKg = null;
         });
 
         document.addEventListener('visibilitychange', async () => {
