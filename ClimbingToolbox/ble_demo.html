@@ -1,231 +1,98 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WH-C06 藍芽廣播數據掃描器</title>
+    <title>WH-C06 數據解析器 V2</title>
     <style>
-        body {
-            background-color: #121212;
-            color: #e0e0e0;
-            font-family: sans-serif;
-            padding: 20px;
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .instructions {
-            background-color: #1e1e1e;
-            border-left: 4px solid #00bcd4;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .instructions h3 {
-            margin-top: 0;
-            color: #00bcd4;
-        }
-
-        .instructions code {
-            background-color: #333;
-            padding: 2px 6px;
-            border-radius: 4px;
-            color: #ff9800;
-        }
-
-        .btn-group {
-            margin-bottom: 20px;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            border: none;
-            cursor: pointer;
-            margin-right: 10px;
-            color: #fff;
-            background-color: #00bcd4;
-        }
-
-        button:disabled {
-            background-color: #555;
-            cursor: not-allowed;
-        }
-
-        #btn-stop {
-            background-color: #f44336;
-        }
-
-        #btn-stop:disabled {
-            background-color: #555;
-        }
-
-        #log-container {
-            background-color: #000;
-            padding: 15px;
-            height: 400px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 14px;
-            border: 1px solid #333;
-        }
-
-        .log-time {
-            color: #888;
-            margin-right: 10px;
-        }
-
-        .log-msg {
-            color: #0f0;
-        }
-
-        .log-error {
-            color: #f44336;
-        }
-
-        .log-warn {
-            color: #ffeb3b;
-        }
+        body { background-color: #121212; color: #e0e0e0; font-family: sans-serif; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        button { padding: 12px 24px; font-size: 16px; border: none; cursor: pointer; margin-right: 10px; color: #fff; background-color: #00bcd4; border-radius: 4px;}
+        button:disabled { background-color: #555; cursor: not-allowed; }
+        #btn-stop { background-color: #f44336; }
+        #data-display { background-color: #1e1e1e; padding: 20px; margin-top: 20px; border-radius: 8px; border: 1px solid #333; }
+        .data-row { font-family: monospace; font-size: 18px; color: #4CAF50; letter-spacing: 2px; margin-bottom: 10px;}
+        .highlight { color: #FF9800; font-weight: bold; }
     </style>
 </head>
-
 <body>
 
-    <div class="container">
-        <h2>WH-C06 藍芽廣播掃描器</h2>
+<div class="container">
+    <h2>WH-C06 數據解析器 V2</h2>
+    <p>已經加入 Company ID 解鎖，現在應該能看到真實的 16 進位數據了。</p>
 
-        <div class="instructions">
-            <h3>測試前必讀步驟</h3>
-            <ol>
-                <li><strong>開啟實驗性功能：</strong> 瀏覽器必須開啟廣播監聽功能。請在網址列輸入
-                    <code>chrome://flags/#enable-experimental-web-platform-features</code>，將其設為 <strong>Enabled</strong>
-                    並重啟瀏覽器。</li>
-                <li><strong>解除配對：</strong> 請確保手機系統的「藍芽設定」中，沒有與該設備（如 IF_B7）建立配對。若有，請點擊「忘記裝置」。</li>
-                <li><strong>喚醒設備：</strong> 點擊連線前，按一下吊秤電源確保螢幕亮起。</li>
-                <li><strong>選擇設備：</strong> 點擊下方掃描按鈕，在清單中選擇名稱為 IF_B7 或未命名的設備。</li>
-                <li><strong>觀察數據：</strong> 連線後拉動吊秤，觀察 Log 區塊中跳動的 16 進位數值。</li>
-            </ol>
-        </div>
-
-        <div class="btn-group">
-            <button id="btn-scan">掃描並監聽</button>
-            <button id="btn-stop" disabled>停止監聽</button>
-        </div>
-
-        <div id="log-container"></div>
+    <div>
+        <button id="btn-scan">掃描並連線 IF_B7</button>
+        <button id="btn-stop" disabled>停止</button>
     </div>
 
-    <script>
-        const btnScan = document.getElementById('btn-scan');
-        const btnStop = document.getElementById('btn-stop');
-        const logContainer = document.getElementById('log-container');
-        let bluetoothDevice;
+    <div id="data-display">
+        <div style="color:#888; font-size:14px; margin-bottom:10px;">即時 Hex 數據流：</div>
+        <div id="raw-hex" class="data-row">等待數據...</div>
+    </div>
+</div>
 
-        function formatTime() {
-            const now = new Date();
-            return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+<script>
+    const btnScan = document.getElementById('btn-scan');
+    const btnStop = document.getElementById('btn-stop');
+    const rawHexDisplay = document.getElementById('raw-hex');
+    let bluetoothDevice;
+
+    // 我們從 nRF Connect 找到的製造商 ID
+    const TARGET_COMPANY_ID = 0x0100; 
+
+    async function startScanning() {
+        try {
+            rawHexDisplay.textContent = '請求設備中...';
+            
+            // 關鍵修改：明確要求允許讀取 0x0100 的 Manufacturer Data
+            bluetoothDevice = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalManufacturerData: [TARGET_COMPANY_ID] 
+            });
+
+            bluetoothDevice.addEventListener('advertisementreceived', handleAdvertisement);
+
+            rawHexDisplay.textContent = '啟動監聽中...';
+            await bluetoothDevice.watchAdvertisements();
+            
+            btnScan.disabled = true;
+            btnStop.disabled = false;
+
+        } catch (error) {
+            rawHexDisplay.textContent = `錯誤: ${error.message}`;
+            rawHexDisplay.style.color = '#f44336';
         }
+    }
 
-        function addLog(message, type = 'msg') {
-            const div = document.createElement('div');
-            const timeSpan = document.createElement('span');
-            timeSpan.className = 'log-time';
-            timeSpan.textContent = formatTime();
-
-            const msgSpan = document.createElement('span');
-            msgSpan.className = `log-${type}`;
-            msgSpan.textContent = message;
-
-            div.appendChild(timeSpan);
-            div.appendChild(msgSpan);
-            logContainer.appendChild(div);
-            logContainer.scrollTop = logContainer.scrollHeight;
+    function handleAdvertisement(event) {
+        // 檢查是否包含我們指定的 Manufacturer Data
+        if (event.manufacturerData && event.manufacturerData.has(TARGET_COMPANY_ID)) {
+            const dataView = event.manufacturerData.get(TARGET_COMPANY_ID);
+            
+            // 將 DataView 轉成 16 進位字串 (例如: 02 03 11 2A C0...)
+            let hexArray = Array.from(new Uint8Array(dataView.buffer))
+                .map(b => b.toString(16).padStart(2, '0').toUpperCase());
+            
+            // 更新到畫面上
+            rawHexDisplay.textContent = hexArray.join(' ');
+            rawHexDisplay.style.color = '#4CAF50';
         }
+    }
 
-        async function startScanning() {
-            if (!navigator.bluetooth) {
-                addLog('瀏覽器不支援 Web Bluetooth API。', 'error');
-                return;
-            }
-
-            try {
-                addLog('開始請求藍芽設備...', 'msg');
-                bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true
-                });
-
-                addLog(`已選中設備: ${bluetoothDevice.name || '未知名稱'}`, 'msg');
-
-                bluetoothDevice.addEventListener('advertisementreceived', handleAdvertisement);
-
-                addLog('嘗試啟動廣播監聽 (watchAdvertisements)...', 'warn');
-
-                if (!bluetoothDevice.watchAdvertisements) {
-                    throw new Error('瀏覽器不支援 watchAdvertisements。請確認已開啟 chrome://flags 實驗性功能。');
-                }
-
-                await bluetoothDevice.watchAdvertisements();
-                addLog('監聽啟動成功。等待廣播封包...', 'msg');
-
-                btnScan.disabled = true;
-                btnStop.disabled = false;
-
-            } catch (error) {
-                addLog(`錯誤: ${error.message}`, 'error');
-            }
+    async function stopScanning() {
+        if (bluetoothDevice) {
+            bluetoothDevice.removeEventListener('advertisementreceived', handleAdvertisement);
+            try { await bluetoothDevice.unwatchAdvertisements(); } catch(e){}
         }
+        rawHexDisplay.textContent = '已停止監聽。';
+        btnScan.disabled = false;
+        btnStop.disabled = true;
+    }
 
-        function handleAdvertisement(event) {
-            let hasData = false;
-
-            if (event.manufacturerData && event.manufacturerData.size > 0) {
-                event.manufacturerData.forEach((dataView, companyId) => {
-                    let hexString = Array.from(new Uint8Array(dataView.buffer))
-                        .map(b => b.toString(16).padStart(2, '0'))
-                        .join(' ');
-                    addLog(`MfgData [ID:${companyId.toString(16)}] : ${hexString}`, 'msg');
-                    hasData = true;
-                });
-            }
-
-            if (event.serviceData && event.serviceData.size > 0) {
-                event.serviceData.forEach((dataView, uuid) => {
-                    let hexString = Array.from(new Uint8Array(dataView.buffer))
-                        .map(b => b.toString(16).padStart(2, '0'))
-                        .join(' ');
-                    addLog(`SvcData [UUID:${uuid}] : ${hexString}`, 'warn');
-                    hasData = true;
-                });
-            }
-
-            if (!hasData) {
-                addLog(`收到廣播封包，但無 manufacturerData 或 serviceData。RSSI: ${event.rssi}`, 'error');
-            }
-        }
-
-        async function stopScanning() {
-            if (bluetoothDevice) {
-                try {
-                    bluetoothDevice.removeEventListener('advertisementreceived', handleAdvertisement);
-                    await bluetoothDevice.unwatchAdvertisements();
-                    addLog('已停止監聽。', 'msg');
-                } catch (error) {
-                    addLog(`停止監聽時發生錯誤: ${error.message}`, 'error');
-                }
-            }
-            btnScan.disabled = false;
-            btnStop.disabled = true;
-        }
-
-        btnScan.addEventListener('click', startScanning);
-        btnStop.addEventListener('click', stopScanning);
-    </script>
+    btnScan.addEventListener('click', startScanning);
+    btnStop.addEventListener('click', stopScanning);
+</script>
 
 </body>
-
 </html>
