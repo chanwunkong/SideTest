@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力發力率監測系統 V8 (底噪屏蔽版)</title>
+    <title>指力發力率監測系統 V9 (螢幕恆亮版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -133,9 +133,9 @@
 
     <div class="container">
         <div class="instruction-panel">
-            <h3>啟用藍芽接收功能</h3>
-            <p>請於網址列輸入：<code>chrome://flags/#enable-experimental-web-platform-features</code> 並設為
-                <strong>Enabled</strong> 後重啟瀏覽器。並確保手機系統藍芽未與設備配對。</p>
+            <h3>使用說明</h3>
+            <p>1. Chrome 設定：<code>chrome://flags/#enable-experimental-web-platform-features</code> 設為 Enabled。</p>
+            <p>2. <strong>請保持網頁在前台顯示。</strong> 連線後系統會自動阻止螢幕休眠。</p>
         </div>
 
         <div class="controls">
@@ -168,9 +168,9 @@
         const DEFAULT_RATIO = 0.01;
 
         let bluetoothDevice;
-        // initialNoiseKg 用來記錄連線瞬間的底噪 (例如 2.56kg)
         let initialNoiseKg = null;
         let maxWeight = 0;
+        let wakeLock = null; // 螢幕喚醒鎖
 
         const btnScan = document.getElementById('btn-scan');
         const btnStop = document.getElementById('btn-stop');
@@ -201,6 +201,19 @@
             }
         });
 
+        // 請求螢幕恆亮
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('螢幕恆亮已啟動');
+                    statusText.textContent = `狀態: 已連線 (螢幕恆亮)`;
+                }
+            } catch (err) {
+                console.error(`螢幕恆亮失敗: ${err.name}, ${err.message}`);
+            }
+        }
+
         async function startScan() {
             try {
                 statusText.textContent = '狀態: 連線中...';
@@ -216,6 +229,10 @@
                 btnScan.disabled = true;
                 btnStop.disabled = false;
                 btnReset.disabled = false;
+
+                // 啟動螢幕恆亮
+                await requestWakeLock();
+
             } catch (error) {
                 statusText.textContent = `連線失敗`;
             }
@@ -232,25 +249,17 @@
 
             document.getElementById('val-raw').textContent = weightRaw;
 
-            // 計算當前原始對應重量
             let currentKg = weightRaw * DEFAULT_RATIO;
 
-            // 【核心邏輯修正：底噪屏蔽】
-            // 1. 抓取連線第一筆數據作為 "底噪基準" (例如 2.56)
+            // 底噪屏蔽邏輯
             if (initialNoiseKg === null) {
                 initialNoiseKg = currentKg;
-                console.log("偵測到底噪基準:", initialNoiseKg);
             }
 
-            // 2. 判斷邏輯：
-            // 如果當前重量 <= 底噪 + 0.5kg (寬容值)，視為空載雜訊，顯示 0。
-            // 如果大於此範圍，代表有真實拉力，顯示 "原始 currentKg" (不扣除底噪)。
             if (currentKg <= initialNoiseKg + 0.5) {
                 currentKg = 0;
             }
-            // Else: 保持 currentKg 原值，這樣 10.00kg 就會顯示 10.00kg
 
-            // 紀錄最大峰值
             if (currentKg > maxWeight) {
                 maxWeight = currentKg;
                 document.getElementById('val-max').textContent = maxWeight.toFixed(2);
@@ -258,7 +267,6 @@
 
             document.getElementById('val-kg').textContent = currentKg.toFixed(2);
 
-            // 更新圖表
             const dataArr = chart.data.datasets[0].data;
             dataArr.push(currentKg);
             dataArr.shift();
@@ -270,15 +278,28 @@
                 bluetoothDevice.removeEventListener('advertisementreceived', processData);
                 try { await bluetoothDevice.unwatchAdvertisements(); } catch (e) { }
             }
+
+            // 釋放螢幕鎖
+            if (wakeLock !== null) {
+                await wakeLock.release();
+                wakeLock = null;
+            }
+
             statusText.textContent = '狀態: 已斷線';
             btnScan.disabled = false;
             btnStop.disabled = true;
             btnReset.disabled = true;
-            initialNoiseKg = null; // 斷線重置底噪基準
+            initialNoiseKg = null;
         }
 
+        // 當網頁重新可見時，嘗試重新鎖定螢幕 (針對短暫切換分頁的情況)
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
+
         btnReset.addEventListener('click', () => {
-            // 僅重置峰值，不影響底噪判定
             maxWeight = 0;
             document.getElementById('val-max').textContent = "0.00";
         });
