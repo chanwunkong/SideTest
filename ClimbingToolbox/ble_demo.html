@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力發力率監測系統 V6</title>
+    <title>指力發力率監測系統 V7 (自動歸零版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -141,7 +141,7 @@
         <div class="controls">
             <button id="btn-scan">連線設備</button>
             <button id="btn-stop" disabled>斷線</button>
-            <button id="btn-tare" disabled>歸零 (扣除把手重量)</button>
+            <button id="btn-tare" disabled>歸零 (重置峰值)</button>
             <span id="status-text">狀態: 未連線</span>
         </div>
 
@@ -165,13 +165,14 @@
 
     <script>
         const TARGET_COMPANY_ID = 0x0100;
-        // 若藍芽傳 1535 代表 15.35kg，此處為 0.01。若傳 153 代表 15.3kg，請改為 0.1。
+        // 硬體換算比例 (0.01 代表原始值 100 = 1.00kg)
         const DEFAULT_RATIO = 0.01;
-        // 軟體零點追蹤閥值：低於此重量(kg)強制顯示 0，過濾空載雜訊
-        const ZERO_TRACKING_THRESHOLD = 0.05;
+        // 死區過濾：低於 0.1kg 強制顯示為 0，避免雜訊跳動
+        const DEADZONE = 0.1;
 
         let bluetoothDevice;
-        let tareOffset = 0;
+        // 關鍵修改：初始設為 null，連線時自動抓取第一筆數據作為零點
+        let tareOffset = null;
         let maxWeight = 0;
 
         const btnScan = document.getElementById('btn-scan');
@@ -232,18 +233,25 @@
             let weightRaw = (buffer[12] << 8) | buffer[11];
             if (weightRaw > 32767) weightRaw -= 65536;
 
+            // 【自動歸零邏輯】
+            // 若這是連線後的第一筆數據，直接將其設為零點偏移量
+            if (tareOffset === null) {
+                tareOffset = weightRaw;
+            }
+
             document.getElementById('val-raw').textContent = weightRaw;
 
             // 計算淨重
             const netRaw = weightRaw - tareOffset;
             let calcKg = netRaw * DEFAULT_RATIO;
 
-            // 【核心修正】軟體零點追蹤：若重量介於 ±0.05kg 之間，強制歸零，解決空載跳動
-            if (Math.abs(calcKg) < ZERO_TRACKING_THRESHOLD) {
+            // 【死區過濾】
+            // 模仿實體電子秤邏輯：若重量極小 (雜訊)，強制歸零
+            if (Math.abs(calcKg) < DEADZONE) {
                 calcKg = 0;
             }
 
-            // 紀錄最大峰值 (Peak Force)
+            // 紀錄最大峰值
             if (calcKg > maxWeight) {
                 maxWeight = calcKg;
                 document.getElementById('val-max').textContent = maxWeight.toFixed(2);
@@ -267,13 +275,14 @@
             btnScan.disabled = false;
             btnStop.disabled = true;
             btnTare.disabled = true;
+            // 斷線後重置 offset，確保下次連線重新抓取零點
+            tareOffset = null;
         }
 
-        // 歸零按鈕：不僅扣除雜訊，也可用來扣除訓練把手的重量
         btnTare.addEventListener('click', () => {
-            // 抓取當前畫面的 Raw 數據作為新的零點
+            // 手動歸零：重置當前讀數為 0，並清除峰值
             tareOffset = parseInt(document.getElementById('val-raw').textContent) || 0;
-            maxWeight = 0; // 重置峰值
+            maxWeight = 0;
             document.getElementById('val-kg').textContent = "0.00";
             document.getElementById('val-max').textContent = "0.00";
         });
