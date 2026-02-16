@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力訓練監測 V4</title>
+    <title>指力發力率監測 V5 (最終校準版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -19,76 +19,132 @@
             margin: 0 auto;
         }
 
+        /* 頂部控制列 */
         .controls {
+            display: flex;
+            gap: 10px;
             margin-bottom: 20px;
+            align-items: center;
         }
 
         button {
-            padding: 10px 20px;
+            padding: 12px 20px;
             font-size: 16px;
             border: none;
             cursor: pointer;
-            margin-right: 10px;
             color: #fff;
-            background-color: #00bcd4;
-            border-radius: 4px;
+            background-color: #4CAF50;
+            border-radius: 6px;
+            font-weight: bold;
         }
 
         button:disabled {
             background-color: #555;
             cursor: not-allowed;
-        }
-
-        #btn-tare {
-            background-color: #FF9800;
+            color: #888;
         }
 
         #btn-stop {
             background-color: #f44336;
         }
 
-        .data-panel {
-            display: flex;
-            justify-content: space-between;
-            background-color: #1e1e1e;
+        /* 校準區塊 */
+        .calibration-panel {
+            background-color: #2c2c2c;
             padding: 15px;
             border-radius: 8px;
-            border: 1px solid #333;
+            border-left: 4px solid #FF9800;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .cal-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #btn-tare {
+            background-color: #FF9800;
+        }
+
+        #btn-calibrate {
+            background-color: #2196F3;
+        }
+
+        input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 80px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background-color: #1e1e1e;
+            color: #fff;
+            text-align: center;
+        }
+
+        /* 數據顯示區 */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
             margin-bottom: 20px;
         }
 
         .data-box {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
             text-align: center;
-            flex: 1;
-            border-right: 1px solid #333;
         }
 
-        .data-box:last-child {
-            border-right: none;
+        .main-box {
+            grid-column: span 2;
+            background-color: #1a237e;
+            border: 1px solid #3f51b5;
         }
 
         .data-label {
-            font-size: 13px;
-            color: #888;
-            margin-bottom: 5px;
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 8px;
         }
 
         .data-value {
-            font-size: 22px;
+            font-size: 28px;
             font-family: monospace;
-            color: #4CAF50;
+            color: #fff;
             font-weight: bold;
         }
 
-        .net-value {
-            color: #00bcd4;
+        .main-value {
+            font-size: 64px;
+            color: #00E676;
+            text-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
+        }
+
+        /* 圖表區 */
+        .chart-container {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #333;
+            height: 400px;
         }
 
         canvas {
-            background-color: #1e1e1e;
-            border-radius: 8px;
-            padding: 10px;
-            border: 1px solid #333;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        #status {
+            font-size: 14px;
+            color: #aaa;
+            margin-left: auto;
         }
     </style>
 </head>
@@ -97,78 +153,102 @@
 
     <div class="container">
         <div class="controls">
-            <button id="btn-scan">連線設備</button>
+            <button id="btn-scan">連線設備 (IF_B7)</button>
             <button id="btn-stop" disabled>停止</button>
-            <button id="btn-tare" disabled>歸零 (Tare)</button>
+            <span id="status">狀態: 未連線</span>
         </div>
 
-        <div class="data-panel">
-            <div class="data-box">
-                <div class="data-label">重量讀數 (Byte 11-12)</div>
-                <div id="val-weight" class="data-value">0</div>
+        <div class="calibration-panel">
+            <div class="cal-step">
+                <button id="btn-tare" disabled>1. 空載歸零 (Tare)</button>
             </div>
-            <div class="data-box">
-                <div class="data-label">淨重 (Net)</div>
-                <div id="val-net" class="data-value net-value">0</div>
+            <div class="cal-step">
+                <input type="number" id="known-weight" placeholder="輸入公斤" value="20" disabled> kg
+                <button id="btn-calibrate" disabled>2. 掛上已知重量後點此校準</button>
             </div>
-            <div class="data-box">
-                <div class="data-label">常數 (Byte 13-14)</div>
-                <div id="val-const" class="data-value" style="color:#FF9800;">0</div>
-            </div>
-            <div class="data-box">
-                <div class="data-label">計數器 (Byte 15-16)</div>
-                <div id="val-time" class="data-value" style="color:#aaa;">0</div>
+            <div style="font-size: 13px; color: #aaa; margin-left: auto;">
+                換算比例: <span id="val-ratio">尚未校準</span>
             </div>
         </div>
 
-        <canvas id="forceChart" width="800" height="400"></canvas>
+        <div class="dashboard">
+            <div class="data-box main-box">
+                <div class="data-label">實際重量 (Kilograms)</div>
+                <div id="val-kg" class="data-value main-value">0.00</div>
+            </div>
+            <div class="data-box">
+                <div class="data-label">原始讀數 (Raw ADC)</div>
+                <div id="val-raw" class="data-value" style="color:#aaa;">0</div>
+            </div>
+            <div class="data-box">
+                <div class="data-label">淨原始值 (Net ADC)</div>
+                <div id="val-net-raw" class="data-value" style="color:#FF9800;">0</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="forceChart"></canvas>
+        </div>
     </div>
 
     <script>
+        const TARGET_COMPANY_ID = 0x0100;
+        let bluetoothDevice;
+
+        // UI 元素
         const btnScan = document.getElementById('btn-scan');
         const btnStop = document.getElementById('btn-stop');
         const btnTare = document.getElementById('btn-tare');
+        const btnCalibrate = document.getElementById('btn-calibrate');
+        const inputKnownWeight = document.getElementById('known-weight');
+        const statusText = document.getElementById('status');
 
-        let bluetoothDevice;
-        const TARGET_COMPANY_ID = 0x0100;
+        // 數據變數
+        let currentRawValue = 0;   // 設備傳來的原始數值
+        let tareRawValue = 0;      // 歸零時的原始數值 (基準點)
+        let calibrationRatio = 1;  // 原始數值與公斤的換算比例
+        let isCalibrated = false;  // 是否已完成重量校準
 
-        let currentRawWeight = 0;
-        let tareOffset = 0;
-
+        // 圖表初始化 (改為顯示 Kg)
         const ctx = document.getElementById('forceChart').getContext('2d');
+        const chartDataLength = 100; // 顯示更長時間的數據
         const forceChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: Array(50).fill(''),
+                labels: Array(chartDataLength).fill(''),
                 datasets: [{
-                    label: '淨重曲線',
-                    data: Array(50).fill(0),
-                    borderColor: '#00bcd4',
-                    borderWidth: 2,
+                    label: '力量曲線 (Kg)',
+                    data: Array(chartDataLength).fill(0),
+                    borderColor: '#00E676',
+                    backgroundColor: 'rgba(0, 230, 118, 0.1)',
+                    borderWidth: 3,
                     pointRadius: 0,
+                    fill: true,
                     tension: 0.1
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 animation: false,
                 scales: {
-                    y: { grid: { color: '#333' } },
+                    y: { beginAtZero: true, grid: { color: '#333' } },
                     x: { grid: { display: false } }
                 },
                 plugins: { legend: { display: false } }
             }
         });
 
-        function updateChart(value) {
+        function updateChart(kgValue) {
             const data = forceChart.data.datasets[0].data;
-            data.push(value);
+            data.push(kgValue);
             data.shift();
             forceChart.update();
         }
 
         async function startScanning() {
             try {
+                statusText.textContent = '狀態: 連線中...';
                 bluetoothDevice = await navigator.bluetooth.requestDevice({
                     acceptAllDevices: true,
                     optionalManufacturerData: [TARGET_COMPANY_ID]
@@ -177,10 +257,15 @@
                 bluetoothDevice.addEventListener('advertisementreceived', handleAdvertisement);
                 await bluetoothDevice.watchAdvertisements();
 
+                statusText.textContent = `狀態: 已連線 (${bluetoothDevice.name || '未知設備'})`;
                 btnScan.disabled = true;
                 btnStop.disabled = false;
                 btnTare.disabled = false;
+                btnCalibrate.disabled = false;
+                inputKnownWeight.disabled = false;
+
             } catch (error) {
+                statusText.textContent = `狀態: 連線失敗`;
                 console.error(error);
             }
         }
@@ -188,29 +273,35 @@
         function handleAdvertisement(event) {
             if (event.manufacturerData && event.manufacturerData.has(TARGET_COMPANY_ID)) {
                 const dataView = event.manufacturerData.get(TARGET_COMPANY_ID);
-                // 獲取底層緩衝區，確保索引與 Hex 字串完全對應
                 const buffer = new Uint8Array(dataView.buffer);
 
                 if (buffer.length >= 17) {
-                    // Little-Endian 解析: (High Byte << 8) | Low Byte
+                    // 解析 Byte 11, 12 (重量讀數)
                     let weightRaw = (buffer[12] << 8) | buffer[11];
-                    let constantVal = (buffer[14] << 8) | buffer[13];
-                    let counterVal = (buffer[16] << 8) | buffer[15];
+                    if (weightRaw > 32767) weightRaw -= 65536; // 處理負數
 
-                    // 處理可能的二補數負值 (針對重量)
-                    if (weightRaw > 32767) {
-                        weightRaw -= 65536;
+                    currentRawValue = weightRaw;
+                    let netRawValue = currentRawValue - tareRawValue;
+
+                    // 計算真實重量 (Kg)
+                    let currentKg = 0;
+                    if (isCalibrated) {
+                        currentKg = netRawValue * calibrationRatio;
+                        // 避免微小的浮點數跳動
+                        if (Math.abs(currentKg) < 0.1) currentKg = 0;
+                    } else {
+                        // 若尚未校準，先用原始淨值代替顯示
+                        currentKg = netRawValue;
                     }
 
-                    currentRawWeight = weightRaw;
-                    let netWeight = currentRawWeight - tareOffset;
+                    // 更新畫面
+                    document.getElementById('val-raw').textContent = currentRawValue;
+                    document.getElementById('val-net-raw').textContent = netRawValue;
 
-                    document.getElementById('val-weight').textContent = currentRawWeight;
-                    document.getElementById('val-net').textContent = netWeight;
-                    document.getElementById('val-const').textContent = constantVal;
-                    document.getElementById('val-time').textContent = counterVal;
+                    // 格式化為小數點後兩位
+                    document.getElementById('val-kg').textContent = isCalibrated ? currentKg.toFixed(2) : currentKg;
 
-                    updateChart(netWeight);
+                    updateChart(currentKg);
                 }
             }
         }
@@ -220,14 +311,43 @@
                 bluetoothDevice.removeEventListener('advertisementreceived', handleAdvertisement);
                 try { await bluetoothDevice.unwatchAdvertisements(); } catch (e) { }
             }
+            statusText.textContent = '狀態: 已斷線';
             btnScan.disabled = false;
             btnStop.disabled = true;
             btnTare.disabled = true;
+            btnCalibrate.disabled = true;
+            inputKnownWeight.disabled = true;
         }
 
+        // 步驟 1: 歸零
         btnTare.addEventListener('click', () => {
-            tareOffset = currentRawWeight;
-            document.getElementById('val-net').textContent = 0;
+            tareRawValue = currentRawValue;
+            document.getElementById('val-net-raw').textContent = 0;
+            if (!isCalibrated) document.getElementById('val-kg').textContent = 0;
+            alert('✅ 已歸零。現在請掛上已知重量。');
+        });
+
+        // 步驟 2: 校準
+        btnCalibrate.addEventListener('click', () => {
+            const knownWeight = parseFloat(inputKnownWeight.value);
+            if (isNaN(knownWeight) || knownWeight <= 0) {
+                alert('請輸入有效的已知重量 (例如: 20)');
+                return;
+            }
+
+            const netRawValue = currentRawValue - tareRawValue;
+            if (Math.abs(netRawValue) < 10) {
+                alert('❌ 讀數差異太小！請確保您已經掛上重物，或重物夠重。');
+                return;
+            }
+
+            // 計算比例: 每 1 個 raw 單位等於多少 kg
+            calibrationRatio = knownWeight / netRawValue;
+            isCalibrated = true;
+
+            document.getElementById('val-ratio').textContent = calibrationRatio.toFixed(6);
+            document.getElementById('val-kg').style.color = '#00E676'; // 變綠色表示已校準
+            alert(`✅ 校準成功！\n換算比例: ${calibrationRatio.toFixed(4)}\n現在顯示的將是真實公斤數。`);
         });
 
         btnScan.addEventListener('click', startScanning);
