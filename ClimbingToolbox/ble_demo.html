@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力發力率監測系統 V7 (自動歸零版)</title>
+    <title>指力發力率監測系統 V8 (底噪屏蔽版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -70,7 +70,7 @@
             background-color: #f44336;
         }
 
-        #btn-tare {
+        #btn-reset {
             background-color: #FF9800;
         }
 
@@ -141,7 +141,7 @@
         <div class="controls">
             <button id="btn-scan">連線設備</button>
             <button id="btn-stop" disabled>斷線</button>
-            <button id="btn-tare" disabled>歸零 (重置峰值)</button>
+            <button id="btn-reset" disabled>重置峰值 (Reset)</button>
             <span id="status-text">狀態: 未連線</span>
         </div>
 
@@ -151,7 +151,7 @@
                 <div id="val-kg" class="data-value main-value">0.00</div>
             </div>
             <div class="data-box">
-                <div class="data-label">藍芽原始訊號</div>
+                <div class="data-label">原始數值 (Raw)</div>
                 <div id="val-raw" class="data-value" style="color:#aaa;">0</div>
             </div>
             <div class="data-box">
@@ -165,19 +165,16 @@
 
     <script>
         const TARGET_COMPANY_ID = 0x0100;
-        // 硬體換算比例 (0.01 代表原始值 100 = 1.00kg)
         const DEFAULT_RATIO = 0.01;
-        // 死區過濾：低於 0.1kg 強制顯示為 0，避免雜訊跳動
-        const DEADZONE = 0.1;
 
         let bluetoothDevice;
-        // 關鍵修改：初始設為 null，連線時自動抓取第一筆數據作為零點
-        let tareOffset = null;
+        // initialNoiseKg 用來記錄連線瞬間的底噪 (例如 2.56kg)
+        let initialNoiseKg = null;
         let maxWeight = 0;
 
         const btnScan = document.getElementById('btn-scan');
         const btnStop = document.getElementById('btn-stop');
-        const btnTare = document.getElementById('btn-tare');
+        const btnReset = document.getElementById('btn-reset');
         const statusText = document.getElementById('status-text');
 
         const ctx = document.getElementById('chart').getContext('2d');
@@ -218,7 +215,7 @@
                 statusText.textContent = `狀態: 已連線`;
                 btnScan.disabled = true;
                 btnStop.disabled = false;
-                btnTare.disabled = false;
+                btnReset.disabled = false;
             } catch (error) {
                 statusText.textContent = `連線失敗`;
             }
@@ -233,35 +230,37 @@
             let weightRaw = (buffer[12] << 8) | buffer[11];
             if (weightRaw > 32767) weightRaw -= 65536;
 
-            // 【自動歸零邏輯】
-            // 若這是連線後的第一筆數據，直接將其設為零點偏移量
-            if (tareOffset === null) {
-                tareOffset = weightRaw;
-            }
-
             document.getElementById('val-raw').textContent = weightRaw;
 
-            // 計算淨重
-            const netRaw = weightRaw - tareOffset;
-            let calcKg = netRaw * DEFAULT_RATIO;
+            // 計算當前原始對應重量
+            let currentKg = weightRaw * DEFAULT_RATIO;
 
-            // 【死區過濾】
-            // 模仿實體電子秤邏輯：若重量極小 (雜訊)，強制歸零
-            if (Math.abs(calcKg) < DEADZONE) {
-                calcKg = 0;
+            // 【核心邏輯修正：底噪屏蔽】
+            // 1. 抓取連線第一筆數據作為 "底噪基準" (例如 2.56)
+            if (initialNoiseKg === null) {
+                initialNoiseKg = currentKg;
+                console.log("偵測到底噪基準:", initialNoiseKg);
             }
 
+            // 2. 判斷邏輯：
+            // 如果當前重量 <= 底噪 + 0.5kg (寬容值)，視為空載雜訊，顯示 0。
+            // 如果大於此範圍，代表有真實拉力，顯示 "原始 currentKg" (不扣除底噪)。
+            if (currentKg <= initialNoiseKg + 0.5) {
+                currentKg = 0;
+            }
+            // Else: 保持 currentKg 原值，這樣 10.00kg 就會顯示 10.00kg
+
             // 紀錄最大峰值
-            if (calcKg > maxWeight) {
-                maxWeight = calcKg;
+            if (currentKg > maxWeight) {
+                maxWeight = currentKg;
                 document.getElementById('val-max').textContent = maxWeight.toFixed(2);
             }
 
-            document.getElementById('val-kg').textContent = calcKg.toFixed(2);
+            document.getElementById('val-kg').textContent = currentKg.toFixed(2);
 
             // 更新圖表
             const dataArr = chart.data.datasets[0].data;
-            dataArr.push(calcKg);
+            dataArr.push(currentKg);
             dataArr.shift();
             chart.update();
         }
@@ -274,16 +273,13 @@
             statusText.textContent = '狀態: 已斷線';
             btnScan.disabled = false;
             btnStop.disabled = true;
-            btnTare.disabled = true;
-            // 斷線後重置 offset，確保下次連線重新抓取零點
-            tareOffset = null;
+            btnReset.disabled = true;
+            initialNoiseKg = null; // 斷線重置底噪基準
         }
 
-        btnTare.addEventListener('click', () => {
-            // 手動歸零：重置當前讀數為 0，並清除峰值
-            tareOffset = parseInt(document.getElementById('val-raw').textContent) || 0;
+        btnReset.addEventListener('click', () => {
+            // 僅重置峰值，不影響底噪判定
             maxWeight = 0;
-            document.getElementById('val-kg').textContent = "0.00";
             document.getElementById('val-max').textContent = "0.00";
         });
 
