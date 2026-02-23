@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>馬lingo Speak</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
+        body {
+            font-family: 'Noto+Sans+TC', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const App = () => {
+            const [courseData, setCourseData] = useState(null);
+            const [selectedDay, setSelectedDay] = useState(1);
+            const [phase, setPhase] = useState('start');
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [sessionQuestions, setSessionQuestions] = useState([]);
+            const [selectedAnswer, setSelectedAnswer] = useState(null);
+            const [feedback, setFeedback] = useState(null);
+            const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('ski_history_days') || '[]'));
+            const [wrongs, setWrongs] = useState(() => JSON.parse(localStorage.getItem('ski_v6_wrongs') || '{}'));
+
+            useEffect(() => {
+                fetch('./ski_course_data.json')
+                    .then(res => res.json())
+                    .then(data => {
+                        for (let i = 1; i <= 35; i++) {
+                            if (!data[i]) data[i] = { title: `第 ${i} 天 綜合練習`, items: data[1]?.items || [] };
+                        }
+                        setCourseData(data);
+                    })
+                    .catch(err => {
+                        console.error('Failed to load course data:', err);
+                        alert("讀取 JSON 檔案失敗。請確認 ski_course_data.json 檔案存在且透過伺服器環境開啟。");
+                    });
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('ski_history_days', JSON.stringify(history));
+            }, [history]);
+
+            useEffect(() => {
+                localStorage.setItem('ski_v6_wrongs', JSON.stringify(wrongs));
+            }, [wrongs]);
+
+            if (!courseData) {
+                return (
+                    <div className="flex h-screen items-center justify-center text-gray-500">
+                        載入課程資料中...
+                    </div>
+                );
+            }
+
+            // 語音播放函數 (已加入過濾邏輯)
+            const speak = (text) => {
+                if (!window.speechSynthesis) return;
+                window.speechSynthesis.cancel();
+
+                // 使用正規表達式移除括號()或（）內的內容，避免朗讀羅馬拼音
+                let cleanText = text.replace(/\s*[（\(][^）\)]*[）\)]/g, '').trim();
+
+                // 確保過濾後仍有文字可讀 (若原字串全是括號，則保留原字串)
+                const textToSpeak = cleanText || text;
+
+                const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                utterance.lang = 'ja-JP';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            };
+
+            const getOptions = (correct) => {
+                const allAnswers = Object.values(courseData).flatMap(d => d.items.map(i => i.a));
+                const opts = new Set([correct]);
+                while (opts.size < 4 && opts.size < allAnswers.length) {
+                    opts.add(allAnswers[Math.floor(Math.random() * allAnswers.length)]);
+                }
+                return Array.from(opts).sort(() => Math.random() - 0.5);
+            };
+
+            const startFlow = (day) => {
+                setSelectedDay(day);
+
+                const wrongItems = Object.keys(wrongs)
+                    .map(id => Object.values(courseData).flatMap(d => d.items).find(i => i.id === parseInt(id)))
+                    .filter(Boolean)
+                    .slice(0, 3);
+
+                if (wrongItems.length > 0) {
+                    setSessionQuestions(wrongItems.map(i => ({ ...i, opts: getOptions(i.a) })));
+                    setPhase('review');
+                } else {
+                    setPhase('learn');
+                }
+                setCurrentIndex(0);
+            };
+
+            const startSpecificReview = () => {
+                const wrongItems = Object.keys(wrongs)
+                    .map(id => Object.values(courseData).flatMap(d => d.items).find(i => i.id === parseInt(id)))
+                    .filter(Boolean)
+                    .sort(() => Math.random() - 0.5)
+                    .slice(0, 10);
+
+                if (wrongItems.length === 0) return;
+                setSessionQuestions(wrongItems.map(i => ({ ...i, opts: getOptions(i.a) })));
+                setPhase('review');
+                setCurrentIndex(0);
+            };
+
+            const nextStep = () => {
+                if (phase === 'review') {
+                    setPhase('learn');
+                } else if (phase === 'learn') {
+                    setSessionQuestions(courseData[selectedDay].items.map(i => ({ ...i, opts: getOptions(i.a) })));
+                    setPhase('test');
+                } else if (phase === 'test') {
+                    const reviewDays = [selectedDay - 1, selectedDay - 3, selectedDay - 7].filter(d => d > 0);
+                    const reviewItems = reviewDays.flatMap(d => courseData[d]?.items || []).sort(() => Math.random() - 0.5).slice(0, 3);
+                    const todayItems = courseData[selectedDay].items;
+                    setSessionQuestions([...todayItems, ...reviewItems].map(i => ({ ...i, opts: getOptions(i.a) })));
+                    setPhase('mix');
+                } else {
+                    setHistory(prev => Array.from(new Set([...prev, selectedDay])));
+                    setPhase('start');
+                }
+                setCurrentIndex(0);
+                setSelectedAnswer(null);
+                setFeedback(null);
+            };
+
+            const handleSubmit = () => {
+                const q = sessionQuestions[currentIndex];
+                const isCorrect = selectedAnswer === q.a;
+                setFeedback(isCorrect ? 'correct' : 'wrong');
+
+                if (isCorrect) {
+                    setWrongs(prev => {
+                        const next = { ...prev };
+                        if (next[q.id]) {
+                            next[q.id]--;
+                            if (next[q.id] <= 0) delete next[q.id];
+                        }
+                        return next;
+                    });
+                } else {
+                    setWrongs(prev => ({ ...prev, [q.id]: 3 }));
+                }
+            };
+
+            const renderStart = () => (
+                <div className="space-y-6">
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-center mb-4 px-2">
+                            <h2 className="font-bold text-gray-800">進度表</h2>
+                            <span className="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full font-bold">35 DAYS</span>
+                        </div>
+                        <div className="grid grid-cols-7 gap-2">
+                            {Array.from({ length: 35 }, (_, i) => i + 1).map(d => (
+                                <button
+                                    key={d}
+                                    onClick={() => setSelectedDay(d)}
+                                    className={`p-3 text-xs rounded-xl border transition-all ${history.includes(d) ? 'bg-indigo-50 text-indigo-600 font-bold border-indigo-200' : 'bg-white border-gray-100'
+                                        } ${selectedDay === d ? 'ring-2 ring-indigo-600' : ''}`}
+                                >
+                                    {d}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div
+                        onClick={() => startFlow(selectedDay)}
+                        className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer hover:shadow-md transition-shadow"
+                    >
+                        <div>
+                            <span className="text-[10px] font-bold text-indigo-500 uppercase mb-1 block">
+                                WEEK {Math.ceil(selectedDay / 7)} - DAY {selectedDay}
+                            </span>
+                            <span className="text-xl font-bold text-gray-700">{courseData[selectedDay]?.title}</span>
+                        </div>
+                        <span className="text-gray-300 text-xl">→</span>
+                    </div>
+
+                    <button
+                        onClick={startSpecificReview}
+                        className="w-full bg-rose-50 text-rose-700 p-5 rounded-2xl flex justify-between items-center font-bold border border-rose-100"
+                    >
+                        <div className="text-left">
+                            <div className="text-[10px] uppercase opacity-70 mb-1 font-bold">Weakness Training</div>
+                            <div>錯題庫 ({Object.keys(wrongs).length})</div>
+                        </div>
+                        <span className="text-xl">→</span>
+                    </button>
+                </div>
+            );
+
+            const renderLearn = () => (
+                <div className="space-y-4 text-center">
+                    <p className="text-xs text-indigo-500 font-bold uppercase tracking-widest">學習內容</p>
+                    <div className="space-y-3">
+                        {courseData[selectedDay].items.map(item => (
+                            <div
+                                key={item.id}
+                                onClick={() => speak(item.q)}
+                                className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 cursor-pointer text-center active:scale-95 transition-transform"
+                            >
+                                <h3 className="text-2xl font-bold text-indigo-900">{item.q}</h3>
+                                <p className="text-sm text-indigo-400 mt-1">{item.s}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <button onClick={nextStep} className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold mt-4">開始測驗</button>
+                </div>
+            );
+
+            const renderQuiz = () => {
+                const q = sessionQuestions[currentIndex];
+                if (!q) return null;
+
+                return (
+                    <div className="space-y-5">
+                        <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center relative">
+                            <span className="absolute top-4 left-4 text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded font-bold uppercase">
+                                {phase === 'review' ? '複習' : phase === 'mix' ? '混合測驗' : '今日測驗'}
+                            </span>
+                            <h2 className="text-3xl font-bold text-gray-800 mb-2 mt-4">{q.q}</h2>
+                            <div className="text-sm text-gray-400 italic mb-4">{q.s}</div>
+                            <button
+                                onClick={() => speak(q.q)}
+                                className="mx-auto w-10 h-10 flex items-center justify-center text-indigo-600 bg-indigo-50 rounded-full"
+                            >
+                                🔊
+                            </button>
+                        </div>
+                        <div className="space-y-3">
+                            {q.opts.map(opt => (
+                                <button
+                                    key={opt}
+                                    disabled={!!feedback}
+                                    onClick={() => { setSelectedAnswer(opt); speak(opt); }}
+                                    className={`w-full p-5 text-left rounded-2xl border-2 transition-all ${selectedAnswer === opt ? 'border-indigo-600 bg-indigo-50 font-bold' : 'border-gray-100 bg-white'
+                                        }`}
+                                >
+                                    {opt}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t max-w-md mx-auto">
+                            {feedback && (
+                                <div className={`p-4 rounded-xl text-sm font-bold mb-3 ${feedback === 'correct' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                                    {feedback === 'correct' ? '答對了！' : `錯誤，正解是：${q.a}`}
+                                </div>
+                            )}
+                            {!feedback ? (
+                                <button
+                                    disabled={!selectedAnswer}
+                                    onClick={handleSubmit}
+                                    className="w-full bg-indigo-600 disabled:bg-gray-300 text-white py-4 rounded-xl font-bold"
+                                >
+                                    確認送出
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => {
+                                        if (currentIndex < sessionQuestions.length - 1) {
+                                            setCurrentIndex(prev => prev + 1);
+                                            setSelectedAnswer(null);
+                                            setFeedback(null);
+                                        } else {
+                                            nextStep();
+                                        }
+                                    }}
+                                    className="w-full bg-gray-800 text-white py-4 rounded-xl font-bold"
+                                >
+                                    {currentIndex < sessionQuestions.length - 1 ? '下一題' : '完成階段'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="flex flex-col min-h-screen bg-gray-50 max-w-md mx-auto shadow-lg relative overflow-hidden">
+                    <header className="bg-white border-b p-4 sticky top-0 z-20">
+                        <div className="flex justify-between items-center mb-2">
+                            <h1 className="text-lg font-bold text-gray-800">馬lingo Speak</h1>
+                            {phase !== 'start' && <button onClick={() => setPhase('start')} className="text-gray-400 p-1">✕</button>}
+                        </div>
+                        {phase !== 'start' && (
+                            <div className="flex justify-around text-[10px] text-gray-400 pb-2 border-b mb-2">
+                                <span className={phase === 'review' ? 'text-indigo-600 font-bold' : ''}>1.複習</span>
+                                <span className={phase === 'learn' ? 'text-indigo-600 font-bold' : ''}>2.學習</span>
+                                <span className={phase === 'test' ? 'text-indigo-600 font-bold' : ''}>3.測驗</span>
+                                <span className={phase === 'mix' ? 'text-indigo-600 font-bold' : ''}>4.混合</span>
+                            </div>
+                        )}
+                        <div className="bg-gray-100 h-1 rounded-full overflow-hidden">
+                            <div
+                                className="bg-indigo-600 h-full transition-all"
+                                style={{ width: phase === 'start' ? '0%' : `${((currentIndex + 1) / sessionQuestions.length) * 100}%` }}
+                            />
+                        </div>
+                    </header>
+                    <main className="flex-1 p-5 pb-32 overflow-y-auto">
+                        {phase === 'start' && renderStart()}
+                        {phase === 'learn' && renderLearn()}
+                        {(phase === 'test' || phase === 'review' || phase === 'mix') && renderQuiz()}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
