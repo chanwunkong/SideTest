@@ -2,487 +2,770 @@
 <html lang="zh-TW">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StructHealth - 結構化健康契約</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap');
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>StructHealth</title>
 
-        body {
-            font-family: 'Inter', sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-        .font-mono {
-            font-family: 'JetBrains Mono', monospace;
-        }
+  <script>
+    window.__firebase_config = window.__firebase_config || '{}';
+    window.__app_id = window.__app_id || 'struct-health-vanilla';
+  </script>
 
-        .view-section {
-            display: none;
-            height: 100%;
-            overflow-y: auto;
-            padding-bottom: 100px;
-        }
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap');
 
-        .view-section.active {
-            display: block;
-        }
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      background-color: #f8fafc;
+    }
 
-        .card-white {
-            @apply bg-white border border-gray-100 rounded-3xl shadow-sm p-5 transition-all active: scale-[0.98];
-        }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
 
-        .stat-bar {
-            @apply h-1.5 bg-gray-100 rounded-full overflow-hidden;
-        }
+    .view-section {
+      display: none;
+      height: 100%;
+      overflow-y: auto;
+      padding-bottom: 100px;
+    }
 
-        .nav-btn.active {
-            @apply text-blue-600;
-        }
+    .view-section.active {
+      display: block;
+    }
 
-        .timeline-item::before {
-            content: '';
-            @apply absolute left-4 top-10 bottom-0 w-0.5 bg-gray-100;
-        }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
 
-        .timeline-item:last-child::before {
-            @apply hidden;
-        }
-    </style>
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .tree-indent {
+      border-left: 2px solid #f1f5f9;
+      padding-left: 0.75rem;
+      margin-left: 0.75rem;
+    }
+  </style>
 </head>
 
-<body class="bg-gray-50 text-gray-900 h-[100dvh] w-full overflow-hidden flex flex-col">
+<body class="text-slate-900 h-[100dvh] w-full overflow-hidden flex flex-col">
 
-    <main id="app-container"
-        class="flex-1 relative overflow-hidden w-full max-w-md mx-auto bg-white shadow-2xl transition-all duration-300">
+  <main class="flex-1 relative overflow-hidden w-full max-w-md mx-auto bg-white shadow-2xl flex flex-col h-full">
 
-        <!-- Header -->
-        <header class="p-6 pb-2 flex justify-between items-center bg-white sticky top-0 z-20">
-            <div class="flex items-center gap-2">
-                <div class="p-2 bg-blue-50 rounded-xl text-blue-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
-                        </path>
-                    </svg>
-                </div>
-                <h1 class="text-xl font-extrabold tracking-tight">StructHealth</h1>
+    <header class="flex items-center justify-between p-6 bg-white shrink-0 sticky top-0 z-20">
+      <div class="flex items-center gap-2">
+        <div class="rounded-xl bg-slate-900 p-2 text-white" id="header-icon"></div>
+        <h1 class="text-xl font-black tracking-tight">StructHealth</h1>
+      </div>
+      <div id="user-avatar"
+        class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-400">
+        --
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto pb-24 px-6 space-y-8 no-scrollbar relative">
+
+      <div id="view-dashboard" class="view-section active space-y-8 py-4">
+        <section class="space-y-4">
+          <div class="flex items-end justify-between px-1">
+            <h2 class="text-[10px] font-black uppercase tracking-widest text-slate-400">進行中目標</h2>
+            <button onclick="app.addGoal()"
+              class="text-[10px] font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded active:scale-95">＋ 新增</button>
+          </div>
+          <div id="goals-container" class="grid gap-3"></div>
+        </section>
+
+        <section class="space-y-4">
+          <div class="flex items-end justify-between px-1">
+            <h2 class="text-[10px] font-black uppercase tracking-widest text-slate-400">支柱狀態總覽</h2>
+            <button onclick="app.addPillar()"
+              class="text-[10px] font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded active:scale-95">＋ 新增</button>
+          </div>
+          <div id="pillars-container" class="space-y-3"></div>
+        </section>
+
+        <section class="space-y-4">
+          <h2 class="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">完程度日曆</h2>
+          <div class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div
+              class="mb-6 grid grid-cols-7 gap-2 text-center text-[10px] font-black uppercase tracking-tighter text-slate-300">
+              <div>M</div>
+              <div>T</div>
+              <div>W</div>
+              <div>T</div>
+              <div>F</div>
+              <div>S</div>
+              <div>S</div>
             </div>
-            <button
-                class="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-xs font-bold text-gray-400">JD</button>
+            <div id="calendar-container" class="grid grid-cols-7 gap-y-4 gap-x-2"></div>
+          </div>
+        </section>
+      </div>
+
+      <div id="view-pillar-detail" class="view-section space-y-6 py-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <button onclick="app.switchView('dashboard')"
+              class="p-2 bg-slate-50 rounded-full text-slate-400 active:scale-95">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+            <h2 id="pillar-detail-title" class="text-xl font-black">載入中...</h2>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="app.addNode('root', 'folder')"
+              class="p-2 bg-slate-100 text-slate-700 rounded-lg active:scale-95">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M12 10v6M9 13h6M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+              </svg>
+            </button>
+            <button onclick="app.addNode('root', 'leaf')"
+              class="p-2 bg-slate-900 text-white rounded-lg shadow-md active:scale-95">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="18" x2="12" y2="12" />
+                <line x1="9" y1="15" x2="15" y2="15" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm min-h-[60vh]">
+          <div id="tree-container" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div id="view-execution" class="view-section space-y-8 py-4">
+        <header class="flex justify-between items-end">
+          <div>
+            <h1 class="text-2xl font-black">執行切片</h1>
+            <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-black">今日行動與任務流</p>
+          </div>
+          <button onclick="app.addTask()"
+            class="text-[10px] font-bold text-slate-900 px-3 py-1.5 bg-slate-100 rounded-lg active:scale-95">＋
+            新增任務</button>
         </header>
 
-        <!-- 1. 主視圖 (Dashboard): 概覽、支柱、日曆 -->
-        <div id="view-main" class="view-section active p-6 space-y-8">
+        <section class="rounded-3xl bg-slate-900 p-6 text-white shadow-xl relative overflow-hidden">
+          <div class="relative z-10">
+            <h4 class="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-300">AI 動態校準</h4>
+            <p class="text-sm font-medium leading-relaxed">
+              AI 分析保留區：將依據支柱數值自動重算並調配今日任務。
+            </p>
+          </div>
+          <div class="absolute right-[-20px] top-[-20px] opacity-10">
+            <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </div>
+        </section>
 
-            <!-- A. 進行中目標 -->
-            <section class="space-y-4">
-                <div class="flex justify-between items-end">
-                    <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest">1. 進行中目標</h2>
-                    <span class="text-xs font-bold text-blue-600">編輯目標</span>
-                </div>
-                <div class="grid grid-cols-1 gap-3">
-                    <div class="card-white border-l-4 border-l-orange-500">
-                        <div class="flex justify-between items-start mb-3">
-                            <div>
-                                <h3 class="font-bold text-gray-800">攀岩 V5 水準</h3>
-                                <div class="flex gap-2 mt-1">
-                                    <span
-                                        class="text-[9px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-bold uppercase">能力指標</span>
-                                </div>
-                            </div>
-                            <span class="font-mono font-bold text-orange-600 text-sm">65%</span>
-                        </div>
-                        <div class="stat-bar">
-                            <div class="h-full bg-orange-500" style="width: 65%"></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+        <div id="tasks-container" class="space-y-6"></div>
+      </div>
 
-            <!-- B. 三大支柱追蹤 (數值化) -->
-            <section class="space-y-4">
-                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest">2. 當前狀況 (三大支柱)</h2>
-                <div class="space-y-3">
-                    <!-- 身體組成 -->
-                    <div onclick="router.go('body-detail')"
-                        class="card-white flex items-center gap-4 cursor-pointer hover:bg-gray-50">
-                        <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-                            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-sm">身體組成數據</span>
-                                <span class="text-xs font-mono font-bold text-blue-600">18.4% 體脂</span>
-                            </div>
-                            <div class="text-[10px] text-gray-400 mt-1">肌肉總量 32.5kg | 下肢穩定度優</div>
-                        </div>
-                        <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
-                            </path>
-                        </svg>
-                    </div>
+    </div>
 
-                    <!-- 飲食攝取 -->
-                    <div onclick="router.go('diet-detail')"
-                        class="card-white flex items-center gap-4 cursor-pointer hover:bg-gray-50">
-                        <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center shrink-0">
-                            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 15.546c.053.164.082.34.082.522 0 1.054-.81 1.91-1.815 1.91h-3.073c-1.127 0-2.224-.46-3.021-1.275L10 13.5l-3.173 3.207c-.797.815-1.894 1.275-3.021 1.275H.733C-.272 18-.272 16.09.733 16.09h3.073c1.127 0 2.224.46 3.021 1.275L10 13.5l3.173-3.207c.797-.815 1.894-1.275 3.021-1.275h3.073c1.006 0 1.815.856 1.815 1.91 0 .181-.029.358-.082.522">
-                                </path>
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-sm">營養與代謝</span>
-                                <span class="text-xs font-mono font-bold text-red-500">糖分超標</span>
-                            </div>
-                            <div class="text-[10px] text-gray-400 mt-1">蛋白達標 90% | 微量元素 D3 不足</div>
-                        </div>
-                        <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
-                            </path>
-                        </svg>
-                    </div>
-                </div>
-            </section>
+    <nav
+      class="fixed bottom-0 left-0 right-0 mx-auto flex h-16 max-w-md items-center justify-around border-t border-slate-100 bg-white/90 backdrop-blur-md z-30 px-4">
+      <button onclick="app.switchView('dashboard')"
+        class="nav-btn active flex flex-col items-center gap-1 transition-colors text-slate-900"
+        data-target="dashboard">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+        <span class="text-[9px] font-black uppercase tracking-widest">概覽</span>
+      </button>
+      <button onclick="app.switchView('execution')"
+        class="nav-btn flex flex-col items-center gap-1 transition-colors text-slate-400" data-target="execution">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+        <span class="text-[9px] font-black uppercase tracking-widest">執行</span>
+      </button>
+      <button class="flex flex-col items-center gap-1 transition-colors text-slate-400 pointer-events-none opacity-50">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path
+            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        <span class="text-[9px] font-black uppercase tracking-widest">設定</span>
+      </button>
+    </nav>
+  </main>
 
-            <!-- C. 日曆 (完程度) -->
-            <section class="space-y-4 pb-4">
-                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest">3. 日曆完程度</h2>
-                <div class="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm">
-                    <div
-                        class="grid grid-cols-7 gap-3 mb-6 text-center text-[10px] font-bold text-gray-300 uppercase tracking-tighter">
-                        <div>Mon</div>
-                        <div>Tue</div>
-                        <div>Wed</div>
-                        <div>Thu</div>
-                        <div>Fri</div>
-                        <div>Sat</div>
-                        <div>Sun</div>
-                    </div>
-                    <div class="grid grid-cols-7 gap-3" id="main-calendar">
-                        <!-- JS 動態生成 -->
-                    </div>
-                </div>
-            </section>
-        </div>
+  <script>
+    const generateId = () => Math.random().toString(36).substr(2, 9);
+    const getTodayStr = () => new Date().toLocaleDateString('en-CA');
 
-        <!-- 2. 執行視圖 (Execution View): 實際執行、任務切片 -->
-        <div id="view-execution" class="view-section p-6 space-y-6">
-            <h1 class="text-2xl font-extrabold">今日執行執行</h1>
+    const getIcon = (name, size = 24, css = "") => {
+      const icons = {
+        Activity: `<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`,
+        Utensils: `<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>`,
+        Moon: `<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>`,
+        Trash2: `<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/>`,
+        Edit2: `<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>`,
+        ChevronRight: `<path d="m9 18 6-6-6-6"/>`,
+        ChevronDown: `<path d="m6 9 6 6 6-6"/>`,
+        FolderPlus: `<path d="M12 10v6M9 13h6M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>`,
+        FilePlus: `<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>`,
+        Target: `<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>`,
+        Check: `<path d="M20 6 9 17l-5-5"/>`,
+        Alert: `<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`
+      };
+      return `<svg width="${size}" height="${size}" class="${css}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[name] || ''}</svg>`;
+    };
 
-            <!-- LLM 動態建議 (共識區域) -->
-            <section class="bg-blue-600 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
-                <div class="relative z-10">
-                    <h4 class="text-[10px] font-bold opacity-80 mb-2 uppercase tracking-widest">LLM 執行建議</h4>
-                    <p class="text-sm font-medium leading-relaxed">
-                        「昨晚睡眠 6.5h 略低於目標，且昨日點心攝取過量。今日攀岩訓練已自動調整：<span
-                            class="underline decoration-white/50">跳過背部大重量</span>，專注於指力維持，並增加 500ml 補水。」
-                    </p>
-                    <div class="mt-4 flex gap-2">
-                        <button class="px-3 py-1.5 bg-white text-blue-600 rounded-lg text-xs font-bold">確認調整</button>
-                        <button class="px-3 py-1.5 bg-blue-700 text-white rounded-lg text-xs font-bold">與 AI 對話</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 執行流 (Execution Slices) -->
-            <section class="space-y-6 pt-4">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">本日任務清單</h3>
-                    <button class="text-[10px] font-bold text-blue-600">+ 新增切片</button>
-                </div>
-
-                <div class="space-y-0">
-                    <!-- 任務 1 -->
-                    <div class="timeline-item relative pl-10 pb-8">
-                        <div
-                            class="absolute left-0 w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center z-10 border-4 border-white">
-                            <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        </div>
-                        <div class="card-white !p-4">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <div class="text-[10px] font-mono font-bold text-blue-500">07:30 - 08:00</div>
-                                    <div class="font-bold text-sm">數據監測：身體組成</div>
-                                    <p class="text-[10px] text-gray-400 mt-1">目標關聯：減脂 15%</p>
-                                </div>
-                                <input type="checkbox" checked
-                                    class="w-5 h-5 rounded-full border-gray-200 text-blue-600">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 任務 2 -->
-                    <div class="timeline-item relative pl-10 pb-8">
-                        <div
-                            class="absolute left-0 w-8 h-8 bg-orange-50 rounded-full flex items-center justify-center z-10 border-4 border-white">
-                            <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
-                        </div>
-                        <div class="card-white !p-4 border-l-4 border-l-orange-500">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <div class="text-[10px] font-mono font-bold text-orange-500">18:00 - 19:30</div>
-                                    <div class="font-bold text-sm">攀岩專項：指力維持</div>
-                                    <p class="text-[10px] text-gray-400 mt-1">目標關聯：V5 達成 | LLM 已下修強度</p>
-                                </div>
-                                <div class="p-1.5 bg-gray-50 rounded text-[10px] text-gray-400 font-bold uppercase">進行中
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 任務 3 -->
-                    <div class="timeline-item relative pl-10">
-                        <div
-                            class="absolute left-0 w-8 h-8 bg-green-50 rounded-full flex items-center justify-center z-10 border-4 border-white">
-                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                        </div>
-                        <div class="card-white !p-4">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <div class="text-[10px] font-mono font-bold text-green-500">22:00</div>
-                                    <div class="font-bold text-sm">補充微量元素 (鎂/D3)</div>
-                                    <p class="text-[10px] text-gray-400 mt-1">目標關聯：加速肌肉修復</p>
-                                </div>
-                                <input type="checkbox" class="w-5 h-5 rounded-full border-gray-200 text-blue-600">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- 3. 詳細視圖: 身體組成 (Body Detail) -->
-        <div id="view-body-detail" class="view-section p-6 space-y-6">
-            <div class="flex items-center gap-4 mb-2">
-                <button onclick="router.go('main')" class="p-2 bg-gray-50 rounded-full">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
-                        </path>
-                    </svg>
-                </button>
-                <h2 class="text-xl font-extrabold">結構化身體數據</h2>
-            </div>
-
-            <div class="space-y-4">
-                <!-- 上肢 -->
-                <div class="card-white">
-                    <div class="flex justify-between items-center mb-4 pb-2 border-b">
-                        <span class="font-bold">上肢 (Arms)</span>
-                        <span class="text-[10px] font-bold text-blue-500 uppercase tracking-widest">自訂追蹤</span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="p-4 bg-gray-50 rounded-2xl">
-                            <div class="text-[10px] text-gray-400">二頭肌肌肉量</div>
-                            <div class="font-mono font-bold text-lg">1.45<span class="text-[8px] ml-0.5">kg</span></div>
-                        </div>
-                        <div class="p-4 bg-gray-50 rounded-2xl">
-                            <div class="text-[10px] text-gray-400">三頭肌脂肪量</div>
-                            <div class="font-mono font-bold text-blue-600">0.32<span class="text-[8px] ml-0.5">kg</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 軀幹 -->
-                <div class="card-white">
-                    <div class="flex justify-between items-center mb-4 pb-2 border-b">
-                        <span class="font-bold">軀幹 (Torso)</span>
-                    </div>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-end">
-                            <div>
-                                <div class="text-[10px] text-gray-400">背部肌群總量</div>
-                                <div class="font-mono font-bold">12.8kg</div>
-                            </div>
-                            <span class="text-[10px] font-bold text-green-500">+0.2kg vs 上月</span>
-                        </div>
-                        <div class="stat-bar">
-                            <div class="h-full bg-blue-500" style="width: 78%"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 下肢 -->
-                <div class="card-white">
-                    <div class="flex justify-between items-center mb-4 pb-2 border-b">
-                        <span class="font-bold">下肢 (Legs)</span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="p-3 bg-gray-50 rounded-2xl">
-                            <div class="text-[10px] text-gray-400">股四頭肌肉量</div>
-                            <div class="font-mono font-bold">8.4kg</div>
-                        </div>
-                        <div class="p-3 bg-gray-50 rounded-2xl">
-                            <div class="text-[10px] text-gray-400">下肢體脂率</div>
-                            <div class="font-mono font-bold">16.2%</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 4. 詳細視圖: 飲食詳細 (Diet Detail) -->
-        <div id="view-diet-detail" class="view-section p-6 space-y-6">
-            <div class="flex items-center gap-4 mb-2">
-                <button onclick="router.go('main')" class="p-2 bg-gray-50 rounded-full">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
-                        </path>
-                    </svg>
-                </button>
-                <h2 class="text-xl font-extrabold">營養與代謝追蹤</h2>
-            </div>
-
-            <!-- 三大營養素 -->
-            <div class="card-white space-y-5">
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">昨日三大營養素</h3>
-                <div class="space-y-4">
-                    <div>
-                        <div class="flex justify-between text-xs mb-1 font-bold">
-                            <span>蛋白質 (Protein)</span>
-                            <span class="font-mono">142g / 150g</span>
-                        </div>
-                        <div class="stat-bar">
-                            <div class="h-full bg-blue-500" style="width: 94%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-xs mb-1 font-bold">
-                            <span>脂肪 (Fat)</span>
-                            <span class="font-mono text-red-500">88g / 65g</span>
-                        </div>
-                        <div class="stat-bar">
-                            <div class="h-full bg-red-500" style="width: 100%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-xs mb-1 font-bold">
-                            <span>碳水 (Carbs)</span>
-                            <span class="font-mono">110g / 180g</span>
-                        </div>
-                        <div class="stat-bar">
-                            <div class="h-full bg-green-500" style="width: 61%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 微量元素 -->
-            <div class="space-y-4">
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">維生素與礦物質 (自訂)</h3>
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="card-white">
-                        <div class="text-[10px] text-gray-400">維生素 D3</div>
-                        <div class="flex items-baseline gap-1 mt-1">
-                            <span class="font-mono font-bold text-orange-500">25</span>
-                            <span class="text-[8px] text-gray-400">ng/ml</span>
-                        </div>
-                        <div class="text-[8px] mt-1 font-bold text-orange-400">建議補充 2000IU</div>
-                    </div>
-                    <div class="card-white">
-                        <div class="text-[10px] text-gray-400">鎂 (Magnesium)</div>
-                        <div class="flex items-baseline gap-1 mt-1">
-                            <span class="font-mono font-bold text-green-500">320</span>
-                            <span class="text-[8px] text-gray-400">mg</span>
-                        </div>
-                        <div class="text-[8px] mt-1 font-bold text-green-400">昨日攝取正常</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab Bar -->
-        <nav
-            class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-gray-100 h-16 max-w-md mx-auto z-40 flex justify-around items-center">
-            <button onclick="router.go('main')" class="nav-btn flex flex-col items-center text-blue-600"
-                data-target="view-main">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                    </path>
-                </svg>
-                <span class="text-[10px] font-bold mt-1">首頁</span>
-            </button>
-            <button onclick="router.go('execution')" class="nav-btn flex flex-col items-center text-gray-400"
-                data-target="view-execution">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span class="text-[10px] font-bold mt-1">執行</span>
-            </button>
-            <button class="flex flex-col items-center text-gray-400">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                    </path>
-                </svg>
-                <span class="text-[10px] font-bold mt-1">顧問</span>
-            </button>
-        </nav>
-
-    </main>
-
-    <script>
-        const router = {
-            go(viewId) {
-                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-                const target = document.getElementById(`view-${viewId}`);
-                if (target) {
-                    target.classList.add('active');
-                    target.scrollTo(0, 0);
-                }
-
-                // 更新 Nav 按鈕樣式 (僅限底部導覽標註)
-                if (['main', 'execution'].includes(viewId)) {
-                    document.querySelectorAll('.nav-btn').forEach(btn => {
-                        btn.classList.remove('text-blue-600');
-                        btn.classList.add('text-gray-400');
-                        if (btn.getAttribute('data-target') === `view-${viewId}`) {
-                            btn.classList.add('text-blue-600');
-                            btn.classList.remove('text-gray-400');
-                        }
-                    });
-                }
+    // UI 彈窗系統
+    const ui = {
+      container: null,
+      init() {
+        this.container = document.createElement('div');
+        this.container.id = 'ui-modal-root';
+        document.body.appendChild(this.container);
+      },
+      open(html) {
+        this.container.innerHTML = html;
+        setTimeout(() => {
+          const backdrop = document.getElementById('modal-backdrop');
+          const card = document.getElementById('modal-card');
+          if (backdrop) backdrop.classList.remove('opacity-0');
+          if (card) card.classList.remove('scale-95', 'translate-y-4', 'opacity-0');
+        }, 10);
+      },
+      close() {
+        const backdrop = document.getElementById('modal-backdrop');
+        const card = document.getElementById('modal-card');
+        if (backdrop) backdrop.classList.add('opacity-0');
+        if (card) card.classList.add('scale-95', 'translate-y-4', 'opacity-0');
+        setTimeout(() => { this.container.innerHTML = ''; }, 200);
+      },
+      prompt(options) {
+        return new Promise(resolve => {
+          const fieldsHtml = options.fields.map(f => {
+            if (f.type === 'select') {
+              const opts = f.options.map(o => `<option value="${o.value}" ${o.value === f.value ? 'selected' : ''}>${o.label}</option>`).join('');
+              return `<div><label class="block text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest">${f.label}</label><select id="modal-input-${f.id}" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-slate-900">${opts}</select></div>`;
             }
-        };
+            return `<div><label class="block text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest">${f.label}</label><input type="${f.type}" id="modal-input-${f.id}" value="${f.value || ''}" placeholder="${f.placeholder || ''}" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-slate-900"></div>`;
+          }).join('');
 
-        function initCalendar() {
-            const grid = document.getElementById('main-calendar');
-            grid.innerHTML = '';
-            for (let i = 1; i <= 28; i++) {
-                const day = document.createElement('div');
-                day.className = "aspect-square rounded-full flex items-center justify-center text-[10px] font-bold transition-all relative";
+          const html = `
+                        <div id="modal-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
+                            <div id="modal-card" class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 transform scale-95 translate-y-4 opacity-0 transition-all duration-200 flex flex-col max-h-[90vh]">
+                                <h3 class="text-lg font-black text-slate-900 mb-4">${options.title}</h3>
+                                <div class="space-y-4 overflow-y-auto no-scrollbar flex-1 py-1">${fieldsHtml}</div>
+                                <div class="flex gap-3 mt-6 pt-2">
+                                    <button id="modal-btn-cancel" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm transition-colors hover:bg-slate-200 active:scale-95">取消</button>
+                                    <button id="modal-btn-confirm" class="flex-1 py-3 rounded-xl bg-slate-900 text-white font-bold text-sm shadow-md transition-transform active:scale-95">確認</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+          this.open(html);
 
-                const score = Math.random();
-                if (score > 0.8) {
-                    day.className += " bg-blue-600 text-white shadow-sm ring-2 ring-blue-50 ring-offset-1";
-                } else if (score > 0.5) {
-                    day.className += " bg-blue-50 text-blue-600";
-                } else if (score > 0.3) {
-                    day.className += " bg-gray-50 text-gray-400";
-                    // 加上一個小點表示有活動但未完全達成
-                    day.innerHTML = `${i}<div class="absolute -bottom-1 w-1 h-1 bg-orange-400 rounded-full"></div>`;
-                } else {
-                    day.className += " bg-gray-50 text-gray-200";
-                    day.textContent = i;
-                }
+          document.getElementById('modal-btn-cancel').onclick = () => { this.close(); resolve(null); };
+          document.getElementById('modal-btn-confirm').onclick = () => {
+            const result = {};
+            options.fields.forEach(f => { result[f.id] = document.getElementById(`modal-input-${f.id}`).value; });
+            this.close();
+            resolve(result);
+          };
+        });
+      },
+      confirm(message) {
+        return new Promise(resolve => {
+          const html = `
+                        <div id="modal-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
+                            <div id="modal-card" class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center transform scale-95 translate-y-4 opacity-0 transition-all duration-200">
+                                <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">${getIcon('Alert', 32)}</div>
+                                <h3 class="text-lg font-black text-slate-900 mb-2">確認操作</h3>
+                                <p class="text-sm text-slate-500 font-medium mb-6">${message}</p>
+                                <div class="flex gap-3">
+                                    <button id="modal-btn-cancel" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm transition-colors hover:bg-slate-200 active:scale-95">取消</button>
+                                    <button id="modal-btn-confirm" class="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm shadow-md transition-transform active:scale-95">確定</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+          this.open(html);
+          document.getElementById('modal-btn-cancel').onclick = () => { this.close(); resolve(false); };
+          document.getElementById('modal-btn-confirm').onclick = () => { this.close(); resolve(true); };
+        });
+      }
+    };
 
-                if (score <= 0.3 || score > 0.5) day.textContent = i;
-                grid.appendChild(day);
+    const app = {
+      user: null, goals: [], pillars: [], tasks: [], activePillarId: null, expandedNodes: new Set(),
+      db: null, auth: null, appId: window.__app_id || 'struct-health-vanilla', isFirebaseActive: false,
+
+      init() {
+        ui.init();
+        document.getElementById('header-icon').innerHTML = getIcon('Activity', 20);
+
+        let config = {};
+        try { config = JSON.parse(window.__firebase_config); } catch (e) { }
+
+        if (Object.keys(config).length > 0) {
+          firebase.initializeApp(config);
+          this.db = firebase.firestore();
+          this.auth = firebase.auth();
+          this.isFirebaseActive = true;
+
+          this.auth.onAuthStateChanged(user => {
+            this.user = user;
+            if (user) {
+              document.getElementById('user-avatar').textContent = user.uid.substring(0, 2).toUpperCase();
+              this.bindRealtimeData();
             }
+          });
+
+          if (typeof window.__initial_auth_token !== 'undefined' && window.__initial_auth_token) {
+            this.auth.signInWithCustomToken(window.__initial_auth_token).catch(console.error);
+          } else {
+            this.auth.signInAnonymously().catch(console.error);
+          }
+        } else {
+          this.user = { uid: 'local' };
+          this.pillars = [
+            { id: 'p1', title: '身體組成', icon: 'Activity', nodes: [] },
+            { id: 'p2', title: '營養代謝', icon: 'Utensils', nodes: [] },
+            { id: 'p3', title: '睡眠恢復', icon: 'Moon', nodes: [] }
+          ];
+          this.renderAll();
+        }
+      },
+
+      bindRealtimeData() {
+        const dbRoot = this.db.collection('artifacts').doc(this.appId).collection('users').doc(this.user.uid);
+        dbRoot.collection('goals').onSnapshot(snap => { this.goals = snap.docs.map(d => ({ id: d.id, ...d.data() })); this.renderDashboard(); });
+        dbRoot.collection('tasks').onSnapshot(snap => { this.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() })); this.renderDashboard(); this.renderExecution(); });
+        dbRoot.collection('pillars').onSnapshot(async snap => {
+          if (snap.empty) {
+            const defaults = [{ id: 'p1', title: '身體組成', icon: 'Activity', nodes: [] }, { id: 'p2', title: '營養代謝', icon: 'Utensils', nodes: [] }, { id: 'p3', title: '睡眠恢復', icon: 'Moon', nodes: [] }];
+            for (const p of defaults) await dbRoot.collection('pillars').doc(p.id).set(p);
+          } else {
+            this.pillars = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.id.localeCompare(b.id));
+            this.renderDashboard();
+            if (this.activePillarId) this.renderTree();
+          }
+        });
+      },
+
+      switchView(viewId) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById(`view-${viewId}`).classList.add('active');
+
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+          btn.classList.remove('text-slate-900');
+          btn.classList.add('text-slate-400');
+          if (btn.dataset.target === viewId) {
+            btn.classList.remove('text-slate-400');
+            btn.classList.add('text-slate-900');
+          }
+        });
+
+        if (viewId === 'dashboard') this.renderDashboard();
+        if (viewId === 'execution') this.renderExecution();
+      },
+
+      openPillar(id) {
+        this.activePillarId = id;
+        this.switchView('pillar-detail');
+        this.renderTree();
+      },
+
+      async apiAction(collectionName, action, id, data) {
+        if (this.isFirebaseActive) {
+          const ref = this.db.collection('artifacts').doc(this.appId).collection('users').doc(this.user.uid).collection(collectionName);
+          if (action === 'add') await ref.add(data);
+          if (action === 'update') await ref.doc(id).update(data);
+          if (action === 'delete') await ref.doc(id).delete();
+        } else {
+          let list = this[collectionName];
+          if (action === 'add') this[collectionName] = [...list, { id: generateId(), ...data }];
+          if (action === 'update') this[collectionName] = list.map(item => item.id === id ? { ...item, ...data } : item);
+          if (action === 'delete') this[collectionName] = list.filter(item => item.id !== id);
+          this.renderAll();
+        }
+      },
+
+      renderAll() { this.renderDashboard(); if (this.activePillarId) this.renderTree(); this.renderExecution(); },
+
+      renderDashboard() {
+        const goalsContainer = document.getElementById('goals-container');
+        if (this.goals.length === 0) {
+          goalsContainer.innerHTML = `<div class="p-4 text-center border border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs font-bold">尚無目標</div>`;
+        } else {
+          goalsContainer.innerHTML = this.goals.map(g => `
+                        <div class="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm relative">
+                            <div class="absolute top-4 right-4 flex gap-1 z-10">
+                                <button onclick="event.stopPropagation(); app.editGoal('${g.id}', '${g.title}')" class="text-slate-300 hover:text-blue-500 p-1 bg-slate-50 rounded-full">${getIcon('Edit2', 14)}</button>
+                                <button onclick="event.stopPropagation(); app.deleteGoal('${g.id}')" class="text-slate-300 hover:text-red-400 p-1 bg-slate-50 rounded-full">${getIcon('Trash2', 14)}</button>
+                            </div>
+                            <div class="mb-3 flex items-start justify-between cursor-pointer pr-16" onclick="app.updateGoalProgress('${g.id}', ${g.progress})">
+                                <div>
+                                    <h3 class="font-bold text-slate-800">${g.title}</h3>
+                                    <p class="text-[9px] text-slate-400 mt-1 uppercase font-black tracking-tighter">點擊更新進度</p>
+                                </div>
+                                <span class="font-mono text-sm font-bold text-slate-900">${g.progress}%</span>
+                            </div>
+                            <div class="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                                <div class="h-full bg-slate-900 transition-all" style="width: ${g.progress}%"></div>
+                            </div>
+                        </div>
+                    `).join('');
         }
 
-        document.addEventListener('DOMContentLoaded', initCalendar);
-    </script>
+        const pillarsContainer = document.getElementById('pillars-container');
+        pillarsContainer.innerHTML = this.pillars.map(p => {
+          let count = 0;
+          const countNodes = (nodes) => { nodes.forEach(n => { count++; if (n.children) countNodes(n.children); }); };
+          if (p.nodes) countNodes(p.nodes);
+
+          return `
+                        <div class="flex cursor-pointer items-center gap-4 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition-all active:scale-95 relative" onclick="app.openPillar('${p.id}')">
+                            <div class="absolute top-4 right-4 flex gap-1 z-10">
+                                <button onclick="event.stopPropagation(); app.editPillar('${p.id}', '${p.title}')" class="text-slate-300 hover:text-blue-500 p-1 bg-slate-50 rounded-full">${getIcon('Edit2', 14)}</button>
+                                <button onclick="event.stopPropagation(); app.deletePillar('${p.id}')" class="text-slate-300 hover:text-red-400 p-1 bg-slate-50 rounded-full">${getIcon('Trash2', 14)}</button>
+                            </div>
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl shrink-0 bg-slate-50 text-slate-700">
+                                ${getIcon(p.icon || 'Activity', 20)}
+                            </div>
+                            <div class="flex-1 pr-16">
+                                <h3 class="font-bold text-sm text-slate-800">${p.title}</h3>
+                                <p class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tighter">${count} 項追蹤節點</p>
+                            </div>
+                        </div>
+                    `;
+        }).join('');
+
+        const calContainer = document.getElementById('calendar-container');
+        const todayStr = getTodayStr();
+        const todayDay = new Date().getDay();
+
+        const todayTasks = this.tasks.filter(t => t.recurring === 'daily' || (t.recurring === 'weekly' && new Date(t.createdAt).getDay() === todayDay) || new Date(t.createdAt).toLocaleDateString('en-CA') === todayStr);
+        const completedCount = todayTasks.filter(t => (t.completedDates || []).includes(todayStr)).length;
+        const todayScore = todayTasks.length > 0 ? (completedCount / todayTasks.length) : 0;
+
+        calContainer.innerHTML = [...Array(28)].map((_, i) => {
+          const isToday = i === 27;
+          let dayScore = isToday ? todayScore : (Math.sin(i * 123) * 0.5 + 0.5);
+          let dotCount = dayScore >= 0.8 ? 3 : dayScore >= 0.4 ? 2 : dayScore > 0 ? 1 : 0;
+          const dotsHTML = [...Array(3)].map((_, dotIdx) => `<div class="w-1 h-1 rounded-full ${dotIdx < dotCount ? 'bg-slate-800' : 'bg-slate-100'}"></div>`).join('');
+
+          return `
+                        <div class="flex flex-col items-center gap-1">
+                            <div class="text-xs font-bold ${isToday ? 'text-slate-900 bg-slate-100 w-6 h-6 rounded-full flex items-center justify-center' : 'text-slate-400'}">${i + 1}</div>
+                            <div class="flex gap-0.5 h-1">${dotsHTML}</div>
+                        </div>
+                    `;
+        }).join('');
+      },
+
+      async addGoal() {
+        const res = await ui.prompt({
+          title: '新增目標',
+          fields: [{ id: 'title', label: '目標名稱', type: 'text', placeholder: '如：攀岩 V5' }]
+        });
+        if (res && res.title) this.apiAction('goals', 'add', null, { title: res.title, progress: 0 });
+      },
+      async updateGoalProgress(id, current) {
+        const res = await ui.prompt({
+          title: '更新進度',
+          fields: [{ id: 'progress', label: '目前進度 (%)', type: 'number', value: current }]
+        });
+        if (res && res.progress) this.apiAction('goals', 'update', id, { progress: Math.min(100, Math.max(0, parseInt(res.progress) || 0)) });
+      },
+      async editGoal(id, oldTitle) {
+        const res = await ui.prompt({
+          title: '修改目標名稱',
+          fields: [{ id: 'title', label: '目標名稱', type: 'text', value: oldTitle }]
+        });
+        if (res && res.title) this.apiAction('goals', 'update', id, { title: res.title });
+      },
+      async deleteGoal(id) {
+        if (await ui.confirm('確定要刪除此目標嗎？')) this.apiAction('goals', 'delete', id);
+      },
+
+      async addPillar() {
+        const res = await ui.prompt({
+          title: '新增支柱',
+          fields: [
+            { id: 'title', label: '支柱名稱', type: 'text', placeholder: '如：心理健康' },
+            { id: 'icon', label: '圖示', type: 'select', options: [{ value: 'Activity', label: '運動' }, { value: 'Utensils', label: '飲食' }, { value: 'Moon', label: '睡眠' }] }
+          ]
+        });
+        if (res && res.title) this.apiAction('pillars', 'add', null, { title: res.title, icon: res.icon, nodes: [] });
+      },
+      async editPillar(id, oldTitle) {
+        const res = await ui.prompt({
+          title: '修改支柱',
+          fields: [{ id: 'title', label: '支柱名稱', type: 'text', value: oldTitle }]
+        });
+        if (res && res.title) this.apiAction('pillars', 'update', id, { title: res.title });
+      },
+      async deletePillar(id) {
+        if (await ui.confirm('確定要刪除此支柱與內部所有資料嗎？')) this.apiAction('pillars', 'delete', id);
+      },
+
+      // =====================================
+      // 樹狀結構 渲染與邏輯
+      // =====================================
+      renderTree() {
+        const pillar = this.pillars.find(p => p.id === this.activePillarId);
+        if (!pillar) return;
+
+        document.getElementById('pillar-detail-title').textContent = pillar.title;
+        const container = document.getElementById('tree-container');
+
+        if (!pillar.nodes || pillar.nodes.length === 0) {
+          container.innerHTML = `<div class="text-center p-8 text-slate-400 text-xs font-bold border border-dashed border-slate-200 rounded-2xl">點擊右上角建立自訂層級結構</div>`;
+          return;
+        }
+
+        const buildTreeHTML = (nodes, depth) => {
+          return nodes.map(node => {
+            const isLeaf = node.type === 'leaf';
+            const isExpanded = !this.expandedNodes.has(node.id);
+            let html = `<div class="mt-2 ${depth > 0 ? 'tree-indent' : ''}">`;
+
+            html += `
+                            <div class="flex items-center justify-between p-3 rounded-xl border ${isLeaf ? 'bg-white border-slate-100 shadow-sm' : 'bg-slate-50 border-transparent'} transition-colors">
+                                <div class="flex items-center gap-2 flex-1">
+                                    ${!isLeaf ? `<button onclick="app.toggleNode('${node.id}')" class="text-slate-400 hover:text-slate-600">${getIcon(isExpanded ? 'ChevronDown' : 'ChevronRight', 16)}</button>` : ''}
+                                    <span class="font-bold ${isLeaf ? 'text-sm text-slate-800' : 'text-xs uppercase tracking-widest text-slate-500'}">${node.name}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                        `;
+
+            if (isLeaf) {
+              html += `
+                                <div class="flex items-center gap-1">
+                                    <input type="number" value="${node.current}" onchange="app.updateLeaf('${node.id}', 'current', this.value)" class="w-12 bg-slate-100 p-1 rounded text-center font-mono text-xs border-none font-bold text-slate-900 focus:ring-1 focus:ring-slate-400" />
+                                    <span class="text-slate-300 font-bold">/</span>
+                                    <input type="number" value="${node.target}" onchange="app.updateLeaf('${node.id}', 'target', this.value)" class="w-12 bg-white border border-slate-100 p-1 rounded text-center font-mono text-xs text-slate-400 focus:ring-1 focus:ring-slate-400" />
+                                    <span class="text-[9px] font-black uppercase text-slate-300 w-5 text-left truncate">${node.unit}</span>
+                                </div>
+                            `;
+            } else {
+              html += `
+                                <div class="flex gap-1">
+                                    <button onclick="app.addNode('${node.id}', 'folder')" class="p-1 bg-slate-200 rounded text-slate-700 active:scale-95">${getIcon('FolderPlus', 14)}</button>
+                                    <button onclick="app.addNode('${node.id}', 'leaf')" class="p-1 bg-slate-800 text-white rounded active:scale-95">${getIcon('FilePlus', 14)}</button>
+                                </div>
+                            `;
+            }
+
+            html += `
+                                    <button onclick="app.renameNode('${node.id}', '${node.name}')" class="text-slate-300 hover:text-blue-500 p-1 ml-1">${getIcon('Edit2', 14)}</button>
+                                    <button onclick="app.deleteNode('${node.id}')" class="text-slate-300 hover:text-red-400 p-1">${getIcon('Trash2', 14)}</button>
+                                </div>
+                            </div>
+                        `;
+
+            if (isLeaf) {
+              const pct = Math.min(100, (node.current / Math.max(node.target, 0.001)) * 100);
+              html += `
+                                <div class="mt-1.5 h-1 w-full bg-slate-50 rounded-full overflow-hidden">
+                                    <div class="h-full bg-slate-900 transition-all duration-300" style="width: ${pct}%"></div>
+                                </div>
+                            `;
+            }
+
+            if (!isLeaf && isExpanded && node.children) html += `<div class="mt-1">${buildTreeHTML(node.children, depth + 1)}</div>`;
+            html += `</div>`;
+            return html;
+          }).join('');
+        };
+
+        container.innerHTML = buildTreeHTML(pillar.nodes, 0);
+      },
+
+      _updatePillarTree(updaterFn) {
+        const pillar = this.pillars.find(p => p.id === this.activePillarId);
+        if (!pillar) return;
+        this.apiAction('pillars', 'update', pillar.id, { nodes: updaterFn(pillar.nodes) });
+      },
+
+      _traverseMap(nodes, targetId, fn) {
+        return nodes.map(n => {
+          if (n.id === targetId) return fn(n);
+          if (n.children) return { ...n, children: this._traverseMap(n.children, targetId, fn) };
+          return n;
+        });
+      },
+
+      _traverseFilter(nodes, targetId) {
+        return nodes.filter(n => n.id !== targetId).map(n => ({
+          ...n, children: n.children ? this._traverseFilter(n.children, targetId) : undefined
+        }));
+      },
+
+      toggleNode(id) {
+        if (this.expandedNodes.has(id)) this.expandedNodes.delete(id);
+        else this.expandedNodes.add(id);
+        this.renderTree();
+      },
+
+      async addNode(parentId, type) {
+        const fields = [{ id: 'name', label: type === 'folder' ? '分類名稱' : '項目名稱', type: 'text' }];
+        if (type === 'leaf') {
+          fields.push({ id: 'target', label: '目標數值', type: 'number', value: '100' });
+          fields.push({ id: 'unit', label: '單位 (如 kg, g)', type: 'text' });
+        }
+
+        const res = await ui.prompt({ title: type === 'folder' ? '新增分類' : '新增項目', fields });
+        if (!res || !res.name) return;
+
+        let newNode = { id: generateId(), name: res.name, type };
+        if (type === 'leaf') {
+          newNode.target = parseFloat(res.target) || 0;
+          newNode.unit = res.unit || '';
+          newNode.current = 0;
+        } else {
+          newNode.children = [];
+        }
+
+        if (parentId === 'root') {
+          this._updatePillarTree(nodes => [...(nodes || []), newNode]);
+        } else {
+          this._updatePillarTree(nodes => this._traverseMap(nodes, parentId, n => ({ ...n, children: [...(n.children || []), newNode] })));
+          this.expandedNodes.delete(parentId);
+        }
+      },
+
+      async deleteNode(id) {
+        if (await ui.confirm('確定刪除此節點與其所有子項目？')) this._updatePillarTree(nodes => this._traverseFilter(nodes, id));
+      },
+
+      updateLeaf(id, field, value) {
+        this._updatePillarTree(nodes => this._traverseMap(nodes, id, n => ({ ...n, [field]: parseFloat(value) || 0 })));
+      },
+
+      async renameNode(id, oldName) {
+        const res = await ui.prompt({ title: '重新命名', fields: [{ id: 'name', label: '名稱', type: 'text', value: oldName }] });
+        if (res && res.name) this._updatePillarTree(nodes => this._traverseMap(nodes, id, n => ({ ...n, name: res.name })));
+      },
+
+      // =====================================
+      // 執行切片 渲染與邏輯
+      // =====================================
+      renderExecution() {
+        const container = document.getElementById('tasks-container');
+        const todayStr = getTodayStr();
+        const todayDay = new Date().getDay();
+
+        const todayTasks = this.tasks.filter(t => {
+          if (t.recurring === 'daily') return true;
+          if (t.recurring === 'weekly') return new Date(t.createdAt).getDay() === todayDay;
+          return new Date(t.createdAt).toLocaleDateString('en-CA') === todayStr;
+        }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+        if (todayTasks.length === 0) {
+          container.innerHTML = `<div class="text-center p-8 text-slate-400 text-sm font-bold border border-dashed border-slate-200 rounded-3xl">今日無任務</div>`;
+          return;
+        }
+
+        container.innerHTML = todayTasks.map(t => {
+          const isCompleted = (t.completedDates || []).includes(todayStr);
+          const recurringBadge = t.recurring !== 'none' ? `<span class="text-[8px] font-black text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded uppercase">${t.recurring === 'daily' ? '每日' : '每週'}</span>` : '';
+
+          return `
+                        <div class="relative flex gap-6 pl-4">
+                            <div class="absolute left-4 top-10 bottom-0 w-px bg-slate-100"></div>
+                            <div class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-4 border-white bg-slate-50">
+                                <div class="h-2 w-2 rounded-full ${isCompleted ? 'bg-slate-900' : 'bg-slate-300'}"></div>
+                            </div>
+                            
+                            <div class="flex-1 rounded-3xl border border-slate-100 p-5 shadow-sm transition-all relative ${isCompleted ? 'bg-slate-50 opacity-50' : 'bg-white'}">
+                                <div class="absolute -right-2 -top-2 flex gap-1 z-10">
+                                    <button onclick="app.editTask('${t.id}')" class="bg-slate-100 text-slate-500 rounded-full p-1.5 shadow-sm hover:text-blue-500">${getIcon('Edit2', 12)}</button>
+                                    <button onclick="app.deleteTask('${t.id}')" class="bg-slate-100 text-red-500 rounded-full p-1.5 shadow-sm hover:bg-red-50">${getIcon('Trash2', 12)}</button>
+                                </div>
+
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <div class="font-mono text-[10px] font-bold text-slate-500">${t.time || '未定時'}</div>
+                                        <h4 class="font-bold ${isCompleted ? 'line-through text-slate-500' : 'text-slate-800'}">${t.title}</h4>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            ${getIcon('Target', 12, 'text-slate-300')}
+                                            <span class="text-[10px] font-black text-slate-400">${t.goal}</span>
+                                            ${recurringBadge}
+                                        </div>
+                                    </div>
+                                    <button onclick="app.toggleTask('${t.id}')" class="rounded-full p-2 transition-colors active:scale-95 ${isCompleted ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-200'}">
+                                        ${getIcon('Check', 16)}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+        }).join('');
+      },
+
+      async addTask() {
+        const res = await ui.prompt({
+          title: '新增任務',
+          fields: [
+            { id: 'title', label: '任務名稱', type: 'text', placeholder: '如：靜心冥想' },
+            { id: 'time', label: '時段', type: 'time', value: '12:00' },
+            { id: 'goal', label: '關聯目標', type: 'text', value: '日常維持' },
+            { id: 'recurring', label: '重複設定', type: 'select', options: [{ value: 'none', label: '單次' }, { value: 'daily', label: '每天' }, { value: 'weekly', label: '每週' }] }
+          ]
+        });
+        if (res && res.title) this.apiAction('tasks', 'add', null, { title: res.title, time: res.time, goal: res.goal, recurring: res.recurring, completedDates: [], createdAt: Date.now() });
+      },
+
+      async editTask(id) {
+        const t = this.tasks.find(x => x.id === id);
+        if (!t) return;
+        const res = await ui.prompt({
+          title: '修改任務',
+          fields: [
+            { id: 'title', label: '任務名稱', type: 'text', value: t.title },
+            { id: 'time', label: '時段', type: 'time', value: t.time }
+          ]
+        });
+        if (res && res.title) this.apiAction('tasks', 'update', id, { title: res.title, time: res.time });
+      },
+
+      async deleteTask(id) {
+        if (await ui.confirm('確定要刪除此任務嗎？')) this.apiAction('tasks', 'delete', id);
+      },
+
+      toggleTask(id) {
+        const task = this.tasks.find(t => t.id === id);
+        if (!task) return;
+        const todayStr = getTodayStr();
+        const completedDates = task.completedDates || [];
+        const isCompleted = completedDates.includes(todayStr);
+        const newDates = isCompleted ? completedDates.filter(d => d !== todayStr) : [...completedDates, todayStr];
+        this.apiAction('tasks', 'update', id, { completedDates: newDates });
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
 </body>
 
 </html>
