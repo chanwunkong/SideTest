@@ -1645,7 +1645,12 @@
 
                 if (store.user) {
                     const col = db.collection('users').doc(store.user.uid).collection('routines');
-                    this.currentId ? await col.doc(this.currentId).set(data, { merge: true }) : await col.add(data);
+                    // 移除 await，讓 Firebase 在背景處理同步，避免斷網時卡住 UI
+                    if (this.currentId) {
+                        col.doc(this.currentId).set(data, { merge: true });
+                    } else {
+                        col.add(data);
+                    }
                     store.loadRoutines();
                 } else {
                     const newId = this.currentId || 'local_' + Date.now();

@@ -4,7 +4,10 @@ const URLS_TO_CACHE = [
     './config.js',
     'https://cdn.tailwindcss.com',
     'https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js',
-    'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap'
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap',
+    'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
+    'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js',
+    'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'
 ];
 
 self.addEventListener('install', event => {

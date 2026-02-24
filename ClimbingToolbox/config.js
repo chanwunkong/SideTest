@@ -56,3 +56,7 @@ auth.getRedirectResult().catch((error) => {
         alert("此帳號已存在不同的驗證方式");
     }
 });
+
+firebase.firestore().enablePersistence().catch(function(err) {
+    console.error("無法啟用 Firebase 離線支援: ", err);
+});
