@@ -224,6 +224,11 @@
                         </svg>
                     </a>
                     <h1 class="text-2xl font-extrabold dark:text-white">訓練紀錄</h1>
+                    <div id="pwa-prompt"
+                        class="hidden bg-blue-50 text-blue-700 rounded-xl p-4 mb-4 text-sm flex justify-between items-center border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300">
+                        <span>將此應用加入手機主畫面，即可離線運行。</span>
+                        <button id="btn-close-pwa" class="font-bold ml-4">✕</button>
+                    </div>
                 </div>
 
                 <div class="bg-gray-900 text-white rounded-2xl p-6 mb-8 shadow-lg dark:bg-gray-700">
@@ -385,6 +390,16 @@
                                     <span class="text-sm">結束音</span>
                                 </label>
                             </div>
+                            <div
+                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <span class="font-medium">倒數閃爍提示</span>
+                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                    <input type="checkbox" id="set-pulse-enabled"
+                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                    <label for="set-pulse-enabled"
+                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
+                                </div>
+                            </div>
 
                             <!-- TTS Switch -->
                             <div
@@ -471,6 +486,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
             </svg>
+
             <span class="text-[10px] font-bold">紀錄</span>
         </button>
         <button onclick="router.go('routines')"
@@ -802,6 +818,7 @@
                 soundStart: true,
                 soundCountdown: true,
                 soundFinish: true,
+                urgentPulseEnabled: true,
 
                 // Profile
                 weightVal: '',
@@ -846,6 +863,7 @@
                 bindCheck('set-sound-start', 'soundStart');
                 bindCheck('set-sound-countdown', 'soundCountdown');
                 bindCheck('set-sound-finish', 'soundFinish');
+                bindCheck('set-pulse-enabled', 'urgentPulseEnabled');
 
                 bindVal('set-countdown-sec', 'countdownSec', true);
 
@@ -1803,7 +1821,11 @@
                 }
 
                 // 重置進度條
-                document.getElementById('active-progress-bar').style.width = '100%';
+                const progressBar = document.getElementById('active-progress-bar');
+                progressBar.style.transition = 'none';
+                progressBar.style.width = '100%';
+                void progressBar.offsetWidth; // 強制重繪
+                progressBar.style.transition = 'width 1s linear';
 
                 // TTS 朗讀 (使用 settingsManager)
                 settingsManager.speak(step.props.label);
@@ -1829,7 +1851,7 @@
 
                             // 最後3秒觸發背景閃爍
                             const modalEl = document.getElementById('modal-active-timer');
-                            if (!modalEl.classList.contains('pulse-urgent')) {
+                            if (settingsManager.data.urgentPulseEnabled && !modalEl.classList.contains('pulse-urgent')) {
                                 modalEl.classList.add('pulse-urgent');
                             }
                         }
@@ -1959,6 +1981,17 @@
                 d.className = `aspect-square rounded-full flex items-center justify-center text-xs ${Math.random() > 0.7 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'}`;
                 d.textContent = i + 1;
                 calGrid.appendChild(d);
+            }
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            const isDismissed = localStorage.getItem('pwaPromptDismissed');
+            const pwaPrompt = document.getElementById('pwa-prompt');
+
+            if (!isStandalone && !isDismissed && pwaPrompt) {
+                pwaPrompt.classList.remove('hidden');
+                document.getElementById('btn-close-pwa').onclick = () => {
+                    pwaPrompt.classList.add('hidden');
+                    localStorage.setItem('pwaPromptDismissed', 'true');
+                };
             }
         });
 
