@@ -7,8 +7,17 @@
     <title>Climbing Toolbox - 指力訓練</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        const colors = ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'indigo', 'violet', 'pink'];
+        const safelist = [];
+        colors.forEach(c => {
+            safelist.push(`bg-${c}-50`, `bg-${c}-400`, `bg-${c}-500`, `bg-${c}-600`, `bg-${c}-900/20`);
+            safelist.push(`border-${c}-200`, `border-${c}-800`, `border-l-${c}-500`);
+            safelist.push(`text-${c}-300`);
+        });
+
         tailwind.config = {
             darkMode: 'class',
+            safelist: safelist,
             theme: {
                 extend: {
                     colors: {
@@ -127,7 +136,6 @@
 
         .color-btn.selected {
             transform: scale(1.1);
-            ring-width: 2px;
             --tw-ring-offset-width: 2px;
             --tw-ring-color: #3b82f6;
             box-shadow: 0 0 0 2px white, 0 0 0 4px currentColor;
@@ -191,6 +199,8 @@
             background: rgba(0, 0, 0, 0.2);
         }
     </style>
+
+    <link rel="manifest" href="manifest.json">
 </head>
 
 <body
@@ -612,27 +622,33 @@
         </div>
 
         <!-- 主要顯示區 (Main Display) -->
-        <div class="flex-1 flex flex-col items-center justify-center relative w-full max-w-sm mx-auto">
+        <div class="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-4 relative">
             <!-- 循環狀態 -->
+            <div id="active-status"
+                class="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-white uppercase drop-shadow-md text-center">
+                READY
+            </div>
+
             <div id="active-loops"
-                class="absolute top-0 text-sm font-mono text-gray-200 bg-black/20 px-4 py-1.5 rounded-full backdrop-blur-sm border border-white/10">
-                Loop 1/3
+                class="text-4xl md:text-5xl font-black text-yellow-400 mb-2 hidden text-center w-full drop-shadow-md tracking-wider">
             </div>
 
             <!-- 倒數數字 -->
-            <div class="text-[8rem] font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl"
-                id="active-countdown">00</div>
+            <div class="relative mb-8">
+                <div id="active-countdown"
+                    class="text-[8rem] md:text-[10rem] font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl">
+                    00
+                </div>
+            </div>
 
             <!-- 視覺進度條 (Visual Progress Bar) -->
-            <div class="w-full h-2 bg-white/20 rounded-full mt-4 overflow-hidden max-w-[200px]">
+            <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden max-w-[200px]">
                 <div id="active-progress-bar" class="h-full bg-white transition-all duration-1000 ease-linear w-full">
                 </div>
             </div>
 
             <!-- 當前狀態名稱 -->
-            <div class="text-3xl font-extrabold mt-6 text-white uppercase tracking-widest drop-shadow-md"
-                id="active-status">READY
-            </div>
+            \
 
         </div>
 
@@ -1113,32 +1129,32 @@
 
                 if (type === 'max') {
                     title = "Max Hangs";
-                    // Warmup -> (Hang 10s + Rest 3m) x 5
                     blocks = [
-                        { type: 'timer', id: uuid(), props: { duration: 60, label: 'Warmup', color: 'blue' } },
+                        // 加入黃色準備時間
+                        { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } },
                         {
                             type: 'loop', id: uuid(), props: { iterations: 5, color: 'violet' },
                             children: [
-                                { type: 'timer', id: uuid(), props: { duration: 10, label: 'Hang (Max)', color: 'orange' } },
-                                { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest', color: 'gray' } }
+                                { type: 'timer', id: uuid(), props: { duration: 10, label: 'Hang (Max)', color: 'red' } }, // 改為紅色
+                                { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest', color: 'green' } }   // 改為綠色
                             ]
                         }
                     ];
                 } else if (type === 'repeaters') {
                     title = "7/3 Repeaters";
-                    // (Hang 7s + Rest 3s) x 6 = One Set. Rest 3m. x 3 Sets.
                     blocks = [
+                        { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } }, // 準備時間
                         {
                             type: 'loop', id: uuid(), props: { iterations: 3, color: 'indigo' },
                             children: [
                                 {
                                     type: 'loop', id: uuid(), props: { iterations: 6, color: 'violet' },
                                     children: [
-                                        { type: 'timer', id: uuid(), props: { duration: 7, label: 'Hang', color: 'orange' } },
-                                        { type: 'timer', id: uuid(), props: { duration: 3, label: 'Rest', color: 'gray' } }
+                                        { type: 'timer', id: uuid(), props: { duration: 7, label: 'Hang', color: 'red' } },  // 紅色
+                                        { type: 'timer', id: uuid(), props: { duration: 3, label: 'Rest', color: 'green' } } // 綠色
                                     ]
                                 },
-                                { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest (Set)', color: 'gray' } }
+                                { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest (Set)', color: 'green' } }
                             ]
                         }
                     ];
@@ -1282,13 +1298,21 @@
                 el.dataset.id = data.id || uuid();
                 el.dataset.props = JSON.stringify(props);
 
+                // 生成外部跳過按鈕 (僅限 Timer)
+                const isSkip = !!props.skipOnLast;
+                const skipColor = isSkip ? 'text-blue-500 opacity-100' : 'text-gray-400 opacity-40 hover:opacity-100 dark:text-gray-500';
+                const skipButton = data.type === 'timer' ? `
+ 
+                ` : '';
+
                 const header = document.createElement('div');
-                header.className = "flex justify-between items-center cursor-pointer";
+                header.className = "flex justify-between items-center cursor-pointer w-full";
                 header.innerHTML = `
-                    <div class="flex items-center gap-2 pointer-events-none">
+                    <div class="flex items-center gap-2 pointer-events-none flex-1">
                         <span class="text-xs font-bold uppercase opacity-60 dark:text-gray-400">${data.type}</span>
                         <span class="font-bold text-sm block-label dark:text-white">${this.getLabel(data.type, props)}</span>
                     </div>
+                    ${skipButton}
                 `;
                 header.onclick = (e) => {
                     e.stopPropagation();
@@ -1398,10 +1422,21 @@
                         <input type="number" id="inp-iterations" class="w-full border rounded-lg p-3 text-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.iterations}">
                     </div>`;
                 } else if (type === 'timer') {
+                    const isSkipChecked = props.skipOnLast ? 'checked' : '';
                     html += `
                     <div>
                         <label class="block text-sm font-bold text-gray-500 mb-1">時間 (秒)</label>
                         <input type="number" id="inp-duration" class="w-full border rounded-lg p-3 text-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.duration}">
+                    </div>
+                    <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg mt-4 border border-gray-100 dark:border-gray-600">
+                        <div>
+                            <div class="font-bold text-sm dark:text-white">最後一趟跳過</div>
+                            <div class="text-xs text-gray-500 mt-1">若位於迴圈內，最後一次迭代將自動省略此動作</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="inp-skip-last" ${isSkipChecked} class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                        </label>
                     </div>`;
                 } else if (type === 'reps') {
                     html += `
@@ -1461,6 +1496,7 @@
                 document.getElementById('prop-sheet').classList.remove('translate-y-full');
             },
 
+            // 替換 editor.saveProps
             saveProps() {
                 if (!this.activeBlock) return;
                 const type = this.activeBlock.dataset.type;
@@ -1472,6 +1508,10 @@
                 } else {
                     props.label = document.getElementById('inp-label').value;
                     props.duration = Number(document.getElementById('inp-duration').value);
+                    if (type === 'timer') {
+                        const skipEl = document.getElementById('inp-skip-last');
+                        if (skipEl) props.skipOnLast = skipEl.checked;
+                    }
                     if (type === 'reps') props.count = Number(document.getElementById('inp-count').value);
                 }
 
@@ -1482,6 +1522,15 @@
                 this.activeBlock.dataset.props = JSON.stringify(props);
                 this.activeBlock.className = `block-item p-3 mb-2 rounded border bg-white ${this.getBlockClass(type, props)}`;
                 this.activeBlock.querySelector('.block-label').textContent = this.getLabel(type, props);
+
+                // 同步外部跳過按鈕狀態
+                const btnSvg = this.activeBlock.querySelector('.skip-btn svg');
+                if (btnSvg) {
+                    btnSvg.className = props.skipOnLast
+                        ? "w-5 h-5 text-blue-500 opacity-100"
+                        : "w-5 h-5 text-gray-400 opacity-40 hover:opacity-100 dark:text-gray-500";
+                }
+
                 this.closeProps();
                 this.updateTimeline();
             },
@@ -1545,14 +1594,31 @@
                 container.innerHTML = html;
             },
 
+            toggleSkip(id, event) {
+                event.stopPropagation(); // 防止展開屬性面板
+                const el = document.querySelector(`.block-item[data-id="${id}"]`);
+                if (!el) return;
+
+                let props = JSON.parse(el.dataset.props);
+                props.skipOnLast = !props.skipOnLast;
+                el.dataset.props = JSON.stringify(props);
+
+                // 更新按鈕視覺狀態
+                const btnSvg = el.querySelector('.skip-btn svg');
+                if (btnSvg) {
+                    btnSvg.className = props.skipOnLast
+                        ? "w-5 h-5 text-blue-500 opacity-100"
+                        : "w-5 h-5 text-gray-400 opacity-40 hover:opacity-100 dark:text-gray-500";
+                }
+
+                this.updateTimeline();
+            },
+
             open() {
                 this.currentId = null;
                 document.getElementById('editor-title').value = '';
                 document.getElementById('editor-canvas').innerHTML = '<div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>';
                 document.getElementById('modal-editor').classList.add('open');
-
-                // NEW: Reset checkbox by appending footer
-                this.appendFooter(false);
                 this.updateTimeline();
             },
 
@@ -1567,28 +1633,7 @@
                     r.blocks.forEach(b => canvas.appendChild(this.createBlock(b)));
                 }
                 document.getElementById('modal-editor').classList.add('open');
-
-                // NEW: Load checkbox state
-                this.appendFooter(!!r.skipLastRest);
                 this.updateTimeline();
-            },
-
-            appendFooter(isChecked) {
-                const container = document.getElementById('editor-canvas');
-                // Remove existing footer if any (prevent duplication)
-                const existing = container.querySelector('.editor-footer');
-                if (existing) existing.remove();
-
-                const footer = document.createElement('div');
-                footer.className = "editor-footer mt-6 py-4 border-t border-gray-100 flex items-center justify-center gap-3 dark:border-gray-700";
-                footer.innerHTML = `
-                    <label for="editor-skip-rest" class="text-sm font-bold text-gray-500 cursor-pointer dark:text-gray-400">跳過最後休息</label>
-                    <div class="relative inline-block w-12 align-middle select-none">
-                        <input type="checkbox" id="editor-skip-rest" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" ${isChecked ? 'checked' : ''}/>
-                        <label for="editor-skip-rest" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
-                    </div>
-                `;
-                container.appendChild(footer);
             },
 
             close() { document.getElementById('modal-editor').classList.remove('open'); },
@@ -1596,10 +1641,7 @@
             async save() {
                 const title = document.getElementById('editor-title').value || '未命名課表';
                 const blocks = this.serialize();
-                // NEW: Save checkbox
-                const skipLastRest = document.getElementById('editor-skip-rest') ? document.getElementById('editor-skip-rest').checked : false;
-
-                const data = { title, blocks, skipLastRest, updatedAt: Date.now() };
+                const data = { title, blocks, updatedAt: Date.now() };
 
                 if (store.user) {
                     const col = db.collection('users').doc(store.user.uid).collection('routines');
@@ -1615,6 +1657,7 @@
                 }
                 this.close();
             }
+
         };
 
         // --- 4. Timer Engine (核心邏輯) ---
@@ -1625,23 +1668,46 @@
             elapsed: 0,
             interval: null,
             isPaused: false,
-            isLocked: false, // 螢幕鎖定狀態
+            isLocked: false,
+            wakeLock: null,
+
+            async requestWakeLock() {
+                if ('wakeLock' in navigator) {
+                    try {
+                        this.wakeLock = await navigator.wakeLock.request('screen');
+                    } catch (err) {
+                        console.log('Wake Lock error:', err);
+                    }
+                }
+            },
+
+            releaseWakeLock() {
+                if (this.wakeLock !== null) {
+                    this.wakeLock.release().then(() => { this.wakeLock = null; });
+                }
+            },
 
             flatten(blocks, parentLoops = []) {
                 let res = [];
                 blocks.forEach(b => {
-                    if (b.type === 'loop') {
-                        const count = b.props.iterations || 1;
-                        for (let i = 1; i <= count; i++) {
-                            const currentLoopInfo = { current: i, total: count };
-                            const newParentLoops = [...parentLoops, currentLoopInfo];
-                            res = res.concat(this.flatten(b.children || [], newParentLoops));
+                    if (b.type === 'timer' || b.type === 'reps') {
+                        // 檢查是否符合跳過條件：skipOnLast 為 true 且為當前迴圈的最後一次
+                        const isLastIteration = parentLoops.length > 0 && parentLoops[parentLoops.length - 1].current === parentLoops[parentLoops.length - 1].total;
+
+                        if (b.props.skipOnLast && isLastIteration) {
+                            return; // 省略，不加入隊列
                         }
-                    } else {
+
                         res.push({
                             ...b,
-                            loopState: parentLoops
+                            loopState: [...parentLoops]
                         });
+                    } else if (b.type === 'loop') {
+                        const count = b.props.iterations || 1;
+                        for (let i = 1; i <= count; i++) {
+                            const newLoopState = [...parentLoops, { current: i, total: count, id: b.id }];
+                            res.push(...this.flatten(b.children || [], newLoopState));
+                        }
                     }
                 });
                 return res;
@@ -1651,15 +1717,8 @@
                 const routine = store.routines.find(r => r.id === routineId);
                 if (!routine || !routine.blocks) return;
 
+                // 直接展開，flatten 已經處理掉略過邏輯
                 this.queue = this.flatten(routine.blocks);
-
-                // Skip Last Timer 邏輯
-                if (routine.skipLastRest && this.queue.length > 0) {
-                    const last = this.queue[this.queue.length - 1];
-                    if (last.type === 'timer') {
-                        this.queue.pop();
-                    }
-                }
 
                 if (this.queue.length === 0) return alert('課表是空的');
 
@@ -1667,6 +1726,7 @@
                 this.queue.push({ type: 'finish', props: { duration: 0, label: 'Done', color: 'gray' }, loopState: [] });
 
                 this.totalDuration = this.queue.reduce((acc, item) => acc + (item.props.duration || 0), 0);
+                // ... (保留後續的 currentIndex = 0; 等邏輯)
                 this.currentIndex = 0;
                 this.elapsed = 0;
                 this.isPaused = false;
@@ -1682,6 +1742,7 @@
                 this.updateControlUI();
                 this.runStep();
                 this.startTicker();
+                this.requestWakeLock(); // 請求常亮
                 voiceCommander.init();
             },
 
@@ -1808,9 +1869,16 @@
 
                 const loopState = step.loopState;
                 const loopEl = document.getElementById('active-loops');
-                if (loopState && loopState.length > 0) {
-                    const text = loopState.map(l => `Loop ${l.current}/${l.total}`).join(' > ');
-                    loopEl.textContent = text;
+                if (step.loopState && step.loopState.length > 0) {
+                    let text = "";
+                    if (step.loopState.length === 1) {
+                        text = `ROUND ${step.loopState[0].current}/${step.loopState[0].total}`;
+                    } else {
+                        const outer = step.loopState[0];
+                        const inner = step.loopState[step.loopState.length - 1];
+                        text = `SET ${outer.current}/${outer.total} <span class="mx-3 text-white/40">|</span> REP ${inner.current}/${inner.total}`;
+                    }
+                    loopEl.innerHTML = text;
                     loopEl.classList.remove('hidden');
                 } else {
                     loopEl.classList.add('hidden');
@@ -1869,6 +1937,7 @@
                 voiceCommander.stop();
                 document.getElementById('modal-active-timer').classList.remove('open');
                 document.getElementById('modal-active-timer').classList.remove('pulse-urgent');
+                this.releaseWakeLock(); // 解除常亮
             }
         };
 
@@ -1888,6 +1957,15 @@
             }
         });
 
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker 已註冊', reg))
+                    .catch(err => console.error('Service Worker 註冊失敗', err));
+            });
+        }
     </script>
 </body>
 
