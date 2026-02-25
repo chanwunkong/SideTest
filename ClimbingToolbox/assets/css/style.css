@@ -1,0 +1,200 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.font-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* 視圖切換 */
+.view-section {
+    display: none;
+    height: 100%;
+    overflow-y: auto;
+    padding-bottom: 80px;
+}
+
+.view-section.active {
+    display: block;
+}
+
+/* 模態視窗過渡 */
+.modal {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateY(100%);
+}
+
+.modal.open {
+    transform: translateY(0);
+}
+
+/* 隱藏捲軸 */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* 積木樣式基礎 */
+.block-item {
+    touch-action: none;
+    transition: transform 0.1s;
+}
+
+.block-item:active {
+    transform: scale(0.98);
+}
+
+.sortable-ghost {
+    opacity: 0.4;
+    background: #e5e7eb;
+    border: 1px dashed #9ca3af;
+}
+
+.sortable-drag {
+    opacity: 0.9;
+    transform: scale(1.02);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* 巢狀縮排線條 */
+.nested-container {
+    min-height: 50px;
+    margin-top: 0.5rem;
+    border-radius: 0.5rem;
+    background-color: rgba(0, 0, 0, 0.03);
+    border: 1px dashed #cbd5e1;
+}
+
+/* Dark Mode 巢狀樣式 */
+.dark .nested-container {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: #4b5563;
+}
+
+/* 屬性面板 */
+#prop-sheet {
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* 顏色選擇器樣式 */
+.color-btn {
+    transition: all 0.2s;
+}
+
+.color-btn.selected {
+    transform: scale(1.1);
+    --tw-ring-offset-width: 2px;
+    --tw-ring-color: #3b82f6;
+    box-shadow: 0 0 0 2px white, 0 0 0 4px currentColor;
+}
+
+.dark .color-btn.selected {
+    box-shadow: 0 0 0 2px #1f2937, 0 0 0 4px currentColor;
+}
+
+/* 語音狀態動畫 */
+.mic-listening {
+    animation: pulse-red 1.5s infinite;
+    background-color: #ef4444 !important;
+    color: white !important;
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* 急迫感呼吸燈效果 (背景) */
+@keyframes urgent-pulse {
+
+    0%,
+    100% {
+        filter: brightness(1);
+    }
+
+    50% {
+        filter: brightness(1.3);
+    }
+}
+
+.pulse-urgent {
+    animation: urgent-pulse 0.5s infinite ease-in-out;
+}
+
+/* Toggle Switch Style */
+.toggle-checkbox:checked {
+    right: 0;
+    border-color: #3b82f6;
+}
+
+.toggle-checkbox:checked+.toggle-label {
+    background-color: #3b82f6;
+}
+
+/* 鎖定遮罩樣式 */
+#lock-overlay {
+    backdrop-filter: blur(2px);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* 日曆格點容器 */
+.cal-day {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    border-radius: 0.75rem;
+    /* 稍微帶圓角的方格，比全圓更現代 */
+    transition: background-color 0.2s;
+}
+
+/* 日期數字 */
+.cal-date-num {
+    font-size: 0.875rem;
+    font-weight: 600;
+    z-index: 1;
+}
+
+/* 點點容器 */
+.dots-container {
+    position: absolute;
+    bottom: 6px;
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    width: 100%;
+    height: 4px;
+}
+
+/* 單個點點樣式 */
+.dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background-color: #3b82f6;
+    /* 預設藍色點 */
+}
+
+/* 今日標記 */
+.is-today {
+    background-color: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.5);
+}
