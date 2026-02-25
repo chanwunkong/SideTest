@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
@@ -28,7 +28,7 @@
             <div class="flex items-center gap-4">
                 <button onclick="i18n.toggle()" data-i18n="langText"
                     class="text-xs font-bold px-3 py-1.5 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors">
-                    Language
+                    中文
                 </button>
                 <div id="auth-section">
                     <button id="login-btn" onclick="handleGoogleLogin()" data-i18n="login"
@@ -48,16 +48,17 @@
     <main class="max-w-5xl mx-auto px-4 py-12">
         <header class="text-center mb-16">
             <h1 data-i18n="heroTitle" class="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight text-gradient">
-                Digital Toolbox</h1>
+                Digital Toolbox for Climbers
+            </h1>
             <p data-i18n="heroDesc" class="text-lg text-slate-500 max-w-3xl mx-auto leading-relaxed">
-                AI-Assisted Development...
+                AI-Assisted Development:Designed for those who love to climb.
             </p>
         </header>
 
         <section class="mb-20">
             <div class="flex items-center gap-3 mb-8">
-                <h2 data-i18n="coreTitle" class="text-2xl font-bold">Tools</h2>
-                <span data-i18n="badgeLive" class="bg-blue-100 text-blue-600 status-badge">LIVE</span>
+                <h2 data-i18n="coreTitle" class="text-2xl font-bold">Core Tools</h2>
+                <span data-i18n="badgeLive" class="bg-blue-100 text-blue-600 status-badge">Version 1.0 Live</span>
             </div>
 
             <div class="grid md:grid-cols-2 gap-6">
@@ -69,18 +70,23 @@
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                     </div>
-                    <h3 data-i18n="hbTitle" class="text-xl font-bold mb-3">Hangboard Timer</h3>
-                    <p data-i18n="hbPain" class="text-slate-500 text-sm mb-4 leading-relaxed">Pain point description...
+                    <h3 data-i18n="hbTitle" class="text-xl font-bold mb-3">Hangboard Timer (v1)</h3>
+                    <p data-i18n="hbPain" class="text-slate-500 text-sm mb-4 leading-relaxed">
+                        Hands covered in chalk? Voice-controlled structured timer eliminates the need to touch your
+                        screen.
                     </p>
                     <ul class="text-sm text-slate-600 space-y-2 mb-6">
                         <li class="flex items-center gap-2">
-                            <div class="w-1 h-1 bg-blue-400 rounded-full"></div><span data-i18n="hbF1">Feature 1</span>
+                            <div class="w-1 h-1 bg-blue-400 rounded-full"></div><span data-i18n="hbF1">Unlimited
+                                structured timer with Offline & Voice support</span>
                         </li>
                         <li class="flex items-center gap-2">
-                            <div class="w-1 h-1 bg-blue-400 rounded-full"></div><span data-i18n="hbF2">Feature 2</span>
+                            <div class="w-1 h-1 bg-blue-400 rounded-full"></div><span data-i18n="hbF2">Automated
+                                training logs and calendar analytics</span>
                         </li>
                     </ul>
-                    <div data-i18n="hbFuture" class="text-xs font-semibold text-blue-600">Future plan...</div>
+                    <div data-i18n="hbFuture" class="text-xs font-semibold text-blue-600">Future: Bluetooth scale
+                        integration for automated load tracking.</div>
                 </a>
 
                 <a href="HoldFocus.html" class="feature-card p-8 group">
@@ -94,55 +100,63 @@
                                 d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
                     </div>
-                    <h3 data-i18n="hfTitle" class="text-xl font-bold mb-3">Route Editor</h3>
-                    <p data-i18n="hfPain" class="text-slate-500 text-sm mb-4 leading-relaxed">Pain point description...
+                    <h3 data-i18n="hfTitle" class="text-xl font-bold mb-3">Route Editor (HoldFocus v1)</h3>
+                    <p data-i18n="hfPain" class="text-slate-500 text-sm mb-4 leading-relaxed">
+                        Hard to recall beta or explain movements? Create route maps manually to stay focused.
                     </p>
                     <ul class="text-sm text-slate-600 space-y-2 mb-6">
                         <li class="flex items-center gap-2">
-                            <div class="w-1 h-1 bg-indigo-400 rounded-full"></div><span data-i18n="hfF1">Feature
-                                1</span>
+                            <div class="w-1 h-1 bg-indigo-400 rounded-full"></div><span data-i18n="hfF1">Manual hold
+                                marking for precise route mapping</span>
                         </li>
                         <li class="flex items-center gap-2">
-                            <div class="w-1 h-1 bg-indigo-400 rounded-full"></div><span data-i18n="hfF2">Feature
-                                2</span>
+                            <div class="w-1 h-1 bg-indigo-400 rounded-full"></div><span data-i18n="hfF2">Support for
+                                image export and instant sharing</span>
                         </li>
                     </ul>
-                    <div data-i18n="hfFuture" class="text-xs font-semibold text-indigo-600">Future plan...</div>
+                    <div data-i18n="hfFuture" class="text-xs font-semibold text-indigo-600">Future: Considering AI hold
+                        recognition and cloud albums.</div>
                 </a>
             </div>
         </section>
 
         <section class="mb-20">
-            <h2 data-i18n="changelogTitle" class="text-2xl font-bold mb-8">Updates</h2>
+            <h2 data-i18n="changelogTitle" class="text-2xl font-bold mb-8">Changelog</h2>
             <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                 <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <span class="text-sm font-bold text-slate-900">2026.02.25</span>
                     <span data-i18n="logHbV1"
                         class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-md font-bold text-center">Hangboard
-                        v1</span>
+                        v1 Live</span>
                 </div>
-                <div data-i18n="logHbDesc" class="p-6 text-sm text-slate-500 leading-relaxed">Release notes...</div>
+                <div data-i18n="logHbDesc" class="p-6 text-sm text-slate-500 leading-relaxed">
+                    Structured editor, voice command optimization, and training calendar are now live.
+                </div>
 
                 <div class="p-6 border-b border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <span class="text-sm font-bold text-slate-900">2026.02.13</span>
                     <span data-i18n="logHfV1"
                         class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-md font-bold text-center">HoldFocus
-                        v1</span>
+                        v1 Live</span>
                 </div>
-                <div data-i18n="logHfDesc" class="p-6 text-sm text-slate-500 leading-relaxed">Release notes...</div>
+                <div data-i18n="logHfDesc" class="p-6 text-sm text-slate-500 leading-relaxed">
+                    Manual marking features released. Supports custom drawing and high-res exports.
+                </div>
             </div>
         </section>
 
         <section>
-            <h2 data-i18n="queueTitle" class="text-2xl font-bold mb-8 text-slate-400">Queue</h2>
+            <h2 data-i18n="queueTitle" class="text-2xl font-bold mb-8 text-slate-400">Features in Queue</h2>
             <div class="grid md:grid-cols-2 gap-6">
                 <div class="p-6 bg-slate-100 rounded-2xl border border-dashed border-slate-300">
-                    <h4 data-i18n="q1Title" class="font-bold text-slate-500 mb-2">Title</h4>
-                    <p data-i18n="q1Desc" class="text-xs text-slate-400">Desc...</p>
+                    <h4 data-i18n="q1Title" class="font-bold text-slate-500 mb-2">Motion & Pose Analysis</h4>
+                    <p data-i18n="q1Desc" class="text-xs text-slate-400">Analyze climbing trajectory and center of
+                        gravity to improve precision.</p>
                 </div>
                 <div class="p-6 bg-slate-100 rounded-2xl border border-dashed border-slate-300">
-                    <h4 data-i18n="q2Title" class="font-bold text-slate-500 mb-2">Title</h4>
-                    <p data-i18n="q2Desc" class="text-xs text-slate-400">Desc...</p>
+                    <h4 data-i18n="q2Title" class="font-bold text-slate-500 mb-2">Shoe Spec Comparison</h4>
+                    <p data-i18n="q2Desc" class="text-xs text-slate-400">Comprehensive database providing shoe sizing
+                        recommendations.</p>
                 </div>
             </div>
         </section>
@@ -150,14 +164,15 @@
 
     <footer class="bg-white border-t border-slate-200 py-12 mt-20 text-center">
         <div class="mb-6 flex flex-col items-center gap-2">
-            <span data-i18n="contactUs"
-                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contact</span>
+            <span data-i18n="contactUs" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contact
+                Us</span>
             <a href="mailto:chanwunkong@gmail.com"
                 class="text-slate-600 hover:text-blue-600 font-medium transition-colors border-b border-slate-200 hover:border-blue-600 pb-0.5">
                 chanwunkong@gmail.com
             </a>
         </div>
-        <p data-i18n="footerCopy" class="text-sm text-slate-400">Design for climbers.</p>
+        <p data-i18n="footerCopy" class="text-sm text-slate-400">© 2026 Climbing Toolbox. Designed for those who love to
+            climb.</p>
     </footer>
 
     <script>
@@ -166,6 +181,10 @@
                 i18n.updatePage();
             }
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateUI();
+        });
 
         auth.onAuthStateChanged(user => {
             const loginBtn = document.getElementById('login-btn');
@@ -181,9 +200,6 @@
             }
             updateUI();
         });
-
-        // 初始化載入
-        updateUI();
     </script>
 </body>
 
