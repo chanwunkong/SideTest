@@ -83,12 +83,24 @@
                 window.speechSynthesis.speak(utterance);
             };
 
-            const getOptions = (correct) => {
+            const getOptions = (item) => {
+                const correct = item.a;
+                const day = Math.floor(item.id / 100);
+                const todayAnswers = courseData[day]?.items.map(i => i.a) || [];
                 const allAnswers = Object.values(courseData).flatMap(d => d.items.map(i => i.a));
+
                 const opts = new Set([correct]);
+
+                // 抽取 2 個當天選項
+                while (opts.size < 3 && opts.size < todayAnswers.length) {
+                    opts.add(todayAnswers[Math.floor(Math.random() * todayAnswers.length)]);
+                }
+
+                // 抽取 1 個全域選項補滿 4 個
                 while (opts.size < 4 && opts.size < allAnswers.length) {
                     opts.add(allAnswers[Math.floor(Math.random() * allAnswers.length)]);
                 }
+
                 return Array.from(opts).sort(() => Math.random() - 0.5);
             };
 
@@ -101,7 +113,7 @@
                     .slice(0, 3);
 
                 if (wrongItems.length > 0) {
-                    setSessionQuestions(wrongItems.map(i => ({ ...i, opts: getOptions(i.a) })));
+                    setSessionQuestions(wrongItems.map(i => ({ ...i, opts: getOptions(i) })));
                     setPhase('review');
                 } else {
                     setPhase('learn');
@@ -117,7 +129,7 @@
                     .slice(0, 10);
 
                 if (wrongItems.length === 0) return;
-                setSessionQuestions(wrongItems.map(i => ({ ...i, opts: getOptions(i.a) })));
+                setSessionQuestions(wrongItems.map(i => ({ ...i, opts: getOptions(i) })));
                 setPhase('review');
                 setCurrentIndex(0);
             };
@@ -126,13 +138,13 @@
                 if (phase === 'review') {
                     setPhase('learn');
                 } else if (phase === 'learn') {
-                    setSessionQuestions(courseData[selectedDay].items.map(i => ({ ...i, opts: getOptions(i.a) })));
+                    setSessionQuestions(courseData[selectedDay].items.map(i => ({ ...i, opts: getOptions(i) })));
                     setPhase('test');
                 } else if (phase === 'test') {
                     const reviewDays = [selectedDay - 1, selectedDay - 3, selectedDay - 7].filter(d => d > 0);
                     const reviewItems = reviewDays.flatMap(d => courseData[d]?.items || []).sort(() => Math.random() - 0.5).slice(0, 3);
                     const todayItems = courseData[selectedDay].items;
-                    setSessionQuestions([...todayItems, ...reviewItems].map(i => ({ ...i, opts: getOptions(i.a) })));
+                    setSessionQuestions([...todayItems, ...reviewItems].map(i => ({ ...i, opts: getOptions(i) })));
                     setPhase('mix');
                 } else {
                     setHistory(prev => Array.from(new Set([...prev, selectedDay])));
