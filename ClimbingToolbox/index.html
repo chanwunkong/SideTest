@@ -5,31 +5,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Climbing Toolbox</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <link rel="stylesheet" href="assets/css/style.css">
     <script src="config.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-
-        body {
-            font-family: 'Inter', 'Noto Sans TC', sans-serif;
-        }
-
-        .feature-card {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .feature-card:hover {
-            transform: translateY(-4px);
-        }
-    </style>
+    <script src="js/modules/i18n.js"></script>
 </head>
 
 <body class="bg-slate-50 text-slate-900 transition-colors duration-300">
 
-    <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+    <nav class="nav-blur">
         <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-bold">C
@@ -37,18 +26,19 @@
                 <span class="font-bold text-lg tracking-tight">Climbing Toolbox</span>
             </div>
             <div class="flex items-center gap-4">
-                <button id="lang-btn" onclick="toggleLang()"
+                <button onclick="i18n.toggle()" data-i18n="langText"
                     class="text-xs font-bold px-3 py-1.5 border border-slate-200 rounded-full hover:bg-slate-100 transition-colors">
-                    English
+                    Language
                 </button>
                 <div id="auth-section">
-                    <button id="login-btn" onclick="handleGoogleLogin()"
+                    <button id="login-btn" onclick="handleGoogleLogin()" data-i18n="login"
                         class="text-sm font-semibold bg-slate-900 text-white px-4 py-2 rounded-full hover:bg-slate-800 transition-colors">
-                        登入
+                        Login
                     </button>
                     <div id="user-info" class="hidden flex items-center gap-3">
                         <img id="user-avatar" class="w-8 h-8 rounded-full border border-slate-200" src="" alt="avatar">
-                        <button onclick="handleLogout()" class="text-sm text-slate-500 hover:text-slate-900">登出</button>
+                        <button onclick="handleLogout()" data-i18n="logout"
+                            class="text-sm text-slate-500 hover:text-slate-900">Logout</button>
                     </div>
                 </div>
             </div>
@@ -57,21 +47,21 @@
 
     <main class="max-w-5xl mx-auto px-4 py-12">
         <header class="text-center mb-16">
-            <h1 id="hero-title" class="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
-                為攀岩者打造的數位工具箱</h1>
-            <p id="hero-desc" class="text-lg text-slate-500 max-w-2xl mx-auto">專注於解決岩場實務痛點，讓訓練與紀錄回歸純粹。</p>
+            <h1 data-i18n="heroTitle" class="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight text-gradient">
+                Digital Toolbox</h1>
+            <p data-i18n="heroDesc" class="text-lg text-slate-500 max-w-3xl mx-auto leading-relaxed">
+                AI-Assisted Development...
+            </p>
         </header>
 
         <section class="mb-20">
             <div class="flex items-center gap-3 mb-8">
-                <h2 id="core-title" class="text-2xl font-bold">核心工具</h2>
-                <span id="badge-live"
-                    class="px-2 py-0.5 bg-blue-100 text-blue-600 text-xs font-bold rounded">正式版已上線</span>
+                <h2 data-i18n="coreTitle" class="text-2xl font-bold">Tools</h2>
+                <span data-i18n="badgeLive" class="bg-blue-100 text-blue-600 status-badge">LIVE</span>
             </div>
 
             <div class="grid md:grid-cols-2 gap-6">
-                <a href="Hangboard.html"
-                    class="feature-card bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-200 group">
+                <a href="Hangboard.html" class="feature-card p-8 group">
                     <div
                         class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,23 +69,21 @@
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                     </div>
-                    <h3 id="hb-title" class="text-xl font-bold mb-3">指力訓練計時 (Hangboard v1)</h3>
-                    <p id="hb-pain" class="text-slate-500 text-sm mb-4 leading-relaxed">
-                        解決訓練時雙手滿是粉末不便觸碰螢幕，以及複雜巢狀訓練難以精準計時的痛點。</p>
+                    <h3 data-i18n="hbTitle" class="text-xl font-bold mb-3">Hangboard Timer</h3>
+                    <p data-i18n="hbPain" class="text-slate-500 text-sm mb-4 leading-relaxed">Pain point description...
+                    </p>
                     <ul class="text-sm text-slate-600 space-y-2 mb-6">
                         <li class="flex items-center gap-2">
-                            <div class="w-1 h-1 bg-blue-400 rounded-full"></div><span
-                                id="hb-f1">無限制結構化計時器，支持離線或聲控</span>
+                            <div class="w-1 h-1 bg-blue-400 rounded-full"></div><span data-i18n="hbF1">Feature 1</span>
                         </li>
                         <li class="flex items-center gap-2">
-                            <div class="w-1 h-1 bg-blue-400 rounded-full"></div><span id="hb-f2">全自動訓練日誌與日曆統計系統</span>
+                            <div class="w-1 h-1 bg-blue-400 rounded-full"></div><span data-i18n="hbF2">Feature 2</span>
                         </li>
                     </ul>
-                    <div id="hb-future" class="text-xs font-semibold text-blue-600">未來規劃：支援藍芽吊秤連動，讓訓練量自動量化紀錄。</div>
+                    <div data-i18n="hbFuture" class="text-xs font-semibold text-blue-600">Future plan...</div>
                 </a>
 
-                <a href="HoldFocus.html"
-                    class="feature-card bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-200 group">
+                <a href="HoldFocus.html" class="feature-card p-8 group">
                     <div
                         class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,167 +94,77 @@
                                 d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
                     </div>
-                    <h3 id="hf-title" class="text-xl font-bold mb-3">路線編輯器 (HoldFocus v1)</h3>
-                    <p id="hf-pain" class="text-slate-500 text-sm mb-4 leading-relaxed">
-                        解決岩館路線更新頻繁難以留存細節，以及向他人解釋動作時溝通成本高的問題。</p>
+                    <h3 data-i18n="hfTitle" class="text-xl font-bold mb-3">Route Editor</h3>
+                    <p data-i18n="hfPain" class="text-slate-500 text-sm mb-4 leading-relaxed">Pain point description...
+                    </p>
                     <ul class="text-sm text-slate-600 space-y-2 mb-6">
                         <li class="flex items-center gap-2">
-                            <div class="w-1 h-1 bg-indigo-400 rounded-full"></div><span
-                                id="hf-f1">手動標記岩點，快速產出路線示意圖</span>
+                            <div class="w-1 h-1 bg-indigo-400 rounded-full"></div><span data-i18n="hfF1">Feature
+                                1</span>
                         </li>
                         <li class="flex items-center gap-2">
-                            <div class="w-1 h-1 bg-indigo-400 rounded-full"></div><span id="hf-f2">支援圖片導出與即時紀錄分享</span>
+                            <div class="w-1 h-1 bg-indigo-400 rounded-full"></div><span data-i18n="hfF2">Feature
+                                2</span>
                         </li>
                     </ul>
-                    <div id="hf-future" class="text-xs font-semibold text-indigo-600">未來規劃：考慮加入智慧岩點辨識與個人雲端相簿。</div>
+                    <div data-i18n="hfFuture" class="text-xs font-semibold text-indigo-600">Future plan...</div>
                 </a>
             </div>
         </section>
 
         <section class="mb-20">
-            <h2 id="changelog-title" class="text-2xl font-bold mb-8">更新紀錄</h2>
-            <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden">
+            <h2 data-i18n="changelogTitle" class="text-2xl font-bold mb-8">Updates</h2>
+            <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                 <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <span class="text-sm font-bold text-slate-900">2026.02.25</span>
-                    <span id="log-hb-v1"
-                        class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-md font-bold">Hangboard v1
-                        上線</span>
+                    <span data-i18n="logHbV1"
+                        class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-md font-bold text-center">Hangboard
+                        v1</span>
                 </div>
-                <div id="log-hb-desc" class="p-6 text-sm text-slate-500 leading-relaxed">
-                    開放無限制結構化編輯器、聲控系統優化、訓練紀錄日曆功能正式上線。</div>
+                <div data-i18n="logHbDesc" class="p-6 text-sm text-slate-500 leading-relaxed">Release notes...</div>
+
                 <div class="p-6 border-b border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <span class="text-sm font-bold text-slate-900">2026.02.13</span>
-                    <span id="log-hf-v1"
-                        class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-md font-bold">HoldFocus v1 上線</span>
+                    <span data-i18n="logHfV1"
+                        class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-md font-bold text-center">HoldFocus
+                        v1</span>
                 </div>
-                <div id="log-hf-desc" class="p-6 text-sm text-slate-500 leading-relaxed">手動標記功能發布，支援自訂路線繪製與高清圖片導出。</div>
+                <div data-i18n="logHfDesc" class="p-6 text-sm text-slate-500 leading-relaxed">Release notes...</div>
             </div>
         </section>
 
         <section>
-            <h2 id="queue-title" class="text-2xl font-bold mb-8 text-slate-400">開發中規劃</h2>
+            <h2 data-i18n="queueTitle" class="text-2xl font-bold mb-8 text-slate-400">Queue</h2>
             <div class="grid md:grid-cols-2 gap-6">
                 <div class="p-6 bg-slate-100 rounded-2xl border border-dashed border-slate-300">
-                    <h4 id="q1-title" class="font-bold text-slate-500 mb-2">動作追蹤與姿勢分析</h4>
-                    <p id="q1-desc" class="text-xs text-slate-400">分析攀爬軌跡，偵測重心偏移與動作準確度。</p>
+                    <h4 data-i18n="q1Title" class="font-bold text-slate-500 mb-2">Title</h4>
+                    <p data-i18n="q1Desc" class="text-xs text-slate-400">Desc...</p>
                 </div>
                 <div class="p-6 bg-slate-100 rounded-2xl border border-dashed border-slate-300">
-                    <h4 id="q2-title" class="font-bold text-slate-500 mb-2">岩鞋規格對比</h4>
-                    <p id="q2-desc" class="text-xs text-slate-400">收錄各品牌數據，根據腳型與風格提供選購建議。</p>
+                    <h4 data-i18n="q2Title" class="font-bold text-slate-500 mb-2">Title</h4>
+                    <p data-i18n="q2Desc" class="text-xs text-slate-400">Desc...</p>
                 </div>
             </div>
         </section>
     </main>
 
     <footer class="bg-white border-t border-slate-200 py-12 mt-20 text-center">
-        <p id="footer-copy" class="text-sm text-slate-400">© 2026 Climbing Toolbox. 設計給所有熱愛攀爬的人。</p>
+        <div class="mb-6 flex flex-col items-center gap-2">
+            <span data-i18n="contactUs"
+                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contact</span>
+            <a href="mailto:chanwunkong@gmail.com"
+                class="text-slate-600 hover:text-blue-600 font-medium transition-colors border-b border-slate-200 hover:border-blue-600 pb-0.5">
+                chanwunkong@gmail.com
+            </a>
+        </div>
+        <p data-i18n="footerCopy" class="text-sm text-slate-400">Design for climbers.</p>
     </footer>
 
     <script>
-        const i18n = {
-            zh: {
-                heroTitle: "為攀岩者打造的數位工具箱",
-                heroDesc: "專注於解決岩場實務痛點，讓訓練與紀錄回歸純粹。",
-                coreTitle: "核心工具",
-                badgeLive: "正式版已上線",
-                hbTitle: "指力訓練計時 (Hangboard v1)",
-                hbPain: "解決訓練時雙手滿是粉末不便觸碰螢幕，以及複雜巢狀訓練難以精準計時的痛點。",
-                hbF1: "無限制結構化計時器，支持離線或聲控",
-                hbF2: "全自動訓練日誌與日曆統計系統",
-                hbFuture: "未來規劃：支援藍芽吊秤連動，讓訓練量自動量化紀錄。",
-                hfTitle: "路線編輯器 (HoldFocus v1)",
-                hfPain: "解決岩館路線更新頻繁難以留存細節，以及向他人解釋動作時溝通成本高的問題。",
-                hfF1: "手動標記岩點，快速產出路線示意圖",
-                hfF2: "支援圖片導出與即時紀錄分享",
-                hfFuture: "未來規劃：考慮加入智慧岩點辨識與個人雲端相簿。",
-                changelogTitle: "更新紀錄",
-                logHbV1: "Hangboard v1 上線",
-                logHbDesc: "開放無限制結構化編輯器、聲控系統優化、訓練紀錄日曆功能正式上線。",
-                logHfV1: "HoldFocus v1 上線",
-                logHfDesc: "手動標記功能發布，支援自訂路線繪製與高清圖片導出。",
-                queueTitle: "開發中規劃",
-                q1Title: "動作追蹤與姿勢分析",
-                q1Desc: "分析攀爬軌跡，偵測重心偏移與動作準確度。",
-                q2Title: "岩鞋規格對比",
-                q2Desc: "收錄各品牌數據，根據腳型與風格提供選購建議。",
-                footerCopy: "© 2026 Climbing Toolbox. 設計給所有熱愛攀爬的人。",
-                login: "登入",
-                logout: "登出",
-                langText: "English"
-            },
-            en: {
-                heroTitle: "Digital Toolbox for Climbers",
-                heroDesc: "Solving real-world climbing pain points. Keep your training pure and efficient.",
-                coreTitle: "Core Tools",
-                badgeLive: "Version 1.0 Live",
-                hbTitle: "Hangboard Timer (v1)",
-                hbPain: "Hands covered in chalk? Voice-controlled structured timer eliminates the need to touch your screen.",
-                hbF1: "Unlimited structured timer with Offline & Voice support",
-                hbF2: "Automated training logs and calendar analytics",
-                hbFuture: "Future: Bluetooth scale integration for automated load tracking.",
-                hfTitle: "Route Editor (HoldFocus v1)",
-                hfPain: "Hard to recall beta or explain movements? Create route maps manually to stay focused.",
-                hfF1: "Manual hold marking for precise route mapping",
-                hfF2: "Support for image export and instant sharing",
-                hfFuture: "Future: Considering AI hold recognition and cloud albums.",
-                changelogTitle: "Changelog",
-                logHbV1: "Hangboard v1 Live",
-                logHbDesc: "Structured editor, voice command optimization, and training calendar are now live.",
-                logHfV1: "HoldFocus v1 Live",
-                logHfDesc: "Manual marking features released. Supports custom drawing and high-res exports.",
-                queueTitle: "Features in Queue",
-                q1Title: "Motion & Pose Analysis",
-                q1Desc: "Analyze climbing trajectory and center of gravity to improve precision.",
-                q2Title: "Shoe Spec Comparison",
-                q2Desc: "Comprehensive database providing shoe sizing recommendations.",
-                footerCopy: "© 2026 Climbing Toolbox. Designed for those who love to climb.",
-                login: "Login",
-                logout: "Logout",
-                langText: "中文"
-            }
-        };
-
-        let currentLang = localStorage.getItem('userLang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
-
         function updateUI() {
-            const data = i18n[currentLang];
-            document.getElementById('hero-title').textContent = data.heroTitle;
-            document.getElementById('hero-desc').textContent = data.heroDesc;
-            document.getElementById('core-title').textContent = data.coreTitle;
-            document.getElementById('badge-live').textContent = data.badgeLive;
-            document.getElementById('hb-title').textContent = data.hbTitle;
-            document.getElementById('hb-pain').textContent = data.hbPain;
-            document.getElementById('hb-f1').textContent = data.hbF1;
-            document.getElementById('hb-f2').textContent = data.hbF2;
-            document.getElementById('hb-future').textContent = data.hbFuture;
-            document.getElementById('hf-title').textContent = data.hfTitle;
-            document.getElementById('hf-pain').textContent = data.hfPain;
-            document.getElementById('hf-f1').textContent = data.hfF1;
-            document.getElementById('hf-f2').textContent = data.hfF2;
-            document.getElementById('hf-future').textContent = data.hfFuture;
-            document.getElementById('changelog-title').textContent = data.changelogTitle;
-            document.getElementById('log-hb-v1').textContent = data.logHbV1;
-            document.getElementById('log-hb-desc').textContent = data.logHbDesc;
-            document.getElementById('log-hf-v1').textContent = data.logHfV1;
-            document.getElementById('log-hf-desc').textContent = data.logHfDesc;
-            document.getElementById('queue-title').textContent = data.queueTitle;
-            document.getElementById('q1-title').textContent = data.q1Title;
-            document.getElementById('q1-desc').textContent = data.q1Desc;
-            document.getElementById('q2-title').textContent = data.q2Title;
-            document.getElementById('q2-desc').textContent = data.q2Desc;
-            document.getElementById('footer-copy').textContent = data.footerCopy;
-            document.getElementById('lang-btn').textContent = data.langText;
-            document.getElementById('login-btn').textContent = data.login;
-            const logoutBtn = document.querySelector('#user-info button');
-            if (logoutBtn) logoutBtn.textContent = data.logout;
-
-            document.documentElement.lang = currentLang === 'zh' ? 'zh-TW' : 'en';
-        }
-
-        function toggleLang() {
-            currentLang = currentLang === 'zh' ? 'en' : 'zh';
-            localStorage.setItem('userLang', currentLang);
-            updateUI();
+            if (typeof i18n !== 'undefined') {
+                i18n.updatePage();
+            }
         }
 
         auth.onAuthStateChanged(user => {
@@ -284,6 +182,7 @@
             updateUI();
         });
 
+        // 初始化載入
         updateUI();
     </script>
 </body>
