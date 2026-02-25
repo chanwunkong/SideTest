@@ -1,9 +1,11 @@
-const CACHE_NAME = 'climbing-toolbox-v4'; // 更新版本號以強制重新整理快取
+const CACHE_NAME = 'climbing-toolbox-v5'; // 更新版本號以強制重新整理快取
 
 const URLS_TO_CACHE = [
     './Hangboard.html',
+    './HoldFocus.html',
     './config.js',
-    './manifest.json',
+    './manifest-hangboard.json',
+    './manifest-holdfocus.json',
 
     // --- 新增：拆分後的本地資源 ---
     './assets/css/style.css',

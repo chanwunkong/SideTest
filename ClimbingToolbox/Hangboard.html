@@ -1,147 +1,69 @@
-<const store={!DOCTYPE html>
-    <html lang="zh-TW">
+<!DOCTYPE html>
+<html lang="zh-TW">
 
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>Climbing Toolbox - 指力訓練</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script>
-            const colors = ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'indigo', 'violet', 'pink'];
-            const safelist = [];
-            colors.forEach(c => {
-                safelist.push(`bg-${c}-50`, `bg-${c}-400`, `bg-${c}-500`, `bg-${c}-600`, `bg-${c}-900/20`);
-                safelist.push(`border-${c}-200`, `border-${c}-800`, `border-l-${c}-500`);
-                safelist.push(`text-${c}-300`);
-            });
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Climbing Toolbox - 指力訓練</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        const colors = ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'indigo', 'violet', 'pink'];
+        const safelist = [];
+        colors.forEach(c => {
+            safelist.push(`bg-${c}-50`, `bg-${c}-400`, `bg-${c}-500`, `bg-${c}-600`, `bg-${c}-900/20`);
+            safelist.push(`border-${c}-200`, `border-${c}-800`, `border-l-${c}-500`);
+            safelist.push(`text-${c}-300`);
+        });
 
-            tailwind.config = {
-                darkMode: 'class',
-                safelist: safelist,
-                theme: {
-                    extend: {
-                        colors: {
-                            gray: {
-                                750: '#2d3748',
-                                850: '#1a202c',
-                                950: '#0f1419',
-                            }
+        tailwind.config = {
+            darkMode: 'class',
+            safelist: safelist,
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            750: '#2d3748',
+                            850: '#1a202c',
+                            950: '#0f1419',
                         }
                     }
                 }
             }
-        </script>
+        }
+    </script>
 
-        <!-- 拖曳套件 -->
-        <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <!-- 拖曳套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 
-        <!-- Firebase SDK -->
-        <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-        <!-- 共用設定 -->
-        <link rel="stylesheet" href="assets/css/style.css">
+    <!-- 共用設定 -->
+    <link rel="stylesheet" href="assets/css/style.css">
 
-        <script src="config.js"></script>
+    <script src="config.js"></script>
 
-        <script src="js/modules/storage.js"></script>
-        <script src="js/modules/ui.js"></script>
-        <script src="js/modules/timer.js"></script>
+    <script src="js/modules/storage.js"></script>
+    <script src="js/modules/ui.js"></script>
+    <script src="js/modules/timer.js"></script>
 
-        <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest-hangboard.json">
 
-    </head>
+</head>
 
-    <body
-        class="bg-gray-50 text-gray-900 h-[100dvh] w-full overflow-hidden flex flex-col dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
+<body
+    class="bg-gray-50 text-gray-900 h-[100dvh] w-full overflow-hidden flex flex-col dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
 
-        <!-- 主要內容區 -->
-        <main id="app-container"
-            class="flex-1 relative overflow-hidden w-full max-w-md mx-auto bg-white shadow-2xl dark:bg-gray-800 transition-colors duration-300">
+    <!-- 主要內容區 -->
+    <main id="app-container"
+        class="flex-1 relative overflow-hidden w-full max-w-md mx-auto bg-white shadow-2xl dark:bg-gray-800 transition-colors duration-300">
 
-            <!-- 1. 日曆與紀錄 (Calendar) -->
-            <div id="view-calendar" class="view-section active">
-                <div class="p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center">
-                            <a href="index.html"
-                                class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
-                                title="Home">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-                                    </path>
-                                </svg>
-                            </a>
-                            <h1 id="calendar-month-title" class="text-2xl font-extrabold dark:text-white">訓練紀錄</h1>
-                        </div>
-
-                        <div class="flex gap-2">
-                            <button onclick="recordManager.changeMonth(-1)"
-                                class="p-2 bg-gray-100 rounded-lg dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                                <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M15 19l-7-7 7-7"></path>
-                                </svg>
-                            </button>
-                            <button onclick="recordManager.changeMonth(1)"
-                                class="p-2 bg-gray-100 rounded-lg dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                                <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 5l7 7-7 7">
-                                    </path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="pwa-prompt"
-                        class="hidden bg-blue-50 text-blue-700 rounded-xl p-4 mb-4 text-sm flex justify-between items-center border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300">
-                        <span>將此應用加入手機主畫面，即可離線運行。</span>
-                        <button id="btn-close-pwa" class="font-bold ml-4">✕</button>
-                    </div>
-
-                    <div class="bg-gray-900 text-white rounded-2xl p-6 mb-8 shadow-lg dark:bg-gray-700">
-                        <div class="text-sm text-gray-400 mb-1">本週訓練</div>
-                        <div class="flex items-baseline gap-2">
-                            <div id="week-count-val" class="text-6xl font-mono font-bold">0</div>
-                            <div class="text-lg font-normal text-gray-500">次</div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-7 gap-2 mb-4 text-center text-sm text-gray-400 dark:text-gray-500">
-                        <div>M</div>
-                        <div>T</div>
-                        <div>W</div>
-                        <div>T</div>
-                        <div>F</div>
-                        <div>S</div>
-                        <div>S</div>
-                    </div>
-                    <div class="grid grid-cols-7 gap-2" id="calendar-grid"></div>
-                    <div id="day-detail-container" class="mt-8 border-t border-gray-100 pt-6 dark:border-gray-700">
-                        <div class="flex justify-between items-baseline mb-4">
-                            <h3 id="detail-date-title" class="text-lg font-extrabold dark:text-white">選擇日期查看紀錄</h3>
-                            <span id="detail-record-count" class="text-xs font-bold text-gray-400">0 筆紀錄</span>
-                        </div>
-
-                        <div id="detail-list" class="space-y-3">
-                            <div
-                                class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200 dark:bg-gray-800/50 dark:border-gray-700">
-                                <p class="text-sm text-gray-400">點擊日曆日期以管理訓練紀錄</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2. 課表管理 (Routines) -->
-            <div id="view-routines" class="view-section">
-                <div
-                    class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
+        <!-- 1. 日曆與紀錄 (Calendar) -->
+        <div id="view-calendar" class="view-section active">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center">
                         <a href="index.html"
                             class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
@@ -152,562 +74,631 @@
                                 </path>
                             </svg>
                         </a>
-                        <h1 class="text-2xl font-extrabold dark:text-white">我的課表</h1>
+                        <h1 id="calendar-month-title" class="text-2xl font-extrabold dark:text-white">訓練紀錄</h1>
                     </div>
-                    <button onclick="editor.open()"
-                        class="bg-gray-900 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform dark:bg-blue-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
-                            </path>
-                        </svg>
-                    </button>
-                </div>
 
-                <!-- 快速範本區 -->
-                <div class="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
-                    <button onclick="store.addTemplate('max')"
-                        class="shrink-0 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition-colors dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
-                        ⚡️ Max Hangs
-                    </button>
-                    <button onclick="store.addTemplate('repeaters')"
-                        class="shrink-0 bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-violet-100 transition-colors dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800">
-                        🔄 Repeaters
-                    </button>
-                </div>
-
-                <div id="routine-list" class="p-4 space-y-3 pb-24">
-                    <div class="text-center text-gray-400 mt-10">載入中...</div>
-                </div>
-            </div>
-
-            <!-- 3. 設定 (Settings) -->
-            <div id="view-settings" class="view-section">
-                <div class="p-6">
-                    <div class="flex items-center mb-6">
-                        <a href="index.html"
-                            class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
-                            title="Home">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="flex gap-2">
+                        <button onclick="recordManager.changeMonth(-1)"
+                            class="p-2 bg-gray-100 rounded-lg dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                                    d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <button onclick="recordManager.changeMonth(1)"
+                            class="p-2 bg-gray-100 rounded-lg dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
                                 </path>
                             </svg>
-                        </a>
-                        <h1 class="text-2xl font-extrabold dark:text-white">設定</h1>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="pwa-prompt"
+                    class="hidden bg-blue-50 text-blue-700 rounded-xl p-4 mb-4 text-sm flex justify-between items-center border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300">
+                    <span>將此應用加入手機主畫面，即可離線運行。</span>
+                    <button id="btn-close-pwa" class="font-bold ml-4">✕</button>
+                </div>
+
+                <div class="bg-gray-900 text-white rounded-2xl p-6 mb-8 shadow-lg dark:bg-gray-700">
+                    <div class="text-sm text-gray-400 mb-1">本週訓練</div>
+                    <div class="flex items-baseline gap-2">
+                        <div id="week-count-val" class="text-6xl font-mono font-bold">0</div>
+                        <div class="text-lg font-normal text-gray-500">次</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-7 gap-2 mb-4 text-center text-sm text-gray-400 dark:text-gray-500">
+                    <div>M</div>
+                    <div>T</div>
+                    <div>W</div>
+                    <div>T</div>
+                    <div>F</div>
+                    <div>S</div>
+                    <div>S</div>
+                </div>
+                <div class="grid grid-cols-7 gap-2" id="calendar-grid"></div>
+                <div id="day-detail-container" class="mt-8 border-t border-gray-100 pt-6 dark:border-gray-700">
+                    <div class="flex justify-between items-baseline mb-4">
+                        <h3 id="detail-date-title" class="text-lg font-extrabold dark:text-white">選擇日期查看紀錄</h3>
+                        <span id="detail-record-count" class="text-xs font-bold text-gray-400">0 筆紀錄</span>
                     </div>
 
-                    <div class="space-y-6 pb-12">
+                    <div id="detail-list" class="space-y-3">
+                        <div
+                            class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200 dark:bg-gray-800/50 dark:border-gray-700">
+                            <p class="text-sm text-gray-400">點擊日曆日期以管理訓練紀錄</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                        <!-- 1. 外觀與個人資料 (Appearance & Profile) -->
-                        <div>
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">個人化</h3>
+        <!-- 2. 課表管理 (Routines) -->
+        <div id="view-routines" class="view-section">
+            <div
+                class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
+                <div class="flex items-center">
+                    <a href="index.html"
+                        class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
+                        title="Home">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                            </path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-extrabold dark:text-white">我的課表</h1>
+                </div>
+                <button onclick="editor.open()"
+                    class="bg-gray-900 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform dark:bg-blue-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 快速範本區 -->
+            <div class="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+                <button onclick="store.addTemplate('max')"
+                    class="shrink-0 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition-colors dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                    ⚡️ Max Hangs
+                </button>
+                <button onclick="store.addTemplate('repeaters')"
+                    class="shrink-0 bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-violet-100 transition-colors dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800">
+                    🔄 Repeaters
+                </button>
+            </div>
+
+            <div id="routine-list" class="p-4 space-y-3 pb-24">
+                <div class="text-center text-gray-400 mt-10">載入中...</div>
+            </div>
+        </div>
+
+        <!-- 3. 設定 (Settings) -->
+        <div id="view-settings" class="view-section">
+            <div class="p-6">
+                <div class="flex items-center mb-6">
+                    <a href="index.html"
+                        class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
+                        title="Home">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                            </path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-extrabold dark:text-white">設定</h1>
+                </div>
+
+                <div class="space-y-6 pb-12">
+
+                    <!-- 1. 外觀與個人資料 (Appearance & Profile) -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">個人化</h3>
+                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+
+                            <!-- Dark Mode -->
                             <div
-                                class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <span class="font-medium">外觀模式</span>
+                                <select id="set-theme-mode" onchange="themeManager.setMode(this.value)"
+                                    class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    <option value="system">跟隨系統</option>
+                                    <option value="light">淺色</option>
+                                    <option value="dark">深色</option>
+                                </select>
+                            </div>
 
-                                <!-- Dark Mode -->
-                                <div
-                                    class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                    <span class="font-medium">外觀模式</span>
-                                    <select id="set-theme-mode" onchange="themeManager.setMode(this.value)"
+                            <!-- Weight & Unit -->
+                            <div class="p-4 flex justify-between items-center">
+                                <span class="font-medium">體重設定</span>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" id="set-weight-val" placeholder="0"
+                                        class="w-16 border border-gray-200 rounded-lg p-1.5 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    <select id="set-weight-unit"
                                         class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                        <option value="system">跟隨系統</option>
-                                        <option value="light">淺色</option>
-                                        <option value="dark">深色</option>
+                                        <option value="kg">kg</option>
+                                        <option value="lbs">lbs</option>
                                     </select>
                                 </div>
-
-                                <!-- Weight & Unit -->
-                                <div class="p-4 flex justify-between items-center">
-                                    <span class="font-medium">體重設定</span>
-                                    <div class="flex items-center gap-2">
-                                        <input type="number" id="set-weight-val" placeholder="0"
-                                            class="w-16 border border-gray-200 rounded-lg p-1.5 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                        <select id="set-weight-unit"
-                                            class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                            <option value="kg">kg</option>
-                                            <option value="lbs">lbs</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 2. 音效詳細設定 (Sound & Audio) -->
-                        <div>
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">音效與語音</h3>
-                            <div
-                                class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
-
-                                <!-- Master Sound Switch -->
-                                <div
-                                    class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                    <span class="font-medium">主音效開關</span>
-                                    <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                        <input type="checkbox" id="set-sound-enabled"
-                                            class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
-                                        <label for="set-sound-enabled"
-                                            class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
-                                    </div>
-                                </div>
-
-                                <!-- Sound Details Checkboxes -->
-                                <div class="p-4 grid grid-cols-3 gap-2 border-b border-gray-100 dark:border-gray-700">
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" id="set-sound-start"
-                                            class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
-                                        <span class="text-sm">開始音</span>
-                                    </label>
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" id="set-sound-countdown"
-                                            class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
-                                        <span class="text-sm">倒數音</span>
-                                    </label>
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" id="set-sound-finish"
-                                            class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
-                                        <span class="text-sm">結束音</span>
-                                    </label>
-                                </div>
-                                <div
-                                    class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                    <span class="font-medium">倒數閃爍提示</span>
-                                    <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                        <input type="checkbox" id="set-pulse-enabled"
-                                            class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
-                                        <label for="set-pulse-enabled"
-                                            class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
-                                    </div>
-                                </div>
-
-                                <!-- TTS Switch -->
-                                <div
-                                    class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                    <span class="font-medium">朗讀項目 (TTS)</span>
-                                    <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                        <input type="checkbox" id="set-tts-enabled"
-                                            class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
-                                        <label for="set-tts-enabled"
-                                            class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
-                                    </div>
-                                </div>
-
-                                <!-- Countdown Trigger -->
-                                <div
-                                    class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                    <span class="font-medium">倒數提示時機</span>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-sm text-gray-500">最後</span>
-                                        <input type="number" id="set-countdown-sec"
-                                            class="w-16 border border-gray-300 rounded-lg p-1 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white"
-                                            value="3" min="0" max="60">
-                                        <span class="text-sm text-gray-500">秒</span>
-                                    </div>
-                                </div>
-
-                                <!-- Speech Rate -->
-                                <div class="p-4">
-                                    <div class="flex justify-between mb-2">
-                                        <span class="font-medium">語音語速</span>
-                                        <span id="lbl-speech-rate"
-                                            class="text-sm font-bold text-blue-600 dark:text-blue-400">1.0x</span>
-                                    </div>
-                                    <input type="range" id="set-speech-rate" min="0.5" max="2" step="0.1"
-                                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 3. Account & Device (Sync) -->
-                        <div>
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">帳號與裝置</h3>
-                            <div
-                                class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
-                                <!-- Auth Section -->
-                                <div class="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
-                                    <div
-                                        class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden dark:bg-gray-600">
-                                        <img id="avatar-img" class="w-full h-full object-cover hidden">
-                                        <div id="avatar-placeholder"
-                                            class="w-full h-full flex items-center justify-center text-gray-400">👤
-                                        </div>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <div id="settings-email" class="font-bold truncate dark:text-white">未登入</div>
-                                        <div class="text-xs text-gray-500">雲端同步</div>
-                                    </div>
-                                    <button id="auth-btn"
-                                        class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
-                                </div>
-
-                                <button
-                                    class="w-full p-4 flex justify-between items-center hover:bg-gray-50 border-b dark:hover:bg-gray-700 dark:border-gray-700">
-                                    <span class="font-medium">連接藍芽吊秤</span>
-                                    <span class="text-gray-400 text-sm">未連線</span>
-                                </button>
-                                <button
-                                    class="w-full p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700">
-                                    <span class="font-medium">感測器歸零</span>
-                                </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-        </main>
-
-        <!-- 底部導覽列 -->
-        <nav
-            class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 w-full max-w-md mx-auto z-50 flex justify-around items-center shadow-[0_-2px_10px_rgba(0,0,0,0.05)] dark:bg-gray-800 dark:border-gray-700">
-            <button onclick="router.go('calendar')"
-                class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900 active"
-                data-target="view-calendar">
-                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                    </path>
-                </svg>
-
-                <span class="text-[10px] font-bold">紀錄</span>
-            </button>
-            <button onclick="router.go('routines')"
-                class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
-                data-target="view-routines">
-                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
-                    </path>
-                </svg>
-                <span class="text-[10px] font-bold">課表</span>
-            </button>
-            <button onclick="router.go('settings')"
-                class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
-                data-target="view-settings">
-                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                    </path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
-                <span class="text-[10px] font-bold">設定</span>
-            </button>
-        </nav>
-
-        <!-- 模態視窗: 編輯器 (Editor Modal) -->
-        <div id="modal-editor" class="modal fixed inset-0 z-50 bg-gray-100 flex flex-col dark:bg-gray-900">
-            <div
-                class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0 dark:bg-gray-800 dark:border-gray-700">
-                <button onclick="editor.close()" class="text-gray-500 font-bold px-2">取消</button>
-                <input type="text" id="editor-title"
-                    class="text-center font-bold text-lg bg-transparent border-none focus:ring-0 w-48 dark:text-white"
-                    placeholder="輸入課表名稱">
-                <button onclick="editor.save()" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
-            </div>
-
-            <!-- 視覺化時間軸 (Visual Timeline) -->
-            <div class="bg-white pt-2 px-4 pb-0 shrink-0 dark:bg-gray-800">
-                <div class="flex justify-between items-end mb-1">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">預估結構</span>
-                    <span id="editor-total-time"
-                        class="text-xs font-mono font-bold text-gray-600 dark:text-gray-300">00:00</span>
-                </div>
-                <div id="editor-timeline"
-                    class="h-4 w-full bg-gray-100 rounded-full flex overflow-hidden dark:bg-gray-700">
-                    <!-- JS 動態生成 -->
-                </div>
-            </div>
-
-            <div class="flex-1 overflow-y-auto p-4 pb-32" id="editor-canvas">
-                <!-- 積木將在此生成 -->
-                <div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>
-            </div>
-
-            <!-- 底部工具箱 -->
-            <div class="bg-white border-t p-4 shrink-0 shadow-xl z-10 pb-8 dark:bg-gray-800 dark:border-gray-700">
-                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">拖曳新增</div>
-                <div id="editor-palette" class="flex gap-3 overflow-x-auto no-scrollbar">
-                    <div class="palette-item shrink-0 w-20 h-16 bg-violet-50 border-2 border-violet-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-violet-900/40 dark:border-violet-700"
-                        data-type="loop">
-                        <span class="text-xs font-bold text-violet-700 dark:text-violet-300">循環 Loop</span>
-                    </div>
-                    <div class="palette-item shrink-0 w-20 h-16 bg-orange-50 border-2 border-orange-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-orange-900/40 dark:border-orange-700"
-                        data-type="timer">
-                        <span class="text-xs font-bold text-orange-700 dark:text-orange-300">計時 Timer</span>
-                    </div>
-                    <div class="palette-item shrink-0 w-20 h-16 bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-blue-900/40 dark:border-blue-700"
-                        data-type="reps">
-                        <span class="text-xs font-bold text-blue-700 dark:text-blue-300">計數 Reps</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 屬性編輯面板 (Property Sheet) -->
-            <div id="prop-sheet"
-                class="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl transform translate-y-full transition-transform duration-300 z-[60] p-6 pb-12 dark:bg-gray-800 dark:text-white">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-lg">編輯積木</h3>
-                    <button onclick="editor.closeProps()"
-                        class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
-                </div>
-
-                <div id="prop-form" class="space-y-4">
-                    <!-- JS 動態生成 -->
-                </div>
-
-                <!-- 顏色選擇器 -->
-                <div class="mt-4">
-                    <label class="block text-sm font-bold text-gray-500 mb-2">顏色標記</label>
-                    <div id="color-palette" class="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                        <!-- JS 生成色票 -->
-                    </div>
-                </div>
-
-                <div class="mt-6 flex gap-3">
-                    <button onclick="editor.deleteCurrentBlock()"
-                        class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-100 dark:bg-red-900/30 dark:border-red-900 dark:text-red-300">刪除</button>
-                    <button onclick="editor.saveProps()"
-                        class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold dark:bg-blue-600">確認</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="modal-day-detail" class="modal fixed inset-0 z-[70] bg-black/50 flex items-end justify-center hidden">
-            <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
-                id="detail-sheet">
-                <div class="flex justify-between items-center mb-6">
+                    <!-- 2. 音效詳細設定 (Sound & Audio) -->
                     <div>
-                        <h3 id="detail-date-title" class="text-xl font-extrabold dark:text-white">2026-02-25</h3>
-                        <p class="text-sm text-gray-400">當日訓練紀錄</p>
-                    </div>
-                    <button onclick="recordManager.closeDetail()"
-                        class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
-                </div>
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">音效與語音</h3>
+                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
 
-                <div id="detail-list" class="space-y-3 max-h-[60dvh] overflow-y-auto no-scrollbar">
+                            <!-- Master Sound Switch -->
+                            <div
+                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <span class="font-medium">主音效開關</span>
+                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                    <input type="checkbox" id="set-sound-enabled"
+                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                    <label for="set-sound-enabled"
+                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
+                                </div>
+                            </div>
+
+                            <!-- Sound Details Checkboxes -->
+                            <div class="p-4 grid grid-cols-3 gap-2 border-b border-gray-100 dark:border-gray-700">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="set-sound-start"
+                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                    <span class="text-sm">開始音</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="set-sound-countdown"
+                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                    <span class="text-sm">倒數音</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="set-sound-finish"
+                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                    <span class="text-sm">結束音</span>
+                                </label>
+                            </div>
+                            <div
+                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <span class="font-medium">倒數閃爍提示</span>
+                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                    <input type="checkbox" id="set-pulse-enabled"
+                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                    <label for="set-pulse-enabled"
+                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
+                                </div>
+                            </div>
+
+                            <!-- TTS Switch -->
+                            <div
+                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <span class="font-medium">朗讀項目 (TTS)</span>
+                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                    <input type="checkbox" id="set-tts-enabled"
+                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                    <label for="set-tts-enabled"
+                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
+                                </div>
+                            </div>
+
+                            <!-- Countdown Trigger -->
+                            <div
+                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                                <span class="font-medium">倒數提示時機</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm text-gray-500">最後</span>
+                                    <input type="number" id="set-countdown-sec"
+                                        class="w-16 border border-gray-300 rounded-lg p-1 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                        value="3" min="0" max="60">
+                                    <span class="text-sm text-gray-500">秒</span>
+                                </div>
+                            </div>
+
+                            <!-- Speech Rate -->
+                            <div class="p-4">
+                                <div class="flex justify-between mb-2">
+                                    <span class="font-medium">語音語速</span>
+                                    <span id="lbl-speech-rate"
+                                        class="text-sm font-bold text-blue-600 dark:text-blue-400">1.0x</span>
+                                </div>
+                                <input type="range" id="set-speech-rate" min="0.5" max="2" step="0.1"
+                                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Account & Device (Sync) -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">帳號與裝置</h3>
+                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+                            <!-- Auth Section -->
+                            <div class="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
+                                <div
+                                    class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden dark:bg-gray-600">
+                                    <img id="avatar-img" class="w-full h-full object-cover hidden">
+                                    <div id="avatar-placeholder"
+                                        class="w-full h-full flex items-center justify-center text-gray-400">👤
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div id="settings-email" class="font-bold truncate dark:text-white">未登入</div>
+                                    <div class="text-xs text-gray-500">雲端同步</div>
+                                </div>
+                                <button id="auth-btn"
+                                    class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
+                            </div>
+
+                            <button
+                                class="w-full p-4 flex justify-between items-center hover:bg-gray-50 border-b dark:hover:bg-gray-700 dark:border-gray-700">
+                                <span class="font-medium">連接藍芽吊秤</span>
+                                <span class="text-gray-400 text-sm">未連線</span>
+                            </button>
+                            <button
+                                class="w-full p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <span class="font-medium">感測器歸零</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- 模態視窗: 全螢幕計時器 (Active Timer Modal) -->
-        <div id="modal-active-timer" class="modal fixed inset-0 z-[60] bg-gray-900 text-white flex flex-col">
+    </main>
 
-            <!-- 防誤觸鎖定遮罩 (z-index 高於控制項但低於解鎖按鈕) -->
-            <div id="lock-overlay" class="absolute inset-0 z-[70] hidden flex items-center justify-center">
-                <div class="text-center p-4">
-                    <svg class="w-12 h-12 text-white/50 mx-auto mb-2" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
+    <!-- 底部導覽列 -->
+    <nav
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 w-full max-w-md mx-auto z-50 flex justify-around items-center shadow-[0_-2px_10px_rgba(0,0,0,0.05)] dark:bg-gray-800 dark:border-gray-700">
+        <button onclick="router.go('calendar')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900 active"
+            data-target="view-calendar">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                </path>
+            </svg>
+
+            <span class="text-[10px] font-bold">紀錄</span>
+        </button>
+        <button onclick="router.go('routines')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            data-target="view-routines">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                </path>
+            </svg>
+            <span class="text-[10px] font-bold">課表</span>
+        </button>
+        <button onclick="router.go('settings')"
+            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            data-target="view-settings">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                </path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            <span class="text-[10px] font-bold">設定</span>
+        </button>
+    </nav>
+
+    <!-- 模態視窗: 編輯器 (Editor Modal) -->
+    <div id="modal-editor" class="modal fixed inset-0 z-50 bg-gray-100 flex flex-col dark:bg-gray-900">
+        <div
+            class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0 dark:bg-gray-800 dark:border-gray-700">
+            <button onclick="editor.close()" class="text-gray-500 font-bold px-2">取消</button>
+            <input type="text" id="editor-title"
+                class="text-center font-bold text-lg bg-transparent border-none focus:ring-0 w-48 dark:text-white"
+                placeholder="輸入課表名稱">
+            <button onclick="editor.save()" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
+        </div>
+
+        <!-- 視覺化時間軸 (Visual Timeline) -->
+        <div class="bg-white pt-2 px-4 pb-0 shrink-0 dark:bg-gray-800">
+            <div class="flex justify-between items-end mb-1">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">預估結構</span>
+                <span id="editor-total-time"
+                    class="text-xs font-mono font-bold text-gray-600 dark:text-gray-300">00:00</span>
+            </div>
+            <div id="editor-timeline" class="h-4 w-full bg-gray-100 rounded-full flex overflow-hidden dark:bg-gray-700">
+                <!-- JS 動態生成 -->
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 pb-32" id="editor-canvas">
+            <!-- 積木將在此生成 -->
+            <div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>
+        </div>
+
+        <!-- 底部工具箱 -->
+        <div class="bg-white border-t p-4 shrink-0 shadow-xl z-10 pb-8 dark:bg-gray-800 dark:border-gray-700">
+            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">拖曳新增</div>
+            <div id="editor-palette" class="flex gap-3 overflow-x-auto no-scrollbar">
+                <div class="palette-item shrink-0 w-20 h-16 bg-violet-50 border-2 border-violet-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-violet-900/40 dark:border-violet-700"
+                    data-type="loop">
+                    <span class="text-xs font-bold text-violet-700 dark:text-violet-300">循環 Loop</span>
+                </div>
+                <div class="palette-item shrink-0 w-20 h-16 bg-orange-50 border-2 border-orange-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-orange-900/40 dark:border-orange-700"
+                    data-type="timer">
+                    <span class="text-xs font-bold text-orange-700 dark:text-orange-300">計時 Timer</span>
+                </div>
+                <div class="palette-item shrink-0 w-20 h-16 bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-blue-900/40 dark:border-blue-700"
+                    data-type="reps">
+                    <span class="text-xs font-bold text-blue-700 dark:text-blue-300">計數 Reps</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 屬性編輯面板 (Property Sheet) -->
+        <div id="prop-sheet"
+            class="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl transform translate-y-full transition-transform duration-300 z-[60] p-6 pb-12 dark:bg-gray-800 dark:text-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">編輯積木</h3>
+                <button onclick="editor.closeProps()" class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
+            </div>
+
+            <div id="prop-form" class="space-y-4">
+                <!-- JS 動態生成 -->
+            </div>
+
+            <!-- 顏色選擇器 -->
+            <div class="mt-4">
+                <label class="block text-sm font-bold text-gray-500 mb-2">顏色標記</label>
+                <div id="color-palette" class="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                    <!-- JS 生成色票 -->
+                </div>
+            </div>
+
+            <div class="mt-6 flex gap-3">
+                <button onclick="editor.deleteCurrentBlock()"
+                    class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-100 dark:bg-red-900/30 dark:border-red-900 dark:text-red-300">刪除</button>
+                <button onclick="editor.saveProps()"
+                    class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold dark:bg-blue-600">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-day-detail" class="modal fixed inset-0 z-[70] bg-black/50 flex items-end justify-center hidden">
+        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
+            id="detail-sheet">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 id="detail-date-title" class="text-xl font-extrabold dark:text-white">2026-02-25</h3>
+                    <p class="text-sm text-gray-400">當日訓練紀錄</p>
+                </div>
+                <button onclick="recordManager.closeDetail()"
+                    class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
+            </div>
+
+            <div id="detail-list" class="space-y-3 max-h-[60dvh] overflow-y-auto no-scrollbar">
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態視窗: 全螢幕計時器 (Active Timer Modal) -->
+    <div id="modal-active-timer" class="modal fixed inset-0 z-[60] bg-gray-900 text-white flex flex-col">
+
+        <!-- 防誤觸鎖定遮罩 (z-index 高於控制項但低於解鎖按鈕) -->
+        <div id="lock-overlay" class="absolute inset-0 z-[70] hidden flex items-center justify-center">
+            <div class="text-center p-4">
+                <svg class="w-12 h-12 text-white/50 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                    </path>
+                </svg>
+                <p class="text-white/70 font-bold">螢幕已鎖定</p>
+            </div>
+        </div>
+
+        <!-- 頂部資訊 (Header) -->
+        <div class="p-6 flex justify-between items-start shrink-0 relative z-[80]">
+            <div class="flex items-start gap-3">
+                <!-- 語音控制按鈕 -->
+                <button id="btn-mic-toggle" onclick="voiceCommander.toggle()"
+                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
+                        </path>
+                    </svg>
+                </button>
+                <div>
+                    <h3 id="active-title" class="font-bold text-lg opacity-90 leading-tight">Routine Name</h3>
+                    <div class="text-xs text-gray-300 font-mono mt-1" id="active-total-time">Total: 00:00</div>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <!-- 鎖定按鈕 -->
+                <button id="btn-lock" onclick="timer.toggleLock()"
+                    class="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
                         </path>
                     </svg>
-                    <p class="text-white/70 font-bold">螢幕已鎖定</p>
-                </div>
-            </div>
-
-            <!-- 頂部資訊 (Header) -->
-            <div class="p-6 flex justify-between items-start shrink-0 relative z-[80]">
-                <div class="flex items-start gap-3">
-                    <!-- 語音控制按鈕 -->
-                    <button id="btn-mic-toggle" onclick="voiceCommander.toggle()"
-                        class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
-                            </path>
-                        </svg>
-                    </button>
-                    <div>
-                        <h3 id="active-title" class="font-bold text-lg opacity-90 leading-tight">Routine Name</h3>
-                        <div class="text-xs text-gray-300 font-mono mt-1" id="active-total-time">Total: 00:00</div>
-                    </div>
-                </div>
-
-                <div class="flex gap-2">
-                    <!-- 鎖定按鈕 -->
-                    <button id="btn-lock" onclick="timer.toggleLock()"
-                        class="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                            </path>
-                        </svg>
-                    </button>
-                    <!-- 關閉按鈕 -->
-                    <button onclick="timer.stop()" class="p-2 bg-white/10 rounded-full hover:bg-white/20">✕</button>
-                </div>
-            </div>
-
-            <!-- 主要顯示區 (Main Display) -->
-            <div class="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-4 relative">
-                <!-- 循環狀態 -->
-                <div id="active-status"
-                    class="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-white uppercase drop-shadow-md text-center">
-                    READY
-                </div>
-
-                <div id="active-loops"
-                    class="text-4xl md:text-5xl font-black text-yellow-400 mb-2 hidden text-center w-full drop-shadow-md tracking-wider">
-                </div>
-
-                <!-- 倒數數字 -->
-                <div class="relative mb-8">
-                    <div id="active-countdown"
-                        class="text-[8rem] md:text-[10rem] font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl">
-                        00
-                    </div>
-                </div>
-
-                <!-- 視覺進度條 (Visual Progress Bar) -->
-                <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden max-w-[200px]">
-                    <div id="active-progress-bar"
-                        class="h-full bg-white transition-all duration-1000 ease-linear w-full">
-                    </div>
-                </div>
-
-                <!-- 當前狀態名稱 -->
-                \
-
-            </div>
-
-            <!-- 底部控制區 (Footer Controls) -->
-            <div
-                class="bg-gray-800 p-8 pb-12 rounded-t-3xl shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-[60] relative dark:bg-gray-950">
-
-                <!-- 累計與剩餘時間 (高對比優化) -->
-                <div class="grid grid-cols-3 gap-4 mb-8 text-center border-b border-gray-700 pb-6">
-                    <div>
-                        <div class="text-[10px] font-bold uppercase text-white/50 mb-1">Elapsed</div>
-                        <div id="active-elapsed" class="text-white text-xl font-mono font-bold tracking-tight">00:00
-                        </div>
-                    </div>
-                    <div>
-                        <div class="text-[10px] font-bold uppercase text-white/50 mb-1">Remaining</div>
-                        <div id="active-remaining" class="text-white text-xl font-mono font-bold tracking-tight">00:00
-                        </div>
-                    </div>
-                    <div>
-                        <div class="text-[10px] font-bold uppercase text-white/50 mb-1">Total</div>
-                        <div id="active-total-display" class="text-white text-xl font-mono font-bold tracking-tight">
-                            00:00
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 下一步預告 -->
-                <div
-                    class="flex items-center gap-3 mb-8 bg-gray-700/50 p-3 rounded-xl border border-gray-600/30 backdrop-blur-sm">
-                    <div class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap px-2">Next</div>
-                    <div id="active-next-badge" class="w-3 h-3 rounded-full bg-gray-500 shadow-sm"></div>
-                    <div id="active-next" class="text-white font-bold truncate">Rest (3s)</div>
-                </div>
-
-                <div class="grid grid-cols-4 gap-4">
-                    <!-- 上一步 -->
-                    <button onclick="timer.skip(-1)" class="flex flex-col items-center gap-2 group">
-                        <div
-                            class="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
-                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>
-                            </svg>
-                        </div>
-                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">上一步</span>
-                    </button>
-
-                    <!-- 暫停/繼續 -->
-                    <button onclick="timer.toggle()" class="flex flex-col items-center gap-2 group">
-                        <div
-                            class="w-14 h-14 bg-white text-gray-900 rounded-full flex items-center justify-center shadow-lg group-active:scale-95 transition-transform hover:bg-gray-100">
-                            <svg id="icon-play-pause" class="w-6 h-6" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6">
-                                </path>
-                            </svg>
-                        </div>
-                        <span id="lbl-play-pause"
-                            class="text-[10px] text-white font-bold uppercase tracking-wider">暫停</span>
-                    </button>
-
-                    <!-- 下一步 -->
-                    <button onclick="timer.skip(1)" class="flex flex-col items-center gap-2 group">
-                        <div
-                            class="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
-                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
-                            </svg>
-                        </div>
-                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">下一步</span>
-                    </button>
-
-                    <!-- 結束 -->
-                    <button onclick="timer.stop()" class="flex flex-col items-center gap-2 group">
-                        <div
-                            class="w-12 h-12 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-red-500/30">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M6 6h12v12H6z" />
-                            </svg>
-                        </div>
-                        <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">結束</span>
-                    </button>
-                </div>
+                </button>
+                <!-- 關閉按鈕 -->
+                <button onclick="timer.stop()" class="p-2 bg-white/10 rounded-full hover:bg-white/20">✕</button>
             </div>
         </div>
 
-        <!-- 自動完成資料清單 -->
-        <datalist id="history-list"></datalist>
+        <!-- 主要顯示區 (Main Display) -->
+        <div class="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-4 relative">
+            <!-- 循環狀態 -->
+            <div id="active-status"
+                class="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-white uppercase drop-shadow-md text-center">
+                READY
+            </div>
 
-        <script>
+            <div id="active-loops"
+                class="text-4xl md:text-5xl font-black text-yellow-400 mb-2 hidden text-center w-full drop-shadow-md tracking-wider">
+            </div>
+
+            <!-- 倒數數字 -->
+            <div class="relative mb-8">
+                <div id="active-countdown"
+                    class="text-[8rem] md:text-[10rem] font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl">
+                    00
+                </div>
+            </div>
+
+            <!-- 視覺進度條 (Visual Progress Bar) -->
+            <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden max-w-[200px]">
+                <div id="active-progress-bar" class="h-full bg-white transition-all duration-1000 ease-linear w-full">
+                </div>
+            </div>
+
+            <!-- 當前狀態名稱 -->
+            \
+
+        </div>
+
+        <!-- 底部控制區 (Footer Controls) -->
+        <div
+            class="bg-gray-800 p-8 pb-12 rounded-t-3xl shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-[60] relative dark:bg-gray-950">
+
+            <!-- 累計與剩餘時間 (高對比優化) -->
+            <div class="grid grid-cols-3 gap-4 mb-8 text-center border-b border-gray-700 pb-6">
+                <div>
+                    <div class="text-[10px] font-bold uppercase text-white/50 mb-1">Elapsed</div>
+                    <div id="active-elapsed" class="text-white text-xl font-mono font-bold tracking-tight">00:00
+                    </div>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold uppercase text-white/50 mb-1">Remaining</div>
+                    <div id="active-remaining" class="text-white text-xl font-mono font-bold tracking-tight">00:00
+                    </div>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold uppercase text-white/50 mb-1">Total</div>
+                    <div id="active-total-display" class="text-white text-xl font-mono font-bold tracking-tight">
+                        00:00
+                    </div>
+                </div>
+            </div>
+
+            <!-- 下一步預告 -->
+            <div
+                class="flex items-center gap-3 mb-8 bg-gray-700/50 p-3 rounded-xl border border-gray-600/30 backdrop-blur-sm">
+                <div class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap px-2">Next</div>
+                <div id="active-next-badge" class="w-3 h-3 rounded-full bg-gray-500 shadow-sm"></div>
+                <div id="active-next" class="text-white font-bold truncate">Rest (3s)</div>
+            </div>
+
+            <div class="grid grid-cols-4 gap-4">
+                <!-- 上一步 -->
+                <button onclick="timer.skip(-1)" class="flex flex-col items-center gap-2 group">
+                    <div
+                        class="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">上一步</span>
+                </button>
+
+                <!-- 暫停/繼續 -->
+                <button onclick="timer.toggle()" class="flex flex-col items-center gap-2 group">
+                    <div
+                        class="w-14 h-14 bg-white text-gray-900 rounded-full flex items-center justify-center shadow-lg group-active:scale-95 transition-transform hover:bg-gray-100">
+                        <svg id="icon-play-pause" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6">
+                            </path>
+                        </svg>
+                    </div>
+                    <span id="lbl-play-pause"
+                        class="text-[10px] text-white font-bold uppercase tracking-wider">暫停</span>
+                </button>
+
+                <!-- 下一步 -->
+                <button onclick="timer.skip(1)" class="flex flex-col items-center gap-2 group">
+                    <div
+                        class="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">下一步</span>
+                </button>
+
+                <!-- 結束 -->
+                <button onclick="timer.stop()" class="flex flex-col items-center gap-2 group">
+                    <div
+                        class="w-12 h-12 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-red-500/30">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 6h12v12H6z" />
+                        </svg>
+                    </div>
+                    <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">結束</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自動完成資料清單 -->
+    <datalist id="history-list"></datalist>
+
+    <script>
 
 
 
 
-            // --- 初始化 ---
-            document.addEventListener('DOMContentLoaded', () => {
-                store.init();
-                editor.init();
-                settingsManager.init();
-                themeManager.init();
+        // --- 初始化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            store.init();
+            editor.init();
+            settingsManager.init();
+            themeManager.init();
 
-                // 1. 更新本週次數與日曆
-                recordManager.updateUI();
-                recordManager.renderCalendar();
+            // 1. 更新本週次數與日曆
+            recordManager.updateUI();
+            recordManager.renderCalendar();
 
-                // 2. 新增：自動顯示今日紀錄
-                const now = new Date();
-                const y = now.getFullYear();
-                const m = (now.getMonth() + 1).toString().padStart(2, '0');
-                const d = now.getDate().toString().padStart(2, '0');
-                const todayStr = `${y}-${m}-${d}`;
+            // 2. 新增：自動顯示今日紀錄
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = (now.getMonth() + 1).toString().padStart(2, '0');
+            const d = now.getDate().toString().padStart(2, '0');
+            const todayStr = `${y}-${m}-${d}`;
 
-                // 呼叫顯示明細的函式
-                recordManager.showDayDetail(todayStr);
+            // 呼叫顯示明細的函式
+            recordManager.showDayDetail(todayStr);
 
-                // PWA 提示邏輯保留
-                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-                const isDismissed = localStorage.getItem('pwaPromptDismissed');
-                const pwaPrompt = document.getElementById('pwa-prompt');
+            // PWA 提示邏輯保留
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            const isDismissed = localStorage.getItem('pwaPromptDismissed');
+            const pwaPrompt = document.getElementById('pwa-prompt');
 
-                if (!isStandalone && !isDismissed && pwaPrompt) {
-                    pwaPrompt.classList.remove('hidden');
-                    document.getElementById('btn-close-pwa').onclick = () => {
-                        pwaPrompt.classList.add('hidden');
-                        localStorage.setItem('pwaPromptDismissed', 'true');
-                    };
-                }
-            });
-
-        </script>
-        <script>
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('./sw.js')
-                        .then(reg => console.log('Service Worker 已註冊', reg))
-                        .catch(err => console.error('Service Worker 註冊失敗', err));
-                });
+            if (!isStandalone && !isDismissed && pwaPrompt) {
+                pwaPrompt.classList.remove('hidden');
+                document.getElementById('btn-close-pwa').onclick = () => {
+                    pwaPrompt.classList.add('hidden');
+                    localStorage.setItem('pwaPromptDismissed', 'true');
+                };
             }
-        </script>
-    </body>
+        });
 
-    </html>
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker 已註冊', reg))
+                    .catch(err => console.error('Service Worker 註冊失敗', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
