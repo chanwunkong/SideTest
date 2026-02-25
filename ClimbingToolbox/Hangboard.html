@@ -198,6 +198,52 @@
             backdrop-filter: blur(2px);
             background: rgba(0, 0, 0, 0.2);
         }
+
+        /* 日曆格點容器 */
+        .cal-day {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1 / 1;
+            border-radius: 0.75rem;
+            /* 稍微帶圓角的方格，比全圓更現代 */
+            transition: background-color 0.2s;
+        }
+
+        /* 日期數字 */
+        .cal-date-num {
+            font-size: 0.875rem;
+            font-weight: 600;
+            z-index: 1;
+        }
+
+        /* 點點容器 */
+        .dots-container {
+            position: absolute;
+            bottom: 6px;
+            display: flex;
+            gap: 2px;
+            justify-content: center;
+            width: 100%;
+            height: 4px;
+        }
+
+        /* 單個點點樣式 */
+        .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 999px;
+            background-color: #3b82f6;
+            /* 預設藍色點 */
+        }
+
+        /* 今日標記 */
+        .is-today {
+            background-color: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+        }
     </style>
 
     <link rel="manifest" href="manifest.json">
@@ -213,39 +259,54 @@
         <!-- 1. 日曆與紀錄 (Calendar) -->
         <div id="view-calendar" class="view-section active">
             <div class="p-6">
-                <div class="flex items-center mb-6">
-                    <a href="index.html"
-                        class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
-                        title="Home">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-                            </path>
-                        </svg>
-                    </a>
-                    <h1 class="text-2xl font-extrabold dark:text-white">訓練紀錄</h1>
-                    <div id="pwa-prompt"
-                        class="hidden bg-blue-50 text-blue-700 rounded-xl p-4 mb-4 text-sm flex justify-between items-center border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300">
-                        <span>將此應用加入手機主畫面，即可離線運行。</span>
-                        <button id="btn-close-pwa" class="font-bold ml-4">✕</button>
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center">
+                        <a href="index.html"
+                            class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
+                            title="Home">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                                </path>
+                            </svg>
+                        </a>
+                        <h1 id="calendar-month-title" class="text-2xl font-extrabold dark:text-white">訓練紀錄</h1>
                     </div>
+
+                    <div class="flex gap-2">
+                        <button onclick="recordManager.changeMonth(-1)"
+                            class="p-2 bg-gray-100 rounded-lg dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <button onclick="recordManager.changeMonth(1)"
+                            class="p-2 bg-gray-100 rounded-lg dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="pwa-prompt"
+                    class="hidden bg-blue-50 text-blue-700 rounded-xl p-4 mb-4 text-sm flex justify-between items-center border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300">
+                    <span>將此應用加入手機主畫面，即可離線運行。</span>
+                    <button id="btn-close-pwa" class="font-bold ml-4">✕</button>
                 </div>
 
                 <div class="bg-gray-900 text-white rounded-2xl p-6 mb-8 shadow-lg dark:bg-gray-700">
                     <div class="text-sm text-gray-400 mb-1">本週訓練</div>
-                    <div class="text-4xl font-mono font-bold mb-4">3 <span
-                            class="text-lg font-normal text-gray-500">次</span></div>
-                    <div class="flex gap-4 text-sm border-t border-gray-700 pt-4">
-                        <div>
-                            <div class="text-gray-400">總時長</div>
-                            <div class="font-bold">45m</div>
-                        </div>
-                        <div>
-                            <div class="text-gray-400">最大負重</div>
-                            <div class="font-bold text-yellow-500">+20kg</div>
-                        </div>
+                    <div class="flex items-baseline gap-2">
+                        <div id="week-count-val" class="text-6xl font-mono font-bold">0</div>
+                        <div class="text-lg font-normal text-gray-500">次</div>
                     </div>
                 </div>
+
                 <div class="grid grid-cols-7 gap-2 mb-4 text-center text-sm text-gray-400 dark:text-gray-500">
                     <div>M</div>
                     <div>T</div>
@@ -256,6 +317,19 @@
                     <div>S</div>
                 </div>
                 <div class="grid grid-cols-7 gap-2" id="calendar-grid"></div>
+                <div id="day-detail-container" class="mt-8 border-t border-gray-100 pt-6 dark:border-gray-700">
+                    <div class="flex justify-between items-baseline mb-4">
+                        <h3 id="detail-date-title" class="text-lg font-extrabold dark:text-white">選擇日期查看紀錄</h3>
+                        <span id="detail-record-count" class="text-xs font-bold text-gray-400">0 筆紀錄</span>
+                    </div>
+
+                    <div id="detail-list" class="space-y-3">
+                        <div
+                            class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200 dark:bg-gray-800/50 dark:border-gray-700">
+                            <p class="text-sm text-gray-400">點擊日曆日期以管理訓練紀錄</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -292,10 +366,6 @@
                 <button onclick="store.addTemplate('repeaters')"
                     class="shrink-0 bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-violet-100 transition-colors dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800">
                     🔄 Repeaters
-                </button>
-                <button onclick="editor.open()"
-                    class="shrink-0 bg-gray-50 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-gray-100 transition-colors dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
-                    ＋ 空白課表
                 </button>
             </div>
 
@@ -585,6 +655,23 @@
                     class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-100 dark:bg-red-900/30 dark:border-red-900 dark:text-red-300">刪除</button>
                 <button onclick="editor.saveProps()"
                     class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold dark:bg-blue-600">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-day-detail" class="modal fixed inset-0 z-[70] bg-black/50 flex items-end justify-center hidden">
+        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
+            id="detail-sheet">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 id="detail-date-title" class="text-xl font-extrabold dark:text-white">2026-02-25</h3>
+                    <p class="text-sm text-gray-400">當日訓練紀錄</p>
+                </div>
+                <button onclick="recordManager.closeDetail()"
+                    class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
+            </div>
+
+            <div id="detail-list" class="space-y-3 max-h-[60dvh] overflow-y-auto no-scrollbar">
             </div>
         </div>
     </div>
@@ -1736,36 +1823,43 @@
                 return res;
             },
 
+            // 在 timer 物件中修改 start 函式
             start(routineId) {
                 const routine = store.routines.find(r => r.id === routineId);
                 if (!routine || !routine.blocks) return;
 
-                // 直接展開，flatten 已經處理掉略過邏輯
-                this.queue = this.flatten(routine.blocks);
+                // --- 修正：使用在地日期而非 ISO 字串 ---
+                const now = new Date();
+                const y = now.getFullYear();
+                const m = (now.getMonth() + 1).toString().padStart(2, '0');
+                const d = now.getDate().toString().padStart(2, '0');
 
+                this.actualDate = `${y}-${m}-${d}`; // 產出正確的 YYYY-MM-DD
+                this.actualStartTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                this.actualTimestamp = now.getTime();
+                this.currentRoutineTitle = routine.title;
+                // ------------------------------------
+
+                this.queue = this.flatten(routine.blocks);
                 if (this.queue.length === 0) return alert('課表是空的');
 
-                // 加入結束標記
                 this.queue.push({ type: 'finish', props: { duration: 0, label: 'Done', color: 'gray' }, loopState: [] });
-
                 this.totalDuration = this.queue.reduce((acc, item) => acc + (item.props.duration || 0), 0);
-                // ... (保留後續的 currentIndex = 0; 等邏輯)
+
                 this.currentIndex = 0;
                 this.elapsed = 0;
                 this.isPaused = false;
-                this.isLocked = false; // 重置鎖定狀態
+                this.isLocked = false;
 
                 document.getElementById('active-title').textContent = routine.title;
                 document.getElementById('active-total-display').textContent = formatTime(this.totalDuration);
                 document.getElementById('modal-active-timer').classList.add('open');
 
-                // 重置鎖定 UI
                 this.updateLockUI();
-
                 this.updateControlUI();
                 this.runStep();
                 this.startTicker();
-                this.requestWakeLock(); // 請求常亮
+                this.requestWakeLock();
                 voiceCommander.init();
             },
 
@@ -1959,12 +2053,196 @@
             },
 
             stop() {
-                // Stop 不需要鎖定檢查，安全起見
+                // 1. 產生訓練紀錄
+                this.saveTrainingRecord();
+
+                // 2. 原有的停止邏輯
                 clearInterval(this.interval);
                 voiceCommander.stop();
                 document.getElementById('modal-active-timer').classList.remove('open');
                 document.getElementById('modal-active-timer').classList.remove('pulse-urgent');
-                this.releaseWakeLock(); // 解除常亮
+                this.releaseWakeLock();
+            },
+
+            // 新增儲存紀錄的函式
+            saveTrainingRecord() {
+                // 過濾：執行少於 10 秒的紀錄不予儲存，避免誤觸
+                if (this.elapsed < 10) return;
+
+                const newRecord = {
+                    id: uuid(),
+                    routineTitle: this.currentRoutineTitle,
+                    date: this.actualDate,
+                    startTime: this.actualStartTime,
+                    duration: this.elapsed,
+                    timestamp: this.actualTimestamp
+                };
+
+                // 取得現有紀錄
+                const records = JSON.parse(localStorage.getItem('trainingRecords') || '[]');
+                records.push(newRecord);
+
+                // 存回 LocalStorage (若有 Firebase 則在此處呼叫 db.collection)
+                localStorage.setItem('trainingRecords', JSON.stringify(records));
+
+                // 存檔後立即更新 UI
+                this.refreshRecordUI();
+            },
+
+            // 更新紀錄頁面的數據 (黑框與日曆)
+            refreshRecordUI() {
+                console.log("紀錄已儲存，正在更新 UI...");
+                recordManager.updateUI(); // 呼叫剛剛建立的更新邏輯
+            },
+        };
+
+
+        // --- Record Manager (整合切換與自動刷新) ---
+        const recordManager = {
+            displayDate: new Date(), // 用於記錄目前日曆翻到哪個月
+
+            getAllRecords() {
+                return JSON.parse(localStorage.getItem('trainingRecords') || '[]');
+            },
+
+            getRecordsByDate(dateStr) {
+                return this.getAllRecords().filter(rec => rec.date === dateStr);
+            },
+
+            getThisWeekCount() {
+                const records = this.getAllRecords();
+                const now = new Date();
+                const day = now.getDay();
+                const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+                const monday = new Date(now.setDate(diff));
+                monday.setHours(0, 0, 0, 0);
+                return records.filter(rec => rec.timestamp >= monday.getTime()).length;
+            },
+
+            // 月份切換邏輯
+            changeMonth(dir) {
+                this.displayDate.setMonth(this.displayDate.getMonth() + dir);
+                this.renderCalendar();
+            },
+
+            renderCalendar() {
+                const calGrid = document.getElementById('calendar-grid');
+                const titleEl = document.getElementById('calendar-month-title');
+                if (!calGrid || !titleEl) return;
+
+                calGrid.innerHTML = '';
+                const year = this.displayDate.getFullYear();
+                const month = this.displayDate.getMonth();
+
+                // 更新標題顯示
+                titleEl.textContent = `${year}年 ${month + 1}月`;
+
+                // 獲取當月第一天與總天數
+                let firstDay = new Date(year, month, 1).getDay();
+                firstDay = (firstDay === 0) ? 7 : firstDay;
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                // 填充上個月空白格
+                for (let i = 1; i < firstDay; i++) {
+                    calGrid.appendChild(document.createElement('div'));
+                }
+
+                // 渲染每一天
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                    const dayRecords = this.getRecordsByDate(dateStr);
+                    const isToday = (new Date().toDateString() === new Date(year, month, day).toDateString());
+
+                    const dayEl = document.createElement('div');
+                    // 點擊日期觸發明細 (步驟 8)
+                    dayEl.className = `cal-day ${isToday ? 'is-today' : ''} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700`;
+                    dayEl.onclick = () => this.showDayDetail(dateStr);
+
+                    const numEl = document.createElement('span');
+                    numEl.className = 'cal-date-num dark:text-gray-200';
+                    numEl.textContent = day;
+                    dayEl.appendChild(numEl);
+
+                    // 渲染小點點
+                    const dotsContainer = document.createElement('div');
+                    dotsContainer.className = 'dots-container';
+                    const dotCount = Math.min(dayRecords.length, 3);
+                    for (let j = 0; j < dotCount; j++) {
+                        const dot = document.createElement('div');
+                        dot.className = 'dot';
+                        dotsContainer.appendChild(dot);
+                    }
+                    dayEl.appendChild(dotsContainer);
+                    calGrid.appendChild(dayEl);
+                }
+            },
+
+            updateUI() {
+                const countEl = document.getElementById('week-count-val');
+                if (countEl) countEl.textContent = this.getThisWeekCount();
+            },
+            // 開啟明細面板
+            showDayDetail(dateStr) {
+                const records = this.getRecordsByDate(dateStr);
+                const list = document.getElementById('detail-list');
+                const title = document.getElementById('detail-date-title');
+                const countLabel = document.getElementById('detail-record-count');
+
+                // 更新標題與統計
+                title.textContent = dateStr;
+                countLabel.textContent = `${records.length} 筆紀錄`;
+
+                list.innerHTML = '';
+
+                if (records.length === 0) {
+                    list.innerHTML = `
+                <div class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200 dark:bg-gray-800/50 dark:border-gray-700">
+                    <p class="text-sm text-gray-400">該日沒有訓練紀錄</p>
+                </div>`;
+                } else {
+                    records.forEach(rec => {
+                        const item = document.createElement('div');
+                        item.className = "flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-sm dark:bg-gray-750 dark:border-gray-700";
+                        item.innerHTML = `
+                    <div class="flex-1">
+                        <div class="font-bold text-gray-800 dark:text-gray-100">${rec.routineTitle}</div>
+                        <div class="text-xs text-gray-500 font-mono mt-1">
+                            ${rec.startTime} <span class="mx-1">|</span> ${formatTime(rec.duration)}
+                        </div>
+                    </div>
+                    <button onclick="recordManager.deleteRecord('${rec.id}', '${dateStr}')" class="p-2 text-gray-300 hover:text-red-500 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                `;
+                        list.appendChild(item);
+                    });
+                }
+
+                // 視覺反饋：滾動到紀錄區塊 (選用)
+                document.getElementById('day-detail-container').scrollIntoView({ behavior: 'smooth' });
+            },
+
+            // 關閉明細面板
+            closeDetail() {
+                const modal = document.getElementById('modal-day-detail');
+                const sheet = document.getElementById('detail-sheet');
+                sheet.classList.add('translate-y-full');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            },
+
+            // 在 recordManager 中新增
+            deleteRecord(recordId, dateStr) {
+                if (!confirm('確定要刪除這筆訓練紀錄嗎？')) return;
+                let records = this.getAllRecords();
+                records = records.filter(rec => rec.id !== recordId);
+                localStorage.setItem('trainingRecords', JSON.stringify(records));
+
+                // 同步刷新三處 UI
+                this.updateUI();         // 黑框
+                this.renderCalendar();   // 日曆點點
+                this.showDayDetail(dateStr); // 下方清單
             }
         };
 
@@ -1975,13 +2253,21 @@
             settingsManager.init();
             themeManager.init();
 
-            const calGrid = document.getElementById('calendar-grid');
-            for (let i = 0; i < 28; i++) {
-                const d = document.createElement('div');
-                d.className = `aspect-square rounded-full flex items-center justify-center text-xs ${Math.random() > 0.7 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'}`;
-                d.textContent = i + 1;
-                calGrid.appendChild(d);
-            }
+            // 1. 更新本週次數與日曆
+            recordManager.updateUI();
+            recordManager.renderCalendar();
+
+            // 2. 新增：自動顯示今日紀錄
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = (now.getMonth() + 1).toString().padStart(2, '0');
+            const d = now.getDate().toString().padStart(2, '0');
+            const todayStr = `${y}-${m}-${d}`;
+
+            // 呼叫顯示明細的函式
+            recordManager.showDayDetail(todayStr);
+
+            // PWA 提示邏輯保留
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
             const isDismissed = localStorage.getItem('pwaPromptDismissed');
             const pwaPrompt = document.getElementById('pwa-prompt');
