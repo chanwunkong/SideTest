@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FPGA 邏輯運算與 LUT 映射模擬器</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0f0f0f;
+            color: #e0e0e0;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #header {
+            padding: 15px 25px;
+            background-color: #1a1a1a;
+            border-bottom: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .nav-title span {
+            color: #4fc1ff;
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background-color: #2d2d2d;
+            color: #ccc;
+            border: 1px solid #444;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #3d3d3d;
+            color: #fff;
+        }
+
+        button.active {
+            background-color: #007acc;
+            color: #fff;
+        }
+
+        #main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #sidebar {
+            width: 320px;
+            background-color: #161616;
+            border-left: 1px solid #333;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-card {
+            background-color: #202020;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4fc1ff;
+        }
+
+        .info-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.95rem;
+            color: #4fc1ff;
+        }
+
+        .info-card p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #bbb;
+        }
+
+        .lut-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            margin-top: 10px;
+        }
+
+        .lut-table th,
+        .lut-table td {
+            border: 1px solid #333;
+            padding: 6px;
+            text-align: center;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="header">
+        <div class="top-row">
+            <div class="nav-title">FPGA 邏輯映射模擬器 <span>理解 LUT 的萬能性</span></div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button id="clock-toggle" onclick="toggleClock()">系統時鐘: OFF</button>
+            </div>
+        </div>
+        <div class="toolbar">
+            <button onclick="loadExample('PARALLEL')">並行運算</button>
+            <button onclick="loadExample('SEQUENTIAL')">時序邏輯 (D-FF)</button>
+            <button onclick="loadExample('NOT')">反向器 (NOT)</button>
+            <button onclick="loadExample('AND')">與門 (AND)</button>
+            <button onclick="loadExample('OR')">或門 (OR)</button>
+            <button onclick="loadExample('NAND')">與非門 (NAND)</button>
+            <button onclick="loadExample('XNOR')">同或門 (XNOR)</button>
+            <button onclick="loadExample('IMPLY')">蘊含 (IMPLY)</button>
+            <button onclick="loadExample('PATH')">跨區連線</button>
+            <button onclick="loadExample('CLEAR')">重置畫板</button>
+        </div>
+    </div>
+
+    <div id="main-container">
+        <div id="canvas-container">
+            <canvas id="fpgaCanvas"></canvas>
+        </div>
+
+        <div id="sidebar">
+            <div class="info-card" id="logic-info">
+                <h3>邏輯定義</h3>
+                <p>點擊 CLB 元件切換類型。無論是與門還是蘊含邏輯，在物理層都是同一個 LUT 單元的不同配置。</p>
+            </div>
+
+            <div class="info-card">
+                <h3>當前元件真值表 (LUT 内容)</h3>
+                <table class="lut-table" id="lut-display">
+                    <thead>
+                        <tr>
+                            <th>A (H)</th>
+                            <th>B (V)</th>
+                            <th>輸出</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>0</td>
+                            <td>0</td>
+                            <td id="lut-00">-</td>
+                        </tr>
+                        <tr>
+                            <td>0</td>
+                            <td>1</td>
+                            <td id="lut-01">-</td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td>0</td>
+                            <td id="lut-10">-</td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td>1</td>
+                            <td id="lut-11">-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('fpgaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const GRID_SIZE = 4;
+        const CLB_SIZE = 64;
+        const CHANNEL_SIZE = 48;
+        const OFFSET_X = 100;
+        const OFFSET_Y = 80;
+
+        // 擴展邏輯類型
+        const LOGIC_TYPES = ['EMPTY', 'WIRE', 'AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'IMPLY', 'D-FF'];
+
+        let clbs = [];
+        let h_wires = [];
+        let v_wires = [];
+        let inputs = [];
+        let outputs = [];
+        let isClockRunning = false;
+        let clockState = 0;
+
+        function init() {
+            resize();
+            window.addEventListener('resize', resize);
+            canvas.addEventListener('mousedown', handleMouseDown);
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                clbs[r] = [];
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    clbs[r][c] = {
+                        logic: 'EMPTY', in_H: 0, in_V: 0, out: 0,
+                        x: OFFSET_X + c * (CLB_SIZE + CHANNEL_SIZE),
+                        y: OFFSET_Y + r * (CLB_SIZE + CHANNEL_SIZE)
+                    };
+                }
+            }
+
+            for (let r = 0; r < GRID_SIZE; r++) h_wires[r] = new Array(GRID_SIZE + 1).fill(false);
+            for (let r = 0; r <= GRID_SIZE; r++) v_wires[r] = new Array(GRID_SIZE).fill(false);
+
+            for (let i = 0; i < GRID_SIZE; i++) {
+                inputs.push({ state: 0, y: OFFSET_Y + i * (CLB_SIZE + CHANNEL_SIZE) + CLB_SIZE / 2 });
+                outputs.push({ state: 0, y: OFFSET_Y + i * (CLB_SIZE + CHANNEL_SIZE) + CLB_SIZE / 2 });
+            }
+
+            setInterval(() => {
+                if (isClockRunning) {
+                    clockState = clockState === 0 ? 1 : 0;
+                    if (clockState === 1) processSequential();
+                }
+            }, 800);
+
+            requestAnimationFrame(loop);
+        }
+
+        function processSequential() {
+            clbs.forEach(row => row.forEach(n => { if (n.logic === 'D-FF') n.out = n.in_H; }));
+        }
+
+        function resize() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+
+        function updateLutDisplay(clb) {
+            const lutMap = {
+                'AND': [0, 0, 0, 1],
+                'OR': [0, 1, 1, 1],
+                'NOT': [1, 1, 0, 0],
+                'NAND': [1, 1, 1, 0],
+                'NOR': [1, 0, 0, 0],
+                'XOR': [0, 1, 1, 0],
+                'XNOR': [1, 0, 0, 1],
+                'IMPLY': [1, 1, 0, 1], // A->B 等於 !A | B
+                'WIRE': [0, 0, 1, 1],
+                'D-FF': ['L', 'L', 'L', 'L'],
+                'EMPTY': ['-', '-', '-', '-']
+            };
+            const data = lutMap[clb.logic] || ['-', '-', '-', '-'];
+            document.getElementById('lut-00').innerText = data[0];
+            document.getElementById('lut-01').innerText = data[1];
+            document.getElementById('lut-10').innerText = data[2];
+            document.getElementById('lut-11').innerText = data[3];
+        }
+
+        function simulate() {
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    clbs[r][c].in_H = 0; clbs[r][c].in_V = 0;
+                }
+            }
+
+            for (let iter = 0; iter < 6; iter++) {
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    if (h_wires[r][0]) clbs[r][0].in_H = inputs[r].state;
+                }
+
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        const n = clbs[r][c];
+                        const a = n.in_H, b = n.in_V;
+                        if (n.logic !== 'D-FF') {
+                            switch (n.logic) {
+                                case 'WIRE': n.out = a || b; break;
+                                case 'AND': n.out = a & b; break;
+                                case 'OR': n.out = a | b; break;
+                                case 'NOT': n.out = (~a) & 1; break;
+                                case 'NAND': n.out = (~(a & b)) & 1; break;
+                                case 'NOR': n.out = (~(a | b)) & 1; break;
+                                case 'XOR': n.out = a ^ b; break;
+                                case 'XNOR': n.out = (~(a ^ b)) & 1; break;
+                                case 'IMPLY': n.out = ((~a) & 1) | b; break;
+                                default: n.out = 0;
+                            }
+                        }
+                        if (c < GRID_SIZE - 1 && h_wires[r][c + 1]) clbs[r][c + 1].in_H = n.out;
+                        if (r < GRID_SIZE - 1 && v_wires[r + 1][c]) clbs[r + 1][c].in_V = n.out;
+                        if (c > 0 && h_wires[r][c]) clbs[r][c - 1].in_H = clbs[r][c - 1].in_H || n.out;
+                        if (r > 0 && v_wires[r][c]) clbs[r - 1][c].in_V = clbs[r - 1][c].in_V || n.out;
+                    }
+                }
+            }
+            for (let r = 0; r < GRID_SIZE; r++) {
+                outputs[r].state = h_wires[r][GRID_SIZE] ? clbs[r][GRID_SIZE - 1].out : 0;
+            }
+        }
+
+        function loop() {
+            simulate();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawWires();
+            drawCLBs();
+            drawIO();
+            requestAnimationFrame(loop);
+        }
+
+        function drawWires() {
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c <= GRID_SIZE; c++) {
+                    const active = c === 0 ? (h_wires[r][c] && inputs[r].state) : (h_wires[r][c] && clbs[r][c - 1].out);
+                    ctx.strokeStyle = h_wires[r][c] ? (active ? '#00ff88' : '#333') : '#1a1a1a';
+                    ctx.lineWidth = 3;
+                    const x = OFFSET_X + c * (CLB_SIZE + CHANNEL_SIZE) - CHANNEL_SIZE;
+                    const y = OFFSET_Y + r * (CLB_SIZE + CHANNEL_SIZE) + CLB_SIZE / 2;
+                    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + CHANNEL_SIZE, y); ctx.stroke();
+                }
+            }
+            for (let r = 0; r <= GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const active = r > 0 && v_wires[r][c] && clbs[r - 1][c].out;
+                    ctx.strokeStyle = v_wires[r][c] ? (active ? '#00ff88' : '#333') : '#1a1a1a';
+                    ctx.lineWidth = 3;
+                    const x = OFFSET_X + c * (CLB_SIZE + CHANNEL_SIZE) + CLB_SIZE / 2;
+                    const y = OFFSET_Y + r * (CLB_SIZE + CHANNEL_SIZE) - CHANNEL_SIZE;
+                    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + CHANNEL_SIZE); ctx.stroke();
+                }
+            }
+        }
+
+        function drawCLBs() {
+            clbs.forEach(row => row.forEach(n => {
+                ctx.fillStyle = n.logic === 'EMPTY' ? '#1e1e1e' : '#1e2e3e';
+                ctx.strokeStyle = n.out ? '#00ff88' : '#444';
+                ctx.lineWidth = 2;
+                ctx.fillRect(n.x, n.y, CLB_SIZE, CLB_SIZE);
+                ctx.strokeRect(n.x, n.y, CLB_SIZE, CLB_SIZE);
+                ctx.fillStyle = n.out ? '#00ff88' : '#888';
+                ctx.font = '10px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(n.logic, n.x + CLB_SIZE / 2, n.y + CLB_SIZE / 2 + 5);
+            }));
+        }
+
+        function drawIO() {
+            inputs.forEach((inp, i) => {
+                ctx.fillStyle = inp.state ? '#00ff88' : '#333';
+                ctx.fillRect(OFFSET_X - 80, inp.y - 12, 24, 24);
+            });
+            outputs.forEach(out => {
+                ctx.fillStyle = out.state ? '#00ff88' : '#333';
+                ctx.beginPath(); ctx.arc(OFFSET_X + GRID_SIZE * (CLB_SIZE + CHANNEL_SIZE) - CHANNEL_SIZE + 50, out.y, 10, 0, Math.PI * 2); ctx.fill();
+            });
+        }
+
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+            if (mx > OFFSET_X - 100 && mx < OFFSET_X - 50) {
+                inputs.forEach(inp => { if (Math.abs(my - inp.y) < 15) inp.state = inp.state ? 0 : 1; });
+                return;
+            }
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const n = clbs[r][c];
+                    if (mx > n.x && mx < n.x + CLB_SIZE && my > n.y && my < n.y + CLB_SIZE) {
+                        n.logic = LOGIC_TYPES[(LOGIC_TYPES.indexOf(n.logic) + 1) % LOGIC_TYPES.length];
+                        updateLutDisplay(n);
+                        return;
+                    }
+                }
+            }
+
+            // Wire Toggles
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c <= GRID_SIZE; c++) {
+                    const x = OFFSET_X + c * (CLB_SIZE + CHANNEL_SIZE) - CHANNEL_SIZE;
+                    const y = OFFSET_Y + r * (CLB_SIZE + CHANNEL_SIZE) + CLB_SIZE / 2;
+                    if (mx > x && mx < x + CHANNEL_SIZE && Math.abs(my - y) < 15) h_wires[r][c] = !h_wires[r][c];
+                }
+            }
+            for (let r = 0; r <= GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const x = OFFSET_X + c * (CLB_SIZE + CHANNEL_SIZE) + CLB_SIZE / 2;
+                    const y = OFFSET_Y + r * (CLB_SIZE + CHANNEL_SIZE) - CHANNEL_SIZE;
+                    if (Math.abs(mx - x) < 15 && my > y && my < y + CHANNEL_SIZE) v_wires[r][c] = !v_wires[r][c];
+                }
+            }
+        }
+
+        function loadExample(type) {
+            // 重置所有
+            for (let r = 0; r < GRID_SIZE; r++) {
+                h_wires[r].fill(false);
+                for (let c = 0; c < GRID_SIZE; c++) clbs[r][c].logic = 'EMPTY';
+            }
+            for (let r = 0; r <= GRID_SIZE; r++) v_wires[r].fill(false);
+            inputs.forEach(i => i.state = 0);
+
+            const info = document.getElementById('logic-info');
+            switch (type) {
+                case 'PARALLEL':
+                    info.innerHTML = "<h3>並行性 (Parallel)</h3><p>FPGA 兩條獨立線路同時運作。IN0 與 IN2 訊號互不干擾且同步到達。</p>";
+                    inputs[0].state = 1; inputs[2].state = 1;
+                    clbs[0][0].logic = 'WIRE'; clbs[2][0].logic = 'WIRE';
+                    h_wires[0][0] = h_wires[0][1] = h_wires[0][2] = true;
+                    h_wires[2][0] = h_wires[2][1] = h_wires[2][2] = true;
+                    updateLutDisplay(clbs[0][0]);
+                    break;
+                case 'SEQUENTIAL':
+                    info.innerHTML = "<h3>時序邏輯 (Sequential)</h3><p>請啟動系統時鐘。D-FF 會在時鐘跳動瞬間鎖存輸入狀態，這是狀態機的基礎。</p>";
+                    inputs[1].state = 1;
+                    clbs[1][1].logic = 'D-FF';
+                    h_wires[1][0] = h_wires[1][1] = h_wires[1][2] = true;
+                    if (!isClockRunning) toggleClock();
+                    updateLutDisplay(clbs[1][1]);
+                    break;
+                case 'NOT':
+                    info.innerHTML = "<h3>反向器 (NOT)</h3><p>將輸入訊號反轉。在 LUT 中，這只是改變了 SRAM 儲存的真值表內容。</p>";
+                    inputs[0].state = 1;
+                    clbs[0][0].logic = 'NOT';
+                    h_wires[0][0] = h_wires[0][1] = h_wires[0][2] = true;
+                    updateLutDisplay(clbs[0][0]);
+                    break;
+                case 'AND':
+                    info.innerHTML = "<h3>與門 (AND)</h3><p>兩個輸入皆為 1 時輸出 1。觀察訊號如何從垂直與水平通道進入同一個 CLB。</p>";
+                    inputs[0].state = 1; inputs[1].state = 1;
+                    clbs[0][1].logic = 'AND'; clbs[1][1].logic = 'WIRE';
+                    h_wires[0][0] = h_wires[0][1] = h_wires[1][0] = h_wires[1][1] = true;
+                    v_wires[1][1] = true; h_wires[0][2] = h_wires[0][3] = true;
+                    updateLutDisplay(clbs[0][1]);
+                    break;
+                case 'OR':
+                    info.innerHTML = "<h3>或門 (OR)</h3><p>任一輸入為 1 即輸出 1。</p>";
+                    inputs[0].state = 1;
+                    clbs[1][1].logic = 'OR';
+                    h_wires[0][0] = h_wires[0][1] = true;
+                    v_wires[1][1] = true; h_wires[1][2] = h_wires[1][3] = true;
+                    updateLutDisplay(clbs[1][1]);
+                    break;
+                case 'NAND':
+                    info.innerHTML = "<h3>與非門 (NAND)</h3><p>只有當兩個輸入都是 1 時輸出才為 0。這在硬體中非常常用。</p>";
+                    clbs[0][1].logic = 'NAND'; h_wires[0][0] = h_wires[0][1] = h_wires[0][2] = true;
+                    v_wires[1][1] = true; inputs[0].state = 1; inputs[1].state = 1;
+                    updateLutDisplay(clbs[0][1]);
+                    break;
+                case 'XNOR':
+                    info.innerHTML = "<h3>同或門 (XNOR)</h3><p>當兩個輸入相同時（同為 0 或同為 1）輸出為 1。常用於數值比較。</p>";
+                    clbs[1][1].logic = 'XNOR'; h_wires[1][0] = h_wires[1][1] = h_wires[1][2] = true;
+                    v_wires[1][1] = true; inputs[1].state = 1; inputs[0].state = 1;
+                    updateLutDisplay(clbs[1][1]);
+                    break;
+                case 'IMPLY':
+                    info.innerHTML = "<h3>蘊含 (IMPLY)</h3><p>邏輯：A 蘊含 B。只有 A 為 1 且 B 為 0 時輸出 0。這展示了 LUT 處理任何布林組合的能力。</p>";
+                    clbs[1][1].logic = 'IMPLY'; h_wires[1][0] = h_wires[1][1] = h_wires[1][2] = true;
+                    v_wires[1][1] = true; inputs[1].state = 1; inputs[0].state = 0;
+                    updateLutDisplay(clbs[1][1]);
+                    break;
+                case 'PATH':
+                    info.innerHTML = "<h3>跨區域連線 (Path)</h3><p>模擬訊號在不同 CLB 之間的長距離佈線。訊號會透過交換矩陣轉向。</p>";
+                    inputs[3].state = 1;
+                    clbs[3][0].logic = 'WIRE'; clbs[0][3].logic = 'WIRE';
+                    h_wires[3][0] = true;
+                    v_wires[3][0] = v_wires[2][0] = v_wires[1][0] = true;
+                    h_wires[0][1] = h_wires[0][2] = h_wires[0][3] = h_wires[0][4] = true;
+                    updateLutDisplay(clbs[3][0]);
+                    break;
+                case 'CLEAR':
+                    info.innerHTML = "<h3>邏輯定義</h3><p>已重置畫板。點擊 CLB 元件切換類型，點擊間隙建立連線。</p>";
+                    updateLutDisplay({ logic: 'EMPTY' });
+                    break;
+            }
+        }
+
+        function toggleClock() {
+            isClockRunning = !isClockRunning;
+            document.getElementById('clock-toggle').innerText = "系統時鐘: " + (isClockRunning ? "ON" : "OFF");
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
