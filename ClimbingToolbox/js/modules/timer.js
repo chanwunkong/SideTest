@@ -147,6 +147,7 @@ const timer = {
 
     // 在 timer 物件中修改 start 函式
     start(routineId) {
+        this.currentRoutineId = routineId; // 記錄當前 ID
         const routine = store.routines.find(r => r.id === routineId);
         if (!routine || !routine.blocks) return;
 
@@ -305,9 +306,14 @@ const timer = {
             document.getElementById('active-progress-bar').style.width = `0%`;
         }
 
-        const remaining = Math.max(0, this.totalDuration - this.elapsed);
-        document.getElementById('active-elapsed').textContent = formatTime(this.elapsed);
+        // 修改剩餘時間計算
+        let remaining = this.stepLeft || 0;
+        for (let i = this.currentIndex + 1; i < this.queue.length; i++) {
+            remaining += (this.queue[i].props.duration || 0);
+        }
         document.getElementById('active-remaining').textContent = formatTime(remaining);
+
+        document.getElementById('active-elapsed').textContent = formatTime(this.elapsed);
         // active-total-display is static per routine start, but nice to keep formatted
 
         const loopState = step.loopState;
@@ -375,6 +381,7 @@ const timer = {
     },
 
     stop() {
+        localStorage.removeItem('active_session');
         // 1. 產生訓練紀錄
         this.saveTrainingRecord();
 
@@ -384,6 +391,78 @@ const timer = {
         document.getElementById('modal-active-timer').classList.remove('open');
         document.getElementById('modal-active-timer').classList.remove('pulse-urgent');
         this.releaseWakeLock();
+    },
+
+    suspend() {
+        if (this.elapsed < 1) return this.stop(); // 剛開始就退出，直接視為結束
+        const sessionData = {
+            routineId: this.currentRoutineId,
+            routineTitle: this.currentRoutineTitle,
+            currentIndex: this.currentIndex,
+            stepLeft: this.stepLeft,
+            elapsed: this.elapsed,
+            actualDate: this.actualDate,
+            actualStartTime: this.actualStartTime,
+            actualTimestamp: this.actualTimestamp,
+            queue: this.queue,
+            totalDuration: this.totalDuration
+        };
+        localStorage.setItem('active_session', JSON.stringify(sessionData));
+        clearInterval(this.interval);
+        voiceCommander.stop();
+        document.getElementById('modal-active-timer').classList.remove('open', 'pulse-urgent');
+        this.releaseWakeLock();
+        store.renderRoutines(); // 重新渲染課表頁面以顯示暫存區塊
+        router.go('routines');
+    },
+
+    resumeSession(sessionData) {
+        this.currentRoutineId = sessionData.routineId;
+        this.currentRoutineTitle = sessionData.routineTitle;
+        this.currentIndex = sessionData.currentIndex;
+        this.stepLeft = sessionData.stepLeft;
+        this.elapsed = sessionData.elapsed;
+        this.actualDate = sessionData.actualDate;
+        this.actualStartTime = sessionData.actualStartTime;
+        this.actualTimestamp = sessionData.actualTimestamp;
+        this.queue = sessionData.queue;
+        this.totalDuration = sessionData.totalDuration;
+
+        this.isPaused = true; // 恢復時預設為暫停狀態
+        this.isLocked = false;
+
+        document.getElementById('active-title').textContent = this.currentRoutineTitle;
+        document.getElementById('active-total-display').textContent = formatTime(this.totalDuration);
+        document.getElementById('modal-active-timer').classList.add('open');
+
+        this.updateLockUI();
+        this.updateControlUI();
+        this.restoreStep();
+        this.startTicker();
+        this.requestWakeLock();
+        voiceCommander.init();
+    },
+
+    restoreStep() {
+        const step = this.queue[this.currentIndex];
+        if (!step) return this.stop();
+        this.stepDuration = step.props.duration || 0;
+        document.getElementById('active-status').textContent = step.props.label;
+
+        const modalEl = document.getElementById('modal-active-timer');
+        modalEl.className = modalEl.className.replace(/bg-\w+-600/g, '').trim();
+        modalEl.classList.remove('pulse-urgent');
+
+        const color = step.props.color || 'gray';
+        modalEl.classList.add(`bg-${color}-600`);
+
+        this.updateDisplay();
+    },
+
+    resumeFromStorage() {
+        const sessionJson = localStorage.getItem('active_session');
+        if (!sessionJson) return;
+        this.resumeSession(JSON.parse(sessionJson));
     },
 
     // 新增儲存紀錄的函式
@@ -418,3 +497,11 @@ const timer = {
     },
 };
 
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        const modalEl = document.getElementById('modal-active-timer');
+        if (modalEl && modalEl.classList.contains('open')) {
+            timer.requestWakeLock();
+        }
+    }
+});

@@ -111,28 +111,27 @@ const store = {
         if (type === 'max') {
             title = "Max Hangs";
             blocks = [
-                // 加入黃色準備時間
                 { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } },
                 {
-                    type: 'loop', id: uuid(), props: { iterations: 5, color: 'violet' },
+                    type: 'loop', id: uuid(), props: { iterations: 5, color: 'gray' }, // 改為 gray
                     children: [
-                        { type: 'timer', id: uuid(), props: { duration: 10, label: 'Hang (Max)', color: 'red' } }, // 改為紅色
-                        { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest', color: 'green' } }   // 改為綠色
+                        { type: 'timer', id: uuid(), props: { duration: 10, label: 'Hang (Max)', color: 'red' } },
+                        { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest', color: 'green' } }
                     ]
                 }
             ];
         } else if (type === 'repeaters') {
             title = "7/3 Repeaters";
             blocks = [
-                { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } }, // 準備時間
+                { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } },
                 {
-                    type: 'loop', id: uuid(), props: { iterations: 3, color: 'indigo' },
+                    type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' }, // 改為 gray
                     children: [
                         {
-                            type: 'loop', id: uuid(), props: { iterations: 6, color: 'violet' },
+                            type: 'loop', id: uuid(), props: { iterations: 6, color: 'gray' }, // 改為 gray
                             children: [
-                                { type: 'timer', id: uuid(), props: { duration: 7, label: 'Hang', color: 'red' } },  // 紅色
-                                { type: 'timer', id: uuid(), props: { duration: 3, label: 'Rest', color: 'green' } } // 綠色
+                                { type: 'timer', id: uuid(), props: { duration: 7, label: 'Hang', color: 'red' } },
+                                { type: 'timer', id: uuid(), props: { duration: 3, label: 'Rest', color: 'green' } }
                             ]
                         },
                         { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest (Set)', color: 'green' } }
@@ -148,7 +147,7 @@ const store = {
         canvas.innerHTML = '';
         blocks.forEach(b => canvas.appendChild(editor.createBlock(b)));
         document.getElementById('modal-editor').classList.add('open');
-        editor.appendFooter(false); // Default false for skip rest
+        editor.appendFooter(false);
         editor.updateTimeline();
     },
 
@@ -166,6 +165,29 @@ const store = {
     },
 
     renderRoutines() {
+        // 新增：處理進行中課表 UI
+        const sessionJson = localStorage.getItem('active_session');
+        const sessionContainer = document.getElementById('active-session-container');
+        if (sessionContainer) {
+            if (sessionJson) {
+                const session = JSON.parse(sessionJson);
+                sessionContainer.innerHTML = `
+                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm flex justify-between items-center dark:bg-blue-900/30 dark:border-blue-800">
+                    <div onclick="timer.resumeFromStorage()" class="flex-1 cursor-pointer">
+                            <div class="text-xs font-bold text-blue-600 mb-1 dark:text-blue-400">進行中課表</div>
+                            <div class="font-bold text-lg text-gray-800 dark:text-gray-100">${session.routineTitle}</div>
+                            <div class="text-xs text-gray-500 mt-1 dark:text-gray-400">已進行: ${formatTime(session.elapsed)}</div>
+                        </div>
+                        <button onclick="localStorage.removeItem('active_session'); store.renderRoutines();" class="p-2 text-gray-400 hover:text-red-500">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                `;
+            } else {
+                sessionContainer.innerHTML = '';
+            }
+        }
+
         const list = document.getElementById('routine-list');
         list.innerHTML = '';
         if (this.routines.length === 0) {

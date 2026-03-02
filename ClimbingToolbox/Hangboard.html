@@ -174,6 +174,8 @@
                 </button>
             </div>
 
+            <div id="active-session-container" class="px-4 mt-4"></div>
+
             <div id="routine-list" class="p-4 space-y-3 pb-24">
                 <div class="text-center text-gray-400 mt-10">載入中...</div>
             </div>
@@ -422,18 +424,32 @@
         <div class="bg-white border-t p-4 shrink-0 shadow-xl z-10 pb-8 dark:bg-gray-800 dark:border-gray-700">
             <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">拖曳新增</div>
             <div id="editor-palette" class="flex gap-3 overflow-x-auto no-scrollbar">
-                <div class="palette-item shrink-0 w-20 h-16 bg-violet-50 border-2 border-violet-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-violet-900/40 dark:border-violet-700"
+
+                <div class="palette-item shrink-0 w-20 h-16 bg-gray-50 border-2 border-gray-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-gray-700/50 dark:border-gray-600"
                     data-type="loop">
-                    <span class="text-xs font-bold text-violet-700 dark:text-violet-300">循環 Loop</span>
+                    <span class="text-sm font-bold text-gray-700 dark:text-gray-300 text-center w-full">循環</span>
                 </div>
-                <div class="palette-item shrink-0 w-20 h-16 bg-orange-50 border-2 border-orange-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-orange-900/40 dark:border-orange-700"
-                    data-type="timer">
-                    <span class="text-xs font-bold text-orange-700 dark:text-orange-300">計時 Timer</span>
+
+                <div class="palette-item shrink-0 w-20 h-16 bg-amber-50 border-2 border-amber-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-amber-900/40 dark:border-amber-700"
+                    data-type="timer" data-default-props='{"duration":10,"label":"Prepare","color":"amber"}'>
+                    <span class="text-sm font-bold text-amber-700 dark:text-amber-300 text-center w-full">準備</span>
                 </div>
+
+                <div class="palette-item shrink-0 w-20 h-16 bg-red-50 border-2 border-red-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-red-900/40 dark:border-red-700"
+                    data-type="timer" data-default-props='{"duration":10,"label":"Workout","color":"red"}'>
+                    <span class="text-sm font-bold text-red-700 dark:text-red-300 text-center w-full">訓練</span>
+                </div>
+
+                <div class="palette-item shrink-0 w-20 h-16 bg-green-50 border-2 border-green-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-green-900/40 dark:border-green-700"
+                    data-type="timer" data-default-props='{"duration":180,"label":"Rest","color":"green"}'>
+                    <span class="text-sm font-bold text-green-700 dark:text-green-300 text-center w-full">休息</span>
+                </div>
+
                 <div class="palette-item shrink-0 w-20 h-16 bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-blue-900/40 dark:border-blue-700"
                     data-type="reps">
-                    <span class="text-xs font-bold text-blue-700 dark:text-blue-300">計數 Reps</span>
+                    <span class="text-sm font-bold text-blue-700 dark:text-blue-300 text-center w-full">計數</span>
                 </div>
+
             </div>
         </div>
 
@@ -517,6 +533,15 @@
             </div>
 
             <div class="flex gap-2">
+                <!-- 暫停按鈕 -->
+                <button onclick="timer.suspend()"
+                    class="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                        </path>
+                    </svg>
+                </button>
                 <!-- 鎖定按鈕 -->
                 <button id="btn-lock" onclick="timer.toggleLock()"
                     class="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors">

@@ -232,13 +232,29 @@ const editor = {
         new Sortable(el, {
             group: 'shared',
             animation: 150,
-            fallbackOnBody: true,
+            // fallbackOnBody: true, // ⚠️ 刪除這行！它會嚴重干擾巢狀層級判定
+            emptyInsertThreshold: 50, // ✨ 新增：放寬 50px 的空陣列放入判定
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
-            draggable: '.block-item', // 限制只有 block-item 可以拖曳
+            draggable: '.block-item',
             onAdd: (evt) => {
-                const type = evt.item.dataset.type;
-                evt.item.replaceWith(this.createBlock({ type, id: uuid() }));
+                // 判斷是否來自底部工具箱
+                if (evt.item.classList.contains('palette-item')) {
+                    const type = evt.item.dataset.type;
+                    let props = null;
+
+                    // 攔截並解析自訂預設屬性
+                    if (evt.item.dataset.defaultProps) {
+                        try {
+                            props = JSON.parse(evt.item.dataset.defaultProps);
+                        } catch (e) {
+                            console.error("Props parsing error", e);
+                        }
+                    }
+
+                    // 替換成完整的積木節點
+                    evt.item.replaceWith(this.createBlock({ type, id: uuid(), props }));
+                }
                 this.updateTimeline();
             },
             onUpdate: () => this.updateTimeline(),
@@ -285,7 +301,8 @@ const editor = {
 
         if (data.type === 'loop') {
             const inner = document.createElement('div');
-            inner.className = "nested-container pl-2 pr-2 pb-2 pt-2";
+            // ✨ 加上 min-h-[60px]、虛線邊框與微底色，讓容器有明確的「可拖入物理空間」
+            inner.className = "nested-container p-2 mt-2 min-h-[60px] bg-black/5 dark:bg-black/20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600";
             el.appendChild(inner);
             this.initSortable(inner);
             if (data.children) {
@@ -297,7 +314,7 @@ const editor = {
     },
 
     getDefaultProps(type) {
-        if (type === 'loop') return { iterations: 3, color: 'violet' };
+        if (type === 'loop') return { iterations: 3, color: 'gray' }; // 將這裡的 violet 改為 gray
         if (type === 'timer') return { duration: 10, label: 'Hang', color: 'orange' };
         if (type === 'reps') return { count: 5, duration: 30, label: 'Pull Ups', color: 'blue' };
         return { color: 'gray' };
