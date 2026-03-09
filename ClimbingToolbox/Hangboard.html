@@ -313,6 +313,24 @@
                                 <input type="range" id="set-speech-rate" min="0.5" max="2" step="0.1"
                                     class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
                             </div>
+                            <div class="p-4 border-b border-gray-100 dark:border-gray-700">
+                                <div class="flex justify-between mb-2">
+                                    <span class="font-medium">語音語速</span>
+                                    <span id="lbl-speech-rate"
+                                        class="text-sm font-bold text-blue-600 dark:text-blue-400">1.0x</span>
+                                </div>
+                                <input type="range" id="set-speech-rate" min="0.5" max="2" step="0.1"
+                                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
+                            </div>
+
+                            <div class="p-4">
+                                <label class="block font-medium mb-2">語音模型 / 語言</label>
+                                <select id="set-voice-selection"
+                                    class="w-full bg-gray-50 border border-gray-200 text-sm rounded-lg p-2 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    <option value="">載入語音中...</option>
+                                </select>
+                                <p class="text-[10px] text-gray-400 mt-2 italic">* 支援清單取決於您的裝置與瀏覽器</p>
+                            </div>
                         </div>
                     </div>
 
@@ -335,6 +353,55 @@
                                 </div>
                                 <button id="auth-btn"
                                     class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
+                            </div>
+                            <div class="p-4 border-t border-gray-100 dark:border-gray-700">
+                                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">健康數據同步 (暫訂)
+                                </h4>
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
+                                                <svg class="w-5 h-5 text-red-500" fill="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path
+                                                        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <div class="font-medium text-sm">Apple Health / Google Fit</div>
+                                                <div class="text-[10px] text-gray-400">同步訓練時長與卡路里</div>
+                                            </div>
+                                        </div>
+                                        <button onclick="alert('整合功能開發中')"
+                                            class="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold dark:bg-blue-900/30 dark:text-blue-400">連接</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-4 border-t border-gray-100 dark:border-gray-700">
+                                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">穿戴裝置 (暫訂)</h4>
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
+                                                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <div class="font-medium text-sm">穿戴裝置連線</div>
+                                                <div class="text-[10px] text-gray-400">支援 Apple Watch, Garmin, 三星</div>
+                                            </div>
+                                        </div>
+                                        <button onclick="alert('穿戴裝置 SDK 整合中')"
+                                            class="text-xs bg-gray-100 text-gray-400 px-3 py-1 rounded-full font-bold dark:bg-gray-700">搜尋中</button>
+                                    </div>
+                                </div>
                             </div>
 
                             <button
@@ -502,7 +569,7 @@
     <!-- 模態視窗: 全螢幕計時器 (Active Timer Modal) -->
     <div id="modal-active-timer" class="modal fixed inset-0 z-[60] bg-gray-900 text-white flex flex-col">
 
-        <!-- 防誤觸鎖定遮罩 (z-index 高於控制項但低於解鎖按鈕) -->
+        <!-- 防誤觸鎖定遮罩 (z-index 高於控制項但低於解鎖按鈕)
         <div id="lock-overlay" class="absolute inset-0 z-[70] hidden flex items-center justify-center">
             <div class="text-center p-4">
                 <svg class="w-12 h-12 text-white/50 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -512,11 +579,18 @@
                 </svg>
                 <p class="text-white/70 font-bold">螢幕已鎖定</p>
             </div>
-        </div>
+        </div> -->
 
         <!-- 頂部資訊 (Header) -->
         <div class="p-6 flex justify-between items-start shrink-0 relative z-[80]">
             <div class="flex items-start gap-3">
+
+                <div>
+                    <h3 id="active-title" class="font-bold text-lg opacity-90 leading-tight">Routine Name</h3>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
                 <!-- 語音控制按鈕 -->
                 <button id="btn-mic-toggle" onclick="voiceCommander.toggle()"
                     class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50">
@@ -526,31 +600,24 @@
                         </path>
                     </svg>
                 </button>
-                <div>
-                    <h3 id="active-title" class="font-bold text-lg opacity-90 leading-tight">Routine Name</h3>
-                    <div class="text-xs text-gray-300 font-mono mt-1" id="active-total-time">Total: 00:00</div>
-                </div>
-            </div>
-
-            <div class="flex gap-2">
                 <!-- 暫停按鈕 -->
-                <button onclick="timer.suspend()"
+                <!-- <button onclick="timer.suspend()"
                     class="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
                         </path>
                     </svg>
-                </button>
+                </button> -->
                 <!-- 鎖定按鈕 -->
-                <button id="btn-lock" onclick="timer.toggleLock()"
+                <!-- <button id="btn-lock" onclick="timer.toggleLock()"
                     class="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
                         </path>
                     </svg>
-                </button>
+                </button> -->
                 <!-- 關閉按鈕 -->
                 <button onclick="timer.stop()" class="p-2 bg-white/10 rounded-full hover:bg-white/20">✕</button>
             </div>
@@ -582,9 +649,6 @@
                 </div>
             </div>
 
-            <!-- 當前狀態名稱 -->
-            \
-
         </div>
 
         <!-- 底部控制區 (Footer Controls) -->
@@ -611,6 +675,8 @@
                 </div>
             </div>
 
+
+
             <!-- 下一步預告 -->
             <div
                 class="flex items-center gap-3 mb-8 bg-gray-700/50 p-3 rounded-xl border border-gray-600/30 backdrop-blur-sm">
@@ -619,7 +685,19 @@
                 <div id="active-next" class="text-white font-bold truncate">Rest (3s)</div>
             </div>
 
-            <div class="grid grid-cols-4 gap-4">
+            <div class="grid grid-cols-5 gap-4">
+                <!-- 暫存按鈕 -->
+                <button onclick="timer.suspend()" class="flex flex-col items-center gap-2 group">
+                    <div
+                        class="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                            </path>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">暫存離開</span>
+                </button>
                 <!-- 上一步 -->
                 <button onclick="timer.skip(-1)" class="flex flex-col items-center gap-2 group">
                     <div

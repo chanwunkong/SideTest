@@ -40,10 +40,13 @@ const settingsManager = {
         ttsEnabled: true,
         countdownSec: 3,
         speechRate: 1.0,
+        voiceURI: '',
         soundStart: true,
         soundCountdown: true,
         soundFinish: true,
         urgentPulseEnabled: true,
+        healthSyncEnabled: false,    // 健康 App 同步開關
+        wearableDeviceConnected: false, // 穿戴裝置連接狀態
 
         // Profile
         weightVal: '',
@@ -56,6 +59,30 @@ const settingsManager = {
             this.data = { ...this.data, ...JSON.parse(saved) };
         }
         this.bindUI();
+        this.initVoiceSelector();
+    },
+
+    initVoiceSelector() {
+        const sel = document.getElementById('set-voice-selection');
+        if (!sel) return;
+
+        const populate = () => {
+            const voices = window.speechSynthesis.getVoices();
+            if (voices.length === 0) return;
+
+            sel.innerHTML = voices
+                .map(v => `<option value="${v.voiceURI}" ${v.voiceURI === this.data.voiceURI ? 'selected' : ''}>${v.name} (${v.lang})</option>`)
+                .join('');
+
+            sel.onchange = (e) => {
+                this.data.voiceURI = e.target.value;
+                this.save();
+            };
+        };
+
+        // Chrome 需要監聽 voiceschanged 事件
+        window.speechSynthesis.onvoiceschanged = populate;
+        populate();
     },
 
     save() {
@@ -161,6 +188,7 @@ const settingsManager = {
         } catch (e) { console.error(e); }
     },
 
+    // 修正後的 speak 函式：使用選擇的模型
     speak(text) {
         if (!this.data.soundEnabled || !this.data.ttsEnabled) return;
         if (!window.speechSynthesis) return;
@@ -168,7 +196,13 @@ const settingsManager = {
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
         u.rate = this.data.speechRate;
-        u.lang = 'en-US';
+
+        // 套用選定的語音模型
+        const voices = window.speechSynthesis.getVoices();
+        const selectedVoice = voices.find(v => v.voiceURI === this.data.voiceURI);
+        if (selectedVoice) u.voice = selectedVoice;
+        else u.lang = 'en-US';
+
         window.speechSynthesis.speak(u);
     }
 };

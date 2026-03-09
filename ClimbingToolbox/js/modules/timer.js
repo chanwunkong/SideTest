@@ -178,7 +178,7 @@ const timer = {
         document.getElementById('active-total-display').textContent = formatTime(this.totalDuration);
         document.getElementById('modal-active-timer').classList.add('open');
 
-        this.updateLockUI();
+        // this.updateLockUI();
         this.updateControlUI();
         this.runStep();
         this.startTicker();
@@ -186,10 +186,10 @@ const timer = {
         voiceCommander.init();
     },
 
-    toggleLock() {
-        this.isLocked = !this.isLocked;
-        this.updateLockUI();
-    },
+    // toggleLock() {
+    //     this.isLocked = !this.isLocked;
+    //     this.updateLockUI();
+    // },
 
     updateLockUI() {
         const overlay = document.getElementById('lock-overlay');
@@ -361,13 +361,22 @@ const timer = {
     updateControlUI() {
         const iconEl = document.getElementById('icon-play-pause');
         const labelEl = document.getElementById('lbl-play-pause');
+        const sideIconEl = document.getElementById('btn-pause-icon');
+        const sideLabelEl = document.getElementById('lbl-pause-text');
+
+        const playPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>';
+        const pausePath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"></path>';
 
         if (this.isPaused) {
-            iconEl.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>';
-            labelEl.textContent = '繼續';
+            if (iconEl) iconEl.innerHTML = playPath;
+            if (labelEl) labelEl.textContent = '繼續';
+            if (sideIconEl) sideIconEl.innerHTML = playPath;
+            if (sideLabelEl) sideLabelEl.textContent = '繼續';
         } else {
-            iconEl.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"></path>';
-            labelEl.textContent = '暫停';
+            if (iconEl) iconEl.innerHTML = pausePath;
+            if (labelEl) labelEl.textContent = '暫停';
+            if (sideIconEl) sideIconEl.innerHTML = pausePath;
+            if (sideLabelEl) sideLabelEl.textContent = '暫停';
         }
     },
 
@@ -435,7 +444,7 @@ const timer = {
         document.getElementById('active-total-display').textContent = formatTime(this.totalDuration);
         document.getElementById('modal-active-timer').classList.add('open');
 
-        this.updateLockUI();
+        // this.updateLockUI();
         this.updateControlUI();
         this.restoreStep();
         this.startTicker();

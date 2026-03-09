@@ -239,6 +239,7 @@ const store = {
 // --- Record Manager (整合切換與自動刷新) ---
 const recordManager = {
     displayDate: new Date(), // 用於記錄目前日曆翻到哪個月
+    selectedDate: null, // 新增：記錄目前選取的日期
 
     getAllRecords() {
         return JSON.parse(localStorage.getItem('trainingRecords') || '[]');
@@ -292,9 +293,17 @@ const recordManager = {
             const dayRecords = this.getRecordsByDate(dateStr);
             const isToday = (new Date().toDateString() === new Date(year, month, day).toDateString());
 
+            // 補上這行：判斷是否為已選取的日期
+            const isSelected = (dateStr === this.selectedDate);
+
             const dayEl = document.createElement('div');
-            // 點擊日期觸發明細 (步驟 8)
-            dayEl.className = `cal-day ${isToday ? 'is-today' : ''} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700`;
+
+            // 修正 className：把 isSelected 的判斷與樣式加進來
+            dayEl.className = `cal-day ${isToday ? 'is-today' : ''} ${isSelected ? 'ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/30 dark:ring-blue-500' : ''} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700`;
+
+            // 補上這行：寫入 dataset，讓下方的 showDayDetail 可以透過 dataset.date 找到它
+            dayEl.dataset.date = dateStr;
+
             dayEl.onclick = () => this.showDayDetail(dateStr);
 
             const numEl = document.createElement('span');
@@ -322,6 +331,15 @@ const recordManager = {
     },
     // 開啟明細面板
     showDayDetail(dateStr) {
+        // 新增：記錄選取日期並更新日曆 UI 樣式
+        this.selectedDate = dateStr;
+        document.querySelectorAll('.cal-day').forEach(el => {
+            el.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30', 'dark:ring-blue-500');
+            if (el.dataset.date === dateStr) {
+                el.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30', 'dark:ring-blue-500');
+            }
+        });
+
         const records = this.getRecordsByDate(dateStr);
         const list = document.getElementById('detail-list');
         const title = document.getElementById('detail-date-title');
