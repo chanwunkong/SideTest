@@ -394,21 +394,25 @@ const recordManager = {
                 let logsHtml = '';
                 if (rec.executionLogs && rec.executionLogs.length > 0) {
                     logsHtml = '<div class="mt-3 space-y-2 border-t border-gray-50 pt-3 dark:border-gray-700">';
-                    rec.executionLogs.forEach(log => {
+                    rec.executionLogs.forEach((log, lIdx) => {
                         if (Object.keys(log.actuals).length > 0) {
-                            // 將實際數據組成字串 (例如 "負重: 20, 次數: 5")
                             const actualsStr = Object.entries(log.actuals).map(([k, v]) => `${k}: ${v}`).join(', ');
+
+                            // ✨ 修改點：將這段改為可點擊的按鈕
                             logsHtml += `
-                                <div class="flex items-center gap-2 text-xs">
-                                    <span class="text-gray-500 w-20 truncate dark:text-gray-400 font-bold">${log.label}</span>
-                                    <span class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">${actualsStr}</span>
-                                </div>
-                            `;
+                            <button onclick="recordManager.editLogEntry('${rec.id}', ${lIdx})" 
+                                    class="flex items-center gap-2 text-xs w-full hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1 rounded transition-colors text-left">
+                                <span class="text-gray-500 w-20 truncate dark:text-gray-400 font-bold">${log.label}</span>
+                                <span class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 flex-1">
+                                    ${actualsStr}
+                                </span>
+                                <svg class="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                        `;
                         }
                     });
                     logsHtml += '</div>';
                 }
-
                 item.innerHTML = `
                     <div class="flex items-center justify-between">
                         <div class="flex-1">
@@ -466,6 +470,44 @@ const recordManager = {
             }
         }
         return null;
+    },
+
+    // 新增：更新特定紀錄中的某一項 Log
+    updateRecordLog(recordId, logIndex, newActuals) {
+        let records = this.getAllRecords();
+        const recIdx = records.findIndex(r => r.id === recordId);
+        if (recIdx === -1) return;
+
+        // 更新該筆紀錄中的 executionLogs
+        records[recIdx].executionLogs[logIndex].actuals = newActuals;
+
+        localStorage.setItem('trainingRecords', JSON.stringify(records));
+
+        // 刷新明細 UI
+        this.showDayDetail(this.selectedDate);
+    },
+
+    // 新增：供 UI 呼叫的編輯啟動器
+    editLogEntry(recordId, logIndex) {
+        const records = this.getAllRecords();
+        const record = records.find(r => r.id === recordId);
+        if (!record) return;
+
+        const log = record.executionLogs[logIndex];
+
+        // 模擬一個 Block 物件供 timer.showLogPanel 使用
+        const mockBlock = {
+            id: log.blockId,
+            props: {
+                label: log.label,
+                customMetrics: Object.keys(log.actuals).map(name => ({ name, type: 'number' })),
+                duration: log.planned.duration,
+                count: log.planned.count
+            }
+        };
+
+        // 開啟面板並傳入現有數值
+        timer.showLogPanel(mockBlock, logIndex, log.actuals, recordId);
     },
 };
 

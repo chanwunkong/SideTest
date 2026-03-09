@@ -109,6 +109,7 @@ const timer = {
     domCache: null, // DOM 快取
     lastTick: 0,    // 精確時間計算基準
     sessionValueMap: {}, // 用於存放本次訓練中各動作的最新輸入值
+    editingRecordId: null, // 新增：用於追蹤正在編輯哪一筆歷史紀錄
 
     async requestWakeLock() {
         if ('wakeLock' in navigator) {
@@ -426,12 +427,13 @@ const timer = {
     },
 
     // 2. 開啟並渲染紀錄面板
-    showLogPanel(block, qIndex) {
+    showLogPanel(block, qIndex, existingActuals = null, recordId = null) {
         const metrics = block.props.customMetrics;
         if (!metrics || metrics.length === 0) return;
 
         this.pendingLogBlock = block;
         this.pendingLogIndex = qIndex;
+        this.editingRecordId = recordId; // 紀錄來源 ID (若為 null 則代表是當前訓練)
 
         const panel = document.getElementById('quick-log-panel');
         if (!panel) return;
@@ -441,15 +443,17 @@ const timer = {
         inputsContainer.innerHTML = '';
 
         metrics.forEach((m, idx) => {
-            // ✨ 自動獲取最佳預填值
-            const autoFilledVal = this.getBestValue(block.props.label, m.name);
+            // 優先權：1. 傳入的現有值(編輯模式) 2. 最佳預填值
+            const val = (existingActuals && existingActuals[m.name] !== undefined)
+                ? existingActuals[m.name]
+                : this.getBestValue(block.props.label, m.name);
 
             inputsContainer.innerHTML += `
                 <div class="flex items-center justify-between bg-gray-900 rounded-2xl p-3 mb-2">
                     <span class="text-gray-300 text-sm font-bold pl-2">${m.name}</span>
                     <div class="flex items-center gap-4">
                         <button type="button" onclick="timer.adjustLogVal(${idx}, -1)" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-transform">-</button>
-                        <input type="number" step="any" id="quick-log-val-${idx}" data-name="${m.name}" value="${autoFilledVal}" 
+                        <input type="number" step="any" id="quick-log-val-${idx}" data-name="${m.name}" value="${val}" 
                             class="w-20 bg-transparent text-white text-xl border-none p-0 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 rounded transition-all">
                         <button type="button" onclick="timer.adjustLogVal(${idx}, 1)" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-transform">+</button>
                     </div>
@@ -457,6 +461,7 @@ const timer = {
             `;
         });
 
+        // 如果是編輯歷史紀錄，顯示特殊標記或調整 UI
         panel.classList.remove('hidden');
         setTimeout(() => panel.classList.remove('translate-y-[150%]'), 10);
     },
@@ -467,6 +472,7 @@ const timer = {
         if (!panel) return;
         panel.classList.add('translate-y-[150%]');
         setTimeout(() => panel.classList.add('hidden'), 300);
+        this.editingRecordId = null;
 
         if (this.isWaitingForFinalLog) {
             this.isWaitingForFinalLog = false;
@@ -542,26 +548,26 @@ const timer = {
             const val = input.value === '' ? 0 : Number(input.value);
             const metricName = input.dataset.name;
             actuals[metricName] = val;
-
-            // 本次訓練的數值暫存，供後續 Block 使用
-            if (!this.sessionValueMap[blockLabel]) this.sessionValueMap[blockLabel] = {};
-            this.sessionValueMap[blockLabel][metricName] = val;
         });
 
-        this.currentLogs.push({
-            blockId: this.pendingLogBlock.id,
-            queueIndex: this.pendingLogIndex,
-            label: blockLabel,
-            planned: { duration: this.pendingLogBlock.props.duration, count: this.pendingLogBlock.props.count },
-            actuals: actuals
-        });
+        if (this.editingRecordId) {
+            // --- 模式 A: 修改歷史紀錄 ---
+            recordManager.updateRecordLog(this.editingRecordId, this.pendingLogIndex, actuals);
+            showToast('紀錄已更新');
+        } else {
+            // --- 模式 B: 當前訓練暫存 (原有邏輯) ---
+            this.sessionValueMap[blockLabel] = actuals;
+            this.currentLogs.push({
+                blockId: this.pendingLogBlock.id,
+                queueIndex: this.pendingLogIndex,
+                label: blockLabel,
+                planned: { duration: this.pendingLogBlock.props.duration, count: this.pendingLogBlock.props.count },
+                actuals: actuals
+            });
+        }
 
         this.closeLogPanel();
-
-        if (this.isWaitingForFinalLog) {
-            this.isWaitingForFinalLog = false;
-            this.stop();
-        }
+        this.editingRecordId = null; // 重置
     },
 
     toggle() {

@@ -53,6 +53,28 @@
 
 </head>
 
+<!-- 快速紀錄面板 (Quick Log Panel") -->
+<div id="quick-log-panel"
+    class="absolute bottom-[220px] inset-x-4 bg-gray-800/95 backdrop-blur border border-gray-600 rounded-3xl p-5 shadow-2xl transform translate-y-[150%] transition-transform duration-300 z-[70] hidden">
+
+    <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-4"></div>
+
+    <div class="flex justify-between items-center mb-4">
+        <h4 class="text-white font-bold text-base">紀錄: <span id="quick-log-label" class="text-blue-400"></span>
+        </h4>
+    </div>
+
+    <div id="quick-log-inputs" class="space-y-3 mb-6 max-h-[35vh] overflow-y-auto no-scrollbar">
+    </div>
+
+    <div class="flex justify-center">
+        <button onclick="timer.saveLog()"
+            class="w-full bg-blue-600 text-white py-4 rounded-2xl text-xl font-bold shadow-lg shadow-blue-900/50 active:scale-95 transition-transform">
+            確認紀錄
+        </button>
+    </div>
+</div>
+
 <body
     class="bg-gray-50 text-gray-900 h-[100dvh] w-full overflow-hidden flex flex-col dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
 
@@ -696,27 +718,7 @@
 
         </div>
 
-        <!-- 快速紀錄面板 (Quick Log Panel") -->
-        <div id="quick-log-panel"
-            class="absolute bottom-[220px] inset-x-4 bg-gray-800/95 backdrop-blur border border-gray-600 rounded-3xl p-5 shadow-2xl transform translate-y-[150%] transition-transform duration-300 z-[70] hidden">
 
-            <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-4"></div>
-
-            <div class="flex justify-between items-center mb-4">
-                <h4 class="text-white font-bold text-base">紀錄: <span id="quick-log-label" class="text-blue-400"></span>
-                </h4>
-            </div>
-
-            <div id="quick-log-inputs" class="space-y-3 mb-6 max-h-[35vh] overflow-y-auto no-scrollbar">
-            </div>
-
-            <div class="flex justify-center">
-                <button onclick="timer.saveLog()"
-                    class="w-full bg-blue-600 text-white py-4 rounded-2xl text-xl font-bold shadow-lg shadow-blue-900/50 active:scale-95 transition-transform">
-                    確認紀錄
-                </button>
-            </div>
-        </div>
 
         <!-- 底部控制區 (Footer Controls) -->
         <div
