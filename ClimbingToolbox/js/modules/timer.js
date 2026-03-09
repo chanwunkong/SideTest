@@ -593,7 +593,14 @@ const timer = {
     },
 
     skip(dir) {
-        if (this.isLocked) return; // 鎖定狀態下無法跳過
+        if (this.isLocked) return;
+
+        // 若面板正開啟，先強制執行儲存
+        const panel = document.getElementById('quick-log-panel');
+        if (panel && !panel.classList.contains('hidden')) {
+            this.saveLog();
+        }
+
         const newIndex = this.currentIndex + dir;
         if (newIndex >= 0 && newIndex < this.queue.length) {
             this.currentIndex = newIndex;
