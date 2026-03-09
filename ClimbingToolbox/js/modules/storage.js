@@ -418,9 +418,6 @@ const recordManager = {
                             </div>
                         </div>
                         <div class="flex items-center gap-1">
-                            <button onclick="recordEditor.open('${rec.id}')" class="p-2 text-gray-300 hover:text-blue-500 transition-colors">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                            </button>
                             <button onclick="recordManager.deleteRecord('${rec.id}', '${dateStr}')" class="p-2 text-gray-300 hover:text-red-500 transition-colors">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
@@ -472,97 +469,3 @@ const recordManager = {
     },
 };
 
-// --- Record Editor (歷史數據編輯器) ---
-const recordEditor = {
-    currentRecordId: null,
-
-    open(recordId) {
-        const records = recordManager.getAllRecords();
-        const rec = records.find(r => r.id === recordId);
-        if (!rec) return;
-
-        this.currentRecordId = recordId;
-
-        document.getElementById('record-editor-title').textContent = rec.routineTitle;
-        document.getElementById('record-editor-date').textContent = `${rec.date} ${rec.startTime}`;
-
-        const form = document.getElementById('record-editor-form');
-        form.innerHTML = '';
-
-        if (!rec.executionLogs || rec.executionLogs.length === 0) {
-            form.innerHTML = '<div class="text-center text-gray-400 mt-20 text-sm">此紀錄無詳細自訂指標日誌</div>';
-        } else {
-            rec.executionLogs.forEach((log, idx) => {
-                let inputsHtml = '';
-
-                // 動態生成輸入框
-                Object.entries(log.actuals).forEach(([key, val]) => {
-                    inputsHtml += `
-                        <div class="flex items-center justify-between mt-3">
-                            <span class="text-sm font-bold text-gray-600 dark:text-gray-400">${key}</span>
-                            <input type="number" data-log-idx="${idx}" data-metric-name="${key}" value="${val}" 
-                                class="w-24 bg-white border border-gray-200 rounded-lg p-2 text-center font-bold shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-400 focus:outline-none">
-                        </div>
-                    `;
-                });
-
-                // 顯示計畫值以供對照
-                let plannedStr = '';
-                if (log.planned) {
-                    plannedStr = log.planned.count ? `${log.planned.count}次` : (log.planned.duration ? `${log.planned.duration}秒` : '');
-                }
-
-                form.innerHTML += `
-                    <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 dark:bg-gray-800 dark:border-gray-700">
-                        <div class="flex justify-between items-end mb-2 border-b border-gray-200 pb-2 dark:border-gray-700">
-                            <div class="font-bold text-gray-800 dark:text-gray-200">${log.label}</div>
-                            <div class="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded dark:bg-gray-700">計畫: ${plannedStr || '-'}</div>
-                        </div>
-                        ${inputsHtml}
-                    </div>
-                `;
-            });
-        }
-
-        const modal = document.getElementById('modal-record-editor');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    },
-
-    close() {
-        const modal = document.getElementById('modal-record-editor');
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        this.currentRecordId = null;
-    },
-
-    save() {
-        if (!this.currentRecordId) return;
-
-        const records = recordManager.getAllRecords();
-        const recIndex = records.findIndex(r => r.id === this.currentRecordId);
-        if (recIndex === -1) return;
-
-        const rec = records[recIndex];
-
-        // 收集表單中的數值並覆寫 actuals
-        const inputs = document.querySelectorAll('#record-editor-form input');
-        inputs.forEach(input => {
-            const logIdx = input.dataset.logIdx;
-            const metricName = input.dataset.metricName;
-            const val = Number(input.value);
-            if (rec.executionLogs[logIdx] && rec.executionLogs[logIdx].actuals[metricName] !== undefined) {
-                rec.executionLogs[logIdx].actuals[metricName] = val;
-            }
-        });
-
-        // 存回 LocalStorage
-        localStorage.setItem('trainingRecords', JSON.stringify(records));
-
-        this.close();
-        if (typeof showToast === 'function') showToast('紀錄已更新');
-
-        // 即時刷新背後的明細清單，顯示最新修改的數值
-        recordManager.showDayDetail(rec.date);
-    }
-};
