@@ -102,6 +102,10 @@ const timer = {
     isPaused: false,
     isLocked: false,
     wakeLock: null,
+    currentLogs: [],
+    pendingLogBlock: null,
+    pendingLogIndex: null,
+    isWaitingForFinalLog: false,
 
     async requestWakeLock() {
         if ('wakeLock' in navigator) {
@@ -173,6 +177,10 @@ const timer = {
         this.elapsed = 0;
         this.isPaused = false;
         this.isLocked = false;
+        this.currentLogs = [];       // 初始化暫存紀錄
+        this.pendingLogBlock = null; // 初始化面板狀態
+        this.pendingLogIndex = null;
+        this.isWaitingForFinalLog = false;
 
         document.getElementById('active-title').textContent = routine.title;
         document.getElementById('active-total-display').textContent = formatTime(this.totalDuration);
@@ -213,6 +221,38 @@ const timer = {
     runStep() {
         const step = this.queue[this.currentIndex];
         if (!step) return this.stop();
+
+        // 偵測是否為休息或結束區塊
+        const isRest = step.props.label && step.props.label.toLowerCase().includes('rest');
+        const isFinish = step.type === 'finish';
+
+        // 修改攔截邏輯：增加 isFinish 的判定
+        if ((isRest || isFinish) && this.currentIndex > 0) {
+            const prevIndex = this.currentIndex - 1;
+            const prevStep = this.queue[prevIndex];
+
+            if (prevStep.type === 'timer' || prevStep.type === 'reps') {
+                const label = (prevStep.props.label || '').toLowerCase();
+                if (!label.includes('prepare')) {
+                    const alreadyLogged = this.currentLogs.find(l => l.queueIndex === prevIndex);
+                    if (!alreadyLogged) {
+                        this.showLogPanel(prevStep, prevIndex);
+                        // 如果是最後一關，開啟等待旗標
+                        if (isFinish) this.isWaitingForFinalLog = true;
+                    }
+                }
+            }
+        }
+        if (isFinish) {
+            const statusEl = document.getElementById('active-status');
+            statusEl.textContent = "FINISHED";
+
+            // 僅在不需要紀錄或已填寫的情況下直接結束
+            if (!this.isWaitingForFinalLog) {
+                this.stop();
+            }
+            return;
+        }
 
         this.stepDuration = step.props.duration || 0;
         this.stepLeft = this.stepDuration;
@@ -352,6 +392,132 @@ const timer = {
         }
     },
 
+    // 開啟並渲染紀錄面板
+    showLogPanel(block, qIndex) {
+        const metrics = block.props.customMetrics;
+        // 如果該積木沒有設定追蹤指標，就不彈出面板
+        if (!metrics || metrics.length === 0) return;
+
+        this.pendingLogBlock = block;
+        this.pendingLogIndex = qIndex;
+
+        const panel = document.getElementById('quick-log-panel');
+        if (!panel) return;
+
+        document.getElementById('quick-log-label').textContent = block.props.label;
+        const inputsContainer = document.getElementById('quick-log-inputs');
+        inputsContainer.innerHTML = '';
+
+        metrics.forEach((m, idx) => {
+            const plannedVal = m.name === '次數' ? (block.props.count || '') : (m.name === '秒數' ? (block.props.duration || '') : '');
+            inputsContainer.innerHTML += `
+                <div class="flex items-center justify-between bg-gray-900 rounded-lg p-2.5">
+                    <span class="text-gray-400 text-xs font-bold">${m.name}</span>
+                    <input type="number" id="quick-log-val-${idx}" data-name="${m.name}" value="${plannedVal}" class="w-20 bg-gray-700 text-white border-none rounded p-1.5 text-center font-bold">
+                </div>
+            `;
+        });
+
+        panel.classList.remove('hidden');
+        setTimeout(() => panel.classList.remove('translate-y-[150%]'), 10);
+    },
+
+    // 關閉面板
+    closeLogPanel() {
+        const panel = document.getElementById('quick-log-panel');
+        if (!panel) return;
+        panel.classList.add('translate-y-[150%]');
+        setTimeout(() => panel.classList.add('hidden'), 300);
+
+        if (this.isWaitingForFinalLog) {
+            this.isWaitingForFinalLog = false;
+            this.stop();
+        }
+
+        this.pendingLogBlock = null;
+        this.pendingLogIndex = null;
+    },
+
+    // 手動召喚紀錄面板
+    openManualLogPanel() {
+        let targetStep = null;
+        let targetIndex = -1;
+
+        // 從當前進度往回尋找最近的一個「有效訓練區塊」
+        for (let i = this.currentIndex; i >= 0; i--) {
+            const step = this.queue[i];
+            if (!step) continue;
+
+            const label = (step.props.label || '').toLowerCase();
+            // 必須是 timer 或 reps，且名稱不包含 prepare、rest，也不能是 finish 區塊
+            if ((step.type === 'timer' || step.type === 'reps') &&
+                !label.includes('prepare') &&
+                !label.includes('rest') &&
+                step.type !== 'finish') {
+                targetStep = step;
+                targetIndex = i;
+                break;
+            }
+        }
+
+        // 如果找到了目標動作
+        if (targetStep) {
+            const metrics = targetStep.props.customMetrics;
+            if (!metrics || metrics.length === 0) {
+                // 如果這個積木在編輯器裡沒有被加入任何追蹤指標，給予提示
+                if (typeof showToast === 'function') showToast('此動作未設定追蹤指標', 'error');
+                return;
+            }
+            this.showLogPanel(targetStep, targetIndex);
+        } else {
+            if (typeof showToast === 'function') showToast('目前沒有可紀錄的動作', 'error');
+        }
+    },
+
+    // 帶入上次的歷史紀錄
+    fillLastRecord() {
+        if (!this.pendingLogBlock) return;
+
+        const lastActuals = recordManager.getLastBlockRecord(this.currentRoutineTitle, this.pendingLogBlock.props.label);
+
+        // 修改：使用自訂 UI 提示取代原生 alert
+        if (!lastActuals) {
+            showToast('未找到此動作的歷史數據', 'error');
+            return;
+        }
+
+        const inputs = document.querySelectorAll('#quick-log-inputs input');
+        inputs.forEach(input => {
+            const name = input.dataset.name;
+            if (lastActuals[name] !== undefined) input.value = lastActuals[name];
+        });
+    },
+
+    // 儲存使用者輸入並加入暫存區
+    saveLog() {
+        if (!this.pendingLogBlock) return;
+        const actuals = {};
+        document.querySelectorAll('#quick-log-inputs input').forEach(input => {
+            actuals[input.dataset.name] = Number(input.value);
+        });
+
+        this.currentLogs.push({
+            blockId: this.pendingLogBlock.id,
+            queueIndex: this.pendingLogIndex,
+            label: this.pendingLogBlock.props.label,
+            planned: { duration: this.pendingLogBlock.props.duration, count: this.pendingLogBlock.props.count },
+            actuals: actuals
+        });
+
+        this.closeLogPanel();
+
+
+        if (this.isWaitingForFinalLog) {
+            this.isWaitingForFinalLog = false;
+            this.stop();
+        }
+    },
+
     toggle() {
         if (this.isLocked) return; // 鎖定狀態下無法暫停/繼續 (除非解鎖)
         this.isPaused = !this.isPaused;
@@ -474,10 +640,48 @@ const timer = {
         this.resumeSession(JSON.parse(sessionJson));
     },
 
-    // 新增儲存紀錄的函式
+    // 新增儲存紀錄的函式 (升級版：包含防呆與日誌寫入)
     saveTrainingRecord() {
         // 過濾：執行少於 10 秒的紀錄不予儲存，避免誤觸
         if (this.elapsed < 10) return;
+
+        // ==========================================
+        // ✨ 新增：防呆與補漏機制 (自動補齊未填寫的紀錄)
+        // ==========================================
+        for (let i = 0; i < this.queue.length; i++) {
+            const step = this.queue[i];
+            if (step.type === 'timer' || step.type === 'reps') {
+                const label = (step.props.label || '').toLowerCase();
+
+                // 排除準備 (Prepare)、休息 (Rest) 與結束 (Finish) 區塊
+                if (!label.includes('prepare') && !label.includes('rest') && step.type !== 'finish') {
+                    const metrics = step.props.customMetrics;
+                    // 如果該積木有設定追蹤指標
+                    if (metrics && metrics.length > 0) {
+                        const isLogged = this.currentLogs.find(l => l.queueIndex === i);
+                        // 如果在 currentLogs 裡面找不到這一組的紀錄 (代表使用者忽視了面板)
+                        if (!isLogged) {
+                            const actuals = {};
+                            metrics.forEach(m => {
+                                // 自動以計畫值作為實際值
+                                actuals[m.name] = m.name === '次數' ? (step.props.count || '') : (m.name === '秒數' ? (step.props.duration || '') : '');
+                            });
+                            this.currentLogs.push({
+                                blockId: step.id,
+                                queueIndex: i,
+                                label: step.props.label,
+                                planned: { duration: step.props.duration, count: step.props.count },
+                                actuals: actuals
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // 將所有紀錄依據在課表中的執行順序 (queueIndex) 重新排序，確保日誌時序正確
+        this.currentLogs.sort((a, b) => a.queueIndex - b.queueIndex);
+        // ==========================================
 
         const newRecord = {
             id: uuid(),
@@ -485,15 +689,21 @@ const timer = {
             date: this.actualDate,
             startTime: this.actualStartTime,
             duration: this.elapsed,
-            timestamp: this.actualTimestamp
+            timestamp: this.actualTimestamp,
+            executionLogs: this.currentLogs // ✨ 升級：將完整的日誌陣列寫入存檔物件
         };
 
-        // 取得現有紀錄
+        // 取得現有紀錄並推入新紀錄
         const records = JSON.parse(localStorage.getItem('trainingRecords') || '[]');
         records.push(newRecord);
 
-        // 存回 LocalStorage (若有 Firebase 則在此處呼叫 db.collection)
+        // 存回 LocalStorage
         localStorage.setItem('trainingRecords', JSON.stringify(records));
+
+        // ✨ 清空當前暫存狀態，確保完全乾淨，不污染下一趟訓練
+        this.currentLogs = [];
+        this.pendingLogBlock = null;
+        this.pendingLogIndex = null;
 
         // 存檔後立即更新 UI
         this.refreshRecordUI();

@@ -470,6 +470,21 @@
             <button onclick="editor.save()" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
         </div>
 
+        <div class="bg-white px-4 py-3 shrink-0 border-b border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+            <div id="editor-routine-tags" class="flex flex-wrap gap-1.5 mb-2 min-h-[24px] items-center">
+            </div>
+            <div class="flex gap-2 mb-2">
+                <input type="text" id="inp-routine-tag" onkeydown="if(event.key==='Enter') editor.addRoutineTag()"
+                    class="flex-1 border border-gray-200 rounded-lg p-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="輸入標籤 (例如：耐力)">
+                <button onclick="editor.addRoutineTag()"
+                    class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 hover:bg-blue-100 transition-colors">新增</button>
+            </div>
+            <div class="text-[10px] font-bold text-gray-400 mb-1">歷史標籤：</div>
+            <div id="editor-tag-suggestions" class="flex flex-wrap gap-1.5">
+            </div>
+        </div>
+
         <!-- 視覺化時間軸 (Visual Timeline) -->
         <div class="bg-white pt-2 px-4 pb-0 shrink-0 dark:bg-gray-800">
             <div class="flex justify-between items-end mb-1">
@@ -498,22 +513,26 @@
                 </div>
 
                 <div class="palette-item shrink-0 w-20 h-16 bg-amber-50 border-2 border-amber-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-amber-900/40 dark:border-amber-700"
-                    data-type="timer" data-default-props='{"duration":10,"label":"Prepare","color":"amber"}'>
+                    data-type="timer"
+                    data-default-props='{"duration":10,"label":"Prepare","color":"amber","customMetrics":[]}'>
                     <span class="text-sm font-bold text-amber-700 dark:text-amber-300 text-center w-full">準備</span>
                 </div>
 
                 <div class="palette-item shrink-0 w-20 h-16 bg-red-50 border-2 border-red-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-red-900/40 dark:border-red-700"
-                    data-type="timer" data-default-props='{"duration":10,"label":"Workout","color":"red"}'>
+                    data-type="timer"
+                    data-default-props='{"duration":10,"label":"Workout","color":"red","customMetrics":[{"name":"附加重量","type":"number"}]}'>
                     <span class="text-sm font-bold text-red-700 dark:text-red-300 text-center w-full">訓練</span>
                 </div>
 
                 <div class="palette-item shrink-0 w-20 h-16 bg-green-50 border-2 border-green-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-green-900/40 dark:border-green-700"
-                    data-type="timer" data-default-props='{"duration":180,"label":"Rest","color":"green"}'>
+                    data-type="timer"
+                    data-default-props='{"duration":180,"label":"Rest","color":"green","customMetrics":[]}'>
                     <span class="text-sm font-bold text-green-700 dark:text-green-300 text-center w-full">休息</span>
                 </div>
 
                 <div class="palette-item shrink-0 w-20 h-16 bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-blue-900/40 dark:border-blue-700"
-                    data-type="reps">
+                    data-type="reps"
+                    data-default-props='{"count":5,"duration":30,"label":"Pull Ups","color":"blue","customMetrics":[{"name":"次數","type":"number"}]}'>
                     <span class="text-sm font-bold text-blue-700 dark:text-blue-300 text-center w-full">計數</span>
                 </div>
 
@@ -566,6 +585,22 @@
         </div>
     </div>
 
+    <div id="modal-record-editor"
+        class="modal fixed inset-0 z-[80] bg-gray-100 flex-col hidden dark:bg-gray-900 transition-opacity">
+        <div
+            class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0 dark:bg-gray-800 dark:border-gray-700 shadow-sm">
+            <button onclick="recordEditor.close()" class="text-gray-500 font-bold px-2">取消</button>
+            <div class="text-center">
+                <div id="record-editor-title" class="font-bold text-lg dark:text-white">課表名稱</div>
+                <div id="record-editor-date" class="text-xs text-gray-400">2026-03-09</div>
+            </div>
+            <button onclick="recordEditor.save()" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 pb-32 space-y-3" id="record-editor-form">
+        </div>
+    </div>
+
     <!-- 模態視窗: 全螢幕計時器 (Active Timer Modal) -->
     <div id="modal-active-timer" class="modal fixed inset-0 z-[60] bg-gray-900 text-white flex flex-col">
 
@@ -591,6 +626,16 @@
             </div>
 
             <div class="flex gap-2">
+                <!-- 紀錄按鈕 -->
+                <button onclick="timer.openManualLogPanel()"
+                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50 hover:text-white"
+                    title="手動填寫紀錄">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                        </path>
+                    </svg>
+                </button>
                 <!-- 語音控制按鈕 -->
                 <button id="btn-mic-toggle" onclick="voiceCommander.toggle()"
                     class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50">
@@ -649,6 +694,27 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- 快速紀錄面板 (Quick Log Panel") -->
+        <div id="quick-log-panel"
+            class="absolute bottom-[220px] inset-x-4 bg-gray-800/95 backdrop-blur border border-gray-600 rounded-2xl p-4 shadow-2xl transform translate-y-[150%] transition-transform duration-300 z-[70] hidden">
+            <div class="flex justify-between items-center mb-3">
+                <h4 class="text-white font-bold text-sm">紀錄: <span id="quick-log-label" class="text-blue-400"></span>
+                </h4>
+                <button onclick="timer.closeLogPanel()" class="text-gray-400 p-1">✕</button>
+            </div>
+
+            <div id="quick-log-inputs" class="space-y-3 mb-4 max-h-[30vh] overflow-y-auto no-scrollbar">
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="timer.fillLastRecord()"
+                    class="flex-1 bg-gray-700 text-gray-300 py-2 rounded-lg text-xs font-bold border border-gray-600 hover:bg-gray-600">帶入上次</button>
+                <button onclick="timer.saveLog()"
+                    class="w-2/3 bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-blue-500">確認
+                    (Done)</button>
+            </div>
         </div>
 
         <!-- 底部控制區 (Footer Controls) -->

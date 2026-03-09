@@ -1,5 +1,40 @@
 // --- js/modules/ui.js ---
 
+// --- 全域 Toast 提示元件 ---
+window.showToast = function(message, type = 'info') {
+    // 若已有提示則先移除，避免堆疊
+    const existing = document.getElementById('app-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'app-toast';
+    
+    // 依據 type 設定不同的顏色與圖示
+    const isError = type === 'error';
+    const colors = isError 
+        ? 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/90 dark:border-red-800 dark:text-red-100' 
+        : 'bg-gray-800 text-white border border-gray-700 dark:bg-white dark:text-gray-900';
+
+    const icon = isError 
+        ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`
+        : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+
+    toast.className = `fixed top-16 left-1/2 transform -translate-x-1/2 z-[100] px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all duration-300 opacity-0 -translate-y-4 flex items-center gap-2 ${colors}`;
+    toast.innerHTML = `${icon} <span>${message}</span>`;
+    
+    document.body.appendChild(toast);
+
+    // 觸發瀏覽器重繪以執行 CSS 動畫
+    void toast.offsetWidth;
+    toast.classList.remove('opacity-0', '-translate-y-4');
+
+    // 2.5 秒後自動淡出並移除
+    setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-4');
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
+};
+
 // --- 0. Theme Manager ---
 const themeManager = {
     mode: 'system', // system, light, dark
@@ -238,6 +273,10 @@ const editor = {
     colors: ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'indigo', 'violet', 'pink'],
     // 暫存選擇的顏色
     selectedColor: 'gray',
+    // 暫存課程的標籤
+    currentRoutineTags: [],
+// 暫存屬性面板中的自訂指標
+    tempMetrics: [],
 
     // 預設選項 (統一為 Title Case English)
     defaultSuggestions: {
@@ -296,6 +335,65 @@ const editor = {
         });
     },
 
+    // 新增：掃描所有課表取得標籤歷史
+    getRoutineTagHistory() {
+        const tagsSet = new Set();
+        store.routines.forEach(r => {
+            if (r.tags && Array.isArray(r.tags)) {
+                r.tags.forEach(t => tagsSet.add(t));
+            }
+        });
+        return Array.from(tagsSet);
+    },
+
+    // 新增：渲染課程標籤 UI
+    renderRoutineTagsUI() {
+        const container = document.getElementById('editor-routine-tags');
+        const suggestions = document.getElementById('editor-tag-suggestions');
+        if (!container || !suggestions) return;
+
+        // 渲染已選擇
+        if (this.currentRoutineTags.length === 0) {
+            container.innerHTML = '<span class="text-xs text-gray-400 font-bold">目前無標籤</span>';
+        } else {
+            container.innerHTML = this.currentRoutineTags.map(t => `
+                <span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                    ${t}
+                    <button type="button" onclick="editor.removeRoutineTag('${t}')" class="text-blue-400 hover:text-blue-700 ml-1 dark:hover:text-blue-100">&times;</button>
+                </span>
+            `).join('');
+        }
+
+        // 渲染歷史建議
+        const allTags = this.getRoutineTagHistory();
+        const availableTags = allTags.filter(t => !this.currentRoutineTags.includes(t));
+
+        if (availableTags.length === 0) {
+            suggestions.innerHTML = '<span class="text-[10px] text-gray-400">無歷史建議</span>';
+        } else {
+            suggestions.innerHTML = availableTags.map(t => `
+                <button type="button" onclick="editor.addRoutineTag('${t}')" class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded text-xs font-bold border border-gray-200 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
+                    + ${t}
+                </button>
+            `).join('');
+        }
+    },
+
+    addRoutineTag(tagStr) {
+        const inp = document.getElementById('inp-routine-tag');
+        const val = (tagStr || inp.value).trim();
+        if (val && !this.currentRoutineTags.includes(val)) {
+            this.currentRoutineTags.push(val);
+            this.renderRoutineTagsUI();
+        }
+        if (inp) inp.value = '';
+    },
+
+    removeRoutineTag(tagStr) {
+        this.currentRoutineTags = this.currentRoutineTags.filter(t => t !== tagStr);
+        this.renderRoutineTagsUI();
+    },
+
     // 取得積木類別 (根據 props.color)
     getBlockClass(type, props) {
         const c = props.color || 'gray';
@@ -348,9 +446,9 @@ const editor = {
     },
 
     getDefaultProps(type) {
-        if (type === 'loop') return { iterations: 3, color: 'gray' }; // 將這裡的 violet 改為 gray
-        if (type === 'timer') return { duration: 10, label: 'Hang', color: 'orange' };
-        if (type === 'reps') return { count: 5, duration: 30, label: 'Pull Ups', color: 'blue' };
+        if (type === 'loop') return { iterations: 3, color: 'gray' };
+        if (type === 'timer') return { duration: 10, label: 'Hang', color: 'orange', customMetrics: [] };
+        if (type === 'reps') return { count: 5, duration: 30, label: 'Pull Ups', color: 'blue', customMetrics: [{ name: '次數', type: 'number' }] };
         return { color: 'gray' };
     },
 
@@ -384,30 +482,22 @@ const editor = {
         const props = JSON.parse(el.dataset.props);
         const form = document.getElementById('prop-form');
 
-        // 1. 生成表單內容
+        // 載入該積木現有的指標至暫存
+        this.tempMetrics = props.customMetrics ? [...props.customMetrics] : [];
+
         let html = '';
         if (type !== 'loop') {
-            // Create Options String for Select
             let optionsHtml = '<option value="" disabled selected>Select from history...</option>';
-
             const historyMap = this.getHistory(type);
             const defaults = this.defaultSuggestions[type] || [];
-
-            // Add Defaults to history map for color lookup
-            defaults.forEach(def => {
-                if (!historyMap.has(def.label)) historyMap.set(def.label, def.color);
-            });
-
-            // Build Options (Unique)
             const addedLabels = new Set();
 
-            // Add Defaults
             defaults.forEach(def => {
+                if (!historyMap.has(def.label)) historyMap.set(def.label, def.color);
                 optionsHtml += `<option value="${def.label}">${def.label}</option>`;
                 addedLabels.add(def.label);
             });
 
-            // Add History
             historyMap.forEach((color, label) => {
                 if (!addedLabels.has(label)) {
                     optionsHtml += `<option value="${label}">${label}</option>`;
@@ -425,7 +515,6 @@ const editor = {
                             </div>
                         </div>`;
 
-            // Store map for color lookup in event listener
             this.tempHistoryMap = historyMap;
         }
 
@@ -465,9 +554,26 @@ const editor = {
                         </div>
                     </div>`;
         }
+
+        // 新增：插入自訂追蹤指標的 HTML (排除迴圈)
+        if (type !== 'loop') {
+            html += `
+                <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <label class="block text-sm font-bold text-gray-500 mb-2">訓練追蹤指標 (Custom Metrics)</label>
+                    <div id="prop-metrics-list" class="space-y-2 mb-3"></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="inp-new-metric" onkeydown="if(event.key==='Enter') editor.addMetric()" class="flex-1 border border-gray-200 rounded-lg p-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="輸入追蹤項目 (如: 負重)">
+                        <button type="button" onclick="editor.addMetric()" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300 hover:bg-blue-100 transition-colors">新增</button>
+                    </div>
+                </div>
+            `;
+        }
+
         form.innerHTML = html;
 
-        // 2. 生成顏色選擇器
+        // 觸發渲染已存在的指標
+        if (type !== 'loop') this.renderMetricsUI();
+
         this.selectedColor = props.color || 'gray';
         const palette = document.getElementById('color-palette');
         palette.innerHTML = '';
@@ -476,27 +582,21 @@ const editor = {
             btn.className = `color-btn w-8 h-8 rounded-full cursor-pointer shrink-0 bg-${c}-500 ${c === this.selectedColor ? 'selected' : ''}`;
             btn.onclick = () => {
                 this.selectedColor = c;
-                // Update UI selection
                 Array.from(palette.children).forEach(child => child.classList.remove('selected'));
                 btn.classList.add('selected');
             };
             palette.appendChild(btn);
         });
 
-        // 3. 綁定事件 (Select -> Input & Color)
         const selLabel = document.getElementById('sel-label');
         const inpLabel = document.getElementById('inp-label');
-
         if (selLabel && inpLabel) {
             selLabel.addEventListener('change', (e) => {
                 const val = e.target.value;
                 inpLabel.value = val;
-
-                // Auto-select color
                 if (this.tempHistoryMap && this.tempHistoryMap.has(val)) {
                     const historyColor = this.tempHistoryMap.get(val);
                     this.selectedColor = historyColor;
-                    // Update Palette UI
                     Array.from(palette.children).forEach(child => {
                         child.classList.remove('selected');
                         if (child.classList.contains(`bg-${historyColor}-500`)) {
@@ -506,17 +606,47 @@ const editor = {
                 }
             });
         }
-
         document.getElementById('prop-sheet').classList.remove('translate-y-full');
     },
 
-    // 替換 editor.saveProps
+    // 渲染指標清單的方法
+    renderMetricsUI() {
+        const container = document.getElementById('prop-metrics-list');
+        if (!container) return;
+        if (this.tempMetrics.length === 0) {
+            container.innerHTML = '<div class="text-[10px] font-bold text-gray-400 bg-gray-50 p-2 rounded border border-dashed border-gray-200 dark:bg-gray-800 dark:border-gray-700">無自訂追蹤項目 (執行時不彈出紀錄面板)</div>';
+            return;
+        }
+        container.innerHTML = this.tempMetrics.map((m, idx) => `
+            <div class="flex justify-between items-center bg-gray-50 border border-gray-200 p-2.5 rounded-lg dark:bg-gray-800 dark:border-gray-700">
+                <span class="text-sm font-bold text-gray-700 dark:text-gray-300">${m.name}</span>
+                <button type="button" onclick="editor.removeMetric(${idx})" class="text-gray-400 hover:text-red-500 font-bold px-2 transition-colors">✕</button>
+            </div>
+        `).join('');
+    },
+
+    // 新增：加入與刪除指標的方法
+    addMetric(nameStr) {
+        const inp = document.getElementById('inp-new-metric');
+        const val = (nameStr || inp.value).trim();
+        // 避免重複加入相同名稱的指標
+        if (val && !this.tempMetrics.find(m => m.name === val)) {
+            this.tempMetrics.push({ name: val, type: 'number' });
+            this.renderMetricsUI();
+        }
+        if (inp) inp.value = '';
+    },
+    removeMetric(idx) {
+        this.tempMetrics.splice(idx, 1);
+        this.renderMetricsUI();
+    },
+
+    // editor.saveProps
     saveProps() {
         if (!this.activeBlock) return;
         const type = this.activeBlock.dataset.type;
         let props = JSON.parse(this.activeBlock.dataset.props);
 
-        // 更新基本屬性
         if (type === 'loop') {
             props.iterations = Number(document.getElementById('inp-iterations').value);
         } else {
@@ -527,17 +657,17 @@ const editor = {
                 if (skipEl) props.skipOnLast = skipEl.checked;
             }
             if (type === 'reps') props.count = Number(document.getElementById('inp-count').value);
+            
+            // ✨ 將暫存的指標寫回積木屬性
+            props.customMetrics = [...this.tempMetrics];
         }
 
-        // 更新顏色
         props.color = this.selectedColor;
 
-        // 寫回 DOM
         this.activeBlock.dataset.props = JSON.stringify(props);
         this.activeBlock.className = `block-item p-3 mb-2 rounded border bg-white ${this.getBlockClass(type, props)}`;
         this.activeBlock.querySelector('.block-label').textContent = this.getLabel(type, props);
 
-        // 同步外部跳過按鈕狀態
         const btnSvg = this.activeBlock.querySelector('.skip-btn svg');
         if (btnSvg) {
             btnSvg.className = props.skipOnLast
@@ -631,8 +761,10 @@ const editor = {
     open() {
         this.currentId = null;
         document.getElementById('editor-title').value = '';
+        this.currentRoutineTags = [];
         document.getElementById('editor-canvas').innerHTML = '<div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>';
         document.getElementById('modal-editor').classList.add('open');
+        this.renderRoutineTagsUI();
         this.updateTimeline();
     },
 
@@ -641,12 +773,14 @@ const editor = {
         if (!r) return;
         this.currentId = id;
         document.getElementById('editor-title').value = r.title;
+        this.currentRoutineTags = r.tags ? [...r.tags] : [];
         const canvas = document.getElementById('editor-canvas');
         canvas.innerHTML = '';
         if (r.blocks) {
             r.blocks.forEach(b => canvas.appendChild(this.createBlock(b)));
         }
         document.getElementById('modal-editor').classList.add('open');
+        this.renderRoutineTagsUI();
         this.updateTimeline();
     },
 
@@ -655,11 +789,11 @@ const editor = {
     async save() {
         const title = document.getElementById('editor-title').value || '未命名課表';
         const blocks = this.serialize();
-        const data = { title, blocks, updatedAt: Date.now() };
+        // 將標籤加入存檔資料
+        const data = { title, blocks, tags: this.currentRoutineTags, updatedAt: Date.now() };
 
         if (store.user) {
             const col = db.collection('users').doc(store.user.uid).collection('routines');
-            // 移除 await，讓 Firebase 在背景處理同步，避免斷網時卡住 UI
             if (this.currentId) {
                 col.doc(this.currentId).set(data, { merge: true });
             } else {
