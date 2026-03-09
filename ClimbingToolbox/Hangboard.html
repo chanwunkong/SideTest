@@ -698,22 +698,23 @@
 
         <!-- 快速紀錄面板 (Quick Log Panel") -->
         <div id="quick-log-panel"
-            class="absolute bottom-[220px] inset-x-4 bg-gray-800/95 backdrop-blur border border-gray-600 rounded-2xl p-4 shadow-2xl transform translate-y-[150%] transition-transform duration-300 z-[70] hidden">
-            <div class="flex justify-between items-center mb-3">
-                <h4 class="text-white font-bold text-sm">紀錄: <span id="quick-log-label" class="text-blue-400"></span>
+            class="absolute bottom-[220px] inset-x-4 bg-gray-800/95 backdrop-blur border border-gray-600 rounded-3xl p-5 shadow-2xl transform translate-y-[150%] transition-transform duration-300 z-[70] hidden">
+
+            <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-4"></div>
+
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="text-white font-bold text-base">紀錄: <span id="quick-log-label" class="text-blue-400"></span>
                 </h4>
-                <button onclick="timer.closeLogPanel()" class="text-gray-400 p-1">✕</button>
             </div>
 
-            <div id="quick-log-inputs" class="space-y-3 mb-4 max-h-[30vh] overflow-y-auto no-scrollbar">
+            <div id="quick-log-inputs" class="space-y-3 mb-6 max-h-[35vh] overflow-y-auto no-scrollbar">
             </div>
 
-            <div class="flex gap-2">
-                <button onclick="timer.fillLastRecord()"
-                    class="flex-1 bg-gray-700 text-gray-300 py-2 rounded-lg text-xs font-bold border border-gray-600 hover:bg-gray-600">帶入上次</button>
+            <div class="flex justify-center">
                 <button onclick="timer.saveLog()"
-                    class="w-2/3 bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-blue-500">確認
-                    (Done)</button>
+                    class="w-full bg-blue-600 text-white py-4 rounded-2xl text-xl font-bold shadow-lg shadow-blue-900/50 active:scale-95 transition-transform">
+                    確認紀錄
+                </button>
             </div>
         </div>
 
@@ -829,22 +830,30 @@
             editor.init();
             settingsManager.init();
             themeManager.init();
-
-            // 1. 更新本週次數與日曆
             recordManager.updateUI();
             recordManager.renderCalendar();
 
-            // 2. 新增：自動顯示今日紀錄
             const now = new Date();
             const y = now.getFullYear();
             const m = (now.getMonth() + 1).toString().padStart(2, '0');
             const d = now.getDate().toString().padStart(2, '0');
-            const todayStr = `${y}-${m}-${d}`;
+            recordManager.showDayDetail(`${y}-${m}-${d}`);
 
-            // 呼叫顯示明細的函式
-            recordManager.showDayDetail(todayStr);
+            // 新增：偵測未完成的訓練
+            const sessionJson = localStorage.getItem('active_session');
+            if (sessionJson) {
+                const session = JSON.parse(sessionJson);
+                // 使用原生 confirm 進行阻塞式詢問，確保使用者優先處理
+                if (confirm(`發現未完成的訓練「${session.routineTitle}」，是否立即繼續？`)) {
+                    timer.resumeSession(session);
+                }
+            }
 
-            // PWA 提示邏輯保留
+            // 新增：綁定底部面板滑動關閉手勢
+            initSwipeToClose('quick-log-panel', () => timer.closeLogPanel());
+            initSwipeToClose('prop-sheet', () => editor.closeProps());
+            initSwipeToClose('detail-sheet', () => recordManager.closeDetail());
+
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
             const isDismissed = localStorage.getItem('pwaPromptDismissed');
             const pwaPrompt = document.getElementById('pwa-prompt');

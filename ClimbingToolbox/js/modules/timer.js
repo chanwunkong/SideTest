@@ -106,6 +106,9 @@ const timer = {
     pendingLogBlock: null,
     pendingLogIndex: null,
     isWaitingForFinalLog: false,
+    domCache: null, // DOM 快取
+    lastTick: 0,    // 精確時間計算基準
+    sessionValueMap: {}, // 用於存放本次訓練中各動作的最新輸入值
 
     async requestWakeLock() {
         if ('wakeLock' in navigator) {
@@ -181,12 +184,26 @@ const timer = {
         this.pendingLogBlock = null; // 初始化面板狀態
         this.pendingLogIndex = null;
         this.isWaitingForFinalLog = false;
+        this.sessionValueMap = {}; // 每次開始新訓練時清空暫存
 
         document.getElementById('active-title').textContent = routine.title;
         document.getElementById('active-total-display').textContent = formatTime(this.totalDuration);
         document.getElementById('modal-active-timer').classList.add('open');
 
-        // this.updateLockUI();
+        this.domCache = {
+            countdown: document.getElementById('active-countdown'),
+            progressBar: document.getElementById('active-progress-bar'),
+            status: document.getElementById('active-status'),
+            remaining: document.getElementById('active-remaining'),
+            elapsed: document.getElementById('active-elapsed'),
+            loops: document.getElementById('active-loops'),
+            nextText: document.getElementById('active-next'),
+            nextBadge: document.getElementById('active-next-badge'),
+            modal: document.getElementById('modal-active-timer')
+        };
+
+        this.domCache.modal.classList.add('open');
+
         this.updateControlUI();
         this.runStep();
         this.startTicker();
@@ -194,10 +211,22 @@ const timer = {
         voiceCommander.init();
     },
 
-    // toggleLock() {
-    //     this.isLocked = !this.isLocked;
-    //     this.updateLockUI();
-    // },
+    // 修改：自動判定並獲取預填數值
+    getBestValue(blockLabel, metricName) {
+        // 1. 優先找本次訓練已填寫過的數值 (Session Cache)
+        if (this.sessionValueMap[blockLabel] && this.sessionValueMap[blockLabel][metricName] !== undefined) {
+            return this.sessionValueMap[blockLabel][metricName];
+        }
+
+        // 2. 次之找該動作的上一次課程歷史紀錄 (Last Session Record)
+        const lastActuals = recordManager.getLastBlockRecord(this.currentRoutineTitle, blockLabel);
+        if (lastActuals && lastActuals[metricName] !== undefined) {
+            return lastActuals[metricName];
+        }
+
+        // 3. 若皆無，則回傳 0 或空值
+        return 0;
+    },
 
     updateLockUI() {
         const overlay = document.getElementById('lock-overlay');
@@ -257,37 +286,29 @@ const timer = {
         this.stepDuration = step.props.duration || 0;
         this.stepLeft = this.stepDuration;
 
-        document.getElementById('active-status').textContent = step.props.label;
-
-        const statusEl = document.getElementById('active-status');
-        const modalEl = document.getElementById('modal-active-timer');
+        // 使用 DOM Cache
+        this.domCache.status.textContent = step.props.label;
 
         // 移除所有可能的顏色類別
-        modalEl.className = modalEl.className.replace(/bg-\w+-600/g, '').trim();
-        // 移除急迫閃爍
-        modalEl.classList.remove('pulse-urgent');
+        this.domCache.modal.className = this.domCache.modal.className.replace(/bg-\w+-600/g, '').trim();
+        this.domCache.modal.classList.remove('pulse-urgent');
 
         const color = step.props.color || 'gray';
-        modalEl.classList.add(`bg-${color}-600`);
+        this.domCache.modal.classList.add(`bg-${color}-600`);
 
-        // 調整文字顏色
         if (step.type === 'finish') {
-            statusEl.textContent = "FINISHED";
-            this.stop();
+            this.domCache.status.textContent = "FINISHED";
+            if (!this.isWaitingForFinalLog) this.stop();
             return;
         }
 
         // 重置進度條
-        const progressBar = document.getElementById('active-progress-bar');
-        progressBar.style.transition = 'none';
-        progressBar.style.width = '100%';
-        void progressBar.offsetWidth; // 強制重繪
-        progressBar.style.transition = 'width 1s linear';
+        this.domCache.progressBar.style.transition = 'none';
+        this.domCache.progressBar.style.width = '100%';
+        void this.domCache.progressBar.offsetWidth;
+        this.domCache.progressBar.style.transition = 'width 1s linear';
 
-        // TTS 朗讀 (使用 settingsManager)
         settingsManager.speak(step.props.label);
-
-        // Play Start Sound
         settingsManager.beep('start');
 
         this.updateDisplay();
@@ -295,37 +316,45 @@ const timer = {
 
     startTicker() {
         if (this.interval) clearInterval(this.interval);
-        this.interval = setInterval(() => {
-            if (this.isPaused) return;
 
-            if (this.stepLeft > 0) {
-                this.stepLeft--;
-                this.elapsed++;
+        // 紀錄開始時間，並將頻率提高至 100ms 進行高精度判斷
+        this.lastTick = Date.now();
+
+        this.interval = setInterval(() => {
+            if (this.isPaused) {
+                this.lastTick = Date.now(); // 暫停時重置，避免累積差值
+                return;
+            }
+
+            const now = Date.now();
+            const deltaSec = Math.floor((now - this.lastTick) / 1000);
+
+            if (deltaSec >= 1) {
+                this.stepLeft -= deltaSec;
+                this.elapsed += deltaSec;
+                this.lastTick += deltaSec * 1000; // 保留百毫秒的餘數作誤差補償
 
                 // 倒數提示音 (Beep) & 視覺閃爍
-                if (this.stepLeft <= settingsManager.data.countdownSec) {
+                if (this.stepLeft <= settingsManager.data.countdownSec && this.stepLeft > 0) {
                     settingsManager.beep('countdown');
-
-                    // 最後3秒觸發背景閃爍
-                    const modalEl = document.getElementById('modal-active-timer');
-                    if (settingsManager.data.urgentPulseEnabled && !modalEl.classList.contains('pulse-urgent')) {
-                        modalEl.classList.add('pulse-urgent');
+                    if (settingsManager.data.urgentPulseEnabled && !this.domCache.modal.classList.contains('pulse-urgent')) {
+                        this.domCache.modal.classList.add('pulse-urgent');
                     }
                 }
 
-            } else {
-                // 轉換邏輯：結束當前步驟
-                this.currentIndex++;
-                if (this.currentIndex < this.queue.length) {
-                    this.runStep();
+                if (this.stepLeft <= 0) {
+                    this.currentIndex++;
+                    if (this.currentIndex < this.queue.length) {
+                        this.runStep();
+                    } else {
+                        settingsManager.beep('finish');
+                        this.stop();
+                    }
                 } else {
-                    // 完成
-                    settingsManager.beep('finish');
-                    this.stop();
+                    this.updateDisplay();
                 }
             }
-            this.updateDisplay();
-        }, 1000);
+        }, 100);
     },
 
     updateDisplay() {
@@ -334,30 +363,26 @@ const timer = {
 
         const displayNum = step.type === 'reps' && this.stepLeft > 0
             ? `${step.props.count}<span class="text-4xl ml-2 opacity-50">reps</span>`
-            : (this.stepLeft < 10 ? '0' + this.stepLeft : this.stepLeft);
+            : (this.stepLeft < 10 && this.stepLeft >= 0 ? '0' + this.stepLeft : this.stepLeft);
 
-        document.getElementById('active-countdown').innerHTML = displayNum;
+        // 優化：使用 DOM Cache 取代 getElementById
+        this.domCache.countdown.innerHTML = displayNum;
 
-        // 更新進度條
         if (this.stepDuration > 0) {
-            const progressPct = (this.stepLeft / this.stepDuration) * 100;
-            document.getElementById('active-progress-bar').style.width = `${progressPct}%`;
+            const progressPct = Math.max(0, (this.stepLeft / this.stepDuration) * 100);
+            this.domCache.progressBar.style.width = `${progressPct}%`;
         } else {
-            document.getElementById('active-progress-bar').style.width = `0%`;
+            this.domCache.progressBar.style.width = `0%`;
         }
 
-        // 修改剩餘時間計算
         let remaining = this.stepLeft || 0;
         for (let i = this.currentIndex + 1; i < this.queue.length; i++) {
             remaining += (this.queue[i].props.duration || 0);
         }
-        document.getElementById('active-remaining').textContent = formatTime(remaining);
 
-        document.getElementById('active-elapsed').textContent = formatTime(this.elapsed);
-        // active-total-display is static per routine start, but nice to keep formatted
+        this.domCache.remaining.textContent = formatTime(remaining);
+        this.domCache.elapsed.textContent = formatTime(this.elapsed);
 
-        const loopState = step.loopState;
-        const loopEl = document.getElementById('active-loops');
         if (step.loopState && step.loopState.length > 0) {
             let text = "";
             if (step.loopState.length === 1) {
@@ -367,35 +392,42 @@ const timer = {
                 const inner = step.loopState[step.loopState.length - 1];
                 text = `SET ${outer.current}/${outer.total} <span class="mx-3 text-white/40">|</span> REP ${inner.current}/${inner.total}`;
             }
-            loopEl.innerHTML = text;
-            loopEl.classList.remove('hidden');
+            this.domCache.loops.innerHTML = text;
+            this.domCache.loops.classList.remove('hidden');
         } else {
-            loopEl.classList.add('hidden');
+            this.domCache.loops.classList.add('hidden');
         }
 
-        // 下一步預告與顏色點
         const nextStep = this.queue[this.currentIndex + 1];
-        const nextEl = document.getElementById('active-next');
-        const nextBadge = document.getElementById('active-next-badge');
         if (nextStep) {
             let desc = nextStep.props.label;
             if (nextStep.type === 'timer') desc += ` (${nextStep.props.duration}s)`;
             if (nextStep.type === 'reps') desc += ` x${nextStep.props.count}`;
-            nextEl.textContent = desc;
+            this.domCache.nextText.textContent = desc;
 
-            // 下一步顏色
             const nc = nextStep.props.color || 'gray';
-            nextBadge.className = `w-3 h-3 rounded-full bg-${nc}-400 shadow-sm`;
+            this.domCache.nextBadge.className = `w-3 h-3 rounded-full bg-${nc}-400 shadow-sm`;
         } else {
-            nextEl.textContent = "Finish";
-            nextBadge.className = `w-3 h-3 rounded-full bg-gray-500`;
+            this.domCache.nextText.textContent = "Finish";
+            this.domCache.nextBadge.className = `w-3 h-3 rounded-full bg-gray-500`;
         }
     },
 
-    // 開啟並渲染紀錄面板
+    // 1. 調整數值的方法 (加入浮點數處理)
+    adjustLogVal(idx, delta) {
+        const input = document.getElementById(`quick-log-val-${idx}`);
+        if (input) {
+            let val = parseFloat(input.value) || 0;
+            val += delta;
+            if (val < 0) val = 0;
+            // 處理 JavaScript 浮點數精度問題，保留到小數點後兩位
+            input.value = Math.round(val * 100) / 100;
+        }
+    },
+
+    // 2. 開啟並渲染紀錄面板
     showLogPanel(block, qIndex) {
         const metrics = block.props.customMetrics;
-        // 如果該積木沒有設定追蹤指標，就不彈出面板
         if (!metrics || metrics.length === 0) return;
 
         this.pendingLogBlock = block;
@@ -409,11 +441,18 @@ const timer = {
         inputsContainer.innerHTML = '';
 
         metrics.forEach((m, idx) => {
-            const plannedVal = m.name === '次數' ? (block.props.count || '') : (m.name === '秒數' ? (block.props.duration || '') : '');
+            // ✨ 自動獲取最佳預填值
+            const autoFilledVal = this.getBestValue(block.props.label, m.name);
+
             inputsContainer.innerHTML += `
-                <div class="flex items-center justify-between bg-gray-900 rounded-lg p-2.5">
-                    <span class="text-gray-400 text-xs font-bold">${m.name}</span>
-                    <input type="number" id="quick-log-val-${idx}" data-name="${m.name}" value="${plannedVal}" class="w-20 bg-gray-700 text-white border-none rounded p-1.5 text-center font-bold">
+                <div class="flex items-center justify-between bg-gray-900 rounded-2xl p-3 mb-2">
+                    <span class="text-gray-300 text-sm font-bold pl-2">${m.name}</span>
+                    <div class="flex items-center gap-4">
+                        <button type="button" onclick="timer.adjustLogVal(${idx}, -1)" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-transform">-</button>
+                        <input type="number" step="any" id="quick-log-val-${idx}" data-name="${m.name}" value="${autoFilledVal}" 
+                            class="w-20 bg-transparent text-white text-xl border-none p-0 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 rounded transition-all">
+                        <button type="button" onclick="timer.adjustLogVal(${idx}, 1)" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-transform">+</button>
+                    </div>
                 </div>
             `;
         });
@@ -497,20 +536,27 @@ const timer = {
     saveLog() {
         if (!this.pendingLogBlock) return;
         const actuals = {};
+        const blockLabel = this.pendingLogBlock.props.label;
+
         document.querySelectorAll('#quick-log-inputs input').forEach(input => {
-            actuals[input.dataset.name] = Number(input.value);
+            const val = input.value === '' ? 0 : Number(input.value);
+            const metricName = input.dataset.name;
+            actuals[metricName] = val;
+
+            // 本次訓練的數值暫存，供後續 Block 使用
+            if (!this.sessionValueMap[blockLabel]) this.sessionValueMap[blockLabel] = {};
+            this.sessionValueMap[blockLabel][metricName] = val;
         });
 
         this.currentLogs.push({
             blockId: this.pendingLogBlock.id,
             queueIndex: this.pendingLogIndex,
-            label: this.pendingLogBlock.props.label,
+            label: blockLabel,
             planned: { duration: this.pendingLogBlock.props.duration, count: this.pendingLogBlock.props.count },
             actuals: actuals
         });
 
         this.closeLogPanel();
-
 
         if (this.isWaitingForFinalLog) {
             this.isWaitingForFinalLog = false;
@@ -645,9 +691,8 @@ const timer = {
         // 過濾：執行少於 10 秒的紀錄不予儲存，避免誤觸
         if (this.elapsed < 10) return;
 
-        // ==========================================
-        // ✨ 新增：防呆與補漏機制 (自動補齊未填寫的紀錄)
-        // ==========================================
+        // 新增：防呆與補漏機制 (自動補齊未填寫的紀錄)
+
         for (let i = 0; i < this.queue.length; i++) {
             const step = this.queue[i];
             if (step.type === 'timer' || step.type === 'reps') {
@@ -690,7 +735,7 @@ const timer = {
             startTime: this.actualStartTime,
             duration: this.elapsed,
             timestamp: this.actualTimestamp,
-            executionLogs: this.currentLogs // ✨ 升級：將完整的日誌陣列寫入存檔物件
+            executionLogs: this.currentLogs // 將完整的日誌陣列寫入存檔物件
         };
 
         // 取得現有紀錄並推入新紀錄
@@ -700,7 +745,7 @@ const timer = {
         // 存回 LocalStorage
         localStorage.setItem('trainingRecords', JSON.stringify(records));
 
-        // ✨ 清空當前暫存狀態，確保完全乾淨，不污染下一趟訓練
+        // 清空當前暫存狀態，確保完全乾淨，不污染下一趟訓練
         this.currentLogs = [];
         this.pendingLogBlock = null;
         this.pendingLogIndex = null;

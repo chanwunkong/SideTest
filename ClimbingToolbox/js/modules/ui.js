@@ -1,5 +1,43 @@
 // --- js/modules/ui.js ---
 
+// --- 手勢滑動元件 ---
+window.initSwipeToClose = function(elementId, closeFn) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+    
+    el.addEventListener('touchstart', (e) => {
+        // 避免與內部滾動區域衝突
+        if(e.target.closest('.overflow-y-auto') && e.target.closest('.overflow-y-auto').scrollTop > 0) return;
+        startY = e.touches[0].clientY;
+        isDragging = true;
+        el.style.transition = 'none';
+    }, {passive: true});
+    
+    el.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        currentY = e.touches[0].clientY;
+        const deltaY = currentY - startY;
+        if (deltaY > 0) {
+            el.style.transform = `translateY(${deltaY}px)`;
+        }
+    }, {passive: true});
+    
+    el.addEventListener('touchend', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        el.style.transition = ''; // 恢復 CSS class 預設動畫
+        
+        if (currentY - startY > 100) {
+            closeFn();
+        }
+        el.style.transform = ''; 
+    });
+};
+
 // --- 全域 Toast 提示元件 ---
 window.showToast = function(message, type = 'info') {
     // 若已有提示則先移除，避免堆疊
@@ -88,6 +126,22 @@ const settingsManager = {
         weightUnit: 'kg'
     },
 
+    _audioCtx: null, // 新增：全域 AudioContext 實例暫存
+
+    // 新增：取得單一 AudioContext 實例
+    getAudioContext() {
+        if (!this._audioCtx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return null;
+            this._audioCtx = new AudioContext();
+        }
+        // 確保在瀏覽器自動暫停狀態下喚醒
+        if (this._audioCtx.state === 'suspended') {
+            this._audioCtx.resume();
+        }
+        return this._audioCtx;
+    },
+
     init() {
         const saved = localStorage.getItem('appSettings');
         if (saved) {
@@ -115,8 +169,8 @@ const settingsManager = {
             };
         };
 
-        // Chrome 需要監聽 voiceschanged 事件
-        window.speechSynthesis.onvoiceschanged = populate;
+        // 優化：改用 addEventListener 避免覆蓋其他事件
+        window.speechSynthesis.addEventListener('voiceschanged', populate);
         populate();
     },
 
@@ -175,25 +229,20 @@ const settingsManager = {
     // --- Sound Actions ---
     beep(type) {
         if (!this.data.soundEnabled) return;
-
-        // Check granular settings
         if (type === 'start' && !this.data.soundStart) return;
         if (type === 'countdown' && !this.data.soundCountdown) return;
         if (type === 'finish' && !this.data.soundFinish) return;
 
-        // Freq Logic
-        let freq = 880;
-        let wave = 'sine';
-        let dur = 0.1;
-
+        let freq = 880; let wave = 'sine'; let dur = 0.1;
         if (type === 'countdown') { freq = 440; }
         if (type === 'start') { freq = 880; wave = 'square'; dur = 0.2; }
-        if (type === 'finish') { freq = 523.25; wave = 'triangle'; dur = 0.4; } // C5
+        if (type === 'finish') { freq = 523.25; wave = 'triangle'; dur = 0.4; }
 
         try {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (!AudioContext) return;
-            const ctx = new AudioContext();
+            // 優化：使用全域單一實例
+            const ctx = this.getAudioContext();
+            if (!ctx) return;
+            
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain);
@@ -205,14 +254,13 @@ const settingsManager = {
             osc.start();
             osc.stop(ctx.currentTime + dur);
 
-            // Double beep for finish
             if (type === 'finish') {
                 setTimeout(() => {
                     const osc2 = ctx.createOscillator();
                     const gain2 = ctx.createGain();
                     osc2.connect(gain2);
                     gain2.connect(ctx.destination);
-                    osc2.frequency.value = freq * 1.25; // E5
+                    osc2.frequency.value = freq * 1.25;
                     osc2.type = wave;
                     gain2.gain.setValueAtTime(0.1, ctx.currentTime);
                     gain2.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + dur);
@@ -305,8 +353,7 @@ const editor = {
         new Sortable(el, {
             group: 'shared',
             animation: 150,
-            // fallbackOnBody: true, // ⚠️ 刪除這行！它會嚴重干擾巢狀層級判定
-            emptyInsertThreshold: 50, // ✨ 新增：放寬 50px 的空陣列放入判定
+            emptyInsertThreshold: 50, // 新增：放寬 50px 的空陣列放入判定
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
             draggable: '.block-item',
@@ -433,7 +480,7 @@ const editor = {
 
         if (data.type === 'loop') {
             const inner = document.createElement('div');
-            // ✨ 加上 min-h-[60px]、虛線邊框與微底色，讓容器有明確的「可拖入物理空間」
+            // 加上 min-h-[60px]、虛線邊框與微底色，讓容器有明確的「可拖入物理空間」
             inner.className = "nested-container p-2 mt-2 min-h-[60px] bg-black/5 dark:bg-black/20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600";
             el.appendChild(inner);
             this.initSortable(inner);
@@ -658,7 +705,7 @@ const editor = {
             }
             if (type === 'reps') props.count = Number(document.getElementById('inp-count').value);
             
-            // ✨ 將暫存的指標寫回積木屬性
+            // 將暫存的指標寫回積木屬性
             props.customMetrics = [...this.tempMetrics];
         }
 

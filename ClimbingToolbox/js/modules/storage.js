@@ -1,7 +1,12 @@
 // --- js/modules/storage.js ---
 
 // --- 工具函式 ---
-const uuid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+const uuid = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
 const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
@@ -191,7 +196,18 @@ const store = {
         const list = document.getElementById('routine-list');
         list.innerHTML = '';
         if (this.routines.length === 0) {
-            list.innerHTML = '<div class="text-center text-gray-400 mt-10">尚無課表，請點選上方按鈕建立</div>';
+            list.innerHTML = `
+                <div class="text-center mt-12 px-4">
+                    <div class="text-gray-400 mb-6 text-sm">目前尚無課表，馬上建立一個吧！</div>
+                    <button onclick="editor.open()" class="bg-gray-900 text-white dark:bg-blue-600 px-6 py-4 rounded-2xl font-bold shadow-xl w-full mb-4 flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        建立新課表
+                    </button>
+                    <div class="flex gap-2 justify-center">
+                        <button onclick="store.addTemplate('max')" class="flex-1 bg-blue-50 text-blue-700 py-3 rounded-xl text-xs font-bold dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 border border-blue-100 active:scale-95 transition-transform">Max Hangs 範本</button>
+                        <button onclick="store.addTemplate('repeaters')" class="flex-1 bg-violet-50 text-violet-700 py-3 rounded-xl text-xs font-bold dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800 border border-violet-100 active:scale-95 transition-transform">Repeaters 範本</button>
+                    </div>
+                </div>`;
             return;
         }
 
@@ -244,7 +260,8 @@ const store = {
 // --- Record Manager (整合切換與自動刷新) ---
 const recordManager = {
     displayDate: new Date(), // 用於記錄目前日曆翻到哪個月
-    selectedDate: null, // 新增：記錄目前選取的日期
+    selectedDate: null, // 記錄目前選取的日期
+    selectedDateNode: null, // 快取目前選取的 DOM 節點
 
     getAllRecords() {
         return JSON.parse(localStorage.getItem('trainingRecords') || '[]');
@@ -298,7 +315,7 @@ const recordManager = {
             const dayRecords = this.getRecordsByDate(dateStr);
             const isToday = (new Date().toDateString() === new Date(year, month, day).toDateString());
 
-            // 補上這行：判斷是否為已選取的日期
+            // 判斷是否為已選取的日期
             const isSelected = (dateStr === this.selectedDate);
 
             const dayEl = document.createElement('div');
@@ -306,10 +323,13 @@ const recordManager = {
             // 修正 className：把 isSelected 的判斷與樣式加進來
             dayEl.className = `cal-day ${isToday ? 'is-today' : ''} ${isSelected ? 'ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/30 dark:ring-blue-500' : ''} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700`;
 
-            // 補上這行：寫入 dataset，讓下方的 showDayDetail 可以透過 dataset.date 找到它
             dayEl.dataset.date = dateStr;
-
             dayEl.onclick = () => this.showDayDetail(dateStr);
+
+            // 修正：如果這個日期是選中狀態，立刻更新 DOM 快取
+            if (isSelected) {
+                this.selectedDateNode = dayEl;
+            }
 
             const numEl = document.createElement('span');
             numEl.className = 'cal-date-num dark:text-gray-200';
@@ -336,14 +356,18 @@ const recordManager = {
     },
     // 開啟明細面板
     showDayDetail(dateStr) {
-        // 新增：記錄選取日期並更新日曆 UI 樣式
         this.selectedDate = dateStr;
-        document.querySelectorAll('.cal-day').forEach(el => {
-            el.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30', 'dark:ring-blue-500');
-            if (el.dataset.date === dateStr) {
-                el.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30', 'dark:ring-blue-500');
-            }
-        });
+
+        // 移除迴圈，直接操作上一次與這一次的節點
+        if (this.selectedDateNode) {
+            this.selectedDateNode.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30', 'dark:ring-blue-500');
+        }
+
+        const newSelectedNode = document.querySelector(`.cal-day[data-date="${dateStr}"]`);
+        if (newSelectedNode) {
+            newSelectedNode.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30', 'dark:ring-blue-500');
+            this.selectedDateNode = newSelectedNode;
+        }
 
         const records = this.getRecordsByDate(dateStr);
         const list = document.getElementById('detail-list');
@@ -458,7 +482,7 @@ const recordEditor = {
         if (!rec) return;
 
         this.currentRecordId = recordId;
-        
+
         document.getElementById('record-editor-title').textContent = rec.routineTitle;
         document.getElementById('record-editor-date').textContent = `${rec.date} ${rec.startTime}`;
 
@@ -470,7 +494,7 @@ const recordEditor = {
         } else {
             rec.executionLogs.forEach((log, idx) => {
                 let inputsHtml = '';
-                
+
                 // 動態生成輸入框
                 Object.entries(log.actuals).forEach(([key, val]) => {
                     inputsHtml += `
@@ -514,13 +538,13 @@ const recordEditor = {
 
     save() {
         if (!this.currentRecordId) return;
-        
+
         const records = recordManager.getAllRecords();
         const recIndex = records.findIndex(r => r.id === this.currentRecordId);
         if (recIndex === -1) return;
 
         const rec = records[recIndex];
-        
+
         // 收集表單中的數值並覆寫 actuals
         const inputs = document.querySelectorAll('#record-editor-form input');
         inputs.forEach(input => {
@@ -534,10 +558,10 @@ const recordEditor = {
 
         // 存回 LocalStorage
         localStorage.setItem('trainingRecords', JSON.stringify(records));
-        
+
         this.close();
         if (typeof showToast === 'function') showToast('紀錄已更新');
-        
+
         // 即時刷新背後的明細清單，顯示最新修改的數值
         recordManager.showDayDetail(rec.date);
     }
