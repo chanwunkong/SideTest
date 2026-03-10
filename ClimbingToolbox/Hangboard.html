@@ -12,7 +12,7 @@
         colors.forEach(c => {
             safelist.push(`bg-${c}-50`, `bg-${c}-400`, `bg-${c}-500`, `bg-${c}-600`, `bg-${c}-900/20`);
             safelist.push(`border-${c}-200`, `border-${c}-800`, `border-l-${c}-500`);
-            safelist.push(`text-${c}-300`);
+            safelist.push(`text-${c}-3s00`);
         });
 
         tailwind.config = {
@@ -40,6 +40,10 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
+
+    <!-- 圖表套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <!-- 共用設定 -->
     <link rel="stylesheet" href="assets/css/style.css">
 
@@ -49,6 +53,7 @@
     <script src="js/modules/ui.js"></script>
     <script src="js/modules/timer.js"></script>
     <script src="js/modules/goalManager.js"></script>
+    <script src="js/modules/analytics.js"></script>
 
     <link rel="manifest" href="manifest-hangboard.json">
 
@@ -187,14 +192,20 @@
 
             <!-- 快速範本區 -->
             <div class="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
-                <button onclick="store.addTemplate('max')"
-                    class="shrink-0 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition-colors dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
-                    ⚡️ Max Hangs
-                </button>
-                <button onclick="store.addTemplate('repeaters')"
-                    class="shrink-0 bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-violet-100 transition-colors dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800">
-                    🔄 Repeaters
-                </button>
+                <div class="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+                    <button onclick="store.addTemplate('max')"
+                        class="shrink-0 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition-colors dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                        ⚡️ Max Hangs
+                    </button>
+                    <button onclick="store.addTemplate('repeaters')"
+                        class="shrink-0 bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-violet-100 transition-colors dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800">
+                        🔄 Repeaters
+                    </button>
+                    <button onclick="store.addTemplate('pullups')"
+                        class="shrink-0 bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-orange-100 transition-colors dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800">
+                        💪 體能與核心
+                    </button>
+                </div>
             </div>
 
             <div id="active-session-container" class="px-4 mt-4"></div>
@@ -207,19 +218,69 @@
         <!-- 3. 目標管理 (Goals) -->
         <div id="view-goals" class="view-section">
             <div class="p-6">
-                <div class="flex items-center justify-between mb-6">
-                    <h1 class="text-2xl font-extrabold dark:text-white">目標與進度</h1>
-                    <button onclick="goalManager.openEditor()"
-                        class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
-                            </path>
-                        </svg>
+                <div class="flex bg-gray-100 p-1 rounded-xl dark:bg-gray-700 w-full mb-6">
+                    <button id="tab-btn-goals" onclick="uiManager.switchInsightTab('goals')"
+                        class="flex-1 py-2 text-sm font-bold bg-white shadow-sm rounded-lg dark:bg-gray-800 text-gray-900 dark:text-white transition-all">
+                        目標進度
+                    </button>
+                    <button id="tab-btn-analytics" onclick="uiManager.switchInsightTab('analytics')"
+                        class="flex-1 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-all">
+                        趨勢分析
                     </button>
                 </div>
 
-                <div id="goals-list" class="space-y-4 pb-24">
-                    <div class="text-center text-gray-400 mt-10">載入中...</div>
+                <div id="tab-content-goals" class="block">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-extrabold dark:text-white">追蹤中的目標</h2>
+                        <button onclick="goalManager.openEditor()"
+                            class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1.5 rounded-full dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 transition-colors shadow-sm">
+                            + 新增目標
+                        </button>
+                    </div>
+                    <div id="goals-list" class="space-y-4 pb-24">
+                        <div class="text-center text-gray-400 mt-10">載入中...</div>
+                    </div>
+                </div>
+
+                <div id="tab-content-analytics" class="hidden pb-24">
+
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-extrabold dark:text-white">重點數據看板</h2>
+                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">自訂追蹤項目</span>
+                    </div>
+
+                    <div id="pr-cards-container" class="grid grid-cols-2 gap-3 mb-8">
+                    </div>
+
+                    <div
+                        class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 dark:bg-gray-750 dark:border-gray-600">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-gray-800 dark:text-white">歷史趨勢</h3>
+                            <select id="chart-range-filter"
+                                class="bg-gray-50 border border-gray-200 text-xs font-bold rounded-lg p-2 outline-none dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                <option value="10t">最近 10 次</option>
+                                <option value="7d">最近 7 天</option>
+                                <option value="28d">最近 4 週</option>
+                                <option value="84d">最近 12 週</option>
+                                <option value="all">全部紀錄</option>
+                            </select>
+                        </div>
+
+                        <div class="relative w-full h-56 flex items-center justify-center">
+                            <canvas id="trend-chart" class="w-full h-full hidden"></canvas>
+                            <div id="chart-placeholder"
+                                class="text-center text-gray-400 text-sm font-bold flex flex-col items-center">
+                                <svg class="w-8 h-8 mb-2 opacity-50" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                                    </path>
+                                </svg>
+                                點擊上方數據卡以顯示圖表
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -680,6 +741,20 @@
                     </select>
                 </div>
 
+                <div id="goal-tag-operator-container" class="hidden mt-2 p-3 bg-blue-50 rounded-xl dark:bg-blue-900/20">
+                    <label
+                        class="block text-[10px] font-bold text-blue-600 uppercase mb-2 dark:text-blue-400">標籤匹配邏輯</label>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="goalManager.setOperator('OR')" id="op-or"
+                            class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-white shadow-sm border border-blue-200 text-blue-600 transition-all">滿足任一
+                            (聯集)</button>
+                        <button type="button" onclick="goalManager.setOperator('AND')" id="op-and"
+                            class="flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400 border border-transparent transition-all">必須全部符合
+                            (交集)</button>
+                    </div>
+                    <p id="op-desc" class="text-[9px] text-blue-400 mt-2 italic font-medium">只要符合勾選的其中一個標籤即計算進度。</p>
+                </div>
+
                 <div id="goal-scope-targets"
                     class="hidden bg-gray-50 p-3 rounded-xl border border-gray-200 dark:bg-gray-750 dark:border-gray-600 max-h-40 overflow-y-auto">
                 </div>
@@ -703,6 +778,93 @@
 
                 <button onclick="goalManager.saveGoal()"
                     class="w-full bg-gray-900 text-white py-4 rounded-xl font-bold mt-4 dark:bg-blue-600">儲存目標</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-pr-editor" class="modal fixed inset-0 z-[70] bg-black/50 flex items-end justify-center hidden">
+        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
+            id="pr-sheet">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-extrabold dark:text-white">自訂數據卡片</h3>
+                <button onclick="analyticsUI.closePREditor()"
+                    class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500">✕</button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-2">資料來源</label>
+                        <select id="pr-source-type"
+                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <option value="routine">依特定課表</option>
+                            <option value="tag">依特定標籤</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-2">目標項目</label>
+                        <select id="pr-target-item"
+                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        </select>
+
+                        <div id="pr-tag-config-area" class="hidden space-y-3">
+                            <div id="pr-tag-list"
+                                class="bg-gray-50 p-3 rounded-xl border border-gray-200 dark:bg-gray-750 dark:border-gray-600 max-h-40 overflow-y-auto">
+                            </div>
+                            <div class="flex gap-2 p-2 bg-blue-50 rounded-lg dark:bg-blue-900/20">
+                                <button type="button" onclick="analyticsUI.setOperator('OR')" id="pr-op-or"
+                                    class="flex-1 py-1.5 text-[10px] font-bold rounded-md bg-white shadow-sm text-blue-600">滿足任一</button>
+                                <button type="button" onclick="analyticsUI.setOperator('AND')" id="pr-op-and"
+                                    class="flex-1 py-1.5 text-[10px] font-bold rounded-md text-gray-400">全部符合</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 mb-2">追蹤指標</label>
+                    <select id="pr-metric"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="volume_time">總時數 (Time)</option>
+                        <option value="volume_reps">總次數 (Count)</option>
+                        <option disabled>──────────</option>
+                        <option value="custom_weight">附加重量 (自訂)</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 border-t border-gray-100 pt-4 dark:border-gray-700">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-2">時間範圍</label>
+                        <select id="pr-time-range"
+                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <option value="all">全部歷史</option>
+                            <option value="10t">最近 10 次</option>
+                            <option value="7d">最近 7 天</option>
+                            <option value="28d">最近 4 週</option>
+                            <option value="84d">最近 12 週</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-2">數值計算</label>
+                        <select id="pr-aggregation"
+                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <option value="max">單次最高 (Max)</option>
+                            <option value="min">單次最低 (Min)</option>
+                            <option value="max_daily_sum">單日最高總和</option>
+                            <option value="sum">區間總計 (Sum)</option>
+                            <option value="active_days">訓練天數</option>
+                            <option value="avg">區間平均 (Avg)</option>
+                            <option value="latest">最新一次 (Latest)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 mt-6">
+                    <button id="btn-delete-pr"
+                        class="w-1/3 py-4 bg-red-50 text-red-600 rounded-xl font-bold dark:bg-red-900/30 dark:text-red-400">清空</button>
+                    <button onclick="analyticsUI.savePRCard()"
+                        class="w-2/3 bg-gray-900 text-white py-4 rounded-xl font-bold dark:bg-blue-600">套用設定</button>
+                </div>
             </div>
         </div>
     </div>
@@ -919,6 +1081,7 @@
             goalManager.init();
             recordManager.updateUI();
             recordManager.renderCalendar();
+            analyticsManager.init();
 
             const now = new Date();
             const y = now.getFullYear();

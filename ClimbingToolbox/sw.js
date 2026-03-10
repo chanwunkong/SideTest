@@ -1,4 +1,4 @@
-const CACHE_NAME = 'climbing-toolbox-v5'; // 更新版本號以強制重新整理快取
+const CACHE_NAME = 'climbing-toolbox-v6'; // 更新版本號以強制重新整理快取
 
 const URLS_TO_CACHE = [
     './Hangboard.html',
@@ -14,10 +14,12 @@ const URLS_TO_CACHE = [
     './js/modules/ui.js',
     './js/modules/holdfocus-engine.js',
     './js/modules/i18n.js',
+    './js/modules/analytics.js',
 
     // --- 外部 CDN 資源 ---
     // 'https://cdn.tailwindcss.com',
     'https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js',
+    'https://cdn.jsdelivr.net/npm/chart.js',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap',
     'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
     'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js',

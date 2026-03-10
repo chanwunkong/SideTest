@@ -892,3 +892,28 @@ const editor = {
     }
 
 };
+
+// --- 暫時加入 ui.js 用於控制 Tab 切換 ---
+const uiManager = {
+    switchInsightTab(tabName) {
+        // 重置按鈕樣式
+        const btnGoals = document.getElementById('tab-btn-goals');
+        const btnAnalytics = document.getElementById('tab-btn-analytics');
+
+        btnGoals.className = "flex-1 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-all";
+        btnAnalytics.className = "flex-1 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-all";
+
+        // 隱藏所有內容
+        document.getElementById('tab-content-goals').classList.add('hidden');
+        document.getElementById('tab-content-analytics').classList.add('hidden');
+
+        // 啟動對應的 Tab
+        if (tabName === 'goals') {
+            btnGoals.className = "flex-1 py-2 text-sm font-bold bg-white shadow-sm rounded-lg dark:bg-gray-800 text-gray-900 dark:text-white transition-all";
+            document.getElementById('tab-content-goals').classList.remove('hidden');
+        } else {
+            btnAnalytics.className = "flex-1 py-2 text-sm font-bold bg-white shadow-sm rounded-lg dark:bg-gray-800 text-gray-900 dark:text-white transition-all";
+            document.getElementById('tab-content-analytics').classList.remove('hidden');
+        }
+    }
+};

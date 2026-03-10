@@ -112,47 +112,73 @@ const store = {
     async addTemplate(type) {
         let blocks = [];
         let title = "New Routine";
+        let tags = [];
 
         if (type === 'max') {
-            title = "Max Hangs";
+            // 例子 1：手指極限力量
+            // 處理狀況：區分「全身力量」與「手指專項力量」
+            title = "Max Hangs (手指極限)";
+            tags = ['最大肌力', '手指'];
             blocks = [
                 { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } },
                 {
-                    type: 'loop', id: uuid(), props: { iterations: 5, color: 'gray' }, // 改為 gray
+                    type: 'loop', id: uuid(), props: { iterations: 5, color: 'gray' },
                     children: [
-                        { type: 'timer', id: uuid(), props: { duration: 10, label: 'Hang (Max)', color: 'red' } },
-                        { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest', color: 'green' } }
+                        { type: 'timer', id: uuid(), props: { duration: 10, label: 'Hang (Max)', color: 'red', customMetrics: [{ name: '附加重量', type: 'number' }, { name: '邊緣大小', type: 'number' }] } },
+                        { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest', color: 'green', skipOnLast: true } }
                     ]
                 }
             ];
         } else if (type === 'repeaters') {
-            title = "7/3 Repeaters";
+            // 例子 2：手指耐力訓練
+            // 處理狀況：區分「手指耐力」與「全身攀爬耐力」
+            title = "7/3 Repeaters (手指耐力)";
+            tags = ['耐力', '手指'];
             blocks = [
                 { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } },
                 {
-                    type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' }, // 改為 gray
+                    type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' },
                     children: [
                         {
-                            type: 'loop', id: uuid(), props: { iterations: 6, color: 'gray' }, // 改為 gray
+                            type: 'loop', id: uuid(), props: { iterations: 6, color: 'gray' },
                             children: [
-                                { type: 'timer', id: uuid(), props: { duration: 7, label: 'Hang', color: 'red' } },
-                                { type: 'timer', id: uuid(), props: { duration: 3, label: 'Rest', color: 'green' } }
+                                { type: 'timer', id: uuid(), props: { duration: 7, label: 'Hang', color: 'red', customMetrics: [{ name: '附加重量', type: 'number' }] } },
+                                { type: 'timer', id: uuid(), props: { duration: 3, label: 'Rest', color: 'green', skipOnLast: true } }
                             ]
                         },
-                        { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest (Set)', color: 'green' } }
+                        { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest (Set)', color: 'green', skipOnLast: true } }
+                    ]
+                }
+            ];
+        } else if (type === 'pullups') {
+            // 例子 3：上肢體能與核心
+            // 處理狀況：區分「廣義體能累積」與「專項動作進度」
+            title = "Pull-ups & Core (上肢體能)";
+            tags = ['體能', '上肢力量'];
+            blocks = [
+                { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } },
+                {
+                    type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' },
+                    children: [
+                        { type: 'reps', id: uuid(), props: { count: 5, duration: 30, label: 'Pull-ups', color: 'blue', customMetrics: [{ name: '引體次數', type: 'number' }, { name: '負重重量', type: 'number' }] } },
+                        { type: 'timer', id: uuid(), props: { duration: 20, label: 'L-Sit', color: 'orange', customMetrics: [{ name: '核心支撐秒數', type: 'number' }] } },
+                        { type: 'timer', id: uuid(), props: { duration: 90, label: 'Rest', color: 'green', skipOnLast: true } }
                     ]
                 }
             ];
         }
 
-        // Load into editor immediately
+        // 載入至編輯器 UI
         editor.currentId = null;
         document.getElementById('editor-title').value = title;
+        editor.currentRoutineTags = tags;
+
         const canvas = document.getElementById('editor-canvas');
         canvas.innerHTML = '';
         blocks.forEach(b => canvas.appendChild(editor.createBlock(b)));
+
         document.getElementById('modal-editor').classList.add('open');
-        editor.appendFooter(false);
+        editor.renderRoutineTagsUI();
         editor.updateTimeline();
     },
 
@@ -170,7 +196,6 @@ const store = {
     },
 
     renderRoutines() {
-        // 新增：處理進行中課表 UI
         const sessionJson = localStorage.getItem('active_session');
         const sessionContainer = document.getElementById('active-session-container');
         if (sessionContainer) {
@@ -203,9 +228,10 @@ const store = {
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                         建立新課表
                     </button>
-                    <div class="flex gap-2 justify-center">
-                        <button onclick="store.addTemplate('max')" class="flex-1 bg-blue-50 text-blue-700 py-3 rounded-xl text-xs font-bold dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 border border-blue-100 active:scale-95 transition-transform">Max Hangs 範本</button>
-                        <button onclick="store.addTemplate('repeaters')" class="flex-1 bg-violet-50 text-violet-700 py-3 rounded-xl text-xs font-bold dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800 border border-violet-100 active:scale-95 transition-transform">Repeaters 範本</button>
+                    <div class="flex gap-2 justify-center flex-wrap">
+                        <button onclick="store.addTemplate('max')" class="flex-1 min-w-[30%] bg-blue-50 text-blue-700 py-3 rounded-xl text-xs font-bold dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 border border-blue-100 active:scale-95 transition-transform">Max Hangs</button>
+                        <button onclick="store.addTemplate('repeaters')" class="flex-1 min-w-[30%] bg-violet-50 text-violet-700 py-3 rounded-xl text-xs font-bold dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800 border border-violet-100 active:scale-95 transition-transform">Repeaters</button>
+                        <button onclick="store.addTemplate('pullups')" class="flex-1 min-w-[30%] bg-orange-50 text-orange-700 py-3 rounded-xl text-xs font-bold dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800 border border-orange-100 active:scale-95 transition-transform">體能與核心</button>
                     </div>
                 </div>`;
             return;
