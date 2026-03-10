@@ -365,6 +365,7 @@ const editor = {
             delay: 150,
             delayOnTouchOnly: true,
             fallbackTolerance: 3,
+            forceFallback: true,
             onClone: (evt) => { evt.clone.dataset.tempId = Date.now(); }
         });
         this.initSortable(document.getElementById('editor-canvas'));
@@ -382,6 +383,10 @@ const editor = {
             delay: 200,             // 長按 200 毫秒才判定為拖曳
             delayOnTouchOnly: true, // 僅在觸控螢幕上啟用長按 (不影響滑鼠)
             fallbackTolerance: 5,   // 允許手指點擊時有 5px 的微小晃動，不會中斷長按
+            forceFallback: true, // 強制關閉原生拖曳，允許原生的頁面滾動
+            scroll: true,        // 拖曳到螢幕邊緣時自動上下滾動
+            bubbleScroll: true,  // 允許事件冒泡
+
 
             onAdd: (evt) => {
                 // 判斷是否來自底部工具箱
