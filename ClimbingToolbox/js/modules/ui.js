@@ -362,10 +362,11 @@ const editor = {
         new Sortable(document.getElementById('editor-palette'), {
             group: { name: 'shared', pull: 'clone', put: false },
             sort: false,
-            delay: 150,
+            delay: 200,
             delayOnTouchOnly: true,
-            fallbackTolerance: 3,
+            fallbackTolerance: 10,   // 放寬容錯至 10px
             forceFallback: true,
+            supportPointer: false,   // 關閉 Pointer 事件攔截
             onClone: (evt) => { evt.clone.dataset.tempId = Date.now(); }
         });
         this.initSortable(document.getElementById('editor-canvas'));
@@ -382,14 +383,14 @@ const editor = {
 
             delay: 200,             // 長按 200 毫秒才判定為拖曳
             delayOnTouchOnly: true, // 僅在觸控螢幕上啟用長按 (不影響滑鼠)
-            fallbackTolerance: 5,   // 允許手指點擊時有 5px 的微小晃動，不會中斷長按
+            fallbackTolerance: 10,   // 允許手指點擊時有 5px 的微小晃動，不會中斷長按
             forceFallback: true, // 強制關閉原生拖曳，允許原生的頁面滾動
+            supportPointer: false,   // 關閉 Pointer 事件攔截
             scroll: true,        // 拖曳到螢幕邊緣時自動上下滾動
             bubbleScroll: true,  // 允許事件冒泡
 
 
             onAdd: (evt) => {
-                // 判斷是否來自底部工具箱
                 if (evt.item.classList.contains('palette-item')) {
                     const type = evt.item.dataset.type;
                     let props = null;
@@ -479,11 +480,12 @@ const editor = {
         const el = document.createElement('div');
         const props = data.props || this.getDefaultProps(data.type);
 
-        el.className = `block-item p-3 mb-2 rounded border bg-white ${this.getBlockClass(data.type, props)}`;
+        // 新增 touch-pan-y：明確允許 Y 軸 (上下) 原生滑動
+        el.className = `block-item touch-pan-y p-3 mb-2 rounded border bg-white ${this.getBlockClass(data.type, props)}`;
+
         el.dataset.type = data.type;
         el.dataset.id = data.id || uuid();
         el.dataset.props = JSON.stringify(props);
-
         // 生成外部跳過按鈕 (僅限 Timer)
         const isSkip = !!props.skipOnLast;
         const skipColor = isSkip ? 'text-blue-500 opacity-100' : 'text-gray-400 opacity-40 hover:opacity-100 dark:text-gray-500';
