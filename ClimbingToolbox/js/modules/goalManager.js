@@ -3,6 +3,7 @@
 const goalManager = {
     goals: [],
     tempOperator: 'OR',
+    showOnlyActive: true,
 
     init() {
         const saved = localStorage.getItem('userGoals');
@@ -211,12 +212,38 @@ const goalManager = {
         return matchedCount;
     },
 
+    toggleShowAll() {
+        this.showOnlyActive = !this.showOnlyActive;
+
+        // 更新圖示狀態
+        const icon = document.getElementById('icon-goal-filter');
+        const btnText = document.getElementById('goal-filter-text'); // 增加文字輔助
+
+        if (this.showOnlyActive) {
+            // 顯示「僅看啟動」的圖示 (眼睛)
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />';
+            if (btnText) btnText.textContent = '進行中';
+        } else {
+            // 顯示「看全部」的圖示 (眼睛斜線)
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />';
+            if (btnText) btnText.textContent = '顯示全部';
+        }
+
+        this.renderGoals();
+    },
+
     renderGoals() {
         const list = document.getElementById('goals-list');
         if (!list) return;
 
-        if (this.goals.length === 0) {
-            list.innerHTML = `<div class="text-center text-gray-400 mt-10 text-sm">目前沒有設定目標。<br>點擊右上角新增。</div>`;
+        // 🌟 1. 根據 showOnlyActive 過濾目標
+        let displayGoals = this.showOnlyActive
+            ? this.goals.filter(g => g.isActive !== false)
+            : this.goals;
+
+        if (displayGoals.length === 0) {
+            const msg = this.showOnlyActive ? "目前沒有進行中的目標" : "目前沒有設定目標";
+            list.innerHTML = `<div class="text-center text-gray-400 py-8 text-xs font-bold bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 dark:bg-gray-800/30 dark:border-gray-700">${msg}</div>`;
             return;
         }
 
@@ -229,10 +256,16 @@ const goalManager = {
         sunday.setDate(monday.getDate() + 6);
         const dateRangeStr = `${monday.getMonth() + 1}/${monday.getDate()} - ${sunday.getMonth() + 1}/${sunday.getDate()}`;
 
-        const sortedGoals = [...this.goals].sort((a, b) => {
+        // 🌟 2. 排序：進行中優先，且已達成的排在進行中之後
+        const sortedGoals = [...displayGoals].sort((a, b) => {
             const aActive = a.isActive !== false;
             const bActive = b.isActive !== false;
-            return (bActive ? 1 : 0) - (aActive ? 1 : 0);
+            if (aActive !== bActive) return (bActive ? 1 : 0) - (aActive ? 1 : 0);
+
+            // 同樣狀態下，未完成的優先顯示
+            const aDone = this.calculateProgress(a) >= a.criteria.value;
+            const bDone = this.calculateProgress(b) >= b.criteria.value;
+            return (aDone ? 1 : 0) - (bDone ? 1 : 0);
         });
 
         list.innerHTML = sortedGoals.map(g => {
@@ -242,60 +275,59 @@ const goalManager = {
             const pct = Math.min((current / target) * 100, 100);
             const isCompleted = current >= target;
 
-            // 對齊看板術語與日期標示
             let periodLabel = '';
             let dateInfo = '';
-            if (g.criteria.period === 'daily') {
-                periodLabel = '今日計數';
-            } else if (g.criteria.period === 'weekly') {
+            if (g.criteria.period === 'daily') periodLabel = '今日計數';
+            else if (g.criteria.period === 'weekly') {
                 periodLabel = '本週進度 (7d)';
                 dateInfo = `(${dateRangeStr})`;
-            } else if (g.criteria.period === 'monthly') {
-                periodLabel = '本月累積 (4w)';
-            }
+            } else if (g.criteria.period === 'monthly') periodLabel = '本月累積 (4w)';
 
             let scopeText = '全部訓練';
             if (g.scope.type === 'routine') scopeText = `指定 ${g.scope.targets.length} 課表`;
-            if (g.scope.type === 'tag') scopeText = `#${g.scope.targets.join(', #')}`;
+            if (g.scope.type === 'tag') {
+                const opText = g.scope.operator === 'AND' ? ' (全部符合)' : '';
+                scopeText = `#${g.scope.targets.join(', #')}${opText}`;
+            }
 
             const activeClass = isActive ? '' : 'opacity-50 grayscale';
             const checkedAttr = isActive ? 'checked' : '';
 
             return `
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-750 dark:border-gray-600 relative overflow-hidden transition-all ${activeClass}">
-            <div class="flex justify-between items-start mb-3">
-                <div class="flex-1 pr-4">
-                    <div class="flex items-center gap-2">
-                        <h4 class="font-bold text-gray-900 dark:text-gray-100">${g.title}</h4>
-                        ${isCompleted && isActive ? '<span class="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-black dark:bg-orange-900/40">🔥 已達成</span>' : ''}
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-750 dark:border-gray-600 relative overflow-hidden transition-all ${activeClass}">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1 pr-4">
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-bold text-sm text-gray-900 dark:text-gray-100">${g.title}</h4>
+                            ${isCompleted && isActive ? '<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-black dark:bg-orange-900/40">🔥 已達成</span>' : ''}
+                        </div>
+                        <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-1">
+                            ${periodLabel} <span class="normal-case font-mono text-[8px]">${dateInfo}</span> • ${scopeText}
+                        </p>
                     </div>
-                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
-                        ${periodLabel} <span class="normal-case font-mono">${dateInfo}</span> • ${scopeText}
-                    </p>
+                    
+                    <div class="flex items-center gap-2">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" ${checkedAttr} onchange="goalManager.toggleGoal('${g.id}', event)">
+                            <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                        <button onclick="goalManager.deleteGoal('${g.id}')" class="text-gray-300 hover:text-red-500 transition-colors p-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
                 </div>
                 
-                <div class="flex items-center gap-3">
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" class="sr-only peer" ${checkedAttr} onchange="goalManager.toggleGoal('${g.id}', event)">
-                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                    <button onclick="goalManager.deleteGoal('${g.id}')" class="text-gray-300 hover:text-red-500 transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
+                <div class="flex items-end justify-between mb-2">
+                    <span class="text-2xl font-black ${isCompleted ? 'text-green-500' : 'text-blue-600 dark:text-blue-400'}">
+                        ${current}<span class="text-[10px] text-gray-400 font-bold ml-1">/ ${target} 次</span>
+                    </span>
+                    <span class="text-[10px] font-bold text-gray-400">${Math.round(pct)}%</span>
                 </div>
-            </div>
-            
-            <div class="flex items-end justify-between mb-2">
-                <span class="text-3xl font-black ${isCompleted ? 'text-green-500' : 'text-blue-600 dark:text-blue-400'}">
-                    ${current}<span class="text-sm text-gray-400 font-bold ml-1">/ ${target} 次</span>
-                </span>
-                <span class="text-xs font-bold text-gray-400">${Math.round(pct)}%</span>
-            </div>
 
-            <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden dark:bg-gray-800">
-                <div class="h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-blue-600 dark:bg-blue-500'}" style="width: ${pct}%"></div>
-            </div>
-        </div>`;
+                <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden dark:bg-gray-800">
+                    <div class="h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-blue-600 dark:bg-blue-500'}" style="width: ${pct}%"></div>
+                </div>
+            </div>`;
         }).join('');
     },
 };

@@ -315,16 +315,34 @@ const router = {
         }
 
         // 3. 根據進入的分頁，動態刷新對應資料
-        if (viewId === 'calendar' && typeof recordManager !== 'undefined') {
-            recordManager.updateUI();
-            recordManager.renderCalendar();
-            // 若已有選取的日期，同步刷新該日明細
-            if (recordManager.selectedDate) {
-                recordManager.showDayDetail(recordManager.selectedDate);
+
+        // ✨ 新看板邏輯：同步刷新日曆與目標
+        if (viewId === 'dashboard') {
+            if (typeof recordManager !== 'undefined') {
+                recordManager.updateUI();
+                recordManager.renderCalendar();
+                // 同步顯示選取日期的明細
+                if (recordManager.selectedDate) {
+                    recordManager.showDayDetail(recordManager.selectedDate);
+                } else {
+                    // 若無選取，預設顯示今天
+                    const now = new Date();
+                    const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+                    recordManager.showDayDetail(todayStr);
+                }
             }
-        } else if (viewId === 'goals' && typeof goalManager !== 'undefined') {
-            goalManager.renderGoals();
-        } else if (viewId === 'routines' && typeof store !== 'undefined') {
+            if (typeof goalManager !== 'undefined') {
+                goalManager.renderGoals();
+            }
+        }
+        // ✨ 新分析邏輯：刷新 PR 數據卡片
+        else if (viewId === 'insight') {
+            if (typeof analyticsUI !== 'undefined') {
+                analyticsUI.renderCards();
+            }
+        }
+        // 課表管理保持不變
+        else if (viewId === 'routines' && typeof store !== 'undefined') {
             store.renderRoutines();
         }
     }

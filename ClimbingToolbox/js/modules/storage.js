@@ -288,6 +288,56 @@ const recordManager = {
     displayDate: new Date(), // 用於記錄目前日曆翻到哪個月
     selectedDate: null, // 記錄目前選取的日期
     selectedDateNode: null, // 快取目前選取的 DOM 節點
+    calendarMode: 'week', // 預設為週視圖
+    isRecordsCollapsed: false,
+
+    // 支援跨週/月模式導覽
+    changePeriod(dir) {
+        if (this.calendarMode === 'month') {
+            this.displayDate.setMonth(this.displayDate.getMonth() + dir);
+        } else {
+            // 週模式直接增減 7 天
+            this.displayDate.setDate(this.displayDate.getDate() + (dir * 7));
+        }
+        this.renderCalendar();
+    },
+
+    // 紀錄摺疊控制
+    toggleRecordsCollapse() {
+        this.isRecordsCollapsed = !this.isRecordsCollapsed;
+        const list = document.getElementById('detail-list');
+        const icon = document.getElementById('icon-record-collapse');
+
+        if (this.isRecordsCollapsed) {
+            list.classList.add('hidden');
+            if (icon) icon.style.transform = 'rotate(-90deg)';
+        } else {
+            list.classList.remove('hidden');
+            if (icon) icon.style.transform = 'rotate(0deg)';
+        }
+    },
+
+    toggleCalendarMode() {
+        this.calendarMode = this.calendarMode === 'week' ? 'month' : 'week';
+        const btnText = document.getElementById('calendar-mode-text');
+        if (btnText) btnText.textContent = this.calendarMode === 'week' ? '週視圖' : '月視圖';
+        this.renderCalendar();
+    },
+
+    toggleRecordLogs(recordId) {
+        const logSection = document.getElementById(`logs-${recordId}`);
+        const arrow = document.getElementById(`arrow-${recordId}`);
+        if (logSection) {
+            const isHidden = logSection.classList.contains('hidden');
+            if (isHidden) {
+                logSection.classList.remove('hidden');
+                arrow.style.transform = 'rotate(180deg)';
+            } else {
+                logSection.classList.add('hidden');
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+    },
 
     getAllRecords() {
         return JSON.parse(localStorage.getItem('trainingRecords') || '[]');
@@ -313,67 +363,95 @@ const recordManager = {
         this.renderCalendar();
     },
 
+    changePeriod(dir) {
+        if (this.calendarMode === 'month') {
+            this.displayDate.setMonth(this.displayDate.getMonth() + dir);
+        } else {
+            // 週模式直接增減 7 天
+            this.displayDate.setDate(this.displayDate.getDate() + (dir * 7));
+        }
+        this.renderCalendar();
+    },
+
     renderCalendar() {
         const calGrid = document.getElementById('calendar-grid');
         const titleEl = document.getElementById('calendar-month-title');
         if (!calGrid || !titleEl) return;
 
         calGrid.innerHTML = '';
+
+        // 取得錨點日期的年、月
         const year = this.displayDate.getFullYear();
         const month = this.displayDate.getMonth();
 
-        // 更新標題顯示
-        titleEl.textContent = `${year}年 ${month + 1}月`;
+        // 🌟 修正 1：月份標題在週視圖下也要反映目前的月份
+        titleEl.textContent = this.calendarMode === 'week'
+            ? `${this.displayDate.getMonth() + 1}月 訓練節奏`
+            : `${year}年 ${month + 1}月`;
 
-        // 獲取當月第一天與總天數
-        let firstDay = new Date(year, month, 1).getDay();
-        firstDay = (firstDay === 0) ? 7 : firstDay;
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        if (this.calendarMode === 'month') {
+            // --- 月視圖邏輯：保持原樣 ---
+            let firstDay = new Date(year, month, 1).getDay();
+            firstDay = (firstDay === 0) ? 7 : firstDay;
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-        // 填充上個月空白格
-        for (let i = 1; i < firstDay; i++) {
-            calGrid.appendChild(document.createElement('div'));
-        }
-
-        // 渲染每一天
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-            const dayRecords = this.getRecordsByDate(dateStr);
-            const isToday = (new Date().toDateString() === new Date(year, month, day).toDateString());
-
-            // 判斷是否為已選取的日期
-            const isSelected = (dateStr === this.selectedDate);
-
-            const dayEl = document.createElement('div');
-
-            // 修正 className：把 isSelected 的判斷與樣式加進來
-            dayEl.className = `cal-day ${isToday ? 'is-today' : ''} ${isSelected ? 'ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/30 dark:ring-blue-500' : ''} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700`;
-
-            dayEl.dataset.date = dateStr;
-            dayEl.onclick = () => this.showDayDetail(dateStr);
-
-            // 修正：如果這個日期是選中狀態，立刻更新 DOM 快取
-            if (isSelected) {
-                this.selectedDateNode = dayEl;
+            for (let i = 1; i < firstDay; i++) {
+                calGrid.appendChild(document.createElement('div'));
             }
 
-            const numEl = document.createElement('span');
-            numEl.className = 'cal-date-num dark:text-gray-200';
-            numEl.textContent = day;
-            dayEl.appendChild(numEl);
-
-            // 渲染小點點
-            const dotsContainer = document.createElement('div');
-            dotsContainer.className = 'dots-container';
-            const dotCount = Math.min(dayRecords.length, 3);
-            for (let j = 0; j < dotCount; j++) {
-                const dot = document.createElement('div');
-                dot.className = 'dot';
-                dotsContainer.appendChild(dot);
+            for (let day = 1; day <= daysInMonth; day++) {
+                this.createDayNode(new Date(year, month, day), calGrid);
             }
-            dayEl.appendChild(dotsContainer);
-            calGrid.appendChild(dayEl);
+        } else {
+            // 🌟 修正 2：週視圖邏輯 - 改為直接找出 Monday 並連跑 7 天
+            // 不再受限於當月 1~31 號的迴圈
+            const anchor = new Date(this.displayDate);
+            const dayOfWeek = anchor.getDay();
+            const diffToMon = anchor.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+            const monday = new Date(anchor.setDate(diffToMon));
+
+            for (let i = 0; i < 7; i++) {
+                const current = new Date(monday);
+                current.setDate(monday.getDate() + i);
+                this.createDayNode(current, calGrid);
+            }
         }
+    },
+
+    // 輔助函式：生成單日節點 (統一視覺樣式)
+    createDayNode(dateObj, container) {
+        const y = dateObj.getFullYear();
+        const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const d = dateObj.getDate().toString().padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+
+        const dayRecords = this.getRecordsByDate(dateStr);
+        const isToday = (new Date().toDateString() === dateObj.toDateString());
+        const isSelected = (dateStr === this.selectedDate);
+
+        const dayEl = document.createElement('div');
+        // ✨ 修正 3：加入藍色小點 (bg-blue-500) 與 修正框框寬度
+        dayEl.className = `calendar-day relative flex flex-col items-center justify-center h-10 w-full rounded-xl transition-all ${isToday ? 'is-today ring-1 ring-blue-200' : ''} ${isSelected ? 'ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/30 dark:ring-blue-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`;
+        dayEl.dataset.date = dateStr;
+        dayEl.onclick = () => this.showDayDetail(dateStr);
+
+        if (isSelected) this.selectedDateNode = dayEl;
+
+        const numEl = document.createElement('span');
+        numEl.className = 'text-xs font-bold dark:text-gray-200';
+        numEl.textContent = dateObj.getDate();
+        dayEl.appendChild(numEl);
+
+        const dotsContainer = document.createElement('div');
+        dotsContainer.className = 'flex gap-0.5 mt-1 h-1 justify-center';
+        const dotCount = Math.min(dayRecords.length, 3);
+        for (let j = 0; j < dotCount; j++) {
+            const dot = document.createElement('div');
+            dot.className = 'w-1 h-1 rounded-full bg-blue-500 dark:bg-blue-400';
+            dotsContainer.appendChild(dot);
+        }
+        dayEl.appendChild(dotsContainer);
+        container.appendChild(dayEl);
     },
 
     updateUI() {
@@ -384,12 +462,11 @@ const recordManager = {
     showDayDetail(dateStr) {
         this.selectedDate = dateStr;
 
-        // 移除迴圈，直接操作上一次與這一次的節點
+        // 1. 樣式更新邏輯
         if (this.selectedDateNode) {
             this.selectedDateNode.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30', 'dark:ring-blue-500');
         }
-
-        const newSelectedNode = document.querySelector(`.cal-day[data-date="${dateStr}"]`);
+        const newSelectedNode = document.querySelector(`.calendar-day[data-date="${dateStr}"]`);
         if (newSelectedNode) {
             newSelectedNode.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30', 'dark:ring-blue-500');
             this.selectedDateNode = newSelectedNode;
@@ -400,67 +477,71 @@ const recordManager = {
         const title = document.getElementById('detail-date-title');
         const countLabel = document.getElementById('detail-record-count');
 
-        // 更新標題與統計
+        if (!list || !title || !countLabel) return;
+
         title.textContent = dateStr;
         countLabel.textContent = `${records.length} 筆紀錄`;
-
         list.innerHTML = '';
 
+        // 🌟 修正 3：渲染紀錄與數據容錯
         if (records.length === 0) {
-            list.innerHTML = `
-                <div class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200 dark:bg-gray-800/50 dark:border-gray-700">
-                    <p class="text-sm text-gray-400">該日沒有訓練紀錄</p>
-                </div>`;
+            list.innerHTML = `<div class="text-center py-10 text-xs text-gray-400">該日沒有訓練紀錄</div>`;
         } else {
             records.forEach(rec => {
                 const item = document.createElement('div');
                 item.className = "p-4 bg-white rounded-2xl border border-gray-100 shadow-sm dark:bg-gray-750 dark:border-gray-700 flex flex-col";
 
-                // ✨ 展開 executionLogs 資料
+                // ✨ 建立獨立的明細區塊，預設隱藏
                 let logsHtml = '';
                 if (rec.executionLogs && rec.executionLogs.length > 0) {
-                    logsHtml = '<div class="mt-3 space-y-2 border-t border-gray-50 pt-3 dark:border-gray-700">';
+                    logsHtml = `
+                    <div id="logs-${rec.id}" class="hidden mt-3 space-y-2 border-t border-gray-50 pt-3 dark:border-gray-700">`;
                     rec.executionLogs.forEach((log, lIdx) => {
-                        if (Object.keys(log.actuals).length > 0) {
-                            const actualsStr = Object.entries(log.actuals).map(([k, v]) => `${k}: ${v}`).join(', ');
+                        const actualsStr = Object.entries(log.actuals || {})
+                            .map(([k, v]) => `${k}: ${v === "" || v === undefined ? '0' : v}`)
+                            .join(', ');
 
-                            // ✨ 修改點：將這段改為可點擊的按鈕
-                            logsHtml += `
-                            <button onclick="recordManager.editLogEntry('${rec.id}', ${lIdx})" 
-                                    class="flex items-center gap-2 text-xs w-full hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1 rounded transition-colors text-left">
-                                <span class="text-gray-500 w-20 truncate dark:text-gray-400 font-bold">${log.label}</span>
-                                <span class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 flex-1">
-                                    ${actualsStr}
-                                </span>
-                                <svg class="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            </button>
-                        `;
-                        }
+                        logsHtml += `
+                        <button onclick="recordManager.editLogEntry('${rec.id}', ${lIdx})" 
+                                class="flex items-center gap-2 text-xs w-full hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1 rounded transition-colors text-left">
+                            <span class="text-gray-500 w-16 truncate dark:text-gray-400 font-bold">${log.label}</span>
+                            <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 flex-1 text-center font-mono">
+                                ${actualsStr || '0'}
+                            </span>
+                            <svg class="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </button>`;
                     });
                     logsHtml += '</div>';
                 }
+
+                const durationText = typeof formatTime === 'function' ? formatTime(rec.duration) : `${Math.floor(rec.duration / 60)}m`;
+
                 item.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1 cursor-pointer" onclick="recordManager.toggleRecordLogs('${rec.id}')">
+                        <div class="flex items-center gap-2">
                             <div class="font-bold text-gray-800 dark:text-gray-100">${rec.routineTitle}</div>
-                            <div class="text-xs text-gray-500 font-mono mt-1">
-                                ${rec.startTime} <span class="mx-1">|</span> ${formatTime(rec.duration)}
-                            </div>
+                            <svg id="arrow-${rec.id}" class="w-3 h-3 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
-                        <div class="flex items-center gap-1">
-                            <button onclick="recordManager.deleteRecord('${rec.id}', '${dateStr}')" class="p-2 text-gray-300 hover:text-red-500 transition-colors">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </div>
+                        <div class="text-[10px] text-gray-500 font-mono mt-0.5">${rec.startTime} | ${durationText}</div>
                     </div>
-                    ${logsHtml} `;
+                    <button onclick="recordManager.deleteRecord('${rec.id}', '${dateStr}')" class="p-2 text-gray-300 hover:text-red-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+                ${logsHtml}`;
                 list.appendChild(item);
             });
         }
-
-        // 視覺反饋：滾動到紀錄區塊 (選用)
-        document.getElementById('day-detail-container').scrollIntoView({ behavior: 'smooth' });
     },
+
+    //     // 4. 視覺反饋：僅在未摺疊時捲動
+    //     if (!this.isRecordsCollapsed) {
+    //         title.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    //     }
+    // },
+
+
 
     // 關閉明細面板
     closeDetail() {
