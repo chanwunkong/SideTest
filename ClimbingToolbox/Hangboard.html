@@ -48,6 +48,7 @@
     <script src="js/modules/storage.js"></script>
     <script src="js/modules/ui.js"></script>
     <script src="js/modules/timer.js"></script>
+    <script src="js/modules/goalManager.js"></script>
 
     <link rel="manifest" href="manifest-hangboard.json">
 
@@ -203,7 +204,27 @@
             </div>
         </div>
 
-        <!-- 3. 設定 (Settings) -->
+        <!-- 3. 目標管理 (Goals) -->
+        <div id="view-goals" class="view-section">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h1 class="text-2xl font-extrabold dark:text-white">目標與進度</h1>
+                    <button onclick="goalManager.openEditor()"
+                        class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="goals-list" class="space-y-4 pb-24">
+                    <div class="text-center text-gray-400 mt-10">載入中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. 設定 (Settings) -->
         <div id="view-settings" class="view-section">
             <div class="p-6">
                 <div class="flex items-center mb-6">
@@ -445,20 +466,18 @@
 
     <!-- 底部導覽列 -->
     <nav
-        class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 w-full max-w-md mx-auto z-50 flex justify-around items-center shadow-[0_-2px_10px_rgba(0,0,0,0.05)] dark:bg-gray-800 dark:border-gray-700">
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 w-full max-w-md mx-auto z-50 flex justify-around items-center shadow-sm dark:bg-gray-800 dark:border-gray-700">
         <button onclick="router.go('calendar')"
-            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900 active"
+            class="nav-btn w-1/4 h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900 active"
             data-target="view-calendar">
             <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                </path>
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
             </svg>
-
             <span class="text-[10px] font-bold">紀錄</span>
         </button>
         <button onclick="router.go('routines')"
-            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            class="nav-btn w-1/4 h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
             data-target="view-routines">
             <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -467,8 +486,17 @@
             </svg>
             <span class="text-[10px] font-bold">課表</span>
         </button>
+        <button onclick="router.go('goals')"
+            class="nav-btn w-1/4 h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            data-target="view-goals">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-bold">目標</span>
+        </button>
         <button onclick="router.go('settings')"
-            class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
+            class="nav-btn w-1/4 h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
             data-target="view-settings">
             <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -525,9 +553,12 @@
         </div>
 
         <!-- 底部工具箱 -->
-        <div class="bg-white border-t p-4 shrink-0 shadow-xl z-10 pb-8 dark:bg-gray-800 dark:border-gray-700">
-            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">拖曳新增</div>
-            <div id="editor-palette" class="flex gap-3 overflow-x-auto no-scrollbar">
+        <div class="bg-white border-t py-4 shrink-0 shadow-xl z-10 pb-8 dark:bg-gray-800 dark:border-gray-700">
+
+            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-4">拖曳新增</div>
+
+            <div id="editor-palette"
+                class="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-2 after:content-[''] after:w-1 after:shrink-0">
 
                 <div class="palette-item shrink-0 w-20 h-16 bg-gray-50 border-2 border-gray-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-gray-700/50 dark:border-gray-600"
                     data-type="loop">
@@ -560,7 +591,6 @@
 
             </div>
         </div>
-
         <!-- 屬性編輯面板 (Property Sheet) -->
         <div id="prop-sheet"
             class="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl transform translate-y-full transition-transform duration-300 z-[60] p-6 pb-12 dark:bg-gray-800 dark:text-white">
@@ -620,6 +650,60 @@
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 pb-32 space-y-3" id="record-editor-form">
+        </div>
+    </div>
+
+    <div id="modal-goal-editor" class="modal fixed inset-0 z-[70] bg-black/50 flex items-end justify-center hidden">
+        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
+            id="goal-sheet">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-extrabold dark:text-white">設定目標</h3>
+                <button onclick="goalManager.closeEditor()"
+                    class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500">✕</button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 mb-2">目標名稱</label>
+                    <input type="text" id="goal-title"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        placeholder="例如：每週規律訓練">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 mb-2">追蹤範圍</label>
+                    <select id="goal-scope-type" onchange="goalManager.toggleScopeUI()"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="all">全域 (不限課表)</option>
+                        <option value="routine">指定特定課表 (多選)</option>
+                        <option value="tag">包含特定標籤</option>
+                    </select>
+                </div>
+
+                <div id="goal-scope-targets"
+                    class="hidden bg-gray-50 p-3 rounded-xl border border-gray-200 dark:bg-gray-750 dark:border-gray-600 max-h-40 overflow-y-auto">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-2">週期</label>
+                        <select id="goal-period"
+                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <option value="daily">每天</option>
+                            <option value="weekly">每週</option>
+                            <option value="monthly">每月</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 mb-2">完成次數</label>
+                        <input type="number" id="goal-value" min="1" value="3"
+                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    </div>
+                </div>
+
+                <button onclick="goalManager.saveGoal()"
+                    class="w-full bg-gray-900 text-white py-4 rounded-xl font-bold mt-4 dark:bg-blue-600">儲存目標</button>
+            </div>
         </div>
     </div>
 
@@ -832,6 +916,7 @@
             editor.init();
             settingsManager.init();
             themeManager.init();
+            goalManager.init();
             recordManager.updateUI();
             recordManager.renderCalendar();
 

@@ -1,22 +1,22 @@
 // --- js/modules/ui.js ---
 
 // --- 手勢滑動元件 ---
-window.initSwipeToClose = function(elementId, closeFn) {
+window.initSwipeToClose = function (elementId, closeFn) {
     const el = document.getElementById(elementId);
     if (!el) return;
-    
+
     let startY = 0;
     let currentY = 0;
     let isDragging = false;
-    
+
     el.addEventListener('touchstart', (e) => {
         // 避免與內部滾動區域衝突
-        if(e.target.closest('.overflow-y-auto') && e.target.closest('.overflow-y-auto').scrollTop > 0) return;
+        if (e.target.closest('.overflow-y-auto') && e.target.closest('.overflow-y-auto').scrollTop > 0) return;
         startY = e.touches[0].clientY;
         isDragging = true;
         el.style.transition = 'none';
-    }, {passive: true});
-    
+    }, { passive: true });
+
     el.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
         currentY = e.touches[0].clientY;
@@ -24,42 +24,42 @@ window.initSwipeToClose = function(elementId, closeFn) {
         if (deltaY > 0) {
             el.style.transform = `translateY(${deltaY}px)`;
         }
-    }, {passive: true});
-    
+    }, { passive: true });
+
     el.addEventListener('touchend', () => {
         if (!isDragging) return;
         isDragging = false;
         el.style.transition = ''; // 恢復 CSS class 預設動畫
-        
+
         if (currentY - startY > 100) {
             closeFn();
         }
-        el.style.transform = ''; 
+        el.style.transform = '';
     });
 };
 
 // --- 全域 Toast 提示元件 ---
-window.showToast = function(message, type = 'info') {
+window.showToast = function (message, type = 'info') {
     // 若已有提示則先移除，避免堆疊
     const existing = document.getElementById('app-toast');
     if (existing) existing.remove();
 
     const toast = document.createElement('div');
     toast.id = 'app-toast';
-    
+
     // 依據 type 設定不同的顏色與圖示
     const isError = type === 'error';
-    const colors = isError 
-        ? 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/90 dark:border-red-800 dark:text-red-100' 
+    const colors = isError
+        ? 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/90 dark:border-red-800 dark:text-red-100'
         : 'bg-gray-800 text-white border border-gray-700 dark:bg-white dark:text-gray-900';
 
-    const icon = isError 
+    const icon = isError
         ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`
         : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
 
     toast.className = `fixed top-16 left-1/2 transform -translate-x-1/2 z-[100] px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all duration-300 opacity-0 -translate-y-4 flex items-center gap-2 ${colors}`;
     toast.innerHTML = `${icon} <span>${message}</span>`;
-    
+
     document.body.appendChild(toast);
 
     // 觸發瀏覽器重繪以執行 CSS 動畫
@@ -242,7 +242,7 @@ const settingsManager = {
             // 優化：使用全域單一實例
             const ctx = this.getAudioContext();
             if (!ctx) return;
-            
+
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain);
@@ -293,21 +293,39 @@ const settingsManager = {
 
 
 // --- 1. Router ---
+// --- js/modules/ui.js ---
+
 const router = {
     go(viewId) {
+        // 1. 重置所有視圖與按鈕狀態
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(el => {
-            el.classList.remove('text-gray-900', 'text-blue-600');
-            el.classList.add('text-gray-400');
-            // Reset Dark Mode active state styles
-            el.classList.remove('dark:text-white');
-            el.classList.add('dark:text-gray-400');
+            el.classList.remove('text-gray-900', 'text-blue-600', 'dark:text-white');
+            el.classList.add('text-gray-400', 'dark:text-gray-400');
         });
-        document.getElementById(`view-${viewId}`).classList.add('active');
+
+        // 2. 啟用目標視圖與按鈕
+        const targetView = document.getElementById(`view-${viewId}`);
+        if (targetView) targetView.classList.add('active');
+
         const btn = document.querySelector(`.nav-btn[data-target="view-${viewId}"]`);
         if (btn) {
             btn.classList.remove('text-gray-400', 'dark:text-gray-400');
             btn.classList.add('text-gray-900', 'dark:text-white');
+        }
+
+        // 3. 根據進入的分頁，動態刷新對應資料
+        if (viewId === 'calendar' && typeof recordManager !== 'undefined') {
+            recordManager.updateUI();
+            recordManager.renderCalendar();
+            // 若已有選取的日期，同步刷新該日明細
+            if (recordManager.selectedDate) {
+                recordManager.showDayDetail(recordManager.selectedDate);
+            }
+        } else if (viewId === 'goals' && typeof goalManager !== 'undefined') {
+            goalManager.renderGoals();
+        } else if (viewId === 'routines' && typeof store !== 'undefined') {
+            store.renderRoutines();
         }
     }
 };
@@ -323,7 +341,7 @@ const editor = {
     selectedColor: 'gray',
     // 暫存課程的標籤
     currentRoutineTags: [],
-// 暫存屬性面板中的自訂指標
+    // 暫存屬性面板中的自訂指標
     tempMetrics: [],
 
     // 預設選項 (統一為 Title Case English)
@@ -344,6 +362,9 @@ const editor = {
         new Sortable(document.getElementById('editor-palette'), {
             group: { name: 'shared', pull: 'clone', put: false },
             sort: false,
+            delay: 150,
+            delayOnTouchOnly: true,
+            fallbackTolerance: 3,
             onClone: (evt) => { evt.clone.dataset.tempId = Date.now(); }
         });
         this.initSortable(document.getElementById('editor-canvas'));
@@ -353,17 +374,21 @@ const editor = {
         new Sortable(el, {
             group: 'shared',
             animation: 150,
-            emptyInsertThreshold: 50, // 新增：放寬 50px 的空陣列放入判定
+            emptyInsertThreshold: 50,
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
             draggable: '.block-item',
+
+            delay: 200,             // 長按 200 毫秒才判定為拖曳
+            delayOnTouchOnly: true, // 僅在觸控螢幕上啟用長按 (不影響滑鼠)
+            fallbackTolerance: 5,   // 允許手指點擊時有 5px 的微小晃動，不會中斷長按
+
             onAdd: (evt) => {
                 // 判斷是否來自底部工具箱
                 if (evt.item.classList.contains('palette-item')) {
                     const type = evt.item.dataset.type;
                     let props = null;
 
-                    // 攔截並解析自訂預設屬性
                     if (evt.item.dataset.defaultProps) {
                         try {
                             props = JSON.parse(evt.item.dataset.defaultProps);
@@ -371,8 +396,6 @@ const editor = {
                             console.error("Props parsing error", e);
                         }
                     }
-
-                    // 替換成完整的積木節點
                     evt.item.replaceWith(this.createBlock({ type, id: uuid(), props }));
                 }
                 this.updateTimeline();
@@ -704,7 +727,7 @@ const editor = {
                 if (skipEl) props.skipOnLast = skipEl.checked;
             }
             if (type === 'reps') props.count = Number(document.getElementById('inp-count').value);
-            
+
             // 將暫存的指標寫回積木屬性
             props.customMetrics = [...this.tempMetrics];
         }

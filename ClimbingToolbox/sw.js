@@ -16,7 +16,7 @@ const URLS_TO_CACHE = [
     './js/modules/i18n.js',
 
     // --- 外部 CDN 資源 ---
-    'https://cdn.tailwindcss.com',
+    // 'https://cdn.tailwindcss.com',
     'https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap',
     'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
