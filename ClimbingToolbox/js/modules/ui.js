@@ -389,6 +389,9 @@ const editor = {
             scroll: true,        // 拖曳到螢幕邊緣時自動上下滾動
             bubbleScroll: true,  // 允許事件冒泡
 
+            fallbackOnBody: true, // 將拖曳的元素實體移至 body，避免受父容器 scroll 座標干擾
+            swapThreshold: 0.65,  // 降低積木交換的觸發靈敏度（預設 1），避免積木頻繁上下抖動
+
 
             onAdd: (evt) => {
                 if (evt.item.classList.contains('palette-item')) {
