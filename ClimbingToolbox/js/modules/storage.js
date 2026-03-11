@@ -228,11 +228,6 @@ const store = {
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                         建立新課表
                     </button>
-                    <div class="flex gap-2 justify-center flex-wrap">
-                        <button onclick="store.addTemplate('max')" class="flex-1 min-w-[30%] bg-blue-50 text-blue-700 py-3 rounded-xl text-xs font-bold dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 border border-blue-100 active:scale-95 transition-transform">Max Hangs</button>
-                        <button onclick="store.addTemplate('repeaters')" class="flex-1 min-w-[30%] bg-violet-50 text-violet-700 py-3 rounded-xl text-xs font-bold dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800 border border-violet-100 active:scale-95 transition-transform">Repeaters</button>
-                        <button onclick="store.addTemplate('pullups')" class="flex-1 min-w-[30%] bg-orange-50 text-orange-700 py-3 rounded-xl text-xs font-bold dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800 border border-orange-100 active:scale-95 transition-transform">體能與核心</button>
-                    </div>
                 </div>`;
             return;
         }
