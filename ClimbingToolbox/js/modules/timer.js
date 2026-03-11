@@ -465,6 +465,10 @@ const timer = {
             `;
         });
 
+        const isFailure = existingActuals && existingActuals.isFailure ? true : false;
+        const failureToggle = document.getElementById('quick-log-failure');
+        if (failureToggle) failureToggle.checked = isFailure;
+
         // 如果是編輯歷史紀錄，顯示特殊標記或調整 UI
         panel.classList.remove('hidden');
         setTimeout(() => panel.classList.remove('translate-y-[150%]'), 10);
@@ -553,6 +557,10 @@ const timer = {
             const metricName = input.dataset.name;
             actuals[metricName] = val;
         });
+
+        // 讀取力竭開關
+        const failureToggle = document.getElementById('quick-log-failure');
+        if (failureToggle) actuals['isFailure'] = failureToggle.checked;
 
         if (this.editingRecordId) {
             // --- 模式 A: 修改歷史紀錄 ---

@@ -74,6 +74,19 @@
     <div id="quick-log-inputs" class="space-y-3 mb-6 max-h-[35vh] overflow-y-auto no-scrollbar">
     </div>
 
+    <div class="flex items-center justify-between bg-red-900/20 rounded-2xl p-4 mb-6 border border-red-500/30">
+        <div>
+            <span class="text-red-400 text-sm font-bold flex items-center gap-2">力竭 (Failure)</span>
+            <p class="text-[10px] text-red-400/70 mt-0.5">這組是否已達到極限，無法再多做一下？</p>
+        </div>
+        <div class="relative inline-block w-12 align-middle select-none">
+            <input type="checkbox" id="quick-log-failure"
+                class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-red-300 dark:border-red-900" />
+            <label for="quick-log-failure"
+                class="toggle-label block overflow-hidden h-6 rounded-full bg-red-200 cursor-pointer dark:bg-red-950/50"></label>
+        </div>
+    </div>
+
     <div class="flex justify-center">
         <button onclick="timer.saveLog()"
             class="w-full bg-blue-600 text-white py-4 rounded-2xl text-xl font-bold shadow-lg shadow-blue-900/50 active:scale-95 transition-transform">

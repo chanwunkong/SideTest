@@ -495,16 +495,26 @@ const recordManager = {
                     logsHtml = `
                     <div id="logs-${rec.id}" class="${hiddenClass} mt-3 space-y-2 border-t border-gray-50 pt-3 dark:border-gray-700">`;
                     rec.executionLogs.forEach((log, lIdx) => {
+                        const isFailure = log.actuals && log.actuals.isFailure === true;
+
+                        // 過濾 isFailure 鍵值，僅串接其他數值
                         const actualsStr = Object.entries(log.actuals || {})
+                            .filter(([k, v]) => k !== 'isFailure')
                             .map(([k, v]) => `${k}: ${v === "" || v === undefined ? '0' : v}`)
                             .join(', ');
+
+                        // 獨立渲染力竭徽章
+                        const failureBadge = isFailure
+                            ? `<span class="ml-1.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-500 text-white shadow-sm dark:bg-red-600">力竭</span>`
+                            : '';
 
                         logsHtml += `
                         <button onclick="recordManager.editLogEntry('${rec.id}', ${lIdx})" 
                                 class="flex items-center gap-2 text-xs w-full hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1 rounded transition-colors text-left">
                             <span class="text-gray-500 w-16 truncate dark:text-gray-400 font-bold">${log.label}</span>
-                            <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 flex-1 text-center font-mono">
-                                ${actualsStr || '0'}
+                            <span class="flex items-center justify-center bg-blue-50 text-blue-700 px-2 py-1.5 rounded-lg border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 flex-1 text-center font-mono">
+                                <span>${actualsStr || '0'}</span>
+                                ${failureBadge}
                             </span>
                             <svg class="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </button>`;
@@ -608,7 +618,9 @@ const recordManager = {
             id: log.blockId,
             props: {
                 label: log.label,
-                customMetrics: Object.keys(log.actuals || {}).map(name => ({ name, type: 'number' })),
+                customMetrics: Object.keys(log.actuals || {})
+                    .filter(name => name !== 'isFailure') // 過濾力竭屬性
+                    .map(name => ({ name, type: 'number' })),
                 duration: log.planned.duration,
                 count: log.planned.count
             }
