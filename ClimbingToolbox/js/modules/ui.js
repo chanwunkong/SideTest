@@ -316,7 +316,7 @@ const router = {
 
         // 3. 根據進入的分頁，動態刷新對應資料
 
-        // ✨ 新看板邏輯：同步刷新日曆與目標
+        // 新看板邏輯：同步刷新日曆與目標
         if (viewId === 'dashboard') {
             if (typeof recordManager !== 'undefined') {
                 recordManager.updateUI();
@@ -335,12 +335,13 @@ const router = {
                 goalManager.renderGoals();
             }
         }
-        // ✨ 新分析邏輯：刷新 PR 數據卡片
+        // 新分析邏輯：刷新 PR 數據卡片
         else if (viewId === 'insight') {
-            if (typeof analyticsUI !== 'undefined') {
-                analyticsUI.renderCards();
+            if (typeof analyticsManager !== 'undefined') {
+                analyticsManager.renderCards();
             }
         }
+        
         // 課表管理保持不變
         else if (viewId === 'routines' && typeof store !== 'undefined') {
             store.renderRoutines();
@@ -511,8 +512,10 @@ const editor = {
         const isSkip = !!props.skipOnLast;
         const skipColor = isSkip ? 'text-blue-500 opacity-100' : 'text-gray-400 opacity-40 hover:opacity-100 dark:text-gray-500';
         const skipButton = data.type === 'timer' ? `
- 
-                ` : '';
+        <button type="button" class="skip-btn p-2 -mr-2" onclick="editor.toggleSkip('${data.id}', event)" title="最後一趟跳過">
+            <svg class="w-5 h-5 ${skipColor}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+        </button>
+    ` : '';
 
         const header = document.createElement('div');
         header.className = "flex justify-between items-center cursor-pointer w-full";
@@ -909,29 +912,4 @@ const editor = {
         this.close();
     }
 
-};
-
-// --- 暫時加入 ui.js 用於控制 Tab 切換 ---
-const uiManager = {
-    switchInsightTab(tabName) {
-        // 重置按鈕樣式
-        const btnGoals = document.getElementById('tab-btn-goals');
-        const btnAnalytics = document.getElementById('tab-btn-analytics');
-
-        btnGoals.className = "flex-1 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-all";
-        btnAnalytics.className = "flex-1 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-all";
-
-        // 隱藏所有內容
-        document.getElementById('tab-content-goals').classList.add('hidden');
-        document.getElementById('tab-content-analytics').classList.add('hidden');
-
-        // 啟動對應的 Tab
-        if (tabName === 'goals') {
-            btnGoals.className = "flex-1 py-2 text-sm font-bold bg-white shadow-sm rounded-lg dark:bg-gray-800 text-gray-900 dark:text-white transition-all";
-            document.getElementById('tab-content-goals').classList.remove('hidden');
-        } else {
-            btnAnalytics.className = "flex-1 py-2 text-sm font-bold bg-white shadow-sm rounded-lg dark:bg-gray-800 text-gray-900 dark:text-white transition-all";
-            document.getElementById('tab-content-analytics').classList.remove('hidden');
-        }
-    }
 };

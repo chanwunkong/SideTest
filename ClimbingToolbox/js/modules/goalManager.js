@@ -189,20 +189,22 @@ const goalManager = {
         // 過濾關聯條件 (1對0 或 1對多)
         let matchedCount = 0;
         validRecords.forEach(r => {
-            if (goal.scope.type === 'tag') {
-                const routine = store.routines.find(x => x.title === r.routineTitle);
-                if (routine && routine.tags) {
-                    // 🌟 核心邏輯升級
-                    const selectedTags = goal.scope.targets; // 使用者在目標中勾選的標籤
-                    const routineTags = routine.tags;       // 該課表實際擁有的標籤
+            if (goal.scope.type === 'routine') {
+                // 目標若是指定特定課表 ID，優先比對 routineId
+                if (goal.scope.targets.includes(r.routineId)) {
+                    matchedCount++;
+                }
+            } else if (goal.scope.type === 'tag') {
+                // ✨ 改用訓練當下的標籤快照，即使後來課表改名或刪除也不受影響
+                if (r.tags && r.tags.length > 0) {
+                    const selectedTags = goal.scope.targets;
+                    const recordTags = r.tags;
 
                     if (goal.scope.operator === 'AND') {
-                        // 交集：確保勾選的標籤「全部」都出現在課表中
-                        const hasAll = selectedTags.every(t => routineTags.includes(t));
+                        const hasAll = selectedTags.every(t => recordTags.includes(t));
                         if (hasAll) matchedCount++;
                     } else {
-                        // 聯集 (原本的邏輯)：只要「任一」勾選的標籤匹配即可
-                        const hasAny = selectedTags.some(t => routineTags.includes(t));
+                        const hasAny = selectedTags.some(t => recordTags.includes(t));
                         if (hasAny) matchedCount++;
                     }
                 }

@@ -44,19 +44,18 @@ const analyticsManager = {
             let match = false;
 
             if (config.sourceType === 'routine') {
-                // 課表模式：精確比對標題
+                // 優先比對 Title（相容舊紀錄），未來若 targetItem 改存 ID 則直接比對 ID
                 if (rec.routineTitle === config.targetItem) match = true;
             } else if (config.sourceType === 'tag') {
-                // 標籤模式：支援 AND/OR 邏輯
-                const routine = store.routines.find(r => r.title === rec.routineTitle);
-                if (routine && routine.tags) {
+                // ✨ 直接使用歷史紀錄中保存的標籤快照，不再依賴當前課表名稱
+                if (rec.tags && rec.tags.length > 0) {
                     const selected = config.targetItems || [config.targetItem];
                     const op = config.operator || 'OR';
 
                     if (op === 'AND') {
-                        match = selected.every(t => routine.tags.includes(t));
+                        match = selected.every(t => rec.tags.includes(t));
                     } else {
-                        match = selected.some(t => routine.tags.includes(t));
+                        match = selected.some(t => rec.tags.includes(t));
                     }
                 }
             }
@@ -80,7 +79,8 @@ const analyticsManager = {
                     const vals = [];
                     rec.executionLogs.forEach(log => {
                         if (log.actuals && log.actuals[config.metric] !== undefined) {
-                            vals.push(Number(log.actuals[config.metric]));
+                            const val = Number(log.actuals[config.metric]);
+                            if (!isNaN(val)) vals.push(val);
                         }
                     });
                     if (vals.length > 0) {
@@ -140,21 +140,18 @@ const analyticsManager = {
     },
 
     processChartData(dataPoints, range, aggregation) {
-        // ✨ 新增 10t 邏輯：不按日期合併，直接取最後 10 筆獨立顯示
         if (range === '10t') {
             const recent = dataPoints.slice(-10);
             const labels = recent.map(d => {
                 const t = new Date(d.timestamp);
                 const hh = t.getHours().toString().padStart(2, '0');
                 const mm = t.getMinutes().toString().padStart(2, '0');
-                // 回傳格式如 "03-10 14:30"，以便區分單日多次
                 return `${d.date.substring(5)} ${hh}:${mm}`;
             });
             const data = recent.map(d => d.value);
             return { labels, data };
         }
 
-        // --- 以下為原本的按天數 (7d, 28d, 84d, all) 合併邏輯 ---
         const now = Date.now();
         let limit = 0;
         if (range === '7d') limit = now - 7 * 86400000;
@@ -163,22 +160,50 @@ const analyticsManager = {
 
         let filtered = limit > 0 ? dataPoints.filter(d => d.timestamp >= limit) : dataPoints;
 
+        if (filtered.length === 0) return { labels: [], data: [] };
+
+        filtered.sort((a, b) => a.timestamp - b.timestamp);
+
         const grouped = {};
         filtered.forEach(d => {
             if (!grouped[d.date]) grouped[d.date] = [];
             grouped[d.date].push(d.value);
         });
 
-        const labels = Object.keys(grouped).sort();
-        const data = labels.map(date => {
-            const vals = grouped[date];
-            if (aggregation === 'min') return Math.min(...vals);
-            if (aggregation === 'sum' || aggregation === 'max_daily_sum') return vals.reduce((a, b) => a + b, 0);
-            if (aggregation === 'active_days') return 1; // 有紀錄即算 1 天
-            if (aggregation === 'latest') return vals[vals.length - 1];
-            if (aggregation === 'avg') return vals.reduce((a, b) => a + b, 0) / vals.length;
-            return Math.max(...vals);
-        });
+        // 避免時區偏差，使用本地時間解析起迄日
+        const [sY, sM, sD] = filtered[0].date.split('-').map(Number);
+        const startDate = new Date(sY, sM - 1, sD);
+
+        const [eY, eM, eD] = filtered[filtered.length - 1].date.split('-').map(Number);
+        const endDate = new Date(eY, eM - 1, eD);
+
+        const labels = [];
+        const data = [];
+
+        let curr = new Date(startDate);
+        while (curr <= endDate) {
+            const y = curr.getFullYear();
+            const m = String(curr.getMonth() + 1).padStart(2, '0');
+            const d = String(curr.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${m}-${d}`;
+
+            labels.push(`${m}-${d}`); // 預先裁切為 MM-DD 格式
+
+            if (grouped[dateStr]) {
+                const vals = grouped[dateStr];
+                if (aggregation === 'min') data.push(Math.min(...vals));
+                else if (aggregation === 'sum' || aggregation === 'max_daily_sum') data.push(vals.reduce((a, b) => a + b, 0));
+                else if (aggregation === 'active_days') data.push(1);
+                else if (aggregation === 'latest') data.push(vals[vals.length - 1]);
+                else if (aggregation === 'avg') data.push(vals.reduce((a, b) => a + b, 0) / vals.length);
+                else data.push(Math.max(...vals));
+            } else {
+                // 無數據的日子補上 null 以維持 X 軸的真實間隔比例
+                data.push(null);
+            }
+
+            curr.setDate(curr.getDate() + 1);
+        }
 
         return { labels, data };
     },
@@ -306,7 +331,7 @@ const analyticsManager = {
         this.chartInstance = new Chart(ctx, {
             type: chartType,
             data: {
-                labels: chartData.labels.map(d => d.substring(5)),
+                labels: chartData.labels, // 已在 processChartData 處理格式
                 datasets: [{
                     label: config.metric === 'volume_time' ? '總時數(秒)' : config.metric,
                     data: chartData.data,
@@ -318,6 +343,7 @@ const analyticsManager = {
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: '#3b82f6',
                     pointRadius: 4,
+                    spanGaps: true // 允許折線跨越 null 區間相連
                 }]
             },
             options: {
@@ -325,8 +351,19 @@ const analyticsManager = {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { ticks: { color: textColor, font: { family: 'monospace' } }, grid: { display: false } },
-                    y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: chartType === 'bar' }
+                    x: {
+                        ticks: {
+                            color: textColor,
+                            font: { family: 'monospace' },
+                            maxTicksLimit: 8 // 自動限制 X 軸標籤數量，避免日期過多時重疊
+                        },
+                        grid: { display: false }
+                    },
+                    y: {
+                        ticks: { color: textColor },
+                        grid: { color: gridColor },
+                        beginAtZero: chartType === 'bar'
+                    }
                 }
             }
         });
@@ -374,19 +411,20 @@ const analyticsUI = {
     updateTargetDropdown() {
         const sourceType = document.getElementById('pr-source-type').value;
         const targetSelect = document.getElementById('pr-target-item');
-        targetSelect.innerHTML = '<option value="">(請選擇)</option>';
+        let html = '<option value="">(請選擇)</option>'; // 改用字串拼接
 
         if (sourceType === 'routine') {
             store.routines.forEach(r => {
-                targetSelect.innerHTML += `<option value="${r.title}">${r.title}</option>`;
+                html += `<option value="${r.title}">${r.title}</option>`;
             });
         } else if (sourceType === 'tag') {
             const tags = editor.getRoutineTagHistory();
             tags.forEach(t => {
-                targetSelect.innerHTML += `<option value="${t}">${t}</option>`;
+                html += `<option value="${t}">${t}</option>`;
             });
         }
 
+        targetSelect.innerHTML = html; // 迴圈結束後一次性寫入
         targetSelect.onchange = () => this.updateMetricDropdown();
         this.updateMetricDropdown();
     },

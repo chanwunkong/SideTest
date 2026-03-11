@@ -71,8 +71,6 @@ const voiceCommander = {
     },
 
     handleCommand(text) {
-        if (timer.isLocked) return; // 鎖定時禁用語音控制
-
         if (text.includes('start') || text.includes('go') || text.includes('resume') || text.includes('begin') || text.includes('開始')) {
             if (timer.isPaused) timer.toggle();
         }
@@ -100,7 +98,6 @@ const timer = {
     elapsed: 0,
     interval: null,
     isPaused: false,
-    isLocked: false,
     wakeLock: null,
     currentLogs: [],
     pendingLogBlock: null,
@@ -155,21 +152,19 @@ const timer = {
 
     // 在 timer 物件中修改 start 函式
     start(routineId) {
-        this.currentRoutineId = routineId; // 記錄當前 ID
+        this.currentRoutineId = routineId;
         const routine = store.routines.find(r => r.id === routineId);
         if (!routine || !routine.blocks) return;
 
-        // --- 修正：使用在地日期而非 ISO 字串 ---
         const now = new Date();
         const y = now.getFullYear();
         const m = (now.getMonth() + 1).toString().padStart(2, '0');
         const d = now.getDate().toString().padStart(2, '0');
 
-        this.actualDate = `${y}-${m}-${d}`; // 產出正確的 YYYY-MM-DD
+        this.actualDate = `${y}-${m}-${d}`;
         this.actualStartTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         this.actualTimestamp = now.getTime();
         this.currentRoutineTitle = routine.title;
-        // ------------------------------------
 
         this.queue = this.flatten(routine.blocks);
         if (this.queue.length === 0) return alert('課表是空的');
@@ -180,16 +175,11 @@ const timer = {
         this.currentIndex = 0;
         this.elapsed = 0;
         this.isPaused = false;
-        this.isLocked = false;
-        this.currentLogs = [];       // 初始化暫存紀錄
-        this.pendingLogBlock = null; // 初始化面板狀態
+        this.currentLogs = [];
+        this.pendingLogBlock = null;
         this.pendingLogIndex = null;
         this.isWaitingForFinalLog = false;
-        this.sessionValueMap = {}; // 每次開始新訓練時清空暫存
-
-        document.getElementById('active-title').textContent = routine.title;
-        document.getElementById('active-total-display').textContent = formatTime(this.totalDuration);
-        document.getElementById('modal-active-timer').classList.add('open');
+        this.sessionValueMap = {};
 
         this.domCache = {
             countdown: document.getElementById('active-countdown'),
@@ -200,10 +190,16 @@ const timer = {
             loops: document.getElementById('active-loops'),
             nextText: document.getElementById('active-next'),
             nextBadge: document.getElementById('active-next-badge'),
-            modal: document.getElementById('modal-active-timer')
+            modal: document.getElementById('modal-active-timer'),
+            title: document.getElementById('active-title'),
+            totalDisplay: document.getElementById('active-total-display')
         };
 
+        this.domCache.title.textContent = routine.title;
+        this.domCache.totalDisplay.textContent = formatTime(this.totalDuration);
         this.domCache.modal.classList.add('open');
+
+        this.renderTimeline();
 
         this.updateControlUI();
         this.runStep();
@@ -227,25 +223,6 @@ const timer = {
 
         // 3. 若皆無，則回傳 0 或空值
         return 0;
-    },
-
-    updateLockUI() {
-        const overlay = document.getElementById('lock-overlay');
-        const lockBtn = document.getElementById('btn-lock');
-
-        if (this.isLocked) {
-            overlay.classList.remove('hidden');
-            // 變更鎖頭圖示為 "解鎖"
-            lockBtn.innerHTML = '<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>';
-            lockBtn.classList.add('bg-white', 'hover:bg-gray-100');
-            lockBtn.classList.remove('bg-white/10', 'hover:bg-white/20');
-        } else {
-            overlay.classList.add('hidden');
-            // 變更鎖頭圖示為 "鎖定"
-            lockBtn.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>';
-            lockBtn.classList.remove('bg-white', 'hover:bg-gray-100');
-            lockBtn.classList.add('bg-white/10', 'hover:bg-white/20');
-        }
     },
 
     runStep() {
@@ -274,10 +251,11 @@ const timer = {
             }
         }
         if (isFinish) {
-            const statusEl = document.getElementById('active-status');
-            statusEl.textContent = "FINISHED";
+            clearInterval(this.interval);
+            this.domCache.status.textContent = "FINISHED";
+            this.domCache.countdown.textContent = "--";
+            this.domCache.progressBar.style.width = '0%';
 
-            // 僅在不需要紀錄或已填寫的情況下直接結束
             if (!this.isWaitingForFinalLog) {
                 this.stop();
             }
@@ -297,12 +275,6 @@ const timer = {
         const color = step.props.color || 'gray';
         this.domCache.modal.classList.add(`bg-${color}-600`);
 
-        if (step.type === 'finish') {
-            this.domCache.status.textContent = "FINISHED";
-            if (!this.isWaitingForFinalLog) this.stop();
-            return;
-        }
-
         // 重置進度條
         this.domCache.progressBar.style.transition = 'none';
         this.domCache.progressBar.style.width = '100%';
@@ -311,6 +283,18 @@ const timer = {
 
         settingsManager.speak(step.props.label);
         settingsManager.beep('start');
+
+        // 新增：更新時間軸進度視覺 (將做過的區塊變暗)
+        this.queue.forEach((_, idx) => {
+            const seg = document.getElementById(`timeline-seg-${idx}`);
+            if (seg) {
+                if (idx < this.currentIndex) {
+                    seg.classList.add('opacity-30');
+                } else {
+                    seg.classList.remove('opacity-30');
+                }
+            }
+        });
 
         this.updateDisplay();
     },
@@ -345,14 +329,10 @@ const timer = {
 
                 if (this.stepLeft <= 0) {
                     this.currentIndex++;
-                    if (this.currentIndex < this.queue.length) {
-                        this.runStep();
-                    } else {
-                        settingsManager.beep('finish');
-                        this.stop();
-                    }
+                    this.runStep();
                 } else {
                     this.updateDisplay();
+
                 }
             }
         }, 100);
@@ -412,6 +392,30 @@ const timer = {
             this.domCache.nextText.textContent = "Finish";
             this.domCache.nextBadge.className = `w-3 h-3 rounded-full bg-gray-500`;
         }
+    },
+
+    renderTimeline() {
+        const timelineEl = document.getElementById('active-timeline');
+        if (!timelineEl) return;
+
+        if (this.totalDuration === 0) {
+            timelineEl.innerHTML = '';
+            return;
+        }
+
+        let html = '';
+        this.queue.forEach((step, idx) => {
+            if (step.type === 'finish') return;
+            const duration = step.props.duration || 0;
+            if (duration <= 0) return;
+
+            const widthPct = (duration / this.totalDuration) * 100;
+            const color = step.props.color || 'gray';
+
+            html += `<div id="timeline-seg-${idx}" class="h-full bg-${color}-500 transition-opacity duration-300" style="width: ${widthPct}%"></div>`;
+        });
+
+        timelineEl.innerHTML = html;
     },
 
     // 1. 調整數值的方法 (加入浮點數處理)
@@ -571,7 +575,6 @@ const timer = {
     },
 
     toggle() {
-        if (this.isLocked) return; // 鎖定狀態下無法暫停/繼續 (除非解鎖)
         this.isPaused = !this.isPaused;
         this.updateControlUI();
     },
@@ -599,8 +602,6 @@ const timer = {
     },
 
     skip(dir) {
-        if (this.isLocked) return;
-
         // 若面板正開啟，先強制執行儲存
         const panel = document.getElementById('quick-log-panel');
         if (panel && !panel.classList.contains('hidden')) {
@@ -616,15 +617,26 @@ const timer = {
 
     stop() {
         localStorage.removeItem('active_session');
-        // 1. 產生訓練紀錄
         this.saveTrainingRecord();
 
-        // 2. 原有的停止邏輯
         clearInterval(this.interval);
         voiceCommander.stop();
-        document.getElementById('modal-active-timer').classList.remove('open');
-        document.getElementById('modal-active-timer').classList.remove('pulse-urgent');
+
+        const panel = document.getElementById('quick-log-panel');
+        if (panel) {
+            panel.classList.add('translate-y-[150%]');
+            setTimeout(() => panel.classList.add('hidden'), 300);
+        }
+
+        if (this.domCache && this.domCache.modal) {
+            this.domCache.modal.classList.remove('open', 'pulse-urgent');
+        } else {
+            const modalEl = document.getElementById('modal-active-timer');
+            if (modalEl) modalEl.classList.remove('open', 'pulse-urgent');
+        }
+
         this.releaseWakeLock();
+        this.isWaitingForFinalLog = false;
     },
 
     suspend() {
@@ -662,14 +674,28 @@ const timer = {
         this.queue = sessionData.queue;
         this.totalDuration = sessionData.totalDuration;
 
-        this.isPaused = true; // 恢復時預設為暫停狀態
-        this.isLocked = false;
+        this.isPaused = true;
 
-        document.getElementById('active-title').textContent = this.currentRoutineTitle;
-        document.getElementById('active-total-display').textContent = formatTime(this.totalDuration);
-        document.getElementById('modal-active-timer').classList.add('open');
+        this.domCache = {
+            countdown: document.getElementById('active-countdown'),
+            progressBar: document.getElementById('active-progress-bar'),
+            status: document.getElementById('active-status'),
+            remaining: document.getElementById('active-remaining'),
+            elapsed: document.getElementById('active-elapsed'),
+            loops: document.getElementById('active-loops'),
+            nextText: document.getElementById('active-next'),
+            nextBadge: document.getElementById('active-next-badge'),
+            modal: document.getElementById('modal-active-timer'),
+            title: document.getElementById('active-title'),
+            totalDisplay: document.getElementById('active-total-display')
+        };
 
-        // this.updateLockUI();
+        this.domCache.title.textContent = this.currentRoutineTitle;
+        this.domCache.totalDisplay.textContent = formatTime(this.totalDuration);
+        this.domCache.modal.classList.add('open');
+
+        this.renderTimeline();
+
         this.updateControlUI();
         this.restoreStep();
         this.startTicker();
@@ -681,24 +707,26 @@ const timer = {
         const step = this.queue[this.currentIndex];
         if (!step) return this.stop();
         this.stepDuration = step.props.duration || 0;
-        document.getElementById('active-status').textContent = step.props.label;
-
-        const modalEl = document.getElementById('modal-active-timer');
-        modalEl.className = modalEl.className.replace(/bg-\w+-600/g, '').trim();
-        modalEl.classList.remove('pulse-urgent');
-
+        this.domCache.status.textContent = step.props.label;
+        this.domCache.modal.className = this.domCache.modal.className.replace(/bg-\w+-600/g, '').trim();
+        this.domCache.modal.classList.remove('pulse-urgent');
         const color = step.props.color || 'gray';
-        modalEl.classList.add(`bg-${color}-600`);
-
+        this.domCache.modal.classList.add(`bg-${color}-600`);
         this.updateDisplay();
     },
 
     resumeFromStorage() {
         const sessionJson = localStorage.getItem('active_session');
         if (!sessionJson) return;
-        this.resumeSession(JSON.parse(sessionJson));
-    },
 
+        try {
+            const sessionData = JSON.parse(sessionJson);
+            this.resumeSession(sessionData);
+        } catch (error) {
+            console.error('暫存資料解析失敗，已清除毀損數據', error);
+            localStorage.removeItem('active_session');
+        }
+    },
     // 新增儲存紀錄的函式 (升級版：包含防呆與日誌寫入)
     saveTrainingRecord() {
         // 過濾：執行少於 10 秒的紀錄不予儲存，避免誤觸
@@ -722,7 +750,7 @@ const timer = {
                             const actuals = {};
                             metrics.forEach(m => {
                                 // 自動以計畫值作為實際值
-                                actuals[m.name] = m.name === '次數' ? (step.props.count || '') : (m.name === '秒數' ? (step.props.duration || '') : '');
+                                actuals[m.name] = m.name === '次數' ? (step.props.count || 0) : (m.name === '秒數' ? (step.props.duration || 0) : 0);
                             });
                             this.currentLogs.push({
                                 blockId: step.id,
@@ -741,14 +769,20 @@ const timer = {
         this.currentLogs.sort((a, b) => a.queueIndex - b.queueIndex);
         // ==========================================
 
+        // 取得當下課表的標籤快照 (補上這兩行以定義 currentTags)
+        const routine = store.routines.find(r => r.id === this.currentRoutineId);
+        const currentTags = routine && routine.tags ? [...routine.tags] : [];
+
         const newRecord = {
             id: uuid(),
+            routineId: this.currentRoutineId,
             routineTitle: this.currentRoutineTitle,
+            tags: currentTags,
             date: this.actualDate,
             startTime: this.actualStartTime,
             duration: this.elapsed,
             timestamp: this.actualTimestamp,
-            executionLogs: this.currentLogs // 將完整的日誌陣列寫入存檔物件
+            executionLogs: this.currentLogs
         };
 
         // 取得現有紀錄並推入新紀錄

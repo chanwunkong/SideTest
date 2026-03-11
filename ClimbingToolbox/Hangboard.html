@@ -56,6 +56,7 @@
     <script src="js/modules/analytics.js"></script>
 
     <link rel="manifest" href="manifest-hangboard.json">
+    <link rel="icon" type="image/png" href="favicon.ico">
 
 </head>
 
@@ -89,27 +90,31 @@
         class="flex-1 relative overflow-hidden w-full max-w-md mx-auto bg-white shadow-2xl dark:bg-gray-800 transition-colors duration-300">
 
         <!-- 1. 看板 (Dashboard) -->
-        <div id="view-dashboard" class="view-section active overflow-y-auto no-scrollbar">
+        <div id="view-dashboard" class="view-section active overflow-y-auto no-scrollbar pb-28">
+            <div
+                class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
+                <h1 class="text-2xl font-extrabold dark:text-white">總覽</h1>
+                <button onclick="goalManager.openEditor()"
+                    class="bg-blue-50 text-blue-600 px-4 py-2 rounded-full font-bold text-xs dark:bg-blue-900/30 dark:text-blue-400 active:scale-95 transition-transform">
+                    + 新增目標
+                </button>
+            </div>
 
             <div class="px-6 py-4 bg-white dark:bg-gray-800">
                 <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                        <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest">目標進度</h2>
-
-                        <button onclick="goalManager.toggleShowAll()"
-                            class="flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded-full border border-gray-200 dark:bg-gray-700 dark:border-gray-600 transition-all active:scale-95">
-                            <svg id="icon-goal-filter" class="w-3 h-3 text-gray-500 dark:text-gray-400" fill="none"
-                                stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            <span id="goal-filter-text"
-                                class="text-[9px] font-bold text-gray-500 dark:text-gray-400">進行中</span>
-                        </button>
-                    </div>
-                    <button onclick="goalManager.openEditor()" class="text-blue-600 font-bold text-xs">+ 新增</button>
+                    <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest">目標進度</h2>
+                    <button onclick="goalManager.toggleShowAll()"
+                        class="flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded-full border border-gray-200 dark:bg-gray-700 dark:border-gray-600 transition-all active:scale-95">
+                        <svg id="icon-goal-filter" class="w-3 h-3 text-gray-500 dark:text-gray-400" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <span id="goal-filter-text"
+                            class="text-[9px] font-bold text-gray-500 dark:text-gray-400">進行中</span>
+                    </button>
                 </div>
                 <div id="goals-list" class="space-y-3"></div>
             </div>
@@ -117,7 +122,7 @@
             <div class="p-6 border-t border-gray-100 dark:border-gray-700">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-3">
-                        <h1 id="calendar-month-title" class="text-lg font-extrabold dark:text-white">訓練節奏</h1>
+                        <h2 id="calendar-month-title" class="text-lg font-extrabold dark:text-white">訓練節奏</h2>
                         <div class="flex bg-gray-100 rounded-lg p-0.5 dark:bg-gray-700">
                             <button onclick="recordManager.changePeriod(-1)"
                                 class="p-1 hover:text-blue-600 transition-colors">
@@ -156,7 +161,7 @@
             </div>
 
             <div
-                class="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 min-h-[300px] pb-24">
+                class="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 min-h-[300px]">
                 <div class="flex justify-between items-center mb-4">
                     <h3 id="detail-date-title" class="text-lg font-extrabold dark:text-white uppercase">今日訓練明細</h3>
                     <span id="detail-record-count" class="text-xs font-bold text-gray-400">0 筆紀錄</span>
@@ -167,63 +172,49 @@
         </div>
 
         <!-- 2. 課表管理 (Routines) -->
-        <div id="view-routines" class="view-section">
+        <div id="view-routines" class="view-section overflow-y-auto no-scrollbar pb-28">
             <div
                 class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
-                <div class="flex items-center">
-                    <a href="index.html"
-                        class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
-                        title="Home">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-                            </path>
-                        </svg>
-                    </a>
-                    <h1 class="text-2xl font-extrabold dark:text-white">我的課表</h1>
-                </div>
+                <h1 class="text-2xl font-extrabold dark:text-white">我的課表</h1>
                 <button onclick="editor.open()"
                     class="bg-gray-900 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform dark:bg-blue-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
-                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
                 </button>
             </div>
 
-            <!-- 快速範本區 -->
-            <div class="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
-                <div class="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
-                    <button onclick="store.addTemplate('max')"
-                        class="shrink-0 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition-colors dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
-                        ⚡️ Max Hangs
-                    </button>
-                    <button onclick="store.addTemplate('repeaters')"
-                        class="shrink-0 bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-violet-100 transition-colors dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800">
-                        🔄 Repeaters
-                    </button>
-                    <button onclick="store.addTemplate('pullups')"
-                        class="shrink-0 bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-orange-100 transition-colors dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800">
-                        💪 體能與核心
-                    </button>
-                </div>
+            <div class="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
+                <button onclick="store.addTemplate('max')"
+                    class="shrink-0 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-blue-100 transition-colors dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                    ⚡️ Max Hangs
+                </button>
+                <button onclick="store.addTemplate('repeaters')"
+                    class="shrink-0 bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-violet-100 transition-colors dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800">
+                    🔄 Repeaters
+                </button>
+                <button onclick="store.addTemplate('pullups')"
+                    class="shrink-0 bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-orange-100 transition-colors dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800">
+                    💪 體能與核心
+                </button>
             </div>
 
-            <div id="active-session-container" class="px-4 mt-4"></div>
+            <div id="active-session-container" class="px-4 mt-2"></div>
 
-            <div id="routine-list" class="p-4 space-y-3 pb-24">
+            <div id="routine-list" class="p-4 space-y-3">
                 <div class="text-center text-gray-400 mt-10">載入中...</div>
             </div>
         </div>
 
         <!-- 3. 目標管理 (Insight) -->
-        <div id="view-insight" class="view-section overflow-y-auto no-scrollbar">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h1 class="text-2xl font-extrabold dark:text-white">數據洞察</h1>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">性能表現趨勢</span>
-                </div>
+        <div id="view-insight" class="view-section overflow-y-auto no-scrollbar pb-28">
+            <div
+                class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
+                <h1 class="text-2xl font-extrabold dark:text-white">數據洞察</h1>
+                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">性能表現趨勢</span>
+            </div>
 
+            <div class="p-6">
                 <div id="pr-cards-container" class="grid grid-cols-2 gap-3 mb-8"></div>
 
                 <div
@@ -235,6 +226,7 @@
                             <option value="10t">最近 10 次</option>
                             <option value="7d">最近 7 天</option>
                             <option value="28d">最近 4 週</option>
+                            <option value="84d">最近 12 週</option>
                             <option value="all">全部紀錄</option>
                         </select>
                     </div>
@@ -249,238 +241,193 @@
         </div>
 
         <!-- 4. 設定 (Settings) -->
-        <div id="view-settings" class="view-section">
-            <div class="p-6">
-                <div class="flex items-center mb-6">
-                    <a href="index.html"
-                        class="p-1.5 text-gray-500 hover:text-blue-600 transition-colors mr-2 dark:text-gray-400 dark:hover:text-blue-400"
-                        title="Home">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-                            </path>
-                        </svg>
-                    </a>
-                    <h1 class="text-2xl font-extrabold dark:text-white">設定</h1>
+        <div id="view-settings" class="view-section overflow-y-auto no-scrollbar pb-28">
+            <div
+                class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
+                <h1 class="text-2xl font-extrabold dark:text-white">設定</h1>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">個人化</h3>
+                    <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                            <span class="font-medium">外觀模式</span>
+                            <select id="set-theme-mode" onchange="themeManager.setMode(this.value)"
+                                class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                <option value="system">跟隨系統</option>
+                                <option value="light">淺色</option>
+                                <option value="dark">深色</option>
+                            </select>
+                        </div>
+                        <div class="p-4 flex justify-between items-center">
+                            <span class="font-medium">體重設定</span>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="set-weight-val" placeholder="0"
+                                    class="w-16 border border-gray-200 rounded-lg p-1.5 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                <select id="set-weight-unit"
+                                    class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    <option value="kg">kg</option>
+                                    <option value="lbs">lbs</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="space-y-6 pb-12">
-
-                    <!-- 1. 外觀與個人資料 (Appearance & Profile) -->
-                    <div>
-                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">個人化</h3>
-                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
-
-                            <!-- Dark Mode -->
-                            <div
-                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                <span class="font-medium">外觀模式</span>
-                                <select id="set-theme-mode" onchange="themeManager.setMode(this.value)"
-                                    class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                    <option value="system">跟隨系統</option>
-                                    <option value="light">淺色</option>
-                                    <option value="dark">深色</option>
-                                </select>
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">音效與語音</h3>
+                    <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                            <span class="font-medium">主音效開關</span>
+                            <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                <input type="checkbox" id="set-sound-enabled"
+                                    class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                <label for="set-sound-enabled"
+                                    class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
                             </div>
-
-                            <!-- Weight & Unit -->
-                            <div class="p-4 flex justify-between items-center">
-                                <span class="font-medium">體重設定</span>
-                                <div class="flex items-center gap-2">
-                                    <input type="number" id="set-weight-val" placeholder="0"
-                                        class="w-16 border border-gray-200 rounded-lg p-1.5 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                    <select id="set-weight-unit"
-                                        class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                        <option value="kg">kg</option>
-                                        <option value="lbs">lbs</option>
-                                    </select>
-                                </div>
+                        </div>
+                        <div class="p-4 grid grid-cols-3 gap-2 border-b border-gray-100 dark:border-gray-700">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="set-sound-start"
+                                    class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                <span class="text-sm">開始音</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="set-sound-countdown"
+                                    class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                <span class="text-sm">倒數音</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="set-sound-finish"
+                                    class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                <span class="text-sm">結束音</span>
+                            </label>
+                        </div>
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                            <span class="font-medium">倒數閃爍提示</span>
+                            <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                <input type="checkbox" id="set-pulse-enabled"
+                                    class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                <label for="set-pulse-enabled"
+                                    class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
                             </div>
+                        </div>
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                            <span class="font-medium">朗讀項目 (TTS)</span>
+                            <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                <input type="checkbox" id="set-tts-enabled"
+                                    class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                <label for="set-tts-enabled"
+                                    class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
+                            </div>
+                        </div>
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                            <span class="font-medium">倒數提示時機</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-gray-500">最後</span>
+                                <input type="number" id="set-countdown-sec"
+                                    class="w-16 border border-gray-300 rounded-lg p-1 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                    value="3" min="0" max="60">
+                                <span class="text-sm text-gray-500">秒</span>
+                            </div>
+                        </div>
+                        <div class="p-4 border-b border-gray-100 dark:border-gray-700">
+                            <div class="flex justify-between mb-2">
+                                <span class="font-medium">語音語速</span>
+                                <span id="lbl-speech-rate"
+                                    class="text-sm font-bold text-blue-600 dark:text-blue-400">1.0x</span>
+                            </div>
+                            <input type="range" id="set-speech-rate" min="0.5" max="2" step="0.1"
+                                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
+                        </div>
+                        <div class="p-4">
+                            <label class="block font-medium mb-2">語音模型 / 語言</label>
+                            <select id="set-voice-selection"
+                                class="w-full bg-gray-50 border border-gray-200 text-sm rounded-lg p-2 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                <option value="">載入語音中...</option>
+                            </select>
+                            <p class="text-[10px] text-gray-400 mt-2 italic">* 支援清單取決於您的裝置與瀏覽器</p>
                         </div>
                     </div>
+                </div>
 
-                    <!-- 2. 音效詳細設定 (Sound & Audio) -->
-                    <div>
-                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">音效與語音</h3>
-                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
-
-                            <!-- Master Sound Switch -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">帳號與裝置</h3>
+                    <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+                        <div class="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
                             <div
-                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                <span class="font-medium">主音效開關</span>
-                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                    <input type="checkbox" id="set-sound-enabled"
-                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
-                                    <label for="set-sound-enabled"
-                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
+                                class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden dark:bg-gray-600">
+                                <img id="avatar-img" class="w-full h-full object-cover hidden">
+                                <div id="avatar-placeholder"
+                                    class="w-full h-full flex items-center justify-center text-gray-400">👤</div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div id="settings-email" class="font-bold truncate dark:text-white">未登入</div>
+                                <div class="text-xs text-gray-500">雲端同步</div>
+                            </div>
+                            <button id="auth-btn"
+                                class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
+                        </div>
+                        <div class="p-4 border-t border-gray-100 dark:border-gray-700">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">健康數據同步 (暫訂)</h4>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
+                                            <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-sm">Apple Health / Google Fit</div>
+                                            <div class="text-[10px] text-gray-400">同步訓練時長與卡路里</div>
+                                        </div>
+                                    </div>
+                                    <button onclick="alert('整合功能開發中')"
+                                        class="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold dark:bg-blue-900/30 dark:text-blue-400">連接</button>
                                 </div>
-                            </div>
-
-                            <!-- Sound Details Checkboxes -->
-                            <div class="p-4 grid grid-cols-3 gap-2 border-b border-gray-100 dark:border-gray-700">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" id="set-sound-start"
-                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
-                                    <span class="text-sm">開始音</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" id="set-sound-countdown"
-                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
-                                    <span class="text-sm">倒數音</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" id="set-sound-finish"
-                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
-                                    <span class="text-sm">結束音</span>
-                                </label>
-                            </div>
-                            <div
-                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                <span class="font-medium">倒數閃爍提示</span>
-                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                    <input type="checkbox" id="set-pulse-enabled"
-                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
-                                    <label for="set-pulse-enabled"
-                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
-                                </div>
-                            </div>
-
-                            <!-- TTS Switch -->
-                            <div
-                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                <span class="font-medium">朗讀項目 (TTS)</span>
-                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                    <input type="checkbox" id="set-tts-enabled"
-                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
-                                    <label for="set-tts-enabled"
-                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
-                                </div>
-                            </div>
-
-                            <!-- Countdown Trigger -->
-                            <div
-                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                <span class="font-medium">倒數提示時機</span>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-sm text-gray-500">最後</span>
-                                    <input type="number" id="set-countdown-sec"
-                                        class="w-16 border border-gray-300 rounded-lg p-1 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white"
-                                        value="3" min="0" max="60">
-                                    <span class="text-sm text-gray-500">秒</span>
-                                </div>
-                            </div>
-
-                            <!-- Speech Rate -->
-                            <div class="p-4">
-                                <div class="flex justify-between mb-2">
-                                    <span class="font-medium">語音語速</span>
-                                    <span id="lbl-speech-rate"
-                                        class="text-sm font-bold text-blue-600 dark:text-blue-400">1.0x</span>
-                                </div>
-                                <input type="range" id="set-speech-rate" min="0.5" max="2" step="0.1"
-                                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
-                            </div>
-                            <div class="p-4 border-b border-gray-100 dark:border-gray-700">
-                                <div class="flex justify-between mb-2">
-                                    <span class="font-medium">語音語速</span>
-                                    <span id="lbl-speech-rate"
-                                        class="text-sm font-bold text-blue-600 dark:text-blue-400">1.0x</span>
-                                </div>
-                                <input type="range" id="set-speech-rate" min="0.5" max="2" step="0.1"
-                                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
-                            </div>
-
-                            <div class="p-4">
-                                <label class="block font-medium mb-2">語音模型 / 語言</label>
-                                <select id="set-voice-selection"
-                                    class="w-full bg-gray-50 border border-gray-200 text-sm rounded-lg p-2 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                    <option value="">載入語音中...</option>
-                                </select>
-                                <p class="text-[10px] text-gray-400 mt-2 italic">* 支援清單取決於您的裝置與瀏覽器</p>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- 3. Account & Device (Sync) -->
-                    <div>
-                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">帳號與裝置</h3>
-                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
-                            <!-- Auth Section -->
-                            <div class="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
-                                <div
-                                    class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden dark:bg-gray-600">
-                                    <img id="avatar-img" class="w-full h-full object-cover hidden">
-                                    <div id="avatar-placeholder"
-                                        class="w-full h-full flex items-center justify-center text-gray-400">👤
-                                    </div>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div id="settings-email" class="font-bold truncate dark:text-white">未登入</div>
-                                    <div class="text-xs text-gray-500">雲端同步</div>
-                                </div>
-                                <button id="auth-btn"
-                                    class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
-                            </div>
-                            <div class="p-4 border-t border-gray-100 dark:border-gray-700">
-                                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">健康數據同步 (暫訂)
-                                </h4>
-                                <div class="space-y-4">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center gap-3">
-                                            <div
-                                                class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
-                                                <svg class="w-5 h-5 text-red-500" fill="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path
-                                                        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <div class="font-medium text-sm">Apple Health / Google Fit</div>
-                                                <div class="text-[10px] text-gray-400">同步訓練時長與卡路里</div>
-                                            </div>
+                        <div class="p-4 border-t border-gray-100 dark:border-gray-700">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">穿戴裝置 (暫訂)</h4>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
+                                            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
                                         </div>
-                                        <button onclick="alert('整合功能開發中')"
-                                            class="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold dark:bg-blue-900/30 dark:text-blue-400">連接</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="p-4 border-t border-gray-100 dark:border-gray-700">
-                                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">穿戴裝置 (暫訂)</h4>
-                                <div class="space-y-4">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center gap-3">
-                                            <div
-                                                class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
-                                                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <div class="font-medium text-sm">穿戴裝置連線</div>
-                                                <div class="text-[10px] text-gray-400">支援 Apple Watch, Garmin, 三星</div>
-                                            </div>
+                                        <div>
+                                            <div class="font-medium text-sm">穿戴裝置連線</div>
+                                            <div class="text-[10px] text-gray-400">支援 Apple Watch, Garmin, 三星</div>
                                         </div>
-                                        <button onclick="alert('穿戴裝置 SDK 整合中')"
-                                            class="text-xs bg-gray-100 text-gray-400 px-3 py-1 rounded-full font-bold dark:bg-gray-700">搜尋中</button>
                                     </div>
+                                    <button onclick="alert('穿戴裝置 SDK 整合中')"
+                                        class="text-xs bg-gray-100 text-gray-400 px-3 py-1 rounded-full font-bold dark:bg-gray-700">搜尋中</button>
                                 </div>
                             </div>
-
-                            <button
-                                class="w-full p-4 flex justify-between items-center hover:bg-gray-50 border-b dark:hover:bg-gray-700 dark:border-gray-700">
-                                <span class="font-medium">連接藍芽吊秤</span>
-                                <span class="text-gray-400 text-sm">未連線</span>
-                            </button>
-                            <button
-                                class="w-full p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <span class="font-medium">感測器歸零</span>
-                            </button>
                         </div>
+                        <button
+                            class="w-full p-4 flex justify-between items-center hover:bg-gray-50 border-t dark:hover:bg-gray-700 dark:border-gray-700">
+                            <span class="font-medium">連接藍芽吊秤</span>
+                            <span class="text-gray-400 text-sm">未連線</span>
+                        </button>
+                        <button
+                            class="w-full p-4 flex justify-between items-center hover:bg-gray-50 border-t dark:hover:bg-gray-700 dark:border-gray-700">
+                            <span class="font-medium">感測器歸零</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -824,17 +771,6 @@
     <!-- 模態視窗: 全螢幕計時器 (Active Timer Modal) -->
     <div id="modal-active-timer" class="modal fixed inset-0 z-[60] bg-gray-900 text-white flex flex-col">
 
-        <!-- 防誤觸鎖定遮罩 (z-index 高於控制項但低於解鎖按鈕)
-        <div id="lock-overlay" class="absolute inset-0 z-[70] hidden flex items-center justify-center">
-            <div class="text-center p-4">
-                <svg class="w-12 h-12 text-white/50 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                    </path>
-                </svg>
-                <p class="text-white/70 font-bold">螢幕已鎖定</p>
-            </div>
-        </div> -->
 
         <!-- 頂部資訊 (Header) -->
         <div class="p-6 flex justify-between items-start shrink-0 relative z-[80]">
@@ -865,26 +801,17 @@
                         </path>
                     </svg>
                 </button>
-                <!-- 暫停按鈕 -->
-                <!-- <button onclick="timer.suspend()"
-                    class="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
-                        </path>
-                    </svg>
-                </button> -->
-                <!-- 鎖定按鈕 -->
-                <!-- <button id="btn-lock" onclick="timer.toggleLock()"
-                    class="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                        </path>
-                    </svg>
-                </button> -->
                 <!-- 關閉按鈕 -->
                 <button onclick="timer.stop()" class="p-2 bg-white/10 rounded-full hover:bg-white/20">✕</button>
+            </div>
+        </div>
+
+        <!-- 視覺化時間軸 (Visual Timeline) -->
+        <div class="px-6 pb-2 w-full max-w-md mx-auto shrink-0 relative z-[80]">
+            <div class="flex justify-between items-end mb-1">
+                <span class="text-[10px] font-bold text-white/50 uppercase tracking-wider">訓練結構</span>
+            </div>
+            <div id="active-timeline" class="h-2 w-full bg-white/20 rounded-full flex overflow-hidden">
             </div>
         </div>
 

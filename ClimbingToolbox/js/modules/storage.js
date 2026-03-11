@@ -245,15 +245,17 @@ const store = {
 
             // Calculate estimated total time
             let totalSec = 0;
-            if (r.blocks) totalSec = calculateDuration(r.blocks);
-            // Handle Skip Last Rest for visual estimation (approximate)
-            if (r.skipLastRest && r.blocks && r.blocks.length > 0) {
-                const last = r.blocks[r.blocks.length - 1];
-                if (last.type === 'timer') totalSec -= (last.props.duration || 0);
+            if (r.blocks) {
+                if (typeof timer !== 'undefined' && timer.flatten) {
+                    const flattened = timer.flatten(r.blocks);
+                    totalSec = flattened.reduce((acc, b) => acc + (b.props.duration || 0), 0);
+                } else {
+                    totalSec = calculateDuration(r.blocks); // 降級備案
+                }
             }
             const timeStr = formatTime(Math.max(0, totalSec));
 
-            // ✨ 新增：處理標籤的 HTML
+            // 處理標籤的 HTML
             const tagsHtml = (r.tags && r.tags.length > 0)
                 ? `<div class="flex flex-wrap gap-1 mt-1.5">` + r.tags.map(t => `<span class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 font-bold dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">${t}</span>`).join('') + `</div>`
                 : '';
@@ -290,6 +292,7 @@ const recordManager = {
     selectedDateNode: null, // 快取目前選取的 DOM 節點
     calendarMode: 'week', // 預設為週視圖
     isRecordsCollapsed: false,
+    expandedRecordIds: new Set(),
 
     // 支援跨週/月模式導覽
     changePeriod(dir) {
@@ -332,9 +335,11 @@ const recordManager = {
             if (isHidden) {
                 logSection.classList.remove('hidden');
                 arrow.style.transform = 'rotate(180deg)';
+                this.expandedRecordIds.add(recordId);
             } else {
                 logSection.classList.add('hidden');
                 arrow.style.transform = 'rotate(0deg)';
+                this.expandedRecordIds.delete(recordId);
             }
         }
     },
@@ -363,16 +368,6 @@ const recordManager = {
         this.renderCalendar();
     },
 
-    changePeriod(dir) {
-        if (this.calendarMode === 'month') {
-            this.displayDate.setMonth(this.displayDate.getMonth() + dir);
-        } else {
-            // 週模式直接增減 7 天
-            this.displayDate.setDate(this.displayDate.getDate() + (dir * 7));
-        }
-        this.renderCalendar();
-    },
-
     renderCalendar() {
         const calGrid = document.getElementById('calendar-grid');
         const titleEl = document.getElementById('calendar-month-title');
@@ -384,7 +379,7 @@ const recordManager = {
         const year = this.displayDate.getFullYear();
         const month = this.displayDate.getMonth();
 
-        // 🌟 修正 1：月份標題在週視圖下也要反映目前的月份
+        // 修正 1：月份標題在週視圖下也要反映目前的月份
         titleEl.textContent = this.calendarMode === 'week'
             ? `${this.displayDate.getMonth() + 1}月 訓練節奏`
             : `${year}年 ${month + 1}月`;
@@ -403,7 +398,7 @@ const recordManager = {
                 this.createDayNode(new Date(year, month, day), calGrid);
             }
         } else {
-            // 🌟 修正 2：週視圖邏輯 - 改為直接找出 Monday 並連跑 7 天
+            // 修正 2：週視圖邏輯 - 改為直接找出 Monday 並連跑 7 天
             // 不再受限於當月 1~31 號的迴圈
             const anchor = new Date(this.displayDate);
             const dayOfWeek = anchor.getDay();
@@ -430,7 +425,7 @@ const recordManager = {
         const isSelected = (dateStr === this.selectedDate);
 
         const dayEl = document.createElement('div');
-        // ✨ 修正 3：加入藍色小點 (bg-blue-500) 與 修正框框寬度
+        // 加入藍色小點 (bg-blue-500) 與 修正框框寬度
         dayEl.className = `calendar-day relative flex flex-col items-center justify-center h-10 w-full rounded-xl transition-all ${isToday ? 'is-today ring-1 ring-blue-200' : ''} ${isSelected ? 'ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/30 dark:ring-blue-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`;
         dayEl.dataset.date = dateStr;
         dayEl.onclick = () => this.showDayDetail(dateStr);
@@ -460,6 +455,9 @@ const recordManager = {
     },
     // 開啟明細面板
     showDayDetail(dateStr) {
+        if (this.selectedDate !== dateStr) {
+            this.expandedRecordIds.clear(); // 換日期時，清空上一次的展開記憶
+        }
         this.selectedDate = dateStr;
 
         // 1. 樣式更新邏輯
@@ -483,7 +481,7 @@ const recordManager = {
         countLabel.textContent = `${records.length} 筆紀錄`;
         list.innerHTML = '';
 
-        // 🌟 修正 3：渲染紀錄與數據容錯
+        // 修正 3：渲染紀錄與數據容錯
         if (records.length === 0) {
             list.innerHTML = `<div class="text-center py-10 text-xs text-gray-400">該日沒有訓練紀錄</div>`;
         } else {
@@ -491,11 +489,16 @@ const recordManager = {
                 const item = document.createElement('div');
                 item.className = "p-4 bg-white rounded-2xl border border-gray-100 shadow-sm dark:bg-gray-750 dark:border-gray-700 flex flex-col";
 
-                // ✨ 建立獨立的明細區塊，預設隱藏
+                // 讀取該紀錄的展開狀態
+                const isExpanded = this.expandedRecordIds.has(rec.id);
+                const hiddenClass = isExpanded ? '' : 'hidden';
+                const arrowRotation = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+
                 let logsHtml = '';
                 if (rec.executionLogs && rec.executionLogs.length > 0) {
+                    // 動態套用 hiddenClass
                     logsHtml = `
-                    <div id="logs-${rec.id}" class="hidden mt-3 space-y-2 border-t border-gray-50 pt-3 dark:border-gray-700">`;
+                    <div id="logs-${rec.id}" class="${hiddenClass} mt-3 space-y-2 border-t border-gray-50 pt-3 dark:border-gray-700">`;
                     rec.executionLogs.forEach((log, lIdx) => {
                         const actualsStr = Object.entries(log.actuals || {})
                             .map(([k, v]) => `${k}: ${v === "" || v === undefined ? '0' : v}`)
@@ -521,7 +524,7 @@ const recordManager = {
                     <div class="flex-1 cursor-pointer" onclick="recordManager.toggleRecordLogs('${rec.id}')">
                         <div class="flex items-center gap-2">
                             <div class="font-bold text-gray-800 dark:text-gray-100">${rec.routineTitle}</div>
-                            <svg id="arrow-${rec.id}" class="w-3 h-3 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <svg id="arrow-${rec.id}" class="w-3 h-3 text-gray-400 transition-transform" style="transform: ${arrowRotation};" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
                         <div class="text-[10px] text-gray-500 font-mono mt-0.5">${rec.startTime} | ${durationText}</div>
                     </div>
@@ -590,8 +593,11 @@ const recordManager = {
 
         localStorage.setItem('trainingRecords', JSON.stringify(records));
 
-        // 刷新明細 UI
+        // 刷新明細 UI 與 分析數據
         this.showDayDetail(this.selectedDate);
+        if (typeof analyticsManager !== 'undefined' && analyticsManager.renderCards) {
+            analyticsManager.renderCards();
+        }
     },
 
     // 新增：供 UI 呼叫的編輯啟動器
@@ -607,7 +613,7 @@ const recordManager = {
             id: log.blockId,
             props: {
                 label: log.label,
-                customMetrics: Object.keys(log.actuals).map(name => ({ name, type: 'number' })),
+                customMetrics: Object.keys(log.actuals || {}).map(name => ({ name, type: 'number' })),
                 duration: log.planned.duration,
                 count: log.planned.count
             }
