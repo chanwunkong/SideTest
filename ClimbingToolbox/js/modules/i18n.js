@@ -1,26 +1,36 @@
 // --- js/modules/i18n.js ---
 const i18n = {
-    _current: localStorage.getItem('userLang') || (navigator.language.startsWith('zh') ? 'zh' : 'en'),
+    _current: (function () {
+        try {
+            const saved = localStorage.getItem('userLang');
+            if (saved) return saved;
+            return navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+        } catch (e) {
+            return 'en';
+        }
+    })(),
 
-    // 統一字典
     dict: {
         zh: {
             // --- Index / Global ---
             heroTitle: "為攀岩者打造的數位工具箱",
             heroDesc: "AI 輔助開發：設計給所有熱愛攀爬的人",
             coreTitle: "核心工具",
-            badgeLive: "正式版已上線",
-            hbTitle: "指力訓練計時 (Hangboard v1)",
-            hbPain: "解決訓練時雙手滿是粉末不便觸碰螢幕，以及複雜巢狀訓練難以精準計時的痛點。",
-            hbF1: "無限制結構化計時器，支持離線或聲控",
-            hbF2: "全自動訓練日誌與日曆統計系統",
-            hbFuture: "未來規劃：支援藍芽吊秤連動，讓訓練量自動量化紀錄。",
+            badgeLive: "版本 1.1 已上線",
+            hbTitle: "指力訓練計時 (Hangboard v1.1)",
+            hbPain: "解決傳統工具設定繁瑣、訓練時需頻繁分心記錄，以及數據零散難以追蹤進度的痛點。",
+            hbF1: "<b>告別繁瑣設定</b>：像組裝積木般隨意嵌套模組，30 秒內即可完成 HIIT 或複雜的週期化訓練。",
+            hbF2: "<b>訓練記錄不中斷</b>：支援自定義指標。讓數據記錄自動化，把專注力留給動作而非手機螢幕。",
+            hbF3: "<b>完整的成長軌跡</b>：整合 PR 卡片與趨勢圖。無論課表如何更動，數據皆能持續累積，讓你一眼看清表現起伏。",
+            hbFuture: "未來規劃：串接健康數據生態 (Apple/Google) 與 WH-C06 藍牙秤 (Tindeq 平替)。",
             hfTitle: "路線編輯器 (HoldFocus v1)",
             hfPain: "解決岩館路線更新頻繁難以留存細節，以及向他人解釋動作時溝通成本高的問題。",
             hfF1: "手動標記岩點，快速產出路線示意圖",
             hfF2: "支援圖片導出與即時紀錄分享",
             hfFuture: "未來規劃：考慮加入智慧岩點辨識與個人雲端相簿。",
             changelogTitle: "更新紀錄",
+            logHbV1_1: "Hangboard v1.1 上線",
+            logHbDesc1_1: "強化訓練紀錄機制，新增自定義指標掛載與日誌自動彙整功能。",
             logHbV1: "Hangboard v1 上線",
             logHbDesc: "開放無限制結構化編輯器、聲控系統優化、訓練紀錄日曆功能正式上線。",
             logHfV1: "HoldFocus v1 上線",
@@ -77,8 +87,8 @@ const i18n = {
             times: "次",
             calendarHint: "點擊日曆日期以管理訓練紀錄",
             myRoutines: "我的課表",
-            templateMax: "⚡️ 最大指力",
-            templateRepeaters: "🔄 間歇訓練",
+            templateMax: "最大指力",
+            templateRepeaters: "間歇訓練",
             appearance: "個人化",
             themeMode: "外觀模式",
             themeSystem: "跟隨系統",
@@ -106,22 +116,25 @@ const i18n = {
         en: {
             // --- Index / Global ---
             heroTitle: "Digital Toolbox for Climbers",
-            heroDesc: "AI-Assisted Development:Designed for those who love to climb.",
+            heroDesc: "AI-Assisted Development: Designed for those who love to climb.",
             coreTitle: "Core Tools",
-            badgeLive: "Version 1.0 Live",
-            hbTitle: "Hangboard Timer (v1)",
-            hbPain: "Hands covered in chalk? Voice-controlled structured timer eliminates the need to touch your screen.",
-            hbF1: "Unlimited structured timer with Offline & Voice support",
-            hbF2: "Automated training logs and calendar analytics",
-            hbFuture: "Future: Bluetooth scale integration for automated load tracking.",
+            badgeLive: "Version 1.1 Live",
+            hbTitle: "Hangboard Timer (v1.1)",
+            hbPain: "Solves the pain of tedious setups, distracted logging, and fragmented data tracking.",
+            hbF1: "<b>No More Complex Setups</b>: Use building blocks to nest timers and reps. Set up complex routines in 30 seconds.",
+            hbF2: "<b>Flow Without Distraction</b>: Custom metrics for weight & depth. Automated logs keep your focus on the hang.",
+            hbF3: "<b>Complete Growth Track</b>: Integrated PR cards and trend charts. Data remains continuous across routines.",
+            hbFuture: "Future: Health (Apple/Google) and WH-C06 Bluetooth scale integration (Tindeq alternative).",
             hfTitle: "Route Editor (HoldFocus v1)",
             hfPain: "Hard to recall beta or explain movements? Create route maps manually to stay focused.",
             hfF1: "Manual hold marking for precise route mapping",
             hfF2: "Support for image export and instant sharing",
             hfFuture: "Future: Considering AI hold recognition and cloud albums.",
             changelogTitle: "Changelog",
+            logHbV1_1: "Hangboard v1.1 Live",
+            logHbDesc1_1: "Enhanced training log mechanism, adding custom metric integration and automated logging.",
             logHbV1: "Hangboard v1 Live",
-            logHbDesc: "Structured editor, voice command optimization, and training calendar are now live.",
+            logHbDesc: "Unrestricted structured editor, voice command optimization, and training calendar are now live.",
             logHfV1: "HoldFocus v1 Live",
             logHfDesc: "Manual marking features released. Supports custom drawing and high-res exports.",
             queueTitle: "Features in Queue",
@@ -176,8 +189,8 @@ const i18n = {
             times: "times",
             calendarHint: "Tap a date to manage records",
             myRoutines: "My Routines",
-            templateMax: "⚡️ Max Hangs",
-            templateRepeaters: "🔄 Repeaters",
+            templateMax: "Max Hangs",
+            templateRepeaters: "Repeaters",
             appearance: "Appearance",
             themeMode: "Theme",
             themeSystem: "System",
@@ -204,13 +217,12 @@ const i18n = {
         }
     },
 
-    // 核心邏輯 (支援 . 符號巢狀搜尋)
     t(path) {
         const keys = path.split('.');
         let res = this.dict[this._current];
         for (const k of keys) {
             if (res && res[k]) res = res[k];
-            else return path; // 找不到則回傳 key
+            else return path;
         }
         return res;
     },
@@ -218,29 +230,30 @@ const i18n = {
     toggle() {
         this._current = this._current === 'zh' ? 'en' : 'zh';
         localStorage.setItem('userLang', this._current);
-        location.reload();
+        this.updatePage();
     },
 
-    // 統一更新頁面文字的方法
     updatePage() {
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
             const txt = this.t(key);
-            if (txt) {
-                // 優化：如果文字沒變，就不重新賦值，減少 DOM 閃爍
-                if (el.innerHTML !== txt && el.textContent !== txt) {
-                    if (el.innerHTML.includes('<') || txt.includes('<')) el.innerHTML = txt;
-                    else el.textContent = txt;
-                }
+            if (txt && el.innerHTML !== txt && el.textContent !== txt) {
+                if (txt.includes('<')) el.innerHTML = txt;
+                else el.textContent = txt;
             }
         });
 
-        // 處理 placeholder
         document.querySelectorAll('[data-i18n-ph]').forEach(el => {
-            const key = el.getAttribute('data-i18n-ph');
-            el.placeholder = this.t(key);
+            el.placeholder = this.t(el.getAttribute('data-i18n-ph'));
         });
 
         document.documentElement.lang = this._current === 'zh' ? 'zh-TW' : 'en';
+        document.body.classList.remove('i18n-loading');
     }
 };
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => i18n.updatePage());
+} else {
+    i18n.updatePage();
+}
