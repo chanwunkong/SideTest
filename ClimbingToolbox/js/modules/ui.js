@@ -159,9 +159,7 @@ const settingsManager = {
             const voices = window.speechSynthesis.getVoices();
             if (voices.length === 0) return;
 
-            // 1. 智慧預設：如果還沒有存檔紀錄，優先幫使用者找一個中文語音
             if (!this.data.voiceURI) {
-                // 尋找包含 zh (中文) 或 cmn (國語) 的語音
                 const defaultZhVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('cmn'));
                 if (defaultZhVoice) {
                     this.data.voiceURI = defaultZhVoice.voiceURI;
@@ -169,29 +167,31 @@ const settingsManager = {
                 }
             }
 
-            // 2. 渲染選單，並標註系統預設選項
             sel.innerHTML = voices
                 .map(v => {
                     const isSelected = v.voiceURI === this.data.voiceURI ? 'selected' : '';
-                    const defaultLabel = v.default ? ' (系統預設)' : '';
-                    return `<option value="${v.voiceURI}" ${isSelected}>${v.name} ${defaultLabel}</option>`;
+                    const defaultLabel = v.default ? ' (預設)' : '';
+                    // 加上語言標記，方便在手機上辨識不同地區的中文模型
+                    return `<option value="${v.voiceURI}" ${isSelected}>${v.name} [${v.lang}]${defaultLabel}</option>`;
                 })
                 .join('');
 
-            // 3. 切換事件
             sel.onchange = (e) => {
                 this.data.voiceURI = e.target.value;
                 this.save();
 
-                // 【優化體驗】：切換後立刻試播一小段聲音，讓使用者確認
-                this.speak("語音測試");
+                // 【修正】：手機版 UI 切換需要一點微小的緩衝時間，否則容易被瀏覽器吃掉事件
+                setTimeout(() => this.speak("語音測試"), 150);
             };
         };
 
-        // 綁定事件以應對非同步載入 (針對 Chrome/Edge)
         window.speechSynthesis.addEventListener('voiceschanged', populate);
-        // 直接執行一次 (針對 Safari/Firefox 通常已同步備妥)
         populate();
+
+        // 【手機版 Hack】：iOS 有時候不會觸發 voiceschanged，主動戳它一下
+        if (window.speechSynthesis.getVoices().length === 0) {
+            setTimeout(populate, 500);
+        }
     },
 
     save() {
@@ -296,8 +296,10 @@ const settingsManager = {
         if (!this.data.soundEnabled || !this.data.ttsEnabled) return;
         if (!window.speechSynthesis) return;
 
-        // 停止上一句還沒唸完的話，避免語音塞車
-        window.speechSynthesis.cancel();
+        // 【修正 1】：只在真的有聲音在播放時才 cancel，避免手機版引擎卡死
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
 
         const u = new SpeechSynthesisUtterance(text);
         u.rate = this.data.speechRate;
@@ -305,18 +307,21 @@ const settingsManager = {
         const voices = window.speechSynthesis.getVoices();
 
         if (voices.length > 0) {
-            // 套用選定的語音模型
             const selectedVoice = voices.find(v => v.voiceURI === this.data.voiceURI);
             if (selectedVoice) {
                 u.voice = selectedVoice;
+                // 【修正 2】：手機版鐵律，必須同時設定 lang 才能真正切換引擎
+                u.lang = selectedVoice.lang;
             } else {
-                // 防呆：如果存檔的語音在當前設備找不到 (例如換了手機登入)，優先降級回中文
                 const defaultZhVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('cmn'));
-                if (defaultZhVoice) u.voice = defaultZhVoice;
-                else u.lang = 'zh-TW';
+                if (defaultZhVoice) {
+                    u.voice = defaultZhVoice;
+                    u.lang = defaultZhVoice.lang;
+                } else {
+                    u.lang = 'zh-TW';
+                }
             }
         } else {
-            // 如果語音庫完全沒載入，至少給系統一個語系提示
             u.lang = 'zh-TW';
         }
 
