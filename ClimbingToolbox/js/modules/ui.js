@@ -159,18 +159,38 @@ const settingsManager = {
             const voices = window.speechSynthesis.getVoices();
             if (voices.length === 0) return;
 
+            // 1. 智慧預設：如果還沒有存檔紀錄，優先幫使用者找一個中文語音
+            if (!this.data.voiceURI) {
+                // 尋找包含 zh (中文) 或 cmn (國語) 的語音
+                const defaultZhVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('cmn'));
+                if (defaultZhVoice) {
+                    this.data.voiceURI = defaultZhVoice.voiceURI;
+                    this.save();
+                }
+            }
+
+            // 2. 渲染選單，並標註系統預設選項
             sel.innerHTML = voices
-                .map(v => `<option value="${v.voiceURI}" ${v.voiceURI === this.data.voiceURI ? 'selected' : ''}>${v.name} (${v.lang})</option>`)
+                .map(v => {
+                    const isSelected = v.voiceURI === this.data.voiceURI ? 'selected' : '';
+                    const defaultLabel = v.default ? ' (系統預設)' : '';
+                    return `<option value="${v.voiceURI}" ${isSelected}>${v.name} ${defaultLabel}</option>`;
+                })
                 .join('');
 
+            // 3. 切換事件
             sel.onchange = (e) => {
                 this.data.voiceURI = e.target.value;
                 this.save();
+
+                // 【優化體驗】：切換後立刻試播一小段聲音，讓使用者確認
+                this.speak("語音測試");
             };
         };
 
-        // 優化：改用 addEventListener 避免覆蓋其他事件
+        // 綁定事件以應對非同步載入 (針對 Chrome/Edge)
         window.speechSynthesis.addEventListener('voiceschanged', populate);
+        // 直接執行一次 (針對 Safari/Firefox 通常已同步備妥)
         populate();
     },
 
@@ -276,15 +296,29 @@ const settingsManager = {
         if (!this.data.soundEnabled || !this.data.ttsEnabled) return;
         if (!window.speechSynthesis) return;
 
+        // 停止上一句還沒唸完的話，避免語音塞車
         window.speechSynthesis.cancel();
+
         const u = new SpeechSynthesisUtterance(text);
         u.rate = this.data.speechRate;
 
-        // 套用選定的語音模型
         const voices = window.speechSynthesis.getVoices();
-        const selectedVoice = voices.find(v => v.voiceURI === this.data.voiceURI);
-        if (selectedVoice) u.voice = selectedVoice;
-        else u.lang = 'en-US';
+
+        if (voices.length > 0) {
+            // 套用選定的語音模型
+            const selectedVoice = voices.find(v => v.voiceURI === this.data.voiceURI);
+            if (selectedVoice) {
+                u.voice = selectedVoice;
+            } else {
+                // 防呆：如果存檔的語音在當前設備找不到 (例如換了手機登入)，優先降級回中文
+                const defaultZhVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('cmn'));
+                if (defaultZhVoice) u.voice = defaultZhVoice;
+                else u.lang = 'zh-TW';
+            }
+        } else {
+            // 如果語音庫完全沒載入，至少給系統一個語系提示
+            u.lang = 'zh-TW';
+        }
 
         window.speechSynthesis.speak(u);
     }
