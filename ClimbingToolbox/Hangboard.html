@@ -834,10 +834,10 @@
         </div>
 
         <!-- 主要顯示區 (Main Display) -->
-        <div class="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-4 relative">
-            <!-- 循環狀態 -->
+        <div id="timer-main-container"
+            class="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-4 relative transition-all duration-500">
             <div id="active-status"
-                class="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-white uppercase drop-shadow-md text-center">
+                class="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-white uppercase drop-shadow-md text-center transition-all duration-500">
                 準備開始
             </div>
 
@@ -845,20 +845,22 @@
                 class="text-4xl md:text-5xl font-black text-yellow-400 mb-2 hidden text-center w-full drop-shadow-md tracking-wider">
             </div>
 
-            <!-- 倒數數字 -->
-            <div class="relative mb-8">
+            <div id="display-wrapper"
+                class="relative flex flex-col items-center justify-center w-full transition-all duration-500">
                 <div id="active-countdown"
-                    class="text-[8rem] md:text-[10rem] font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl">
+                    class="text-[8rem] md:text-[10rem] font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl transition-all duration-500">
                     00
                 </div>
+
+                <canvas id="active-live-chart"
+                    class="w-full h-0 opacity-0 transition-all duration-500 mt-4 rounded-xl bg-black/20 border border-white/10"></canvas>
             </div>
 
-            <!-- 視覺進度條 (Visual Progress Bar) -->
-            <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden max-w-[200px]">
+            <div id="progress-container"
+                class="w-full h-2 bg-white/20 rounded-full overflow-hidden max-w-[200px] mt-8 transition-all duration-500">
                 <div id="active-progress-bar" class="h-full bg-white transition-all duration-1000 ease-linear w-full">
                 </div>
             </div>
-
         </div>
 
         <!-- 底部控制區 (Footer Controls) -->
@@ -982,6 +984,61 @@
         </div>
     </div>
 
+    <div id="modal-ble-setup"
+        class="modal fixed inset-0 z-[100] bg-black/70 flex flex-col items-center justify-center hidden">
+        <div
+            class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl w-11/12 max-w-sm border border-gray-200 dark:border-gray-700">
+            <div class="text-center mb-6">
+                <div
+                    class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24" stroke-width="2">
+                        <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold dark:text-white">環境與設定要求</h3>
+            </div>
+
+            <div class="space-y-4 text-sm">
+                <div class="flex gap-3">
+                    <span
+                        class="flex-shrink-0 w-6 h-6 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold text-xs">1</span>
+                    <p class="text-gray-600 dark:text-gray-300">瀏覽器：僅限 <strong>Google Chrome</strong>。</p>
+                </div>
+                <div class="flex gap-3">
+                    <span
+                        class="flex-shrink-0 w-6 h-6 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold text-xs">2</span>
+                    <div>
+                        <p class="text-gray-600 dark:text-gray-300 mb-2">功能啟用：請複製下方網址並至網址列開啟，將選項設為 <strong
+                                class="text-blue-600">Enabled</strong> 並重新啟動瀏覽器。</p>
+                        <div
+                            class="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-700">
+                            <code id="ble-flag-url"
+                                class="text-[10px] font-mono break-all text-gray-500">chrome://flags/#enable-experimental-web-platform-features</code>
+                            <button onclick="copyBleFlagUrl()"
+                                class="shrink-0 bg-gray-200 dark:bg-gray-700 p-1.5 rounded-md hover:bg-gray-300">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                    stroke-width="2">
+                                    <path
+                                        d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 flex gap-3">
+                <button onclick="bleManager.hideSetupModal()"
+                    class="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-xl font-bold">先不用</button>
+                <button onclick="bleManager.requestNewDevice()"
+                    class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-900/30">我已設定</button>
+            </div>
+        </div>
+    </div>
+
+
+
     <!-- 自動完成資料清單 -->
     <datalist id="history-list"></datalist>
 
@@ -1031,13 +1088,18 @@
             }
         });
 
-    </script>
-    <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
                     .then(reg => console.log('Service Worker 已註冊', reg))
                     .catch(err => console.error('Service Worker 註冊失敗', err));
+            });
+        }
+
+        function copyBleFlagUrl() {
+            const url = document.getElementById('ble-flag-url').innerText;
+            navigator.clipboard.writeText(url).then(() => {
+                if (typeof showToast === 'function') showToast('網址已複製');
             });
         }
     </script>
