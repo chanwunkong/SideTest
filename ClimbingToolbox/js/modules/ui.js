@@ -341,7 +341,7 @@ const router = {
                 analyticsManager.renderCards();
             }
         }
-        
+
         // 課表管理保持不變
         else if (viewId === 'routines' && typeof store !== 'undefined') {
             store.renderRoutines();
@@ -363,16 +363,16 @@ const editor = {
     // 暫存屬性面板中的自訂指標
     tempMetrics: [],
 
-    // 預設選項 (統一為 Title Case English)
+    // 預設選項 
     defaultSuggestions: {
         'timer': [
-            { label: 'Prepare', color: 'blue' },
-            { label: 'Hang', color: 'orange' },
-            { label: 'Rest', color: 'green' }
+            { label: '準備', color: 'blue' },
+            { label: '懸掛', color: 'orange' },
+            { label: '休息', color: 'green' }
         ],
         'reps': [
-            { label: 'Pull Ups', color: 'indigo' },
-            { label: 'Push Ups', color: 'pink' }
+            { label: '引體向上', color: 'indigo' },
+            { label: '伏地挺身', color: 'pink' }
         ],
         'loop': []
     },
@@ -400,7 +400,7 @@ const editor = {
             dragClass: 'sortable-drag',
             draggable: '.block-item',
 
-            delay: 200,             // 長按 200 毫秒才判定為拖曳
+            delay: 150,
             delayOnTouchOnly: true, // 僅在觸控螢幕上啟用長按 (不影響滑鼠)
             fallbackTolerance: 10,   // 允許手指點擊時有 5px 的微小晃動，不會中斷長按
             forceFallback: true, // 強制關閉原生拖曳，允許原生的頁面滾動
@@ -588,7 +588,7 @@ const editor = {
 
         let html = '';
         if (type !== 'loop') {
-            let optionsHtml = '<option value="" disabled selected>Select from history...</option>';
+            let optionsHtml = '<option value="" 從歷史紀錄選擇...</option>';
             const historyMap = this.getHistory(type);
             const defaults = this.defaultSuggestions[type] || [];
             const addedLabels = new Set();
@@ -607,9 +607,9 @@ const editor = {
 
             html += `
                         <div>
-                            <label class="block text-sm font-bold text-gray-500 mb-1">標籤 (Label)</label>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">標籤</label>
                             <div class="flex flex-col gap-2">
-                                <input type="text" id="inp-label" class="w-full border rounded-lg p-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.label || ''}" placeholder="Type custom name...">
+                                <input type="text" id="inp-label" class="w-full border rounded-lg p-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.label || ''}" placeholder="輸入自訂名稱...">
                                 <select id="sel-label" class="w-full border rounded-lg p-2 text-sm text-gray-600 bg-gray-50 dark:bg-gray-600 dark:text-gray-300 dark:border-gray-500">
                                     ${optionsHtml}
                                 </select>
@@ -635,7 +635,7 @@ const editor = {
                     <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg mt-4 border border-gray-100 dark:border-gray-600">
                         <div>
                             <div class="font-bold text-sm dark:text-white">最後一趟跳過</div>
-                            <div class="text-xs text-gray-500 mt-1">若位於迴圈內，最後一次迭代將自動省略此動作</div>
+                            <div class="text-xs text-gray-500 mt-1">若位於迴圈內，最後一次循環將跳過</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="inp-skip-last" ${isSkipChecked} class="sr-only peer">
@@ -646,7 +646,7 @@ const editor = {
             html += `
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-bold text-gray-500 mb-1">次數 (Reps)</label>
+                            <label class="block text-sm font-bold text-gray-500 mb-1">次數</label>
                             <input type="number" id="inp-count" class="w-full border rounded-lg p-3 text-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.count}">
                         </div>
                         <div>
@@ -660,7 +660,7 @@ const editor = {
         if (type !== 'loop') {
             html += `
                 <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
-                    <label class="block text-sm font-bold text-gray-500 mb-2">訓練追蹤指標 (Custom Metrics)</label>
+                    <label class="block text-sm font-bold text-gray-500 mb-2">訓練追蹤指標 </label>
                     <div id="prop-metrics-list" class="space-y-2 mb-3"></div>
                     <div class="flex gap-2">
                         <input type="text" id="inp-new-metric" onkeydown="if(event.key==='Enter') editor.addMetric()" class="flex-1 border border-gray-200 rounded-lg p-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="輸入追蹤項目 (如: 負重)">
@@ -715,7 +715,7 @@ const editor = {
         const container = document.getElementById('prop-metrics-list');
         if (!container) return;
         if (this.tempMetrics.length === 0) {
-            container.innerHTML = '<div class="text-[10px] font-bold text-gray-400 bg-gray-50 p-2 rounded border border-dashed border-gray-200 dark:bg-gray-800 dark:border-gray-700">無自訂追蹤項目 (執行時不彈出紀錄面板)</div>';
+            container.innerHTML = '<div class="text-[10px] font-bold text-gray-400 bg-gray-50 p-2 rounded border border-dashed border-gray-200 dark:bg-gray-800 dark:border-gray-700">無自訂追蹤項目</div>';
             return;
         }
         container.innerHTML = this.tempMetrics.map((m, idx) => `

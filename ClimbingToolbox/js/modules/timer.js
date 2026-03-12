@@ -229,8 +229,8 @@ const timer = {
         const step = this.queue[this.currentIndex];
         if (!step) return this.stop();
 
-        // 偵測是否為休息或結束區塊
-        const isRest = step.props.label && step.props.label.toLowerCase().includes('rest');
+        // 👉 修改這裡：偵測是否為休息或結束區塊 (加上 '休息' 判斷)
+        const isRest = step.props.label && (step.props.label.toLowerCase().includes('rest') || step.props.label.includes('休息'));
         const isFinish = step.type === 'finish';
 
         // 修改攔截邏輯：增加 isFinish 的判定
@@ -240,7 +240,8 @@ const timer = {
 
             if (prevStep.type === 'timer' || prevStep.type === 'reps') {
                 const label = (prevStep.props.label || '').toLowerCase();
-                if (!label.includes('prepare')) {
+                // 👉 修改這裡：加上 '準備' 判斷
+                if (!label.includes('prepare') && !label.includes('準備')) {
                     const alreadyLogged = this.currentLogs.find(l => l.queueIndex === prevIndex);
                     if (!alreadyLogged) {
                         this.showLogPanel(prevStep, prevIndex);
@@ -252,7 +253,7 @@ const timer = {
         }
         if (isFinish) {
             clearInterval(this.interval);
-            this.domCache.status.textContent = "FINISHED";
+            this.domCache.status.textContent = "訓練完成";
             this.domCache.countdown.textContent = "--";
             this.domCache.progressBar.style.width = '0%';
 
@@ -343,7 +344,7 @@ const timer = {
         if (!step) return;
 
         const displayNum = step.type === 'reps' && this.stepLeft > 0
-            ? `${step.props.count}<span class="text-4xl ml-2 opacity-50">reps</span>`
+            ? `${step.props.count}<span class="text-4xl ml-2 opacity-50">次</span>`
             : (this.stepLeft < 10 && this.stepLeft >= 0 ? '0' + this.stepLeft : this.stepLeft);
 
         // 優化：使用 DOM Cache 取代 getElementById
@@ -367,11 +368,11 @@ const timer = {
         if (step.loopState && step.loopState.length > 0) {
             let text = "";
             if (step.loopState.length === 1) {
-                text = `ROUND ${step.loopState[0].current}/${step.loopState[0].total}`;
+                text = `第 ${step.loopState[0].current}/${step.loopState[0].total} 循環`;
             } else {
                 const outer = step.loopState[0];
                 const inner = step.loopState[step.loopState.length - 1];
-                text = `SET ${outer.current}/${outer.total} <span class="mx-3 text-white/40">|</span> REP ${inner.current}/${inner.total}`;
+                text = `第 ${outer.current}/${outer.total} 組 ... 第 ${inner.current}/${inner.total} 次`;
             }
             this.domCache.loops.innerHTML = text;
             this.domCache.loops.classList.remove('hidden');
@@ -389,7 +390,7 @@ const timer = {
             const nc = nextStep.props.color || 'gray';
             this.domCache.nextBadge.className = `w-3 h-3 rounded-full bg-${nc}-400 shadow-sm`;
         } else {
-            this.domCache.nextText.textContent = "Finish";
+            this.domCache.nextText.textContent = "結束";
             this.domCache.nextBadge.className = `w-3 h-3 rounded-full bg-gray-500`;
         }
     },
@@ -502,10 +503,10 @@ const timer = {
             if (!step) continue;
 
             const label = (step.props.label || '').toLowerCase();
-            // 必須是 timer 或 reps，且名稱不包含 prepare、rest，也不能是 finish 區塊
+            // 👉 修改這裡：必須是 timer 或 reps，且名稱不包含 prepare、準備、rest、休息
             if ((step.type === 'timer' || step.type === 'reps') &&
-                !label.includes('prepare') &&
-                !label.includes('rest') &&
+                !label.includes('prepare') && !label.includes('準備') &&
+                !label.includes('rest') && !label.includes('休息') &&
                 step.type !== 'finish') {
                 targetStep = step;
                 targetIndex = i;
@@ -741,14 +742,16 @@ const timer = {
         if (this.elapsed < 10) return;
 
         // 新增：防呆與補漏機制 (自動補齊未填寫的紀錄)
-
         for (let i = 0; i < this.queue.length; i++) {
             const step = this.queue[i];
             if (step.type === 'timer' || step.type === 'reps') {
                 const label = (step.props.label || '').toLowerCase();
 
-                // 排除準備 (Prepare)、休息 (Rest) 與結束 (Finish) 區塊
-                if (!label.includes('prepare') && !label.includes('rest') && step.type !== 'finish') {
+                // 👉 修改這裡：排除準備 (Prepare/準備)、休息 (Rest/休息) 與結束 (Finish) 區塊
+                if (!label.includes('prepare') && !label.includes('準備') &&
+                    !label.includes('rest') && !label.includes('休息') &&
+                    step.type !== 'finish') {
+
                     const metrics = step.props.customMetrics;
                     // 如果該積木有設定追蹤指標
                     if (metrics && metrics.length > 0) {

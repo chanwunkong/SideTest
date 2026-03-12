@@ -111,58 +111,58 @@ const store = {
 
     async addTemplate(type) {
         let blocks = [];
-        let title = "New Routine";
+        let title = "新課表";
         let tags = [];
 
         if (type === 'max') {
             // 例子 1：手指極限力量
             // 處理狀況：區分「全身力量」與「手指專項力量」
-            title = "Max Hangs (手指極限)";
+            title = "最大指力";
             tags = ['最大肌力', '手指'];
             blocks = [
-                { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } },
+                { type: 'timer', id: uuid(), props: { duration: 10, label: '準備', color: 'amber' } },
                 {
                     type: 'loop', id: uuid(), props: { iterations: 5, color: 'gray' },
                     children: [
-                        { type: 'timer', id: uuid(), props: { duration: 10, label: 'Hang (Max)', color: 'red', customMetrics: [{ name: '附加重量', type: 'number' }, { name: '邊緣大小', type: 'number' }] } },
-                        { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest', color: 'green', skipOnLast: true } }
+                        { type: 'timer', id: uuid(), props: { duration: 10, label: '懸掛', color: 'red', customMetrics: [{ name: '重量', type: 'number' }, { name: '邊緣', type: 'number' }] } },
+                        { type: 'timer', id: uuid(), props: { duration: 180, label: '休息', color: 'green', skipOnLast: true } }
                     ]
                 }
             ];
         } else if (type === 'repeaters') {
             // 例子 2：手指耐力訓練
             // 處理狀況：區分「手指耐力」與「全身攀爬耐力」
-            title = "7/3 Repeaters (手指耐力)";
+            title = "7/3手指耐力";
             tags = ['耐力', '手指'];
             blocks = [
-                { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } },
+                { type: 'timer', id: uuid(), props: { duration: 10, label: '準備', color: 'amber' } },
                 {
                     type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' },
                     children: [
                         {
                             type: 'loop', id: uuid(), props: { iterations: 6, color: 'gray' },
                             children: [
-                                { type: 'timer', id: uuid(), props: { duration: 7, label: 'Hang', color: 'red', customMetrics: [{ name: '附加重量', type: 'number' }] } },
-                                { type: 'timer', id: uuid(), props: { duration: 3, label: 'Rest', color: 'green', skipOnLast: true } }
+                                { type: 'timer', id: uuid(), props: { duration: 7, label: '懸掛', color: 'red', customMetrics: [{ name: '重量', type: 'number' }] } },
+                                { type: 'timer', id: uuid(), props: { duration: 3, label: '休息', color: 'green', skipOnLast: true } }
                             ]
                         },
-                        { type: 'timer', id: uuid(), props: { duration: 180, label: 'Rest (Set)', color: 'green', skipOnLast: true } }
+                        { type: 'timer', id: uuid(), props: { duration: 180, label: '組間休息', color: 'green', skipOnLast: true } }
                     ]
                 }
             ];
         } else if (type === 'pullups') {
             // 例子 3：上肢體能與核心
             // 處理狀況：區分「廣義體能累積」與「專項動作進度」
-            title = "Pull-ups & Core (上肢體能)";
+            title = "上肢與核心";
             tags = ['體能', '上肢力量'];
             blocks = [
-                { type: 'timer', id: uuid(), props: { duration: 10, label: 'Prepare', color: 'amber' } },
+                { type: 'timer', id: uuid(), props: { duration: 10, label: '準備', color: 'amber' } },
                 {
                     type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' },
                     children: [
-                        { type: 'reps', id: uuid(), props: { count: 5, duration: 30, label: 'Pull-ups', color: 'blue', customMetrics: [{ name: '引體次數', type: 'number' }, { name: '負重重量', type: 'number' }] } },
-                        { type: 'timer', id: uuid(), props: { duration: 20, label: 'L-Sit', color: 'orange', customMetrics: [{ name: '核心支撐秒數', type: 'number' }] } },
-                        { type: 'timer', id: uuid(), props: { duration: 90, label: 'Rest', color: 'green', skipOnLast: true } }
+                        { type: 'reps', id: uuid(), props: { count: 5, duration: 30, label: '引體向上', color: 'blue', customMetrics: [{ name: '引體次數', type: 'number' }, { name: '重量', type: 'number' }] } },
+                        { type: 'timer', id: uuid(), props: { duration: 20, label: 'L-Sit', color: 'orange', customMetrics: [{ name: '核心秒數', type: 'number' }] } },
+                        { type: 'timer', id: uuid(), props: { duration: 90, label: '休息', color: 'green', skipOnLast: true } }
                     ]
                 }
             ];

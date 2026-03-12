@@ -13,7 +13,7 @@ const analyticsManager = {
         } else {
             // 加入 timeRange 屬性
             this.configs = [
-                { sourceType: 'routine', targetItem: 'Max Hangs', metric: '附加重量', aggregation: 'max', timeRange: 'all' },
+                { sourceType: 'routine', targetItem: '最大懸垂', metric: '附加重量', aggregation: 'max', timeRange: 'all' },
                 { sourceType: 'tag', targetItem: '指力', metric: 'volume_time', aggregation: 'sum', timeRange: '7d' },
                 null
             ];
@@ -435,8 +435,8 @@ const analyticsUI = {
         const metricSelect = document.getElementById('pr-metric');
 
         let html = `
-            <option value="volume_time">總時數 (Time)</option>
-            <option value="volume_reps">總次數 (Count)</option>
+            <option value="volume_time">總時數</option>
+            <option value="volume_reps">總次數</option>
             <option disabled>── 自訂追蹤項目 ──</option>
         `;
 
@@ -455,7 +455,7 @@ const analyticsUI = {
                     rec.executionLogs.forEach(log => {
                         if (log.actuals) {
                             Object.keys(log.actuals).forEach(k => {
-                                if (k !== '次數' && k !== '秒數') customMetricsSet.add(k);
+                                if (k !== '次數' && k !== '秒數' && k !== 'isFailure') customMetricsSet.add(k);
                             });
                         }
                     });
