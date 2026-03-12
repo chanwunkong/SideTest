@@ -3,7 +3,7 @@
 const bleManager = {
     MANUFACTURER_ID: 256,
     WEIGHT_OFFSET: 10,
-    TIMEOUT_SECONDS: 4,        // 【修改這裡】從 10 秒縮短為 4 秒
+    TIMEOUT_SECONDS: 10,       // 斷線超時判定 (10秒)
     VERIFY_TIMEOUT_MS: 3000,   // 自動連線驗證時間 (3秒)
 
     connectedDevice: null,
