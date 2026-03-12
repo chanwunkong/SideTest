@@ -3,7 +3,7 @@
 const bleManager = {
     MANUFACTURER_ID: 256,
     WEIGHT_OFFSET: 10,
-    TIMEOUT_SECONDS: 10,       // 斷線超時判定 (10秒)
+    TIMEOUT_SECONDS: 4,        // 【修改這裡】從 10 秒縮短為 4 秒
     VERIFY_TIMEOUT_MS: 3000,   // 自動連線驗證時間 (3秒)
 
     connectedDevice: null,
@@ -155,15 +155,16 @@ const bleManager = {
     },
 
     // 控制 UI 狀態
+    // 控制 UI 狀態
     updateButtonUI(state) {
         const btn = document.getElementById('btn-ble-toggle');
         if (!btn) return;
 
-        // 清除所有狀態 class
+        // 清除所有狀態 class (改為標準 Tailwind 類別)
         btn.classList.remove(
             'bg-white/10', 'text-white/50',
             'bg-yellow-500/20', 'text-yellow-400', 'animate-pulse',
-            'bg-blue-600', 'text-white', 'shadow-[0_0_15px_rgba(37,99,235,0.5)]'
+            'bg-blue-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-400'
         );
 
         if (state === 'disconnected') {
@@ -171,7 +172,8 @@ const bleManager = {
         } else if (state === 'connecting') {
             btn.classList.add('bg-yellow-500/20', 'text-yellow-400', 'animate-pulse');
         } else if (state === 'connected') {
-            btn.classList.add('bg-blue-600', 'text-white', 'shadow-[0_0_15px_rgba(37,99,235,0.5)]');
+            // 改用標準類別，避免主執行緒卡頓導致變色延遲
+            btn.classList.add('bg-blue-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-400');
         }
     },
 
