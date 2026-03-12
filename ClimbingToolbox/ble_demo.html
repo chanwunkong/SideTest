@@ -4,313 +4,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>指力發力率監測系統 V14.2 (進位累加版)</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>WH-C06 實時測力計與圖表</title>
     <style>
         body {
-            background-color: #121212;
-            color: #e0e0e0;
-            font-family: sans-serif;
-            padding: 20px;
-            line-height: 1.5;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .instruction-panel {
-            background-color: #1e1e1e;
-            border-left: 4px solid #00bcd4;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-        }
-
-        .instruction-panel h3 {
-            margin-top: 0;
-            color: #00bcd4;
-            font-size: 16px;
-        }
-
-        .controls {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            flex-direction: column;
             align-items: center;
-        }
-
-        button {
-            padding: 12px 20px;
-            font-size: 16px;
-            border: none;
-            cursor: pointer;
-            color: #fff;
-            background-color: #4CAF50;
-            border-radius: 6px;
-            font-weight: bold;
-        }
-
-        button:disabled {
-            background-color: #444;
-            color: #777;
-            cursor: not-allowed;
-        }
-
-        #btn-stop {
-            background-color: #f44336;
-        }
-
-        #btn-reset {
-            background-color: #FF9800;
-        }
-
-        .dashboard {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .data-box {
-            background-color: #1e1e1e;
+            margin: 0;
             padding: 20px;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+        }
+
+        .warning-box {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 16px 20px;
             border-radius: 8px;
-            text-align: center;
-            border: 1px solid #333;
+            border: 1px solid #ffeeba;
+            max-width: 600px;
+            width: 100%;
+            margin-bottom: 24px;
+            line-height: 1.5;
+            box-sizing: border-box;
         }
 
-        .main-box {
-            grid-column: span 2;
-            background-color: #1a237e;
-            border-color: #3f51b5;
+        .warning-box h2 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
         }
 
-        .data-label {
-            font-size: 14px;
-            color: #aaa;
-            margin-bottom: 8px;
+        .warning-box ol {
+            margin: 0;
+            padding-left: 20px;
         }
 
-        .data-value {
-            font-size: 28px;
+        .code-snippet {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
             font-family: monospace;
-            color: #fff;
+            word-break: break-all;
         }
 
-        .main-value {
-            font-size: 72px;
-            color: #00E676;
-            text-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
+        .copy-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        .copy-btn:hover {
+            background-color: #5a6268;
+        }
+
+        .card {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            width: 500px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0 0 8px 0;
+            font-weight: 600;
+        }
+
+        .status {
+            font-size: 14px;
+            color: #86868b;
+            margin-bottom: 16px;
+            min-height: 20px;
+        }
+
+        .weight-container {
+            margin: 20px 0;
+        }
+
+        .weight {
+            font-size: 64px;
+            font-weight: 700;
+            color: #007aff;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .unit {
+            font-size: 24px;
+            font-weight: 500;
+            color: #86868b;
         }
 
         canvas {
-            background-color: #1e1e1e;
-            border-radius: 8px;
-            padding: 10px;
-            border: 1px solid #333;
-            height: 400px;
             width: 100%;
+            height: 200px;
+            background-color: #fafafa;
+            border: 1px solid #e5e5ea;
+            border-radius: 8px;
+            margin-bottom: 24px;
         }
 
-        #status-text {
-            margin-left: auto;
-            color: #aaa;
+        .action-btn {
+            background-color: #007aff;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #0063cc;
+        }
+
+        .action-btn:disabled {
+            background-color: #d1d1d6;
+            cursor: not-allowed;
+            color: #86868b;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="container">
-        <div class="instruction-panel">
-            <h3>512 累加修正模式</h3>
-            <p>系統將偵測每 512 單位（5.12kg）的數據翻轉並自動累加進位，解決硬體標記位干擾問題。</p>
+    <div class="warning-box" id="warning-box">
+        <h2>環境與設定要求</h2>
+        <ol>
+            <li>瀏覽器：僅限 <strong>Google Chrome</strong>。</li>
+            <li>功能啟用：請複製下方網址至網址列，將該選項設為 <strong>Enabled</strong> 並重新啟動瀏覽器。<br>
+                <span class="code-snippet"
+                    id="flag-url">chrome://flags/#enable-experimental-web-platform-features</span>
+                <button class="copy-btn" onclick="copyUrl()">複製</button>
+            </li>
+        </ol>
+    </div>
+
+    <div class="card">
+        <h1>WH-C06 即時數據與圖表</h1>
+        <div id="status" class="status">等待連接設備...</div>
+
+        <div class="weight-container">
+            <span id="weight" class="weight">0.00</span>
+            <span id="unit" class="unit">kg</span>
         </div>
 
-        <div class="controls">
-            <button id="btn-scan">連線設備</button>
-            <button id="btn-stop" disabled>斷線</button>
-            <button id="btn-reset" disabled>歸零 / 重置峰值</button>
-            <span id="status-text">狀態: 未連線</span>
-        </div>
+        <canvas id="live-chart" width="500" height="200"></canvas>
 
-        <div class="dashboard">
-            <div class="data-box main-box">
-                <div class="data-label">即時淨拉力 (Kg)</div>
-                <div id="val-kg" class="data-value main-value">0.00</div>
-            </div>
-            <div class="data-box">
-                <div class="data-label">累加原始值 (Total Raw)</div>
-                <div id="val-raw" class="data-value" style="color:#aaa;">0</div>
-            </div>
-            <div class="data-box">
-                <div class="data-label">峰值紀錄 (Max Kg)</div>
-                <div id="val-max" class="data-value" style="color:#FF9800;">0.00</div>
-            </div>
-        </div>
-
-        <div><canvas id="chart"></canvas></div>
+        <button id="connect-btn" class="action-btn">連接藍牙</button>
     </div>
 
     <script>
-        const TARGET_COMPANY_ID = 0x0100;
-        const DEFAULT_RATIO = 0.01;
-        const NOISE_BUFFER = 0.15;
-
-        let bluetoothDevice;
-        let tareWeightKg = null;
-        let maxWeight = 0;
-        let wakeLock = null;
-        let isChartUpdatePending = false;
-
-        // 累加邏輯變數
-        let last9BitVal = null;
-        let rolloverCount = 0;
-
-        const btnScan = document.getElementById('btn-scan');
-        const btnStop = document.getElementById('btn-stop');
-        const btnReset = document.getElementById('btn-reset');
-        const statusText = document.getElementById('status-text');
-
-        const ctx = document.getElementById('chart').getContext('2d');
-        const chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: Array(100).fill(''),
-                datasets: [{
-                    data: Array(100).fill(0),
-                    borderColor: '#00E676',
-                    backgroundColor: 'rgba(0, 230, 118, 0.1)',
-                    borderWidth: 3,
-                    pointRadius: 0,
-                    fill: true,
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                scales: { y: { beginAtZero: true, grid: { color: '#333' } }, x: { display: false } },
-                plugins: { legend: { display: false } }
-            }
-        });
-
-        async function requestWakeLock() {
-            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) { console.error(err); }
+        function copyUrl() {
+            const urlText = document.getElementById('flag-url').innerText;
+            navigator.clipboard.writeText(urlText).then(() => {
+                alert('已複製網址，請貼上至新分頁執行設定。');
+            }).catch(err => console.error('複製失敗:', err));
         }
 
-        async function startScan() {
+        const connectBtn = document.getElementById('connect-btn');
+        const statusEl = document.getElementById('status');
+        const weightEl = document.getElementById('weight');
+        const unitEl = document.getElementById('unit');
+
+        // 圖表相關設定
+        const canvas = document.getElementById('live-chart');
+        const ctx = canvas.getContext('2d');
+        const chartData = [];
+        const MAX_DATA_POINTS = 100; // 圖表顯示的最大資料筆數
+
+        const WEIGHT_OFFSET = 0;
+        const STABLE_OFFSET = 2;
+        const SCALE_FACTOR = 100;
+
+        connectBtn.addEventListener('click', async () => {
+            if (!navigator.bluetooth) {
+                statusEl.innerText = '錯誤：瀏覽器不支援 Web Bluetooth';
+                return;
+            }
+
             try {
-                statusText.textContent = '狀態: 連線中...';
-                bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalManufacturerData: [TARGET_COMPANY_ID]
+                statusEl.innerText = '正在掃描設備...';
+
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'Weiheng' }, { namePrefix: 'WH-C06' }],
+                    optionalServices: []
                 });
 
-                bluetoothDevice.addEventListener('advertisementreceived', processData);
-                await bluetoothDevice.watchAdvertisements();
-
-                statusText.textContent = `狀態: 已連線`;
-                btnScan.disabled = true;
-                btnStop.disabled = false;
-                btnReset.disabled = false;
-                await requestWakeLock();
-            } catch (error) { statusText.textContent = `連線失敗`; }
-        }
-
-        function processData(event) {
-            if (!event.manufacturerData || !event.manufacturerData.has(TARGET_COMPANY_ID)) return;
-
-            const buffer = new Uint8Array(event.manufacturerData.get(TARGET_COMPANY_ID).buffer);
-            if (buffer.length < 17) return;
-
-            // 提取 9 位元數據 (0-511)
-            // b11 是全部 8 位元，b12 取最低位元作為第 9 位
-            let current9Bit = ((buffer[12] & 0x01) << 8) | buffer[11];
-
-            // 偵測翻轉 (Rollover Detection)
-            if (last9BitVal !== null) {
-                // 如果數值突然從大變小（例如 500 跳到 10），視為正向進位
-                if (current9Bit < 100 && last9BitVal > 412) {
-                    rolloverCount++;
+                if (!device.watchAdvertisements) {
+                    throw new Error('未啟用 watchAdvertisements 功能，請參考上方指示設定。');
                 }
-                // 如果數值突然從小變大（例如 10 跳到 500），視為負向退位（回彈）
-                else if (current9Bit > 412 && last9BitVal < 100) {
-                    rolloverCount--;
-                }
+
+                device.addEventListener('advertisementreceived', handleAdvertisement);
+                await device.watchAdvertisements();
+
+                statusEl.innerText = `已連接：${device.name}`;
+                connectBtn.disabled = true;
+                connectBtn.innerText = '接收數據中';
+
+            } catch (error) {
+                console.error('連線錯誤:', error);
+                statusEl.innerText = `失敗：${error.message}`;
             }
-            last9BitVal = current9Bit;
-
-            // 重構總重量原始值
-            let totalRaw = (rolloverCount * 512) + current9Bit;
-            document.getElementById('val-raw').textContent = totalRaw;
-
-            let absoluteKg = totalRaw * DEFAULT_RATIO;
-
-            // 自動歸零
-            if (tareWeightKg === null) {
-                tareWeightKg = absoluteKg;
-            }
-
-            let currentKg = absoluteKg - tareWeightKg;
-
-            if (Math.abs(currentKg) <= NOISE_BUFFER) currentKg = 0;
-            if (currentKg < 0) currentKg = 0;
-
-            if (currentKg > maxWeight) {
-                maxWeight = currentKg;
-                document.getElementById('val-max').textContent = maxWeight.toFixed(2);
-            }
-
-            document.getElementById('val-kg').textContent = currentKg.toFixed(2);
-
-            const dataArr = chart.data.datasets[0].data;
-            dataArr.push(currentKg);
-            dataArr.shift();
-
-            if (!isChartUpdatePending) {
-                isChartUpdatePending = true;
-                requestAnimationFrame(() => {
-                    chart.update();
-                    isChartUpdatePending = false;
-                });
-            }
-        }
-
-        async function stopScan() {
-            if (bluetoothDevice) {
-                bluetoothDevice.removeEventListener('advertisementreceived', processData);
-                try { await bluetoothDevice.unwatchAdvertisements(); } catch (e) { }
-            }
-            if (wakeLock !== null) { await wakeLock.release(); wakeLock = null; }
-
-            statusText.textContent = '狀態: 已斷線';
-            btnScan.disabled = false;
-            btnStop.disabled = true;
-            btnReset.disabled = true;
-            tareWeightKg = null;
-            last9BitVal = null;
-            rolloverCount = 0;
-        }
-
-        document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible') await requestWakeLock();
         });
 
-        btnReset.addEventListener('click', () => {
-            const rawVal = parseInt(document.getElementById('val-raw').textContent) || 0;
-            tareWeightKg = rawVal * DEFAULT_RATIO;
-            maxWeight = 0;
-            document.getElementById('val-max').textContent = "0.00";
-        });
+        function handleAdvertisement(event) {
+            for (const [manufacturerId, dataView] of event.manufacturerData.entries()) {
+                if (dataView.byteLength >= 3) {
+                    const rawWeight = (dataView.getUint8(WEIGHT_OFFSET) << 8) | dataView.getUint8(WEIGHT_OFFSET + 1);
+                    const weightValue = parseFloat((rawWeight / SCALE_FACTOR).toFixed(2));
 
-        btnScan.addEventListener('click', startScan);
-        btnStop.addEventListener('click', stopScan);
+                    const statusByte = dataView.getUint8(STABLE_OFFSET);
+                    const isStable = ((statusByte & 0xf0) >> 4) === 1;
+                    const unitCode = statusByte & 0x0f;
+                    const unitString = unitCode === 0 ? "kg" : "lb";
+
+                    // 更新文字顯示
+                    weightEl.innerText = weightValue.toFixed(2);
+                    unitEl.innerText = unitString;
+                    weightEl.style.color = isStable ? '#34c759' : '#007aff';
+
+                    // 更新圖表資料
+                    updateChart(weightValue);
+                }
+            }
+        }
+
+        function updateChart(weight) {
+            chartData.push(weight);
+            if (chartData.length > MAX_DATA_POINTS) {
+                chartData.shift();
+            }
+            drawChart();
+        }
+
+        function drawChart() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (chartData.length < 2) return;
+
+            // 計算動態 Y 軸比例，最小基準設為 10
+            const maxWeight = Math.max(...chartData, 10);
+            const stepX = canvas.width / (MAX_DATA_POINTS - 1);
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#007aff';
+            ctx.lineWidth = 3;
+            ctx.lineJoin = 'round';
+
+            chartData.forEach((weight, index) => {
+                const x = index * stepX;
+                // 將數值映射至畫布高度，預留 10% 頂部邊距
+                const y = canvas.height - ((weight / maxWeight) * canvas.height * 0.9);
+
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+        }
+
+        // 初始化空圖表
+        drawChart();
     </script>
-
 </body>
 
 </html>

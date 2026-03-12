@@ -161,7 +161,7 @@ const store = {
                     type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' },
                     children: [
                         { type: 'reps', id: uuid(), props: { count: 5, duration: 30, label: '引體向上', color: 'blue', customMetrics: [{ name: '引體次數', type: 'number' }, { name: '重量', type: 'number' }] } },
-                        { type: 'timer', id: uuid(), props: { duration: 20, label: 'L-Sit', color: 'orange', customMetrics: [{ name: '核心秒數', type: 'number' }] } },
+                        { type: 'timer', id: uuid(), props: { duration: 20, label: 'L型支撐', color: 'orange', customMetrics: [{ name: '核心秒數', type: 'number' }] } },
                         { type: 'timer', id: uuid(), props: { duration: 90, label: '休息', color: 'green', skipOnLast: true } }
                     ]
                 }
