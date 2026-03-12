@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WH-C06 / IF_B7 實時測力計 (原生源碼解析版)</title>
+    <title>實時測力計</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -17,6 +17,52 @@
             color: #1d1d1f;
         }
 
+        .warning-box {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 16px 20px;
+            border-radius: 8px;
+            border: 1px solid #ffeeba;
+            max-width: 600px;
+            width: 100%;
+            margin-bottom: 24px;
+            line-height: 1.5;
+            box-sizing: border-box;
+        }
+
+        .warning-box h2 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+
+        .warning-box ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .code-snippet {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        .copy-btn:hover {
+            background-color: #5a6268;
+        }
+
         .card {
             background: #ffffff;
             padding: 40px;
@@ -26,6 +72,12 @@
             width: 500px;
             max-width: 100%;
             box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0 0 8px 0;
+            font-weight: 600;
         }
 
         .status {
@@ -75,6 +127,10 @@
             transition: background 0.2s;
         }
 
+        .action-btn:hover {
+            background-color: #0063cc;
+        }
+
         .action-btn:disabled {
             background-color: #d1d1d6;
             cursor: not-allowed;
@@ -85,8 +141,20 @@
 
 <body>
 
+    <div class="warning-box" id="warning-box">
+        <h2>環境與設定要求</h2>
+        <ol>
+            <li>瀏覽器：僅限 <strong>Google Chrome</strong>。</li>
+            <li>功能啟用：請複製下方網址至網址列，將該選項設為 <strong>Enabled</strong> 並重新啟動瀏覽器。<br>
+                <span class="code-snippet"
+                    id="flag-url">chrome://flags/#enable-experimental-web-platform-features</span>
+                <button class="copy-btn" onclick="copyUrl()">複製</button>
+            </li>
+        </ol>
+    </div>
+
     <div class="card">
-        <h1>WH-C06 (IF_B7) 即時數據</h1>
+        <h1>即時數據</h1>
         <div id="status" class="status">等待連接設備...</div>
 
         <div class="weight-container">
@@ -96,18 +164,26 @@
 
         <canvas id="live-chart" width="500" height="200"></canvas>
 
-        <button id="connect-btn" class="action-btn">連接藍牙 (過濾 ID: 256)</button>
+        <button id="connect-btn" class="action-btn">連接藍牙</button>
     </div>
 
     <script>
+        // 複製網址功能
+        function copyUrl() {
+            const urlText = document.getElementById('flag-url').innerText;
+            navigator.clipboard.writeText(urlText).then(() => {
+                alert('已複製網址，請貼上至新分頁執行設定。');
+            }).catch(err => console.error('複製失敗:', err));
+        }
+
         const connectBtn = document.getElementById('connect-btn');
         const statusEl = document.getElementById('status');
         const weightEl = document.getElementById('weight');
         const canvas = document.getElementById('live-chart');
         const ctx = canvas.getContext('2d');
 
-        // --- 提取自源碼的關鍵常數 ---
-        const MANUFACTURER_ID = 256; // 0x0100
+        // 設備協定常數
+        const MANUFACTURER_ID = 256;
         const WEIGHT_OFFSET = 10;
         const TIMEOUT_SECONDS = 10;
 
@@ -117,10 +193,14 @@
         let connectedDevice = null;
 
         connectBtn.addEventListener('click', async () => {
+            if (!navigator.bluetooth) {
+                statusEl.innerText = '錯誤：瀏覽器不支援 Web Bluetooth';
+                return;
+            }
+
             try {
                 statusEl.innerText = '正在掃描設備...';
 
-                // 1. 完全依照源碼的過濾邏輯：只找 Manufacturer ID 為 256 的設備，忽略名稱差異
                 connectedDevice = await navigator.bluetooth.requestDevice({
                     filters: [{
                         manufacturerData: [{ companyIdentifier: MANUFACTURER_ID }]
@@ -129,14 +209,13 @@
                 });
 
                 if (!connectedDevice.watchAdvertisements) {
-                    throw new Error('未啟用 watchAdvertisements 功能');
+                    throw new Error('未啟用 watchAdvertisements 功能，請參考上方指示設定。');
                 }
 
-                // 2. 註冊監聽與啟動
                 connectedDevice.addEventListener('advertisementreceived', handleAdvertisement);
                 await connectedDevice.watchAdvertisements();
 
-                statusEl.innerText = `已連接：${connectedDevice.name || 'IF_B7 設備'}`;
+                statusEl.innerText = `已連接：${connectedDevice.name || '測力計'}`;
                 connectBtn.disabled = true;
                 connectBtn.innerText = '接收數據中';
 
@@ -149,36 +228,27 @@
         });
 
         function handleAdvertisement(event) {
-            // 3. 依照源碼邏輯：直接抓取 ID 256 的 Manufacturer Data
             const data = event.manufacturerData.get(MANUFACTURER_ID);
 
             if (data && data.byteLength >= WEIGHT_OFFSET + 2) {
-                // 重置斷線計時器
                 resetAdvertisementTimeout();
 
-                // 4. 依照源碼邏輯：從 Offset 10 開始取 2 個 Byte 組合，並除以 100
                 const rawWeight = (data.getUint8(WEIGHT_OFFSET) << 8) | data.getUint8(WEIGHT_OFFSET + 1);
                 let currentMass = rawWeight / 100;
 
-                // 修正負數顯示 (源碼有做 Math.max(-1000, data) 處理)
                 currentMass = Math.max(-1000, currentMass);
 
-                // 更新文字 UI
                 weightEl.innerText = currentMass.toFixed(2);
-
-                // 更新圖表
                 updateChart(currentMass);
             }
         }
 
-        // --- 源碼中的 10 秒自動斷線保護機制 ---
         function resetAdvertisementTimeout() {
             if (advertisementTimeout) {
                 clearTimeout(advertisementTimeout);
             }
             advertisementTimeout = setTimeout(() => {
                 statusEl.innerText = '設備已離線 (超過 10 秒未收到數據)';
-                console.error(`超過 ${TIMEOUT_SECONDS} 秒未收到廣播，停止追蹤..`);
                 if (connectedDevice) {
                     connectedDevice.removeEventListener('advertisementreceived', handleAdvertisement);
                 }
@@ -187,7 +257,6 @@
             }, TIMEOUT_SECONDS * 1000);
         }
 
-        // --- 圖表繪製邏輯 ---
         function updateChart(weight) {
             chartData.push(weight);
             if (chartData.length > MAX_DATA_POINTS) chartData.shift();
