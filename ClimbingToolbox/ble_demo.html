@@ -200,8 +200,7 @@
                 statusEl.innerText = '正在掃描設備...';
 
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ namePrefix: 'Weiheng' }, { namePrefix: 'WH-C06' }],
-                    optionalServices: []
+                    acceptAllDevices: true
                 });
 
                 if (!device.watchAdvertisements) {
@@ -211,7 +210,7 @@
                 device.addEventListener('advertisementreceived', handleAdvertisement);
                 await device.watchAdvertisements();
 
-                statusEl.innerText = `已連接：${device.name}`;
+                statusEl.innerText = `已連接：${device.name || '未知裝置'}`;
                 connectBtn.disabled = true;
                 connectBtn.innerText = '接收數據中';
 
