@@ -226,10 +226,17 @@ const timer = {
     },
 
     runStep() {
+        // 自動關閉並儲存目前的紀錄面板
+        const panel = document.getElementById('quick-log-panel');
+        // 如果面板目前不是 hidden (代表使用者還在看或還沒填完)
+        if (panel && !panel.classList.contains('hidden')) {
+            console.log("偵測到動作切換，自動儲存並收起面板...");
+            this.saveLog(); // 呼叫 saveLog 會讀取螢幕數值、存入暫存並執行 closeLogPanel()
+        }
+
         const step = this.queue[this.currentIndex];
         if (!step) return this.stop();
-
-        // 👉 修改這裡：偵測是否為休息或結束區塊 (加上 '休息' 判斷)
+        // 偵測是否為休息或結束區塊 (加上 '休息' 判斷)
         const isRest = step.props.label && (step.props.label.toLowerCase().includes('rest') || step.props.label.includes('休息'));
         const isFinish = step.type === 'finish';
 
@@ -240,7 +247,7 @@ const timer = {
 
             if (prevStep.type === 'timer' || prevStep.type === 'reps') {
                 const label = (prevStep.props.label || '').toLowerCase();
-                // 👉 修改這裡：加上 '準備' 判斷
+                // 加上 '準備' 判斷
                 if (!label.includes('prepare') && !label.includes('準備')) {
                     const alreadyLogged = this.currentLogs.find(l => l.queueIndex === prevIndex);
                     if (!alreadyLogged) {
