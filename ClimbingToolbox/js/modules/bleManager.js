@@ -153,13 +153,22 @@ const bleManager = {
         }
     },
 
-    // 藍牙目標面板控制邏輯
+    // ▼ 將歷史數值快速填入輸入框 ▼
+    applyHistoryTarget(val) {
+        const input = document.getElementById('ble-target-input');
+        if (input) input.value = val;
+    },
+
     // 藍牙目標面板控制邏輯
     openTargetModal() {
         const modal = document.getElementById('modal-ble-target');
         const sheet = document.getElementById('ble-target-sheet');
         const input = document.getElementById('ble-target-input');
         const blockNameEl = document.getElementById('ble-target-block-name');
+
+        // 歷史紀錄 DOM
+        const historyContainer = document.getElementById('ble-target-history-container');
+        const historyList = document.getElementById('ble-target-history-list');
 
         let currentTarget = 20;
         let blockName = "未知動作";
@@ -177,14 +186,71 @@ const bleManager = {
         if (blockNameEl) blockNameEl.textContent = `目前動作: ${blockName}`;
         if (input) input.value = currentTarget;
 
+        // ▼ 強化版：不限當前區塊，抓取整個課表的所有數字指標 ▼
+        if (historyContainer && historyList) {
+            historyList.innerHTML = '';
+            let hasHistory = false;
+            let availableHistory = {}; // 暫存所有找到的指標 { "動作名-指標名": 數值 }
+
+            if (typeof timer !== 'undefined' && timer.currentRoutineTitle) {
+                // 1. 先抓取「上一次練這個課表」的所有紀錄
+                if (typeof recordManager !== 'undefined') {
+                    const records = recordManager.getAllRecords();
+                    // 找到該課表最新的一筆完成紀錄
+                    const lastRecord = [...records].reverse().find(r => r.routineTitle === timer.currentRoutineTitle && r.executionLogs);
+                    if (lastRecord) {
+                        lastRecord.executionLogs.forEach(log => {
+                            if (log.actuals) {
+                                Object.entries(log.actuals).forEach(([key, val]) => {
+                                    const numVal = Number(val);
+                                    if (key !== 'isFailure' && key !== '次數' && key !== '秒數' && !isNaN(numVal)) {
+                                        availableHistory[`${log.label}-${key}`] = numVal;
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+
+                // 2. 優先覆蓋：抓取「本次訓練稍早」已經填寫的紀錄
+                if (timer.sessionValueMap) {
+                    Object.entries(timer.sessionValueMap).forEach(([bLabel, actuals]) => {
+                        Object.entries(actuals).forEach(([key, val]) => {
+                            const numVal = Number(val);
+                            if (key !== 'isFailure' && key !== '次數' && key !== '秒數' && !isNaN(numVal)) {
+                                availableHistory[`${bLabel}-${key}`] = numVal;
+                            }
+                        });
+                    });
+                }
+            }
+
+            // 將收集到的歷史指標轉換成按鈕
+            Object.entries(availableHistory).forEach(([displayLabel, val]) => {
+                hasHistory = true;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                // 加入 whitespace-nowrap 避免按鈕文字被擠到換行
+                btn.className = 'px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-lg border border-gray-600 transition-colors flex items-center gap-1.5 active:scale-95 whitespace-nowrap';
+
+                // 將 "動作名-指標名" 拆開顯示，增加易讀性
+                const parts = displayLabel.split('-');
+                btn.innerHTML = `<span class="text-gray-400">${parts[0]} <span class="text-gray-500 mx-0.5">|</span> ${parts[1]}</span> <span>${val} kg</span>`;
+                btn.onclick = () => this.applyHistoryTarget(val);
+
+                historyList.appendChild(btn);
+            });
+
+            if (hasHistory) {
+                historyContainer.classList.remove('hidden');
+            } else {
+                historyContainer.classList.add('hidden');
+            }
+        }
+
         if (modal) {
-            // 1. 強制顯示 (拔除 hidden)
             modal.classList.remove('hidden');
-
-            // 2. 強制瀏覽器重繪 (Hack技巧，確保 transition 動畫生效)
             void modal.offsetWidth;
-
-            // 3. 改變透明度與縮放
             modal.classList.remove('opacity-0');
             modal.classList.add('opacity-100');
             if (sheet) {
