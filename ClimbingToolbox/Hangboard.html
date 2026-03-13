@@ -219,6 +219,10 @@
                     class="shrink-0 bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-orange-100 transition-colors dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800">
                     💪 上肢與核心
                 </button>
+                <button onclick="store.addTemplate('squat')"
+                    class="shrink-0 bg-teal-50 text-teal-700 border border-teal-200 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-teal-100 transition-colors dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800">
+                    🏋️ 深蹲 5x5
+                </button>
             </div>
 
             <div id="active-session-container" class="px-4 mt-2"></div>
@@ -617,8 +621,6 @@
         </div>
     </div>
 
-
-
     <div id="modal-record-editor"
         class="modal fixed inset-0 z-[80] bg-gray-100 flex-col hidden dark:bg-gray-900 transition-opacity">
         <div
@@ -884,9 +886,18 @@
 
                     <div class="w-[65%] flex flex-col gap-1">
                         <div
-                            class="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-tighter px-1">
+                            class="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-tighter px-1 items-end mb-1">
                             <span>太輕</span>
-                            <span class="text-green-400">目標</span>
+                            <button type="button"
+                                onclick="event.preventDefault(); event.stopPropagation(); bleManager.openTargetModal();"
+                                class="relative text-green-400 bg-green-500/20 px-3 py-1 rounded border border-green-500/30 active:scale-95 transition-all flex items-center gap-1 z-50 pointer-events-auto cursor-pointer">
+                                目標: <span id="ble-target-display" class="font-bold text-base">20</span>kg
+                                <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                    </path>
+                                </svg>
+                            </button>
                             <span>太重</span>
                         </div>
                         <div
@@ -1034,6 +1045,35 @@
                     class="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-bold text-gray-300 transition-colors">取消</button>
                 <button onclick="bleManager.requestNewDevice()"
                     class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white transition-colors">重新配對</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 藍牙目標面板 -->
+    <div id="modal-ble-target" style="z-index: 99999;"
+        class="fixed inset-0 bg-black/70 flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-gray-800 border border-gray-600 rounded-3xl p-6 shadow-2xl w-11/12 max-w-xs transform scale-95 transition-transform duration-200"
+            id="ble-target-sheet">
+            <h3 class="text-white text-center font-bold text-lg mb-1">設定目標重量</h3>
+            <div class="text-center text-gray-400 text-xs mb-6 font-bold" id="ble-target-block-name">目前動作: 未知</div>
+
+            <div class="flex items-center justify-between bg-gray-900 rounded-2xl p-4 mb-6 border border-gray-700">
+                <button type="button" onclick="bleManager.adjustTarget(-1)"
+                    class="w-12 h-12 bg-gray-700 hover:bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-all">-</button>
+                <div class="flex items-baseline gap-1">
+                    <input type="number" id="ble-target-input" step="any"
+                        class="w-20 bg-transparent text-white text-4xl font-black text-center outline-none p-0 tabular-nums">
+                    <span class="text-gray-400 font-bold">kg</span>
+                </div>
+                <button type="button" onclick="bleManager.adjustTarget(1)"
+                    class="w-12 h-12 bg-gray-700 hover:bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-all">+</button>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="bleManager.closeTargetModal()"
+                    class="flex-1 py-3 bg-gray-700 text-gray-300 rounded-xl font-bold active:scale-95 transition-transform">取消</button>
+                <button type="button" onclick="bleManager.saveTargetModal()"
+                    class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold active:scale-95 transition-transform shadow-lg shadow-green-900/50">確認設定</button>
             </div>
         </div>
     </div>

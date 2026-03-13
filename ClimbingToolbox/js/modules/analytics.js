@@ -372,6 +372,24 @@ const analyticsManager = {
 
 const analyticsUI = {
     editingIndex: null,
+    currentOperator: 'OR',
+
+    // 處理按鈕切換視覺與狀態 ▼
+    setOperator(op) {
+        this.currentOperator = op;
+        const btnOr = document.getElementById('pr-op-or');
+        const btnAnd = document.getElementById('pr-op-and');
+
+        if (!btnOr || !btnAnd) return;
+
+        if (op === 'OR') {
+            btnOr.className = "flex-1 py-1.5 text-[10px] font-bold rounded-md bg-white shadow-sm text-blue-600 transition-all";
+            btnAnd.className = "flex-1 py-1.5 text-[10px] font-bold rounded-md text-gray-400 border border-transparent transition-all";
+        } else {
+            btnAnd.className = "flex-1 py-1.5 text-[10px] font-bold rounded-md bg-white shadow-sm text-blue-600 transition-all";
+            btnOr.className = "flex-1 py-1.5 text-[10px] font-bold rounded-md text-gray-400 border border-transparent transition-all";
+        }
+    },
 
     openPREditor(index) {
         this.editingIndex = index;

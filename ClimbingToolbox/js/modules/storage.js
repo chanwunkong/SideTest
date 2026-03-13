@@ -115,8 +115,6 @@ const store = {
         let tags = [];
 
         if (type === 'max') {
-            // 例子 1：手指極限力量
-            // 處理狀況：區分「全身力量」與「手指專項力量」
             title = "最大指力";
             tags = ['最大肌力', '手指'];
             blocks = [
@@ -130,8 +128,6 @@ const store = {
                 }
             ];
         } else if (type === 'repeaters') {
-            // 例子 2：手指耐力訓練
-            // 處理狀況：區分「手指耐力」與「全身攀爬耐力」
             title = "7/3手指耐力";
             tags = ['耐力', '手指'];
             blocks = [
@@ -151,8 +147,6 @@ const store = {
                 }
             ];
         } else if (type === 'pullups') {
-            // 例子 3：上肢體能與核心
-            // 處理狀況：區分「廣義體能累積」與「專項動作進度」
             title = "上肢與核心";
             tags = ['體能', '上肢力量'];
             blocks = [
@@ -163,6 +157,26 @@ const store = {
                         { type: 'reps', id: uuid(), props: { count: 5, duration: 30, label: '引體向上', color: 'blue', customMetrics: [{ name: '引體次數', type: 'number' }, { name: '重量', type: 'number' }] } },
                         { type: 'timer', id: uuid(), props: { duration: 20, label: 'L型支撐', color: 'orange', customMetrics: [{ name: '核心秒數', type: 'number' }] } },
                         { type: 'timer', id: uuid(), props: { duration: 90, label: '休息', color: 'green', skipOnLast: true } }
+                    ]
+                }
+            ];
+        } else if (type === 'squat') {
+            title = "深蹲 5x5";
+            tags = ['體能', '下肢力量'];
+            blocks = [
+                { type: 'timer', id: uuid(), props: { duration: 10, label: '準備', color: 'amber' } },
+                {
+                    type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' },
+                    children: [
+                        { type: 'reps', id: uuid(), props: { count: 5, duration: 60, label: '深蹲 (熱身)', color: 'blue', customMetrics: [{ name: '熱身重量', type: 'number' }] } },
+                        { type: 'timer', id: uuid(), props: { duration: 120, label: '休息', color: 'green' } }
+                    ]
+                },
+                {
+                    type: 'loop', id: uuid(), props: { iterations: 5, color: 'gray' },
+                    children: [
+                        { type: 'reps', id: uuid(), props: { count: 5, duration: 60, label: '深蹲 (主項)', color: 'red', customMetrics: [{ name: '深蹲重量', type: 'number' }] } },
+                        { type: 'timer', id: uuid(), props: { duration: 180, label: '休息', color: 'green', skipOnLast: true } }
                     ]
                 }
             ];

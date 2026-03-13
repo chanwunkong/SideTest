@@ -541,29 +541,21 @@ const editor = {
         const el = document.createElement('div');
         const props = data.props || this.getDefaultProps(data.type);
 
-        // 新增 touch-pan-y：明確允許 Y 軸 (上下) 原生滑動
         el.className = `block-item touch-pan-y p-3 mb-2 rounded border bg-white ${this.getBlockClass(data.type, props)}`;
 
         el.dataset.type = data.type;
         el.dataset.id = data.id || uuid();
         el.dataset.props = JSON.stringify(props);
-        // 生成外部跳過按鈕 (僅限 Timer)
-        const isSkip = !!props.skipOnLast;
-        const skipColor = isSkip ? 'text-blue-500 opacity-100' : 'text-gray-400 opacity-40 hover:opacity-100 dark:text-gray-500';
-        const skipButton = data.type === 'timer' ? `
-        <button type="button" class="skip-btn p-2 -mr-2" onclick="editor.toggleSkip('${data.id}', event)" title="最後一趟跳過">
-            <svg class="w-5 h-5 ${skipColor}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
-        </button>
-    ` : '';
+
+        // ▼ 移除原本在此處定義 skipButton 的程式碼區塊 ▼
 
         const header = document.createElement('div');
         header.className = "flex justify-between items-center cursor-pointer w-full";
         header.innerHTML = `
-                    <div class="flex items-center gap-2 pointer-events-none flex-1">
-                        <span class="text-xs font-bold uppercase opacity-60 dark:text-gray-400">${data.type}</span>
-                        <span class="font-bold text-sm block-label dark:text-white">${this.getLabel(data.type, props)}</span>
-                    </div>
-                    ${skipButton}
+                <div class="flex items-center gap-2 pointer-events-none flex-1">
+                    <span class="text-xs font-bold uppercase opacity-60 dark:text-gray-400">${data.type}</span>
+                    <span class="font-bold text-sm block-label dark:text-white">${this.getLabel(data.type, props)}</span>
+                </div>
                 `;
         header.onclick = (e) => {
             e.stopPropagation();
@@ -573,7 +565,6 @@ const editor = {
 
         if (data.type === 'loop') {
             const inner = document.createElement('div');
-            // 加上 min-h-[60px]、虛線邊框與微底色，讓容器有明確的「可拖入物理空間」
             inner.className = "nested-container p-2 mt-2 min-h-[60px] bg-black/5 dark:bg-black/20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600";
             el.appendChild(inner);
             this.initSortable(inner);
@@ -798,7 +789,6 @@ const editor = {
             }
             if (type === 'reps') props.count = Number(document.getElementById('inp-count').value);
 
-            // 將暫存的指標寫回積木屬性
             props.customMetrics = [...this.tempMetrics];
         }
 
@@ -807,13 +797,6 @@ const editor = {
         this.activeBlock.dataset.props = JSON.stringify(props);
         this.activeBlock.className = `block-item p-3 mb-2 rounded border bg-white ${this.getBlockClass(type, props)}`;
         this.activeBlock.querySelector('.block-label').textContent = this.getLabel(type, props);
-
-        const btnSvg = this.activeBlock.querySelector('.skip-btn svg');
-        if (btnSvg) {
-            btnSvg.className = props.skipOnLast
-                ? "w-5 h-5 text-blue-500 opacity-100"
-                : "w-5 h-5 text-gray-400 opacity-40 hover:opacity-100 dark:text-gray-500";
-        }
 
         this.closeProps();
         this.updateTimeline();
