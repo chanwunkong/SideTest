@@ -493,6 +493,8 @@ const analyticsUI = {
         const metric = document.getElementById('pr-metric').value;
         const aggregation = document.getElementById('pr-aggregation').value;
         const timeRange = document.getElementById('pr-time-range').value;
+        const operator = this.currentOperator;
+        analyticsManager.configs[this.editingIndex] = { sourceType, targetItem, metric, aggregation, timeRange, operator };
 
         if (!targetItem) {
             if (typeof showToast === 'function') showToast('請選擇目標項目', 'error');
