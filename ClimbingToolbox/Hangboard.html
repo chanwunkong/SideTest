@@ -853,6 +853,20 @@
                 </div>
             </div>
 
+            <!-- 藍牙圖表 -->
+            <div id="ble-live-container"
+                class="w-full flex flex-col items-center mb-8 hidden transition-opacity duration-300">
+                <div class="flex items-baseline gap-1 mb-2 drop-shadow-md">
+                    <span id="ble-live-weight"
+                        class="text-4xl md:text-5xl font-black text-white tabular-nums tracking-tighter">0.00</span>
+                    <span class="text-lg font-bold text-white/70">kg</span>
+                </div>
+                <div
+                    class="w-full h-24 bg-black/20 rounded-xl overflow-hidden border border-white/10 backdrop-blur-sm p-1">
+                    <canvas id="ble-live-chart" class="w-full h-full"></canvas>
+                </div>
+            </div>
+
             <!-- 視覺進度條 (Visual Progress Bar) -->
             <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden max-w-[200px]">
                 <div id="active-progress-bar" class="h-full bg-white transition-all duration-1000 ease-linear w-full">

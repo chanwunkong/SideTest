@@ -11,6 +11,55 @@ const bleManager = {
     verifyTimeout: null,
     currentWeight: 0,          // 暫存最新重量數據
 
+    // 圖表相關變數
+    MAX_DATA_POINTS: 100,
+    chartData: [],
+    chartCtx: null,
+    boundHandleAdvertisement: null, // 用於正確綁定與移除監聽器
+
+    initChart() {
+        const canvas = document.getElementById('ble-live-chart');
+        if (canvas && !this.chartCtx) {
+            // 根據設備像素比例設定畫布，確保渲染清晰
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            this.chartCtx = canvas.getContext('2d');
+        }
+        this.chartData = [];
+    },
+
+    updateChart(weight) {
+        if (!this.chartCtx) this.initChart();
+        const canvas = document.getElementById('ble-live-chart');
+        if (!canvas || !this.chartCtx) return;
+
+        const ctx = this.chartCtx;
+        this.chartData.push(weight);
+        if (this.chartData.length > this.MAX_DATA_POINTS) this.chartData.shift();
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (this.chartData.length < 2) return;
+
+        // 動態計算 Y 軸範圍 (至少預留 10kg 的視覺空間)
+        const maxWeight = Math.max(...this.chartData, 10);
+        const stepX = canvas.width / (this.MAX_DATA_POINTS - 1);
+
+        ctx.beginPath();
+        // 使用半透明白色以適應計時器各種背景色
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 4;
+        ctx.lineJoin = 'round';
+
+        this.chartData.forEach((w, index) => {
+            const x = index * stepX;
+            // 數值映射至 Y 軸 (底部為 0，留 10% 頂部邊距)
+            const y = canvas.height - ((w / maxWeight) * canvas.height * 0.9);
+            if (index === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+    },
+
     // 切換連線狀態 (按鈕的主要進入點)
     async toggleConnection() {
         if (!navigator.bluetooth) {
@@ -18,25 +67,25 @@ const bleManager = {
             return;
         }
 
-        // 如果已經連線，則執行斷線
         if (this.connectedDevice) {
-            this.disconnect();
+            this.disconnect(true); // 傳入 true 標記為手動斷線
             return;
+        }
+
+        // 確保監聽器參考一致，以便後續精準移除
+        if (!this.boundHandleAdvertisement) {
+            this.boundHandleAdvertisement = this.handleAdvertisement.bind(this);
         }
 
         this.updateButtonUI('connecting');
 
         try {
-            // 1. 取得歷史授權設備清單
             const devices = await navigator.bluetooth.getDevices();
 
             if (devices && devices.length > 0) {
-                // 情境 2：有歷史紀錄，嘗試靜默自動連線
-                const targetDevice = devices[0]; // 取最近授權的設備
+                const targetDevice = devices[0];
                 this.attemptAutoConnect(targetDevice);
             } else {
-                // 情境 1：初次使用無紀錄，直接彈出原生選擇視窗
-                // 注意：因為沒有經過 await 等待太久，使用者的「點擊」權限還在，可以直接喚起視窗
                 await this.requestNewDevice();
             }
         } catch (error) {
@@ -48,16 +97,13 @@ const bleManager = {
     // 嘗試自動連線 (監聽廣播)
     async attemptAutoConnect(device) {
         try {
-            // 綁定事件並開啟監聽
-            device.addEventListener('advertisementreceived', this.handleAdvertisement.bind(this));
+            device.addEventListener('advertisementreceived', this.boundHandleAdvertisement);
             await device.watchAdvertisements();
 
-            // 啟動 3 秒驗證計時器
             this.verifyTimeout = setTimeout(() => {
-                // 若 3 秒內未收到廣播，判定設備未開機或不在範圍內
-                device.removeEventListener('advertisementreceived', this.handleAdvertisement.bind(this));
+                device.removeEventListener('advertisementreceived', this.boundHandleAdvertisement);
                 this.updateButtonUI('disconnected');
-                this.showFallbackModal(); // 彈出備用提示視窗
+                this.showFallbackModal();
             }, this.VERIFY_TIMEOUT_MS);
 
         } catch (error) {
@@ -84,14 +130,11 @@ const bleManager = {
                 throw new Error('請開啟 chrome://flags/#enable-experimental-web-platform-features');
             }
 
-            device.addEventListener('advertisementreceived', this.handleAdvertisement.bind(this));
+            device.addEventListener('advertisementreceived', this.boundHandleAdvertisement);
             await device.watchAdvertisements();
 
-            // 手動選擇成功後，視為直接連線，設定 10 秒斷線保護
             this.connectedDevice = device;
-            this.updateButtonUI('connected');
-            if (typeof showToast === 'function') showToast(`已連接測力計`, 'info');
-            this.resetAdvertisementTimeout();
+            this.onConnected();
 
         } catch (error) {
             console.error('手動配對失敗:', error);
@@ -102,29 +145,45 @@ const bleManager = {
         }
     },
 
+    // 提取連線成功的共通邏輯
+    onConnected() {
+        this.updateButtonUI('connected');
+        if (typeof showToast === 'function') showToast(`已連接測力計`, 'info');
+        this.resetAdvertisementTimeout();
+
+        // 顯示圖表容器並重置數據
+        const container = document.getElementById('ble-live-container');
+        if (container) container.classList.remove('hidden');
+        this.initChart();
+        this.currentWeight = 0;
+        const weightEl = document.getElementById('ble-live-weight');
+        if (weightEl) weightEl.innerText = '0.00';
+    },
+
     // 處理廣播數據
     handleAdvertisement(event) {
         const data = event.manufacturerData.get(this.MANUFACTURER_ID);
 
         if (data && data.byteLength >= this.WEIGHT_OFFSET + 2) {
-            // 【驗證成功機制】：如果有 verifyTimeout，代表我們正在等第一筆資料
             if (this.verifyTimeout) {
                 clearTimeout(this.verifyTimeout);
                 this.verifyTimeout = null;
-                this.connectedDevice = event.target; // 確立連線
-                this.updateButtonUI('connected');
-                if (typeof showToast === 'function') showToast(`已自動連接測力計`, 'info');
+                this.connectedDevice = event.target;
+                this.onConnected();
             }
 
-            // 重置斷線計時器
             this.resetAdvertisementTimeout();
 
-            // 解析重量
             const rawWeight = (data.getUint8(this.WEIGHT_OFFSET) << 8) | data.getUint8(this.WEIGHT_OFFSET + 1);
             let currentMass = rawWeight / 100;
             this.currentWeight = Math.max(-1000, currentMass);
 
-            // TODO: 後續可將 this.currentWeight 整合進 timer.js 的 UI 中顯示
+            // 更新 UI 數值
+            const weightEl = document.getElementById('ble-live-weight');
+            if (weightEl) weightEl.innerText = this.currentWeight.toFixed(2);
+
+            // 更新圖表
+            this.updateChart(this.currentWeight);
         }
     },
 
@@ -135,32 +194,35 @@ const bleManager = {
         }
         this.advertisementTimeout = setTimeout(() => {
             if (typeof showToast === 'function') showToast('測力計已離線 (超過 10 秒未收到數據)', 'error');
-            this.disconnect();
+            this.disconnect(false); // 傳入 false 標記為逾時斷線
         }, this.TIMEOUT_SECONDS * 1000);
     },
 
     // 主動斷線 / 清除狀態
-    disconnect() {
+    disconnect(isManual = false) {
         if (this.advertisementTimeout) clearTimeout(this.advertisementTimeout);
         if (this.verifyTimeout) clearTimeout(this.verifyTimeout);
 
-        if (this.connectedDevice) {
-            // 由於沒有 GATT 連線，我們只需要移除監聽器即可
-            this.connectedDevice.removeEventListener('advertisementreceived', this.handleAdvertisement.bind(this));
+        if (this.connectedDevice && this.boundHandleAdvertisement) {
+            this.connectedDevice.removeEventListener('advertisementreceived', this.boundHandleAdvertisement);
         }
 
         this.connectedDevice = null;
-        this.currentWeight = 0;
         this.updateButtonUI('disconnected');
+
+        // 手動關閉時隱藏圖表，逾時中斷則保留最後的畫面不隱藏
+        if (isManual) {
+            const container = document.getElementById('ble-live-container');
+            if (container) container.classList.add('hidden');
+        }
     },
 
-    // 控制 UI 狀態
+
     // 控制 UI 狀態
     updateButtonUI(state) {
         const btn = document.getElementById('btn-ble-toggle');
         if (!btn) return;
 
-        // 清除所有狀態 class (改為標準 Tailwind 類別)
         btn.classList.remove(
             'bg-white/10', 'text-white/50',
             'bg-yellow-500/20', 'text-yellow-400', 'animate-pulse',
@@ -172,7 +234,6 @@ const bleManager = {
         } else if (state === 'connecting') {
             btn.classList.add('bg-yellow-500/20', 'text-yellow-400', 'animate-pulse');
         } else if (state === 'connected') {
-            // 改用標準類別，避免主執行緒卡頓導致變色延遲
             btn.classList.add('bg-blue-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-400');
         }
     },
