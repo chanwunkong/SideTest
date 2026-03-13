@@ -505,19 +505,33 @@ const recordManager = {
 
                         // 獨立渲染力竭徽章
                         const failureBadge = isFailure
-                            ? `<span class="ml-1.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-500 text-white shadow-sm dark:bg-red-600">力竭</span>`
+                            ? `<span class="ml-1.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-500 text-white shadow-sm dark:bg-red-600 shrink-0">力竭</span>`
                             : '';
 
+                        // 處理組數文字格式 (N-M 格式)
+                        let loopText = '';
+                        if (log.loopState && log.loopState.length > 0) {
+                            loopText = log.loopState.map(s => s.current).join('-');
+                            loopText = `<span class="text-gray-400 font-mono font-medium mr-1.5 shrink-0">${loopText}</span>`;
+                        }
+
+                        // 修改：移除左側 w-28，改用 flex-1 讓兩者自動分配空間
+                        // 左右兩欄使用 bg 容器包覆並根據內容自動調整寬度
                         logsHtml += `
-                        <button onclick="recordManager.editLogEntry('${rec.id}', ${lIdx})" 
-                                class="flex items-center gap-2 text-xs w-full hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1 rounded transition-colors text-left">
-                            <span class="text-gray-500 w-16 truncate dark:text-gray-400 font-bold">${log.label}</span>
-                            <span class="flex items-center justify-center bg-blue-50 text-blue-700 px-2 py-1.5 rounded-lg border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 flex-1 text-center font-mono">
-                                <span>${actualsStr || '0'}</span>
-                                ${failureBadge}
-                            </span>
-                            <svg class="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </button>`;
+    <button onclick="recordManager.editLogEntry('${rec.id}', ${lIdx})" 
+            class="flex items-center gap-2 text-xs w-full hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1 rounded transition-colors text-left">
+        <div class="flex items-center min-w-0 shrink">
+            ${loopText}
+            <span class="text-gray-500 truncate dark:text-gray-300 font-bold">${log.label}</span>
+        </div>
+        
+        <div class="flex-1 flex items-center justify-center bg-blue-50 text-blue-700 px-2 py-1.5 rounded-lg border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 font-mono min-w-fit">
+            <span class="truncate">${actualsStr || '0'}</span>
+            ${failureBadge}
+        </div>
+        
+        <svg class="w-3 h-3 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>`;
                     });
                     logsHtml += '</div>';
                 }
@@ -542,13 +556,6 @@ const recordManager = {
             });
         }
     },
-
-    //     // 4. 視覺反饋：僅在未摺疊時捲動
-    //     if (!this.isRecordsCollapsed) {
-    //         title.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    //     }
-    // },
-
 
 
     // 關閉明細面板
@@ -588,20 +595,27 @@ const recordManager = {
     },
 
     // 新增：更新特定紀錄中的某一項 Log
-    updateRecordLog(recordId, logIndex, newActuals) {
-        let records = this.getAllRecords();
-        const recIdx = records.findIndex(r => r.id === recordId);
-        if (recIdx === -1) return;
+    updateRecordLog(recordId, queueIndex, payload) {
+        const records = JSON.parse(localStorage.getItem('trainingRecords') || '[]');
+        const record = records.find(r => r.id === recordId);
+        if (!record) return;
 
-        // 更新該筆紀錄中的 executionLogs
-        records[recIdx].executionLogs[logIndex].actuals = newActuals;
+        const logIndex = record.executionLogs.findIndex(l => l.queueIndex === queueIndex);
+
+        if (logIndex !== -1) {
+            // 紀錄已存在：直接更新 actuals 屬性 (相容舊版結構)
+            record.executionLogs[logIndex].actuals = payload.actuals ? payload.actuals : payload;
+        } else {
+            // 紀錄不存在 (當初訓練漏填或跳過)：寫入完整新紀錄並重新排序
+            record.executionLogs.push(payload);
+            record.executionLogs.sort((a, b) => a.queueIndex - b.queueIndex);
+        }
 
         localStorage.setItem('trainingRecords', JSON.stringify(records));
 
-        // 刷新明細 UI 與 分析數據
-        this.showDayDetail(this.selectedDate);
-        if (typeof analyticsManager !== 'undefined' && analyticsManager.renderCards) {
-            analyticsManager.renderCards();
+        // 若有更新 UI 的需求，呼叫對應的渲染函式
+        if (typeof this.updateUI === 'function') {
+            this.updateUI();
         }
     },
 
@@ -613,21 +627,23 @@ const recordManager = {
 
         const log = record.executionLogs[logIndex];
 
-        // 模擬一個 Block 物件供 timer.showLogPanel 使用
-        const mockBlock = {
+        // 優先使用儲存的源頭快照 (blockSnapshot)
+        // 若沒有快照 (舊的歷史紀錄)，則降級進行基本重建
+        const mockBlock = log.blockSnapshot || {
             id: log.blockId,
             props: {
                 label: log.label,
                 customMetrics: Object.keys(log.actuals || {})
-                    .filter(name => name !== 'isFailure') // 過濾力竭屬性
+                    .filter(name => name !== 'isFailure')
                     .map(name => ({ name, type: 'number' })),
-                duration: log.planned.duration,
-                count: log.planned.count
-            }
+                duration: log.planned?.duration || 0,
+                count: log.planned?.count || 0
+            },
+            loopState: log.loopState || []
         };
 
-        // 開啟面板並傳入現有數值
-        timer.showLogPanel(mockBlock, logIndex, log.actuals, recordId);
+        // 開啟面板並傳入現有數值 (傳入 log.queueIndex 確保對應正確的區塊順序)
+        timer.showLogPanel(mockBlock, log.queueIndex, log.actuals, recordId);
     },
 };
 

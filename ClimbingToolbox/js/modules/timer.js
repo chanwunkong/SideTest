@@ -445,29 +445,49 @@ const timer = {
 
         this.pendingLogBlock = block;
         this.pendingLogIndex = qIndex;
-        this.editingRecordId = recordId; // 紀錄來源 ID (若為 null 則代表是當前訓練)
+        this.editingRecordId = recordId;
 
         const panel = document.getElementById('quick-log-panel');
         if (!panel) return;
 
+        // 設定 Block 名稱
         document.getElementById('quick-log-label').textContent = block.props.label;
+
+        // 設定組數狀態文字
+        const loopStateEl = document.getElementById('quick-log-loop-state');
+        if (block.loopState && block.loopState.length > 0) {
+            let text = "";
+            if (block.loopState.length === 1) {
+                text = `第 ${block.loopState[0].current}/${block.loopState[0].total} 循環`;
+            } else {
+                const outer = block.loopState[0];
+                const inner = block.loopState[block.loopState.length - 1];
+                text = `第 ${outer.current}/${outer.total} 組 ... 第 ${inner.current}/${inner.total} 次`;
+            }
+            loopStateEl.textContent = text;
+            loopStateEl.classList.remove('hidden');
+        } else {
+            loopStateEl.classList.add('hidden');
+        }
+
         const inputsContainer = document.getElementById('quick-log-inputs');
         inputsContainer.innerHTML = '';
 
         metrics.forEach((m, idx) => {
-            // 優先權：1. 傳入的現有值(編輯模式) 2. 最佳預填值
             const val = (existingActuals && existingActuals[m.name] !== undefined)
                 ? existingActuals[m.name]
                 : this.getBestValue(block.props.label, m.name);
 
             inputsContainer.innerHTML += `
-                <div class="flex items-center justify-between bg-gray-900 rounded-2xl p-3 mb-2">
-                    <span class="text-gray-300 text-sm font-bold pl-2">${m.name}</span>
-                    <div class="flex items-center gap-4">
-                        <button type="button" onclick="timer.adjustLogVal(${idx}, -1)" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-transform">-</button>
+                <div class="flex items-center justify-between bg-gray-900 rounded-xl p-3 mb-2">
+                    <span class="text-gray-300 text-lg font-bold pl-2">${m.name}</span>
+                    <div class="flex items-center gap-4" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
+                        <button type="button" onclick="timer.adjustLogVal(${idx}, -1)" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 transition-transform">-</button>
+                        
                         <input type="number" step="any" id="quick-log-val-${idx}" data-name="${m.name}" value="${val}" 
-                            class="w-20 bg-transparent text-white text-xl border-none p-0 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 rounded transition-all">
-                        <button type="button" onclick="timer.adjustLogVal(${idx}, 1)" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-transform">+</button>
+                            class="w-20 bg-transparent text-white text-lg border-none p-0 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 rounded transition-all">
+                        
+                        <button type="button" onclick="timer.adjustLogVal(${idx}, 1)" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 transition-transform">+</button>
                     </div>
                 </div>
             `;
@@ -477,7 +497,6 @@ const timer = {
         const failureToggle = document.getElementById('quick-log-failure');
         if (failureToggle) failureToggle.checked = isFailure;
 
-        // 如果是編輯歷史紀錄，顯示特殊標記或調整 UI
         panel.classList.remove('hidden');
         setTimeout(() => panel.classList.remove('translate-y-[150%]'), 10);
     },
@@ -555,7 +574,7 @@ const timer = {
     },
 
     // 儲存使用者輸入並加入暫存區
-    saveLog() {
+    saveLog(closePanel = true) {
         if (!this.pendingLogBlock) return;
         const actuals = {};
         const blockLabel = this.pendingLogBlock.props.label;
@@ -566,28 +585,142 @@ const timer = {
             actuals[metricName] = val;
         });
 
-        // 讀取力竭開關
         const failureToggle = document.getElementById('quick-log-failure');
         if (failureToggle) actuals['isFailure'] = failureToggle.checked;
 
+        const newLog = {
+            blockId: this.pendingLogBlock.id,
+            queueIndex: this.pendingLogIndex,
+            label: blockLabel,
+            planned: { duration: this.pendingLogBlock.props.duration, count: this.pendingLogBlock.props.count },
+            actuals: actuals,
+            loopState: this.pendingLogBlock.loopState || [],
+            blockSnapshot: this.pendingLogBlock // 保存當下積木的完整快照
+        };
+
         if (this.editingRecordId) {
-            // --- 模式 A: 修改歷史紀錄 ---
-            recordManager.updateRecordLog(this.editingRecordId, this.pendingLogIndex, actuals);
-            showToast('紀錄已更新');
+            // 模式 A: 修改歷史紀錄
+            recordManager.updateRecordLog(this.editingRecordId, this.pendingLogIndex, newLog);
+            if (closePanel && typeof showToast === 'function') showToast('紀錄已更新');
+
+            // 強制刷新看板相關 UI
+            try {
+                if (typeof recordManager.updateUI === 'function') recordManager.updateUI();
+                if (typeof recordManager.renderCalendar === 'function') recordManager.renderCalendar();
+
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+                const targetDate = recordManager.currentDate || recordManager.selectedDate || todayStr;
+
+                if (typeof recordManager.showDayDetail === 'function') {
+                    recordManager.showDayDetail(targetDate);
+                }
+
+                const editorModal = document.getElementById('modal-record-editor');
+                if (editorModal && !editorModal.classList.contains('hidden') && typeof recordEditor !== 'undefined') {
+                    if (typeof recordEditor.open === 'function') {
+                        recordEditor.open(this.editingRecordId);
+                    } else if (typeof recordEditor.render === 'function') {
+                        recordEditor.render(this.editingRecordId);
+                    }
+                }
+            } catch (e) {
+                console.error("UI 更新失敗:", e);
+            }
         } else {
-            // --- 模式 B: 當前訓練暫存 (原有邏輯) ---
+            // 模式 B: 當前訓練暫存
             this.sessionValueMap[blockLabel] = actuals;
-            this.currentLogs.push({
-                blockId: this.pendingLogBlock.id,
-                queueIndex: this.pendingLogIndex,
-                label: blockLabel,
-                planned: { duration: this.pendingLogBlock.props.duration, count: this.pendingLogBlock.props.count },
-                actuals: actuals
-            });
+
+            const existingIndex = this.currentLogs.findIndex(l => l.queueIndex === this.pendingLogIndex);
+            if (existingIndex !== -1) {
+                this.currentLogs[existingIndex] = newLog;
+            } else {
+                this.currentLogs.push(newLog);
+            }
         }
 
-        this.closeLogPanel();
-        this.editingRecordId = null; // 重置
+        if (closePanel) {
+            this.closeLogPanel();
+            this.editingRecordId = null;
+        }
+    },
+
+    // 切換前後可紀錄的積木區塊
+    navigateLog(direction) {
+        // 先靜默儲存當前畫面資訊
+        this.saveLog(false);
+
+        let targetStep = null;
+        let targetIndex = -1;
+        let existingActuals = null;
+
+        if (this.editingRecordId) {
+            // 模式 A：歷史紀錄導航模式
+            const records = JSON.parse(localStorage.getItem('trainingRecords') || '[]');
+            const record = records.find(r => r.id === this.editingRecordId);
+            if (!record) return;
+
+            const logs = record.executionLogs || [];
+            const currentIdx = logs.findIndex(l => l.queueIndex === this.pendingLogIndex);
+
+            if (currentIdx !== -1) {
+                const nextIdx = currentIdx + direction;
+                if (nextIdx >= 0 && nextIdx < logs.length) {
+                    const nextLog = logs[nextIdx];
+                    targetIndex = nextLog.queueIndex;
+                    existingActuals = nextLog.actuals;
+
+                    // 優先使用儲存的源頭快照 (blockSnapshot)
+                    targetStep = nextLog.blockSnapshot || {
+                        id: nextLog.blockId,
+                        props: {
+                            label: nextLog.label,
+                            duration: nextLog.planned?.duration || 0,
+                            count: nextLog.planned?.count || 0,
+                            customMetrics: Object.keys(nextLog.actuals || {})
+                                .filter(key => key !== 'isFailure')
+                                .map(name => ({ name, type: 'number' }))
+                        },
+                        loopState: nextLog.loopState || []
+                    };
+                }
+            }
+        } else {
+            // 模式 B：當前計時訓練導航模式
+            let searchIndex = this.pendingLogIndex + direction;
+            while (searchIndex >= 0 && searchIndex < this.queue.length) {
+                const step = this.queue[searchIndex];
+                if (step && (step.type === 'timer' || step.type === 'reps')) {
+                    const label = (step.props.label || '').toLowerCase();
+                    if (!label.includes('prepare') && !label.includes('準備') &&
+                        !label.includes('rest') && !label.includes('休息') &&
+                        step.type !== 'finish') {
+
+                        const metrics = step.props.customMetrics;
+                        if (metrics && metrics.length > 0) {
+                            targetStep = step;
+                            targetIndex = searchIndex;
+                            break;
+                        }
+                    }
+                }
+                searchIndex += direction;
+            }
+
+            if (targetStep) {
+                const existingLog = this.currentLogs.find(l => l.queueIndex === targetIndex);
+                if (existingLog) existingActuals = existingLog.actuals;
+            }
+        }
+
+        if (targetStep) {
+            // 抓到目標後，直接覆寫面板內容，達成即時刷新
+            this.showLogPanel(targetStep, targetIndex, existingActuals, this.editingRecordId);
+        } else {
+            if (typeof showToast === 'function') {
+                showToast(direction > 0 ? '沒有下一組可紀錄的動作' : '沒有上一組可紀錄的動作', 'info');
+            }
+        }
     },
 
     toggle() {
@@ -775,7 +908,9 @@ const timer = {
                                 queueIndex: i,
                                 label: step.props.label,
                                 planned: { duration: step.props.duration, count: step.props.count },
-                                actuals: actuals
+                                actuals: actuals,
+                                loopState: step.loopState || [],
+                                blockSnapshot: step // ▼ 新增這行：保存完整積木快照
                             });
                         }
                     }
