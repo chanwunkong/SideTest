@@ -107,6 +107,7 @@ const timer = {
     lastTick: 0,    // 精確時間計算基準
     sessionValueMap: {}, // 用於存放本次訓練中各動作的最新輸入值
     editingRecordId: null, // 新增：用於追蹤正在編輯哪一筆歷史紀錄
+    isAutoLogEnabled: true, // 預設開啟自動彈出
 
     async requestWakeLock() {
         if ('wakeLock' in navigator) {
@@ -227,15 +228,19 @@ const timer = {
 
     runStep() {
         // 自動關閉並儲存目前的紀錄面板
+        // 1. 先抓取面板 DOM 並定義 isPanelOpen 變數
         const panel = document.getElementById('quick-log-panel');
-        // 如果面板目前不是 hidden (代表使用者還在看或還沒填完)
-        if (panel && !panel.classList.contains('hidden')) {
+        const isPanelOpen = panel && !panel.classList.contains('hidden'); // 新增這行定義
+
+        // 2. 自動關閉並儲存目前的紀錄面板
+        if (isPanelOpen) {
             console.log("偵測到動作切換，自動儲存並收起面板...");
-            this.saveLog(); // 呼叫 saveLog 會讀取螢幕數值、存入暫存並執行 closeLogPanel()
+            this.saveLog();
         }
 
         const step = this.queue[this.currentIndex];
         if (!step) return this.stop();
+
         // 偵測是否為休息或結束區塊 (加上 '休息' 判斷)
         const isRest = step.props.label && (step.props.label.toLowerCase().includes('rest') || step.props.label.includes('休息'));
         const isFinish = step.type === 'finish';
@@ -247,12 +252,14 @@ const timer = {
 
             if (prevStep.type === 'timer' || prevStep.type === 'reps') {
                 const label = (prevStep.props.label || '').toLowerCase();
-                // 加上 '準備' 判斷
                 if (!label.includes('prepare') && !label.includes('準備')) {
                     const alreadyLogged = this.currentLogs.find(l => l.queueIndex === prevIndex);
                     if (!alreadyLogged) {
-                        this.showLogPanel(prevStep, prevIndex);
-                        // 如果是最後一關，開啟等待旗標
+                        // 現在 isPanelOpen 已正確定義，此判定可以正常運作
+                        if (!isPanelOpen && this.isAutoLogEnabled) {
+                            this.showLogPanel(prevStep, prevIndex);
+                        }
+
                         if (isFinish) this.isWaitingForFinalLog = true;
                     }
                 }
@@ -379,7 +386,7 @@ const timer = {
             } else {
                 const outer = step.loopState[0];
                 const inner = step.loopState[step.loopState.length - 1];
-                text = `第 ${outer.current}/${outer.total} 組 ... 第 ${inner.current}/${inner.total} 次`;
+                text = `第 ${outer.current}/${outer.total} 組 - 第 ${inner.current}/${inner.total} 次`;
             }
             this.domCache.loops.innerHTML = text;
             this.domCache.loops.classList.remove('hidden');
@@ -462,7 +469,7 @@ const timer = {
             } else {
                 const outer = block.loopState[0];
                 const inner = block.loopState[block.loopState.length - 1];
-                text = `第 ${outer.current}/${outer.total} 組 ... 第 ${inner.current}/${inner.total} 次`;
+                text = `第 ${outer.current}/${outer.total} 組 - 第 ${inner.current}/${inner.total} 次`;
             }
             loopStateEl.textContent = text;
             loopStateEl.classList.remove('hidden');
@@ -499,6 +506,25 @@ const timer = {
 
         panel.classList.remove('hidden');
         setTimeout(() => panel.classList.remove('translate-y-[150%]'), 10);
+    },
+
+    // 切換自動紀錄功能
+    toggleAutoLog() {
+        this.isAutoLogEnabled = !this.isAutoLogEnabled;
+        const btn = document.getElementById('btn-autolog-toggle');
+        const icon = document.getElementById('icon-autolog');
+
+        if (this.isAutoLogEnabled) {
+            btn.classList.replace('text-white/30', 'text-white');
+            // 鈴鐺圖示
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>';
+            if (typeof showToast === 'function') showToast('已開啟自動紀錄彈窗');
+        } else {
+            btn.classList.replace('text-white', 'text-white/30');
+            // 劃線鈴鐺圖示 (代表靜音/關閉)
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9m12-11l-18 18"></path>';
+            if (typeof showToast === 'function') showToast('已關閉自動紀錄彈窗，訓練結束前會自動補齊紀錄');
+        }
     },
 
     // 關閉面板

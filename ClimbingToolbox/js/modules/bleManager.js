@@ -64,6 +64,60 @@ const bleManager = {
         ctx.stroke();
     },
 
+    // 更新指標位置
+    updateGauge(weight) {
+        const pointer = document.getElementById('ble-gauge-pointer');
+        if (!pointer) return;
+
+        // 1. 決定目標重量 (Target)
+        // 優先抓取計時器目前的動作目標，若無則預設 20kg 方便測試
+        let targetWeight = 20;
+        if (typeof timer !== 'undefined' && timer.pendingLogBlock) {
+            targetWeight = timer.getBestValue(timer.pendingLogBlock.props.label, '重量') || 20;
+        }
+
+        // 2. 計算百分比位置 (Mapping)
+        // 0% - 40% 區間：太輕 (0kg ~ 目標的 80%)
+        // 40% - 60% 區間：目標 (目標的 80% ~ 120%)
+        // 60% - 100% 區間：太重 (目標的 120% ~ 2倍目標)
+        let percentage = 0;
+        const lowBound = targetWeight * 0.8;
+        const highBound = targetWeight * 1.2;
+
+        if (weight <= lowBound) {
+            // 在「太輕」區域線性映射
+            percentage = (weight / lowBound) * 40;
+        } else if (weight <= highBound) {
+            // 在「目標」區域線性映射
+            percentage = 40 + ((weight - lowBound) / (highBound - lowBound)) * 20;
+        } else {
+            // 在「太重」區域線性映射 (最大顯示到 2 倍目標)
+            const overWeight = weight - highBound;
+            percentage = 60 + (overWeight / (targetWeight * 0.8)) * 40;
+        }
+
+        // 邊界保護：確保小球不會跑出軌道 (預留 1%-99%)
+        percentage = Math.min(Math.max(percentage, 1), 99);
+
+        // 3. 執行視覺更新
+        pointer.style.left = `${percentage}%`;
+
+        // 4. 動態顏色回饋 (隨區域變色)
+        if (percentage < 40) {
+            pointer.style.backgroundColor = '#facc15'; // 黃色
+            pointer.style.boxShadow = '0 0 15px rgba(250, 204, 21, 0.8)';
+            pointer.classList.remove('animate-pulse');
+        } else if (percentage <= 60) {
+            pointer.style.backgroundColor = '#4ade80'; // 綠色 (達標)
+            pointer.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.9)';
+            pointer.classList.add('animate-pulse'); // 達標時發光脈動
+        } else {
+            pointer.style.backgroundColor = '#f87171'; // 紅色
+            pointer.style.boxShadow = '0 0 15px rgba(248, 113, 113, 0.8)';
+            pointer.classList.remove('animate-pulse');
+        }
+    },
+
     // 切換連線狀態 (按鈕的主要進入點)
     async toggleConnection() {
         // 若已連線或正在模擬中，則執行手動斷線
@@ -105,23 +159,20 @@ const bleManager = {
     // 模擬數據生成邏輯
     startMockMode() {
         this.isMockMode = true;
-        this.onConnected(); // 觸發連線成功的 UI 更新
+        this.onConnected();
 
         this.mockInterval = setInterval(() => {
-            // 利用時間產生正弦波，加上一點隨機數，模擬出力抖動
             const time = Date.now() / 1000;
-            let mockWeight = 20 + 15 * Math.sin(time * 2) + (Math.random() * 3 - 1.5);
-            mockWeight = Math.max(0, mockWeight); // 防止負數
+            // 產生隨時間波動的模擬重量
+            let mockWeight = 20 + 15 * Math.sin(time * 1.5) + (Math.random() * 2);
+            this.currentWeight = Math.max(0, mockWeight);
 
-            this.currentWeight = mockWeight;
-
-            // 更新 UI
             const weightEl = document.getElementById('ble-live-weight');
             if (weightEl) weightEl.innerText = this.currentWeight.toFixed(2);
 
-            // 更新圖表
             this.updateChart(this.currentWeight);
-        }, 100); // 模擬 10Hz 更新頻率
+            this.updateGauge(this.currentWeight); // 模擬小球左右滑動
+        }, 100);
     },
 
     // 嘗試自動連線 (監聽廣播)
@@ -195,25 +246,18 @@ const bleManager = {
     // 處理廣播數據
     handleAdvertisement(event) {
         const data = event.manufacturerData.get(this.MANUFACTURER_ID);
-
         if (data && data.byteLength >= this.WEIGHT_OFFSET + 2) {
-            if (this.verifyTimeout) {
-                clearTimeout(this.verifyTimeout);
-                this.verifyTimeout = null;
-                this.connectedDevice = event.target;
-                this.onConnected();
-            }
-
             this.resetAdvertisementTimeout();
 
             const rawWeight = (data.getUint8(this.WEIGHT_OFFSET) << 8) | data.getUint8(this.WEIGHT_OFFSET + 1);
-            let currentMass = rawWeight / 100;
-            this.currentWeight = Math.max(-1000, currentMass);
+            this.currentWeight = Math.max(0, rawWeight / 100);
 
+            // 更新數值、圖表與小球
             const weightEl = document.getElementById('ble-live-weight');
             if (weightEl) weightEl.innerText = this.currentWeight.toFixed(2);
 
             this.updateChart(this.currentWeight);
+            this.updateGauge(this.currentWeight); // 觸發左右移動
         }
     },
 

@@ -803,6 +803,16 @@
             </div>
 
             <div class="flex gap-2">
+                <!-- 紀錄開關按鈕 -->
+                <button id="btn-autolog-toggle" onclick="timer.toggleAutoLog()"
+                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white" title="自動彈出紀錄面板">
+                    <svg id="icon-autolog" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                        </path>
+                    </svg>
+                </button>
+
                 <!-- 紀錄按鈕 -->
                 <button onclick="timer.openManualLogPanel()"
                     class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50 hover:text-white"
@@ -864,12 +874,36 @@
             </div>
 
             <div id="ble-live-container"
-                class="w-full flex flex-col items-center mb-5 hidden transition-opacity duration-300 shrink-0">
-                <div class="flex items-baseline gap-1 mb-2 drop-shadow-md">
-                    <span id="ble-live-weight"
-                        class="text-4xl md:text-5xl font-black text-white tabular-nums tracking-tighter">0.00</span>
-                    <span class="text-xl font-bold text-white/70">kg</span>
+                class="w-full flex flex-col mb-5 hidden transition-opacity duration-300 shrink-0">
+                <div class="flex items-center gap-4 mb-3 px-1">
+                    <div class="w-[35%] flex items-baseline gap-1 drop-shadow-md shrink-0">
+                        <span id="ble-live-weight"
+                            class="text-4xl md:text-5xl font-black text-white tabular-nums tracking-tighter">0.00</span>
+                        <span class="text-lg font-bold text-white/70">kg</span>
+                    </div>
+
+                    <div class="w-[65%] flex flex-col gap-1">
+                        <div
+                            class="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-tighter px-1">
+                            <span>太輕</span>
+                            <span class="text-green-400">目標</span>
+                            <span>太重</span>
+                        </div>
+                        <div
+                            class="relative w-full h-4 bg-black/40 rounded-full border border-white/10 backdrop-blur-sm flex items-center">
+                            <div class="flex w-full h-full rounded-full overflow-hidden">
+                                <div class="w-[40%] bg-yellow-500/20 border-r border-white/5"></div>
+                                <div class="w-[20%] bg-green-500/40 border-r border-white/5"></div>
+                                <div class="w-[40%] bg-red-500/20"></div>
+                            </div>
+
+                            <div id="ble-gauge-pointer"
+                                class="absolute w-5 h-5 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.9)] transition-all duration-75 ease-out transform -translate-x-1/2 z-10"
+                                style="left: 0%;"></div>
+                        </div>
+                    </div>
                 </div>
+
                 <div
                     class="w-full h-24 md:h-28 bg-black/20 rounded-xl overflow-hidden border border-white/10 backdrop-blur-sm p-1">
                     <canvas id="ble-live-chart" class="w-full h-full"></canvas>
