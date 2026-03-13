@@ -17,6 +17,10 @@ const bleManager = {
     chartCtx: null,
     boundHandleAdvertisement: null, // 用於正確綁定與移除監聽器
 
+    // 模擬模式專用變數
+    isMockMode: false,
+    mockInterval: null,
+
     initChart() {
         const canvas = document.getElementById('ble-live-chart');
         if (canvas && !this.chartCtx) {
@@ -62,22 +66,24 @@ const bleManager = {
 
     // 切換連線狀態 (按鈕的主要進入點)
     async toggleConnection() {
-        if (!navigator.bluetooth) {
-            if (typeof showToast === 'function') showToast('瀏覽器不支援 Web Bluetooth', 'error');
+        // 若已連線或正在模擬中，則執行手動斷線
+        if (this.connectedDevice || this.isMockMode) {
+            this.disconnect(true);
             return;
         }
 
-        if (this.connectedDevice) {
-            this.disconnect(true); // 傳入 true 標記為手動斷線
-            return;
-        }
-
-        // 確保監聽器參考一致，以便後續精準移除
         if (!this.boundHandleAdvertisement) {
             this.boundHandleAdvertisement = this.handleAdvertisement.bind(this);
         }
 
         this.updateButtonUI('connecting');
+
+        // ▼ 修改：若無藍牙功能，直接進入模擬模式 ▼
+        if (!navigator.bluetooth) {
+            if (typeof showToast === 'function') showToast('無藍牙環境，啟動模擬測試模式', 'info');
+            this.startMockMode();
+            return;
+        }
 
         try {
             const devices = await navigator.bluetooth.getDevices();
@@ -90,8 +96,32 @@ const bleManager = {
             }
         } catch (error) {
             console.error('藍牙初始化錯誤:', error);
-            this.updateButtonUI('disconnected');
+            // ▼ 修改：即使是取消配對或報錯，也切換至模擬模式方便測試 ▼
+            if (typeof showToast === 'function') showToast('藍牙連線異常，啟動模擬測試模式', 'info');
+            this.startMockMode();
         }
+    },
+
+    // 模擬數據生成邏輯
+    startMockMode() {
+        this.isMockMode = true;
+        this.onConnected(); // 觸發連線成功的 UI 更新
+
+        this.mockInterval = setInterval(() => {
+            // 利用時間產生正弦波，加上一點隨機數，模擬出力抖動
+            const time = Date.now() / 1000;
+            let mockWeight = 20 + 15 * Math.sin(time * 2) + (Math.random() * 3 - 1.5);
+            mockWeight = Math.max(0, mockWeight); // 防止負數
+
+            this.currentWeight = mockWeight;
+
+            // 更新 UI
+            const weightEl = document.getElementById('ble-live-weight');
+            if (weightEl) weightEl.innerText = this.currentWeight.toFixed(2);
+
+            // 更新圖表
+            this.updateChart(this.currentWeight);
+        }, 100); // 模擬 10Hz 更新頻率
     },
 
     // 嘗試自動連線 (監聽廣播)
@@ -127,7 +157,7 @@ const bleManager = {
             });
 
             if (!device.watchAdvertisements) {
-                throw new Error('請開啟 chrome://flags/#enable-experimental-web-platform-features');
+                throw new Error('未開啟 Web Bluetooth 實驗性功能');
             }
 
             device.addEventListener('advertisementreceived', this.boundHandleAdvertisement);
@@ -139,19 +169,21 @@ const bleManager = {
         } catch (error) {
             console.error('手動配對失敗:', error);
             this.updateButtonUI('disconnected');
-            if (error.name !== 'NotFoundError') {
-                if (typeof showToast === 'function') showToast(`配對失敗: ${error.message}`, 'error');
-            }
+            throw error; // 將錯誤往上拋，讓 toggleConnection 接住並啟動模擬模式
         }
     },
 
     // 提取連線成功的共通邏輯
     onConnected() {
         this.updateButtonUI('connected');
-        if (typeof showToast === 'function') showToast(`已連接測力計`, 'info');
-        this.resetAdvertisementTimeout();
+        if (typeof showToast === 'function' && !this.isMockMode) {
+            showToast('已連接測力計', 'info');
+        }
 
-        // 顯示圖表容器並重置數據
+        if (!this.isMockMode) {
+            this.resetAdvertisementTimeout();
+        }
+
         const container = document.getElementById('ble-live-container');
         if (container) container.classList.remove('hidden');
         this.initChart();
@@ -178,11 +210,9 @@ const bleManager = {
             let currentMass = rawWeight / 100;
             this.currentWeight = Math.max(-1000, currentMass);
 
-            // 更新 UI 數值
             const weightEl = document.getElementById('ble-live-weight');
             if (weightEl) weightEl.innerText = this.currentWeight.toFixed(2);
 
-            // 更新圖表
             this.updateChart(this.currentWeight);
         }
     },
@@ -194,12 +224,19 @@ const bleManager = {
         }
         this.advertisementTimeout = setTimeout(() => {
             if (typeof showToast === 'function') showToast('測力計已離線 (超過 10 秒未收到數據)', 'error');
-            this.disconnect(false); // 傳入 false 標記為逾時斷線
+            this.disconnect(false);
         }, this.TIMEOUT_SECONDS * 1000);
     },
 
     // 主動斷線 / 清除狀態
     disconnect(isManual = false) {
+        // ▼ 修改：清除模擬模式狀態 ▼
+        if (this.mockInterval) {
+            clearInterval(this.mockInterval);
+            this.mockInterval = null;
+            this.isMockMode = false;
+        }
+
         if (this.advertisementTimeout) clearTimeout(this.advertisementTimeout);
         if (this.verifyTimeout) clearTimeout(this.verifyTimeout);
 
@@ -210,7 +247,6 @@ const bleManager = {
         this.connectedDevice = null;
         this.updateButtonUI('disconnected');
 
-        // 手動關閉時隱藏圖表，逾時中斷則保留最後的畫面不隱藏
         if (isManual) {
             const container = document.getElementById('ble-live-container');
             if (container) container.classList.add('hidden');

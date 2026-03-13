@@ -834,138 +834,137 @@
         </div>
 
         <!-- 主要顯示區 (Main Display) -->
-        <div class="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-4 relative">
-            <!-- 循環狀態 -->
+        <div
+            class="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-4 py-2 relative min-h-0">
             <div id="active-status"
-                class="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-white uppercase drop-shadow-md text-center">
+                class="text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white uppercase drop-shadow-md text-center shrink-0">
                 準備開始
             </div>
 
             <div id="active-loops"
-                class="text-4xl md:text-5xl font-black text-yellow-400 mb-2 hidden text-center w-full drop-shadow-md tracking-wider">
+                class="text-3xl md:text-4xl font-black text-yellow-400 mb-2 hidden text-center w-full drop-shadow-md tracking-wider shrink-0">
             </div>
 
-            <!-- 倒數數字 -->
-            <div class="relative mb-8">
+            <div class="relative flex-1 flex items-center justify-center min-h-[80px] w-full overflow-hidden">
                 <div id="active-countdown"
-                    class="text-[8rem] md:text-[10rem] font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl">
+                    class="text-[40vw] sm:text-[30vw] md:text-[25vw] font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl text-center">
                     00
                 </div>
             </div>
 
-            <!-- 藍牙圖表 -->
             <div id="ble-live-container"
-                class="w-full flex flex-col items-center mb-8 hidden transition-opacity duration-300">
+                class="w-full flex flex-col items-center mb-5 hidden transition-opacity duration-300 shrink-0">
                 <div class="flex items-baseline gap-1 mb-2 drop-shadow-md">
                     <span id="ble-live-weight"
                         class="text-4xl md:text-5xl font-black text-white tabular-nums tracking-tighter">0.00</span>
-                    <span class="text-lg font-bold text-white/70">kg</span>
+                    <span class="text-xl font-bold text-white/70">kg</span>
                 </div>
                 <div
-                    class="w-full h-24 bg-black/20 rounded-xl overflow-hidden border border-white/10 backdrop-blur-sm p-1">
+                    class="w-full h-24 md:h-28 bg-black/20 rounded-xl overflow-hidden border border-white/10 backdrop-blur-sm p-1">
                     <canvas id="ble-live-chart" class="w-full h-full"></canvas>
                 </div>
             </div>
 
-            <!-- 視覺進度條 (Visual Progress Bar) -->
-            <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden max-w-[200px]">
+            <div class="w-full h-3 bg-white/20 rounded-full overflow-hidden max-w-[250px] shrink-0 mb-4">
                 <div id="active-progress-bar" class="h-full bg-white transition-all duration-1000 ease-linear w-full">
                 </div>
             </div>
-
         </div>
 
         <!-- 底部控制區 (Footer Controls) -->
         <div
-            class="bg-gray-800 p-8 pb-12 rounded-t-3xl shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-[60] relative dark:bg-gray-950">
+            class="bg-gray-800 p-4 pb-6 rounded-t-3xl shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-[60] relative dark:bg-gray-950">
 
-            <!-- 累計與剩餘時間 (高對比優化) -->
-            <div class="grid grid-cols-3 gap-4 mb-8 text-center border-b border-gray-700 pb-6">
+            <!-- 時間計算 -->
+            <div class="grid grid-cols-3 gap-2 mb-3 text-center">
                 <div>
-                    <div class="text-[10px] font-bold uppercase text-white/50 mb-1">已過時間</div>
-                    <div id="active-elapsed" class="text-white text-xl font-mono font-bold tracking-tight">00:00
-                    </div>
+                    <div class="text-[10px] md:text-xs font-bold uppercase text-white/50 mb-0.5">已過時間</div>
+                    <div id="active-elapsed" class="text-white text-lg md:text-xl font-mono font-bold tracking-tight">
+                        00:00</div>
                 </div>
                 <div>
-                    <div class="text-[10px] font-bold uppercase text-white/50 mb-1">剩餘時間</div>
-                    <div id="active-remaining" class="text-white text-xl font-mono font-bold tracking-tight">00:00
-                    </div>
+                    <div class="text-[10px] md:text-xs font-bold uppercase text-white/50 mb-0.5">剩餘時間</div>
+                    <div id="active-remaining" class="text-white text-lg md:text-xl font-mono font-bold tracking-tight">
+                        00:00</div>
                 </div>
                 <div>
-                    <div class="text-[10px] font-bold uppercase text-white/50 mb-1">總時間</div>
-                    <div id="active-total-display" class="text-white text-xl font-mono font-bold tracking-tight">
-                        00:00
-                    </div>
+                    <div class="text-[10px] md:text-xs font-bold uppercase text-white/50 mb-0.5">總時間</div>
+                    <div id="active-total-display"
+                        class="text-white text-lg md:text-xl font-mono font-bold tracking-tight">00:00</div>
                 </div>
             </div>
 
-            <!-- 下一步預告 -->
+            <!-- 下一組 -->
             <div
-                class="flex items-center gap-3 mb-8 bg-gray-700/50 p-3 rounded-xl border border-gray-600/30 backdrop-blur-sm">
+                class="flex items-center gap-3 mb-6 bg-gray-700/50 p-3 rounded-xl border border-gray-600/30 backdrop-blur-sm">
+
                 <div class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap px-2">下一個動作</div>
+
                 <div id="active-next-badge" class="w-3 h-3 rounded-full bg-gray-500 shadow-sm"></div>
-                <div id="active-next" class="text-white font-bold truncate">休息 (3s)</div>
+
+                <div id="active-next" class="text-white text-base font-bold truncate">休息 (3s)</div>
+
             </div>
 
-            <div class="grid grid-cols-5 gap-4">
-                <!-- 暫存按鈕 -->
-                <button onclick="timer.suspend()" class="flex flex-col items-center gap-2 group">
+            <!-- 控制按鈕 -->
+            <div class="grid grid-cols-5 gap-2 md:gap-4">
+                <button onclick="timer.suspend()" class="flex flex-col items-center gap-1 group">
                     <div
-                        class="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="w-11 h-11 md:w-14 md:h-14 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                        <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
                             </path>
                         </svg>
                     </div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">暫存離開</span>
+                    <span class="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">暫存</span>
                 </button>
-                <!-- 上一步 -->
-                <button onclick="timer.skip(-1)" class="flex flex-col items-center gap-2 group">
+                <button onclick="timer.skip(-1)" class="flex flex-col items-center gap-1 group">
                     <div
-                        class="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="w-11 h-11 md:w-14 md:h-14 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                        <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>
                         </svg>
                     </div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">上一步</span>
+                    <span class="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">上一步</span>
                 </button>
 
-                <!-- 暫停/繼續 -->
-                <button onclick="timer.toggle()" class="flex flex-col items-center gap-2 group">
+                <button onclick="timer.toggle()" class="flex flex-col items-center gap-1 group">
                     <div
-                        class="w-14 h-14 bg-white text-gray-900 rounded-full flex items-center justify-center shadow-lg group-active:scale-95 transition-transform hover:bg-gray-100">
-                        <svg id="icon-play-pause" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="w-14 h-14 md:w-16 md:h-16 bg-white text-gray-900 rounded-full flex items-center justify-center shadow-lg group-active:scale-95 transition-transform hover:bg-gray-100">
+                        <svg id="icon-play-pause" class="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6">
                             </path>
                         </svg>
                     </div>
                     <span id="lbl-play-pause"
-                        class="text-[10px] text-white font-bold uppercase tracking-wider">暫停</span>
+                        class="text-[9px] md:text-[10px] text-white font-bold uppercase tracking-wider">暫停</span>
                 </button>
 
-                <!-- 下一步 -->
-                <button onclick="timer.skip(1)" class="flex flex-col items-center gap-2 group">
+                <button onclick="timer.skip(1)" class="flex flex-col items-center gap-1 group">
                     <div
-                        class="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="w-11 h-11 md:w-14 md:h-14 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                        <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
                         </svg>
                     </div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">下一步</span>
+                    <span class="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">下一步</span>
                 </button>
 
-                <!-- 結束 -->
-                <button onclick="timer.stop()" class="flex flex-col items-center gap-2 group">
+                <button onclick="timer.stop()" class="flex flex-col items-center gap-1 group">
                     <div
-                        class="w-12 h-12 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-red-500/30">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        class="w-11 h-11 md:w-14 md:h-14 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-red-500/30">
+                        <svg class="w-5 h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M6 6h12v12H6z" />
                         </svg>
                     </div>
-                    <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">結束</span>
+                    <span class="text-[9px] md:text-[10px] text-red-400 font-bold uppercase tracking-wider">結束</span>
                 </button>
             </div>
         </div>
