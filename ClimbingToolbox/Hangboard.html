@@ -603,16 +603,57 @@
                     </div>
                     <!-- 2. 按主要肌肉區分 -->
                     <div id="tab-muscle" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" onclick="quickAddTag('胸大肌')" class="lib-tag-btn">胸大肌</button>
+                        <!-- 背部 -->
                         <button type="button" onclick="quickAddTag('背闊肌')" class="lib-tag-btn">背闊肌</button>
-                        <button type="button" onclick="quickAddTag('三角肌')" class="lib-tag-btn">三角肌</button>
-                        <button type="button" onclick="quickAddTag('旋轉肌群')" class="lib-tag-btn">旋轉肌群</button>
-                        <button type="button" onclick="quickAddTag('二頭/三頭')" class="lib-tag-btn">二頭/三頭</button>
-                        <button type="button" onclick="quickAddTag('前臂/指力')" class="lib-tag-btn">前臂/指力</button>
-                        <button type="button" onclick="quickAddTag('腹直/斜肌')" class="lib-tag-btn">腹直/斜肌</button>
+                        <button type="button" onclick="quickAddTag('斜方肌')" class="lib-tag-btn">斜方肌</button>
+                        <button type="button" onclick="quickAddTag('菱形肌')" class="lib-tag-btn">菱形肌</button>
                         <button type="button" onclick="quickAddTag('豎脊肌')" class="lib-tag-btn">豎脊肌</button>
-                        <button type="button" onclick="quickAddTag('股四頭/腿後')" class="lib-tag-btn">股四頭/腿後</button>
+
+                        <!-- 胸部 -->
+                        <button type="button" onclick="quickAddTag('胸大肌')" class="lib-tag-btn">胸大肌</button>
+                        <button type="button" onclick="quickAddTag('胸小肌')" class="lib-tag-btn">胸小肌</button>
+
+                        <!-- 腹部 -->
+                        <button type="button" onclick="quickAddTag('腹直肌')" class="lib-tag-btn">腹直肌</button>
+                        <button type="button" onclick="quickAddTag('腹外斜肌')" class="lib-tag-btn">腹外斜肌</button>
+                        <button type="button" onclick="quickAddTag('腹內斜肌')" class="lib-tag-btn">腹內斜肌</button>
+                        <button type="button" onclick="quickAddTag('腹橫肌')" class="lib-tag-btn">腹橫肌</button>
+
+                        <!-- 肩部 -->
+                        <button type="button" onclick="quickAddTag('三角肌前束')" class="lib-tag-btn">三角肌前束</button>
+                        <button type="button" onclick="quickAddTag('三角肌中束')" class="lib-tag-btn">三角肌中束</button>
+                        <button type="button" onclick="quickAddTag('三角肌後束')" class="lib-tag-btn">三角肌後束</button>
+
+                        <!-- 手臂 -->
+                        <button type="button" onclick="quickAddTag('肱二頭肌')" class="lib-tag-btn">肱二頭肌</button>
+                        <button type="button" onclick="quickAddTag('肱肌')" class="lib-tag-btn">肱肌</button>
+                        <button type="button" onclick="quickAddTag('肱三頭肌')" class="lib-tag-btn">肱三頭肌</button>
+
+                        <!-- 前臂 -->
+                        <button type="button" onclick="quickAddTag('肱橈肌')" class="lib-tag-btn">肱橈肌</button>
+                        <button type="button" onclick="quickAddTag('前臂屈肌群')" class="lib-tag-btn">前臂屈肌群</button>
+                        <button type="button" onclick="quickAddTag('前臂伸肌群')" class="lib-tag-btn">前臂伸肌群</button>
+
+                        <!-- 臀部 -->
                         <button type="button" onclick="quickAddTag('臀大肌')" class="lib-tag-btn">臀大肌</button>
+                        <button type="button" onclick="quickAddTag('臀中肌')" class="lib-tag-btn">臀中肌</button>
+                        <button type="button" onclick="quickAddTag('臀小肌')" class="lib-tag-btn">臀小肌</button>
+
+                        <!-- 大腿前側 -->
+                        <button type="button" onclick="quickAddTag('股直肌')" class="lib-tag-btn">股直肌</button>
+                        <button type="button" onclick="quickAddTag('股外側肌')" class="lib-tag-btn">股外側肌</button>
+                        <button type="button" onclick="quickAddTag('股內側肌')" class="lib-tag-btn">股內側肌</button>
+                        <button type="button" onclick="quickAddTag('股中間肌')" class="lib-tag-btn">股中間肌</button>
+
+                        <!-- 大腿後側 -->
+                        <button type="button" onclick="quickAddTag('股二頭肌')" class="lib-tag-btn">股二頭肌</button>
+                        <button type="button" onclick="quickAddTag('半腱肌')" class="lib-tag-btn">半腱肌</button>
+                        <button type="button" onclick="quickAddTag('半膜肌')" class="lib-tag-btn">半膜肌</button>
+
+                        <!-- 小腿 -->
+                        <button type="button" onclick="quickAddTag('腓腸肌')" class="lib-tag-btn">腓腸肌</button>
+                        <button type="button" onclick="quickAddTag('比目魚肌')" class="lib-tag-btn">比目魚肌</button>
+                        <button type="button" onclick="quickAddTag('脛前肌')" class="lib-tag-btn">脛前肌</button>
                     </div>
                     <!-- 3. 按體能要素區分 -->
                     <div id="tab-fitness" class="tag-tab-content hidden flex flex-wrap gap-1.5">
@@ -628,16 +669,11 @@
                     </div>
                     <!-- 4. 按能量區間區分 -->
                     <div id="tab-zones" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" onclick="quickAddTag('Zone 1 (恢復)')"
-                            class="lib-tag-btn text-gray-500">Zone 1 (恢復)</button>
-                        <button type="button" onclick="quickAddTag('Zone 2 (有氧)')"
-                            class="lib-tag-btn text-blue-500">Zone 2 (有氧)</button>
-                        <button type="button" onclick="quickAddTag('Zone 3 (節奏)')"
-                            class="lib-tag-btn text-green-500">Zone 3 (節奏)</button>
-                        <button type="button" onclick="quickAddTag('Zone 4 (閾值)')"
-                            class="lib-tag-btn text-amber-500">Zone 4 (閾值)</button>
-                        <button type="button" onclick="quickAddTag('Zone 5 (最大)')" class="lib-tag-btn text-red-500">Zone
-                            5 (最大)</button>
+                        <button type="button" onclick="quickAddTag('Zone 1 (恢復)')" class="lib-tag-btn">Zone 1</button>
+                        <button type="button" onclick="quickAddTag('Zone 2 (有氧)')" class="lib-tag-btn">Zone 2</button>
+                        <button type="button" onclick="quickAddTag('Zone 3 (節奏)')" class="lib-tag-btn">Zone 3</button>
+                        <button type="button" onclick="quickAddTag('Zone 4 (閾值)')" class="lib-tag-btn">Zone 4</button>
+                        <button type="button" onclick="quickAddTag('Zone 5 (最大)')" class="lib-tag-btn">Zone 5</button>
                         <button type="button" onclick="quickAddTag('ATP-PC')" class="lib-tag-btn">磷酸原 (ATP-PC)</button>
                         <button type="button" onclick="quickAddTag('糖解系統')" class="lib-tag-btn">糖解系統</button>
                     </div>
