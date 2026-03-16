@@ -531,9 +531,164 @@
                 <button onclick="editor.addRoutineTag()"
                     class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 hover:bg-blue-100 transition-colors">新增</button>
             </div>
-            <div class="text-[10px] font-bold text-gray-400 mb-1">歷史標籤：</div>
+            <div class="flex justify-between items-center mb-1">
+                <div class="text-[10px] font-bold text-gray-400">歷史標籤：</div>
+                <button type="button" onclick="document.getElementById('tag-library-panel').classList.toggle('hidden')"
+                    class="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 transition-colors flex items-center gap-1 active:scale-95 border border-blue-100 dark:border-blue-800">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                    展開標籤庫
+                </button>
+            </div>
             <div id="editor-tag-suggestions" class="flex flex-wrap gap-1.5">
             </div>
+
+            <!-- 標籤庫面板 (展開/收合) -->
+            <div id="tag-library-panel"
+                class="hidden mt-3 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50 shadow-inner">
+
+                <!-- 分頁按鈕區 (可橫向滑動) -->
+                <div
+                    class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 no-scrollbar text-[11px] font-bold">
+                    <button type="button" onclick="switchTagTab(this, 'tab-muscle-group')"
+                        class="tab-btn px-3 py-2 whitespace-nowrap text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 shrink-0 transition-colors">1.
+                        區段肌群</button>
+                    <button type="button" onclick="switchTagTab(this, 'tab-muscle')"
+                        class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">2.
+                        主要肌肉</button>
+                    <button type="button" onclick="switchTagTab(this, 'tab-fitness')"
+                        class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">3.
+                        體能要素</button>
+                    <button type="button" onclick="switchTagTab(this, 'tab-zones')"
+                        class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">4.
+                        能量區間</button>
+                    <button type="button" onclick="switchTagTab(this, 'tab-climbing')"
+                        class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">⚡
+                        攀岩專項</button>
+                    <button type="button" onclick="switchTagTab(this, 'tab-equipment')"
+                        class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">🛠️
+                        裝備器材</button>
+                </div>
+
+                <!-- 標籤內容區 -->
+                <div class="p-3 max-h-[140px] overflow-y-auto no-scrollbar relative">
+                    <style>
+                        .lib-tag-btn {
+                            @apply text-[10px] px-2.5 py-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 text-gray-700 dark:text-gray-200 transition-colors active:scale-95;
+                        }
+                    </style>
+
+                    <!-- 1. 按主要肌群區分 -->
+                    <div id="tab-muscle-group" class="tag-tab-content flex flex-wrap gap-1.5">
+                        <button type="button" onclick="quickAddTag('全身')" class="lib-tag-btn">全身</button>
+                        <button type="button" onclick="quickAddTag('核心')" class="lib-tag-btn">核心</button>
+                        <button type="button" onclick="quickAddTag('上肢')" class="lib-tag-btn">上肢</button>
+                        <button type="button" onclick="quickAddTag('下肢')" class="lib-tag-btn">下肢</button>
+                        <button type="button" onclick="quickAddTag('上背')" class="lib-tag-btn">上背</button>
+                        <button type="button" onclick="quickAddTag('中背')" class="lib-tag-btn">中背</button>
+                        <button type="button" onclick="quickAddTag('下背')" class="lib-tag-btn">下背</button>
+                        <button type="button" onclick="quickAddTag('腹肌')" class="lib-tag-btn">腹肌</button>
+                        <button type="button" onclick="quickAddTag('腹外斜肌')" class="lib-tag-btn">腹外斜肌</button>
+                        <button type="button" onclick="quickAddTag('二頭肌')" class="lib-tag-btn">二頭肌</button>
+                        <button type="button" onclick="quickAddTag('三頭肌')" class="lib-tag-btn">三頭肌</button>
+                        <button type="button" onclick="quickAddTag('臀肌')" class="lib-tag-btn">臀肌</button>
+                        <button type="button" onclick="quickAddTag('股四頭肌')" class="lib-tag-btn">股四頭肌</button>
+                        <button type="button" onclick="quickAddTag('膕繩肌')" class="lib-tag-btn">膕繩肌</button>
+                        <button type="button" onclick="quickAddTag('脛骨前肌')" class="lib-tag-btn">脛骨前肌</button>
+                        <button type="button" onclick="quickAddTag('小腿')" class="lib-tag-btn">小腿</button>
+
+                    </div>
+                    <!-- 2. 按主要肌肉區分 -->
+                    <div id="tab-muscle" class="tag-tab-content hidden flex flex-wrap gap-1.5">
+                        <button type="button" onclick="quickAddTag('胸大肌')" class="lib-tag-btn">胸大肌</button>
+                        <button type="button" onclick="quickAddTag('背闊肌')" class="lib-tag-btn">背闊肌</button>
+                        <button type="button" onclick="quickAddTag('三角肌')" class="lib-tag-btn">三角肌</button>
+                        <button type="button" onclick="quickAddTag('旋轉肌群')" class="lib-tag-btn">旋轉肌群</button>
+                        <button type="button" onclick="quickAddTag('二頭/三頭')" class="lib-tag-btn">二頭/三頭</button>
+                        <button type="button" onclick="quickAddTag('前臂/指力')" class="lib-tag-btn">前臂/指力</button>
+                        <button type="button" onclick="quickAddTag('腹直/斜肌')" class="lib-tag-btn">腹直/斜肌</button>
+                        <button type="button" onclick="quickAddTag('豎脊肌')" class="lib-tag-btn">豎脊肌</button>
+                        <button type="button" onclick="quickAddTag('股四頭/腿後')" class="lib-tag-btn">股四頭/腿後</button>
+                        <button type="button" onclick="quickAddTag('臀大肌')" class="lib-tag-btn">臀大肌</button>
+                    </div>
+                    <!-- 3. 按體能要素區分 -->
+                    <div id="tab-fitness" class="tag-tab-content hidden flex flex-wrap gap-1.5">
+                        <button type="button" onclick="quickAddTag('肌力')" class="lib-tag-btn">肌力 (Strength)</button>
+                        <button type="button" onclick="quickAddTag('耐力')" class="lib-tag-btn">耐力 (Endurance)</button>
+                        <button type="button" onclick="quickAddTag('爆發力')" class="lib-tag-btn">爆發力 (Power)</button>
+                        <button type="button" onclick="quickAddTag('速度')" class="lib-tag-btn">速度 (Speed)</button>
+                        <button type="button" onclick="quickAddTag('協調')" class="lib-tag-btn">協調 (Coordination)</button>
+                        <button type="button" onclick="quickAddTag('柔軟度')" class="lib-tag-btn">柔軟度
+                            (Flexibility)</button>
+                        <button type="button" onclick="quickAddTag('活動度')" class="lib-tag-btn">活動度 (Mobility)</button>
+                        <button type="button" onclick="quickAddTag('穩定性')" class="lib-tag-btn">穩定性 (Stability)</button>
+                    </div>
+                    <!-- 4. 按能量區間區分 -->
+                    <div id="tab-zones" class="tag-tab-content hidden flex flex-wrap gap-1.5">
+                        <button type="button" onclick="quickAddTag('Zone 1 (恢復)')"
+                            class="lib-tag-btn text-gray-500">Zone 1 (恢復)</button>
+                        <button type="button" onclick="quickAddTag('Zone 2 (有氧)')"
+                            class="lib-tag-btn text-blue-500">Zone 2 (有氧)</button>
+                        <button type="button" onclick="quickAddTag('Zone 3 (節奏)')"
+                            class="lib-tag-btn text-green-500">Zone 3 (節奏)</button>
+                        <button type="button" onclick="quickAddTag('Zone 4 (閾值)')"
+                            class="lib-tag-btn text-amber-500">Zone 4 (閾值)</button>
+                        <button type="button" onclick="quickAddTag('Zone 5 (最大)')" class="lib-tag-btn text-red-500">Zone
+                            5 (最大)</button>
+                        <button type="button" onclick="quickAddTag('ATP-PC')" class="lib-tag-btn">磷酸原 (ATP-PC)</button>
+                        <button type="button" onclick="quickAddTag('糖解系統')" class="lib-tag-btn">糖解系統</button>
+                    </div>
+                    <!-- 5. 攀岩專項 (額外建議) -->
+                    <div id="tab-climbing" class="tag-tab-content hidden flex flex-wrap gap-1.5">
+                        <button type="button" onclick="quickAddTag('抱石')"
+                            class="lib-tag-btn border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">抱石</button>
+                        <button type="button" onclick="quickAddTag('上攀')"
+                            class="lib-tag-btn border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">上攀</button>
+                        <button type="button" onclick="quickAddTag('系統牆')" class="lib-tag-btn">系統牆</button>
+                        <button type="button" onclick="quickAddTag('指力板')" class="lib-tag-btn">指力板</button>
+                        <button type="button" onclick="quickAddTag('弱點訓練')" class="lib-tag-btn">弱點訓練</button>
+                        <button type="button" onclick="quickAddTag('動態發力')" class="lib-tag-btn">動態發力</button>
+                        <button type="button" onclick="quickAddTag('靜態控制')" class="lib-tag-btn">靜態控制</button>
+                        <button type="button" onclick="quickAddTag('鎖力')" class="lib-tag-btn">鎖力 (Lock-off)</button>
+                        <button type="button" onclick="quickAddTag('捏力')" class="lib-tag-btn">捏力 (Crimp)</button>
+                    </div>
+                    <!-- 6. 裝備器材 (額外建議) -->
+                    <div id="tab-equipment" class="tag-tab-content hidden flex flex-wrap gap-1.5">
+                        <button type="button" onclick="quickAddTag('自體重')" class="lib-tag-btn">自體重</button>
+                        <button type="button" onclick="quickAddTag('啞鈴')" class="lib-tag-btn">啞鈴</button>
+                        <button type="button" onclick="quickAddTag('壺鈴')" class="lib-tag-btn">壺鈴</button>
+                        <button type="button" onclick="quickAddTag('槓鈴')" class="lib-tag-btn">槓鈴</button>
+                        <button type="button" onclick="quickAddTag('彈力帶')" class="lib-tag-btn">彈力帶</button>
+                        <button type="button" onclick="quickAddTag('懸吊(TRX)')" class="lib-tag-btn">懸吊
+                            (TRX/Rings)</button>
+                        <button type="button" onclick="quickAddTag('滾筒放鬆')" class="lib-tag-btn">滾筒放鬆</button>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                function switchTagTab(btn, tabId) {
+                    const container = btn.closest('#tag-library-panel');
+                    const buttons = container.querySelectorAll('.tab-btn');
+                    buttons.forEach(b => {
+                        b.classList.remove('text-blue-600', 'border-blue-600', 'dark:text-blue-400');
+                        b.classList.add('text-gray-500', 'border-transparent', 'dark:text-gray-400');
+                    });
+                    btn.classList.remove('text-gray-500', 'border-transparent', 'dark:text-gray-400');
+                    btn.classList.add('text-blue-600', 'border-blue-600', 'dark:text-blue-400');
+
+                    container.querySelectorAll('.tag-tab-content').forEach(c => c.classList.add('hidden'));
+                    document.getElementById(tabId).classList.remove('hidden');
+                }
+
+                function quickAddTag(tagText) {
+                    document.getElementById('inp-routine-tag').value = tagText;
+                    editor.addRoutineTag();
+                }
+            </script>
         </div>
 
         <!-- 視覺化時間軸 (Visual Timeline) -->
