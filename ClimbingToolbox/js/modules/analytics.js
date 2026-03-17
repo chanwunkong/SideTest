@@ -514,6 +514,259 @@ const analyticsUI = {
     }
 };
 
+const bodyManager = {
+    displayDate: new Date(),
+    latestHeight: null,
+
+    init() {
+        // 1. 初始化：預設尋找「最新的一筆紀錄」來顯示
+        const logs = this.getAllLogs();
+        const dates = Object.keys(logs).sort();
+        if (dates.length > 0) {
+            this.displayDate = this.parseDate(dates[dates.length - 1]);
+        } else {
+            this.displayDate = new Date();
+        }
+
+        this.renderCard();
+
+        if (typeof initSwipeToClose === 'function') {
+            initSwipeToClose('body-sheet', () => this.closeEditor());
+        }
+
+        // 2. 綁定連動：當使用者在 Modal 改變日期時，自動讀取該日數據
+        const dateInput = document.getElementById('body-editor-date');
+        if (dateInput) {
+            dateInput.addEventListener('change', (e) => {
+                if (e.target.value) {
+                    this.populateEditorFields(e.target.value);
+                }
+            });
+        }
+    },
+
+    // 輔助函式：安全解析日期 (避免時區跑版)
+    parseDate(dateStr) {
+        const [y, m, d] = dateStr.split('-');
+        return new Date(y, m - 1, d);
+    },
+
+    getFormatDate(dateObj) {
+        const y = dateObj.getFullYear();
+        const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const d = dateObj.getDate().toString().padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    },
+
+    getAllLogs() {
+        return JSON.parse(localStorage.getItem('bodyLogs') || '{}');
+    },
+
+    // 3. 跳躍式切換日期 (直接跳過沒有紀錄的日子)
+    changeDate(dir) {
+        const logs = this.getAllLogs();
+        const dates = Object.keys(logs).sort();
+        if (dates.length === 0) return;
+
+        const currentStr = this.getFormatDate(this.displayDate);
+        let targetStr = currentStr;
+
+        if (dir === -1) { // 上一筆紀錄
+            const past = dates.filter(d => d < currentStr);
+            if (past.length > 0) targetStr = past[past.length - 1];
+        } else if (dir === 1) { // 下一筆紀錄
+            const future = dates.filter(d => d > currentStr);
+            if (future.length > 0) targetStr = future[0];
+        }
+
+        if (targetStr !== currentStr) {
+            this.displayDate = this.parseDate(targetStr);
+            this.renderCard();
+        }
+    },
+
+    calculateMetrics(weight, height, bodyFat) {
+        if (!weight || !height) return { bmi: null, lbm: null, ffmi: null };
+        const hMeter = height / 100;
+        const bmi = weight / (hMeter * hMeter);
+        let lbm = null; let ffmi = null;
+
+        if (bodyFat) {
+            lbm = weight * (1 - (bodyFat / 100));
+            ffmi = lbm / (hMeter * hMeter);
+        }
+        return {
+            bmi: parseFloat(bmi.toFixed(1)),
+            lbm: lbm ? parseFloat(lbm.toFixed(1)) : null,
+            ffmi: ffmi ? parseFloat(ffmi.toFixed(1)) : null
+        };
+    },
+
+    renderCard() {
+        const dateStr = this.getFormatDate(this.displayDate);
+        const dateLabel = document.getElementById('body-date-label');
+        if (dateLabel) dateLabel.textContent = dateStr;
+
+        const logs = this.getAllLogs();
+        const data = logs[dateStr];
+
+        const elFfmi = document.getElementById('body-val-ffmi');
+        const elLbm = document.getElementById('body-val-lbm');
+        const elWeight = document.getElementById('body-val-weight');
+        const elFat = document.getElementById('body-val-fat');
+        const elMuscle = document.getElementById('body-val-muscle');
+        const elBmi = document.getElementById('body-val-bmi');
+
+        if (!elFfmi) return;
+
+        if (data) {
+            const metrics = this.calculateMetrics(data.weight, data.height, data.bodyFat);
+            elWeight.textContent = data.weight || '--';
+            elFat.textContent = data.bodyFat || '--';
+            elMuscle.textContent = data.muscleMass || '--';
+            elBmi.textContent = metrics.bmi || '--';
+            elLbm.textContent = metrics.lbm || '--';
+            elFfmi.textContent = metrics.ffmi || '--';
+
+            if (data.height) this.latestHeight = data.height;
+        } else {
+            elFfmi.textContent = '--'; elLbm.textContent = '--';
+            elWeight.textContent = '--'; elFat.textContent = '--';
+            elMuscle.textContent = '--'; elBmi.textContent = '--';
+        }
+    },
+
+    openEditor() {
+        const modal = document.getElementById('modal-body-editor');
+        const sheet = document.getElementById('body-sheet');
+
+        if (!modal || !sheet) return;
+
+        // 預設將 Modal 的日期設定為目前看的那一天，或是今天
+        const dateStr = this.getFormatDate(this.displayDate);
+        const dateInput = document.getElementById('body-editor-date');
+        if (dateInput) dateInput.value = dateStr;
+
+        // 執行填寫邏輯
+        this.populateEditorFields(dateStr);
+
+        modal.classList.remove('hidden');
+        modal.classList.add('open');
+        requestAnimationFrame(() => sheet.classList.remove('translate-y-full'));
+    },
+
+    // 4. 獨立的填表邏輯 (供切換日期時呼叫)
+    populateEditorFields(dateStr) {
+        const logs = this.getAllLogs();
+        const data = logs[dateStr];
+
+        let defaultHeight = this.latestHeight;
+        if (!defaultHeight) {
+            const dates = Object.keys(logs).sort().reverse();
+            for (let d of dates) {
+                if (logs[d].height) { defaultHeight = logs[d].height; break; }
+            }
+        }
+
+        document.getElementById('inp-body-height').value = data?.height || defaultHeight || '';
+        document.getElementById('inp-body-weight').value = data?.weight || '';
+        document.getElementById('inp-body-fat').value = data?.bodyFat || '';
+        document.getElementById('inp-body-muscle').value = data?.muscleMass || '';
+
+        const deleteBtn = document.getElementById('btn-body-delete');
+        const saveBtn = document.getElementById('btn-body-save');
+
+        if (data) {
+            if (deleteBtn) deleteBtn.classList.remove('hidden');
+            if (saveBtn) {
+                saveBtn.classList.remove('flex-1');
+                saveBtn.classList.add('w-2/3');
+                saveBtn.textContent = '更新紀錄';
+            }
+        } else {
+            if (deleteBtn) deleteBtn.classList.add('hidden');
+            if (saveBtn) {
+                saveBtn.classList.add('flex-1');
+                saveBtn.classList.remove('w-2/3');
+                saveBtn.textContent = '儲存紀錄';
+            }
+        }
+    },
+
+    closeEditor() {
+        const modal = document.getElementById('modal-body-editor');
+        const sheet = document.getElementById('body-sheet');
+        sheet.classList.add('translate-y-full');
+        modal.classList.remove('open');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    },
+
+    saveRecord() {
+        const h = parseFloat(document.getElementById('inp-body-height').value);
+        const w = parseFloat(document.getElementById('inp-body-weight').value);
+        const bf = parseFloat(document.getElementById('inp-body-fat').value);
+        const mm = parseFloat(document.getElementById('inp-body-muscle').value);
+
+        if (isNaN(h) || isNaN(w)) {
+            alert("身高與體重為必填項目。");
+            return;
+        }
+
+        // 5. 儲存時，以 Modal 上選擇的日期為主
+        const dateInput = document.getElementById('body-editor-date');
+        const dateStr = dateInput ? dateInput.value : this.getFormatDate(this.displayDate);
+
+        const logs = this.getAllLogs();
+        logs[dateStr] = {
+            height: h,
+            weight: w,
+            bodyFat: isNaN(bf) ? null : bf,
+            muscleMass: isNaN(mm) ? null : mm,
+            updatedAt: Date.now()
+        };
+
+        localStorage.setItem('bodyLogs', JSON.stringify(logs));
+        this.latestHeight = h;
+
+        // 存檔後將背景卡片切換至剛儲存/更新的那一天
+        this.displayDate = this.parseDate(dateStr);
+        this.renderCard();
+        this.closeEditor();
+    },
+
+    deleteRecord() {
+        if (!confirm("確定要刪除這天的身體組成紀錄嗎？")) return;
+
+        // 刪除時，同樣以 Modal 上選擇的日期為主
+        const dateInput = document.getElementById('body-editor-date');
+        const dateStr = dateInput ? dateInput.value : this.getFormatDate(this.displayDate);
+
+        const logs = this.getAllLogs();
+        if (logs[dateStr]) {
+            delete logs[dateStr];
+            localStorage.setItem('bodyLogs', JSON.stringify(logs));
+        }
+
+        // 若刪除的是目前正在看的日期，嘗試重新載入最新日期
+        if (dateStr === this.getFormatDate(this.displayDate)) {
+            const newDates = Object.keys(logs).sort();
+            this.displayDate = newDates.length > 0 ? this.parseDate(newDates[newDates.length - 1]) : new Date();
+        }
+
+        this.renderCard();
+        this.closeEditor();
+    }
+};
+
+// 獨立綁定初始化，避免在主 HTML 遺漏執行導致無法編輯
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (typeof bodyManager !== 'undefined') {
+            bodyManager.init();
+        }
+    }, 100);
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     const sourceSelect = document.getElementById('pr-source-type');
     if (sourceSelect) sourceSelect.addEventListener('change', () => analyticsUI.updateTargetDropdown());

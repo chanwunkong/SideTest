@@ -240,9 +240,97 @@
                 <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">性能表現趨勢</span>
             </div>
 
+            <div class="px-6 pt-6">
+                <div
+                    class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 dark:bg-gray-750 dark:border-gray-600 mb-2">
+                    <div class="flex justify-between items-center mb-5">
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-bold text-gray-800 dark:text-white text-sm">身體組成狀態</h3>
+                            <span id="body-date-label"
+                                class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono font-bold dark:bg-gray-700 dark:text-gray-400">YYYY-MM-DD</span>
+                        </div>
+                        <div
+                            class="flex items-center gap-1 bg-gray-50 rounded-lg p-0.5 border border-gray-100 dark:bg-gray-800 dark:border-gray-600">
+                            <button onclick="bodyManager.changeDate(-1)"
+                                class="p-1.5 text-gray-400 hover:text-blue-500 rounded-md transition-colors active:scale-95">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            <button onclick="bodyManager.openEditor()"
+                                class="px-3 py-1 bg-white text-blue-600 rounded-md shadow-sm active:scale-95 transition-transform text-xs font-bold flex items-center gap-1 border border-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-blue-400">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                                編輯
+                            </button>
+                            <button onclick="bodyManager.changeDate(1)"
+                                class="p-1.5 text-gray-400 hover:text-blue-500 rounded-md transition-colors active:scale-95">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 mb-4">
+                        <div
+                            class="bg-gray-50 rounded-xl p-3 border border-gray-100 dark:bg-gray-800/50 dark:border-gray-700">
+                            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">體重</div>
+                            <div class="flex items-baseline gap-1">
+                                <span id="body-val-weight"
+                                    class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter">--</span>
+                                <span class="text-[10px] font-bold text-gray-400">kg</span>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-gray-50 rounded-xl p-3 border border-gray-100 dark:bg-gray-800/50 dark:border-gray-700">
+                            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">瘦體重 (LBM)
+                            </div>
+                            <div class="flex items-baseline gap-1">
+                                <span id="body-val-lbm"
+                                    class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter">--</span>
+                                <span class="text-[10px] font-bold text-gray-400">kg</span>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-gray-50 rounded-xl p-3 border border-gray-100 dark:bg-gray-800/50 dark:border-gray-700">
+                            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">骨骼肌重</div>
+                            <div class="flex items-baseline gap-1">
+                                <span id="body-val-muscle"
+                                    class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter">--</span>
+                                <span class="text-[10px] font-bold text-gray-400">kg</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <div class="text-center">
+                            <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">體脂肪率</div>
+                            <div class="flex items-baseline justify-center gap-0.5 text-gray-800 dark:text-gray-200">
+                                <span id="body-val-fat" class="text-sm font-black">--</span><span
+                                    class="text-[9px] text-gray-400">%</span>
+                            </div>
+                        </div>
+                        <div class="text-center border-l border-gray-100 dark:border-gray-700">
+                            <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">BMI</div>
+                            <div id="body-val-bmi" class="text-sm font-black text-gray-800 dark:text-gray-200">--</div>
+                        </div>
+                        <div class="text-center border-l border-gray-100 dark:border-gray-700">
+                            <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">FFMI</div>
+                            <div class="flex items-baseline justify-center gap-0.5 text-gray-800 dark:text-gray-200">
+                                <span id="body-val-ffmi" class="text-sm font-black">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="p-6">
                 <div id="pr-cards-container" class="grid grid-cols-2 gap-3 mb-8"></div>
-
                 <div
                     class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 dark:bg-gray-750 dark:border-gray-600">
                     <div class="flex justify-between items-center mb-6">
@@ -958,6 +1046,70 @@
                         class="w-1/3 py-4 bg-red-50 text-red-600 rounded-xl font-bold dark:bg-red-900/30 dark:text-red-400">清空</button>
                     <button onclick="analyticsUI.savePRCard()"
                         class="w-2/3 bg-gray-900 text-white py-4 rounded-xl font-bold dark:bg-blue-600">套用設定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-body-editor"
+        class="modal fixed inset-0 z-[75] bg-black/50 flex items-end justify-center hidden transition-opacity">
+        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
+            id="body-sheet">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-xl font-extrabold dark:text-white">紀錄身體組成</h3>
+                    <input type="date" id="body-editor-date"
+                        class="mt-1 bg-transparent text-sm font-mono text-blue-600 font-bold outline-none cursor-pointer dark:text-blue-400 border-none p-0 focus:ring-0">
+                </div>
+                <button onclick="bodyManager.closeEditor()"
+                    class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500 hover:bg-gray-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">身高
+                            (cm)</label>
+                        <input type="number" id="inp-body-height" step="0.1"
+                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
+                            placeholder="175">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">體重
+                            (kg)</label>
+                        <input type="number" id="inp-body-weight" step="0.1"
+                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
+                            placeholder="70.5">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">體脂率
+                            (%)</label>
+                        <input type="number" id="inp-body-fat" step="0.1"
+                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
+                            placeholder="15.0">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">骨骼肌重
+                            (kg)<span class="text-[9px] font-normal ml-1 lowercase">(選填)</span></label>
+                        <input type="number" id="inp-body-muscle" step="0.1"
+                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
+                            placeholder="33.5">
+                    </div>
+                </div>
+
+                <div class="flex gap-3 mt-8">
+                    <button id="btn-body-delete" onclick="bodyManager.deleteRecord()"
+                        class="w-1/3 py-4 bg-red-50 text-red-600 rounded-xl font-bold dark:bg-red-900/30 dark:text-red-400 hidden">刪除</button>
+                    <button id="btn-body-save" onclick="bodyManager.saveRecord()"
+                        class="flex-1 bg-gray-900 text-white py-4 rounded-xl font-bold dark:bg-blue-600 shadow-lg shadow-gray-900/20 dark:shadow-blue-900/30">儲存紀錄</button>
                 </div>
             </div>
         </div>
