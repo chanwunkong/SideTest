@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運動員體能適應模擬系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; color: #1f2937; }
+        .slider-container { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+        input[type=range] { width: 60%; }
+        .chart-wrapper { position: relative; height: 300px; width: 100%; }
+    </style>
+</head>
+<body class="p-6">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        <header class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h1 class="text-2xl font-bold text-gray-800 tracking-tight">運動員適應狀態與處方模擬器</h1>
+            <p class="text-gray-500 mt-2 text-sm">調整下方生理參數，觀察圖表變化並獲取演算法生成的訓練處方。</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 控制面板 -->
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 col-span-1">
+                <h2 class="text-lg font-semibold mb-6 border-b pb-2">生理適應控制項</h2>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-1">神經募集 (v0 & 早期 RFD) <span id="valNeural" class="float-right font-mono text-blue-600">100%</span></label>
+                    <input type="range" id="sliderNeural" min="70" max="130" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    <p class="text-xs text-gray-400 mt-1">影響快肌纖維動員與無負荷啟動速度。</p>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-1">肌肥大 (最大力量 1RM) <span id="valHypertrophy" class="float-right font-mono text-blue-600">100%</span></label>
+                    <input type="range" id="sliderHypertrophy" min="70" max="130" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    <p class="text-xs text-gray-400 mt-1">影響肌肉橫截面積與絕對力量極限。</p>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-1">代謝抗疲勞 (乳酸清除) <span id="valMetabolic" class="float-right font-mono text-blue-600">100%</span></label>
+                    <input type="range" id="sliderMetabolic" min="70" max="130" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    <p class="text-xs text-gray-400 mt-1">影響反覆操作時的速度衰減率(Velocity Loss)。</p>
+                </div>
+
+                <button id="btnReset" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded transition duration-150">重置基準線</button>
+            </div>
+
+            <!-- 分析結果與處方 -->
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 col-span-1 lg:col-span-2 flex flex-col justify-center">
+                <h2 class="text-lg font-semibold mb-4 border-b pb-2">系統診斷與訓練處方</h2>
+                <div id="prescriptionBox" class="p-4 bg-blue-50 text-blue-900 border border-blue-100 rounded-md text-sm leading-relaxed min-h-[120px]">
+                    請調整左側數值以生成分析。
+                </div>
+                <div class="mt-4 grid grid-cols-3 gap-4 text-center">
+                    <div class="p-3 bg-gray-50 rounded border border-gray-100">
+                        <div class="text-xs text-gray-500 mb-1">當前預估 1RM</div>
+                        <div id="stat1RM" class="text-xl font-bold text-gray-800">100 kg</div>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded border border-gray-100">
+                        <div class="text-xs text-gray-500 mb-1">理論最大速度 (v0)</div>
+                        <div id="statV0" class="text-xl font-bold text-gray-800">1.40 m/s</div>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded border border-gray-100">
+                        <div class="text-xs text-gray-500 mb-1">8RM 速度衰減率</div>
+                        <div id="statVL" class="text-xl font-bold text-gray-800">40.0 %</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 圖表區 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                <h3 class="text-sm font-semibold text-center mb-2">負荷-速度剖面 (L-V Profile)</h3>
+                <div class="chart-wrapper"><canvas id="lvChart"></canvas></div>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                <h3 class="text-sm font-semibold text-center mb-2">力-時曲線 (F-t Curve / RFD)</h3>
+                <div class="chart-wrapper"><canvas id="ftChart"></canvas></div>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                <h3 class="text-sm font-semibold text-center mb-2">組內速度衰減 (Velocity Loss)</h3>
+                <div class="chart-wrapper"><canvas id="vlChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 基準數據常數
+        const BASE_1RM = 100;
+        const BASE_V0 = 1.4;
+        const BASE_FMAX = 1000;
+        const BASE_RFD_K = 0.015; // 指數衰減常數，影響早期上升斜率
+
+        // 狀態變數
+        let params = { neural: 100, hypertrophy: 100, metabolic: 100 };
+        let charts = {};
+
+        // DOM 元素
+        const elNeural = document.getElementById('sliderNeural');
+        const elHypertrophy = document.getElementById('sliderHypertrophy');
+        const elMetabolic = document.getElementById('sliderMetabolic');
+        const valNeural = document.getElementById('valNeural');
+        const valHypertrophy = document.getElementById('valHypertrophy');
+        const valMetabolic = document.getElementById('valMetabolic');
+        const prescriptionBox = document.getElementById('prescriptionBox');
+
+        // 初始化圖表
+        function initCharts() {
+            Chart.defaults.font.family = '-apple-system, sans-serif';
+            Chart.defaults.color = '#6b7280';
+            
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 300 },
+                plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } }
+            };
+
+            // L-V Chart
+            charts.lv = new Chart(document.getElementById('lvChart'), {
+                type: 'line',
+                data: { labels: [0, 20, 40, 60, 80, 100, 120], datasets: [] },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        x: { title: { display: true, text: '負荷 (kg)', font: { size: 10 } } },
+                        y: { title: { display: true, text: '速度 (m/s)', font: { size: 10 } }, min: 0, max: 2.0 }
+                    }
+                }
+            });
+
+            // F-t Chart
+            charts.ft = new Chart(document.getElementById('ftChart'), {
+                type: 'line',
+                data: { labels: [0, 50, 100, 150, 200, 250, 300], datasets: [] },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        x: { title: { display: true, text: '時間 (ms)', font: { size: 10 } } },
+                        y: { title: { display: true, text: '力量 (N)', font: { size: 10 } }, min: 0, max: 1500 }
+                    }
+                }
+            });
+
+            // V-L Chart
+            charts.vl = new Chart(document.getElementById('vlChart'), {
+                type: 'line',
+                data: { labels: [1, 2, 3, 4, 5, 6, 7, 8], datasets: [] },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        x: { title: { display: true, text: '反覆次數 (Reps)', font: { size: 10 } } },
+                        y: { title: { display: true, text: '向心速度 (m/s)', font: { size: 10 } }, min: 0, max: 0.8 }
+                    }
+                }
+            });
+        }
+
+        // 計算數據模型
+        function calculateData() {
+            const pNeural = params.neural / 100;
+            const pHyper = params.hypertrophy / 100;
+            const pMeta = params.metabolic / 100;
+
+            // --- L-V Model (線性下降) ---
+            const cur1RM = BASE_1RM * pHyper;
+            const curV0 = BASE_V0 * pNeural;
+            const lvLoads = [0, 20, 40, 60, 80, 100, 120];
+            
+            const calcLV = (load, v0, rm) => Math.max(0, v0 - (v0 / rm) * load);
+            const lvBaseData = lvLoads.map(l => calcLV(l, BASE_V0, BASE_1RM));
+            const lvCurData = lvLoads.map(l => calcLV(l, curV0, cur1RM));
+
+            // --- F-t Model (指數上升) F = Fmax * (1 - e^(-kt)) ---
+            const curFmax = BASE_FMAX * pHyper;
+            const curK = BASE_RFD_K * pNeural;
+            const ftTimes = [0, 50, 100, 150, 200, 250, 300];
+
+            const calcFT = (t, fmax, k) => fmax * (1 - Math.exp(-k * t));
+            const ftBaseData = ftTimes.map(t => calcFT(t, BASE_FMAX, BASE_RFD_K));
+            const ftCurData = ftTimes.map(t => calcFT(t, curFmax, curK));
+
+            // --- V-L Model (模擬 80% 1RM 約 8RM 的操作) ---
+            const initialV_base = calcLV(80, BASE_V0, BASE_1RM);
+            const initialV_cur = calcLV(80 * pHyper, curV0, cur1RM); // 使用同等相對強度 80%
+
+            const vlReps = [1, 2, 3, 4, 5, 6, 7, 8];
+            // 代謝越好(>1)，衰減越慢；代謝越差(<1)，衰減越快
+            const lossFactorBase = 0.05; 
+            const lossFactorCur = 0.05 * (2 - pMeta); 
+
+            const calcVL = (rep, vStart, factor) => Math.max(0, vStart - (rep - 1) * factor * vStart);
+            const vlBaseData = vlReps.map(r => calcVL(r, initialV_base, lossFactorBase));
+            const vlCurData = vlReps.map(r => calcVL(r, initialV_cur, lossFactorCur));
+
+            // 更新面板數字
+            document.getElementById('stat1RM').innerText = `${cur1RM.toFixed(1)} kg`;
+            document.getElementById('statV0').innerText = `${curV0.toFixed(2)} m/s`;
+            
+            const currentVLPercent = ((initialV_cur - vlCurData[7]) / initialV_cur) * 100;
+            document.getElementById('statVL').innerText = `${currentVLPercent.toFixed(1)} %`;
+
+            return { lvBaseData, lvCurData, ftBaseData, ftCurData, vlBaseData, vlCurData };
+        }
+
+        // 更新圖表視覺
+        function updateCharts() {
+            const data = calculateData();
+            const baseStyle = { borderColor: '#9ca3af', borderDash: [5, 5], borderWidth: 2, pointRadius: 0, tension: 0.1 };
+            const curStyle = { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderWidth: 3, pointRadius: 3, fill: true, tension: 0.1 };
+
+            charts.lv.data.datasets = [
+                { label: '基準 L-V', data: data.lvBaseData, ...baseStyle, fill: false },
+                { label: '當前 L-V', data: data.lvCurData, ...curStyle }
+            ];
+            
+            charts.ft.data.datasets = [
+                { label: '基準 F-t', data: data.ftBaseData, ...baseStyle, fill: false },
+                { label: '當前 F-t', data: data.ftCurData, ...curStyle }
+            ];
+
+            charts.vl.data.datasets = [
+                { label: '基準衰減', data: data.vlBaseData, ...baseStyle, fill: false },
+                { label: '當前衰減', data: data.vlCurData, ...curStyle }
+            ];
+
+            Object.values(charts).forEach(c => c.update());
+            generatePrescription();
+        }
+
+        // 生成訓練處方
+        function generatePrescription() {
+            const n = params.neural;
+            const h = params.hypertrophy;
+            const m = params.metabolic;
+            let text = "";
+
+            if (n === 100 && h === 100 && m === 100) {
+                text = "目前處於基準狀態。請調整左側滑桿以輸入評測數據，系統將推導適應變化並給予處方。";
+                prescriptionBox.className = "p-4 bg-gray-50 text-gray-700 border border-gray-200 rounded-md text-sm leading-relaxed min-h-[120px]";
+            } else if (h > n + 15) {
+                text = "<strong>診斷：絕對肌力顯著提升，神經發放率產生瓶頸。</strong><br>L-V曲線右側平移，但v0停滯；早期RFD斜率不足。肌肉橫截面積已足夠，但缺乏快速徵召快肌的能力。<br><br><strong>處方建議：</strong>停止高強度大重量慢速訓練。轉換至<strong>速度力量(Speed-Strength)週期</strong>。建議使用30-50% 1RM 結合彈力帶進行最大加速訓練，或增加超等長訓練(Plyometrics)。";
+                prescriptionBox.className = "p-4 bg-yellow-50 text-yellow-900 border border-yellow-200 rounded-md text-sm leading-relaxed min-h-[120px]";
+            } else if (n > h + 15) {
+                text = "<strong>診斷：神經驅動優異，但絕對肌力天花板過低。</strong><br>v0與RFD極高，但1RM限制了整體爆發力的峰值輸出。中樞神經已高度適應。<br><br><strong>處方建議：</strong>進入<strong>肌肥大與最大肌力(Max Strength)週期</strong>。增加機械張力，使用75-85% 1RM 進行 5-8RM 的結構性訓練，擴大肌肉橫截面積。";
+                prescriptionBox.className = "p-4 bg-purple-50 text-purple-900 border border-purple-200 rounded-md text-sm leading-relaxed min-h-[120px]";
+            } else if (m < 90 && h >= 100) {
+                text = "<strong>診斷：力量水準維持，但無氧糖解效率與乳酸清除率衰退。</strong><br>從組內速度衰減(VL)可見，在相同相對強度下，速度流失過快。代表氫離子緩衝能力不足，難以維持訓練容量。<br><br><strong>處方建議：</strong>維持既有力量維持計畫，但需額外加入<strong>無氧乳酸耐力訓練</strong>(如重複衝刺 RSA，或高強度間歇 HIIT) 以優化能量系統。";
+                prescriptionBox.className = "p-4 bg-red-50 text-red-900 border border-red-200 rounded-md text-sm leading-relaxed min-h-[120px]";
+            } else if (n > 105 && h > 105 && m >= 100) {
+                text = "<strong>診斷：全面性正向適應。</strong><br>神經募集、肌肥大與代謝恢復皆獲得提升。L-V曲線與F-t曲線全面向上推移。<br><br><strong>處方建議：</strong>目前的訓練計畫安排合理且有效。請依照週期化原則，重新測試基準線(1RM與速度剖面)，並進入下一個漸進式超負荷週期。";
+                prescriptionBox.className = "p-4 bg-green-50 text-green-900 border border-green-200 rounded-md text-sm leading-relaxed min-h-[120px]";
+            } else {
+                text = "<strong>診斷：混合型適應變化。</strong><br>數據顯示各項指標變化幅度不大，或處於維持期。<br><br><strong>處方建議：</strong>若目標為突破成績，建議檢視訓練量(Volume)與強度(Intensity)是否長期缺乏變化。可嘗試引入基於速度的訓練(VBT)，以20%速度衰減作為每組停止依據，確保訓練質量。";
+                prescriptionBox.className = "p-4 bg-blue-50 text-blue-900 border border-blue-200 rounded-md text-sm leading-relaxed min-h-[120px]";
+            }
+            
+            prescriptionBox.innerHTML = text;
+        }
+
+        // 綁定事件
+        const updateParams = () => {
+            params.neural = parseInt(elNeural.value);
+            params.hypertrophy = parseInt(elHypertrophy.value);
+            params.metabolic = parseInt(elMetabolic.value);
+            
+            valNeural.innerText = `${params.neural}%`;
+            valHypertrophy.innerText = `${params.hypertrophy}%`;
+            valMetabolic.innerText = `${params.metabolic}%`;
+            
+            updateCharts();
+        };
+
+        elNeural.addEventListener('input', updateParams);
+        elHypertrophy.addEventListener('input', updateParams);
+        elMetabolic.addEventListener('input', updateParams);
+
+        document.getElementById('btnReset').addEventListener('click', () => {
+            elNeural.value = 100;
+            elHypertrophy.value = 100;
+            elMetabolic.value = 100;
+            updateParams();
+        });
+
+        // 啟動
+        initCharts();
+        updateCharts();
+
+    </script>
+</body>
+</html>

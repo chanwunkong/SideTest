@@ -401,28 +401,6 @@
                                 class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
                         </div>
                         <div class="p-4 border-t border-gray-100 dark:border-gray-700">
-                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">健康數據同步 (暫訂)</h4>
-                            <div class="space-y-4">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
-                                            <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-                                                <path
-                                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="font-medium text-sm">Apple Health / Google Fit</div>
-                                            <div class="text-[10px] text-gray-400">同步訓練時長與卡路里</div>
-                                        </div>
-                                    </div>
-                                    <button onclick="alert('整合功能開發中')"
-                                        class="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold dark:bg-blue-900/30 dark:text-blue-400">連接</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="p-4 border-t border-gray-100 dark:border-gray-700">
                             <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">穿戴裝置 (暫訂)</h4>
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between">
@@ -445,15 +423,6 @@
                                 </div>
                             </div>
                         </div>
-                        <button
-                            class="w-full p-4 flex justify-between items-center hover:bg-gray-50 border-t dark:hover:bg-gray-700 dark:border-gray-700">
-                            <span class="font-medium">連接藍芽吊秤</span>
-                            <span class="text-gray-400 text-sm">未連線</span>
-                        </button>
-                        <button
-                            class="w-full p-4 flex justify-between items-center hover:bg-gray-50 border-t dark:hover:bg-gray-700 dark:border-gray-700">
-                            <span class="font-medium">感測器歸零</span>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -587,34 +556,38 @@
                         <button type="button" onclick="quickAddTag('核心')" class="lib-tag-btn">核心</button>
                         <button type="button" onclick="quickAddTag('上肢')" class="lib-tag-btn">上肢</button>
                         <button type="button" onclick="quickAddTag('下肢')" class="lib-tag-btn">下肢</button>
-                        <button type="button" onclick="quickAddTag('上背')" class="lib-tag-btn">上背</button>
-                        <button type="button" onclick="quickAddTag('中背')" class="lib-tag-btn">中背</button>
-                        <button type="button" onclick="quickAddTag('下背')" class="lib-tag-btn">下背</button>
-                        <button type="button" onclick="quickAddTag('腹肌')" class="lib-tag-btn">腹肌</button>
-                        <button type="button" onclick="quickAddTag('腹外斜肌')" class="lib-tag-btn">腹外斜肌</button>
+                        <button type="button" onclick="quickAddTag('背部肌群')" class="lib-tag-btn">背部肌群</button>
+                        <button type="button" onclick="quickAddTag('胸部肌群')" class="lib-tag-btn">胸部肌群</button>
+                        <button type="button" onclick="quickAddTag('腹部肌群')" class="lib-tag-btn">腹部肌群</button>
+                        <button type="button" onclick="quickAddTag('肩部肌群')" class="lib-tag-btn">肩部肌群</button>
                         <button type="button" onclick="quickAddTag('二頭肌')" class="lib-tag-btn">二頭肌</button>
                         <button type="button" onclick="quickAddTag('三頭肌')" class="lib-tag-btn">三頭肌</button>
+                        <button type="button" onclick="quickAddTag('小臂肌群')" class="lib-tag-btn">小臂肌群</button>
                         <button type="button" onclick="quickAddTag('臀肌')" class="lib-tag-btn">臀肌</button>
                         <button type="button" onclick="quickAddTag('股四頭肌')" class="lib-tag-btn">股四頭肌</button>
                         <button type="button" onclick="quickAddTag('膕繩肌')" class="lib-tag-btn">膕繩肌</button>
-                        <button type="button" onclick="quickAddTag('脛骨前肌')" class="lib-tag-btn">脛骨前肌</button>
-                        <button type="button" onclick="quickAddTag('小腿')" class="lib-tag-btn">小腿</button>
+                        <button type="button" onclick="quickAddTag('小腿肌群')" class="lib-tag-btn">小腿肌群</button>
 
                     </div>
                     <!-- 2. 按主要肌肉區分 -->
                     <div id="tab-muscle" class="tag-tab-content hidden flex flex-wrap gap-1.5">
                         <!-- 背部 -->
-                        <button type="button" onclick="quickAddTag('背闊肌')" class="lib-tag-btn">背闊肌</button>
                         <button type="button" onclick="quickAddTag('斜方肌')" class="lib-tag-btn">斜方肌</button>
                         <button type="button" onclick="quickAddTag('菱形肌')" class="lib-tag-btn">菱形肌</button>
+                        <button type="button" onclick="quickAddTag('背闊肌')" class="lib-tag-btn">背闊肌</button>
                         <button type="button" onclick="quickAddTag('豎脊肌')" class="lib-tag-btn">豎脊肌</button>
+                        <button type="button" onclick="quickAddTag('大圓肌')" class="lib-tag-btn">大圓肌</button>
+                        <button type="button" onclick="quickAddTag('小圓肌')" class="lib-tag-btn">小圓肌</button>
 
                         <!-- 胸部 -->
-                        <button type="button" onclick="quickAddTag('胸大肌')" class="lib-tag-btn">胸大肌</button>
+                        <button type="button" onclick="quickAddTag('胸大肌上束')" class="lib-tag-btn">胸大肌上束</button>
+                        <button type="button" onclick="quickAddTag('胸大肌中束')" class="lib-tag-btn">胸大肌中束</button>
+                        <button type="button" onclick="quickAddTag('胸大肌下束')" class="lib-tag-btn">胸大肌下束</button>
                         <button type="button" onclick="quickAddTag('胸小肌')" class="lib-tag-btn">胸小肌</button>
 
                         <!-- 腹部 -->
-                        <button type="button" onclick="quickAddTag('腹直肌')" class="lib-tag-btn">腹直肌</button>
+                        <button type="button" onclick="quickAddTag('上腹直肌')" class="lib-tag-btn">上腹直肌</button>
+                        <button type="button" onclick="quickAddTag('下腹直肌')" class="lib-tag-btn">下腹直肌</button>
                         <button type="button" onclick="quickAddTag('腹外斜肌')" class="lib-tag-btn">腹外斜肌</button>
                         <button type="button" onclick="quickAddTag('腹內斜肌')" class="lib-tag-btn">腹內斜肌</button>
                         <button type="button" onclick="quickAddTag('腹橫肌')" class="lib-tag-btn">腹橫肌</button>
@@ -657,50 +630,57 @@
                     </div>
                     <!-- 3. 按體能要素區分 -->
                     <div id="tab-fitness" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" onclick="quickAddTag('肌力')" class="lib-tag-btn">肌力 (Strength)</button>
-                        <button type="button" onclick="quickAddTag('耐力')" class="lib-tag-btn">耐力 (Endurance)</button>
-                        <button type="button" onclick="quickAddTag('爆發力')" class="lib-tag-btn">爆發力 (Power)</button>
-                        <button type="button" onclick="quickAddTag('速度')" class="lib-tag-btn">速度 (Speed)</button>
-                        <button type="button" onclick="quickAddTag('協調')" class="lib-tag-btn">協調 (Coordination)</button>
-                        <button type="button" onclick="quickAddTag('柔軟度')" class="lib-tag-btn">柔軟度
-                            (Flexibility)</button>
-                        <button type="button" onclick="quickAddTag('活動度')" class="lib-tag-btn">活動度 (Mobility)</button>
-                        <button type="button" onclick="quickAddTag('穩定性')" class="lib-tag-btn">穩定性 (Stability)</button>
+                        <button type="button" onclick="quickAddTag('肌力')" class="lib-tag-btn">肌力</button>
+                        <button type="button" onclick="quickAddTag('耐力')" class="lib-tag-btn">耐力</button>
+                        <button type="button" onclick="quickAddTag('速度')" class="lib-tag-btn">速度</button>
+                        <button type="button" onclick="quickAddTag('柔軟度')" class="lib-tag-btn">柔軟</button>
+                        <button type="button" onclick="quickAddTag('協調')" class="lib-tag-btn">協調</button>
+
+                        <button type="button" onclick="quickAddTag('最大肌力')" class="lib-tag-btn">最大肌力</button>
+                        <button type="button" onclick="quickAddTag('最大速度')" class="lib-tag-btn">最大速度</button>
+                        <button type="button" onclick="quickAddTag('爆發力')" class="lib-tag-btn">爆發力</button>
+                        <button type="button" onclick="quickAddTag('敏捷')" class="lib-tag-btn">敏捷</button>
+
+                        <button type="button" onclick="quickAddTag('肌耐力')" class="lib-tag-btn">肌耐力</button>
+                        <button type="button" onclick="quickAddTag('有氧耐力')" class="lib-tag-btn">有氧耐力</button>
+                        <button type="button" onclick="quickAddTag('無氧耐力')" class="lib-tag-btn">無氧耐力</button>
+                        <button type="button" onclick="quickAddTag('速耐力')" class="lib-tag-btn">速耐力</button>
+
+                        <button type="button" onclick="quickAddTag('活動度')" class="lib-tag-btn">活動度</button>
+                        <button type="button" onclick="quickAddTag('平衡穩定')" class="lib-tag-btn">平衡穩定</button>
+                        <button type="button" onclick="quickAddTag('反應速度')" class="lib-tag-btn">反應速度</button>
                     </div>
                     <!-- 4. 按能量區間區分 -->
                     <div id="tab-zones" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" onclick="quickAddTag('Zone 1 (恢復)')" class="lib-tag-btn">Zone 1</button>
-                        <button type="button" onclick="quickAddTag('Zone 2 (有氧)')" class="lib-tag-btn">Zone 2</button>
-                        <button type="button" onclick="quickAddTag('Zone 3 (節奏)')" class="lib-tag-btn">Zone 3</button>
-                        <button type="button" onclick="quickAddTag('Zone 4 (閾值)')" class="lib-tag-btn">Zone 4</button>
-                        <button type="button" onclick="quickAddTag('Zone 5 (最大)')" class="lib-tag-btn">Zone 5</button>
+                        <button type="button" onclick="quickAddTag('Zone 1')" class="lib-tag-btn">Zone 1</button>
+                        <button type="button" onclick="quickAddTag('Zone 2')" class="lib-tag-btn">Zone 2</button>
+                        <button type="button" onclick="quickAddTag('Zone 3')" class="lib-tag-btn">Zone 3</button>
+                        <button type="button" onclick="quickAddTag('Zone 4')" class="lib-tag-btn">Zone 4</button>
+                        <button type="button" onclick="quickAddTag('Zone 5')" class="lib-tag-btn">Zone 5</button>
                         <button type="button" onclick="quickAddTag('ATP-PC')" class="lib-tag-btn">磷酸原 (ATP-PC)</button>
                         <button type="button" onclick="quickAddTag('糖解系統')" class="lib-tag-btn">糖解系統</button>
                     </div>
-                    <!-- 5. 攀岩專項 (額外建議) -->
+                    <!-- 5. 攀岩專項 -->
                     <div id="tab-climbing" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" onclick="quickAddTag('抱石')"
-                            class="lib-tag-btn border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">抱石</button>
-                        <button type="button" onclick="quickAddTag('上攀')"
-                            class="lib-tag-btn border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">上攀</button>
+                        <button type="button" onclick="quickAddTag('抱石')" class="lib-tag-btn">抱石</button>
+                        <button type="button" onclick="quickAddTag('上攀')" class="lib-tag-btn">上攀</button>
                         <button type="button" onclick="quickAddTag('系統牆')" class="lib-tag-btn">系統牆</button>
                         <button type="button" onclick="quickAddTag('指力板')" class="lib-tag-btn">指力板</button>
                         <button type="button" onclick="quickAddTag('弱點訓練')" class="lib-tag-btn">弱點訓練</button>
                         <button type="button" onclick="quickAddTag('動態發力')" class="lib-tag-btn">動態發力</button>
                         <button type="button" onclick="quickAddTag('靜態控制')" class="lib-tag-btn">靜態控制</button>
-                        <button type="button" onclick="quickAddTag('鎖力')" class="lib-tag-btn">鎖力 (Lock-off)</button>
-                        <button type="button" onclick="quickAddTag('捏力')" class="lib-tag-btn">捏力 (Crimp)</button>
+                        <button type="button" onclick="quickAddTag('鎖力')" class="lib-tag-btn">鎖力</button>
+                        <button type="button" onclick="quickAddTag('捏力')" class="lib-tag-btn">捏力</button>
                     </div>
-                    <!-- 6. 裝備器材 (額外建議) -->
+                    <!-- 6. 裝備器材  -->
                     <div id="tab-equipment" class="tag-tab-content hidden flex flex-wrap gap-1.5">
                         <button type="button" onclick="quickAddTag('自體重')" class="lib-tag-btn">自體重</button>
                         <button type="button" onclick="quickAddTag('啞鈴')" class="lib-tag-btn">啞鈴</button>
                         <button type="button" onclick="quickAddTag('壺鈴')" class="lib-tag-btn">壺鈴</button>
                         <button type="button" onclick="quickAddTag('槓鈴')" class="lib-tag-btn">槓鈴</button>
                         <button type="button" onclick="quickAddTag('彈力帶')" class="lib-tag-btn">彈力帶</button>
-                        <button type="button" onclick="quickAddTag('懸吊(TRX)')" class="lib-tag-btn">懸吊
-                            (TRX/Rings)</button>
-                        <button type="button" onclick="quickAddTag('滾筒放鬆')" class="lib-tag-btn">滾筒放鬆</button>
+                        <button type="button" onclick="quickAddTag('TRX')" class="lib-tag-btn">TRX</button>
+                        <button type="button" onclick="quickAddTag('滾筒')" class="lib-tag-btn">滾筒放鬆</button>
                     </div>
                 </div>
             </div>
