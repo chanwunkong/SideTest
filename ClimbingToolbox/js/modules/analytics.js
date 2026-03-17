@@ -1,20 +1,21 @@
 // --- js/modules/analytics.js ---
 
+// --- js/modules/analytics.js ---
+
 const analyticsManager = {
     configs: [],
     chartInstance: null,
     activeCardIndex: 0,
-    currentRange: '28d', // 預設改為 4 週
+    currentRange: '28d',
 
     init() {
         const saved = localStorage.getItem('prCardConfigs');
         if (saved) {
             this.configs = JSON.parse(saved);
         } else {
-            // 加入 timeRange 屬性
             this.configs = [
-                { sourceType: 'routine', targetItem: '最大懸垂', metric: '附加重量', aggregation: 'max', timeRange: 'all' },
-                { sourceType: 'tag', targetItem: '指力', metric: 'volume_time', aggregation: 'sum', timeRange: '7d' },
+                { sourceType: 'routine', targetItem: '最大懸垂', metric: 'relative_strength', aggregation: 'max', timeRange: 'all' },
+                { sourceType: 'tag', targetItem: '耐力', metric: 'decay_rate', aggregation: 'avg', timeRange: '28d' },
                 null
             ];
         }
@@ -35,6 +36,20 @@ const analyticsManager = {
         this.renderCards();
     },
 
+    // [新增] 尋找距離特定訓練日期最近的體重紀錄，消除體重噪音
+    getClosestWeight(targetDateStr) {
+        const bodyLogs = JSON.parse(localStorage.getItem('bodyLogs') || '{}');
+        const dates = Object.keys(bodyLogs).sort();
+        if (dates.length === 0) return 60; // 預設防呆值
+
+        let bestDate = dates[0];
+        for (let d of dates) {
+            if (d <= targetDateStr) bestDate = d;
+            else break;
+        }
+        return bodyLogs[bestDate].weight || 60;
+    },
+
     extractData(config) {
         if (!config) return [];
         const records = recordManager.getAllRecords();
@@ -44,53 +59,68 @@ const analyticsManager = {
             let match = false;
 
             if (config.sourceType === 'routine') {
-                // 優先比對 Title（相容舊紀錄），未來若 targetItem 改存 ID 則直接比對 ID
                 if (rec.routineTitle === config.targetItem) match = true;
             } else if (config.sourceType === 'tag') {
-                // ✨ 直接使用歷史紀錄中保存的標籤快照，不再依賴當前課表名稱
                 if (rec.tags && rec.tags.length > 0) {
                     const selected = config.targetItems || [config.targetItem];
                     const op = config.operator || 'OR';
-
-                    if (op === 'AND') {
-                        match = selected.every(t => rec.tags.includes(t));
-                    } else {
-                        match = selected.some(t => rec.tags.includes(t));
-                    }
+                    match = op === 'AND'
+                        ? selected.every(t => rec.tags.includes(t))
+                        : selected.some(t => rec.tags.includes(t));
                 }
             }
 
             if (!match) return;
 
             let dayValue = null;
+            const logs = rec.executionLogs || [];
 
+            // 基礎容量指標
             if (config.metric === 'volume_time') {
                 dayValue = rec.duration;
             } else if (config.metric === 'volume_reps') {
-                let reps = 0;
-                if (rec.executionLogs) {
-                    rec.executionLogs.forEach(log => {
-                        if (log.actuals && log.actuals['次數']) reps += log.actuals['次數'];
-                    });
+                dayValue = logs.reduce((sum, log) => sum + (log.actuals && log.actuals['次數'] ? log.actuals['次數'] : 0), 0);
+            }
+            // [新增] 生理映射：力竭率 (神經疲勞指標)
+            else if (config.metric === 'failure_rate') {
+                if (logs.length > 0) {
+                    const fails = logs.filter(l => l.isFailure).length;
+                    dayValue = (fails / logs.length) * 100;
                 }
-                dayValue = reps;
-            } else {
-                if (rec.executionLogs) {
-                    const vals = [];
-                    rec.executionLogs.forEach(log => {
-                        if (log.actuals && log.actuals[config.metric] !== undefined) {
-                            const val = Number(log.actuals[config.metric]);
-                            if (!isNaN(val)) vals.push(val);
-                        }
-                    });
-                    if (vals.length > 0) {
-                        // 針對單日極端值與平均值的預先處理
-                        if (config.aggregation === 'min') dayValue = Math.min(...vals);
-                        else if (config.aggregation === 'avg') dayValue = vals.reduce((a, b) => a + b, 0) / vals.length;
-                        else if (config.aggregation === 'latest') dayValue = vals[vals.length - 1];
-                        else if (config.aggregation === 'sum' || config.aggregation === 'max_daily_sum') dayValue = vals.reduce((a, b) => a + b, 0);
-                        else dayValue = Math.max(...vals); // max
+            }
+            // [新增] 生理映射：組間衰減率 (代謝抗疲勞指標)
+            else if (config.metric === 'decay_rate') {
+                // 自動尋找主要負荷指標 (例如附加重量或次數)
+                const validLogs = logs.filter(l => l.actuals && (l.actuals['附加重量'] !== undefined || l.actuals['次數'] !== undefined));
+                if (validLogs.length >= 2) {
+                    const metricKey = validLogs[0].actuals['附加重量'] !== undefined ? '附加重量' : '次數';
+                    const firstVal = Number(validLogs[0].actuals[metricKey]);
+                    const lastVal = Number(validLogs[validLogs.length - 1].actuals[metricKey]);
+
+                    if (!isNaN(firstVal) && firstVal > 0) {
+                        dayValue = ((firstVal - lastVal) / firstVal) * 100;
+                        if (dayValue < 0) dayValue = 0; // 若越做越重，衰減率記為 0
                     }
+                }
+            }
+            // [新增] 生理映射：相對強度係數 (體重對齊)
+            else if (config.metric === 'relative_strength') {
+                const vals = logs.map(l => Number(l.actuals && l.actuals['附加重量'])).filter(v => !isNaN(v));
+                if (vals.length > 0) {
+                    const maxLoad = Math.max(...vals);
+                    const bw = this.getClosestWeight(rec.date);
+                    dayValue = (maxLoad + bw) / bw; // 計算 (附加重量+體重)/體重
+                }
+            }
+            // 傳統自訂絕對指標
+            else {
+                const vals = logs.map(l => Number(l.actuals && l.actuals[config.metric])).filter(v => !isNaN(v));
+                if (vals.length > 0) {
+                    if (config.aggregation === 'min') dayValue = Math.min(...vals);
+                    else if (config.aggregation === 'avg') dayValue = vals.reduce((a, b) => a + b, 0) / vals.length;
+                    else if (config.aggregation === 'latest') dayValue = vals[vals.length - 1];
+                    else if (config.aggregation === 'sum' || config.aggregation === 'max_daily_sum') dayValue = vals.reduce((a, b) => a + b, 0);
+                    else dayValue = Math.max(...vals);
                 }
             }
 
@@ -101,7 +131,6 @@ const analyticsManager = {
         return dataPoints;
     },
 
-    // 專門計算卡片單一顯示數值的引擎
     calculateCardValue(dataPoints, timeRange, aggregation) {
         let filtered = dataPoints;
 
@@ -159,7 +188,6 @@ const analyticsManager = {
         if (range === '84d') limit = now - 84 * 86400000;
 
         let filtered = limit > 0 ? dataPoints.filter(d => d.timestamp >= limit) : dataPoints;
-
         if (filtered.length === 0) return { labels: [], data: [] };
 
         filtered.sort((a, b) => a.timestamp - b.timestamp);
@@ -170,10 +198,8 @@ const analyticsManager = {
             grouped[d.date].push(d.value);
         });
 
-        // 避免時區偏差，使用本地時間解析起迄日
         const [sY, sM, sD] = filtered[0].date.split('-').map(Number);
         const startDate = new Date(sY, sM - 1, sD);
-
         const [eY, eM, eD] = filtered[filtered.length - 1].date.split('-').map(Number);
         const endDate = new Date(eY, eM - 1, eD);
 
@@ -187,7 +213,7 @@ const analyticsManager = {
             const d = String(curr.getDate()).padStart(2, '0');
             const dateStr = `${y}-${m}-${d}`;
 
-            labels.push(`${m}-${d}`); // 預先裁切為 MM-DD 格式
+            labels.push(`${m}-${d}`);
 
             if (grouped[dateStr]) {
                 const vals = grouped[dateStr];
@@ -198,10 +224,8 @@ const analyticsManager = {
                 else if (aggregation === 'avg') data.push(vals.reduce((a, b) => a + b, 0) / vals.length);
                 else data.push(Math.max(...vals));
             } else {
-                // 無數據的日子補上 null 以維持 X 軸的真實間隔比例
                 data.push(null);
             }
-
             curr.setDate(curr.getDate() + 1);
         }
 
@@ -231,19 +255,33 @@ const analyticsManager = {
             let displayValue = this.calculateCardValue(rawData, config.timeRange || 'all', config.aggregation);
 
             let unit = '';
-            let metricLabel = config.metric === 'volume_time' ? '總時數' : (config.metric === 'volume_reps' ? '總次數' : config.metric);
+            let metricLabel = config.metric;
 
+            // 處理顯示單位與標籤
             if (config.metric === 'volume_time') {
                 displayValue = Math.floor(displayValue / 60);
                 unit = 'min';
+                metricLabel = '總時數';
             } else if (config.metric === 'volume_reps') {
                 unit = '次';
+                metricLabel = '總次數';
+            } else if (config.metric === 'failure_rate') {
+                displayValue = Math.round(displayValue);
+                unit = '%';
+                metricLabel = '力竭率';
+            } else if (config.metric === 'decay_rate') {
+                displayValue = Math.round(displayValue * 10) / 10;
+                unit = '%';
+                metricLabel = '表現衰減';
+            } else if (config.metric === 'relative_strength') {
+                displayValue = (Math.round(displayValue * 100) / 100).toFixed(2);
+                unit = 'xBW';
+                metricLabel = '相對強度';
             } else {
                 displayValue = Math.round(displayValue * 10) / 10;
                 unit = config.metric.includes('重') ? 'kg' : '';
             }
 
-            // 單位覆寫 (天數與平均)
             if (config.aggregation === 'active_days') {
                 unit = '天';
                 metricLabel += ' (天數)';
@@ -328,12 +366,15 @@ const analyticsManager = {
         const ctx = canvas.getContext('2d');
         const chartType = (config.metric === 'volume_time' || config.metric === 'volume_reps' || config.aggregation === 'active_days') ? 'bar' : 'line';
 
+        // 針對生理指標調整圖表 Y 軸起始點
+        const beginAtZero = (chartType === 'bar' || config.metric === 'failure_rate' || config.metric === 'decay_rate');
+
         this.chartInstance = new Chart(ctx, {
             type: chartType,
             data: {
-                labels: chartData.labels, // 已在 processChartData 處理格式
+                labels: chartData.labels,
                 datasets: [{
-                    label: config.metric === 'volume_time' ? '總時數(秒)' : config.metric,
+                    label: config.metric,
                     data: chartData.data,
                     borderColor: '#3b82f6',
                     backgroundColor: chartType === 'bar' ? 'rgba(59, 130, 246, 0.5)' : 'rgba(59, 130, 246, 0.1)',
@@ -343,7 +384,7 @@ const analyticsManager = {
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: '#3b82f6',
                     pointRadius: 4,
-                    spanGaps: true // 允許折線跨越 null 區間相連
+                    spanGaps: true
                 }]
             },
             options: {
@@ -352,17 +393,13 @@ const analyticsManager = {
                 plugins: { legend: { display: false } },
                 scales: {
                     x: {
-                        ticks: {
-                            color: textColor,
-                            font: { family: 'monospace' },
-                            maxTicksLimit: 8 // 自動限制 X 軸標籤數量，避免日期過多時重疊
-                        },
+                        ticks: { color: textColor, font: { family: 'monospace' }, maxTicksLimit: 8 },
                         grid: { display: false }
                     },
                     y: {
                         ticks: { color: textColor },
                         grid: { color: gridColor },
-                        beginAtZero: chartType === 'bar'
+                        beginAtZero: beginAtZero
                     }
                 }
             }
@@ -374,14 +411,11 @@ const analyticsUI = {
     editingIndex: null,
     currentOperator: 'OR',
 
-    // 處理按鈕切換視覺與狀態 ▼
     setOperator(op) {
         this.currentOperator = op;
         const btnOr = document.getElementById('pr-op-or');
         const btnAnd = document.getElementById('pr-op-and');
-
         if (!btnOr || !btnAnd) return;
-
         if (op === 'OR') {
             btnOr.className = "flex-1 py-1.5 text-[10px] font-bold rounded-md bg-white shadow-sm text-blue-600 transition-all";
             btnAnd.className = "flex-1 py-1.5 text-[10px] font-bold rounded-md text-gray-400 border border-transparent transition-all";
@@ -429,20 +463,16 @@ const analyticsUI = {
     updateTargetDropdown() {
         const sourceType = document.getElementById('pr-source-type').value;
         const targetSelect = document.getElementById('pr-target-item');
-        let html = '<option value="">(請選擇)</option>'; // 改用字串拼接
+        let html = '<option value="">(請選擇)</option>';
 
         if (sourceType === 'routine') {
-            store.routines.forEach(r => {
-                html += `<option value="${r.title}">${r.title}</option>`;
-            });
+            store.routines.forEach(r => { html += `<option value="${r.title}">${r.title}</option>`; });
         } else if (sourceType === 'tag') {
             const tags = editor.getRoutineTagHistory();
-            tags.forEach(t => {
-                html += `<option value="${t}">${t}</option>`;
-            });
+            tags.forEach(t => { html += `<option value="${t}">${t}</option>`; });
         }
 
-        targetSelect.innerHTML = html; // 迴圈結束後一次性寫入
+        targetSelect.innerHTML = html;
         targetSelect.onchange = () => this.updateMetricDropdown();
         this.updateMetricDropdown();
     },
@@ -452,10 +482,18 @@ const analyticsUI = {
         const targetItem = document.getElementById('pr-target-item').value;
         const metricSelect = document.getElementById('pr-metric');
 
+        // [修改] 注入生理狀態分析指標
         let html = `
-            <option value="volume_time">總時數</option>
-            <option value="volume_reps">總次數</option>
-            <option disabled>── 自訂追蹤項目 ──</option>
+            <optgroup label="基礎容量">
+                <option value="volume_time">總時數 (Time)</option>
+                <option value="volume_reps">總次數 (Reps)</option>
+            </optgroup>
+            <optgroup label="生理決策映射">
+                <option value="relative_strength">相對強度係數 (Load/BW)</option>
+                <option value="decay_rate">組間表現衰減率 (%)</option>
+                <option value="failure_rate">力竭與疲勞率 (%)</option>
+            </optgroup>
+            <optgroup label="自訂絕對數值">
         `;
 
         if (targetItem) {
@@ -480,10 +518,9 @@ const analyticsUI = {
                 }
             });
 
-            customMetricsSet.forEach(m => {
-                html += `<option value="${m}">${m}</option>`;
-            });
+            customMetricsSet.forEach(m => { html += `<option value="${m}">${m}</option>`; });
         }
+        html += `</optgroup>`;
         metricSelect.innerHTML = html;
     },
 
@@ -494,17 +531,12 @@ const analyticsUI = {
         const aggregation = document.getElementById('pr-aggregation').value;
         const timeRange = document.getElementById('pr-time-range').value;
         const operator = this.currentOperator;
+
+        if (!targetItem) return;
+
         analyticsManager.configs[this.editingIndex] = { sourceType, targetItem, metric, aggregation, timeRange, operator };
-
-        if (!targetItem) {
-            if (typeof showToast === 'function') showToast('請選擇目標項目', 'error');
-            return;
-        }
-
-        analyticsManager.configs[this.editingIndex] = { sourceType, targetItem, metric, aggregation, timeRange };
         analyticsManager.saveConfigs();
         this.closePREditor();
-        if (typeof showToast === 'function') showToast('看板已更新');
     },
 
     deletePRCard() {
