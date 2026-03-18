@@ -1,7 +1,5 @@
 // --- js/modules/analytics.js ---
 
-// --- js/modules/analytics.js ---
-
 const analyticsManager = {
     configs: [],
     chartInstance: null,
@@ -790,19 +788,230 @@ const bodyManager = {
     }
 };
 
-// 獨立綁定初始化，避免在主 HTML 遺漏執行導致無法編輯
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        if (typeof bodyManager !== 'undefined') {
-            bodyManager.init();
+const insightManager = {
+    currentBlock: '',
+    currentFormula: 'epley',
+    includeBW: false,
+    currentMetricW: '',
+    chartStrength: null,
+    rawLogs: [],
+    selectedA: new Set(),
+    selectedB: new Set(),
+
+    init() {
+        this.populateBlockSelector();
+        const bind = (id, event, handler) => document.getElementById(id)?.addEventListener(event, handler);
+
+        bind('insight-block-selector', 'change', (e) => {
+            this.currentBlock = e.target.value;
+            this.populateMetricSelectors();
+            this.processData();
+        });
+        bind('sel-map-weight', 'change', (e) => { this.currentMetricW = e.target.value; this.updateStrengthAnalysis(); });
+        bind('insight-1rm-formula', 'change', (e) => { this.currentFormula = e.target.value; this.updateStrengthAnalysis(); });
+        bind('insight-include-bw', 'change', (e) => { this.includeBW = e.target.checked; this.processData(); });
+    },
+
+    // 1. 提取所有 Block 名稱
+    populateBlockSelector() {
+        const records = recordManager.getAllRecords();
+        const labels = new Set();
+        records.forEach(r => {
+            (r.executionLogs || []).forEach(l => {
+                const name = l.label || l.blockSnapshot?.props?.label;
+                if (name) labels.add(name.trim());
+            });
+        });
+        const selector = document.getElementById('insight-block-selector');
+        if (selector) {
+            selector.innerHTML = '<option value="">(選擇分析項目)</option>' +
+                Array.from(labels).sort().map(l => `<option value="${l}">${l}</option>`).join('');
         }
-    }, 100);
-});
+    },
 
+    // 僅提取重量相關指標
+    populateMetricSelectors() {
+        const mappingDiv = document.getElementById('insight-metric-mapping');
+        const selW = document.getElementById('sel-map-weight');
+        if (!this.currentBlock || !mappingDiv) return;
+
+        const records = recordManager.getAllRecords();
+        const keys = new Set();
+        records.forEach(r => {
+            (r.executionLogs || []).forEach(l => {
+                if (l.label === this.currentBlock && l.actuals) {
+                    Object.keys(l.actuals).forEach(k => { if (k !== 'isFailure') keys.add(k); });
+                }
+            });
+        });
+
+        if (keys.size > 0) {
+            mappingDiv.classList.remove('hidden');
+            const keysArr = Array.from(keys);
+            // 預選包含「重」的欄位
+            const weightKey = keysArr.find(k => k.includes('重') || k.toLowerCase().includes('weight'));
+            selW.innerHTML = keysArr.map(k => `<option value="${k}">${k}</option>`).join('');
+            selW.value = weightKey || keysArr[0];
+            this.currentMetricW = selW.value;
+        }
+    },
+
+    // 核心資料處理：自動根據積木類型判定 X 軸 (次數)
+    processData() {
+        if (!this.currentBlock) return;
+        const records = recordManager.getAllRecords();
+        this.rawLogs = [];
+
+        records.forEach(r => {
+            const bw = this.includeBW ? bodyManager.getClosestWeight(r.date) : 0;
+            // 篩選出標籤符合的紀錄
+            const logs = (r.executionLogs || []).filter(l => l.label === this.currentBlock);
+
+            logs.forEach((log, idx) => {
+                if (!log.actuals) return;
+
+                // 1. 確定重量 (Y軸)：使用下拉選單選定的 Key (例如 "深蹲重量")
+                const wVal = parseFloat(log.actuals[this.currentMetricW]) || 0;
+
+                // 2. 確定次數 (X軸)：
+                // 優先找標記為 "次數" 或 "reps" 的欄位，且該欄位不能跟重量欄位重複
+                let rVal = 0;
+
+                // 嘗試所有可能的次數 Key，但不包含目前被選為重量的 Key
+                const possibleRepKeys = ['次數', 'reps', 'Reps', 'count', 'Count'];
+                for (let key of possibleRepKeys) {
+                    if (key !== this.currentMetricW && log.actuals[key] !== undefined) {
+                        rVal = parseFloat(log.actuals[key]);
+                        if (rVal > 0) break;
+                    }
+                }
+
+                // 備援方案：如果上面都沒找到，且它是 reps 型積木，嘗試從計劃值抓取或強制設為 1
+                if (rVal <= 0) {
+                    rVal = parseFloat(log.planned?.count) || 1;
+                }
+
+                // 3. 只有重量 > 0 且 次數 > 0 才紀錄
+                if (wVal > 0 && rVal > 0) {
+                    this.rawLogs.push({
+                        id: `${r.id}-${idx}`,
+                        date: r.date,
+                        routineTitle: r.routineTitle || '自訂訓練',
+                        weight: wVal + bw,
+                        reps: rVal,
+                        isFailure: log.actuals.isFailure === true
+                    });
+                }
+            });
+        });
+
+        this.rawLogs.sort((a, b) => b.date.localeCompare(a.date));
+        this.renderPointsCheckboxes();
+        this.updateStrengthAnalysis();
+    },
+
+    // 渲染清單 (保持力竭標示)
+    renderPointsCheckboxes() {
+        const render = (containerId, selectedSet, period) => {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = this.rawLogs.map((log, i) => {
+                const isFailure = log.isFailure;
+                const failureBadge = isFailure ? `<span class="ml-1 px-1 bg-red-500 text-white rounded text-[8px] font-black shrink-0">力竭</span>` : '';
+                return `
+                    <label class="flex items-start gap-2 bg-white p-2 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-50 dark:bg-gray-800 transition-colors w-full">
+                        <input type="checkbox" onchange="insightManager.togglePoint('${period}', ${i})" ${selectedSet.has(i) ? 'checked' : ''} class="mt-1 w-4 h-4 rounded text-blue-600">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[10px] font-bold text-gray-700 dark:text-gray-300 flex items-center">
+                                <span class="text-gray-400 mr-1.5">${log.date.substring(5)}</span>
+                                <span class="truncate">${log.routineTitle}</span>
+                                ${failureBadge}
+                            </div>
+                            <div class="text-[10px] text-gray-500 font-mono mt-0.5">${log.reps}RM @ ${log.weight.toFixed(1)}kg</div>
+                        </div>
+                    </label>
+                `;
+            }).join('');
+        };
+        render('insight-points-a', this.selectedA, 'A');
+        render('insight-points-b', this.selectedB, 'B');
+    },
+
+    togglePoint(period, index) {
+        const set = period === 'A' ? this.selectedA : this.selectedB;
+        set.has(index) ? set.delete(index) : set.add(index);
+        this.updateStrengthAnalysis();
+    },
+
+    clearSelection(period) {
+        period === 'A' ? this.selectedA.clear() : this.selectedB.clear();
+        this.renderPointsCheckboxes();
+        this.updateStrengthAnalysis();
+    },
+
+    getFormulaCoefficient(reps) {
+        if (reps === 1) return 1;
+        if (this.currentFormula === 'epley') return 1 / (1 + reps / 30);
+        if (this.currentFormula === 'brzycki') return (37 - reps) / 36;
+        if (this.currentFormula === 'lombardi') return 1 / Math.pow(reps, 0.10);
+        return 1;
+    },
+
+    calculateBest1RM(indices) {
+        if (indices.size === 0) return 0;
+        let sumX2 = 0, sumXY = 0;
+        indices.forEach(idx => {
+            const log = this.rawLogs[idx];
+            const x = this.getFormulaCoefficient(log.reps);
+            sumX2 += x * x;
+            sumXY += x * log.weight;
+        });
+        return sumX2 === 0 ? 0 : (sumXY / sumX2);
+    },
+
+    // 畫面更新：直接對比 1RM 指標，移除垂直輔助線
+    updateStrengthAnalysis() {
+        const e1RM_A = this.calculateBest1RM(this.selectedA);
+        const e1RM_B = this.calculateBest1RM(this.selectedB);
+
+        document.getElementById('insight-str-val-a').textContent = e1RM_A > 0 ? e1RM_A.toFixed(1) : '--';
+        document.getElementById('insight-str-val-b').textContent = e1RM_B > 0 ? e1RM_B.toFixed(1) : '--';
+
+        const diffEl = document.getElementById('insight-str-diff');
+        if (e1RM_A > 0 && e1RM_B > 0) {
+            const diff = (e1RM_B - e1RM_A).toFixed(1);
+            diffEl.textContent = (diff >= 0 ? '+' : '') + diff;
+            diffEl.className = `font-black ${diff >= 0 ? 'text-emerald-600' : 'text-red-500'}`;
+        }
+        this.renderChart(e1RM_A, e1RM_B);
+    },
+
+    renderChart(bestA, bestB) {
+        const canvas = document.getElementById('chart-insight-strength');
+        if (!canvas) return;
+        if (this.chartStrength) this.chartStrength.destroy();
+
+        const labels = Array.from({ length: 30 }, (_, i) => i + 1);
+        const datasets = [];
+        if (bestA > 0) datasets.push({ label: '曲線 A', data: labels.map(r => bestA * this.getFormulaCoefficient(r)), borderColor: '#3b82f6', tension: 0.4, pointRadius: 0, fill: false });
+        if (bestB > 0) datasets.push({ label: '曲線 B', data: labels.map(r => bestB * this.getFormulaCoefficient(r)), borderColor: '#10b981', tension: 0.4, pointRadius: 0, fill: false });
+
+        this.chartStrength = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { title: { display: true, text: 'RM次數', font: { size: 10 } } },
+                    y: { title: { display: true, text: '重量 (kg)', font: { size: 10 } } }
+                }
+            }
+        });
+    }
+};
+
+// 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    const sourceSelect = document.getElementById('pr-source-type');
-    if (sourceSelect) sourceSelect.addEventListener('change', () => analyticsUI.updateTargetDropdown());
-
-    const btnDelete = document.getElementById('btn-delete-pr');
-    if (btnDelete) btnDelete.addEventListener('click', () => analyticsUI.deletePRCard());
+    setTimeout(() => insightManager.init(), 300);
 });
