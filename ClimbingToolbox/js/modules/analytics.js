@@ -798,6 +798,7 @@ const insightManager = {
     selectedA: new Set(),
     selectedB: new Set(),
 
+
     init() {
         this.populateBlockSelector();
         const bind = (id, event, handler) => document.getElementById(id)?.addEventListener(event, handler);
