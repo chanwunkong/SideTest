@@ -1,6 +1,6 @@
 // --- js/modules/goalManager.js ---
 import { views } from './views.js';
-import { store, recordManager } from './modules/storage.js';
+import { store, recordManager } from './storage.js';
 import { editor, } from './ui.js';
 
 
