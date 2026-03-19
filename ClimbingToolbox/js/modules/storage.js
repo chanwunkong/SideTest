@@ -1,12 +1,55 @@
 // --- js/modules/storage.js ---
 
+// 1. 定義標準事件名稱，避免拼字錯誤
+const APP_EVENTS = {
+    RECORD_SAVED: 'RECORD_SAVED',       // 訓練紀錄已儲存
+    BODY_DATA_UPDATED: 'BODY_DATA_UPDATED', // 身體數據已更新
+    GOAL_UPDATED: 'GOAL_UPDATED'        // 目標設定已變動
+};
+
+// 2. 實作輕量級事件總線
+const EventBus = {
+    events: {},
+    on(event, callback) {
+        if (!this.events[event]) this.events[event] = [];
+        this.events[event].push(callback);
+    },
+    emit(event, data) {
+        if (!this.events[event]) return;
+        console.log(`[EventBus] 發佈事件: ${event}`, data);
+        this.events[event].forEach(cb => cb(data));
+    }
+};
+
 // --- 工具函式 ---
+const routineUtils = {
+    flattenBlocks(blocks, parentLoops = []) {
+        let res = [];
+        blocks.forEach(b => {
+            if (b.type === 'timer' || b.type === 'reps') {
+                const isLastIteration = parentLoops.length > 0 && parentLoops[parentLoops.length - 1].current === parentLoops[parentLoops.length - 1].total;
+                if (b.props.skipOnLast && isLastIteration) return;
+
+                res.push({ ...b, loopState: [...parentLoops] });
+            } else if (b.type === 'loop') {
+                const count = b.props.iterations || 1;
+                for (let i = 1; i <= count; i++) {
+                    const newLoopState = [...parentLoops, { current: i, total: count, id: b.id }];
+                    res.push(...this.flattenBlocks(b.children || [], newLoopState));
+                }
+            }
+        });
+        return res;
+    }
+};
+
 const uuid = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         return crypto.randomUUID();
     }
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
+
 const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
@@ -31,18 +74,6 @@ const calculateDuration = (blocks) => {
 const store = {
     routines: [],
     user: null,
-
-    init() {
-        if (typeof auth !== 'undefined') {
-            auth.onAuthStateChanged(user => {
-                this.user = user;
-                this.updateUserUI();
-                user ? this.loadRoutines() : this.loadLocalRoutines();
-            });
-        } else {
-            setTimeout(() => this.init(), 500);
-        }
-    },
 
     updateUserUI() {
         const emailEl = document.getElementById('settings-email');
@@ -255,12 +286,8 @@ const store = {
             // Calculate estimated total time
             let totalSec = 0;
             if (r.blocks) {
-                if (typeof timer !== 'undefined' && timer.flatten) {
-                    const flattened = timer.flatten(r.blocks);
-                    totalSec = flattened.reduce((acc, b) => acc + (b.props.duration || 0), 0);
-                } else {
-                    totalSec = calculateDuration(r.blocks); // 降級備案
-                }
+                const flattened = routineUtils.flattenBlocks(r.blocks);
+                totalSec = flattened.reduce((acc, b) => acc + (b.props.duration || 0), 0);
             }
             const timeStr = formatTime(Math.max(0, totalSec));
 
@@ -302,6 +329,18 @@ const recordManager = {
     calendarMode: 'week', // 預設為週視圖
     isRecordsCollapsed: false,
     expandedRecordIds: new Set(),
+
+    init() {
+        if (typeof EventBus !== 'undefined') {
+            EventBus.on(APP_EVENTS.RECORD_SAVED, (data) => {
+                this.updateUI();
+                this.renderCalendar();
+                if (this.selectedDate === data.date || !this.selectedDate) {
+                    this.showDayDetail(data.date);
+                }
+            });
+        }
+    },
 
     // 支援跨週/月模式導覽
     changePeriod(dir) {
@@ -587,10 +626,10 @@ const recordManager = {
         records = records.filter(rec => rec.id !== recordId);
         localStorage.setItem('trainingRecords', JSON.stringify(records));
 
-        // 同步刷新三處 UI
-        this.updateUI();         // 黑框
-        this.renderCalendar();   // 日曆點點
-        this.showDayDetail(dateStr); // 下方清單
+        // ✅ 直接廣播事件，讓 init() 裡的監聽器自動處理，同時也能通知分析圖表刷新
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit(APP_EVENTS.RECORD_SAVED, { date: dateStr });
+        }
     },
 
 

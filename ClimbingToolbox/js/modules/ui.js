@@ -840,7 +840,7 @@ const editor = {
 
         // Temporarily flatten to calculate segments without side effects
         // Reuse timer.flatten logic but purely for data extraction
-        const flattened = timer.flatten(blocks);
+        const flattened = routineUtils.flattenBlocks(blocks);
         const totalDuration = flattened.reduce((acc, b) => acc + (b.props.duration || 0), 0);
 
         document.getElementById('editor-total-time').textContent = formatTime(totalDuration);

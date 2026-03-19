@@ -9,6 +9,13 @@ const goalManager = {
         const saved = localStorage.getItem('userGoals');
         this.goals = saved ? JSON.parse(saved) : [];
         this.renderGoals();
+
+        // ✅ 補上監聽：有新的訓練紀錄時，自動刷新目標進度
+        if (typeof EventBus !== 'undefined') {
+            EventBus.on(APP_EVENTS.RECORD_SAVED, () => {
+                this.renderGoals();
+            });
+        }
     },
 
     save() {

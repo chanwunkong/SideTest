@@ -125,31 +125,6 @@ const timer = {
         }
     },
 
-    flatten(blocks, parentLoops = []) {
-        let res = [];
-        blocks.forEach(b => {
-            if (b.type === 'timer' || b.type === 'reps') {
-                // 檢查是否符合跳過條件：skipOnLast 為 true 且為當前迴圈的最後一次
-                const isLastIteration = parentLoops.length > 0 && parentLoops[parentLoops.length - 1].current === parentLoops[parentLoops.length - 1].total;
-
-                if (b.props.skipOnLast && isLastIteration) {
-                    return; // 省略，不加入隊列
-                }
-
-                res.push({
-                    ...b,
-                    loopState: [...parentLoops]
-                });
-            } else if (b.type === 'loop') {
-                const count = b.props.iterations || 1;
-                for (let i = 1; i <= count; i++) {
-                    const newLoopState = [...parentLoops, { current: i, total: count, id: b.id }];
-                    res.push(...this.flatten(b.children || [], newLoopState));
-                }
-            }
-        });
-        return res;
-    },
 
     // 在 timer 物件中修改 start 函式
     start(routineId) {
@@ -167,7 +142,7 @@ const timer = {
         this.actualTimestamp = now.getTime();
         this.currentRoutineTitle = routine.title;
 
-        this.queue = this.flatten(routine.blocks);
+        this.queue = routineUtils.flattenBlocks(routine.blocks);
         if (this.queue.length === 0) return alert('課表是空的');
 
         this.queue.push({ type: 'finish', props: { duration: 0, label: 'Done', color: 'gray' }, loopState: [] });
@@ -629,18 +604,9 @@ const timer = {
             recordManager.updateRecordLog(this.editingRecordId, this.pendingLogIndex, newLog);
             if (closePanel && typeof showToast === 'function') showToast('紀錄已更新');
 
-            try {
-                if (typeof recordManager.updateUI === 'function') recordManager.updateUI();
-                if (typeof recordManager.renderCalendar === 'function') recordManager.renderCalendar();
-
-                // [修正] 補上這段，確保圖表同步
-                if (window.analyticsManager) {
-                    analyticsManager.refresh();
-                }
-
-                // ...其餘 UI 更新代碼...
-            } catch (e) {
-                console.error("UI 更新失敗:", e);
+            // ✅ 改為發送全域更新事件：
+            if (typeof EventBus !== 'undefined') {
+                EventBus.emit(APP_EVENTS.RECORD_SAVED, {}); // 觸發全域重繪
             }
         } else {
             // 模式 B: 當前訓練暫存
@@ -891,6 +857,7 @@ const timer = {
             localStorage.removeItem('active_session');
         }
     },
+
     // 新增儲存紀錄的函式 (升級版：包含防呆與日誌寫入)
     saveTrainingRecord() {
         // 過濾：執行少於 10 秒的紀錄不予儲存，避免誤觸
@@ -965,20 +932,15 @@ const timer = {
         this.pendingLogBlock = null;
         this.pendingLogIndex = null;
 
-        // 存檔後立即更新 UI
-        this.refreshRecordUI();
-    },
-
-    // 更新紀錄頁面的數據 (黑框與日曆)
-    refreshRecordUI() {
-        console.log("紀錄已儲存，正在更新 UI...");
-        recordManager.updateUI();
-
-        // [新增] 儲存訓練紀錄後，通知分析模組刷新數據
-        if (window.analyticsManager) {
-            analyticsManager.refresh();
+        // [修改]：移除 this.refreshRecordUI()，改為發送事件廣播
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit(APP_EVENTS.RECORD_SAVED, {
+                date: this.actualDate,
+                routineId: this.currentRoutineId
+            });
         }
     },
+
 };
 
 document.addEventListener('visibilitychange', () => {

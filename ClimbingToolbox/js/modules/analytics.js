@@ -1,5 +1,73 @@
 // --- js/modules/analytics.js ---
 
+
+const mathUtils = {
+    calcVolumeReps(logs) {
+        if (!logs || logs.length === 0) return null;
+        return logs.reduce((sum, log) => sum + (log.actuals && log.actuals['次數'] ? Number(log.actuals['次數']) : 0), 0);
+    },
+
+    calcFailureRate(logs) {
+        if (!logs || logs.length === 0) return null;
+        const fails = logs.filter(l => l.isFailure || (l.actuals && l.actuals.isFailure)).length;
+        return (fails / logs.length) * 100;
+    },
+
+    calcDecayRate(logs) {
+        if (!logs || logs.length < 2) return null;
+        const validLogs = logs.filter(l => l.actuals && (l.actuals['附加重量'] !== undefined || l.actuals['次數'] !== undefined));
+        if (validLogs.length < 2) return null;
+
+        const metricKey = validLogs[0].actuals['附加重量'] !== undefined ? '附加重量' : '次數';
+        const firstVal = Number(validLogs[0].actuals[metricKey]);
+        const lastVal = Number(validLogs[validLogs.length - 1].actuals[metricKey]);
+
+        if (isNaN(firstVal) || firstVal <= 0) return null;
+        const decay = ((firstVal - lastVal) / firstVal) * 100;
+        return Math.max(0, decay); // 若越做越重，衰減率記為 0
+    },
+
+    calcRelativeStrength(logs, bodyWeight) {
+        if (!logs || logs.length === 0 || !bodyWeight || bodyWeight <= 0) return null;
+        const vals = logs.map(l => Number(l.actuals && l.actuals['附加重量'])).filter(v => !isNaN(v));
+        if (vals.length === 0) return null;
+
+        const maxLoad = Math.max(...vals);
+        return (maxLoad + bodyWeight) / bodyWeight;
+    },
+
+    calcCustomMetric(logs, metricName, aggregation) {
+        if (!logs || logs.length === 0) return null;
+        const vals = logs.map(l => Number(l.actuals && l.actuals[metricName])).filter(v => !isNaN(v));
+        if (vals.length === 0) return null;
+
+        if (aggregation === 'min') return Math.min(...vals);
+        if (aggregation === 'avg') return vals.reduce((a, b) => a + b, 0) / vals.length;
+        if (aggregation === 'latest') return vals[vals.length - 1];
+        if (aggregation === 'sum' || aggregation === 'max_daily_sum') return vals.reduce((a, b) => a + b, 0);
+        return Math.max(...vals); // 預設為 max
+    },
+
+    get1RMCoefficient(reps, formula) {
+        if (reps === 1) return 1;
+        if (formula === 'epley') return 1 / (1 + reps / 30);
+        if (formula === 'brzycki') return (37 - reps) / 36;
+        if (formula === 'lombardi') return 1 / Math.pow(reps, 0.10);
+        return 1;
+    },
+
+    calculateBest1RM(logs, formula) {
+        if (!logs || logs.length === 0) return 0;
+        let sumX2 = 0, sumXY = 0;
+        logs.forEach(log => {
+            const x = this.get1RMCoefficient(log.reps, formula);
+            sumX2 += x * x;
+            sumXY += x * log.weight;
+        });
+        return sumX2 === 0 ? 0 : (sumXY / sumX2);
+    }
+};
+
 const analyticsManager = {
     configs: [],
     chartInstance: null,
@@ -27,6 +95,14 @@ const analyticsManager = {
             });
         }
         this.renderCards();
+
+        EventBus.on(APP_EVENTS.RECORD_SAVED, () => {
+            this.refresh();
+        });
+
+        EventBus.on(APP_EVENTS.BODY_DATA_UPDATED, () => {
+            this.refresh();
+        });
     },
 
     saveConfigs() {
@@ -86,53 +162,20 @@ const analyticsManager = {
             let dayValue = null;
             const logs = rec.executionLogs || [];
 
-            // 基礎容量指標
+            // 應用純函數進行計算
             if (config.metric === 'volume_time') {
                 dayValue = rec.duration;
             } else if (config.metric === 'volume_reps') {
-                dayValue = logs.reduce((sum, log) => sum + (log.actuals && log.actuals['次數'] ? log.actuals['次數'] : 0), 0);
-            }
-            // [新增] 生理映射：力竭率 (神經疲勞指標)
-            else if (config.metric === 'failure_rate') {
-                if (logs.length > 0) {
-                    const fails = logs.filter(l => l.isFailure).length;
-                    dayValue = (fails / logs.length) * 100;
-                }
-            }
-            // [新增] 生理映射：組間衰減率 (代謝抗疲勞指標)
-            else if (config.metric === 'decay_rate') {
-                // 自動尋找主要負荷指標 (例如附加重量或次數)
-                const validLogs = logs.filter(l => l.actuals && (l.actuals['附加重量'] !== undefined || l.actuals['次數'] !== undefined));
-                if (validLogs.length >= 2) {
-                    const metricKey = validLogs[0].actuals['附加重量'] !== undefined ? '附加重量' : '次數';
-                    const firstVal = Number(validLogs[0].actuals[metricKey]);
-                    const lastVal = Number(validLogs[validLogs.length - 1].actuals[metricKey]);
-
-                    if (!isNaN(firstVal) && firstVal > 0) {
-                        dayValue = ((firstVal - lastVal) / firstVal) * 100;
-                        if (dayValue < 0) dayValue = 0; // 若越做越重，衰減率記為 0
-                    }
-                }
-            }
-            // [新增] 生理映射：相對強度係數 (體重對齊)
-            else if (config.metric === 'relative_strength') {
-                const vals = logs.map(l => Number(l.actuals && l.actuals['附加重量'])).filter(v => !isNaN(v));
-                if (vals.length > 0) {
-                    const maxLoad = Math.max(...vals);
-                    const bw = this.getClosestWeight(rec.date);
-                    dayValue = (maxLoad + bw) / bw; // 計算 (附加重量+體重)/體重
-                }
-            }
-            // 傳統自訂絕對指標
-            else {
-                const vals = logs.map(l => Number(l.actuals && l.actuals[config.metric])).filter(v => !isNaN(v));
-                if (vals.length > 0) {
-                    if (config.aggregation === 'min') dayValue = Math.min(...vals);
-                    else if (config.aggregation === 'avg') dayValue = vals.reduce((a, b) => a + b, 0) / vals.length;
-                    else if (config.aggregation === 'latest') dayValue = vals[vals.length - 1];
-                    else if (config.aggregation === 'sum' || config.aggregation === 'max_daily_sum') dayValue = vals.reduce((a, b) => a + b, 0);
-                    else dayValue = Math.max(...vals);
-                }
+                dayValue = mathUtils.calcVolumeReps(logs);
+            } else if (config.metric === 'failure_rate') {
+                dayValue = mathUtils.calcFailureRate(logs);
+            } else if (config.metric === 'decay_rate') {
+                dayValue = mathUtils.calcDecayRate(logs);
+            } else if (config.metric === 'relative_strength') {
+                const bw = this.getClosestWeight(rec.date);
+                dayValue = mathUtils.calcRelativeStrength(logs, bw);
+            } else {
+                dayValue = mathUtils.calcCustomMetric(logs, config.metric, config.aggregation);
             }
 
             if (dayValue !== null) {
@@ -363,6 +406,16 @@ const analyticsManager = {
             return;
         }
 
+        // ✨ 4.2 記憶化渲染：檢查資料指紋是否相同
+        const dataFingerprint = JSON.stringify(chartData);
+        if (this._lastChartFingerprint === dataFingerprint && this._lastActiveIndex === idx) {
+            // 圖表資料與目前畫面上的一模一樣，直接跳過耗能的 Canvas 重繪
+            canvas.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+            return;
+        }
+        this._lastChartFingerprint = dataFingerprint;
+        this._lastActiveIndex = idx;
         canvas.classList.remove('hidden');
         placeholder.classList.add('hidden');
 
@@ -776,8 +829,9 @@ const bodyManager = {
         this.renderCard();
         this.closeEditor();
 
-        // 新增：儲存後自動重新整理分析數據
-        analyticsManager.refresh();
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit(APP_EVENTS.BODY_DATA_UPDATED, { date: dateStr });
+        }
     },
 
     deleteRecord() {
@@ -794,8 +848,12 @@ const bodyManager = {
 
         // [修正] 補上刷新，確保涉及體重的圖表即時更新
         this.renderCard();
-        analyticsManager.refresh();
         this.closeEditor();
+
+        // ✅ 改為發送事件
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit(APP_EVENTS.BODY_DATA_UPDATED, { date: dateStr });
+        }
     }
 };
 
@@ -829,7 +887,6 @@ const insightManager = {
         const selector = document.getElementById('insight-block-selector');
         if (!selector) return;
 
-        const prevValue = this.currentBlock || selector.value;
         const records = recordManager.getAllRecords();
         const labels = new Set();
 
@@ -841,6 +898,15 @@ const insightManager = {
         });
 
         const labelsArray = Array.from(labels).sort();
+
+        // ✨ 4.1 視圖與狀態分離：比對資料是否真的有變動
+        const newLabelsStr = JSON.stringify(labelsArray);
+        if (this._lastLabelsStr === newLabelsStr) {
+            return; // 標籤清單沒變，直接跳過 DOM 重繪，保護使用者的焦點狀態
+        }
+        this._lastLabelsStr = newLabelsStr;
+
+        const prevValue = this.currentBlock || selector.value;
         selector.innerHTML = '<option value="">(選擇分析項目)</option>' +
             labelsArray.map(l => `<option value="${l}">${l}</option>`).join('');
 
@@ -960,30 +1026,13 @@ const insightManager = {
         this.updateStrengthAnalysis();
     },
 
-    getFormulaCoefficient(reps) {
-        if (reps === 1) return 1;
-        if (this.currentFormula === 'epley') return 1 / (1 + reps / 30);
-        if (this.currentFormula === 'brzycki') return (37 - reps) / 36;
-        if (this.currentFormula === 'lombardi') return 1 / Math.pow(reps, 0.10);
-        return 1;
-    },
-
-    calculateBest1RM(indices) {
-        if (indices.size === 0) return 0;
-        let sumX2 = 0, sumXY = 0;
-        indices.forEach(logId => {
-            const log = this.rawLogs.find(l => l.id === logId);
-            if (!log) return;
-            const x = this.getFormulaCoefficient(log.reps);
-            sumX2 += x * x;
-            sumXY += x * log.weight;
-        });
-        return sumX2 === 0 ? 0 : (sumXY / sumX2);
-    },
-
     updateStrengthAnalysis() {
-        const e1RM_A = this.calculateBest1RM(this.selectedA);
-        const e1RM_B = this.calculateBest1RM(this.selectedB);
+        // 將 Set 中的 ID 轉換為實際的 log 物件陣列
+        const logsA = Array.from(this.selectedA).map(id => this.rawLogs.find(l => l.id === id)).filter(Boolean);
+        const logsB = Array.from(this.selectedB).map(id => this.rawLogs.find(l => l.id === id)).filter(Boolean);
+
+        const e1RM_A = mathUtils.calculateBest1RM(logsA, this.currentFormula);
+        const e1RM_B = mathUtils.calculateBest1RM(logsB, this.currentFormula);
 
         document.getElementById('insight-str-val-a').textContent = e1RM_A > 0 ? e1RM_A.toFixed(1) : '--';
         document.getElementById('insight-str-val-b').textContent = e1RM_B > 0 ? e1RM_B.toFixed(1) : '--';
@@ -1007,8 +1056,10 @@ const insightManager = {
 
         const labels = Array.from({ length: 30 }, (_, i) => i + 1);
         const datasets = [];
-        if (bestA > 0) datasets.push({ label: '曲線 A', data: labels.map(r => bestA * this.getFormulaCoefficient(r)), borderColor: '#3b82f6', tension: 0.4, pointRadius: 0, fill: false });
-        if (bestB > 0) datasets.push({ label: '曲線 B', data: labels.map(r => bestB * this.getFormulaCoefficient(r)), borderColor: '#10b981', tension: 0.4, pointRadius: 0, fill: false });
+
+        // 使用 mathUtils.get1RMCoefficient
+        if (bestA > 0) datasets.push({ label: '曲線 A', data: labels.map(r => bestA * mathUtils.get1RMCoefficient(r, this.currentFormula)), borderColor: '#3b82f6', tension: 0.4, pointRadius: 0, fill: false });
+        if (bestB > 0) datasets.push({ label: '曲線 B', data: labels.map(r => bestB * mathUtils.get1RMCoefficient(r, this.currentFormula)), borderColor: '#10b981', tension: 0.4, pointRadius: 0, fill: false });
 
         this.chartStrength = new Chart(canvas.getContext('2d'), {
             type: 'line',
