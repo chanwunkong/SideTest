@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>即時心率監測器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .pulse-animation {
+            animation: pulse-ring 1s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4 font-sans">
+
+    <div class="bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-md text-center border border-gray-700">
+        <h1 class="text-2xl font-bold mb-2 text-gray-100">即時心率監測器</h1>
+        <p id="status-text" class="text-sm text-gray-400 mb-8">等待連線...</p>
+
+        <div class="flex justify-center items-center mb-8 h-48">
+            <div id="heart-container" class="rounded-full bg-gray-700 w-40 h-40 flex flex-col items-center justify-center transition-all duration-300">
+                <span id="hr-value" class="text-6xl font-extrabold text-gray-500">--</span>
+                <span class="text-sm text-gray-400 mt-2">BPM</span>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <button id="connect-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors w-full sm:w-auto">
+                連接裝置
+            </button>
+            <button id="disconnect-btn" class="bg-red-600 hover:bg-red-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors w-full sm:w-auto hidden">
+                斷開連線
+            </button>
+        </div>
+        
+        <div id="error-message" class="mt-4 text-red-400 text-sm hidden"></div>
+    </div>
+
+    <script>
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const statusText = document.getElementById('status-text');
+        const hrValue = document.getElementById('hr-value');
+        const heartContainer = document.getElementById('heart-container');
+        const errorMessage = document.getElementById('error-message');
+
+        let bluetoothDevice;
+        let heartRateCharacteristic;
+
+        // 檢查瀏覽器是否支援 Web Bluetooth API
+        if (!navigator.bluetooth) {
+            showError("您的瀏覽器不支援 Web Bluetooth API。請使用 Chrome 或 Edge。");
+            connectBtn.disabled = true;
+            connectBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        connectBtn.addEventListener('click', connectToDevice);
+        disconnectBtn.addEventListener('click', disconnectDevice);
+
+        async function connectToDevice() {
+            hideError();
+            try {
+                updateStatus("正在尋找裝置...");
+                
+                // 請求藍牙裝置，過濾提供心率服務的裝置
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['heart_rate'] }],
+                    optionalServices: ['generic_access']
+                });
+
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+                updateStatus("正在連接到 GATT 伺服器...");
+                const server = await bluetoothDevice.gatt.connect();
+
+                updateStatus("正在取得心率服務...");
+                const service = await server.getPrimaryService('heart_rate');
+
+                updateStatus("正在取得心率特徵值...");
+                heartRateCharacteristic = await service.getCharacteristic('heart_rate_measurement');
+
+                updateStatus("正在啟動通知...");
+                await heartRateCharacteristic.startNotifications();
+
+                heartRateCharacteristic.addEventListener('characteristicvaluechanged', handleHeartRateMeasurement);
+
+                updateStatus(`已連接: ${bluetoothDevice.name || '未知裝置'}`);
+                toggleButtons(true);
+                
+                hrValue.classList.remove('text-gray-500');
+                hrValue.classList.add('text-red-500');
+
+            } catch (error) {
+                console.error("連線錯誤:", error);
+                updateStatus("連線失敗或已取消");
+                showError(error.message);
+                resetUI();
+            }
+        }
+
+        function handleHeartRateMeasurement(event) {
+            const value = event.target.value;
+            // 解析心率資料 (GATT 規範)
+            // 第一個位元組(Flags)的第0位元決定心率值是 8-bit(0) 還是 16-bit(1)
+            const flags = value.getUint8(0);
+            const rate16Bits = flags & 0x1;
+            
+            let heartRate;
+            if (rate16Bits) {
+                heartRate = value.getUint16(1, true); // little-endian
+            } else {
+                heartRate = value.getUint8(1);
+            }
+
+            // 更新畫面
+            hrValue.innerText = heartRate;
+            
+            // 觸發視覺跳動效果
+            heartContainer.classList.add('pulse-animation');
+            setTimeout(() => {
+                heartContainer.classList.remove('pulse-animation');
+            }, 300); // 動畫持續時間後移除類別
+        }
+
+        function disconnectDevice() {
+            if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                bluetoothDevice.gatt.disconnect();
+            }
+        }
+
+        function onDisconnected() {
+            updateStatus("已斷開連線");
+            resetUI();
+            toggleButtons(false);
+        }
+
+        function updateStatus(message) {
+            statusText.innerText = message;
+        }
+
+        function showError(msg) {
+            errorMessage.innerText = msg;
+            errorMessage.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorMessage.classList.add('hidden');
+            errorMessage.innerText = "";
+        }
+
+        function toggleButtons(isConnected) {
+            if (isConnected) {
+                connectBtn.classList.add('hidden');
+                disconnectBtn.classList.remove('hidden');
+            } else {
+                connectBtn.classList.remove('hidden');
+                disconnectBtn.classList.add('hidden');
+            }
+        }
+
+        function resetUI() {
+            hrValue.innerText = "--";
+            hrValue.classList.add('text-gray-500');
+            hrValue.classList.remove('text-red-500');
+            heartContainer.classList.remove('pulse-animation');
+            if (heartRateCharacteristic) {
+                heartRateCharacteristic.removeEventListener('characteristicvaluechanged', handleHeartRateMeasurement);
+                heartRateCharacteristic = null;
+            }
+        }
+    </script>
+</body>
+</html>
+
