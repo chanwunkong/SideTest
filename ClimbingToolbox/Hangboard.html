@@ -235,140 +235,147 @@
         <!-- 3. 目標管理 (Insight) -->
         <div id="view-insight" class="view-section overflow-y-auto no-scrollbar pb-28">
             <div
-                class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
+                class="p-6 sticky top-0 bg-white/95 backdrop-blur z-20 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
                 <h1 class="text-2xl font-extrabold dark:text-white">數據洞察</h1>
-                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">生理狀態儀表板</span>
+                <div class="flex flex-col items-end">
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">綜合分析儀表板</span>
+                    <span id="body-date-label"
+                        class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono font-bold dark:bg-gray-700 dark:text-gray-400 mt-1">YYYY-MM-DD</span>
+                </div>
             </div>
 
-            <div class="px-6 pt-6">
+            <div class="p-6 border-b border-gray-50 dark:border-gray-800">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-800 dark:text-white text-sm flex items-center gap-2">
+                        <span class="w-1 h-4 bg-blue-500 rounded-full"></span>身體組成基準
+                    </h3>
+                    <div
+                        class="flex items-center gap-1 bg-gray-50 rounded-lg p-0.5 border border-gray-100 dark:bg-gray-800 dark:border-gray-600">
+                        <button onclick="bodyManager.changeDate(-1)"
+                            class="p-1.5 text-gray-400 hover:text-blue-500 rounded-md transition-colors active:scale-95">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <button onclick="bodyManager.openEditor()"
+                            class="px-3 py-1 bg-white text-blue-600 rounded-md shadow-sm active:scale-95 transition-transform text-xs font-bold flex items-center gap-1 border border-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-blue-400">
+                            編輯
+                        </button>
+                        <button onclick="bodyManager.changeDate(1)"
+                            class="p-1.5 text-gray-400 hover:text-blue-500 rounded-md transition-colors active:scale-95">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <div
+                        class="bg-gray-50 rounded-xl p-3 border border-gray-100 dark:bg-gray-800/50 dark:border-gray-700">
+                        <div class="text-[10px] font-bold text-gray-400 uppercase mb-1">體重</div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="body-val-weight"
+                                class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter">--</span>
+                            <span class="text-[10px] font-bold text-gray-400">kg</span>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-gray-50 rounded-xl p-3 border border-gray-100 dark:bg-gray-800/50 dark:border-gray-700">
+                        <div class="text-[10px] font-bold text-gray-400 uppercase mb-1">瘦體重 (LBM)</div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="body-val-lbm"
+                                class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter">--</span>
+                            <span class="text-[10px] font-bold text-gray-400">kg</span>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-gray-50 rounded-xl p-3 border border-gray-100 dark:bg-gray-800/50 dark:border-gray-700">
+                        <div class="text-[10px] font-bold text-gray-400 uppercase mb-1">骨骼肌重</div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="body-val-muscle"
+                                class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter">--</span>
+                            <span class="text-[10px] font-bold text-gray-400">kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div class="text-center">
+                        <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">體脂肪率</div>
+                        <div class="flex items-baseline justify-center gap-0.5 text-gray-800 dark:text-gray-200">
+                            <span id="body-val-fat" class="text-sm font-black">--</span><span
+                                class="text-[9px] text-gray-400">%</span>
+                        </div>
+                    </div>
+                    <div class="text-center border-l border-gray-100 dark:border-gray-700">
+                        <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">BMI</div>
+                        <div id="body-val-bmi" class="text-sm font-black text-gray-800 dark:text-gray-200">--</div>
+                    </div>
+                    <div class="text-center border-l border-gray-100 dark:border-gray-700">
+                        <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">FFMI</div>
+                        <div id="body-val-ffmi" class="text-sm font-black text-gray-800 dark:text-gray-200">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-gray-800 dark:text-white text-sm flex items-center gap-2">
+                        <span class="w-1 h-4 bg-emerald-500 rounded-full"></span>歷史趨勢分析
+                    </h3>
+                    <select id="chart-range-filter"
+                        class="bg-gray-50 border border-gray-200 text-[10px] font-bold rounded-lg p-2 dark:bg-gray-600 dark:text-white outline-none">
+                        <option value="10t">最近 10 次</option>
+                        <option value="7d">最近 7 天</option>
+                        <option value="28d">最近 4 週</option>
+                        <option value="84d">最近 12 週</option>
+                        <option value="all">全部紀錄</option>
+                    </select>
+                </div>
+
+                <div id="pr-cards-container" class="grid grid-cols-2 gap-3 mb-8"></div>
+
                 <div
-                    class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 dark:bg-gray-750 dark:border-gray-600 mb-2">
-                    <div class="flex justify-between items-center mb-5">
-                        <div class="flex items-center gap-2">
-                            <h3 class="font-bold text-gray-800 dark:text-white text-sm">身體組成基準</h3>
-                            <span id="body-date-label"
-                                class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono font-bold dark:bg-gray-700 dark:text-gray-400">YYYY-MM-DD</span>
-                        </div>
-                        <div
-                            class="flex items-center gap-1 bg-gray-50 rounded-lg p-0.5 border border-gray-100 dark:bg-gray-800 dark:border-gray-600">
-                            <button onclick="bodyManager.changeDate(-1)"
-                                class="p-1.5 text-gray-400 hover:text-blue-500 rounded-md transition-colors active:scale-95">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M15 19l-7-7 7-7" />
-                                </svg>
-                            </button>
-                            <button onclick="bodyManager.openEditor()"
-                                class="px-3 py-1 bg-white text-blue-600 rounded-md shadow-sm active:scale-95 transition-transform text-xs font-bold flex items-center gap-1 border border-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-blue-400">
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                </svg>
-                                編輯
-                            </button>
-                            <button onclick="bodyManager.changeDate(1)"
-                                class="p-1.5 text-gray-400 hover:text-blue-500 rounded-md transition-colors active:scale-95">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 5l7 7-7 7" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-2 mb-4">
-                        <div
-                            class="bg-gray-50 rounded-xl p-3 border border-gray-100 dark:bg-gray-800/50 dark:border-gray-700">
-                            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">體重</div>
-                            <div class="flex items-baseline gap-1">
-                                <span id="body-val-weight"
-                                    class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter">--</span>
-                                <span class="text-[10px] font-bold text-gray-400">kg</span>
-                            </div>
-                        </div>
-                        <div
-                            class="bg-gray-50 rounded-xl p-3 border border-gray-100 dark:bg-gray-800/50 dark:border-gray-700">
-                            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">瘦體重 (LBM)
-                            </div>
-                            <div class="flex items-baseline gap-1">
-                                <span id="body-val-lbm"
-                                    class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter">--</span>
-                                <span class="text-[10px] font-bold text-gray-400">kg</span>
-                            </div>
-                        </div>
-                        <div
-                            class="bg-gray-50 rounded-xl p-3 border border-gray-100 dark:bg-gray-800/50 dark:border-gray-700">
-                            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">骨骼肌重
-                            </div>
-                            <div class="flex items-baseline gap-1">
-                                <span id="body-val-muscle"
-                                    class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter">--</span>
-                                <span class="text-[10px] font-bold text-gray-400">kg</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
-                        <div class="text-center">
-                            <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">體脂肪率</div>
-                            <div class="flex items-baseline justify-center gap-0.5 text-gray-800 dark:text-gray-200">
-                                <span id="body-val-fat" class="text-sm font-black">--</span><span
-                                    class="text-[9px] text-gray-400">%</span>
-                            </div>
-                        </div>
-                        <div class="text-center border-l border-gray-100 dark:border-gray-700">
-                            <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">BMI</div>
-                            <div id="body-val-bmi" class="text-sm font-black text-gray-800 dark:text-gray-200">--
-                            </div>
-                        </div>
-                        <div class="text-center border-l border-gray-100 dark:border-gray-700">
-                            <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">FFMI</div>
-                            <div class="flex items-baseline justify-center gap-0.5 text-gray-800 dark:text-gray-200">
-                                <span id="body-val-ffmi" class="text-sm font-black">--</span>
-                            </div>
+                    class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 dark:bg-gray-750 dark:border-gray-600">
+                    <div class="relative w-full h-56 flex items-center justify-center">
+                        <canvas id="trend-chart" class="w-full h-full hidden"></canvas>
+                        <div id="chart-placeholder" class="text-center text-gray-400 text-xs font-bold">
+                            點擊上方數據卡以顯示趨勢圖
                         </div>
                     </div>
                 </div>
+            </div>
 
+            <div class="px-6 pb-12">
+                <div class="mb-6">
+                    <h3 class="font-bold text-gray-800 dark:text-white text-sm mb-4 flex items-center gap-2">
+                        <span class="w-1 h-4 bg-purple-500 rounded-full"></span>進階肌力對比分析
+                    </h3>
 
-                <div
-                    class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
-                    <h1 class="text-2xl font-extrabold dark:text-white">數據洞察</h1>
-                </div>
-
-                <div class="px-6 pt-6">
-                </div>
-
-                <div class="px-6 pt-4">
-                    <div class="mb-4">
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">1. 選擇分析項目 (所有
-                            Block)</label>
-                        <div class="relative">
-                            <select id="insight-block-selector"
-                                class="w-full appearance-none bg-gray-900 text-white border-0 rounded-xl p-4 pr-10 font-bold text-lg shadow-lg dark:bg-blue-900 dark:text-blue-100 focus:ring-4 focus:ring-blue-500/30 outline-none">
-                                <option value="">(請選擇訓練區塊)</option>
-                            </select>
-                            <div
-                                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white">
-                                <svg class="fill-current h-5 w-5" viewBox="0 0 20 20">
-                                    <path
-                                        d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                                </svg>
-                            </div>
+                    <div class="relative mb-4">
+                        <select id="insight-block-selector"
+                            class="w-full appearance-none bg-gray-900 text-white border-0 rounded-xl p-4 pr-10 font-bold text-lg shadow-lg dark:bg-blue-900 dark:text-blue-100 focus:ring-4 focus:ring-blue-500/30 outline-none">
+                            <option value="">(請選擇訓練區塊)</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white">
+                            <svg class="fill-current h-5 w-5" viewBox="0 0 20 20">
+                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                            </svg>
                         </div>
                     </div>
 
                     <div id="insight-metric-mapping"
                         class="hidden mb-4 p-3 bg-gray-100 rounded-xl border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
                         <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">確認負重來源 (Y軸)</label>
-                        <div class="flex">
-                            <select id="sel-map-weight"
-                                class="flex-1 text-xs p-2 rounded-lg border border-gray-200 dark:bg-gray-700 dark:border-gray-600 dark:text-white bg-white outline-none"></select>
-
-                        </div>
+                        <select id="sel-map-weight"
+                            class="w-full text-xs p-2 rounded-lg border border-gray-200 dark:bg-gray-700 dark:border-gray-600 dark:text-white bg-white outline-none"></select>
                     </div>
 
-                    <div class="flex items-end justify-between mb-4">
+                    <div
+                        class="flex items-end justify-between mb-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                         <div>
                             <div class="flex items-baseline gap-1">
                                 <span id="insight-str-val-a"
@@ -379,17 +386,17 @@
                                 <span class="text-xs font-bold text-gray-400 uppercase ml-1">kg (1RM)</span>
                             </div>
                             <div
-                                class="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md mt-1 dark:bg-gray-700 dark:text-gray-300">
-                                極限進步幅度: <span id="insight-str-diff" class="font-black">--</span> kg
+                                class="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md mt-1 dark:bg-gray-700 dark:text-gray-300 inline-block">
+                                極限進步幅度: <span id="insight-str-diff" class="font-black text-blue-500">--</span> kg
                             </div>
                         </div>
                     </div>
 
                     <div
-                        class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 dark:bg-gray-750 dark:border-gray-600 mb-6">
+                        class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 dark:bg-gray-750 dark:border-gray-600">
                         <div
                             class="flex justify-between items-start mb-4 border-b border-gray-100 dark:border-gray-700 pb-3">
-                            <h3 class="font-bold text-gray-800 dark:text-white text-sm">肌力曲線對比</h3>
+                            <h4 class="font-bold text-gray-800 dark:text-white text-xs">肌力曲線對比</h4>
                             <div class="flex flex-col items-end gap-2">
                                 <select id="insight-1rm-formula"
                                     class="bg-gray-50 border border-gray-200 text-[10px] font-bold text-gray-500 rounded-lg px-2 py-1 dark:bg-gray-800 dark:border-gray-600">
@@ -405,7 +412,7 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 gap-4 mb-5">
+                        <div class="grid grid-cols-1 gap-4 mb-6">
                             <div
                                 class="bg-blue-50/50 p-3 rounded-xl border border-blue-100 dark:bg-blue-900/20 dark:border-blue-800">
                                 <div class="text-[10px] font-bold text-blue-600 mb-2 flex justify-between uppercase">
@@ -414,7 +421,7 @@
                                         class="text-[9px] underline">清空勾選</button>
                                 </div>
                                 <div id="insight-points-a"
-                                    class="flex flex-col gap-2 max-h-56 overflow-y-auto no-scrollbar"></div>
+                                    class="flex flex-col gap-2 max-h-40 overflow-y-auto no-scrollbar"></div>
                             </div>
                             <div
                                 class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800">
@@ -424,10 +431,9 @@
                                         class="text-[9px] underline">清空勾選</button>
                                 </div>
                                 <div id="insight-points-b"
-                                    class="flex flex-col gap-2 max-h-56 overflow-y-auto no-scrollbar"></div>
+                                    class="flex flex-col gap-2 max-h-40 overflow-y-auto no-scrollbar"></div>
                             </div>
                         </div>
-
 
                         <div class="relative w-full h-56">
                             <canvas id="chart-insight-strength"></canvas>
@@ -435,169 +441,169 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- 4. 設定 (Settings) -->
-            <div id="view-settings" class="view-section overflow-y-auto no-scrollbar pb-28">
-                <div
-                    class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
-                    <h1 class="text-2xl font-extrabold dark:text-white">設定</h1>
+        <!-- 4. 設定 (Settings) -->
+        <div id="view-settings" class="view-section overflow-y-auto no-scrollbar pb-28">
+            <div
+                class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
+                <h1 class="text-2xl font-extrabold dark:text-white">設定</h1>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">個人化</h3>
+                    <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                            <span class="font-medium">外觀模式</span>
+                            <select id="set-theme-mode" onchange="themeManager.setMode(this.value)"
+                                class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                <option value="system">跟隨系統</option>
+                                <option value="light">淺色</option>
+                                <option value="dark">深色</option>
+                            </select>
+                        </div>
+                        <div class="p-4 flex justify-between items-center">
+                            <span class="font-medium">體重設定</span>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="set-weight-val" placeholder="0"
+                                    class="w-16 border border-gray-200 rounded-lg p-1.5 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                <select id="set-weight-unit"
+                                    class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    <option value="kg">kg</option>
+                                    <option value="lbs">lbs</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="p-6 space-y-6">
-                    <div>
-                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">個人化</h3>
-                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
-                            <div
-                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                <span class="font-medium">外觀模式</span>
-                                <select id="set-theme-mode" onchange="themeManager.setMode(this.value)"
-                                    class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                    <option value="system">跟隨系統</option>
-                                    <option value="light">淺色</option>
-                                    <option value="dark">深色</option>
-                                </select>
-                            </div>
-                            <div class="p-4 flex justify-between items-center">
-                                <span class="font-medium">體重設定</span>
-                                <div class="flex items-center gap-2">
-                                    <input type="number" id="set-weight-val" placeholder="0"
-                                        class="w-16 border border-gray-200 rounded-lg p-1.5 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                    <select id="set-weight-unit"
-                                        class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                        <option value="kg">kg</option>
-                                        <option value="lbs">lbs</option>
-                                    </select>
-                                </div>
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">音效與語音</h3>
+                    <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                            <span class="font-medium">主音效開關</span>
+                            <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                <input type="checkbox" id="set-sound-enabled"
+                                    class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                <label for="set-sound-enabled"
+                                    class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
                             </div>
                         </div>
-                    </div>
-
-                    <div>
-                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">音效與語音</h3>
-                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
-                            <div
-                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                <span class="font-medium">主音效開關</span>
-                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                    <input type="checkbox" id="set-sound-enabled"
-                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
-                                    <label for="set-sound-enabled"
-                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
-                                </div>
-                            </div>
-                            <div class="p-4 grid grid-cols-3 gap-2 border-b border-gray-100 dark:border-gray-700">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" id="set-sound-start"
-                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
-                                    <span class="text-sm">開始音</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" id="set-sound-countdown"
-                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
-                                    <span class="text-sm">倒數音</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" id="set-sound-finish"
-                                        class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
-                                    <span class="text-sm">結束音</span>
-                                </label>
-                            </div>
-                            <div
-                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                <span class="font-medium">倒數閃爍提示</span>
-                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                    <input type="checkbox" id="set-pulse-enabled"
-                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
-                                    <label for="set-pulse-enabled"
-                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
-                                </div>
-                            </div>
-                            <div
-                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                <span class="font-medium">朗讀項目 (TTS)</span>
-                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                    <input type="checkbox" id="set-tts-enabled"
-                                        class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
-                                    <label for="set-tts-enabled"
-                                        class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
-                                </div>
-                            </div>
-                            <div
-                                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
-                                <span class="font-medium">倒數提示時機</span>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-sm text-gray-500">最後</span>
-                                    <input type="number" id="set-countdown-sec"
-                                        class="w-16 border border-gray-300 rounded-lg p-1 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white"
-                                        value="3" min="0" max="60">
-                                    <span class="text-sm text-gray-500">秒</span>
-                                </div>
-                            </div>
-                            <div class="p-4 border-b border-gray-100 dark:border-gray-700">
-                                <div class="flex justify-between mb-2">
-                                    <span class="font-medium">語音語速</span>
-                                    <span id="lbl-speech-rate"
-                                        class="text-sm font-bold text-blue-600 dark:text-blue-400">1.0x</span>
-                                </div>
-                                <input type="range" id="set-speech-rate" min="0.5" max="2" step="0.1"
-                                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
-                            </div>
-                            <div class="p-4">
-                                <label class="block font-medium mb-2">語音模型 / 語言</label>
-                                <select id="set-voice-selection"
-                                    class="w-full bg-gray-50 border border-gray-200 text-sm rounded-lg p-2 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                    <option value="">載入語音中...</option>
-                                </select>
-                                <p class="text-[10px] text-gray-400 mt-2 italic">* 支援清單取決於您的裝置與瀏覽器</p>
+                        <div class="p-4 grid grid-cols-3 gap-2 border-b border-gray-100 dark:border-gray-700">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="set-sound-start"
+                                    class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                <span class="text-sm">開始音</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="set-sound-countdown"
+                                    class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                <span class="text-sm">倒數音</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="set-sound-finish"
+                                    class="rounded text-blue-600 dark:bg-gray-600 dark:border-gray-500">
+                                <span class="text-sm">結束音</span>
+                            </label>
+                        </div>
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                            <span class="font-medium">倒數閃爍提示</span>
+                            <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                <input type="checkbox" id="set-pulse-enabled"
+                                    class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                <label for="set-pulse-enabled"
+                                    class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
                             </div>
                         </div>
-                    </div>
-
-                    <div>
-                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">帳號與裝置</h3>
-                        <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
-                            <div class="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
-                                <div
-                                    class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden dark:bg-gray-600">
-                                    <img id="avatar-img" class="w-full h-full object-cover hidden">
-                                    <div id="avatar-placeholder"
-                                        class="w-full h-full flex items-center justify-center text-gray-400">👤</div>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div id="settings-email" class="font-bold truncate dark:text-white">未登入</div>
-                                    <div class="text-xs text-gray-500">雲端同步</div>
-                                </div>
-                                <button id="auth-btn"
-                                    class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                            <span class="font-medium">朗讀項目 (TTS)</span>
+                            <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                <input type="checkbox" id="set-tts-enabled"
+                                    class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 dark:border-gray-500" />
+                                <label for="set-tts-enabled"
+                                    class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer dark:bg-gray-600"></label>
                             </div>
-                            <div class="p-4 border-t border-gray-100 dark:border-gray-700">
-                                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">穿戴裝置 (暫訂)</h4>
-                                <div class="space-y-4">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center gap-3">
-                                            <div
-                                                class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
-                                                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <div class="font-medium text-sm">穿戴裝置連線</div>
-                                                <div class="text-[10px] text-gray-400">支援 Apple Watch, Garmin, 三星</div>
-                                            </div>
+                        </div>
+                        <div
+                            class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+                            <span class="font-medium">倒數提示時機</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-gray-500">最後</span>
+                                <input type="number" id="set-countdown-sec"
+                                    class="w-16 border border-gray-300 rounded-lg p-1 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                    value="3" min="0" max="60">
+                                <span class="text-sm text-gray-500">秒</span>
+                            </div>
+                        </div>
+                        <div class="p-4 border-b border-gray-100 dark:border-gray-700">
+                            <div class="flex justify-between mb-2">
+                                <span class="font-medium">語音語速</span>
+                                <span id="lbl-speech-rate"
+                                    class="text-sm font-bold text-blue-600 dark:text-blue-400">1.0x</span>
+                            </div>
+                            <input type="range" id="set-speech-rate" min="0.5" max="2" step="0.1"
+                                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600">
+                        </div>
+                        <div class="p-4">
+                            <label class="block font-medium mb-2">語音模型 / 語言</label>
+                            <select id="set-voice-selection"
+                                class="w-full bg-gray-50 border border-gray-200 text-sm rounded-lg p-2 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                <option value="">載入語音中...</option>
+                            </select>
+                            <p class="text-[10px] text-gray-400 mt-2 italic">* 支援清單取決於您的裝置與瀏覽器</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">帳號與裝置</h3>
+                    <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+                        <div class="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
+                            <div
+                                class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden dark:bg-gray-600">
+                                <img id="avatar-img" class="w-full h-full object-cover hidden">
+                                <div id="avatar-placeholder"
+                                    class="w-full h-full flex items-center justify-center text-gray-400">👤</div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div id="settings-email" class="font-bold truncate dark:text-white">未登入</div>
+                                <div class="text-xs text-gray-500">雲端同步</div>
+                            </div>
+                            <button id="auth-btn"
+                                class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
+                        </div>
+                        <div class="p-4 border-t border-gray-100 dark:border-gray-700">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">穿戴裝置 (暫訂)</h4>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
+                                            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
                                         </div>
-                                        <button onclick="alert('穿戴裝置 SDK 整合中')"
-                                            class="text-xs bg-gray-100 text-gray-400 px-3 py-1 rounded-full font-bold dark:bg-gray-700">搜尋中</button>
+                                        <div>
+                                            <div class="font-medium text-sm">穿戴裝置連線</div>
+                                            <div class="text-[10px] text-gray-400">支援 Apple Watch, Garmin, 三星</div>
+                                        </div>
                                     </div>
+                                    <button onclick="alert('穿戴裝置 SDK 整合中')"
+                                        class="text-xs bg-gray-100 text-gray-400 px-3 py-1 rounded-full font-bold dark:bg-gray-700">搜尋中</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
     </main>
 
@@ -626,9 +632,8 @@
             <span class="text-[10px] font-bold">課表</span>
         </button>
 
-        <button onclick="router.go('insight')"
-            class="nav-btn w-1/4 h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-900"
-            data-target="view-insight">
+        <button onclick="router.go('insight'); analyticsManager.refresh();"
+            class="nav-btn w-1/4 h-full flex flex-col items-center justify-center ..." data-target="view-insight">
             <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>

@@ -34,6 +34,19 @@ const analyticsManager = {
         this.renderCards();
     },
 
+    // 統一刷新進入點
+    refresh() {
+        console.log("正在刷新分析數據...");
+        this.renderCards(); // 刷新 PR 卡片與趨勢圖
+        if (window.insightManager) {
+            insightManager.populateBlockSelector(); // 重新抓取積木清單
+            insightManager.processData();           // 重新計算肌力對比
+        }
+        if (window.bodyManager) {
+            bodyManager.renderCard();               // 刷新身體組成卡片
+        }
+    },
+
     // [新增] 尋找距離特定訓練日期最近的體重紀錄，消除體重噪音
     getClosestWeight(targetDateStr) {
         const bodyLogs = JSON.parse(localStorage.getItem('bodyLogs') || '{}');
@@ -762,12 +775,14 @@ const bodyManager = {
         this.displayDate = this.parseDate(dateStr);
         this.renderCard();
         this.closeEditor();
+
+        // 新增：儲存後自動重新整理分析數據
+        analyticsManager.refresh();
     },
 
     deleteRecord() {
         if (!confirm("確定要刪除這天的身體組成紀錄嗎？")) return;
 
-        // 刪除時，同樣以 Modal 上選擇的日期為主
         const dateInput = document.getElementById('body-editor-date');
         const dateStr = dateInput ? dateInput.value : this.getFormatDate(this.displayDate);
 
@@ -777,13 +792,9 @@ const bodyManager = {
             localStorage.setItem('bodyLogs', JSON.stringify(logs));
         }
 
-        // 若刪除的是目前正在看的日期，嘗試重新載入最新日期
-        if (dateStr === this.getFormatDate(this.displayDate)) {
-            const newDates = Object.keys(logs).sort();
-            this.displayDate = newDates.length > 0 ? this.parseDate(newDates[newDates.length - 1]) : new Date();
-        }
-
+        // [修正] 補上刷新，確保涉及體重的圖表即時更新
         this.renderCard();
+        analyticsManager.refresh();
         this.closeEditor();
     }
 };
@@ -798,13 +809,14 @@ const insightManager = {
     selectedA: new Set(),
     selectedB: new Set(),
 
-
     init() {
         this.populateBlockSelector();
         const bind = (id, event, handler) => document.getElementById(id)?.addEventListener(event, handler);
 
         bind('insight-block-selector', 'change', (e) => {
             this.currentBlock = e.target.value;
+            this.selectedA.clear();
+            this.selectedB.clear();
             this.populateMetricSelectors();
             this.processData();
         });
@@ -813,24 +825,33 @@ const insightManager = {
         bind('insight-include-bw', 'change', (e) => { this.includeBW = e.target.checked; this.processData(); });
     },
 
-    // 1. 提取所有 Block 名稱
     populateBlockSelector() {
+        const selector = document.getElementById('insight-block-selector');
+        if (!selector) return;
+
+        const prevValue = this.currentBlock || selector.value;
         const records = recordManager.getAllRecords();
         const labels = new Set();
+
         records.forEach(r => {
             (r.executionLogs || []).forEach(l => {
                 const name = l.label || l.blockSnapshot?.props?.label;
                 if (name) labels.add(name.trim());
             });
         });
-        const selector = document.getElementById('insight-block-selector');
-        if (selector) {
-            selector.innerHTML = '<option value="">(選擇分析項目)</option>' +
-                Array.from(labels).sort().map(l => `<option value="${l}">${l}</option>`).join('');
+
+        const labelsArray = Array.from(labels).sort();
+        selector.innerHTML = '<option value="">(選擇分析項目)</option>' +
+            labelsArray.map(l => `<option value="${l}">${l}</option>`).join('');
+
+        if (prevValue && labels.has(prevValue)) {
+            selector.value = prevValue;
+            this.currentBlock = prevValue;
+        } else {
+            this.currentBlock = '';
         }
     },
 
-    // 僅提取重量相關指標
     populateMetricSelectors() {
         const mappingDiv = document.getElementById('insight-metric-mapping');
         const selW = document.getElementById('sel-map-weight');
@@ -849,7 +870,6 @@ const insightManager = {
         if (keys.size > 0) {
             mappingDiv.classList.remove('hidden');
             const keysArr = Array.from(keys);
-            // 預選包含「重」的欄位
             const weightKey = keysArr.find(k => k.includes('重') || k.toLowerCase().includes('weight'));
             selW.innerHTML = keysArr.map(k => `<option value="${k}">${k}</option>`).join('');
             selW.value = weightKey || keysArr[0];
@@ -857,7 +877,6 @@ const insightManager = {
         }
     },
 
-    // 核心資料處理：自動根據積木類型判定 X 軸 (次數)
     processData() {
         if (!this.currentBlock) return;
         const records = recordManager.getAllRecords();
@@ -865,20 +884,14 @@ const insightManager = {
 
         records.forEach(r => {
             const bw = this.includeBW ? bodyManager.getClosestWeight(r.date) : 0;
-            // 篩選出標籤符合的紀錄
             const logs = (r.executionLogs || []).filter(l => l.label === this.currentBlock);
 
             logs.forEach((log, idx) => {
                 if (!log.actuals) return;
 
-                // 1. 確定重量 (Y軸)：使用下拉選單選定的 Key (例如 "深蹲重量")
                 const wVal = parseFloat(log.actuals[this.currentMetricW]) || 0;
-
-                // 2. 確定次數 (X軸)：
-                // 優先找標記為 "次數" 或 "reps" 的欄位，且該欄位不能跟重量欄位重複
                 let rVal = 0;
 
-                // 嘗試所有可能的次數 Key，但不包含目前被選為重量的 Key
                 const possibleRepKeys = ['次數', 'reps', 'Reps', 'count', 'Count'];
                 for (let key of possibleRepKeys) {
                     if (key !== this.currentMetricW && log.actuals[key] !== undefined) {
@@ -887,12 +900,10 @@ const insightManager = {
                     }
                 }
 
-                // 備援方案：如果上面都沒找到，且它是 reps 型積木，嘗試從計劃值抓取或強制設為 1
                 if (rVal <= 0) {
                     rVal = parseFloat(log.planned?.count) || 1;
                 }
 
-                // 3. 只有重量 > 0 且 次數 > 0 才紀錄
                 if (wVal > 0 && rVal > 0) {
                     this.rawLogs.push({
                         id: `${r.id}-${idx}`,
@@ -911,17 +922,16 @@ const insightManager = {
         this.updateStrengthAnalysis();
     },
 
-    // 渲染清單 (保持力竭標示)
     renderPointsCheckboxes() {
         const render = (containerId, selectedSet, period) => {
             const container = document.getElementById(containerId);
             if (!container) return;
-            container.innerHTML = this.rawLogs.map((log, i) => {
+            container.innerHTML = this.rawLogs.map((log) => {
                 const isFailure = log.isFailure;
                 const failureBadge = isFailure ? `<span class="ml-1 px-1 bg-red-500 text-white rounded text-[8px] font-black shrink-0">力竭</span>` : '';
                 return `
                     <label class="flex items-start gap-2 bg-white p-2 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-50 dark:bg-gray-800 transition-colors w-full">
-                        <input type="checkbox" onchange="insightManager.togglePoint('${period}', ${i})" ${selectedSet.has(i) ? 'checked' : ''} class="mt-1 w-4 h-4 rounded text-blue-600">
+                        <input type="checkbox" onchange="insightManager.togglePoint('${period}', '${log.id}')" ${selectedSet.has(log.id) ? 'checked' : ''} class="mt-1 w-4 h-4 rounded text-blue-600">
                         <div class="flex-1 min-w-0">
                             <div class="text-[10px] font-bold text-gray-700 dark:text-gray-300 flex items-center">
                                 <span class="text-gray-400 mr-1.5">${log.date.substring(5)}</span>
@@ -938,9 +948,9 @@ const insightManager = {
         render('insight-points-b', this.selectedB, 'B');
     },
 
-    togglePoint(period, index) {
+    togglePoint(period, logId) {
         const set = period === 'A' ? this.selectedA : this.selectedB;
-        set.has(index) ? set.delete(index) : set.add(index);
+        set.has(logId) ? set.delete(logId) : set.add(logId);
         this.updateStrengthAnalysis();
     },
 
@@ -961,8 +971,9 @@ const insightManager = {
     calculateBest1RM(indices) {
         if (indices.size === 0) return 0;
         let sumX2 = 0, sumXY = 0;
-        indices.forEach(idx => {
-            const log = this.rawLogs[idx];
+        indices.forEach(logId => {
+            const log = this.rawLogs.find(l => l.id === logId);
+            if (!log) return;
             const x = this.getFormulaCoefficient(log.reps);
             sumX2 += x * x;
             sumXY += x * log.weight;
@@ -970,7 +981,6 @@ const insightManager = {
         return sumX2 === 0 ? 0 : (sumXY / sumX2);
     },
 
-    // 畫面更新：直接對比 1RM 指標，移除垂直輔助線
     updateStrengthAnalysis() {
         const e1RM_A = this.calculateBest1RM(this.selectedA);
         const e1RM_B = this.calculateBest1RM(this.selectedB);
@@ -983,6 +993,9 @@ const insightManager = {
             const diff = (e1RM_B - e1RM_A).toFixed(1);
             diffEl.textContent = (diff >= 0 ? '+' : '') + diff;
             diffEl.className = `font-black ${diff >= 0 ? 'text-emerald-600' : 'text-red-500'}`;
+        } else {
+            diffEl.textContent = '--';
+            diffEl.className = 'font-black text-blue-500';
         }
         this.renderChart(e1RM_A, e1RM_B);
     },

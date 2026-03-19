@@ -629,27 +629,16 @@ const timer = {
             recordManager.updateRecordLog(this.editingRecordId, this.pendingLogIndex, newLog);
             if (closePanel && typeof showToast === 'function') showToast('紀錄已更新');
 
-            // 強制刷新看板相關 UI
             try {
                 if (typeof recordManager.updateUI === 'function') recordManager.updateUI();
                 if (typeof recordManager.renderCalendar === 'function') recordManager.renderCalendar();
 
-                const now = new Date();
-                const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-                const targetDate = recordManager.currentDate || recordManager.selectedDate || todayStr;
-
-                if (typeof recordManager.showDayDetail === 'function') {
-                    recordManager.showDayDetail(targetDate);
+                // [修正] 補上這段，確保圖表同步
+                if (window.analyticsManager) {
+                    analyticsManager.refresh();
                 }
 
-                const editorModal = document.getElementById('modal-record-editor');
-                if (editorModal && !editorModal.classList.contains('hidden') && typeof recordEditor !== 'undefined') {
-                    if (typeof recordEditor.open === 'function') {
-                        recordEditor.open(this.editingRecordId);
-                    } else if (typeof recordEditor.render === 'function') {
-                        recordEditor.render(this.editingRecordId);
-                    }
-                }
+                // ...其餘 UI 更新代碼...
             } catch (e) {
                 console.error("UI 更新失敗:", e);
             }
@@ -983,7 +972,12 @@ const timer = {
     // 更新紀錄頁面的數據 (黑框與日曆)
     refreshRecordUI() {
         console.log("紀錄已儲存，正在更新 UI...");
-        recordManager.updateUI(); // 呼叫剛剛建立的更新邏輯
+        recordManager.updateUI();
+
+        // [新增] 儲存訓練紀錄後，通知分析模組刷新數據
+        if (window.analyticsManager) {
+            analyticsManager.refresh();
+        }
     },
 };
 
