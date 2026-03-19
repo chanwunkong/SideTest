@@ -1,4 +1,5 @@
 // --- js/modules/goalManager.js ---
+import { views } from './views.js';
 
 export const goalManager = {
     goals: [],
@@ -245,18 +246,17 @@ export const goalManager = {
         const list = document.getElementById('goals-list');
         if (!list) return;
 
-        // 🌟 1. 根據 showOnlyActive 過濾目標
+        // 1. 根據 showOnlyActive 過濾目標
         let displayGoals = this.showOnlyActive
             ? this.goals.filter(g => g.isActive !== false)
             : this.goals;
 
         if (displayGoals.length === 0) {
-            const msg = this.showOnlyActive ? "目前沒有進行中的目標" : "目前沒有設定目標";
-            list.innerHTML = `<div class="text-center text-gray-400 py-8 text-xs font-bold bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 dark:bg-gray-800/30 dark:border-gray-700">${msg}</div>`;
+            list.innerHTML = views.emptyGoalState(this.showOnlyActive);
             return;
         }
 
-        // 計算本週日期區間 (週一至週日)
+        // 計算本週日期區間
         const now = new Date();
         const currentDay = now.getDay();
         const diffToMonday = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
@@ -265,25 +265,24 @@ export const goalManager = {
         sunday.setDate(monday.getDate() + 6);
         const dateRangeStr = `${monday.getMonth() + 1}/${monday.getDate()} - ${sunday.getMonth() + 1}/${sunday.getDate()}`;
 
-        // 🌟 2. 排序：進行中優先，且已達成的排在進行中之後
+        // 2. 排序：進行中優先，已達成的排在後
         const sortedGoals = [...displayGoals].sort((a, b) => {
             const aActive = a.isActive !== false;
             const bActive = b.isActive !== false;
             if (aActive !== bActive) return (bActive ? 1 : 0) - (aActive ? 1 : 0);
-
-            // 同樣狀態下，未完成的優先顯示
             const aDone = this.calculateProgress(a) >= a.criteria.value;
             const bDone = this.calculateProgress(b) >= b.criteria.value;
             return (aDone ? 1 : 0) - (bDone ? 1 : 0);
         });
 
+        // 3. 映射資料並調用視圖工廠產生 HTML
         list.innerHTML = sortedGoals.map(g => {
-            const isActive = g.isActive !== false;
             const current = this.calculateProgress(g);
             const target = g.criteria.value;
             const pct = Math.min((current / target) * 100, 100);
             const isCompleted = current >= target;
 
+            // 準備顯示用的標籤文字
             let periodLabel = '';
             let dateInfo = '';
             if (g.criteria.period === 'daily') periodLabel = '今日計數';
@@ -299,44 +298,8 @@ export const goalManager = {
                 scopeText = `#${g.scope.targets.join(', #')}${opText}`;
             }
 
-            const activeClass = isActive ? '' : 'opacity-50 grayscale';
-            const checkedAttr = isActive ? 'checked' : '';
-
-            return `
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-750 dark:border-gray-600 relative overflow-hidden transition-all ${activeClass}">
-                <div class="flex justify-between items-start mb-3">
-                    <div class="flex-1 pr-4">
-                        <div class="flex items-center gap-2">
-                            <h4 class="font-bold text-sm text-gray-900 dark:text-gray-100">${g.title}</h4>
-                            ${isCompleted && isActive ? '<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-black dark:bg-orange-900/40">🔥 已達成</span>' : ''}
-                        </div>
-                        <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-1">
-                            ${periodLabel} <span class="normal-case font-mono text-[8px]">${dateInfo}</span> • ${scopeText}
-                        </p>
-                    </div>
-                    
-                    <div class="flex items-center gap-2">
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" class="sr-only peer" ${checkedAttr} data-action="goal-toggle" data-value="${g.id}"
-                            <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                        <button data-action="goal-delete" data-value="${g.id}" class="text-gray-300 hover:text-red-500 transition-colors p-1">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="flex items-end justify-between mb-2">
-                    <span class="text-2xl font-black ${isCompleted ? 'text-green-500' : 'text-blue-600 dark:text-blue-400'}">
-                        ${current}<span class="text-[10px] text-gray-400 font-bold ml-1">/ ${target} 次</span>
-                    </span>
-                    <span class="text-[10px] font-bold text-gray-400">${Math.round(pct)}%</span>
-                </div>
-
-                <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden dark:bg-gray-800">
-                    <div class="h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-blue-600 dark:bg-blue-500'}" style="width: ${pct}%"></div>
-                </div>
-            </div>`;
+            // 調用視圖函式
+            return views.goalCard(g, current, target, pct, isCompleted, periodLabel, dateInfo, scopeText);
         }).join('');
     },
 };

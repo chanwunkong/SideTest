@@ -1,6 +1,7 @@
 // --- js/modules/storage.js ---
 import { editor } from './ui.js';
 import { timer } from './timer.js';
+import { views } from './views.js';
 
 // 1. 定義標準事件名稱，避免拼字錯誤
 export const APP_EVENTS = {
@@ -329,48 +330,27 @@ export const store = {
     },
 
     renderRoutines() {
+        // 1. 渲染進行中暫存 (Session)
         const session = sessionRepository.get();
         const sessionContainer = document.getElementById('active-session-container');
-
         if (sessionContainer) {
-            if (session) {
-                sessionContainer.innerHTML = `
-                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm flex justify-between items-center dark:bg-blue-900/30 dark:border-blue-800">
-                        <div data-action="session-resume" class="flex-1 cursor-pointer">
-                            <div class="text-xs font-bold text-blue-600 mb-1 dark:text-blue-400">進行中課表</div>
-                            <div class="font-bold text-lg text-gray-800 dark:text-gray-100">${session.routineTitle}</div>
-                            <div class="text-xs text-gray-500 mt-1 dark:text-gray-400">已進行: ${formatTime(session.elapsed)}</div>
-                        </div>
-                        <button data-action="session-clear" class="p-2 text-gray-400 hover:text-red-500">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        </button>
-                    </div>
-                `;
-            } else {
-                sessionContainer.innerHTML = '';
-            }
+            sessionContainer.innerHTML = session ? views.activeSession(session) : '';
         }
+
+        // 2. 渲染課表列表
         const list = document.getElementById('routine-list');
+        if (!list) return;
         list.innerHTML = '';
+
         if (this.routines.length === 0) {
-            list.innerHTML = `
-                <div class="text-center mt-12 px-4">
-                    <div class="text-gray-400 mb-6 text-sm">目前尚無課表，馬上建立一個吧！</div>
-                    <button data-action="open-editor" class="bg-gray-900 text-white dark:bg-blue-600 px-6 py-4 rounded-2xl font-bold shadow-xl w-full mb-4 flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        建立新課表
-                    </button>
-                </div>`;
+            list.innerHTML = views.emptyRoutineState();
             return;
         }
 
         this.routines.forEach(r => {
-            const el = document.createElement('div');
-            el.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group dark:bg-gray-750 dark:border-gray-600";
-
             const blockCount = r.blocks ? r.blocks.length : 0;
 
-            // Calculate estimated total time
+            // 計算預估總時間
             let totalSec = 0;
             if (r.blocks) {
                 const flattened = routineUtils.flattenBlocks(r.blocks);
@@ -378,31 +358,18 @@ export const store = {
             }
             const timeStr = formatTime(Math.max(0, totalSec));
 
-            // 處理標籤的 HTML
+            // 生成標籤標籤
             const tagsHtml = (r.tags && r.tags.length > 0)
-                ? `<div class="flex flex-wrap gap-1 mt-1.5">` + r.tags.map(t => `<span class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 font-bold dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">${t}</span>`).join('') + `</div>`
+                ? `<div class="flex flex-wrap gap-1 mt-1.5">` +
+                r.tags.map(t => `<span class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 font-bold dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">${t}</span>`).join('') +
+                `</div>`
                 : '';
 
-            el.innerHTML = `
-                        <div data-action="routine-start" data-value="${r.id}" class="flex-1 cursor-pointer">
-                            <div class="font-bold text-lg text-gray-800 dark:text-gray-100">${r.title}</div>
-                            ${tagsHtml} <div class="flex gap-3 mt-2 text-xs text-gray-500 font-mono dark:text-gray-400">
-                                <span class="bg-gray-100 px-2 py-0.5 rounded dark:bg-gray-600 dark:text-gray-300">⏱ ${timeStr}</span>
-                                <span>${blockCount} 區塊</span>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1">
-                             <button data-action="routine-duplicate" data-value="${r.id}" class="text-gray-400 hover:text-blue-600 p-2 dark:hover:text-blue-400" title="複製">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                            </button>
-                             <button data-action="routine-edit" data-value="${r.id}" class="text-gray-400 hover:text-blue-600 p-2 dark:hover:text-blue-400" title="編輯">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                            </button>
-                            <button data-action="routine-delete" data-value="${r.id}" class="text-gray-400 hover:text-red-600 p-2 dark:hover:text-red-400" title="刪除">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </div>
-                    `;
+            const el = document.createElement('div');
+            el.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group dark:bg-gray-750 dark:border-gray-600";
+
+            // 💡 調用視圖工廠產生內容
+            el.innerHTML = views.routineItem(r, timeStr, blockCount, tagsHtml);
             list.appendChild(el);
         });
     }
@@ -625,83 +592,38 @@ export const recordManager = {
             list.innerHTML = `<div class="text-center py-10 text-xs text-gray-400">該日沒有訓練紀錄</div>`;
         } else {
             records.forEach(rec => {
-                const item = document.createElement('div');
-                item.className = "p-4 bg-white rounded-2xl border border-gray-100 shadow-sm dark:bg-gray-750 dark:border-gray-700 flex flex-col";
-
-                // 讀取該紀錄的展開狀態
                 const isExpanded = this.expandedRecordIds.has(rec.id);
                 const hiddenClass = isExpanded ? '' : 'hidden';
                 const arrowRotation = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
 
-                let logsHtml = '';
-                if (rec.executionLogs && rec.executionLogs.length > 0) {
-                    // 動態套用 hiddenClass
-                    logsHtml = `
-                    <div id="logs-${rec.id}" class="${hiddenClass} mt-3 space-y-2 border-t border-gray-50 pt-3 dark:border-gray-700">`;
-                    rec.executionLogs.forEach((log, lIdx) => {
-                        const isFailure = log.actuals && log.actuals.isFailure === true;
+                // 1. 利用 views.executionLogItem 映射生成日誌內容
+                const logsHtml = (rec.executionLogs || []).map((log, lIdx) => {
+                    const isFailure = log.actuals && log.actuals.isFailure === true;
+                    const actualsStr = Object.entries(log.actuals || {})
+                        .filter(([k]) => k !== 'isFailure')
+                        .map(([k, v]) => `${k}: ${v === "" || v === undefined ? '0' : v}`)
+                        .join(', ');
 
-                        // 過濾 isFailure 鍵值，僅串接其他數值
-                        const actualsStr = Object.entries(log.actuals || {})
-                            .filter(([k, v]) => k !== 'isFailure')
-                            .map(([k, v]) => `${k}: ${v === "" || v === undefined ? '0' : v}`)
-                            .join(', ');
+                    const failureBadge = isFailure
+                        ? `<span class="ml-1.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-500 text-white shadow-sm shrink-0">力竭</span>`
+                        : '';
 
-                        // 獨立渲染力竭徽章
-                        const failureBadge = isFailure
-                            ? `<span class="ml-1.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-500 text-white shadow-sm dark:bg-red-600 shrink-0">力竭</span>`
-                            : '';
+                    let loopText = '';
+                    if (log.loopState?.length > 0) {
+                        const text = log.loopState.map(s => s.current).join('-');
+                        loopText = `<span class="text-gray-400 font-mono font-medium mr-1.5 shrink-0">${text}</span>`;
+                    }
 
-                        // 處理組數文字格式 (N-M 格式)
-                        let loopText = '';
-                        if (log.loopState && log.loopState.length > 0) {
-                            loopText = log.loopState.map(s => s.current).join('-');
-                            loopText = `<span class="text-gray-400 font-mono font-medium mr-1.5 shrink-0">${loopText}</span>`;
-                        }
+                    // 調用視圖函數
+                    return views.executionLogItem(rec.id, lIdx, loopText, log.label, actualsStr, failureBadge);
+                }).join('');
 
-                        // 修改：移除左側 w-28，改用 flex-1 讓兩者自動分配空間
-                        // 左右兩欄使用 bg 容器包覆並根據內容自動調整寬度
-                        logsHtml += `
-    <button data-action="record-edit-log" data-record="${rec.id}" data-index="${lIdx}"
-            class="flex items-center gap-2 text-xs w-full hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1 rounded transition-colors text-left">
-        <div class="flex items-center min-w-0 shrink">
-            ${loopText}
-            <span class="text-gray-500 truncate dark:text-gray-300 font-bold">${log.label}</span>
-        </div>
-        
-        <div class="flex-1 flex items-center justify-center bg-blue-50 text-blue-700 px-2 py-1.5 rounded-lg border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 font-mono min-w-fit">
-            <span class="truncate">${actualsStr || '0'}</span>
-            ${failureBadge}
-        </div>
-        
-        <svg class="w-3 h-3 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>`;
-                    });
-                    logsHtml += '</div>';
-                }
+                // 2. 調用視圖函數生成整張卡片，並轉為 DOM 節點插入
+                const itemHtml = views.recordCard(rec, dateStr, arrowRotation, hiddenClass, logsHtml);
 
-                const durationText = typeof formatTime === 'function' ? formatTime(rec.duration) : `${Math.floor(rec.duration / 60)}m`;
-
-                item.innerHTML = `
- <div class="flex items-start justify-between w-full">
-        <div class="flex-1 cursor-pointer min-w-0" data-action="record-toggle-logs" data-value="${rec.id}">
-            <div class="flex items-center gap-2">
-                <div class="font-bold text-gray-800 dark:text-gray-100 truncate">${rec.routineTitle}</div>
-                <svg id="arrow-${rec.id}" class="w-3 h-3 text-gray-400 transition-transform shrink-0" style="transform: ${arrowRotation};" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-            <div class="text-[10px] text-gray-500 font-mono mt-0.5">${rec.startTime} | ${durationText}</div>
-        </div>
-
-        <button data-action="record-delete" data-record="${rec.id}" data-date="${dateStr}" class="p-2 text-gray-300 hover:text-red-500 transition-colors shrink-0 -mr-2 -mt-1">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </button>
-    </div>
-                ${logsHtml}`;
-                list.appendChild(item);
+                const container = document.createElement('div');
+                container.innerHTML = itemHtml;
+                list.appendChild(container.firstElementChild);
             });
         }
     },

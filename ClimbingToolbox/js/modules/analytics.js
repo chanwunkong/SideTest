@@ -1,5 +1,6 @@
 // --- js/modules/analytics.js ---
 import { EventBus, APP_EVENTS, recordManager } from './storage.js';
+import { views } from './views.js';
 
 export const mathUtils = {
     calcVolumeReps(logs) {
@@ -289,29 +290,23 @@ export const analyticsManager = {
     renderCards() {
         const container = document.getElementById('pr-cards-container');
         if (!container) return;
-        container.innerHTML = '';
 
-        this.configs.forEach((config, idx) => {
+        // 💡 使用 map 結合視圖工廠產生 HTML，最後再 join
+        container.innerHTML = this.configs.map((config, idx) => {
             const isLarge = idx === 0;
 
+            // 1. 處理未設定的空位
             if (!config) {
-                container.innerHTML += `
-                    <div class="${isLarge ? 'col-span-2' : ''} bg-gray-50 rounded-2xl p-4 border-2 border-dashed border-data-action="pr-open-editor" data-value="${idx}"gray-200 flex flex-col items-center justify-center dark:bg-gray-800/50 dark:border-gray-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" >
-                        <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm mb-1 dark:bg-gray-700">
-                            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        </div>
-                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">新增看板項目</span>
-                    </div>`;
-                return;
+                return views.emptyPRCard(idx, isLarge);
             }
 
+            // 2. 數據運算邏輯 (保持在 Manager 內)
             const rawData = this.extractData(config);
             let displayValue = this.calculateCardValue(rawData, config.timeRange || 'all', config.aggregation);
-
             let unit = '';
             let metricLabel = config.metric;
 
-            // 處理顯示單位與標籤
+            // 處理顯示單位 (邏輯不變)
             if (config.metric === 'volume_time') {
                 displayValue = Math.floor(displayValue / 60);
                 unit = 'min';
@@ -336,43 +331,19 @@ export const analyticsManager = {
                 unit = config.metric.includes('重') ? 'kg' : '';
             }
 
-            if (config.aggregation === 'active_days') {
-                unit = '天';
-                metricLabel += ' (天數)';
-            } else if (config.aggregation === 'latest') {
-                metricLabel += ' (最新)';
-            } else if (config.aggregation === 'avg') {
-                metricLabel += ' (平均)';
-            }
+            // 處理聚合標籤與前綴
+            if (config.aggregation === 'active_days') { unit = '天'; metricLabel += ' (天數)'; }
+            else if (config.aggregation === 'latest') metricLabel += ' (最新)';
+            else if (config.aggregation === 'avg') metricLabel += ' (平均)';
 
-            let prefix = config.sourceType === 'tag' ? '#' : '';
-            let subtitle = '';
-            if (config.timeRange === '10t') subtitle = '近10次 • ';
-            else if (config.timeRange === '7d') subtitle = '近7天 • ';
-            else if (config.timeRange === '28d') subtitle = '近4週 • ';
-            else if (config.timeRange === '84d') subtitle = '近12週 • ';
-            else subtitle = '歷史 • ';
+            const prefix = config.sourceType === 'tag' ? '#' : '';
+            const timeRangeMap = { '10t': '近10次 • ', '7d': '近7天 • ', '28d': '近4週 • ', '84d': '近12週 • ' };
+            const subtitle = timeRangeMap[config.timeRange] || '歷史 • ';
+            const isActive = (this.activeCardIndex === idx);
 
-            let isActive = this.activeCardIndex === idx ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'bg-white hover:border-blue-300 dark:bg-gray-750';
-
-            container.innerHTML += `
-                <div class="${isLarge ? 'col-span-2' : ''} ${isActive} rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-600 relative overflow-hidden transition-all group">
-                    <div class="absolute inset-0 cursor-pointer" ata-action="pr-select-card" data-value="${idx}"></div>
-                    
-                    <div class="relative flex justify-between items-start mb-2 pointer-events-none">
-                        <span class="text-[10px] sm:text-xs text-gray-400 font-bold tracking-wider uppercase truncate pr-6">${prefix}${config.targetItem}</span>
-                    </div>
-                    
-                    <button data-action="pr-open-editor" data-value="${idx}" class="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors dark:hover:bg-gray-700 z-10">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                    </button>
-
-                    <div class="relative text-${isLarge ? '4xl' : '2xl'} font-black text-gray-800 dark:text-gray-100 pointer-events-none leading-none mb-1">
-                        ${displayValue} <span class="text-xs font-bold text-gray-400">${unit}</span>
-                    </div>
-                    <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest pointer-events-none">${subtitle}${metricLabel}</div>
-                </div>`;
-        });
+            // 3. 💡 調用視圖工廠產生正式卡片
+            return views.prCard(idx, config, isLarge, displayValue, unit, metricLabel, subtitle, prefix, isActive);
+        }).join('');
 
         this.renderChart(this.activeCardIndex);
     },
@@ -992,24 +963,14 @@ export const insightManager = {
         const render = (containerId, selectedSet, period) => {
             const container = document.getElementById(containerId);
             if (!container) return;
+
+            // 💡 使用 map 結合 views.insightPointItem 產生 HTML
             container.innerHTML = this.rawLogs.map((log) => {
-                const isFailure = log.isFailure;
-                const failureBadge = isFailure ? `<span class="ml-1 px-1 bg-red-500 text-white rounded text-[8px] font-black shrink-0">力竭</span>` : '';
-                return `
-                    <label class="flex items-start gap-2 bg-white p-2 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-50 dark:bg-gray-800 transition-colors w-full">
-                        <input type="checkbox" data-action="insight-toggle-point" data-period="${period}" data-log-id="${log.id}" ${selectedSet.has(log.id) ? 'checked' : ''} class="mt-1 w-4 h-4 rounded text-blue-600">
-                        <div class="flex-1 min-w-0">
-                            <div class="text-[10px] font-bold text-gray-700 dark:text-gray-300 flex items-center">
-                                <span class="text-gray-400 mr-1.5">${log.date.substring(5)}</span>
-                                <span class="truncate">${log.routineTitle}</span>
-                                ${failureBadge}
-                            </div>
-                            <div class="text-[10px] text-gray-500 font-mono mt-0.5">${log.reps}RM @ ${log.weight.toFixed(1)}kg</div>
-                        </div>
-                    </label>
-                `;
+                const isSelected = selectedSet.has(log.id);
+                return views.insightPointItem(log, period, isSelected);
             }).join('');
         };
+
         render('insight-points-a', this.selectedA, 'A');
         render('insight-points-b', this.selectedB, 'B');
     },

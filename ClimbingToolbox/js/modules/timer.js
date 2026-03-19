@@ -2,6 +2,7 @@
 import { EventBus, APP_EVENTS, recordRepository, sessionRepository, store, recordManager, uuid, routineUtils, formatTime } from './storage.js';
 import { router, showToast, settingsManager } from './ui.js';
 import { bleManager } from './bleManager.js';
+import { views } from './views.js';
 
 // --- Voice Commander ---
 export const voiceCommander = {
@@ -434,12 +435,12 @@ export const timer = {
         const panel = document.getElementById('quick-log-panel');
         if (!panel) return;
 
-        // 設定 Block 名稱
+        // 1. 設定標籤名稱
         document.getElementById('quick-log-label').textContent = block.props.label;
 
-        // 設定組數狀態文字
+        // 2. 設定組數狀態文字 (邏輯保持在 Manager)
         const loopStateEl = document.getElementById('quick-log-loop-state');
-        if (block.loopState && block.loopState.length > 0) {
+        if (block.loopState?.length > 0) {
             let text = "";
             if (block.loopState.length === 1) {
                 text = `第 ${block.loopState[0].current}/${block.loopState[0].total} 循環`;
@@ -454,33 +455,22 @@ export const timer = {
             loopStateEl.classList.add('hidden');
         }
 
+        // 3. 💡 利用 views.quickLogInput 產生輸入區域 HTML
         const inputsContainer = document.getElementById('quick-log-inputs');
-        inputsContainer.innerHTML = '';
-
-        metrics.forEach((m, idx) => {
+        inputsContainer.innerHTML = metrics.map((m, idx) => {
             const val = (existingActuals && existingActuals[m.name] !== undefined)
                 ? existingActuals[m.name]
                 : this.getBestValue(block.props.label, m.name);
 
-            inputsContainer.innerHTML += `
-                <div class="flex items-center justify-between bg-gray-900 rounded-xl p-3 mb-2">
-                    <span class="text-gray-300 text-lg font-bold pl-2">${m.name}</span>
-                    <div class="flex items-center gap-4" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
-                        <button type="button" data-action="timer-adjust-log-val" data-index="${idx}" data-value="-1" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 transition-transform">-</button>
-                        
-                        <input type="number" step="any" id="quick-log-val-${idx}" data-name="${m.name}" value="${val}" 
-                            class="w-20 bg-transparent text-white text-lg border-none p-0 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 rounded transition-all">
-                        
-                        <button type="button" data-action="timer-adjust-log-val" data-index="${idx}" data-value="1" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 transition-transform">+</button>
-                    </div>
-                </div>
-            `;
-        });
+            return views.quickLogInput(m, idx, val);
+        }).join('');
 
-        const isFailure = existingActuals && existingActuals.isFailure ? true : false;
+        // 4. 設定力竭狀態
+        const isFailure = !!(existingActuals && existingActuals.isFailure);
         const failureToggle = document.getElementById('quick-log-failure');
         if (failureToggle) failureToggle.checked = isFailure;
 
+        // 5. 顯示動畫
         panel.classList.remove('hidden');
         setTimeout(() => panel.classList.remove('translate-y-[150%]'), 10);
     },
