@@ -4,7 +4,9 @@
 const APP_EVENTS = {
     RECORD_SAVED: 'RECORD_SAVED',       // 訓練紀錄已儲存
     BODY_DATA_UPDATED: 'BODY_DATA_UPDATED', // 身體數據已更新
-    GOAL_UPDATED: 'GOAL_UPDATED'        // 目標設定已變動
+    GOAL_UPDATED: 'GOAL_UPDATED',       // 目標設定已變動
+    SESSION_UPDATED: 'SESSION_UPDATED', // 暫存狀態改變
+    ROUTINE_UPDATED: 'ROUTINE_UPDATED'  // 課表清單改變
 };
 
 // 2. 實作輕量級事件總線
@@ -18,6 +20,72 @@ const EventBus = {
         if (!this.events[event]) return;
         console.log(`[EventBus] 發佈事件: ${event}`, data);
         this.events[event].forEach(cb => cb(data));
+    }
+};
+
+// 👇 新增專屬的 Session 存取層
+const sessionRepository = {
+    get() {
+        const data = localStorage.getItem('active_session');
+        return data ? JSON.parse(data) : null;
+    },
+    save(sessionData) {
+        localStorage.setItem('active_session', JSON.stringify(sessionData));
+        if (typeof EventBus !== 'undefined') EventBus.emit(APP_EVENTS.SESSION_UPDATED);
+    },
+    clear() {
+        localStorage.removeItem('active_session');
+        if (typeof EventBus !== 'undefined') EventBus.emit(APP_EVENTS.SESSION_UPDATED);
+    }
+};
+
+// --- 資料存取層 (Repository) ---
+const recordRepository = {
+    getAll() {
+        return JSON.parse(localStorage.getItem('trainingRecords') || '[]');
+    },
+
+    save(newRecord) {
+        const records = this.getAll();
+        records.push(newRecord);
+        localStorage.setItem('trainingRecords', JSON.stringify(records));
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit(APP_EVENTS.RECORD_SAVED, {
+                date: newRecord.date,
+                routineId: newRecord.routineId
+            });
+        }
+    },
+
+    updateLog(recordId, queueIndex, payload) {
+        const records = this.getAll();
+        const record = records.find(r => r.id === recordId);
+        if (!record) return;
+
+        const logIndex = record.executionLogs.findIndex(l => l.queueIndex === queueIndex);
+        if (logIndex !== -1) {
+            record.executionLogs[logIndex].actuals = payload.actuals ? payload.actuals : payload;
+        } else {
+            record.executionLogs.push(payload);
+            record.executionLogs.sort((a, b) => a.queueIndex - b.queueIndex);
+        }
+
+        localStorage.setItem('trainingRecords', JSON.stringify(records));
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit(APP_EVENTS.RECORD_SAVED, {});
+        }
+    },
+
+    delete(recordId, dateStr) {
+        let records = this.getAll();
+        records = records.filter(rec => rec.id !== recordId);
+        localStorage.setItem('trainingRecords', JSON.stringify(records));
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit(APP_EVENTS.RECORD_SAVED, { date: dateStr });
+        }
     }
 };
 
@@ -74,6 +142,24 @@ const calculateDuration = (blocks) => {
 const store = {
     routines: [],
     user: null,
+
+    init() {
+        if (typeof auth !== 'undefined' && auth.onAuthStateChanged) {
+            auth.onAuthStateChanged(user => {
+                this.user = user;
+                this.updateUserUI();
+                user ? this.loadRoutines() : this.loadLocalRoutines();
+            });
+        } else {
+            this.loadLocalRoutines();
+        }
+
+        // 👇 新增這段：讓課表頁面成為事件驅動
+        if (typeof EventBus !== 'undefined') {
+            EventBus.on(APP_EVENTS.SESSION_UPDATED, () => this.renderRoutines());
+            EventBus.on(APP_EVENTS.ROUTINE_UPDATED, () => this.renderRoutines());
+        }
+    },
 
     updateUserUI() {
         const emailEl = document.getElementById('settings-email');
@@ -241,19 +327,19 @@ const store = {
     },
 
     renderRoutines() {
-        const sessionJson = localStorage.getItem('active_session');
+        const session = sessionRepository.get();
         const sessionContainer = document.getElementById('active-session-container');
+
         if (sessionContainer) {
-            if (sessionJson) {
-                const session = JSON.parse(sessionJson);
+            if (session) {
                 sessionContainer.innerHTML = `
                     <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm flex justify-between items-center dark:bg-blue-900/30 dark:border-blue-800">
-                    <div onclick="timer.resumeFromStorage()" class="flex-1 cursor-pointer">
+                        <div data-action="session-resume" class="flex-1 cursor-pointer">
                             <div class="text-xs font-bold text-blue-600 mb-1 dark:text-blue-400">進行中課表</div>
                             <div class="font-bold text-lg text-gray-800 dark:text-gray-100">${session.routineTitle}</div>
                             <div class="text-xs text-gray-500 mt-1 dark:text-gray-400">已進行: ${formatTime(session.elapsed)}</div>
                         </div>
-                        <button onclick="localStorage.removeItem('active_session'); store.renderRoutines();" class="p-2 text-gray-400 hover:text-red-500">
+                        <button data-action="session-clear" class="p-2 text-gray-400 hover:text-red-500">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
                     </div>
@@ -262,7 +348,6 @@ const store = {
                 sessionContainer.innerHTML = '';
             }
         }
-
         const list = document.getElementById('routine-list');
         list.innerHTML = '';
         if (this.routines.length === 0) {
@@ -393,7 +478,7 @@ const recordManager = {
     },
 
     getAllRecords() {
-        return JSON.parse(localStorage.getItem('trainingRecords') || '[]');
+        return recordRepository.getAll();
     },
 
     getRecordsByDate(dateStr) {
@@ -622,14 +707,7 @@ const recordManager = {
 
     deleteRecord(recordId, dateStr) {
         if (!confirm('確定要刪除這筆訓練紀錄嗎？')) return;
-        let records = this.getAllRecords();
-        records = records.filter(rec => rec.id !== recordId);
-        localStorage.setItem('trainingRecords', JSON.stringify(records));
-
-        // ✅ 直接廣播事件，讓 init() 裡的監聽器自動處理，同時也能通知分析圖表刷新
-        if (typeof EventBus !== 'undefined') {
-            EventBus.emit(APP_EVENTS.RECORD_SAVED, { date: dateStr });
-        }
+        recordRepository.delete(recordId, dateStr);
     },
 
 
@@ -647,30 +725,6 @@ const recordManager = {
         return null;
     },
 
-    // 新增：更新特定紀錄中的某一項 Log
-    updateRecordLog(recordId, queueIndex, payload) {
-        const records = JSON.parse(localStorage.getItem('trainingRecords') || '[]');
-        const record = records.find(r => r.id === recordId);
-        if (!record) return;
-
-        const logIndex = record.executionLogs.findIndex(l => l.queueIndex === queueIndex);
-
-        if (logIndex !== -1) {
-            // 紀錄已存在：直接更新 actuals 屬性 (相容舊版結構)
-            record.executionLogs[logIndex].actuals = payload.actuals ? payload.actuals : payload;
-        } else {
-            // 紀錄不存在 (當初訓練漏填或跳過)：寫入完整新紀錄並重新排序
-            record.executionLogs.push(payload);
-            record.executionLogs.sort((a, b) => a.queueIndex - b.queueIndex);
-        }
-
-        localStorage.setItem('trainingRecords', JSON.stringify(records));
-
-        // 若有更新 UI 的需求，呼叫對應的渲染函式
-        if (typeof this.updateUI === 'function') {
-            this.updateUI();
-        }
-    },
 
     // 新增：供 UI 呼叫的編輯啟動器
     editLogEntry(recordId, logIndex) {

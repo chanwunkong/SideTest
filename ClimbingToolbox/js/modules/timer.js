@@ -601,14 +601,10 @@ const timer = {
 
         if (this.editingRecordId) {
             // 模式 A: 修改歷史紀錄
-            recordManager.updateRecordLog(this.editingRecordId, this.pendingLogIndex, newLog);
+            recordRepository.updateLog(this.editingRecordId, this.pendingLogIndex, newLog);
             if (closePanel && typeof showToast === 'function') showToast('紀錄已更新');
-
-            // ✅ 改為發送全域更新事件：
-            if (typeof EventBus !== 'undefined') {
-                EventBus.emit(APP_EVENTS.RECORD_SAVED, {}); // 觸發全域重繪
-            }
         } else {
+            // ... (模式 B 保持不變)
             // 模式 B: 當前訓練暫存
             this.sessionValueMap[blockLabel] = actuals;
 
@@ -746,7 +742,8 @@ const timer = {
     },
 
     stop() {
-        localStorage.removeItem('active_session');
+        if (typeof sessionRepository !== 'undefined') sessionRepository.clear();
+
         this.saveTrainingRecord();
 
         clearInterval(this.interval);
@@ -770,7 +767,7 @@ const timer = {
     },
 
     suspend() {
-        if (this.elapsed < 1) return this.stop(); // 剛開始就退出，直接視為結束
+        if (this.elapsed < 1) return this.stop();
         const sessionData = {
             routineId: this.currentRoutineId,
             routineTitle: this.currentRoutineTitle,
@@ -783,13 +780,16 @@ const timer = {
             queue: this.queue,
             totalDuration: this.totalDuration
         };
-        localStorage.setItem('active_session', JSON.stringify(sessionData));
+
+        if (typeof sessionRepository !== 'undefined') sessionRepository.save(sessionData);
+
         clearInterval(this.interval);
         voiceCommander.stop();
         document.getElementById('modal-active-timer').classList.remove('open', 'pulse-urgent');
         this.releaseWakeLock();
-        store.renderRoutines(); // 重新渲染課表頁面以顯示暫存區塊
-        router.go('routines');
+
+        // 確保路由器存在才跳轉
+        if (typeof router !== 'undefined') router.go('routines');
     },
 
     resumeSession(sessionData) {
@@ -920,34 +920,12 @@ const timer = {
             executionLogs: this.currentLogs
         };
 
-        // 取得現有紀錄並推入新紀錄
-        const records = JSON.parse(localStorage.getItem('trainingRecords') || '[]');
-        records.push(newRecord);
+        // 替換原本的 localStorage.setItem 與 EventBus.emit
+        recordRepository.save(newRecord);
 
-        // 存回 LocalStorage
-        localStorage.setItem('trainingRecords', JSON.stringify(records));
-
-        // 清空當前暫存狀態，確保完全乾淨，不污染下一趟訓練
         this.currentLogs = [];
         this.pendingLogBlock = null;
         this.pendingLogIndex = null;
-
-        // [修改]：移除 this.refreshRecordUI()，改為發送事件廣播
-        if (typeof EventBus !== 'undefined') {
-            EventBus.emit(APP_EVENTS.RECORD_SAVED, {
-                date: this.actualDate,
-                routineId: this.currentRoutineId
-            });
-        }
     },
 
 };
-
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        const modalEl = document.getElementById('modal-active-timer');
-        if (modalEl && modalEl.classList.contains('open')) {
-            timer.requestWakeLock();
-        }
-    }
-});
