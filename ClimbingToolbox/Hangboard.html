@@ -448,6 +448,49 @@
             </div>
 
             <div class="p-6 space-y-6">
+
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">帳號與裝置</h3>
+                    <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
+                        <div class="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
+                            <div
+                                class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden dark:bg-gray-600">
+                                <img id="avatar-img" class="w-full h-full object-cover hidden">
+                                <div id="avatar-placeholder"
+                                    class="w-full h-full flex items-center justify-center text-gray-400">👤</div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div id="settings-email" class="font-bold truncate dark:text-white">未登入</div>
+                                <div class="text-xs text-gray-500">雲端同步</div>
+                            </div>
+                            <button id="auth-btn"
+                                class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
+                        </div>
+                        <div class="p-4 border-t border-gray-100 dark:border-gray-700">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">穿戴裝置 (暫訂)</h4>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
+                                            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-sm">穿戴裝置連線</div>
+                                            <div class="text-[10px] text-gray-400">支援 Apple Watch, Garmin, 三星</div>
+                                        </div>
+                                    </div>
+                                    <button data-action="wearable-mock"
+                                        class="text-xs bg-gray-100 text-gray-400 px-3 py-1 rounded-full font-bold dark:bg-gray-700">搜尋中</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div>
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">個人化</h3>
                     <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
@@ -460,18 +503,6 @@
                                 <option value="light">淺色</option>
                                 <option value="dark">深色</option>
                             </select>
-                        </div>
-                        <div class="p-4 flex justify-between items-center">
-                            <span class="font-medium">體重設定</span>
-                            <div class="flex items-center gap-2">
-                                <input type="number" id="set-weight-val" placeholder="0"
-                                    class="w-16 border border-gray-200 rounded-lg p-1.5 text-center font-mono font-bold dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                <select id="set-weight-unit"
-                                    class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
-                                    <option value="kg">kg</option>
-                                    <option value="lbs">lbs</option>
-                                </select>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -553,49 +584,6 @@
                                 <option value="">載入語音中...</option>
                             </select>
                             <p class="text-[10px] text-gray-400 mt-2 italic">* 支援清單取決於您的裝置與瀏覽器</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">帳號與裝置</h3>
-                    <div class="bg-white border rounded-xl overflow-hidden dark:bg-gray-750 dark:border-gray-600">
-                        <div class="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
-                            <div
-                                class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden dark:bg-gray-600">
-                                <img id="avatar-img" class="w-full h-full object-cover hidden">
-                                <div id="avatar-placeholder"
-                                    class="w-full h-full flex items-center justify-center text-gray-400">👤</div>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div id="settings-email" class="font-bold truncate dark:text-white">未登入</div>
-                                <div class="text-xs text-gray-500">雲端同步</div>
-                            </div>
-                            <button id="auth-btn"
-                                class="text-sm text-blue-600 font-bold whitespace-nowrap dark:text-blue-400">登入</button>
-                        </div>
-                        <div class="p-4 border-t border-gray-100 dark:border-gray-700">
-                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">穿戴裝置 (暫訂)</h4>
-                            <div class="space-y-4">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center dark:bg-gray-700">
-                                            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="font-medium text-sm">穿戴裝置連線</div>
-                                            <div class="text-[10px] text-gray-400">支援 Apple Watch, Garmin, 三星</div>
-                                        </div>
-                                    </div>
-                                    <button data-action="wearable-mock"
-                                        class="text-xs bg-gray-100 text-gray-400 px-3 py-1 rounded-full font-bold dark:bg-gray-700">搜尋中</button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

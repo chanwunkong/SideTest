@@ -60,13 +60,9 @@ export const mathUtils = {
 
     calculateBest1RM(logs, formula) {
         if (!logs || logs.length === 0) return 0;
-        let sumX2 = 0, sumXY = 0;
-        logs.forEach(log => {
-            const x = this.get1RMCoefficient(log.reps, formula);
-            sumX2 += x * x;
-            sumXY += x * log.weight;
-        });
-        return sumX2 === 0 ? 0 : (sumXY / sumX2);
+        // 計算所有選中點的 1RM 平均值，而非單一擬合
+        const local1RMs = logs.map(log => log.weight / this.get1RMCoefficient(log.reps, formula));
+        return local1RMs.reduce((a, b) => a + b, 0) / local1RMs.length;
     }
 };
 
@@ -921,7 +917,8 @@ export const insightManager = {
         this.rawLogs = [];
 
         records.forEach(r => {
-            const bw = this.includeBW ? bodyManager.getClosestWeight(r.date) : 0;
+            // 修正後的程式碼
+            const bw = this.includeBW ? analyticsManager.getClosestWeight(r.date) : 0;
             const logs = (r.executionLogs || []).filter(l => l.label === this.currentBlock);
 
             logs.forEach((log, idx) => {
@@ -998,7 +995,6 @@ export const insightManager = {
 
         document.getElementById('insight-str-val-a').textContent = e1RM_A > 0 ? e1RM_A.toFixed(1) : '--';
         document.getElementById('insight-str-val-b').textContent = e1RM_B > 0 ? e1RM_B.toFixed(1) : '--';
-
         const diffEl = document.getElementById('insight-str-diff');
         if (e1RM_A > 0 && e1RM_B > 0) {
             const diff = (e1RM_B - e1RM_A).toFixed(1);
@@ -1008,10 +1004,11 @@ export const insightManager = {
             diffEl.textContent = '--';
             diffEl.className = 'font-black text-blue-500';
         }
-        this.renderChart(e1RM_A, e1RM_B);
+        this.renderChart(logsA, logsB);
     },
 
-    renderChart(bestA, bestB) {
+    // --- 修正 insightManager.renderChart ---
+    renderChart(logsA, logsB) { // 改為接收原始 logs 陣列
         const canvas = document.getElementById('chart-insight-strength');
         if (!canvas) return;
         if (this.chartStrength) this.chartStrength.destroy();
@@ -1019,9 +1016,39 @@ export const insightManager = {
         const labels = Array.from({ length: 30 }, (_, i) => i + 1);
         const datasets = [];
 
-        // 使用 mathUtils.get1RMCoefficient
-        if (bestA > 0) datasets.push({ label: '曲線 A', data: labels.map(r => bestA * mathUtils.get1RMCoefficient(r, this.currentFormula)), borderColor: '#3b82f6', tension: 0.4, pointRadius: 0, fill: false });
-        if (bestB > 0) datasets.push({ label: '曲線 B', data: labels.map(r => bestB * mathUtils.get1RMCoefficient(r, this.currentFormula)), borderColor: '#10b981', tension: 0.4, pointRadius: 0, fill: false });
+        // 定義一個內部函式來生成動態曲線數據
+        const generateCurveData = (logs) => {
+            if (!logs || logs.length === 0) return null;
+
+            // 1. 計算所有點的局部 1RM 並按次數排序
+            const points = logs.map(l => ({
+                reps: l.reps,
+                local1RM: l.weight / mathUtils.get1RMCoefficient(l.reps, this.currentFormula)
+            })).sort((a, b) => a.reps - b.reps);
+
+            return labels.map(r => {
+                let dynamic1RM;
+                // 2. 執行分段線性插值 (Linear Interpolation)
+                if (r <= points[0].reps) {
+                    dynamic1RM = points[0].local1RM;
+                } else if (r >= points[points.length - 1].reps) {
+                    dynamic1RM = points[points.length - 1].local1RM;
+                } else {
+                    const p1 = points.find((p, i) => r >= p.reps && r <= points[i + 1].reps);
+                    const p2 = points[points.indexOf(p1) + 1];
+                    const t = (r - p1.reps) / (p2.reps - p1.reps);
+                    dynamic1RM = p1.local1RM + t * (p2.local1RM - p1.local1RM);
+                }
+                // 3. 根據該次數的動態 1RM 計算對應重量
+                return dynamic1RM * mathUtils.get1RMCoefficient(r, this.currentFormula);
+            });
+        };
+
+        const dataA = generateCurveData(logsA);
+        const dataB = generateCurveData(logsB);
+
+        if (dataA) datasets.push({ label: '曲線 A', data: dataA, borderColor: '#3b82f6', tension: 0.3, pointRadius: 0, fill: false });
+        if (dataB) datasets.push({ label: '曲線 B', data: dataB, borderColor: '#10b981', tension: 0.3, pointRadius: 0, fill: false });
 
         this.chartStrength = new Chart(canvas.getContext('2d'), {
             type: 'line',
