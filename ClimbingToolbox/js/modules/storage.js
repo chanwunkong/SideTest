@@ -1,7 +1,9 @@
 // --- js/modules/storage.js ---
+import { editor } from './ui.js';
+import { timer } from './timer.js';
 
 // 1. 定義標準事件名稱，避免拼字錯誤
-const APP_EVENTS = {
+export const APP_EVENTS = {
     RECORD_SAVED: 'RECORD_SAVED',       // 訓練紀錄已儲存
     BODY_DATA_UPDATED: 'BODY_DATA_UPDATED', // 身體數據已更新
     GOAL_UPDATED: 'GOAL_UPDATED',       // 目標設定已變動
@@ -10,7 +12,7 @@ const APP_EVENTS = {
 };
 
 // 2. 實作輕量級事件總線
-const EventBus = {
+export const EventBus = {
     events: {},
     on(event, callback) {
         if (!this.events[event]) this.events[event] = [];
@@ -24,7 +26,7 @@ const EventBus = {
 };
 
 // 👇 新增專屬的 Session 存取層
-const sessionRepository = {
+export const sessionRepository = {
     get() {
         const data = localStorage.getItem('active_session');
         return data ? JSON.parse(data) : null;
@@ -40,7 +42,7 @@ const sessionRepository = {
 };
 
 // --- 資料存取層 (Repository) ---
-const recordRepository = {
+export const recordRepository = {
     getAll() {
         return JSON.parse(localStorage.getItem('trainingRecords') || '[]');
     },
@@ -74,7 +76,7 @@ const recordRepository = {
         localStorage.setItem('trainingRecords', JSON.stringify(records));
 
         if (typeof EventBus !== 'undefined') {
-            EventBus.emit(APP_EVENTS.RECORD_SAVED, {});
+            EventBus.emit(APP_EVENTS.RECORD_SAVED, { date: record.date });
         }
     },
 
@@ -90,7 +92,7 @@ const recordRepository = {
 };
 
 // --- 工具函式 ---
-const routineUtils = {
+export const routineUtils = {
     flattenBlocks(blocks, parentLoops = []) {
         let res = [];
         blocks.forEach(b => {
@@ -111,14 +113,14 @@ const routineUtils = {
     }
 };
 
-const uuid = () => {
+export const uuid = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         return crypto.randomUUID();
     }
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
 
-const formatTime = (s) => {
+export const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
     return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
@@ -139,7 +141,7 @@ const calculateDuration = (blocks) => {
 };
 
 // --- 2. Store ---
-const store = {
+export const store = {
     routines: [],
     user: null,
 
@@ -354,7 +356,7 @@ const store = {
             list.innerHTML = `
                 <div class="text-center mt-12 px-4">
                     <div class="text-gray-400 mb-6 text-sm">目前尚無課表，馬上建立一個吧！</div>
-                    <button onclick="editor.open()" class="bg-gray-900 text-white dark:bg-blue-600 px-6 py-4 rounded-2xl font-bold shadow-xl w-full mb-4 flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                    <button data-action="open-editor" class="bg-gray-900 text-white dark:bg-blue-600 px-6 py-4 rounded-2xl font-bold shadow-xl w-full mb-4 flex items-center justify-center gap-2 active:scale-95 transition-transform">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                         建立新課表
                     </button>
@@ -382,7 +384,7 @@ const store = {
                 : '';
 
             el.innerHTML = `
-                        <div onclick="timer.start('${r.id}')" class="flex-1 cursor-pointer">
+                        <div data-action="routine-start" data-value="${r.id}" class="flex-1 cursor-pointer">
                             <div class="font-bold text-lg text-gray-800 dark:text-gray-100">${r.title}</div>
                             ${tagsHtml} <div class="flex gap-3 mt-2 text-xs text-gray-500 font-mono dark:text-gray-400">
                                 <span class="bg-gray-100 px-2 py-0.5 rounded dark:bg-gray-600 dark:text-gray-300">⏱ ${timeStr}</span>
@@ -390,13 +392,13 @@ const store = {
                             </div>
                         </div>
                         <div class="flex items-center gap-1">
-                             <button onclick="store.duplicateRoutine('${r.id}')" class="text-gray-400 hover:text-blue-600 p-2 dark:hover:text-blue-400" title="複製">
+                             <button data-action="routine-duplicate" data-value="${r.id}" class="text-gray-400 hover:text-blue-600 p-2 dark:hover:text-blue-400" title="複製">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                             </button>
-                             <button onclick="editor.load('${r.id}')" class="text-gray-400 hover:text-blue-600 p-2 dark:hover:text-blue-400" title="編輯">
+                             <button data-action="routine-edit" data-value="${r.id}" class="text-gray-400 hover:text-blue-600 p-2 dark:hover:text-blue-400" title="編輯">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                             </button>
-                            <button onclick="store.deleteRoutine('${r.id}')" class="text-gray-400 hover:text-red-600 p-2 dark:hover:text-red-400" title="刪除">
+                            <button data-action="routine-delete" data-value="${r.id}" class="text-gray-400 hover:text-red-600 p-2 dark:hover:text-red-400" title="刪除">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
                         </div>
@@ -407,7 +409,7 @@ const store = {
 };
 
 // --- Record Manager (整合切換與自動刷新) ---
-const recordManager = {
+export const recordManager = {
     displayDate: new Date(), // 用於記錄目前日曆翻到哪個月
     selectedDate: null, // 記錄目前選取的日期
     selectedDateNode: null, // 快取目前選取的 DOM 節點
@@ -420,8 +422,11 @@ const recordManager = {
             EventBus.on(APP_EVENTS.RECORD_SAVED, (data) => {
                 this.updateUI();
                 this.renderCalendar();
-                if (this.selectedDate === data.date || !this.selectedDate) {
-                    this.showDayDetail(data.date);
+
+                // 💡 修正邏輯：如果 data 有日期就用 data，沒有就用目前選中的
+                const targetDate = data?.date || this.selectedDate;
+                if (targetDate) {
+                    this.showDayDetail(targetDate);
                 }
             });
         }
@@ -561,7 +566,8 @@ const recordManager = {
         // 加入藍色小點 (bg-blue-500) 與 修正框框寬度
         dayEl.className = `calendar-day relative flex flex-col items-center justify-center h-10 w-full rounded-xl transition-all ${isToday ? 'is-today ring-1 ring-blue-200' : ''} ${isSelected ? 'ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/30 dark:ring-blue-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`;
         dayEl.dataset.date = dateStr;
-        dayEl.onclick = () => this.showDayDetail(dateStr);
+        dayEl.dataset.action = 'record-show-day';
+        dayEl.dataset.value = dateStr;
 
         if (isSelected) this.selectedDateNode = dayEl;
 
@@ -656,7 +662,7 @@ const recordManager = {
                         // 修改：移除左側 w-28，改用 flex-1 讓兩者自動分配空間
                         // 左右兩欄使用 bg 容器包覆並根據內容自動調整寬度
                         logsHtml += `
-    <button onclick="recordManager.editLogEntry('${rec.id}', ${lIdx})" 
+    <button data-action="record-edit-log" data-record="${rec.id}" data-index="${lIdx}"
             class="flex items-center gap-2 text-xs w-full hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1 rounded transition-colors text-left">
         <div class="flex items-center min-w-0 shrink">
             ${loopText}
@@ -677,18 +683,23 @@ const recordManager = {
                 const durationText = typeof formatTime === 'function' ? formatTime(rec.duration) : `${Math.floor(rec.duration / 60)}m`;
 
                 item.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <div class="flex-1 cursor-pointer" onclick="recordManager.toggleRecordLogs('${rec.id}')">
-                        <div class="flex items-center gap-2">
-                            <div class="font-bold text-gray-800 dark:text-gray-100">${rec.routineTitle}</div>
-                            <svg id="arrow-${rec.id}" class="w-3 h-3 text-gray-400 transition-transform" style="transform: ${arrowRotation};" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </div>
-                        <div class="text-[10px] text-gray-500 font-mono mt-0.5">${rec.startTime} | ${durationText}</div>
-                    </div>
-                    <button onclick="recordManager.deleteRecord('${rec.id}', '${dateStr}')" class="p-2 text-gray-300 hover:text-red-500">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                </div>
+ <div class="flex items-start justify-between w-full">
+        <div class="flex-1 cursor-pointer min-w-0" data-action="record-toggle-logs" data-value="${rec.id}">
+            <div class="flex items-center gap-2">
+                <div class="font-bold text-gray-800 dark:text-gray-100 truncate">${rec.routineTitle}</div>
+                <svg id="arrow-${rec.id}" class="w-3 h-3 text-gray-400 transition-transform shrink-0" style="transform: ${arrowRotation};" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="text-[10px] text-gray-500 font-mono mt-0.5">${rec.startTime} | ${durationText}</div>
+        </div>
+
+        <button data-action="record-delete" data-record="${rec.id}" data-date="${dateStr}" class="p-2 text-gray-300 hover:text-red-500 transition-colors shrink-0 -mr-2 -mt-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+    </div>
                 ${logsHtml}`;
                 list.appendChild(item);
             });

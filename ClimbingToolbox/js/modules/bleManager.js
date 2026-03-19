@@ -1,6 +1,6 @@
 // --- js/modules/bleManager.js ---
 
-const bleManager = {
+export const bleManager = {
     MANUFACTURER_ID: 256,
     WEIGHT_OFFSET: 10,
     TIMEOUT_SECONDS: 10,       // 斷線超時判定 (10秒)

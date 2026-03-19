@@ -1,7 +1,12 @@
 // --- js/modules/ui.js ---
+import { store, recordManager, sessionRepository, formatTime, routineUtils, uuid } from './storage.js';
+import { timer } from './timer.js';
+import { bleManager } from './bleManager.js';
+import { goalManager } from './goalManager.js';
+import { analyticsManager, bodyManager, insightManager, analyticsUI } from './analytics.js';
 
 // --- 手勢滑動元件 ---
-window.initSwipeToClose = function (elementId, closeFn) {
+export const initSwipeToClose = function (elementId, closeFn) {
     const el = document.getElementById(elementId);
     if (!el) return;
 
@@ -39,7 +44,7 @@ window.initSwipeToClose = function (elementId, closeFn) {
 };
 
 // --- 全域 Toast 提示元件 ---
-window.showToast = function (message, type = 'info') {
+export const showToast = function (message, type = 'info') {
     // 若已有提示則先移除，避免堆疊
     const existing = document.getElementById('app-toast');
     if (existing) existing.remove();
@@ -74,7 +79,7 @@ window.showToast = function (message, type = 'info') {
 };
 
 // --- Theme Manager ---
-const themeManager = {
+export const themeManager = {
     mode: 'system', // system, light, dark
 
     init() {
@@ -105,7 +110,7 @@ const themeManager = {
 };
 
 // --- Settings (Sound & Profile) Manager ---
-const settingsManager = {
+export const settingsManager = {
     // Default Settings
     data: {
         // Sound
@@ -330,7 +335,7 @@ const settingsManager = {
 };
 
 // --- Router ---
-const router = {
+export const router = {
     go(viewId) {
         // 1. 重置所有視圖與按鈕狀態
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -385,7 +390,7 @@ const router = {
 };
 
 // --- Editor ---
-const editor = {
+export const editor = {
     currentId: null,
     activeBlock: null,
     // 顏色列表
@@ -686,8 +691,7 @@ const editor = {
                     <label class="block text-sm font-bold text-gray-500 mb-2">訓練追蹤指標 </label>
                     <div id="prop-metrics-list" class="space-y-2 mb-3"></div>
                     <div class="flex gap-2">
-                        <input type="text" id="inp-new-metric" onkeydown="if(event.key==='Enter') editor.addMetric()" class="flex-1 border border-gray-200 rounded-lg p-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="輸入追蹤項目 (如: 負重)">
-                        <button type="button" data-action="editor-add-metric" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300 hover:bg-blue-100 transition-colors">新增</button>             </div>
+                   <input type="text" id="inp-new-metric" class="flex-1 border border-gray-200 rounded-lg p-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="輸入追蹤項目 (如: 負重)">    <button type="button" data-action="editor-add-metric" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300 hover:bg-blue-100 transition-colors">新增</button>             </div>
                 </div>
             `;
         }
@@ -927,189 +931,3 @@ const editor = {
 
 };
 
-// 全域事件委派 (Event Delegation)
-document.addEventListener('DOMContentLoaded', () => { // 👈 新增這行
-    document.body.addEventListener('click', (e) => {
-        // 尋找點擊目標或其父元素是否帶有 data-action 屬性
-        const btn = e.target.closest('[data-action]');
-        if (!btn) return;
-
-        const action = btn.dataset.action;
-        const value = btn.dataset.value;
-
-        switch (action) {
-            // --- 路由導航 ---
-            case 'route':
-                if (typeof router !== 'undefined') router.go(value);
-                break;
-
-            // --- 計時器操作 ---
-            case 'timer-skip':
-                if (typeof timer !== 'undefined') timer.skip(Number(value));
-                break;
-            case 'timer-toggle':
-                if (typeof timer !== 'undefined') timer.toggle();
-                break;
-            case 'timer-stop':
-                if (typeof timer !== 'undefined') timer.stop();
-                break;
-            case 'timer-suspend':
-                if (typeof timer !== 'undefined') timer.suspend();
-                break;
-
-            // --- 其他常用操作 ---
-            case 'open-editor':
-                if (typeof editor !== 'undefined') editor.open();
-                break;
-            case 'open-goal-editor':
-                if (typeof goalManager !== 'undefined') goalManager.openEditor();
-                break;
-
-            case 'session-clear':
-                if (typeof sessionRepository !== 'undefined') sessionRepository.clear();
-                break;
-            case 'session-resume':
-                if (typeof timer !== 'undefined') timer.resumeFromStorage();
-                break;
-
-            // 課表清單操作
-            case 'routine-start':
-                if (typeof timer !== 'undefined') timer.start(value);
-                break;
-            case 'routine-duplicate':
-                if (typeof store !== 'undefined') store.duplicateRoutine(value);
-                break;
-            case 'routine-edit':
-                if (typeof editor !== 'undefined') editor.load(value);
-                break;
-            case 'routine-delete':
-                if (typeof store !== 'undefined') store.deleteRoutine(value);
-                break;
-
-            // 編輯器的標籤操作
-            case 'editor-add-tag':
-                if (typeof editor !== 'undefined') editor.addRoutineTag(value);
-                break;
-            case 'editor-remove-tag':
-                if (typeof editor !== 'undefined') editor.removeRoutineTag(value);
-                break;
-
-
-            // 編輯器「指標」與「屬性儲存/刪除」操作
-            case 'editor-add-metric':
-                if (typeof editor !== 'undefined') editor.addMetric();
-                break;
-            case 'editor-remove-metric':
-                if (typeof editor !== 'undefined') editor.removeMetric(Number(value));
-                break;
-            case 'editor-save-props':
-                if (typeof editor !== 'undefined') editor.saveProps();
-                break;
-            case 'editor-delete-block':
-                if (typeof editor !== 'undefined') editor.deleteCurrentBlock();
-                break;
-
-            // --- 快速紀錄面板 (Quick Log) ---
-            case 'timer-nav-log':
-                if (typeof timer !== 'undefined') timer.navigateLog(Number(value));
-                break;
-            case 'timer-save-log':
-                if (typeof timer !== 'undefined') timer.saveLog(true);
-                break;
-
-            // --- 總覽與圖表操作 ---
-            case 'goal-toggle-show':
-                if (typeof goalManager !== 'undefined') goalManager.toggleShowAll();
-                break;
-            case 'record-change-period':
-                if (typeof recordManager !== 'undefined') recordManager.changePeriod(Number(value));
-                break;
-            case 'record-toggle-mode':
-                if (typeof recordManager !== 'undefined') recordManager.toggleCalendarMode();
-                break;
-            case 'routine-add-template':
-                if (typeof store !== 'undefined') store.addTemplate(value);
-                break;
-            case 'body-change-date':
-                if (typeof bodyManager !== 'undefined') bodyManager.changeDate(Number(value));
-                break;
-            case 'body-open-editor':
-                if (typeof bodyManager !== 'undefined') bodyManager.openEditor();
-                break;
-            case 'insight-clear-sel':
-                if (typeof insightManager !== 'undefined') insightManager.clearSelection(value);
-                break;
-            case 'wearable-mock':
-                alert('穿戴裝置 SDK 整合中');
-                break;
-
-            // --- 各類編輯器 Modal 視窗操作 ---
-
-            // 課表編輯器 (Editor)
-            case 'editor-close':
-                if (typeof editor !== 'undefined') editor.close();
-                break;
-            case 'editor-save':
-                if (typeof editor !== 'undefined') editor.save();
-                break;
-
-            // 紀錄明細編輯 (Record Editor)
-            case 'record-editor-close':
-                if (typeof recordEditor !== 'undefined') recordEditor.close();
-                break;
-            case 'record-editor-save':
-                if (typeof recordEditor !== 'undefined') recordEditor.save();
-                break;
-
-            // 目標設定 (Goal)
-            case 'goal-close':
-                if (typeof goalManager !== 'undefined') goalManager.closeEditor();
-                break;
-            case 'goal-set-op':
-                if (typeof goalManager !== 'undefined') goalManager.setOperator(value);
-                break;
-            case 'goal-save':
-                if (typeof goalManager !== 'undefined') goalManager.saveGoal();
-                break;
-
-            // 數據分析卡片 (PR Card)
-            case 'pr-close':
-                if (typeof analyticsUI !== 'undefined') analyticsUI.closePREditor();
-                break;
-            case 'pr-set-op':
-                if (typeof analyticsUI !== 'undefined') analyticsUI.setOperator(value);
-                break;
-            case 'pr-save':
-                if (typeof analyticsUI !== 'undefined') analyticsUI.savePRCard();
-                break;
-
-            // 身體組成 (Body)
-            case 'body-close':
-                if (typeof bodyManager !== 'undefined') bodyManager.closeEditor();
-                break;
-            case 'body-delete':
-                if (typeof bodyManager !== 'undefined') bodyManager.deleteRecord();
-                break;
-            case 'body-save':
-                if (typeof bodyManager !== 'undefined') bodyManager.saveRecord();
-                break;
-
-            // 藍牙設備面板 (BLE)
-            case 'ble-fallback-close':
-                if (typeof bleManager !== 'undefined') bleManager.hideFallbackModal();
-                break;
-            case 'ble-fallback-retry':
-                if (typeof bleManager !== 'undefined') bleManager.requestNewDevice();
-                break;
-            case 'ble-target-adjust':
-                if (typeof bleManager !== 'undefined') bleManager.adjustTarget(Number(value));
-                break;
-            case 'ble-target-close':
-                if (typeof bleManager !== 'undefined') bleManager.closeTargetModal();
-                break;
-            case 'ble-target-save':
-                if (typeof bleManager !== 'undefined') bleManager.saveTargetModal();
-                break;
-        }
-    });
-}); // 👈 記得補上右括號

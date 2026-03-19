@@ -49,12 +49,7 @@
 
     <script src="config.js"></script>
 
-    <script src="js/modules/storage.js"></script>
-    <script src="js/modules/ui.js"></script>
-    <script src="js/modules/bleManager.js"></script>
-    <script src="js/modules/timer.js"></script>
-    <script src="js/modules/goalManager.js"></script>
-    <script src="js/modules/analytics.js"></script>
+    <script type="module" src="js/main.js"></script>
 
     <link rel="manifest" href="manifest-hangboard.json">
     <link rel="icon" type="image/png" href="favicon.ico">
@@ -664,14 +659,14 @@
             <input type="text" id="editor-title"
                 class="text-center font-bold text-lg bg-transparent border-none focus:ring-0 w-48 dark:text-white"
                 placeholder="輸入課表名稱">
-            <button onclick="editor.save()" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
+            <button data-action="editor-save" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
         </div>
 
         <div class="bg-white px-4 py-3 shrink-0 border-b border-gray-100 dark:bg-gray-800 dark:border-gray-700">
             <div id="editor-routine-tags" class="flex flex-wrap gap-1.5 mb-2 min-h-[24px] items-center">
             </div>
             <div class="flex gap-2 mb-2">
-                <input type="text" id="inp-routine-tag" onkeydown="if(event.key==='Enter') editor.addRoutineTag()"
+                <input type="text" id="inp-routine-tag"
                     class="flex-1 border border-gray-200 rounded-lg p-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     placeholder="輸入標籤 (例如：耐力)">
                 <button data-action="editor-add-tag"
@@ -679,7 +674,7 @@
             </div>
             <div class="flex justify-between items-center mb-1">
                 <div class="text-[10px] font-bold text-gray-400">歷史標籤：</div>
-                <button type="button" onclick="document.getElementById('tag-library-panel').classList.toggle('hidden')"
+                <button type="button" data-action="editor-toggle-tag-lib"
                     class="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 transition-colors flex items-center gap-1 active:scale-95 border border-blue-100 dark:border-blue-800">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -699,22 +694,22 @@
                 <!-- 分頁按鈕區 (可橫向滑動) -->
                 <div
                     class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 no-scrollbar text-[11px] font-bold">
-                    <button type="button" onclick="switchTagTab(this, 'tab-muscle-group')"
+                    <button type="button" data-action="editor-switch-tab" data-value="tab-muscle-group"
                         class="tab-btn px-3 py-2 whitespace-nowrap text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 shrink-0 transition-colors">1.
                         區段肌群</button>
-                    <button type="button" onclick="switchTagTab(this, 'tab-muscle')"
+                    <button type="button" data-action="editor-switch-tab" data-value="tab-muscle"
                         class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">2.
                         主要肌肉</button>
-                    <button type="button" onclick="switchTagTab(this, 'tab-fitness')"
+                    <button type="button" data-action="editor-switch-tab" data-value="tab-fitness"
                         class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">3.
                         體能要素</button>
-                    <button type="button" onclick="switchTagTab(this, 'tab-zones')"
+                    <button type="button" data-action="editor-switch-tab" data-value="tab-zones"
                         class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">4.
                         能量區間</button>
-                    <button type="button" onclick="switchTagTab(this, 'tab-climbing')"
+                    <button type="button" data-action="editor-switch-tab" data-value="tab-climbing"
                         class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">⚡
                         攀岩專項</button>
-                    <button type="button" onclick="switchTagTab(this, 'tab-equipment')"
+                    <button type="button" data-action="editor-switch-tab" data-value="tab-equipment"
                         class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">🛠️
                         裝備器材</button>
                 </div>
@@ -729,159 +724,229 @@
 
                     <!-- 1. 按主要肌群區分 -->
                     <div id="tab-muscle-group" class="tag-tab-content flex flex-wrap gap-1.5">
-                        <button type="button" onclick="quickAddTag('全身')" class="lib-tag-btn">全身</button>
-                        <button type="button" onclick="quickAddTag('核心')" class="lib-tag-btn">核心</button>
-                        <button type="button" onclick="quickAddTag('上肢')" class="lib-tag-btn">上肢</button>
-                        <button type="button" onclick="quickAddTag('下肢')" class="lib-tag-btn">下肢</button>
-                        <button type="button" onclick="quickAddTag('背部肌群')" class="lib-tag-btn">背部肌群</button>
-                        <button type="button" onclick="quickAddTag('胸部肌群')" class="lib-tag-btn">胸部肌群</button>
-                        <button type="button" onclick="quickAddTag('腹部肌群')" class="lib-tag-btn">腹部肌群</button>
-                        <button type="button" onclick="quickAddTag('肩部肌群')" class="lib-tag-btn">肩部肌群</button>
-                        <button type="button" onclick="quickAddTag('二頭肌')" class="lib-tag-btn">二頭肌</button>
-                        <button type="button" onclick="quickAddTag('三頭肌')" class="lib-tag-btn">三頭肌</button>
-                        <button type="button" onclick="quickAddTag('小臂肌群')" class="lib-tag-btn">小臂肌群</button>
-                        <button type="button" onclick="quickAddTag('臀肌')" class="lib-tag-btn">臀肌</button>
-                        <button type="button" onclick="quickAddTag('股四頭肌')" class="lib-tag-btn">股四頭肌</button>
-                        <button type="button" onclick="quickAddTag('膕繩肌')" class="lib-tag-btn">膕繩肌</button>
-                        <button type="button" onclick="quickAddTag('小腿肌群')" class="lib-tag-btn">小腿肌群</button>
+                        <button type="button" data-action="editor-add-tag" data-value="全身"
+                            class="lib-tag-btn">全身</button>
+                        <button type="button" data-action="editor-add-tag" data-value="核心"
+                            class="lib-tag-btn">核心</button>
+                        <button type="button" data-action="editor-add-tag" data-value="上肢"
+                            class="lib-tag-btn">上肢</button>
+                        <button type="button" data-action="editor-add-tag" data-value="下肢"
+                            class="lib-tag-btn">下肢</button>
+                        <button type="button" data-action="editor-add-tag" data-value="背部肌群"
+                            class="lib-tag-btn">背部肌群</button>
+                        <button type="button" data-action="editor-add-tag" data-value="胸部肌群"
+                            class="lib-tag-btn">胸部肌群</button>
+                        <button type="button" data-action="editor-add-tag" data-value="腹部肌群"
+                            class="lib-tag-btn">腹部肌群</button>
+                        <button type="button" data-action="editor-add-tag" data-value="肩部肌群"
+                            class="lib-tag-btn">肩部肌群</button>
+                        <button type="button" data-action="editor-add-tag" data-value="二頭肌"
+                            class="lib-tag-btn">二頭肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="三頭肌"
+                            class="lib-tag-btn">三頭肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="小臂肌群"
+                            class="lib-tag-btn">小臂肌群</button>
+                        <button type="button" data-action="editor-add-tag" data-value="臀肌"
+                            class="lib-tag-btn">臀肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="股四頭肌"
+                            class="lib-tag-btn">股四頭肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="膕繩肌"
+                            class="lib-tag-btn">膕繩肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="小腿肌群"
+                            class="lib-tag-btn">小腿肌群</button>
 
                     </div>
                     <!-- 2. 按主要肌肉區分 -->
                     <div id="tab-muscle" class="tag-tab-content hidden flex flex-wrap gap-1.5">
                         <!-- 背部 -->
-                        <button type="button" onclick="quickAddTag('斜方肌')" class="lib-tag-btn">斜方肌</button>
-                        <button type="button" onclick="quickAddTag('菱形肌')" class="lib-tag-btn">菱形肌</button>
-                        <button type="button" onclick="quickAddTag('背闊肌')" class="lib-tag-btn">背闊肌</button>
-                        <button type="button" onclick="quickAddTag('豎脊肌')" class="lib-tag-btn">豎脊肌</button>
-                        <button type="button" onclick="quickAddTag('大圓肌')" class="lib-tag-btn">大圓肌</button>
-                        <button type="button" onclick="quickAddTag('小圓肌')" class="lib-tag-btn">小圓肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="斜方肌"
+                            class="lib-tag-btn">斜方肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="菱形肌"
+                            class="lib-tag-btn">菱形肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="背闊肌"
+                            class="lib-tag-btn">背闊肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="豎脊肌"
+                            class="lib-tag-btn">豎脊肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="大圓肌"
+                            class="lib-tag-btn">大圓肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="小圓肌"
+                            class="lib-tag-btn">小圓肌</button>
 
                         <!-- 胸部 -->
-                        <button type="button" onclick="quickAddTag('胸大肌上束')" class="lib-tag-btn">胸大肌上束</button>
-                        <button type="button" onclick="quickAddTag('胸大肌中束')" class="lib-tag-btn">胸大肌中束</button>
-                        <button type="button" onclick="quickAddTag('胸大肌下束')" class="lib-tag-btn">胸大肌下束</button>
-                        <button type="button" onclick="quickAddTag('胸小肌')" class="lib-tag-btn">胸小肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="胸大肌上束"
+                            class="lib-tag-btn">胸大肌上束</button>
+                        <button type="button" data-action="editor-add-tag" data-value="胸大肌中束"
+                            class="lib-tag-btn">胸大肌中束</button>
+                        <button type="button" data-action="editor-add-tag" data-value="胸大肌下束"
+                            class="lib-tag-btn">胸大肌下束</button>
+                        <button type="button" data-action="editor-add-tag" data-value="胸小肌"
+                            class="lib-tag-btn">胸小肌</button>
 
                         <!-- 腹部 -->
-                        <button type="button" onclick="quickAddTag('上腹直肌')" class="lib-tag-btn">上腹直肌</button>
-                        <button type="button" onclick="quickAddTag('下腹直肌')" class="lib-tag-btn">下腹直肌</button>
-                        <button type="button" onclick="quickAddTag('腹外斜肌')" class="lib-tag-btn">腹外斜肌</button>
-                        <button type="button" onclick="quickAddTag('腹內斜肌')" class="lib-tag-btn">腹內斜肌</button>
-                        <button type="button" onclick="quickAddTag('腹橫肌')" class="lib-tag-btn">腹橫肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="上腹直肌"
+                            class="lib-tag-btn">上腹直肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="下腹直肌"
+                            class="lib-tag-btn">下腹直肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="腹外斜肌"
+                            class="lib-tag-btn">腹外斜肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="腹內斜肌"
+                            class="lib-tag-btn">腹內斜肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="腹橫肌"
+                            class="lib-tag-btn">腹橫肌</button>
 
                         <!-- 肩部 -->
-                        <button type="button" onclick="quickAddTag('三角肌前束')" class="lib-tag-btn">三角肌前束</button>
-                        <button type="button" onclick="quickAddTag('三角肌中束')" class="lib-tag-btn">三角肌中束</button>
-                        <button type="button" onclick="quickAddTag('三角肌後束')" class="lib-tag-btn">三角肌後束</button>
+                        <button type="button" data-action="editor-add-tag" data-value="三角肌前束"
+                            class="lib-tag-btn">三角肌前束</button>
+                        <button type="button" data-action="editor-add-tag" data-value="三角肌中束"
+                            class="lib-tag-btn">三角肌中束</button>
+                        <button type="button" data-action="editor-add-tag" data-value="三角肌後束"
+                            class="lib-tag-btn">三角肌後束</button>
 
                         <!-- 手臂 -->
-                        <button type="button" onclick="quickAddTag('肱二頭肌')" class="lib-tag-btn">肱二頭肌</button>
-                        <button type="button" onclick="quickAddTag('肱肌')" class="lib-tag-btn">肱肌</button>
-                        <button type="button" onclick="quickAddTag('肱三頭肌')" class="lib-tag-btn">肱三頭肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="肱二頭肌"
+                            class="lib-tag-btn">肱二頭肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="肱肌"
+                            class="lib-tag-btn">肱肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="肱三頭肌"
+                            class="lib-tag-btn">肱三頭肌</button>
 
                         <!-- 前臂 -->
-                        <button type="button" onclick="quickAddTag('肱橈肌')" class="lib-tag-btn">肱橈肌</button>
-                        <button type="button" onclick="quickAddTag('前臂屈肌群')" class="lib-tag-btn">前臂屈肌群</button>
-                        <button type="button" onclick="quickAddTag('前臂伸肌群')" class="lib-tag-btn">前臂伸肌群</button>
+                        <button type="button" data-action="editor-add-tag" data-value="肱橈肌"
+                            class="lib-tag-btn">肱橈肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="前臂屈肌群"
+                            class="lib-tag-btn">前臂屈肌群</button>
+                        <button type="button" data-action="editor-add-tag" data-value="前臂伸肌群"
+                            class="lib-tag-btn">前臂伸肌群</button>
 
                         <!-- 臀部 -->
-                        <button type="button" onclick="quickAddTag('臀大肌')" class="lib-tag-btn">臀大肌</button>
-                        <button type="button" onclick="quickAddTag('臀中肌')" class="lib-tag-btn">臀中肌</button>
-                        <button type="button" onclick="quickAddTag('臀小肌')" class="lib-tag-btn">臀小肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="臀大肌"
+                            class="lib-tag-btn">臀大肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="臀中肌"
+                            class="lib-tag-btn">臀中肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="臀小肌"
+                            class="lib-tag-btn">臀小肌</button>
 
                         <!-- 大腿前側 -->
-                        <button type="button" onclick="quickAddTag('股直肌')" class="lib-tag-btn">股直肌</button>
-                        <button type="button" onclick="quickAddTag('股外側肌')" class="lib-tag-btn">股外側肌</button>
-                        <button type="button" onclick="quickAddTag('股內側肌')" class="lib-tag-btn">股內側肌</button>
-                        <button type="button" onclick="quickAddTag('股中間肌')" class="lib-tag-btn">股中間肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="股直肌"
+                            class="lib-tag-btn">股直肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="股外側肌"
+                            class="lib-tag-btn">股外側肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="股內側肌"
+                            class="lib-tag-btn">股內側肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="股中間肌"
+                            class="lib-tag-btn">股中間肌</button>
 
                         <!-- 大腿後側 -->
-                        <button type="button" onclick="quickAddTag('股二頭肌')" class="lib-tag-btn">股二頭肌</button>
-                        <button type="button" onclick="quickAddTag('半腱肌')" class="lib-tag-btn">半腱肌</button>
-                        <button type="button" onclick="quickAddTag('半膜肌')" class="lib-tag-btn">半膜肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="股二頭肌"
+                            class="lib-tag-btn">股二頭肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="半腱肌"
+                            class="lib-tag-btn">半腱肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="半膜肌"
+                            class="lib-tag-btn">半膜肌</button>
 
                         <!-- 小腿 -->
-                        <button type="button" onclick="quickAddTag('腓腸肌')" class="lib-tag-btn">腓腸肌</button>
-                        <button type="button" onclick="quickAddTag('比目魚肌')" class="lib-tag-btn">比目魚肌</button>
-                        <button type="button" onclick="quickAddTag('脛前肌')" class="lib-tag-btn">脛前肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="腓腸肌"
+                            class="lib-tag-btn">腓腸肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="比目魚肌"
+                            class="lib-tag-btn">比目魚肌</button>
+                        <button type="button" data-action="editor-add-tag" data-value="脛前肌"
+                            class="lib-tag-btn">脛前肌</button>
                     </div>
                     <!-- 3. 按體能要素區分 -->
                     <div id="tab-fitness" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" onclick="quickAddTag('肌力')" class="lib-tag-btn">肌力</button>
-                        <button type="button" onclick="quickAddTag('耐力')" class="lib-tag-btn">耐力</button>
-                        <button type="button" onclick="quickAddTag('速度')" class="lib-tag-btn">速度</button>
-                        <button type="button" onclick="quickAddTag('柔軟度')" class="lib-tag-btn">柔軟</button>
-                        <button type="button" onclick="quickAddTag('協調')" class="lib-tag-btn">協調</button>
+                        <button type="button" data-action="editor-add-tag" data-value="肌力"
+                            class="lib-tag-btn">肌力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="耐力"
+                            class="lib-tag-btn">耐力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="速度"
+                            class="lib-tag-btn">速度</button>
+                        <button type="button" data-action="editor-add-tag" data-value="柔軟度"
+                            class="lib-tag-btn">柔軟</button>
+                        <button type="button" data-action="editor-add-tag" data-value="協調"
+                            class="lib-tag-btn">協調</button>
 
-                        <button type="button" onclick="quickAddTag('最大肌力')" class="lib-tag-btn">最大肌力</button>
-                        <button type="button" onclick="quickAddTag('最大速度')" class="lib-tag-btn">最大速度</button>
-                        <button type="button" onclick="quickAddTag('爆發力')" class="lib-tag-btn">爆發力</button>
-                        <button type="button" onclick="quickAddTag('敏捷')" class="lib-tag-btn">敏捷</button>
+                        <button type="button" data-action="editor-add-tag" data-value="最大肌力"
+                            class="lib-tag-btn">最大肌力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="最大速度"
+                            class="lib-tag-btn">最大速度</button>
+                        <button type="button" data-action="editor-add-tag" data-value="爆發力"
+                            class="lib-tag-btn">爆發力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="敏捷"
+                            class="lib-tag-btn">敏捷</button>
 
-                        <button type="button" onclick="quickAddTag('肌耐力')" class="lib-tag-btn">肌耐力</button>
-                        <button type="button" onclick="quickAddTag('有氧耐力')" class="lib-tag-btn">有氧耐力</button>
-                        <button type="button" onclick="quickAddTag('無氧耐力')" class="lib-tag-btn">無氧耐力</button>
-                        <button type="button" onclick="quickAddTag('速耐力')" class="lib-tag-btn">速耐力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="肌耐力"
+                            class="lib-tag-btn">肌耐力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="有氧耐力"
+                            class="lib-tag-btn">有氧耐力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="無氧耐力"
+                            class="lib-tag-btn">無氧耐力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="速耐力"
+                            class="lib-tag-btn">速耐力</button>
 
-                        <button type="button" onclick="quickAddTag('活動度')" class="lib-tag-btn">活動度</button>
-                        <button type="button" onclick="quickAddTag('平衡穩定')" class="lib-tag-btn">平衡穩定</button>
-                        <button type="button" onclick="quickAddTag('反應速度')" class="lib-tag-btn">反應速度</button>
+                        <button type="button" data-action="editor-add-tag" data-value="活動度"
+                            class="lib-tag-btn">活動度</button>
+                        <button type="button" data-action="editor-add-tag" data-value="平衡穩定"
+                            class="lib-tag-btn">平衡穩定</button>
+                        <button type="button" data-action="editor-add-tag" data-value="反應速度"
+                            class="lib-tag-btn">反應速度</button>
                     </div>
                     <!-- 4. 按能量區間區分 -->
                     <div id="tab-zones" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" onclick="quickAddTag('Zone 1')" class="lib-tag-btn">Zone 1</button>
-                        <button type="button" onclick="quickAddTag('Zone 2')" class="lib-tag-btn">Zone 2</button>
-                        <button type="button" onclick="quickAddTag('Zone 3')" class="lib-tag-btn">Zone 3</button>
-                        <button type="button" onclick="quickAddTag('Zone 4')" class="lib-tag-btn">Zone 4</button>
-                        <button type="button" onclick="quickAddTag('Zone 5')" class="lib-tag-btn">Zone 5</button>
-                        <button type="button" onclick="quickAddTag('ATP-PC')" class="lib-tag-btn">磷酸原 (ATP-PC)</button>
-                        <button type="button" onclick="quickAddTag('糖解系統')" class="lib-tag-btn">糖解系統</button>
+                        <button type="button" data-action="editor-add-tag" data-value="Zone 1" class="lib-tag-btn">Zone
+                            1</button>
+                        <button type="button" data-action="editor-add-tag" data-value="Zone 2" class="lib-tag-btn">Zone
+                            2</button>
+                        <button type="button" data-action="editor-add-tag" data-value="Zone 3" class="lib-tag-btn">Zone
+                            3</button>
+                        <button type="button" data-action="editor-add-tag" data-value="Zone 4" class="lib-tag-btn">Zone
+                            4</button>
+                        <button type="button" data-action="editor-add-tag" data-value="Zone 5" class="lib-tag-btn">Zone
+                            5</button>
+                        <button type="button" data-action="editor-add-tag" data-value="ATP-PC" class="lib-tag-btn">磷酸原
+                            (ATP-PC)</button>
+                        <button type="button" data-action="editor-add-tag" data-value="糖解系統"
+                            class="lib-tag-btn">糖解系統</button>
                     </div>
                     <!-- 5. 攀岩專項 -->
                     <div id="tab-climbing" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" onclick="quickAddTag('抱石')" class="lib-tag-btn">抱石</button>
-                        <button type="button" onclick="quickAddTag('上攀')" class="lib-tag-btn">上攀</button>
-                        <button type="button" onclick="quickAddTag('系統牆')" class="lib-tag-btn">系統牆</button>
-                        <button type="button" onclick="quickAddTag('指力板')" class="lib-tag-btn">指力板</button>
-                        <button type="button" onclick="quickAddTag('弱點訓練')" class="lib-tag-btn">弱點訓練</button>
-                        <button type="button" onclick="quickAddTag('動態發力')" class="lib-tag-btn">動態發力</button>
-                        <button type="button" onclick="quickAddTag('靜態控制')" class="lib-tag-btn">靜態控制</button>
-                        <button type="button" onclick="quickAddTag('鎖力')" class="lib-tag-btn">鎖力</button>
-                        <button type="button" onclick="quickAddTag('捏力')" class="lib-tag-btn">捏力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="抱石"
+                            class="lib-tag-btn">抱石</button>
+                        <button type="button" data-action="editor-add-tag" data-value="上攀"
+                            class="lib-tag-btn">上攀</button>
+                        <button type="button" data-action="editor-add-tag" data-value="系統牆"
+                            class="lib-tag-btn">系統牆</button>
+                        <button type="button" data-action="editor-add-tag" data-value="指力板"
+                            class="lib-tag-btn">指力板</button>
+                        <button type="button" data-action="editor-add-tag" data-value="弱點訓練"
+                            class="lib-tag-btn">弱點訓練</button>
+                        <button type="button" data-action="editor-add-tag" data-value="動態發力"
+                            class="lib-tag-btn">動態發力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="靜態控制"
+                            class="lib-tag-btn">靜態控制</button>
+                        <button type="button" data-action="editor-add-tag" data-value="鎖力"
+                            class="lib-tag-btn">鎖力</button>
+                        <button type="button" data-action="editor-add-tag" data-value="捏力"
+                            class="lib-tag-btn">捏力</button>
                     </div>
                     <!-- 6. 裝備器材  -->
                     <div id="tab-equipment" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" onclick="quickAddTag('自體重')" class="lib-tag-btn">自體重</button>
-                        <button type="button" onclick="quickAddTag('啞鈴')" class="lib-tag-btn">啞鈴</button>
-                        <button type="button" onclick="quickAddTag('壺鈴')" class="lib-tag-btn">壺鈴</button>
-                        <button type="button" onclick="quickAddTag('槓鈴')" class="lib-tag-btn">槓鈴</button>
-                        <button type="button" onclick="quickAddTag('彈力帶')" class="lib-tag-btn">彈力帶</button>
-                        <button type="button" onclick="quickAddTag('TRX')" class="lib-tag-btn">TRX</button>
-                        <button type="button" onclick="quickAddTag('滾筒')" class="lib-tag-btn">滾筒放鬆</button>
+                        <button type="button" data-action="editor-add-tag" data-value="自體重"
+                            class="lib-tag-btn">自體重</button>
+                        <button type="button" data-action="editor-add-tag" data-value="啞鈴"
+                            class="lib-tag-btn">啞鈴</button>
+                        <button type="button" data-action="editor-add-tag" data-value="壺鈴"
+                            class="lib-tag-btn">壺鈴</button>
+                        <button type="button" data-action="editor-add-tag" data-value="槓鈴"
+                            class="lib-tag-btn">槓鈴</button>
+                        <button type="button" data-action="editor-add-tag" data-value="彈力帶"
+                            class="lib-tag-btn">彈力帶</button>
+                        <button type="button" data-action="editor-add-tag" data-value="TRX"
+                            class="lib-tag-btn">TRX</button>
+                        <button type="button" data-action="editor-add-tag" data-value="滾筒"
+                            class="lib-tag-btn">滾筒放鬆</button>
                     </div>
                 </div>
             </div>
-
-            <script>
-                function switchTagTab(btn, tabId) {
-                    const container = btn.closest('#tag-library-panel');
-                    const buttons = container.querySelectorAll('.tab-btn');
-                    buttons.forEach(b => {
-                        b.classList.remove('text-blue-600', 'border-blue-600', 'dark:text-blue-400');
-                        b.classList.add('text-gray-500', 'border-transparent', 'dark:text-gray-400');
-                    });
-                    btn.classList.remove('text-gray-500', 'border-transparent', 'dark:text-gray-400');
-                    btn.classList.add('text-blue-600', 'border-blue-600', 'dark:text-blue-400');
-
-                    container.querySelectorAll('.tag-tab-content').forEach(c => c.classList.add('hidden'));
-                    document.getElementById(tabId).classList.remove('hidden');
-                }
-
-                function quickAddTag(tagText) {
-                    document.getElementById('inp-routine-tag').value = tagText;
-                    editor.addRoutineTag();
-                }
-            </script>
         </div>
 
         <!-- 視覺化時間軸 (Visual Timeline) -->
@@ -945,7 +1010,8 @@
             class="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl transform translate-y-full transition-transform duration-300 z-[60] p-6 pb-12 dark:bg-gray-800 dark:text-white">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="font-bold text-lg">編輯積木</h3>
-                <button onclick="editor.closeProps()" class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
+                <button data-action="editor-close-props"
+                    class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
             </div>
 
             <div id="prop-form" class="space-y-4">
@@ -1478,61 +1544,6 @@
 
     <!-- 自動完成資料清單 -->
     <datalist id="history-list"></datalist>
-
-    <script>
-        // --- 初始化 ---
-        document.addEventListener('DOMContentLoaded', () => {
-            store.init();
-            editor.init();
-            settingsManager.init();
-            themeManager.init();
-            goalManager.init();
-            recordManager.updateUI();
-            recordManager.renderCalendar();
-            analyticsManager.init();
-
-            const now = new Date();
-            const y = now.getFullYear();
-            const m = (now.getMonth() + 1).toString().padStart(2, '0');
-            const d = now.getDate().toString().padStart(2, '0');
-            recordManager.showDayDetail(`${y}-${m}-${d}`);
-
-            // 偵測未完成的訓練
-            const sessionJson = localStorage.getItem('active_session');
-            if (sessionJson) {
-                const session = JSON.parse(sessionJson);
-                // 使用原生 confirm 進行阻塞式詢問，確保使用者優先處理
-                if (confirm(`發現未完成的訓練「${session.routineTitle}」，是否立即繼續？`)) {
-                    timer.resumeSession(session);
-                }
-            }
-
-            // 綁定底部面板滑動關閉手勢
-            initSwipeToClose('quick-log-panel', () => timer.closeLogPanel());
-            initSwipeToClose('prop-sheet', () => editor.closeProps());
-            initSwipeToClose('detail-sheet', () => recordManager.closeDetail());
-
-            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-            const isDismissed = localStorage.getItem('pwaPromptDismissed');
-            const pwaPrompt = document.getElementById('pwa-prompt');
-
-            if (!isStandalone && !isDismissed && pwaPrompt) {
-                pwaPrompt.classList.remove('hidden');
-                document.getElementById('btn-close-pwa').onclick = () => {
-                    pwaPrompt.classList.add('hidden');
-                    localStorage.setItem('pwaPromptDismissed', 'true');
-                };
-            }
-        });
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker 已註冊', reg))
-                    .catch(err => console.error('Service Worker 註冊失敗', err));
-            });
-        }
-    </script>
 </body>
 
 </html>

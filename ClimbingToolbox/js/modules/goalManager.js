@@ -1,6 +1,6 @@
 // --- js/modules/goalManager.js ---
 
-const goalManager = {
+export const goalManager = {
     goals: [],
     tempOperator: 'OR',
     showOnlyActive: true,
@@ -317,10 +317,10 @@ const goalManager = {
                     
                     <div class="flex items-center gap-2">
                         <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" class="sr-only peer" ${checkedAttr} onchange="goalManager.toggleGoal('${g.id}', event)">
+                            <input type="checkbox" class="sr-only peer" ${checkedAttr} data-action="goal-toggle" data-value="${g.id}"
                             <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
-                        <button onclick="goalManager.deleteGoal('${g.id}')" class="text-gray-300 hover:text-red-500 transition-colors p-1">
+                        <button data-action="goal-delete" data-value="${g.id}" class="text-gray-300 hover:text-red-500 transition-colors p-1">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
                     </div>

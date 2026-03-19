@@ -1,7 +1,7 @@
 // --- js/modules/analytics.js ---
+import { EventBus, APP_EVENTS, recordManager } from './storage.js';
 
-
-const mathUtils = {
+export const mathUtils = {
     calcVolumeReps(logs) {
         if (!logs || logs.length === 0) return null;
         return logs.reduce((sum, log) => sum + (log.actuals && log.actuals['次數'] ? Number(log.actuals['次數']) : 0), 0);
@@ -68,7 +68,7 @@ const mathUtils = {
     }
 };
 
-const analyticsManager = {
+export const analyticsManager = {
     configs: [],
     chartInstance: null,
     activeCardIndex: 0,
@@ -296,7 +296,7 @@ const analyticsManager = {
 
             if (!config) {
                 container.innerHTML += `
-                    <div class="${isLarge ? 'col-span-2' : ''} bg-gray-50 rounded-2xl p-4 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center dark:bg-gray-800/50 dark:border-gray-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" onclick="analyticsUI.openPREditor(${idx})">
+                    <div class="${isLarge ? 'col-span-2' : ''} bg-gray-50 rounded-2xl p-4 border-2 border-dashed border-data-action="pr-open-editor" data-value="${idx}"gray-200 flex flex-col items-center justify-center dark:bg-gray-800/50 dark:border-gray-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" >
                         <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm mb-1 dark:bg-gray-700">
                             <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                         </div>
@@ -357,13 +357,13 @@ const analyticsManager = {
 
             container.innerHTML += `
                 <div class="${isLarge ? 'col-span-2' : ''} ${isActive} rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-600 relative overflow-hidden transition-all group">
-                    <div class="absolute inset-0 cursor-pointer" onclick="analyticsManager.selectCard(${idx})"></div>
+                    <div class="absolute inset-0 cursor-pointer" ata-action="pr-select-card" data-value="${idx}"></div>
                     
                     <div class="relative flex justify-between items-start mb-2 pointer-events-none">
                         <span class="text-[10px] sm:text-xs text-gray-400 font-bold tracking-wider uppercase truncate pr-6">${prefix}${config.targetItem}</span>
                     </div>
                     
-                    <button onclick="analyticsUI.openPREditor(${idx})" class="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors dark:hover:bg-gray-700 z-10">
+                    <button data-action="pr-open-editor" data-value="${idx}" class="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors dark:hover:bg-gray-700 z-10">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                     </button>
 
@@ -471,7 +471,7 @@ const analyticsManager = {
     }
 };
 
-const analyticsUI = {
+export const analyticsUI = {
     editingIndex: null,
     currentOperator: 'OR',
 
@@ -610,7 +610,7 @@ const analyticsUI = {
     }
 };
 
-const bodyManager = {
+export const bodyManager = {
     displayDate: new Date(),
     latestHeight: null,
 
@@ -857,7 +857,7 @@ const bodyManager = {
     }
 };
 
-const insightManager = {
+export const insightManager = {
     currentBlock: '',
     currentFormula: 'epley',
     includeBW: false,
@@ -997,7 +997,7 @@ const insightManager = {
                 const failureBadge = isFailure ? `<span class="ml-1 px-1 bg-red-500 text-white rounded text-[8px] font-black shrink-0">力竭</span>` : '';
                 return `
                     <label class="flex items-start gap-2 bg-white p-2 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-50 dark:bg-gray-800 transition-colors w-full">
-                        <input type="checkbox" onchange="insightManager.togglePoint('${period}', '${log.id}')" ${selectedSet.has(log.id) ? 'checked' : ''} class="mt-1 w-4 h-4 rounded text-blue-600">
+                        <input type="checkbox" data-action="insight-toggle-point" data-period="${period}" data-log-id="${log.id}" ${selectedSet.has(log.id) ? 'checked' : ''} class="mt-1 w-4 h-4 rounded text-blue-600">
                         <div class="flex-1 min-w-0">
                             <div class="text-[10px] font-bold text-gray-700 dark:text-gray-300 flex items-center">
                                 <span class="text-gray-400 mr-1.5">${log.date.substring(5)}</span>

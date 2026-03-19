@@ -1,7 +1,10 @@
 // --- js/modules/timer.js ---
+import { EventBus, APP_EVENTS, recordRepository, sessionRepository, store, recordManager, uuid, routineUtils, formatTime } from './storage.js';
+import { router, showToast, settingsManager } from './ui.js';
+import { bleManager } from './bleManager.js';
 
 // --- Voice Commander ---
-const voiceCommander = {
+export const voiceCommander = {
     recognition: null,
     isListening: false,
     shouldRestart: false,
@@ -89,9 +92,8 @@ const voiceCommander = {
     }
 };
 
-
-// --- 4. Timer Engine (核心邏輯) ---
-const timer = {
+// --- Timer Engine (核心邏輯) ---
+export const timer = {
     queue: [],
     totalDuration: 0,
     currentIndex: 0,
@@ -464,12 +466,12 @@ const timer = {
                 <div class="flex items-center justify-between bg-gray-900 rounded-xl p-3 mb-2">
                     <span class="text-gray-300 text-lg font-bold pl-2">${m.name}</span>
                     <div class="flex items-center gap-4" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
-                        <button type="button" onclick="timer.adjustLogVal(${idx}, -1)" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 transition-transform">-</button>
+                        <button type="button" data-action="timer-adjust-log-val" data-index="${idx}" data-value="-1" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 transition-transform">-</button>
                         
                         <input type="number" step="any" id="quick-log-val-${idx}" data-name="${m.name}" value="${val}" 
                             class="w-20 bg-transparent text-white text-lg border-none p-0 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 rounded transition-all">
                         
-                        <button type="button" onclick="timer.adjustLogVal(${idx}, 1)" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 transition-transform">+</button>
+                        <button type="button" data-action="timer-adjust-log-val" data-index="${idx}" data-value="1" class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 transition-transform">+</button>
                     </div>
                 </div>
             `;
@@ -596,18 +598,22 @@ const timer = {
             planned: { duration: this.pendingLogBlock.props.duration, count: this.pendingLogBlock.props.count },
             actuals: actuals,
             loopState: this.pendingLogBlock.loopState || [],
-            blockSnapshot: this.pendingLogBlock // 保存當下積木的完整快照
+            blockSnapshot: this.pendingLogBlock
         };
 
         if (this.editingRecordId) {
             // 模式 A: 修改歷史紀錄
             recordRepository.updateLog(this.editingRecordId, this.pendingLogIndex, newLog);
+
+            // ✨ 關鍵修正：當我們在看板編輯舊紀錄時，儲存後應立即要求看板重新渲染該日明細
+            if (typeof recordManager !== 'undefined' && recordManager.selectedDate) {
+                recordManager.showDayDetail(recordManager.selectedDate);
+            }
+
             if (closePanel && typeof showToast === 'function') showToast('紀錄已更新');
         } else {
-            // ... (模式 B 保持不變)
-            // 模式 B: 當前訓練暫存
+            // 模式 B: 當前訓練暫存 (保持不變)
             this.sessionValueMap[blockLabel] = actuals;
-
             const existingIndex = this.currentLogs.findIndex(l => l.queueIndex === this.pendingLogIndex);
             if (existingIndex !== -1) {
                 this.currentLogs[existingIndex] = newLog;
