@@ -1,5 +1,8 @@
 // --- js/modules/goalManager.js ---
 import { views } from './views.js';
+import { store, recordManager } from './modules/storage.js';
+import { editor, } from './ui.js';
+
 
 export const goalManager = {
     goals: [],

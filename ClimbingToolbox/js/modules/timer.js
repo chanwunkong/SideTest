@@ -1,7 +1,6 @@
 // --- js/modules/timer.js ---
-import { EventBus, APP_EVENTS, recordRepository, sessionRepository, store, recordManager, uuid, routineUtils, formatTime } from './storage.js';
+import { recordRepository, sessionRepository, store, recordManager, uuid, routineUtils, formatTime } from './storage.js';
 import { router, showToast, settingsManager } from './ui.js';
-import { bleManager } from './bleManager.js';
 import { views } from './views.js';
 
 // --- Voice Commander ---

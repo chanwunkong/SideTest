@@ -1,6 +1,6 @@
 // --- js/main.js ---
 import { store, recordManager, sessionRepository } from './modules/storage.js';
-import { editor, router, initSwipeToClose, showToast, settingsManager, themeManager } from './modules/ui.js';
+import { editor, router, initSwipeToClose, settingsManager, themeManager } from './modules/ui.js';
 import { bleManager } from './modules/bleManager.js';
 import { timer, voiceCommander } from './modules/timer.js';
 import { goalManager } from './modules/goalManager.js';

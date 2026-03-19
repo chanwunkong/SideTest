@@ -1,9 +1,7 @@
 // --- js/modules/ui.js ---
-import { store, recordManager, sessionRepository, formatTime, routineUtils, uuid } from './storage.js';
-import { timer } from './timer.js';
-import { bleManager } from './bleManager.js';
+import { store, recordManager, formatTime, routineUtils, uuid } from './storage.js';
 import { goalManager } from './goalManager.js';
-import { analyticsManager, bodyManager, insightManager, analyticsUI } from './analytics.js';
+import { analyticsManager } from './analytics.js';
 
 // --- 手勢滑動元件 ---
 export const initSwipeToClose = function (elementId, closeFn) {

@@ -1,5 +1,6 @@
 // --- js/modules/analytics.js ---
 import { EventBus, APP_EVENTS, recordManager, store } from './storage.js';
+import { editor, initSwipeToClose, } from './ui.js';
 import { views } from './views.js';
 
 export const mathUtils = {
