@@ -1,5 +1,5 @@
 // --- js/modules/analytics.js ---
-import { EventBus, APP_EVENTS, recordManager } from './storage.js';
+import { EventBus, APP_EVENTS, recordManager, store } from './storage.js';
 import { views } from './views.js';
 
 export const mathUtils = {
