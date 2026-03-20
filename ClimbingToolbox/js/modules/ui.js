@@ -120,13 +120,14 @@ export const settingsManager = {
         soundStart: true,
         soundCountdown: true,
         soundFinish: true,
-        urgentPulseEnabled: true,
+        urgentPulseEnabled: false,
         healthSyncEnabled: false,    // 健康 App 同步開關
         wearableDeviceConnected: false, // 穿戴裝置連接狀態
 
         // Profile
         weightVal: '',
-        weightUnit: 'kg'
+        weightUnit: 'kg',
+        maxHR: 190 // 新增：預設最大心率
     },
 
     _audioCtx: null, // 新增：全域 AudioContext 實例暫存
@@ -247,6 +248,7 @@ export const settingsManager = {
         // Profile Binds
         bindVal('set-weight-val', 'weightVal'); // Keep string for empty state
         bindVal('set-weight-unit', 'weightUnit');
+        bindVal('set-max-hr', 'maxHR', true); // 綁定最大心率輸入框
     },
 
     // --- Sound Actions ---

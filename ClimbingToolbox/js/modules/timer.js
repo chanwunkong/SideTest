@@ -371,7 +371,11 @@ export const timer = {
             this.domCache.loops.classList.add('hidden');
         }
 
+        // --- 修改：下一個動作的整體外框變色邏輯 ---
         const nextStep = this.queue[this.currentIndex + 1];
+        const nextContainer = document.getElementById('active-next-container');
+        const nextLabel = document.getElementById('active-next-label');
+
         if (nextStep) {
             let desc = nextStep.props.label;
             if (nextStep.type === 'timer') desc += ` (${nextStep.props.duration}s)`;
@@ -379,10 +383,16 @@ export const timer = {
             this.domCache.nextText.textContent = desc;
 
             const nc = nextStep.props.color || 'gray';
-            this.domCache.nextBadge.className = `w-3 h-3 rounded-full bg-${nc}-400 shadow-sm`;
+            if (nextContainer && nextLabel) {
+                nextContainer.className = `flex items-center gap-3 mb-6 p-3 rounded-xl border backdrop-blur-sm transition-colors duration-300 bg-${nc}-900/40 border-${nc}-500/50`;
+                nextLabel.className = `text-xs font-bold uppercase whitespace-nowrap px-2 text-${nc}-400`;
+            }
         } else {
             this.domCache.nextText.textContent = "結束";
-            this.domCache.nextBadge.className = `w-3 h-3 rounded-full bg-gray-500`;
+            if (nextContainer && nextLabel) {
+                nextContainer.className = `flex items-center gap-3 mb-6 p-3 rounded-xl border backdrop-blur-sm transition-colors duration-300 bg-gray-700/50 border-gray-600/30`;
+                nextLabel.className = `text-xs font-bold uppercase whitespace-nowrap px-2 text-gray-400`;
+            }
         }
     },
 

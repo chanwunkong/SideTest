@@ -220,6 +220,24 @@ input[type=range]::-webkit-slider-runnable-track {
     }
 }
 
+/* 心率跳動動畫 */
+.pulse-animation {
+    animation: pulse-ring 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
 
 /* =========================================
       4. Hangboard 專屬模組 (Timer & Routines)

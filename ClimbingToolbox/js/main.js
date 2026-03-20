@@ -5,6 +5,7 @@ import { bleManager } from './modules/bleManager.js';
 import { timer, voiceCommander } from './modules/timer.js';
 import { goalManager } from './modules/goalManager.js';
 import { analyticsManager, analyticsUI, bodyManager, insightManager } from './modules/analytics.js';
+import { hrManager } from './modules/hrManager.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. 初始化各模組
@@ -49,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'route': router.go(value); break;
             case 'session-clear': sessionRepository.clear(); break;
             case 'session-resume': timer.resumeFromStorage(); break;
-            case 'wearable-mock': alert('穿戴裝置 SDK 整合中'); break;
 
             // --- 計時器 (Timer) ---
             case 'timer-skip': timer.skip(Number(value)); break;
@@ -133,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- 藍牙連線 (BLE) ---
             case 'ble-toggle': bleManager.toggleConnection(); break;
+            case 'hr-toggle': hrManager.toggleConnection(); break;
             case 'ble-target-modal': e.preventDefault(); e.stopPropagation(); bleManager.openTargetModal(); break;
             case 'ble-fallback-close': bleManager.hideFallbackModal(); break;
             case 'ble-fallback-retry': bleManager.requestNewDevice(); break;
