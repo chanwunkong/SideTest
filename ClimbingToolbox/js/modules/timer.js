@@ -311,9 +311,11 @@ export const timer = {
                 this.elapsed += deltaSec;
                 this.lastTick += deltaSec * 1000; // 保留百毫秒的餘數作誤差補償
 
-                // 倒數提示音 (Beep) & 視覺閃爍
+                // 倒數提示音 (Beep)、語音與視覺閃爍
                 if (this.stepLeft <= settingsManager.data.countdownSec && this.stepLeft > 0) {
                     settingsManager.beep('countdown');
+                    settingsManager.speak(this.stepLeft.toString()); // 新增這行：用語音念出剩餘秒數
+
                     if (settingsManager.data.urgentPulseEnabled && !this.domCache.modal.classList.contains('pulse-urgent')) {
                         this.domCache.modal.classList.add('pulse-urgent');
                     }
