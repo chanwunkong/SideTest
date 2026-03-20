@@ -327,7 +327,7 @@ export const bleManager = {
             // 配對取消或失敗時，退回模擬模式
             this.startMockMode();
         }
-    }
+    },
 
     // 模擬數據生成邏輯
     startMockMode() {
