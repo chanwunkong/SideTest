@@ -38,7 +38,7 @@ export const hrManager = {
             await this.requestAndConnectDevice();
         } catch (error) {
             console.error('心率裝置連線錯誤:', error);
-            if (typeof showToast === 'function') showToast('心率連線取消或失敗，啟動模擬模式', 'info');
+            if (typeof showToast === 'function') showToast('心率連線取消或失敗，啟動模擬模式', 'warning');
             this.startMockMode();
         }
     },
@@ -91,9 +91,14 @@ export const hrManager = {
     },
 
     onConnected() {
-        this.updateButtonUI('connected');
-        if (typeof showToast === 'function' && !this.isMockMode) {
-            showToast('已連接心率裝置', 'info');
+        this.updateButtonUI(this.isMockMode ? 'mock' : 'connected');
+
+        if (typeof showToast === 'function') {
+            if (this.isMockMode) {
+                showToast('已啟動心率模擬模式', 'warning');
+            } else {
+                showToast('已連接心率裝置', 'info');
+            }
         }
 
         const container = document.getElementById('hr-live-container');
@@ -157,25 +162,47 @@ export const hrManager = {
         const hrBoxEl = document.getElementById('hr-live-box');
         const hrZoneEl = document.getElementById('hr-live-zone');
 
+        const isWaiting = (this.currentHR === 0 && !this.isMockMode);
+
         if (hrValueEl) {
-            hrValueEl.innerText = this.currentHR;
+            if (isWaiting) {
+                hrValueEl.innerText = '--';
+                hrValueEl.classList.remove('text-yellow-400', 'text-white');
+                hrValueEl.classList.add('text-gray-400', 'animate-pulse');
+            } else {
+                hrValueEl.innerText = this.isMockMode ? `${this.currentHR} (模擬)` : this.currentHR;
+                hrValueEl.classList.remove('animate-pulse', 'text-gray-400');
+                if (this.isMockMode) {
+                    hrValueEl.classList.add('text-yellow-400');
+                    hrValueEl.classList.remove('text-white');
+                } else {
+                    hrValueEl.classList.add('text-white');
+                    hrValueEl.classList.remove('text-yellow-400');
+                }
+            }
         }
 
-        if (hrBoxEl && hrIconEl && hrZoneEl && this.currentHR > 0) {
-            const zone = this.getZoneInfo(this.currentHR);
-            const c = zone.color;
+        if (hrBoxEl && hrIconEl && hrZoneEl) {
+            let c = 'gray';
+            let zoneName = '等待數據...';
 
-            hrZoneEl.innerText = zone.name;
+            if (!isWaiting && this.currentHR > 0) {
+                const zone = this.getZoneInfo(this.currentHR);
+                c = this.isMockMode ? 'yellow' : zone.color;
+                zoneName = this.isMockMode ? '模擬數據' : zone.name;
+            }
+
+            hrZoneEl.innerText = zoneName;
             hrBoxEl.className = `flex items-center gap-3 px-5 py-2 rounded-full shadow-lg border-2 transition-colors duration-300 bg-gray-900 border-${c}-500`;
 
-            const allColors = ['red', 'orange', 'green', 'blue', 'gray'];
+            const allColors = ['red', 'orange', 'green', 'blue', 'gray', 'yellow'];
             allColors.forEach(color => hrIconEl.classList.remove(`text-${color}-500`));
             hrIconEl.classList.add(`text-${c}-500`);
 
             hrZoneEl.className = `text-[10px] font-bold uppercase tracking-wider text-center transition-colors duration-300 text-${c}-400`;
         }
 
-        if (hrIconEl) {
+        if (hrIconEl && !isWaiting) {
             hrIconEl.classList.remove('pulse-animation');
             void hrIconEl.offsetWidth;
             hrIconEl.classList.add('pulse-animation');
@@ -189,7 +216,8 @@ export const hrManager = {
         btn.classList.remove(
             'bg-white/10', 'text-white/50',
             'bg-red-500/20', 'text-red-400', 'animate-pulse',
-            'bg-red-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-red-400'
+            'bg-red-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-red-400',
+            'bg-yellow-600', 'ring-yellow-400'
         );
 
         if (state === 'disconnected') {
@@ -198,6 +226,8 @@ export const hrManager = {
             btn.classList.add('bg-red-500/20', 'text-red-400', 'animate-pulse');
         } else if (state === 'connected') {
             btn.classList.add('bg-red-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-red-400');
+        } else if (state === 'mock') {
+            btn.classList.add('bg-yellow-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-yellow-400');
         }
     }
 };
