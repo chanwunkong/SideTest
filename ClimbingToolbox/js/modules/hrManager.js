@@ -2,19 +2,14 @@
 import { settingsManager } from './ui.js';
 
 export const hrManager = {
-    // 藍牙 GATT 標準 UUID
     HR_SERVICE: 'heart_rate',
     HR_MEASUREMENT_CHAR: 'heart_rate_measurement',
 
     connectedDevice: null,
     heartRateCharacteristic: null,
     currentHR: 0,
-
-    // 模擬模式變數
     isMockMode: false,
     mockInterval: null,
-
-    // 綁定的事件處理函數，便於後續移除
     boundHandleMeasurement: null,
     boundHandleDisconnect: null,
 
@@ -23,7 +18,6 @@ export const hrManager = {
         this.boundHandleDisconnect = this.onDisconnected.bind(this);
     },
 
-    // 切換連線狀態 (按鈕的主要進入點)
     async toggleConnection() {
         if (!this.boundHandleMeasurement) this.init();
 
@@ -34,7 +28,6 @@ export const hrManager = {
 
         this.updateButtonUI('connecting');
 
-        // 無藍牙環境，直接進入模擬模式
         if (!navigator.bluetooth) {
             if (typeof showToast === 'function') showToast('無藍牙環境，啟動心率模擬模式', 'info');
             this.startMockMode();
@@ -50,7 +43,6 @@ export const hrManager = {
         }
     },
 
-    // 請求藍牙裝置並建立連線
     async requestAndConnectDevice() {
         const device = await navigator.bluetooth.requestDevice({
             filters: [{ services: [this.HR_SERVICE] }],
@@ -72,14 +64,13 @@ export const hrManager = {
         this.onConnected();
     },
 
-    // 處理 GATT 心率封包
     handleHeartRateMeasurement(event) {
         const value = event.target.value;
         const flags = value.getUint8(0);
         const rate16Bits = flags & 0x1;
 
         if (rate16Bits) {
-            this.currentHR = value.getUint16(1, true); // Little-endian
+            this.currentHR = value.getUint16(1, true);
         } else {
             this.currentHR = value.getUint8(1);
         }
@@ -87,21 +78,18 @@ export const hrManager = {
         this.updateDisplay();
     },
 
-    // 啟動模擬模式
     startMockMode() {
         this.isMockMode = true;
-        this.currentHR = 75; // 基礎心率
+        this.currentHR = 75;
         this.onConnected();
 
         this.mockInterval = setInterval(() => {
-            // 模擬心率波動 (-2 到 +3)
             const delta = Math.floor(Math.random() * 6) - 2;
             this.currentHR = Math.max(60, Math.min(180, this.currentHR + delta));
             this.updateDisplay();
         }, 1000);
     },
 
-    // 連線成功共通邏輯
     onConnected() {
         this.updateButtonUI('connected');
         if (typeof showToast === 'function' && !this.isMockMode) {
@@ -109,12 +97,15 @@ export const hrManager = {
         }
 
         const container = document.getElementById('hr-live-container');
-        if (container) container.classList.remove('hidden');
+        if (container) {
+            container.classList.remove('hidden');
+            container.style.display = 'flex';
+            void container.offsetWidth;
+        }
 
         this.updateDisplay();
     },
 
-    // 斷線處理
     disconnect() {
         if (this.mockInterval) {
             clearInterval(this.mockInterval);
@@ -138,18 +129,18 @@ export const hrManager = {
         this.updateButtonUI('disconnected');
 
         const container = document.getElementById('hr-live-container');
-        if (container) container.classList.add('hidden');
+        if (container) {
+            container.style.display = '';
+            container.classList.add('hidden');
+        }
     },
 
-    // 處理裝置意外斷線
     onDisconnected() {
         if (typeof showToast === 'function') showToast('心率裝置已斷線', 'error');
         this.disconnect();
     },
 
-    // 判斷心率區間與對應顏色
     getZoneInfo(hr) {
-        // 從設定取得最大心率，若無則預設 190
         const maxHR = settingsManager.data.maxHR || 190;
         const percentage = hr / maxHR;
 
@@ -160,7 +151,6 @@ export const hrManager = {
         return { name: 'Zone 1 暖身', color: 'gray' };
     },
 
-    // 更新數值顯示、觸發跳動動畫與變更區間顏色
     updateDisplay() {
         const hrValueEl = document.getElementById('hr-live-value');
         const hrIconEl = document.getElementById('hr-live-icon');
@@ -176,12 +166,11 @@ export const hrManager = {
             const c = zone.color;
 
             hrZoneEl.innerText = zone.name;
-
-            // 改用不透明深色底，避免被計時器背景色污染
             hrBoxEl.className = `flex items-center gap-3 px-5 py-2 rounded-full shadow-lg border-2 transition-colors duration-300 bg-gray-900 border-${c}-500`;
 
-            // 修復 TypeError: 使用 setAttribute 覆寫 SVG 的 class
-            hrIconEl.setAttribute('class', `w-6 h-6 transition-colors duration-300 text-${c}-500`);
+            const allColors = ['red', 'orange', 'green', 'blue', 'gray'];
+            allColors.forEach(color => hrIconEl.classList.remove(`text-${color}-500`));
+            hrIconEl.classList.add(`text-${c}-500`);
 
             hrZoneEl.className = `text-[10px] font-bold uppercase tracking-wider text-center transition-colors duration-300 text-${c}-400`;
         }
@@ -193,7 +182,6 @@ export const hrManager = {
         }
     },
 
-    // 控制按鈕 UI 狀態
     updateButtonUI(state) {
         const btn = document.getElementById('btn-hr-toggle');
         if (!btn) return;
