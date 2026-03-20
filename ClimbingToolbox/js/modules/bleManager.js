@@ -58,7 +58,7 @@ export const bleManager = {
             ctx.stroke();
 
             ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.font = '10px tabular-nums font-bold';
+            ctx.font = 'bold 24px monospace';
             ctx.textAlign = 'right';
             ctx.fillText(`${peakWeight.toFixed(1)} Peak`, canvas.width - 5, peakY - 5);
             ctx.restore();

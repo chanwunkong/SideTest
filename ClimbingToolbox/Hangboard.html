@@ -1326,10 +1326,11 @@
                 class="text-3xl md:text-4xl font-black text-yellow-400 mb-2 hidden text-center w-full drop-shadow-md tracking-wider shrink-0">
             </div>
 
-            <div class="relative flex-1 flex items-center justify-center min-h-[80px] w-full overflow-hidden">
+            <div class="relative flex-1 w-full overflow-hidden">
                 <div id="active-countdown"
-                    class="text-[clamp(3rem,25vw,12rem)] font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl text-center whitespace-nowrap">
-                    00
+                    class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-mono font-black tracking-tighter tabular-nums drop-shadow-xl text-center whitespace-nowrap"
+                    style="font-size: min(80vw, 30vh); line-height: 0.8;">
+                    02
                 </div>
             </div>
 
@@ -1393,8 +1394,9 @@
                                 <div class="w-[40%] bg-red-500"></div>
                             </div>
                             <div id="ble-gauge-pointer"
-                                class="absolute top-1/2 w-5 h-5 bg-white rounded-full transition-all duration-75 ease-out transform -translate-y-1/2 -translate-x-1/2 z-10"
-                                style="left: 0%;"></div>
+                                class="absolute top-1/2 w-5 h-5 !bg-white border border-gray-300 shadow-[0_2px_6px_rgba(0,0,0,0.6)] rounded-full transition-all duration-75 ease-out transform -translate-y-1/2 -translate-x-1/2 z-20"
+                                style="left: 0%;">
+                            </div>
                         </div>
                     </div>
                 </div>
