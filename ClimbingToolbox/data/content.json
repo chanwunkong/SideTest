@@ -1,0 +1,148 @@
+{
+    "coreTools": [
+        {
+            "href": "Hangboard.html",
+            "iconClass": "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white",
+            "iconSvg": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z\"></path>",
+            "dotClass": "bg-blue-400",
+            "title": {
+                "key": "hbTitle",
+                "text": "Hangboard Timer (v1.1)"
+            },
+            "desc": {
+                "key": "hbPain",
+                "text": "Solves the pain of tedious setups, distracted logging, and fragmented data tracking."
+            },
+            "features": [
+                {
+                    "key": "hbF1",
+                    "text": "<b>No More Complex Setups</b>: Use building blocks to nest timers and reps. Set up complex routines in 30 seconds."
+                },
+                {
+                    "key": "hbF2",
+                    "text": "<b>Flow Without Distraction</b>: Custom metrics for weight & depth. Automated logs keep your focus on the hang."
+                },
+                {
+                    "key": "hbF3",
+                    "text": "<b>Complete Growth Track</b>: Integrated PR cards and trend charts. Data remains continuous across routines."
+                }
+            ],
+            "future": {
+                "key": "hbFuture",
+                "text": "Future: Health (Apple/Google) and WH-C06 Bluetooth scale integration (Tindeq alternative).",
+                "class": "text-blue-600"
+            }
+        },
+        {
+            "href": "HoldFocus.html",
+            "iconClass": "bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white",
+            "iconSvg": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z\"></path><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M15 13a3 3 0 11-6 0 3 3 0 016 0z\"></path>",
+            "dotClass": "bg-indigo-400",
+            "title": {
+                "key": "hfTitle",
+                "text": "Route Editor (HoldFocus v1)"
+            },
+            "desc": {
+                "key": "hfPain",
+                "text": "Hard to recall beta or explain movements? Create route maps manually to stay focused."
+            },
+            "features": [
+                {
+                    "key": "hfF1",
+                    "text": "Manual hold marking for precise route mapping"
+                },
+                {
+                    "key": "hfF2",
+                    "text": "Support for image export and instant sharing"
+                }
+            ],
+            "future": {
+                "key": "hfFuture",
+                "text": "Future: Considering AI hold recognition and cloud albums.",
+                "class": "text-indigo-600"
+            }
+        }
+    ],
+    "changelog": [
+        {
+            "date": "2026.03.20",
+            "tag": {
+                "key": "logHbV1_2",
+                "text": "Hangboard v1.2 Live",
+                "class": "bg-green-100 text-green-700"
+            },
+            "desc": {
+                "key": "logHbDesc1_2",
+                "text": "Integrated real-time WH-C06 and Garmin heart rate broadcast (display only)."
+            }
+        },
+        {
+            "date": "2026.03.11",
+            "tag": {
+                "key": "logHbV1_1",
+                "text": "Hangboard v1.1 Live",
+                "class": "bg-green-100 text-green-700"
+            },
+            "desc": {
+                "key": "logHbDesc1_1",
+                "text": "Enhanced training log mechanism, adding custom metric integration and automated logging."
+            }
+        },
+        {
+            "date": "2026.02.25",
+            "tag": {
+                "key": "logHbV1",
+                "text": "Hangboard v1 Live",
+                "class": "bg-green-100 text-green-700"
+            },
+            "desc": {
+                "key": "logHbDesc",
+                "text": "Unrestricted structured editor, voice command optimization, and training calendar are now live."
+            }
+        },
+        {
+            "date": "2026.02.13",
+            "tag": {
+                "key": "logHfV1",
+                "text": "HoldFocus v1 Live",
+                "class": "bg-indigo-100 text-indigo-700"
+            },
+            "desc": {
+                "key": "logHfDesc",
+                "text": "Manual marking features released. Supports custom drawing and high-res exports."
+            }
+        }
+    ],
+    "queue": [
+        {
+            "title": {
+                "key": "q3Title",
+                "text": "Device Data Logging & Analysis"
+            },
+            "desc": {
+                "key": "q3Desc",
+                "text": "Record WH-C06 and HR data into training logs for future advanced analysis."
+            }
+        },
+        {
+            "title": {
+                "key": "q1Title",
+                "text": "Motion & Pose Analysis"
+            },
+            "desc": {
+                "key": "q1Desc",
+                "text": "Analyze climbing trajectory and center of gravity to improve precision."
+            }
+        },
+        {
+            "title": {
+                "key": "q2Title",
+                "text": "Shoe Spec Comparison"
+            },
+            "desc": {
+                "key": "q2Desc",
+                "text": "Comprehensive database providing shoe sizing recommendations."
+            }
+        }
+    ]
+}
