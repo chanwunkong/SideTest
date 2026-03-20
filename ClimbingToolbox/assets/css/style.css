@@ -505,3 +505,24 @@ input[type=range]::-webkit-slider-runnable-track {
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid #e2e8f0;
 }
+
+/* =========================================
+   7. Hangboard Timer 視覺強化 (配合新版 UI)
+   ========================================= */
+
+/* BLE 數值強對比文字陰影：確保文字在複雜圖表背景上絕對清晰 */
+.ble-text-overlay {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 12px rgba(0, 0, 0, 0.5);
+}
+
+/* BLE Gauge 指針進階光暈與過渡 */
+#ble-gauge-pointer {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8), 0 0 2px rgba(0, 0, 0, 0.3) inset;
+    transition: left 0.1s cubic-bezier(0.4, 0, 0.2, 1), transform 0.1s;
+}
+
+/* 確保 BLE 圖表所在的 Canvas 響應式縮放不失真 */
+#ble-live-chart {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
