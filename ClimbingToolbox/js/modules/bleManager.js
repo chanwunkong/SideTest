@@ -400,20 +400,21 @@ export const bleManager = {
     // 提取連線成功的共通邏輯
     onConnected() {
         this.updateButtonUI('connected');
-        if (typeof showToast === 'function' && !this.isMockMode) {
-            showToast('已連接測力計', 'info');
-        }
-
-        if (!this.isMockMode) {
-            this.resetAdvertisementTimeout();
-        }
-
+        
+        // 💡 確保強制移除隱藏狀態，並立刻讓資訊欄位出現
         const container = document.getElementById('ble-live-container');
-        if (container) container.classList.remove('hidden');
-        this.initChart();
-        this.currentWeight = 0;
-        const weightEl = document.getElementById('ble-live-weight');
-        if (weightEl) weightEl.innerText = '0.00';
+        if (container) {
+            container.classList.remove('hidden');
+            container.style.display = 'flex'; // 強制給予排版屬性避免瀏覽器忽略
+        }
+
+        // 稍微延遲 50 毫秒初始化畫布，等 DOM 真的展開了再畫圖，避免畫布寬度為 0
+        setTimeout(() => {
+            this.initChart();
+            this.currentWeight = 0;
+            const weightEl = document.getElementById('ble-live-weight');
+            if (weightEl) weightEl.innerText = '0.00';
+        }, 50);
     },
 
     // 處理廣播數據
