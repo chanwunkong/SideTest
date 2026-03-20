@@ -7,7 +7,7 @@
             "dotClass": "bg-blue-400",
             "title": {
                 "key": "hbTitle",
-                "text": "Hangboard Timer (v1.1)"
+                "text": "Hangboard Timer (v1.2)"
             },
             "desc": {
                 "key": "hbPain",
@@ -16,20 +16,20 @@
             "features": [
                 {
                     "key": "hbF1",
-                    "text": "<b>No More Complex Setups</b>: Use building blocks to nest timers and reps. Set up complex routines in 30 seconds."
+                    "text": "<b>Block-Based Architecture</b>: Nest timers and reps like building blocks to easily create complex routines."
                 },
                 {
                     "key": "hbF2",
-                    "text": "<b>Flow Without Distraction</b>: Custom metrics for weight & depth. Automated logs keep your focus on the hang."
+                    "text": "<b>Bluetooth Integration</b>: Real-time display for WH-C06 dynamometers and Garmin HR broadcast."
                 },
                 {
                     "key": "hbF3",
-                    "text": "<b>Complete Growth Track</b>: Integrated PR cards and trend charts. Data remains continuous across routines."
+                    "text": "<b>Complete Growth Track</b>: Custom metrics, integrated PR cards, and trend charts."
                 }
             ],
             "future": {
                 "key": "hbFuture",
-                "text": "Future: Health (Apple/Google) and WH-C06 Bluetooth scale integration (Tindeq alternative).",
+                "text": "Future: Log Bluetooth device data into training records for deeper analysis.",
                 "class": "text-blue-600"
             }
         },
@@ -114,16 +114,6 @@
         }
     ],
     "queue": [
-        {
-            "title": {
-                "key": "q3Title",
-                "text": "Device Data Logging & Analysis"
-            },
-            "desc": {
-                "key": "q3Desc",
-                "text": "Record WH-C06 and HR data into training logs for future advanced analysis."
-            }
-        },
         {
             "title": {
                 "key": "q1Title",
