@@ -172,7 +172,7 @@ export const bleManager = {
 
         let currentTarget = 20;
         let blockName = "未知動作";
-        const currentBlock = this.getCurrentBlock();
+        const currentBlock =， this.getCurrentBlock();
 
         // 帶入目前的目標設定值
         if (this.manualTargetWeight !== null) {
@@ -298,7 +298,7 @@ export const bleManager = {
     },
 
     // 切換連線狀態 (按鈕的主要進入點)
-    async toggleConnection() {
+        async toggleConnection() {
         // 若已連線或正在模擬中，則執行手動斷線
         if (this.connectedDevice || this.isMockMode) {
             this.disconnect(true);
@@ -311,29 +311,23 @@ export const bleManager = {
 
         this.updateButtonUI('connecting');
 
-        // ▼ 修改：若無藍牙功能，直接進入模擬模式 ▼
+        // 若無藍牙功能，直接進入模擬模式
         if (!navigator.bluetooth) {
-            if (typeof showToast === 'function') showToast('無藍牙環境，啟動模擬測試模式', 'info');
             this.startMockMode();
             return;
         }
 
         try {
-            const devices = await navigator.bluetooth.getDevices();
-
-            if (devices && devices.length > 0) {
-                const targetDevice = devices[0];
-                this.attemptAutoConnect(targetDevice);
-            } else {
-                await this.requestNewDevice();
-            }
+            // 💡 核心修正：刪除 getDevices() 自動連線邏輯
+            // 強制每次都像心率帶一樣，呼叫原生的選擇視窗
+            await this.requestNewDevice();
+            
         } catch (error) {
-            console.error('藍牙初始化錯誤:', error);
-            // ▼ 修改：即使是取消配對或報錯，也切換至模擬模式方便測試 ▼
-            if (typeof showToast === 'function') showToast('藍牙連線異常，啟動模擬測試模式', 'info');
+            console.error('藍牙配對錯誤:', error);
+            // 配對取消或失敗時，退回模擬模式
             this.startMockMode();
         }
-    },
+    }
 
     // 模擬數據生成邏輯
     startMockMode() {
