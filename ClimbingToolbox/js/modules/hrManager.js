@@ -8,6 +8,7 @@ export const hrManager = {
     connectedDevice: null,
     heartRateCharacteristic: null,
     currentHR: 0,
+
     isMockMode: false,
     mockInterval: null,
     boundHandleMeasurement: null,
@@ -29,7 +30,7 @@ export const hrManager = {
         this.updateButtonUI('connecting');
 
         if (!navigator.bluetooth) {
-            if (typeof showToast === 'function') showToast('無藍牙環境，啟動心率模擬模式', 'info');
+            if (typeof showToast === 'function') showToast('無藍牙環境', 'info');
             this.startMockMode();
             return;
         }
@@ -37,16 +38,17 @@ export const hrManager = {
         try {
             await this.requestAndConnectDevice();
         } catch (error) {
-            console.error('心率裝置連線錯誤:', error);
-            if (typeof showToast === 'function') showToast('心率連線取消或失敗，啟動模擬模式', 'warning');
+            console.error('心率連線失敗:', error);
             this.startMockMode();
         }
     },
 
     async requestAndConnectDevice() {
+        this.isMockMode = false;
+
+        // 最純粹的連線請求，移除不必要的 optionalServices 避免 Garmin 拒絕
         const device = await navigator.bluetooth.requestDevice({
-            filters: [{ services: [this.HR_SERVICE] }],
-            optionalServices: ['generic_access']
+            filters: [{ services: [this.HR_SERVICE] }]
         });
 
         device.addEventListener('gattserverdisconnected', this.boundHandleDisconnect);
@@ -55,27 +57,45 @@ export const hrManager = {
         const service = await server.getPrimaryService(this.HR_SERVICE);
         const characteristic = await service.getCharacteristic(this.HR_MEASUREMENT_CHAR);
 
-        await characteristic.startNotifications();
+        // 💡 關鍵修正：必須先綁定事件，再開啟通知 (Garmin 的相容性要求)
         characteristic.addEventListener('characteristicvaluechanged', this.boundHandleMeasurement);
+        await characteristic.startNotifications();
 
         this.connectedDevice = device;
         this.heartRateCharacteristic = characteristic;
 
+        this.currentHR = 0;
         this.onConnected();
     },
 
     handleHeartRateMeasurement(event) {
-        const value = event.target.value;
-        const flags = value.getUint8(0);
-        const rate16Bits = flags & 0x1;
+        try {
+            const value = event.target.value;
+            const flags = value.getUint8(0);
+            const rate16Bits = flags & 0x1;
 
-        if (rate16Bits) {
-            this.currentHR = value.getUint16(1, true);
-        } else {
-            this.currentHR = value.getUint8(1);
+            let newHR = 0;
+            if (rate16Bits) {
+                newHR = value.getUint16(1, true);
+            } else {
+                newHR = value.getUint8(1);
+            }
+
+            this.currentHR = newHR;
+
+            // 💡 關鍵防禦：直接先強行寫入數字，避免被後續 UI 邏輯報錯卡住
+            const hrValueEl = document.getElementById('hr-live-value');
+            if (hrValueEl) {
+                hrValueEl.innerText = this.currentHR;
+                hrValueEl.classList.remove('text-yellow-400');
+                hrValueEl.classList.add('text-white');
+            }
+
+            this.updateDisplay();
+
+        } catch (error) {
+            console.error('資料解析失敗:', error);
         }
-
-        this.updateDisplay();
     },
 
     startMockMode() {
@@ -92,14 +112,6 @@ export const hrManager = {
 
     onConnected() {
         this.updateButtonUI(this.isMockMode ? 'mock' : 'connected');
-
-        if (typeof showToast === 'function') {
-            if (this.isMockMode) {
-                showToast('已啟動心率模擬模式', 'warning');
-            } else {
-                showToast('已連接心率裝置', 'info');
-            }
-        }
 
         const container = document.getElementById('hr-live-container');
         if (container) {
@@ -120,7 +132,10 @@ export const hrManager = {
 
         if (this.heartRateCharacteristic) {
             this.heartRateCharacteristic.removeEventListener('characteristicvaluechanged', this.boundHandleMeasurement);
-            this.heartRateCharacteristic.stopNotifications().catch(err => console.error("停止通知失敗", err));
+            // 加上 catch 避免裝置已經實體斷線，強制 stopNotifications 會拋錯
+            try {
+                this.heartRateCharacteristic.stopNotifications();
+            } catch (e) { }
         }
 
         if (this.connectedDevice && this.connectedDevice.gatt.connected) {
@@ -141,12 +156,18 @@ export const hrManager = {
     },
 
     onDisconnected() {
-        if (typeof showToast === 'function') showToast('心率裝置已斷線', 'error');
         this.disconnect();
     },
 
     getZoneInfo(hr) {
-        const maxHR = settingsManager.data.maxHR || 190;
+        // 💡 關鍵防禦：確保 settingsManager 沒準備好時也不會報錯
+        let maxHR = 190;
+        try {
+            if (settingsManager && settingsManager.data && settingsManager.data.maxHR) {
+                maxHR = settingsManager.data.maxHR;
+            }
+        } catch (e) { }
+
         const percentage = hr / maxHR;
 
         if (percentage >= 0.9) return { name: 'Zone 5 極限', color: 'red' };
@@ -162,34 +183,30 @@ export const hrManager = {
         const hrBoxEl = document.getElementById('hr-live-box');
         const hrZoneEl = document.getElementById('hr-live-zone');
 
-        const isWaiting = (this.currentHR === 0 && !this.isMockMode);
-
         if (hrValueEl) {
-            if (isWaiting) {
-                hrValueEl.innerText = '--';
-                hrValueEl.classList.remove('text-yellow-400', 'text-white');
-                hrValueEl.classList.add('text-gray-400', 'animate-pulse');
+            let displayValue = this.currentHR > 0 ? this.currentHR : '--';
+            hrValueEl.innerText = this.isMockMode ? `${displayValue} (模擬)` : displayValue;
+
+            if (this.isMockMode) {
+                hrValueEl.classList.add('text-yellow-400');
+                hrValueEl.classList.remove('text-white');
             } else {
-                hrValueEl.innerText = this.isMockMode ? `${this.currentHR} (模擬)` : this.currentHR;
-                hrValueEl.classList.remove('animate-pulse', 'text-gray-400');
-                if (this.isMockMode) {
-                    hrValueEl.classList.add('text-yellow-400');
-                    hrValueEl.classList.remove('text-white');
-                } else {
-                    hrValueEl.classList.add('text-white');
-                    hrValueEl.classList.remove('text-yellow-400');
-                }
+                hrValueEl.classList.add('text-white');
+                hrValueEl.classList.remove('text-yellow-400');
             }
         }
 
         if (hrBoxEl && hrIconEl && hrZoneEl) {
             let c = 'gray';
-            let zoneName = '等待數據...';
+            let zoneName = '偵測中...';
 
-            if (!isWaiting && this.currentHR > 0) {
+            if (this.isMockMode) {
+                c = 'yellow';
+                zoneName = '模擬數據';
+            } else if (this.currentHR > 0) {
                 const zone = this.getZoneInfo(this.currentHR);
-                c = this.isMockMode ? 'yellow' : zone.color;
-                zoneName = this.isMockMode ? '模擬數據' : zone.name;
+                c = zone.color;
+                zoneName = zone.name;
             }
 
             hrZoneEl.innerText = zoneName;
@@ -202,10 +219,12 @@ export const hrManager = {
             hrZoneEl.className = `text-[10px] font-bold uppercase tracking-wider text-center transition-colors duration-300 text-${c}-400`;
         }
 
-        if (hrIconEl && !isWaiting) {
+        if (hrIconEl && this.currentHR > 0) {
             hrIconEl.classList.remove('pulse-animation');
             void hrIconEl.offsetWidth;
             hrIconEl.classList.add('pulse-animation');
+        } else if (hrIconEl && this.currentHR === 0) {
+            hrIconEl.classList.remove('pulse-animation');
         }
     },
 
