@@ -526,3 +526,20 @@ input[type=range]::-webkit-slider-runnable-track {
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
 }
+
+/* 針對所有可拖曳的積木 (包含新增區與編輯畫布區) */
+.palette-item,
+#editor-canvas>div {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+    /* 避免內部文字或圖示成為拖曳的干擾點 */
+    touch-action: none;
+}
+
+.select-none {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+    /* 徹底禁用 iOS 長按選單 */
+}

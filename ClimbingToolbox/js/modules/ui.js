@@ -541,7 +541,8 @@ export const editor = {
         const el = document.createElement('div');
         const props = data.props || this.getDefaultProps(data.type);
 
-        el.className = `block-item touch-pan-y p-3 mb-2 rounded border bg-white ${this.getBlockClass(data.type, props)}`;
+        // 加入 select-none 阻擋文字選取
+        el.className = `block-item select-none touch-pan-y p-3 mb-2 rounded border bg-white ${this.getBlockClass(data.type, props)}`;
 
         el.dataset.type = data.type;
         el.dataset.id = data.id || uuid();
@@ -790,7 +791,8 @@ export const editor = {
         props.color = this.selectedColor;
 
         this.activeBlock.dataset.props = JSON.stringify(props);
-        this.activeBlock.className = `block-item p-3 mb-2 rounded border bg-white ${this.getBlockClass(type, props)}`;
+        // 補上 select-none，並將原本遺失的 touch-pan-y 加回來
+        this.activeBlock.className = `block-item select-none touch-pan-y p-3 mb-2 rounded border bg-white ${this.getBlockClass(type, props)}`;
         this.activeBlock.querySelector('.block-label').textContent = this.getLabel(type, props);
 
         this.closeProps();
