@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
     <title>Climbing Toolbox - 指力訓練</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -100,6 +101,870 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
             </svg>
         </button>
+    </div>
+</div>
+
+<!-- 模態視窗: 編輯器 (Editor Modal) -->
+<div id="modal-editor" class="modal fixed inset-0 z-50 bg-gray-100 flex flex-col dark:bg-gray-900">
+    <div
+        class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0 dark:bg-gray-800 dark:border-gray-700">
+        <button data-action="editor-close" class="text-gray-500 font-bold px-2">取消</button>
+        <input type="text" id="editor-title"
+            class="text-center font-bold text-lg bg-transparent border-none focus:ring-0 w-48 dark:text-white"
+            placeholder="輸入課表名稱">
+        <button data-action="editor-save" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
+    </div>
+
+    <div class="bg-white px-4 py-3 shrink-0 border-b border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+        <div id="editor-routine-tags" class="flex flex-wrap gap-1.5 mb-2 min-h-[24px] items-center">
+        </div>
+        <div class="flex gap-2 mb-2">
+            <input type="text" id="inp-routine-tag"
+                class="flex-1 border border-gray-200 rounded-lg p-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                placeholder="輸入標籤 (例如：耐力)">
+            <button data-action="editor-add-tag"
+                class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 hover:bg-blue-100 transition-colors">新增</button>
+        </div>
+        <div class="flex justify-between items-center mb-1">
+            <div class="text-[10px] font-bold text-gray-400">歷史標籤：</div>
+            <button type="button" data-action="editor-toggle-tag-lib"
+                class="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 transition-colors flex items-center gap-1 active:scale-95 border border-blue-100 dark:border-blue-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                    </path>
+                </svg>
+                展開標籤庫
+            </button>
+        </div>
+        <div id="editor-tag-suggestions" class="flex flex-wrap gap-1.5">
+        </div>
+
+        <!-- 標籤庫面板 (展開/收合) -->
+        <div id="tag-library-panel"
+            class="hidden mt-3 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50 shadow-inner">
+
+            <!-- 分頁按鈕區 (可橫向滑動) -->
+            <div
+                class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 no-scrollbar text-[11px] font-bold">
+                <button type="button" data-action="editor-switch-tab" data-value="tab-muscle-group"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 shrink-0 transition-colors">1.
+                    區段肌群</button>
+                <button type="button" data-action="editor-switch-tab" data-value="tab-muscle"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">2.
+                    主要肌肉</button>
+                <button type="button" data-action="editor-switch-tab" data-value="tab-fitness"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">3.
+                    體能要素</button>
+                <button type="button" data-action="editor-switch-tab" data-value="tab-zones"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">4.
+                    能量區間</button>
+                <button type="button" data-action="editor-switch-tab" data-value="tab-climbing"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">⚡
+                    攀岩專項</button>
+                <button type="button" data-action="editor-switch-tab" data-value="tab-equipment"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">🛠️
+                    裝備器材</button>
+            </div>
+
+            <!-- 標籤內容區 -->
+            <div class="p-3 max-h-[140px] overflow-y-auto no-scrollbar relative">
+                <style>
+                    .lib-tag-btn {
+                        @apply text-[10px] px-2.5 py-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 text-gray-700 dark:text-gray-200 transition-colors active:scale-95;
+                    }
+                </style>
+
+                <!-- 1. 按主要肌群區分 -->
+                <div id="tab-muscle-group" class="tag-tab-content flex flex-wrap gap-1.5">
+                    <button type="button" data-action="editor-add-tag" data-value="全身" class="lib-tag-btn">全身</button>
+                    <button type="button" data-action="editor-add-tag" data-value="核心" class="lib-tag-btn">核心</button>
+                    <button type="button" data-action="editor-add-tag" data-value="上肢" class="lib-tag-btn">上肢</button>
+                    <button type="button" data-action="editor-add-tag" data-value="下肢" class="lib-tag-btn">下肢</button>
+                    <button type="button" data-action="editor-add-tag" data-value="背部肌群"
+                        class="lib-tag-btn">背部肌群</button>
+                    <button type="button" data-action="editor-add-tag" data-value="胸部肌群"
+                        class="lib-tag-btn">胸部肌群</button>
+                    <button type="button" data-action="editor-add-tag" data-value="腹部肌群"
+                        class="lib-tag-btn">腹部肌群</button>
+                    <button type="button" data-action="editor-add-tag" data-value="肩部肌群"
+                        class="lib-tag-btn">肩部肌群</button>
+                    <button type="button" data-action="editor-add-tag" data-value="二頭肌" class="lib-tag-btn">二頭肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="三頭肌" class="lib-tag-btn">三頭肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="小臂肌群"
+                        class="lib-tag-btn">小臂肌群</button>
+                    <button type="button" data-action="editor-add-tag" data-value="臀肌" class="lib-tag-btn">臀肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="股四頭肌"
+                        class="lib-tag-btn">股四頭肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="膕繩肌" class="lib-tag-btn">膕繩肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="小腿肌群"
+                        class="lib-tag-btn">小腿肌群</button>
+
+                </div>
+                <!-- 2. 按主要肌肉區分 -->
+                <div id="tab-muscle" class="tag-tab-content hidden flex flex-wrap gap-1.5">
+                    <!-- 背部 -->
+                    <button type="button" data-action="editor-add-tag" data-value="斜方肌" class="lib-tag-btn">斜方肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="菱形肌" class="lib-tag-btn">菱形肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="背闊肌" class="lib-tag-btn">背闊肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="豎脊肌" class="lib-tag-btn">豎脊肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="大圓肌" class="lib-tag-btn">大圓肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="小圓肌" class="lib-tag-btn">小圓肌</button>
+
+                    <!-- 胸部 -->
+                    <button type="button" data-action="editor-add-tag" data-value="胸大肌上束"
+                        class="lib-tag-btn">胸大肌上束</button>
+                    <button type="button" data-action="editor-add-tag" data-value="胸大肌中束"
+                        class="lib-tag-btn">胸大肌中束</button>
+                    <button type="button" data-action="editor-add-tag" data-value="胸大肌下束"
+                        class="lib-tag-btn">胸大肌下束</button>
+                    <button type="button" data-action="editor-add-tag" data-value="胸小肌" class="lib-tag-btn">胸小肌</button>
+
+                    <!-- 腹部 -->
+                    <button type="button" data-action="editor-add-tag" data-value="上腹直肌"
+                        class="lib-tag-btn">上腹直肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="下腹直肌"
+                        class="lib-tag-btn">下腹直肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="腹外斜肌"
+                        class="lib-tag-btn">腹外斜肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="腹內斜肌"
+                        class="lib-tag-btn">腹內斜肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="腹橫肌" class="lib-tag-btn">腹橫肌</button>
+
+                    <!-- 肩部 -->
+                    <button type="button" data-action="editor-add-tag" data-value="三角肌前束"
+                        class="lib-tag-btn">三角肌前束</button>
+                    <button type="button" data-action="editor-add-tag" data-value="三角肌中束"
+                        class="lib-tag-btn">三角肌中束</button>
+                    <button type="button" data-action="editor-add-tag" data-value="三角肌後束"
+                        class="lib-tag-btn">三角肌後束</button>
+
+                    <!-- 手臂 -->
+                    <button type="button" data-action="editor-add-tag" data-value="肱二頭肌"
+                        class="lib-tag-btn">肱二頭肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="肱肌" class="lib-tag-btn">肱肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="肱三頭肌"
+                        class="lib-tag-btn">肱三頭肌</button>
+
+                    <!-- 前臂 -->
+                    <button type="button" data-action="editor-add-tag" data-value="肱橈肌" class="lib-tag-btn">肱橈肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="前臂屈肌群"
+                        class="lib-tag-btn">前臂屈肌群</button>
+                    <button type="button" data-action="editor-add-tag" data-value="前臂伸肌群"
+                        class="lib-tag-btn">前臂伸肌群</button>
+
+                    <!-- 臀部 -->
+                    <button type="button" data-action="editor-add-tag" data-value="臀大肌" class="lib-tag-btn">臀大肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="臀中肌" class="lib-tag-btn">臀中肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="臀小肌" class="lib-tag-btn">臀小肌</button>
+
+                    <!-- 大腿前側 -->
+                    <button type="button" data-action="editor-add-tag" data-value="股直肌" class="lib-tag-btn">股直肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="股外側肌"
+                        class="lib-tag-btn">股外側肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="股內側肌"
+                        class="lib-tag-btn">股內側肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="股中間肌"
+                        class="lib-tag-btn">股中間肌</button>
+
+                    <!-- 大腿後側 -->
+                    <button type="button" data-action="editor-add-tag" data-value="股二頭肌"
+                        class="lib-tag-btn">股二頭肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="半腱肌" class="lib-tag-btn">半腱肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="半膜肌" class="lib-tag-btn">半膜肌</button>
+
+                    <!-- 小腿 -->
+                    <button type="button" data-action="editor-add-tag" data-value="腓腸肌" class="lib-tag-btn">腓腸肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="比目魚肌"
+                        class="lib-tag-btn">比目魚肌</button>
+                    <button type="button" data-action="editor-add-tag" data-value="脛前肌" class="lib-tag-btn">脛前肌</button>
+                </div>
+                <!-- 3. 按體能要素區分 -->
+                <div id="tab-fitness" class="tag-tab-content hidden flex flex-wrap gap-1.5">
+                    <button type="button" data-action="editor-add-tag" data-value="肌力" class="lib-tag-btn">肌力</button>
+                    <button type="button" data-action="editor-add-tag" data-value="耐力" class="lib-tag-btn">耐力</button>
+                    <button type="button" data-action="editor-add-tag" data-value="速度" class="lib-tag-btn">速度</button>
+                    <button type="button" data-action="editor-add-tag" data-value="柔軟度" class="lib-tag-btn">柔軟</button>
+                    <button type="button" data-action="editor-add-tag" data-value="協調" class="lib-tag-btn">協調</button>
+
+                    <button type="button" data-action="editor-add-tag" data-value="最大肌力"
+                        class="lib-tag-btn">最大肌力</button>
+                    <button type="button" data-action="editor-add-tag" data-value="最大速度"
+                        class="lib-tag-btn">最大速度</button>
+                    <button type="button" data-action="editor-add-tag" data-value="爆發力" class="lib-tag-btn">爆發力</button>
+                    <button type="button" data-action="editor-add-tag" data-value="敏捷" class="lib-tag-btn">敏捷</button>
+
+                    <button type="button" data-action="editor-add-tag" data-value="肌耐力" class="lib-tag-btn">肌耐力</button>
+                    <button type="button" data-action="editor-add-tag" data-value="有氧耐力"
+                        class="lib-tag-btn">有氧耐力</button>
+                    <button type="button" data-action="editor-add-tag" data-value="無氧耐力"
+                        class="lib-tag-btn">無氧耐力</button>
+                    <button type="button" data-action="editor-add-tag" data-value="速耐力" class="lib-tag-btn">速耐力</button>
+
+                    <button type="button" data-action="editor-add-tag" data-value="活動度" class="lib-tag-btn">活動度</button>
+                    <button type="button" data-action="editor-add-tag" data-value="平衡穩定"
+                        class="lib-tag-btn">平衡穩定</button>
+                    <button type="button" data-action="editor-add-tag" data-value="反應速度"
+                        class="lib-tag-btn">反應速度</button>
+                </div>
+                <!-- 4. 按能量區間區分 -->
+                <div id="tab-zones" class="tag-tab-content hidden flex flex-wrap gap-1.5">
+                    <button type="button" data-action="editor-add-tag" data-value="Zone 1" class="lib-tag-btn">Zone
+                        1</button>
+                    <button type="button" data-action="editor-add-tag" data-value="Zone 2" class="lib-tag-btn">Zone
+                        2</button>
+                    <button type="button" data-action="editor-add-tag" data-value="Zone 3" class="lib-tag-btn">Zone
+                        3</button>
+                    <button type="button" data-action="editor-add-tag" data-value="Zone 4" class="lib-tag-btn">Zone
+                        4</button>
+                    <button type="button" data-action="editor-add-tag" data-value="Zone 5" class="lib-tag-btn">Zone
+                        5</button>
+                    <button type="button" data-action="editor-add-tag" data-value="ATP-PC" class="lib-tag-btn">磷酸原
+                        (ATP-PC)</button>
+                    <button type="button" data-action="editor-add-tag" data-value="糖解系統"
+                        class="lib-tag-btn">糖解系統</button>
+                </div>
+                <!-- 5. 攀岩專項 -->
+                <div id="tab-climbing" class="tag-tab-content hidden flex flex-wrap gap-1.5">
+                    <button type="button" data-action="editor-add-tag" data-value="抱石" class="lib-tag-btn">抱石</button>
+                    <button type="button" data-action="editor-add-tag" data-value="上攀" class="lib-tag-btn">上攀</button>
+                    <button type="button" data-action="editor-add-tag" data-value="系統牆" class="lib-tag-btn">系統牆</button>
+                    <button type="button" data-action="editor-add-tag" data-value="指力板" class="lib-tag-btn">指力板</button>
+                    <button type="button" data-action="editor-add-tag" data-value="弱點訓練"
+                        class="lib-tag-btn">弱點訓練</button>
+                    <button type="button" data-action="editor-add-tag" data-value="動態發力"
+                        class="lib-tag-btn">動態發力</button>
+                    <button type="button" data-action="editor-add-tag" data-value="靜態控制"
+                        class="lib-tag-btn">靜態控制</button>
+                    <button type="button" data-action="editor-add-tag" data-value="鎖力" class="lib-tag-btn">鎖力</button>
+                    <button type="button" data-action="editor-add-tag" data-value="捏力" class="lib-tag-btn">捏力</button>
+                </div>
+                <!-- 6. 裝備器材  -->
+                <div id="tab-equipment" class="tag-tab-content hidden flex flex-wrap gap-1.5">
+                    <button type="button" data-action="editor-add-tag" data-value="自體重" class="lib-tag-btn">自體重</button>
+                    <button type="button" data-action="editor-add-tag" data-value="啞鈴" class="lib-tag-btn">啞鈴</button>
+                    <button type="button" data-action="editor-add-tag" data-value="壺鈴" class="lib-tag-btn">壺鈴</button>
+                    <button type="button" data-action="editor-add-tag" data-value="槓鈴" class="lib-tag-btn">槓鈴</button>
+                    <button type="button" data-action="editor-add-tag" data-value="彈力帶" class="lib-tag-btn">彈力帶</button>
+                    <button type="button" data-action="editor-add-tag" data-value="TRX" class="lib-tag-btn">TRX</button>
+                    <button type="button" data-action="editor-add-tag" data-value="滾筒" class="lib-tag-btn">滾筒放鬆</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 視覺化時間軸 (Visual Timeline) -->
+    <div class="bg-white pt-2 px-4 pb-0 shrink-0 dark:bg-gray-800">
+        <div class="flex justify-between items-end mb-1">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">預估結構</span>
+            <span id="editor-total-time"
+                class="text-xs font-mono font-bold text-gray-600 dark:text-gray-300">00:00</span>
+        </div>
+        <div id="editor-timeline" class="h-4 w-full bg-gray-100 rounded-full flex overflow-hidden dark:bg-gray-700">
+            <!-- JS 動態生成 -->
+        </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 pb-32" id="editor-canvas">
+        <!-- 積木將在此生成 -->
+        <div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>
+    </div>
+
+    <!-- 底部工具箱 -->
+    <div class="bg-white border-t py-4 shrink-0 shadow-xl z-10 pb-8 dark:bg-gray-800 dark:border-gray-700">
+
+        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-4">拖曳新增</div>
+
+        <div id="editor-palette"
+            class="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-2 after:content-[''] after:w-1 after:shrink-0">
+
+            <div class="palette-item shrink-0 w-20 h-16 bg-gray-50 border-2 border-gray-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-gray-700/50 dark:border-gray-600"
+                data-type="loop">
+                <span class="text-sm font-bold text-gray-700 dark:text-gray-300 text-center w-full">循環</span>
+            </div>
+
+            <div class="palette-item shrink-0 w-20 h-16 bg-amber-50 border-2 border-amber-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-amber-900/40 dark:border-amber-700"
+                data-type="timer"
+                data-default-props='{"duration":10,"label":"Prepare","color":"amber","customMetrics":[]}'>
+                <span class="text-sm font-bold text-amber-700 dark:text-amber-300 text-center w-full">準備</span>
+            </div>
+
+            <div class="palette-item shrink-0 w-20 h-16 bg-red-50 border-2 border-red-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-red-900/40 dark:border-red-700"
+                data-type="timer"
+                data-default-props='{"duration":10,"label":"Workout","color":"red","customMetrics":[{"name":"附加重量","type":"number"}]}'>
+                <span class="text-sm font-bold text-red-700 dark:text-red-300 text-center w-full">訓練</span>
+            </div>
+
+            <div class="palette-item shrink-0 w-20 h-16 bg-green-50 border-2 border-green-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-green-900/40 dark:border-green-700"
+                data-type="timer"
+                data-default-props='{"duration":180,"label":"Rest","color":"green","customMetrics":[]}'>
+                <span class="text-sm font-bold text-green-700 dark:text-green-300 text-center w-full">休息</span>
+            </div>
+
+            <div class="palette-item shrink-0 w-20 h-16 bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-blue-900/40 dark:border-blue-700"
+                data-type="reps"
+                data-default-props='{"count":5,"duration":30,"label":"Pull Ups","color":"blue","customMetrics":[{"name":"次數","type":"number"}]}'>
+                <span class="text-sm font-bold text-blue-700 dark:text-blue-300 text-center w-full">計數</span>
+            </div>
+
+        </div>
+    </div>
+    <!-- 屬性編輯面板 (Property Sheet) -->
+    <div id="prop-sheet"
+        class="fixed bottom-0 inset-x-0 bg-white rounded-t-2xl transform translate-y-full transition-transform duration-300 z-[100] flex flex-col max-h-[90dvh] dark:bg-gray-800 dark:text-white">
+
+        <div class="flex justify-between items-center p-6 pb-2 shrink-0">
+            <h3 class="font-bold text-lg">編輯積木</h3>
+            <button data-action="editor-close-props" class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-6 pb-4 no-scrollbar">
+            <div id="prop-form" class="space-y-4"></div>
+            <div class="mt-4">
+                <label class="block text-sm font-bold text-gray-500 mb-2">顏色標記</label>
+                <div id="color-palette" class="flex gap-3 overflow-x-auto pb-2 no-scrollbar"></div>
+            </div>
+        </div>
+
+        <div
+            class="p-6 pt-3 shrink-0 flex gap-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+            <button data-action="editor-delete-block"
+                class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold ...">刪除</button>
+            <button data-action="editor-save-props"
+                class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold ...">確認</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-record-editor"
+    class="modal fixed inset-0 z-[80] bg-gray-100 flex-col hidden dark:bg-gray-900 transition-opacity">
+    <div
+        class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0 dark:bg-gray-800 dark:border-gray-700 shadow-sm">
+        <button data-action="record-editor-close" class="text-gray-500 font-bold px-2">取消</button>
+        <div class="text-center">
+            <div id="record-editor-title" class="font-bold text-lg dark:text-white">課表名稱</div>
+            <div id="record-editor-date" class="text-xs text-gray-400">2026-03-09</div>
+        </div>
+        <button data-action="record-editor-save" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 pb-32 space-y-3" id="record-editor-form">
+    </div>
+</div>
+
+<div id="modal-goal-editor" class="modal fixed inset-0 z-[70] bg-black/50 flex items-end justify-center hidden">
+    <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
+        id="goal-sheet">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-extrabold dark:text-white">設定目標</h3>
+            <button data-action="goal-close"
+                class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500">✕</button>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-bold text-gray-500 mb-2">目標名稱</label>
+                <input type="text" id="goal-title"
+                    class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="例如：每週規律訓練">
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-500 mb-2">追蹤範圍</label>
+                <select id="goal-scope-type" onchange="goalManager.toggleScopeUI()"
+                    class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <option value="all">全域 (不限課表)</option>
+                    <option value="routine">指定特定課表 (多選)</option>
+                    <option value="tag">包含特定標籤</option>
+                </select>
+            </div>
+
+            <div id="goal-tag-operator-container" class="hidden mt-2 p-3 bg-blue-50 rounded-xl dark:bg-blue-900/20">
+                <label
+                    class="block text-[10px] font-bold text-blue-600 uppercase mb-2 dark:text-blue-400">標籤匹配邏輯</label>
+                <div class="flex gap-2">
+                    <button type="button" data-action="goal-set-op" data-value="OR" id="op-or"
+                        class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-white shadow-sm border border-blue-200 text-blue-600 transition-all">滿足任一
+                        (聯集)</button>
+                    <button type="button" data-action="goal-set-op" data-value="AND" id="op-and"
+                        class="flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400 border border-transparent transition-all">必須全部符合
+                        (交集)</button>
+                </div>
+                <p id="op-desc" class="text-[9px] text-blue-400 mt-2 italic font-medium">只要符合勾選的其中一個標籤即計算進度。</p>
+            </div>
+
+            <div id="goal-scope-targets"
+                class="hidden bg-gray-50 p-3 rounded-xl border border-gray-200 dark:bg-gray-750 dark:border-gray-600 max-h-40 overflow-y-auto">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 mb-2">週期</label>
+                    <select id="goal-period"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="daily">每天</option>
+                        <option value="weekly">每週</option>
+                        <option value="monthly">每月</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 mb-2">完成次數</label>
+                    <input type="number" id="goal-value" min="1" value="3"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                </div>
+            </div>
+
+            <button data-action="goal-save"
+                class="w-full bg-gray-900 text-white py-4 rounded-xl font-bold mt-4 dark:bg-blue-600">儲存目標</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-pr-editor" class="modal fixed inset-0 z-[70] bg-black/50 flex items-end justify-center hidden">
+    <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
+        id="pr-sheet">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-extrabold dark:text-white">自訂數據卡片</h3>
+            <button data-action="pr-close"
+                class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500">✕</button>
+        </div>
+
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 mb-2">資料來源</label>
+                    <select id="pr-source-type"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="routine">依特定課表</option>
+                        <option value="tag">依特定標籤</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 mb-2">目標項目</label>
+                    <select id="pr-target-item"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    </select>
+
+                    <div id="pr-tag-config-area" class="hidden space-y-3">
+                        <div id="pr-tag-list"
+                            class="bg-gray-50 p-3 rounded-xl border border-gray-200 dark:bg-gray-750 dark:border-gray-600 max-h-40 overflow-y-auto">
+                        </div>
+                        <div class="flex gap-2 p-2 bg-blue-50 rounded-lg dark:bg-blue-900/20">
+                            <button type="button" data-action="pr-set-op" data-value="OR" id="pr-op-or"
+                                class="flex-1 py-1.5 text-[10px] font-bold rounded-md bg-white shadow-sm text-blue-600">滿足任一</button>
+                            <button type="button" data-action="pr-set-op" data-value="AND" id="pr-op-and"
+                                class="flex-1 py-1.5 text-[10px] font-bold rounded-md text-gray-400">全部符合</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-500 mb-2">追蹤指標</label>
+                <select id="pr-metric"
+                    class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <option value="volume_time">總時數 (Time)</option>
+                    <option value="volume_reps">總次數 (Count)</option>
+                    <option disabled>──────────</option>
+                    <option value="custom_weight">附加重量 (自訂)</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 border-t border-gray-100 pt-4 dark:border-gray-700">
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 mb-2">時間範圍</label>
+                    <select id="pr-time-range"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="all">全部歷史</option>
+                        <option value="10t">最近 10 次</option>
+                        <option value="7d">最近 7 天</option>
+                        <option value="28d">最近 4 週</option>
+                        <option value="84d">最近 12 週</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 mb-2">數值計算</label>
+                    <select id="pr-aggregation"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="max">單次最高 (Max)</option>
+                        <option value="min">單次最低 (Min)</option>
+                        <option value="max_daily_sum">單日最高總和</option>
+                        <option value="sum">區間總計 (Sum)</option>
+                        <option value="active_days">訓練天數</option>
+                        <option value="avg">區間平均 (Avg)</option>
+                        <option value="latest">最新一次 (Latest)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button id="btn-delete-pr"
+                    class="w-1/3 py-4 bg-red-50 text-red-600 rounded-xl font-bold dark:bg-red-900/30 dark:text-red-400">清空</button>
+                <button data-action="pr-save"
+                    class="w-2/3 bg-gray-900 text-white py-4 rounded-xl font-bold dark:bg-blue-600">套用設定</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-body-editor"
+    class="modal fixed inset-0 z-[75] bg-black/50 flex items-end justify-center hidden transition-opacity">
+    <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
+        id="body-sheet">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h3 class="text-xl font-extrabold dark:text-white">紀錄身體組成</h3>
+                <input type="date" id="body-editor-date"
+                    class="mt-1 bg-transparent text-sm font-mono text-blue-600 font-bold outline-none cursor-pointer dark:text-blue-400 border-none p-0 focus:ring-0">
+            </div>
+            <button data-action="body-close"
+                class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500 hover:bg-gray-200 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">身高
+                        (cm)</label>
+                    <input type="number" id="inp-body-height" step="0.1"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
+                        placeholder="175">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">體重
+                        (kg)</label>
+                    <input type="number" id="inp-body-weight" step="0.1"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
+                        placeholder="70.5">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">體脂率
+                        (%)</label>
+                    <input type="number" id="inp-body-fat" step="0.1"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
+                        placeholder="15.0">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">骨骼肌重
+                        (kg)<span class="text-[9px] font-normal ml-1 lowercase">(選填)</span></label>
+                    <input type="number" id="inp-body-muscle" step="0.1"
+                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
+                        placeholder="33.5">
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-8">
+                <button id="btn-body-delete" data-action="body-delete"
+                    class="w-1/3 py-4 bg-red-50 text-red-600 rounded-xl font-bold dark:bg-red-900/30 dark:text-red-400 hidden">刪除</button>
+                <button id="btn-body-save" data-action="body-save"
+                    class="flex-1 bg-gray-900 text-white py-4 rounded-xl font-bold dark:bg-blue-600 shadow-lg shadow-gray-900/20 dark:shadow-blue-900/30">儲存紀錄</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模態視窗: 全螢幕計時器 (Active Timer Modal) -->
+<div id="modal-active-timer"
+    class="modal fixed inset-0 z-[60] bg-gray-600 text-white flex flex-col transition-colors duration-500">
+
+    <div class="px-6 py-3 flex justify-between items-start shrink-0 relative z-[80]">
+        <div class="flex items-start gap-3">
+            <div>
+                <h3 id="active-title" class="font-bold text-lg opacity-90 leading-tight">課表名稱</h3>
+            </div>
+        </div>
+
+        <div class="flex gap-2">
+            <button id="btn-autolog-toggle" data-action="timer-autolog"
+                class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white" title="自動彈出紀錄面板">
+                <svg id="icon-autolog" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                    </path>
+                </svg>
+            </button>
+
+            <button data-action="timer-manual-log"
+                class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50 hover:text-white"
+                title="手動填寫紀錄">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                    </path>
+                </svg>
+            </button>
+            <button id="btn-ble-toggle" data-action="ble-toggle"
+                class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50" title="連接測力計">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <polyline points="6.5 17.5 17.5 6.5 12 1 12 23 17.5 17.5 6.5 6.5" stroke-linecap="round"
+                        stroke-linejoin="round"></polyline>
+                </svg>
+            </button>
+            <button id="btn-hr-toggle" data-action="hr-toggle"
+                class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50" title="連接心率裝置">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z">
+                    </path>
+                </svg>
+            </button>
+            <button id="btn-mic-toggle" data-action="voice-toggle"
+                class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
+                    </path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="px-6 pb-2 w-full max-w-md mx-auto shrink-0 relative z-[80]">
+        <div id="active-timeline" class="h-2 w-full bg-white/20 rounded-full flex overflow-hidden">
+        </div>
+        <div class="w-full h-3 bg-white/20 rounded-full overflow-hidden shrink-0 mt-3 mb-4">
+            <div id="active-progress-bar" class="h-full bg-white transition-all duration-1000 ease-linear w-full">
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-4 py-2 relative min-h-0">
+        <div id="active-status"
+            class="text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white uppercase drop-shadow-md text-center shrink-0">
+            準備開始
+        </div>
+
+        <div id="active-loops"
+            class="text-3xl md:text-4xl font-black text-yellow-400 mb-2 hidden text-center w-full drop-shadow-md tracking-wider shrink-0">
+        </div>
+
+        <div class="relative flex-1 w-full overflow-hidden">
+            <div id="active-countdown"
+                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-mono font-black tracking-tighter tabular-nums drop-shadow-xl text-center whitespace-nowrap"
+                style="font-size: min(80vw, 30vh); line-height: 0.8;">
+                02
+            </div>
+        </div>
+
+        <div id="hr-live-container"
+            class="w-full flex justify-center mb-3 hidden transition-opacity duration-300 shrink-0">
+            <div id="hr-live-box"
+                class="flex flex-row items-center gap-3 px-4 py-1 rounded-full backdrop-blur-sm shadow-lg border transition-colors duration-300">
+                <svg id="hr-live-icon" class="w-5 h-5 transition-colors duration-300" fill="currentColor"
+                    viewBox="0 0 24 24">
+                    <path
+                        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
+                <div class="flex flex-row items-baseline gap-3">
+                    <div class="flex items-baseline gap-1">
+                        <span id="hr-live-value"
+                            class="text-2xl font-black text-white tabular-nums tracking-tighter">--</span>
+                        <span class="text-xs font-bold text-white/70">BPM</span>
+                    </div>
+                    <span id="hr-live-zone"
+                        class="text-xs font-bold uppercase tracking-wider transition-colors duration-300">準備中</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="ble-live-container"
+            class="relative w-full h-24 md:h-28 mb-5 hidden shrink-0 rounded-xl overflow-hidden border border-white/10 bg-black/20 backdrop-blur-sm">
+
+            <div class="absolute inset-0 z-0 w-full h-full">
+                <canvas id="ble-live-chart" class="w-full h-full opacity-50"></canvas>
+            </div>
+
+            <div class="absolute inset-0 z-10 flex items-center gap-4 px-3 py-2 pointer-events-none">
+
+                <div class="w-[35%] flex items-baseline gap-1 shrink-0">
+                    <span id="ble-live-weight"
+                        class="text-4xl md:text-5xl font-black text-white tabular-nums tracking-tighter ble-text-overlay">0.00</span>
+                    <span class="text-lg font-bold text-white/90 ble-text-overlay">kg</span>
+                </div>
+
+                <div class="w-[65%] flex flex-col gap-1">
+                    <div
+                        class="flex justify-between text-[10px] font-bold text-white/80 uppercase tracking-tighter px-1 items-end mb-1 drop-shadow-md">
+                        <span>太輕</span>
+                        <button type="button" data-action="ble-target-modal"
+                            class="relative text-white bg-white/30 px-3 py-1 rounded border border-white/50 active:scale-95 transition-all flex items-center gap-1 z-50 pointer-events-auto cursor-pointer shadow-md backdrop-blur-md">
+                            目標: <span id="ble-target-display" class="font-bold text-base">20</span>kg
+                            <svg class="w-3 h-3 ml-0.5 opacity-80" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                </path>
+                            </svg>
+                        </button>
+                        <span>太重</span>
+                    </div>
+
+                    <div class="relative flex w-full h-5 items-center rounded-full shadow-inner opacity-90">
+                        <div class="flex w-full h-full rounded-full overflow-hidden">
+                            <div class="w-[40%] bg-yellow-500"></div>
+                            <div class="w-[20%] bg-green-500"></div>
+                            <div class="w-[40%] bg-red-500"></div>
+                        </div>
+                        <div id="ble-gauge-pointer"
+                            class="absolute top-1/2 w-5 h-5 !bg-white border border-gray-300 shadow-[0_2px_6px_rgba(0,0,0,0.6)] rounded-full transition-all duration-75 ease-out transform -translate-y-1/2 -translate-x-1/2 z-20"
+                            style="left: 0%;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div
+        class="bg-gray-800 p-4 pb-6 rounded-t-3xl shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-[60] relative dark:bg-gray-950">
+        <div class="grid grid-cols-3 gap-2 mb-3 text-center">
+            <div>
+                <div class="text-[10px] md:text-xs font-bold uppercase text-white/50 mb-0.5">已過時間</div>
+                <div id="active-elapsed" class="text-white text-lg md:text-xl font-mono font-bold tracking-tight">
+                    00:00</div>
+            </div>
+            <div>
+                <div class="text-[10px] md:text-xs font-bold uppercase text-white/50 mb-0.5">剩餘時間</div>
+                <div id="active-remaining" class="text-white text-lg md:text-xl font-mono font-bold tracking-tight">
+                    00:00</div>
+            </div>
+            <div>
+                <div class="text-[10px] md:text-xs font-bold uppercase text-white/50 mb-0.5">總時間</div>
+                <div id="active-total-display" class="text-white text-lg md:text-xl font-mono font-bold tracking-tight">
+                    00:00</div>
+            </div>
+        </div>
+
+        <div id="active-next-container"
+            class="flex items-center gap-3 mb-6 p-3 rounded-xl border backdrop-blur-sm transition-colors duration-300 bg-gray-700/50 border-gray-600/30">
+            <div id="active-next-label" class="text-xs font-bold uppercase whitespace-nowrap px-2 text-gray-400">
+                下一個動作</div>
+            <div id="active-next" class="text-white text-base font-bold truncate">休息 (3s)</div>
+        </div>
+
+        <div class="grid grid-cols-5 gap-2 md:gap-4">
+            <button data-action="timer-suspend" class="flex flex-col items-center gap-1 group">
+                <div
+                    class="w-11 h-11 md:w-14 md:h-14 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                    <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                        </path>
+                    </svg>
+                </div>
+                <span class="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">暫存</span>
+            </button>
+
+            <button data-action="timer-skip" data-value="-1" class="flex flex-col items-center gap-1 group">
+                <div
+                    class="w-11 h-11 md:w-14 md:h-14 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                    <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>
+                    </svg>
+                </div>
+                <span class="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">上一步</span>
+            </button>
+
+            <button data-action="timer-toggle" class="flex flex-col items-center gap-1 group">
+                <div
+                    class="w-14 h-14 md:w-16 md:h-16 bg-white text-gray-900 rounded-full flex items-center justify-center shadow-lg group-active:scale-95 transition-transform hover:bg-gray-100">
+                    <svg id="icon-play-pause" class="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6">
+                        </path>
+                    </svg>
+                </div>
+                <span id="lbl-play-pause"
+                    class="text-[9px] md:text-[10px] text-white font-bold uppercase tracking-wider">暫停</span>
+            </button>
+
+            <button data-action="timer-skip" data-value="1" class="flex flex-col items-center gap-1 group">
+                <div
+                    class="w-11 h-11 md:w-14 md:h-14 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
+                    <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+                <span class="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">下一步</span>
+            </button>
+
+            <button data-action="timer-stop" class="flex flex-col items-center gap-1 group">
+                <div
+                    class="w-11 h-11 md:w-14 md:h-14 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-red-500/30">
+                    <svg class="w-5 h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 6h12v12H6z" />
+                    </svg>
+                </div>
+                <span class="text-[9px] md:text-[10px] text-red-400 font-bold uppercase tracking-wider">結束</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 藍牙管理 -->
+<div id="modal-ble-fallback"
+    class="modal fixed inset-0 z-[90] bg-black/50 flex flex-col items-center justify-center hidden transition-opacity">
+    <div
+        class="bg-gray-800 text-white rounded-3xl p-6 shadow-2xl w-11/12 max-w-sm text-center border border-gray-700 transform scale-100 transition-transform">
+        <div class="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                </path>
+            </svg>
+        </div>
+        <h3 class="text-xl font-bold mb-2">無法自動連線</h3>
+        <p class="text-sm text-gray-400 mb-6">找不到過往的測力計設備，請確認測力計已開啟，或點擊下方按鈕重新配對。</p>
+        <div class="flex gap-3">
+            <button data-action="ble-fallback-close"
+                class="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-bold text-gray-300 transition-colors">取消</button>
+            <button data-action="ble-fallback-retry"
+                class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white transition-colors">重新配對</button>
+        </div>
+    </div>
+</div>
+
+<!-- 藍牙目標面板 -->
+<div id="modal-ble-target" style="z-index: 99999;"
+    class="fixed inset-0 bg-black/70 flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+    <div class="bg-gray-800 border border-gray-600 rounded-3xl p-6 shadow-2xl w-11/12 max-w-xs transform scale-95 transition-transform duration-200"
+        id="ble-target-sheet">
+        <h3 class="text-white text-center font-bold text-lg mb-1">設定目標重量</h3>
+
+        <div id="ble-target-history-container" class="mb-4 hidden">
+            <div class="text-[10px] text-gray-500 font-bold mb-2 uppercase text-center tracking-widest">上次訓練紀錄</div>
+            <div id="ble-target-history-list" class="flex flex-wrap gap-2 justify-center">
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between bg-gray-900 rounded-2xl p-4 mb-6 border border-gray-700">
+            <button type="button" data-action="ble-target-adjust" data-value="-1"
+                class="w-12 h-12 bg-gray-700 hover:bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-all">-</button>
+            <div class="flex items-baseline gap-1">
+                <input type="number" id="ble-target-input" step="any"
+                    class="w-20 bg-transparent text-white text-4xl font-black text-center outline-none p-0 tabular-nums">
+                <span class="text-gray-400 font-bold">kg</span>
+            </div>
+            <button type="button" data-action="ble-target-adjust" data-value="1"
+                class="w-12 h-12 bg-gray-700 hover:bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-all">+</button>
+        </div>
+
+        <div class="flex gap-3">
+            <button type="button" data-action="ble-target-close"
+                class="flex-1 py-3 bg-gray-700 text-gray-300 rounded-xl font-bold active:scale-95 transition-transform">取消</button>
+            <button type="button" data-action="ble-target-save"
+                class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold active:scale-95 transition-transform shadow-lg shadow-green-900/50">確認設定</button>
+        </div>
     </div>
 </div>
 
@@ -631,926 +1496,7 @@
         </button>
     </nav>
 
-    <!-- 模態視窗: 編輯器 (Editor Modal) -->
-    <div id="modal-editor" class="modal fixed inset-0 z-50 bg-gray-100 flex flex-col dark:bg-gray-900">
-        <div
-            class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0 dark:bg-gray-800 dark:border-gray-700">
-            <button data-action="editor-close" class="text-gray-500 font-bold px-2">取消</button>
-            <input type="text" id="editor-title"
-                class="text-center font-bold text-lg bg-transparent border-none focus:ring-0 w-48 dark:text-white"
-                placeholder="輸入課表名稱">
-            <button data-action="editor-save" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
-        </div>
 
-        <div class="bg-white px-4 py-3 shrink-0 border-b border-gray-100 dark:bg-gray-800 dark:border-gray-700">
-            <div id="editor-routine-tags" class="flex flex-wrap gap-1.5 mb-2 min-h-[24px] items-center">
-            </div>
-            <div class="flex gap-2 mb-2">
-                <input type="text" id="inp-routine-tag"
-                    class="flex-1 border border-gray-200 rounded-lg p-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    placeholder="輸入標籤 (例如：耐力)">
-                <button data-action="editor-add-tag"
-                    class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 hover:bg-blue-100 transition-colors">新增</button>
-            </div>
-            <div class="flex justify-between items-center mb-1">
-                <div class="text-[10px] font-bold text-gray-400">歷史標籤：</div>
-                <button type="button" data-action="editor-toggle-tag-lib"
-                    class="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 transition-colors flex items-center gap-1 active:scale-95 border border-blue-100 dark:border-blue-800">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                        </path>
-                    </svg>
-                    展開標籤庫
-                </button>
-            </div>
-            <div id="editor-tag-suggestions" class="flex flex-wrap gap-1.5">
-            </div>
-
-            <!-- 標籤庫面板 (展開/收合) -->
-            <div id="tag-library-panel"
-                class="hidden mt-3 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50 shadow-inner">
-
-                <!-- 分頁按鈕區 (可橫向滑動) -->
-                <div
-                    class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 no-scrollbar text-[11px] font-bold">
-                    <button type="button" data-action="editor-switch-tab" data-value="tab-muscle-group"
-                        class="tab-btn px-3 py-2 whitespace-nowrap text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 shrink-0 transition-colors">1.
-                        區段肌群</button>
-                    <button type="button" data-action="editor-switch-tab" data-value="tab-muscle"
-                        class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">2.
-                        主要肌肉</button>
-                    <button type="button" data-action="editor-switch-tab" data-value="tab-fitness"
-                        class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">3.
-                        體能要素</button>
-                    <button type="button" data-action="editor-switch-tab" data-value="tab-zones"
-                        class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">4.
-                        能量區間</button>
-                    <button type="button" data-action="editor-switch-tab" data-value="tab-climbing"
-                        class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">⚡
-                        攀岩專項</button>
-                    <button type="button" data-action="editor-switch-tab" data-value="tab-equipment"
-                        class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">🛠️
-                        裝備器材</button>
-                </div>
-
-                <!-- 標籤內容區 -->
-                <div class="p-3 max-h-[140px] overflow-y-auto no-scrollbar relative">
-                    <style>
-                        .lib-tag-btn {
-                            @apply text-[10px] px-2.5 py-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 text-gray-700 dark:text-gray-200 transition-colors active:scale-95;
-                        }
-                    </style>
-
-                    <!-- 1. 按主要肌群區分 -->
-                    <div id="tab-muscle-group" class="tag-tab-content flex flex-wrap gap-1.5">
-                        <button type="button" data-action="editor-add-tag" data-value="全身"
-                            class="lib-tag-btn">全身</button>
-                        <button type="button" data-action="editor-add-tag" data-value="核心"
-                            class="lib-tag-btn">核心</button>
-                        <button type="button" data-action="editor-add-tag" data-value="上肢"
-                            class="lib-tag-btn">上肢</button>
-                        <button type="button" data-action="editor-add-tag" data-value="下肢"
-                            class="lib-tag-btn">下肢</button>
-                        <button type="button" data-action="editor-add-tag" data-value="背部肌群"
-                            class="lib-tag-btn">背部肌群</button>
-                        <button type="button" data-action="editor-add-tag" data-value="胸部肌群"
-                            class="lib-tag-btn">胸部肌群</button>
-                        <button type="button" data-action="editor-add-tag" data-value="腹部肌群"
-                            class="lib-tag-btn">腹部肌群</button>
-                        <button type="button" data-action="editor-add-tag" data-value="肩部肌群"
-                            class="lib-tag-btn">肩部肌群</button>
-                        <button type="button" data-action="editor-add-tag" data-value="二頭肌"
-                            class="lib-tag-btn">二頭肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="三頭肌"
-                            class="lib-tag-btn">三頭肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="小臂肌群"
-                            class="lib-tag-btn">小臂肌群</button>
-                        <button type="button" data-action="editor-add-tag" data-value="臀肌"
-                            class="lib-tag-btn">臀肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="股四頭肌"
-                            class="lib-tag-btn">股四頭肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="膕繩肌"
-                            class="lib-tag-btn">膕繩肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="小腿肌群"
-                            class="lib-tag-btn">小腿肌群</button>
-
-                    </div>
-                    <!-- 2. 按主要肌肉區分 -->
-                    <div id="tab-muscle" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <!-- 背部 -->
-                        <button type="button" data-action="editor-add-tag" data-value="斜方肌"
-                            class="lib-tag-btn">斜方肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="菱形肌"
-                            class="lib-tag-btn">菱形肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="背闊肌"
-                            class="lib-tag-btn">背闊肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="豎脊肌"
-                            class="lib-tag-btn">豎脊肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="大圓肌"
-                            class="lib-tag-btn">大圓肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="小圓肌"
-                            class="lib-tag-btn">小圓肌</button>
-
-                        <!-- 胸部 -->
-                        <button type="button" data-action="editor-add-tag" data-value="胸大肌上束"
-                            class="lib-tag-btn">胸大肌上束</button>
-                        <button type="button" data-action="editor-add-tag" data-value="胸大肌中束"
-                            class="lib-tag-btn">胸大肌中束</button>
-                        <button type="button" data-action="editor-add-tag" data-value="胸大肌下束"
-                            class="lib-tag-btn">胸大肌下束</button>
-                        <button type="button" data-action="editor-add-tag" data-value="胸小肌"
-                            class="lib-tag-btn">胸小肌</button>
-
-                        <!-- 腹部 -->
-                        <button type="button" data-action="editor-add-tag" data-value="上腹直肌"
-                            class="lib-tag-btn">上腹直肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="下腹直肌"
-                            class="lib-tag-btn">下腹直肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="腹外斜肌"
-                            class="lib-tag-btn">腹外斜肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="腹內斜肌"
-                            class="lib-tag-btn">腹內斜肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="腹橫肌"
-                            class="lib-tag-btn">腹橫肌</button>
-
-                        <!-- 肩部 -->
-                        <button type="button" data-action="editor-add-tag" data-value="三角肌前束"
-                            class="lib-tag-btn">三角肌前束</button>
-                        <button type="button" data-action="editor-add-tag" data-value="三角肌中束"
-                            class="lib-tag-btn">三角肌中束</button>
-                        <button type="button" data-action="editor-add-tag" data-value="三角肌後束"
-                            class="lib-tag-btn">三角肌後束</button>
-
-                        <!-- 手臂 -->
-                        <button type="button" data-action="editor-add-tag" data-value="肱二頭肌"
-                            class="lib-tag-btn">肱二頭肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="肱肌"
-                            class="lib-tag-btn">肱肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="肱三頭肌"
-                            class="lib-tag-btn">肱三頭肌</button>
-
-                        <!-- 前臂 -->
-                        <button type="button" data-action="editor-add-tag" data-value="肱橈肌"
-                            class="lib-tag-btn">肱橈肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="前臂屈肌群"
-                            class="lib-tag-btn">前臂屈肌群</button>
-                        <button type="button" data-action="editor-add-tag" data-value="前臂伸肌群"
-                            class="lib-tag-btn">前臂伸肌群</button>
-
-                        <!-- 臀部 -->
-                        <button type="button" data-action="editor-add-tag" data-value="臀大肌"
-                            class="lib-tag-btn">臀大肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="臀中肌"
-                            class="lib-tag-btn">臀中肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="臀小肌"
-                            class="lib-tag-btn">臀小肌</button>
-
-                        <!-- 大腿前側 -->
-                        <button type="button" data-action="editor-add-tag" data-value="股直肌"
-                            class="lib-tag-btn">股直肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="股外側肌"
-                            class="lib-tag-btn">股外側肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="股內側肌"
-                            class="lib-tag-btn">股內側肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="股中間肌"
-                            class="lib-tag-btn">股中間肌</button>
-
-                        <!-- 大腿後側 -->
-                        <button type="button" data-action="editor-add-tag" data-value="股二頭肌"
-                            class="lib-tag-btn">股二頭肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="半腱肌"
-                            class="lib-tag-btn">半腱肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="半膜肌"
-                            class="lib-tag-btn">半膜肌</button>
-
-                        <!-- 小腿 -->
-                        <button type="button" data-action="editor-add-tag" data-value="腓腸肌"
-                            class="lib-tag-btn">腓腸肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="比目魚肌"
-                            class="lib-tag-btn">比目魚肌</button>
-                        <button type="button" data-action="editor-add-tag" data-value="脛前肌"
-                            class="lib-tag-btn">脛前肌</button>
-                    </div>
-                    <!-- 3. 按體能要素區分 -->
-                    <div id="tab-fitness" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" data-action="editor-add-tag" data-value="肌力"
-                            class="lib-tag-btn">肌力</button>
-                        <button type="button" data-action="editor-add-tag" data-value="耐力"
-                            class="lib-tag-btn">耐力</button>
-                        <button type="button" data-action="editor-add-tag" data-value="速度"
-                            class="lib-tag-btn">速度</button>
-                        <button type="button" data-action="editor-add-tag" data-value="柔軟度"
-                            class="lib-tag-btn">柔軟</button>
-                        <button type="button" data-action="editor-add-tag" data-value="協調"
-                            class="lib-tag-btn">協調</button>
-
-                        <button type="button" data-action="editor-add-tag" data-value="最大肌力"
-                            class="lib-tag-btn">最大肌力</button>
-                        <button type="button" data-action="editor-add-tag" data-value="最大速度"
-                            class="lib-tag-btn">最大速度</button>
-                        <button type="button" data-action="editor-add-tag" data-value="爆發力"
-                            class="lib-tag-btn">爆發力</button>
-                        <button type="button" data-action="editor-add-tag" data-value="敏捷"
-                            class="lib-tag-btn">敏捷</button>
-
-                        <button type="button" data-action="editor-add-tag" data-value="肌耐力"
-                            class="lib-tag-btn">肌耐力</button>
-                        <button type="button" data-action="editor-add-tag" data-value="有氧耐力"
-                            class="lib-tag-btn">有氧耐力</button>
-                        <button type="button" data-action="editor-add-tag" data-value="無氧耐力"
-                            class="lib-tag-btn">無氧耐力</button>
-                        <button type="button" data-action="editor-add-tag" data-value="速耐力"
-                            class="lib-tag-btn">速耐力</button>
-
-                        <button type="button" data-action="editor-add-tag" data-value="活動度"
-                            class="lib-tag-btn">活動度</button>
-                        <button type="button" data-action="editor-add-tag" data-value="平衡穩定"
-                            class="lib-tag-btn">平衡穩定</button>
-                        <button type="button" data-action="editor-add-tag" data-value="反應速度"
-                            class="lib-tag-btn">反應速度</button>
-                    </div>
-                    <!-- 4. 按能量區間區分 -->
-                    <div id="tab-zones" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" data-action="editor-add-tag" data-value="Zone 1" class="lib-tag-btn">Zone
-                            1</button>
-                        <button type="button" data-action="editor-add-tag" data-value="Zone 2" class="lib-tag-btn">Zone
-                            2</button>
-                        <button type="button" data-action="editor-add-tag" data-value="Zone 3" class="lib-tag-btn">Zone
-                            3</button>
-                        <button type="button" data-action="editor-add-tag" data-value="Zone 4" class="lib-tag-btn">Zone
-                            4</button>
-                        <button type="button" data-action="editor-add-tag" data-value="Zone 5" class="lib-tag-btn">Zone
-                            5</button>
-                        <button type="button" data-action="editor-add-tag" data-value="ATP-PC" class="lib-tag-btn">磷酸原
-                            (ATP-PC)</button>
-                        <button type="button" data-action="editor-add-tag" data-value="糖解系統"
-                            class="lib-tag-btn">糖解系統</button>
-                    </div>
-                    <!-- 5. 攀岩專項 -->
-                    <div id="tab-climbing" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" data-action="editor-add-tag" data-value="抱石"
-                            class="lib-tag-btn">抱石</button>
-                        <button type="button" data-action="editor-add-tag" data-value="上攀"
-                            class="lib-tag-btn">上攀</button>
-                        <button type="button" data-action="editor-add-tag" data-value="系統牆"
-                            class="lib-tag-btn">系統牆</button>
-                        <button type="button" data-action="editor-add-tag" data-value="指力板"
-                            class="lib-tag-btn">指力板</button>
-                        <button type="button" data-action="editor-add-tag" data-value="弱點訓練"
-                            class="lib-tag-btn">弱點訓練</button>
-                        <button type="button" data-action="editor-add-tag" data-value="動態發力"
-                            class="lib-tag-btn">動態發力</button>
-                        <button type="button" data-action="editor-add-tag" data-value="靜態控制"
-                            class="lib-tag-btn">靜態控制</button>
-                        <button type="button" data-action="editor-add-tag" data-value="鎖力"
-                            class="lib-tag-btn">鎖力</button>
-                        <button type="button" data-action="editor-add-tag" data-value="捏力"
-                            class="lib-tag-btn">捏力</button>
-                    </div>
-                    <!-- 6. 裝備器材  -->
-                    <div id="tab-equipment" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                        <button type="button" data-action="editor-add-tag" data-value="自體重"
-                            class="lib-tag-btn">自體重</button>
-                        <button type="button" data-action="editor-add-tag" data-value="啞鈴"
-                            class="lib-tag-btn">啞鈴</button>
-                        <button type="button" data-action="editor-add-tag" data-value="壺鈴"
-                            class="lib-tag-btn">壺鈴</button>
-                        <button type="button" data-action="editor-add-tag" data-value="槓鈴"
-                            class="lib-tag-btn">槓鈴</button>
-                        <button type="button" data-action="editor-add-tag" data-value="彈力帶"
-                            class="lib-tag-btn">彈力帶</button>
-                        <button type="button" data-action="editor-add-tag" data-value="TRX"
-                            class="lib-tag-btn">TRX</button>
-                        <button type="button" data-action="editor-add-tag" data-value="滾筒"
-                            class="lib-tag-btn">滾筒放鬆</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 視覺化時間軸 (Visual Timeline) -->
-        <div class="bg-white pt-2 px-4 pb-0 shrink-0 dark:bg-gray-800">
-            <div class="flex justify-between items-end mb-1">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">預估結構</span>
-                <span id="editor-total-time"
-                    class="text-xs font-mono font-bold text-gray-600 dark:text-gray-300">00:00</span>
-            </div>
-            <div id="editor-timeline" class="h-4 w-full bg-gray-100 rounded-full flex overflow-hidden dark:bg-gray-700">
-                <!-- JS 動態生成 -->
-            </div>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-4 pb-32" id="editor-canvas">
-            <!-- 積木將在此生成 -->
-            <div class="text-center text-gray-400 mt-20 text-sm pointer-events-none">從下方拖曳積木至此</div>
-        </div>
-
-        <!-- 底部工具箱 -->
-        <div class="bg-white border-t py-4 shrink-0 shadow-xl z-10 pb-8 dark:bg-gray-800 dark:border-gray-700">
-
-            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-4">拖曳新增</div>
-
-            <div id="editor-palette"
-                class="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-2 after:content-[''] after:w-1 after:shrink-0">
-
-                <div class="palette-item shrink-0 w-20 h-16 bg-gray-50 border-2 border-gray-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-gray-700/50 dark:border-gray-600"
-                    data-type="loop">
-                    <span class="text-sm font-bold text-gray-700 dark:text-gray-300 text-center w-full">循環</span>
-                </div>
-
-                <div class="palette-item shrink-0 w-20 h-16 bg-amber-50 border-2 border-amber-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-amber-900/40 dark:border-amber-700"
-                    data-type="timer"
-                    data-default-props='{"duration":10,"label":"Prepare","color":"amber","customMetrics":[]}'>
-                    <span class="text-sm font-bold text-amber-700 dark:text-amber-300 text-center w-full">準備</span>
-                </div>
-
-                <div class="palette-item shrink-0 w-20 h-16 bg-red-50 border-2 border-red-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-red-900/40 dark:border-red-700"
-                    data-type="timer"
-                    data-default-props='{"duration":10,"label":"Workout","color":"red","customMetrics":[{"name":"附加重量","type":"number"}]}'>
-                    <span class="text-sm font-bold text-red-700 dark:text-red-300 text-center w-full">訓練</span>
-                </div>
-
-                <div class="palette-item shrink-0 w-20 h-16 bg-green-50 border-2 border-green-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-green-900/40 dark:border-green-700"
-                    data-type="timer"
-                    data-default-props='{"duration":180,"label":"Rest","color":"green","customMetrics":[]}'>
-                    <span class="text-sm font-bold text-green-700 dark:text-green-300 text-center w-full">休息</span>
-                </div>
-
-                <div class="palette-item shrink-0 w-20 h-16 bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-blue-900/40 dark:border-blue-700"
-                    data-type="reps"
-                    data-default-props='{"count":5,"duration":30,"label":"Pull Ups","color":"blue","customMetrics":[{"name":"次數","type":"number"}]}'>
-                    <span class="text-sm font-bold text-blue-700 dark:text-blue-300 text-center w-full">計數</span>
-                </div>
-
-            </div>
-        </div>
-        <!-- 屬性編輯面板 (Property Sheet) -->
-        <div id="prop-sheet"
-            class="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl transform translate-y-full transition-transform duration-300 z-[60] p-6 pb-12 dark:bg-gray-800 dark:text-white">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="font-bold text-lg">編輯積木</h3>
-                <button data-action="editor-close-props"
-                    class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
-            </div>
-
-            <div id="prop-form" class="space-y-4">
-                <!-- JS 動態生成 -->
-            </div>
-
-            <!-- 顏色選擇器 -->
-            <div class="mt-4">
-                <label class="block text-sm font-bold text-gray-500 mb-2">顏色標記</label>
-                <div id="color-palette" class="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                    <!-- JS 生成色票 -->
-                </div>
-            </div>
-
-            <div class="mt-6 flex gap-3">
-                <button data-action="editor-delete-block"
-                    class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-100 dark:bg-red-900/30 dark:border-red-900 dark:text-red-300">刪除</button>
-                <button data-action="editor-save-props"
-                    class="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold dark:bg-blue-600">確認</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-record-editor"
-        class="modal fixed inset-0 z-[80] bg-gray-100 flex-col hidden dark:bg-gray-900 transition-opacity">
-        <div
-            class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0 dark:bg-gray-800 dark:border-gray-700 shadow-sm">
-            <button data-action="record-editor-close" class="text-gray-500 font-bold px-2">取消</button>
-            <div class="text-center">
-                <div id="record-editor-title" class="font-bold text-lg dark:text-white">課表名稱</div>
-                <div id="record-editor-date" class="text-xs text-gray-400">2026-03-09</div>
-            </div>
-            <button data-action="record-editor-save" class="text-blue-600 font-bold px-2 dark:text-blue-400">儲存</button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-4 pb-32 space-y-3" id="record-editor-form">
-        </div>
-    </div>
-
-    <div id="modal-goal-editor" class="modal fixed inset-0 z-[70] bg-black/50 flex items-end justify-center hidden">
-        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
-            id="goal-sheet">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-extrabold dark:text-white">設定目標</h3>
-                <button data-action="goal-close"
-                    class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500">✕</button>
-            </div>
-
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-gray-500 mb-2">目標名稱</label>
-                    <input type="text" id="goal-title"
-                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        placeholder="例如：每週規律訓練">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold text-gray-500 mb-2">追蹤範圍</label>
-                    <select id="goal-scope-type" onchange="goalManager.toggleScopeUI()"
-                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <option value="all">全域 (不限課表)</option>
-                        <option value="routine">指定特定課表 (多選)</option>
-                        <option value="tag">包含特定標籤</option>
-                    </select>
-                </div>
-
-                <div id="goal-tag-operator-container" class="hidden mt-2 p-3 bg-blue-50 rounded-xl dark:bg-blue-900/20">
-                    <label
-                        class="block text-[10px] font-bold text-blue-600 uppercase mb-2 dark:text-blue-400">標籤匹配邏輯</label>
-                    <div class="flex gap-2">
-                        <button type="button" data-action="goal-set-op" data-value="OR" id="op-or"
-                            class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-white shadow-sm border border-blue-200 text-blue-600 transition-all">滿足任一
-                            (聯集)</button>
-                        <button type="button" data-action="goal-set-op" data-value="AND" id="op-and"
-                            class="flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400 border border-transparent transition-all">必須全部符合
-                            (交集)</button>
-                    </div>
-                    <p id="op-desc" class="text-[9px] text-blue-400 mt-2 italic font-medium">只要符合勾選的其中一個標籤即計算進度。</p>
-                </div>
-
-                <div id="goal-scope-targets"
-                    class="hidden bg-gray-50 p-3 rounded-xl border border-gray-200 dark:bg-gray-750 dark:border-gray-600 max-h-40 overflow-y-auto">
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 mb-2">週期</label>
-                        <select id="goal-period"
-                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                            <option value="daily">每天</option>
-                            <option value="weekly">每週</option>
-                            <option value="monthly">每月</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 mb-2">完成次數</label>
-                        <input type="number" id="goal-value" min="1" value="3"
-                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    </div>
-                </div>
-
-                <button data-action="goal-save"
-                    class="w-full bg-gray-900 text-white py-4 rounded-xl font-bold mt-4 dark:bg-blue-600">儲存目標</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-pr-editor" class="modal fixed inset-0 z-[70] bg-black/50 flex items-end justify-center hidden">
-        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
-            id="pr-sheet">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-extrabold dark:text-white">自訂數據卡片</h3>
-                <button data-action="pr-close"
-                    class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500">✕</button>
-            </div>
-
-            <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 mb-2">資料來源</label>
-                        <select id="pr-source-type"
-                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                            <option value="routine">依特定課表</option>
-                            <option value="tag">依特定標籤</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 mb-2">目標項目</label>
-                        <select id="pr-target-item"
-                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        </select>
-
-                        <div id="pr-tag-config-area" class="hidden space-y-3">
-                            <div id="pr-tag-list"
-                                class="bg-gray-50 p-3 rounded-xl border border-gray-200 dark:bg-gray-750 dark:border-gray-600 max-h-40 overflow-y-auto">
-                            </div>
-                            <div class="flex gap-2 p-2 bg-blue-50 rounded-lg dark:bg-blue-900/20">
-                                <button type="button" data-action="pr-set-op" data-value="OR" id="pr-op-or"
-                                    class="flex-1 py-1.5 text-[10px] font-bold rounded-md bg-white shadow-sm text-blue-600">滿足任一</button>
-                                <button type="button" data-action="pr-set-op" data-value="AND" id="pr-op-and"
-                                    class="flex-1 py-1.5 text-[10px] font-bold rounded-md text-gray-400">全部符合</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold text-gray-500 mb-2">追蹤指標</label>
-                    <select id="pr-metric"
-                        class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <option value="volume_time">總時數 (Time)</option>
-                        <option value="volume_reps">總次數 (Count)</option>
-                        <option disabled>──────────</option>
-                        <option value="custom_weight">附加重量 (自訂)</option>
-                    </select>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 border-t border-gray-100 pt-4 dark:border-gray-700">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 mb-2">時間範圍</label>
-                        <select id="pr-time-range"
-                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                            <option value="all">全部歷史</option>
-                            <option value="10t">最近 10 次</option>
-                            <option value="7d">最近 7 天</option>
-                            <option value="28d">最近 4 週</option>
-                            <option value="84d">最近 12 週</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 mb-2">數值計算</label>
-                        <select id="pr-aggregation"
-                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                            <option value="max">單次最高 (Max)</option>
-                            <option value="min">單次最低 (Min)</option>
-                            <option value="max_daily_sum">單日最高總和</option>
-                            <option value="sum">區間總計 (Sum)</option>
-                            <option value="active_days">訓練天數</option>
-                            <option value="avg">區間平均 (Avg)</option>
-                            <option value="latest">最新一次 (Latest)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="flex gap-3 mt-6">
-                    <button id="btn-delete-pr"
-                        class="w-1/3 py-4 bg-red-50 text-red-600 rounded-xl font-bold dark:bg-red-900/30 dark:text-red-400">清空</button>
-                    <button data-action="pr-save"
-                        class="w-2/3 bg-gray-900 text-white py-4 rounded-xl font-bold dark:bg-blue-600">套用設定</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-body-editor"
-        class="modal fixed inset-0 z-[75] bg-black/50 flex items-end justify-center hidden transition-opacity">
-        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-12 dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 translate-y-full"
-            id="body-sheet">
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h3 class="text-xl font-extrabold dark:text-white">紀錄身體組成</h3>
-                    <input type="date" id="body-editor-date"
-                        class="mt-1 bg-transparent text-sm font-mono text-blue-600 font-bold outline-none cursor-pointer dark:text-blue-400 border-none p-0 focus:ring-0">
-                </div>
-                <button data-action="body-close"
-                    class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500 hover:bg-gray-200 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">身高
-                            (cm)</label>
-                        <input type="number" id="inp-body-height" step="0.1"
-                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
-                            placeholder="175">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">體重
-                            (kg)</label>
-                        <input type="number" id="inp-body-weight" step="0.1"
-                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
-                            placeholder="70.5">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">體脂率
-                            (%)</label>
-                        <input type="number" id="inp-body-fat" step="0.1"
-                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
-                            placeholder="15.0">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">骨骼肌重
-                            (kg)<span class="text-[9px] font-normal ml-1 lowercase">(選填)</span></label>
-                        <input type="number" id="inp-body-muscle" step="0.1"
-                            class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg font-mono font-bold text-center"
-                            placeholder="33.5">
-                    </div>
-                </div>
-
-                <div class="flex gap-3 mt-8">
-                    <button id="btn-body-delete" data-action="body-delete"
-                        class="w-1/3 py-4 bg-red-50 text-red-600 rounded-xl font-bold dark:bg-red-900/30 dark:text-red-400 hidden">刪除</button>
-                    <button id="btn-body-save" data-action="body-save"
-                        class="flex-1 bg-gray-900 text-white py-4 rounded-xl font-bold dark:bg-blue-600 shadow-lg shadow-gray-900/20 dark:shadow-blue-900/30">儲存紀錄</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 模態視窗: 全螢幕計時器 (Active Timer Modal) -->
-    <div id="modal-active-timer"
-        class="modal fixed inset-0 z-[60] bg-gray-600 text-white flex flex-col transition-colors duration-500">
-
-        <div class="px-6 py-3 flex justify-between items-start shrink-0 relative z-[80]">
-            <div class="flex items-start gap-3">
-                <div>
-                    <h3 id="active-title" class="font-bold text-lg opacity-90 leading-tight">課表名稱</h3>
-                </div>
-            </div>
-
-            <div class="flex gap-2">
-                <button id="btn-autolog-toggle" data-action="timer-autolog"
-                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white" title="自動彈出紀錄面板">
-                    <svg id="icon-autolog" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
-                        </path>
-                    </svg>
-                </button>
-
-                <button data-action="timer-manual-log"
-                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50 hover:text-white"
-                    title="手動填寫紀錄">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
-                        </path>
-                    </svg>
-                </button>
-                <button id="btn-ble-toggle" data-action="ble-toggle"
-                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50" title="連接測力計">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <polyline points="6.5 17.5 17.5 6.5 12 1 12 23 17.5 17.5 6.5 6.5" stroke-linecap="round"
-                            stroke-linejoin="round"></polyline>
-                    </svg>
-                </button>
-                <button id="btn-hr-toggle" data-action="hr-toggle"
-                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50" title="連接心率裝置">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z">
-                        </path>
-                    </svg>
-                </button>
-                <button id="btn-mic-toggle" data-action="voice-toggle"
-                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
-                        </path>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <div class="px-6 pb-2 w-full max-w-md mx-auto shrink-0 relative z-[80]">
-            <div id="active-timeline" class="h-2 w-full bg-white/20 rounded-full flex overflow-hidden">
-            </div>
-            <div class="w-full h-3 bg-white/20 rounded-full overflow-hidden shrink-0 mt-3 mb-4">
-                <div id="active-progress-bar" class="h-full bg-white transition-all duration-1000 ease-linear w-full">
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-4 py-2 relative min-h-0">
-            <div id="active-status"
-                class="text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white uppercase drop-shadow-md text-center shrink-0">
-                準備開始
-            </div>
-
-            <div id="active-loops"
-                class="text-3xl md:text-4xl font-black text-yellow-400 mb-2 hidden text-center w-full drop-shadow-md tracking-wider shrink-0">
-            </div>
-
-            <div class="relative flex-1 w-full overflow-hidden">
-                <div id="active-countdown"
-                    class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-mono font-black tracking-tighter tabular-nums drop-shadow-xl text-center whitespace-nowrap"
-                    style="font-size: min(80vw, 30vh); line-height: 0.8;">
-                    02
-                </div>
-            </div>
-
-            <div id="hr-live-container"
-                class="w-full flex justify-center mb-3 hidden transition-opacity duration-300 shrink-0">
-                <div id="hr-live-box"
-                    class="flex flex-row items-center gap-3 px-4 py-1 rounded-full backdrop-blur-sm shadow-lg border transition-colors duration-300">
-                    <svg id="hr-live-icon" class="w-5 h-5 transition-colors duration-300" fill="currentColor"
-                        viewBox="0 0 24 24">
-                        <path
-                            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                    </svg>
-                    <div class="flex flex-row items-baseline gap-3">
-                        <div class="flex items-baseline gap-1">
-                            <span id="hr-live-value"
-                                class="text-2xl font-black text-white tabular-nums tracking-tighter">--</span>
-                            <span class="text-xs font-bold text-white/70">BPM</span>
-                        </div>
-                        <span id="hr-live-zone"
-                            class="text-xs font-bold uppercase tracking-wider transition-colors duration-300">準備中</span>
-                    </div>
-                </div>
-            </div>
-
-            <div id="ble-live-container"
-                class="relative w-full h-24 md:h-28 mb-5 hidden shrink-0 rounded-xl overflow-hidden border border-white/10 bg-black/20 backdrop-blur-sm">
-
-                <div class="absolute inset-0 z-0 w-full h-full">
-                    <canvas id="ble-live-chart" class="w-full h-full opacity-50"></canvas>
-                </div>
-
-                <div class="absolute inset-0 z-10 flex items-center gap-4 px-3 py-2 pointer-events-none">
-
-                    <div class="w-[35%] flex items-baseline gap-1 shrink-0">
-                        <span id="ble-live-weight"
-                            class="text-4xl md:text-5xl font-black text-white tabular-nums tracking-tighter ble-text-overlay">0.00</span>
-                        <span class="text-lg font-bold text-white/90 ble-text-overlay">kg</span>
-                    </div>
-
-                    <div class="w-[65%] flex flex-col gap-1">
-                        <div
-                            class="flex justify-between text-[10px] font-bold text-white/80 uppercase tracking-tighter px-1 items-end mb-1 drop-shadow-md">
-                            <span>太輕</span>
-                            <button type="button" data-action="ble-target-modal"
-                                class="relative text-white bg-white/30 px-3 py-1 rounded border border-white/50 active:scale-95 transition-all flex items-center gap-1 z-50 pointer-events-auto cursor-pointer shadow-md backdrop-blur-md">
-                                目標: <span id="ble-target-display" class="font-bold text-base">20</span>kg
-                                <svg class="w-3 h-3 ml-0.5 opacity-80" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
-                                    </path>
-                                </svg>
-                            </button>
-                            <span>太重</span>
-                        </div>
-
-                        <div class="relative flex w-full h-5 items-center rounded-full shadow-inner opacity-90">
-                            <div class="flex w-full h-full rounded-full overflow-hidden">
-                                <div class="w-[40%] bg-yellow-500"></div>
-                                <div class="w-[20%] bg-green-500"></div>
-                                <div class="w-[40%] bg-red-500"></div>
-                            </div>
-                            <div id="ble-gauge-pointer"
-                                class="absolute top-1/2 w-5 h-5 !bg-white border border-gray-300 shadow-[0_2px_6px_rgba(0,0,0,0.6)] rounded-full transition-all duration-75 ease-out transform -translate-y-1/2 -translate-x-1/2 z-20"
-                                style="left: 0%;">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <div
-            class="bg-gray-800 p-4 pb-6 rounded-t-3xl shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-[60] relative dark:bg-gray-950">
-            <div class="grid grid-cols-3 gap-2 mb-3 text-center">
-                <div>
-                    <div class="text-[10px] md:text-xs font-bold uppercase text-white/50 mb-0.5">已過時間</div>
-                    <div id="active-elapsed" class="text-white text-lg md:text-xl font-mono font-bold tracking-tight">
-                        00:00</div>
-                </div>
-                <div>
-                    <div class="text-[10px] md:text-xs font-bold uppercase text-white/50 mb-0.5">剩餘時間</div>
-                    <div id="active-remaining" class="text-white text-lg md:text-xl font-mono font-bold tracking-tight">
-                        00:00</div>
-                </div>
-                <div>
-                    <div class="text-[10px] md:text-xs font-bold uppercase text-white/50 mb-0.5">總時間</div>
-                    <div id="active-total-display"
-                        class="text-white text-lg md:text-xl font-mono font-bold tracking-tight">00:00</div>
-                </div>
-            </div>
-
-            <div id="active-next-container"
-                class="flex items-center gap-3 mb-6 p-3 rounded-xl border backdrop-blur-sm transition-colors duration-300 bg-gray-700/50 border-gray-600/30">
-                <div id="active-next-label" class="text-xs font-bold uppercase whitespace-nowrap px-2 text-gray-400">
-                    下一個動作</div>
-                <div id="active-next" class="text-white text-base font-bold truncate">休息 (3s)</div>
-            </div>
-
-            <div class="grid grid-cols-5 gap-2 md:gap-4">
-                <button data-action="timer-suspend" class="flex flex-col items-center gap-1 group">
-                    <div
-                        class="w-11 h-11 md:w-14 md:h-14 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
-                        <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
-                            </path>
-                        </svg>
-                    </div>
-                    <span class="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">暫存</span>
-                </button>
-
-                <button data-action="timer-skip" data-value="-1" class="flex flex-col items-center gap-1 group">
-                    <div
-                        class="w-11 h-11 md:w-14 md:h-14 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
-                        <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>
-                        </svg>
-                    </div>
-                    <span class="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">上一步</span>
-                </button>
-
-                <button data-action="timer-toggle" class="flex flex-col items-center gap-1 group">
-                    <div
-                        class="w-14 h-14 md:w-16 md:h-16 bg-white text-gray-900 rounded-full flex items-center justify-center shadow-lg group-active:scale-95 transition-transform hover:bg-gray-100">
-                        <svg id="icon-play-pause" class="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6">
-                            </path>
-                        </svg>
-                    </div>
-                    <span id="lbl-play-pause"
-                        class="text-[9px] md:text-[10px] text-white font-bold uppercase tracking-wider">暫停</span>
-                </button>
-
-                <button data-action="timer-skip" data-value="1" class="flex flex-col items-center gap-1 group">
-                    <div
-                        class="w-11 h-11 md:w-14 md:h-14 bg-gray-700 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-gray-600 dark:bg-gray-800">
-                        <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
-                        </svg>
-                    </div>
-                    <span class="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">下一步</span>
-                </button>
-
-                <button data-action="timer-stop" class="flex flex-col items-center gap-1 group">
-                    <div
-                        class="w-11 h-11 md:w-14 md:h-14 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center group-active:scale-95 transition-transform border border-red-500/30">
-                        <svg class="w-5 h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M6 6h12v12H6z" />
-                        </svg>
-                    </div>
-                    <span class="text-[9px] md:text-[10px] text-red-400 font-bold uppercase tracking-wider">結束</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 藍牙管理 -->
-    <div id="modal-ble-fallback"
-        class="modal fixed inset-0 z-[90] bg-black/50 flex flex-col items-center justify-center hidden transition-opacity">
-        <div
-            class="bg-gray-800 text-white rounded-3xl p-6 shadow-2xl w-11/12 max-w-sm text-center border border-gray-700 transform scale-100 transition-transform">
-            <div class="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                    </path>
-                </svg>
-            </div>
-            <h3 class="text-xl font-bold mb-2">無法自動連線</h3>
-            <p class="text-sm text-gray-400 mb-6">找不到過往的測力計設備，請確認測力計已開啟，或點擊下方按鈕重新配對。</p>
-            <div class="flex gap-3">
-                <button data-action="ble-fallback-close"
-                    class="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-bold text-gray-300 transition-colors">取消</button>
-                <button data-action="ble-fallback-retry"
-                    class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white transition-colors">重新配對</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 藍牙目標面板 -->
-    <div id="modal-ble-target" style="z-index: 99999;"
-        class="fixed inset-0 bg-black/70 flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
-        <div class="bg-gray-800 border border-gray-600 rounded-3xl p-6 shadow-2xl w-11/12 max-w-xs transform scale-95 transition-transform duration-200"
-            id="ble-target-sheet">
-            <h3 class="text-white text-center font-bold text-lg mb-1">設定目標重量</h3>
-
-            <div id="ble-target-history-container" class="mb-4 hidden">
-                <div class="text-[10px] text-gray-500 font-bold mb-2 uppercase text-center tracking-widest">上次訓練紀錄</div>
-                <div id="ble-target-history-list" class="flex flex-wrap gap-2 justify-center">
-                </div>
-            </div>
-
-            <div class="flex items-center justify-between bg-gray-900 rounded-2xl p-4 mb-6 border border-gray-700">
-                <button type="button" data-action="ble-target-adjust" data-value="-1"
-                    class="w-12 h-12 bg-gray-700 hover:bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-all">-</button>
-                <div class="flex items-baseline gap-1">
-                    <input type="number" id="ble-target-input" step="any"
-                        class="w-20 bg-transparent text-white text-4xl font-black text-center outline-none p-0 tabular-nums">
-                    <span class="text-gray-400 font-bold">kg</span>
-                </div>
-                <button type="button" data-action="ble-target-adjust" data-value="1"
-                    class="w-12 h-12 bg-gray-700 hover:bg-gray-600 text-white rounded-full flex items-center justify-center font-bold text-xl active:scale-90 transition-all">+</button>
-            </div>
-
-            <div class="flex gap-3">
-                <button type="button" data-action="ble-target-close"
-                    class="flex-1 py-3 bg-gray-700 text-gray-300 rounded-xl font-bold active:scale-95 transition-transform">取消</button>
-                <button type="button" data-action="ble-target-save"
-                    class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold active:scale-95 transition-transform shadow-lg shadow-green-900/50">確認設定</button>
-            </div>
-        </div>
-    </div>
 
     <!-- 自動完成資料清單 -->
     <datalist id="history-list"></datalist>
