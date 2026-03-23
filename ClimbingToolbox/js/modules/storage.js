@@ -2,6 +2,7 @@
 import { editor } from './ui.js';
 import { timer } from './timer.js';
 import { views } from './views.js';
+import { templateLibrary } from './templates.js';
 
 // 1. 定義標準事件名稱，避免拼字錯誤
 export const APP_EVENTS = {
@@ -230,86 +231,24 @@ export const store = {
     },
 
     async addTemplate(type) {
-        let blocks = [];
-        let title = "新課表";
-        let tags = [];
+        // 從外部模組取得對應的生成函數並執行
+        const generator = templateLibrary[type];
 
-        if (type === 'max') {
-            title = "最大指力";
-            tags = ['最大肌力', '手指'];
-            blocks = [
-                { type: 'timer', id: uuid(), props: { duration: 10, label: '準備', color: 'amber' } },
-                {
-                    type: 'loop', id: uuid(), props: { iterations: 5, color: 'gray' },
-                    children: [
-                        { type: 'timer', id: uuid(), props: { duration: 10, label: '懸掛', color: 'red', customMetrics: [{ name: '重量', type: 'number' }, { name: '邊緣', type: 'number' }] } },
-                        { type: 'timer', id: uuid(), props: { duration: 180, label: '休息', color: 'green', skipOnLast: true } }
-                    ]
-                }
-            ];
-        } else if (type === 'repeaters') {
-            title = "7/3手指耐力";
-            tags = ['耐力', '手指'];
-            blocks = [
-                { type: 'timer', id: uuid(), props: { duration: 10, label: '準備', color: 'amber' } },
-                {
-                    type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' },
-                    children: [
-                        {
-                            type: 'loop', id: uuid(), props: { iterations: 6, color: 'gray' },
-                            children: [
-                                { type: 'timer', id: uuid(), props: { duration: 7, label: '懸掛', color: 'red', customMetrics: [{ name: '重量', type: 'number' }] } },
-                                { type: 'timer', id: uuid(), props: { duration: 3, label: '休息', color: 'green', skipOnLast: true } }
-                            ]
-                        },
-                        { type: 'timer', id: uuid(), props: { duration: 180, label: '組間休息', color: 'green', skipOnLast: true } }
-                    ]
-                }
-            ];
-        } else if (type === 'pullups') {
-            title = "上肢與核心";
-            tags = ['體能', '上肢力量'];
-            blocks = [
-                { type: 'timer', id: uuid(), props: { duration: 10, label: '準備', color: 'amber' } },
-                {
-                    type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' },
-                    children: [
-                        { type: 'reps', id: uuid(), props: { count: 5, duration: 30, label: '引體向上', color: 'blue', customMetrics: [{ name: '引體次數', type: 'number' }, { name: '重量', type: 'number' }] } },
-                        { type: 'timer', id: uuid(), props: { duration: 20, label: 'L型支撐', color: 'orange', customMetrics: [{ name: '核心秒數', type: 'number' }] } },
-                        { type: 'timer', id: uuid(), props: { duration: 90, label: '休息', color: 'green', skipOnLast: true } }
-                    ]
-                }
-            ];
-        } else if (type === 'squat') {
-            title = "深蹲 5x5";
-            tags = ['體能', '下肢力量'];
-            blocks = [
-                { type: 'timer', id: uuid(), props: { duration: 10, label: '準備', color: 'amber' } },
-                {
-                    type: 'loop', id: uuid(), props: { iterations: 3, color: 'gray' },
-                    children: [
-                        { type: 'reps', id: uuid(), props: { count: 5, duration: 60, label: '深蹲 (熱身)', color: 'blue', customMetrics: [{ name: '熱身重量', type: 'number' }] } },
-                        { type: 'timer', id: uuid(), props: { duration: 120, label: '休息', color: 'green' } }
-                    ]
-                },
-                {
-                    type: 'loop', id: uuid(), props: { iterations: 5, color: 'gray' },
-                    children: [
-                        { type: 'reps', id: uuid(), props: { count: 5, duration: 60, label: '深蹲 (主項)', color: 'red', customMetrics: [{ name: '深蹲重量', type: 'number' }] } },
-                        { type: 'timer', id: uuid(), props: { duration: 180, label: '休息', color: 'green', skipOnLast: true } }
-                    ]
-                }
-            ];
+        if (!generator) {
+            console.warn(`找不到範本類型: ${type}`);
+            return;
         }
+
+        const templateData = generator();
 
         // 載入至編輯器 UI
         editor.currentId = null;
-        document.getElementById('editor-title').value = title;
-        editor.currentRoutineTags = tags;
+        document.getElementById('editor-title').value = templateData.title;
+        editor.currentRoutineTags = templateData.tags || [];
 
         const canvas = document.getElementById('editor-canvas');
         canvas.innerHTML = '';
-        blocks.forEach(b => canvas.appendChild(editor.createBlock(b)));
+        templateData.blocks.forEach(b => canvas.appendChild(editor.createBlock(b)));
 
         document.getElementById('modal-editor').classList.add('open');
         editor.renderRoutineTagsUI();
