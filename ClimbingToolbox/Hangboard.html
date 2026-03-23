@@ -118,239 +118,61 @@
     <div class="bg-white px-4 py-3 shrink-0 border-b border-gray-100 dark:bg-gray-800 dark:border-gray-700">
         <div id="editor-routine-tags" class="flex flex-wrap gap-1.5 mb-2 min-h-[24px] items-center">
         </div>
-        <div class="flex gap-2 mb-2">
+
+        <div class="flex gap-2 items-center">
             <input type="text" id="inp-routine-tag"
-                class="flex-1 border border-gray-200 rounded-lg p-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="flex-1 border border-gray-200 rounded-lg p-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="輸入標籤 (例如：耐力)">
+
             <button data-action="editor-add-tag"
-                class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 hover:bg-blue-100 transition-colors">新增</button>
-        </div>
-        <div class="flex justify-between items-center mb-1">
-            <div class="text-[10px] font-bold text-gray-400">歷史標籤：</div>
+                class="shrink-0 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 hover:bg-blue-100 transition-colors active:scale-95">
+                新增
+            </button>
+
             <button type="button" data-action="editor-toggle-tag-lib"
-                class="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 transition-colors flex items-center gap-1 active:scale-95 border border-blue-100 dark:border-blue-800">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                class="shrink-0 bg-gray-50 text-gray-500 px-3 py-2 rounded-lg text-sm font-bold border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 hover:bg-gray-100 transition-colors flex items-center gap-1 active:scale-95">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                     </path>
                 </svg>
-                展開標籤庫
+                標籤庫
             </button>
         </div>
-        <div id="editor-tag-suggestions" class="flex flex-wrap gap-1.5">
-        </div>
 
-        <!-- 標籤庫面板 (展開/收合) -->
+        <div id="editor-tag-suggestions" class="hidden"></div>
+
         <div id="tag-library-panel"
             class="hidden mt-3 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50 shadow-inner">
-
-            <!-- 分頁按鈕區 (可橫向滑動) -->
             <div
                 class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 no-scrollbar text-[11px] font-bold">
-                <button type="button" data-action="editor-switch-tab" data-value="tab-muscle-group"
-                    class="tab-btn px-3 py-2 whitespace-nowrap text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 shrink-0 transition-colors">1.
+                <button type="button" data-action="editor-switch-tab" data-value="history"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 shrink-0 transition-colors">0.
+                    歷史標籤</button>
+                <button type="button" data-action="editor-switch-tab" data-value="muscle-group"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 border-b-2 border-transparent dark:text-gray-400 shrink-0 transition-colors">1.
                     區段肌群</button>
-                <button type="button" data-action="editor-switch-tab" data-value="tab-muscle"
-                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">2.
-                    主要肌肉</button>
-                <button type="button" data-action="editor-switch-tab" data-value="tab-fitness"
-                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">3.
-                    體能要素</button>
-                <button type="button" data-action="editor-switch-tab" data-value="tab-zones"
-                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">4.
-                    能量區間</button>
-                <button type="button" data-action="editor-switch-tab" data-value="tab-climbing"
-                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">⚡
-                    攀岩專項</button>
-                <button type="button" data-action="editor-switch-tab" data-value="tab-equipment"
-                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 border-b-2 border-transparent shrink-0 transition-colors">🛠️
-                    裝備器材</button>
+                <button type="button" data-action="editor-switch-tab" data-value="muscle"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 border-b-2 border-transparent dark:text-gray-400 shrink-0 transition-colors">2.
+                    肌肉</button>
+                <button type="button" data-action="editor-switch-tab" data-value="fitness"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 border-b-2 border-transparent dark:text-gray-400 shrink-0 transition-colors">3.
+                    體能</button>
+                <button type="button" data-action="editor-switch-tab" data-value="zones"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 border-b-2 border-transparent dark:text-gray-400 shrink-0 transition-colors">4.
+                    能量系統</button>
+                <button type="button" data-action="editor-switch-tab" data-value="climbing"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 border-b-2 border-transparent dark:text-gray-400 shrink-0 transition-colors">5.
+                    攀岩</button>
+                <button type="button" data-action="editor-switch-tab" data-value="equipment"
+                    class="tab-btn px-3 py-2 whitespace-nowrap text-gray-500 border-b-2 border-transparent dark:text-gray-400 shrink-0 transition-colors">6.
+                    器材</button>
             </div>
-
-            <!-- 標籤內容區 -->
-            <div class="p-3 max-h-[140px] overflow-y-auto no-scrollbar relative">
-                <style>
-                    .lib-tag-btn {
-                        @apply text-[10px] px-2.5 py-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 text-gray-700 dark:text-gray-200 transition-colors active:scale-95;
-                    }
-                </style>
-
-                <!-- 1. 按主要肌群區分 -->
-                <div id="tab-muscle-group" class="tag-tab-content flex flex-wrap gap-1.5">
-                    <button type="button" data-action="editor-add-tag" data-value="全身" class="lib-tag-btn">全身</button>
-                    <button type="button" data-action="editor-add-tag" data-value="核心" class="lib-tag-btn">核心</button>
-                    <button type="button" data-action="editor-add-tag" data-value="上肢" class="lib-tag-btn">上肢</button>
-                    <button type="button" data-action="editor-add-tag" data-value="下肢" class="lib-tag-btn">下肢</button>
-                    <button type="button" data-action="editor-add-tag" data-value="背部肌群"
-                        class="lib-tag-btn">背部肌群</button>
-                    <button type="button" data-action="editor-add-tag" data-value="胸部肌群"
-                        class="lib-tag-btn">胸部肌群</button>
-                    <button type="button" data-action="editor-add-tag" data-value="腹部肌群"
-                        class="lib-tag-btn">腹部肌群</button>
-                    <button type="button" data-action="editor-add-tag" data-value="肩部肌群"
-                        class="lib-tag-btn">肩部肌群</button>
-                    <button type="button" data-action="editor-add-tag" data-value="二頭肌" class="lib-tag-btn">二頭肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="三頭肌" class="lib-tag-btn">三頭肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="小臂肌群"
-                        class="lib-tag-btn">小臂肌群</button>
-                    <button type="button" data-action="editor-add-tag" data-value="臀肌" class="lib-tag-btn">臀肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="股四頭肌"
-                        class="lib-tag-btn">股四頭肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="膕繩肌" class="lib-tag-btn">膕繩肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="小腿肌群"
-                        class="lib-tag-btn">小腿肌群</button>
-
-                </div>
-                <!-- 2. 按主要肌肉區分 -->
-                <div id="tab-muscle" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                    <!-- 背部 -->
-                    <button type="button" data-action="editor-add-tag" data-value="斜方肌" class="lib-tag-btn">斜方肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="菱形肌" class="lib-tag-btn">菱形肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="背闊肌" class="lib-tag-btn">背闊肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="豎脊肌" class="lib-tag-btn">豎脊肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="大圓肌" class="lib-tag-btn">大圓肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="小圓肌" class="lib-tag-btn">小圓肌</button>
-
-                    <!-- 胸部 -->
-                    <button type="button" data-action="editor-add-tag" data-value="胸大肌上束"
-                        class="lib-tag-btn">胸大肌上束</button>
-                    <button type="button" data-action="editor-add-tag" data-value="胸大肌中束"
-                        class="lib-tag-btn">胸大肌中束</button>
-                    <button type="button" data-action="editor-add-tag" data-value="胸大肌下束"
-                        class="lib-tag-btn">胸大肌下束</button>
-                    <button type="button" data-action="editor-add-tag" data-value="胸小肌" class="lib-tag-btn">胸小肌</button>
-
-                    <!-- 腹部 -->
-                    <button type="button" data-action="editor-add-tag" data-value="上腹直肌"
-                        class="lib-tag-btn">上腹直肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="下腹直肌"
-                        class="lib-tag-btn">下腹直肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="腹外斜肌"
-                        class="lib-tag-btn">腹外斜肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="腹內斜肌"
-                        class="lib-tag-btn">腹內斜肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="腹橫肌" class="lib-tag-btn">腹橫肌</button>
-
-                    <!-- 肩部 -->
-                    <button type="button" data-action="editor-add-tag" data-value="三角肌前束"
-                        class="lib-tag-btn">三角肌前束</button>
-                    <button type="button" data-action="editor-add-tag" data-value="三角肌中束"
-                        class="lib-tag-btn">三角肌中束</button>
-                    <button type="button" data-action="editor-add-tag" data-value="三角肌後束"
-                        class="lib-tag-btn">三角肌後束</button>
-
-                    <!-- 手臂 -->
-                    <button type="button" data-action="editor-add-tag" data-value="肱二頭肌"
-                        class="lib-tag-btn">肱二頭肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="肱肌" class="lib-tag-btn">肱肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="肱三頭肌"
-                        class="lib-tag-btn">肱三頭肌</button>
-
-                    <!-- 前臂 -->
-                    <button type="button" data-action="editor-add-tag" data-value="肱橈肌" class="lib-tag-btn">肱橈肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="前臂屈肌群"
-                        class="lib-tag-btn">前臂屈肌群</button>
-                    <button type="button" data-action="editor-add-tag" data-value="前臂伸肌群"
-                        class="lib-tag-btn">前臂伸肌群</button>
-
-                    <!-- 臀部 -->
-                    <button type="button" data-action="editor-add-tag" data-value="臀大肌" class="lib-tag-btn">臀大肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="臀中肌" class="lib-tag-btn">臀中肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="臀小肌" class="lib-tag-btn">臀小肌</button>
-
-                    <!-- 大腿前側 -->
-                    <button type="button" data-action="editor-add-tag" data-value="股直肌" class="lib-tag-btn">股直肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="股外側肌"
-                        class="lib-tag-btn">股外側肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="股內側肌"
-                        class="lib-tag-btn">股內側肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="股中間肌"
-                        class="lib-tag-btn">股中間肌</button>
-
-                    <!-- 大腿後側 -->
-                    <button type="button" data-action="editor-add-tag" data-value="股二頭肌"
-                        class="lib-tag-btn">股二頭肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="半腱肌" class="lib-tag-btn">半腱肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="半膜肌" class="lib-tag-btn">半膜肌</button>
-
-                    <!-- 小腿 -->
-                    <button type="button" data-action="editor-add-tag" data-value="腓腸肌" class="lib-tag-btn">腓腸肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="比目魚肌"
-                        class="lib-tag-btn">比目魚肌</button>
-                    <button type="button" data-action="editor-add-tag" data-value="脛前肌" class="lib-tag-btn">脛前肌</button>
-                </div>
-                <!-- 3. 按體能要素區分 -->
-                <div id="tab-fitness" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                    <button type="button" data-action="editor-add-tag" data-value="肌力" class="lib-tag-btn">肌力</button>
-                    <button type="button" data-action="editor-add-tag" data-value="耐力" class="lib-tag-btn">耐力</button>
-                    <button type="button" data-action="editor-add-tag" data-value="速度" class="lib-tag-btn">速度</button>
-                    <button type="button" data-action="editor-add-tag" data-value="柔軟度" class="lib-tag-btn">柔軟</button>
-                    <button type="button" data-action="editor-add-tag" data-value="協調" class="lib-tag-btn">協調</button>
-
-                    <button type="button" data-action="editor-add-tag" data-value="最大肌力"
-                        class="lib-tag-btn">最大肌力</button>
-                    <button type="button" data-action="editor-add-tag" data-value="最大速度"
-                        class="lib-tag-btn">最大速度</button>
-                    <button type="button" data-action="editor-add-tag" data-value="爆發力" class="lib-tag-btn">爆發力</button>
-                    <button type="button" data-action="editor-add-tag" data-value="敏捷" class="lib-tag-btn">敏捷</button>
-
-                    <button type="button" data-action="editor-add-tag" data-value="肌耐力" class="lib-tag-btn">肌耐力</button>
-                    <button type="button" data-action="editor-add-tag" data-value="有氧耐力"
-                        class="lib-tag-btn">有氧耐力</button>
-                    <button type="button" data-action="editor-add-tag" data-value="無氧耐力"
-                        class="lib-tag-btn">無氧耐力</button>
-                    <button type="button" data-action="editor-add-tag" data-value="速耐力" class="lib-tag-btn">速耐力</button>
-
-                    <button type="button" data-action="editor-add-tag" data-value="活動度" class="lib-tag-btn">活動度</button>
-                    <button type="button" data-action="editor-add-tag" data-value="平衡穩定"
-                        class="lib-tag-btn">平衡穩定</button>
-                    <button type="button" data-action="editor-add-tag" data-value="反應速度"
-                        class="lib-tag-btn">反應速度</button>
-                </div>
-                <!-- 4. 按能量區間區分 -->
-                <div id="tab-zones" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                    <button type="button" data-action="editor-add-tag" data-value="Zone 1" class="lib-tag-btn">Zone
-                        1</button>
-                    <button type="button" data-action="editor-add-tag" data-value="Zone 2" class="lib-tag-btn">Zone
-                        2</button>
-                    <button type="button" data-action="editor-add-tag" data-value="Zone 3" class="lib-tag-btn">Zone
-                        3</button>
-                    <button type="button" data-action="editor-add-tag" data-value="Zone 4" class="lib-tag-btn">Zone
-                        4</button>
-                    <button type="button" data-action="editor-add-tag" data-value="Zone 5" class="lib-tag-btn">Zone
-                        5</button>
-                    <button type="button" data-action="editor-add-tag" data-value="ATP-PC" class="lib-tag-btn">磷酸原
-                        (ATP-PC)</button>
-                    <button type="button" data-action="editor-add-tag" data-value="糖解系統"
-                        class="lib-tag-btn">糖解系統</button>
-                </div>
-                <!-- 5. 攀岩專項 -->
-                <div id="tab-climbing" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                    <button type="button" data-action="editor-add-tag" data-value="抱石" class="lib-tag-btn">抱石</button>
-                    <button type="button" data-action="editor-add-tag" data-value="上攀" class="lib-tag-btn">上攀</button>
-                    <button type="button" data-action="editor-add-tag" data-value="系統牆" class="lib-tag-btn">系統牆</button>
-                    <button type="button" data-action="editor-add-tag" data-value="指力板" class="lib-tag-btn">指力板</button>
-                    <button type="button" data-action="editor-add-tag" data-value="弱點訓練"
-                        class="lib-tag-btn">弱點訓練</button>
-                    <button type="button" data-action="editor-add-tag" data-value="動態發力"
-                        class="lib-tag-btn">動態發力</button>
-                    <button type="button" data-action="editor-add-tag" data-value="靜態控制"
-                        class="lib-tag-btn">靜態控制</button>
-                    <button type="button" data-action="editor-add-tag" data-value="鎖力" class="lib-tag-btn">鎖力</button>
-                    <button type="button" data-action="editor-add-tag" data-value="捏力" class="lib-tag-btn">捏力</button>
-                </div>
-                <!-- 6. 裝備器材  -->
-                <div id="tab-equipment" class="tag-tab-content hidden flex flex-wrap gap-1.5">
-                    <button type="button" data-action="editor-add-tag" data-value="自體重" class="lib-tag-btn">自體重</button>
-                    <button type="button" data-action="editor-add-tag" data-value="啞鈴" class="lib-tag-btn">啞鈴</button>
-                    <button type="button" data-action="editor-add-tag" data-value="壺鈴" class="lib-tag-btn">壺鈴</button>
-                    <button type="button" data-action="editor-add-tag" data-value="槓鈴" class="lib-tag-btn">槓鈴</button>
-                    <button type="button" data-action="editor-add-tag" data-value="彈力帶" class="lib-tag-btn">彈力帶</button>
-                    <button type="button" data-action="editor-add-tag" data-value="TRX" class="lib-tag-btn">TRX</button>
-                    <button type="button" data-action="editor-add-tag" data-value="滾筒" class="lib-tag-btn">滾筒放鬆</button>
-                </div>
+            <div id="tag-library-content"
+                class="p-3 max-h-[140px] overflow-y-auto no-scrollbar flex flex-wrap gap-1.5 relative">
             </div>
         </div>
+        
     </div>
 
     <!-- 視覺化時間軸 (Visual Timeline) -->
@@ -373,7 +195,7 @@
     <!-- 底部工具箱 -->
     <div class="bg-white border-t py-4 shrink-0 shadow-xl z-10 pb-8 dark:bg-gray-800 dark:border-gray-700">
 
-        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-4">拖曳新增</div>
+        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-4">長按拖曳新增</div>
 
         <div id="editor-palette"
             class="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-2 after:content-[''] after:w-1 after:shrink-0">
@@ -383,28 +205,26 @@
                 <span class="text-sm font-bold text-gray-700 dark:text-gray-300 text-center w-full">循環</span>
             </div>
 
-            <div class="palette-item shrink-0 w-20 h-16 bg-amber-50 border-2 border-amber-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-amber-900/40 dark:border-amber-700"
-                data-type="timer"
-                data-default-props='{"duration":10,"label":"Prepare","color":"amber","customMetrics":[]}'>
-                <span class="text-sm font-bold text-amber-700 dark:text-amber-300 text-center w-full">準備</span>
-            </div>
-
             <div class="palette-item shrink-0 w-20 h-16 bg-red-50 border-2 border-red-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-red-900/40 dark:border-red-700"
                 data-type="timer"
-                data-default-props='{"duration":10,"label":"Workout","color":"red","customMetrics":[{"name":"附加重量","type":"number"}]}'>
+                data-default-props='{"duration":10,"label":"訓練","color":"red","customMetrics":[{"name":"附加重量","type":"number"}]}'>
                 <span class="text-sm font-bold text-red-700 dark:text-red-300 text-center w-full">訓練</span>
-            </div>
-
-            <div class="palette-item shrink-0 w-20 h-16 bg-green-50 border-2 border-green-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-green-900/40 dark:border-green-700"
-                data-type="timer"
-                data-default-props='{"duration":180,"label":"Rest","color":"green","customMetrics":[]}'>
-                <span class="text-sm font-bold text-green-700 dark:text-green-300 text-center w-full">休息</span>
             </div>
 
             <div class="palette-item shrink-0 w-20 h-16 bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-blue-900/40 dark:border-blue-700"
                 data-type="reps"
-                data-default-props='{"count":5,"duration":30,"label":"Pull Ups","color":"blue","customMetrics":[{"name":"次數","type":"number"}]}'>
+                data-default-props='{"count":5,"duration":30,"label":"計數","color":"blue","customMetrics":[{"name":"次數","type":"number"}]}'>
                 <span class="text-sm font-bold text-blue-700 dark:text-blue-300 text-center w-full">計數</span>
+            </div>
+
+            <div class="palette-item shrink-0 w-20 h-16 bg-green-50 border-2 border-green-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-green-900/40 dark:border-green-700"
+                data-type="timer" data-default-props='{"duration":180,"label":"休息","color":"green","customMetrics":[]}'>
+                <span class="text-sm font-bold text-green-700 dark:text-green-300 text-center w-full">休息</span>
+            </div>
+
+            <div class="palette-item shrink-0 w-20 h-16 bg-amber-50 border-2 border-amber-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-amber-900/40 dark:border-amber-700"
+                data-type="timer" data-default-props='{"duration":10,"label":"準備","color":"amber","customMetrics":[]}'>
+                <span class="text-sm font-bold text-amber-700 dark:text-amber-300 text-center w-full">準備</span>
             </div>
 
         </div>
