@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>攀岩專項部位監測系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans selection:bg-blue-500/30">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <header
+            class="flex flex-col md:flex-row justify-between items-center bg-slate-900/50 backdrop-blur-md p-4 rounded-2xl border border-slate-800 gap-4 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-yellow-400/10 rounded-lg">
+                    <i data-lucide="zap" class="text-yellow-400 w-6 h-6"></i>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">攀岩專項部位監測系統</h1>
+            </div>
+            <div class="flex bg-slate-950/50 p-1 rounded-xl border border-slate-800 text-xs" id="tab-container">
+                <button data-tab="schedule"
+                    class="tab-btn px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 bg-blue-600 text-white shadow-lg">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i> 時程規劃
+                </button>
+                <button data-tab="workouts"
+                    class="tab-btn px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 text-slate-500 hover:text-slate-300">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> 菜單配置
+                </button>
+                <button data-tab="editor"
+                    class="tab-btn px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 text-slate-500 hover:text-slate-300">
+                    <i data-lucide="settings" class="w-3.5 h-3.5"></i> 數值微調
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- 控制面板 -->
+            <div class="lg:col-span-4 space-y-4">
+
+                <!-- 時程規劃 -->
+                <section id="panel-schedule"
+                    class="panel bg-slate-900/40 p-4 rounded-2xl border border-slate-800 h-[700px] flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">排程安排</h2>
+                        <select id="cycle-select"
+                            class="bg-slate-800 border border-slate-700 rounded p-1 text-[10px] text-blue-300 outline-none cursor-pointer">
+                            <option value="7">7 天循環</option>
+                            <option value="14">14 天循環</option>
+                            <option value="28">28 天循環</option>
+                        </select>
+                    </div>
+                    <div id="schedule-container" class="space-y-6 overflow-y-auto custom-scrollbar flex-1 pr-2"></div>
+                </section>
+
+                <!-- 菜單配置 -->
+                <section id="panel-workouts"
+                    class="panel hidden bg-slate-900/40 p-4 rounded-2xl border border-slate-800 h-[700px] overflow-y-auto custom-scrollbar flex-col">
+                    <h2 class="text-[10px] font-black mb-4 text-slate-500 uppercase tracking-widest text-center">訓練菜單配置
+                    </h2>
+                    <div id="workouts-container" class="space-y-4 text-left"></div>
+                </section>
+
+                <!-- 數值微調 -->
+                <section id="panel-editor"
+                    class="panel hidden bg-slate-900/40 p-4 rounded-2xl border border-slate-800 h-[700px] overflow-y-auto custom-scrollbar flex-col">
+                    <h2 class="text-[10px] font-black mb-4 text-slate-500 uppercase tracking-widest text-center">動作成分定義
+                    </h2>
+                    <div id="editor-container" class="space-y-3 text-left"></div>
+                </section>
+
+            </div>
+
+            <!-- 圖表區 -->
+            <div class="lg:col-span-8 space-y-4">
+                <div class="bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-2xl backdrop-blur-sm">
+                    <div class="flex flex-wrap justify-between items-center mb-8 gap-4">
+                        <h2 class="text-lg font-bold flex items-center gap-2">
+                            <i data-lucide="activity" class="text-blue-500 w-4 h-4"></i>
+                            <span id="chart-title">指標波動 (7天循環模擬)</span>
+                        </h2>
+                        <div id="legend-container" class="flex flex-wrap gap-x-4 gap-y-2"></div>
+                    </div>
+                    <div class="h-[520px] relative w-full">
+                        <canvas id="simulationChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // 初始數據定義
+        const INITIAL_EXERCISES = [
+            { id: 'sq', name: '槓鈴深蹲', cons: { cns: 15, uPull: 0, sStab: 5, uPush: 0, legPow: 25, ankle: 5, bTens: 12, tendon: 0 } },
+            { id: 'dl', name: '槓鈴硬舉', cons: { cns: 20, uPull: 12, sStab: 8, uPush: 0, legPow: 25, ankle: 5, bTens: 15, tendon: 0 } },
+            { id: 'pu', name: '引體向上', cons: { cns: 10, uPull: 28, sStab: 12, uPush: 0, legPow: 0, ankle: 0, bTens: 8, tendon: 0 } },
+            { id: 'br', name: '槓鈴划船', cons: { cns: 10, uPull: 22, sStab: 15, uPush: 0, legPow: 5, ankle: 0, bTens: 10, tendon: 0 } },
+            { id: 'ohp', name: '槓鈴肩推', cons: { cns: 10, uPull: 0, sStab: 15, uPush: 25, legPow: 5, ankle: 0, bTens: 10, tendon: 0 } },
+            { id: 'bp', name: '上斜臥推', cons: { cns: 10, uPull: 0, sStab: 8, uPush: 25, legPow: 0, ankle: 0, bTens: 5, tendon: 0 } },
+            { id: 'bulgarian_sq', name: '保加利亞單腿蹲', cons: { cns: 8, uPull: 0, sStab: 0, uPush: 0, legPow: 20, ankle: 10, bTens: 10, tendon: 0 } },
+            { id: 'one_arm_row', name: '單臂划船', cons: { cns: 8, uPull: 15, sStab: 12, uPush: 0, legPow: 0, ankle: 0, bTens: 12, tendon: 0 } },
+            { id: 'kb_swing', name: '壺鈴擺盪', cons: { cns: 5, uPull: 5, sStab: 5, uPush: 0, legPow: 8, ankle: 5, bTens: 10, tendon: 0 } },
+            { id: 'kb_halo', name: '壺鈴繞頸', cons: { cns: 5, uPull: 5, sStab: 28, uPush: 5, legPow: 0, ankle: 0, bTens: 15, tendon: 0 } },
+            { id: 'bal_single', name: '平衡板單腳站', cons: { cns: 8, uPull: 0, sStab: 0, uPush: 0, legPow: 5, ankle: 25, bTens: 10, tendon: 0 } },
+            { id: 'bal_calf', name: '平衡板提踵', cons: { cns: 5, uPull: 0, sStab: 0, uPush: 0, legPow: 5, ankle: 28, bTens: 5, tendon: 0 } },
+            { id: 'ab', name: '腹肌輪', cons: { cns: 5, uPull: 5, sStab: 10, uPush: 5, legPow: 0, ankle: 0, bTens: 25, tendon: 0 } },
+            { id: 'hang_light', name: '輕量指力(每日)', cons: { cns: 3, uPull: 5, sStab: 5, uPush: 0, legPow: 0, ankle: 0, bTens: 5, tendon: 8 } },
+            { id: 'hang_heavy', name: '正式指力訓練', cons: { cns: 10, uPull: 15, sStab: 10, uPush: 0, legPow: 0, ankle: 0, bTens: 10, tendon: 25 } },
+            { id: 'climb_boulder', name: '抱石(極限/動態)', cons: { cns: 45, uPull: 40, sStab: 20, uPush: 10, legPow: 15, ankle: 10, bTens: 40, tendon: 65 } },
+            { id: 'climb_toprope', name: '上攀(耐力/紅點)', cons: { cns: 30, uPull: 60, sStab: 30, uPush: 10, legPow: 10, ankle: 25, bTens: 25, tendon: 40 } },
+            { id: 'yoga', name: '瑜珈課程', cons: { cns: -5, uPull: -15, sStab: 10, uPush: 10, legPow: 15, ankle: 10, bTens: 20, tendon: 0 } }
+        ];
+
+        const INITIAL_WORKOUTS = {
+            'empty': { name: '休息', exercises: [] },
+            'morning_simple': { name: '早晨快速代謝', exercises: ['kb_swing', 'hang_light'] },
+            'dorm_pm': { name: '宿舍補強/單側', exercises: ['bulgarian_sq', 'ab', 'one_arm_row', 'kb_halo'] },
+            'gym': { name: '健身房大重量', exercises: ['sq', 'dl', 'pu', 'br', 'ohp', 'bp'] },
+            'boulder_limit': { name: '抱石館: 極限', exercises: ['climb_boulder'] },
+            'boulder_vol': { name: '抱石館: 容量', exercises: ['climb_boulder', 'hang_heavy'] },
+            'top_rope': { name: '上攀館: 耐力', exercises: ['climb_toprope', 'hang_light'] },
+            'yoga_session': { name: '瑜珈與恢復', exercises: ['yoga'] }
+        };
+
+        const BASE_RECOVERY = { cns: 35, uPull: 40, sStab: 45, uPush: 40, legPow: 35, ankle: 30, bTens: 40, tendon: 25 };
+
+        const metrics = [
+            { key: 'cns', label: 'CNS', color: '#f43f5e' },
+            { key: 'uPull', label: '上肢拉', color: '#8b5cf6' },
+            { key: 'sStab', label: '肩穩定', color: '#c084fc' },
+            { key: 'uPush', label: '上肢推', color: '#3b82f6' },
+            { key: 'legPow', label: '下肢大', color: '#f59e0b' },
+            { key: 'ankle', label: '足踝', color: '#fbbf24' },
+            { key: 'bTens', label: '核心張力', color: '#d946ef' },
+            { key: 'tendon', label: '指力', color: '#10b981' }
+        ];
+
+        const dayNames = ['一', '二', '三', '四', '五', '六', '日'];
+
+        // 狀態管理
+        let state = {
+            cycleDays: 7,
+            exercises: JSON.parse(JSON.stringify(INITIAL_EXERCISES)),
+            workouts: JSON.parse(JSON.stringify(INITIAL_WORKOUTS)),
+            schedule: Array(14).fill('empty'),
+            activeTab: 'schedule'
+        };
+
+        let chartInstance = null;
+
+        // 初始化與事件綁定
+        function init() {
+            renderLegend();
+            bindTabEvents();
+            bindCycleEvent();
+            renderAll();
+        }
+
+        // 介面切換邏輯
+        function bindTabEvents() {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const tabId = e.currentTarget.dataset.tab;
+                    state.activeTab = tabId;
+
+                    // 更新按鈕樣式
+                    document.querySelectorAll('.tab-btn').forEach(b => {
+                        if (b.dataset.tab === tabId) {
+                            b.className = "tab-btn px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 bg-blue-600 text-white shadow-lg";
+                        } else {
+                            b.className = "tab-btn px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 text-slate-500 hover:text-slate-300";
+                        }
+                    });
+
+                    // 切換面板
+                    document.querySelectorAll('.panel').forEach(p => {
+                        if (p.id === `panel-${tabId}`) {
+                            p.classList.remove('hidden');
+                            p.classList.add('flex');
+                        } else {
+                            p.classList.add('hidden');
+                            p.classList.remove('flex');
+                        }
+                    });
+                });
+            });
+        }
+
+        function bindCycleEvent() {
+            document.getElementById('cycle-select').addEventListener('change', (e) => {
+                const days = parseInt(e.target.value);
+                state.cycleDays = days;
+
+                const newLength = days * 2;
+                const newSchedule = [];
+                for (let i = 0; i < newLength; i++) {
+                    newSchedule.push(state.schedule[i % state.schedule.length] || 'empty');
+                }
+                state.schedule = newSchedule;
+
+                document.getElementById('chart-title').textContent = `指標波動 (${days}天循環模擬)`;
+                renderSchedule();
+                updateSimulationAndChart();
+            });
+        }
+
+        // 渲染圖例
+        function renderLegend() {
+            const container = document.getElementById('legend-container');
+            container.innerHTML = metrics.map(m => `
+        <div class="flex items-center gap-1.5">
+          <div class="w-1.5 h-1.5 rounded-full shadow-sm" style="background-color: ${m.color}"></div>
+          <span class="text-[9px] font-black text-slate-400 uppercase tracking-tight">${m.label}</span>
+        </div>
+      `).join('');
+        }
+
+        function getDayLabel(index) {
+            const dayIndex = index % 7;
+            const weekNum = Math.floor(index / 7) + 1;
+            return state.cycleDays === 7 ? `週${dayNames[dayIndex]}` : `W${weekNum}-${dayNames[dayIndex]}`;
+        }
+
+        // 渲染排程面板
+        function renderSchedule() {
+            const container = document.getElementById('schedule-container');
+            let html = '';
+
+            let scheduleWeeks = [];
+            for (let i = 0; i < state.cycleDays; i += 7) {
+                scheduleWeeks.push(state.schedule.slice(i * 2, (i + 7) * 2));
+            }
+
+            scheduleWeeks.forEach((week, wIdx) => {
+                html += `<div class="space-y-3">`;
+                if (state.cycleDays > 7) {
+                    html += `<div class="text-xs font-bold text-blue-400 border-b border-slate-800 pb-1">第 ${wIdx + 1} 週</div>`;
+                }
+
+                for (let dIdx = 0; dIdx < 7; dIdx++) {
+                    const globalDayIdx = wIdx * 7 + dIdx;
+                    if (globalDayIdx >= state.cycleDays) break;
+
+                    const dayLabel = state.cycleDays > 7 ? `W${wIdx + 1}-${dayNames[dIdx]}` : `週${dayNames[dIdx]}`;
+
+                    let optionsHtml = Object.entries(state.workouts).map(([id, w]) => {
+                        return `<option value="${id}">${w.name}</option>`;
+                    }).join('');
+
+                    html += `
+            <div class="p-3 bg-slate-950/50 rounded-xl border border-slate-800 space-y-2 group hover:border-blue-500/30 transition-colors">
+              <div class="text-[10px] font-black text-slate-500 flex items-center gap-2">
+                ${dayLabel}
+                <div class="h-px flex-1 bg-slate-800"></div>
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                ${[0, 1].map(slot => {
+                        const val = state.schedule[globalDayIdx * 2 + slot];
+                        const optionsWithSelected = optionsHtml.replace(`value="${val}"`, `value="${val}" selected`);
+                        return `
+                    <div class="relative">
+                      <select 
+                        data-index="${globalDayIdx * 2 + slot}" 
+                        class="schedule-select w-full bg-slate-900/80 border border-slate-800 rounded-lg p-2 text-[10px] font-bold text-blue-300 focus:ring-1 focus:ring-blue-500 outline-none appearance-none cursor-pointer hover:bg-slate-800"
+                      >
+                        ${optionsWithSelected.replace(/<\/option>/g, function (match, offset, string) {
+                            const valStr = string.substring(string.lastIndexOf('value="', offset) + 7, string.indexOf('"', string.lastIndexOf('value="', offset) + 7));
+                            return `>${slot === 0 ? '早' : '晚'}：${state.workouts[valStr].name}</option>`;
+                        })}
+                      </select>
+                    </div>
+                  `;
+                    }).join('')}
+              </div>
+            </div>
+          `;
+                }
+                html += `</div>`;
+            });
+
+            container.innerHTML = html;
+
+            // 綁定 Schedule 變更事件
+            document.querySelectorAll('.schedule-select').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    const idx = parseInt(e.target.dataset.index);
+                    state.schedule[idx] = e.target.value;
+                    updateSimulationAndChart();
+                });
+            });
+        }
+
+        // 渲染菜單配置面板
+        function renderWorkouts() {
+            const container = document.getElementById('workouts-container');
+            let html = '';
+
+            Object.entries(state.workouts).forEach(([wId, w]) => {
+                if (wId === 'empty') return;
+
+                let btnsHtml = state.exercises.map(ex => {
+                    const isSelected = w.exercises.includes(ex.id);
+                    const activeClass = isSelected
+                        ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-900/20'
+                        : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-600';
+
+                    return `
+            <button 
+              data-workout-id="${wId}" 
+              data-exercise-id="${ex.id}" 
+              class="workout-btn px-2 py-1 rounded text-[9px] font-bold border transition-all ${activeClass}"
+            >
+              ${ex.name}
+            </button>
+          `;
+                }).join('');
+
+                html += `
+          <div class="p-3 bg-slate-950/50 rounded-xl border border-slate-800">
+            <h3 class="text-[10px] font-black text-blue-400 mb-3 uppercase tracking-tighter">${w.name}</h3>
+            <div class="flex flex-wrap gap-1.5">
+              ${btnsHtml}
+            </div>
+          </div>
+        `;
+            });
+
+            container.innerHTML = html;
+
+            // 綁定 Workout 按鈕點擊事件
+            document.querySelectorAll('.workout-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const wId = e.target.dataset.workoutId;
+                    const exId = e.target.dataset.exerciseId;
+                    const exList = state.workouts[wId].exercises;
+
+                    if (exList.includes(exId)) {
+                        state.workouts[wId].exercises = exList.filter(id => id !== exId);
+                    } else {
+                        state.workouts[wId].exercises.push(exId);
+                    }
+
+                    renderWorkouts();
+                    updateSimulationAndChart();
+                });
+            });
+        }
+
+        // 渲染數值微調面板
+        function renderEditor() {
+            const container = document.getElementById('editor-container');
+            let html = state.exercises.map(ex => {
+                let inputsHtml = Object.keys(ex.cons).map(k => {
+                    const label = metrics.find(m => m.key === k)?.label || k;
+                    return `
+            <div class="flex flex-col gap-0.5">
+              <span class="text-slate-600 truncate">${label}</span>
+              <input 
+                type="number" 
+                data-ex-id="${ex.id}" 
+                data-metric="${k}"
+                value="${ex.cons[k]}" 
+                class="editor-input bg-slate-900 border border-slate-800 rounded p-1 w-full text-center text-blue-400 focus:ring-1 focus:ring-blue-500 outline-none" 
+              />
+            </div>
+          `;
+                }).join('');
+
+                return `
+          <div class="p-3 bg-slate-950/50 rounded-xl border border-slate-800 group hover:border-slate-600 transition-colors">
+            <div class="text-xs font-bold mb-2 flex justify-between items-center text-slate-200">
+              ${ex.name}
+              <span class="text-slate-700 text-[8px] font-mono">${ex.id.toUpperCase()}</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-[9px]">
+              ${inputsHtml}
+            </div>
+          </div>
+        `;
+            }).join('');
+
+            container.innerHTML = html;
+
+            // 綁定 Editor 輸入事件
+            document.querySelectorAll('.editor-input').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const exId = e.target.dataset.exId;
+                    const metricKey = e.target.dataset.metric;
+                    const val = parseInt(e.target.value) || 0;
+
+                    const exercise = state.exercises.find(ex => ex.id === exId);
+                    if (exercise) {
+                        exercise.cons[metricKey] = val;
+                        updateSimulationAndChart();
+                    }
+                });
+            });
+        }
+
+        // 模擬運算核心邏輯
+        function runSimulationProcess() {
+            const runSinglePass = (initialState) => {
+                let current = { ...initialState };
+                const results = [];
+
+                state.schedule.forEach((workoutId, index) => {
+                    const workout = state.workouts[workoutId];
+                    const isAM = index % 2 === 0;
+
+                    // 計算總消耗
+                    const totalCons = workout.exercises.reduce((acc, exId) => {
+                        const ex = state.exercises.find(e => e.id === exId);
+                        if (!ex) return acc;
+                        const out = {};
+                        Object.keys(acc).forEach(k => out[k] = acc[k] + (ex.cons[k] || 0));
+                        return out;
+                    }, { cns: 0, uPull: 0, sStab: 0, uPush: 0, legPow: 0, ankle: 0, bTens: 0, tendon: 0 });
+
+                    // 扣除消耗 (上下界限制)
+                    Object.keys(current).forEach(key => {
+                        current[key] = Math.min(100, Math.max(5, current[key] - totalCons[key]));
+                    });
+
+                    const afterTraining = { ...current };
+                    const ratio = isAM ? 0.2 : 0.8;
+
+                    // 執行恢復
+                    Object.keys(current).forEach(key => {
+                        current[key] = Math.min(100, current[key] + (BASE_RECOVERY[key] || 35) * ratio);
+                    });
+
+                    const dayIndex = Math.floor(index / 2);
+                    const dataPoint = {
+                        name: `${getDayLabel(dayIndex)}${isAM ? '早' : '晚'}`,
+                        _endState: { ...current }
+                    };
+
+                    Object.keys(afterTraining).forEach(k => {
+                        dataPoint[k.toUpperCase()] = Math.round(afterTraining[k]);
+                    });
+
+                    results.push(dataPoint);
+                });
+                return { results, finalState: current };
+            };
+
+            // 雙遍運算實現循環穩定狀態
+            const firstPass = runSinglePass({ cns: 100, uPull: 100, sStab: 100, uPush: 100, legPow: 100, ankle: 100, bTens: 100, tendon: 100 });
+            const secondPass = runSinglePass(firstPass.finalState);
+
+            return secondPass.results;
+        }
+
+        // 更新圖表
+        function updateSimulationAndChart() {
+            const data = runSimulationProcess();
+
+            const labels = data.map(d => d.name);
+            const datasets = metrics.map(m => ({
+                label: m.label,
+                data: data.map(d => d[m.key.toUpperCase()]),
+                borderColor: m.color,
+                borderWidth: 1.5,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                fill: false
+            }));
+
+            if (chartInstance) {
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets = datasets;
+                chartInstance.update();
+            } else {
+                const ctx = document.getElementById('simulationChart').getContext('2d');
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        layout: {
+                            padding: { top: 10, right: 10, left: -10, bottom: 20 }
+                        },
+                        scales: {
+                            y: {
+                                min: 0,
+                                max: 100,
+                                grid: { color: 'rgba(30, 41, 59, 0.5)', drawBorder: false },
+                                ticks: { color: '#475569', font: { size: 10 } },
+                                border: { display: false }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: '#475569',
+                                    font: { size: 9, weight: 600 },
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    autoSkip: false
+                                },
+                                border: { display: false }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#0f172a',
+                                borderColor: '#334155',
+                                borderWidth: 1,
+                                titleFont: { size: 10 },
+                                bodyFont: { size: 10 },
+                                padding: 8,
+                                boxPadding: 4,
+                                usePointStyle: true
+                            },
+                            annotation: {
+                                annotations: {
+                                    dangerLine: {
+                                        type: 'line',
+                                        yMin: 20,
+                                        yMax: 20,
+                                        borderColor: '#ef4444',
+                                        borderWidth: 1,
+                                        borderDash: [5, 5]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // 統整渲染
+        function renderAll() {
+            renderSchedule();
+            renderWorkouts();
+            renderEditor();
+            updateSimulationAndChart();
+        }
+
+        // 啟動應用
+        init();
+
+    </script>
+</body>
+
+</html>

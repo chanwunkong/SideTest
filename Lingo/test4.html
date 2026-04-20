@@ -1,280 +1,356 @@
-```react
-import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, X, Save, ArrowRight, CheckCircle2, Circle, Layers, ListTodo, Beaker } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="zh-TW">
 
-// 65 個 NSM 基礎基元
-const NSM_PRIMES = [
-  { id: 'n1', name: '我', category: '實體' }, { id: 'n2', name: '你', category: '實體' }, { id: 'n3', name: '某人', category: '實體' }, { id: 'n4', name: '某物', category: '實體' }, { id: 'n5', name: '人們', category: '實體' }, { id: 'n6', name: '身體', category: '實體' },
-  { id: 'n7', name: '種類', category: '關係' }, { id: 'n8', name: '部分', category: '關係' },
-  { id: 'n9', name: '這個', category: '限定' }, { id: 'n10', name: '相同', category: '限定' }, { id: 'n11', name: '其他', category: '限定' },
-  { id: 'n12', name: '一', category: '數量' }, { id: 'n13', name: '二', category: '數量' }, { id: 'n14', name: '一些', category: '數量' }, { id: 'n15', name: '很多', category: '數量' }, { id: 'n16', name: '全部', category: '數量' },
-  { id: 'n17', name: '好', category: '價值' }, { id: 'n18', name: '壞', category: '價值' }, { id: 'n19', name: '大', category: '價值' }, { id: 'n20', name: '小', category: '價值' },
-  { id: 'n21', name: '思考', category: '心智' }, { id: 'n22', name: '知道', category: '心智' }, { id: 'n23', name: '想要', category: '心智' }, { id: 'n24', name: '感覺', category: '心智' }, { id: 'n25', name: '看到', category: '心智' }, { id: 'n26', name: '聽到', category: '心智' },
-  { id: 'n27', name: '說', category: '言語' }, { id: 'n28', name: '詞語', category: '言語' }, { id: 'n29', name: '真實', category: '言語' },
-  { id: 'n30', name: '做', category: '動作' }, { id: 'n31', name: '發生', category: '動作' }, { id: 'n32', name: '移動', category: '動作' }, { id: 'n33', name: '碰觸', category: '動作' },
-  { id: 'n34', name: '在某處', category: '存在' }, { id: 'n35', name: '存在', category: '存在' }, { id: 'n36', name: '擁有', category: '存在' }, { id: 'n37', name: '是', category: '存在' },
-  { id: 'n38', name: '活著', category: '生命' }, { id: 'n39', name: '死亡', category: '生命' },
-  { id: 'n40', name: '時間', category: '時間' }, { id: 'n41', name: '現在', category: '時間' }, { id: 'n42', name: '之前', category: '時間' }, { id: 'n43', name: '之後', category: '時間' }, { id: 'n44', name: '長時間', category: '時間' }, { id: 'n45', name: '短時間', category: '時間' }, { id: 'n46', name: '一段時間', category: '時間' }, { id: 'n47', name: '瞬間', category: '時間' },
-  { id: 'n48', name: '地方', category: '空間' }, { id: 'n49', name: '這裡', category: '空間' }, { id: 'n50', name: '上面', category: '空間' }, { id: 'n51', name: '下面', category: '空間' }, { id: 'n52', name: '遠', category: '空間' }, { id: 'n53', name: '近', category: '空間' }, { id: 'n54', name: '旁邊', category: '空間' }, { id: 'n55', name: '裡面', category: '空間' },
-  { id: 'n56', name: '不', category: '邏輯' }, { id: 'n57', name: '也許', category: '邏輯' }, { id: 'n58', name: '可以', category: '邏輯' }, { id: 'n59', name: '因為', category: '邏輯' }, { id: 'n60', name: '如果', category: '邏輯' },
-  { id: 'n61', name: '非常', category: '強化' }, { id: 'n62', name: '更多', category: '強化' },
-  { id: 'n63', name: '像', category: '相似' }, { id: 'n64', name: '方式', category: '相似' }
-];
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NSM Swadesh 207 合成計畫</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* 自訂捲軸樣式以維持畫面整潔 */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
 
-// Swadesh 207 原始清單
-const SWADESH_WORDS = [
-  "我", "你", "他/她/它", "我們", "你們", "他們", "這個", "那個", "這裡", "那裡", "誰", "什麼", "哪裡", "何時", "如何", "不/沒", "全部", "多", "一些", "少", "其他", "一", "二", "三", "四", "五", "大", "長", "寬", "厚", "重", "小", "短", "窄", "薄", "女人", "男人", "人", "小孩", "妻子", "丈夫", "母親", "父親", "動物", "魚", "鳥", "狗", "蝨子", "蛇", "蟲", "樹", "森林", "樹枝/棍子", "水果", "種子", "葉子", "根", "樹皮", "花", "草", "繩子", "皮膚", "肉", "血", "骨頭", "脂肪", "蛋", "角", "尾巴", "羽毛", "頭髮/體毛", "頭", "耳朵", "眼睛", "鼻子", "嘴巴", "牙齒", "舌頭", "指甲", "腳", "腿", "膝蓋", "手", "翅膀", "肚子", "腸", "脖子", "背", "乳房/胸部", "心臟", "肝臟", "喝", "吃", "咬", "吸", "吐口水", "嘔吐", "吹", "呼吸", "笑", "看", "聽", "知道", "思考", "聞", "害怕", "睡覺", "活著", "死", "殺", "戰鬥", "打獵", "打", "砍/切", "劈開", "刺", "抓/刮", "挖", "游泳", "飛", "走", "來", "躺", "坐", "站立", "轉向", "掉落", "給", "拿/握", "擠壓", "摩擦", "洗", "擦拭", "拉", "推", "扔/丟", "綁/繫", "縫", "數", "說", "唱", "玩", "漂浮", "流動", "結冰", "腫脹", "太陽", "月亮", "星星", "水", "雨", "河流", "湖泊", "海", "鹽", "石頭", "沙子", "灰塵", "泥土/地", "雲", "霧", "天空", "風", "雪", "冰", "煙", "火", "灰燼", "燃燒", "道路", "山", "紅色", "綠色", "黃色", "白色", "黑色", "夜晚", "白天", "年", "溫暖", "寒冷", "滿的", "新的", "舊的", "好的", "壞的", "腐爛的", "髒的", "直的", "圓的", "尖銳的", "鈍的", "平滑的", "濕的", "乾的", "正確的", "近的", "遠的", "右邊", "左邊", "在...", "在...裡面", "與/同", "和", "如果", "因為", "名字"
-];
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
 
-export default function SwadeshSynthesizer() {
-  // 初始化 Swadesh 清單狀態
-  const [swadeshList, setSwadeshList] = useState(() => 
-    SWADESH_WORDS.map((word, index) => ({
-      id: `sw-${index + 1}`,
-      index: index + 1,
-      word: word,
-      formula: null
-    }))
-  );
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
 
-  const [currentTargetId, setCurrentTargetId] = useState(swadeshList[0].id);
-  const [workbench, setWorkbench] = useState([]);
-  const [materialTab, setMaterialTab] = useState('nsm');
-  const [categoryFilter, setCategoryFilter] = useState('全部');
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
 
-  // 計算進度
-  const completedCount = useMemo(() => swadeshList.filter(item => item.formula).length, [swadeshList]);
-  const progressPercentage = Math.round((completedCount / 207) * 100);
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col p-4 overflow-hidden">
 
-  // 取得當前目標與已完成材料
-  const currentTarget = swadeshList.find(item => item.id === currentTargetId);
-  const completedMaterials = swadeshList.filter(item => item.formula);
-  const nsmCategories = ['全部', ...new Set(NSM_PRIMES.map(p => p.category))];
+  <!-- 頂部區塊 -->
+  <header class="mb-4 flex-shrink-0">
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-2">
+      <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+        <i data-lucide="layers" class="w-5 h-5 text-blue-600"></i>
+        NSM Swadesh 207 合成計畫
+      </h1>
+      <div id="progress-text" class="text-sm font-medium text-slate-600 mt-2 md:mt-0">
+        完成進度: 0 / 207
+      </div>
+    </div>
+    <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+      <div id="progress-bar" class="h-full bg-blue-600 transition-all duration-500 ease-in-out" style="width: 0%"></div>
+    </div>
+  </header>
 
-  // 工作台操作
-  const addToWorkbench = (material) => {
-    setWorkbench([...workbench, material]);
-  };
+  <!-- 主體佈局 -->
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
 
-  const removeFromWorkbench = (index) => {
-    setWorkbench(workbench.filter((_, i) => i !== index));
-  };
+    <!-- 左側：原材料庫 -->
+    <div
+      class="lg:col-span-4 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 min-h-0 overflow-hidden">
+      <div class="flex border-b border-slate-200 flex-shrink-0" id="left-tabs">
+        <!-- 由 JS 渲染 -->
+      </div>
+      <div id="left-filters" class="p-2 border-b border-slate-100 flex flex-wrap gap-1 flex-shrink-0 bg-slate-50">
+        <!-- 由 JS 渲染 -->
+      </div>
+      <div class="p-4 overflow-y-auto flex-1">
+        <div id="left-items" class="flex flex-wrap gap-2">
+          <!-- 由 JS 渲染 -->
+        </div>
+      </div>
+    </div>
 
-  // 儲存公式並自動跳下一題
-  const handleSaveFormula = () => {
-    if (workbench.length === 0) return;
+    <!-- 中間：工作台 -->
+    <div class="lg:col-span-5 flex flex-col gap-4 min-h-0">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col flex-1 min-h-0">
+        <h2 class="text-base font-semibold flex items-center gap-2 mb-3 border-b border-slate-100 pb-2 flex-shrink-0">
+          <i data-lucide="plus" class="w-4 h-4 text-blue-600"></i>
+          合成工作台
+        </h2>
 
-    const formulaNames = workbench.map(item => item.name || item.word);
-    
-    setSwadeshList(prev => prev.map(item => 
-      item.id === currentTargetId ? { ...item, formula: formulaNames } : item
-    ));
+        <div id="workbench-area"
+          class="flex-1 bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg p-4 mb-4 flex flex-wrap content-start gap-2 overflow-y-auto">
+          <!-- 由 JS 渲染 -->
+        </div>
 
-    setWorkbench([]);
+        <div class="flex flex-col gap-2 flex-shrink-0">
+          <label class="text-xs font-medium text-slate-500">當前定義目標</label>
+          <div class="flex gap-2">
+            <input id="target-input" type="text" placeholder="輸入或從右側選擇目標"
+              class="flex-1 px-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-blue-500 text-sm" />
+            <button id="save-btn"
+              class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
+              <i data-lucide="save" class="w-4 h-4"></i>
+              保存定義
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    // 自動選擇下一個未完成的項目
-    const currentIndex = swadeshList.findIndex(item => item.id === currentTargetId);
-    for (let i = 1; i < swadeshList.length; i++) {
-      const nextIndex = (currentIndex + i) % swadeshList.length;
-      if (!swadeshList[nextIndex].formula) {
-        setCurrentTargetId(swadeshList[nextIndex].id);
-        break;
+    <!-- 右側：Swadesh 清單 -->
+    <div
+      class="lg:col-span-3 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 min-h-0 overflow-hidden">
+      <div class="p-3 border-b border-slate-100 flex-shrink-0">
+        <h2 class="text-base font-semibold flex items-center gap-2 mb-2">
+          <i data-lucide="target" class="w-4 h-4 text-indigo-600"></i>
+          Swadesh 207 任務
+        </h2>
+        <input id="search-input" type="text" placeholder="搜尋詞彙..."
+          class="w-full px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:border-indigo-500" />
+      </div>
+
+      <div class="p-2 overflow-y-auto flex-1">
+        <div id="swadesh-list" class="flex flex-col gap-1">
+          <!-- 由 JS 渲染 -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // 基礎資料
+    const NSM_PRIMES = [
+      { id: 'n1', name: '我', category: '實體' }, { id: 'n2', name: '你', category: '實體' }, { id: 'n3', name: '某人', category: '實體' }, { id: 'n4', name: '某物', category: '實體' }, { id: 'n5', name: '人們', category: '實體' }, { id: 'n6', name: '身體', category: '實體' },
+      { id: 'n7', name: '種類', category: '關係' }, { id: 'n8', name: '部分', category: '關係' },
+      { id: 'n9', name: '這個', category: '限定' }, { id: 'n10', name: '相同', category: '限定' }, { id: 'n11', name: '其他', category: '限定' },
+      { id: 'n12', name: '一', category: '數量' }, { id: 'n13', name: '二', category: '數量' }, { id: 'n14', name: '一些', category: '數量' }, { id: 'n15', name: '很多', category: '數量' }, { id: 'n16', name: '全部', category: '數量' },
+      { id: 'n17', name: '好', category: '價值' }, { id: 'n18', name: '壞', category: '價值' }, { id: 'n19', name: '大', category: '價值' }, { id: 'n20', name: '小', category: '價值' },
+      { id: 'n21', name: '思考', category: '心智' }, { id: 'n22', name: '知道', category: '心智' }, { id: 'n23', name: '想要', category: '心智' }, { id: 'n24', name: '感覺', category: '心智' }, { id: 'n25', name: '看到', category: '心智' }, { id: 'n26', name: '聽到', category: '心智' },
+      { id: 'n27', name: '說', category: '言語' }, { id: 'n28', name: '詞語', category: '言語' }, { id: 'n29', name: '真實', category: '言語' },
+      { id: 'n30', name: '做', category: '動作' }, { id: 'n31', name: '發生', category: '動作' }, { id: 'n32', name: '移動', category: '動作' }, { id: 'n33', name: '碰觸', category: '動作' },
+      { id: 'n34', name: '在某處', category: '存在' }, { id: 'n35', name: '存在', category: '存在' }, { id: 'n36', name: '擁有', category: '存在' }, { id: 'n37', name: '是', category: '存在' },
+      { id: 'n38', name: '活著', category: '生命' }, { id: 'n39', name: '死亡', category: '生命' },
+      { id: 'n40', name: '時間', category: '時間' }, { id: 'n41', name: '現在', category: '時間' }, { id: 'n42', name: '之前', category: '時間' }, { id: 'n43', name: '之後', category: '時間' }, { id: 'n44', name: '長時間', category: '時間' }, { id: 'n45', name: '短時間', category: '時間' }, { id: 'n46', name: '一段時間', category: '時間' }, { id: 'n47', name: '瞬間', category: '時間' },
+      { id: 'n48', name: '地方', category: '空間' }, { id: 'n49', name: '這裡', category: '空間' }, { id: 'n50', name: '上面', category: '空間' }, { id: 'n51', name: '下面', category: '空間' }, { id: 'n52', name: '遠', category: '空間' }, { id: 'n53', name: '近', category: '空間' }, { id: 'n54', name: '旁邊', category: '空間' }, { id: 'n55', name: '裡面', category: '空間' },
+      { id: 'n56', name: '不', category: '邏輯' }, { id: 'n57', name: '也許', category: '邏輯' }, { id: 'n58', name: '可以', category: '邏輯' }, { id: 'n59', name: '因為', category: '邏輯' }, { id: 'n60', name: '如果', category: '邏輯' },
+      { id: 'n61', name: '非常', category: '強化' }, { id: 'n62', name: '更多', category: '強化' },
+      { id: 'n63', name: '像', category: '相似' }, { id: 'n64', name: '方式', category: '相似' }
+    ];
+
+    const SWADESH_207 = [
+      "我", "你", "他/她/它", "我們", "你們", "他們", "這個", "那個", "這裡", "那裡", "誰", "什麼", "哪裡", "何時", "如何", "不/沒", "全部", "多", "一些", "少", "其他", "一", "二", "三", "四", "五", "大", "長", "寬", "厚", "重", "小", "短", "窄", "薄", "女人", "男人", "人", "小孩", "妻子", "丈夫", "母親", "父親", "動物", "魚", "鳥", "狗", "蝨子", "蛇", "蟲", "樹", "森林", "樹枝/棍子", "水果", "種子", "葉子", "根", "樹皮", "花", "草", "繩子", "皮膚", "肉", "血", "骨頭", "脂肪", "蛋", "角", "尾巴", "羽毛", "頭髮/體毛", "頭", "耳朵", "眼睛", "鼻子", "嘴巴", "牙齒", "舌頭", "指甲", "腳", "腿", "膝蓋", "手", "翅膀", "肚子", "腸", "脖子", "背", "乳房/胸部", "心臟", "肝臟", "喝", "吃", "咬", "吸", "吐口水", "嘔吐", "吹", "呼吸", "笑", "看", "聽", "知道", "思考", "聞", "害怕", "睡覺", "活著", "死", "殺", "戰鬥", "打獵", "打", "砍/切", "劈開", "刺", "抓/刮", "挖", "游泳", "飛", "走", "來", "躺", "坐", "站立", "轉向", "掉落", "給", "拿/握", "擠壓", "摩擦", "洗", "擦拭", "拉", "推", "扔/丟", "綁/繫", "縫", "數", "說", "唱", "玩", "漂浮", "流動", "結冰", "腫脹", "太陽", "月亮", "星星", "水", "雨", "河流", "湖泊", "海", "鹽", "石頭", "沙子", "灰塵", "泥土/地", "雲", "霧", "天空", "風", "雪", "冰", "煙", "火", "灰燼", "燃燒", "道路", "山", "紅色", "綠色", "黃色", "白色", "黑色", "夜晚", "白天", "年", "溫暖", "寒冷", "滿的", "新的", "舊的", "好的", "壞的", "腐爛的", "髒的", "直的", "圓的", "尖銳的", "鈍的", "平滑的", "濕的", "乾的", "正確的", "近的", "遠的", "右邊", "左邊", "在...", "在...裡面", "與/同", "和", "如果", "因為", "名字"
+    ];
+
+    const categories = ['全部', ...new Set(NSM_PRIMES.map(p => p.category))];
+
+    // 應用程式狀態
+    const state = {
+      activeTab: 'bases',
+      workbench: [],
+      targetConcept: '',
+      dictionary: {},
+      categoryFilter: '全部',
+      searchQuery: ''
+    };
+
+    // DOM 元素參考
+    const els = {
+      progressText: document.getElementById('progress-text'),
+      progressBar: document.getElementById('progress-bar'),
+      leftTabs: document.getElementById('left-tabs'),
+      leftFilters: document.getElementById('left-filters'),
+      leftItems: document.getElementById('left-items'),
+      workbenchArea: document.getElementById('workbench-area'),
+      targetInput: document.getElementById('target-input'),
+      saveBtn: document.getElementById('save-btn'),
+      searchInput: document.getElementById('search-input'),
+      swadeshList: document.getElementById('swadesh-list')
+    };
+
+    // 事件監聽綁定
+    function bindEvents() {
+      els.targetInput.addEventListener('input', (e) => {
+        state.targetConcept = e.target.value;
+        updateSaveButtonState();
+      });
+
+      els.targetInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleSynthesize();
+      });
+
+      els.saveBtn.addEventListener('click', handleSynthesize);
+
+      els.searchInput.addEventListener('input', (e) => {
+        state.searchQuery = e.target.value;
+        renderRightPanel();
+      });
+    }
+
+    // 全域方法，供行內事件呼叫
+    window.app = {
+      setActiveTab: (tab) => {
+        state.activeTab = tab;
+        renderLeftPanel();
+      },
+      setCategoryFilter: (cat) => {
+        state.categoryFilter = cat;
+        renderLeftPanel();
+      },
+      addToWorkbench: (name) => {
+        state.workbench.push(name);
+        renderMiddlePanel();
+        updateSaveButtonState();
+      },
+      removeFromWorkbench: (index) => {
+        state.workbench.splice(index, 1);
+        renderMiddlePanel();
+        updateSaveButtonState();
+      },
+      selectTarget: (word) => {
+        state.targetConcept = word;
+        els.targetInput.value = word;
+        state.workbench = [];
+        renderMiddlePanel();
+        updateSaveButtonState();
+      },
+      removeDefinition: (event, word) => {
+        event.stopPropagation();
+        delete state.dictionary[word];
+        renderHeader();
+        renderLeftPanel();
+        renderRightPanel();
+      }
+    };
+
+    function handleSynthesize() {
+      const target = state.targetConcept.trim();
+      if (!target || state.workbench.length === 0) return;
+
+      state.dictionary[target] = [...state.workbench];
+      state.workbench = [];
+      state.targetConcept = '';
+      els.targetInput.value = '';
+
+      renderAll();
+    }
+
+    function updateSaveButtonState() {
+      const isDisabled = !state.targetConcept.trim() || state.workbench.length === 0;
+      els.saveBtn.disabled = isDisabled;
+    }
+
+    // 渲染邏輯
+    function renderHeader() {
+      const completedCount = Object.keys(state.dictionary).length;
+      const progressPercentage = (completedCount / SWADESH_207.length) * 100;
+      els.progressText.textContent = `完成進度: ${completedCount} / 207`;
+      els.progressBar.style.width = `${progressPercentage}%`;
+    }
+
+    function renderLeftPanel() {
+      // Tabs
+      els.leftTabs.innerHTML = `
+        <button onclick="window.app.setActiveTab('bases')" class="flex-1 py-3 text-sm font-medium ${state.activeTab === 'bases' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-slate-600 hover:bg-slate-50'}">基礎基元 (NSM)</button>
+        <button onclick="window.app.setActiveTab('synthesized')" class="flex-1 py-3 text-sm font-medium ${state.activeTab === 'synthesized' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-slate-600 hover:bg-slate-50'}">已合成材料庫</button>
+      `;
+
+      // Filters
+      if (state.activeTab === 'bases') {
+        els.leftFilters.style.display = 'flex';
+        els.leftFilters.innerHTML = categories.map(cat => `
+          <button onclick="window.app.setCategoryFilter('${cat}')" class="px-2 py-1 text-xs rounded transition-colors ${state.categoryFilter === cat ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">${cat}</button>
+        `).join('');
+      } else {
+        els.leftFilters.style.display = 'none';
+      }
+
+      // Items
+      if (state.activeTab === 'bases') {
+        const filtered = state.categoryFilter === '全部' ? NSM_PRIMES : NSM_PRIMES.filter(p => p.category === state.categoryFilter);
+        els.leftItems.innerHTML = filtered.map(prime => `
+          <button onclick="window.app.addToWorkbench('${prime.name}')" class="px-3 py-1.5 bg-white border border-slate-300 rounded text-sm hover:border-blue-500 hover:text-blue-600 shadow-sm active:scale-95">${prime.name}</button>
+        `).join('');
+      } else {
+        const dictKeys = Object.keys(state.dictionary);
+        if (dictKeys.length === 0) {
+          els.leftItems.innerHTML = `<div class="text-sm text-slate-400 w-full text-center mt-4">尚未完成任何詞彙合成</div>`;
+        } else {
+          els.leftItems.innerHTML = dictKeys.map(word => `
+            <button onclick="window.app.addToWorkbench('${word}')" title="${state.dictionary[word].join(' + ')}" class="px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded text-sm text-indigo-700 hover:bg-indigo-100 shadow-sm active:scale-95">${word}</button>
+          `).join('');
+        }
       }
     }
-  };
 
-  // 篩選 NSM 基元
-  const filteredPrimes = categoryFilter === '全部' 
-    ? NSM_PRIMES 
-    : NSM_PRIMES.filter(p => p.category === categoryFilter);
-
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 flex flex-col">
-      {/* 頂部進度條與標題 */}
-      <header className="bg-white border border-slate-200 rounded-xl p-4 mb-4 flex flex-col sm:flex-row items-center justify-between shadow-sm gap-4">
-        <div className="flex items-center gap-3">
-          <Layers className="w-6 h-6 text-indigo-600" />
-          <h1 className="text-xl font-bold">Swadesh 207 概念合成任務</h1>
-        </div>
-        <div className="flex items-center gap-4 w-full sm:w-auto">
-          <div className="flex-1 sm:w-64 bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
-            <div 
-              className="bg-indigo-600 h-full transition-all duration-500 ease-out"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
-          <span className="text-sm font-semibold text-slate-600 whitespace-nowrap">
-            {completedCount} / 207
-          </span>
-        </div>
-      </header>
-
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-120px)]">
-        
-        {/* 左欄：材料庫 */}
-        <div className="lg:col-span-4 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col h-full overflow-hidden">
-          <div className="flex border-b border-slate-200 bg-slate-50">
-            <button 
-              onClick={() => setMaterialTab('nsm')}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${materialTab === 'nsm' ? 'text-indigo-700 bg-white border-b-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-100'}`}
-            >
-              基礎基元 (65)
-            </button>
-            <button 
-              onClick={() => setMaterialTab('completed')}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${materialTab === 'completed' ? 'text-indigo-700 bg-white border-b-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-100'}`}
-            >
-              已合成語意分子 ({completedMaterials.length})
-            </button>
-          </div>
-
-          {materialTab === 'nsm' && (
-            <div className="p-2 border-b border-slate-100 flex flex-wrap gap-1 bg-slate-50">
-              {nsmCategories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setCategoryFilter(cat)}
-                  className={`px-2 py-1 text-xs rounded transition-colors ${categoryFilter === cat ? 'bg-slate-700 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
-                >
-                  {cat}
-                </button>
-              ))}
+    function renderMiddlePanel() {
+      if (state.workbench.length === 0) {
+        els.workbenchArea.innerHTML = `<span class="text-slate-400 text-sm m-auto">點擊左側材料或右側目標開始合成</span>`;
+      } else {
+        let html = '';
+        state.workbench.forEach((item, index) => {
+          html += `
+            <div class="flex items-center bg-white border border-slate-300 shadow-sm rounded overflow-hidden h-8">
+              <span class="px-2 py-1 text-sm leading-none flex items-center">${item}</span>
+              <button onclick="window.app.removeFromWorkbench(${index})" class="px-1.5 py-1 text-slate-400 hover:text-red-500 hover:bg-red-50 border-l border-slate-200 h-full flex items-center">
+                <i data-lucide="x" class="w-3 h-3"></i>
+              </button>
             </div>
-          )}
+          `;
+          if (index < state.workbench.length - 1) {
+            html += `<i data-lucide="plus" class="w-3 h-3 text-slate-400 my-auto"></i>`;
+          }
+        });
+        els.workbenchArea.innerHTML = html;
+      }
+      lucide.createIcons();
+    }
 
-          <div className="flex-1 overflow-y-auto p-4 content-start gap-2 flex flex-wrap">
-            {materialTab === 'nsm' ? (
-              filteredPrimes.map(prime => (
-                <button
-                  key={prime.id}
-                  onClick={() => addToWorkbench(prime)}
-                  className="px-3 py-1.5 bg-white border border-slate-300 rounded text-sm hover:border-indigo-500 hover:text-indigo-600 transition-colors shadow-sm"
-                >
-                  {prime.name}
-                </button>
-              ))
-            ) : completedMaterials.length > 0 ? (
-              completedMaterials.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => addToWorkbench(item)}
-                  className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded text-sm text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"
-                >
-                  {item.word}
-                </button>
-              ))
-            ) : (
-              <div className="w-full text-center text-slate-400 text-sm mt-10">尚無已合成的概念分子。</div>
-            )}
-          </div>
-        </div>
+    function renderRightPanel() {
+      const query = state.searchQuery.toLowerCase();
+      const filtered = SWADESH_207.filter(word => word.toLowerCase().includes(query));
 
-        {/* 中欄：合成工作台 */}
-        <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col h-full">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-6 text-slate-800">
-            <Beaker className="w-5 h-5 text-indigo-600" />
-            當前定義目標
-          </h2>
+      els.swadeshList.innerHTML = filtered.map(word => {
+        const isCompleted = !!state.dictionary[word];
+        const baseClass = isCompleted ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200 hover:border-blue-300 cursor-pointer';
+        const textClass = isCompleted ? 'text-green-800' : 'text-slate-700';
 
-          <div className="flex flex-col items-center justify-center py-6 mb-6 bg-slate-50 border border-slate-200 rounded-lg">
-            <span className="text-sm text-slate-500 mb-2">Swadesh 第 {currentTarget.index} 詞</span>
-            <span className="text-4xl font-bold text-slate-900 tracking-wider">{currentTarget.word}</span>
-          </div>
+        let html = `<div class="flex flex-col p-2 rounded border transition-colors ${baseClass}" ${!isCompleted ? `onclick="window.app.selectTarget('${word}')"` : ''}>
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium ${textClass}">${word}</span>`;
 
-          <div className="flex-1">
-            <h3 className="text-sm font-medium text-slate-600 mb-2">排列語意公式：</h3>
-            <div className="min-h-[140px] bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg p-4 flex flex-wrap items-center gap-2">
-              {workbench.length === 0 ? (
-                <span className="text-slate-400 text-sm mx-auto">點擊左側材料加入此處</span>
-              ) : (
-                workbench.map((item, index) => (
-                  <React.Fragment key={`${item.id}-${index}`}>
-                    <div className="flex items-center bg-white border border-slate-300 shadow-sm rounded overflow-hidden">
-                      <span className="px-3 py-1.5 text-sm font-medium text-slate-700">
-                        {item.name || item.word}
-                      </span>
-                      <button 
-                        onClick={() => removeFromWorkbench(index)}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 border-l border-slate-200"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {index < workbench.length - 1 && (
-                      <Plus className="w-4 h-4 text-slate-400" />
-                    )}
-                  </React.Fragment>
-                ))
-              )}
-            </div>
-          </div>
+        if (isCompleted) {
+          html += `
+            <div class="flex items-center gap-2">
+              <button onclick="window.app.removeDefinition(event, '${word}')" class="text-xs text-slate-400 hover:text-red-500">清除</button>
+              <i data-lucide="check-circle-2" class="w-4 h-4 text-green-600"></i>
+            </div>`;
+        }
 
-          <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
-            <button
-              onClick={handleSaveFormula}
-              disabled={workbench.length === 0}
-              className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <Save className="w-5 h-5" />
-              儲存並進入下一詞
-            </button>
-          </div>
-        </div>
+        html += `</div>`;
 
-        {/* 右欄：任務清單 */}
-        <div className="lg:col-span-3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col h-full overflow-hidden">
-          <div className="p-4 border-b border-slate-200 bg-slate-50">
-            <h2 className="text-sm font-semibold flex items-center gap-2 text-slate-800">
-              <ListTodo className="w-4 h-4 text-slate-600" />
-              詞彙清單導覽
-            </h2>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-2">
-            {swadeshList.map((item) => {
-              const isCurrent = currentTargetId === item.id;
-              const isCompleted = item.formula !== null;
-              
-              return (
-                <div 
-                  key={item.id}
-                  onClick={() => setCurrentTargetId(item.id)}
-                  className={`p-3 mb-1 rounded-lg cursor-pointer border transition-colors flex flex-col gap-2 ${
-                    isCurrent 
-                      ? 'bg-indigo-50 border-indigo-200' 
-                      : isCompleted 
-                        ? 'bg-white border-transparent hover:bg-slate-50' 
-                        : 'bg-white border-transparent hover:bg-slate-50 text-slate-500'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400 w-6 text-right">{item.index}.</span>
-                      <span className={`font-medium ${isCurrent ? 'text-indigo-900' : isCompleted ? 'text-slate-800' : 'text-slate-500'}`}>
-                        {item.word}
-                      </span>
-                    </div>
-                    {isCompleted ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    ) : (
-                      <Circle className="w-4 h-4 text-slate-200" />
-                    )}
-                  </div>
-                  
-                  {isCompleted && (
-                    <div className="pl-8 text-xs text-slate-500 flex flex-wrap gap-1 items-center">
-                      <ArrowRight className="w-3 h-3 text-slate-300 mr-1" />
-                      {item.formula.join(' + ')}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
+        if (isCompleted) {
+          html += `
+            <div class="mt-1 flex flex-wrap items-center gap-1">
+              <i data-lucide="arrow-right" class="w-3 h-3 text-green-600 opacity-50"></i>
+              <span class="text-xs text-green-700 bg-green-100 bg-opacity-50 px-1.5 py-0.5 rounded">${state.dictionary[word].join(' + ')}</span>
+            </div>`;
+        }
+        html += `</div>`;
+        return html;
+      }).join('');
+      lucide.createIcons();
+    }
 
-```
+    function renderAll() {
+      renderHeader();
+      renderLeftPanel();
+      renderMiddlePanel();
+      renderRightPanel();
+      updateSaveButtonState();
+      lucide.createIcons();
+    }
+
+    // 初始化
+    bindEvents();
+    renderAll();
+  </script>
+</body>
+
+</html>
