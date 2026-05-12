@@ -35,13 +35,39 @@
             </div>
         </header>
 
+        <!-- 新增：置頂身份與病歷上傳版面 -->
+        <div class="bg-white rounded-xl shadow-sm border border-indigo-200 p-6 mb-8">
+            <h2 class="text-xl font-semibold text-indigo-800 mb-4">身份確認與病歷資料上傳</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 左側：輸入與操作 -->
+                <div class="space-y-4">
+                    <div>
+                        <label for="patient-id" class="block text-sm font-medium text-gray-700 mb-1">病歷號</label>
+                        <input type="text" id="patient-id" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="輸入病歷號...">
+                    </div>
+                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded border border-gray-200">
+                        <span class="text-sm font-medium text-gray-700">待上傳筆數：</span>
+                        <span id="pending-count" class="text-lg font-bold text-indigo-600">0</span>
+                    </div>
+                    <button id="btn-upload" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                        執行上傳
+                    </button>
+                </div>
+                <!-- 右側：待上傳清單 -->
+                <div class="lg:col-span-2 flex flex-col">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2 border-b pb-1">未上傳紀錄列表</h3>
+                    <ul id="pending-list" class="space-y-2 max-h-40 overflow-y-auto text-sm bg-gray-50 p-2 rounded border border-gray-100 flex-grow">
+                        <li class="text-gray-400 text-center py-2">目前無待上傳資料</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <!-- 左側設備連線區 -->
-            <div class="lg:col-span-2 space-y-6">
-                <!-- 體溫計區塊 -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex justify-between items-center mb-4">
+            <!-- 體溫計區塊 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-4">
                         <h2 class="text-xl font-semibold text-gray-800">體溫計 (TD-1242B / IR42)</h2>
                         <select id="mode-temp" class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
                             <option value="ble">藍牙連線</option>
@@ -185,35 +211,7 @@
                         <button id="btn-manual-d40-add" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 rounded transition-colors">加入紀錄</button>
                     </div>
                 </div>
-            </div>
 
-            <!-- 右側模擬上傳區 -->
-            <div class="space-y-6">
-                <div class="bg-white rounded-xl shadow-sm border border-indigo-200 p-6">
-                    <h2 class="text-xl font-semibold text-indigo-800 mb-4">病歷資料上傳 (模擬)</h2>
-                    
-                    <div class="mb-4">
-                        <label for="patient-id" class="block text-sm font-medium text-gray-700 mb-1">病歷號</label>
-                        <input type="text" id="patient-id" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="輸入病歷號...">
-                    </div>
-
-                    <div class="flex justify-between items-center mb-4 bg-gray-50 p-3 rounded border border-gray-200">
-                        <span class="text-sm font-medium text-gray-700">待上傳筆數：</span>
-                        <span id="pending-count" class="text-lg font-bold text-indigo-600">0</span>
-                    </div>
-
-                    <button id="btn-upload" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
-                        執行上傳
-                    </button>
-
-                    <div class="mt-4">
-                        <h3 class="text-sm font-medium text-gray-700 mb-2 border-b pb-1">未上傳紀錄列表</h3>
-                        <ul id="pending-list" class="space-y-2 max-h-48 overflow-y-auto text-sm">
-                            <li class="text-gray-400 text-center py-2">目前無待上傳資料</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- 系統日誌區塊 -->
