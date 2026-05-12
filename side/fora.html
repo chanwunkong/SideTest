@@ -68,7 +68,7 @@
             <!-- 體溫計區塊 -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-semibold text-gray-800">體溫計 (TD-1242B / IR42)</h2>
+                        <h2 class="text-lg font-semibold text-gray-800">紅外線額溫槍TD-1242B</h2>
                         <select id="mode-temp" class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
                             <option value="ble">藍牙連線</option>
                             <option value="manual">手動輸入</option>
@@ -111,7 +111,7 @@
                 <!-- 血氧機區塊 -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-semibold text-gray-800">血氧機 (FORA O2)</h2>
+                        <h2 class="text-lg font-semibold text-gray-800">血氧濃度計TD-8255B</h2>
                         <select id="mode-o2" class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500">
                             <option value="ble">藍牙連線</option>
                             <option value="manual">手動輸入</option>
@@ -158,7 +158,7 @@
                 <!-- 血糖血壓機區塊 (FORA D40B) -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-semibold text-gray-800">血糖血壓系統 (FORA D40B)</h2>
+                        <h2 class="text-lg font-semibold text-gray-800">2合1血糖血壓套組 TD-3261B</h2>
                         <select id="mode-d40" class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500">
                             <option value="ble">藍牙連線</option>
                             <option value="manual">手動輸入</option>
@@ -395,7 +395,7 @@
             const spo2 = document.getElementById('manual-o2-spo2').value;
             const hr = document.getElementById('manual-o2-hr').value;
             if (!spo2 || !hr) return alert('請完整輸入血氧與心率數值');
-            addRecord('FORA O2 (手動)', 'SpO2/HR', `血氧:${spo2}% 心率:${hr}`);
+            addRecord('TD-8255B (手動)', 'SpO2/HR', `血氧:${spo2}% 心率:${hr}`);
             document.getElementById('manual-o2-spo2').value = '';
             document.getElementById('manual-o2-hr').value = '';
             log(`手動加入血氧資料: SpO2 ${spo2}%, HR ${hr} bpm`, 'success');
@@ -407,14 +407,14 @@
                 const sys = document.getElementById('manual-d40-sys').value;
                 const dia = document.getElementById('manual-d40-dia').value;
                 if (!sys || !dia) return alert('請完整輸入收縮壓與舒張壓');
-                addRecord('FORA D40B (手動)', 'Blood Pressure', `血壓:${sys}/${dia} mmHg`);
+                addRecord('TD-3261B (手動)', 'Blood Pressure', `血壓:${sys}/${dia} mmHg`);
                 document.getElementById('manual-d40-sys').value = '';
                 document.getElementById('manual-d40-dia').value = '';
                 log(`手動加入血壓資料: SYS ${sys}, DIA ${dia} mmHg`, 'success');
             } else {
                 const bg = document.getElementById('manual-d40-bg').value;
                 if (!bg) return alert('請輸入血糖數值');
-                addRecord('FORA D40B (手動)', 'Blood Glucose', `血糖:${bg} mg/dL`);
+                addRecord('TD-3261B (手動)', 'Blood Glucose', `血糖:${bg} mg/dL`);
                 document.getElementById('manual-d40-bg').value = '';
                 log(`手動加入血糖資料: ${bg} mg/dL`, 'success');
             }
@@ -423,7 +423,7 @@
         // --- 藍牙設備通訊邏輯 (體溫計) ---
         document.getElementById('btn-temp-connect').addEventListener('click', async () => {
             try {
-                log('請求體溫計設備...', 'info');
+                log('請求 TD-1242B 設備...', 'info');
                 tempDevice = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: 'FORA IR42' }, { namePrefix: 'FORA' }, { namePrefix: 'TAIDOC' }],
                     optionalServices: [0x1809]
@@ -443,10 +443,10 @@
                 document.getElementById('btn-temp-disconnect').classList.remove('hidden');
                 document.getElementById('temp-status').textContent = '已連線';
                 document.getElementById('temp-status').classList.replace('text-gray-500', 'text-green-600');
-                log('體溫計連線成功並開啟接收通道', 'success');
+                log('TD-1242B 連線成功並開啟接收通道', 'success');
 
             } catch (error) {
-                log(`體溫計連線失敗: ${error}`, 'error');
+                log(`TD-1242B 連線失敗: ${error}`, 'error');
                 document.getElementById('temp-status').textContent = '連線失敗';
             }
         });
@@ -456,7 +456,7 @@
         });
 
         function onTempDisconnected() {
-            log('體溫計已斷開連線', 'error');
+            log('TD-1242B 已斷開連線', 'error');
             tempCharacteristic = null;
             document.getElementById('btn-temp-connect').classList.remove('hidden');
             document.getElementById('btn-temp-disconnect').classList.add('hidden');
@@ -495,7 +495,7 @@
 
         document.getElementById('btn-o2-connect').addEventListener('click', async () => {
             try {
-                log('請求血氧機設備...', 'info');
+                log('請求 TD-8255B 設備...', 'info');
                 o2Device = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: 'FORA O2' }, { namePrefix: 'FORA' }],
                     optionalServices: [TAIDOC_SERVICE_UUID]
@@ -515,10 +515,10 @@
                 document.getElementById('btn-o2-disconnect').classList.remove('hidden');
                 document.getElementById('o2-status').textContent = '已連線';
                 document.getElementById('o2-status').classList.replace('text-gray-500', 'text-green-600');
-                log('血氧機連線成功並開啟接收通道', 'success');
+                log('TD-8255B 連線成功並開啟接收通道', 'success');
 
             } catch (error) {
-                log(`血氧機連線失敗: ${error}`, 'error');
+                log(`TD-8255B 連線失敗: ${error}`, 'error');
                 document.getElementById('o2-status').textContent = '連線失敗';
             }
         });
@@ -528,7 +528,7 @@
         });
 
         function onO2Disconnected() {
-            log('血氧機已斷開連線', 'error');
+            log('TD-8255B 已斷開連線', 'error');
             o2Characteristic = null;
             document.getElementById('btn-o2-connect').classList.remove('hidden');
             document.getElementById('btn-o2-disconnect').classList.add('hidden');
@@ -551,7 +551,7 @@
                     triggerUIFlash('o2-hr-container');
                     
                     log(`接收血氧資料: SpO2 ${spo2}%, HR ${hr} bpm`, 'data');
-                    addRecord('FORA O2', 'SpO2/HR', `血氧:${spo2}% 心率:${hr}`);
+                    addRecord('TD-8255B', 'SpO2/HR', `血氧:${spo2}% 心率:${hr}`);
                 }
             }
         }
@@ -559,7 +559,7 @@
         // --- 藍牙設備通訊邏輯 (血糖血壓機) ---
         document.getElementById('btn-d40-connect').addEventListener('click', async () => {
             try {
-                log('請求 D40B 設備...', 'info');
+                log('請求 TD-3261B 設備...', 'info');
                 d40Device = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: 'FORA D40' }, { namePrefix: 'FORA' }, { namePrefix: 'TAIDOC' }],
                     optionalServices: [TAIDOC_SERVICE_UUID, 0x1810, 0x1808]
@@ -580,10 +580,10 @@
                 document.getElementById('btn-d40-disconnect').classList.remove('hidden');
                 document.getElementById('d40-status').textContent = '已連線';
                 document.getElementById('d40-status').classList.replace('text-gray-500', 'text-green-600');
-                log('D40B 連線成功並開啟接收通道', 'success');
+                log('TD-3261B 連線成功並開啟接收通道', 'success');
 
             } catch (error) {
-                log(`D40B 連線失敗: ${error}`, 'error');
+                log(`TD-3261B 連線失敗: ${error}`, 'error');
                 document.getElementById('d40-status').textContent = '連線失敗';
             }
         });
@@ -593,7 +593,7 @@
         });
 
         function onD40Disconnected() {
-            log('D40B 已斷開連線', 'error');
+            log('TD-3261B 已斷開連線', 'error');
             d40Characteristic = null;
             document.getElementById('btn-d40-connect').classList.remove('hidden');
             document.getElementById('btn-d40-disconnect').classList.add('hidden');
@@ -604,7 +604,7 @@
         function handleD40Data(event) {
             const value = event.target.value;
             const hexStr = buf2hex(value.buffer);
-            log(`接收 D40B 原始資料: ${hexStr}`, 'data');
+            log(`接收 TD-3261B 原始資料: ${hexStr}`, 'data');
 
             if (value.byteLength >= 8 && value.getUint8(0) === 0x51) {
                 const command = value.getUint8(1);
@@ -622,7 +622,7 @@
                         triggerUIFlash('d40-bp-container');
                         
                         log(`解析結果 -> 血壓: SYS ${sys}, DIA ${dia} mmHg`, 'success');
-                        addRecord('FORA D40B', 'Blood Pressure', `血壓:${sys}/${dia} mmHg`);
+                        addRecord('TD-3261B', 'Blood Pressure', `血壓:${sys}/${dia} mmHg`);
                     } else {
                         const bgValue = byte2 + (byte3 << 8);
                         
@@ -630,7 +630,7 @@
                         triggerUIFlash('d40-bg-container');
                         
                         log(`解析結果 -> 血糖: ${bgValue} mg/dL`, 'success');
-                        addRecord('FORA D40B', 'Blood Glucose', `血糖:${bgValue} mg/dL`);
+                        addRecord('TD-3261B', 'Blood Glucose', `血糖:${bgValue} mg/dL`);
                     }
                 }
             }
