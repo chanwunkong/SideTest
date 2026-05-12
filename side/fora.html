@@ -41,78 +41,148 @@
             <div class="lg:col-span-2 space-y-6">
                 <!-- 體溫計區塊 -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">體溫計 (TD-1242B / IR42)</h2>
-                    <div class="flex items-center space-x-4 mb-6">
-                        <button id="btn-temp-connect" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors">
-                            連線設備
-                        </button>
-                        <button id="btn-temp-disconnect" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
-                            斷開連線
-                        </button>
-                        <span id="temp-status" class="text-sm font-medium text-gray-500">未連線</span>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-gray-800">體溫計 (TD-1242B / IR42)</h2>
+                        <select id="mode-temp" class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <option value="ble">藍牙連線</option>
+                            <option value="manual">手動輸入</option>
+                        </select>
                     </div>
-                    <div class="bg-blue-50 rounded-lg p-6 text-center">
-                        <div class="text-sm text-blue-600 font-medium mb-1">最新測量溫度</div>
-                        <div class="text-4xl font-bold text-blue-900 inline-block px-4 py-1" id="temp-display-container">
-                            <span id="temp-value">--</span>
-                            <span id="temp-unit" class="text-2xl"></span>
+
+                    <!-- 藍牙模式 -->
+                    <div id="section-temp-ble">
+                        <div class="flex items-center space-x-4 mb-6">
+                            <button id="btn-temp-connect" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors">
+                                連線設備
+                            </button>
+                            <button id="btn-temp-disconnect" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
+                                斷開連線
+                            </button>
+                            <span id="temp-status" class="text-sm font-medium text-gray-500">未連線</span>
                         </div>
+                        <div class="bg-blue-50 rounded-lg p-6 text-center">
+                            <div class="text-sm text-blue-600 font-medium mb-1">最新測量溫度</div>
+                            <div class="text-4xl font-bold text-blue-900 inline-block px-4 py-1" id="temp-display-container">
+                                <span id="temp-value">--</span>
+                                <span id="temp-unit" class="text-2xl"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 手動模式 -->
+                    <div id="section-temp-manual" class="hidden space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div class="flex space-x-2">
+                            <input type="number" id="manual-temp-val" step="0.1" placeholder="輸入溫度數值 (例如: 36.5)" class="flex-1 border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <select id="manual-temp-unit" class="border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="C">°C</option>
+                                <option value="F">°F</option>
+                            </select>
+                        </div>
+                        <button id="btn-manual-temp-add" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded transition-colors">加入紀錄</button>
                     </div>
                 </div>
 
                 <!-- 血氧機區塊 -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">血氧機 (FORA O2)</h2>
-                    <div class="flex items-center space-x-4 mb-6">
-                        <button id="btn-o2-connect" class="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded transition-colors">
-                            連線設備
-                        </button>
-                        <button id="btn-o2-disconnect" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
-                            斷開連線
-                        </button>
-                        <span id="o2-status" class="text-sm font-medium text-gray-500">未連線</span>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-gray-800">血氧機 (FORA O2)</h2>
+                        <select id="mode-o2" class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500">
+                            <option value="ble">藍牙連線</option>
+                            <option value="manual">手動輸入</option>
+                        </select>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-teal-50 rounded-lg p-4 text-center">
-                            <div class="text-sm text-teal-600 font-medium mb-1">血氧 (SpO2)</div>
-                            <div class="text-3xl font-bold text-teal-900 inline-block px-4 py-1" id="o2-spo2-container">
-                                <span id="o2-spo2-value">--</span><span class="text-lg">%</span>
+
+                    <!-- 藍牙模式 -->
+                    <div id="section-o2-ble">
+                        <div class="flex items-center space-x-4 mb-6">
+                            <button id="btn-o2-connect" class="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded transition-colors">
+                                連線設備
+                            </button>
+                            <button id="btn-o2-disconnect" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
+                                斷開連線
+                            </button>
+                            <span id="o2-status" class="text-sm font-medium text-gray-500">未連線</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-teal-50 rounded-lg p-4 text-center">
+                                <div class="text-sm text-teal-600 font-medium mb-1">血氧 (SpO2)</div>
+                                <div class="text-3xl font-bold text-teal-900 inline-block px-4 py-1" id="o2-spo2-container">
+                                    <span id="o2-spo2-value">--</span><span class="text-lg">%</span>
+                                </div>
+                            </div>
+                            <div class="bg-rose-50 rounded-lg p-4 text-center">
+                                <div class="text-sm text-rose-600 font-medium mb-1">心率 (HR)</div>
+                                <div class="text-3xl font-bold text-rose-900 inline-block px-4 py-1" id="o2-hr-container">
+                                    <span id="o2-hr-value">--</span><span class="text-lg">bpm</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="bg-rose-50 rounded-lg p-4 text-center">
-                            <div class="text-sm text-rose-600 font-medium mb-1">心率 (HR)</div>
-                            <div class="text-3xl font-bold text-rose-900 inline-block px-4 py-1" id="o2-hr-container">
-                                <span id="o2-hr-value">--</span><span class="text-lg">bpm</span>
-                            </div>
+                    </div>
+
+                    <!-- 手動模式 -->
+                    <div id="section-o2-manual" class="hidden space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="number" id="manual-o2-spo2" placeholder="血氧 SpO2 (%)" class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            <input type="number" id="manual-o2-hr" placeholder="心率 HR (bpm)" class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-teal-500">
                         </div>
+                        <button id="btn-manual-o2-add" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded transition-colors">加入紀錄</button>
                     </div>
                 </div>
 
                 <!-- 血糖血壓機區塊 (FORA D40B) -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">血糖血壓測試系統 (FORA D40B)</h2>
-                    <div class="flex items-center space-x-4 mb-6">
-                        <button id="btn-d40-connect" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded transition-colors">
-                            連線設備
-                        </button>
-                        <button id="btn-d40-disconnect" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
-                            斷開連線
-                        </button>
-                        <span id="d40-status" class="text-sm font-medium text-gray-500">未連線</span>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-gray-800">血糖血壓系統 (FORA D40B)</h2>
+                        <select id="mode-d40" class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500">
+                            <option value="ble">藍牙連線</option>
+                            <option value="manual">手動輸入</option>
+                        </select>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-purple-50 rounded-lg p-4 text-center">
-                            <div class="text-sm text-purple-600 font-medium mb-1">血壓 (SYS/DIA)</div>
-                            <div class="text-3xl font-bold text-purple-900 inline-block px-4 py-1" id="d40-bp-container">
-                                <span id="d40-sys-value">--</span> / <span id="d40-dia-value">--</span><span class="text-lg">mmHg</span>
+
+                    <!-- 藍牙模式 -->
+                    <div id="section-d40-ble">
+                        <div class="flex items-center space-x-4 mb-6">
+                            <button id="btn-d40-connect" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded transition-colors">
+                                連線設備
+                            </button>
+                            <button id="btn-d40-disconnect" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
+                                斷開連線
+                            </button>
+                            <span id="d40-status" class="text-sm font-medium text-gray-500">未連線</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-purple-50 rounded-lg p-4 text-center">
+                                <div class="text-sm text-purple-600 font-medium mb-1">血壓 (SYS/DIA)</div>
+                                <div class="text-3xl font-bold text-purple-900 inline-block px-4 py-1" id="d40-bp-container">
+                                    <span id="d40-sys-value">--</span> / <span id="d40-dia-value">--</span><span class="text-lg">mmHg</span>
+                                </div>
+                            </div>
+                            <div class="bg-fuchsia-50 rounded-lg p-4 text-center">
+                                <div class="text-sm text-fuchsia-600 font-medium mb-1">血糖 (Glucose)</div>
+                                <div class="text-3xl font-bold text-fuchsia-900 inline-block px-4 py-1" id="d40-bg-container">
+                                    <span id="d40-bg-value">--</span><span class="text-lg">mg/dL</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="bg-fuchsia-50 rounded-lg p-4 text-center">
-                            <div class="text-sm text-fuchsia-600 font-medium mb-1">血糖 (Glucose)</div>
-                            <div class="text-3xl font-bold text-fuchsia-900 inline-block px-4 py-1" id="d40-bg-container">
-                                <span id="d40-bg-value">--</span><span class="text-lg">mg/dL</span>
-                            </div>
+                    </div>
+
+                    <!-- 手動模式 -->
+                    <div id="section-d40-manual" class="hidden space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <select id="manual-d40-type" class="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="bp">血壓輸入</option>
+                            <option value="bg">血糖輸入</option>
+                        </select>
+                        
+                        <div id="manual-d40-bp-inputs" class="grid grid-cols-2 gap-3">
+                            <input type="number" id="manual-d40-sys" placeholder="收縮壓 SYS" class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <input type="number" id="manual-d40-dia" placeholder="舒張壓 DIA" class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-purple-500">
                         </div>
+                        
+                        <div id="manual-d40-bg-inputs" class="hidden">
+                            <input type="number" id="manual-d40-bg" placeholder="血糖值 (mg/dL)" class="w-full border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-fuchsia-500">
+                        </div>
+                        
+                        <button id="btn-manual-d40-add" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 rounded transition-colors">加入紀錄</button>
                     </div>
                 </div>
             </div>
@@ -160,10 +230,9 @@
     </div>
 
     <script>
-        // --- PWA 實作 (單一檔案架構) ---
+        // --- PWA 實作 ---
         function initPWA() {
             try {
-                // 1. 動態生成 Manifest
                 const manifest = {
                     name: "FORA 設備整合系統",
                     short_name: "FORA 系統",
@@ -175,14 +244,11 @@
                 const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
                 document.getElementById('dynamic-manifest').href = URL.createObjectURL(manifestBlob);
 
-                // 2. 動態生成 Service Worker 並註冊
                 if ('serviceWorker' in navigator) {
                     const swCode = `
                         self.addEventListener('install', (e) => self.skipWaiting());
                         self.addEventListener('activate', (e) => self.clients.claim());
-                        self.addEventListener('fetch', (e) => {
-                            // PWA 必備的 fetch 攔截器，確保符合離線快取規範
-                        });
+                        self.addEventListener('fetch', (e) => {});
                     `;
                     const swBlob = new Blob([swCode], { type: 'application/javascript' });
                     const swUrl = URL.createObjectURL(swBlob);
@@ -193,7 +259,7 @@
                             document.getElementById('pwa-status').className = 'text-green-600';
                         })
                         .catch(err => {
-                            console.warn('SW 註冊受網域安全限制', err);
+                            console.warn('SW 註冊受限', err);
                             document.getElementById('pwa-status').textContent = '僅限 HTTPS / Localhost';
                         });
                 }
@@ -207,7 +273,6 @@
         const logOutput = document.getElementById('log-output');
         let pendingRecords = [];
         
-        // 保留藍牙特徵值全域參考，避免垃圾回收機制(GC)造成斷線或事件遺失
         let tempDevice = null;
         let tempCharacteristic = null;
         let o2Device = null;
@@ -240,11 +305,29 @@
         function triggerUIFlash(elementId) {
             const el = document.getElementById(elementId);
             el.classList.remove('flash-active');
-            void el.offsetWidth; // 觸發 reflow 以重啟動畫
+            void el.offsetWidth;
             el.classList.add('flash-active');
         }
 
-        // --- 模擬上傳邏輯 ---
+        // --- 切換模式邏輯 ---
+        function setupModeToggle(selectId, bleSectionId, manualSectionId) {
+            document.getElementById(selectId).addEventListener('change', (e) => {
+                const isManual = e.target.value === 'manual';
+                document.getElementById(bleSectionId).classList.toggle('hidden', isManual);
+                document.getElementById(manualSectionId).classList.toggle('hidden', !isManual);
+            });
+        }
+        setupModeToggle('mode-temp', 'section-temp-ble', 'section-temp-manual');
+        setupModeToggle('mode-o2', 'section-o2-ble', 'section-o2-manual');
+        setupModeToggle('mode-d40', 'section-d40-ble', 'section-d40-manual');
+
+        document.getElementById('manual-d40-type').addEventListener('change', (e) => {
+            const isBg = e.target.value === 'bg';
+            document.getElementById('manual-d40-bp-inputs').classList.toggle('hidden', isBg);
+            document.getElementById('manual-d40-bg-inputs').classList.toggle('hidden', !isBg);
+        });
+
+        // --- 模擬上傳與資料加入邏輯 ---
         function addRecord(device, type, valueStr) {
             const record = {
                 id: Date.now() + Math.floor(Math.random() * 1000),
@@ -288,7 +371,6 @@
             }
             
             log(`開始將 ${pendingRecords.length} 筆資料上傳至病歷號 [${patientId}]`, 'info');
-            // 模擬 API 延遲
             document.getElementById('btn-upload').textContent = '上傳中...';
             document.getElementById('btn-upload').disabled = true;
             
@@ -301,7 +383,46 @@
             }, 1000);
         });
 
-        // --- 體溫計 (TD-1242B / IR42) 邏輯 ---
+        // --- 手動輸入處理 ---
+        document.getElementById('btn-manual-temp-add').addEventListener('click', () => {
+            const val = document.getElementById('manual-temp-val').value;
+            const unit = document.getElementById('manual-temp-unit').value;
+            if (!val) return alert('請輸入溫度數值');
+            addRecord('TD-1242B (手動)', 'Temperature', `${parseFloat(val).toFixed(2)} °${unit}`);
+            document.getElementById('manual-temp-val').value = '';
+            log(`手動加入溫度資料: ${val} °${unit}`, 'success');
+        });
+
+        document.getElementById('btn-manual-o2-add').addEventListener('click', () => {
+            const spo2 = document.getElementById('manual-o2-spo2').value;
+            const hr = document.getElementById('manual-o2-hr').value;
+            if (!spo2 || !hr) return alert('請完整輸入血氧與心率數值');
+            addRecord('FORA O2 (手動)', 'SpO2/HR', `血氧:${spo2}% 心率:${hr}`);
+            document.getElementById('manual-o2-spo2').value = '';
+            document.getElementById('manual-o2-hr').value = '';
+            log(`手動加入血氧資料: SpO2 ${spo2}%, HR ${hr} bpm`, 'success');
+        });
+
+        document.getElementById('btn-manual-d40-add').addEventListener('click', () => {
+            const type = document.getElementById('manual-d40-type').value;
+            if (type === 'bp') {
+                const sys = document.getElementById('manual-d40-sys').value;
+                const dia = document.getElementById('manual-d40-dia').value;
+                if (!sys || !dia) return alert('請完整輸入收縮壓與舒張壓');
+                addRecord('FORA D40B (手動)', 'Blood Pressure', `血壓:${sys}/${dia} mmHg`);
+                document.getElementById('manual-d40-sys').value = '';
+                document.getElementById('manual-d40-dia').value = '';
+                log(`手動加入血壓資料: SYS ${sys}, DIA ${dia} mmHg`, 'success');
+            } else {
+                const bg = document.getElementById('manual-d40-bg').value;
+                if (!bg) return alert('請輸入血糖數值');
+                addRecord('FORA D40B (手動)', 'Blood Glucose', `血糖:${bg} mg/dL`);
+                document.getElementById('manual-d40-bg').value = '';
+                log(`手動加入血糖資料: ${bg} mg/dL`, 'success');
+            }
+        });
+
+        // --- 藍牙設備通訊邏輯 (體溫計) ---
         document.getElementById('btn-temp-connect').addEventListener('click', async () => {
             try {
                 log('請求體溫計設備...', 'info');
@@ -370,7 +491,7 @@
             addRecord('TD-1242B', 'Temperature', `${tempStr} ${unitStr}`);
         }
 
-        // --- 血氧機 (FORA O2) 邏輯 ---
+        // --- 藍牙設備通訊邏輯 (血氧機) ---
         const TAIDOC_SERVICE_UUID = '00001523-1212-efde-1523-785feabcd123';
         const TAIDOC_CHAR_UUID = '00001524-1212-efde-1523-785feabcd123';
 
@@ -437,11 +558,10 @@
             }
         }
 
-        // --- 血糖血壓測試系統 (FORA D40B) 邏輯 ---
+        // --- 藍牙設備通訊邏輯 (血糖血壓機) ---
         document.getElementById('btn-d40-connect').addEventListener('click', async () => {
             try {
                 log('請求 D40B 設備...', 'info');
-                // 擴展過濾條件，相容血壓血糖服務與 TaiDoc 自訂協定
                 d40Device = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: 'FORA D40' }, { namePrefix: 'FORA' }, { namePrefix: 'TAIDOC' }],
                     optionalServices: [TAIDOC_SERVICE_UUID, 0x1810, 0x1808]
@@ -452,7 +572,6 @@
                 
                 const server = await d40Device.gatt.connect();
                 
-                // 優先嘗試 TaiDoc 自訂服務通道
                 const service = await server.getPrimaryService(TAIDOC_SERVICE_UUID);
                 d40Characteristic = await service.getCharacteristic(TAIDOC_CHAR_UUID);
                 
@@ -489,16 +608,13 @@
             const hexStr = buf2hex(value.buffer);
             log(`接收 D40B 原始資料: ${hexStr}`, 'data');
 
-            // 處理 TaiDoc 協定封包
             if (value.byteLength >= 8 && value.getUint8(0) === 0x51) {
                 const command = value.getUint8(1);
                 
-                // 分析數值以動態判斷血壓或血糖 (一般數值通常存放於 Byte 2 與 Byte 3)
                 if (command === 0x26 || command === 0x25) {
                     const byte2 = value.getUint8(2);
                     const byte3 = value.getUint8(3);
 
-                    // 判斷邏輯：若 Byte 3 (舒張壓位置) 大於 0，視為血壓資料。否則視為血糖資料。
                     if (byte3 > 0) {
                         const sys = byte2;
                         const dia = byte3;
@@ -510,7 +626,6 @@
                         log(`解析結果 -> 血壓: SYS ${sys}, DIA ${dia} mmHg`, 'success');
                         addRecord('FORA D40B', 'Blood Pressure', `血壓:${sys}/${dia} mmHg`);
                     } else {
-                        // 血糖數值可能以 Little Endian 16-bit 格式存放於 Byte 2 與 Byte 3
                         const bgValue = byte2 + (byte3 << 8);
                         
                         document.getElementById('d40-bg-value').textContent = bgValue;
