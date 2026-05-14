@@ -1,33 +1,19 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FORA 藍牙設備檢測與模擬系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        .log-container {
-            scroll-behavior: smooth;
-        }
-
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .log-container { scroll-behavior: smooth; }
+        
         /* 更新資料時的閃爍動畫 */
         @keyframes flashUpdate {
-            0% {
-                background-color: #fef08a;
-                transform: scale(1.05);
-            }
-
-            100% {
-                background-color: transparent;
-                transform: scale(1);
-            }
+            0% { background-color: #fef08a; transform: scale(1.05); }
+            100% { background-color: transparent; transform: scale(1); }
         }
-
         .flash-active {
             animation: flashUpdate 0.6s ease-out;
             border-radius: 0.25rem;
@@ -36,7 +22,6 @@
     <!-- 動態生成 PWA Manifest 的佔位符 -->
     <link rel="manifest" id="dynamic-manifest">
 </head>
-
 <body class="bg-gray-50 min-h-screen p-4 md:p-8">
 
     <div class="max-w-5xl mx-auto space-y-6">
@@ -58,25 +43,20 @@
                 <div class="space-y-4">
                     <div>
                         <label for="patient-id" class="block text-sm font-medium text-gray-700 mb-1">病歷號</label>
-                        <input type="text" id="patient-id"
-                            class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="輸入病歷號...">
+                        <input type="text" id="patient-id" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="輸入病歷號...">
                     </div>
                     <div class="flex justify-between items-center bg-gray-50 p-3 rounded border border-gray-200">
                         <span class="text-sm font-medium text-gray-700">待上傳筆數：</span>
                         <span id="pending-count" class="text-lg font-bold text-indigo-600">0</span>
                     </div>
-                    <button id="btn-upload"
-                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                        disabled>
+                    <button id="btn-upload" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
                         執行上傳
                     </button>
                 </div>
                 <!-- 右側：待上傳清單 -->
                 <div class="lg:col-span-2 flex flex-col">
                     <h3 class="text-sm font-medium text-gray-700 mb-2 border-b pb-1">未上傳紀錄列表</h3>
-                    <ul id="pending-list"
-                        class="space-y-2 max-h-40 overflow-y-auto text-sm bg-gray-50 p-2 rounded border border-gray-100 flex-grow">
+                    <ul id="pending-list" class="space-y-2 max-h-40 overflow-y-auto text-sm bg-gray-50 p-2 rounded border border-gray-100 flex-grow">
                         <li class="text-gray-400 text-center py-2">目前無待上傳資料</li>
                     </ul>
                 </div>
@@ -84,13 +64,12 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
+            
             <!-- 體溫計區塊 -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-semibold text-gray-800">紅外線額溫槍TD-1242B</h2>
-                    <select id="mode-temp"
-                        class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <select id="mode-temp" class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
                         <option value="ble">藍牙連線</option>
                         <option value="manual">手動輸入</option>
                     </select>
@@ -99,20 +78,17 @@
                 <!-- 藍牙模式 -->
                 <div id="section-temp-ble">
                     <div class="flex items-center space-x-4 mb-6">
-                        <button id="btn-temp-connect"
-                            class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors">
+                        <button id="btn-temp-connect" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors">
                             連線設備
                         </button>
-                        <button id="btn-temp-disconnect"
-                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
+                        <button id="btn-temp-disconnect" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
                             斷開連線
                         </button>
                         <span id="temp-status" class="text-sm font-medium text-gray-500">未連線</span>
                     </div>
                     <div class="bg-blue-50 rounded-lg p-6 text-center">
                         <div class="text-sm text-blue-600 font-medium mb-1">最新測量溫度</div>
-                        <div class="text-4xl font-bold text-blue-900 inline-block px-4 py-1"
-                            id="temp-display-container">
+                        <div class="text-4xl font-bold text-blue-900 inline-block px-4 py-1" id="temp-display-container">
                             <span id="temp-value">--</span>
                             <span id="temp-unit" class="text-2xl"></span>
                         </div>
@@ -122,16 +98,13 @@
                 <!-- 手動模式 -->
                 <div id="section-temp-manual" class="hidden space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <div class="flex space-x-2">
-                        <input type="number" id="manual-temp-val" step="0.1" placeholder="輸入溫度數值 (例如: 36.5)"
-                            class="flex-1 border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <select id="manual-temp-unit"
-                            class="border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="number" id="manual-temp-val" step="0.1" placeholder="輸入溫度數值 (例如: 36.5)" class="flex-1 border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select id="manual-temp-unit" class="border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="C">°C</option>
                             <option value="F">°F</option>
                         </select>
                     </div>
-                    <button id="btn-manual-temp-add"
-                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded transition-colors">加入紀錄</button>
+                    <button id="btn-manual-temp-add" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded transition-colors">加入紀錄</button>
                 </div>
             </div>
 
@@ -139,8 +112,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-semibold text-gray-800">血氧濃度計TD-8255B</h2>
-                    <select id="mode-o2"
-                        class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500">
+                    <select id="mode-o2" class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500">
                         <option value="ble">藍牙連線</option>
                         <option value="manual">手動輸入</option>
                     </select>
@@ -149,12 +121,10 @@
                 <!-- 藍牙模式 -->
                 <div id="section-o2-ble">
                     <div class="flex items-center space-x-4 mb-6">
-                        <button id="btn-o2-connect"
-                            class="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded transition-colors">
+                        <button id="btn-o2-connect" class="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded transition-colors">
                             連線設備
                         </button>
-                        <button id="btn-o2-disconnect"
-                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
+                        <button id="btn-o2-disconnect" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
                             斷開連線
                         </button>
                         <span id="o2-status" class="text-sm font-medium text-gray-500">未連線</span>
@@ -178,13 +148,10 @@
                 <!-- 手動模式 -->
                 <div id="section-o2-manual" class="hidden space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <div class="grid grid-cols-2 gap-3">
-                        <input type="number" id="manual-o2-spo2" placeholder="血氧 SpO2 (%)"
-                            class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-teal-500">
-                        <input type="number" id="manual-o2-hr" placeholder="心率 HR (bpm)"
-                            class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <input type="number" id="manual-o2-spo2" placeholder="血氧 SpO2 (%)" class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <input type="number" id="manual-o2-hr" placeholder="心率 HR (bpm)" class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-teal-500">
                     </div>
-                    <button id="btn-manual-o2-add"
-                        class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded transition-colors">加入紀錄</button>
+                    <button id="btn-manual-o2-add" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded transition-colors">加入紀錄</button>
                 </div>
             </div>
 
@@ -192,8 +159,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-semibold text-gray-800">2合1血糖血壓套組 TD-3261B</h2>
-                    <select id="mode-d40"
-                        class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500">
+                    <select id="mode-d40" class="text-sm border border-gray-300 rounded p-1 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500">
                         <option value="ble">藍牙連線</option>
                         <option value="manual">手動輸入</option>
                     </select>
@@ -202,31 +168,33 @@
                 <!-- 藍牙模式 -->
                 <div id="section-d40-ble">
                     <div class="flex items-center space-x-4 mb-6">
-                        <button id="btn-d40-connect"
-                            class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded transition-colors">
+                        <button id="btn-d40-connect" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded transition-colors">
                             連線設備
                         </button>
-                        <button id="btn-d40-disconnect"
-                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
+                        <button id="btn-d40-disconnect" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors hidden">
                             斷開連線
                         </button>
                         <span id="d40-status" class="text-sm font-medium text-gray-500">未連線</span>
                     </div>
+                    
+                    <!-- 調整為左側血壓心率，右側血糖 -->
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-purple-50 rounded-lg p-4 text-center">
-                            <div class="text-sm text-purple-600 font-medium mb-1">血壓 (SYS/DIA)</div>
-                            <div class="text-3xl font-bold text-purple-900 inline-block px-4 py-1"
-                                id="d40-bp-container">
-                                <span id="d40-sys-value">--</span> / <span id="d40-dia-value">--</span><span
-                                    class="text-lg">mmHg</span>
+                        <!-- 左側：血壓與心率 -->
+                        <div class="bg-purple-50 rounded-lg p-4 text-center flex flex-col justify-center">
+                            <div class="text-sm text-purple-600 font-medium mb-1">血壓 (SYS/DIA) & 心率</div>
+                            <div class="text-2xl font-bold text-purple-900 inline-block px-2 py-1" id="d40-bp-container">
+                                <span id="d40-sys-value">--</span>/<span id="d40-dia-value">--</span><span class="text-sm">mmHg</span>
+                            </div>
+                            <div class="text-lg font-bold text-rose-600 mt-1" id="d40-hr-container">
+                                <span id="d40-hr-value">--</span><span class="text-sm"> bpm</span>
                             </div>
                         </div>
-                        <div class="bg-fuchsia-50 rounded-lg p-4 text-center">
-                            <div class="text-sm text-fuchsia-600 font-medium mb-1">心率/血糖</div>
-                            <div class="text-3xl font-bold text-fuchsia-900 inline-block px-4 py-1"
-                                id="d40-bg-container">
-                                <span id="d40-hr-value">--</span><span class="text-lg">bpm</span> |
-                                <span id="d40-bg-value">--</span><span class="text-lg">mg/dL</span>
+                        
+                        <!-- 右側：血糖 -->
+                        <div class="bg-fuchsia-50 rounded-lg p-4 text-center flex flex-col justify-center">
+                            <div class="text-sm text-fuchsia-600 font-medium mb-1">血糖 (Glucose)</div>
+                            <div class="text-3xl font-bold text-fuchsia-900 inline-block px-4 py-1" id="d40-bg-container">
+                                <span id="d40-bg-value">--</span><span class="text-lg"> mg/dL</span>
                             </div>
                         </div>
                     </div>
@@ -234,28 +202,22 @@
 
                 <!-- 手動模式 -->
                 <div id="section-d40-manual" class="hidden space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <select id="manual-d40-type"
-                        class="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <select id="manual-d40-type" class="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500">
                         <option value="bp">血壓與心率輸入</option>
                         <option value="bg">血糖輸入</option>
                     </select>
-
+                    
                     <div id="manual-d40-bp-inputs" class="grid grid-cols-2 gap-3">
-                        <input type="number" id="manual-d40-sys" placeholder="收縮壓 SYS"
-                            class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        <input type="number" id="manual-d40-dia" placeholder="舒張壓 DIA"
-                            class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        <input type="number" id="manual-d40-hr" placeholder="心率 HR"
-                            class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-purple-500 col-span-2">
+                        <input type="number" id="manual-d40-sys" placeholder="收縮壓 SYS" class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <input type="number" id="manual-d40-dia" placeholder="舒張壓 DIA" class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <input type="number" id="manual-d40-hr" placeholder="心率 HR" class="border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-purple-500 col-span-2">
                     </div>
-
+                    
                     <div id="manual-d40-bg-inputs" class="hidden">
-                        <input type="number" id="manual-d40-bg" placeholder="血糖值 (mg/dL)"
-                            class="w-full border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-fuchsia-500">
+                        <input type="number" id="manual-d40-bg" placeholder="血糖值 (mg/dL)" class="w-full border border-gray-300 rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-fuchsia-500">
                     </div>
-
-                    <button id="btn-manual-d40-add"
-                        class="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 rounded transition-colors">加入紀錄</button>
+                    
+                    <button id="btn-manual-d40-add" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 rounded transition-colors">加入紀錄</button>
                 </div>
             </div>
 
@@ -267,8 +229,7 @@
                 <span class="text-sm font-medium text-gray-300">系統日誌</span>
                 <button id="btn-clear-log" class="text-xs text-gray-400 hover:text-white">清除</button>
             </div>
-            <div id="log-output"
-                class="p-4 overflow-y-auto text-xs font-mono text-green-400 space-y-1 log-container flex-grow">
+            <div id="log-output" class="p-4 overflow-y-auto text-xs font-mono text-green-400 space-y-1 log-container flex-grow">
                 <div>系統就緒。</div>
             </div>
         </div>
@@ -298,7 +259,7 @@
                     `;
                     const swBlob = new Blob([swCode], { type: 'application/javascript' });
                     const swUrl = URL.createObjectURL(swBlob);
-
+                    
                     navigator.serviceWorker.register(swUrl)
                         .then(() => {
                             document.getElementById('pwa-status').textContent = '已註冊';
@@ -318,7 +279,7 @@
         // --- 狀態管理與日誌系統 ---
         const logOutput = document.getElementById('log-output');
         let pendingRecords = [];
-
+        
         let tempDevice = null;
         let tempCharacteristic = null;
         let o2Device = null;
@@ -334,7 +295,7 @@
             if (type === 'error') colorClass = 'text-red-400';
             if (type === 'success') colorClass = 'text-green-400';
             if (type === 'data') colorClass = 'text-blue-300';
-
+            
             div.className = colorClass;
             div.textContent = `[${time}] ${message}`;
             logOutput.appendChild(div);
@@ -391,14 +352,14 @@
             const countEl = document.getElementById('pending-count');
             const listEl = document.getElementById('pending-list');
             const btnUpload = document.getElementById('btn-upload');
-
+            
             countEl.textContent = pendingRecords.length;
-
+            
             if (pendingRecords.length === 0) {
                 listEl.innerHTML = '<li class="text-gray-400 text-center py-2">目前無待上傳資料</li>';
                 btnUpload.disabled = true;
             } else {
-                listEl.innerHTML = pendingRecords.map(r =>
+                listEl.innerHTML = pendingRecords.map(r => 
                     `<li class="bg-gray-50 border border-gray-200 rounded p-2 flex justify-between">
                         <span class="font-medium text-gray-700">${r.device}</span>
                         <span class="text-gray-600">${r.value}</span>
@@ -416,11 +377,11 @@
                 document.getElementById('patient-id').focus();
                 return;
             }
-
+            
             log(`開始將 ${pendingRecords.length} 筆資料上傳至病歷號 [${patientId}]`, 'info');
             document.getElementById('btn-upload').textContent = '上傳中...';
             document.getElementById('btn-upload').disabled = true;
-
+            
             setTimeout(() => {
                 log(`病歷號 [${patientId}] 資料上傳成功`, 'success');
                 pendingRecords = [];
@@ -482,14 +443,14 @@
 
                 tempDevice.addEventListener('gattserverdisconnected', onTempDisconnected);
                 document.getElementById('temp-status').textContent = '連線中...';
-
+                
                 const server = await tempDevice.gatt.connect();
                 const service = await server.getPrimaryService(0x1809);
-                tempCharacteristic = await service.getCharacteristic(0x2A1C);
-
+                tempCharacteristic = await service.getCharacteristic(0x2A1C); 
+                
                 await tempCharacteristic.startNotifications();
                 tempCharacteristic.addEventListener('characteristicvaluechanged', handleTemperatureData);
-
+                
                 document.getElementById('btn-temp-connect').classList.add('hidden');
                 document.getElementById('btn-temp-disconnect').classList.remove('hidden');
                 document.getElementById('temp-status').textContent = '已連線';
@@ -519,23 +480,23 @@
             const value = event.target.value;
             const flags = value.getUint8(0);
             const isFahrenheit = (flags & 0x01) !== 0;
-
+            
             const b1 = value.getUint8(1);
             const b2 = value.getUint8(2);
             const b3 = value.getUint8(3);
             const exponent = value.getInt8(4);
-
+            
             let mantissa = (b3 << 16) | (b2 << 8) | b1;
             if ((mantissa & 0x00800000) > 0) mantissa |= 0xFF000000;
-
+            
             const temperature = mantissa * Math.pow(10, exponent);
             const tempStr = temperature.toFixed(2);
             const unitStr = isFahrenheit ? '°F' : '°C';
-
+            
             document.getElementById('temp-value').textContent = tempStr;
             document.getElementById('temp-unit').textContent = unitStr;
             triggerUIFlash('temp-display-container');
-
+            
             log(`接收體溫資料: ${tempStr} ${unitStr}`, 'data');
             addRecord('TD-1242B', 'Temperature', `${tempStr} ${unitStr}`);
         }
@@ -554,14 +515,14 @@
 
                 o2Device.addEventListener('gattserverdisconnected', onO2Disconnected);
                 document.getElementById('o2-status').textContent = '連線中...';
-
+                
                 const server = await o2Device.gatt.connect();
                 const service = await server.getPrimaryService(TAIDOC_SERVICE_UUID);
                 o2Characteristic = await service.getCharacteristic(TAIDOC_CHAR_UUID);
-
+                
                 await o2Characteristic.startNotifications();
                 o2Characteristic.addEventListener('characteristicvaluechanged', handleO2Data);
-
+                
                 document.getElementById('btn-o2-connect').classList.add('hidden');
                 document.getElementById('btn-o2-disconnect').classList.remove('hidden');
                 document.getElementById('o2-status').textContent = '已連線';
@@ -594,13 +555,13 @@
                 if (command === 0x26 || command === 0x25) {
                     const spo2 = value.getUint8(2);
                     const hr = value.getUint8(5);
-
+                    
                     document.getElementById('o2-spo2-value').textContent = spo2;
                     document.getElementById('o2-hr-value').textContent = hr;
-
+                    
                     triggerUIFlash('o2-spo2-container');
                     triggerUIFlash('o2-hr-container');
-
+                    
                     log(`接收血氧資料: SpO2 ${spo2}%, HR ${hr} bpm`, 'data');
                     addRecord('TD-8255B', 'SpO2/HR', `血氧:${spo2}% 心率:${hr}`);
                 }
@@ -618,7 +579,7 @@
 
                 d40Device.addEventListener('gattserverdisconnected', onD40Disconnected);
                 document.getElementById('d40-status').textContent = '連線中...';
-
+                
                 const server = await d40Device.gatt.connect();
 
                 // 註冊標準血壓服務 (0x1810)
@@ -642,7 +603,7 @@
                 } catch (e) {
                     log('無自訂血糖服務', 'info');
                 }
-
+                
                 document.getElementById('btn-d40-connect').classList.add('hidden');
                 document.getElementById('btn-d40-disconnect').classList.remove('hidden');
                 document.getElementById('d40-status').textContent = '已連線';
@@ -690,9 +651,9 @@
 
             const sys = Math.round(getSFloat(1));
             const dia = Math.round(getSFloat(3));
-
+            
             // 計算心率的位元組偏移量
-            let hrOffset = 7;
+            let hrOffset = 7; 
             if (hasTimestamp) hrOffset += 7; // 時間戳記佔用 7 bytes
 
             let hrVal = '--';
@@ -704,7 +665,7 @@
             document.getElementById('d40-sys-value').textContent = sys;
             document.getElementById('d40-dia-value').textContent = dia;
             triggerUIFlash('d40-bp-container');
-            if (hasPulseRate) triggerUIFlash('d40-bg-container');
+            if (hasPulseRate) triggerUIFlash('d40-hr-container'); // 這裡也觸發閃爍確保更新感知
 
             const unitStr = isKpa ? 'kPa' : 'mmHg';
             log(`解析結果 -> 血壓: SYS ${sys}, DIA ${dia} ${unitStr}, 心率: ${hrVal} bpm`, 'success');
@@ -719,17 +680,17 @@
                 if (command === 0x26 || command === 0x25) {
                     const byte2 = value.getUint8(2);
                     const byte3 = value.getUint8(3);
-
+                    
                     // 以 TaiDoc 常用協定推測，若為單一血糖值通常不會佔用到舒張壓常駐的位元
-                    if (byte3 === 0 || byte2 > 10) {
+                    if (byte3 === 0 || byte2 > 10) { 
                         const bgValue = byte2 + (byte3 << 8);
-
+                        
                         // 排除異常小於正常生理範圍的干擾雜訊
-                        if (bgValue > 20) {
+                        if(bgValue > 20) {
                             log(`接收 TD-3261B 血糖資料: ${buf2hex(value.buffer)}`, 'data');
                             document.getElementById('d40-bg-value').textContent = bgValue;
                             triggerUIFlash('d40-bg-container');
-
+                            
                             log(`解析結果 -> 血糖: ${bgValue} mg/dL`, 'success');
                             addRecord('TD-3261B', 'Blood Glucose', `血糖:${bgValue} mg/dL`);
                         }
@@ -739,5 +700,4 @@
         }
     </script>
 </body>
-
 </html>
