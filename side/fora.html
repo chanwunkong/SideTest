@@ -706,6 +706,7 @@ function closeCamera(){
 }
 
 // ── Upload Preview ──
+let isUploading=false;
 document.getElementById('btn-upload').addEventListener('click',()=>{
     const keyno=document.getElementById('patient-id').value.trim();
     const loc=document.getElementById('location-input').value.trim()||'yt';
@@ -730,9 +731,12 @@ document.getElementById('btn-modal-cancel').addEventListener('click',()=>documen
 document.getElementById('modal-upload').addEventListener('click',e=>{if(e.target===document.getElementById('modal-upload'))document.getElementById('modal-upload').classList.remove('open');});
 
 document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
+    if(isUploading) return;
     const keyno=document.getElementById('patient-id').value.trim();
+    if(!keyno){const errEl=document.getElementById('upload-error');errEl.textContent='病歷號不可為空';errEl.classList.remove('hidden');return;}
     const loc=document.getElementById('location-input').value.trim()||'yt';
     const payload={keyno,uploadTime:uploadTime||fmtUploadTime(new Date()),temp:meas.temp,pluse:meas.pluse,spo2:meas.spo2,sbp:meas.sbp,dbp:meas.dbp,glu:meas.glu,weight:meas.weight,resp_rate:meas.resp_rate};
+    isUploading=true;
     const btn=document.getElementById('btn-modal-confirm');
     btn.innerHTML='<span class="spin"></span> 上傳中';btn.disabled=true;
     document.getElementById('upload-error').classList.add('hidden');
@@ -757,6 +761,8 @@ document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
         addHistory({...payload,location:loc,tempUnit:meas.tempUnit,status:'failed',error:e.message});
         const errEl=document.getElementById('upload-error');errEl.textContent=`網路錯誤：${e.message}`;errEl.classList.remove('hidden');
         btn.innerHTML='確認上傳';btn.disabled=false;
+    }finally{
+        isUploading=false;
     }
 });
 
