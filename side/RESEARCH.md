@@ -138,23 +138,31 @@ POST https://www.sstcmedicare.com/imedical/multi/division/v2/api/repository/uplo
 
 ## 遇到的問題
 
-### CORS 跨來源問題（待解決）
+### CORS 跨來源問題 ✅ 已解決
 - **現象**：Postman 可以成功 POST，瀏覽器出現「Failed to fetch」
 - **原因**：頁面在 `chanwunkong.github.io`，API 在 `sstcmedicare.com`，不同來源，瀏覽器安全政策攔截
-- **解法 A（推薦）**：請 API 提供方在回應加入 Header：
-  ```
-  Access-Control-Allow-Origin: https://chanwunkong.github.io
-  Access-Control-Allow-Methods: POST, OPTIONS
-  Access-Control-Allow-Headers: Content-Type
-  ```
-- **解法 B**：將 `fora.html` 部署至 `sstcmedicare.com` 同網域，無需修改任何設定
-- **狀態**：待 API 提供方（Kevin）處理
+- **解法**：由 API 提供方（Kevin）在伺服器端加入 CORS Header
+- **狀態**：已解決（2026-06-26，Kevin 確認）
+
+### keyno 無效問題（2026-06-26 測試發現）
+- **現象**：數值成功上傳至系統，但 keyno 顯示「找不到」，資料無法對應到正確病患
+- **截圖**：後台「今日檢測詳情」可見資料列（謝小易，體溫 36.2 / 36.9，心率 66，血氧 66），但 keyno 關聯失敗
+- **原因**：測試使用的 `keyno` 不存在於醫院系統的病患資料庫中
+- **結論**：API 本身正常接收資料；`keyno` 必須使用系統中已存在的有效病歷號
+- **待確認**：API 回傳的錯誤格式（目前前端對 keyno 無效無特別提示）
+
+### 重複上傳問題（2026-06-26 測試發現）
+- **現象**：後台出現兩筆相同時間（03:25）、相同數值的紀錄
+- **可能原因**：使用者按了兩次確認上傳，或 BLE 設備在連線期間推送兩次相同量測值
+- **建議**：上傳成功後立即禁用確認按鈕，避免重複送出
 
 ---
 
 ## 待辦與已知限制
 
-- [ ] CORS 問題需伺服器端解決
+- [x] CORS 問題 — 已由 Kevin 解決
+- [ ] keyno 無效時前端應顯示明確錯誤提示（目前僅顯示 HTTP 狀態碼）
+- [ ] 重複上傳問題：成功後應鎖定按鈕防止重送
 - [ ] FORA MD6 六合一無法從 BLE 封包自動判斷量測指標類型
 - [ ] iOS 完全不支援 Web Bluetooth，無法使用藍牙功能
 - [ ] `uploadTime` 目前記錄最後一次量測的時間，非每個指標各自的時間
