@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>中國象棋</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1a1a1a; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; }
+    h1 { color: #d4a74a; margin-bottom: 16px; letter-spacing: 4px; font-size: 1.4rem; }
+    #info { color: #aaa; margin-bottom: 12px; font-size: 0.95rem; min-height: 1.4em; }
+    #board-wrap { position: relative; }
+    canvas { display: block; cursor: pointer; border-radius: 4px; }
+    #status { margin-top: 14px; color: #e0c060; font-size: 1.05rem; min-height: 1.4em; letter-spacing: 1px; }
+    #btn-reset { margin-top: 14px; padding: 8px 28px; background: #d4a74a; border: none; border-radius: 4px; color: #1a1a1a; font-size: 1rem; font-weight: bold; cursor: pointer; }
+    #btn-reset:hover { background: #f0c060; }
+  </style>
+</head>
+<body>
+  <h1>中 國 象 棋</h1>
+  <div id="info">紅方先手</div>
+  <div id="board-wrap"><canvas id="c"></canvas></div>
+  <div id="status"></div>
+  <button id="btn-reset">重新開始</button>
+
+<script type="module">
+// ──────────────────────────────────────────────────────────────────────────────
+// Inline engine (no build step needed — pure browser ES module)
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ── Types / helpers ───────────────────────────────────────────────────────────
+const key = ([c, r]) => `${c},${r}`;
+const fromKey = s => s.split(',').map(Number);
+const inBounds = ([c, r]) => c >= 0 && c < 9 && r >= 0 && r < 10;
+const add = ([c, r], [dc, dr]) => [c + dc, r + dr];
+
+// ── Piece definitions ─────────────────────────────────────────────────────────
+// Each def: { label, getLegalMoves(board, from, owner) → Coord[] }
+
+function slideMoves(board, from, owner, dirs) {
+  const result = [];
+  for (const d of dirs) {
+    let cur = add(from, d);
+    while (inBounds(cur)) {
+      const occ = board.get(key(cur));
+      if (occ) { if (occ.owner !== owner) result.push(cur); break; }
+      result.push(cur);
+      cur = add(cur, d);
+    }
+  }
+  return result;
+}
+
+const ORTHO = [[1,0],[-1,0],[0,1],[0,-1]];
+
+function chariotMoves(board, from, owner) { return slideMoves(board, from, owner, ORTHO); }
+
+function horseMoves(board, from, owner) {
+  const steps = [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]];
+  return steps.filter(([dc, dr]) => {
+    const block = add(from, [Math.sign(dc), Math.abs(dc) > Math.abs(dr) ? 0 : Math.sign(dr)]);
+    // block cell: primary axis first step
+    const blockCell = Math.abs(dc) >= Math.abs(dr) ? add(from, [Math.sign(dc), 0]) : add(from, [0, Math.sign(dr)]);
+    if (board.has(key(blockCell))) return false;
+    const to = add(from, [dc, dr]);
+    if (!inBounds(to)) return false;
+    const occ = board.get(key(to));
+    return !occ || occ.owner !== owner;
+  }).map(d => add(from, d));
+}
+
+function elephantMoves(board, from, owner) {
+  const homeRows = owner === 'red' ? [5,6,7,8,9] : [0,1,2,3,4];
+  return [[2,2],[2,-2],[-2,2],[-2,-2]].filter(([dc, dr]) => {
+    const mid = add(from, [dc/2, dr/2]);
+    if (board.has(key(mid))) return false;
+    const to = add(from, [dc, dr]);
+    if (!inBounds(to)) return false;
+    if (!homeRows.includes(to[1])) return false;
+    const occ = board.get(key(to));
+    return !occ || occ.owner !== owner;
+  }).map(d => add(from, d));
+}
+
+function palaceCoords(owner) {
+  const rows = owner === 'red' ? [7,8,9] : [0,1,2];
+  const cols = [3,4,5];
+  const set = new Set();
+  for (const r of rows) for (const c of cols) set.add(key([c,r]));
+  return set;
+}
+
+function advisorMoves(board, from, owner) {
+  const palace = palaceCoords(owner);
+  return [[1,1],[1,-1],[-1,1],[-1,-1]].filter(d => {
+    const to = add(from, d);
+    if (!inBounds(to) || !palace.has(key(to))) return false;
+    const occ = board.get(key(to));
+    return !occ || occ.owner !== owner;
+  }).map(d => add(from, d));
+}
+
+function generalMoves(board, from, owner) {
+  const palace = palaceCoords(owner);
+  return ORTHO.filter(d => {
+    const to = add(from, d);
+    if (!inBounds(to) || !palace.has(key(to))) return false;
+    const occ = board.get(key(to));
+    return !occ || occ.owner !== owner;
+  }).map(d => add(from, d));
+}
+
+function cannonMoves(board, from, owner) {
+  const result = [];
+  for (const d of ORTHO) {
+    let cur = add(from, d);
+    let screens = 0;
+    while (inBounds(cur)) {
+      const occ = board.get(key(cur));
+      if (screens === 0) {
+        if (occ) screens++;
+        else result.push(cur);
+      } else if (screens === 1) {
+        if (occ) {
+          if (occ.owner !== owner) result.push(cur);
+          break;
+        }
+      }
+      cur = add(cur, d);
+    }
+  }
+  return result;
+}
+
+function soldierMoves(board, from, owner) {
+  const [c, r] = from;
+  const fwd = owner === 'red' ? -1 : 1;
+  const crossedRiver = owner === 'red' ? r <= 4 : r >= 5;
+  const dirs = [[0, fwd]];
+  if (crossedRiver) { dirs.push([1, 0]); dirs.push([-1, 0]); }
+  return dirs.filter(d => {
+    const to = add(from, d);
+    if (!inBounds(to)) return false;
+    const occ = board.get(key(to));
+    return !occ || occ.owner !== owner;
+  }).map(d => add(from, d));
+}
+
+const PIECE_DEFS = {
+  Chariot:  { label: { red: '俥', black: '車' }, moves: chariotMoves },
+  Horse:    { label: { red: '傌', black: '馬' }, moves: horseMoves },
+  Elephant: { label: { red: '相', black: '象' }, moves: elephantMoves },
+  Advisor:  { label: { red: '仕', black: '士' }, moves: advisorMoves },
+  General:  { label: { red: '帥', black: '將' }, moves: generalMoves },
+  Cannon:   { label: { red: '炮', black: '砲' }, moves: cannonMoves },
+  Soldier:  { label: { red: '兵', black: '卒' }, moves: soldierMoves },
+};
+
+// ── Initial board ─────────────────────────────────────────────────────────────
+const INITIAL_SETUP = [
+  // Black top
+  ['Chariot','black',[0,0]], ['Horse','black',[1,0]], ['Elephant','black',[2,0]],
+  ['Advisor','black',[3,0]], ['General','black',[4,0]], ['Advisor','black',[5,0]],
+  ['Elephant','black',[6,0]], ['Horse','black',[7,0]], ['Chariot','black',[8,0]],
+  ['Cannon','black',[1,2]], ['Cannon','black',[7,2]],
+  ['Soldier','black',[0,3]], ['Soldier','black',[2,3]], ['Soldier','black',[4,3]],
+  ['Soldier','black',[6,3]], ['Soldier','black',[8,3]],
+  // Red bottom
+  ['Chariot','red',[0,9]], ['Horse','red',[1,9]], ['Elephant','red',[2,9]],
+  ['Advisor','red',[3,9]], ['General','red',[4,9]], ['Advisor','red',[5,9]],
+  ['Elephant','red',[6,9]], ['Horse','red',[7,9]], ['Chariot','red',[8,9]],
+  ['Cannon','red',[1,7]], ['Cannon','red',[7,7]],
+  ['Soldier','red',[0,6]], ['Soldier','red',[2,6]], ['Soldier','red',[4,6]],
+  ['Soldier','red',[6,6]], ['Soldier','red',[8,6]],
+];
+
+function makeBoard() {
+  const board = new Map();
+  INITIAL_SETUP.forEach(([def, owner, coord]) =>
+    board.set(key(coord), { def, owner, coord })
+  );
+  return board;
+}
+
+// ── King-in-check detection ───────────────────────────────────────────────────
+function findGeneral(board, owner) {
+  for (const [, p] of board) {
+    if (p.owner === owner && p.def === 'General') return p.coord;
+  }
+  return null;
+}
+
+function isInCheck(board, owner) {
+  const gCoord = findGeneral(board, owner);
+  if (!gCoord) return false;
+  const gKey = key(gCoord);
+  const opp = owner === 'red' ? 'black' : 'red';
+  for (const [, p] of board) {
+    if (p.owner !== opp) continue;
+    const def = PIECE_DEFS[p.def];
+    if (!def) continue;
+    const moves = def.moves(board, p.coord, p.owner);
+    if (moves.some(m => key(m) === gKey)) return true;
+  }
+  // Flying general rule: two generals face each other with no pieces between
+  const oppCoord = findGeneral(board, opp);
+  if (oppCoord && gCoord[0] === oppCoord[0]) {
+    const col = gCoord[0];
+    const [r1, r2] = [Math.min(gCoord[1], oppCoord[1]), Math.max(gCoord[1], oppCoord[1])];
+    let blocking = false;
+    for (let r = r1+1; r < r2; r++) if (board.has(key([col, r]))) { blocking = true; break; }
+    if (!blocking) return true;
+  }
+  return false;
+}
+
+function getLegalMoves(board, from, owner) {
+  const piece = board.get(key(from));
+  if (!piece || piece.owner !== owner) return [];
+  const def = PIECE_DEFS[piece.def];
+  if (!def) return [];
+  const raw = def.moves(board, from, owner);
+  return raw.filter(to => {
+    // Simulate
+    const next = new Map(board);
+    next.delete(key(from));
+    next.set(key(to), { ...piece, coord: to });
+    return !isInCheck(next, owner);
+  });
+}
+
+function hasAnyLegalMove(board, owner) {
+  for (const [, p] of board) {
+    if (p.owner !== owner) continue;
+    if (getLegalMoves(board, p.coord, owner).length > 0) return true;
+  }
+  return false;
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+const CELL = 60;
+const PAD  = 50;
+const W = CELL * 8 + PAD * 2;
+const H = CELL * 9 + PAD * 2;
+const COLORS = {
+  board:    '#f0c060',
+  line:     '#8b6000',
+  piece_red:'#cc2200',
+  piece_blk:'#111111',
+  bg_red:   '#fff0e0',
+  bg_blk:   '#e0e8f0',
+  select:   '#00cc44',
+  legal:    '#0088ff',
+  capture:  '#ff4400',
+};
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = W; canvas.height = H;
+
+const cx = col => PAD + col * CELL;
+const cy = row => PAD + row * CELL;
+const colFromX = x => Math.round((x - PAD) / CELL);
+const rowFromY = y => Math.round((y - PAD) / CELL);
+
+function drawBoard() {
+  ctx.fillStyle = COLORS.board;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = COLORS.line;
+  ctx.lineWidth = 1.5;
+
+  // Grid lines
+  for (let c = 0; c <= 8; c++) {
+    ctx.beginPath();
+    if (c === 0 || c === 8) {
+      ctx.moveTo(cx(c), cy(0)); ctx.lineTo(cx(c), cy(9));
+    } else {
+      ctx.moveTo(cx(c), cy(0)); ctx.lineTo(cx(c), cy(4));
+      ctx.moveTo(cx(c), cy(5)); ctx.lineTo(cx(c), cy(9));
+    }
+    ctx.stroke();
+  }
+  for (let r = 0; r <= 9; r++) {
+    ctx.beginPath(); ctx.moveTo(cx(0), cy(r)); ctx.lineTo(cx(8), cy(r)); ctx.stroke();
+  }
+
+  // Palace diagonals
+  ctx.beginPath();
+  ctx.moveTo(cx(3), cy(0)); ctx.lineTo(cx(5), cy(2));
+  ctx.moveTo(cx(5), cy(0)); ctx.lineTo(cx(3), cy(2));
+  ctx.moveTo(cx(3), cy(7)); ctx.lineTo(cx(5), cy(9));
+  ctx.moveTo(cx(5), cy(7)); ctx.lineTo(cx(3), cy(9));
+  ctx.stroke();
+
+  // River label
+  ctx.fillStyle = COLORS.line;
+  ctx.font = 'bold 18px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('楚 河', cx(2), cy(4.5));
+  ctx.fillText('漢 界', cx(6), cy(4.5));
+
+  // Cannon / Soldier dots
+  const dots = [
+    [1,2],[7,2],[1,7],[7,7],
+    [0,3],[2,3],[4,3],[6,3],[8,3],
+    [0,6],[2,6],[4,6],[6,6],[8,6],
+  ];
+  dots.forEach(([c, r]) => {
+    drawDot(cx(c), cy(r));
+  });
+}
+
+function drawDot(x, y) {
+  const s = 5;
+  ctx.strokeStyle = COLORS.line;
+  ctx.lineWidth = 1.5;
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx, sy]) => {
+    ctx.beginPath();
+    ctx.moveTo(x + sx*s, y); ctx.lineTo(x + sx*s, y + sy*s);
+    ctx.moveTo(x, y + sy*s); ctx.lineTo(x + sx*s, y + sy*s);
+    ctx.stroke();
+  });
+}
+
+function drawPiece(piece, highlight) {
+  const [c, r] = piece.coord;
+  const x = cx(c), y = cy(r);
+  const radius = CELL * 0.42;
+
+  // Shadow
+  ctx.beginPath();
+  ctx.arc(x+2, y+2, radius, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fill();
+
+  // Outer ring
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI*2);
+  ctx.fillStyle = piece.owner === 'red' ? COLORS.bg_red : COLORS.bg_blk;
+  ctx.fill();
+  ctx.strokeStyle = highlight === 'select' ? COLORS.select :
+                    piece.owner === 'red' ? COLORS.piece_red : COLORS.piece_blk;
+  ctx.lineWidth = highlight === 'select' ? 3.5 : 2;
+  ctx.stroke();
+
+  // Inner ring
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 0.82, 0, Math.PI*2);
+  ctx.strokeStyle = piece.owner === 'red' ? COLORS.piece_red : COLORS.piece_blk;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Label
+  const def = PIECE_DEFS[piece.def];
+  ctx.fillStyle = piece.owner === 'red' ? COLORS.piece_red : COLORS.piece_blk;
+  ctx.font = `bold ${CELL * 0.46}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(def.label[piece.owner], x, y);
+}
+
+function drawLegalDot(coord, isCapture) {
+  const x = cx(coord[0]), y = cy(coord[1]);
+  ctx.beginPath();
+  ctx.arc(x, y, isCapture ? CELL*0.42 : CELL*0.15, 0, Math.PI*2);
+  ctx.fillStyle = isCapture ? 'rgba(255,68,0,0.35)' : 'rgba(0,136,255,0.5)';
+  ctx.fill();
+  if (isCapture) {
+    ctx.strokeStyle = COLORS.capture;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+}
+
+// ── Game state ────────────────────────────────────────────────────────────────
+let board, currentPlayer, selected, legalMoves, gameOver;
+
+function init() {
+  board = makeBoard();
+  currentPlayer = 'red';
+  selected = null;
+  legalMoves = [];
+  gameOver = false;
+  updateInfo();
+  render();
+}
+
+function render() {
+  drawBoard();
+
+  // Legal move highlights (behind pieces)
+  if (selected) {
+    legalMoves.forEach(to => {
+      const isCapture = board.has(key(to));
+      drawLegalDot(to, isCapture);
+    });
+  }
+
+  // Pieces
+  for (const [, piece] of board) {
+    const isSelected = selected && key(piece.coord) === key(selected);
+    drawPiece(piece, isSelected ? 'select' : null);
+  }
+}
+
+function updateInfo() {
+  const info = document.getElementById('info');
+  const status = document.getElementById('status');
+  if (gameOver) return;
+  info.textContent = currentPlayer === 'red' ? '🔴 紅方下棋' : '⚫ 黑方下棋';
+  const inCheck = isInCheck(board, currentPlayer);
+  status.textContent = inCheck ? (currentPlayer === 'red' ? '紅方被將！' : '黑方被將！') : '';
+}
+
+canvas.addEventListener('click', e => {
+  if (gameOver) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  const col = colFromX((e.clientX - rect.left) * scaleX);
+  const row = rowFromY((e.clientY - rect.top) * scaleY);
+  if (col < 0 || col > 8 || row < 0 || row > 9) return;
+  handleClick([col, row]);
+});
+
+function handleClick(coord) {
+  const clicked = board.get(key(coord));
+
+  // If a piece is selected and coord is a legal move → execute
+  if (selected && legalMoves.some(m => key(m) === key(coord))) {
+    doMove(selected, coord);
+    return;
+  }
+
+  // Select own piece
+  if (clicked && clicked.owner === currentPlayer) {
+    selected = coord;
+    legalMoves = getLegalMoves(board, coord, currentPlayer);
+    render();
+    return;
+  }
+
+  // Deselect
+  selected = null;
+  legalMoves = [];
+  render();
+}
+
+function doMove(from, to) {
+  const piece = board.get(key(from));
+  board.delete(key(from));
+  const captured = board.get(key(to));
+  board.set(key(to), { ...piece, coord: to });
+
+  selected = null;
+  legalMoves = [];
+
+  // Check win (captured general)
+  if (captured && captured.def === 'General') {
+    gameOver = true;
+    document.getElementById('info').textContent =
+      currentPlayer === 'red' ? '🔴 紅方勝！' : '⚫ 黑方勝！';
+    document.getElementById('status').textContent = '遊戲結束';
+    render();
+    return;
+  }
+
+  // Switch turn
+  currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
+
+  // Checkmate / stalemate detection
+  if (!hasAnyLegalMove(board, currentPlayer)) {
+    gameOver = true;
+    const winner = currentPlayer === 'red' ? '黑方' : '紅方';
+    document.getElementById('info').textContent = `🏆 ${winner}勝！`;
+    document.getElementById('status').textContent = isInCheck(board, currentPlayer) ? '將死！' : '無子可走（和棋）';
+    render();
+    return;
+  }
+
+  updateInfo();
+  render();
+}
+
+document.getElementById('btn-reset').addEventListener('click', init);
+
+// ── Responsive scaling ────────────────────────────────────────────────────────
+function fitCanvas() {
+  const maxW = Math.min(window.innerWidth - 32, 520);
+  canvas.style.width  = maxW + 'px';
+  canvas.style.height = (maxW * H / W) + 'px';
+}
+window.addEventListener('resize', fitCanvas);
+fitCanvas();
+
+init();
+</script>
+</body>
+</html>
