@@ -76,4 +76,10 @@
 - Completed: TASK-020 (西藏象棋) — TB 棋子表（Gyalpo/Lonpo/Do/Langchen/Ta/Dmakmi，均 alias CT）；TB_SETUP（同 Shatranj 佈局）；GAME_LBL['tibetan']；BARE_KING_LOSES{shatar,tibetan} + RULER_DEFS；isBareKing 泛化（支援所有王型棋子）；finishTurn 裸王判定改用 BARE_KING_LOSES；findRuler/rawMoves/SETUP_MAP/PROMO_CFG(Dmakmi→Lonpo)/STALEMATE_LOSES 加入 tibetan；選單新增西藏象棋卡片（🏔️，含規則版本 tooltip 標注）
 - Errors: none
 - Queued: TASK-021 (越南象棋 Cờ Tướng)
+- Commit: 1c5558e
+
+## 2026-07-02T02:00Z
+- Completed: TASK-021 (越南象棋 Cờ Tướng) — VN 棋子表（Tuong/Si/Voi/Xe/Ma/Phao/Tot，均 alias XQ）；VN_SETUP（同 XQ 佈局）；GAME_LBL['vietnamese']；layout()/renderBoard()/gameIb() 加入 vietnamese→ibXQ 9×10 分支；drawPiece 改用 isXQStyle（XQ+VN 均獲 inner ring+serif 渲染）；findRuler/RULER_DEFS 加 Tuong；rawMoves/SETUP_MAP 加 VN；選單新增 Cờ Tướng 卡片（🇻🇳）；象不過河（標準規則，同 XQ 實作）；飛將規則自動沿用（isInCheck ibXQ 分支）
+- Errors: none
+- Queued: TASK-022 (朝鮮象棋 Janggi)
 - Commit: (pending)

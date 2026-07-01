@@ -89,6 +89,9 @@ canvas{display:block;cursor:pointer}
     <div class="game-card" onclick="startGame('tibetan')" title="依 Shatranj 系規則（Murray 1913）；地方版本規則略有差異">
       <span class="icon">🏔️</span><span class="name">西藏象棋<br><small style="font-size:.72rem;font-weight:400;color:#aaa">Tibetan Chess *</small></span>
     </div>
+    <div class="game-card" onclick="startGame('vietnamese')">
+      <span class="icon">🇻🇳</span><span class="name">Cờ Tướng<br><small style="font-size:.72rem;font-weight:400;color:#aaa">越南象棋</small></span>
+    </div>
     <div class="game-card dashed" onclick="openSetup('xiangqi')">
       <span class="icon">✏️</span><span class="name">自訂布局</span>
     </div>
@@ -486,13 +489,45 @@ const TB_SETUP=[
 GAME_LBL['tibetan']={Gyalpo:'Gy',Lonpo:'Lo',Do:'Do',Langchen:'La',Ta:'Ta',Dmakmi:'Dm'};
 
 // ══════════════════════════════════════════════════════════════════════════════
+// VIETNAMESE CHESS (Cờ Tướng) piece definitions  (9×10, identical rules to Xiangqi)
+// Tuong=General  Si=Advisor  Voi=Elephant(no-cross-river)
+// Xe=Chariot  Ma=Horse  Phao=Cannon  Tot=Pawn
+// ══════════════════════════════════════════════════════════════════════════════
+const VN={
+  Tuong: XQ.General,   // Tướng — stays in palace, 1 step ortho
+  Si:    XQ.Advisor,   // Sĩ — 1 step diagonal within palace
+  Voi:   XQ.Elephant,  // Tượng — 2-step diagonal jump, cannot cross river
+  Xe:    XQ.Chariot,   // Xe — rook-slide
+  Ma:    XQ.Horse,     // Mã — L-knight with blocking leg
+  Phao:  XQ.Cannon,    // Pháo — slide to move, jump-over-1 to capture
+  Tot:   XQ.Soldier,   // Tốt — forward; sideways too after crossing river
+};
+
+const VN_SETUP=[
+  ['Xe','p2',[0,0]],['Ma','p2',[1,0]],['Voi','p2',[2,0]],
+  ['Si','p2',[3,0]],['Tuong','p2',[4,0]],['Si','p2',[5,0]],
+  ['Voi','p2',[6,0]],['Ma','p2',[7,0]],['Xe','p2',[8,0]],
+  ['Phao','p2',[1,2]],['Phao','p2',[7,2]],
+  ['Tot','p2',[0,3]],['Tot','p2',[2,3]],['Tot','p2',[4,3]],
+  ['Tot','p2',[6,3]],['Tot','p2',[8,3]],
+  ['Xe','p1',[0,9]],['Ma','p1',[1,9]],['Voi','p1',[2,9]],
+  ['Si','p1',[3,9]],['Tuong','p1',[4,9]],['Si','p1',[5,9]],
+  ['Voi','p1',[6,9]],['Ma','p1',[7,9]],['Xe','p1',[8,9]],
+  ['Phao','p1',[1,7]],['Phao','p1',[7,7]],
+  ['Tot','p1',[0,6]],['Tot','p1',[2,6]],['Tot','p1',[4,6]],
+  ['Tot','p1',[6,6]],['Tot','p1',[8,6]],
+];
+
+GAME_LBL['vietnamese']={Tuong:'Tg',Si:'Si',Voi:'Vo',Xe:'Xe',Ma:'Ma',Phao:'Ph',Tot:'To'};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Check detection  (unified — handles mixed XQ+CH pieces on same board)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Find the "king" piece: General (XQ), King (CH), or Raja (Chaturanga/Shatranj)
 function findRuler(board,owner){
   for(const[,p]of board)
-    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo'].includes(p.def))return p.coord;
+    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo','Tuong'].includes(p.def))return p.coord;
   return null;
 }
 
@@ -508,6 +543,7 @@ function rawMoves(board,from,owner,ib,ex={}){
   if(OUK[p.def])return OUK[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(SH[p.def])return SH[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(TB[p.def])return TB[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(VN[p.def])return VN[p.def].mv(board,from,owner).filter(m=>ib(m));
   return[];
 }
 
@@ -563,7 +599,7 @@ function hasAnyLegal(board,owner,ib,ex={}){
 // Rendering
 // ══════════════════════════════════════════════════════════════════════════════
 function layout(gt){
-  return gt==='xiangqi'
+  return (gt==='xiangqi'||gt==='vietnamese')
     ?{C:58,P:46,W:58*8+92,H:58*9+92}
     :{C:62,P:36,W:62*7+72,H:62*7+72};
 }
@@ -606,7 +642,7 @@ function drawPiece(ctx,piece,sel,L){
   ctx.beginPath();ctx.arc(x+2,y+2,rad,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.28)';ctx.fill();
 
   const isP1=piece.owner==='p1';
-  const isXQ=!!XQ[piece.def];
+  const isXQStyle=!!XQ[piece.def]||!!VN[piece.def];
   const bg    =isP1?'#fff8f0':'#1c1c2e';
   const border=sel?'#00cc44':(isP1?'#cc2200':'#7799bb');
   const txt   =isP1?'#cc2200':'#ccddee';
@@ -614,12 +650,13 @@ function drawPiece(ctx,piece,sel,L){
   ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.fillStyle=bg;ctx.fill();
   ctx.strokeStyle=border;ctx.lineWidth=sel?3.5:2;ctx.stroke();
 
-  if(isXQ){
-    // XQ pieces get inner ring + Chinese serif label
+  if(isXQStyle){
+    // XQ / VN pieces get inner ring + serif label
     ctx.beginPath();ctx.arc(x,y,rad*.81,0,Math.PI*2);ctx.strokeStyle=border;ctx.lineWidth=1;ctx.stroke();
-    ctx.fillStyle=txt;ctx.font=`bold ${L.C*.43}px serif`;
+    const lbl=XQ[piece.def]?.lbl?.[piece.owner]??GAME_LBL[gtype]?.[piece.def]??piece.def[0];
+    ctx.fillStyle=txt;ctx.font=`bold ${lbl.length>1?L.C*.32:L.C*.43}px serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(XQ[piece.def].lbl[piece.owner]??'?',x,y);
+    ctx.fillText(lbl,x,y);
   } else {
     // CH / CT / other 8×8 pieces: letter + sans-serif
     ctx.fillStyle=txt;ctx.font=`bold ${L.C*.4}px sans-serif`;
@@ -639,7 +676,7 @@ function drawHint(ctx,coord,isCapture,L){
 function renderBoard(cvs,board,gt,sel,legal,extraHints=[]){
   const L=layout(gt),ctx=cvs.getContext('2d');
   cvs.width=L.W;cvs.height=L.H;
-  if(gt==='xiangqi')drawXQBoard(ctx,L);else drawCHBoard(ctx,L);
+  if(gt==='xiangqi'||gt==='vietnamese')drawXQBoard(ctx,L);else drawCHBoard(ctx,L);
   if(sel)legal.forEach(to=>drawHint(ctx,to,board.has(K(to)),L));
   extraHints.forEach(c=>drawHint(ctx,c,false,L));
   for(const[,p]of board)drawPiece(ctx,p,sel&&K(p.coord)===K(sel),L);
@@ -679,7 +716,7 @@ const NO_CHECK_FILTER={shatar:true};
 const BARE_KING_LOSES={shatar:true,tibetan:true};
 
 // All royal piece defs (used by isBareKing)
-const RULER_DEFS=new Set(['General','Gyoku','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo']);
+const RULER_DEFS=new Set(['General','Gyoku','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo','Tuong']);
 
 function isBareKing(board,owner){
   for(const[,p]of board)if(p.owner===owner&&!RULER_DEFS.has(p.def))return false;
@@ -791,12 +828,12 @@ function updateSetupPhaseUI(){
 let gtype='xiangqi',board=new Map(),player='p1',sel=null,legal=[],over=false;
 let ex={},pendProm=null,savedArr=null,savedFP=null,handArmed=null;
 
-function gameIb(){return gtype==='xiangqi'?ibXQ:ibCH;}
+function gameIb(){return (gtype==='xiangqi'||gtype==='vietnamese')?ibXQ:ibCH;}
 
 const SETUPS={xiangqi:null,chess:null,chaturanga:null}; // populated after constants are defined
 function mkBoard(gt,arr){
   const b=new Map();
-  const SETUP_MAP={xiangqi:XQ_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP,shatar:SH_SETUP,tibetan:TB_SETUP};
+  const SETUP_MAP={xiangqi:XQ_SETUP,vietnamese:VN_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP,shatar:SH_SETUP,tibetan:TB_SETUP};
   const setup=arr||SETUP_MAP[gt]||CH_SETUP;
   setup.forEach(([def,owner,coord])=>b.set(K(coord),{def,owner,coord:[...coord]}));
   return b;
