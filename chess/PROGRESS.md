@@ -64,4 +64,10 @@
 - Completed: TASK-018 (Ouk Chatrang) — 修正 PROMO_CFG.ouk（'Ouk'→'Trey', rows 0/7→2/5）；OUK 棋子表（Neang 含首步2格斜跳邏輯）；doMove else 分支加 moved:true 旗標；OUK_SETUP；GAME_LBL['ouk']；findRuler 加 Sdech；rawMoves/SETUP_MAP 加 OUK；選單新增 Ouk Chatrang 卡片
 - Errors: 修正 PROMO_CFG.ouk 舊有錯誤（piece name 和 rows 均錯）
 - Queued: TASK-019 (Shatar 蒙古象棋)
+- Commit: 777df53
+
+## 2026-07-02T00:00Z
+- Completed: TASK-019 (Shatar 蒙古象棋) — SH 棋子表（Noyon/Bers/Tereg/Mori/Temee[3×1跳]/Khukhuu）；NO_CHECK_FILTER{shatar}；isBareKing；getLegalMoves 加 NO_CHECK_FILTER guard；doMove 加 Noyon 被吃=勝；finishTurn 加 Zunn 裸王判定；STALEMATE_LOSES 加 shatar；PROMO_CFG 加 shatar(Khukhuu→Bers)；updateStatus/finishTurn 將死標示排除 NO_CHECK_FILTER 棋種；findRuler 加 Noyon；rawMoves/SETUP_MAP 加 SH；選單新增 Shatar 卡片
+- Errors: none
+- Queued: TASK-020 (西藏象棋)
 - Commit: (pending)

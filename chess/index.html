@@ -83,6 +83,9 @@ canvas{display:block;cursor:pointer}
     <div class="game-card" onclick="startGame('ouk')">
       <span class="icon">🛕</span><span class="name">Ouk Chatrang<br><small style="font-size:.72rem;font-weight:400;color:#aaa">柬埔寨象棋</small></span>
     </div>
+    <div class="game-card" onclick="startGame('shatar')">
+      <span class="icon">🐪</span><span class="name">Shatar<br><small style="font-size:.72rem;font-weight:400;color:#aaa">蒙古象棋</small></span>
+    </div>
     <div class="game-card dashed" onclick="openSetup('xiangqi')">
       <span class="icon">✏️</span><span class="name">自訂布局</span>
     </div>
@@ -421,13 +424,43 @@ const OUK_SETUP=[
 GAME_LBL['ouk']={Sdech:'Sd',Neang:'Ng',Touk:'Tk',Koul:'Ko',Ses:'Se',Trey:'Tr'};
 
 // ══════════════════════════════════════════════════════════════════════════════
+// SHATAR piece definitions  (Mongolian, 8×8)
+// Noyon=King(1-any)  Bers=Queen(1-any,non-royal)  Tereg=rook  Mori=knight
+// Temee=Camel(3×1 jump)  Khukhuu=pawn
+// Special: no check concept — king captured directly; stalemate = loss; Zunn = bare king loss
+// ══════════════════════════════════════════════════════════════════════════════
+const SH={
+  Noyon:   CT.Raja,   // 1 step any direction (royal king)
+  Bers:    CT.Raja,   // 1 step any direction (non-royal queen)
+  Tereg:   CT.Ratha,  // rook-slide
+  Mori:    CT.Ashva,  // L-knight
+  Temee:   {mv:(b,f,o)=>[[3,1],[3,-1],[-3,1],[-3,-1],[1,3],[1,-3],[-1,3],[-1,-3]]
+    .filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);})
+    .map(d=>add(f,d))},
+  Khukhuu: CT.Padati, // pawn (1 forward, diagonal capture, no double step)
+};
+
+const SH_SETUP=[
+  ['Tereg','p2',[0,0]],['Mori','p2',[1,0]],['Temee','p2',[2,0]],
+  ['Bers','p2',[3,0]],['Noyon','p2',[4,0]],['Temee','p2',[5,0]],
+  ['Mori','p2',[6,0]],['Tereg','p2',[7,0]],
+  ...Array.from({length:8},(_,c)=>['Khukhuu','p2',[c,1]]),
+  ['Tereg','p1',[0,7]],['Mori','p1',[1,7]],['Temee','p1',[2,7]],
+  ['Bers','p1',[3,7]],['Noyon','p1',[4,7]],['Temee','p1',[5,7]],
+  ['Mori','p1',[6,7]],['Tereg','p1',[7,7]],
+  ...Array.from({length:8},(_,c)=>['Khukhuu','p1',[c,6]]),
+];
+
+GAME_LBL['shatar']={Noyon:'No',Bers:'Be',Tereg:'Te',Mori:'Mo',Temee:'Tm',Khukhuu:'Kk'};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Check detection  (unified — handles mixed XQ+CH pieces on same board)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Find the "king" piece: General (XQ), King (CH), or Raja (Chaturanga/Shatranj)
 function findRuler(board,owner){
   for(const[,p]of board)
-    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech'].includes(p.def))return p.coord;
+    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech','Noyon'].includes(p.def))return p.coord;
   return null;
 }
 
@@ -441,6 +474,7 @@ function rawMoves(board,from,owner,ib,ex={}){
   if(MK[p.def])return MK[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(SY[p.def])return SY[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(OUK[p.def])return OUK[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(SH[p.def])return SH[p.def].mv(board,from,owner).filter(m=>ib(m));
   return[];
 }
 
@@ -467,6 +501,7 @@ function isInCheck(board,owner,ib,ex={}){
 function getLegalMoves(board,from,owner,ib,ex={}){
   const p=board.get(K(from));if(!p||p.owner!==owner)return[];
   const raw=rawMoves(board,from,owner,ib,ex);
+  if(NO_CHECK_FILTER[gtype])return raw;
   const br=owner==='p1'?7:0;
   return raw.filter(to=>{
     // Castling: also check intermediate square
@@ -590,6 +625,7 @@ const PROMO_CFG = {
   makruk:     { defs:['Bia'],    rows:{p1:2,      p2:5},      choices:['Met']    },
   sittuyin:   { defs:['Ne'],     rows:{p1:0,      p2:7},      choices:['Thida']  },
   ouk:        { defs:['Trey'],   rows:{p1:2,      p2:5},      choices:['Neang']  },
+  shatar:     { defs:['Khukhuu'],rows:{p1:0,      p2:7},      choices:['Bers']   },
   shogi:      { defs:['Fu','Kyosha','Keima','Gin','Hisha','Kaku'],
                 rows:{p1:[0,1,2],p2:[6,7,8]},                 choices:null       },
 };
@@ -600,7 +636,15 @@ function promoRowHit(cfg, owner, row){
 }
 
 // Games where stalemate = loss for the stalemated player (not a draw)
-const STALEMATE_LOSES={chaturanga:true,shatranj:true};
+const STALEMATE_LOSES={chaturanga:true,shatranj:true,shatar:true};
+
+// Games with no "check" concept — king can be moved into attacked squares and captured directly
+const NO_CHECK_FILTER={shatar:true};
+
+function isBareKing(board,owner){
+  for(const[,p]of board)if(p.owner===owner&&p.def!=='Noyon')return false;
+  return true;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Drop (持駒) mechanic — used by Shogi; hook-ready for future variants
@@ -712,7 +756,7 @@ function gameIb(){return gtype==='xiangqi'?ibXQ:ibCH;}
 const SETUPS={xiangqi:null,chess:null,chaturanga:null}; // populated after constants are defined
 function mkBoard(gt,arr){
   const b=new Map();
-  const SETUP_MAP={xiangqi:XQ_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP};
+  const SETUP_MAP={xiangqi:XQ_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP,shatar:SH_SETUP};
   const setup=arr||SETUP_MAP[gt]||CH_SETUP;
   setup.forEach(([def,owner,coord])=>b.set(K(coord),{def,owner,coord:[...coord]}));
   return b;
@@ -799,7 +843,7 @@ function doMove(from,to){
     board.delete(K(from));board.set(K(to),{...p,coord:[...to],moved:true});
     if(cap){
       if(ex.hand){const base=SHOGI_DEMOTE[cap.def]??cap.def;ex.hand[player][base]=(ex.hand[player][base]||0)+1;}
-      if(cap.def==='General'||cap.def==='Gyoku'){endWin(player);return;}
+      if(cap.def==='General'||cap.def==='Gyoku'||cap.def==='Noyon'){endWin(player);return;}
     }
   }
   sel=null;legal=[];
@@ -842,10 +886,12 @@ function doChessMove(from,to,p){
 }
 
 function finishTurn(){
+  // Zunn (Shatar): bare king = immediate loss
+  if(gtype==='shatar'){const opp=player==='p1'?'p2':'p1';if(isBareKing(board,opp)){endWin(player);return;}}
   player=player==='p1'?'p2':'p1';sel=null;legal=[];handArmed=null;updateHandUI();
   if(!hasAnyLegal(board,player,gameIb(),ex)){
     over=true;render();
-    const mate=isInCheck(board,player,gameIb(),ex);
+    const mate=!NO_CHECK_FILTER[gtype]&&isInCheck(board,player,gameIb(),ex);
     const isLoss=mate||!!STALEMATE_LOSES[gtype];
     if(isLoss){
       const wl=player==='p2'?'🔴 先手':'⚫ 後手';
@@ -874,7 +920,7 @@ function updateStatus(){
     return;
   }
   document.getElementById('turn-lbl').textContent=player==='p1'?'🔴 紅/白方下棋':'⚫ 黑方下棋';
-  document.getElementById('check-lbl').textContent=isInCheck(board,player,gameIb(),ex)?'⚠️ 被將！':'';
+  document.getElementById('check-lbl').textContent=(!NO_CHECK_FILTER[gtype]&&isInCheck(board,player,gameIb(),ex))?'⚠️ 被將！':'';
 }
 
 function showProm(owner,choices){
