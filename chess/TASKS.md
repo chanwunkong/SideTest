@@ -20,7 +20,7 @@
   - 影響：新增 `phase: 'setup' | 'play'` 在遊戲狀態
 
 #### 8×8 系棋種
-- [ ] TASK-014: Chaturanga（印度古象棋）
+- [x] TASK-014: Chaturanga（印度古象棋）
   - 棋盤：8×8 格子
   - 棋子：Raja(王)、Mantri(宰相，一步斜走)、Ratha(車)、Gaja(象，跳兩格斜)、Ashva(馬)、Padati(兵)
   - 升變：兵到底線升為 Mantri
