@@ -25,7 +25,7 @@
   - 棋子：Raja(王)、Mantri(宰相，一步斜走)、Ratha(車)、Gaja(象，跳兩格斜)、Ashva(馬)、Padati(兵)
   - 升變：兵到底線升為 Mantri
   - 勝負：將死
-- [ ] TASK-015: Shatranj（波斯象棋）
+- [x] TASK-015: Shatranj（波斯象棋）
   - 棋盤：8×8 格子
   - 棋子：Shah(王)、Firzan(宰相，一步斜走)、Rukh(車)、Alfil(象，跳兩格斜)、Faras(馬)、Baidaq(兵)
   - 特殊：stalemate = 對方勝（非平局）；「裸王」(bare king) 視版本可為敗

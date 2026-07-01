@@ -71,6 +71,9 @@ canvas{display:block;cursor:pointer}
     <div class="game-card" onclick="startGame('chaturanga')">
       <span class="icon">🏺</span><span class="name">Chaturanga<br><small style="font-size:.72rem;font-weight:400;color:#aaa">印度古象棋</small></span>
     </div>
+    <div class="game-card" onclick="startGame('shatranj')">
+      <span class="icon">🕌</span><span class="name">Shatranj<br><small style="font-size:.72rem;font-weight:400;color:#aaa">波斯象棋</small></span>
+    </div>
     <div class="game-card dashed" onclick="openSetup('xiangqi')">
       <span class="icon">✏️</span><span class="name">自訂布局</span>
     </div>
@@ -290,13 +293,39 @@ const CT_SETUP=[
 GAME_LBL['chaturanga']={Raja:'R',Mantri:'M',Ratha:'C',Gaja:'E',Ashva:'H',Padati:'P'};
 
 // ══════════════════════════════════════════════════════════════════════════════
+// SHATRANJ piece definitions  (Persian, 8×8 — movements identical to Chaturanga)
+// Shah=Raja  Firzan=Mantri  Rukh=Ratha  Alfil=Gaja  Faras=Ashva  Baidaq=Padati
+// ══════════════════════════════════════════════════════════════════════════════
+const ST={
+  Shah:   CT.Raja,   // 1 step any direction
+  Firzan: CT.Mantri, // 1 step diagonal (very weak)
+  Rukh:   CT.Ratha,  // rook-slide
+  Alfil:  CT.Gaja,   // jump ±2 diagonal
+  Faras:  CT.Ashva,  // L-knight
+  Baidaq: CT.Padati, // pawn, no double move
+};
+
+const ST_SETUP=[
+  ['Rukh','p2',[0,0]],['Faras','p2',[1,0]],['Alfil','p2',[2,0]],
+  ['Firzan','p2',[3,0]],['Shah','p2',[4,0]],['Alfil','p2',[5,0]],
+  ['Faras','p2',[6,0]],['Rukh','p2',[7,0]],
+  ...Array.from({length:8},(_,c)=>['Baidaq','p2',[c,1]]),
+  ['Rukh','p1',[0,7]],['Faras','p1',[1,7]],['Alfil','p1',[2,7]],
+  ['Firzan','p1',[3,7]],['Shah','p1',[4,7]],['Alfil','p1',[5,7]],
+  ['Faras','p1',[6,7]],['Rukh','p1',[7,7]],
+  ...Array.from({length:8},(_,c)=>['Baidaq','p1',[c,6]]),
+];
+
+GAME_LBL['shatranj']={Shah:'S',Firzan:'V',Rukh:'R',Alfil:'A',Faras:'H',Baidaq:'P'};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Check detection  (unified — handles mixed XQ+CH pieces on same board)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Find the "king" piece: General (XQ), King (CH), or Raja (Chaturanga/Shatranj)
 function findRuler(board,owner){
   for(const[,p]of board)
-    if(p.owner===owner&&(p.def==='General'||p.def==='King'||p.def==='Raja'))return p.coord;
+    if(p.owner===owner&&(p.def==='General'||p.def==='King'||p.def==='Raja'||p.def==='Shah'))return p.coord;
   return null;
 }
 
@@ -306,6 +335,7 @@ function rawMoves(board,from,owner,ib,ex={}){
   if(XQ[p.def])return XQ[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(CH[p.def])return CH[p.def].mv(board,from,owner,ex).filter(m=>ib(m));
   if(CT[p.def])return CT[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(ST[p.def])return ST[p.def].mv(board,from,owner).filter(m=>ib(m));
   return[];
 }
 
@@ -464,6 +494,9 @@ function promoRowHit(cfg, owner, row){
   return Array.isArray(r)?r.includes(row):r===row;
 }
 
+// Games where stalemate = loss for the stalemated player (not a draw)
+const STALEMATE_LOSES={chaturanga:true,shatranj:true};
+
 // ══════════════════════════════════════════════════════════════════════════════
 // Drop (持駒) mechanic — used by Shogi; hook-ready for future variants
 // ══════════════════════════════════════════════════════════════════════════════
@@ -574,7 +607,7 @@ function gameIb(){return gtype==='xiangqi'?ibXQ:ibCH;}
 const SETUPS={xiangqi:null,chess:null,chaturanga:null}; // populated after constants are defined
 function mkBoard(gt,arr){
   const b=new Map();
-  const setup=arr||(gt==='xiangqi'?XQ_SETUP:gt==='chaturanga'?CT_SETUP:CH_SETUP);
+  const setup=arr||(gt==='xiangqi'?XQ_SETUP:gt==='chaturanga'?CT_SETUP:gt==='shatranj'?ST_SETUP:CH_SETUP);
   setup.forEach(([def,owner,coord])=>b.set(K(coord),{def,owner,coord:[...coord]}));
   return b;
 }
@@ -707,9 +740,15 @@ function finishTurn(){
   if(!hasAnyLegal(board,player,gameIb(),ex)){
     over=true;render();
     const mate=isInCheck(board,player,gameIb(),ex);
-    const wl=mate?(player==='p2'?'🔴 紅/白方':'⚫ 黑方'):'';
-    document.getElementById('turn-lbl').textContent=mate?`🏆 ${wl}勝！`:'和棋！';
-    document.getElementById('check-lbl').textContent=mate?'將死！':'無子可走';
+    const isLoss=mate||!!STALEMATE_LOSES[gtype];
+    if(isLoss){
+      const wl=player==='p2'?'🔴 先手':'⚫ 後手';
+      document.getElementById('turn-lbl').textContent=`🏆 ${wl}勝！`;
+      document.getElementById('check-lbl').textContent=mate?'將死！':'困斃（負）';
+    } else {
+      document.getElementById('turn-lbl').textContent='和棋！';
+      document.getElementById('check-lbl').textContent='無子可走';
+    }
     return;
   }
   updateStatus();render();

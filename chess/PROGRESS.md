@@ -40,4 +40,10 @@
 - Completed: TASK-014 (Chaturanga) — CT 棋子定義 (Raja/Mantri/Ratha/Gaja/Ashva/Padati)；CT_SETUP；GAME_LBL['chaturanga']；findRuler 加入 Raja；rawMoves 加入 CT dispatch；drawPiece 加入 GAME_LBL fallback；mkBoard 加入 chaturanga 分支；選單新增 Chaturanga 卡片
 - Errors: none
 - Queued: TASK-015 (Shatranj)
+- Commit: d384ba8
+
+## 2026-07-01T05:00Z
+- Completed: TASK-015 (Shatranj) — ST 別名表(alias CT)；ST_SETUP；GAME_LBL['shatranj']；STALEMATE_LOSES{chaturanga,shatranj}；findRuler 加 Shah；rawMoves 加 ST；mkBoard 加 shatranj；finishTurn 困斃邏輯；選單新增 Shatranj 卡片
+- Errors: none；finishTurn 文字中的反斜線 bug 順帶修正
+- Queued: TASK-016 (Makruk 泰國象棋)
 - Commit: (pending)
