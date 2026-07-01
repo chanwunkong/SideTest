@@ -106,4 +106,10 @@
 - Completed: TASK-025 (將棋五角形駒渲染) — 新增 drawShogiPiece 函式；五角形駒片（s=isP1?1:-1 控制頂點方向，p1 朝上/p2 朝下）；升變棋子以琥珀色 #d4790a 文字顯示；drawPiece 加 gtype==='shogi' 早退；isXQStyle 移除 SHG（Shogi 已由專屬函式處理）
 - Errors: none
 - Queued: TASK-026 (手棋面板 Shogi hand display)
+- Commit: d433f43
+
+## 2026-07-02T07:00Z
+- Completed: TASK-026 (手棋面板 Shogi hand display) — drawHandPieceCanvas 函式（五角形持駒渲染，升變琥珀色，多顆數字角標）；updateHandUI 加 gtype==='shogi' 分支改用 canvas 元素，非將棋保留原 div chip；render() 展開：handArmed 時以 getDropSquares 結果為 extraHints 顯示藍點投入提示
+- Errors: none
+- Queued: TASK-027 (下一步規劃)
 - Commit: (pending)

@@ -81,7 +81,7 @@
   - 分組：「古印度/波斯系」「東南亞系」「東亞系」
 - [x] TASK-025: 將棋 UI — 五角形駒片渲染（Canvas）
   - 在 `drawPiece` 加入 `isShogi` 分支，繪製五角形並顯示升變狀態
-- [ ] TASK-026: 手棋面板（Shogi hand display）
+- [x] TASK-026: 手棋面板（Shogi hand display）
   - 在棋盤旁顯示雙方 hand，可點擊 hand 中棋子選擇投入位置
 
 ---

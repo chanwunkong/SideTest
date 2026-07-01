@@ -1119,7 +1119,41 @@ function startGame(gt,arr=null,fp=null){
 }
 
 function restart(){startGame(gtype,savedArr,savedFP);}
-function render(){renderBoard(document.getElementById('game-cv'),board,gtype,sel,legal,getSetupHints());}
+function render(){
+  const hints=getSetupHints();
+  if(handArmed){
+    const drops=getDropSquares(handArmed,player,board,gameIb());
+    renderBoard(document.getElementById('game-cv'),board,gtype,null,[],[...drops,...hints]);
+  } else {
+    renderBoard(document.getElementById('game-cv'),board,gtype,sel,legal,hints);
+  }
+}
+
+function drawHandPieceCanvas(cvs,def,owner,armed,cnt){
+  const C=42,P=5;cvs.width=C+P*2;cvs.height=C+P*2;
+  const ctx=cvs.getContext('2d'),x=P+C/2,y=P+C/2;
+  const r=C*.43,isP1=owner==='p1';
+  const isPromoted=!!SHOGI_DEMOTE[def];
+  const s=isP1?1:-1,W=r*.65,hS=r*.2,hB=r*.68;
+  const pts=[[x,y-s*r],[x+W,y-s*hS],[x+W,y+s*hB],[x-W,y+s*hB],[x-W,y-s*hS]];
+  const poly=(ox,oy)=>{
+    ctx.beginPath();ctx.moveTo(pts[0][0]+ox,pts[0][1]+oy);
+    for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0]+ox,pts[i][1]+oy);
+    ctx.closePath();
+  };
+  poly(1.5,1.5);ctx.fillStyle='rgba(0,0,0,.25)';ctx.fill();
+  poly(0,0);ctx.fillStyle=isP1?'#fff8f0':'#1c1c2e';ctx.fill();
+  ctx.strokeStyle=armed?'#00cc44':(isP1?'#cc2200':'#7799bb');ctx.lineWidth=armed?3:2;ctx.stroke();
+  const lbl=GAME_LBL['shogi']?.[def]??def[0];
+  ctx.fillStyle=isPromoted?'#d4790a':(isP1?'#cc2200':'#ccddee');
+  ctx.font=`bold ${C*.42}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(lbl,x,y+s*(hB-hS)*.3);
+  if(cnt>1){
+    ctx.fillStyle=isP1?'#aa1a00':'#5577aa';
+    ctx.font=`bold ${C*.28}px sans-serif`;ctx.textAlign='right';ctx.textBaseline='bottom';
+    ctx.fillText(cnt,P+C-1,P+C-1);
+  }
+}
 
 function updateHandUI(){
   const row=document.getElementById('hand-row');
@@ -1132,16 +1166,28 @@ function updateHandUI(){
     const isActive=own===player&&!over;
     Object.entries(h).forEach(([def,cnt])=>{
       if(cnt<=0)return;
-      const c=document.createElement('div');
       const armed=handArmed===def&&isActive;
-      c.className=`hand-chip chip-${own}${armed?' armed':''}${!isActive?' chip-inactive':''}`;
-      const lbl=GAME_LBL[gtype]?.[def]??XQ[def]?.lbl?.[own]??CH_LBL[own]?.[def]??def[0];
-      c.textContent=cnt>1?`${lbl}×${cnt}`:lbl;
-      if(isActive)c.onclick=()=>{
-        handArmed=(handArmed===def)?null:def;
-        sel=null;legal=[];updateHandUI();render();
-      };
-      el.appendChild(c);
+      if(gtype==='shogi'){
+        const cvs=document.createElement('canvas');
+        cvs.style.cursor=isActive?'pointer':'default';
+        cvs.style.opacity=isActive?'1':'.45';
+        drawHandPieceCanvas(cvs,def,own,armed,cnt);
+        if(isActive)cvs.onclick=()=>{
+          handArmed=(handArmed===def)?null:def;
+          sel=null;legal=[];updateHandUI();render();
+        };
+        el.appendChild(cvs);
+      } else {
+        const c=document.createElement('div');
+        c.className=`hand-chip chip-${own}${armed?' armed':''}${!isActive?' chip-inactive':''}`;
+        const lbl=GAME_LBL[gtype]?.[def]??XQ[def]?.lbl?.[own]??CH_LBL[own]?.[def]??def[0];
+        c.textContent=cnt>1?`${lbl}×${cnt}`:lbl;
+        if(isActive)c.onclick=()=>{
+          handArmed=(handArmed===def)?null:def;
+          sel=null;legal=[];updateHandUI();render();
+        };
+        el.appendChild(c);
+      }
     });
   });
 }
