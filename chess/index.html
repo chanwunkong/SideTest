@@ -55,6 +55,8 @@ canvas{display:block;cursor:pointer}
 .hand-chip:hover{border-color:#d4a74a}.hand-chip.armed{border-color:#00cc44;background:rgba(0,204,68,.15)}
 .chip-p1.hand-chip{background:#fff0e0;color:#c02000}.chip-p2.hand-chip{background:#252535;color:#dde}
 .chip-inactive{opacity:.45;cursor:default}
+.group-lbl{width:100%;font-size:.72rem;color:#d4a74a;letter-spacing:4px;text-transform:uppercase;
+  padding:10px 2px 5px;border-bottom:1px solid #3a3a5a;margin-bottom:2px;user-select:none}
 </style>
 </head>
 <body>
@@ -62,32 +64,10 @@ canvas{display:block;cursor:pointer}
 
 <div id="scr-menu" class="scr">
   <div class="menu-grid">
+    <!-- ── 東亞系 ── -->
+    <div class="group-lbl">東亞系</div>
     <div class="game-card" onclick="startGame('xiangqi')">
       <span class="icon">♟</span><span class="name">中國象棋</span>
-    </div>
-    <div class="game-card" onclick="startGame('chess')">
-      <span class="icon">♛</span><span class="name">國際象棋</span>
-    </div>
-    <div class="game-card" onclick="startGame('chaturanga')">
-      <span class="icon">🏺</span><span class="name">Chaturanga<br><small style="font-size:.72rem;font-weight:400;color:#aaa">印度古象棋</small></span>
-    </div>
-    <div class="game-card" onclick="startGame('shatranj')">
-      <span class="icon">🕌</span><span class="name">Shatranj<br><small style="font-size:.72rem;font-weight:400;color:#aaa">波斯象棋</small></span>
-    </div>
-    <div class="game-card" onclick="startGame('makruk')">
-      <span class="icon">🐘</span><span class="name">Makruk<br><small style="font-size:.72rem;font-weight:400;color:#aaa">泰國象棋</small></span>
-    </div>
-    <div class="game-card" onclick="startGame('sittuyin')">
-      <span class="icon">🏯</span><span class="name">Sittuyin<br><small style="font-size:.72rem;font-weight:400;color:#aaa">緬甸象棋</small></span>
-    </div>
-    <div class="game-card" onclick="startGame('ouk')">
-      <span class="icon">🛕</span><span class="name">Ouk Chatrang<br><small style="font-size:.72rem;font-weight:400;color:#aaa">柬埔寨象棋</small></span>
-    </div>
-    <div class="game-card" onclick="startGame('shatar')">
-      <span class="icon">🐪</span><span class="name">Shatar<br><small style="font-size:.72rem;font-weight:400;color:#aaa">蒙古象棋</small></span>
-    </div>
-    <div class="game-card" onclick="startGame('tibetan')" title="依 Shatranj 系規則（Murray 1913）；地方版本規則略有差異">
-      <span class="icon">🏔️</span><span class="name">西藏象棋<br><small style="font-size:.72rem;font-weight:400;color:#aaa">Tibetan Chess *</small></span>
     </div>
     <div class="game-card" onclick="startGame('vietnamese')">
       <span class="icon">🇻🇳</span><span class="name">Cờ Tướng<br><small style="font-size:.72rem;font-weight:400;color:#aaa">越南象棋</small></span>
@@ -98,6 +78,38 @@ canvas{display:block;cursor:pointer}
     <div class="game-card" onclick="startGame('shogi')" title="升變可選；強制升變：歩/香底線、桂底二行；打入不可打二歩；不實作打步詰">
       <span class="icon">♟️</span><span class="name">將棋<br><small style="font-size:.72rem;font-weight:400;color:#aaa">Shogi</small></span>
     </div>
+    <!-- ── 東南亞系 ── -->
+    <div class="group-lbl">東南亞系</div>
+    <div class="game-card" onclick="startGame('makruk')">
+      <span class="icon">🐘</span><span class="name">Makruk<br><small style="font-size:.72rem;font-weight:400;color:#aaa">泰國象棋</small></span>
+    </div>
+    <div class="game-card" onclick="startGame('sittuyin')">
+      <span class="icon">🏯</span><span class="name">Sittuyin<br><small style="font-size:.72rem;font-weight:400;color:#aaa">緬甸象棋</small></span>
+    </div>
+    <div class="game-card" onclick="startGame('ouk')">
+      <span class="icon">🛕</span><span class="name">Ouk Chatrang<br><small style="font-size:.72rem;font-weight:400;color:#aaa">柬埔寨象棋</small></span>
+    </div>
+    <!-- ── 古印度/波斯/中亞系 ── -->
+    <div class="group-lbl">古印度・波斯・中亞系</div>
+    <div class="game-card" onclick="startGame('chaturanga')">
+      <span class="icon">🏺</span><span class="name">Chaturanga<br><small style="font-size:.72rem;font-weight:400;color:#aaa">印度古象棋</small></span>
+    </div>
+    <div class="game-card" onclick="startGame('shatranj')">
+      <span class="icon">🕌</span><span class="name">Shatranj<br><small style="font-size:.72rem;font-weight:400;color:#aaa">波斯象棋</small></span>
+    </div>
+    <div class="game-card" onclick="startGame('shatar')">
+      <span class="icon">🐪</span><span class="name">Shatar<br><small style="font-size:.72rem;font-weight:400;color:#aaa">蒙古象棋</small></span>
+    </div>
+    <div class="game-card" onclick="startGame('tibetan')" title="依 Shatranj 系規則（Murray 1913）；地方版本規則略有差異">
+      <span class="icon">🏔️</span><span class="name">西藏象棋<br><small style="font-size:.72rem;font-weight:400;color:#aaa">Tibetan Chess *</small></span>
+    </div>
+    <!-- ── 歐洲系 ── -->
+    <div class="group-lbl">歐洲系</div>
+    <div class="game-card" onclick="startGame('chess')">
+      <span class="icon">♛</span><span class="name">國際象棋</span>
+    </div>
+    <!-- ── 工具 ── -->
+    <div class="group-lbl">工具</div>
     <div class="game-card dashed" onclick="openSetup('xiangqi')">
       <span class="icon">✏️</span><span class="name">自訂布局</span>
     </div>

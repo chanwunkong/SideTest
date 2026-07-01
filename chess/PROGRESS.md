@@ -94,4 +94,10 @@
 - Completed: TASK-023 (將棋 Shogi) — ibSHG（9×9 bounds）；shogiGold 共用函式；SHG 棋子表（Gyoku/Kin/Gin/Keima/Kyosha/Kaku/Hisha/Fu 及升變版 Ryu/Uma/Narigin/Narikei/Narikyo/Tokin）；SHG_SETUP；GAME_LBL['shogi']（漢字單字）；PROMO_CFG.shogi 加 promoMap+forceRows；checkPromo 加 promoMap 分支（歩/香底強制升變，桂底二強制，其餘可選）；filterDropSquares 加 Nifu+末行限制（打步詰不實作）；drawShogiBoard（9×9連續格線+升變區淡色標記）；layout/renderBoard/drawPiece/gameIb/findRuler/rawMoves/SETUP_MAP 全更新；持駒面板沿用 TASK-012 hand-row；選單新增將棋卡片（♟️，tooltip 標注限制）
 - Errors: none
 - Queued: TASK-024 (選單擴充分組)
+- Commit: 3f527ab
+
+## 2026-07-02T05:00Z
+- Completed: TASK-024 (選單擴充分組) — .group-lbl CSS（width:100% 金色分隔標題）；menu-grid 重組為四區：東亞系（中國象棋/越南/朝鮮/將棋）、東南亞系（Makruk/Sittuyin/Ouk）、古印度・波斯・中亞系（Chaturanga/Shatranj/Shatar/西藏象棋）、歐洲系（國際象棋）+ 工具區
+- Errors: none
+- Queued: TASK-025 (將棋五角形駒渲染)
 - Commit: (pending)
