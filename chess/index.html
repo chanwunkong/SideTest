@@ -197,6 +197,10 @@ const XQ_SETUP=[
 const CH_LBL={p1:{King:'K',Queen:'Q',Rook:'R',Bishop:'B',Knight:'N',Pawn:'P'},
               p2:{King:'K',Queen:'Q',Rook:'R',Bishop:'B',Knight:'N',Pawn:'P'}};
 
+// Per-game piece labels used by showProm and drawPiece for non-XQ/non-CH games
+// Populated as each variant is added (TASK-014+)
+const GAME_LBL={};
+
 const CH={
   Rook  :{mv:(b,f,o)=>slide(b,f,o,ORTHO,ibCH)},
   Bishop:{mv:(b,f,o)=>slide(b,f,o,DIAG,ibCH)},
@@ -383,6 +387,28 @@ function renderBoard(cvs,board,gt,sel,legal){
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Promotion config — one entry per game type that has promotion
+// defs   : piece defs that can promote
+// rows   : promotion row(s) per owner (number or array of numbers)
+// choices: pieces to offer UI; length===1 → auto-promote without dialog
+// ══════════════════════════════════════════════════════════════════════════════
+const PROMO_CFG = {
+  chess:      { defs:['Pawn'],   rows:{p1:0,      p2:7},      choices:['Queen','Rook','Bishop','Knight'] },
+  chaturanga: { defs:['Padati'], rows:{p1:0,      p2:7},      choices:['Mantri'] },
+  shatranj:   { defs:['Baidaq'], rows:{p1:0,      p2:7},      choices:['Firzan'] },
+  makruk:     { defs:['Bia'],    rows:{p1:2,      p2:5},      choices:['Met']    },
+  sittuyin:   { defs:['Ne'],     rows:{p1:0,      p2:7},      choices:['Thida']  },
+  ouk:        { defs:['Ouk'],    rows:{p1:0,      p2:7},      choices:['Neang']  },
+  shogi:      { defs:['Fu','Kyosha','Keima','Gin','Hisha','Kaku'],
+                rows:{p1:[0,1,2],p2:[6,7,8]},                 choices:null       },
+};
+
+function promoRowHit(cfg, owner, row){
+  const r=cfg.rows[owner];
+  return Array.isArray(r)?r.includes(row):r===row;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Game Controller
 // ══════════════════════════════════════════════════════════════════════════════
 let gtype='xiangqi',board=new Map(),player='p1',sel=null,legal=[],over=false;
@@ -439,8 +465,23 @@ function doMove(from,to){
     if(cap?.def==='General'){endWin(player);return;}
   }
   sel=null;legal=[];
+  checkPromo(p,to);
   if(pendProm){render();return;}
   finishTurn();
+}
+
+function checkPromo(p,to){
+  const cfg=PROMO_CFG[gtype];if(!cfg)return;
+  if(!cfg.defs.includes(p.def))return;
+  if(!promoRowHit(cfg,p.owner,to[1]))return;
+  if(!cfg.choices||cfg.choices.length===1){
+    // auto-promote (no UI)
+    const next=cfg.choices?.[0]??p.def;
+    board.set(K(to),{...p,def:next,coord:[...to]});
+  } else {
+    pendProm={coord:[...to],owner:p.owner};
+    showProm(p.owner,cfg.choices);
+  }
 }
 
 function doChessMove(from,to,p){
@@ -460,8 +501,6 @@ function doChessMove(from,to,p){
   if(p.def==='Pawn'&&ex.ep&&K(to)===K(ex.ep))board.delete(K([to[0],to[1]-fw]));
   board.delete(K(from));board.set(K(to),{...p,coord:[...to]});
   ex.ep=isDouble?[to[0],to[1]-fw]:null;
-  const promRow=p.owner==='p1'?0:7;
-  if(p.def==='Pawn'&&to[1]===promRow){pendProm={coord:[...to],owner:p.owner};showProm(p.owner);}
 }
 
 function finishTurn(){
@@ -489,12 +528,13 @@ function updateStatus(){
   document.getElementById('check-lbl').textContent=isInCheck(board,player,gameIb(),ex)?'⚠️ 被將！':'';
 }
 
-function showProm(owner){
+function showProm(owner,choices){
   const row=document.getElementById('promo-row');row.innerHTML='';
-  ['Queen','Rook','Bishop','Knight'].forEach(def=>{
+  choices.forEach(def=>{
     const b=document.createElement('button');
     b.className=`promo-btn ${owner==='p1'?'promo-p1':'promo-p2'}`;
-    b.textContent=CH_LBL[owner][def];b.onclick=()=>applyProm(def);row.appendChild(b);
+    const lbl=CH_LBL[owner]?.[def]??XQ[def]?.lbl?.[owner]??GAME_LBL[gtype]?.[def]??def[0];
+    b.textContent=lbl;b.onclick=()=>applyProm(def);row.appendChild(b);
   });
   document.getElementById('promo-ov').classList.remove('hidden');
 }
