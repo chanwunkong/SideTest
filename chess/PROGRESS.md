@@ -58,4 +58,10 @@
 - Completed: TASK-017 (Sittuyin) — SY 棋子表（SitKe/Thida/Sin/Myin/AungGway/Ne）；SY_SETUP（兵階梯布局 cols 0-3 在 rank3，4-7 在 rank4）；GAME_LBL['sittuyin']；findRuler 加 SitKe；rawMoves/SETUP_MAP 加 SY；選單新增 Sittuyin 卡片；SETUP_PHASE_CFG+PROMO_CFG 已在 TASK-013/011 預設
 - Errors: none
 - Queued: TASK-018 (Ouk Chatrang 柬埔寨象棋)
+- Commit: 64591c1
+
+## 2026-07-01T08:00Z
+- Completed: TASK-018 (Ouk Chatrang) — 修正 PROMO_CFG.ouk（'Ouk'→'Trey', rows 0/7→2/5）；OUK 棋子表（Neang 含首步2格斜跳邏輯）；doMove else 分支加 moved:true 旗標；OUK_SETUP；GAME_LBL['ouk']；findRuler 加 Sdech；rawMoves/SETUP_MAP 加 OUK；選單新增 Ouk Chatrang 卡片
+- Errors: 修正 PROMO_CFG.ouk 舊有錯誤（piece name 和 rows 均錯）
+- Queued: TASK-019 (Shatar 蒙古象棋)
 - Commit: (pending)
