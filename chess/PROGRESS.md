@@ -46,4 +46,10 @@
 - Completed: TASK-015 (Shatranj) — ST 別名表(alias CT)；ST_SETUP；GAME_LBL['shatranj']；STALEMATE_LOSES{chaturanga,shatranj}；findRuler 加 Shah；rawMoves 加 ST；mkBoard 加 shatranj；finishTurn 困斃邏輯；選單新增 Shatranj 卡片
 - Errors: none；finishTurn 文字中的反斜線 bug 順帶修正
 - Queued: TASK-016 (Makruk 泰國象棋)
+- Commit: d4c6ef8
+
+## 2026-07-01T06:00Z
+- Completed: TASK-016 (Makruk) — MK 棋子表（Khun/Met/Ruea/Khon/Ma/Bia）；Khon 特殊走法（前進1+四斜方向）；MK_SETUP（兵在 row2/5）；GAME_LBL['makruk']；findRuler 改為 includes 陣列；rawMoves/mkBoard 加 MK；SETUP_MAP 重構 mkBoard；選單新增 Makruk 卡片
+- Errors: none；PROMO_CFG makruk 已在 TASK-011 預設（Bia→Met row2/5 自動升變）
+- Queued: TASK-017 (Sittuyin 緬甸象棋)
 - Commit: (pending)

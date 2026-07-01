@@ -30,7 +30,7 @@
   - 棋子：Shah(王)、Firzan(宰相，一步斜走)、Rukh(車)、Alfil(象，跳兩格斜)、Faras(馬)、Baidaq(兵)
   - 特殊：stalemate = 對方勝（非平局）；「裸王」(bare king) 視版本可為敗
   - 注意：Alfil 與 Mantri/Firzan 走法相同，可共用 `def`
-- [ ] TASK-016: Makruk（泰國象棋）
+- [x] TASK-016: Makruk（泰國象棋）
   - 棋盤：8×8 格子
   - 棋子：Khun(王)、Met(后，一步斜走)、Ruea(車)、Khon(象，前一步+斜一步)、Ma(馬)、Bia(兵)
   - 升變：兵到第六橫列(敵方第三行)升為 Met
