@@ -48,7 +48,7 @@
   - 棋盤：8×8 格子
   - 棋子：Noyon(王)、Bers(后，一步斜或一步正)、Tereg(車)、Mori(馬)、Temee(駱駝，跳3×1)、Khukhuu(兵)
   - 特殊：王不能被將軍（只能被困死）；「Zunn」最後一子規則
-- [ ] TASK-020: 西藏象棋（Tibetan Chess）
+- [x] TASK-020: 西藏象棋（Tibetan Chess）
   - 棋盤：8×8（地方版本，以最常見規則為準）
   - 棋子：與 Shatranj/Chaturanga 系相近
   - 注意：規則版本不一，以維基/文獻記載最廣泛版本實作，並在 UI 標注

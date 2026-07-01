@@ -70,4 +70,10 @@
 - Completed: TASK-019 (Shatar 蒙古象棋) — SH 棋子表（Noyon/Bers/Tereg/Mori/Temee[3×1跳]/Khukhuu）；NO_CHECK_FILTER{shatar}；isBareKing；getLegalMoves 加 NO_CHECK_FILTER guard；doMove 加 Noyon 被吃=勝；finishTurn 加 Zunn 裸王判定；STALEMATE_LOSES 加 shatar；PROMO_CFG 加 shatar(Khukhuu→Bers)；updateStatus/finishTurn 將死標示排除 NO_CHECK_FILTER 棋種；findRuler 加 Noyon；rawMoves/SETUP_MAP 加 SH；選單新增 Shatar 卡片
 - Errors: none
 - Queued: TASK-020 (西藏象棋)
+- Commit: 70ba5b0
+
+## 2026-07-02T01:00Z
+- Completed: TASK-020 (西藏象棋) — TB 棋子表（Gyalpo/Lonpo/Do/Langchen/Ta/Dmakmi，均 alias CT）；TB_SETUP（同 Shatranj 佈局）；GAME_LBL['tibetan']；BARE_KING_LOSES{shatar,tibetan} + RULER_DEFS；isBareKing 泛化（支援所有王型棋子）；finishTurn 裸王判定改用 BARE_KING_LOSES；findRuler/rawMoves/SETUP_MAP/PROMO_CFG(Dmakmi→Lonpo)/STALEMATE_LOSES 加入 tibetan；選單新增西藏象棋卡片（🏔️，含規則版本 tooltip 標注）
+- Errors: none
+- Queued: TASK-021 (越南象棋 Cờ Tướng)
 - Commit: (pending)

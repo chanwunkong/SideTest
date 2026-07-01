@@ -86,6 +86,9 @@ canvas{display:block;cursor:pointer}
     <div class="game-card" onclick="startGame('shatar')">
       <span class="icon">🐪</span><span class="name">Shatar<br><small style="font-size:.72rem;font-weight:400;color:#aaa">蒙古象棋</small></span>
     </div>
+    <div class="game-card" onclick="startGame('tibetan')" title="依 Shatranj 系規則（Murray 1913）；地方版本規則略有差異">
+      <span class="icon">🏔️</span><span class="name">西藏象棋<br><small style="font-size:.72rem;font-weight:400;color:#aaa">Tibetan Chess *</small></span>
+    </div>
     <div class="game-card dashed" onclick="openSetup('xiangqi')">
       <span class="icon">✏️</span><span class="name">自訂布局</span>
     </div>
@@ -454,13 +457,42 @@ const SH_SETUP=[
 GAME_LBL['shatar']={Noyon:'No',Bers:'Be',Tereg:'Te',Mori:'Mo',Temee:'Tm',Khukhuu:'Kk'};
 
 // ══════════════════════════════════════════════════════════════════════════════
+// TIBETAN CHESS piece definitions  (8×8 — Shatranj-family, most documented version)
+// Gyalpo=King(1-any)  Lonpo=Minister(1-diag)  Do=Rook(slide)
+// Langchen=Elephant(2-diag jump)  Ta=Horse(L-knight)  Dmakmi=Pawn
+// Rules: stalemate=loss; bare king=loss; Dmakmi→Lonpo at last rank
+// Note: rules vary by region; this follows the Shatranj-derived standard (Murray 1913).
+// ══════════════════════════════════════════════════════════════════════════════
+const TB={
+  Gyalpo:   CT.Raja,    // 1 step any direction (king)
+  Lonpo:    CT.Mantri,  // 1 step diagonal (minister = weak queen)
+  Do:       CT.Ratha,   // rook-slide (chariot)
+  Langchen: CT.Gaja,    // 2-step diagonal jump (elephant = Alfil)
+  Ta:       CT.Ashva,   // L-knight (horse)
+  Dmakmi:   CT.Padati,  // pawn (1 forward, diagonal capture, no double step)
+};
+
+const TB_SETUP=[
+  ['Do','p2',[0,0]],['Ta','p2',[1,0]],['Langchen','p2',[2,0]],
+  ['Lonpo','p2',[3,0]],['Gyalpo','p2',[4,0]],['Langchen','p2',[5,0]],
+  ['Ta','p2',[6,0]],['Do','p2',[7,0]],
+  ...Array.from({length:8},(_,c)=>['Dmakmi','p2',[c,1]]),
+  ['Do','p1',[0,7]],['Ta','p1',[1,7]],['Langchen','p1',[2,7]],
+  ['Lonpo','p1',[3,7]],['Gyalpo','p1',[4,7]],['Langchen','p1',[5,7]],
+  ['Ta','p1',[6,7]],['Do','p1',[7,7]],
+  ...Array.from({length:8},(_,c)=>['Dmakmi','p1',[c,6]]),
+];
+
+GAME_LBL['tibetan']={Gyalpo:'Gy',Lonpo:'Lo',Do:'Do',Langchen:'La',Ta:'Ta',Dmakmi:'Dm'};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Check detection  (unified — handles mixed XQ+CH pieces on same board)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Find the "king" piece: General (XQ), King (CH), or Raja (Chaturanga/Shatranj)
 function findRuler(board,owner){
   for(const[,p]of board)
-    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech','Noyon'].includes(p.def))return p.coord;
+    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo'].includes(p.def))return p.coord;
   return null;
 }
 
@@ -475,6 +507,7 @@ function rawMoves(board,from,owner,ib,ex={}){
   if(SY[p.def])return SY[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(OUK[p.def])return OUK[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(SH[p.def])return SH[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(TB[p.def])return TB[p.def].mv(board,from,owner).filter(m=>ib(m));
   return[];
 }
 
@@ -626,6 +659,7 @@ const PROMO_CFG = {
   sittuyin:   { defs:['Ne'],     rows:{p1:0,      p2:7},      choices:['Thida']  },
   ouk:        { defs:['Trey'],   rows:{p1:2,      p2:5},      choices:['Neang']  },
   shatar:     { defs:['Khukhuu'],rows:{p1:0,      p2:7},      choices:['Bers']   },
+  tibetan:    { defs:['Dmakmi'], rows:{p1:0,      p2:7},      choices:['Lonpo']  },
   shogi:      { defs:['Fu','Kyosha','Keima','Gin','Hisha','Kaku'],
                 rows:{p1:[0,1,2],p2:[6,7,8]},                 choices:null       },
 };
@@ -636,13 +670,19 @@ function promoRowHit(cfg, owner, row){
 }
 
 // Games where stalemate = loss for the stalemated player (not a draw)
-const STALEMATE_LOSES={chaturanga:true,shatranj:true,shatar:true};
+const STALEMATE_LOSES={chaturanga:true,shatranj:true,shatar:true,tibetan:true};
 
 // Games with no "check" concept — king can be moved into attacked squares and captured directly
 const NO_CHECK_FILTER={shatar:true};
 
+// Games where reducing opponent to bare king = immediate win
+const BARE_KING_LOSES={shatar:true,tibetan:true};
+
+// All royal piece defs (used by isBareKing)
+const RULER_DEFS=new Set(['General','Gyoku','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo']);
+
 function isBareKing(board,owner){
-  for(const[,p]of board)if(p.owner===owner&&p.def!=='Noyon')return false;
+  for(const[,p]of board)if(p.owner===owner&&!RULER_DEFS.has(p.def))return false;
   return true;
 }
 
@@ -756,7 +796,7 @@ function gameIb(){return gtype==='xiangqi'?ibXQ:ibCH;}
 const SETUPS={xiangqi:null,chess:null,chaturanga:null}; // populated after constants are defined
 function mkBoard(gt,arr){
   const b=new Map();
-  const SETUP_MAP={xiangqi:XQ_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP,shatar:SH_SETUP};
+  const SETUP_MAP={xiangqi:XQ_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP,shatar:SH_SETUP,tibetan:TB_SETUP};
   const setup=arr||SETUP_MAP[gt]||CH_SETUP;
   setup.forEach(([def,owner,coord])=>b.set(K(coord),{def,owner,coord:[...coord]}));
   return b;
@@ -886,8 +926,8 @@ function doChessMove(from,to,p){
 }
 
 function finishTurn(){
-  // Zunn (Shatar): bare king = immediate loss
-  if(gtype==='shatar'){const opp=player==='p1'?'p2':'p1';if(isBareKing(board,opp)){endWin(player);return;}}
+  // Bare king (Shatar Zunn / Tibetan): reducing opponent to lone king = win
+  if(BARE_KING_LOSES[gtype]){const opp=player==='p1'?'p2':'p1';if(isBareKing(board,opp)){endWin(player);return;}}
   player=player==='p1'?'p2':'p1';sel=null;legal=[];handArmed=null;updateHandUI();
   if(!hasAnyLegal(board,player,gameIb(),ex)){
     over=true;render();
