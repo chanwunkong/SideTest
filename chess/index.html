@@ -95,6 +95,9 @@ canvas{display:block;cursor:pointer}
     <div class="game-card" onclick="startGame('janggi')" title="包：必須跳過一子行棋/吃子；不可跳包；開局馬象互換不實作">
       <span class="icon">🇰🇷</span><span class="name">Janggi<br><small style="font-size:.72rem;font-weight:400;color:#aaa">朝鮮象棋</small></span>
     </div>
+    <div class="game-card" onclick="startGame('shogi')" title="升變可選；強制升變：歩/香底線、桂底二行；打入不可打二歩；不實作打步詰">
+      <span class="icon">♟️</span><span class="name">將棋<br><small style="font-size:.72rem;font-weight:400;color:#aaa">Shogi</small></span>
+    </div>
     <div class="game-card dashed" onclick="openSetup('xiangqi')">
       <span class="icon">✏️</span><span class="name">自訂布局</span>
     </div>
@@ -639,13 +642,71 @@ const JG_SETUP=[
 GAME_LBL['janggi']={Jang:'将',Sa:'士',Cha:'車',Po:'包',Sang:'象',Ma:'馬',Byeong:'卒'};
 
 // ══════════════════════════════════════════════════════════════════════════════
+// SHOGI (Japanese Chess 將棋) piece definitions  (9×9)
+// Gyoku=King  Kin=Gold  Gin=Silver  Keima=Knight(forward-L)  Kyosha=Lance(fwd)
+// Kaku=Bishop  Hisha=Rook  Fu=Pawn(fwd-1)
+// Promoted: Ryu(龍)=Hisha+1diag  Uma(馬)=Kaku+1ortho
+//           Narigin/Narikei/Narikyo/Tokin all move like Kin(Gold)
+// Drop: DROPS_ENABLED['shogi'] already set; filterDropSquares enforces Nifu+rank limits
+// ══════════════════════════════════════════════════════════════════════════════
+const ibSHG=([c,r])=>c>=0&&c<9&&r>=0&&r<9;
+
+function shogiGold(b,f,o){
+  const fw=o==='p1'?-1:1;
+  return[[0,fw],[1,fw],[-1,fw],[1,0],[-1,0],[0,-fw]]
+    .filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d));
+}
+
+const SHG={
+  Gyoku: {mv:(b,f,o)=>[...ORTHO,...DIAG].filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  Kin:    {mv:(b,f,o)=>shogiGold(b,f,o)},
+  Narigin:{mv:(b,f,o)=>shogiGold(b,f,o)},
+  Narikei:{mv:(b,f,o)=>shogiGold(b,f,o)},
+  Narikyo:{mv:(b,f,o)=>shogiGold(b,f,o)},
+  Tokin:  {mv:(b,f,o)=>shogiGold(b,f,o)},
+  Gin:    {mv:(b,f,o)=>{
+    const fw=o==='p1'?-1:1;
+    return[[0,fw],[1,fw],[-1,fw],[1,-fw],[-1,-fw]]
+      .filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d));
+  }},
+  Keima:  {mv:(b,[c,r],o)=>{
+    const fw=o==='p1'?-1:1;
+    return[[c+1,r+2*fw],[c-1,r+2*fw]].filter(t=>ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o));
+  }},
+  Kyosha: {mv:(b,f,o)=>slide(b,f,o,[[0,o==='p1'?-1:1]],ibSHG)},
+  Kaku:   {mv:(b,f,o)=>slide(b,f,o,DIAG,ibSHG)},
+  Hisha:  {mv:(b,f,o)=>slide(b,f,o,ORTHO,ibSHG)},
+  Uma:    {mv:(b,f,o)=>[...slide(b,f,o,DIAG,ibSHG),...ORTHO.filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))]},
+  Ryu:    {mv:(b,f,o)=>[...slide(b,f,o,ORTHO,ibSHG),...DIAG.filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))]},
+  Fu:     {mv:(b,f,o)=>{const fw=o==='p1'?-1:1,t=add(f,[0,fw]);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o)?[t]:[];}},
+};
+
+const SHG_SETUP=[
+  ['Kyosha','p2',[0,0]],['Keima','p2',[1,0]],['Gin','p2',[2,0]],
+  ['Kin','p2',[3,0]],['Gyoku','p2',[4,0]],['Kin','p2',[5,0]],
+  ['Gin','p2',[6,0]],['Keima','p2',[7,0]],['Kyosha','p2',[8,0]],
+  ['Kaku','p2',[1,1]],['Hisha','p2',[7,1]],
+  ...Array.from({length:9},(_,c)=>['Fu','p2',[c,2]]),
+  ...Array.from({length:9},(_,c)=>['Fu','p1',[c,6]]),
+  ['Hisha','p1',[1,7]],['Kaku','p1',[7,7]],
+  ['Kyosha','p1',[0,8]],['Keima','p1',[1,8]],['Gin','p1',[2,8]],
+  ['Kin','p1',[3,8]],['Gyoku','p1',[4,8]],['Kin','p1',[5,8]],
+  ['Gin','p1',[6,8]],['Keima','p1',[7,8]],['Kyosha','p1',[8,8]],
+];
+
+GAME_LBL['shogi']={
+  Gyoku:'玉',Kin:'金',Gin:'銀',Keima:'桂',Kyosha:'香',Kaku:'角',Hisha:'飛',Fu:'歩',
+  Ryu:'龍',Uma:'馬',Narigin:'全',Narikei:'圭',Narikyo:'杏',Tokin:'と',
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Check detection  (unified — handles mixed XQ+CH pieces on same board)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Find the "king" piece: General (XQ), King (CH), or Raja (Chaturanga/Shatranj)
 function findRuler(board,owner){
   for(const[,p]of board)
-    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo','Tuong','Jang'].includes(p.def))return p.coord;
+    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo','Tuong','Jang','Gyoku'].includes(p.def))return p.coord;
   return null;
 }
 
@@ -663,6 +724,7 @@ function rawMoves(board,from,owner,ib,ex={}){
   if(TB[p.def])return TB[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(VN[p.def])return VN[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(JG[p.def])return JG[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(SHG[p.def])return SHG[p.def].mv(board,from,owner).filter(m=>ib(m));
   return[];
 }
 
@@ -718,9 +780,9 @@ function hasAnyLegal(board,owner,ib,ex={}){
 // Rendering
 // ══════════════════════════════════════════════════════════════════════════════
 function layout(gt){
-  return (gt==='xiangqi'||gt==='vietnamese'||gt==='janggi')
-    ?{C:58,P:46,W:58*8+92,H:58*9+92}
-    :{C:62,P:36,W:62*7+72,H:62*7+72};
+  if(gt==='xiangqi'||gt==='vietnamese'||gt==='janggi')return{C:58,P:46,W:58*8+92,H:58*9+92};
+  if(gt==='shogi')return{C:58,P:46,W:58*8+92,H:58*8+92};
+  return{C:62,P:36,W:62*7+72,H:62*7+72};
 }
 function toXY([c,r],L){return[L.P+c*L.C,L.P+r*L.C];}
 function toCell([x,y],L){return[Math.round((x-L.P)/L.C),Math.round((y-L.P)/L.C)];}
@@ -767,13 +829,25 @@ function drawJanggiBoard(ctx,L){
   ctx.stroke();
 }
 
+function drawShogiBoard(ctx,L){
+  const{C,P}=L;
+  ctx.fillStyle='#f5e6c0';ctx.fillRect(0,0,L.W,L.H);
+  ctx.strokeStyle='#8b6000';ctx.lineWidth=1.5;
+  for(let c=0;c<=8;c++){ctx.beginPath();ctx.moveTo(P+c*C,P);ctx.lineTo(P+c*C,P+8*C);ctx.stroke();}
+  for(let r=0;r<=8;r++){ctx.beginPath();ctx.moveTo(P,P+r*C);ctx.lineTo(P+8*C,P+r*C);ctx.stroke();}
+  // Promotion zone tint
+  ctx.fillStyle='rgba(200,80,0,.07)';
+  ctx.fillRect(P-.5,P-.5,8*C+1,2*C+C*.5+1);        // p2 promo zone rows 0-2
+  ctx.fillRect(P-.5,P+5*C+C*.5-.5,8*C+1,2*C+C*.5+1); // p1 promo zone rows 6-8
+}
+
 // Unified piece renderer: owner → color, def → label/font
 function drawPiece(ctx,piece,sel,L){
   const[x,y]=toXY(piece.coord,L),rad=L.C*.41;
   ctx.beginPath();ctx.arc(x+2,y+2,rad,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.28)';ctx.fill();
 
   const isP1=piece.owner==='p1';
-  const isXQStyle=!!XQ[piece.def]||!!VN[piece.def]||!!JG[piece.def];
+  const isXQStyle=!!XQ[piece.def]||!!VN[piece.def]||!!JG[piece.def]||!!SHG[piece.def];
   const bg    =isP1?'#fff8f0':'#1c1c2e';
   const border=sel?'#00cc44':(isP1?'#cc2200':'#7799bb');
   const txt   =isP1?'#cc2200':'#ccddee';
@@ -809,6 +883,7 @@ function renderBoard(cvs,board,gt,sel,legal,extraHints=[]){
   cvs.width=L.W;cvs.height=L.H;
   if(gt==='xiangqi'||gt==='vietnamese')drawXQBoard(ctx,L);
   else if(gt==='janggi')drawJanggiBoard(ctx,L);
+  else if(gt==='shogi')drawShogiBoard(ctx,L);
   else drawCHBoard(ctx,L);
   if(sel)legal.forEach(to=>drawHint(ctx,to,board.has(K(to)),L));
   extraHints.forEach(c=>drawHint(ctx,c,false,L));
@@ -831,7 +906,9 @@ const PROMO_CFG = {
   shatar:     { defs:['Khukhuu'],rows:{p1:0,      p2:7},      choices:['Bers']   },
   tibetan:    { defs:['Dmakmi'], rows:{p1:0,      p2:7},      choices:['Lonpo']  },
   shogi:      { defs:['Fu','Kyosha','Keima','Gin','Hisha','Kaku'],
-                rows:{p1:[0,1,2],p2:[6,7,8]},                 choices:null       },
+                rows:{p1:[0,1,2],p2:[6,7,8]}, choices:null,
+                promoMap:{Fu:'Tokin',Kyosha:'Narikyo',Keima:'Narikei',Gin:'Narigin',Hisha:'Ryu',Kaku:'Uma'},
+                forceRows:{Fu:{p1:[0],p2:[8]},Kyosha:{p1:[0],p2:[8]},Keima:{p1:[0,1],p2:[7,8]}} },
 };
 
 function promoRowHit(cfg, owner, row){
@@ -875,8 +952,19 @@ function getDropSquares(def, owner, board, ib){
   return filterDropSquares(def,owner,squares,board,ib);
 }
 
-// Hook: override per-game drop restrictions. Stub returns all squares unchanged.
-function filterDropSquares(def,owner,squares){return squares;}
+// Shogi drop restrictions: Nifu (no two Fu same file), last-rank limits for Fu/Kyosha/Keima
+function filterDropSquares(def,owner,squares,board){
+  if(gtype!=='shogi')return squares;
+  const lastR=owner==='p1'?0:8,penR=owner==='p1'?1:7;
+  if(def==='Fu'||def==='Kyosha')squares=squares.filter(([,r])=>r!==lastR);
+  if(def==='Keima')squares=squares.filter(([,r])=>r!==lastR&&r!==penR);
+  if(def==='Fu'){
+    const cols=new Set();
+    for(const[,p]of board)if(p.owner===owner&&p.def==='Fu')cols.add(p.coord[0]);
+    squares=squares.filter(([c])=>!cols.has(c));
+  }
+  return squares;
+}
 
 function doDrop(def,coord){
   ex.hand[player][def]--;
@@ -964,13 +1052,14 @@ let ex={},pendProm=null,savedArr=null,savedFP=null,handArmed=null;
 function gameIb(){
   if(gtype==='xiangqi'||gtype==='vietnamese')return ibXQ;
   if(gtype==='janggi')return ibJanggi;
+  if(gtype==='shogi')return ibSHG;
   return ibCH;
 }
 
 const SETUPS={xiangqi:null,chess:null,chaturanga:null}; // populated after constants are defined
 function mkBoard(gt,arr){
   const b=new Map();
-  const SETUP_MAP={xiangqi:XQ_SETUP,vietnamese:VN_SETUP,janggi:JG_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP,shatar:SH_SETUP,tibetan:TB_SETUP};
+  const SETUP_MAP={xiangqi:XQ_SETUP,vietnamese:VN_SETUP,janggi:JG_SETUP,shogi:SHG_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP,shatar:SH_SETUP,tibetan:TB_SETUP};
   const setup=arr||SETUP_MAP[gt]||CH_SETUP;
   setup.forEach(([def,owner,coord])=>b.set(K(coord),{def,owner,coord:[...coord]}));
   return b;
@@ -1070,8 +1159,15 @@ function checkPromo(p,to){
   const cfg=PROMO_CFG[gtype];if(!cfg)return;
   if(!cfg.defs.includes(p.def))return;
   if(!promoRowHit(cfg,p.owner,to[1]))return;
+  if(cfg.promoMap){
+    // Shogi: each piece has a unique promoted form; promotion may be forced or optional
+    const promoted=cfg.promoMap[p.def];
+    const forceR=(cfg.forceRows?.[p.def]?.[p.owner])??[];
+    if(forceR.includes(to[1])){board.set(K(to),{...p,def:promoted,coord:[...to]});}
+    else{pendProm={coord:[...to],owner:p.owner};showProm(p.owner,[promoted,p.def]);}
+    return;
+  }
   if(!cfg.choices||cfg.choices.length===1){
-    // auto-promote (no UI)
     const next=cfg.choices?.[0]??p.def;
     board.set(K(to),{...p,def:next,coord:[...to]});
   } else {

@@ -85,7 +85,13 @@
 - Commit: 36774c6
 
 ## 2026-07-02T03:00Z
-- Completed: TASK-022 (Janggi 朝鮮象棋) — ibJanggi（獨立 ref，令 isInCheck 跳過飛將邏輯）；JG_PALACE_DIAG/JG_PALACE_LINES（九宮斜線資料）；jgPalace/jgPalaceMove（Jang+Sa 限宮走法）；jgChaSlide（車+宮斜滑動）；jgPoSlide（包：必須跳一子，不跳另一包，不吃包）；JG.Sang（1正+2斜，兩阻格）；JG.Ma（L型+腿規）；JG.Byeong（前+側+宮斜前進）；JG_SETUP；GAME_LBL['janggi']（Hanja 單字）；drawJanggiBoard（無河界，雙宮斜線）；layout/renderBoard/gameIb/isXQStyle/findRuler/RULER_DEFS/rawMoves/SETUP_MAP/STALEMATE_LOSES 全部更新；選單新增 Janggi 卡片（🇰🇷）；開局馬象互換/Bikjang 平局不實作（tooltip 標注）
+- Completed: TASK-022 (Janggi 朝鮮象棋) — (see below) — ibJanggi（獨立 ref，令 isInCheck 跳過飛將邏輯）；JG_PALACE_DIAG/JG_PALACE_LINES（九宮斜線資料）；jgPalace/jgPalaceMove（Jang+Sa 限宮走法）；jgChaSlide（車+宮斜滑動）；jgPoSlide（包：必須跳一子，不跳另一包，不吃包）；JG.Sang（1正+2斜，兩阻格）；JG.Ma（L型+腿規）；JG.Byeong（前+側+宮斜前進）；JG_SETUP；GAME_LBL['janggi']（Hanja 單字）；drawJanggiBoard（無河界，雙宮斜線）；layout/renderBoard/gameIb/isXQStyle/findRuler/RULER_DEFS/rawMoves/SETUP_MAP/STALEMATE_LOSES 全部更新；選單新增 Janggi 卡片（🇰🇷）；開局馬象互換/Bikjang 平局不實作（tooltip 標注）
 - Errors: none
 - Queued: TASK-023 (將棋 Shogi)
+- Commit: 42d4fce
+
+## 2026-07-02T04:00Z
+- Completed: TASK-023 (將棋 Shogi) — ibSHG（9×9 bounds）；shogiGold 共用函式；SHG 棋子表（Gyoku/Kin/Gin/Keima/Kyosha/Kaku/Hisha/Fu 及升變版 Ryu/Uma/Narigin/Narikei/Narikyo/Tokin）；SHG_SETUP；GAME_LBL['shogi']（漢字單字）；PROMO_CFG.shogi 加 promoMap+forceRows；checkPromo 加 promoMap 分支（歩/香底強制升變，桂底二強制，其餘可選）；filterDropSquares 加 Nifu+末行限制（打步詰不實作）；drawShogiBoard（9×9連續格線+升變區淡色標記）；layout/renderBoard/drawPiece/gameIb/findRuler/rawMoves/SETUP_MAP 全更新；持駒面板沿用 TASK-012 hand-row；選單新增將棋卡片（♟️，tooltip 標注限制）
+- Errors: none
+- Queued: TASK-024 (選單擴充分組)
 - Commit: (pending)
