@@ -77,6 +77,9 @@ canvas{display:block;cursor:pointer}
     <div class="game-card" onclick="startGame('makruk')">
       <span class="icon">🐘</span><span class="name">Makruk<br><small style="font-size:.72rem;font-weight:400;color:#aaa">泰國象棋</small></span>
     </div>
+    <div class="game-card" onclick="startGame('sittuyin')">
+      <span class="icon">🏯</span><span class="name">Sittuyin<br><small style="font-size:.72rem;font-weight:400;color:#aaa">緬甸象棋</small></span>
+    </div>
     <div class="game-card dashed" onclick="openSetup('xiangqi')">
       <span class="icon">✏️</span><span class="name">自訂布局</span>
     </div>
@@ -354,13 +357,39 @@ const MK_SETUP=[
 GAME_LBL['makruk']={Khun:'Kn',Met:'Me',Ruea:'Ru',Khon:'Kh',Ma:'Ma',Bia:'Bi'};
 
 // ══════════════════════════════════════════════════════════════════════════════
+// SITTUYIN piece definitions  (Burmese, 8×8)
+// SitKe=King  Thida=1-diag  Sin=rook  Myin=knight  AungGway=1fwd+4diag  Ne=pawn
+// Back-rank pieces placed during free-setup phase (TASK-013); only Ne pre-placed.
+// Ne promotes at rank 8 (last row, rows 0/7) → Thida (already in PROMO_CFG).
+// ══════════════════════════════════════════════════════════════════════════════
+const SY={
+  SitKe:    CT.Raja,    // 1 step any direction
+  Thida:    CT.Mantri,  // 1 step diagonal (weak general)
+  Sin:      CT.Ratha,   // rook-slide (called "elephant" but moves like rook)
+  Myin:     CT.Ashva,   // L-knight
+  AungGway: MK.Khon,   // 1 forward + 4 diagonals (same as Makruk Khon)
+  Ne:       CT.Padati,  // pawn (1 forward, diagonal capture)
+};
+
+// Only Ne (pawns) pre-placed; back-rank pieces go to ex.toPlace via SETUP_PHASE_CFG.
+// Staircase pattern: cols 0-3 on rank 3, cols 4-7 on rank 4 (from each side).
+const SY_SETUP=[
+  ['Ne','p2',[0,2]],['Ne','p2',[1,2]],['Ne','p2',[2,2]],['Ne','p2',[3,2]],
+  ['Ne','p2',[4,3]],['Ne','p2',[5,3]],['Ne','p2',[6,3]],['Ne','p2',[7,3]],
+  ['Ne','p1',[0,5]],['Ne','p1',[1,5]],['Ne','p1',[2,5]],['Ne','p1',[3,5]],
+  ['Ne','p1',[4,4]],['Ne','p1',[5,4]],['Ne','p1',[6,4]],['Ne','p1',[7,4]],
+];
+
+GAME_LBL['sittuyin']={SitKe:'Sk',Thida:'Th',Sin:'Si',Myin:'My',AungGway:'Ag',Ne:'Ne'};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Check detection  (unified — handles mixed XQ+CH pieces on same board)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Find the "king" piece: General (XQ), King (CH), or Raja (Chaturanga/Shatranj)
 function findRuler(board,owner){
   for(const[,p]of board)
-    if(p.owner===owner&&['General','King','Raja','Shah','Khun'].includes(p.def))return p.coord;
+    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe'].includes(p.def))return p.coord;
   return null;
 }
 
@@ -372,6 +401,7 @@ function rawMoves(board,from,owner,ib,ex={}){
   if(CT[p.def])return CT[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(ST[p.def])return ST[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(MK[p.def])return MK[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(SY[p.def])return SY[p.def].mv(board,from,owner).filter(m=>ib(m));
   return[];
 }
 
@@ -643,7 +673,7 @@ function gameIb(){return gtype==='xiangqi'?ibXQ:ibCH;}
 const SETUPS={xiangqi:null,chess:null,chaturanga:null}; // populated after constants are defined
 function mkBoard(gt,arr){
   const b=new Map();
-  const SETUP_MAP={xiangqi:XQ_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP};
+  const SETUP_MAP={xiangqi:XQ_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP};
   const setup=arr||SETUP_MAP[gt]||CH_SETUP;
   setup.forEach(([def,owner,coord])=>b.set(K(coord),{def,owner,coord:[...coord]}));
   return b;

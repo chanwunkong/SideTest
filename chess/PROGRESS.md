@@ -52,4 +52,10 @@
 - Completed: TASK-016 (Makruk) — MK 棋子表（Khun/Met/Ruea/Khon/Ma/Bia）；Khon 特殊走法（前進1+四斜方向）；MK_SETUP（兵在 row2/5）；GAME_LBL['makruk']；findRuler 改為 includes 陣列；rawMoves/mkBoard 加 MK；SETUP_MAP 重構 mkBoard；選單新增 Makruk 卡片
 - Errors: none；PROMO_CFG makruk 已在 TASK-011 預設（Bia→Met row2/5 自動升變）
 - Queued: TASK-017 (Sittuyin 緬甸象棋)
+- Commit: 58b6fb1
+
+## 2026-07-01T07:00Z
+- Completed: TASK-017 (Sittuyin) — SY 棋子表（SitKe/Thida/Sin/Myin/AungGway/Ne）；SY_SETUP（兵階梯布局 cols 0-3 在 rank3，4-7 在 rank4）；GAME_LBL['sittuyin']；findRuler 加 SitKe；rawMoves/SETUP_MAP 加 SY；選單新增 Sittuyin 卡片；SETUP_PHASE_CFG+PROMO_CFG 已在 TASK-013/011 預設
+- Errors: none
+- Queued: TASK-018 (Ouk Chatrang 柬埔寨象棋)
 - Commit: (pending)

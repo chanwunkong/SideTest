@@ -35,7 +35,7 @@
   - 棋子：Khun(王)、Met(后，一步斜走)、Ruea(車)、Khon(象，前一步+斜一步)、Ma(馬)、Bia(兵)
   - 升變：兵到第六橫列(敵方第三行)升為 Met
   - 特殊：終盤計步限制（Counting rules）
-- [ ] TASK-017: Sittuyin（緬甸象棋）
+- [x] TASK-017: Sittuyin（緬甸象棋）
   - 棋盤：8×8 格子
   - 棋子：Sit-Ke(王)、Thida(后，一步斜走)、Sin(車)、Myin(馬)、Aung-Gway(象，前一步+斜一步)、Nè(兵)
   - **依賴 TASK-013（自由布陣）**：開局雙方在己方半場自由擺放後排棋子
