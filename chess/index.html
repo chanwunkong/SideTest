@@ -102,6 +102,10 @@ canvas{display:block;cursor:pointer}
     <div id="turn-lbl"></div>
     <button class="btn btn-dim" style="padding:6px 14px" onclick="openSetup(gtype)">✏️</button>
   </div>
+  <div id="setup-phase-row" class="hidden" style="width:100%">
+    <div class="hand-lbl" id="setup-phase-lbl" style="font-size:.8rem;color:#d4a74a;margin-bottom:4px"></div>
+    <div class="hand-panel" id="setup-phase-pieces" style="width:100%;flex-direction:row;flex-wrap:wrap"></div>
+  </div>
   <div id="hand-row" class="hand-row hidden">
     <div class="hand-panel" id="hand-p2"><div class="hand-lbl">黑方持駒</div></div>
     <div class="hand-panel" id="hand-p1"><div class="hand-lbl">先手持駒</div></div>
@@ -391,11 +395,12 @@ function drawHint(ctx,coord,isCapture,L){
   if(isCapture){ctx.strokeStyle='#ff4400';ctx.lineWidth=2.5;ctx.stroke();}
 }
 
-function renderBoard(cvs,board,gt,sel,legal){
+function renderBoard(cvs,board,gt,sel,legal,extraHints=[]){
   const L=layout(gt),ctx=cvs.getContext('2d');
   cvs.width=L.W;cvs.height=L.H;
   if(gt==='xiangqi')drawXQBoard(ctx,L);else drawCHBoard(ctx,L);
   if(sel)legal.forEach(to=>drawHint(ctx,to,board.has(K(to)),L));
+  extraHints.forEach(c=>drawHint(ctx,c,false,L));
   for(const[,p]of board)drawPiece(ctx,p,sel&&K(p.coord)===K(sel),L);
 }
 
@@ -453,6 +458,74 @@ function doDrop(def,coord){
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Free-setup phase — players place pieces before normal play begins
+// Used by Sittuyin (TASK-017) and any future variant with a deployment phase.
+// ══════════════════════════════════════════════════════════════════════════════
+const SETUP_PHASE_CFG = {
+  // sittuyin pieces defined in TASK-017; keys pre-registered here so the engine works
+  sittuyin: {
+    toPlace: { p1:['SitKe','Thida','Sin','Sin','Myin','Myin','AungGway','AungGway'],
+               p2:['SitKe','Thida','Sin','Sin','Myin','Myin','AungGway','AungGway'] },
+    halfRows: { p1:[4,5,6,7], p2:[0,1,2,3] }, // valid placement rows per owner on 8×8
+  },
+};
+
+function getSetupHints(){
+  if(ex.phase!=='setup'||!ex.setupArmed)return[];
+  const cfg=SETUP_PHASE_CFG[gtype];
+  const valid=cfg.halfRows[player];
+  const hints=[];
+  for(let c=0;c<10;c++)for(let r=0;r<11;r++)
+    if(gameIb()([c,r])&&valid.includes(r)&&!board.has(K([c,r])))hints.push([c,r]);
+  return hints;
+}
+
+function handleSetupClick(coord){
+  if(!ex.setupArmed)return;
+  const cfg=SETUP_PHASE_CFG[gtype];
+  if(!cfg.halfRows[player].includes(coord[1]))return;
+  if(board.has(K(coord)))return;
+  // Place piece
+  board.set(K(coord),{def:ex.setupArmed,owner:player,coord:[...coord]});
+  const arr=ex.toPlace[player],idx=arr.indexOf(ex.setupArmed);
+  if(idx>=0)arr.splice(idx,1);
+  ex.setupArmed=null;
+  // All placed → start play
+  if(ex.toPlace.p1.length===0&&ex.toPlace.p2.length===0){
+    ex.phase='play';
+    player=savedFP||'p1';
+    updateStatus();updateSetupPhaseUI();render();
+    return;
+  }
+  // Advance to next player who still has pieces to place
+  const next=player==='p1'?'p2':'p1';
+  player=ex.toPlace[next].length>0?next:player;
+  updateStatus();updateSetupPhaseUI();render();
+}
+
+function updateSetupPhaseUI(){
+  const row=document.getElementById('setup-phase-row');
+  if(ex.phase!=='setup'){row.classList.add('hidden');return;}
+  row.classList.remove('hidden');
+  const remaining=ex.toPlace[player]||[];
+  document.getElementById('setup-phase-lbl').textContent=
+    `📐 布陣階段 — ${player==='p1'?'先手':'後手'} 放置棋子（剩 ${remaining.length} 枚）`;
+  const el=document.getElementById('setup-phase-pieces');el.innerHTML='';
+  const counts={};remaining.forEach(d=>{counts[d]=(counts[d]||0)+1;});
+  const seen=new Set();
+  remaining.forEach(def=>{
+    if(seen.has(def))return;seen.add(def);
+    const c=document.createElement('div');
+    const armed=ex.setupArmed===def;
+    c.className=`hand-chip chip-${player}${armed?' armed':''}`;
+    const lbl=GAME_LBL[gtype]?.[def]??XQ[def]?.lbl?.[player]??def[0];
+    c.textContent=counts[def]>1?`${lbl}×${counts[def]}`:lbl;
+    c.onclick=()=>{ex.setupArmed=(ex.setupArmed===def)?null:def;updateSetupPhaseUI();render();};
+    el.appendChild(c);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Game Controller
 // ══════════════════════════════════════════════════════════════════════════════
 let gtype='xiangqi',board=new Map(),player='p1',sel=null,legal=[],over=false;
@@ -470,6 +543,8 @@ function mkBoard(gt,arr){
 function initEx(gt){
   const base=gt==='chess'?{ep:null,cr:{p1:{k:true,q:true},p2:{k:true,q:true}}}:{};
   if(DROPS_ENABLED[gt])base.hand={p1:{},p2:{}};
+  const spc=SETUP_PHASE_CFG[gt];
+  if(spc){base.phase='setup';base.toPlace={p1:[...spc.toPlace.p1],p2:[...spc.toPlace.p2]};base.setupArmed=null;}
   return base;
 }
 
@@ -478,11 +553,11 @@ function startGame(gt,arr=null,fp=null){
   sel=null;legal=[];over=false;pendProm=null;handArmed=null;ex=initEx(gt);
   savedArr=arr;savedFP=fp;
   const L=layout(gt);fitCv(document.getElementById('game-cv'),L);
-  show('game');updateStatus();updateHandUI();render();
+  show('game');updateStatus();updateHandUI();updateSetupPhaseUI();render();
 }
 
 function restart(){startGame(gtype,savedArr,savedFP);}
-function render(){renderBoard(document.getElementById('game-cv'),board,gtype,sel,legal);}
+function render(){renderBoard(document.getElementById('game-cv'),board,gtype,sel,legal,getSetupHints());}
 
 function updateHandUI(){
   const row=document.getElementById('hand-row');
@@ -521,6 +596,8 @@ document.getElementById('game-cv').addEventListener('click',e=>{
 });
 
 function handleClick(coord){
+  // Setup phase: place pieces before play begins
+  if(ex.phase==='setup'){handleSetupClick(coord);return;}
   // Drop mode: a hand piece is armed
   if(handArmed){
     if(!board.has(K(coord))&&gameIb()(coord)){
@@ -607,6 +684,11 @@ function endWin(w){
 
 function updateStatus(){
   if(over)return;
+  if(ex.phase==='setup'){
+    document.getElementById('turn-lbl').textContent=player==='p1'?'🔴 先手布陣':'⚫ 後手布陣';
+    document.getElementById('check-lbl').textContent='';
+    return;
+  }
   document.getElementById('turn-lbl').textContent=player==='p1'?'🔴 紅/白方下棋':'⚫ 黑方下棋';
   document.getElementById('check-lbl').textContent=isInCheck(board,player,gameIb(),ex)?'⚠️ 被將！':'';
 }

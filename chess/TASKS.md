@@ -15,7 +15,7 @@
   - 目標：吃到的棋子進入「手棋」(hand)，可在己方回合放回棋盤
   - 新狀態：`hand: {p1: Map<def, count>, p2: Map<def, count>}`
   - 需新增 `DROP` 類動作在合法步生成
-- [ ] TASK-013: Engine — 自由布陣階段（Free setup phase，緬甸象棋）
+- [x] TASK-013: Engine — 自由布陣階段（Free setup phase，緬甸象棋）
   - 目標：遊戲開始前讓雙方在己方半場依規則擺放棋子
   - 影響：新增 `phase: 'setup' | 'play'` 在遊戲狀態
 

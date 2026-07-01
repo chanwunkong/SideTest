@@ -28,4 +28,10 @@
 - Completed: TASK-012 (Drop mechanic) — DROPS_ENABLED/SHOGI_DEMOTE 常數；ex.hand 狀態；getDropSquares/filterDropSquares/doDrop；handArmed 狀態；handleClick drop 模式；updateHandUI 持駒面板；手駒 CSS+HTML；finishTurn 重置 handArmed
 - Errors: none
 - Queued: TASK-013 (自由布陣階段) 或 TASK-014 (Chaturanga)
+- Commit: 15ab8f8
+
+## 2026-07-01T03:00Z
+- Completed: TASK-013 (自由布陣階段) — SETUP_PHASE_CFG；initEx 加入 phase/toPlace/setupArmed；handleSetupClick 放子/換手/結束布陣；getSetupHints 藍點提示；updateSetupPhaseUI 面板；renderBoard extraHints 參數；updateStatus 布陣訊息；handleClick phase guard
+- Errors: none
+- Queued: TASK-014 (Chaturanga)
 - Commit: (pending)
