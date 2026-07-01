@@ -100,4 +100,10 @@
 - Completed: TASK-024 (選單擴充分組) — .group-lbl CSS（width:100% 金色分隔標題）；menu-grid 重組為四區：東亞系（中國象棋/越南/朝鮮/將棋）、東南亞系（Makruk/Sittuyin/Ouk）、古印度・波斯・中亞系（Chaturanga/Shatranj/Shatar/西藏象棋）、歐洲系（國際象棋）+ 工具區
 - Errors: none
 - Queued: TASK-025 (將棋五角形駒渲染)
+- Commit: 4a644d0
+
+## 2026-07-02T06:00Z
+- Completed: TASK-025 (將棋五角形駒渲染) — 新增 drawShogiPiece 函式；五角形駒片（s=isP1?1:-1 控制頂點方向，p1 朝上/p2 朝下）；升變棋子以琥珀色 #d4790a 文字顯示；drawPiece 加 gtype==='shogi' 早退；isXQStyle 移除 SHG（Shogi 已由專屬函式處理）
+- Errors: none
+- Queued: TASK-026 (手棋面板 Shogi hand display)
 - Commit: (pending)
