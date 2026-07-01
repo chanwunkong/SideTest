@@ -22,4 +22,10 @@
 - Completed: TASK-011 (通用升變區) — 加入 PROMO_CFG 表、checkPromo()、promoRowHit()；showProm 接受 choices 參數；doChessMove 移除硬編碼升變；GAME_LBL stub 供後續棋種使用
 - Errors: none
 - Queued: TASK-012 (Drop mechanic)
+- Commit: f00f853
+
+## 2026-07-01T02:00Z
+- Completed: TASK-012 (Drop mechanic) — DROPS_ENABLED/SHOGI_DEMOTE 常數；ex.hand 狀態；getDropSquares/filterDropSquares/doDrop；handArmed 狀態；handleClick drop 模式；updateHandUI 持駒面板；手駒 CSS+HTML；finishTurn 重置 handArmed
+- Errors: none
+- Queued: TASK-013 (自由布陣階段) 或 TASK-014 (Chaturanga)
 - Commit: (pending)

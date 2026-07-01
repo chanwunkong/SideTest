@@ -11,7 +11,7 @@
 - [x] TASK-011: Engine — 通用升變區（generalized promotion zone）
   - 目標：讓任意棋種的任意棋子可在指定區域升變，不限於國際象棋兵
   - 影響檔案：`index.html` 中的 `doMove` / `finishTurn` 流程
-- [ ] TASK-012: Engine — 棄子（Drop mechanic，将棋專用）
+- [x] TASK-012: Engine — 棄子（Drop mechanic，将棋專用）
   - 目標：吃到的棋子進入「手棋」(hand)，可在己方回合放回棋盤
   - 新狀態：`hand: {p1: Map<def, count>, p2: Map<def, count>}`
   - 需新增 `DROP` 類動作在合法步生成
