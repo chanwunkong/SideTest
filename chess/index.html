@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>棋藝引擎</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#1a1a2e;color:#eee;font-family:'Microsoft JhengHei',sans-serif;
+  display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:12px 8px}
+h1{color:#d4a74a;font-size:1.5rem;letter-spacing:6px;margin:16px 0 12px}
+.scr{width:100%;max-width:680px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.hidden{display:none!important}
+.btn{padding:9px 22px;border:none;border-radius:6px;font-size:.95rem;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-gold{background:#d4a74a;color:#1a1a2e;font-weight:700}.btn-gold:hover{background:#f0c060}
+.btn-dim{background:#252540;color:#bbb;border:1px solid #444}.btn-dim:hover{background:#303058}
+.btn-red{background:#7a1a1a;color:#fff}.btn-red:hover{background:#992222}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.menu-grid{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.game-card{width:160px;height:110px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:8px;border-radius:12px;border:2px solid #3a3a5a;
+  background:#22223a;cursor:pointer;transition:all .2s;color:#eee;user-select:none}
+.game-card:hover{border-color:#d4a74a;background:#2a2a50}
+.game-card .icon{font-size:2.2rem}.game-card .name{font-size:.95rem;font-weight:700}
+.game-card.dashed{border-style:dashed}
+.setup-wrap{display:flex;gap:8px;align-items:flex-start}
+.palette{display:flex;flex-direction:column;gap:4px;min-width:56px;padding-top:4px;max-height:520px;overflow-y:auto}
+.pal-label{font-size:.68rem;color:#777;text-align:center;padding:3px 0 1px;letter-spacing:1px;border-top:1px solid #333;margin-top:2px}
+.pal-label:first-child{border-top:none;margin-top:0}
+.chip{width:50px;height:32px;border-radius:6px;border:2px solid transparent;
+  cursor:pointer;font-size:.95rem;font-weight:700;display:flex;align-items:center;
+  justify-content:center;transition:all .15s;user-select:none}
+.chip:hover{border-color:#d4a74a}.chip.armed{border-color:#00cc44;background:rgba(0,204,68,.15)}
+.chip-p1{background:#fff0e0;color:#c02000}.chip-p2{background:#252535;color:#dde}
+.game-hdr{width:100%;display:flex;align-items:center;gap:10px}
+#turn-lbl{flex:1;text-align:center;font-size:1rem;min-height:1.4em}
+#check-lbl{text-align:center;color:#ff7777;font-size:.9rem;min-height:1.3em}
+canvas{display:block;cursor:pointer}
+#promo-ov{position:fixed;inset:0;background:rgba(0,0,0,.78);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:99}
+#promo-ov h3{color:#d4a74a;font-size:1.15rem}
+.promo-row{display:flex;gap:12px}
+.promo-btn{width:68px;height:68px;border-radius:50%;border:3px solid #666;font-size:1.5rem;font-weight:700;
+  cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;transition:border-color .15s}
+.promo-btn:hover{border-color:#d4a74a}
+.promo-p1{background:#fff0e0;color:#c02000}.promo-p2{background:#252535;color:#dde}
+.toggle-row{display:flex;gap:18px;font-size:.88rem;color:#aaa;align-items:center}
+.toggle-row label{cursor:pointer;display:flex;align-items:center;gap:5px}
+.hand-row{width:100%;display:flex;justify-content:space-between;gap:8px}
+.hand-panel{display:flex;flex-wrap:wrap;gap:4px;padding:4px 8px;min-height:38px;
+  flex:1;background:#181828;border-radius:8px;border:1px solid #333;align-content:flex-start}
+.hand-lbl{width:100%;font-size:.62rem;color:#666;letter-spacing:1px}
+.hand-chip{padding:2px 7px;border-radius:5px;border:2px solid transparent;
+  font-size:.88rem;font-weight:700;cursor:pointer;user-select:none;transition:all .15s}
+.hand-chip:hover{border-color:#d4a74a}.hand-chip.armed{border-color:#00cc44;background:rgba(0,204,68,.15)}
+.chip-p1.hand-chip{background:#fff0e0;color:#c02000}.chip-p2.hand-chip{background:#252535;color:#dde}
+.chip-inactive{opacity:.45;cursor:default}
+</style>
+</head>
+<body>
+<h1>棋 藝 引 擎</h1>
+
+<div id="scr-menu" class="scr">
+  <div class="menu-grid">
+    <div class="game-card" onclick="startGame('xiangqi')">
+      <span class="icon">♟</span><span class="name">中國象棋</span>
+    </div>
+    <div class="game-card" onclick="startGame('chess')">
+      <span class="icon">♛</span><span class="name">國際象棋</span>
+    </div>
+    <div class="game-card" onclick="startGame('chaturanga')">
+      <span class="icon">🏺</span><span class="name">Chaturanga<br><small style="font-size:.72rem;font-weight:400;color:#aaa">印度古象棋</small></span>
+    </div>
+    <div class="game-card" onclick="startGame('shatranj')">
+      <span class="icon">🕌</span><span class="name">Shatranj<br><small style="font-size:.72rem;font-weight:400;color:#aaa">波斯象棋</small></span>
+    </div>
+    <div class="game-card" onclick="startGame('makruk')">
+      <span class="icon">🐘</span><span class="name">Makruk<br><small style="font-size:.72rem;font-weight:400;color:#aaa">泰國象棋</small></span>
+    </div>
+    <div class="game-card" onclick="startGame('sittuyin')">
+      <span class="icon">🏯</span><span class="name">Sittuyin<br><small style="font-size:.72rem;font-weight:400;color:#aaa">緬甸象棋</small></span>
+    </div>
+    <div class="game-card" onclick="startGame('ouk')">
+      <span class="icon">🛕</span><span class="name">Ouk Chatrang<br><small style="font-size:.72rem;font-weight:400;color:#aaa">柬埔寨象棋</small></span>
+    </div>
+    <div class="game-card dashed" onclick="openSetup('xiangqi')">
+      <span class="icon">✏️</span><span class="name">自訂布局</span>
+    </div>
+  </div>
+</div>
+
+<div id="scr-setup" class="scr hidden">
+  <div class="btn-row">
+    <button class="btn btn-dim" id="stab-xiangqi" onclick="setSetupGame('xiangqi')">中國象棋棋盤</button>
+    <button class="btn btn-dim" id="stab-chess"   onclick="setSetupGame('chess')">國際象棋棋盤</button>
+  </div>
+  <div class="toggle-row">先手：
+    <label><input type="radio" name="fp" value="p1" checked> 紅/白方（左）</label>
+    <label><input type="radio" name="fp" value="p2"> 黑方（右）</label>
+  </div>
+  <div class="setup-wrap">
+    <div class="palette" id="pal-p1"></div>
+    <canvas id="setup-cv"></canvas>
+    <div class="palette" id="pal-p2"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-red"  onclick="clearSetup()">清空</button>
+    <button class="btn btn-dim"  onclick="resetSetup()">預設布局</button>
+    <button class="btn btn-gold" onclick="startFromSetup()">開始遊戲</button>
+  </div>
+  <button class="btn btn-dim" onclick="show('menu')">← 返回選單</button>
+</div>
+
+<div id="scr-game" class="scr hidden">
+  <div class="game-hdr">
+    <button class="btn btn-dim" style="padding:6px 14px" onclick="show('menu')">←</button>
+    <div id="turn-lbl"></div>
+    <button class="btn btn-dim" style="padding:6px 14px" onclick="openSetup(gtype)">✏️</button>
+  </div>
+  <div id="setup-phase-row" class="hidden" style="width:100%">
+    <div class="hand-lbl" id="setup-phase-lbl" style="font-size:.8rem;color:#d4a74a;margin-bottom:4px"></div>
+    <div class="hand-panel" id="setup-phase-pieces" style="width:100%;flex-direction:row;flex-wrap:wrap"></div>
+  </div>
+  <div id="hand-row" class="hand-row hidden">
+    <div class="hand-panel" id="hand-p2"><div class="hand-lbl">黑方持駒</div></div>
+    <div class="hand-panel" id="hand-p1"><div class="hand-lbl">先手持駒</div></div>
+  </div>
+  <canvas id="game-cv"></canvas>
+  <div id="check-lbl"></div>
+  <div class="btn-row">
+    <button class="btn btn-gold" onclick="restart()">重新開始</button>
+  </div>
+</div>
+
+<div id="promo-ov" class="hidden">
+  <h3>選擇升變棋子</h3>
+  <div class="promo-row" id="promo-row"></div>
+</div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Utilities
+// ══════════════════════════════════════════════════════════════════════════════
+const K   = ([c,r]) => `${c},${r}`;
+const add = ([c,r],[dc,dr]) => [c+dc,r+dr];
+const ibXQ = ([c,r]) => c>=0&&c<9&&r>=0&&r<10;
+const ibCH = ([c,r]) => c>=0&&c<8&&r>=0&&r<8;
+
+function slide(board,from,owner,dirs,ib){
+  const res=[];
+  for(const d of dirs){let c=add(from,d);
+    while(ib(c)){const o=board.get(K(c));if(o){if(o.owner!==owner)res.push(c);break;}res.push(c);c=add(c,d);}
+  }return res;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// XIANGQI piece definitions  (owner is always 'p1' or 'p2')
+// ══════════════════════════════════════════════════════════════════════════════
+const ORTHO=[[ 1,0],[-1,0],[0, 1],[0,-1]];
+const DIAG =[[ 1,1],[ 1,-1],[-1, 1],[-1,-1]];
+
+// p1 = bottom (rows 7-9), p2 = top (rows 0-2)
+function xqPalace(owner){
+  const rs=owner==='p1'?[7,8,9]:[0,1,2],s=new Set();
+  for(const r of rs)for(const c of[3,4,5])s.add(K([c,r]));return s;
+}
+
+const XQ={
+  General:{lbl:{p1:'帥',p2:'將'},mv:(b,[c,r],o)=>{
+    const p=xqPalace(o);
+    return ORTHO.filter(d=>{const t=add([c,r],d);return ibXQ(t)&&p.has(K(t))&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add([c,r],d));
+  }},
+  Advisor:{lbl:{p1:'仕',p2:'士'},mv:(b,[c,r],o)=>{
+    const p=xqPalace(o);
+    return DIAG.filter(d=>{const t=add([c,r],d);return ibXQ(t)&&p.has(K(t))&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add([c,r],d));
+  }},
+  Elephant:{lbl:{p1:'相',p2:'象'},mv:(b,[c,r],o)=>{
+    const hr=o==='p1'?[5,6,7,8,9]:[0,1,2,3,4];
+    return[[2,2],[2,-2],[-2,2],[-2,-2]].filter(([dc,dr])=>{
+      const m=add([c,r],[dc/2,dr/2]);if(b.has(K(m)))return false;
+      const t=add([c,r],[dc,dr]);return ibXQ(t)&&hr.includes(t[1])&&(!b.get(K(t))||b.get(K(t)).owner!==o);
+    }).map(d=>add([c,r],d));
+  }},
+  Horse:{lbl:{p1:'傌',p2:'馬'},mv:(b,[c,r],o)=>{
+    return[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].filter(([dc,dr])=>{
+      const blk=add([c,r],[Math.abs(dc)>Math.abs(dr)?Math.sign(dc):0,Math.abs(dr)>Math.abs(dc)?Math.sign(dr):0]);
+      if(b.has(K(blk)))return false;
+      const t=add([c,r],[dc,dr]);return ibXQ(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);
+    }).map(d=>add([c,r],d));
+  }},
+  Chariot:{lbl:{p1:'俥',p2:'車'},mv:(b,f,o)=>slide(b,f,o,ORTHO,ibXQ)},
+  Cannon:{lbl:{p1:'炮',p2:'砲'},mv:(b,[c,r],o)=>{
+    const res=[];
+    for(const d of ORTHO){let cur=add([c,r],d),sc=0;
+      while(ibXQ(cur)){const oc=b.get(K(cur));
+        if(sc===0){if(oc)sc++;else res.push(cur);}
+        else if(sc===1){if(oc){if(oc.owner!==o)res.push(cur);break;}}
+        cur=add(cur,d);}
+    }return res;
+  }},
+  Soldier:{lbl:{p1:'兵',p2:'卒'},mv:(b,[c,r],o)=>{
+    const fw=o==='p1'?-1:1,cx=o==='p1'?r<=4:r>=5;
+    return[[0,fw],...(cx?[[1,0],[-1,0]]:[])]
+      .filter(d=>{const t=add([c,r],d);return ibXQ(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add([c,r],d));
+  }},
+};
+
+// p1=bottom, p2=top  (mirrors chess white=bottom)
+const XQ_SETUP=[
+  ['Chariot','p2',[0,0]],['Horse','p2',[1,0]],['Elephant','p2',[2,0]],
+  ['Advisor','p2',[3,0]],['General','p2',[4,0]],['Advisor','p2',[5,0]],
+  ['Elephant','p2',[6,0]],['Horse','p2',[7,0]],['Chariot','p2',[8,0]],
+  ['Cannon','p2',[1,2]],['Cannon','p2',[7,2]],
+  ['Soldier','p2',[0,3]],['Soldier','p2',[2,3]],['Soldier','p2',[4,3]],
+  ['Soldier','p2',[6,3]],['Soldier','p2',[8,3]],
+  ['Chariot','p1',[0,9]],['Horse','p1',[1,9]],['Elephant','p1',[2,9]],
+  ['Advisor','p1',[3,9]],['General','p1',[4,9]],['Advisor','p1',[5,9]],
+  ['Elephant','p1',[6,9]],['Horse','p1',[7,9]],['Chariot','p1',[8,9]],
+  ['Cannon','p1',[1,7]],['Cannon','p1',[7,7]],
+  ['Soldier','p1',[0,6]],['Soldier','p1',[2,6]],['Soldier','p1',[4,6]],
+  ['Soldier','p1',[6,6]],['Soldier','p1',[8,6]],
+];
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CHESS piece definitions  (owner is always 'p1' or 'p2')
+// ══════════════════════════════════════════════════════════════════════════════
+const CH_LBL={p1:{King:'K',Queen:'Q',Rook:'R',Bishop:'B',Knight:'N',Pawn:'P'},
+              p2:{King:'K',Queen:'Q',Rook:'R',Bishop:'B',Knight:'N',Pawn:'P'}};
+
+// Per-game piece labels used by showProm and drawPiece for non-XQ/non-CH games
+// Populated as each variant is added (TASK-014+)
+const GAME_LBL={};
+
+const CH={
+  Rook  :{mv:(b,f,o)=>slide(b,f,o,ORTHO,ibCH)},
+  Bishop:{mv:(b,f,o)=>slide(b,f,o,DIAG,ibCH)},
+  Queen :{mv:(b,f,o)=>[...slide(b,f,o,ORTHO,ibCH),...slide(b,f,o,DIAG,ibCH)]},
+  Knight:{mv:(b,f,o)=>[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].filter(d=>{
+    const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  King:{mv:(b,f,o,ex={})=>{
+    const bas=[...ORTHO,...DIAG].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d));
+    const cr=(ex.cr||{})[o]||{},br=o==='p1'?7:0,cs=[];
+    if(cr.k&&!b.has(K([5,br]))&&!b.has(K([6,br])))cs.push([6,br]);
+    if(cr.q&&!b.has(K([1,br]))&&!b.has(K([2,br]))&&!b.has(K([3,br])))cs.push([2,br]);
+    return[...bas,...cs];
+  }},
+  Pawn:{mv:(b,[c,r],o,ex={})=>{
+    const fw=o==='p1'?-1:1,sr=o==='p1'?6:1,res=[];
+    const one=[c,r+fw];
+    if(ibCH(one)&&!b.has(K(one))){res.push(one);
+      if(r===sr){const two=[c,r+2*fw];if(!b.has(K(two)))res.push(two);}}
+    for(const dc of[-1,1]){const d=[c+dc,r+fw];if(!ibCH(d))continue;
+      const oc=b.get(K(d));
+      if((oc&&oc.owner!==o)||(ex.ep&&K(d)===K(ex.ep)))res.push(d);}
+    return res;
+  }},
+};
+
+const CH_SETUP=[
+  ['Rook','p2',[0,0]],['Knight','p2',[1,0]],['Bishop','p2',[2,0]],
+  ['Queen','p2',[3,0]],['King','p2',[4,0]],['Bishop','p2',[5,0]],
+  ['Knight','p2',[6,0]],['Rook','p2',[7,0]],
+  ...Array.from({length:8},(_,c)=>['Pawn','p2',[c,1]]),
+  ['Rook','p1',[0,7]],['Knight','p1',[1,7]],['Bishop','p1',[2,7]],
+  ['Queen','p1',[3,7]],['King','p1',[4,7]],['Bishop','p1',[5,7]],
+  ['Knight','p1',[6,7]],['Rook','p1',[7,7]],
+  ...Array.from({length:8},(_,c)=>['Pawn','p1',[c,6]]),
+];
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CHATURANGA piece definitions  (ancient Indian, 8×8)
+// Raja: 1 step any dir  | Mantri: 1 step diagonal  | Ratha: rook-slide
+// Gaja: jumps ±2 diag   | Ashva: L-jump (knight)   | Padati: pawn (no double)
+// ══════════════════════════════════════════════════════════════════════════════
+const CT={
+  Raja:  {mv:(b,f,o)=>[...ORTHO,...DIAG].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  Mantri:{mv:(b,f,o)=>DIAG.filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  Ratha: {mv:(b,f,o)=>slide(b,f,o,ORTHO,ibCH)},
+  Gaja:  {mv:(b,f,o)=>[[2,2],[2,-2],[-2,2],[-2,-2]].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  Ashva: {mv:(b,f,o)=>[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  Padati:{mv:(b,[c,r],o)=>{
+    const fw=o==='p1'?-1:1,res=[];
+    const one=[c,r+fw];if(ibCH(one)&&!b.has(K(one)))res.push(one);
+    for(const dc of[-1,1]){const t=[c+dc,r+fw];if(ibCH(t)){const oc=b.get(K(t));if(oc&&oc.owner!==o)res.push(t);}}
+    return res;
+  }},
+};
+
+const CT_SETUP=[
+  ['Ratha','p2',[0,0]],['Ashva','p2',[1,0]],['Gaja','p2',[2,0]],
+  ['Mantri','p2',[3,0]],['Raja','p2',[4,0]],['Gaja','p2',[5,0]],
+  ['Ashva','p2',[6,0]],['Ratha','p2',[7,0]],
+  ...Array.from({length:8},(_,c)=>['Padati','p2',[c,1]]),
+  ['Ratha','p1',[0,7]],['Ashva','p1',[1,7]],['Gaja','p1',[2,7]],
+  ['Mantri','p1',[3,7]],['Raja','p1',[4,7]],['Gaja','p1',[5,7]],
+  ['Ashva','p1',[6,7]],['Ratha','p1',[7,7]],
+  ...Array.from({length:8},(_,c)=>['Padati','p1',[c,6]]),
+];
+
+GAME_LBL['chaturanga']={Raja:'R',Mantri:'M',Ratha:'C',Gaja:'E',Ashva:'H',Padati:'P'};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SHATRANJ piece definitions  (Persian, 8×8 — movements identical to Chaturanga)
+// Shah=Raja  Firzan=Mantri  Rukh=Ratha  Alfil=Gaja  Faras=Ashva  Baidaq=Padati
+// ══════════════════════════════════════════════════════════════════════════════
+const ST={
+  Shah:   CT.Raja,   // 1 step any direction
+  Firzan: CT.Mantri, // 1 step diagonal (very weak)
+  Rukh:   CT.Ratha,  // rook-slide
+  Alfil:  CT.Gaja,   // jump ±2 diagonal
+  Faras:  CT.Ashva,  // L-knight
+  Baidaq: CT.Padati, // pawn, no double move
+};
+
+const ST_SETUP=[
+  ['Rukh','p2',[0,0]],['Faras','p2',[1,0]],['Alfil','p2',[2,0]],
+  ['Firzan','p2',[3,0]],['Shah','p2',[4,0]],['Alfil','p2',[5,0]],
+  ['Faras','p2',[6,0]],['Rukh','p2',[7,0]],
+  ...Array.from({length:8},(_,c)=>['Baidaq','p2',[c,1]]),
+  ['Rukh','p1',[0,7]],['Faras','p1',[1,7]],['Alfil','p1',[2,7]],
+  ['Firzan','p1',[3,7]],['Shah','p1',[4,7]],['Alfil','p1',[5,7]],
+  ['Faras','p1',[6,7]],['Rukh','p1',[7,7]],
+  ...Array.from({length:8},(_,c)=>['Baidaq','p1',[c,6]]),
+];
+
+GAME_LBL['shatranj']={Shah:'S',Firzan:'V',Rukh:'R',Alfil:'A',Faras:'H',Baidaq:'P'};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MAKRUK piece definitions  (Thai, 8×8)
+// Khun=King  Met=1-diag  Ruea=rook  Khon=1-forward+4-diag(unique!)  Ma=knight  Bia=pawn
+// Pawns start on rank 3 (row 5 for p1, row 2 for p2); promote at rank 6 (row 2/5)
+// ══════════════════════════════════════════════════════════════════════════════
+const MK={
+  Khun: CT.Raja,    // 1 step any direction
+  Met:  CT.Mantri,  // 1 step diagonal only (weak queen)
+  Ruea: CT.Ratha,   // rook-slide
+  Khon: {mv:(b,[c,r],o)=>{  // 1 forward (owner-relative) + 4 diagonals
+    const fw=o==='p1'?-1:1;
+    return[[0,fw],[1,1],[1,-1],[-1,1],[-1,-1]]
+      .filter(d=>{const t=add([c,r],d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);})
+      .map(d=>add([c,r],d));
+  }},
+  Ma:   CT.Ashva,   // L-knight
+  Bia:  CT.Padati,  // pawn (no double step)
+};
+
+const MK_SETUP=[
+  ['Ruea','p2',[0,0]],['Ma','p2',[1,0]],['Khon','p2',[2,0]],
+  ['Met','p2',[3,0]], ['Khun','p2',[4,0]],['Khon','p2',[5,0]],
+  ['Ma','p2',[6,0]],  ['Ruea','p2',[7,0]],
+  ...Array.from({length:8},(_,c)=>['Bia','p2',[c,2]]),  // rank 3 from p2 side
+  ['Ruea','p1',[0,7]],['Ma','p1',[1,7]],['Khon','p1',[2,7]],
+  ['Met','p1',[3,7]], ['Khun','p1',[4,7]],['Khon','p1',[5,7]],
+  ['Ma','p1',[6,7]],  ['Ruea','p1',[7,7]],
+  ...Array.from({length:8},(_,c)=>['Bia','p1',[c,5]]),  // rank 3 from p1 side
+];
+
+GAME_LBL['makruk']={Khun:'Kn',Met:'Me',Ruea:'Ru',Khon:'Kh',Ma:'Ma',Bia:'Bi'};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SITTUYIN piece definitions  (Burmese, 8×8)
+// SitKe=King  Thida=1-diag  Sin=rook  Myin=knight  AungGway=1fwd+4diag  Ne=pawn
+// Back-rank pieces placed during free-setup phase (TASK-013); only Ne pre-placed.
+// Ne promotes at rank 8 (last row, rows 0/7) → Thida (already in PROMO_CFG).
+// ══════════════════════════════════════════════════════════════════════════════
+const SY={
+  SitKe:    CT.Raja,    // 1 step any direction
+  Thida:    CT.Mantri,  // 1 step diagonal (weak general)
+  Sin:      CT.Ratha,   // rook-slide (called "elephant" but moves like rook)
+  Myin:     CT.Ashva,   // L-knight
+  AungGway: MK.Khon,   // 1 forward + 4 diagonals (same as Makruk Khon)
+  Ne:       CT.Padati,  // pawn (1 forward, diagonal capture)
+};
+
+// Only Ne (pawns) pre-placed; back-rank pieces go to ex.toPlace via SETUP_PHASE_CFG.
+// Staircase pattern: cols 0-3 on rank 3, cols 4-7 on rank 4 (from each side).
+const SY_SETUP=[
+  ['Ne','p2',[0,2]],['Ne','p2',[1,2]],['Ne','p2',[2,2]],['Ne','p2',[3,2]],
+  ['Ne','p2',[4,3]],['Ne','p2',[5,3]],['Ne','p2',[6,3]],['Ne','p2',[7,3]],
+  ['Ne','p1',[0,5]],['Ne','p1',[1,5]],['Ne','p1',[2,5]],['Ne','p1',[3,5]],
+  ['Ne','p1',[4,4]],['Ne','p1',[5,4]],['Ne','p1',[6,4]],['Ne','p1',[7,4]],
+];
+
+GAME_LBL['sittuyin']={SitKe:'Sk',Thida:'Th',Sin:'Si',Myin:'My',AungGway:'Ag',Ne:'Ne'};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// OUK CHATRANG piece definitions  (Cambodian, 8×8 — very close to Makruk)
+// Sdech=King  Neang=1-diag(+first-move 2-diag jump)  Touk=rook  Koul=Khon  Ses=knight  Trey=pawn
+// Neang first move: normal 1-diag step OR jump to any [±2,±2] square (piece.moved tracks this).
+// Trey promotes at rank 6 (rows p1:2, p2:5) → Neang  (same promotion zone as Makruk Bia).
+// ══════════════════════════════════════════════════════════════════════════════
+const OUK={
+  Sdech: CT.Raja,   // 1 step any direction
+  Neang: {mv:(b,f,o)=>{
+    const p=b.get(K(f));
+    const base=DIAG.filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d));
+    if(p?.moved)return base;
+    // First move: also jump to 2-diagonal squares (Neang activation)
+    const bonus=[[2,2],[2,-2],[-2,2],[-2,-2]].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d));
+    return[...base,...bonus];
+  }},
+  Touk:  CT.Ratha,  // rook-slide
+  Koul:  MK.Khon,  // 1 forward + 4 diagonals (same as Makruk Khon)
+  Ses:   CT.Ashva,  // L-knight
+  Trey:  CT.Padati, // pawn (1 forward, diagonal capture)
+};
+
+const OUK_SETUP=[
+  ['Touk','p2',[0,0]],['Ses','p2',[1,0]],['Koul','p2',[2,0]],
+  ['Neang','p2',[3,0]],['Sdech','p2',[4,0]],['Koul','p2',[5,0]],
+  ['Ses','p2',[6,0]],['Touk','p2',[7,0]],
+  ...Array.from({length:8},(_,c)=>['Trey','p2',[c,2]]),  // rank 3 from p2
+  ['Touk','p1',[0,7]],['Ses','p1',[1,7]],['Koul','p1',[2,7]],
+  ['Neang','p1',[3,7]],['Sdech','p1',[4,7]],['Koul','p1',[5,7]],
+  ['Ses','p1',[6,7]],['Touk','p1',[7,7]],
+  ...Array.from({length:8},(_,c)=>['Trey','p1',[c,5]]),  // rank 3 from p1
+];
+
+GAME_LBL['ouk']={Sdech:'Sd',Neang:'Ng',Touk:'Tk',Koul:'Ko',Ses:'Se',Trey:'Tr'};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Check detection  (unified — handles mixed XQ+CH pieces on same board)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Find the "king" piece: General (XQ), King (CH), or Raja (Chaturanga/Shatranj)
+function findRuler(board,owner){
+  for(const[,p]of board)
+    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech'].includes(p.def))return p.coord;
+  return null;
+}
+
+// Raw moves for any piece (no check-filter) using the game's bounds
+function rawMoves(board,from,owner,ib,ex={}){
+  const p=board.get(K(from));if(!p)return[];
+  if(XQ[p.def])return XQ[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(CH[p.def])return CH[p.def].mv(board,from,owner,ex).filter(m=>ib(m));
+  if(CT[p.def])return CT[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(ST[p.def])return ST[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(MK[p.def])return MK[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(SY[p.def])return SY[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(OUK[p.def])return OUK[p.def].mv(board,from,owner).filter(m=>ib(m));
+  return[];
+}
+
+function isInCheck(board,owner,ib,ex={}){
+  const r=findRuler(board,owner);if(!r)return false;
+  const rk=K(r),opp=owner==='p1'?'p2':'p1';
+  for(const[,p]of board){
+    if(p.owner!==opp)continue;
+    if(rawMoves(board,p.coord,p.owner,ib,ex).some(m=>K(m)===rk))return true;
+  }
+  // Flying general: only between two Generals on XQ board
+  if(ib===ibXQ){
+    const og=findRuler(board,opp);
+    const rPiece=board.get(rk),ogPiece=og?board.get(K(og)):null;
+    if(og&&r[0]===og[0]&&rPiece?.def==='General'&&ogPiece?.def==='General'){
+      const col=r[0],[r1,r2]=[Math.min(r[1],og[1]),Math.max(r[1],og[1])];
+      let blk=false;for(let rr=r1+1;rr<r2;rr++)if(board.has(K([col,rr]))){blk=true;break;}
+      if(!blk)return true;
+    }
+  }
+  return false;
+}
+
+function getLegalMoves(board,from,owner,ib,ex={}){
+  const p=board.get(K(from));if(!p||p.owner!==owner)return[];
+  const raw=rawMoves(board,from,owner,ib,ex);
+  const br=owner==='p1'?7:0;
+  return raw.filter(to=>{
+    // Castling: also check intermediate square
+    if(p.def==='King'&&Math.abs(to[0]-from[0])===2){
+      if(isInCheck(board,owner,ib,ex))return false;
+      const mid=[(from[0]+to[0])/2,from[1]];
+      const sm=new Map(board);sm.delete(K(from));sm.set(K(mid),{...p,coord:mid});
+      if(isInCheck(sm,owner,ib,ex))return false;
+    }
+    const s=new Map(board);
+    // En passant: remove jumped pawn
+    if(p.def==='Pawn'&&ex.ep&&K(to)===K(ex.ep)){
+      const fw=owner==='p1'?-1:1;s.delete(K([to[0],to[1]-fw]));}
+    s.delete(K(from));s.set(K(to),{...p,coord:to});
+    return!isInCheck(s,owner,ib,ex);
+  });
+}
+
+function hasAnyLegal(board,owner,ib,ex={}){
+  for(const[,p]of board){if(p.owner!==owner)continue;
+    if(getLegalMoves(board,p.coord,owner,ib,ex).length>0)return true;}
+  return false;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Rendering
+// ══════════════════════════════════════════════════════════════════════════════
+function layout(gt){
+  return gt==='xiangqi'
+    ?{C:58,P:46,W:58*8+92,H:58*9+92}
+    :{C:62,P:36,W:62*7+72,H:62*7+72};
+}
+function toXY([c,r],L){return[L.P+c*L.C,L.P+r*L.C];}
+function toCell([x,y],L){return[Math.round((x-L.P)/L.C),Math.round((y-L.P)/L.C)];}
+
+function drawXQBoard(ctx,L){
+  ctx.fillStyle='#f0c060';ctx.fillRect(0,0,L.W,L.H);
+  ctx.strokeStyle='#8b6000';ctx.lineWidth=1.5;
+  const{C,P}=L;
+  for(let c=0;c<=8;c++){ctx.beginPath();
+    if(c===0||c===8){ctx.moveTo(P+c*C,P);ctx.lineTo(P+c*C,P+9*C);}
+    else{ctx.moveTo(P+c*C,P);ctx.lineTo(P+c*C,P+4*C);ctx.moveTo(P+c*C,P+5*C);ctx.lineTo(P+c*C,P+9*C);}
+    ctx.stroke();}
+  for(let r=0;r<=9;r++){ctx.beginPath();ctx.moveTo(P,P+r*C);ctx.lineTo(P+8*C,P+r*C);ctx.stroke();}
+  ctx.beginPath();
+  ctx.moveTo(P+3*C,P);ctx.lineTo(P+5*C,P+2*C);ctx.moveTo(P+5*C,P);ctx.lineTo(P+3*C,P+2*C);
+  ctx.moveTo(P+3*C,P+7*C);ctx.lineTo(P+5*C,P+9*C);ctx.moveTo(P+5*C,P+7*C);ctx.lineTo(P+3*C,P+9*C);
+  ctx.stroke();
+  ctx.fillStyle='#8b6000';ctx.font=`bold ${C*.28}px serif`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('楚 河',P+2*C,P+4.5*C);ctx.fillText('漢 界',P+6*C,P+4.5*C);
+}
+
+function drawCHBoard(ctx,L){
+  const{C,P}=L;
+  ctx.fillStyle='#261e16';ctx.fillRect(0,0,L.W,L.H);
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    ctx.fillStyle=(c+r)%2===0?'#f0d9b5':'#b58863';
+    ctx.fillRect(P+c*C-C/2,P+r*C-C/2,C,C);}
+  ctx.fillStyle='#8b7050';ctx.font=`${C*.17}px sans-serif`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  'abcdefgh'.split('').forEach((f,c)=>ctx.fillText(f,P+c*C,P+7*C+C*.42));
+  for(let r=0;r<8;r++)ctx.fillText(8-r,P-C*.42,P+r*C);
+}
+
+// Unified piece renderer: owner → color, def → label/font
+function drawPiece(ctx,piece,sel,L){
+  const[x,y]=toXY(piece.coord,L),rad=L.C*.41;
+  ctx.beginPath();ctx.arc(x+2,y+2,rad,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.28)';ctx.fill();
+
+  const isP1=piece.owner==='p1';
+  const isXQ=!!XQ[piece.def];
+  const bg    =isP1?'#fff8f0':'#1c1c2e';
+  const border=sel?'#00cc44':(isP1?'#cc2200':'#7799bb');
+  const txt   =isP1?'#cc2200':'#ccddee';
+
+  ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.fillStyle=bg;ctx.fill();
+  ctx.strokeStyle=border;ctx.lineWidth=sel?3.5:2;ctx.stroke();
+
+  if(isXQ){
+    // XQ pieces get inner ring + Chinese serif label
+    ctx.beginPath();ctx.arc(x,y,rad*.81,0,Math.PI*2);ctx.strokeStyle=border;ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle=txt;ctx.font=`bold ${L.C*.43}px serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(XQ[piece.def].lbl[piece.owner]??'?',x,y);
+  } else {
+    // CH / CT / other 8×8 pieces: letter + sans-serif
+    ctx.fillStyle=txt;ctx.font=`bold ${L.C*.4}px sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    const lbl=CH_LBL[piece.owner]?.[piece.def]??GAME_LBL[gtype]?.[piece.def]??piece.def[0];
+    ctx.fillText(lbl,x,y);
+  }
+}
+
+function drawHint(ctx,coord,isCapture,L){
+  const[x,y]=toXY(coord,L);
+  ctx.beginPath();ctx.arc(x,y,isCapture?L.C*.42:L.C*.14,0,Math.PI*2);
+  ctx.fillStyle=isCapture?'rgba(255,68,0,.28)':'rgba(0,136,255,.52)';ctx.fill();
+  if(isCapture){ctx.strokeStyle='#ff4400';ctx.lineWidth=2.5;ctx.stroke();}
+}
+
+function renderBoard(cvs,board,gt,sel,legal,extraHints=[]){
+  const L=layout(gt),ctx=cvs.getContext('2d');
+  cvs.width=L.W;cvs.height=L.H;
+  if(gt==='xiangqi')drawXQBoard(ctx,L);else drawCHBoard(ctx,L);
+  if(sel)legal.forEach(to=>drawHint(ctx,to,board.has(K(to)),L));
+  extraHints.forEach(c=>drawHint(ctx,c,false,L));
+  for(const[,p]of board)drawPiece(ctx,p,sel&&K(p.coord)===K(sel),L);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Promotion config — one entry per game type that has promotion
+// defs   : piece defs that can promote
+// rows   : promotion row(s) per owner (number or array of numbers)
+// choices: pieces to offer UI; length===1 → auto-promote without dialog
+// ══════════════════════════════════════════════════════════════════════════════
+const PROMO_CFG = {
+  chess:      { defs:['Pawn'],   rows:{p1:0,      p2:7},      choices:['Queen','Rook','Bishop','Knight'] },
+  chaturanga: { defs:['Padati'], rows:{p1:0,      p2:7},      choices:['Mantri'] },
+  shatranj:   { defs:['Baidaq'], rows:{p1:0,      p2:7},      choices:['Firzan'] },
+  makruk:     { defs:['Bia'],    rows:{p1:2,      p2:5},      choices:['Met']    },
+  sittuyin:   { defs:['Ne'],     rows:{p1:0,      p2:7},      choices:['Thida']  },
+  ouk:        { defs:['Trey'],   rows:{p1:2,      p2:5},      choices:['Neang']  },
+  shogi:      { defs:['Fu','Kyosha','Keima','Gin','Hisha','Kaku'],
+                rows:{p1:[0,1,2],p2:[6,7,8]},                 choices:null       },
+};
+
+function promoRowHit(cfg, owner, row){
+  const r=cfg.rows[owner];
+  return Array.isArray(r)?r.includes(row):r===row;
+}
+
+// Games where stalemate = loss for the stalemated player (not a draw)
+const STALEMATE_LOSES={chaturanga:true,shatranj:true};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Drop (持駒) mechanic — used by Shogi; hook-ready for future variants
+// ══════════════════════════════════════════════════════════════════════════════
+const DROPS_ENABLED = { shogi:true };
+
+// Map promoted piece def → base def for when a piece is captured and enters hand
+const SHOGI_DEMOTE = {
+  Ryu:'Hisha', Uma:'Kaku', Narigin:'Gin', Narikei:'Keima', Narikyo:'Kyosha', Tokin:'Fu',
+};
+
+// Returns all empty squares where owner may drop def (game-specific restrictions
+// are applied in filterDropSquares, which TASK-023 will populate for Shogi).
+function getDropSquares(def, owner, board, ib){
+  const squares=[];
+  for(let c=0;c<10;c++)for(let r=0;r<11;r++)
+    if(ib([c,r])&&!board.has(K([c,r])))squares.push([c,r]);
+  return filterDropSquares(def,owner,squares,board,ib);
+}
+
+// Hook: override per-game drop restrictions. Stub returns all squares unchanged.
+function filterDropSquares(def,owner,squares){return squares;}
+
+function doDrop(def,coord){
+  ex.hand[player][def]--;
+  if(ex.hand[player][def]<=0)delete ex.hand[player][def];
+  board.set(K(coord),{def,owner:player,coord:[...coord]});
+  handArmed=null;
+  updateHandUI();
+  finishTurn();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Free-setup phase — players place pieces before normal play begins
+// Used by Sittuyin (TASK-017) and any future variant with a deployment phase.
+// ══════════════════════════════════════════════════════════════════════════════
+const SETUP_PHASE_CFG = {
+  // sittuyin pieces defined in TASK-017; keys pre-registered here so the engine works
+  sittuyin: {
+    toPlace: { p1:['SitKe','Thida','Sin','Sin','Myin','Myin','AungGway','AungGway'],
+               p2:['SitKe','Thida','Sin','Sin','Myin','Myin','AungGway','AungGway'] },
+    halfRows: { p1:[4,5,6,7], p2:[0,1,2,3] }, // valid placement rows per owner on 8×8
+  },
+};
+
+function getSetupHints(){
+  if(ex.phase!=='setup'||!ex.setupArmed)return[];
+  const cfg=SETUP_PHASE_CFG[gtype];
+  const valid=cfg.halfRows[player];
+  const hints=[];
+  for(let c=0;c<10;c++)for(let r=0;r<11;r++)
+    if(gameIb()([c,r])&&valid.includes(r)&&!board.has(K([c,r])))hints.push([c,r]);
+  return hints;
+}
+
+function handleSetupClick(coord){
+  if(!ex.setupArmed)return;
+  const cfg=SETUP_PHASE_CFG[gtype];
+  if(!cfg.halfRows[player].includes(coord[1]))return;
+  if(board.has(K(coord)))return;
+  // Place piece
+  board.set(K(coord),{def:ex.setupArmed,owner:player,coord:[...coord]});
+  const arr=ex.toPlace[player],idx=arr.indexOf(ex.setupArmed);
+  if(idx>=0)arr.splice(idx,1);
+  ex.setupArmed=null;
+  // All placed → start play
+  if(ex.toPlace.p1.length===0&&ex.toPlace.p2.length===0){
+    ex.phase='play';
+    player=savedFP||'p1';
+    updateStatus();updateSetupPhaseUI();render();
+    return;
+  }
+  // Advance to next player who still has pieces to place
+  const next=player==='p1'?'p2':'p1';
+  player=ex.toPlace[next].length>0?next:player;
+  updateStatus();updateSetupPhaseUI();render();
+}
+
+function updateSetupPhaseUI(){
+  const row=document.getElementById('setup-phase-row');
+  if(ex.phase!=='setup'){row.classList.add('hidden');return;}
+  row.classList.remove('hidden');
+  const remaining=ex.toPlace[player]||[];
+  document.getElementById('setup-phase-lbl').textContent=
+    `📐 布陣階段 — ${player==='p1'?'先手':'後手'} 放置棋子（剩 ${remaining.length} 枚）`;
+  const el=document.getElementById('setup-phase-pieces');el.innerHTML='';
+  const counts={};remaining.forEach(d=>{counts[d]=(counts[d]||0)+1;});
+  const seen=new Set();
+  remaining.forEach(def=>{
+    if(seen.has(def))return;seen.add(def);
+    const c=document.createElement('div');
+    const armed=ex.setupArmed===def;
+    c.className=`hand-chip chip-${player}${armed?' armed':''}`;
+    const lbl=GAME_LBL[gtype]?.[def]??XQ[def]?.lbl?.[player]??def[0];
+    c.textContent=counts[def]>1?`${lbl}×${counts[def]}`:lbl;
+    c.onclick=()=>{ex.setupArmed=(ex.setupArmed===def)?null:def;updateSetupPhaseUI();render();};
+    el.appendChild(c);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Game Controller
+// ══════════════════════════════════════════════════════════════════════════════
+let gtype='xiangqi',board=new Map(),player='p1',sel=null,legal=[],over=false;
+let ex={},pendProm=null,savedArr=null,savedFP=null,handArmed=null;
+
+function gameIb(){return gtype==='xiangqi'?ibXQ:ibCH;}
+
+const SETUPS={xiangqi:null,chess:null,chaturanga:null}; // populated after constants are defined
+function mkBoard(gt,arr){
+  const b=new Map();
+  const SETUP_MAP={xiangqi:XQ_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP};
+  const setup=arr||SETUP_MAP[gt]||CH_SETUP;
+  setup.forEach(([def,owner,coord])=>b.set(K(coord),{def,owner,coord:[...coord]}));
+  return b;
+}
+
+function initEx(gt){
+  const base=gt==='chess'?{ep:null,cr:{p1:{k:true,q:true},p2:{k:true,q:true}}}:{};
+  if(DROPS_ENABLED[gt])base.hand={p1:{},p2:{}};
+  const spc=SETUP_PHASE_CFG[gt];
+  if(spc){base.phase='setup';base.toPlace={p1:[...spc.toPlace.p1],p2:[...spc.toPlace.p2]};base.setupArmed=null;}
+  return base;
+}
+
+function startGame(gt,arr=null,fp=null){
+  gtype=gt;board=mkBoard(gt,arr);player=fp||'p1';
+  sel=null;legal=[];over=false;pendProm=null;handArmed=null;ex=initEx(gt);
+  savedArr=arr;savedFP=fp;
+  const L=layout(gt);fitCv(document.getElementById('game-cv'),L);
+  show('game');updateStatus();updateHandUI();updateSetupPhaseUI();render();
+}
+
+function restart(){startGame(gtype,savedArr,savedFP);}
+function render(){renderBoard(document.getElementById('game-cv'),board,gtype,sel,legal,getSetupHints());}
+
+function updateHandUI(){
+  const row=document.getElementById('hand-row');
+  if(!ex.hand){row.classList.add('hidden');return;}
+  row.classList.remove('hidden');
+  ['p1','p2'].forEach(own=>{
+    const el=document.getElementById(`hand-${own}`);
+    el.innerHTML=`<div class="hand-lbl">${own==='p1'?'先手':'後手'}持駒</div>`;
+    const h=ex.hand[own]||{};
+    const isActive=own===player&&!over;
+    Object.entries(h).forEach(([def,cnt])=>{
+      if(cnt<=0)return;
+      const c=document.createElement('div');
+      const armed=handArmed===def&&isActive;
+      c.className=`hand-chip chip-${own}${armed?' armed':''}${!isActive?' chip-inactive':''}`;
+      const lbl=GAME_LBL[gtype]?.[def]??XQ[def]?.lbl?.[own]??CH_LBL[own]?.[def]??def[0];
+      c.textContent=cnt>1?`${lbl}×${cnt}`:lbl;
+      if(isActive)c.onclick=()=>{
+        handArmed=(handArmed===def)?null:def;
+        sel=null;legal=[];updateHandUI();render();
+      };
+      el.appendChild(c);
+    });
+  });
+}
+
+document.getElementById('game-cv').addEventListener('click',e=>{
+  if(over||pendProm)return;
+  const cv=e.currentTarget,rect=cv.getBoundingClientRect();
+  const L=layout(gtype);
+  const px=(e.clientX-rect.left)*cv.width/rect.width;
+  const py=(e.clientY-rect.top)*cv.height/rect.height;
+  const coord=toCell([px,py],L);
+  if(!gameIb()(coord))return;
+  handleClick(coord);
+});
+
+function handleClick(coord){
+  // Setup phase: place pieces before play begins
+  if(ex.phase==='setup'){handleSetupClick(coord);return;}
+  // Drop mode: a hand piece is armed
+  if(handArmed){
+    if(!board.has(K(coord))&&gameIb()(coord)){
+      const drops=getDropSquares(handArmed,player,board,gameIb());
+      if(drops.some(d=>K(d)===K(coord))){doDrop(handArmed,coord);return;}
+    }
+    handArmed=null;updateHandUI();
+    // fall through to normal piece selection
+  }
+  if(sel&&legal.some(m=>K(m)===K(coord))){doMove(sel,coord);return;}
+  const p=board.get(K(coord));
+  if(p&&p.owner===player){sel=coord;legal=getLegalMoves(board,coord,player,gameIb(),ex);render();return;}
+  sel=null;legal=[];render();
+}
+
+function doMove(from,to){
+  const p=board.get(K(from));
+  if(gtype==='chess')doChessMove(from,to,p);
+  else{
+    const cap=board.get(K(to));
+    board.delete(K(from));board.set(K(to),{...p,coord:[...to],moved:true});
+    if(cap){
+      if(ex.hand){const base=SHOGI_DEMOTE[cap.def]??cap.def;ex.hand[player][base]=(ex.hand[player][base]||0)+1;}
+      if(cap.def==='General'||cap.def==='Gyoku'){endWin(player);return;}
+    }
+  }
+  sel=null;legal=[];
+  checkPromo(p,to);
+  if(pendProm){render();return;}
+  finishTurn();
+}
+
+function checkPromo(p,to){
+  const cfg=PROMO_CFG[gtype];if(!cfg)return;
+  if(!cfg.defs.includes(p.def))return;
+  if(!promoRowHit(cfg,p.owner,to[1]))return;
+  if(!cfg.choices||cfg.choices.length===1){
+    // auto-promote (no UI)
+    const next=cfg.choices?.[0]??p.def;
+    board.set(K(to),{...p,def:next,coord:[...to]});
+  } else {
+    pendProm={coord:[...to],owner:p.owner};
+    showProm(p.owner,cfg.choices);
+  }
+}
+
+function doChessMove(from,to,p){
+  const br=p.owner==='p1'?7:0,fw=p.owner==='p1'?-1:1;
+  const isDouble=p.def==='Pawn'&&Math.abs(to[1]-from[1])===2;
+  // Castling: move rook too
+  if(p.def==='King'&&Math.abs(to[0]-from[0])===2){
+    const ks=to[0]===6;
+    const rk=board.get(K([ks?7:0,br]));
+    board.delete(K([ks?7:0,br]));
+    if(rk)board.set(K([ks?5:3,br]),{...rk,coord:ks?[5,br]:[3,br]});
+  }
+  if(p.def==='King')ex.cr[p.owner]={k:false,q:false};
+  if(p.def==='Rook'){if(from[0]===0)ex.cr[p.owner].q=false;if(from[0]===7)ex.cr[p.owner].k=false;}
+  const cap=board.get(K(to));
+  if(cap?.def==='Rook'){if(to[0]===0)ex.cr[cap.owner].q=false;if(to[0]===7)ex.cr[cap.owner].k=false;}
+  if(p.def==='Pawn'&&ex.ep&&K(to)===K(ex.ep))board.delete(K([to[0],to[1]-fw]));
+  board.delete(K(from));board.set(K(to),{...p,coord:[...to]});
+  ex.ep=isDouble?[to[0],to[1]-fw]:null;
+}
+
+function finishTurn(){
+  player=player==='p1'?'p2':'p1';sel=null;legal=[];handArmed=null;updateHandUI();
+  if(!hasAnyLegal(board,player,gameIb(),ex)){
+    over=true;render();
+    const mate=isInCheck(board,player,gameIb(),ex);
+    const isLoss=mate||!!STALEMATE_LOSES[gtype];
+    if(isLoss){
+      const wl=player==='p2'?'🔴 先手':'⚫ 後手';
+      document.getElementById('turn-lbl').textContent=`🏆 ${wl}勝！`;
+      document.getElementById('check-lbl').textContent=mate?'將死！':'困斃（負）';
+    } else {
+      document.getElementById('turn-lbl').textContent='和棋！';
+      document.getElementById('check-lbl').textContent='無子可走';
+    }
+    return;
+  }
+  updateStatus();render();
+}
+
+function endWin(w){
+  over=true;render();
+  document.getElementById('turn-lbl').textContent=`🏆 ${w==='p1'?'🔴 紅/白方':'⚫ 黑方'}勝！`;
+  document.getElementById('check-lbl').textContent='';
+}
+
+function updateStatus(){
+  if(over)return;
+  if(ex.phase==='setup'){
+    document.getElementById('turn-lbl').textContent=player==='p1'?'🔴 先手布陣':'⚫ 後手布陣';
+    document.getElementById('check-lbl').textContent='';
+    return;
+  }
+  document.getElementById('turn-lbl').textContent=player==='p1'?'🔴 紅/白方下棋':'⚫ 黑方下棋';
+  document.getElementById('check-lbl').textContent=isInCheck(board,player,gameIb(),ex)?'⚠️ 被將！':'';
+}
+
+function showProm(owner,choices){
+  const row=document.getElementById('promo-row');row.innerHTML='';
+  choices.forEach(def=>{
+    const b=document.createElement('button');
+    b.className=`promo-btn ${owner==='p1'?'promo-p1':'promo-p2'}`;
+    const lbl=CH_LBL[owner]?.[def]??XQ[def]?.lbl?.[owner]??GAME_LBL[gtype]?.[def]??def[0];
+    b.textContent=lbl;b.onclick=()=>applyProm(def);row.appendChild(b);
+  });
+  document.getElementById('promo-ov').classList.remove('hidden');
+}
+function applyProm(def){
+  if(!pendProm)return;
+  const{coord,owner}=pendProm;board.set(K(coord),{def,owner,coord:[...coord]});
+  pendProm=null;document.getElementById('promo-ov').classList.add('hidden');finishTurn();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Setup Controller
+// ══════════════════════════════════════════════════════════════════════════════
+let sgt='xiangqi',sBoard=new Map(),armed=null;
+
+function openSetup(gt){
+  sgt=gt||'xiangqi';sBoard=mkBoard(sgt);armed=null;
+  hlTab(sgt);buildPalette();renderSetup();show('setup');
+}
+function setSetupGame(gt){
+  sgt=gt;sBoard=mkBoard(gt);armed=null;
+  hlTab(gt);buildPalette();renderSetup();
+}
+function hlTab(gt){
+  ['xiangqi','chess'].forEach(t=>{
+    document.getElementById(`stab-${t}`).style.outline=t===gt?'2px solid #d4a74a':'none';
+  });
+}
+
+function buildPalette(){
+  const p1El=document.getElementById('pal-p1'),p2El=document.getElementById('pal-p2');
+  p1El.innerHTML='';p2El.innerHTML='';
+
+  const addSection=(el,owner,secLabel,pieces)=>{
+    const hdr=document.createElement('div');hdr.className='pal-label';hdr.textContent=secLabel;el.appendChild(hdr);
+    pieces.forEach(([def,label])=>{
+      const c=document.createElement('div');
+      c.className=`chip ${owner==='p1'?'chip-p1':'chip-p2'}`;
+      c.textContent=label;c.dataset.def=def;c.dataset.owner=owner;
+      c.onclick=()=>{
+        if(armed?.def===def&&armed?.owner===owner){armed=null;refreshChips();}
+        else{armed={def,owner};refreshChips(c);}
+      };
+      el.appendChild(c);
+    });
+  };
+
+  // XQ pieces: label depends on player (p1=red-side, p2=black-side)
+  const xqP1=[['General','帥'],['Advisor','仕'],['Elephant','相'],['Horse','傌'],['Chariot','俥'],['Cannon','炮'],['Soldier','兵']];
+  const xqP2=[['General','將'],['Advisor','士'],['Elephant','象'],['Horse','馬'],['Chariot','車'],['Cannon','砲'],['Soldier','卒']];
+  const chPieces=[['King','K'],['Queen','Q'],['Rook','R'],['Bishop','B'],['Knight','N'],['Pawn','P']];
+
+  addSection(p1El,'p1','象棋',xqP1);
+  addSection(p1El,'p1','西洋棋',chPieces);
+  addSection(p2El,'p2','象棋',xqP2);
+  addSection(p2El,'p2','西洋棋',chPieces);
+
+  // Eraser
+  const er=document.createElement('div');
+  er.className='chip chip-p2';er.textContent='✕';er.title='清除';
+  er.onclick=()=>{if(armed?.def===null){armed=null;refreshChips();}else{armed={def:null,owner:null};refreshChips(er);}};
+  p1El.appendChild(er);
+}
+
+function refreshChips(activeEl){
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('armed'));
+  if(activeEl)activeEl.classList.add('armed');
+}
+
+const setupCV=document.getElementById('setup-cv');
+setupCV.addEventListener('click',e=>{
+  const rect=setupCV.getBoundingClientRect();
+  const L=layout(sgt);
+  const px=(e.clientX-rect.left)*setupCV.width/rect.width;
+  const py=(e.clientY-rect.top)*setupCV.height/rect.height;
+  const coord=toCell([px,py],L);
+  const ib=sgt==='xiangqi'?ibXQ:ibCH;
+  if(!ib(coord))return;
+  if(!armed||armed.def===null)sBoard.delete(K(coord));
+  else sBoard.set(K(coord),{def:armed.def,owner:armed.owner,coord:[...coord]});
+  renderSetup();
+});
+
+function renderSetup(){
+  const L=layout(sgt);fitCv(setupCV,L);
+  setupCV.width=L.W;setupCV.height=L.H;
+  const ctx=setupCV.getContext('2d');
+  if(sgt==='xiangqi')drawXQBoard(ctx,L);else drawCHBoard(ctx,L);
+  for(const[,p]of sBoard)drawPiece(ctx,p,false,L);
+}
+
+function clearSetup(){sBoard=new Map();renderSetup();}
+function resetSetup(){sBoard=mkBoard(sgt);renderSetup();}
+
+function startFromSetup(){
+  const fp=document.querySelector('input[name="fp"]:checked')?.value||'p1';
+  const arr=[...sBoard.values()].map(p=>[p.def,p.owner,[...p.coord]]);
+  startGame(sgt,arr,fp);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Screen & sizing
+// ══════════════════════════════════════════════════════════════════════════════
+function show(name){
+  ['menu','setup','game'].forEach(s=>document.getElementById(`scr-${s}`).classList.toggle('hidden',s!==name));
+}
+function fitCv(cv,L){
+  const maxW=Math.min(window.innerWidth-120,480);
+  cv.style.width=maxW+'px';cv.style.height=(maxW*L.H/L.W)+'px';
+}
+window.addEventListener('resize',()=>{
+  if(!document.getElementById('scr-game').classList.contains('hidden'))
+    fitCv(document.getElementById('game-cv'),layout(gtype));
+  if(!document.getElementById('scr-setup').classList.contains('hidden'))
+    fitCv(setupCV,layout(sgt));
+});
+
+show('menu');
+</script>
+</body>
+</html>
