@@ -92,6 +92,9 @@ canvas{display:block;cursor:pointer}
     <div class="game-card" onclick="startGame('vietnamese')">
       <span class="icon">🇻🇳</span><span class="name">Cờ Tướng<br><small style="font-size:.72rem;font-weight:400;color:#aaa">越南象棋</small></span>
     </div>
+    <div class="game-card" onclick="startGame('janggi')" title="包：必須跳過一子行棋/吃子；不可跳包；開局馬象互換不實作">
+      <span class="icon">🇰🇷</span><span class="name">Janggi<br><small style="font-size:.72rem;font-weight:400;color:#aaa">朝鮮象棋</small></span>
+    </div>
     <div class="game-card dashed" onclick="openSetup('xiangqi')">
       <span class="icon">✏️</span><span class="name">自訂布局</span>
     </div>
@@ -521,13 +524,128 @@ const VN_SETUP=[
 GAME_LBL['vietnamese']={Tuong:'Tg',Si:'Si',Voi:'Vo',Xe:'Xe',Ma:'Ma',Phao:'Ph',Tot:'To'};
 
 // ══════════════════════════════════════════════════════════════════════════════
+// JANGGI (Korean Chess 朝鮮象棋) piece definitions  (9×10, no river)
+// Jang=General  Sa=Guard  Cha=Rook(+palace-diag slide)  Po=Cannon(must-jump)
+// Sang=Elephant(1-ortho+2-diag)  Ma=Horse(1-ortho+1-diag,blockable)  Byeong=Pawn
+// No flying-general rule (ibJanggi ≠ ibXQ keeps them separate in isInCheck).
+// ══════════════════════════════════════════════════════════════════════════════
+const ibJanggi=([c,r])=>c>=0&&c<9&&r>=0&&r<10; // separate ref so flying-general check skips Janggi
+
+// Palace diagonal 1-step adjacency (both 3×3 palaces)
+const JG_PALACE_DIAG={
+  [K([3,0])]:[[4,1]],[K([5,0])]:[[4,1]],
+  [K([4,1])]:[[3,0],[5,0],[3,2],[5,2]],
+  [K([3,2])]:[[4,1]],[K([5,2])]:[[4,1]],
+  [K([3,7])]:[[4,8]],[K([5,7])]:[[4,8]],
+  [K([4,8])]:[[3,7],[5,7],[3,9],[5,9]],
+  [K([3,9])]:[[4,8]],[K([5,9])]:[[4,8]],
+};
+
+// Palace diagonal slide lines (3-square, for Cha/Po sliding)
+const JG_PALACE_LINES=[
+  [[3,0],[4,1],[5,2]],[[5,0],[4,1],[3,2]],
+  [[3,7],[4,8],[5,9]],[[5,7],[4,8],[3,9]],
+];
+
+function jgPalace(o){
+  const s=new Set(),r0=o==='p1'?7:0;
+  for(let c=3;c<=5;c++)for(let r=r0;r<=r0+2;r++)s.add(K([c,r]));
+  return s;
+}
+
+function jgPalaceMove(b,f,o){
+  const p=jgPalace(o),res=[];
+  ORTHO.forEach(d=>{const t=add(f,d);if(ibJanggi(t)&&p.has(K(t))&&(!b.get(K(t))||b.get(K(t)).owner!==o))res.push(t);});
+  (JG_PALACE_DIAG[K(f)]||[]).forEach(t=>{if(p.has(K(t))&&(!b.get(K(t))||b.get(K(t)).owner!==o))res.push(t);});
+  return res;
+}
+
+function jgChaSlide(b,f,o){
+  const res=[...slide(b,f,o,ORTHO,ibJanggi)];
+  for(const line of JG_PALACE_LINES){
+    const idx=line.findIndex(sq=>K(sq)===K(f));if(idx<0)continue;
+    for(let i=idx+1;i<line.length;i++){const t=line[i],oc=b.get(K(t));if(!oc)res.push(t);else{if(oc.owner!==o)res.push(t);break;}}
+    for(let i=idx-1;i>=0;i--){const t=line[i],oc=b.get(K(t));if(!oc)res.push(t);else{if(oc.owner!==o)res.push(t);break;}}
+  }
+  return res;
+}
+
+function jgPoSlide(b,f,o){
+  const res=[];
+  // Orthogonal: must jump over exactly 1 non-Po screen to move/capture
+  for(const d of ORTHO){
+    let cur=add(f,d),sc=null;
+    while(ibJanggi(cur)){
+      const oc=b.get(K(cur));
+      if(!sc){if(oc){if(oc.def==='Po')break;sc=cur;}}
+      else{if(!oc)res.push(cur);else{if(oc.owner!==o&&oc.def!=='Po')res.push(cur);break;}}
+      cur=add(cur,d);
+    }
+  }
+  // Palace diagonal: same jump rule
+  for(const line of JG_PALACE_LINES){
+    const idx=line.findIndex(sq=>K(sq)===K(f));if(idx<0)continue;
+    let sc=null;
+    for(let i=idx+1;i<line.length;i++){const t=line[i],oc=b.get(K(t));if(!sc){if(oc){if(oc.def==='Po')break;sc=t;}}else{if(!oc)res.push(t);else{if(oc.owner!==o&&oc.def!=='Po')res.push(t);break;}}}
+    sc=null;
+    for(let i=idx-1;i>=0;i--){const t=line[i],oc=b.get(K(t));if(!sc){if(oc){if(oc.def==='Po')break;sc=t;}}else{if(!oc)res.push(t);else{if(oc.owner!==o&&oc.def!=='Po')res.push(t);break;}}}
+  }
+  return res;
+}
+
+const JG={
+  Jang:  {mv:(b,f,o)=>jgPalaceMove(b,f,o)},
+  Sa:    {mv:(b,f,o)=>jgPalaceMove(b,f,o)},
+  Cha:   {mv:(b,f,o)=>jgChaSlide(b,f,o)},
+  Po:    {mv:(b,f,o)=>jgPoSlide(b,f,o)},
+  Sang:  {mv:(b,[c,r],o)=>
+    [{t:[c+2,r-3],blk:[[c,r-1],[c+1,r-2]]},{t:[c-2,r-3],blk:[[c,r-1],[c-1,r-2]]},
+     {t:[c+2,r+3],blk:[[c,r+1],[c+1,r+2]]},{t:[c-2,r+3],blk:[[c,r+1],[c-1,r+2]]},
+     {t:[c+3,r-2],blk:[[c+1,r],[c+2,r-1]]},{t:[c+3,r+2],blk:[[c+1,r],[c+2,r+1]]},
+     {t:[c-3,r-2],blk:[[c-1,r],[c-2,r-1]]},{t:[c-3,r+2],blk:[[c-1,r],[c-2,r+1]]},
+    ].filter(({t,blk})=>ibJanggi(t)&&!b.has(K(blk[0]))&&!b.has(K(blk[1]))&&(!b.get(K(t))||b.get(K(t)).owner!==o))
+     .map(({t})=>t)},
+  Ma:    {mv:(b,[c,r],o)=>
+    [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].filter(([dc,dr])=>{
+      const blk=add([c,r],[Math.abs(dc)>Math.abs(dr)?Math.sign(dc):0,Math.abs(dr)>Math.abs(dc)?Math.sign(dr):0]);
+      if(b.has(K(blk)))return false;
+      const t=add([c,r],[dc,dr]);return ibJanggi(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);
+    }).map(d=>add([c,r],d))},
+  Byeong:{mv:(b,f,o)=>{
+    const fw=o==='p1'?-1:1,fr=f[1],res=[];
+    [[0,fw],[1,0],[-1,0]].forEach(d=>{const t=add(f,d);if(ibJanggi(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o))res.push(t);});
+    (JG_PALACE_DIAG[K(f)]||[]).forEach(t=>{
+      if((o==='p1'?t[1]<fr:t[1]>fr)&&(!b.get(K(t))||b.get(K(t)).owner!==o))res.push(t);
+    });
+    return res;
+  }},
+};
+
+const JG_SETUP=[
+  ['Cha','p2',[0,0]],['Sang','p2',[1,0]],['Ma','p2',[2,0]],
+  ['Sa','p2',[3,0]],['Jang','p2',[4,0]],['Sa','p2',[5,0]],
+  ['Ma','p2',[6,0]],['Sang','p2',[7,0]],['Cha','p2',[8,0]],
+  ['Po','p2',[1,2]],['Po','p2',[7,2]],
+  ['Byeong','p2',[0,3]],['Byeong','p2',[2,3]],['Byeong','p2',[4,3]],
+  ['Byeong','p2',[6,3]],['Byeong','p2',[8,3]],
+  ['Cha','p1',[0,9]],['Sang','p1',[1,9]],['Ma','p1',[2,9]],
+  ['Sa','p1',[3,9]],['Jang','p1',[4,9]],['Sa','p1',[5,9]],
+  ['Ma','p1',[6,9]],['Sang','p1',[7,9]],['Cha','p1',[8,9]],
+  ['Po','p1',[1,7]],['Po','p1',[7,7]],
+  ['Byeong','p1',[0,6]],['Byeong','p1',[2,6]],['Byeong','p1',[4,6]],
+  ['Byeong','p1',[6,6]],['Byeong','p1',[8,6]],
+];
+
+GAME_LBL['janggi']={Jang:'将',Sa:'士',Cha:'車',Po:'包',Sang:'象',Ma:'馬',Byeong:'卒'};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Check detection  (unified — handles mixed XQ+CH pieces on same board)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Find the "king" piece: General (XQ), King (CH), or Raja (Chaturanga/Shatranj)
 function findRuler(board,owner){
   for(const[,p]of board)
-    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo','Tuong'].includes(p.def))return p.coord;
+    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo','Tuong','Jang'].includes(p.def))return p.coord;
   return null;
 }
 
@@ -544,6 +662,7 @@ function rawMoves(board,from,owner,ib,ex={}){
   if(SH[p.def])return SH[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(TB[p.def])return TB[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(VN[p.def])return VN[p.def].mv(board,from,owner).filter(m=>ib(m));
+  if(JG[p.def])return JG[p.def].mv(board,from,owner).filter(m=>ib(m));
   return[];
 }
 
@@ -599,7 +718,7 @@ function hasAnyLegal(board,owner,ib,ex={}){
 // Rendering
 // ══════════════════════════════════════════════════════════════════════════════
 function layout(gt){
-  return (gt==='xiangqi'||gt==='vietnamese')
+  return (gt==='xiangqi'||gt==='vietnamese'||gt==='janggi')
     ?{C:58,P:46,W:58*8+92,H:58*9+92}
     :{C:62,P:36,W:62*7+72,H:62*7+72};
 }
@@ -636,13 +755,25 @@ function drawCHBoard(ctx,L){
   for(let r=0;r<8;r++)ctx.fillText(8-r,P-C*.42,P+r*C);
 }
 
+function drawJanggiBoard(ctx,L){
+  const{C,P}=L;
+  ctx.fillStyle='#f0c060';ctx.fillRect(0,0,L.W,L.H);
+  ctx.strokeStyle='#8b6000';ctx.lineWidth=1.5;
+  for(let c=0;c<=8;c++){ctx.beginPath();ctx.moveTo(P+c*C,P);ctx.lineTo(P+c*C,P+9*C);ctx.stroke();}
+  for(let r=0;r<=9;r++){ctx.beginPath();ctx.moveTo(P,P+r*C);ctx.lineTo(P+8*C,P+r*C);ctx.stroke();}
+  ctx.beginPath();
+  ctx.moveTo(P+3*C,P);ctx.lineTo(P+5*C,P+2*C);ctx.moveTo(P+5*C,P);ctx.lineTo(P+3*C,P+2*C);
+  ctx.moveTo(P+3*C,P+7*C);ctx.lineTo(P+5*C,P+9*C);ctx.moveTo(P+5*C,P+7*C);ctx.lineTo(P+3*C,P+9*C);
+  ctx.stroke();
+}
+
 // Unified piece renderer: owner → color, def → label/font
 function drawPiece(ctx,piece,sel,L){
   const[x,y]=toXY(piece.coord,L),rad=L.C*.41;
   ctx.beginPath();ctx.arc(x+2,y+2,rad,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.28)';ctx.fill();
 
   const isP1=piece.owner==='p1';
-  const isXQStyle=!!XQ[piece.def]||!!VN[piece.def];
+  const isXQStyle=!!XQ[piece.def]||!!VN[piece.def]||!!JG[piece.def];
   const bg    =isP1?'#fff8f0':'#1c1c2e';
   const border=sel?'#00cc44':(isP1?'#cc2200':'#7799bb');
   const txt   =isP1?'#cc2200':'#ccddee';
@@ -676,7 +807,9 @@ function drawHint(ctx,coord,isCapture,L){
 function renderBoard(cvs,board,gt,sel,legal,extraHints=[]){
   const L=layout(gt),ctx=cvs.getContext('2d');
   cvs.width=L.W;cvs.height=L.H;
-  if(gt==='xiangqi'||gt==='vietnamese')drawXQBoard(ctx,L);else drawCHBoard(ctx,L);
+  if(gt==='xiangqi'||gt==='vietnamese')drawXQBoard(ctx,L);
+  else if(gt==='janggi')drawJanggiBoard(ctx,L);
+  else drawCHBoard(ctx,L);
   if(sel)legal.forEach(to=>drawHint(ctx,to,board.has(K(to)),L));
   extraHints.forEach(c=>drawHint(ctx,c,false,L));
   for(const[,p]of board)drawPiece(ctx,p,sel&&K(p.coord)===K(sel),L);
@@ -707,7 +840,7 @@ function promoRowHit(cfg, owner, row){
 }
 
 // Games where stalemate = loss for the stalemated player (not a draw)
-const STALEMATE_LOSES={chaturanga:true,shatranj:true,shatar:true,tibetan:true};
+const STALEMATE_LOSES={chaturanga:true,shatranj:true,shatar:true,tibetan:true,janggi:true};
 
 // Games with no "check" concept — king can be moved into attacked squares and captured directly
 const NO_CHECK_FILTER={shatar:true};
@@ -716,7 +849,7 @@ const NO_CHECK_FILTER={shatar:true};
 const BARE_KING_LOSES={shatar:true,tibetan:true};
 
 // All royal piece defs (used by isBareKing)
-const RULER_DEFS=new Set(['General','Gyoku','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo','Tuong']);
+const RULER_DEFS=new Set(['General','Gyoku','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo','Tuong','Jang']);
 
 function isBareKing(board,owner){
   for(const[,p]of board)if(p.owner===owner&&!RULER_DEFS.has(p.def))return false;
@@ -828,12 +961,16 @@ function updateSetupPhaseUI(){
 let gtype='xiangqi',board=new Map(),player='p1',sel=null,legal=[],over=false;
 let ex={},pendProm=null,savedArr=null,savedFP=null,handArmed=null;
 
-function gameIb(){return (gtype==='xiangqi'||gtype==='vietnamese')?ibXQ:ibCH;}
+function gameIb(){
+  if(gtype==='xiangqi'||gtype==='vietnamese')return ibXQ;
+  if(gtype==='janggi')return ibJanggi;
+  return ibCH;
+}
 
 const SETUPS={xiangqi:null,chess:null,chaturanga:null}; // populated after constants are defined
 function mkBoard(gt,arr){
   const b=new Map();
-  const SETUP_MAP={xiangqi:XQ_SETUP,vietnamese:VN_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP,shatar:SH_SETUP,tibetan:TB_SETUP};
+  const SETUP_MAP={xiangqi:XQ_SETUP,vietnamese:VN_SETUP,janggi:JG_SETUP,chaturanga:CT_SETUP,shatranj:ST_SETUP,makruk:MK_SETUP,sittuyin:SY_SETUP,ouk:OUK_SETUP,shatar:SH_SETUP,tibetan:TB_SETUP};
   const setup=arr||SETUP_MAP[gt]||CH_SETUP;
   setup.forEach(([def,owner,coord])=>b.set(K(coord),{def,owner,coord:[...coord]}));
   return b;

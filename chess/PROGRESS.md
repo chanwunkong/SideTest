@@ -82,4 +82,10 @@
 - Completed: TASK-021 (越南象棋 Cờ Tướng) — VN 棋子表（Tuong/Si/Voi/Xe/Ma/Phao/Tot，均 alias XQ）；VN_SETUP（同 XQ 佈局）；GAME_LBL['vietnamese']；layout()/renderBoard()/gameIb() 加入 vietnamese→ibXQ 9×10 分支；drawPiece 改用 isXQStyle（XQ+VN 均獲 inner ring+serif 渲染）；findRuler/RULER_DEFS 加 Tuong；rawMoves/SETUP_MAP 加 VN；選單新增 Cờ Tướng 卡片（🇻🇳）；象不過河（標準規則，同 XQ 實作）；飛將規則自動沿用（isInCheck ibXQ 分支）
 - Errors: none
 - Queued: TASK-022 (朝鮮象棋 Janggi)
+- Commit: 36774c6
+
+## 2026-07-02T03:00Z
+- Completed: TASK-022 (Janggi 朝鮮象棋) — ibJanggi（獨立 ref，令 isInCheck 跳過飛將邏輯）；JG_PALACE_DIAG/JG_PALACE_LINES（九宮斜線資料）；jgPalace/jgPalaceMove（Jang+Sa 限宮走法）；jgChaSlide（車+宮斜滑動）；jgPoSlide（包：必須跳一子，不跳另一包，不吃包）；JG.Sang（1正+2斜，兩阻格）；JG.Ma（L型+腿規）；JG.Byeong（前+側+宮斜前進）；JG_SETUP；GAME_LBL['janggi']（Hanja 單字）；drawJanggiBoard（無河界，雙宮斜線）；layout/renderBoard/gameIb/isXQStyle/findRuler/RULER_DEFS/rawMoves/SETUP_MAP/STALEMATE_LOSES 全部更新；選單新增 Janggi 卡片（🇰🇷）；開局馬象互換/Bikjang 平局不實作（tooltip 標注）
+- Errors: none
+- Queued: TASK-023 (將棋 Shogi)
 - Commit: (pending)
