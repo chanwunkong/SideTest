@@ -23,6 +23,8 @@ h1{color:#d4a74a;font-size:1.5rem;letter-spacing:6px;margin:16px 0 12px}
 .game-card:hover{border-color:#d4a74a;background:#2a2a50}
 .game-card .icon{font-size:2.2rem}.game-card .name{font-size:.95rem;font-weight:700}
 .game-card.dashed{border-style:dashed}
+.game-card.locked{opacity:.4;cursor:default}
+.game-card.locked:hover{border-color:#3a3a5a;background:#22223a}
 .setup-wrap{display:flex;gap:8px;align-items:flex-start}
 .palette{display:flex;flex-direction:column;gap:4px;min-width:56px;padding-top:4px;max-height:520px;overflow-y:auto}
 .pal-label{font-size:.68rem;color:#777;text-align:center;padding:3px 0 1px;letter-spacing:1px;border-top:1px solid #333;margin-top:2px}
@@ -57,6 +59,16 @@ canvas{display:block;cursor:pointer}
 .chip-inactive{opacity:.45;cursor:default}
 .group-lbl{width:100%;font-size:.72rem;color:#d4a74a;letter-spacing:4px;text-transform:uppercase;
   padding:10px 2px 5px;border-bottom:1px solid #3a3a5a;margin-bottom:2px;user-select:none}
+.ban-grid{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:520px;overflow-y:auto;width:100%}
+.ban-cell{width:74px;padding:6px 4px;border-radius:8px;border:2px solid #3a3a5a;background:#22223a;
+  display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;transition:all .15s;user-select:none}
+.ban-cell:hover{border-color:#d4a74a;background:#2a2a50}
+.ban-cell.banned{opacity:.4;cursor:default;border-color:#7a1a1a;background:#2a1818}
+.ban-cell.banned:hover{border-color:#7a1a1a;background:#2a1818}
+.ban-lbl{font-size:1.05rem;font-weight:700;color:#d4a74a}
+.ban-cell.banned .ban-lbl{color:#994444;text-decoration:line-through}
+.ban-name{font-size:.6rem;color:#bbb;text-align:center}
+.ban-src{font-size:.56rem;color:#666}
 </style>
 </head>
 <body>
@@ -113,6 +125,12 @@ canvas{display:block;cursor:pointer}
     <div class="game-card dashed" onclick="openSetup('xiangqi')">
       <span class="icon">✏️</span><span class="name">自訂布局</span>
     </div>
+    <div class="game-card dashed" onclick="openBoardSelect()" title="選場地→Ban→Pick→布陣，然後開始一場雙方陣容/場地皆自訂的對局。已知限制：升變、打入手駒、王車易位、吃過路兵、飛將、Ouk 的 Neang 首步加成等額外規則對自訂棋子不生效">
+      <span class="icon">🎨</span><span class="name">自訂組局<br><small style="font-size:.72rem;font-weight:400;color:#aaa">選場地/Ban/Pick/布陣</small></span>
+    </div>
+    <div class="game-card dashed" onclick="openCampaignMap()" title="從最簡單的棋子開始，一次一種走法，過關拿點數解鎖新棋子。解鎖狀態會限制「自訂組局」的 Pick 池，可在 Pick 畫面切換自由模式。共 39 關、涵蓋全部 83 顆棋子">
+      <span class="icon">🎓</span><span class="name">闖關模式<br><small style="font-size:.72rem;font-weight:400;color:#aaa">教學＋解鎖（39 關）</small></span>
+    </div>
   </div>
 </div>
 
@@ -159,6 +177,47 @@ canvas{display:block;cursor:pointer}
   </div>
 </div>
 
+<div id="scr-board" class="scr hidden">
+  <div style="color:#d4a74a;font-size:.95rem;text-align:center">選擇場地</div>
+  <div class="menu-grid" id="board-grid"></div>
+  <button class="btn btn-dim" onclick="show('menu')">← 取消</button>
+</div>
+
+<div id="scr-campaign-map" class="scr hidden">
+  <div style="color:#d4a74a;font-size:.95rem;text-align:center">闖關模式 — 目前點數：<span id="campaign-points-lbl"></span></div>
+  <div id="campaign-map-body" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:8px"></div>
+  <button class="btn btn-dim" onclick="show('menu')">← 返回選單</button>
+</div>
+
+<div id="scr-campaign-play" class="scr hidden">
+  <div class="game-hdr">
+    <button class="btn btn-dim" style="padding:6px 14px" onclick="exitCampaignPlay()">←</button>
+    <div id="campaign-status"></div>
+    <button class="btn btn-dim" style="padding:6px 14px" onclick="restartCampaignStage()">↻</button>
+  </div>
+  <canvas id="campaign-cv"></canvas>
+  <div id="campaign-result" class="hidden" style="text-align:center;color:#d4a74a"></div>
+</div>
+
+<div id="scr-ban" class="scr hidden">
+  <div id="ban-status" style="color:#d4a74a;font-size:.95rem;text-align:center"></div>
+  <div class="ban-grid" id="ban-grid"></div>
+  <button class="btn btn-dim" onclick="cancelBanPhase()">← 取消</button>
+</div>
+
+<div id="scr-pick" class="scr hidden">
+  <div id="pick-status" style="color:#d4a74a;font-size:.95rem;text-align:center"></div>
+  <div class="toggle-row" id="pick-freemode-row">
+    <label><input type="checkbox" id="pick-freemode-cb" onchange="setCampaignFreeMode(this.checked)"> 自由模式（不受闖關解鎖限制，可選全部棋子）</label>
+  </div>
+  <div class="ban-grid" id="pick-grid"></div>
+  <div class="hand-panel" id="pick-roster" style="width:100%;flex-wrap:wrap"></div>
+  <div class="btn-row">
+    <button class="btn btn-gold" onclick="finishPickTurn()">完成挑選</button>
+    <button class="btn btn-dim" onclick="cancelPickPhase()">← 取消</button>
+  </div>
+</div>
+
 <div id="promo-ov" class="hidden">
   <h3>選擇升變棋子</h3>
   <div class="promo-row" id="promo-row"></div>
@@ -195,30 +254,30 @@ function xqPalace(owner){
 }
 
 const XQ={
-  General:{lbl:{p1:'帥',p2:'將'},mv:(b,[c,r],o)=>{
+  General:{cost:1,lbl:{p1:'帥',p2:'將'},mv:(b,[c,r],o)=>{
     const p=xqPalace(o);
     return ORTHO.filter(d=>{const t=add([c,r],d);return ibXQ(t)&&p.has(K(t))&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add([c,r],d));
   }},
-  Advisor:{lbl:{p1:'仕',p2:'士'},mv:(b,[c,r],o)=>{
+  Advisor:{cost:1,lbl:{p1:'仕',p2:'士'},mv:(b,[c,r],o)=>{
     const p=xqPalace(o);
     return DIAG.filter(d=>{const t=add([c,r],d);return ibXQ(t)&&p.has(K(t))&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add([c,r],d));
   }},
-  Elephant:{lbl:{p1:'相',p2:'象'},mv:(b,[c,r],o)=>{
+  Elephant:{cost:1,lbl:{p1:'相',p2:'象'},mv:(b,[c,r],o)=>{
     const hr=o==='p1'?[5,6,7,8,9]:[0,1,2,3,4];
     return[[2,2],[2,-2],[-2,2],[-2,-2]].filter(([dc,dr])=>{
       const m=add([c,r],[dc/2,dr/2]);if(b.has(K(m)))return false;
       const t=add([c,r],[dc,dr]);return ibXQ(t)&&hr.includes(t[1])&&(!b.get(K(t))||b.get(K(t)).owner!==o);
     }).map(d=>add([c,r],d));
   }},
-  Horse:{lbl:{p1:'傌',p2:'馬'},mv:(b,[c,r],o)=>{
+  Horse:{cost:1,lbl:{p1:'傌',p2:'馬'},mv:(b,[c,r],o)=>{
     return[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].filter(([dc,dr])=>{
       const blk=add([c,r],[Math.abs(dc)>Math.abs(dr)?Math.sign(dc):0,Math.abs(dr)>Math.abs(dc)?Math.sign(dr):0]);
       if(b.has(K(blk)))return false;
       const t=add([c,r],[dc,dr]);return ibXQ(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);
     }).map(d=>add([c,r],d));
   }},
-  Chariot:{lbl:{p1:'俥',p2:'車'},mv:(b,f,o)=>slide(b,f,o,ORTHO,ibXQ)},
-  Cannon:{lbl:{p1:'炮',p2:'砲'},mv:(b,[c,r],o)=>{
+  Chariot:{cost:1,lbl:{p1:'俥',p2:'車'},mv:(b,f,o)=>slide(b,f,o,ORTHO,ibXQ)},
+  Cannon:{cost:1,lbl:{p1:'炮',p2:'砲'},mv:(b,[c,r],o)=>{
     const res=[];
     for(const d of ORTHO){let cur=add([c,r],d),sc=0;
       while(ibXQ(cur)){const oc=b.get(K(cur));
@@ -227,7 +286,7 @@ const XQ={
         cur=add(cur,d);}
     }return res;
   }},
-  Soldier:{lbl:{p1:'兵',p2:'卒'},mv:(b,[c,r],o)=>{
+  Soldier:{cost:1,lbl:{p1:'兵',p2:'卒'},mv:(b,[c,r],o)=>{
     const fw=o==='p1'?-1:1,cx=o==='p1'?r<=4:r>=5;
     return[[0,fw],...(cx?[[1,0],[-1,0]]:[])]
       .filter(d=>{const t=add([c,r],d);return ibXQ(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add([c,r],d));
@@ -261,19 +320,19 @@ const CH_LBL={p1:{King:'K',Queen:'Q',Rook:'R',Bishop:'B',Knight:'N',Pawn:'P'},
 const GAME_LBL={};
 
 const CH={
-  Rook  :{mv:(b,f,o)=>slide(b,f,o,ORTHO,ibCH)},
-  Bishop:{mv:(b,f,o)=>slide(b,f,o,DIAG,ibCH)},
-  Queen :{mv:(b,f,o)=>[...slide(b,f,o,ORTHO,ibCH),...slide(b,f,o,DIAG,ibCH)]},
-  Knight:{mv:(b,f,o)=>[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].filter(d=>{
+  Rook  :{cost:1,mv:(b,f,o)=>slide(b,f,o,ORTHO,ibCH)},
+  Bishop:{cost:1,mv:(b,f,o)=>slide(b,f,o,DIAG,ibCH)},
+  Queen :{cost:1,mv:(b,f,o)=>[...slide(b,f,o,ORTHO,ibCH),...slide(b,f,o,DIAG,ibCH)]},
+  Knight:{cost:1,mv:(b,f,o)=>[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].filter(d=>{
     const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
-  King:{mv:(b,f,o,ex={})=>{
+  King:{cost:1,mv:(b,f,o,ex={})=>{
     const bas=[...ORTHO,...DIAG].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d));
     const cr=(ex.cr||{})[o]||{},br=o==='p1'?7:0,cs=[];
     if(cr.k&&!b.has(K([5,br]))&&!b.has(K([6,br])))cs.push([6,br]);
     if(cr.q&&!b.has(K([1,br]))&&!b.has(K([2,br]))&&!b.has(K([3,br])))cs.push([2,br]);
     return[...bas,...cs];
   }},
-  Pawn:{mv:(b,[c,r],o,ex={})=>{
+  Pawn:{cost:1,mv:(b,[c,r],o,ex={})=>{
     const fw=o==='p1'?-1:1,sr=o==='p1'?6:1,res=[];
     const one=[c,r+fw];
     if(ibCH(one)&&!b.has(K(one))){res.push(one);
@@ -302,12 +361,12 @@ const CH_SETUP=[
 // Gaja: jumps ±2 diag   | Ashva: L-jump (knight)   | Padati: pawn (no double)
 // ══════════════════════════════════════════════════════════════════════════════
 const CT={
-  Raja:  {mv:(b,f,o)=>[...ORTHO,...DIAG].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
-  Mantri:{mv:(b,f,o)=>DIAG.filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
-  Ratha: {mv:(b,f,o)=>slide(b,f,o,ORTHO,ibCH)},
-  Gaja:  {mv:(b,f,o)=>[[2,2],[2,-2],[-2,2],[-2,-2]].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
-  Ashva: {mv:(b,f,o)=>[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
-  Padati:{mv:(b,[c,r],o)=>{
+  Raja:  {cost:1,mv:(b,f,o)=>[...ORTHO,...DIAG].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  Mantri:{cost:1,mv:(b,f,o)=>DIAG.filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  Ratha: {cost:1,mv:(b,f,o)=>slide(b,f,o,ORTHO,ibCH)},
+  Gaja:  {cost:1,mv:(b,f,o)=>[[2,2],[2,-2],[-2,2],[-2,-2]].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  Ashva: {cost:1,mv:(b,f,o)=>[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  Padati:{cost:1,mv:(b,[c,r],o)=>{
     const fw=o==='p1'?-1:1,res=[];
     const one=[c,r+fw];if(ibCH(one)&&!b.has(K(one)))res.push(one);
     for(const dc of[-1,1]){const t=[c+dc,r+fw];if(ibCH(t)){const oc=b.get(K(t));if(oc&&oc.owner!==o)res.push(t);}}
@@ -363,7 +422,7 @@ const MK={
   Khun: CT.Raja,    // 1 step any direction
   Met:  CT.Mantri,  // 1 step diagonal only (weak queen)
   Ruea: CT.Ratha,   // rook-slide
-  Khon: {mv:(b,[c,r],o)=>{  // 1 forward (owner-relative) + 4 diagonals
+  Khon: {cost:1,mv:(b,[c,r],o)=>{  // 1 forward (owner-relative) + 4 diagonals
     const fw=o==='p1'?-1:1;
     return[[0,fw],[1,1],[1,-1],[-1,1],[-1,-1]]
       .filter(d=>{const t=add([c,r],d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);})
@@ -420,7 +479,7 @@ GAME_LBL['sittuyin']={SitKe:'Sk',Thida:'Th',Sin:'Si',Myin:'My',AungGway:'Ag',Ne:
 // ══════════════════════════════════════════════════════════════════════════════
 const OUK={
   Sdech: CT.Raja,   // 1 step any direction
-  Neang: {mv:(b,f,o)=>{
+  Neang: {cost:1,mv:(b,f,o)=>{
     const p=b.get(K(f));
     const base=DIAG.filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d));
     if(p?.moved)return base;
@@ -458,7 +517,7 @@ const SH={
   Bers:    CT.Raja,   // 1 step any direction (non-royal queen)
   Tereg:   CT.Ratha,  // rook-slide
   Mori:    CT.Ashva,  // L-knight
-  Temee:   {mv:(b,f,o)=>[[3,1],[3,-1],[-3,1],[-3,-1],[1,3],[1,-3],[-1,3],[-1,-3]]
+  Temee:   {cost:1,mv:(b,f,o)=>[[3,1],[3,-1],[-3,1],[-3,-1],[1,3],[1,-3],[-1,3],[-1,-3]]
     .filter(d=>{const t=add(f,d);return ibCH(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);})
     .map(d=>add(f,d))},
   Khukhuu: CT.Padati, // pawn (1 forward, diagonal capture, no double step)
@@ -609,24 +668,24 @@ function jgPoSlide(b,f,o){
 }
 
 const JG={
-  Jang:  {mv:(b,f,o)=>jgPalaceMove(b,f,o)},
-  Sa:    {mv:(b,f,o)=>jgPalaceMove(b,f,o)},
-  Cha:   {mv:(b,f,o)=>jgChaSlide(b,f,o)},
-  Po:    {mv:(b,f,o)=>jgPoSlide(b,f,o)},
-  Sang:  {mv:(b,[c,r],o)=>
+  Jang:  {cost:1,mv:(b,f,o)=>jgPalaceMove(b,f,o)},
+  Sa:    {cost:1,mv:(b,f,o)=>jgPalaceMove(b,f,o)},
+  Cha:   {cost:1,mv:(b,f,o)=>jgChaSlide(b,f,o)},
+  Po:    {cost:1,mv:(b,f,o)=>jgPoSlide(b,f,o)},
+  Sang:  {cost:1,mv:(b,[c,r],o)=>
     [{t:[c+2,r-3],blk:[[c,r-1],[c+1,r-2]]},{t:[c-2,r-3],blk:[[c,r-1],[c-1,r-2]]},
      {t:[c+2,r+3],blk:[[c,r+1],[c+1,r+2]]},{t:[c-2,r+3],blk:[[c,r+1],[c-1,r+2]]},
      {t:[c+3,r-2],blk:[[c+1,r],[c+2,r-1]]},{t:[c+3,r+2],blk:[[c+1,r],[c+2,r+1]]},
      {t:[c-3,r-2],blk:[[c-1,r],[c-2,r-1]]},{t:[c-3,r+2],blk:[[c-1,r],[c-2,r+1]]},
     ].filter(({t,blk})=>ibJanggi(t)&&!b.has(K(blk[0]))&&!b.has(K(blk[1]))&&(!b.get(K(t))||b.get(K(t)).owner!==o))
      .map(({t})=>t)},
-  Ma:    {mv:(b,[c,r],o)=>
+  Ma:    {cost:1,mv:(b,[c,r],o)=>
     [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].filter(([dc,dr])=>{
       const blk=add([c,r],[Math.abs(dc)>Math.abs(dr)?Math.sign(dc):0,Math.abs(dr)>Math.abs(dc)?Math.sign(dr):0]);
       if(b.has(K(blk)))return false;
       const t=add([c,r],[dc,dr]);return ibJanggi(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);
     }).map(d=>add([c,r],d))},
-  Byeong:{mv:(b,f,o)=>{
+  Byeong:{cost:1,mv:(b,f,o)=>{
     const fw=o==='p1'?-1:1,fr=f[1],res=[];
     [[0,fw],[1,0],[-1,0]].forEach(d=>{const t=add(f,d);if(ibJanggi(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o))res.push(t);});
     (JG_PALACE_DIAG[K(f)]||[]).forEach(t=>{
@@ -670,27 +729,27 @@ function shogiGold(b,f,o){
 }
 
 const SHG={
-  Gyoku: {mv:(b,f,o)=>[...ORTHO,...DIAG].filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
-  Kin:    {mv:(b,f,o)=>shogiGold(b,f,o)},
-  Narigin:{mv:(b,f,o)=>shogiGold(b,f,o)},
-  Narikei:{mv:(b,f,o)=>shogiGold(b,f,o)},
-  Narikyo:{mv:(b,f,o)=>shogiGold(b,f,o)},
-  Tokin:  {mv:(b,f,o)=>shogiGold(b,f,o)},
-  Gin:    {mv:(b,f,o)=>{
+  Gyoku: {cost:1,mv:(b,f,o)=>[...ORTHO,...DIAG].filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))},
+  Kin:    {cost:1,mv:(b,f,o)=>shogiGold(b,f,o)},
+  Narigin:{cost:1,mv:(b,f,o)=>shogiGold(b,f,o)},
+  Narikei:{cost:1,mv:(b,f,o)=>shogiGold(b,f,o)},
+  Narikyo:{cost:1,mv:(b,f,o)=>shogiGold(b,f,o)},
+  Tokin:  {cost:1,mv:(b,f,o)=>shogiGold(b,f,o)},
+  Gin:    {cost:1,mv:(b,f,o)=>{
     const fw=o==='p1'?-1:1;
     return[[0,fw],[1,fw],[-1,fw],[1,-fw],[-1,-fw]]
       .filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d));
   }},
-  Keima:  {mv:(b,[c,r],o)=>{
+  Keima:  {cost:1,mv:(b,[c,r],o)=>{
     const fw=o==='p1'?-1:1;
     return[[c+1,r+2*fw],[c-1,r+2*fw]].filter(t=>ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o));
   }},
-  Kyosha: {mv:(b,f,o)=>slide(b,f,o,[[0,o==='p1'?-1:1]],ibSHG)},
-  Kaku:   {mv:(b,f,o)=>slide(b,f,o,DIAG,ibSHG)},
-  Hisha:  {mv:(b,f,o)=>slide(b,f,o,ORTHO,ibSHG)},
-  Uma:    {mv:(b,f,o)=>[...slide(b,f,o,DIAG,ibSHG),...ORTHO.filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))]},
-  Ryu:    {mv:(b,f,o)=>[...slide(b,f,o,ORTHO,ibSHG),...DIAG.filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))]},
-  Fu:     {mv:(b,f,o)=>{const fw=o==='p1'?-1:1,t=add(f,[0,fw]);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o)?[t]:[];}},
+  Kyosha: {cost:1,mv:(b,f,o)=>slide(b,f,o,[[0,o==='p1'?-1:1]],ibSHG)},
+  Kaku:   {cost:1,mv:(b,f,o)=>slide(b,f,o,DIAG,ibSHG)},
+  Hisha:  {cost:1,mv:(b,f,o)=>slide(b,f,o,ORTHO,ibSHG)},
+  Uma:    {cost:1,mv:(b,f,o)=>[...slide(b,f,o,DIAG,ibSHG),...ORTHO.filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))]},
+  Ryu:    {cost:1,mv:(b,f,o)=>[...slide(b,f,o,ORTHO,ibSHG),...DIAG.filter(d=>{const t=add(f,d);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o);}).map(d=>add(f,d))]},
+  Fu:     {cost:1,mv:(b,f,o)=>{const fw=o==='p1'?-1:1,t=add(f,[0,fw]);return ibSHG(t)&&(!b.get(K(t))||b.get(K(t)).owner!==o)?[t]:[];}},
 };
 
 const SHG_SETUP=[
@@ -715,16 +774,29 @@ GAME_LBL['shogi']={
 // Check detection  (unified — handles mixed XQ+CH pieces on same board)
 // ══════════════════════════════════════════════════════════════════════════════
 
-// Find the "king" piece: General (XQ), King (CH), or Raja (Chaturanga/Shatranj)
+// Find the "king" piece: General (XQ), King (CH), Raja (Chaturanga/Shatranj), etc.
+// isRoyalDef also checks PIECE_POOL_BY_KEY's 'royal' tag so namespaced draft-mode
+// pieces (e.g. "janggi:Jang", TASK-031/032) are recognized too — RULER_DEFS (below)
+// stays the source of truth for bare names, both defined in terms of the same data.
+function isRoyalDef(def){
+  return RULER_DEFS.has(def)||!!PIECE_POOL_BY_KEY.get(def)?.tags.includes('royal');
+}
 function findRuler(board,owner){
   for(const[,p]of board)
-    if(p.owner===owner&&['General','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo','Tuong','Jang','Gyoku'].includes(p.def))return p.coord;
+    if(p.owner===owner&&isRoyalDef(p.def))return p.coord;
   return null;
 }
 
 // Raw moves for any piece (no check-filter) using the game's bounds
 function rawMoves(board,from,owner,ib,ex={}){
   const p=board.get(K(from));if(!p)return[];
+  // Draft/army-builder pieces (TASK-031/032) are stored with a namespaced
+  // PIECE_POOL key (e.g. "janggi:Ma") instead of a bare name, because several
+  // bare names collide across source games with different actual movement
+  // (Makruk/Vietnamese/Janggi all have a "Ma" that moves differently). Bare
+  // per-game defs never contain ':' so this never shadows the tables below.
+  const pooled=PIECE_POOL_BY_KEY.get(p.def);
+  if(pooled)return pooled.moves(board,from,owner,ex).filter(m=>ib(m));
   if(XQ[p.def])return XQ[p.def].mv(board,from,owner).filter(m=>ib(m));
   if(CH[p.def])return CH[p.def].mv(board,from,owner,ex).filter(m=>ib(m));
   if(CT[p.def])return CT[p.def].mv(board,from,owner).filter(m=>ib(m));
@@ -792,8 +864,11 @@ function hasAnyLegal(board,owner,ib,ex={}){
 // Rendering
 // ══════════════════════════════════════════════════════════════════════════════
 function layout(gt){
-  if(gt==='xiangqi'||gt==='vietnamese'||gt==='janggi')return{C:58,P:46,W:58*8+92,H:58*9+92};
-  if(gt==='shogi')return{C:58,P:46,W:58*8+92,H:58*8+92};
+  // board_9x10_river/board_9x10_no_river/board_9x9 are BOARD_REGISTRY keys
+  // (TASK-029/032) used by custom/drafted games; their geometry matches
+  // xiangqi/janggi/shogi exactly, so they share the same layout numbers.
+  if(gt==='xiangqi'||gt==='vietnamese'||gt==='janggi'||gt==='board_9x10_river'||gt==='board_9x10_no_river')return{C:58,P:46,W:58*8+92,H:58*9+92};
+  if(gt==='shogi'||gt==='board_9x9')return{C:58,P:46,W:58*8+92,H:58*8+92};
   return{C:62,P:36,W:62*7+72,H:62*7+72};
 }
 function toXY([c,r],L){return[L.P+c*L.C,L.P+r*L.C];}
@@ -871,7 +946,7 @@ function drawShogiPiece(ctx,piece,sel,L){
   ctx.fillStyle=isP1?'#fff8f0':'#1c1c2e';ctx.fill();
   ctx.strokeStyle=sel?'#00cc44':(isP1?'#cc2200':'#7799bb');
   ctx.lineWidth=sel?3.5:2;ctx.stroke();
-  const lbl=GAME_LBL['shogi']?.[piece.def]??piece.def[0];
+  const lbl=PIECE_POOL_BY_KEY.get(piece.def)?.label??GAME_LBL['shogi']?.[piece.def]??piece.def[0];
   ctx.fillStyle=isPromoted?'#d4790a':(isP1?'#cc2200':'#ccddee');
   ctx.font=`bold ${L.C*.42}px serif`;
   ctx.textAlign='center';ctx.textBaseline='middle';
@@ -879,7 +954,7 @@ function drawShogiPiece(ctx,piece,sel,L){
 }
 
 function drawPiece(ctx,piece,sel,L){
-  if(gtype==='shogi'){drawShogiPiece(ctx,piece,sel,L);return;}
+  if(gtype==='shogi'||gtype==='board_9x9'){drawShogiPiece(ctx,piece,sel,L);return;}
   const[x,y]=toXY(piece.coord,L),rad=L.C*.41;
   ctx.beginPath();ctx.arc(x+2,y+2,rad,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.28)';ctx.fill();
 
@@ -895,7 +970,7 @@ function drawPiece(ctx,piece,sel,L){
   if(isXQStyle){
     // XQ / VN / JG pieces get inner ring + serif label
     ctx.beginPath();ctx.arc(x,y,rad*.81,0,Math.PI*2);ctx.strokeStyle=border;ctx.lineWidth=1;ctx.stroke();
-    const lbl=XQ[piece.def]?.lbl?.[piece.owner]??GAME_LBL[gtype]?.[piece.def]??piece.def[0];
+    const lbl=PIECE_POOL_BY_KEY.get(piece.def)?.label??XQ[piece.def]?.lbl?.[piece.owner]??GAME_LBL[gtype]?.[piece.def]??piece.def[0];
     ctx.fillStyle=txt;ctx.font=`bold ${lbl.length>1?L.C*.32:L.C*.43}px serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(lbl,x,y);
@@ -903,7 +978,7 @@ function drawPiece(ctx,piece,sel,L){
     // CH / CT / other 8×8 pieces: letter + sans-serif
     ctx.fillStyle=txt;ctx.font=`bold ${L.C*.4}px sans-serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';
-    const lbl=CH_LBL[piece.owner]?.[piece.def]??GAME_LBL[gtype]?.[piece.def]??piece.def[0];
+    const lbl=PIECE_POOL_BY_KEY.get(piece.def)?.label??CH_LBL[piece.owner]?.[piece.def]??GAME_LBL[gtype]?.[piece.def]??piece.def[0];
     ctx.fillText(lbl,x,y);
   }
 }
@@ -918,9 +993,9 @@ function drawHint(ctx,coord,isCapture,L){
 function renderBoard(cvs,board,gt,sel,legal,extraHints=[]){
   const L=layout(gt),ctx=cvs.getContext('2d');
   cvs.width=L.W;cvs.height=L.H;
-  if(gt==='xiangqi'||gt==='vietnamese')drawXQBoard(ctx,L);
-  else if(gt==='janggi')drawJanggiBoard(ctx,L);
-  else if(gt==='shogi')drawShogiBoard(ctx,L);
+  if(gt==='xiangqi'||gt==='vietnamese'||gt==='board_9x10_river')drawXQBoard(ctx,L);
+  else if(gt==='janggi'||gt==='board_9x10_no_river')drawJanggiBoard(ctx,L);
+  else if(gt==='shogi'||gt==='board_9x9')drawShogiBoard(ctx,L);
   else drawCHBoard(ctx,L);
   if(sel)legal.forEach(to=>drawHint(ctx,to,board.has(K(to)),L));
   extraHints.forEach(c=>drawHint(ctx,c,false,L));
@@ -966,8 +1041,908 @@ const BARE_KING_LOSES={shatar:true,tibetan:true};
 const RULER_DEFS=new Set(['General','Gyoku','King','Raja','Shah','Khun','SitKe','Sdech','Noyon','Gyalpo','Tuong','Jang']);
 
 function isBareKing(board,owner){
-  for(const[,p]of board)if(p.owner===owner&&!RULER_DEFS.has(p.def))return false;
+  for(const[,p]of board)if(p.owner===owner&&!isRoyalDef(p.def))return false;
   return true;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Piece Pool — cross-game registry for the draft/army-builder mode (TASK-028)
+// Flattens every piece def across all variants into one list, tagged with its
+// source game. Purely additive: entries hold a *reference* to the original def
+// object (same one the running game already uses for `mv`/`cost`/`lbl`), so
+// nothing here changes any existing per-game logic — it's just a shared index
+// for the future Ban/Pick screens (TASK-030/031) to read from.
+// ══════════════════════════════════════════════════════════════════════════════
+const POOL_SOURCES=[
+  {sourceGame:'xiangqi',    table:XQ },
+  {sourceGame:'chess',      table:CH },
+  {sourceGame:'chaturanga', table:CT },
+  {sourceGame:'shatranj',   table:ST },
+  {sourceGame:'makruk',     table:MK },
+  {sourceGame:'sittuyin',   table:SY },
+  {sourceGame:'ouk',        table:OUK},
+  {sourceGame:'shatar',     table:SH },
+  {sourceGame:'tibetan',    table:TB },
+  {sourceGame:'vietnamese', table:VN },
+  {sourceGame:'janggi',     table:JG },
+  {sourceGame:'shogi',      table:SHG},
+];
+
+// Coarse movement-shape tags keyed by piece name. Approximate, for pool
+// filtering only — TASK-033's cost model may look at the actual `mv`/pattern
+// instead. 'royal' is derived from RULER_DEFS below rather than listed here,
+// so the two stay in sync automatically.
+const POOL_TAGS={
+  General:['stepper','area-restricted'], Advisor:['stepper','area-restricted'],
+  Elephant:['leaper'], Horse:['leaper'], Chariot:['slider'], Cannon:['slider','screen-capture'], Soldier:['pawn'],
+  King:['stepper','castling'], Queen:['slider'], Rook:['slider'], Bishop:['slider'], Knight:['leaper'], Pawn:['pawn'],
+  Raja:['stepper'], Mantri:['stepper'], Ratha:['slider'], Gaja:['leaper'], Ashva:['leaper'], Padati:['pawn'],
+  Shah:['stepper'], Firzan:['stepper'], Rukh:['slider'], Alfil:['leaper'], Faras:['leaper'], Baidaq:['pawn'],
+  Khun:['stepper'], Met:['stepper'], Ruea:['slider'], Khon:['stepper'], Ma:['leaper'], Bia:['pawn'],
+  SitKe:['stepper'], Thida:['stepper'], Sin:['slider'], Myin:['leaper'], AungGway:['stepper'], Ne:['pawn'],
+  Sdech:['stepper'], Neang:['stepper','leaper'], Touk:['slider'], Koul:['stepper'], Ses:['leaper'], Trey:['pawn'],
+  Noyon:['stepper'], Bers:['stepper'], Tereg:['slider'], Mori:['leaper'], Temee:['leaper'], Khukhuu:['pawn'],
+  Gyalpo:['stepper'], Lonpo:['stepper'], Do:['slider'], Langchen:['leaper'], Ta:['leaper'], Dmakmi:['pawn'],
+  Tuong:['stepper','area-restricted'], Si:['stepper','area-restricted'], Voi:['leaper'], Xe:['slider'], Phao:['slider','screen-capture'], Tot:['pawn'],
+  Jang:['stepper','area-restricted'], Sa:['stepper','area-restricted'], Cha:['slider'], Po:['slider','screen-capture'], Sang:['leaper'], Byeong:['pawn'],
+  Gyoku:['stepper'], Kin:['stepper'], Gin:['stepper'], Keima:['leaper'], Kyosha:['slider'], Kaku:['slider'], Hisha:['slider'], Fu:['pawn'],
+  Ryu:['slider','promotedForm'], Uma:['slider','promotedForm'], Narigin:['stepper','promotedForm'],
+  Narikei:['stepper','promotedForm'], Narikyo:['stepper','promotedForm'], Tokin:['stepper','promotedForm'],
+};
+
+function buildPiecePool(){
+  const pool=[];
+  for(const{sourceGame,table}of POOL_SOURCES){
+    for(const name of Object.keys(table)){
+      const def=table[name];
+      const label=def.lbl?.p1??GAME_LBL[sourceGame]?.[name]??CH_LBL.p1?.[name]??name;
+      const tags=[...(POOL_TAGS[name]||[]),...(RULER_DEFS.has(name)?['royal']:[])];
+      pool.push({key:`${sourceGame}:${name}`,name,sourceGame,label,cost:def.cost??1,moves:def.mv,tags,def});
+    }
+  }
+  return pool;
+}
+
+const PIECE_POOL=buildPiecePool();
+const PIECE_POOL_BY_KEY=new Map(PIECE_POOL.map(e=>[e.key,e]));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Board Registry — reusable board geometries for the draft/army-builder mode
+// (TASK-029). Mirrors src/engine/boards.ts. Grid size + rectangular regions
+// only (river-half / palace / promotion zones) — no piece roster is bound
+// here. A picked piece whose movement needs a region a board doesn't define
+// (e.g. a palace-only General dropped on board_8x8) is simply unrestricted
+// for that constraint — same "unknown region = no restriction" stance as the
+// REGION constraint in src/engine/constraint.ts. Compatibility is left to the
+// player, not gated here.
+// Diagonal palace lines (Janggi) aren't representable as rectangles and stay
+// a runtime-only concern (JG_PALACE_DIAG) — not part of this registry.
+// ══════════════════════════════════════════════════════════════════════════════
+const BOARD_REGISTRY={
+  board_8x8:{
+    cols:8,rows:8,
+    regions:{
+      own_half_p1:{colMin:0,colMax:7,rowMin:4,rowMax:7},
+      own_half_p2:{colMin:0,colMax:7,rowMin:0,rowMax:3},
+    },
+  },
+  // Xiangqi / Cờ Tướng geometry: 9×10 with a river dividing rows 4/5
+  board_9x10_river:{
+    cols:9,rows:10,
+    regions:{
+      palace_p1:{colMin:3,colMax:5,rowMin:7,rowMax:9},
+      palace_p2:{colMin:3,colMax:5,rowMin:0,rowMax:2},
+      own_half_p1:{colMin:0,colMax:8,rowMin:5,rowMax:9},
+      own_half_p2:{colMin:0,colMax:8,rowMin:0,rowMax:4},
+    },
+  },
+  // Janggi geometry: 9×10, no river; both palaces present (diagonals excluded, see above)
+  board_9x10_no_river:{
+    cols:9,rows:10,
+    regions:{
+      palace_p1:{colMin:3,colMax:5,rowMin:7,rowMax:9},
+      palace_p2:{colMin:3,colMax:5,rowMin:0,rowMax:2},
+    },
+  },
+  // Shogi geometry: 9×9; promotion zone is the back three ranks per side
+  board_9x9:{
+    cols:9,rows:9,
+    regions:{
+      promotion_p1:{colMin:0,colMax:8,rowMin:0,rowMax:2},
+      promotion_p2:{colMin:0,colMax:8,rowMin:6,rowMax:8},
+    },
+  },
+};
+
+// Which existing game(s) each registry board's geometry matches — purely
+// descriptive, for the future "選場地" screen to show a familiar label or
+// preview. Not a rule binding: any piece from PIECE_POOL may still be placed
+// on any board in BOARD_REGISTRY.
+const BOARD_SOURCE_GAMES={
+  board_8x8:['chess','chaturanga','shatranj','makruk','sittuyin','ouk','shatar','tibetan'],
+  board_9x10_river:['xiangqi','vietnamese'],
+  board_9x10_no_river:['janggi'],
+  board_9x9:['shogi'],
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Campaign Mode — data structures only (TASK-034). No UI here; TASK-035/036
+// build the single-player play screen and the world/stage map on top of this.
+//
+// A CampaignStage teaches ONE movement family at a time. `teachKey` is the
+// PIECE_POOL key the player actually controls in the puzzle; `unlocks` lists
+// every PIECE_POOL key that shares that exact movement (e.g. clearing the
+// Raja stage unlocks Raja + its 7 aliases — MK.Khun, SY.SitKe, OUK.Sdech,
+// SH.Noyon, SH.Bers, TB.Gyalpo, ST.Shah — all literally the same `mv`
+// function, see buildPiecePool() above). `setup` uses the same
+// [def,owner,coord] triples as XQ_SETUP etc., except `def` here is always a
+// namespaced PIECE_POOL key. Board is always a small, stage-specific
+// {cols,rows,regions} — never the full BOARD_REGISTRY geometry — sized just
+// big enough to demonstrate the movement being taught.
+//
+// Clearing a stage awards points; points don't auto-unlock anything — the
+// player spends them on whichever PIECE_POOL key they want next, at that
+// key's `cost` (shared with the Pick-phase budget price, TASK-027/033).
+// Only 3 representative stages are filled in here (Raja/Ashva/Ratha
+// families) to prove the format works end-to-end; the remaining 34 are
+// TASK-038's job.
+// ══════════════════════════════════════════════════════════════════════════════
+const CAMPAIGN_STAGES=[
+  {
+    id:'raja_1',world:1,title:'王：一步任意方向',
+    teachKey:'chaturanga:Raja',
+    unlocks:['chaturanga:Raja','shatranj:Shah','makruk:Khun','sittuyin:SitKe','ouk:Sdech','shatar:Noyon','shatar:Bers','tibetan:Gyalpo'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['chaturanga:Raja','p1',[0,0]]],
+    objective:{type:'reach',target:[4,4]},
+    parMoves:4,rewardPoints:10,
+  },
+  {
+    id:'ashva_1',world:1,title:'馬：日字跳（無腿規）',
+    teachKey:'chaturanga:Ashva',
+    unlocks:['chaturanga:Ashva','shatranj:Faras','makruk:Ma','sittuyin:Myin','ouk:Ses','shatar:Mori','tibetan:Ta'],
+    // Boxed in on all 4 orthogonal sides — a stepper/slider would be stuck,
+    // but the knight-jump clears the obstacles entirely.
+    board:{cols:5,rows:5,regions:{}},
+    setup:[
+      ['chaturanga:Ashva','p1',[2,2]],
+      ['chaturanga:Padati','p2',[1,2]],['chaturanga:Padati','p2',[3,2]],
+      ['chaturanga:Padati','p2',[2,1]],['chaturanga:Padati','p2',[2,3]],
+    ],
+    objective:{type:'reach',target:[0,1]},
+    parMoves:1,rewardPoints:10,
+  },
+  {
+    id:'ratha_1',world:1,title:'車：直線滑動',
+    teachKey:'chaturanga:Ratha',
+    unlocks:['chaturanga:Ratha','shatranj:Rukh','makruk:Ruea','sittuyin:Sin','ouk:Touk','shatar:Tereg','tibetan:Do'],
+    // Two targets on the same rank, both at range — teaches that a slider
+    // captures from far away (not just adjacent), and keeps sliding through
+    // the captured square's file/rank on the next move.
+    board:{cols:5,rows:5,regions:{}},
+    setup:[
+      ['chaturanga:Ratha','p1',[0,0]],
+      ['chaturanga:Padati','p2',[2,0]],['chaturanga:Padati','p2',[4,0]],
+    ],
+    objective:{type:'captureAll',maxMoves:2},
+    parMoves:2,rewardPoints:15,
+  },
+
+  // ─── World 1 (remainder): 8×8 basics ───────────────────────────────────
+  {
+    id:'mantri_1',world:1,title:'士：一步斜走',
+    teachKey:'chaturanga:Mantri',
+    unlocks:['chaturanga:Mantri','shatranj:Firzan','makruk:Met','sittuyin:Thida','tibetan:Lonpo'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['chaturanga:Mantri','p1',[2,2]]],
+    objective:{type:'reach',target:[0,0]},
+    parMoves:2,rewardPoints:8,
+  },
+  {
+    id:'gaja_1',world:1,title:'象：跳兩格斜（無腿規）',
+    teachKey:'chaturanga:Gaja',
+    unlocks:['chaturanga:Gaja','shatranj:Alfil','tibetan:Langchen'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['chaturanga:Gaja','p1',[0,0]]],
+    objective:{type:'reach',target:[4,4]},
+    parMoves:2,rewardPoints:10,
+  },
+  {
+    id:'padati_1',world:1,title:'兵：直走斜吃',
+    teachKey:'chaturanga:Padati',
+    unlocks:['chaturanga:Padati','shatranj:Baidaq','makruk:Bia','sittuyin:Ne','ouk:Trey','shatar:Khukhuu','tibetan:Dmakmi'],
+    // Straight ahead is empty (no capture there); the only way to clear the
+    // board is the diagonal capture — teaches "moves straight, captures diagonally".
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['chaturanga:Padati','p1',[2,4]],['chaturanga:Padati','p2',[1,3]]],
+    objective:{type:'captureAll',maxMoves:1},
+    parMoves:1,rewardPoints:10,
+  },
+  {
+    id:'khon_1',world:1,title:'象（獨特）：前一步＋斜四方',
+    teachKey:'makruk:Khon',
+    unlocks:['makruk:Khon','sittuyin:AungGway','ouk:Koul'],
+    // Target is a *backward* diagonal — Khon can retreat diagonally even
+    // though it can only step straight forward, not straight back.
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['makruk:Khon','p1',[2,2]]],
+    objective:{type:'reach',target:[1,3]},
+    parMoves:1,rewardPoints:10,
+  },
+
+  // ─── World 2: 國際象棋 ──────────────────────────────────────────────────
+  {
+    id:'chking_1',world:2,title:'國王：一步任意方向',
+    teachKey:'chess:King',
+    unlocks:['chess:King'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['chess:King','p1',[0,0]]],
+    objective:{type:'reach',target:[4,4]},
+    parMoves:4,rewardPoints:8,
+  },
+  {
+    id:'chqueen_1',world:2,title:'皇后：直線＋斜線滑動',
+    teachKey:'chess:Queen',
+    unlocks:['chess:Queen'],
+    // Both targets on the same diagonal — after the first capture the queen
+    // is already lined up to slide straight into the second.
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['chess:Queen','p1',[0,0]],['chaturanga:Padati','p2',[2,2]],['chaturanga:Padati','p2',[4,4]]],
+    objective:{type:'captureAll',maxMoves:2},
+    parMoves:2,rewardPoints:15,
+  },
+  {
+    id:'chrook_1',world:2,title:'城堡：直線滑動',
+    teachKey:'chess:Rook',
+    unlocks:['chess:Rook'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['chess:Rook','p1',[0,0]],['chaturanga:Padati','p2',[2,0]],['chaturanga:Padati','p2',[4,0]]],
+    objective:{type:'captureAll',maxMoves:2},
+    parMoves:2,rewardPoints:12,
+  },
+  {
+    id:'chbishop_1',world:2,title:'主教：斜線滑動',
+    teachKey:'chess:Bishop',
+    unlocks:['chess:Bishop'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['chess:Bishop','p1',[0,0]],['chaturanga:Padati','p2',[2,2]],['chaturanga:Padati','p2',[4,4]]],
+    objective:{type:'captureAll',maxMoves:2},
+    parMoves:2,rewardPoints:12,
+  },
+  {
+    id:'chknight_1',world:2,title:'騎士：日字跳（無腿規）',
+    teachKey:'chess:Knight',
+    unlocks:['chess:Knight'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[
+      ['chess:Knight','p1',[2,2]],
+      ['chaturanga:Padati','p2',[1,2]],['chaturanga:Padati','p2',[3,2]],
+      ['chaturanga:Padati','p2',[2,1]],['chaturanga:Padati','p2',[2,3]],
+    ],
+    objective:{type:'reach',target:[0,1]},
+    parMoves:1,rewardPoints:10,
+  },
+  {
+    id:'chpawn_1',world:2,title:'兵：首步可走兩格',
+    teachKey:'chess:Pawn',
+    unlocks:['chess:Pawn'],
+    // Chess pawns only get the double-step from their exact home row (row 6
+    // for p1) — this board keeps rows 0-6 so that row is actually present.
+    board:{cols:5,rows:7,regions:{}},
+    setup:[['chess:Pawn','p1',[2,6]]],
+    objective:{type:'reach',target:[2,4]},
+    parMoves:1,rewardPoints:10,
+  },
+
+  // ─── World 3: 中國象棋／越南象棋 ─────────────────────────────────────────
+  {
+    id:'xqgeneral_1',world:3,title:'將／帥：限九宮直走',
+    teachKey:'xiangqi:General',
+    unlocks:['xiangqi:General','vietnamese:Tuong'],
+    // The palace is hardcoded to cols 3-5 / rows 7-9 on the real board, so
+    // this board keeps that exact row range (only trimmed narrower on cols).
+    board:{cols:6,rows:10,regions:{}},
+    setup:[['xiangqi:General','p1',[4,8]]],
+    objective:{type:'reach',target:[3,7]},
+    parMoves:2,rewardPoints:12,
+  },
+  {
+    id:'xqadvisor_1',world:3,title:'仕／士：限九宮斜走',
+    teachKey:'xiangqi:Advisor',
+    unlocks:['xiangqi:Advisor','vietnamese:Si'],
+    board:{cols:6,rows:10,regions:{}},
+    setup:[['xiangqi:Advisor','p1',[4,8]]],
+    objective:{type:'reach',target:[3,7]},
+    parMoves:1,rewardPoints:10,
+  },
+  {
+    id:'xqelephant_1',world:3,title:'相／象：跳兩格斜（有腿規＋不能過河）',
+    teachKey:'xiangqi:Elephant',
+    unlocks:['xiangqi:Elephant','vietnamese:Voi'],
+    // Own-half restriction is hardcoded to absolute rows (5-9 for p1), so
+    // this board keeps the full row range even though it's narrow on cols.
+    board:{cols:5,rows:10,regions:{}},
+    setup:[['xiangqi:Elephant','p1',[2,7]]],
+    objective:{type:'reach',target:[0,9]},
+    parMoves:1,rewardPoints:12,
+  },
+  {
+    id:'xqhorse_1',world:3,title:'傌／馬：日字跳（有腿規）',
+    teachKey:'xiangqi:Horse',
+    unlocks:['xiangqi:Horse','vietnamese:Ma'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['xiangqi:Horse','p1',[2,2]]],
+    objective:{type:'reach',target:[0,1]},
+    parMoves:1,rewardPoints:12,
+  },
+  {
+    id:'xqchariot_1',world:3,title:'俥／車：直線滑動',
+    teachKey:'xiangqi:Chariot',
+    unlocks:['xiangqi:Chariot','vietnamese:Xe'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['xiangqi:Chariot','p1',[0,0]],['chaturanga:Padati','p2',[2,0]],['chaturanga:Padati','p2',[4,0]]],
+    objective:{type:'captureAll',maxMoves:2},
+    parMoves:2,rewardPoints:12,
+  },
+  {
+    id:'xqcannon_1',world:3,title:'炮／砲：隔一子吃子',
+    teachKey:'xiangqi:Cannon',
+    unlocks:['xiangqi:Cannon','vietnamese:Phao'],
+    // A friendly piece as the screen, one enemy beyond it — the cannon must
+    // jump exactly that one screen to capture; it can't just slide there.
+    board:{cols:5,rows:5,regions:{}},
+    setup:[
+      ['xiangqi:Cannon','p1',[0,0]],
+      ['chaturanga:Padati','p1',[2,0]],
+      ['chaturanga:Padati','p2',[4,0]],
+    ],
+    objective:{type:'captureAll',maxMoves:1},
+    parMoves:1,rewardPoints:15,
+  },
+  {
+    id:'xqsoldier_1',world:3,title:'兵／卒：過河前只能直走，過河後可橫走',
+    teachKey:'xiangqi:Soldier',
+    unlocks:['xiangqi:Soldier','vietnamese:Tot'],
+    // River is the boundary between row 4 and row 5 (hardcoded) — this board
+    // only needs rows 0-6 to show the soldier crossing it.
+    board:{cols:5,rows:7,regions:{}},
+    setup:[['xiangqi:Soldier','p1',[2,6]]],
+    objective:{type:'reach',target:[1,4]},
+    parMoves:3,rewardPoints:15,
+  },
+
+  // ─── World 4: 朝鮮象棋 Janggi ───────────────────────────────────────────
+  {
+    id:'jgjang_1',world:4,title:'将：限九宮直走＋宮內斜走',
+    teachKey:'janggi:Jang',
+    unlocks:['janggi:Jang'],
+    // Janggi's palace is at the same absolute rows/cols as Xiangqi's, plus
+    // fixed diagonal lines through its center — needs the same tall board.
+    board:{cols:6,rows:10,regions:{}},
+    setup:[['janggi:Jang','p1',[4,8]]],
+    objective:{type:'reach',target:[3,7]},
+    parMoves:1,rewardPoints:12,
+  },
+  {
+    id:'jgsa_1',world:4,title:'士：限九宮直走＋宮內斜走',
+    teachKey:'janggi:Sa',
+    unlocks:['janggi:Sa'],
+    board:{cols:6,rows:10,regions:{}},
+    setup:[['janggi:Sa','p1',[4,8]]],
+    objective:{type:'reach',target:[5,9]},
+    parMoves:1,rewardPoints:10,
+  },
+  {
+    id:'jgcha_1',world:4,title:'車：直線滑動＋宮內可斜走',
+    teachKey:'janggi:Cha',
+    unlocks:['janggi:Cha'],
+    // Starts on a palace diagonal line's corner so the capture demonstrates
+    // the special sliding-through-the-palace-diagonal rule, not just ORTHO.
+    board:{cols:6,rows:10,regions:{}},
+    setup:[['janggi:Cha','p1',[3,7]],['chaturanga:Padati','p2',[5,9]]],
+    objective:{type:'captureAll',maxMoves:1},
+    parMoves:1,rewardPoints:15,
+  },
+  {
+    id:'jgpo_1',world:4,title:'包：必須隔一子才能走／吃',
+    teachKey:'janggi:Po',
+    unlocks:['janggi:Po'],
+    // Unlike Xiangqi's cannon, Janggi's cannon can't slide to an empty square
+    // without a screen at all — it needs the screen just to move one step.
+    board:{cols:5,rows:5,regions:{}},
+    setup:[
+      ['janggi:Po','p1',[0,2]],
+      ['chaturanga:Padati','p1',[2,2]],
+      ['chaturanga:Padati','p2',[4,2]],
+    ],
+    objective:{type:'captureAll',maxMoves:1},
+    parMoves:1,rewardPoints:15,
+  },
+  {
+    id:'jgsang_1',world:4,title:'象：一步直走＋兩步斜走',
+    teachKey:'janggi:Sang',
+    unlocks:['janggi:Sang'],
+    board:{cols:7,rows:7,regions:{}},
+    setup:[['janggi:Sang','p1',[3,3]]],
+    objective:{type:'reach',target:[6,5]},
+    parMoves:1,rewardPoints:12,
+  },
+  {
+    id:'jgma_1',world:4,title:'馬：日字跳（有腿規）',
+    teachKey:'janggi:Ma',
+    unlocks:['janggi:Ma'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['janggi:Ma','p1',[2,2]]],
+    objective:{type:'reach',target:[0,1]},
+    parMoves:1,rewardPoints:12,
+  },
+  {
+    id:'jgbyeong_1',world:4,title:'卒：一開局就能橫走',
+    teachKey:'janggi:Byeong',
+    unlocks:['janggi:Byeong'],
+    // Unlike Xiangqi's soldier, Janggi's pawn gets sideways movement
+    // immediately — no river to cross first.
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['janggi:Byeong','p1',[2,2]]],
+    objective:{type:'reach',target:[3,2]},
+    parMoves:1,rewardPoints:12,
+  },
+
+  // ─── World 5: 將棋 Shogi ────────────────────────────────────────────────
+  {
+    id:'shggyoku_1',world:5,title:'玉：一步任意方向',
+    teachKey:'shogi:Gyoku',
+    unlocks:['shogi:Gyoku'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['shogi:Gyoku','p1',[0,0]]],
+    objective:{type:'reach',target:[4,4]},
+    parMoves:4,rewardPoints:8,
+  },
+  {
+    id:'shggold_1',world:5,title:'金將：六方向（可直退，不能斜退）',
+    teachKey:'shogi:Kin',
+    // Narigin/Narikei/Narikyo/Tokin are all promoted forms that move exactly
+    // like Kin (all four call the same shogiGold() helper) — one stage
+    // unlocks all five at once.
+    unlocks:['shogi:Kin','shogi:Narigin','shogi:Narikei','shogi:Narikyo','shogi:Tokin'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['shogi:Kin','p1',[2,2]]],
+    objective:{type:'reach',target:[2,3]},
+    parMoves:1,rewardPoints:12,
+  },
+  {
+    id:'shggin_1',world:5,title:'銀將：五方向（可斜退，不能直退／橫走）',
+    teachKey:'shogi:Gin',
+    unlocks:['shogi:Gin'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['shogi:Gin','p1',[2,2]]],
+    objective:{type:'reach',target:[3,3]},
+    parMoves:1,rewardPoints:12,
+  },
+  {
+    id:'shgkeima_1',world:5,title:'桂馬：只能往前日字跳（僅兩個方向）',
+    teachKey:'shogi:Keima',
+    unlocks:['shogi:Keima'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['shogi:Keima','p1',[2,4]]],
+    objective:{type:'reach',target:[3,2]},
+    parMoves:1,rewardPoints:12,
+  },
+  {
+    id:'shgkyosha_1',world:5,title:'香車：只能直線向前滑動',
+    teachKey:'shogi:Kyosha',
+    unlocks:['shogi:Kyosha'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['shogi:Kyosha','p1',[2,4]]],
+    objective:{type:'reach',target:[2,0]},
+    parMoves:1,rewardPoints:10,
+  },
+  {
+    id:'shgkaku_1',world:5,title:'角行：斜線滑動',
+    teachKey:'shogi:Kaku',
+    unlocks:['shogi:Kaku'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['shogi:Kaku','p1',[0,0]]],
+    objective:{type:'reach',target:[4,4]},
+    parMoves:1,rewardPoints:10,
+  },
+  {
+    id:'shghisha_1',world:5,title:'飛車：直線滑動',
+    teachKey:'shogi:Hisha',
+    unlocks:['shogi:Hisha'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['shogi:Hisha','p1',[0,0]],['chaturanga:Padati','p2',[2,0]],['chaturanga:Padati','p2',[4,0]]],
+    objective:{type:'captureAll',maxMoves:2},
+    parMoves:2,rewardPoints:12,
+  },
+  {
+    id:'shguma_1',world:5,title:'龍馬：角行＋一步直走加成',
+    teachKey:'shogi:Uma',
+    unlocks:['shogi:Uma'],
+    // Target is orthogonal, not diagonal — the one move a plain Kaku can't make.
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['shogi:Uma','p1',[0,0]]],
+    objective:{type:'reach',target:[1,0]},
+    parMoves:1,rewardPoints:15,
+  },
+  {
+    id:'shgryu_1',world:5,title:'龍王：飛車＋一步斜走加成',
+    teachKey:'shogi:Ryu',
+    unlocks:['shogi:Ryu'],
+    // Target is diagonal, not orthogonal — the one move a plain Hisha can't make.
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['shogi:Ryu','p1',[0,0]]],
+    objective:{type:'reach',target:[1,1]},
+    parMoves:1,rewardPoints:15,
+  },
+  {
+    id:'shgfu_1',world:5,title:'歩兵：只能直走，也只能直吃（不能斜吃）',
+    teachKey:'shogi:Fu',
+    unlocks:['shogi:Fu'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['shogi:Fu','p1',[2,2]],['chaturanga:Padati','p2',[2,1]]],
+    objective:{type:'captureAll',maxMoves:1},
+    parMoves:1,rewardPoints:10,
+  },
+
+  // ─── World 6: 獨立特例 ──────────────────────────────────────────────────
+  {
+    id:'oukneang_1',world:6,title:'后：一步斜走，首步可跳兩格斜',
+    teachKey:'ouk:Neang',
+    unlocks:['ouk:Neang'],
+    board:{cols:5,rows:5,regions:{}},
+    setup:[['ouk:Neang','p1',[2,2]]],
+    objective:{type:'reach',target:[0,0]},
+    parMoves:1,rewardPoints:12,
+  },
+  {
+    id:'shtemee_1',world:6,title:'駱駝：3×1 跳',
+    teachKey:'shatar:Temee',
+    unlocks:['shatar:Temee'],
+    board:{cols:7,rows:5,regions:{}},
+    setup:[['shatar:Temee','p1',[3,2]]],
+    objective:{type:'reach',target:[6,3]},
+    parMoves:1,rewardPoints:12,
+  },
+];
+
+// ─── Save data (localStorage) ─────────────────────────────────────────────
+const CAMPAIGN_SAVE_KEY='chess_campaign_save_v1';
+
+function defaultCampaignSave(){
+  return{unlockedKeys:[],points:0,clearedStageIds:[],bestScoreByStage:{}};
+}
+
+function loadCampaignSave(){
+  try{
+    const raw=localStorage.getItem(CAMPAIGN_SAVE_KEY);
+    if(!raw)return defaultCampaignSave();
+    const parsed=JSON.parse(raw);
+    return{
+      unlockedKeys:parsed.unlockedKeys||[],
+      points:parsed.points||0,
+      clearedStageIds:parsed.clearedStageIds||[],
+      bestScoreByStage:parsed.bestScoreByStage||{},
+    };
+  }catch(e){
+    return defaultCampaignSave();
+  }
+}
+
+function saveCampaignSave(){
+  localStorage.setItem(CAMPAIGN_SAVE_KEY,JSON.stringify(campaignSave));
+}
+
+function resetCampaignSave(){
+  localStorage.removeItem(CAMPAIGN_SAVE_KEY);
+  campaignSave=defaultCampaignSave();
+}
+
+let campaignSave=loadCampaignSave();
+
+function isCampaignUnlocked(key){
+  return campaignSave.unlockedKeys.includes(key);
+}
+
+// Records a clear if it beats (or is the first) recorded score for that
+// stage, and awards rewardPoints every time (replaying for a better score is
+// still worth doing, but doesn't re-farm points on an already-cleared stage).
+function recordStageClear(stage,movesUsed){
+  const firstClear=!campaignSave.clearedStageIds.includes(stage.id);
+  if(firstClear){
+    campaignSave.clearedStageIds.push(stage.id);
+    campaignSave.points+=stage.rewardPoints;
+  }
+  const best=campaignSave.bestScoreByStage[stage.id];
+  if(best===undefined||movesUsed<best)campaignSave.bestScoreByStage[stage.id]=movesUsed;
+  saveCampaignSave();
+  return{firstClear};
+}
+
+// Spends points to permanently unlock a PIECE_POOL key, at that key's cost
+// (same number the Pick phase budget uses, TASK-027/033). Returns false
+// (no-op) if already unlocked or unaffordable.
+function unlockCampaignPiece(key){
+  if(isCampaignUnlocked(key))return false;
+  const entry=PIECE_POOL_BY_KEY.get(key);
+  if(!entry||campaignSave.points<entry.cost)return false;
+  campaignSave.points-=entry.cost;
+  campaignSave.unlockedKeys.push(key);
+  saveCampaignSave();
+  return true;
+}
+
+// ─── Pick-phase integration (TASK-037) ─────────────────────────────────────
+// "自由模式" lets a player bypass campaign locks entirely in the Pick screen
+// (TASK-031) — persisted separately from CAMPAIGN_SAVE since it's a
+// play-style preference, not progress.
+const CAMPAIGN_FREE_MODE_KEY='chess_campaign_free_mode_v1';
+let campaignFreeMode=localStorage.getItem(CAMPAIGN_FREE_MODE_KEY)==='1';
+
+function setCampaignFreeMode(on){
+  campaignFreeMode=on;
+  localStorage.setItem(CAMPAIGN_FREE_MODE_KEY,on?'1':'0');
+  updatePickUI();
+}
+
+// Only 3 of the eventual 37 campaign stages exist yet (TASK-034/038), so a
+// pool key with no stage teaching it yet has no possible way to be unlocked
+// — treat those as open by default rather than permanently unpickable.
+// Locking only kicks in for keys an existing stage actually covers.
+function isPieceLockedForPick(key){
+  if(campaignFreeMode)return false;
+  const stage=CAMPAIGN_STAGES.find(s=>s.unlocks.includes(key));
+  if(!stage)return false;
+  return!isCampaignUnlocked(key);
+}
+
+function lockHintFor(key){
+  const stage=CAMPAIGN_STAGES.find(s=>s.unlocks.includes(key));
+  return stage?`完成《${stage.title}》解鎖`:'尚未開放';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Campaign Play — single-player stage screen (TASK-035)
+// Reuses the same engine primitives the two-player game uses (rawMoves /
+// getLegalMoves / isInCheck / findRuler / drawPiece / drawHint / toXY /
+// toCell) but keeps its own board/state entirely separate from the main
+// game's gtype/board/player/ex globals — a cleared or abandoned stage must
+// never leak into a real game the way a stale PENDING_SETUP_CFG once did
+// (see TASK-032's restart() fix). The only global touched is `gtype`, and
+// only transiently: drawPiece branches on gtype==='shogi'/'board_9x9' for
+// pentagon rendering, so it's set to the neutral sentinel 'campaign' (never
+// matches, always falls to the plain-circle style) for the duration of a
+// draw call, then restored.
+//
+// Only 'reach' and 'captureAll' objectives are implemented — the only two
+// used by TASK-034's 3 representative stages. 'survive' (mentioned in the
+// original plan) is deferred until TASK-038 actually authors a stage that
+// needs it, rather than writing untested logic against no real data.
+// ══════════════════════════════════════════════════════════════════════════════
+let campaignPlay=null; // {stage, board, sel, legal, movesUsed, over}
+
+function stageIb(stage){
+  const{cols,rows}=stage.board;
+  return([c,r])=>c>=0&&c<cols&&r>=0&&r<rows;
+}
+
+function buildStageBoard(stage){
+  const b=new Map();
+  stage.setup.forEach(([def,owner,coord])=>b.set(K(coord),{def,owner,coord:[...coord]}));
+  return b;
+}
+
+function campaignLayout(stage){
+  const C=64,P=40;
+  return{C,P,W:C*(stage.board.cols-1)+P*2,H:C*(stage.board.rows-1)+P*2};
+}
+
+function drawCampaignBoard(ctx,L,stage){
+  const{C,P}=L,{cols,rows}=stage.board;
+  ctx.fillStyle='#20203a';ctx.fillRect(0,0,L.W,L.H);
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    ctx.fillStyle=(c+r)%2===0?'#33335a':'#282848';
+    ctx.fillRect(P+c*C-C/2,P+r*C-C/2,C,C);
+  }
+  if(stage.objective.type==='reach'){
+    const[tc,tr]=stage.objective.target;
+    ctx.fillStyle='rgba(212,167,74,.35)';
+    ctx.fillRect(P+tc*C-C/2,P+tr*C-C/2,C,C);
+  }
+}
+
+function renderCampaignBoard(){
+  if(!campaignPlay)return;
+  const stage=campaignPlay.stage;
+  const L=campaignLayout(stage);
+  const cvs=document.getElementById('campaign-cv');
+  cvs.width=L.W;cvs.height=L.H;
+  fitCv(cvs,L);
+  const ctx=cvs.getContext('2d');
+  drawCampaignBoard(ctx,L,stage);
+  const{sel,legal,board}=campaignPlay;
+  if(sel)legal.forEach(to=>drawHint(ctx,to,board.has(K(to)),L));
+  const prevGtype=gtype;
+  gtype='campaign';
+  for(const[,p]of board)drawPiece(ctx,p,sel&&K(p.coord)===K(sel),L);
+  gtype=prevGtype;
+}
+
+function updateCampaignStatus(){
+  if(!campaignPlay)return;
+  document.getElementById('campaign-status').textContent=
+    `${campaignPlay.stage.title} — 第 ${campaignPlay.movesUsed} 步`;
+}
+
+function startCampaignStage(stageId){
+  const stage=CAMPAIGN_STAGES.find(s=>s.id===stageId);
+  if(!stage)return;
+  campaignPlay={stage,board:buildStageBoard(stage),sel:null,legal:[],movesUsed:0,over:false};
+  document.getElementById('campaign-result').classList.add('hidden');
+  show('campaign-play');
+  updateCampaignStatus();
+  renderCampaignBoard();
+}
+
+function restartCampaignStage(){
+  if(campaignPlay)startCampaignStage(campaignPlay.stage.id);
+}
+
+function exitCampaignPlay(){
+  campaignPlay=null;
+  openCampaignMap();
+}
+
+function handleCampaignClick(coord){
+  if(!campaignPlay||campaignPlay.over)return;
+  const{board,stage}=campaignPlay;
+  if(campaignPlay.sel&&campaignPlay.legal.some(m=>K(m)===K(coord))){
+    doCampaignMove(coord);
+    return;
+  }
+  const p=board.get(K(coord));
+  if(p&&p.owner==='p1'){
+    campaignPlay.sel=coord;
+    const prevGtype=gtype;
+    gtype='campaign';
+    campaignPlay.legal=getLegalMoves(board,coord,'p1',stageIb(stage),{});
+    gtype=prevGtype;
+    renderCampaignBoard();
+    return;
+  }
+  campaignPlay.sel=null;campaignPlay.legal=[];
+  renderCampaignBoard();
+}
+
+function doCampaignMove(to){
+  const{board}=campaignPlay;
+  const from=campaignPlay.sel,p=board.get(K(from));
+  board.delete(K(from));
+  board.set(K(to),{...p,coord:[...to]});
+  campaignPlay.sel=null;campaignPlay.legal=[];
+  campaignPlay.movesUsed++;
+  renderCampaignBoard();
+  updateCampaignStatus();
+  checkCampaignObjective();
+}
+
+function checkCampaignObjective(){
+  const{stage,board,movesUsed}=campaignPlay;
+  const obj=stage.objective;
+  let won=false;
+  if(obj.type==='reach'){
+    const p=[...board.values()].find(pc=>pc.owner==='p1');
+    won=!!p&&K(p.coord)===K(obj.target);
+  } else if(obj.type==='captureAll'){
+    won=![...board.values()].some(pc=>pc.owner==='p2');
+  }
+  if(won){
+    campaignPlay.over='win';
+    const{firstClear}=recordStageClear(stage,movesUsed);
+    showCampaignResult(true,firstClear);
+    return;
+  }
+  if(obj.maxMoves&&movesUsed>=obj.maxMoves){
+    campaignPlay.over='fail';
+    showCampaignResult(false,false);
+  }
+}
+
+// Stores the outcome and (re-)renders the result panel — kept separate so
+// unlockStageFamily() below can refresh the same panel (updated points /
+// unlock-button state) without re-deciding whether this was a first clear.
+function showCampaignResult(won,firstClear){
+  campaignPlay.lastResult={won,firstClear};
+  renderCampaignResultPanel();
+}
+
+function renderCampaignResultPanel(){
+  const el=document.getElementById('campaign-result');
+  el.classList.remove('hidden');
+  const stage=campaignPlay.stage,{won,firstClear}=campaignPlay.lastResult;
+  if(!won){
+    el.innerHTML='💥 步數用完，挑戰失敗'+
+      '<br><button class="btn btn-dim" onclick="restartCampaignStage()">重試</button> '+
+      '<button class="btn btn-dim" onclick="exitCampaignPlay()">返回地圖</button>';
+    return;
+  }
+  // All of a stage's unlocks share one `cost` — they're literally the same
+  // `mv` function (see buildPiecePool()), so unlocking the whole family for
+  // cost × count is well-defined, not an arbitrary bundle price.
+  const entry=PIECE_POOL_BY_KEY.get(stage.unlocks[0]);
+  const totalCost=entry.cost*stage.unlocks.length;
+  const allUnlocked=stage.unlocks.every(isCampaignUnlocked);
+  const unlockHtml=allUnlocked
+    ?'<div style="color:#888;font-size:.8rem">本關棋子已全部解鎖</div>'
+    :`<button class="btn ${campaignSave.points>=totalCost?'btn-gold':'btn-dim'}" onclick="unlockStageFamily()">解鎖本關棋子（${stage.unlocks.length} 顆，${totalCost} 點）</button>`;
+  el.innerHTML=`🎉 過關！步數 ${campaignPlay.movesUsed}（par ${stage.parMoves}）`+
+    (firstClear?`<br>+${stage.rewardPoints} 點`:'<br>（已過關，未重複計分）')+
+    `<br>目前點數：${campaignSave.points}`+
+    `<br>${unlockHtml}`+
+    '<br><button class="btn btn-dim" onclick="exitCampaignPlay()">返回地圖</button>';
+}
+
+// Spends points to unlock every PIECE_POOL key the just-cleared stage
+// teaches, in one action (see cost note above).
+function unlockStageFamily(){
+  const stage=campaignPlay.stage;
+  const entry=PIECE_POOL_BY_KEY.get(stage.unlocks[0]);
+  const totalCost=entry.cost*stage.unlocks.length;
+  if(stage.unlocks.every(isCampaignUnlocked))return;
+  if(campaignSave.points<totalCost)return;
+  campaignSave.points-=totalCost;
+  stage.unlocks.forEach(k=>{if(!isCampaignUnlocked(k))campaignSave.unlockedKeys.push(k);});
+  saveCampaignSave();
+  renderCampaignResultPanel();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Campaign Map — world/stage select + progress (TASK-036)
+// Stages unlock strictly in array order (clear stage N to open stage N+1);
+// the world grouping is just visual organization for the 37-stage layout,
+// not a separate gating boundary. Only 3 stages exist so far (TASK-034); the
+// map already scales to however many TASK-038 adds since it just iterates
+// CAMPAIGN_STAGES grouped by `world`.
+// ══════════════════════════════════════════════════════════════════════════════
+function stageStatus(index){
+  const stage=CAMPAIGN_STAGES[index];
+  if(campaignSave.clearedStageIds.includes(stage.id))return'cleared';
+  if(index===0)return'available';
+  return campaignSave.clearedStageIds.includes(CAMPAIGN_STAGES[index-1].id)?'available':'locked';
+}
+
+const CAMPAIGN_WORLD_NAMES={
+  1:'世界 1：8×8 基礎家族',2:'世界 2：國際象棋',3:'世界 3：中國象棋／越南象棋',
+  4:'世界 4：朝鮮象棋',5:'世界 5：將棋',6:'世界 6：獨立特例',
+};
+
+function openCampaignMap(){
+  document.getElementById('campaign-points-lbl').textContent=campaignSave.points;
+  const body=document.getElementById('campaign-map-body');
+  body.innerHTML='';
+  const worlds=[...new Set(CAMPAIGN_STAGES.map(s=>s.world))];
+  worlds.forEach(w=>{
+    const lbl=document.createElement('div');
+    lbl.className='group-lbl';
+    lbl.textContent=CAMPAIGN_WORLD_NAMES[w]||`世界 ${w}`;
+    body.appendChild(lbl);
+    const grid=document.createElement('div');
+    grid.className='menu-grid';
+    CAMPAIGN_STAGES.forEach((stage,i)=>{
+      if(stage.world!==w)return;
+      const status=stageStatus(i);
+      const card=document.createElement('div');
+      card.className=`game-card${status==='locked'?' locked':''}`;
+      const icon=status==='cleared'?'✅':status==='locked'?'🔒':'▶️';
+      const best=campaignSave.bestScoreByStage[stage.id];
+      const sub=status==='locked'?'先過前一關':status==='cleared'?`最佳 ${best} 步`:`par ${stage.parMoves} 步`;
+      card.innerHTML=`<span class="icon">${icon}</span><span class="name">${stage.title}<br><small style="font-size:.66rem;font-weight:400;color:#aaa">${sub}</small></span>`;
+      if(status!=='locked')card.onclick=()=>startCampaignStage(stage.id);
+      grid.appendChild(card);
+    });
+    body.appendChild(grid);
+  });
+  show('campaign-map');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1027,7 +2002,7 @@ const SETUP_PHASE_CFG = {
 
 function getSetupHints(){
   if(ex.phase!=='setup'||!ex.setupArmed)return[];
-  const cfg=SETUP_PHASE_CFG[gtype];
+  const cfg=ex.setupCfg;
   const valid=cfg.halfRows[player];
   const hints=[];
   for(let c=0;c<10;c++)for(let r=0;r<11;r++)
@@ -1037,7 +2012,7 @@ function getSetupHints(){
 
 function handleSetupClick(coord){
   if(!ex.setupArmed)return;
-  const cfg=SETUP_PHASE_CFG[gtype];
+  const cfg=ex.setupCfg;
   if(!cfg.halfRows[player].includes(coord[1]))return;
   if(board.has(K(coord)))return;
   // Place piece
@@ -1045,8 +2020,11 @@ function handleSetupClick(coord){
   const arr=ex.toPlace[player],idx=arr.indexOf(ex.setupArmed);
   if(idx>=0)arr.splice(idx,1);
   ex.setupArmed=null;
-  // All placed → start play
+  // All placed → start play. cfg.onComplete is an escape hatch for callers
+  // that want to intercept completion instead (unused since TASK-032; the
+  // draft/army-builder flow now falls through to the default flip-to-play).
   if(ex.toPlace.p1.length===0&&ex.toPlace.p2.length===0){
+    if(cfg.onComplete){cfg.onComplete();return;}
     ex.phase='play';
     player=savedFP||'p1';
     updateStatus();updateSetupPhaseUI();render();
@@ -1073,10 +2051,243 @@ function updateSetupPhaseUI(){
     const c=document.createElement('div');
     const armed=ex.setupArmed===def;
     c.className=`hand-chip chip-${player}${armed?' armed':''}`;
-    const lbl=GAME_LBL[gtype]?.[def]??XQ[def]?.lbl?.[player]??def[0];
+    const lbl=PIECE_POOL_BY_KEY.get(def)?.label??GAME_LBL[gtype]?.[def]??XQ[def]?.lbl?.[player]??def[0];
     c.textContent=counts[def]>1?`${lbl}×${counts[def]}`:lbl;
     c.onclick=()=>{ex.setupArmed=(ex.setupArmed===def)?null:def;updateSetupPhaseUI();render();};
     el.appendChild(c);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Ban Phase — draft/army-builder mode, step 2 of 3 (TASK-030)
+// Players alternate removing pieces from PIECE_POOL (TASK-028) before the
+// Pick/布陣 phase (TASK-031) sees the pool. No AI opponent, no ban
+// suggestions — local hotseat only. `maxBans` is a placeholder constant;
+// balance tuning (if any) belongs to TASK-033.
+// ══════════════════════════════════════════════════════════════════════════════
+let banState=null;
+
+function startBanPhase(maxBans,onDone){
+  banState={banned:new Set(),turn:'p1',bansLeft:{p1:maxBans,p2:maxBans},maxBans,onDone};
+  show('ban');
+  updateBanUI();
+}
+
+function cancelBanPhase(){
+  banState=null;
+  show('menu');
+}
+
+function handleBanClick(key){
+  if(!banState||banState.banned.has(key))return;
+  if(banState.bansLeft[banState.turn]<=0)return;
+  banState.banned.add(key);
+  banState.bansLeft[banState.turn]--;
+  const other=banState.turn==='p1'?'p2':'p1';
+  if(banState.bansLeft[other]>0)banState.turn=other;
+  if(banState.bansLeft.p1<=0&&banState.bansLeft.p2<=0){finishBanPhase();return;}
+  updateBanUI();
+}
+
+function finishBanPhase(){
+  const remaining=PIECE_POOL.filter(e=>!banState.banned.has(e.key));
+  const cb=banState.onDone;
+  banState=null;
+  cb?.(remaining);
+}
+
+function updateBanUI(){
+  if(!banState)return;
+  const grid=document.getElementById('ban-grid');
+  grid.innerHTML='';
+  for(const entry of PIECE_POOL){
+    const cell=document.createElement('div');
+    const isBanned=banState.banned.has(entry.key);
+    cell.className=`ban-cell${isBanned?' banned':''}`;
+    cell.innerHTML=`<div class="ban-lbl">${entry.label}</div><div class="ban-name">${entry.name}</div><div class="ban-src">${entry.sourceGame}</div>`;
+    if(!isBanned)cell.onclick=()=>handleBanClick(entry.key);
+    grid.appendChild(cell);
+  }
+  const t=banState.turn;
+  document.getElementById('ban-status').textContent=
+    `${t==='p1'?'先手':'後手'} 選擇禁用棋子 — 這回合剩 ${banState.bansLeft[t]} 次（先手剩 ${banState.bansLeft.p1}，後手剩 ${banState.bansLeft.p2}）`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Pick Phase — draft/army-builder mode, step 3 of 4 (TASK-031)
+// Each player spends a point budget (placeholder value; real costs are all
+// PIECE_POOL cost:1 until TASK-033) on pieces from the pool the Ban phase
+// left behind, one player at a time (no alternating per-click — a player
+// builds their whole roster, then hands off). Compatibility with the board
+// is NOT checked here — see startCustomPlacement below.
+// ══════════════════════════════════════════════════════════════════════════════
+let pickState=null;
+
+function startPickPhase(budget,pool,onDone){
+  pickState={pool,budget,turn:'p1',spent:{p1:0,p2:0},roster:{p1:[],p2:[]},onDone};
+  show('pick');
+  updatePickUI();
+}
+
+function cancelPickPhase(){
+  pickState=null;
+  show('menu');
+}
+
+function addPick(key){
+  const entry=PIECE_POOL_BY_KEY.get(key);
+  if(!entry||!pickState)return;
+  const t=pickState.turn;
+  if(pickState.spent[t]+entry.cost>pickState.budget)return;
+  pickState.spent[t]+=entry.cost;
+  pickState.roster[t].push(key);
+  updatePickUI();
+}
+
+function removePick(key){
+  const t=pickState.turn,arr=pickState.roster[t],idx=arr.indexOf(key);
+  if(idx<0)return;
+  arr.splice(idx,1);
+  pickState.spent[t]-=PIECE_POOL_BY_KEY.get(key).cost;
+  updatePickUI();
+}
+
+function finishPickTurn(){
+  if(pickState.turn==='p1'){
+    pickState.turn='p2';
+    updatePickUI();
+    return;
+  }
+  const roster=pickState.roster,cb=pickState.onDone;
+  pickState=null;
+  cb?.(roster);
+}
+
+function updatePickUI(){
+  if(!pickState)return;
+  const t=pickState.turn;
+  document.getElementById('pick-freemode-cb').checked=campaignFreeMode;
+  const grid=document.getElementById('pick-grid');grid.innerHTML='';
+  for(const entry of pickState.pool){
+    const locked=isPieceLockedForPick(entry.key);
+    const afford=pickState.spent[t]+entry.cost<=pickState.budget;
+    const selectable=afford&&!locked;
+    const cell=document.createElement('div');
+    cell.className=`ban-cell${selectable?'':' banned'}`; // shares Ban phase's grid styling
+    const meta=locked?`<div class="ban-src">🔒 ${lockHintFor(entry.key)}</div>`:`<div class="ban-src">${entry.sourceGame}・${entry.cost}pt</div>`;
+    cell.innerHTML=`<div class="ban-lbl">${entry.label}</div><div class="ban-name">${entry.name}</div>${meta}`;
+    if(selectable)cell.onclick=()=>addPick(entry.key);
+    grid.appendChild(cell);
+  }
+  const rosterEl=document.getElementById('pick-roster');rosterEl.innerHTML='';
+  pickState.roster[t].forEach(key=>{
+    const entry=PIECE_POOL_BY_KEY.get(key);
+    const chip=document.createElement('span');
+    chip.className=`hand-chip chip-${t}`;
+    chip.textContent=entry.label;
+    chip.title='點擊移除';
+    chip.onclick=()=>removePick(key);
+    rosterEl.appendChild(chip);
+  });
+  document.getElementById('pick-status').textContent=
+    `${t==='p1'?'先手':'後手'} 選子中 — 已花費 ${pickState.spent[t]} / ${pickState.budget} 點`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Board Select + Placement — draft/army-builder mode, steps 1 & 4 (TASK-032)
+// Reuses the Free-setup phase machinery above (ex.setupCfg / setupArmed /
+// getSetupHints / handleSetupClick) exactly as Sittuyin does — toPlace comes
+// from the Pick phase roster instead of a static SETUP_PHASE_CFG entry, and
+// the board comes from whatever BOARD_REGISTRY key the player picked in step 1
+// instead of a fixed gtype. Compatibility is intentionally not checked: a
+// picked piece whose special zone (e.g. palace) doesn't exist on the chosen
+// board just has that part of its rule silently not apply — same "player
+// decides" stance as the REGION constraint (constraint.ts).
+//
+// Once placement finishes, play begins for real (no onComplete override —
+// falls through to the default auto-flip-to-'play' in handleSetupClick).
+// This depends on rawMoves/findRuler/isBareKing now also checking
+// PIECE_POOL_BY_KEY (see the patches above) so namespaced draft pieces (e.g.
+// "janggi:Ma") move and get recognized as royalty correctly.
+//
+// Known gaps, left for later since they're per-piece bonus rules layered on
+// top of the core legal-move/checkmate engine, not required by this task's
+// "legal moves + win/loss" acceptance bar: promotion (PROMO_CFG) and the drop
+// mechanic (DROPS_ENABLED) are keyed by gtype and have no entry for
+// BOARD_REGISTRY keys, so drafted pawns don't promote and nothing can be
+// dropped from hand; castling/en passant/Xiangqi flying-general/Ouk's
+// first-move Neang bonus are all gated on bare def-name checks elsewhere in
+// the file and so don't fire for namespaced pieces either.
+// ══════════════════════════════════════════════════════════════════════════════
+function regionRows(region){
+  const rows=[];
+  for(let r=region.rowMin;r<=region.rowMax;r++)rows.push(r);
+  return rows;
+}
+
+// Where each side may place pieces during Placement. Boards that define an
+// own_half_p1/p2 region (TASK-029) use it directly; boards that don't
+// (board_9x10_no_river, board_9x9 — Janggi/Shogi geometries have no such
+// region since their own games don't use a free-setup phase) fall back to a
+// simple top/bottom row split.
+function boardHalfRows(boardDef){
+  const r=boardDef.regions||{};
+  if(r.own_half_p1&&r.own_half_p2)return{p1:regionRows(r.own_half_p1),p2:regionRows(r.own_half_p2)};
+  const mid=Math.floor(boardDef.rows/2),p1rows=[],p2rows=[];
+  for(let row=0;row<boardDef.rows;row++)(row<mid?p2rows:p1rows).push(row);
+  return{p1:p1rows,p2:p2rows};
+}
+
+// Remembers the last custom game's roster/board so "重新開始" (restart()
+// below) can redo Placement with the same armies instead of landing on a
+// stuck empty board — PENDING_SETUP_CFG is one-shot and would otherwise be
+// gone by the time a second startGame() call reads it.
+let lastCustomGame=null;
+
+function startCustomPlacement(roster,boardKey){
+  if(roster.p1.length===0&&roster.p2.length===0){
+    alert('雙方都沒有選任何棋子，無法開局，請重新組局。');
+    show('menu');
+    return;
+  }
+  lastCustomGame={roster,boardKey};
+  const boardDef=BOARD_REGISTRY[boardKey];
+  PENDING_SETUP_CFG={
+    toPlace:{p1:[...roster.p1],p2:[...roster.p2]},
+    halfRows:boardHalfRows(boardDef),
+  };
+  startGame(boardKey,[]);
+}
+
+// Board metadata for the "選場地" screen — purely descriptive (icon/label),
+// same spirit as BOARD_SOURCE_GAMES (TASK-029): the board itself carries no
+// game rules, this is just what the picker shows.
+const BOARD_META={
+  board_8x8:{icon:'🔲',label:'8×8'},
+  board_9x10_river:{icon:'🌊',label:'9×10（有河界）'},
+  board_9x10_no_river:{icon:'🏯',label:'9×10（無河界，雙九宮）'},
+  board_9x9:{icon:'⛩️',label:'9×9'},
+};
+
+function openBoardSelect(){
+  const grid=document.getElementById('board-grid');grid.innerHTML='';
+  for(const key of Object.keys(BOARD_REGISTRY)){
+    const meta=BOARD_META[key];
+    const card=document.createElement('div');
+    card.className='game-card';
+    const games=(BOARD_SOURCE_GAMES[key]||[]).join('、');
+    card.innerHTML=`<span class="icon">${meta.icon}</span><span class="name">${meta.label}<br><small style="font-size:.66rem;font-weight:400;color:#aaa">${games}</small></span>`;
+    card.onclick=()=>selectBoard(key);
+    grid.appendChild(card);
+  }
+  show('board');
+}
+
+function selectBoard(boardKey){
+  startBanPhase(3,(remainingPool)=>{
+    startPickPhase(39,remainingPool,(roster)=>{
+      startCustomPlacement(roster,boardKey);
+    });
   });
 }
 
@@ -1087,9 +2298,9 @@ let gtype='xiangqi',board=new Map(),player='p1',sel=null,legal=[],over=false;
 let ex={},pendProm=null,savedArr=null,savedFP=null,handArmed=null;
 
 function gameIb(){
-  if(gtype==='xiangqi'||gtype==='vietnamese')return ibXQ;
-  if(gtype==='janggi')return ibJanggi;
-  if(gtype==='shogi')return ibSHG;
+  if(gtype==='xiangqi'||gtype==='vietnamese'||gtype==='board_9x10_river')return ibXQ;
+  if(gtype==='janggi'||gtype==='board_9x10_no_river')return ibJanggi;
+  if(gtype==='shogi'||gtype==='board_9x9')return ibSHG;
   return ibCH;
 }
 
@@ -1102,11 +2313,18 @@ function mkBoard(gt,arr){
   return b;
 }
 
+// One-shot override for the next initEx() call — used by the draft/army-builder
+// demo (TASK-031) to inject a dynamic {toPlace,halfRows,onComplete} config
+// without touching SETUP_PHASE_CFG (which stays static, per-gtype). Consumed
+// immediately so it can never leak into a later, unrelated startGame() call.
+let PENDING_SETUP_CFG=null;
+
 function initEx(gt){
   const base=gt==='chess'?{ep:null,cr:{p1:{k:true,q:true},p2:{k:true,q:true}}}:{};
   if(DROPS_ENABLED[gt])base.hand={p1:{},p2:{}};
-  const spc=SETUP_PHASE_CFG[gt];
-  if(spc){base.phase='setup';base.toPlace={p1:[...spc.toPlace.p1],p2:[...spc.toPlace.p2]};base.setupArmed=null;}
+  const spc=PENDING_SETUP_CFG||SETUP_PHASE_CFG[gt];
+  PENDING_SETUP_CFG=null;
+  if(spc){base.phase='setup';base.toPlace={p1:[...spc.toPlace.p1],p2:[...spc.toPlace.p2]};base.setupArmed=null;base.setupCfg=spc;}
   return base;
 }
 
@@ -1118,7 +2336,13 @@ function startGame(gt,arr=null,fp=null){
   show('game');updateStatus();updateHandUI();updateSetupPhaseUI();render();
 }
 
-function restart(){startGame(gtype,savedArr,savedFP);}
+function restart(){
+  // Custom games (TASK-032): PENDING_SETUP_CFG is one-shot and already
+  // consumed, so replaying via startGame() directly would land on a stuck
+  // empty board. Redo Placement from the same drafted armies instead.
+  if(BOARD_REGISTRY[gtype]&&lastCustomGame){startCustomPlacement(lastCustomGame.roster,lastCustomGame.boardKey);return;}
+  startGame(gtype,savedArr,savedFP);
+}
 function render(){
   const hints=getSetupHints();
   if(handArmed){
@@ -1201,6 +2425,17 @@ document.getElementById('game-cv').addEventListener('click',e=>{
   const coord=toCell([px,py],L);
   if(!gameIb()(coord))return;
   handleClick(coord);
+});
+
+document.getElementById('campaign-cv').addEventListener('click',e=>{
+  if(!campaignPlay||campaignPlay.over)return;
+  const cv=e.currentTarget,rect=cv.getBoundingClientRect();
+  const L=campaignLayout(campaignPlay.stage);
+  const px=(e.clientX-rect.left)*cv.width/rect.width;
+  const py=(e.clientY-rect.top)*cv.height/rect.height;
+  const coord=toCell([px,py],L);
+  if(!stageIb(campaignPlay.stage)(coord))return;
+  handleCampaignClick(coord);
 });
 
 function handleClick(coord){
@@ -1426,7 +2661,7 @@ function startFromSetup(){
 // Screen & sizing
 // ══════════════════════════════════════════════════════════════════════════════
 function show(name){
-  ['menu','setup','game'].forEach(s=>document.getElementById(`scr-${s}`).classList.toggle('hidden',s!==name));
+  ['menu','setup','game','board','ban','pick','campaign-map','campaign-play'].forEach(s=>document.getElementById(`scr-${s}`).classList.toggle('hidden',s!==name));
 }
 function fitCv(cv,L){
   const maxW=Math.min(window.innerWidth-120,480);
@@ -1437,6 +2672,8 @@ window.addEventListener('resize',()=>{
     fitCv(document.getElementById('game-cv'),layout(gtype));
   if(!document.getElementById('scr-setup').classList.contains('hidden'))
     fitCv(setupCV,layout(sgt));
+  if(campaignPlay&&!document.getElementById('scr-campaign-play').classList.contains('hidden'))
+    fitCv(document.getElementById('campaign-cv'),campaignLayout(campaignPlay.stage));
 });
 
 show('menu');

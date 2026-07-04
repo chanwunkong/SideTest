@@ -67,6 +67,8 @@ export interface MoveDef {
 
 export interface PieceDef {
   name: string;
+  /** Draft point cost (for the point-budget army-building mode). Placeholder until TASK-033 computes real values. */
+  cost?: number;
   /** Moves that apply for both move and capture unless overridden */
   moves: MoveDef[];
   /** If present, overrides moves[] for capture squares */

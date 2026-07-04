@@ -4,6 +4,7 @@ import { PieceDef } from "../../engine/types";
 
 export const Chariot: PieceDef = {
   name: "Chariot",
+  cost: 1, // placeholder — see TASK-033
   moves: [
     {
       pattern: "SLIDE",
@@ -18,6 +19,7 @@ export const Chariot: PieceDef = {
 
 export const Horse: PieceDef = {
   name: "Horse",
+  cost: 1, // placeholder — see TASK-033
   moves: [
     {
       pattern: "VECTOR",
@@ -36,6 +38,7 @@ export const Horse: PieceDef = {
 
 export const Elephant: PieceDef = {
   name: "Elephant",
+  cost: 1, // placeholder — see TASK-033
   moves: [
     {
       pattern: "VECTOR",
@@ -52,6 +55,7 @@ export const Elephant: PieceDef = {
 
 export const Advisor: PieceDef = {
   name: "Advisor",
+  cost: 1, // placeholder — see TASK-033
   moves: [
     {
       pattern: "STEP",
@@ -65,6 +69,7 @@ export const Advisor: PieceDef = {
 
 export const General: PieceDef = {
   name: "General",
+  cost: 1, // placeholder — see TASK-033
   moves: [
     {
       pattern: "STEP",
@@ -79,6 +84,7 @@ export const General: PieceDef = {
 
 export const Cannon: PieceDef = {
   name: "Cannon",
+  cost: 1, // placeholder — see TASK-033
   // Non-capture: slide freely, path must be empty
   moves: [
     {
@@ -106,6 +112,7 @@ export const Cannon: PieceDef = {
 
 export const SoldierRed: PieceDef = {
   name: "SoldierRed",
+  cost: 1, // placeholder — see TASK-033
   moves: [
     // Before river: only forward (row decreasing for Red)
     {
@@ -125,6 +132,7 @@ export const SoldierRed: PieceDef = {
 
 export const SoldierBlack: PieceDef = {
   name: "SoldierBlack",
+  cost: 1, // placeholder — see TASK-033
   moves: [
     {
       pattern: "STEP",
