@@ -25,4 +25,11 @@
 - Completed: TASK-004 — 交點的 `switch_box` 從單一布林值改為 6 組獨立可程式化連接（WE/NS 直通、WN/WS/EN/ES 轉角），新增 switch matrix 選取互動與側欄 `switch-panel`；一併修正 ERR-001（舊版直通連接不受 switch matrix 控制的架構性 bug）
 - Errors: ERR-001 [resolved]
 - Queued: TASK-005 [XC2064]（IOB 精確模型），另新增 TASK-015 [XC2064]（Long lines 評估，延伸自 TASK-004 範圍外項目）
+- Commit: 030842c
+
+## 2026-07-07T04:00Z
+- Track: XC2064
+- Completed: TASK-005 — 輸入 IOB 新增 forced/浮接/pull_up/threshold(TTL-CMOS)/ff_enabled+reg_val（輸入正反器同步），輸出 IOB 新增 tri_state/threshold；新增 `getIobInEffective()` 統一有效值計算；互動改為選取 → 側欄 `iob-panel` 設定（輸入引腳保留快速翻轉，輸出引腳首次可點擊）；輸出端正反器因 datasheet 未確認故不實作
+- Errors: none
+- Queued: TASK-006 [XC2064]（bitstream 資料結構）
 - Commit: (pending)

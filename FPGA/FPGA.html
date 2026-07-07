@@ -147,11 +147,12 @@
             <div class="panel-section">
                 <div class="panel-title">硬體操作說明</div>
                 <div style="font-size: 0.8rem; line-height: 1.6; color: #8b949e;">
-                    1. <b>點擊引腳</b>：切換周邊 IOB 狀態。<br>
-                    2. <b>點擊通道線段</b>：切換該段金屬線是否存在。<br>
-                    3. <b>點擊通道交點</b>：選取該 Switch Matrix，於下方配置 6 組可程式化連接。<br>
-                    4. <b>點擊 CLB</b>：選取邏輯塊，並在下方配置其內部結構。<br>
-                    (依照真實 XC2064 架構，每個 CLB 具有獨立的 F/G 邏輯產生器與多路選擇器；每個交點為近似 4-pin switch matrix)
+                    1. <b>點擊左側輸入引腳</b>：快速翻轉驅動值，同時選取以開啟詳細設定（浮接／上拉／閾值／輸入正反器）。<br>
+                    2. <b>點擊右側輸出引腳</b>：選取以設定三態致能／閾值。<br>
+                    3. <b>點擊通道線段</b>：切換該段金屬線是否存在。<br>
+                    4. <b>點擊通道交點</b>：選取該 Switch Matrix，於下方配置 6 組可程式化連接。<br>
+                    5. <b>點擊 CLB</b>：選取邏輯塊，並在下方配置其內部結構。<br>
+                    (依照真實 XC2064 架構，每個 CLB 具有獨立的 F/G 邏輯產生器與多路選擇器；每個交點為近似 4-pin switch matrix；IOB 可選 pull-up／TTL-CMOS 閾值／三態)
                 </div>
             </div>
 
@@ -245,8 +246,71 @@
                 <div id="switch-editor" class="lut-editor"></div>
             </div>
 
+            <div class="panel-section" id="iob-panel" style="display: none;">
+                <div class="panel-title">選取 IOB: <span id="selected-iob-id" style="color: #3fb950;">--</span></div>
+
+                <div id="iob-in-config" style="display: none;">
+                    <div class="clb-config-block">
+                        <div class="config-row">
+                            <span>驅動值 / 浮接</span>
+                            <select id="iob-in-forced" onchange="updateIobInConfig()">
+                                <option value="0">強制輸出 0</option>
+                                <option value="1">強制輸出 1</option>
+                                <option value="float">浮接 (Floating)</option>
+                            </select>
+                        </div>
+                        <div class="config-row">
+                            <span>上拉電阻 (Pull-up)</span>
+                            <input type="checkbox" id="iob-in-pullup" onchange="updateIobInConfig()">
+                        </div>
+                        <div class="config-row">
+                            <span>輸入閾值</span>
+                            <select id="iob-in-threshold" onchange="updateIobInConfig()">
+                                <option value="TTL">TTL</option>
+                                <option value="CMOS">CMOS</option>
+                            </select>
+                        </div>
+                        <div class="config-row">
+                            <span>經輸入正反器同步</span>
+                            <input type="checkbox" id="iob-in-ff" onchange="updateIobInConfig()">
+                        </div>
+                        <div style="font-size: 0.7rem; color: #8b949e; margin-top: 6px; line-height: 1.5;">
+                            註：本模擬器為離散 0/1 數位模型，TTL/CMOS 閾值選擇不影響模擬結果，僅供對照真實硬體行為；浮接且未啟用上拉時，讀值視為 0（簡化——實際懸空電位不定）。輸入正反器啟用時，改為在時鐘上升緣才將值鎖入晶片內部。
+                        </div>
+                    </div>
+                    <div class="signal-grid">
+                        <div class="signal-box"><span>目前有效輸入值</span><span id="iob-in-effective" class="val-0">0</span></div>
+                    </div>
+                </div>
+
+                <div id="iob-out-config" style="display: none;">
+                    <div class="clb-config-block">
+                        <div class="config-row">
+                            <span>輸出致能 (Output Enable)</span>
+                            <select id="iob-out-tristate" onchange="updateIobOutConfig()">
+                                <option value="enabled">致能 (驅動輸出)</option>
+                                <option value="tristate">三態 (High-Z)</option>
+                            </select>
+                        </div>
+                        <div class="config-row">
+                            <span>輸出閾值</span>
+                            <select id="iob-out-threshold" onchange="updateIobOutConfig()">
+                                <option value="TTL">TTL</option>
+                                <option value="CMOS">CMOS</option>
+                            </select>
+                        </div>
+                        <div style="font-size: 0.7rem; color: #8b949e; margin-top: 6px; line-height: 1.5;">
+                            真實 XC2064 輸出緩衝提供 CMOS 相容 4mA 源/灌電流驅動；本模擬器僅示意三態控制對外部可見性的影響，不模擬電流/驅動能力。三態時內部網路值仍照常運算，只是不對外顯示。
+                        </div>
+                    </div>
+                    <div class="signal-grid">
+                        <div class="signal-box"><span>內部網路值 (routing)</span><span id="iob-out-internal" class="val-0">0</span></div>
+                    </div>
+                </div>
+            </div>
+
             <div id="no-select-msg" style="padding: 20px; color: #8b949e; text-align: center;">
-                請點擊畫布上的 CLB 方塊或 Switch Matrix 交點以檢視其內部架構。
+                請點擊畫布上的 CLB 方塊、Switch Matrix 交點或 IOB 引腳以檢視其內部架構。
             </div>
         </div>
     </div>
@@ -273,6 +337,8 @@
     let autoClockId = null;
     let activeClb = null;
     let activeSwitch = null; // { r, c } — 目前選取的 switch matrix 交點
+    let activeIobIn = null;  // 目前選取的輸入 IOB 索引
+    let activeIobOut = null; // 目前選取的輸出 IOB 索引
 
     // Switch matrix 的 6 組可程式化 pass-transistor 連接（近似拓樸，見 xc2064-reference.md §3/§7）
     const SWITCH_LINKS = [
@@ -300,6 +366,8 @@
         iob_out = [];
         activeClb = null;
         activeSwitch = null;
+        activeIobIn = null;
+        activeIobOut = null;
 
         // 建立 CLB 陣列
         for (let r = 0; r < GRID_SIZE; r++) {
@@ -334,14 +402,29 @@
             v_wires[r] = Array.from({length: GRID_SIZE + 1}, () => ({ on: false, val: 0 }));
         }
 
-        // IOB 初始化
+        // IOB 初始化（依 xc2064-reference.md §4：輸入端可選 pull-up / TTL-CMOS 閾值 / 輸入正反器；
+        // 輸出端可選三態致能 / TTL-CMOS 閾值——輸出端是否具備正反器仍待確認，故不在此實作）
         for (let i = 0; i < GRID_SIZE; i++) {
-            iob_in.push({ val: 0, y: OFFSET_Y + i * (CLB_SIZE + CH_W) + CLB_SIZE/2 });
-            iob_out.push({ val: 0, y: OFFSET_Y + i * (CLB_SIZE + CH_W) + CLB_SIZE/2 });
+            iob_in.push({
+                val: 0,            // 使用者強制驅動的值（forced=true 時生效）
+                forced: true,      // false = 浮接（floating）
+                pull_up: false,
+                threshold: 'TTL',  // 'TTL' | 'CMOS'（僅供顯示對照，不影響離散 0/1 模擬）
+                ff_enabled: false, // 是否經輸入正反器同步（僅在 clock 上升緣鎖入）
+                reg_val: 0,
+                y: OFFSET_Y + i * (CLB_SIZE + CH_W) + CLB_SIZE/2
+            });
+            iob_out.push({
+                val: 0,
+                tri_state: false, // 三態（Output Enable 關閉）
+                threshold: 'TTL',
+                y: OFFSET_Y + i * (CLB_SIZE + CH_W) + CLB_SIZE/2
+            });
         }
 
         document.getElementById('config-panel').style.display = 'none';
         document.getElementById('switch-panel').style.display = 'none';
+        document.getElementById('iob-panel').style.display = 'none';
         document.getElementById('no-select-msg').style.display = 'block';
         resize();
     }
@@ -370,6 +453,10 @@
             clbs.forEach(row => row.forEach(n => {
                 n.val_Q = getFFInput(n);
             }));
+            // 啟用輸入正反器的 IOB，也僅在此刻把外部值鎖入
+            iob_in.forEach(inp => {
+                inp.reg_val = inp.forced ? inp.val : (inp.pull_up ? 1 : 0);
+            });
             updateSidebarUI();
         }
     }
@@ -398,9 +485,9 @@
         // 多次迭代以穩定組合邏輯
         for(let iter=0; iter<6; iter++) {
             
-            // 1. 驅動輸入引腳
+            // 1. 驅動輸入引腳（依 forced/pull_up/ff_enabled 決定有效值，見 getIobInEffective()）
             for (let r = 0; r < GRID_SIZE; r++) {
-                if (h_wires[r][0].on) h_wires[r][0].val |= iob_in[r].val;
+                if (h_wires[r][0].on) h_wires[r][0].val |= getIobInEffective(iob_in[r]);
             }
 
             // 2. 佈線網格擴散 (Switch Matrix 解析)
@@ -474,6 +561,12 @@
             case 'F':
             default: return n.val_F;
         }
+    }
+
+    // 輸入 IOB 的有效值：優先套用輸入正反器鎖存值，否則依 forced/pull_up 決定
+    function getIobInEffective(inp) {
+        if (inp.ff_enabled) return inp.reg_val;
+        return inp.forced ? inp.val : (inp.pull_up ? 1 : 0);
     }
 
     // 快速預設 → 8-bit 真值表 bitmask（三個輸入依序視為 v0,v1,v2；F 用 A,B,C，G 用 A,B,D）
@@ -658,14 +751,53 @@
     function drawIO() {
         ctx.font = '10px sans-serif';
         iob_in.forEach((inp, i) => {
-            ctx.fillStyle = inp.val ? '#3fb950' : '#21262d';
+            const eff = getIobInEffective(inp);
+            ctx.fillStyle = eff ? '#3fb950' : '#21262d';
             ctx.fillRect(OFFSET_X - 44, inp.y - 10, 20, 20);
+            if (!inp.forced) {
+                // 浮接：以虛線外框示意（有 pull-up 時為紫色，否則灰色）
+                ctx.strokeStyle = inp.pull_up ? '#d2a8ff' : '#8b949e';
+                ctx.setLineDash([2, 2]);
+                ctx.strokeRect(OFFSET_X - 44, inp.y - 10, 20, 20);
+                ctx.setLineDash([]);
+            }
+            if (inp.ff_enabled) {
+                ctx.fillStyle = '#58a6ff';
+                ctx.font = '7px sans-serif';
+                ctx.fillText('FF', OFFSET_X - 41, inp.y + 3);
+                ctx.font = '10px sans-serif';
+            }
+            if (activeIobIn === i) {
+                ctx.strokeStyle = '#58a6ff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(OFFSET_X - 46, inp.y - 12, 24, 24);
+            }
             ctx.fillStyle = '#8b949e';
             ctx.fillText(`IN${i}`, OFFSET_X - 70, inp.y + 4);
         });
         iob_out.forEach((out, i) => {
-            ctx.fillStyle = out.val ? '#3fb950' : '#21262d';
-            ctx.beginPath(); ctx.arc(OFFSET_X + GRID_SIZE*(CLB_SIZE+CH_W) - CH_W + 20, out.y, 10, 0, Math.PI*2); ctx.fill();
+            const cx = OFFSET_X + GRID_SIZE*(CLB_SIZE+CH_W) - CH_W + 20, cy = out.y;
+            if (out.tri_state) {
+                // 三態：內部網路值仍照常運算，但不對外顯示驅動結果
+                ctx.fillStyle = '#21262d';
+                ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#8b949e';
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#8b949e';
+                ctx.font = '8px sans-serif';
+                ctx.fillText('Z', cx - 3, cy + 3);
+                ctx.font = '10px sans-serif';
+            } else {
+                ctx.fillStyle = out.val ? '#3fb950' : '#21262d';
+                ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.fill();
+            }
+            if (activeIobOut === i) {
+                ctx.strokeStyle = '#58a6ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(cx, cy, 13, 0, Math.PI*2); ctx.stroke();
+            }
         });
     }
 
@@ -674,9 +806,41 @@
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left, my = e.clientY - rect.top;
 
-        // IOB Input Toggle
+        // IOB Input Selection + 快速切換（點擊即翻轉強制值，同時選取以開啟側欄詳細設定）
         if (mx > OFFSET_X - 50 && mx < OFFSET_X - 20) {
-            iob_in.forEach(inp => { if (Math.abs(my - inp.y) < 12) inp.val = inp.val ? 0 : 1; });
+            for (let i = 0; i < iob_in.length; i++) {
+                if (Math.abs(my - iob_in[i].y) < 12) {
+                    const inp = iob_in[i];
+                    inp.forced = true;
+                    inp.val = inp.val ? 0 : 1;
+                    activeIobIn = i;
+                    activeIobOut = null;
+                    activeClb = null;
+                    activeSwitch = null;
+                    document.getElementById('config-panel').style.display = 'none';
+                    document.getElementById('switch-panel').style.display = 'none';
+                    openSidebarForIobIn();
+                    break;
+                }
+            }
+            return;
+        }
+
+        // IOB Output Selection
+        const outCx = OFFSET_X + GRID_SIZE*(CLB_SIZE+CH_W) - CH_W + 20;
+        if (Math.abs(mx - outCx) < 14) {
+            for (let i = 0; i < iob_out.length; i++) {
+                if (Math.abs(my - iob_out[i].y) < 14) {
+                    activeIobOut = i;
+                    activeIobIn = null;
+                    activeClb = null;
+                    activeSwitch = null;
+                    document.getElementById('config-panel').style.display = 'none';
+                    document.getElementById('switch-panel').style.display = 'none';
+                    openSidebarForIobOut();
+                    break;
+                }
+            }
             return;
         }
 
@@ -687,7 +851,10 @@
                 if (mx > n.x && mx < n.x + CLB_SIZE && my > n.y && my < n.y + CLB_SIZE) {
                     activeClb = n;
                     activeSwitch = null;
+                    activeIobIn = null;
+                    activeIobOut = null;
                     document.getElementById('switch-panel').style.display = 'none';
+                    document.getElementById('iob-panel').style.display = 'none';
                     openSidebarForCLB();
                     return;
                 }
@@ -702,7 +869,10 @@
                 if (Math.abs(mx - x) < 8 && Math.abs(my - y) < 8) {
                     activeSwitch = { r, c };
                     activeClb = null;
+                    activeIobIn = null;
+                    activeIobOut = null;
                     document.getElementById('config-panel').style.display = 'none';
+                    document.getElementById('iob-panel').style.display = 'none';
                     openSidebarForSwitch();
                     return;
                 }
@@ -758,6 +928,56 @@
         renderSwitchEditor();
     }
 
+    function openSidebarForIobIn() {
+        if (activeIobIn === null) return;
+        const inp = iob_in[activeIobIn];
+        document.getElementById('no-select-msg').style.display = 'none';
+        document.getElementById('iob-panel').style.display = 'block';
+        document.getElementById('iob-in-config').style.display = 'block';
+        document.getElementById('iob-out-config').style.display = 'none';
+        document.getElementById('selected-iob-id').innerText = `IN${activeIobIn}`;
+        document.getElementById('iob-in-forced').value = inp.forced ? String(inp.val) : 'float';
+        document.getElementById('iob-in-pullup').checked = inp.pull_up;
+        document.getElementById('iob-in-threshold').value = inp.threshold;
+        document.getElementById('iob-in-ff').checked = inp.ff_enabled;
+        updateSidebarUI();
+    }
+
+    function updateIobInConfig() {
+        if (activeIobIn === null) return;
+        const inp = iob_in[activeIobIn];
+        const forcedSel = document.getElementById('iob-in-forced').value;
+        if (forcedSel === 'float') {
+            inp.forced = false;
+        } else {
+            inp.forced = true;
+            inp.val = parseInt(forcedSel, 10);
+        }
+        inp.pull_up = document.getElementById('iob-in-pullup').checked;
+        inp.threshold = document.getElementById('iob-in-threshold').value;
+        inp.ff_enabled = document.getElementById('iob-in-ff').checked;
+    }
+
+    function openSidebarForIobOut() {
+        if (activeIobOut === null) return;
+        const out = iob_out[activeIobOut];
+        document.getElementById('no-select-msg').style.display = 'none';
+        document.getElementById('iob-panel').style.display = 'block';
+        document.getElementById('iob-in-config').style.display = 'none';
+        document.getElementById('iob-out-config').style.display = 'block';
+        document.getElementById('selected-iob-id').innerText = `OUT${activeIobOut}`;
+        document.getElementById('iob-out-tristate').value = out.tri_state ? 'tristate' : 'enabled';
+        document.getElementById('iob-out-threshold').value = out.threshold;
+        updateSidebarUI();
+    }
+
+    function updateIobOutConfig() {
+        if (activeIobOut === null) return;
+        const out = iob_out[activeIobOut];
+        out.tri_state = document.getElementById('iob-out-tristate').value === 'tristate';
+        out.threshold = document.getElementById('iob-out-threshold').value;
+    }
+
     function updateSidebarUI() {
         if (activeClb) {
             const setVal = (id, val) => {
@@ -778,6 +998,18 @@
         }
         if (activeSwitch) {
             renderSwitchEditor();
+        }
+        if (activeIobIn !== null) {
+            const el = document.getElementById('iob-in-effective');
+            const v = getIobInEffective(iob_in[activeIobIn]);
+            el.innerText = v;
+            el.className = v ? 'val-1' : 'val-0';
+        }
+        if (activeIobOut !== null) {
+            const out = iob_out[activeIobOut];
+            const el = document.getElementById('iob-out-internal');
+            el.innerText = out.val;
+            el.className = out.val ? 'val-1' : 'val-0';
         }
     }
 

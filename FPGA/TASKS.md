@@ -7,10 +7,6 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 ## Active
 
 ### [XC2064] 精確度提升（在既有原型之上）
-- [ ] TASK-005 [XC2064]: IOB 精確模型（依據 `FPGA/docs/xc2064-reference.md` §4）
-  - 目標：實作可程式化輸入緩衝閾值（TTL/CMOS）、三態輸出控制（4mA 驅動）、上拉電阻、輸入端 flip-flop/latch 選項
-  - 影響檔案：`FPGA/FPGA.html` 的 IOB 相關繪製與狀態
-  - 輸出端是否也有正反器仍待確認，先只實作輸入端
 - [ ] TASK-006 [XC2064]: 設定位元流（bitstream）資料結構
   - 目標：定義一份對應目前所有可配置狀態（CLB 配置、routing、IOB）的序列化格式，提供匯出/匯入
   - 不要求與真實 XC2064 bitstream 位元排列完全一致，但需在文件中明確標註「模擬用格式」vs「真實格式」的差異
@@ -61,3 +57,10 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - `drawRouting()` 的交點指示改為「任一連接啟用即亮」+ 選取中的交點加上藍色外框
   - 明確標註簡化處：本模擬器每方向僅單一線段（4-pin），非真實 8-pin/~20 連接；long lines 尚未實作（另立 TASK-015）
   - 驗證：以 Node 獨立重現連接合併邏輯，確認「連接關閉時兩端維持獨立值、開啟後才合併」行為正確；瀏覽器開啟確認頁面載入無誤
+- [x] TASK-005 [XC2064]: IOB 精確模型
+  - 輸入 IOB（`iob_in[]`）新增：`forced`/`val`（強制驅動或浮接）、`pull_up`（浮接時的預設值）、`threshold`（TTL/CMOS，僅供顯示對照）、`ff_enabled`+`reg_val`（經輸入正反器同步，僅在 clock 上升緣鎖入，`stepClock()` 已同步更新）
+  - 新增 `getIobInEffective()` 統一計算有效輸入值，`simulateCombinatorial()`／`drawIO()` 皆改用此函式，取代直接讀 `iob_in[r].val`
+  - 輸出 IOB（`iob_out[]`）新增 `tri_state`（三態／Output Enable）與 `threshold`；三態只影響對外顯示，內部網路值仍照常運算（符合真實三態緩衝行為：斷開的是外部接腳，不是內部邏輯）
+  - 互動改為與 CLB/Switch Matrix 一致的「選取 → 側欄設定」模式：新增 `iob-panel`（`iob-in-config`/`iob-out-config`），點擊輸入引腳仍保留快速翻轉 0/1（同時選取開啟詳細設定），輸出引腳首次具備可點擊互動
+  - 輸出端正反器未實作（datasheet 未確認是否存在，見 reference 文件 §7），維持 TASK-005 原定範圍
+  - 驗證：以 Node 獨立重現 `getIobInEffective()` 與時鐘鎖存邏輯，涵蓋強制值/浮接/上拉/正反器鎖存四種情境皆正確；瀏覽器開啟確認頁面載入無誤
