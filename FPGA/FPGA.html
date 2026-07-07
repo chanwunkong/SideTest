@@ -234,6 +234,51 @@
                     </div>
                 </div>
 
+                <div class="clb-config-block">
+                    <div style="color: #f0883e; font-weight: bold; margin-bottom: 8px;">全域長線 (Long Lines，TASK-015)</div>
+                    <div style="font-size: 0.7rem; color: #8b949e; margin-bottom: 8px; line-height: 1.5;">
+                        每列/每欄各一條低偏斜長線，單一 on/off（非逐段可切換），可讓 A/B 輸入或 X/Y 輸出
+                        不必逐格經過 switch matrix 就能跨越整列/整欄，用於示範高扇出訊號（如全域時脈）
+                        的分佈方式。詳見 <code>FPGA/docs/xc2064-reference.md</code> §3。
+                    </div>
+                    <div class="config-row">
+                        <span>本列長線 (row) 狀態</span>
+                        <select id="cfg-h-long-on" onchange="updateCLBConfig()">
+                            <option value="0">關閉</option>
+                            <option value="1">開啟</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <span>本欄長線 (col) 狀態</span>
+                        <select id="cfg-v-long-on" onchange="updateCLBConfig()">
+                            <option value="0">關閉</option>
+                            <option value="1">開啟</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <span>A 輸入來源</span>
+                        <select id="cfg-src-a" onchange="updateCLBConfig()">
+                            <option value="wire">一般繞線</option>
+                            <option value="long">本列長線</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <span>B 輸入來源</span>
+                        <select id="cfg-src-b" onchange="updateCLBConfig()">
+                            <option value="wire">一般繞線</option>
+                            <option value="long">本欄長線</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <span>X 輸出同時驅動列長線</span>
+                        <input type="checkbox" id="cfg-drive-h-long" onchange="updateCLBConfig()">
+                    </div>
+                    <div class="config-row">
+                        <span>Y 輸出同時驅動欄長線</span>
+                        <input type="checkbox" id="cfg-drive-v-long" onchange="updateCLBConfig()">
+                    </div>
+                </div>
+
                 <div class="panel-title" style="margin-top: 20px;">即時訊號觀測 (Probe)</div>
                 <div class="signal-grid">
                     <div class="signal-box"><span>In A (左)</span><span id="sig-a" class="val-0">0</span></div>
@@ -285,8 +330,12 @@
                             <span>經輸入正反器同步</span>
                             <input type="checkbox" id="iob-in-ff" onchange="updateIobInConfig()">
                         </div>
+                        <div class="config-row">
+                            <span>同時驅動本列全域長線</span>
+                            <input type="checkbox" id="iob-in-drive-long" onchange="updateIobInConfig()">
+                        </div>
                         <div style="font-size: 0.7rem; color: #8b949e; margin-top: 6px; line-height: 1.5;">
-                            註：本模擬器為離散 0/1 數位模型，TTL/CMOS 閾值選擇不影響模擬結果，僅供對照真實硬體行為；浮接且未啟用上拉時，讀值視為 0（簡化——實際懸空電位不定）。輸入正反器啟用時，改為在時鐘上升緣才將值鎖入晶片內部。
+                            註：本模擬器為離散 0/1 數位模型，TTL/CMOS 閾值選擇不影響模擬結果，僅供對照真實硬體行為；浮接且未啟用上拉時，讀值視為 0（簡化——實際懸空電位不定）。輸入正反器啟用時，改為在時鐘上升緣才將值鎖入晶片內部。驅動長線需該列長線本身也處於「開啟」狀態（於任一該列 CLB 的側欄設定）才會生效。
                         </div>
                     </div>
                     <div class="signal-grid">
@@ -338,12 +387,14 @@
     const OFFSET_Y = 40;
 
     let clbs = [];
-    let h_wires = []; 
-    let v_wires = []; 
-    let switch_box = []; 
+    let h_wires = [];
+    let v_wires = [];
+    let switch_box = [];
     let iob_in = [];
     let iob_out = [];
-    
+    let h_long = []; // 全域長線（TASK-015）：每列一條，低偏斜、單一 on/off，非逐段可切換
+    let v_long = []; // 全域長線：每欄一條
+
     let clockVal = 0;
     let autoClockId = null;
     let activeClb = null;
@@ -365,7 +416,7 @@
     const FF_D_SRC_CODES = ['F', 'G', 'F_XOR_G', 'F_AND_G', 'F_OR_G']; // 3-bit 編碼
     const THRESHOLD_CODES = ['TTL', 'CMOS']; // 1-bit 編碼
     const BITSTREAM_MAGIC = [0x58, 0x53, 0x49, 0x4D]; // "XSIM"
-    const BITSTREAM_VERSION = 1;
+    const BITSTREAM_VERSION = 2; // 匯出一律用最新版；匯入同時支援版本 1（TASK-015 之前，無長線欄位）
 
     // MSB-first 逐 bit 寫入，滿 8 bit 就封裝成一個 byte
     class BitWriter {
@@ -405,10 +456,13 @@
     }
 
     // 6-byte header（"XSIM" + 1-byte version + 1-byte grid size）+ 逐 bit 封裝的 payload
-    // Payload 順序：CLB（21 bit/顆：lut_f 8 + lut_g 8 + ff_d_src 3 + mux_x 1 + mux_y 1）
+    // Version 2 payload 順序：CLB（25 bit/顆：lut_f 8 + lut_g 8 + ff_d_src 3 + mux_x 1 + mux_y 1
+    //             + src_a 1 + src_b 1 + drive_h_long 1 + drive_v_long 1，見 TASK-015 長線欄位）
     //             → switch matrix（6 bit/交點）→ h_wires.on（1 bit/段）→ v_wires.on（1 bit/段）
-    //             → 輸入 IOB（5 bit：forced+val+pull_up+threshold+ff_enabled）
-    //             → 輸出 IOB（2 bit：tri_state+threshold）
+    //             → 輸入 IOB（6 bit：forced+val+pull_up+threshold+ff_enabled+drive_long）
+    //             → 輸出 IOB（2 bit：tri_state+threshold）→ h_long.on（1 bit/列）→ v_long.on（1 bit/欄）
+    // Version 1（TASK-006~007 舊格式）沒有長線欄位，CLB 為 21 bit、輸入 IOB 為 5 bit、無 long-line 區塊；
+    // deserializeBitstream() 仍可讀取版本 1（新欄位一律套用預設值），詳見該函式。
     function serializeBitstream() {
         const w = new BitWriter();
         for (let r = 0; r < GRID_SIZE; r++) {
@@ -419,6 +473,10 @@
                 w.writeBits(Math.max(0, FF_D_SRC_CODES.indexOf(n.ff_d_src)), 3);
                 w.writeBits(n.mux_x === 'Q' ? 1 : 0, 1);
                 w.writeBits(n.mux_y === 'Q' ? 1 : 0, 1);
+                w.writeBits(n.src_a === 'long' ? 1 : 0, 1);
+                w.writeBits(n.src_b === 'long' ? 1 : 0, 1);
+                w.writeBits(n.drive_h_long ? 1 : 0, 1);
+                w.writeBits(n.drive_v_long ? 1 : 0, 1);
             }
         }
         for (let r = 0; r <= GRID_SIZE; r++) {
@@ -440,12 +498,15 @@
             w.writeBits(inp.pull_up ? 1 : 0, 1);
             w.writeBits(Math.max(0, THRESHOLD_CODES.indexOf(inp.threshold)), 1);
             w.writeBits(inp.ff_enabled ? 1 : 0, 1);
+            w.writeBits(inp.drive_long ? 1 : 0, 1);
         }
         for (let i = 0; i < GRID_SIZE; i++) {
             const out = iob_out[i];
             w.writeBits(out.tri_state ? 1 : 0, 1);
             w.writeBits(Math.max(0, THRESHOLD_CODES.indexOf(out.threshold)), 1);
         }
+        for (let i = 0; i < GRID_SIZE; i++) w.writeBits(h_long[i].on ? 1 : 0, 1);
+        for (let i = 0; i < GRID_SIZE; i++) w.writeBits(v_long[i].on ? 1 : 0, 1);
         const payload = w.finish();
         const full = new Uint8Array(6 + payload.length);
         full.set(BITSTREAM_MAGIC, 0);
@@ -460,8 +521,8 @@
             throw new Error('無效的 bitstream：header magic 不符（需為 "XSIM"）');
         }
         const version = bytes[4];
-        if (version !== BITSTREAM_VERSION) {
-            throw new Error(`不支援的 bitstream 版本：${version}（本模擬器僅支援版本 ${BITSTREAM_VERSION}）`);
+        if (version !== 1 && version !== 2) {
+            throw new Error(`不支援的 bitstream 版本：${version}（本模擬器支援版本 1、2）`);
         }
         const size = bytes[5];
         const r = new BitReader(bytes.subarray(6));
@@ -475,7 +536,12 @@
                 const ff_d_src = FF_D_SRC_CODES[r.readBits(3)] || 'F';
                 const mux_x = r.readBits(1) ? 'Q' : 'F';
                 const mux_y = r.readBits(1) ? 'Q' : 'G';
-                loadedClbs[ri][ci] = { lut_f, lut_g, ff_d_src, mux_x, mux_y };
+                // version 1 沒有長線欄位，一律套用預設值（一般繞線、不驅動長線）
+                const src_a = version >= 2 && r.readBits(1) ? 'long' : 'wire';
+                const src_b = version >= 2 && r.readBits(1) ? 'long' : 'wire';
+                const drive_h_long = version >= 2 && !!r.readBits(1);
+                const drive_v_long = version >= 2 && !!r.readBits(1);
+                loadedClbs[ri][ci] = { lut_f, lut_g, ff_d_src, mux_x, mux_y, src_a, src_b, drive_h_long, drive_v_long };
             }
         }
         const loadedSwitch = [];
@@ -504,7 +570,8 @@
                 val: r.readBits(1),
                 pull_up: !!r.readBits(1),
                 threshold: THRESHOLD_CODES[r.readBits(1)] || 'TTL',
-                ff_enabled: !!r.readBits(1)
+                ff_enabled: !!r.readBits(1),
+                drive_long: version >= 2 && !!r.readBits(1)
             });
         }
         const loadedIobOut = [];
@@ -514,7 +581,15 @@
                 threshold: THRESHOLD_CODES[r.readBits(1)] || 'TTL'
             });
         }
-        return { size, loadedClbs, loadedSwitch, loadedHOn, loadedVOn, loadedIobIn, loadedIobOut };
+        const loadedHLongOn = [];
+        const loadedVLongOn = [];
+        if (version >= 2) {
+            for (let i = 0; i < size; i++) loadedHLongOn.push(!!r.readBits(1));
+            for (let i = 0; i < size; i++) loadedVLongOn.push(!!r.readBits(1));
+        } else {
+            for (let i = 0; i < size; i++) { loadedHLongOn.push(false); loadedVLongOn.push(false); }
+        }
+        return { size, loadedClbs, loadedSwitch, loadedHOn, loadedVOn, loadedIobIn, loadedIobOut, loadedHLongOn, loadedVLongOn };
     }
 
     // 將解析出的設定套用到目前晶片狀態（會先依載入的網格尺寸重建骨架，再覆蓋成已存的配置）
@@ -542,6 +617,8 @@
             Object.assign(iob_in[i], loaded.loadedIobIn[i]);
             iob_in[i].reg_val = iob_in[i].forced ? iob_in[i].val : (iob_in[i].pull_up ? 1 : 0);
             Object.assign(iob_out[i], loaded.loadedIobOut[i]);
+            h_long[i].on = loaded.loadedHLongOn[i];
+            v_long[i].on = loaded.loadedVLongOn[i];
         }
     }
 
@@ -602,6 +679,8 @@
         switch_box = [];
         iob_in = [];
         iob_out = [];
+        h_long = [];
+        v_long = [];
         activeClb = null;
         activeSwitch = null;
         activeIobIn = null;
@@ -613,6 +692,7 @@
             for (let c = 0; c < GRID_SIZE; c++) {
                 clbs[r][c] = {
                     id: `${String.fromCharCode(65+r)}${String.fromCharCode(65+c)}`,
+                    row: r, col: c, // 供 long-line 存取（h_long[row] / v_long[col]）使用
                     x: OFFSET_X + c * (CLB_SIZE + CH_W),
                     y: OFFSET_Y + r * (CLB_SIZE + CH_W),
                     // 配置 SRAM — F/G 各為一個 LUT3（8-bit 真值表 bitmask，bit index = (v0<<2)|(v1<<1)|v2）
@@ -622,6 +702,12 @@
                     ff_d_src: 'F', // D 型正反器輸入來源：F / G / F_XOR_G / F_AND_G / F_OR_G
                     mux_x: 'F', // 'F' or 'Q'
                     mux_y: 'G', // 'G' or 'Q'
+                    // 全域長線（TASK-015）：A/B 輸入可選擇改從所在列/欄的長線讀取，取代一般繞線；
+                    // X/Y 輸出也可選擇「同時」驅動長線（不影響原本對一般繞線的驅動）
+                    src_a: 'wire', // 'wire' | 'long'（讀本列 h_long）
+                    src_b: 'wire', // 'wire' | 'long'（讀本欄 v_long）
+                    drive_h_long: false,
+                    drive_v_long: false,
                     // 即時電平狀態
                     in_A: 0, in_B: 0, in_C: 0, in_D: 0,
                     val_F: 0, val_G: 0, val_Q: 0,
@@ -650,6 +736,7 @@
                 threshold: 'TTL',  // 'TTL' | 'CMOS'（僅供顯示對照，不影響離散 0/1 模擬）
                 ff_enabled: false, // 是否經輸入正反器同步（僅在 clock 上升緣鎖入）
                 reg_val: 0,
+                drive_long: false, // 是否同時驅動本列的全域長線 h_long[i]
                 y: OFFSET_Y + i * (CLB_SIZE + CH_W) + CLB_SIZE/2
             });
             iob_out.push({
@@ -658,6 +745,9 @@
                 threshold: 'TTL',
                 y: OFFSET_Y + i * (CLB_SIZE + CH_W) + CLB_SIZE/2
             });
+            // 全域長線（TASK-015）：每列/每欄各一條，單一 on/off，非逐段可切換
+            h_long.push({ on: false, val: 0 });
+            v_long.push({ on: false, val: 0 });
         }
 
         document.getElementById('config-panel').style.display = 'none';
@@ -719,13 +809,16 @@
             for(let c=0; c<GRID_SIZE; c++) h_wires[r][c].val = 0;
             for(let c=0; c<=GRID_SIZE; c++) if(r<GRID_SIZE) v_wires[r][c].val = 0;
         }
+        for (let i = 0; i < GRID_SIZE; i++) { h_long[i].val = 0; v_long[i].val = 0; }
 
         // 多次迭代以穩定組合邏輯
         for(let iter=0; iter<6; iter++) {
-            
+
             // 1. 驅動輸入引腳（依 forced/pull_up/ff_enabled 決定有效值，見 getIobInEffective()）
             for (let r = 0; r < GRID_SIZE; r++) {
-                if (h_wires[r][0].on) h_wires[r][0].val |= getIobInEffective(iob_in[r]);
+                const v = getIobInEffective(iob_in[r]);
+                if (h_wires[r][0].on) h_wires[r][0].val |= v;
+                if (iob_in[r].drive_long && h_long[r].on) h_long[r].val |= v;
             }
 
             // 2. 佈線網格擴散 (Switch Matrix 解析)
@@ -757,11 +850,16 @@
                     const n = clbs[r][c];
                     
                     // 讀取輸入 (A左, B上, C右, D下) - 修正了方向映射錯誤
-                    n.in_A = v_wires[r][c].on ? v_wires[r][c].val : 0;         // 左 (垂直線)
-                    n.in_B = h_wires[r][c].on ? h_wires[r][c].val : 0;         // 上 (水平線)
+                    // A/B 可選擇改讀本列/本欄的全域長線（TASK-015），取代一般繞線
+                    n.in_A = n.src_a === 'long'
+                        ? (h_long[r].on ? h_long[r].val : 0)
+                        : (v_wires[r][c].on ? v_wires[r][c].val : 0);           // 左 (垂直線) 或列長線
+                    n.in_B = n.src_b === 'long'
+                        ? (v_long[c].on ? v_long[c].val : 0)
+                        : (h_wires[r][c].on ? h_wires[r][c].val : 0);           // 上 (水平線) 或欄長線
                     n.in_C = v_wires[r][c+1].on ? v_wires[r][c+1].val : 0;     // 右 (垂直線)
                     n.in_D = h_wires[r+1][c].on ? h_wires[r+1][c].val : 0;     // 下 (水平線)
-                    
+
                     // LUT 運算 — F/G 各為真正的 LUT3（8-bit 真值表），F 讀 A,B,C；G 讀 A,B,D
                     n.val_F = calcLut3(n.lut_f, n.in_A, n.in_B, n.in_C);
                     n.val_G = calcLut3(n.lut_g, n.in_A, n.in_B, n.in_D);
@@ -771,6 +869,9 @@
                     n.out_Y = (n.mux_y === 'G') ? n.val_G : n.val_Q;
 
                     // 驅動輸出至路由網格 (X 驅動右側垂直線，Y 驅動下方水平線) - 修正了輸出方向與索引
+                    // 若啟用，X/Y 同時（額外）驅動本列/本欄的全域長線，不影響原本對一般繞線的驅動
+                    if (n.drive_h_long && h_long[r].on) h_long[r].val |= n.out_X;
+                    if (n.drive_v_long && v_long[c].on) v_long[c].val |= n.out_Y;
                     if (v_wires[r][c+1].on) v_wires[r][c+1].val |= n.out_X;
                     if (h_wires[r+1][c].on) h_wires[r+1][c].val |= n.out_Y;
                 }
@@ -899,13 +1000,39 @@
     function renderLoop() {
         simulateCombinatorial();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         drawRouting();
+        drawLongLines();
         drawCLBs();
         drawIO();
         updateSidebarUI();
-        
+
         requestAnimationFrame(renderLoop);
+    }
+
+    // 全域長線視覺化（TASK-015）：橘色虛線，緊貼一般繞線通道旁，區分兩者
+    function drawLongLines() {
+        ctx.setLineDash([4, 3]);
+        ctx.lineWidth = 2;
+        for (let r = 0; r < GRID_SIZE; r++) {
+            if (!h_long[r].on) continue;
+            ctx.strokeStyle = h_long[r].val ? '#f0883e' : '#5a3a20';
+            const y = OFFSET_Y + r * (CLB_SIZE + CH_W) - CH_W / 2 + 6;
+            ctx.beginPath();
+            ctx.moveTo(OFFSET_X - CH_W, y);
+            ctx.lineTo(OFFSET_X + GRID_SIZE * (CLB_SIZE + CH_W) - CH_W + 30, y);
+            ctx.stroke();
+        }
+        for (let c = 0; c < GRID_SIZE; c++) {
+            if (!v_long[c].on) continue;
+            ctx.strokeStyle = v_long[c].val ? '#f0883e' : '#5a3a20';
+            const x = OFFSET_X + c * (CLB_SIZE + CH_W) - CH_W / 2 + 6;
+            ctx.beginPath();
+            ctx.moveTo(x, OFFSET_Y - CH_W);
+            ctx.lineTo(x, OFFSET_Y + GRID_SIZE * (CLB_SIZE + CH_W) - CH_W + 10);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
     }
 
     function drawRouting() {
@@ -1145,6 +1272,12 @@
         document.getElementById('cfg-mux-x').value = activeClb.mux_x;
         document.getElementById('cfg-mux-y').value = activeClb.mux_y;
         document.getElementById('cfg-ff-d').value = activeClb.ff_d_src;
+        document.getElementById('cfg-h-long-on').value = h_long[activeClb.row].on ? '1' : '0';
+        document.getElementById('cfg-v-long-on').value = v_long[activeClb.col].on ? '1' : '0';
+        document.getElementById('cfg-src-a').value = activeClb.src_a;
+        document.getElementById('cfg-src-b').value = activeClb.src_b;
+        document.getElementById('cfg-drive-h-long').checked = activeClb.drive_h_long;
+        document.getElementById('cfg-drive-v-long').checked = activeClb.drive_v_long;
         renderLutEditor('f');
         renderLutEditor('g');
 
@@ -1156,6 +1289,12 @@
         activeClb.mux_x = document.getElementById('cfg-mux-x').value;
         activeClb.mux_y = document.getElementById('cfg-mux-y').value;
         activeClb.ff_d_src = document.getElementById('cfg-ff-d').value;
+        h_long[activeClb.row].on = document.getElementById('cfg-h-long-on').value === '1';
+        v_long[activeClb.col].on = document.getElementById('cfg-v-long-on').value === '1';
+        activeClb.src_a = document.getElementById('cfg-src-a').value;
+        activeClb.src_b = document.getElementById('cfg-src-b').value;
+        activeClb.drive_h_long = document.getElementById('cfg-drive-h-long').checked;
+        activeClb.drive_v_long = document.getElementById('cfg-drive-v-long').checked;
     }
 
     function openSidebarForSwitch() {
@@ -1178,6 +1317,7 @@
         document.getElementById('iob-in-pullup').checked = inp.pull_up;
         document.getElementById('iob-in-threshold').value = inp.threshold;
         document.getElementById('iob-in-ff').checked = inp.ff_enabled;
+        document.getElementById('iob-in-drive-long').checked = inp.drive_long;
         updateSidebarUI();
     }
 
@@ -1194,6 +1334,7 @@
         inp.pull_up = document.getElementById('iob-in-pullup').checked;
         inp.threshold = document.getElementById('iob-in-threshold').value;
         inp.ff_enabled = document.getElementById('iob-in-ff').checked;
+        inp.drive_long = document.getElementById('iob-in-drive-long').checked;
     }
 
     function openSidebarForIobOut() {

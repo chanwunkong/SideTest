@@ -7,9 +7,7 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 ## Active
 
 ### [XC2064] 精確度提升（在既有原型之上）
-- [ ] TASK-015 [XC2064]: 評估並視需要加入 Long Lines（低偏斜長線）
-  - 目標：TASK-004 完成的 switch matrix 僅涵蓋單段式一般繞線；datasheet 提到的 long lines（貫穿全軸、用於全域時脈等高扇出訊號）尚未實作
-  - 若採用單獨一條可全域點亮/點滅的長線層即可教學說明其用途，不需要每段都可切換
+（目前無排定中的 Active 任務——TASK-002~007、015 皆已完成，見 Completed。下一輪建議優先切到 [GAME] 軌，見 CLAUDE.md §2）
 
 ### [GAME] 現代 FPGA 遊戲化教學
 - [ ] TASK-008 [GAME]: 學習路徑與關卡大綱（`FPGA/game/DESIGN.md`）
@@ -72,3 +70,10 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - **範圍調整**：原提案「例如 4-bit 計數器」縮小為 3-bit，因為本模擬器僅有相鄰直連繞線（無 fan-out routing），4-bit 版本的 3-input AND 需要額外一整套 relay/precompute CLB，對驗證引擎本身沒有額外幫助，已在 `FPGA/tests/README.md` 明確記錄
   - 兩電路皆未使用 switch matrix 轉角連接（純直線相鄰串接已足夠覆蓋這兩個電路；switch matrix 本身邏輯已在 TASK-004 有獨立單元測試），已在文件中註記為已知限制
   - 順便驗證了 TASK-006 的 bitstream 格式：用 `serializeBitstream()` 把兩個電路打包成 `FPGA/tests/decoder-2to4.bit`／`counter-3bit.bit`，並額外以獨立的 `BitReader` 重新解析，確認位元組內容與原始設定完全一致，可直接用模擬器「匯入 Bitstream」載入互動確認
+- [x] TASK-015 [XC2064]: 評估並實作 Long Lines（低偏斜長線）
+  - **評估結論**：本模擬器的全域時鐘已由 JS 迴圈同步分派給所有 CLB（不經過任何繞線資源），所以 long line 對「時脈分佈」本身沒有必要性；但它對「一般用途高扇出訊號」仍有明顯教學價值——TASK-007 的解碼器電路就是因為沒有 long line，才需要用「重複 IOB 輸入 + relay 鏈」這種繞路技巧來讓兩顆分開的 CLB 都拿到同一個訊號。因此決定實作，但依任務本身建議採最簡形式：每列/每欄各一條，單一 on/off，不逐段可切換
+  - 新增 `h_long[]`/`v_long[]`（各 `GRID_SIZE` 條）；CLB 新增 `src_a`/`src_b`（`'wire'|'long'`，讀本列/本欄長線取代一般繞線）與 `drive_h_long`/`drive_v_long`（X/Y 輸出同時額外驅動長線）；IOB 輸入新增 `drive_long`
+  - `simulateCombinatorial()` 的驅動/讀取/reset 邏輯同步更新；`drawLongLines()` 用橘色虛線標示於一般繞線通道旁，開啟時依目前值變色
+  - Sidebar：CLB 面板新增「全域長線」設定區塊（列/欄長線 on-off、A/B 來源、X/Y 是否驅動）；IOB 輸入面板新增「同時驅動本列全域長線」勾選框
+  - **Bitstream 格式升級為版本 2**（`FPGA/docs/bitstream-format.md` 已更新）：CLB 21→25 bit、輸入 IOB 5→6 bit、payload 尾端新增 `h_long.on`/`v_long.on`；`deserializeBitstream()` 同時支援版本 1（自動預設新欄位）與版本 2，TASK-007 產生的舊 `.bit` 檔已驗證仍可正確匯入（回歸測試通過）
+  - 驗證：以 Node 獨立重現「IOB 驅動長線 → 兩顆非相鄰 CLB 皆可直接讀到同一值」的核心情境；獨立驗證版本 2 序列化/反序列化 round-trip 與版本 1 回溯相容性皆通過；瀏覽器開啟確認頁面載入無誤

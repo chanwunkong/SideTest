@@ -46,4 +46,11 @@
 - Completed: TASK-007 — 新增 `FPGA/tests/build-and-verify.js`（逐字重現引擎邏輯，非平行複製品）驗證 2-to-4 解碼器（4 組測項全過）與 3-bit 同步計數器（16 個 clock 邊緣、兩輪 wrap-around 全過）；產出對應 `.bit` 檔並反向確認位元內容正確；`FPGA/tests/README.md` 記錄電路佈局、真值表、範圍調整（4-bit→3-bit）與已知限制（未涵蓋 switch matrix 轉角）
 - Errors: none（兩電路的手工佈線一次到位，未觸發任何修正）
 - Queued: TASK-015 [XC2064]（Long Lines 評估）是唯一剩餘的 XC2064 Active 任務；[GAME] 軌自建檔以來尚無已完成任務，依 CLAUDE.md §2 建議下一輪優先切換到 [GAME] 軌（例如 TASK-008 學習路徑大綱）
+- Commit: bea99fc
+
+## 2026-07-07T07:00Z
+- Track: XC2064
+- Completed: TASK-015 — 評估後決定實作最簡版全域長線：每列/每欄各一條 `h_long`/`v_long`，單一 on/off；CLB 新增 `src_a`/`src_b`（讀長線取代一般繞線）與 `drive_h_long`/`drive_v_long`（額外驅動長線），IOB 輸入新增 `drive_long`；`drawLongLines()` 橘色虛線視覺化；bitstream 升級為版本 2（CLB 25 bit、輸入 IOB 6 bit、新增長線 on 區塊），`deserializeBitstream()` 同時支援版本 1/2，已驗證 TASK-007 舊 `.bit` 檔仍可正確匯入
+- Errors: none
+- Queued: [XC2064] 軌目前無排定任務（TASK-002~007、015 皆已完成）；下一輪依 CLAUDE.md §2 建議切到 [GAME] 軌，優先 TASK-008（學習路徑與關卡大綱）
 - Commit: (pending)
