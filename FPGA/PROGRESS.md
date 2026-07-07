@@ -39,4 +39,11 @@
 - Completed: TASK-006 — 新增 `BitWriter`/`BitReader` 逐 bit 封裝/解析、`serializeBitstream()`/`deserializeBitstream()`/`applyLoadedState()`，把 CLB/switch matrix/wires/IOB 配置打包成自訂的 6-byte header + bit payload 格式；新增匯出（下載 `.bit`）/匯入（讀檔重建）UI；新增 `FPGA/docs/bitstream-format.md` 明確區分模擬用格式與真實 XC2064 格式
 - Errors: none
 - Queued: TASK-007 [XC2064]（標準測試電路驗證）—可利用本次的匯出/匯入功能保存測試電路配置檔
+- Commit: 149bb77
+
+## 2026-07-07T06:00Z
+- Track: XC2064
+- Completed: TASK-007 — 新增 `FPGA/tests/build-and-verify.js`（逐字重現引擎邏輯，非平行複製品）驗證 2-to-4 解碼器（4 組測項全過）與 3-bit 同步計數器（16 個 clock 邊緣、兩輪 wrap-around 全過）；產出對應 `.bit` 檔並反向確認位元內容正確；`FPGA/tests/README.md` 記錄電路佈局、真值表、範圍調整（4-bit→3-bit）與已知限制（未涵蓋 switch matrix 轉角）
+- Errors: none（兩電路的手工佈線一次到位，未觸發任何修正）
+- Queued: TASK-015 [XC2064]（Long Lines 評估）是唯一剩餘的 XC2064 Active 任務；[GAME] 軌自建檔以來尚無已完成任務，依 CLAUDE.md §2 建議下一輪優先切換到 [GAME] 軌（例如 TASK-008 學習路徑大綱）
 - Commit: (pending)

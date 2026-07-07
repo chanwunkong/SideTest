@@ -7,9 +7,6 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 ## Active
 
 ### [XC2064] 精確度提升（在既有原型之上）
-- [ ] TASK-007 [XC2064]: 標準測試電路驗證
-  - 目標：在模擬器上搭建至少 2 個經典電路（例如 4-bit 計數器、2-to-4 解碼器），確認功能正確
-  - 產出：`FPGA/tests/` 下的電路配置檔 + 驗證說明
 - [ ] TASK-015 [XC2064]: 評估並視需要加入 Long Lines（低偏斜長線）
   - 目標：TASK-004 完成的 switch matrix 僅涵蓋單段式一般繞線；datasheet 提到的 long lines（貫穿全軸、用於全域時脈等高扇出訊號）尚未實作
   - 若採用單獨一條可全域點亮/點滅的長線層即可教學說明其用途，不需要每段都可切換
@@ -68,3 +65,10 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - Header/toolbar 新增匯出/匯入按鈕；側欄新增「Bitstream 匯出／匯入」面板顯示 byte 數與前 16 bytes hex dump
   - 只序列化「配置」（SRAM 內容），不含執行期即時運算值（val_F/in_A/線路電位等），符合真實硬體 bitstream 只描述配置、不含執行狀態的性質
   - 驗證：以 Node 獨立重現 `BitWriter`/`BitReader`/序列化/反序列化邏輯，用涵蓋所有欄位型別的假資料做完整 round-trip 測試，全部欄位還原正確；瀏覽器開啟確認頁面載入無誤
+- [x] TASK-007 [XC2064]: 標準測試電路驗證
+  - 新增 `FPGA/tests/build-and-verify.js`：逐字重現 `FPGA.html` 的 `calcLut3`/`getFFInput`/`getIobInEffective`/`simulateCombinatorial()` 佈線鬆弛演算法/`stepClock()` 鎖存邏輯（而非另寫一套平行邏輯），在 Node 下對兩個手工佈線的電路做功能驗證，避免驗證到「跟正式程式碼各自漂移的複製品」
+  - **電路1：2-to-4 解碼器**（純組合邏輯，GRID_SIZE=4，8 顆 CLB）：用兩條獨立 relay 鏈把 S1/S0（含重複 IOB 輸入）搬運到兩顆 combine CLB，4 組 `(S1,S0)` 測項全部通過
+  - **電路2：3-bit 同步計數器**（GRID_SIZE=2，4 顆 CLB，`D0=NOT Q0`/`D1=Q0⊕Q1`/`D2=(Q0∧Q1)⊕Q2`）：連續 16 個 clock 邊緣（兩輪完整 0→7→0）全部符合預期序列
+  - **範圍調整**：原提案「例如 4-bit 計數器」縮小為 3-bit，因為本模擬器僅有相鄰直連繞線（無 fan-out routing），4-bit 版本的 3-input AND 需要額外一整套 relay/precompute CLB，對驗證引擎本身沒有額外幫助，已在 `FPGA/tests/README.md` 明確記錄
+  - 兩電路皆未使用 switch matrix 轉角連接（純直線相鄰串接已足夠覆蓋這兩個電路；switch matrix 本身邏輯已在 TASK-004 有獨立單元測試），已在文件中註記為已知限制
+  - 順便驗證了 TASK-006 的 bitstream 格式：用 `serializeBitstream()` 把兩個電路打包成 `FPGA/tests/decoder-2to4.bit`／`counter-3bit.bit`，並額外以獨立的 `BitReader` 重新解析，確認位元組內容與原始設定完全一致，可直接用模擬器「匯入 Bitstream」載入互動確認
