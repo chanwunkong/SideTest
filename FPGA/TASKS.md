@@ -7,7 +7,13 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 ## Active
 
 ### [XC2064] 精確度提升（在既有原型之上）
-（目前無排定中的 Active 任務——TASK-002~007、015 皆已完成，見 Completed。下一輪建議優先切到 [GAME] 軌，見 CLAUDE.md §2）
+- [ ] TASK-016 [XC2064]: CLB 新增 SET/RESET 非同步控制
+  - 依 2026-07-07 驗證（`xc2064-reference.md` §2/§7）：確認真實晶片正反器具備 SET/RESET 線可強制輸出高/低，本模擬器目前完全沒有實作
+  - 目標：CLB 新增可程式化的 SET/RESET 輸入（來源可仿照 `ff_d_src` 的模式，例如選 A/B/C/D 其中之一或恆為 0），在該訊號為 1 時於下一次 `stepClock()` 上升緣強制 `val_Q` 為 0 或 1（分別對應 RESET/SET），而非目前只能透過 D 輸入間接影響
+- [ ] TASK-017 [XC2064]: F/G LUT 輸入指派改為可程式化
+  - 依 2026-07-07 驗證：真實晶片每個一般輸入（A/B/C/D）本身透過多工器從候選節點選擇，且 F/G 各自使用哪 3 個一般輸入也可配置；本模擬器目前寫死 F=(A,B,C)、G=(A,B,D)
+  - 目標：讓每顆 CLB 可設定 F 的 3 個輸入槽、G 的 3 個輸入槽各自對應到 A/B/C/D 中的哪幾個（含重複選擇的限制或提示），取代目前寫死的組合
+  - 需評估 UI 複雜度是否值得——這也是本輪「更容易操作」的討論範圍之一，建議與該任務一併決定
 
 ### [GAME] 現代 FPGA 遊戲化教學
 - [ ] TASK-008 [GAME]: 學習路徑與關卡大綱（`FPGA/game/DESIGN.md`）

@@ -53,4 +53,15 @@
 - Completed: TASK-015 — 評估後決定實作最簡版全域長線：每列/每欄各一條 `h_long`/`v_long`，單一 on/off；CLB 新增 `src_a`/`src_b`（讀長線取代一般繞線）與 `drive_h_long`/`drive_v_long`（額外驅動長線），IOB 輸入新增 `drive_long`；`drawLongLines()` 橘色虛線視覺化；bitstream 升級為版本 2（CLB 25 bit、輸入 IOB 6 bit、新增長線 on 區塊），`deserializeBitstream()` 同時支援版本 1/2，已驗證 TASK-007 舊 `.bit` 檔仍可正確匯入
 - Errors: none
 - Queued: [XC2064] 軌目前無排定任務（TASK-002~007、015 皆已完成）；下一輪依 CLAUDE.md §2 建議切到 [GAME] 軌，優先 TASK-008（學習路徑與關卡大綱）
+- Commit: eba646a
+
+## 2026-07-07T08:00Z
+- Track: XC2064
+- Completed: 使用者要求「先驗證 XC2064 是否真實」——重新查證 Shirriff 逆向工程文章的更細節部分（CLB 輸入多工器、正反器 SET/RESET、IOB 輸出正反器、direct interconnect、全域時脈網路），更新 `xc2064-reference.md` §2/§7：
+  - 發現本模擬器的真實落差：F/G LUT 輸入寫死為 (A,B,C)/(A,B,D)，但真實晶片是每個一般輸入都透過可程式化多工器選擇來源，F/G 各自用哪 3 個輸入也可配置 → 新增 TASK-017
+  - 發現確認存在但未實作的真實特性：正反器有 SET/RESET 非同步控制線 → 新增 TASK-016
+  - 確認 TASK-005「不實作 IOB 輸出正反器」的保守決定是對的（來源明確表示這塊仍未被逆向工程清楚）
+  - Direct interconnect 仍無法確認，維持待確認
+- Errors: none
+- Queued: TASK-016（SET/RESET）、TASK-017（LUT 輸入可程式化，與「更容易操作」的 UX 討論一併決定範圍）；同時準備向使用者提出操作性改善的方案選項
 - Commit: (pending)
