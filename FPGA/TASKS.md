@@ -7,13 +7,8 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 ## Active
 
 ### [XC2064] 精確度提升（在既有原型之上）
-- [ ] TASK-016 [XC2064]: CLB 新增 SET/RESET 非同步控制
-  - 依 2026-07-07 驗證（`xc2064-reference.md` §2/§7）：確認真實晶片正反器具備 SET/RESET 線可強制輸出高/低，本模擬器目前完全沒有實作
-  - 目標：CLB 新增可程式化的 SET/RESET 輸入（來源可仿照 `ff_d_src` 的模式，例如選 A/B/C/D 其中之一或恆為 0），在該訊號為 1 時於下一次 `stepClock()` 上升緣強制 `val_Q` 為 0 或 1（分別對應 RESET/SET），而非目前只能透過 D 輸入間接影響
-- [ ] TASK-017 [XC2064]: F/G LUT 輸入指派改為可程式化
-  - 依 2026-07-07 驗證：真實晶片每個一般輸入（A/B/C/D）本身透過多工器從候選節點選擇，且 F/G 各自使用哪 3 個一般輸入也可配置；本模擬器目前寫死 F=(A,B,C)、G=(A,B,D)
-  - 目標：讓每顆 CLB 可設定 F 的 3 個輸入槽、G 的 3 個輸入槽各自對應到 A/B/C/D 中的哪幾個（含重複選擇的限制或提示），取代目前寫死的組合
-  - 需評估 UI 複雜度是否值得——這也是本輪「更容易操作」的討論範圍之一，建議與該任務一併決定
+- [ ] TASK-017 [XC2064]: CLB 正反器本地時脈來源（延後，待更多驗證）
+  - 依 2026-07-07 交叉比對：第三方重現顯示正反器 clock 來源可能可選「全域時脈」或「本地一般輸入 C」，但這點只有單一第三方來源佐證、無原廠資料交叉確認，且會牽動本模擬器目前「單一全域 stepClock() 同步驅動所有 CLB」的核心時脈模型（需要改成每顆 CLB 各自偵測自己 in_C 訊號的上升緣，而不是等待使用者按 tick），架構影響大於前一項，故先延後，待找到更多佐證或使用者確認要做再排入
 
 ### [XC2064] 操作性改善（2026-07-07 使用者要求「全部都要做」，依成本/風險排序）
 （全部四項已完成，見 Completed）
@@ -112,3 +107,12 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - 互動改為 `canvasMouseDown`/`windowMouseMove`/`windowMouseUp` 三段式：mousedown 時若不在合法拖曳起點上，立即比照原本行為呼叫 `handleClick()`（點擊完全不受影響）；若在合法起點上，先記錄狀態，移動超過 6px 門檻才視為拖曳，否則 mouseup 時仍呼叫 `handleClick()`——確保所有既有的點擊式互動（CLB 選取、switch matrix 選取、線段/switch matrix 點擊切換、IOB 選取）維持原行為不變，拖曳只是新增的路徑
   - `drawDragOverlay()` 繪製拖曳中的預覽虛線與連線結果的浮動訊息（含使用了幾個 switch matrix 轉點）
   - 驗證：獨立以 Node 重現 `findWirePath()`/`getWireNeighbors()` 邏輯，確認（a）相鄰情形回傳 0-hop 路徑、（b）需要轉角的情形正確找到經過 1 個 switch matrix 連接的路徑、（c）跨對角遠距離也能找到路徑；並額外做**端對端整合測試**：把 BFS 找到的路徑實際套用到 `simulateCombinatorial()` 的邏輯重現上，確認訊號真的從來源 CLB 傳到目的 CLB（不是只有線段被點亮）；瀏覽器開啟手動測試拖曳與確認既有點擊互動（CLB/switch matrix/IOB/wire 段點擊切換）皆未受影響
+- [x] TASK-016 [XC2064]: CLB 核心邏輯依 lazardjurovic/xc2064 交叉比對結果重新設計
+  - **背景**：交叉比對第三方 SystemC 重現專案發現，原本規劃分開處理 SET/RESET 與 LUT 輸入可程式化是錯的——真實架構裡 D 型正反器的 D 輸入**固定＝F**（取代 TASK-003 設計的 `ff_d_src` 五選一），真正可配置的組合機制是 **RESET**（G，或「一般輸入 D」OR G）與 **SET**（無，或 F）；F/G 之所以能表達足夠豐富的函數，是因為兩者的 3 個輸入槽本身可程式化（每槽二選一：slot1∈{A,B}、slot2∈{B,C}、slot3∈{C,D}）
+  - **目標 1（F/G 輸入槽可程式化）**：CLB 新增 `f_slot1/f_slot2/f_slot3`、`g_slot1/g_slot2/g_slot3`，新增 `getSlotValue(n, letter)` 依字母取出對應的一般輸入值；`calcLut3()` 呼叫改用槽位解析而非寫死 A,B,C/A,B,D；預設值為 f=(A,B,C)、g=(A,B,D) 以維持與既有電路相容
+  - **目標 2（D=F 固定 + SET/RESET）**：移除 `ff_d_src`；新增 `getFFSet(n)`/`getFFReset(n)`；`stepClock()` 上升緣邏輯改為「SET 為 1 → Q←1；否則 RESET 為 1 → Q←0；否則 Q←F」
+  - **目標 3（X/Y 輸出三選一）**：`mux_x`/`mux_y` 各自從兩選一（X:F/Q、Y:G/Q）改為三選一（F/G/Q）
+  - Sidebar：CLB 面板新增 F/G 各 3 個輸入槽下拉選單、SET/RESET 下拉選單，移除舊的「D 型正反器輸入來源」下拉；快速預設下拉的文字改為「槽1/槽2」通用措辭；Probe 面板新增 SET/RESET 訊號即時顯示，「D-FF 輸入」改標示為「(=F)」
+  - **Bitstream 升級為版本 3**（CLB 21/25→32 bit：移除 `ff_d_src` 3 bit，新增 6 個槽位 bit + set_mode 1 bit + reset_mode 1 bit，`mux_x`/`mux_y` 各從 1 bit 改 2 bit）；`deserializeBitstream()` 相容讀取版本 1/2，F/G 輸入槽套用預設值、`mux_x`/`mux_y` 二選一結果對應到三選一，但**舊版 `ff_d_src≠'F'` 的電路正反器行為會改變**（D 一律變成固定＝F），此為刻意接受的已知限制，非 bug，已在 console 印出警告並記錄於 `bitstream-format.md`
+  - 重建 TASK-007 的計數器電路與 TASK-018 內嵌的 counter 範本（新架構下 F 的輸入槽可直接選到所需的兩三個訊號，F 的真值表本身就算出目標函數，完全不需要 G 或 combine mode，比舊版更簡單）；解碼器電路因採用預設槽位值而完全相容，未變動
+  - 驗證：Node 獨立重現新架構下的解碼器與計數器電路（計數器改為 F 直接計算 NOT/XOR/AND-XOR，不再需要 G），16 個 clock 邊緣、4 組輸入組合皆通過；解碼器在新預設槽位下行為與修正前一致；用 `Buffer.compare()` 確認重新產生的 `.bit` 檔與 `FPGA.html` 內嵌的 base64 範本逐位元組相同；`new Function()` 解析整段 script 確認無語法錯誤

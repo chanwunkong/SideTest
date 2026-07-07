@@ -112,4 +112,11 @@
   - 附註第三方專案 `process_comb()` 的 f-mux 輸入選擇段疑似有變數命名筆誤，提醒這是佐證而非原廠圖，不宜照單全收
 - Errors: none
 - Queued: 這些新發現待使用者決定是否要求實作；尚未新增/修改任何 TASKS.md 任務項目，僅更新參考文件
+- Commit: 0c87307
+
+## 2026-07-07T15:00Z
+- Track: XC2064
+- Completed: 使用者要求「動手修」。將前一輪發現拆成 TASK-016（F/G 輸入槽可程式化 + D=F 固定 + SET/RESET + X/Y 三選一，合併處理因為互相牽動）與 TASK-017（本地時脈來源，延後）。實作 TASK-016：新增 `getSlotValue()`/`getFFSet()`/`getFFReset()`，`calcLut3()` 呼叫改用槽位解析，`stepClock()` 改為 SET/RESET/D=F 邏輯，`mux_x`/`mux_y` 改三選一；Sidebar 新增槽位/SET/RESET 下拉，Probe 面板新增 SET/RESET 訊號顯示；Bitstream 升級版本 3（相容讀取版本 1/2，但註明舊版非 F 的 `ff_d_src` 讀入後正反器行為會改變，屬刻意接受的已知限制）；重建 TASK-007 計數器電路（新架構下更簡單，F 直接算出目標函數不需 G）與 TASK-018 內嵌範本，解碼器電路因用預設槽位值而完全相容
+- Errors: none（新舊電路皆一次驗證通過，過程中無需除錯）
+- Queued: TASK-017（本地時脈來源，延後）；[GAME] 軌仍待切換
 - Commit: (pending)
