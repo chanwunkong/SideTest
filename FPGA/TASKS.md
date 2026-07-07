@@ -16,9 +16,7 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - 需評估 UI 複雜度是否值得——這也是本輪「更容易操作」的討論範圍之一，建議與該任務一併決定
 
 ### [XC2064] 操作性改善（2026-07-07 使用者要求「全部都要做」，依成本/風險排序）
-- [ ] TASK-021 [XC2064]: 拖曳式接線（Drag-to-wire）
-  - 目標：把「點擊小格子切換 on/off」改成「從輸出拖曳到輸入」，放開後自動計算路徑並點亮所需的 `h_wires`/`v_wires`/`switch_box` 連接（若路徑需要轉彎則自動設定對應 switch matrix link）
-  - 風險與工作量在四項中最高：需要路徑規劃、拖曳過程視覺回饋、與現有點擊式選取（CLB/switch matrix/IOB）共存不衝突；排在最後做，且完成後應保留舊的點擊式微調能力（不是替換，是新增更快的路徑）
+（全部四項已完成，見 Completed）
 
 ### [GAME] 現代 FPGA 遊戲化教學
 - [ ] TASK-008 [GAME]: 學習路徑與關卡大綱（`FPGA/game/DESIGN.md`）
@@ -108,3 +106,9 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - 順便新增兩個原本缺漏的真值表快速預設：`NOT_B`／`PASS_B`（先前只有 `NOT_A`/`PASS_A`，教學需要「NOT B」這個一鍵預設，且這對一般使用也是合理補齊，非教學專用的暫時性程式碼）
   - 已知限制：教學假設使用者不會在教學途中切換晶片大小或按重置（會讓 `clbs[0][0]` 等參照失效，需重新選取才能繼續，不會報錯但需要使用者自行重選）
   - 驗證：`node --check` 等效的 `new Function()` 解析整段 script 確認無語法錯誤；獨立以 Node 驗證 `NOT_B` 預設算出的 mask 與手算值一致；瀏覽器開啟逐步走過 6 個步驟確認高亮位置與驗證條件皆正確觸發
+- [x] TASK-021 [XC2064]: 拖曳式接線（Drag-to-wire）
+  - **關鍵設計前提**：本引擎的一般繞線是相鄰直連——`v_wires[r][c+1]` 只電性連接 CLB(r,c) 與 CLB(r,c+1)，不會自動連到更遠的 CLB。因此「拖曳起點到終點之間，把沿線每段線都各自打開」是**錯的**：畫面看起來連了，實際上中間 CLB 的 LUT 不會自動變成 pass-through，訊號傳不過去。改用圖搜尋：把每段 `h_wire`/`v_wire` 當節點，switch matrix 的 6 組連接當可能的邊（不論目前是否已開啟），BFS 找最短路徑，只開通路徑上真正用到的線段與 switch matrix 連接——這樣找到的路徑在電性上是真的連通，不是視覺假象
+  - 新增 `findWirePath()`（BFS）、`getWireNeighbors()`、`applyWirePath()`、`findDragSourceAt()`/`findDragDestinationAt()`（拖曳起點：CLB 右/下邊緣即 X/Y 輸出、IOB 輸入；拖曳終點：CLB 左/上邊緣即 A/B 輸入、IOB 輸出）、`connectDragToWire()`
+  - 互動改為 `canvasMouseDown`/`windowMouseMove`/`windowMouseUp` 三段式：mousedown 時若不在合法拖曳起點上，立即比照原本行為呼叫 `handleClick()`（點擊完全不受影響）；若在合法起點上，先記錄狀態，移動超過 6px 門檻才視為拖曳，否則 mouseup 時仍呼叫 `handleClick()`——確保所有既有的點擊式互動（CLB 選取、switch matrix 選取、線段/switch matrix 點擊切換、IOB 選取）維持原行為不變，拖曳只是新增的路徑
+  - `drawDragOverlay()` 繪製拖曳中的預覽虛線與連線結果的浮動訊息（含使用了幾個 switch matrix 轉點）
+  - 驗證：獨立以 Node 重現 `findWirePath()`/`getWireNeighbors()` 邏輯，確認（a）相鄰情形回傳 0-hop 路徑、（b）需要轉角的情形正確找到經過 1 個 switch matrix 連接的路徑、（c）跨對角遠距離也能找到路徑；並額外做**端對端整合測試**：把 BFS 找到的路徑實際套用到 `simulateCombinatorial()` 的邏輯重現上，確認訊號真的從來源 CLB 傳到目的 CLB（不是只有線段被點亮）；瀏覽器開啟手動測試拖曳與確認既有點擊互動（CLB/switch matrix/IOB/wire 段點擊切換）皆未受影響

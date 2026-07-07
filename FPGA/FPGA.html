@@ -188,7 +188,8 @@
                     3. <b>點擊通道線段</b>：切換該段金屬線是否存在。<br>
                     4. <b>點擊通道交點</b>：選取該 Switch Matrix，於下方配置 6 組可程式化連接。<br>
                     5. <b>點擊 CLB</b>：選取邏輯塊，並在下方配置其內部結構。<br>
-                    (依照真實 XC2064 架構，每個 CLB 具有獨立的 F/G 邏輯產生器與多路選擇器；每個交點為近似 4-pin switch matrix；IOB 可選 pull-up／TTL-CMOS 閾值／三態)
+                    6. <b>拖曳接線</b>：從 CLB 右／下邊緣（X／Y 輸出）或輸入引腳，拖曳到另一顆 CLB 的左／上邊緣（A／B 輸入）或輸出引腳，放開後會自動找路徑並開通沿途所需的線段與 Switch Matrix 連接，不必再一段一段手動點。<br>
+                    (依照真實 XC2064 架構，每個 CLB 具有獨立的 F/G 邏輯產生器與多路選擇器；每個交點為近似 4-pin switch matrix；IOB 可選 pull-up／TTL-CMOS 閾值／三態；拖曳接線為本模擬器新增的操作捷徑，點擊式微調仍保留)
                 </div>
             </div>
 
@@ -872,9 +873,53 @@
         ctx.restore();
     }
 
+    // 拖曳門檻（px）：低於此距離視為單純點擊，沿用原本的 handleClick 行為；超過才是拖曳接線
+    const DRAG_THRESHOLD = 6;
+
+    function canvasMouseDown(e) {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        const src = findDragSourceAt(mx, my);
+        if (!src) {
+            // 不是合法的拖曳起點：完全比照原本的點擊行為，不進入拖曳追蹤
+            dragState = null;
+            handleClick(e);
+            return;
+        }
+        dragState = { active: false, source: src, downX: mx, downY: my, curX: mx, curY: my };
+    }
+
+    function windowMouseMove(e) {
+        if (!dragState) return;
+        const rect = canvas.getBoundingClientRect();
+        dragState.curX = e.clientX - rect.left;
+        dragState.curY = e.clientY - rect.top;
+        if (!dragState.active) {
+            const dx = dragState.curX - dragState.downX, dy = dragState.curY - dragState.downY;
+            if (Math.hypot(dx, dy) > DRAG_THRESHOLD) dragState.active = true;
+        }
+    }
+
+    function windowMouseUp(e) {
+        if (!dragState) return;
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        if (dragState.active) {
+            const dst = findDragDestinationAt(mx, my);
+            if (dst) connectDragToWire(dragState.source, dst);
+            else showDragMessage('放開位置不是有效的輸入接點');
+        } else {
+            // 滑鼠幾乎沒移動：視為對拖曳起點本身的一般點擊，比照原始行為呼叫 handleClick
+            handleClick(e);
+        }
+        dragState = null;
+    }
+
     function init() {
         window.addEventListener('resize', resize);
-        canvas.addEventListener('mousedown', handleClick);
+        canvas.addEventListener('mousedown', canvasMouseDown);
+        window.addEventListener('mousemove', windowMouseMove);
+        window.addEventListener('mouseup', windowMouseUp);
         buildGrid();
         applyUiMode();
         requestAnimationFrame(renderLoop);
@@ -1216,6 +1261,7 @@
         drawCLBs();
         drawIO();
         drawTutorialHighlight();
+        drawDragOverlay();
         updateSidebarUI();
         checkTutorialProgress();
 
@@ -1379,6 +1425,188 @@
     }
 
     // 介面與互動
+    // ---- 拖曳式接線 Drag-to-wire（TASK-021）----
+    // 設計前提（見 PROGRESS.md 2026-07-07 的推演）：本引擎的一般繞線是「相鄰直連」——
+    // v_wires[r][c+1] 只電性連接 CLB(r,c) 與 CLB(r,c+1)，不會自動連到更遠的 CLB。
+    // 若只是把「起點到終點之間」沿線的每段線都各自打開，並不會真的把訊號傳過去
+    // （中間 CLB 的 LUT 不會自動變成 pass-through），畫面看起來連了、實際上是斷的。
+    // 所以這裡改用「圖搜尋」：把每段 h_wire/v_wire 當成節點，switch matrix 的 6 組連接
+    // 當成節點之間可能的邊（不論目前是否已開啟——拖曳的目的就是要開通新的連接），
+    // 用 BFS 找最短路徑，只開啟路徑上真正用到的線段與 switch matrix 連接。
+    // 拖曳只新增這條「快速接線」路徑，原本點擊切換單一線段/switch matrix 連接的方式仍保留（見 handleClick）。
+    let dragState = null; // { active, source, downX, downY, curX, curY }
+    let dragMessage = null; // { text, expiresAt }
+
+    function wireNodeKey(n) { return `${n.kind}:${n.r}:${n.c}`; }
+    function sameWireNode(a, b) { return a.kind === b.kind && a.r === b.r && a.c === b.c; }
+
+    function wireNodeExists(n) {
+        if (n.kind === 'h') return n.r >= 0 && n.r <= GRID_SIZE && n.c >= 0 && n.c < GRID_SIZE;
+        return n.r >= 0 && n.r < GRID_SIZE && n.c >= 0 && n.c <= GRID_SIZE;
+    }
+
+    function getWireRef(n) {
+        if (!wireNodeExists(n)) return null;
+        return n.kind === 'h' ? h_wires[n.r][n.c] : v_wires[n.r][n.c];
+    }
+
+    // 列舉某個 wire node 透過 switch matrix 可能連到的所有鄰居（含目前未開啟的連接）
+    function getWireNeighbors(node) {
+        const neighbors = [];
+        const endpoints = node.kind === 'h'
+            ? [{ r: node.r, c: node.c }, { r: node.r, c: node.c + 1 }]
+            : [{ r: node.r, c: node.c }, { r: node.r + 1, c: node.c }];
+        for (const ip of endpoints) {
+            if (ip.r < 0 || ip.r > GRID_SIZE || ip.c < 0 || ip.c > GRID_SIZE) continue;
+            const pins = {
+                W: { kind: 'h', r: ip.r, c: ip.c - 1 },
+                E: { kind: 'h', r: ip.r, c: ip.c },
+                N: { kind: 'v', r: ip.r - 1, c: ip.c },
+                S: { kind: 'v', r: ip.r, c: ip.c }
+            };
+            for (const [key] of SWITCH_LINKS) {
+                const a = pins[key[0]], b = pins[key[1]];
+                if (!wireNodeExists(a) || !wireNodeExists(b)) continue;
+                if (sameWireNode(a, node)) neighbors.push({ node: b, ip, key });
+                else if (sameWireNode(b, node)) neighbors.push({ node: a, ip, key });
+            }
+        }
+        return neighbors;
+    }
+
+    // BFS 找 startNode → endNode 的最短路徑，回傳沿途要開啟的 wire node 與 switch matrix 連接
+    function findWirePath(startNode, endNode) {
+        if (!wireNodeExists(startNode) || !wireNodeExists(endNode)) return null;
+        if (sameWireNode(startNode, endNode)) return { nodes: [startNode], links: [] };
+        const visited = new Set([wireNodeKey(startNode)]);
+        const queue = [{ node: startNode, nodes: [startNode], links: [] }];
+        while (queue.length) {
+            const cur = queue.shift();
+            for (const nb of getWireNeighbors(cur.node)) {
+                const k = wireNodeKey(nb.node);
+                if (visited.has(k)) continue;
+                const nodes = cur.nodes.concat([nb.node]);
+                const links = cur.links.concat([{ ip: nb.ip, key: nb.key }]);
+                if (sameWireNode(nb.node, endNode)) return { nodes, links };
+                visited.add(k);
+                queue.push({ node: nb.node, nodes, links });
+            }
+        }
+        return null;
+    }
+
+    function applyWirePath(path) {
+        for (const node of path.nodes) {
+            const wire = getWireRef(node);
+            if (wire) wire.on = true;
+        }
+        for (const link of path.links) {
+            switch_box[link.ip.r][link.ip.c][link.key] = true;
+        }
+    }
+
+    function showDragMessage(text) {
+        dragMessage = { text, expiresAt: Date.now() + 1800 };
+    }
+
+    // 拖曳起點：CLB 右邊緣（X 輸出）／CLB 下邊緣（Y 輸出）／IOB 輸入引腳
+    function findDragSourceAt(mx, my) {
+        if (mx > OFFSET_X - 50 && mx < OFFSET_X - 20) {
+            for (let i = 0; i < iob_in.length; i++) {
+                if (Math.abs(my - iob_in[i].y) < 12) return { type: 'iobIn', r: i, wire: { kind: 'h', r: i, c: 0 } };
+            }
+        }
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                const n = clbs[r][c];
+                if (Math.abs(mx - (n.x + CLB_SIZE)) < 7 && my > n.y && my < n.y + CLB_SIZE) {
+                    return { type: 'clbX', r, c, wire: { kind: 'v', r, c: c + 1 } };
+                }
+                if (Math.abs(my - (n.y + CLB_SIZE)) < 7 && mx > n.x && mx < n.x + CLB_SIZE) {
+                    return { type: 'clbY', r, c, wire: { kind: 'h', r: r + 1, c } };
+                }
+            }
+        }
+        return null;
+    }
+
+    // 拖曳終點：CLB 左邊緣（A 輸入）／CLB 上邊緣（B 輸入）／IOB 輸出引腳
+    function findDragDestinationAt(mx, my) {
+        const outCx = OFFSET_X + GRID_SIZE * (CLB_SIZE + CH_W) - CH_W + 20;
+        if (Math.abs(mx - outCx) < 14) {
+            for (let i = 0; i < iob_out.length; i++) {
+                if (Math.abs(my - iob_out[i].y) < 14) return { type: 'iobOut', r: i, wire: { kind: 'h', r: i, c: GRID_SIZE - 1 } };
+            }
+        }
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                const n = clbs[r][c];
+                if (Math.abs(mx - n.x) < 7 && my > n.y && my < n.y + CLB_SIZE) {
+                    return { type: 'clbA', r, c, wire: { kind: 'v', r, c } };
+                }
+                if (Math.abs(my - n.y) < 7 && mx > n.x && mx < n.x + CLB_SIZE) {
+                    return { type: 'clbB', r, c, wire: { kind: 'h', r, c } };
+                }
+            }
+        }
+        return null;
+    }
+
+    function getDragAnchorPoint(source) {
+        if (source.type === 'iobIn') {
+            const inp = iob_in[source.r];
+            return inp ? { x: OFFSET_X - 34, y: inp.y } : null;
+        }
+        const n = clbs[source.r] && clbs[source.r][source.c];
+        if (!n) return null;
+        if (source.type === 'clbX') return { x: n.x + CLB_SIZE, y: n.y + CLB_SIZE / 2 };
+        if (source.type === 'clbY') return { x: n.x + CLB_SIZE / 2, y: n.y + CLB_SIZE };
+        return null;
+    }
+
+    function connectDragToWire(source, dest) {
+        const path = findWirePath(source.wire, dest.wire);
+        if (!path) {
+            showDragMessage('找不到可行的繞線路徑');
+            return;
+        }
+        applyWirePath(path);
+        showDragMessage(path.links.length === 0
+            ? '已連接（相鄰單一線段）'
+            : `已連接（經過 ${path.links.length} 個 switch matrix 轉點）`);
+    }
+
+    function drawDragOverlay() {
+        if (dragState && dragState.active && dragState.source) {
+            const p = getDragAnchorPoint(dragState.source);
+            if (p) {
+                ctx.save();
+                ctx.strokeStyle = '#58a6ff';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 4]);
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(dragState.curX, dragState.curY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+        }
+        if (dragMessage) {
+            if (Date.now() < dragMessage.expiresAt) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(22,27,34,0.9)';
+                ctx.fillRect(10, 10, 260, 24);
+                ctx.fillStyle = '#58a6ff';
+                ctx.font = '12px sans-serif';
+                ctx.fillText(dragMessage.text, 16, 26);
+                ctx.restore();
+            } else {
+                dragMessage = null;
+            }
+        }
+    }
+
     function handleClick(e) {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left, my = e.clientY - rect.top;

@@ -92,4 +92,11 @@
 - Completed: TASK-020 — 新增 6 步引導教學（目標電路由「AND 閘」縮小為「反閘」，理由同 TASK-007 的計數器縮小：本引擎相鄰直連繞線無法讓兩個不同外部訊號進同一顆 CLB，需要 4 顆 CLB 的 relay 網路，教學步驟太多）；`TUTORIAL_STEPS`/`tutorial` 狀態機、canvas 浮動教學面板、`drawTutorialHighlight()` 畫布高亮、`.tutorial-highlight` 側欄高亮、`checkTutorialProgress()` 每幀自動驗證進度；順便補齊 `NOT_B`/`PASS_B` 真值表預設
 - Errors: none
 - Queued: TASK-021（拖曳式接線，四項操作性改善中最後一項，風險最高）
+- Commit: 58e73f1
+
+## 2026-07-07T13:00Z
+- Track: XC2064
+- Completed: TASK-021 — 拖曳式接線。先確認關鍵設計限制：本引擎相鄰直連繞線意味著「沿線點亮所有線段」是電性錯誤的假連接，改用 BFS 圖搜尋（節點=每段 h/v wire，邊=6 組 switch matrix 連接，不論目前是否已開啟）找真正連通的最短路徑；新增 `findWirePath()`/`getWireNeighbors()`/`applyWirePath()`/`findDragSourceAt()`/`findDragDestinationAt()`/`connectDragToWire()`；互動改為 mousedown/mousemove/mouseup 三段式，非拖曳起點的點擊完全比照原行為（呼叫既有 `handleClick()`），確保零回歸
+- Errors: none
+- Queued: [XC2064] 軌四項操作性改善（TASK-018~021）與驗證後續（TASK-016/017）皆已完成或待辦；[GAME] 軌自建檔以來尚無任何完成任務，下一輪強烈建議切過去
 - Commit: (pending)
