@@ -64,4 +64,11 @@
   - Direct interconnect 仍無法確認，維持待確認
 - Errors: none
 - Queued: TASK-016（SET/RESET）、TASK-017（LUT 輸入可程式化，與「更容易操作」的 UX 討論一併決定範圍）；同時準備向使用者提出操作性改善的方案選項
+- Commit: f39855c
+
+## 2026-07-07T09:00Z
+- Track: XC2064
+- Completed: 用 AskUserQuestion 提出 4 個操作性改善方向（電路範本庫／初學進階模式／引導式教學／拖曳接線），使用者選擇「全部都要做」。依成本/風險排序寫入 TASKS.md：TASK-018（範本庫）→ TASK-019（模式切換）→ TASK-020（引導教學，需等前兩者穩定）→ TASK-021（拖曳接線，風險最高排最後）
+- Errors: none
+- Queued: 依序執行 TASK-018 起
 - Commit: (pending)
