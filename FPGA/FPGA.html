@@ -121,6 +121,9 @@
 
         /* 初學／進階模式（TASK-019）：進階欄位預設隱藏，由 applyUiMode() 依 uiMode 切換 */
         .advanced-only { display: none; }
+
+        /* 引導式教學（TASK-020）：高亮側欄裡教學指定的欄位 */
+        .tutorial-highlight { outline: 3px solid #f0883e; outline-offset: 2px; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -140,6 +143,7 @@
                 <option value="counter">3-bit 同步計數器</option>
             </select>
             <button id="mode-toggle-btn" onclick="toggleUiMode()" style="margin-right: 10px;">模式: 初學</button>
+            <button id="tutorial-btn" onclick="toggleTutorial()" style="margin-right: 10px;">教學</button>
             <span id="clock-display" style="font-size: 0.85rem; color: #8b949e; margin-right: 10px;">CLOCK: LOW</span>
             <button onclick="stepClock()">手動觸發時鐘 (Tick)</button>
             <button id="auto-clock-btn" onclick="toggleAutoClock()">自動時鐘: OFF</button>
@@ -153,6 +157,15 @@
     <div id="main">
         <div id="canvas-container">
             <canvas id="chipCanvas"></canvas>
+
+            <div id="tutorial-panel" style="display: none; position: absolute; left: 20px; bottom: 20px; max-width: 340px; background: #161b22; border: 1px solid #f0883e; border-radius: 8px; padding: 14px; font-size: 0.85rem; line-height: 1.6; z-index: 10; box-shadow: 0 4px 16px rgba(0,0,0,0.5);">
+                <div style="color: #f0883e; font-weight: bold; margin-bottom: 6px;">教學 <span id="tutorial-progress"></span></div>
+                <div id="tutorial-text"></div>
+                <div style="margin-top: 10px; display: flex; gap: 8px;">
+                    <button onclick="skipTutorialStep()" style="font-size: 0.75rem;">跳過此步</button>
+                    <button onclick="endTutorial()" style="font-size: 0.75rem;">結束教學</button>
+                </div>
+            </div>
         </div>
 
         <div id="sidebar">
@@ -193,6 +206,8 @@
                             <option value="XOR">A XOR B</option>
                             <option value="NOT_A">NOT A</option>
                             <option value="PASS_A">Pass A</option>
+                            <option value="NOT_B">NOT B</option>
+                            <option value="PASS_B">Pass B</option>
                             <option value="ZERO">0</option>
                             <option value="ONE">1</option>
                         </select>
@@ -211,6 +226,8 @@
                             <option value="XOR">A XOR B</option>
                             <option value="NOT_A">NOT A</option>
                             <option value="PASS_A">Pass A</option>
+                            <option value="NOT_B">NOT B</option>
+                            <option value="PASS_B">Pass B</option>
                             <option value="ZERO">0</option>
                             <option value="ONE">1</option>
                         </select>
@@ -732,6 +749,129 @@
         applyUiMode();
     }
 
+    // ---- 引導式教學 Onboarding（TASK-020）----
+    // 目標電路刻意選「反閘（NOT gate，單一 CLB）」而非「AND 閘」：本引擎只有相鄰直連繞線，
+    // 一顆 CLB（第 0 欄）唯一能接收的外部訊號是經 B 輸入的那個 IOB，A 一律是邊界 0；要把兩個
+    // 「不同」外部訊號送進同一顆 CLB，就得像 TASK-007 解碼器那樣搭 4 顆 CLB 的 relay 網路，
+    // 對第一次上手的教學而言步驟太多。單一 CLB 的反閘已足以練到「選 IOB→切值→接線→選 CLB→
+    // 設定真值表→觀察 Probe」這一整套核心操作，之後可從「載入範例電路」（TASK-018）直接看
+    // 解碼器這種多顆 CLB 組合的完整範例。
+    const TUTORIAL_STEPS = [
+        {
+            text: '歡迎使用 XC2064 模擬器！這個教學會帶你從零做出一個「反閘 (NOT Gate)」。第 1 步：點擊畫面最左側、標示 IN0 的輸入引腳。',
+            highlight: { type: 'iobIn', index: 0 },
+            validate: () => activeIobIn === 0
+        },
+        {
+            text: '很好，IN0 已選取。第 2 步：確保 IN0 目前的值是 1（可以直接再點一次引腳切換，或在側欄選「強制輸出 1」）。',
+            highlight: { type: 'iobIn', index: 0 },
+            validate: () => iob_in[0] && iob_in[0].forced && iob_in[0].val === 1
+        },
+        {
+            text: '第 3 步：點擊 IN0 右邊、第一顆 CLB 上方的那一小段橫線（繞線通道），把它從灰色點成綠色，代表這段線已經存在。',
+            highlight: { type: 'hwire', r: 0, c: 0 },
+            validate: () => h_wires[0] && h_wires[0][0] && h_wires[0][0].on === true
+        },
+        {
+            text: '訊號已經接上了。第 4 步：點擊左上角第一顆 CLB 方塊，選取它。',
+            highlight: { type: 'clb', r: 0, c: 0 },
+            validate: () => !!activeClb && clbs[0] && activeClb === clbs[0][0]
+        },
+        {
+            text: '第 5 步：在側欄找到「G 函數產生器」的「快速預設」選單，選擇「NOT B」——這樣 G 就會輸出「B 的反相」，而 B 正是 IN0 傳進來的訊號。',
+            highlight: { type: 'sidebar', selector: '#preset-g' },
+            validate: () => clbs[0] && clbs[0][0] && clbs[0][0].lut_g === presetToMask('NOT_B')
+        },
+        {
+            text: '完成了！這就是一個反閘：試著回去點擊 IN0 切換 0/1，觀察側欄「LUT G」或 Probe 面板的數值是否跟著反相變化。想看更複雜的多顆 CLB 電路，可以用工具列的「載入範例電路」選單試試 2-to-4 解碼器。',
+            highlight: null,
+            validate: null
+        }
+    ];
+
+    let tutorial = { active: false, step: 0 };
+
+    function toggleTutorial() {
+        if (tutorial.active) endTutorial(); else startTutorial();
+    }
+
+    function startTutorial() {
+        tutorial.active = true;
+        tutorial.step = 0;
+        document.getElementById('tutorial-panel').style.display = 'block';
+        document.getElementById('tutorial-btn').innerText = '結束教學';
+        renderTutorialStep();
+    }
+
+    function endTutorial() {
+        tutorial.active = false;
+        document.getElementById('tutorial-panel').style.display = 'none';
+        document.getElementById('tutorial-btn').innerText = '教學';
+        clearTutorialHighlight();
+    }
+
+    function skipTutorialStep() {
+        if (!tutorial.active) return;
+        advanceTutorialStep();
+    }
+
+    function advanceTutorialStep() {
+        tutorial.step++;
+        if (tutorial.step >= TUTORIAL_STEPS.length) {
+            endTutorial();
+            return;
+        }
+        renderTutorialStep();
+    }
+
+    function clearTutorialHighlight() {
+        document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
+    }
+
+    function renderTutorialStep() {
+        clearTutorialHighlight();
+        const step = TUTORIAL_STEPS[tutorial.step];
+        if (!step) return;
+        document.getElementById('tutorial-progress').innerText = `(${tutorial.step + 1}/${TUTORIAL_STEPS.length})`;
+        document.getElementById('tutorial-text').innerText = step.text;
+        if (step.highlight && step.highlight.type === 'sidebar') {
+            const el = document.querySelector(step.highlight.selector);
+            if (el) el.classList.add('tutorial-highlight');
+        }
+    }
+
+    function checkTutorialProgress() {
+        if (!tutorial.active) return;
+        const step = TUTORIAL_STEPS[tutorial.step];
+        if (!step || !step.validate) return;
+        if (step.validate()) advanceTutorialStep();
+    }
+
+    // 畫布上的教學高亮（脈動橘色外框），只處理 canvas 座標型的 highlight（iobIn/hwire/clb）
+    function drawTutorialHighlight() {
+        if (!tutorial.active) return;
+        const step = TUTORIAL_STEPS[tutorial.step];
+        if (!step || !step.highlight || step.highlight.type === 'sidebar') return;
+        const h = step.highlight;
+        const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 250);
+        ctx.save();
+        ctx.strokeStyle = `rgba(240, 136, 62, ${0.4 + 0.6 * pulse})`;
+        ctx.lineWidth = 3;
+        if (h.type === 'iobIn' && iob_in[h.index]) {
+            const inp = iob_in[h.index];
+            ctx.strokeRect(OFFSET_X - 48, inp.y - 14, 28, 28);
+        } else if (h.type === 'hwire') {
+            const y = OFFSET_Y + h.r * (CLB_SIZE + CH_W) - CH_W / 2;
+            const x1 = OFFSET_X + h.c * (CLB_SIZE + CH_W) - CH_W / 2 - 4;
+            const x2 = OFFSET_X + h.c * (CLB_SIZE + CH_W) + CLB_SIZE + CH_W / 2 + 4;
+            ctx.strokeRect(x1, y - 6, x2 - x1, 12);
+        } else if (h.type === 'clb' && clbs[h.r]) {
+            const n = clbs[h.r][h.c];
+            if (n) ctx.strokeRect(n.x - 4, n.y - 4, CLB_SIZE + 8, CLB_SIZE + 8);
+        }
+        ctx.restore();
+    }
+
     function init() {
         window.addEventListener('resize', resize);
         canvas.addEventListener('mousedown', handleClick);
@@ -983,6 +1123,8 @@
         XOR:    (v0, v1) => v0 ^ v1,
         NOT_A:  (v0) => (~v0) & 1,
         PASS_A: (v0) => v0,
+        NOT_B:  (v0, v1) => (~v1) & 1,
+        PASS_B: (v0, v1) => v1,
         ZERO:   () => 0,
         ONE:    () => 1
     };
@@ -1073,7 +1215,9 @@
         drawLongLines();
         drawCLBs();
         drawIO();
+        drawTutorialHighlight();
         updateSidebarUI();
+        checkTutorialProgress();
 
         requestAnimationFrame(renderLoop);
     }

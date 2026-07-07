@@ -16,9 +16,6 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - 需評估 UI 複雜度是否值得——這也是本輪「更容易操作」的討論範圍之一，建議與該任務一併決定
 
 ### [XC2064] 操作性改善（2026-07-07 使用者要求「全部都要做」，依成本/風險排序）
-- [ ] TASK-020 [XC2064]: 引導式教學 Onboarding
-  - 目標：新增互動式步驟導覽，帶新使用者從零開始點出一個最簡單電路（例如 AND 閘），每步驟高亮對應的畫布位置/側欄欄位並提示動作，驗證使用者確實點對才進到下一步
-  - 需要教學狀態機 + 高亮/驗證邏輯，建議在 TASK-018/019 完成、且核心互動模型（點擊/選取）穩定後再做，避免教學腳本綁定到還會變動的 UI
 - [ ] TASK-021 [XC2064]: 拖曳式接線（Drag-to-wire）
   - 目標：把「點擊小格子切換 on/off」改成「從輸出拖曳到輸入」，放開後自動計算路徑並點亮所需的 `h_wires`/`v_wires`/`switch_box` 連接（若路徑需要轉彎則自動設定對應 switch matrix link）
   - 風險與工作量在四項中最高：需要路徑規劃、拖曳過程視覺回饋、與現有點擊式選取（CLB/switch matrix/IOB）共存不衝突；排在最後做，且完成後應保留舊的點擊式微調能力（不是替換，是新增更快的路徑）
@@ -104,3 +101,10 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - 隱藏只是 CSS `display:none`，底層資料模型不受影響——已載入的範本電路即使用到長線，模擬邏輯仍正常運作，只是控制項預設收起來
   - 預設模式為初學，與 TASK-018 的範本庫共同構成「先給新使用者能動的東西、先隱藏用不到的細節」的第一層降低門檻
   - 驗證：瀏覽器開啟確認初始為初學模式（進階欄位不可見）、點擊按鈕切換後進階欄位出現且切換前後既有設定值未被清除
+- [x] TASK-020 [XC2064]: 引導式教學 Onboarding
+  - **範圍調整**：原提案「例如 AND 閘」改成「反閘 (NOT gate)」，理由與 TASK-007 的計數器縮小同源——本引擎只有相鄰直連繞線，第 0 欄的 CLB 唯一能收到的外部訊號是經 B 輸入的那個 IOB（A 一律邊界 0），要把兩個不同外部訊號送進同一顆 CLB，得像解碼器範本一樣搭 4 顆 CLB 的 relay 網路，對第一次上手教學而言步驟太多。單顆 CLB 的反閘已足以練到「選 IOB→切值→接線→選 CLB→設定真值表→觀察 Probe」整套核心操作，已在程式碼註解與此記錄中說明，並在教學最後一步引導使用者去試「載入範例電路」看解碼器這種多 CLB 組合
+  - 新增 `TUTORIAL_STEPS`（6 步）+ `tutorial` 狀態 + `startTutorial()`/`endTutorial()`/`skipTutorialStep()`/`advanceTutorialStep()`/`renderTutorialStep()`/`checkTutorialProgress()`/`drawTutorialHighlight()`；header 新增「教學」按鈕，canvas 上新增浮動教學面板（進度、說明文字、跳過/結束按鈕）
+  - 每步驟依 `validate()` 函式在 `renderLoop()` 每幀自動檢查是否達成，達成後自動進入下一步，不需要額外的「下一步」按鈕；`drawTutorialHighlight()` 在畫布上對應位置畫脈動橘框，或用 `.tutorial-highlight` CSS class 高亮側欄欄位（例如快速預設選單）
+  - 順便新增兩個原本缺漏的真值表快速預設：`NOT_B`／`PASS_B`（先前只有 `NOT_A`/`PASS_A`，教學需要「NOT B」這個一鍵預設，且這對一般使用也是合理補齊，非教學專用的暫時性程式碼）
+  - 已知限制：教學假設使用者不會在教學途中切換晶片大小或按重置（會讓 `clbs[0][0]` 等參照失效，需重新選取才能繼續，不會報錯但需要使用者自行重選）
+  - 驗證：`node --check` 等效的 `new Function()` 解析整段 script 確認無語法錯誤；獨立以 Node 驗證 `NOT_B` 預設算出的 mask 與手算值一致；瀏覽器開啟逐步走過 6 個步驟確認高亮位置與驗證條件皆正確觸發

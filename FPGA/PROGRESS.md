@@ -85,4 +85,11 @@
 - Completed: TASK-019 — 新增 `.advanced-only` class + `uiMode`/`applyUiMode()`/`toggleUiMode()`，header 新增模式切換按鈕；長線設定、IOB 上拉/閾值/三態預設收起，LUT 真值表、輸出來源、D-FF 輸入來源、switch matrix 編輯器維持一律可見；隱藏純為 CSS，底層資料/模擬邏輯不受影響
 - Errors: none
 - Queued: TASK-020（引導式教學 Onboarding）
+- Commit: f00b42d
+
+## 2026-07-07T12:00Z
+- Track: XC2064
+- Completed: TASK-020 — 新增 6 步引導教學（目標電路由「AND 閘」縮小為「反閘」，理由同 TASK-007 的計數器縮小：本引擎相鄰直連繞線無法讓兩個不同外部訊號進同一顆 CLB，需要 4 顆 CLB 的 relay 網路，教學步驟太多）；`TUTORIAL_STEPS`/`tutorial` 狀態機、canvas 浮動教學面板、`drawTutorialHighlight()` 畫布高亮、`.tutorial-highlight` 側欄高亮、`checkTutorialProgress()` 每幀自動驗證進度；順便補齊 `NOT_B`/`PASS_B` 真值表預設
+- Errors: none
+- Queued: TASK-021（拖曳式接線，四項操作性改善中最後一項，風險最高）
 - Commit: (pending)
