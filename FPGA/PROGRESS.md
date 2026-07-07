@@ -11,4 +11,11 @@
 - Completed: TASK-002 — 建立 `FPGA/docs/xc2064-reference.md`，透過 WebSearch/WebFetch 查核 Ken Shirriff 的逆向工程文章與多份 datasheet 轉述來源，記錄 CLB（LUT3×2 + master-slave 正反器）、switch matrix（2×8-pin/tile）、IOB、bitstream 載入（160×71 網格）等架構事實，並列出 6 項待確認細節。同步修正 TASK-003/004/005 的描述使其對齊 reference 文件的正確架構（先前描述誤設 F/G 為單一 16-bit 真值表，已改為兩個 LUT3 合併模型）
 - Errors: none
 - Queued: TASK-003 [XC2064]（CLB 內部邏輯精確化）
-- Commit: (pending — see next entry)
+- Commit: 0e7f9e9
+
+## 2026-07-07T02:00Z
+- Track: XC2064
+- Completed: TASK-003 — `FPGA/FPGA.html` 的 F/G 改為真正 LUT3（8-bit 真值表 bitmask，`calcLut3()`），F 讀 (A,B,C)、G 讀 (A,B,D)；sidebar 換成可點擊真值表編輯器 + 快速預設；新增 D-FF 輸入來源選擇（F/G/XOR/AND/OR）取代原本寫死鎖存 F；`stepClock()` 改用 `getFFInput()`；Probe 面板新增 D-FF 輸入即時值
+- Errors: none
+- Queued: TASK-004 [XC2064]（Switch Matrix 精確路由模型）
+- Commit: (pending)

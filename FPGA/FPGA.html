@@ -103,6 +103,21 @@
         }
         .val-0 { color: #8b949e; }
         .val-1 { color: #3fb950; font-weight: bold; }
+
+        .lut-editor { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; max-height: 200px; overflow-y: auto; }
+        .lut-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 8px;
+            background: #0d1117;
+            border: 1px solid #21262d;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .lut-row:hover { border-color: #58a6ff; }
     </style>
 </head>
 <body>
@@ -143,29 +158,39 @@
                 <div class="panel-title">選取 CLB: <span id="selected-clb-id" style="color: #58a6ff;">--</span></div>
                 
                 <div class="clb-config-block">
-                    <div style="color: #58a6ff; font-weight: bold; margin-bottom: 8px;">組合邏輯 (LUT)</div>
+                    <div style="color: #58a6ff; font-weight: bold; margin-bottom: 8px;">F 函數產生器 (LUT3，輸入 A·B·C)</div>
                     <div class="config-row">
-                        <span>F 輸出邏輯 (依賴 A,B,C)</span>
-                        <select id="cfg-f" onchange="updateCLBConfig()">
-                            <option value="A_AND_B">A AND B</option>
-                            <option value="A_OR_B">A OR B</option>
-                            <option value="A_XOR_B">A XOR B</option>
+                        <span style="font-size: 0.75rem; color: #8b949e;">快速預設</span>
+                        <select id="preset-f" onchange="applyLutPreset('f')">
+                            <option value="">-- 自訂（見下方真值表）--</option>
+                            <option value="AND">A AND B</option>
+                            <option value="OR">A OR B</option>
+                            <option value="XOR">A XOR B</option>
                             <option value="NOT_A">NOT A</option>
-                            <option value="PASSTHROUGH_A">Pass A</option>
+                            <option value="PASS_A">Pass A</option>
                             <option value="ZERO">0</option>
+                            <option value="ONE">1</option>
                         </select>
                     </div>
+                    <div id="lut-f-editor" class="lut-editor"></div>
+                </div>
+
+                <div class="clb-config-block">
+                    <div style="color: #58a6ff; font-weight: bold; margin-bottom: 8px;">G 函數產生器 (LUT3，輸入 A·B·D)</div>
                     <div class="config-row">
-                        <span>G 輸出邏輯 (依賴 A,B,C,D)</span>
-                        <select id="cfg-g" onchange="updateCLBConfig()">
-                            <option value="C_AND_D">C AND D</option>
-                            <option value="C_OR_D">C OR D</option>
-                            <option value="C_XOR_D">C XOR D</option>
-                            <option value="NOT_C">NOT C</option>
-                            <option value="PASSTHROUGH_C">Pass C</option>
+                        <span style="font-size: 0.75rem; color: #8b949e;">快速預設</span>
+                        <select id="preset-g" onchange="applyLutPreset('g')">
+                            <option value="">-- 自訂（見下方真值表）--</option>
+                            <option value="AND">A AND B</option>
+                            <option value="OR">A OR B</option>
+                            <option value="XOR">A XOR B</option>
+                            <option value="NOT_A">NOT A</option>
+                            <option value="PASS_A">Pass A</option>
                             <option value="ZERO">0</option>
+                            <option value="ONE">1</option>
                         </select>
                     </div>
+                    <div id="lut-g-editor" class="lut-editor"></div>
                 </div>
 
                 <div class="clb-config-block">
@@ -184,6 +209,16 @@
                             <option value="Q">Q (D-FF 暫存輸出)</option>
                         </select>
                     </div>
+                    <div class="config-row">
+                        <span>D 型正反器 輸入來源 (D)</span>
+                        <select id="cfg-ff-d" onchange="updateCLBConfig()">
+                            <option value="F">F</option>
+                            <option value="G">G</option>
+                            <option value="F_XOR_G">F XOR G</option>
+                            <option value="F_AND_G">F AND G</option>
+                            <option value="F_OR_G">F OR G</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="panel-title" style="margin-top: 20px;">即時訊號觀測 (Probe)</div>
@@ -195,7 +230,7 @@
                     <div class="signal-box" style="background: #1f2428;"><span>LUT F</span><span id="sig-f" class="val-0">0</span></div>
                     <div class="signal-box" style="background: #1f2428;"><span>LUT G</span><span id="sig-g" class="val-0">0</span></div>
                     <div class="signal-box" style="background: #282433;"><span>D-FF Q</span><span id="sig-q" class="val-0">0</span></div>
-                    <div></div>
+                    <div class="signal-box" style="background: #282433;"><span>D-FF 輸入 (D)</span><span id="sig-ffd" class="val-0">0</span></div>
                     <div class="signal-box" style="border: 1px solid #58a6ff;"><span>Out X</span><span id="sig-x" class="val-0">0</span></div>
                     <div class="signal-box" style="border: 1px solid #58a6ff;"><span>Out Y</span><span id="sig-y" class="val-0">0</span></div>
                 </div>
@@ -253,9 +288,11 @@
                     id: `${String.fromCharCode(65+r)}${String.fromCharCode(65+c)}`,
                     x: OFFSET_X + c * (CLB_SIZE + CH_W),
                     y: OFFSET_Y + r * (CLB_SIZE + CH_W),
-                    // 配置 SRAM
-                    cfg_f: 'PASSTHROUGH_A', 
-                    cfg_g: 'ZERO',
+                    // 配置 SRAM — F/G 各為一個 LUT3（8-bit 真值表 bitmask，bit index = (v0<<2)|(v1<<1)|v2）
+                    // F 定義域為 (A,B,C)，G 定義域為 (A,B,D)，兩者共享 A,B 以模擬 datasheet 所述「兩個 LUT3 可合併成 4/5 變數函數」
+                    lut_f: 0xF0, // 預設 = Pass A（A=1 時輸出1，與 B,C 無關 → bits 4-7 全設）
+                    lut_g: 0x00, // 預設 = 0
+                    ff_d_src: 'F', // D 型正反器輸入來源：F / G / F_XOR_G / F_AND_G / F_OR_G
                     mux_x: 'F', // 'F' or 'Q'
                     mux_y: 'G', // 'G' or 'Q'
                     // 即時電平狀態
@@ -305,11 +342,10 @@
         document.getElementById('clock-display').innerText = `CLOCK: ${clockVal ? 'HIGH' : 'LOW'}`;
         document.getElementById('clock-display').style.color = clockVal ? '#3fb950' : '#8b949e';
         
-        // 僅在上升沿觸發 D-FF
+        // 僅在上升沿觸發 D-FF（master-slave 結構，行為上等同邊緣觸發）
         if (clockVal === 1) {
             clbs.forEach(row => row.forEach(n => {
-                // 在 XC2064 中，D-FF 的輸入可以透過 MUX 選擇，簡化版我們固定鎖存 F 的輸出
-                n.val_Q = n.val_F; 
+                n.val_Q = getFFInput(n);
             }));
             updateSidebarUI();
         }
@@ -383,9 +419,9 @@
                     n.in_C = v_wires[r][c+1].on ? v_wires[r][c+1].val : 0;     // 右 (垂直線)
                     n.in_D = h_wires[r+1][c].on ? h_wires[r+1][c].val : 0;     // 下 (水平線)
                     
-                    // LUT 運算
-                    n.val_F = calcLut(n.cfg_f, n.in_A, n.in_B, n.in_C, n.in_D);
-                    n.val_G = calcLut(n.cfg_g, n.in_A, n.in_B, n.in_C, n.in_D);
+                    // LUT 運算 — F/G 各為真正的 LUT3（8-bit 真值表），F 讀 A,B,C；G 讀 A,B,D
+                    n.val_F = calcLut3(n.lut_f, n.in_A, n.in_B, n.in_C);
+                    n.val_G = calcLut3(n.lut_g, n.in_A, n.in_B, n.in_D);
 
                     // 輸出 MUX 選擇
                     n.out_X = (n.mux_x === 'F') ? n.val_F : n.val_Q;
@@ -404,21 +440,76 @@
         }
     }
 
-    function calcLut(func, a, b, c, d) {
-        switch(func) {
-            case 'A_AND_B': return a & b;
-            case 'A_OR_B': return a | b;
-            case 'A_XOR_B': return a ^ b;
-            case 'NOT_A': return (~a) & 1;
-            case 'PASSTHROUGH_A': return a;
-            case 'C_AND_D': return c & d;
-            case 'C_OR_D': return c | d;
-            case 'C_XOR_D': return c ^ d;
-            case 'NOT_C': return (~c) & 1;
-            case 'PASSTHROUGH_C': return c;
-            case 'ZERO': return 0;
-            default: return 0;
+    // 真正的 LUT3：mask 為 8-bit 真值表，bit index = (v0<<2)|(v1<<1)|v2
+    function calcLut3(mask, v0, v1, v2) {
+        const idx = ((v0 & 1) << 2) | ((v1 & 1) << 1) | (v2 & 1);
+        return (mask >> idx) & 1;
+    }
+
+    // D 型正反器的輸入來源（依 cfg-ff-d 選擇 F、G 或兩者的簡單合併，模擬「兩個 LUT3 tie 在一起」）
+    function getFFInput(n) {
+        switch (n.ff_d_src) {
+            case 'G': return n.val_G;
+            case 'F_XOR_G': return n.val_F ^ n.val_G;
+            case 'F_AND_G': return n.val_F & n.val_G;
+            case 'F_OR_G': return n.val_F | n.val_G;
+            case 'F':
+            default: return n.val_F;
         }
+    }
+
+    // 快速預設 → 8-bit 真值表 bitmask（三個輸入依序視為 v0,v1,v2；F 用 A,B,C，G 用 A,B,D）
+    const LUT_PRESETS = {
+        AND:    (v0, v1) => v0 & v1,
+        OR:     (v0, v1) => v0 | v1,
+        XOR:    (v0, v1) => v0 ^ v1,
+        NOT_A:  (v0) => (~v0) & 1,
+        PASS_A: (v0) => v0,
+        ZERO:   () => 0,
+        ONE:    () => 1
+    };
+
+    function presetToMask(preset) {
+        const fn = LUT_PRESETS[preset];
+        let mask = 0;
+        for (let i = 0; i < 8; i++) {
+            const v0 = (i >> 2) & 1, v1 = (i >> 1) & 1, v2 = i & 1;
+            if (fn(v0, v1, v2)) mask |= (1 << i);
+        }
+        return mask;
+    }
+
+    function applyLutPreset(which) {
+        if (!activeClb) return;
+        const sel = document.getElementById(`preset-${which}`);
+        if (!sel.value) return;
+        const mask = presetToMask(sel.value);
+        if (which === 'f') activeClb.lut_f = mask; else activeClb.lut_g = mask;
+        renderLutEditor(which);
+    }
+
+    function renderLutEditor(which) {
+        if (!activeClb) return;
+        const varNames = which === 'f' ? ['A', 'B', 'C'] : ['A', 'B', 'D'];
+        const mask = which === 'f' ? activeClb.lut_f : activeClb.lut_g;
+        const container = document.getElementById(`lut-${which}-editor`);
+        let html = '';
+        for (let i = 7; i >= 0; i--) {
+            const bit = (mask >> i) & 1;
+            const v0 = (i >> 2) & 1, v1 = (i >> 1) & 1, v2 = i & 1;
+            html += `<div class="lut-row" onclick="toggleLutBit('${which}', ${i})">
+                <span>${varNames[0]}=${v0} ${varNames[1]}=${v1} ${varNames[2]}=${v2}</span>
+                <span class="${bit ? 'val-1' : 'val-0'}">${bit}</span>
+            </div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function toggleLutBit(which, i) {
+        if (!activeClb) return;
+        if (which === 'f') activeClb.lut_f ^= (1 << i); else activeClb.lut_g ^= (1 << i);
+        document.getElementById(`preset-${which}`).value = '';
+        renderLutEditor(which);
     }
 
     function renderLoop() {
@@ -575,21 +666,23 @@
         document.getElementById('no-select-msg').style.display = 'none';
         document.getElementById('config-panel').style.display = 'block';
         document.getElementById('selected-clb-id').innerText = activeClb.id;
-        
-        document.getElementById('cfg-f').value = activeClb.cfg_f;
-        document.getElementById('cfg-g').value = activeClb.cfg_g;
+
+        document.getElementById('preset-f').value = '';
+        document.getElementById('preset-g').value = '';
         document.getElementById('cfg-mux-x').value = activeClb.mux_x;
         document.getElementById('cfg-mux-y').value = activeClb.mux_y;
-        
+        document.getElementById('cfg-ff-d').value = activeClb.ff_d_src;
+        renderLutEditor('f');
+        renderLutEditor('g');
+
         updateSidebarUI();
     }
 
     function updateCLBConfig() {
         if (!activeClb) return;
-        activeClb.cfg_f = document.getElementById('cfg-f').value;
-        activeClb.cfg_g = document.getElementById('cfg-g').value;
         activeClb.mux_x = document.getElementById('cfg-mux-x').value;
         activeClb.mux_y = document.getElementById('cfg-mux-y').value;
+        activeClb.ff_d_src = document.getElementById('cfg-ff-d').value;
     }
 
     function updateSidebarUI() {
@@ -606,6 +699,7 @@
         setVal('sig-f', activeClb.val_F);
         setVal('sig-g', activeClb.val_G);
         setVal('sig-q', activeClb.val_Q);
+        setVal('sig-ffd', getFFInput(activeClb));
         setVal('sig-x', activeClb.out_X);
         setVal('sig-y', activeClb.out_Y);
     }

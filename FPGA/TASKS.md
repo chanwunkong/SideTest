@@ -7,11 +7,6 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 ## Active
 
 ### [XC2064] 精確度提升（在既有原型之上）
-- [ ] TASK-003 [XC2064]: CLB 內部邏輯精確化（依據 `FPGA/docs/xc2064-reference.md` §2）
-  - 目標：F/G 改為「兩個獨立 LUT3（各 8-bit 真值表）+ 可程式化多工器合併成單一函數」的正確模型，取代目前 `calcLut()` 把 F/G 當成扁平真值表的簡化版
-  - 影響檔案：`FPGA/FPGA.html` 的 `calcLut()` / `simulateCombinatorial()`
-  - 加入單一 D 型正反器（master-slave 結構，上升緣觸發）於 CLB 輸出路徑，取代目前僅有的組合邏輯輸出；clock enable / reset 訊號細節仍待確認（見 reference 文件 §7），先以最簡可行版本實作再視資料補正
-  - X/Y 輸出多工器需可選「組合邏輯（F 或 G）」或「正反器 Q」
 - [ ] TASK-004 [XC2064]: Switch Matrix 精確路由模型（依據 `FPGA/docs/xc2064-reference.md` §3）
   - 目標：以真實拓樸（每 tile 2 個 8-pin switch matrix，約 20 個可程式化連接點/matrix，合計約 40 控制位元/tile）取代目前 `h_wires`/`v_wires` 的任意點擊切換
   - 影響檔案：`FPGA/FPGA.html` 的 `drawRouting()` / `handleClick()`
@@ -55,3 +50,9 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - 內容：CLB 內部架構（LUT3×2 + master-slave 正反器）、switch matrix 拓樸數字（2×8-pin/tile，~40 控制位元/tile）、IOB 選項、配置記憶體與 bitstream 載入機制（160×71 網格、71-bit 移位暫存器、欄式載入）、晶片總覽數字（64 CLB、58 IOB、~1000-1200 gate）
   - 來源：Ken Shirriff 逆向工程文章為主，輔以多份 datasheet 轉述來源；原廠 PDF 已定位但未能自動解析內文
   - 明確標註 6 項待確認細節（正反器控制訊號命名、switch matrix 完整拓樸圖、direct interconnect 是否存在於本世代、IOB 輸出端正反器、精確閘數口徑、菊鏈組態協定），供後續任務踩坑前先參考
+- [x] TASK-003 [XC2064]: CLB 內部邏輯精確化
+  - F/G 改為真正的 LUT3（8-bit 真值表 bitmask，`calcLut3()`），F 讀 (A,B,C)、G 讀 (A,B,D)（共享 A,B 以模擬 datasheet 所述「兩個 LUT3 tie 在一起」，此輸入分配為建模選擇，非原廠圖確認，已在 reference 文件與程式碼註解中標註）
+  - Sidebar 由「預設函數下拉選單」改為可逐 bit 點擊切換的真值表編輯器（`renderLutEditor` / `toggleLutBit`），保留常用預設（AND/OR/XOR/NOT/PASS/0/1）作快速填入（`applyLutPreset`）
+  - 新增 D 型正反器輸入來源選擇（`cfg-ff-d`：F / G / F_XOR_G / F_AND_G / F_OR_G），`stepClock()` 改用 `getFFInput()` 取代先前寫死鎖存 F 的行為
+  - Probe 面板新增「D-FF 輸入 (D)」即時顯示，方便觀察鎖存前的值
+  - 驗證：以 Node 獨立重現 `calcLut3`/`presetToMask` 邏輯做真值表自我檢查（PassA 預設、AND 預設皆正確），並於瀏覽器開啟確認頁面正常載入；未使用自動化截圖（環境無 headless 瀏覽器工具）
