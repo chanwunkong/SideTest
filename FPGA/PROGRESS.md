@@ -99,4 +99,17 @@
 - Completed: TASK-021 — 拖曳式接線。先確認關鍵設計限制：本引擎相鄰直連繞線意味著「沿線點亮所有線段」是電性錯誤的假連接，改用 BFS 圖搜尋（節點=每段 h/v wire，邊=6 組 switch matrix 連接，不論目前是否已開啟）找真正連通的最短路徑；新增 `findWirePath()`/`getWireNeighbors()`/`applyWirePath()`/`findDragSourceAt()`/`findDragDestinationAt()`/`connectDragToWire()`；互動改為 mousedown/mousemove/mouseup 三段式，非拖曳起點的點擊完全比照原行為（呼叫既有 `handleClick()`），確保零回歸
 - Errors: none
 - Queued: [XC2064] 軌四項操作性改善（TASK-018~021）與驗證後續（TASK-016/017）皆已完成或待辦；[GAME] 軌自建檔以來尚無任何完成任務，下一輪強烈建議切過去
+- Commit: cd75543
+
+## 2026-07-07T14:00Z
+- Track: XC2064
+- Completed: 使用者提問「通道與 CLB 是不是只有包圍、沒有連接」，順著使用者提供的 GitHub 連結 [lazardjurovic/xc2064](https://github.com/lazardjurovic/xc2064)（第三方 SystemC 重現專案）深入查證，用 curl 直接抓取 `clb_one.hpp`/`clb_pips.hpp`/`switching_matrix.hpp`/`switching_block.hpp`/`fpga.hpp` 原始碼。發現多項比 Shirriff 部落格更具體的架構細節，已記入 `xc2064-reference.md` §2/§6/§7：
+  - D 型正反器的 D 輸入固定＝F，真正可配置的是 RESET（G 或 D-OR-G）與 SET（無或 F）——與本模擬器 TASK-003 的 `ff_d_src` 設計思路不同，值得跟 TASK-016 一起重新設計
+  - X/Y 輸出應各自三選一（F/G/Q），本模擬器目前是兩選一
+  - 正反器 clock 來源可能可選全域時脈或本地 C 輸入，本模擬器完全沒有這個選項
+  - F/G 的輸入槽是「每槽二選一」的多工器樹（例如 F 第 3 槽只能選 C 或 D），比先前認知的「完全自由指派」更受限但也更具體
+  - CLB 與繞線通道的真實連接是一整棵 PIP（可程式化互連點）樹，每個輸入/輸出有多個候選實體節點，比本模擬器「一側一條固定線」精細得多——這是使用者問題的直接技術背景
+  - 附註第三方專案 `process_comb()` 的 f-mux 輸入選擇段疑似有變數命名筆誤，提醒這是佐證而非原廠圖，不宜照單全收
+- Errors: none
+- Queued: 這些新發現待使用者決定是否要求實作；尚未新增/修改任何 TASKS.md 任務項目，僅更新參考文件
 - Commit: (pending)

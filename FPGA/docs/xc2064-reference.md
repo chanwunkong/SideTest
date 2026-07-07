@@ -29,6 +29,13 @@
   - 正反器實作方式為 **primary/secondary latch（master-slave）結構**：clock 為低電位時，第一級多工器允許資料進入 primary latch；clock 轉高時，第一級鎖回（保持），同時第二級的多工器把 primary latch 的值帶入 secondary latch；clock 轉低時第二級鎖回。整體效果為**上升緣觸發**的正反器。
   - **2026-07-07 驗證更新**：Shirriff 原文證實「The set and reset lines force the flip flop high or low」——也就是說正反器確實有非同步 SET/RESET 控制線，可強制輸出高或低。**本模擬器目前完全沒有實作 SET/RESET**（無法強制歸零/歸一，只能透過 D 輸入間接影響）。這是一個確認存在、但尚未實作的真實特性，已記錄為後續任務；至於 clock enable 的確切名稱與控制方式，原始資料仍未進一步說明，維持待確認。
 - 輸出多工器：CLB 的 X、Y 輸出可各自選擇來自組合邏輯（F 或 G）或正反器輸出（Q），對應 `FPGA/FPGA.html` 現有的 `cfg-mux-x` / `cfg-mux-y` 概念。
+- **2026-07-07 新增來源交叉比對**：[lazardjurovic/xc2064](https://github.com/lazardjurovic/xc2064)（第三方 SystemC 重現專案，非原廠文件，但提供了比 Shirriff 部落格更具體的電路結構猜想，可當作額外佐證）的 `src/clb_one.hpp` 揭露了幾個目前模擬器**尚未反映**的細節：
+  - **D 型正反器的 D 輸入固定等於 F**（`ff_d = lut_f`），**不是**可切換的 F/G/組合。真正可配置的是 **RESET**（`RES = G` 或 `RES = D OR G`）與 **SET**（`SET = 無` 或 `SET = F`）——也就是說「F 與 G 如何一起影響正反器」的真實機制是透過獨立的 SET/RESET 通道，而不是本模擬器 TASK-003 設計的 `ff_d_src`（F/G/F_XOR_G/F_AND_G/F_OR_G 直接當 D 輸入）。這是一個結構性差異，值得在下一輪修正 TASK-016（SET/RESET）時一併重新設計，而非分開處理。
+  - **X、Y 輸出各自是三選一**（F、G 或 Q），不是本模擬器目前的兩選一（X 只能 F/Q、Y 只能 G/Q）。例如真實晶片可以讓 X 輸出 G、Y 輸出 F。
+  - **正反器的 clock 來源本身可配置**：可以用晶片全域時脈，或改用 CLB 自己的 **C 輸入**當作本地時脈（`ff_clk = c`）。本模擬器的 `stepClock()` 是全域單一時脈同步驅動所有 CLB，完全沒有「用某個一般輸入當本地時脈」這個選項。
+  - **F/G 的輸入槽選擇是有限制的多工器樹**，不是任意組合：例如 F 的第 3 個輸入槽只能選 C 或 D（`FIN_3 = C or D`），G 的第 1 個輸入槽只能選 A 或 B（`GIN_1 = A or B`）——每個槽位都是「二選一」而非「四選一」。這比本模擬器目前的「F 固定讀 A,B,C」更精確，但也比我先前以為的「完全自由指派」更受限，應該以這個具體的槽位規則為準（見 TASK-017）。
+  - CLB 與周邊繞線通道的實際連接，在這個第三方模型裡是透過 `src/clb_pips.hpp` 裡一整棵「PIP（可程式化互連點）樹」實作的：A/B/C/D/X/Y 各自標示了多個候選接點（例如 `PIP A1,A4`、`PIP B2,BC`、`PIP D3,DX` 等），代表每個一般輸入實際上有好幾個可能的實體節點可供選擇性導通，而不是本模擬器「一側只有一條固定線」的簡化模型。這印證了「CLB 被通道包圍、且透過可程式化接點電性連接」的說法，同時也說明真實電路的連接遠比本模擬器精細。
+  - 附註：這個第三方專案的 `process_comb()` 裡「selecting inputs for f mux」那段程式碼疑似有筆誤（把應該賦值給 `fin_2`/`fin_1` 的地方誤寫成 `gin_2`/`gin_1`），提醒這是個人/學術重現專案，可以當作結構性佐證，但個別細節仍需獨立確認，不宜照單全收。
 
 ---
 
@@ -76,16 +83,20 @@
 - Ken Shirriff, ["Reverse-engineering the first FPGA chip, the XC2064"](http://www.righto.com/2020/09/reverse-engineering-first-fpga-chip.html) — CLB 內部結構、LUT3×2、正反器 master-slave 實作、switch matrix pin/bit 數、配置記憶體網格、bitstream 載入機制的主要依據。
 - 綜合搜尋結果（datasheets360.com、kynix.com 對 Xilinx 原始 XC2000 系列 datasheet 的轉述）——CLB/IOB 數量、等效閘數、IOB 選項（TTL/CMOS、pull-up、flip-flop/latch、三態）。
 - 原廠 PDF（`datasheets.hypertriton.com/XC2000.pdf`）已定位但**尚未能完整解析內文**（僅取得壓縮版面資料，未渲染成可讀文字）；後續若需要更精確的圖表與訊號命名，建議由人工開啟該 PDF 核對，而非依賴自動擷取。
+- [lazardjurovic/xc2064](https://github.com/lazardjurovic/xc2064)（`src/clb_one.hpp`、`src/clb_pips.hpp`、`src/switching_matrix.hpp`、`src/switching_block.hpp`、`src/fpga.hpp`）——第三方 SystemC 重現專案，**非原廠文件**，但提供了 CLB 正反器 SET/RESET/D 輸入、X/Y 三選一輸出多工器、LUT 輸入槽多工限制、CLB 本地時脈來源、以及 CLB-to-繞線通道的 PIP 樹等具體電路結構，是目前找到最詳細的交叉參考來源，2026-07-07 查證並記入 §2。
 
 ---
 
 ## 7. 待確認清單（供後續任務追蹤）
 
-- [x] ~~CLB 正反器 clock enable / reset 訊號的確切命名與控制邏輯細節~~ → **部分解決（2026-07-07）**：已確認正反器具備非同步 **SET/RESET** 線可強制輸出高/低（Shirriff 原文），但 clock enable 的確切控制方式仍未找到進一步說明，這部分維持待確認。
+- [x] ~~CLB 正反器 clock enable / reset 訊號的確切命名與控制邏輯細節~~ → **進一步解決（2026-07-07）**：Shirriff 確認有 SET/RESET 線；lazardjurovic/xc2064 的重現進一步給出具體結構：D 固定 = F，RESET 可選「G」或「D OR G」，SET 可選「無」或「F」，且 clock 來源可選「全域時脈」或「本地 C 輸入」——比先前只知道「有 SET/RESET」更具體，但仍是第三方重現而非原廠圖，維持部分待確認的標記。
 - [ ] Switch matrix 完整拓樸圖（pin-to-pin 連接可能性表）。
 - [ ] Direct interconnect（相鄰 CLB 直接互連）是否存在於 XC2064，或僅為後期世代（XC3000 以後）架構。（2026-07-07 再次查證：來源文章未提及此點，仍無法確認）
 - [ ] IOB 是否具備獨立的輸出正反器，或僅輸入端有 flip-flop/latch 選項。（2026-07-07 再次查證：來源文章明確表示這部分「充滿不規則性」且尚未完整逆向工程，維持待確認——TASK-005 選擇不實作輸出端正反器是正確的保守決定，不需要修正）
 - [ ] 等效邏輯閘數的精確官方口徑（600–1000 vs ~1200 gates 兩種引用數字）。
 - [ ] Master/Slave serial 組態模式的完整協定細節（本文件僅涵蓋單顆晶片內部的欄式載入機制，未涵蓋多顆菊鏈串接時的協定）。
-- [ ] **（2026-07-07 新增）CLB 的 F/G LUT 輸入指派應為可程式化，非本模擬器目前寫死的 (A,B,C)/(A,B,D)**：真實晶片上每個一般輸入（A/B/C/D）本身就透過 5-bit 控制的多工器從最多 8 個候選節點選擇，且 F/G 各自要用哪 3 個一般輸入也是可配置的。本模擬器的固定分配是簡化，已在 §2 詳述，後續可考慮讓每顆 CLB 自訂 F/G 各自使用哪 3 個輸入。
-- [ ] **（2026-07-07 新增）CLB 正反器缺少 SET/RESET 非同步控制**：已確認真實晶片有此線路（見上），但本模擬器目前完全沒有實作，只能透過 D 輸入間接影響 Q 值，無法直接強制歸零/歸一。
+- [ ] **（2026-07-07 新增）CLB 的 F/G LUT 輸入指派應為可程式化，非本模擬器目前寫死的 (A,B,C)/(A,B,D)**：真實晶片上每個一般輸入（A/B/C/D）本身就透過 5-bit 控制的多工器從最多 8 個候選節點選擇，且 F/G 各自要用哪 3 個一般輸入也是可配置的。本模擬器的固定分配是簡化，已在 §2 詳述，後續可考慮讓每顆 CLB 自訂 F/G 各自使用哪 3 個輸入。（2026-07-07 補充：lazardjurovic/xc2064 顯示這個「可配置」實際上是每個槽位二選一的多工器樹，例如 F 的第 3 槽只能選 C 或 D，並非四選一，實作時應以此為準）
+- [ ] **（2026-07-07 新增）CLB 正反器缺少 SET/RESET 非同步控制**：已確認真實晶片有此線路（見上），但本模擬器目前完全沒有實作，只能透過 D 輸入間接影響 Q 值，無法直接強制歸零/歸一。（2026-07-07 補充：D 應固定 = F，真正的可配置點是 RESET＝G 或 D-OR-G、SET＝無或 F——這代表 TASK-003 的 `ff_d_src`＝F/G/XOR/AND/OR 設計思路本身可能需要跟 SET/RESET 一起重新設計，而不是分開修正）
+- [ ] **（2026-07-07 新增）CLB 輸出多工器 X/Y 應各自三選一（F/G/Q），非本模擬器目前的兩選一（X 只能 F/Q，Y 只能 G/Q）**：依 lazardjurovic/xc2064 的 `clb_muxes[5..8]`，X 可選 F 或 G（否則預設 Q），Y 同樣可選 G 或 F（否則預設 Q）。
+- [ ] **（2026-07-07 新增）CLB 正反器的 clock 來源可能可配置（全域時脈 or 本地 C 輸入）**：本模擬器的 `stepClock()` 是全晶片單一同步時脈，沒有「某顆 CLB 改用自己的 C 輸入當時脈」這個選項；真實情況待進一步以原廠資料確認，目前僅有第三方重現專案的佐證。
+- [ ] **（2026-07-07 新增）CLB 與繞線通道的實際連接遠比本模擬器精細**：真實電路每個一般輸入（A/B/C/D）與輸出（X/Y）在 `clb_pips.hpp` 裡對應到一整棵可程式化互連點（PIP）樹，有多個候選實體節點可選，不是本模擬器「一側一條固定線」的簡化模型；這也是使用者 2026-07-07 提問「通道與 CLB 是不是只有包圍、沒有連接」的具體技術背景。
