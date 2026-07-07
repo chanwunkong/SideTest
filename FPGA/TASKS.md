@@ -16,9 +16,6 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - 需評估 UI 複雜度是否值得——這也是本輪「更容易操作」的討論範圍之一，建議與該任務一併決定
 
 ### [XC2064] 操作性改善（2026-07-07 使用者要求「全部都要做」，依成本/風險排序）
-- [ ] TASK-018 [XC2064]: 電路範本庫（Circuit Template Library）
-  - 目標：header 工具列新增「載入範例電路」下拉選單，選項至少含 TASK-007 的 2-to-4 解碼器、3-bit 計數器，選取後直接呼叫 `applyLoadedState(deserializeBitstream(...))` 載入（重用現有 bitstream 機制，內嵌範本 bitstream bytes 或 fetch 對應 `.bit` 檔）
-  - 低成本、立即有感，讓新使用者一開始就能看到「能動的電路」而非空白晶格
 - [ ] TASK-019 [XC2064]: 初學／進階模式切換
   - 目標：新增模式開關，「初學模式」下側欄只顯示核心欄位（真值表編輯器、輸出來源 F/G/Q）；長線設定、IOB 閾值/三態、（TASK-016 完成後的）SET/RESET 等進階欄位預設隱藏，切到「進階模式」才顯示
   - 中等成本，降低單次資訊量，但不解決「點擊區域太小」的操作精準度問題
@@ -97,3 +94,9 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - Sidebar：CLB 面板新增「全域長線」設定區塊（列/欄長線 on-off、A/B 來源、X/Y 是否驅動）；IOB 輸入面板新增「同時驅動本列全域長線」勾選框
   - **Bitstream 格式升級為版本 2**（`FPGA/docs/bitstream-format.md` 已更新）：CLB 21→25 bit、輸入 IOB 5→6 bit、payload 尾端新增 `h_long.on`/`v_long.on`；`deserializeBitstream()` 同時支援版本 1（自動預設新欄位）與版本 2，TASK-007 產生的舊 `.bit` 檔已驗證仍可正確匯入（回歸測試通過）
   - 驗證：以 Node 獨立重現「IOB 驅動長線 → 兩顆非相鄰 CLB 皆可直接讀到同一值」的核心情境；獨立驗證版本 2 序列化/反序列化 round-trip 與版本 1 回溯相容性皆通過；瀏覽器開啟確認頁面載入無誤
+- [x] TASK-018 [XC2064]: 電路範本庫（Circuit Template Library）
+  - Header 工具列新增「載入範例電路」下拉選單（`template-select`），選項為 TASK-007 的 2-to-4 解碼器、3-bit 同步計數器
+  - 新增 `CIRCUIT_TEMPLATES`（內嵌 base64 編碼的 bitstream bytes，與 `FPGA/tests/decoder-2to4.bit`／`counter-3bit.bit` 完全一致）、`base64ToBytes()`、`loadTemplate()`；選取後直接呼叫既有的 `deserializeBitstream()` + `applyLoadedState()`，未新增平行的載入邏輯
+  - 選擇內嵌 base64 而非 `fetch()` 相對路徑：`FPGA.html` 設計為直接以 `file://` 開啟即可運作，`fetch()` 本機檔案在部分瀏覽器會受 CORS 限制，內嵌可保證跨環境都能用
+  - 側欄「Bitstream 匯出／匯入」面板新增一行提示，引導新使用者第一次使用先載入範本
+  - 驗證：以 Node 對照 `Buffer.compare()` 確認內嵌的 base64 字串解碼後與原始 `.bit` 檔案逐位元組相同；瀏覽器開啟確認下拉選單可正常載入

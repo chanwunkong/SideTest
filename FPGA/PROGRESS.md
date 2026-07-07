@@ -71,4 +71,11 @@
 - Completed: 用 AskUserQuestion 提出 4 個操作性改善方向（電路範本庫／初學進階模式／引導式教學／拖曳接線），使用者選擇「全部都要做」。依成本/風險排序寫入 TASKS.md：TASK-018（範本庫）→ TASK-019（模式切換）→ TASK-020（引導教學，需等前兩者穩定）→ TASK-021（拖曳接線，風險最高排最後）
 - Errors: none
 - Queued: 依序執行 TASK-018 起
+- Commit: e032086
+
+## 2026-07-07T10:00Z
+- Track: XC2064
+- Completed: TASK-018 — header 新增「載入範例電路」下拉選單，內嵌 TASK-007 兩個電路的 base64 bitstream，選取後重用既有的 `deserializeBitstream()`/`applyLoadedState()` 載入；側欄新增引導提示
+- Errors: none
+- Queued: TASK-019（初學／進階模式切換）
 - Commit: (pending)

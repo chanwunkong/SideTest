@@ -131,6 +131,11 @@
                 <option value="12">12x12 CLB</option>
                 <option value="16">16x16 CLB</option>
             </select>
+            <select id="template-select" onchange="loadTemplate()" style="background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 4px; border-radius: 4px; margin-right: 10px;">
+                <option value="">載入範例電路...</option>
+                <option value="decoder">2-to-4 解碼器</option>
+                <option value="counter">3-bit 同步計數器</option>
+            </select>
             <span id="clock-display" style="font-size: 0.85rem; color: #8b949e; margin-right: 10px;">CLOCK: LOW</span>
             <button onclick="stepClock()">手動觸發時鐘 (Tick)</button>
             <button id="auto-clock-btn" onclick="toggleAutoClock()">自動時鐘: OFF</button>
@@ -149,6 +154,9 @@
         <div id="sidebar">
             <div class="panel-section">
                 <div class="panel-title">Bitstream 匯出 / 匯入</div>
+                <div style="font-size: 0.75rem; color: #8b949e; margin-bottom: 8px; line-height: 1.5;">
+                    第一次使用建議先從工具列的「載入範例電路」選單挑一個範本看看效果，不必從空白晶片開始手動佈線。
+                </div>
                 <div id="bitstream-info" style="font-size: 0.75rem; color: #8b949e; line-height: 1.5; margin-bottom: 8px;">尚未匯出／匯入。</div>
                 <div style="font-size: 0.7rem; color: #8b949e; line-height: 1.5;">
                     本功能為<b>模擬用格式</b>（自訂位元封裝，見 <code>FPGA/docs/bitstream-format.md</code>），並非真實 XC2064 bitstream 的物理位元排列。真實格式見 <code>FPGA/docs/xc2064-reference.md</code> §5（160×71 記憶體網格、71-bit 移位暫存器欄式載入），需完整 switch matrix／CLB mux 接線圖才能還原，目前尚無法做到。
@@ -663,6 +671,45 @@
         };
         reader.readAsArrayBuffer(file);
         e.target.value = '';
+    }
+
+    // ---- 電路範本庫（TASK-018）----
+    // 內嵌 FPGA/tests/ 下已驗證過的測試電路（base64 編碼的 .bit 內容），供新使用者一鍵載入，
+    // 不必從空白晶片開始手動佈線。內容與 build-and-verify.js 產生的檔案一致，皆為版本 1 bitstream，
+    // deserializeBitstream() 對版本 1 的長線相關欄位一律套用預設值（'wire'/false），可正常匯入。
+    const CIRCUIT_TEMPLATES = {
+        decoder: {
+            label: '2-to-4 解碼器（FPGA/tests/decoder-2to4.bit，見 README 電路1）',
+            b64: 'WFNJTQEEzAAHh4A8AAHgAAzAAAGYA8AAHgAAzAAHh4A8AAHgAAzAAAZgA8AAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAjIwEIQiEIQAAA=='
+        },
+        counter: {
+            label: '3-bit 同步計數器（FPGA/tests/counter-3bit.bit，見 README 電路2）',
+            b64: 'WFNJTQECAFU/hVJzAAGBVJAAAAAAAAANShAA'
+        }
+    };
+
+    function base64ToBytes(b64) {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+    }
+
+    function loadTemplate() {
+        const sel = document.getElementById('template-select');
+        const key = sel.value;
+        sel.value = ''; // 重置選單顯示，避免看起來像持續選取著範本
+        if (!key) return;
+        const tpl = CIRCUIT_TEMPLATES[key];
+        if (!tpl) return;
+        try {
+            const bytes = base64ToBytes(tpl.b64);
+            const loaded = deserializeBitstream(bytes);
+            applyLoadedState(loaded);
+            showBitstreamInfo(bytes, `已載入範本「${tpl.label}」`);
+        } catch (err) {
+            alert(`載入範本失敗：${err.message}`);
+        }
     }
 
     function init() {
