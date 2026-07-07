@@ -148,9 +148,10 @@
                 <div class="panel-title">硬體操作說明</div>
                 <div style="font-size: 0.8rem; line-height: 1.6; color: #8b949e;">
                     1. <b>點擊引腳</b>：切換周邊 IOB 狀態。<br>
-                    2. <b>點擊通道交點</b>：切換 Switch Matrix 導通狀態。<br>
-                    3. <b>點擊 CLB</b>：選取邏輯塊，並在下方配置其內部結構。<br>
-                    (依照真實 XC2064 架構，每個 CLB 具有獨立的 F/G 邏輯產生器與多路選擇器)
+                    2. <b>點擊通道線段</b>：切換該段金屬線是否存在。<br>
+                    3. <b>點擊通道交點</b>：選取該 Switch Matrix，於下方配置 6 組可程式化連接。<br>
+                    4. <b>點擊 CLB</b>：選取邏輯塊，並在下方配置其內部結構。<br>
+                    (依照真實 XC2064 架構，每個 CLB 具有獨立的 F/G 邏輯產生器與多路選擇器；每個交點為近似 4-pin switch matrix)
                 </div>
             </div>
 
@@ -235,9 +236,17 @@
                     <div class="signal-box" style="border: 1px solid #58a6ff;"><span>Out Y</span><span id="sig-y" class="val-0">0</span></div>
                 </div>
             </div>
-            
+
+            <div class="panel-section" id="switch-panel" style="display: none;">
+                <div class="panel-title">選取 Switch Matrix: <span id="selected-switch-id" style="color: #d2a8ff;">--</span></div>
+                <div style="font-size: 0.75rem; line-height: 1.5; color: #8b949e; margin-bottom: 8px;">
+                    近似拓樸（見 <code>FPGA/docs/xc2064-reference.md</code> §3/§7）：本模擬器的通道每方向僅單一線段，故以 4-pin（W/E/N/S）表示交點，下方 6 組為可程式化 pass-transistor 連接；真實 XC2064 switch matrix 為 8-pin、約 20 組連接，完整拓樸圖尚待確認。灰色項目代表對應接腳的線段尚未存在（未點擊佈線），暫不可導通。
+                </div>
+                <div id="switch-editor" class="lut-editor"></div>
+            </div>
+
             <div id="no-select-msg" style="padding: 20px; color: #8b949e; text-align: center;">
-                請點擊畫布上的 CLB 方塊以檢視其內部架構。
+                請點擊畫布上的 CLB 方塊或 Switch Matrix 交點以檢視其內部架構。
             </div>
         </div>
     </div>
@@ -263,6 +272,17 @@
     let clockVal = 0;
     let autoClockId = null;
     let activeClb = null;
+    let activeSwitch = null; // { r, c } — 目前選取的 switch matrix 交點
+
+    // Switch matrix 的 6 組可程式化 pass-transistor 連接（近似拓樸，見 xc2064-reference.md §3/§7）
+    const SWITCH_LINKS = [
+        ['WE', 'W ↔ E（水平直通）'],
+        ['NS', 'N ↔ S（垂直直通）'],
+        ['WN', 'W ↔ N（轉角）'],
+        ['WS', 'W ↔ S（轉角）'],
+        ['EN', 'E ↔ N（轉角）'],
+        ['ES', 'E ↔ S（轉角）']
+    ];
 
     function init() {
         window.addEventListener('resize', resize);
@@ -279,6 +299,7 @@
         iob_in = [];
         iob_out = [];
         activeClb = null;
+        activeSwitch = null;
 
         // 建立 CLB 陣列
         for (let r = 0; r < GRID_SIZE; r++) {
@@ -306,7 +327,8 @@
         // 初始化佈線層
         for (let r = 0; r <= GRID_SIZE; r++) {
             h_wires[r] = Array.from({length: GRID_SIZE}, () => ({ on: false, val: 0 }));
-            switch_box[r] = new Array(GRID_SIZE + 1).fill(false);
+            // 每個交點的 switch matrix：6 組獨立可程式化連接（非單一「全部短接」布林值）
+            switch_box[r] = Array.from({length: GRID_SIZE + 1}, () => ({ WE: false, NS: false, WN: false, WS: false, EN: false, ES: false }));
         }
         for (let r = 0; r < GRID_SIZE; r++) {
             v_wires[r] = Array.from({length: GRID_SIZE + 1}, () => ({ on: false, val: 0 }));
@@ -319,6 +341,7 @@
         }
 
         document.getElementById('config-panel').style.display = 'none';
+        document.getElementById('switch-panel').style.display = 'none';
         document.getElementById('no-select-msg').style.display = 'block';
         resize();
     }
@@ -381,29 +404,24 @@
             }
 
             // 2. 佈線網格擴散 (Switch Matrix 解析)
+            // 每個交點視為近似 4-pin（W/E/N/S）switch matrix，6 組連接（含直通 WE/NS）都必須
+            // 由使用者明確導通才會連通 —— 不再有「兩段線都存在就自動直通」的預設行為，
+            // 這樣才符合「switch matrix 由可程式化 pass-transistor 組成」的實際架構。
             for (let r = 0; r <= GRID_SIZE; r++) {
                 for (let c = 0; c <= GRID_SIZE; c++) {
-                    // 直通
-                    if (c > 0 && c < GRID_SIZE && h_wires[r][c-1].on && h_wires[r][c].on) {
-                        let v = h_wires[r][c-1].val | h_wires[r][c].val;
-                        h_wires[r][c-1].val = v; h_wires[r][c].val = v;
-                    }
-                    if (r > 0 && r < GRID_SIZE && v_wires[r-1][c].on && v_wires[r][c].on) {
-                        let v = v_wires[r-1][c].val | v_wires[r][c].val;
-                        v_wires[r-1][c].val = v; v_wires[r][c].val = v;
-                    }
-                    // 轉向 (短接)
-                    if (switch_box[r][c]) {
-                        let v = 0;
-                        if(c > 0 && h_wires[r][c-1].on) v |= h_wires[r][c-1].val;
-                        if(c < GRID_SIZE && h_wires[r][c].on) v |= h_wires[r][c].val;
-                        if(r > 0 && v_wires[r-1][c].on) v |= v_wires[r-1][c].val;
-                        if(r < GRID_SIZE && v_wires[r][c].on) v |= v_wires[r][c].val;
-                        
-                        if(c > 0 && h_wires[r][c-1].on) h_wires[r][c-1].val = v;
-                        if(c < GRID_SIZE && h_wires[r][c].on) h_wires[r][c].val = v;
-                        if(r > 0 && v_wires[r-1][c].on) v_wires[r-1][c].val = v;
-                        if(r < GRID_SIZE && v_wires[r][c].on) v_wires[r][c].val = v;
+                    const sw = switch_box[r][c];
+                    const pins = {
+                        W: (c > 0 && h_wires[r][c-1].on) ? h_wires[r][c-1] : null,
+                        E: (c < GRID_SIZE && h_wires[r][c].on) ? h_wires[r][c] : null,
+                        N: (r > 0 && v_wires[r-1][c].on) ? v_wires[r-1][c] : null,
+                        S: (r < GRID_SIZE && v_wires[r][c].on) ? v_wires[r][c] : null
+                    };
+                    for (const [key] of SWITCH_LINKS) {
+                        const a = pins[key[0]], b = pins[key[1]];
+                        if (sw[key] && a && b) {
+                            const v = a.val | b.val;
+                            a.val = v; b.val = v;
+                        }
                     }
                 }
             }
@@ -512,6 +530,41 @@
         renderLutEditor(which);
     }
 
+    // 取得交點 (r,c) 目前實際存在（線段已佈線）的 4 個接腳
+    function getSwitchPins(r, c) {
+        return {
+            W: (c > 0 && h_wires[r][c - 1].on) ? h_wires[r][c - 1] : null,
+            E: (c < GRID_SIZE && h_wires[r][c].on) ? h_wires[r][c] : null,
+            N: (r > 0 && v_wires[r - 1][c].on) ? v_wires[r - 1][c] : null,
+            S: (r < GRID_SIZE && v_wires[r][c].on) ? v_wires[r][c] : null
+        };
+    }
+
+    function renderSwitchEditor() {
+        if (!activeSwitch) return;
+        const { r, c } = activeSwitch;
+        const sw = switch_box[r][c];
+        const pins = getSwitchPins(r, c);
+        const container = document.getElementById('switch-editor');
+        let html = '';
+        for (const [key, label] of SWITCH_LINKS) {
+            const pinsExist = !!(pins[key[0]] && pins[key[1]]);
+            const active = sw[key];
+            html += `<div class="lut-row" onclick="${pinsExist ? `toggleSwitchLink(${r}, ${c}, '${key}')` : ''}" style="${pinsExist ? '' : 'opacity:0.4; cursor:not-allowed;'}">
+                <span>${label}${pinsExist ? '' : '（接腳未佈線）'}</span>
+                <span class="${active ? 'val-1' : 'val-0'}">${active ? 'ON' : 'OFF'}</span>
+            </div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function toggleSwitchLink(r, c, key) {
+        const pins = getSwitchPins(r, c);
+        if (!pins[key[0]] || !pins[key[1]]) return;
+        switch_box[r][c][key] = !switch_box[r][c][key];
+        renderSwitchEditor();
+    }
+
     function renderLoop() {
         simulateCombinatorial();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -553,8 +606,15 @@
             for (let c = 0; c <= GRID_SIZE; c++) {
                 let x = OFFSET_X + c*(CLB_SIZE+CH_W) - CH_W/2;
                 let y = OFFSET_Y + r*(CLB_SIZE+CH_W) - CH_W/2;
-                ctx.fillStyle = switch_box[r][c] ? '#d2a8ff' : '#21262d';
+                const sw = switch_box[r][c];
+                const hasActive = sw.WE || sw.NS || sw.WN || sw.WS || sw.EN || sw.ES;
+                ctx.fillStyle = hasActive ? '#d2a8ff' : '#21262d';
                 ctx.fillRect(x - 4, y - 4, 8, 8);
+                if (activeSwitch && activeSwitch.r === r && activeSwitch.c === c) {
+                    ctx.strokeStyle = '#58a6ff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x - 6, y - 6, 12, 12);
+                }
             }
         }
     }
@@ -626,19 +686,24 @@
                 const n = clbs[r][c];
                 if (mx > n.x && mx < n.x + CLB_SIZE && my > n.y && my < n.y + CLB_SIZE) {
                     activeClb = n;
+                    activeSwitch = null;
+                    document.getElementById('switch-panel').style.display = 'none';
                     openSidebarForCLB();
                     return;
                 }
             }
         }
 
-        // Switch Matrix Toggle
+        // Switch Matrix Selection
         for (let r = 0; r <= GRID_SIZE; r++) {
             for (let c = 0; c <= GRID_SIZE; c++) {
                 let x = OFFSET_X + c*(CLB_SIZE+CH_W) - CH_W/2;
                 let y = OFFSET_Y + r*(CLB_SIZE+CH_W) - CH_W/2;
                 if (Math.abs(mx - x) < 8 && Math.abs(my - y) < 8) {
-                    switch_box[r][c] = !switch_box[r][c];
+                    activeSwitch = { r, c };
+                    activeClb = null;
+                    document.getElementById('config-panel').style.display = 'none';
+                    openSidebarForSwitch();
                     return;
                 }
             }
@@ -685,23 +750,35 @@
         activeClb.ff_d_src = document.getElementById('cfg-ff-d').value;
     }
 
+    function openSidebarForSwitch() {
+        if (!activeSwitch) return;
+        document.getElementById('no-select-msg').style.display = 'none';
+        document.getElementById('switch-panel').style.display = 'block';
+        document.getElementById('selected-switch-id').innerText = `(${activeSwitch.r}, ${activeSwitch.c})`;
+        renderSwitchEditor();
+    }
+
     function updateSidebarUI() {
-        if (!activeClb) return;
-        const setVal = (id, val) => {
-            const el = document.getElementById(id);
-            el.innerText = val;
-            el.className = val ? 'val-1' : 'val-0';
-        };
-        setVal('sig-a', activeClb.in_A);
-        setVal('sig-b', activeClb.in_B);
-        setVal('sig-c', activeClb.in_C);
-        setVal('sig-d', activeClb.in_D);
-        setVal('sig-f', activeClb.val_F);
-        setVal('sig-g', activeClb.val_G);
-        setVal('sig-q', activeClb.val_Q);
-        setVal('sig-ffd', getFFInput(activeClb));
-        setVal('sig-x', activeClb.out_X);
-        setVal('sig-y', activeClb.out_Y);
+        if (activeClb) {
+            const setVal = (id, val) => {
+                const el = document.getElementById(id);
+                el.innerText = val;
+                el.className = val ? 'val-1' : 'val-0';
+            };
+            setVal('sig-a', activeClb.in_A);
+            setVal('sig-b', activeClb.in_B);
+            setVal('sig-c', activeClb.in_C);
+            setVal('sig-d', activeClb.in_D);
+            setVal('sig-f', activeClb.val_F);
+            setVal('sig-g', activeClb.val_G);
+            setVal('sig-q', activeClb.val_Q);
+            setVal('sig-ffd', getFFInput(activeClb));
+            setVal('sig-x', activeClb.out_X);
+            setVal('sig-y', activeClb.out_Y);
+        }
+        if (activeSwitch) {
+            renderSwitchEditor();
+        }
     }
 
     function resetBoard() {

@@ -7,11 +7,6 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 ## Active
 
 ### [XC2064] 精確度提升（在既有原型之上）
-- [ ] TASK-004 [XC2064]: Switch Matrix 精確路由模型（依據 `FPGA/docs/xc2064-reference.md` §3）
-  - 目標：以真實拓樸（每 tile 2 個 8-pin switch matrix，約 20 個可程式化連接點/matrix，合計約 40 控制位元/tile）取代目前 `h_wires`/`v_wires` 的任意點擊切換
-  - 影響檔案：`FPGA/FPGA.html` 的 `drawRouting()` / `handleClick()`
-  - Switch matrix 的完整 pin-to-pin 連接表尚未確認（reference 文件 §7），可先以合理近似拓樸實作並標註為近似
-  - 額外評估是否加入 long lines（低偏斜長線，用於全域時脈等高扇出訊號）
 - [ ] TASK-005 [XC2064]: IOB 精確模型（依據 `FPGA/docs/xc2064-reference.md` §4）
   - 目標：實作可程式化輸入緩衝閾值（TTL/CMOS）、三態輸出控制（4mA 驅動）、上拉電阻、輸入端 flip-flop/latch 選項
   - 影響檔案：`FPGA/FPGA.html` 的 IOB 相關繪製與狀態
@@ -22,6 +17,9 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 - [ ] TASK-007 [XC2064]: 標準測試電路驗證
   - 目標：在模擬器上搭建至少 2 個經典電路（例如 4-bit 計數器、2-to-4 解碼器），確認功能正確
   - 產出：`FPGA/tests/` 下的電路配置檔 + 驗證說明
+- [ ] TASK-015 [XC2064]: 評估並視需要加入 Long Lines（低偏斜長線）
+  - 目標：TASK-004 完成的 switch matrix 僅涵蓋單段式一般繞線；datasheet 提到的 long lines（貫穿全軸、用於全域時脈等高扇出訊號）尚未實作
+  - 若採用單獨一條可全域點亮/點滅的長線層即可教學說明其用途，不需要每段都可切換
 
 ### [GAME] 現代 FPGA 遊戲化教學
 - [ ] TASK-008 [GAME]: 學習路徑與關卡大綱（`FPGA/game/DESIGN.md`）
@@ -56,3 +54,10 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - 新增 D 型正反器輸入來源選擇（`cfg-ff-d`：F / G / F_XOR_G / F_AND_G / F_OR_G），`stepClock()` 改用 `getFFInput()` 取代先前寫死鎖存 F 的行為
   - Probe 面板新增「D-FF 輸入 (D)」即時顯示，方便觀察鎖存前的值
   - 驗證：以 Node 獨立重現 `calcLut3`/`presetToMask` 邏輯做真值表自我檢查（PassA 預設、AND 預設皆正確），並於瀏覽器開啟確認頁面正常載入；未使用自動化截圖（環境無 headless 瀏覽器工具）
+- [x] TASK-004 [XC2064]: Switch Matrix 精確路由模型
+  - 每個交點的 `switch_box[r][c]` 由單一布林值（「全部短接」）改為 6 組獨立可程式化 pass-transistor 連接（WE/NS 直通 + WN/WS/EN/ES 轉角，`SWITCH_LINKS`），只有兩端接腳的線段皆已存在時才可導通
+  - 一併修正既有 bug：舊版 `simulateCombinatorial()` 只要兩段線都存在就自動視為直通（WE/NS 完全不受 switch matrix 狀態控制），不符合「switch matrix 由可程式化 pass-transistor 組成」的實際架構；已改為 6 組連接一律需明確導通才連通（見 ERRORS.md ERR-001）
+  - 新增 Switch Matrix 選取互動：點擊交點不再直接切換，而是選取並在側欄開啟 `switch-panel`，逐一顯示/切換 6 組連接狀態，未佈線的接腳會標示「未佈線」並禁用
+  - `drawRouting()` 的交點指示改為「任一連接啟用即亮」+ 選取中的交點加上藍色外框
+  - 明確標註簡化處：本模擬器每方向僅單一線段（4-pin），非真實 8-pin/~20 連接；long lines 尚未實作（另立 TASK-015）
+  - 驗證：以 Node 獨立重現連接合併邏輯，確認「連接關閉時兩端維持獨立值、開啟後才合併」行為正確；瀏覽器開啟確認頁面載入無誤
