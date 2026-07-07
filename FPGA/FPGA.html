@@ -118,6 +118,9 @@
             user-select: none;
         }
         .lut-row:hover { border-color: #58a6ff; }
+
+        /* 初學／進階模式（TASK-019）：進階欄位預設隱藏，由 applyUiMode() 依 uiMode 切換 */
+        .advanced-only { display: none; }
     </style>
 </head>
 <body>
@@ -136,6 +139,7 @@
                 <option value="decoder">2-to-4 解碼器</option>
                 <option value="counter">3-bit 同步計數器</option>
             </select>
+            <button id="mode-toggle-btn" onclick="toggleUiMode()" style="margin-right: 10px;">模式: 初學</button>
             <span id="clock-display" style="font-size: 0.85rem; color: #8b949e; margin-right: 10px;">CLOCK: LOW</span>
             <button onclick="stepClock()">手動觸發時鐘 (Tick)</button>
             <button id="auto-clock-btn" onclick="toggleAutoClock()">自動時鐘: OFF</button>
@@ -242,7 +246,7 @@
                     </div>
                 </div>
 
-                <div class="clb-config-block">
+                <div class="clb-config-block advanced-only">
                     <div style="color: #f0883e; font-weight: bold; margin-bottom: 8px;">全域長線 (Long Lines，TASK-015)</div>
                     <div style="font-size: 0.7rem; color: #8b949e; margin-bottom: 8px; line-height: 1.5;">
                         每列/每欄各一條低偏斜長線，單一 on/off（非逐段可切換），可讓 A/B 輸入或 X/Y 輸出
@@ -323,11 +327,11 @@
                                 <option value="float">浮接 (Floating)</option>
                             </select>
                         </div>
-                        <div class="config-row">
+                        <div class="config-row advanced-only">
                             <span>上拉電阻 (Pull-up)</span>
                             <input type="checkbox" id="iob-in-pullup" onchange="updateIobInConfig()">
                         </div>
-                        <div class="config-row">
+                        <div class="config-row advanced-only">
                             <span>輸入閾值</span>
                             <select id="iob-in-threshold" onchange="updateIobInConfig()">
                                 <option value="TTL">TTL</option>
@@ -338,7 +342,7 @@
                             <span>經輸入正反器同步</span>
                             <input type="checkbox" id="iob-in-ff" onchange="updateIobInConfig()">
                         </div>
-                        <div class="config-row">
+                        <div class="config-row advanced-only">
                             <span>同時驅動本列全域長線</span>
                             <input type="checkbox" id="iob-in-drive-long" onchange="updateIobInConfig()">
                         </div>
@@ -353,14 +357,14 @@
 
                 <div id="iob-out-config" style="display: none;">
                     <div class="clb-config-block">
-                        <div class="config-row">
+                        <div class="config-row advanced-only">
                             <span>輸出致能 (Output Enable)</span>
                             <select id="iob-out-tristate" onchange="updateIobOutConfig()">
                                 <option value="enabled">致能 (驅動輸出)</option>
                                 <option value="tristate">三態 (High-Z)</option>
                             </select>
                         </div>
-                        <div class="config-row">
+                        <div class="config-row advanced-only">
                             <span>輸出閾值</span>
                             <select id="iob-out-threshold" onchange="updateIobOutConfig()">
                                 <option value="TTL">TTL</option>
@@ -712,10 +716,27 @@
         }
     }
 
+    // 初學／進階模式（TASK-019）：預設初學，隱藏長線／IOB 閾值-上拉-三態等進階欄位，降低單次資訊量
+    let uiMode = 'beginner'; // 'beginner' | 'advanced'
+
+    function applyUiMode() {
+        const advanced = uiMode === 'advanced';
+        document.querySelectorAll('.advanced-only').forEach(el => {
+            el.style.display = advanced ? '' : 'none';
+        });
+        document.getElementById('mode-toggle-btn').innerText = advanced ? '模式: 進階' : '模式: 初學';
+    }
+
+    function toggleUiMode() {
+        uiMode = (uiMode === 'beginner') ? 'advanced' : 'beginner';
+        applyUiMode();
+    }
+
     function init() {
         window.addEventListener('resize', resize);
         canvas.addEventListener('mousedown', handleClick);
         buildGrid();
+        applyUiMode();
         requestAnimationFrame(renderLoop);
     }
 

@@ -78,4 +78,11 @@
 - Completed: TASK-018 — header 新增「載入範例電路」下拉選單，內嵌 TASK-007 兩個電路的 base64 bitstream，選取後重用既有的 `deserializeBitstream()`/`applyLoadedState()` 載入；側欄新增引導提示
 - Errors: none
 - Queued: TASK-019（初學／進階模式切換）
+- Commit: dd0cbef
+
+## 2026-07-07T11:00Z
+- Track: XC2064
+- Completed: TASK-019 — 新增 `.advanced-only` class + `uiMode`/`applyUiMode()`/`toggleUiMode()`，header 新增模式切換按鈕；長線設定、IOB 上拉/閾值/三態預設收起，LUT 真值表、輸出來源、D-FF 輸入來源、switch matrix 編輯器維持一律可見；隱藏純為 CSS，底層資料/模擬邏輯不受影響
+- Errors: none
+- Queued: TASK-020（引導式教學 Onboarding）
 - Commit: (pending)
