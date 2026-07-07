@@ -135,6 +135,9 @@
             <button onclick="stepClock()">手動觸發時鐘 (Tick)</button>
             <button id="auto-clock-btn" onclick="toggleAutoClock()">自動時鐘: OFF</button>
             <button onclick="resetBoard()">重置晶片</button>
+            <button onclick="exportBitstream()" style="margin-left: 10px;">匯出 Bitstream</button>
+            <button onclick="triggerImportBitstream()">匯入 Bitstream</button>
+            <input type="file" id="bitstream-file-input" accept=".bit" style="display: none;" onchange="handleBitstreamFile(event)">
         </div>
     </div>
 
@@ -144,6 +147,14 @@
         </div>
 
         <div id="sidebar">
+            <div class="panel-section">
+                <div class="panel-title">Bitstream 匯出 / 匯入</div>
+                <div id="bitstream-info" style="font-size: 0.75rem; color: #8b949e; line-height: 1.5; margin-bottom: 8px;">尚未匯出／匯入。</div>
+                <div style="font-size: 0.7rem; color: #8b949e; line-height: 1.5;">
+                    本功能為<b>模擬用格式</b>（自訂位元封裝，見 <code>FPGA/docs/bitstream-format.md</code>），並非真實 XC2064 bitstream 的物理位元排列。真實格式見 <code>FPGA/docs/xc2064-reference.md</code> §5（160×71 記憶體網格、71-bit 移位暫存器欄式載入），需完整 switch matrix／CLB mux 接線圖才能還原，目前尚無法做到。
+                </div>
+            </div>
+
             <div class="panel-section">
                 <div class="panel-title">硬體操作說明</div>
                 <div style="font-size: 0.8rem; line-height: 1.6; color: #8b949e;">
@@ -349,6 +360,233 @@
         ['EN', 'E ↔ N（轉角）'],
         ['ES', 'E ↔ S（轉角）']
     ];
+
+    // ---- Bitstream（模擬用格式，見 FPGA/docs/bitstream-format.md；非真實 XC2064 位元排列）----
+    const FF_D_SRC_CODES = ['F', 'G', 'F_XOR_G', 'F_AND_G', 'F_OR_G']; // 3-bit 編碼
+    const THRESHOLD_CODES = ['TTL', 'CMOS']; // 1-bit 編碼
+    const BITSTREAM_MAGIC = [0x58, 0x53, 0x49, 0x4D]; // "XSIM"
+    const BITSTREAM_VERSION = 1;
+
+    // MSB-first 逐 bit 寫入，滿 8 bit 就封裝成一個 byte
+    class BitWriter {
+        constructor() { this.bytes = []; this.cur = 0; this.nbits = 0; }
+        writeBits(value, n) {
+            for (let i = n - 1; i >= 0; i--) {
+                const bit = (value >> i) & 1;
+                this.cur = (this.cur << 1) | bit;
+                this.nbits++;
+                if (this.nbits === 8) { this.bytes.push(this.cur); this.cur = 0; this.nbits = 0; }
+            }
+        }
+        finish() {
+            if (this.nbits > 0) {
+                this.cur = this.cur << (8 - this.nbits);
+                this.bytes.push(this.cur);
+                this.cur = 0; this.nbits = 0;
+            }
+            return new Uint8Array(this.bytes);
+        }
+    }
+
+    // 與 BitWriter 對稱的逐 bit 讀取（MSB-first）
+    class BitReader {
+        constructor(bytes) { this.bytes = bytes; this.byteIdx = 0; this.bitIdx = 0; }
+        readBits(n) {
+            let v = 0;
+            for (let i = 0; i < n; i++) {
+                const byte = this.bytes[this.byteIdx] || 0;
+                const bit = (byte >> (7 - this.bitIdx)) & 1;
+                v = (v << 1) | bit;
+                this.bitIdx++;
+                if (this.bitIdx === 8) { this.bitIdx = 0; this.byteIdx++; }
+            }
+            return v;
+        }
+    }
+
+    // 6-byte header（"XSIM" + 1-byte version + 1-byte grid size）+ 逐 bit 封裝的 payload
+    // Payload 順序：CLB（21 bit/顆：lut_f 8 + lut_g 8 + ff_d_src 3 + mux_x 1 + mux_y 1）
+    //             → switch matrix（6 bit/交點）→ h_wires.on（1 bit/段）→ v_wires.on（1 bit/段）
+    //             → 輸入 IOB（5 bit：forced+val+pull_up+threshold+ff_enabled）
+    //             → 輸出 IOB（2 bit：tri_state+threshold）
+    function serializeBitstream() {
+        const w = new BitWriter();
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                const n = clbs[r][c];
+                w.writeBits(n.lut_f, 8);
+                w.writeBits(n.lut_g, 8);
+                w.writeBits(Math.max(0, FF_D_SRC_CODES.indexOf(n.ff_d_src)), 3);
+                w.writeBits(n.mux_x === 'Q' ? 1 : 0, 1);
+                w.writeBits(n.mux_y === 'Q' ? 1 : 0, 1);
+            }
+        }
+        for (let r = 0; r <= GRID_SIZE; r++) {
+            for (let c = 0; c <= GRID_SIZE; c++) {
+                const sw = switch_box[r][c];
+                for (const [key] of SWITCH_LINKS) w.writeBits(sw[key] ? 1 : 0, 1);
+            }
+        }
+        for (let r = 0; r <= GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) w.writeBits(h_wires[r][c].on ? 1 : 0, 1);
+        }
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c <= GRID_SIZE; c++) w.writeBits(v_wires[r][c].on ? 1 : 0, 1);
+        }
+        for (let i = 0; i < GRID_SIZE; i++) {
+            const inp = iob_in[i];
+            w.writeBits(inp.forced ? 1 : 0, 1);
+            w.writeBits(inp.val ? 1 : 0, 1);
+            w.writeBits(inp.pull_up ? 1 : 0, 1);
+            w.writeBits(Math.max(0, THRESHOLD_CODES.indexOf(inp.threshold)), 1);
+            w.writeBits(inp.ff_enabled ? 1 : 0, 1);
+        }
+        for (let i = 0; i < GRID_SIZE; i++) {
+            const out = iob_out[i];
+            w.writeBits(out.tri_state ? 1 : 0, 1);
+            w.writeBits(Math.max(0, THRESHOLD_CODES.indexOf(out.threshold)), 1);
+        }
+        const payload = w.finish();
+        const full = new Uint8Array(6 + payload.length);
+        full.set(BITSTREAM_MAGIC, 0);
+        full[4] = BITSTREAM_VERSION;
+        full[5] = GRID_SIZE;
+        full.set(payload, 6);
+        return full;
+    }
+
+    function deserializeBitstream(bytes) {
+        if (bytes.length < 6 || BITSTREAM_MAGIC.some((b, i) => bytes[i] !== b)) {
+            throw new Error('無效的 bitstream：header magic 不符（需為 "XSIM"）');
+        }
+        const version = bytes[4];
+        if (version !== BITSTREAM_VERSION) {
+            throw new Error(`不支援的 bitstream 版本：${version}（本模擬器僅支援版本 ${BITSTREAM_VERSION}）`);
+        }
+        const size = bytes[5];
+        const r = new BitReader(bytes.subarray(6));
+
+        const loadedClbs = [];
+        for (let ri = 0; ri < size; ri++) {
+            loadedClbs[ri] = [];
+            for (let ci = 0; ci < size; ci++) {
+                const lut_f = r.readBits(8);
+                const lut_g = r.readBits(8);
+                const ff_d_src = FF_D_SRC_CODES[r.readBits(3)] || 'F';
+                const mux_x = r.readBits(1) ? 'Q' : 'F';
+                const mux_y = r.readBits(1) ? 'Q' : 'G';
+                loadedClbs[ri][ci] = { lut_f, lut_g, ff_d_src, mux_x, mux_y };
+            }
+        }
+        const loadedSwitch = [];
+        for (let ri = 0; ri <= size; ri++) {
+            loadedSwitch[ri] = [];
+            for (let ci = 0; ci <= size; ci++) {
+                const sw = {};
+                for (const [key] of SWITCH_LINKS) sw[key] = !!r.readBits(1);
+                loadedSwitch[ri][ci] = sw;
+            }
+        }
+        const loadedHOn = [];
+        for (let ri = 0; ri <= size; ri++) {
+            loadedHOn[ri] = [];
+            for (let ci = 0; ci < size; ci++) loadedHOn[ri][ci] = !!r.readBits(1);
+        }
+        const loadedVOn = [];
+        for (let ri = 0; ri < size; ri++) {
+            loadedVOn[ri] = [];
+            for (let ci = 0; ci <= size; ci++) loadedVOn[ri][ci] = !!r.readBits(1);
+        }
+        const loadedIobIn = [];
+        for (let i = 0; i < size; i++) {
+            loadedIobIn.push({
+                forced: !!r.readBits(1),
+                val: r.readBits(1),
+                pull_up: !!r.readBits(1),
+                threshold: THRESHOLD_CODES[r.readBits(1)] || 'TTL',
+                ff_enabled: !!r.readBits(1)
+            });
+        }
+        const loadedIobOut = [];
+        for (let i = 0; i < size; i++) {
+            loadedIobOut.push({
+                tri_state: !!r.readBits(1),
+                threshold: THRESHOLD_CODES[r.readBits(1)] || 'TTL'
+            });
+        }
+        return { size, loadedClbs, loadedSwitch, loadedHOn, loadedVOn, loadedIobIn, loadedIobOut };
+    }
+
+    // 將解析出的設定套用到目前晶片狀態（會先依載入的網格尺寸重建骨架，再覆蓋成已存的配置）
+    function applyLoadedState(loaded) {
+        GRID_SIZE = loaded.size;
+        const gridSizeSel = document.getElementById('grid-size');
+        if ([...gridSizeSel.options].some(o => o.value === String(GRID_SIZE))) {
+            gridSizeSel.value = String(GRID_SIZE);
+        }
+        buildGrid();
+
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) Object.assign(clbs[r][c], loaded.loadedClbs[r][c]);
+        }
+        for (let r = 0; r <= GRID_SIZE; r++) {
+            for (let c = 0; c <= GRID_SIZE; c++) Object.assign(switch_box[r][c], loaded.loadedSwitch[r][c]);
+        }
+        for (let r = 0; r <= GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) h_wires[r][c].on = loaded.loadedHOn[r][c];
+        }
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c <= GRID_SIZE; c++) v_wires[r][c].on = loaded.loadedVOn[r][c];
+        }
+        for (let i = 0; i < GRID_SIZE; i++) {
+            Object.assign(iob_in[i], loaded.loadedIobIn[i]);
+            iob_in[i].reg_val = iob_in[i].forced ? iob_in[i].val : (iob_in[i].pull_up ? 1 : 0);
+            Object.assign(iob_out[i], loaded.loadedIobOut[i]);
+        }
+    }
+
+    function showBitstreamInfo(bytes, prefix) {
+        const el = document.getElementById('bitstream-info');
+        if (!el) return;
+        const hex = Array.from(bytes.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        el.innerText = `${prefix}：共 ${bytes.length} bytes（header 6 + payload ${bytes.length - 6}）。前 16 bytes: ${hex}${bytes.length > 16 ? ' ...' : ''}`;
+    }
+
+    function exportBitstream() {
+        const bytes = serializeBitstream();
+        const blob = new Blob([bytes], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `xc2064-sim-${GRID_SIZE}x${GRID_SIZE}.bit`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showBitstreamInfo(bytes, '已匯出');
+    }
+
+    function triggerImportBitstream() {
+        document.getElementById('bitstream-file-input').click();
+    }
+
+    function handleBitstreamFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const bytes = new Uint8Array(reader.result);
+                const loaded = deserializeBitstream(bytes);
+                applyLoadedState(loaded);
+                showBitstreamInfo(bytes, '已匯入');
+            } catch (err) {
+                alert(`匯入失敗：${err.message}`);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = '';
+    }
 
     function init() {
         window.addEventListener('resize', resize);

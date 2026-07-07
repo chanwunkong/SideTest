@@ -7,9 +7,6 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 ## Active
 
 ### [XC2064] 精確度提升（在既有原型之上）
-- [ ] TASK-006 [XC2064]: 設定位元流（bitstream）資料結構
-  - 目標：定義一份對應目前所有可配置狀態（CLB 配置、routing、IOB）的序列化格式，提供匯出/匯入
-  - 不要求與真實 XC2064 bitstream 位元排列完全一致，但需在文件中明確標註「模擬用格式」vs「真實格式」的差異
 - [ ] TASK-007 [XC2064]: 標準測試電路驗證
   - 目標：在模擬器上搭建至少 2 個經典電路（例如 4-bit 計數器、2-to-4 解碼器），確認功能正確
   - 產出：`FPGA/tests/` 下的電路配置檔 + 驗證說明
@@ -64,3 +61,10 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - 互動改為與 CLB/Switch Matrix 一致的「選取 → 側欄設定」模式：新增 `iob-panel`（`iob-in-config`/`iob-out-config`），點擊輸入引腳仍保留快速翻轉 0/1（同時選取開啟詳細設定），輸出引腳首次具備可點擊互動
   - 輸出端正反器未實作（datasheet 未確認是否存在，見 reference 文件 §7），維持 TASK-005 原定範圍
   - 驗證：以 Node 獨立重現 `getIobInEffective()` 與時鐘鎖存邏輯，涵蓋強制值/浮接/上拉/正反器鎖存四種情境皆正確；瀏覽器開啟確認頁面載入無誤
+- [x] TASK-006 [XC2064]: 設定位元流（bitstream）資料結構
+  - 新增 `BitWriter`/`BitReader`（MSB-first 逐 bit 封裝/解析）與 `serializeBitstream()`/`deserializeBitstream()`/`applyLoadedState()`，把 CLB 配置（21 bit/顆）、switch matrix（6 bit/交點）、h/v wire on 旗標、輸入 IOB（5 bit）、輸出 IOB（2 bit）打包成 6-byte header（"XSIM" magic + version + grid size）+ 逐 bit payload
+  - 匯出：`exportBitstream()` 觸發瀏覽器下載 `.bit` 檔（`Blob` + `<a download>`）；匯入：`handleBitstreamFile()` 讀檔驗證 magic/version 後重建網格並套用配置
+  - 新增文件 `FPGA/docs/bitstream-format.md`，逐欄位記錄格式並與真實 XC2064 bitstream（§5：160×71 網格、71-bit 移位暫存器欄式載入）明確區分，避免誤用
+  - Header/toolbar 新增匯出/匯入按鈕；側欄新增「Bitstream 匯出／匯入」面板顯示 byte 數與前 16 bytes hex dump
+  - 只序列化「配置」（SRAM 內容），不含執行期即時運算值（val_F/in_A/線路電位等），符合真實硬體 bitstream 只描述配置、不含執行狀態的性質
+  - 驗證：以 Node 獨立重現 `BitWriter`/`BitReader`/序列化/反序列化邏輯，用涵蓋所有欄位型別的假資料做完整 round-trip 測試，全部欄位還原正確；瀏覽器開啟確認頁面載入無誤

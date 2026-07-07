@@ -32,4 +32,11 @@
 - Completed: TASK-005 — 輸入 IOB 新增 forced/浮接/pull_up/threshold(TTL-CMOS)/ff_enabled+reg_val（輸入正反器同步），輸出 IOB 新增 tri_state/threshold；新增 `getIobInEffective()` 統一有效值計算；互動改為選取 → 側欄 `iob-panel` 設定（輸入引腳保留快速翻轉，輸出引腳首次可點擊）；輸出端正反器因 datasheet 未確認故不實作
 - Errors: none
 - Queued: TASK-006 [XC2064]（bitstream 資料結構）
+- Commit: 819e557
+
+## 2026-07-07T05:00Z
+- Track: XC2064
+- Completed: TASK-006 — 新增 `BitWriter`/`BitReader` 逐 bit 封裝/解析、`serializeBitstream()`/`deserializeBitstream()`/`applyLoadedState()`，把 CLB/switch matrix/wires/IOB 配置打包成自訂的 6-byte header + bit payload 格式；新增匯出（下載 `.bit`）/匯入（讀檔重建）UI；新增 `FPGA/docs/bitstream-format.md` 明確區分模擬用格式與真實 XC2064 格式
+- Errors: none
+- Queued: TASK-007 [XC2064]（標準測試電路驗證）—可利用本次的匯出/匯入功能保存測試電路配置檔
 - Commit: (pending)
