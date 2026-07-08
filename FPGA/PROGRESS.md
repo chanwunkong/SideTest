@@ -119,4 +119,11 @@
 - Completed: 使用者要求「動手修」。將前一輪發現拆成 TASK-016（F/G 輸入槽可程式化 + D=F 固定 + SET/RESET + X/Y 三選一，合併處理因為互相牽動）與 TASK-017（本地時脈來源，延後）。實作 TASK-016：新增 `getSlotValue()`/`getFFSet()`/`getFFReset()`，`calcLut3()` 呼叫改用槽位解析，`stepClock()` 改為 SET/RESET/D=F 邏輯，`mux_x`/`mux_y` 改三選一；Sidebar 新增槽位/SET/RESET 下拉，Probe 面板新增 SET/RESET 訊號顯示；Bitstream 升級版本 3（相容讀取版本 1/2，但註明舊版非 F 的 `ff_d_src` 讀入後正反器行為會改變，屬刻意接受的已知限制）；重建 TASK-007 計數器電路（新架構下更簡單，F 直接算出目標函數不需 G）與 TASK-018 內嵌範本，解碼器電路因用預設槽位值而完全相容
 - Errors: none（新舊電路皆一次驗證通過，過程中無需除錯）
 - Queued: TASK-017（本地時脈來源，延後）；[GAME] 軌仍待切換
+- Commit: ea52175
+
+## 2026-07-08T00:00Z
+- Track: XC2064
+- Completed: 使用者選取 TASK-017（先前標記「延後，待使用者確認要做再排入」，選取本身即滿足條件）。新增 `clk_src`（'global'|'C'）+ 執行期 `prev_in_C`；新增 `updateLocalClocks()` 每幀偵測 `in_C` 的 0→1 上升緣並鎖存；`stepClock()` 的全域邏輯改為只影響 `clk_src==='global'` 的 CLB；Sidebar 新增 clock 來源下拉（advanced-only，附精確度警告）；canvas 新增橘色「C」角標；Bitstream 升級版本 4（相容讀取 1/2/3，一律預設 clk_src='global'，無破壞性差異）；重建 TASK-007/018 的 .bit 檔與內嵌範本至版本 4
+- Errors: none
+- Queued: [XC2064] 軌目前無排定任務；[GAME] 軌自建檔以來仍無任何完成任務，強烈建議下一輪切過去
 - Commit: (pending)

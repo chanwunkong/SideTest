@@ -1,4 +1,5 @@
-// TASK-007 標準測試電路驗證腳本（2026-07-07 依 TASK-016 的 CLB 架構修正更新）
+// TASK-007 標準測試電路驗證腳本（2026-07-07 依 TASK-016 的 CLB 架構修正更新；2026-07-08 依
+// TASK-017 新增 clk_src 欄位更新至 bitstream 版本 4，兩個測試電路皆維持預設的全域時脈）
 //
 // 這個腳本不是模擬器的一部分，是離線驗證工具：它逐字重現 FPGA/FPGA.html 裡的核心模擬邏輯
 // （BitWriter/BitReader、calcLut3、getSlotValue、getFFSet/getFFReset、getIobInEffective、
@@ -21,8 +22,9 @@ const SLOT1_CODES = ['A', 'B'];
 const SLOT2_CODES = ['B', 'C'];
 const SLOT3_CODES = ['C', 'D'];
 const MUX_CODES = ['F', 'G', 'Q'];
+const CLK_SRC_CODES = ['global', 'C']; // TASK-017：D-FF clock 來源（本測試電路皆用預設 'global'）
 const BITSTREAM_MAGIC = [0x58, 0x53, 0x49, 0x4D];
-const BITSTREAM_VERSION = 3;
+const BITSTREAM_VERSION = 4;
 
 class BitWriter {
     constructor() { this.bytes = []; this.cur = 0; this.nbits = 0; }
@@ -88,6 +90,7 @@ function serializeBitstream(state) {
             w.writeBits(n.reset_mode === 'D_OR_G' ? 1 : 0, 1);
             w.writeBits(Math.max(0, MUX_CODES.indexOf(n.mux_x)), 2);
             w.writeBits(Math.max(0, MUX_CODES.indexOf(n.mux_y)), 2);
+            w.writeBits(Math.max(0, CLK_SRC_CODES.indexOf(n.clk_src)), 1);
             w.writeBits(n.src_a === 'long' ? 1 : 0, 1);
             w.writeBits(n.src_b === 'long' ? 1 : 0, 1);
             w.writeBits(n.drive_h_long ? 1 : 0, 1);
@@ -194,9 +197,11 @@ function simulateCombinatorial(state) {
     }
 }
 
-// 對應 stepClock() 在上升緣所做的事（不含 clockVal 切換與 DOM 顯示）：D=F 固定，SET 優先於 RESET
+// 對應 stepClock() 在上升緣所做的事（不含 clockVal 切換與 DOM 顯示）：D=F 固定，SET 優先於 RESET，
+// 只影響 clk_src==='global' 的 CLB（TASK-017）
 function latchRisingEdge(state) {
     state.clbs.forEach(row => row.forEach(n => {
+        if (n.clk_src !== 'global') return;
         if (getFFSet(n)) n.val_Q = 1;
         else if (getFFReset(n)) n.val_Q = 0;
         else n.val_Q = n.val_F;
@@ -216,7 +221,7 @@ function makeBlankState(GRID_SIZE) {
                 lut_f: 0xF0, lut_g: 0x00,
                 f_slot1: 'A', f_slot2: 'B', f_slot3: 'C',
                 g_slot1: 'A', g_slot2: 'B', g_slot3: 'D',
-                set_mode: 'none', reset_mode: 'G',
+                set_mode: 'none', reset_mode: 'G', clk_src: 'global',
                 mux_x: 'F', mux_y: 'G',
                 src_a: 'wire', src_b: 'wire', drive_h_long: false, drive_v_long: false,
                 in_A: 0, in_B: 0, in_C: 0, in_D: 0,

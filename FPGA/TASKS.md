@@ -7,8 +7,7 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 ## Active
 
 ### [XC2064] 精確度提升（在既有原型之上）
-- [ ] TASK-017 [XC2064]: CLB 正反器本地時脈來源（延後，待更多驗證）
-  - 依 2026-07-07 交叉比對：第三方重現顯示正反器 clock 來源可能可選「全域時脈」或「本地一般輸入 C」，但這點只有單一第三方來源佐證、無原廠資料交叉確認，且會牽動本模擬器目前「單一全域 stepClock() 同步驅動所有 CLB」的核心時脈模型（需要改成每顆 CLB 各自偵測自己 in_C 訊號的上升緣，而不是等待使用者按 tick），架構影響大於前一項，故先延後，待找到更多佐證或使用者確認要做再排入
+（目前無排定中的 Active 任務，見 Completed）
 
 ### [XC2064] 操作性改善（2026-07-07 使用者要求「全部都要做」，依成本/風險排序）
 （全部四項已完成，見 Completed）
@@ -116,3 +115,12 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - **Bitstream 升級為版本 3**（CLB 21/25→32 bit：移除 `ff_d_src` 3 bit，新增 6 個槽位 bit + set_mode 1 bit + reset_mode 1 bit，`mux_x`/`mux_y` 各從 1 bit 改 2 bit）；`deserializeBitstream()` 相容讀取版本 1/2，F/G 輸入槽套用預設值、`mux_x`/`mux_y` 二選一結果對應到三選一，但**舊版 `ff_d_src≠'F'` 的電路正反器行為會改變**（D 一律變成固定＝F），此為刻意接受的已知限制，非 bug，已在 console 印出警告並記錄於 `bitstream-format.md`
   - 重建 TASK-007 的計數器電路與 TASK-018 內嵌的 counter 範本（新架構下 F 的輸入槽可直接選到所需的兩三個訊號，F 的真值表本身就算出目標函數，完全不需要 G 或 combine mode，比舊版更簡單）；解碼器電路因採用預設槽位值而完全相容，未變動
   - 驗證：Node 獨立重現新架構下的解碼器與計數器電路（計數器改為 F 直接計算 NOT/XOR/AND-XOR，不再需要 G），16 個 clock 邊緣、4 組輸入組合皆通過；解碼器在新預設槽位下行為與修正前一致；用 `Buffer.compare()` 確認重新產生的 `.bit` 檔與 `FPGA.html` 內嵌的 base64 範本逐位元組相同；`new Function()` 解析整段 script 確認無語法錯誤
+- [x] TASK-017 [XC2064]: CLB 正反器本地時脈來源（2026-07-08，使用者選取後執行）
+  - **前情提要**：本項先前因「只有單一第三方來源佐證、無原廠資料交叉確認、架構影響大」而延後，寫明「待找到更多佐證或使用者確認要做再排入」；使用者直接選取此任務即滿足了後者條件，故執行，精確度的不確定性維持標註，不因為動手做了就消失
+  - CLB 新增 `clk_src`（'global'|'C'）與執行期用的 `prev_in_C`（非序列化配置，只是用來偵測上升緣）
+  - 新增 `updateLocalClocks()`：每幀比較 `in_C` 與上一幀的值，偵測到 0→1 上升緣就對該 CLB 執行「SET 為 1→Q=1；否則 RESET 為 1→Q=0；否則 Q=F」；`stepClock()` 的全域鎖存邏輯改為只影響 `clk_src==='global'` 的 CLB，兩者互斥
+  - `clk_src==='C'` 的 CLB 完全不受「手動觸發時鐘」/「自動時鐘」按鈕影響，改為即時、連續地依自己的 C 輸入變化更新——這是本地時脈與全域時脈行為上真正的差異（獨立時脈域），不只是換個名字
+  - Sidebar：CLB 面板新增「D-FF Clock 來源」下拉（標記為 advanced-only），旁邊附上精確度警告文字；canvas 上新增橘色「C」角標標示使用本地時脈的 CLB
+  - **Bitstream 升級為版本 4**（CLB 32→33 bit，新增 `clk_src` 1 bit）；`deserializeBitstream()` 相容讀取版本 1/2/3，一律預設 `clk_src='global'`（與那些版本當時的行為一致，無破壞性差異）
+  - 重建 TASK-007 的兩個測試電路與 TASK-018 內嵌範本至版本 4（皆維持預設全域時脈，行為未變，只是 bitstream 版本號與欄位配置更新）
+  - 驗證：Node 獨立驗證邊緣偵測邏輯（同一幀內 in_C 維持 1 不會重複鎖存，只有真正的 0→1 轉變才觸發，且能連續偵測多次上升緣）；重新用 Node 跑過解碼器/計數器兩個電路確認版本 4 下行為不變；`Buffer.compare()` 確認 `.bit` 檔與內嵌範本相同；`new Function()` 解析整段 script 無語法錯誤
