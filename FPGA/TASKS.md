@@ -12,6 +12,17 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
 ### [XC2064] 操作性改善（2026-07-07 使用者要求「全部都要做」，依成本/風險排序）
 （全部四項已完成，見 Completed）
 
+### [XC2064] 視覺化重構（2026-07-08 使用者回饋「線路連結不夠直觀」，附 Shirriff 參考工具截圖）
+- [x] TASK-022 [XC2064]: CLB 原理圖彈出視窗（Phase 1）+ 腳位樁與標籤（Phase 2）
+  - **背景**：使用者對照 Shirriff 逆向工程工具的截圖指出，我們的畫布只用顏色表示線段 on/off，看不出「接到哪個腳位、現在算什麼函數」；參考工具點一顆 CLB 會彈出乾淨的原理圖（B/C/Q 標示清楚流進 F/G，合併進 FF 出 Q 再到 X/Y）並印出布林式（例如 `F = B*C + B*Q + ~C*Q`）
+  - 使用者選擇「Phase 1+2 一起做」（原提案分四階段，Phase 3/4 留待後續）
+  - **Phase 1**：側欄 CLB 面板新增一個 320×230 的 `<canvas id="clb-schematic">`，選取 CLB 時 `drawClbSchematic()` 每幀即時畫出：A/B/C/D 輸入節點（依目前值變色）→ 依 `f_slot1-3`/`g_slot1-3` 連線進 F/G 方塊 → SET/RESET/D=F 合併進 FF 產生 Q → 依 `mux_x`/`mux_y` 選擇進 X/Y 輸出；下方印出即時布林式
+  - 新增 `simplifyBoolean(mask, vars)`：3 變數的簡化版 Quine-McCluskey（合併相鄰 minterm 找質蘊涵項 + 貪婪覆蓋），用 `f_slot1-3`/`g_slot1-3` 目前的字母當變數名，例如 `F = A·B + ~A·C`
+  - **Phase 2**：新增 `drawClbPinStubs()`，在 `drawCLBs()` 迴圈裡幫每顆 CLB 的四邊畫出實際的腳位樁（短線，依目前值變色）；選取中的 CLB 額外顯示 A/B/X-C/Y-D 文字標籤（其餘 CLB 只畫線不畫字，避免大晶格時文字過度擁擠）——右邊標「X/C」、下邊標「Y/D」是刻意的，因為這兩對在本引擎裡本來就是同一條線的自我回讀（TASK-004 起的既有架構特性），用標籤把這個既有特性視覺化，而不是隱藏它
+  - Phase 3（加標籤在高亮路徑上）與 Phase 4（固定圖例）留待之後視需要再排入
+  - 驗證：`simplifyBoolean()` 先在 Node 獨立驗證——已知函數（AND/OR/XOR/NOT_A/PASS_A/ZERO/ONE、解碼器/計數器電路用到的真值表）化簡結果正確；額外對 200 組隨機真值表做 round-trip 檢查（化簡後的式子求值回去等於原始真值表）全部通過，才接進 UI；`new Function()` 解析整段 script 確認無語法錯誤；`build-and-verify.js` 重跑確認純視覺變更沒有影響模擬正確性；瀏覽器開啟後請使用者親自確認畫面（此環境無法自動截圖驗證）
+
+
 ### [GAME] 現代 FPGA 遊戲化教學
 - [ ] TASK-008 [GAME]: 學習路徑與關卡大綱（`FPGA/game/DESIGN.md`）
   - 內容：目標受眾（零基礎）、學習目標分級（LUT6 → Slice/Carry Chain → Clock Domain → DSP → BRAM → 簡易 Place & Route）、每關的教學重點與過關條件、進度/成就系統草案

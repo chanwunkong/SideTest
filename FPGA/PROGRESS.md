@@ -126,4 +126,11 @@
 - Completed: 使用者選取 TASK-017（先前標記「延後，待使用者確認要做再排入」，選取本身即滿足條件）。新增 `clk_src`（'global'|'C'）+ 執行期 `prev_in_C`；新增 `updateLocalClocks()` 每幀偵測 `in_C` 的 0→1 上升緣並鎖存；`stepClock()` 的全域邏輯改為只影響 `clk_src==='global'` 的 CLB；Sidebar 新增 clock 來源下拉（advanced-only，附精確度警告）；canvas 新增橘色「C」角標；Bitstream 升級版本 4（相容讀取 1/2/3，一律預設 clk_src='global'，無破壞性差異）；重建 TASK-007/018 的 .bit 檔與內嵌範本至版本 4
 - Errors: none
 - Queued: [XC2064] 軌目前無排定任務；[GAME] 軌自建檔以來仍無任何完成任務，強烈建議下一輪切過去
+- Commit: fecfa4a
+
+## 2026-07-08T01:00Z
+- Track: XC2064
+- Completed: 使用者附上兩張截圖（我們的畫面 vs Shirriff 參考工具）回饋「線路連結不夠直觀」；先產出四階段重構計畫請使用者選優先序，選了「Phase 1+2 一起做」。新增 `simplifyBoolean()`（3 變數 Quine-McCluskey 化簡，200 組隨機真值表 round-trip 驗證通過）與 `drawClbSchematic()`（側欄新增 320×230 原理圖 canvas，即時畫 A/B/C/D→F/G→SET/RESET/FF→Q→X/Y 資料流與布林式）；新增 `drawClbPinStubs()`（主畫布每顆 CLB 四邊畫腳位樁，選取中的額外顯示 A/B/X-C/Y-D 標籤，右/下邊標「X/C」「Y/D」如實反映本引擎 C/D 為自我回讀的既有架構特性）
+- Errors: none
+- Queued: 待使用者親自在瀏覽器確認畫面（此環境無法截圖驗證）；Phase 3/4 與 [GAME] 軌切換待後續
 - Commit: (pending)

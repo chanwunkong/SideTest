@@ -195,7 +195,12 @@
 
             <div class="panel-section" id="config-panel" style="display: none;">
                 <div class="panel-title">選取 CLB: <span id="selected-clb-id" style="color: #58a6ff;">--</span></div>
-                
+
+                <div class="clb-config-block">
+                    <div style="color: #3fb950; font-weight: bold; margin-bottom: 8px;">原理圖（TASK-022，即時跟著下方設定與訊號更新）</div>
+                    <canvas id="clb-schematic" width="320" height="230" style="width: 100%; max-width: 320px; display: block; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;"></canvas>
+                </div>
+
                 <div class="clb-config-block">
                     <div style="color: #58a6ff; font-weight: bold; margin-bottom: 8px;">F 函數產生器 (LUT3，輸入槽可各自選擇)</div>
                     <div style="font-size: 0.7rem; color: #8b949e; margin-bottom: 8px; line-height: 1.5;">
@@ -474,6 +479,8 @@
 <script>
     const canvas = document.getElementById('chipCanvas');
     const ctx = canvas.getContext('2d');
+    const schematicCanvas = document.getElementById('clb-schematic');
+    const schematicCtx = schematicCanvas.getContext('2d');
 
     // 晶片物理參數
     let GRID_SIZE = 8;
@@ -1289,6 +1296,77 @@
         }
     }
 
+    // 3 變數真值表的布林式化簡（TASK-022 原理圖用）：簡化版 Quine-McCluskey + 貪婪覆蓋。
+    // 不保證絕對最短（3 變數規模小，貪婪覆蓋通常已經很接近最短），但保證化簡後的式子求值
+    // 回去一定等於原始真值表（已用 Node 對 200 組隨機真值表做過 round-trip 驗證）。
+    function simplifyBoolean(mask, vars) {
+        const ones = [];
+        for (let i = 0; i < 8; i++) if ((mask >> i) & 1) ones.push(i);
+        if (ones.length === 0) return '0';
+        if (ones.length === 8) return '1';
+
+        let group = ones.map(m => ({ bits: [(m >> 2) & 1, (m >> 1) & 1, m & 1], covers: new Set([m]) }));
+        const primes = [];
+        let changed = true;
+        while (changed) {
+            changed = false;
+            const used = new Set();
+            const next = [];
+            for (let i = 0; i < group.length; i++) {
+                for (let j = i + 1; j < group.length; j++) {
+                    const a = group[i], b = group[j];
+                    let diffIdx = -1, diffCount = 0;
+                    for (let k = 0; k < 3; k++) {
+                        if (a.bits[k] === '-' && b.bits[k] === '-') continue;
+                        if (a.bits[k] !== b.bits[k]) { diffIdx = k; diffCount++; }
+                    }
+                    if (diffCount === 1) {
+                        const bits = a.bits.slice();
+                        bits[diffIdx] = '-';
+                        const key = bits.join('');
+                        if (!next.some(n => n.bits.join('') === key)) {
+                            next.push({ bits, covers: new Set([...a.covers, ...b.covers]) });
+                        }
+                        used.add(i); used.add(j);
+                        changed = true;
+                    }
+                }
+            }
+            for (let i = 0; i < group.length; i++) if (!used.has(i)) primes.push(group[i]);
+            group = next;
+        }
+        primes.push(...group);
+
+        const seen = new Set();
+        const uniquePrimes = [];
+        for (const p of primes) {
+            const key = p.bits.join('');
+            if (!seen.has(key)) { seen.add(key); uniquePrimes.push(p); }
+        }
+
+        const remaining = new Set(ones);
+        const chosen = [];
+        while (remaining.size > 0) {
+            let best = null, bestCover = -1;
+            for (const p of uniquePrimes) {
+                const coverCount = [...p.covers].filter(m => remaining.has(m)).length;
+                if (coverCount > bestCover) { bestCover = coverCount; best = p; }
+            }
+            if (!best) break;
+            chosen.push(best);
+            for (const m of best.covers) remaining.delete(m);
+        }
+
+        return chosen.map(p => {
+            const lits = [];
+            for (let k = 0; k < 3; k++) {
+                if (p.bits[k] === 0) lits.push('~' + vars[k]);
+                else if (p.bits[k] === 1) lits.push(vars[k]);
+            }
+            return lits.length ? lits.join('·') : '1';
+        }).join(' + ');
+    }
+
     // D 型正反器的 SET/RESET 訊號（2026-07-07 依 lazardjurovic/xc2064 交叉比對修正）：
     // D 資料輸入固定 = F；SET 優先於 RESET，兩者皆非時 Q 才依 F 更新（見 stepClock()）
     function getFFSet(n) {
@@ -1494,10 +1572,43 @@
         }
     }
 
+    // 腳位樁（TASK-022 Phase 2）：讓通道線視覺上真的「接進」CLB 邊緣，而不是浮在旁邊。
+    // C/D 跟 X/Y 共用同一個位置（右邊緣／下邊緣），因為本引擎裡 in_C/in_D 本來就是讀自己
+    // 的 X/Y 輸出（自我回讀，TASK-004 起的既有架構特性）——用 "X/C"、"Y/D" 標籤如實反映這點。
+    function drawClbPinStubs(n, showLabels) {
+        const midY = n.y + CLB_SIZE / 2;
+        const midX = n.x + CLB_SIZE / 2;
+        const stubLen = showLabels ? 10 : 6;
+        ctx.lineWidth = 2;
+
+        ctx.strokeStyle = n.in_A ? '#3fb950' : '#484f58';
+        ctx.beginPath(); ctx.moveTo(n.x - stubLen, midY); ctx.lineTo(n.x, midY); ctx.stroke();
+
+        ctx.strokeStyle = n.in_B ? '#3fb950' : '#484f58';
+        ctx.beginPath(); ctx.moveTo(midX, n.y - stubLen); ctx.lineTo(midX, n.y); ctx.stroke();
+
+        ctx.strokeStyle = n.out_X ? '#3fb950' : '#484f58';
+        ctx.beginPath(); ctx.moveTo(n.x + CLB_SIZE, midY); ctx.lineTo(n.x + CLB_SIZE + stubLen, midY); ctx.stroke();
+
+        ctx.strokeStyle = n.out_Y ? '#3fb950' : '#484f58';
+        ctx.beginPath(); ctx.moveTo(midX, n.y + CLB_SIZE); ctx.lineTo(midX, n.y + CLB_SIZE + stubLen); ctx.stroke();
+
+        if (!showLabels) return;
+        ctx.font = '8px sans-serif';
+        ctx.fillStyle = '#8b949e';
+        ctx.fillText('A', n.x - stubLen - 8, midY + 3);
+        ctx.fillText('B', midX - 3, n.y - stubLen - 2);
+        ctx.fillStyle = '#58a6ff';
+        ctx.fillText('X/C', n.x + CLB_SIZE + stubLen + 2, midY + 3);
+        ctx.fillText('Y/D', midX - 9, n.y + CLB_SIZE + stubLen + 9);
+    }
+
     function drawCLBs() {
         clbs.forEach(row => row.forEach(n => {
             const isTarget = (n === activeClb);
-            
+
+            drawClbPinStubs(n, isTarget);
+
             // 底框
             ctx.fillStyle = '#161b22';
             ctx.strokeStyle = isTarget ? '#58a6ff' : '#30363d';
@@ -1978,6 +2089,92 @@
         out.threshold = document.getElementById('iob-out-threshold').value;
     }
 
+    // CLB 原理圖（TASK-022 Phase 1）：即時畫出目前選取的 CLB 內部資料流，取代「只能看下拉選單猜」
+    function drawClbSchematic() {
+        if (!activeClb) return;
+        const n = activeClb;
+        const sctx = schematicCtx;
+        sctx.clearRect(0, 0, schematicCanvas.width, schematicCanvas.height);
+
+        const onColor = '#3fb950', offColor = '#8b949e', wireColor = '#484f58';
+        const valColor = v => v ? onColor : offColor;
+
+        function node(x, y, label, val) {
+            sctx.fillStyle = valColor(val);
+            sctx.beginPath();
+            sctx.arc(x, y, 4, 0, Math.PI * 2);
+            sctx.fill();
+            sctx.fillStyle = '#c9d1d9';
+            sctx.font = '11px sans-serif';
+            sctx.fillText(`${label}=${val}`, x + 8, y + 4);
+        }
+
+        function box(x, y, w, h, label, sublabel, active) {
+            sctx.fillStyle = '#161b22';
+            sctx.strokeStyle = active ? '#3fb950' : '#30363d';
+            sctx.lineWidth = 1.5;
+            sctx.fillRect(x, y, w, h);
+            sctx.strokeRect(x, y, w, h);
+            sctx.fillStyle = '#58a6ff';
+            sctx.font = 'bold 12px sans-serif';
+            sctx.fillText(label, x + 6, y + 16);
+            if (sublabel) {
+                sctx.fillStyle = '#8b949e';
+                sctx.font = '9px sans-serif';
+                sctx.fillText(sublabel, x + 6, y + 30);
+            }
+        }
+
+        function wire(x1, y1, x2, y2, val) {
+            sctx.strokeStyle = val ? onColor : wireColor;
+            sctx.lineWidth = 2;
+            sctx.beginPath();
+            sctx.moveTo(x1, y1);
+            sctx.lineTo(x2, y2);
+            sctx.stroke();
+        }
+
+        // 輸入節點
+        const inputs = { A: { y: 20, val: n.in_A }, B: { y: 50, val: n.in_B }, C: { y: 80, val: n.in_C }, D: { y: 110, val: n.in_D } };
+        for (const [letter, info] of Object.entries(inputs)) node(10, info.y, letter, info.val);
+
+        // F、G 方塊（依目前輸入槽連線）
+        const fSlots = [n.f_slot1, n.f_slot2, n.f_slot3];
+        const gSlots = [n.g_slot1, n.g_slot2, n.g_slot3];
+        box(70, 8, 50, 40, 'F', `(${fSlots.join(',')})`, false);
+        box(70, 78, 50, 40, 'G', `(${gSlots.join(',')})`, false);
+        for (const letter of fSlots) wire(14, inputs[letter].y, 70, 28, inputs[letter].val);
+        for (const letter of gSlots) wire(14, inputs[letter].y, 70, 98, inputs[letter].val);
+        node(140, 28, 'F', n.val_F);
+        node(140, 98, 'G', n.val_G);
+
+        // SET/RESET/D=F → FF → Q（D 固定＝F，SET 優先於 RESET，見 xc2064-reference.md §2）
+        const setSig = getFFSet(n), resetSig = getFFReset(n);
+        box(165, 45, 55, 50, 'FF', `S:${n.set_mode}=${setSig} R:${n.reset_mode}=${resetSig}`, !!(setSig || resetSig));
+        wire(144, 28, 165, 60, n.val_F);
+        wire(144, 98, 165, 80, n.val_G);
+        node(235, 70, 'Q', n.val_Q);
+        wire(220, 70, 231, 70, n.val_Q);
+
+        // X/Y 輸出 mux
+        const xVal = n.mux_x === 'F' ? n.val_F : n.mux_x === 'G' ? n.val_G : n.val_Q;
+        const yVal = n.mux_y === 'F' ? n.val_F : n.mux_y === 'G' ? n.val_G : n.val_Q;
+        node(270, 30, `X(${n.mux_x})`, xVal);
+        node(270, 110, `Y(${n.mux_y})`, yVal);
+        wire(239, 70, 270, 30, xVal);
+        wire(239, 70, 270, 110, yVal);
+
+        // 布林式（依目前輸入槽字母命名變數，見 simplifyBoolean()）
+        sctx.fillStyle = '#c9d1d9';
+        sctx.font = '11px monospace';
+        sctx.fillText(`F = ${simplifyBoolean(n.lut_f, fSlots)}`, 10, 150);
+        sctx.fillText(`G = ${simplifyBoolean(n.lut_g, gSlots)}`, 10, 168);
+        sctx.fillStyle = '#8b949e';
+        sctx.font = '9px sans-serif';
+        sctx.fillText('C/D 若由自己的 X/Y 驅動，屬於自我回讀（TASK-004 起的既有架構特性）', 10, 190);
+        sctx.fillText(`clk_src = ${n.clk_src}${n.clk_src === 'C' ? '（本地時脈，未經原廠資料確認）' : ''}`, 10, 206);
+    }
+
     function updateSidebarUI() {
         if (activeClb) {
             const setVal = (id, val) => {
@@ -1997,6 +2194,7 @@
             setVal('sig-reset', getFFReset(activeClb));
             setVal('sig-x', activeClb.out_X);
             setVal('sig-y', activeClb.out_Y);
+            drawClbSchematic();
         }
         if (activeSwitch) {
             renderSwitchEditor();
