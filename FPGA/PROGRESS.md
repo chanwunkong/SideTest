@@ -140,4 +140,11 @@
 - Completed: 使用者改變目標——查證後發現使用者截圖裡的參考工具其實是 Ken Shirriff 自己的網頁（static.righto.com/xc2064/），不是 lazardjurovic repo 本身（那個 repo 純 SystemC command-line 模擬程式，沒有介面，只是在 README 引用了 Shirriff 的工具當參考）。使用者決定新建 `FPGA/viewer.html`，獨立新實作（不共用 FPGA.html 引擎），JS API 與 URL 參數都要支援程式控制。新頁面：Shirriff 色彩圖例（CLB綠/LUT紅/switch紫/PIP藍/IOB黃）、CLB 網格＋固定圖例、點擊 CLB/IOB/switch matrix 看細節（含原理圖+布林式）、`window.xc2064Viewer` API、`?bitstream=`/`?clb=` URL 參數。Bitstream 格式維持與 FPGA.html 版本 4 相容，因此直接把獨立實作的解析/模擬邏輯拿去跑 `FPGA/tests/` 下兩個既有 .bit 檔做交叉驗證（解碼器 4 組輸入、計數器 16 個 clock 邊緣皆通過），證實新引擎跟舊引擎行為一致
 - Errors: none
 - Queued: 待使用者親自在瀏覽器開啟 `FPGA/viewer.html` 確認視覺呈現；[GAME] 軌切換仍待後續
+- Commit: 7c00d3c
+
+## 2026-07-08T03:00Z
+- Track: XC2064
+- Completed: 使用者回饋「和我想像的差很多」，改參考 lazardjurovic/xc2064 README 對晶片版圖照片的實際標註（switching matrix=綠色方塊/`switching_matrix.hpp`、空心方塊=non-directional PIP、實心方塊=normal PIP）。下載並檢視該標註圖（`chip-map-zoom-w600.jpg`）確認正確配色：CLB=青、switching matrix=每交點2個綠色方塊、PIP=實心/空心方塊、IOB=黃。重寫 `FPGA/viewer.html` 的 `COLOR` 常數、`#legend`、`draw()` 內通道/switch matrix/CLB 繪製邏輯。接著使用者提供 XC2064 CLB 內部架構圖（datasheet 等級：COMB.LOGIC→F/G→多工器(梯形)→D-FF(D/S/Q/K/R)→X/Y 輸出多工器），依此重繪 `drawSchematic(n)`：單一 COMB.LOGIC 方塊、新增 `mux()` 畫梯形多工器符號（D/S/R/K/X/Y 六處）、FF 明確標示 D/S/Q/R 腳位、CLOCK K 依 `clk_src` 顯示 CLK/C。刻意保留本引擎既有的「D 固定=F」邏輯不變（TASK-016 結論），新圖是否暗示 D 也有獨立選擇多工器留待使用者後續明確要求再深究。全部為純視覺改動，未動到資料模型/bitstream 格式；`new Function()` 解析整段 script 確認無語法錯誤
+- Errors: none
+- Queued: 待使用者親自在瀏覽器開啟 `FPGA/viewer.html` 確認新配色與原理圖視覺呈現；是否要重新檢視「D 輸入多工器」與 TASK-016 結論的潛在衝突，待使用者決定；[GAME] 軌切換仍待後續
 - Commit: (pending)

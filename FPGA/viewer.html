@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XC2064 Shirriff 風格互動檢視頁</title>
+<title>XC2064 互動檢視頁（依 lazardjurovic/xc2064 版圖標註）</title>
 <style>
     body {
         margin: 0; padding: 0; background: #0d1117; color: #c9d1d9;
@@ -52,7 +52,7 @@
 <body>
 
 <div id="header">
-    <div class="title">XC2064 Shirriff 風格互動檢視頁（TASK-023，獨立新實作）</div>
+    <div class="title">XC2064 互動檢視頁（TASK-023，依 lazardjurovic/xc2064 README 版圖標註重繪）</div>
     <div style="display:flex; gap:8px; align-items:center;">
         <span id="clock-display" style="font-size:0.8rem; color:#8b949e;">CLOCK: LOW</span>
         <button onclick="stepClockUI()">觸發時鐘</button>
@@ -67,14 +67,13 @@
         <canvas id="viewerCanvas"></canvas>
         <div id="status">尚未載入 bitstream。可用工具列「載入 .bit 檔」，或在網址列加上 <code>?bitstream=&lt;base64&gt;</code>。點擊 CLB／IOB／switch matrix 交點查看細節。</div>
         <div id="legend">
-            <div style="color:#c9d1d9; font-weight:bold; margin-bottom:4px;">圖例（沿用 Shirriff 工具的配色）</div>
-            <div class="row"><span class="swatch" style="background:#2ea043"></span>CLB</div>
+            <div style="color:#c9d1d9; font-weight:bold; margin-bottom:4px;">圖例（依 lazardjurovic/xc2064 README 對晶片版圖的標註）</div>
+            <div class="row"><span class="swatch" style="background:#7ee7ec"></span>CLB</div>
             <div class="row"><span class="swatch" style="background:#f85149"></span>LUT (F/G)</div>
-            <div class="row"><span class="swatch" style="background:#a371f7"></span>Switch matrix</div>
-            <div class="row"><span class="swatch" style="background:#58a6ff"></span>PIP（已導通）</div>
+            <div class="row"><span class="swatch" style="background:#2ea043"></span>Switching matrix（switching_matrix.hpp）</div>
+            <div class="row"><span class="swatch" style="background:#c9d1d9; border-radius:0;"></span>Normal PIP（實心＝接 CLB 輸入/輸出）</div>
+            <div class="row"><span class="swatch" style="background:transparent; border:1.5px solid #8b949e; border-radius:0;"></span>Non-directional PIP（空心＝一般繞線，對應本引擎 switch matrix 的 6 組連接）</div>
             <div class="row"><span class="swatch" style="background:#e3b341"></span>IOB</div>
-            <div class="row"><span class="swatch" style="background:#f0883e"></span>BIDI（本模擬器無雙向腳位，未使用）</div>
-            <div class="row"><span class="swatch" style="background:#484f58"></span>Other / 未使用</div>
         </div>
     </div>
     <div id="sidebar">
@@ -125,13 +124,17 @@ const sctx = schematicCanvas.getContext('2d');
 
 const CLB_SIZE = 40, CH_W = 22, OFFSET_X = 50, OFFSET_Y = 40;
 
+// 配色依 lazardjurovic/xc2064 README 對晶片版圖標註圖（chip-map-zoom-w600.jpg）的實際內容：
+// CLB＝青色方塊；正中央有 1-2 個小綠色方塊代表 switching matrix（switching_matrix.hpp，
+// 每個 tile 2 個實例）；周圍散佈的小方塊是 PIP——實心＝「normal PIP，接 CLB 輸入/輸出」，
+// 空心＝「non-directional PIP，一般繞線」（對應本引擎 switch matrix 的 6 組可程式化連接）。
 const COLOR = {
-    clb: '#2ea043', clbDim: '#1a4d2e',
+    clb: '#7ee7ec', clbDim: '#274d4f',
     lut: '#f85149',
-    switch: '#a371f7', switchDim: '#3a2d4d',
-    pip: '#58a6ff', pipOff: '#484f58',
-    iob: '#e3b341', iobDim: '#5a4a1f',
-    other: '#484f58'
+    switchOn: '#3fb950', switchOff: '#1a4d2e',
+    pipOn: '#3fb950', pipMid: '#6e7681', pipOff: '#21262d',
+    ndPipOn: '#3fb950', ndPipOff: '#30363d',
+    iob: '#e3b341', iobDim: '#5a4a1f'
 };
 
 const SWITCH_LINKS = [['WE'], ['NS'], ['WN'], ['WS'], ['EN'], ['ES']];
@@ -496,11 +499,11 @@ function draw() {
     updateLocalClocks();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 通道線段（沿用 PIP 概念：導通=blue，未導通=灰白）
-    ctx.lineWidth = 2;
+    // 通道線段：淡淡畫出來示意走線路徑本身，真正的「PIP」是下面疊上去的小方塊
+    ctx.lineWidth = 1;
     for (let r = 0; r <= GRID_SIZE; r++) for (let c = 0; c < GRID_SIZE; c++) {
         if (!h_wires[r][c].on) continue;
-        ctx.strokeStyle = h_wires[r][c].val ? COLOR.pip : '#30363d';
+        ctx.strokeStyle = h_wires[r][c].val ? '#2ea04355' : '#30363d55';
         ctx.beginPath();
         ctx.moveTo(clbX(c) - CH_W / 2, clbY(r) - CH_W / 2);
         ctx.lineTo(clbX(c) + CLB_SIZE + CH_W / 2, clbY(r) - CH_W / 2);
@@ -508,30 +511,41 @@ function draw() {
     }
     for (let r = 0; r < GRID_SIZE; r++) for (let c = 0; c <= GRID_SIZE; c++) {
         if (!v_wires[r][c].on) continue;
-        ctx.strokeStyle = v_wires[r][c].val ? COLOR.pip : '#30363d';
+        ctx.strokeStyle = v_wires[r][c].val ? '#2ea04355' : '#30363d55';
         ctx.beginPath();
         ctx.moveTo(clbX(c) - CH_W / 2, clbY(r) - CH_W / 2);
         ctx.lineTo(clbX(c) - CH_W / 2, clbY(r) + CLB_SIZE + CH_W / 2);
         ctx.stroke();
     }
 
-    // Switch matrix（紫）
+    // Switching matrix + PIP（依 lazardjurovic/xc2064 README 對版圖標註圖的實際內容重繪）：
+    // 中央 1-2 個綠色實心方塊＝switching matrix 本體（switching_matrix.hpp，每個交點 2 個實例）；
+    // 周圍 6 個空心方塊＝non-directional PIP（一般繞線，對應本引擎的 6 組 switch matrix 連接，
+    // 邊框顏色代表目前是否導通）。CLB 邊緣的實心方塊（畫在下面 CLB 迴圈裡）才是
+    // 「normal pip，用來接 CLB 輸入/輸出」。
     for (let r = 0; r <= GRID_SIZE; r++) for (let c = 0; c <= GRID_SIZE; c++) {
         const x = clbX(c) - CH_W / 2, y = clbY(r) - CH_W / 2;
         const sw = switch_box[r][c];
+        const linkPos = { WE: [-5, 0], NS: [0, -5], WN: [-4, -4], WS: [-4, 4], EN: [4, -4], ES: [4, 4] };
+        for (const [key, [dx, dy]] of Object.entries(linkPos)) {
+            ctx.strokeStyle = sw[key] ? COLOR.ndPipOn : COLOR.ndPipOff;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + dx - 2, y + dy - 2, 4, 4);
+        }
         const active = sw.WE || sw.NS || sw.WN || sw.WS || sw.EN || sw.ES;
-        ctx.fillStyle = active ? COLOR.switch : COLOR.switchDim;
-        ctx.fillRect(x - 4, y - 4, 8, 8);
+        ctx.fillStyle = active ? COLOR.switchOn : COLOR.switchOff;
+        ctx.fillRect(x - 3, y - 2, 5, 5);
+        ctx.fillRect(x - 1, y - 1, 5, 5);
         if (selection && selection.type === 'switch' && selection.r === r && selection.c === c) {
-            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(x - 6, y - 6, 12, 12);
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(x - 9, y - 9, 18, 18);
         }
     }
 
-    // CLB（綠底 + 紅色 LUT 子區塊）
+    // CLB（青色，依實際版圖標註圖配色）＋ 紅色 LUT 子區塊 ＋ 邊緣的「normal PIP」實心方塊
     clbs.forEach(row => row.forEach(n => {
         const isSel = selection && selection.type === 'clb' && selection.r === n.row && selection.c === n.col;
         const x = clbX(n.col), y = clbY(n.row);
-        ctx.fillStyle = (n.out_X || n.out_Y || n.val_Q) ? COLOR.clb : COLOR.clbDim;
+        ctx.fillStyle = COLOR.clb;
         ctx.strokeStyle = isSel ? '#fff' : '#1a4d2e';
         ctx.lineWidth = isSel ? 2 : 1;
         ctx.fillRect(x, y, CLB_SIZE, CLB_SIZE);
@@ -543,9 +557,20 @@ function draw() {
         ctx.font = '8px sans-serif';
         ctx.fillText('LUT', x + 8, y + 13);
 
-        ctx.fillStyle = n.val_Q ? '#e6edf3' : '#8b949e';
+        ctx.fillStyle = n.val_Q ? '#0d1117' : '#274d4f';
         ctx.fillText(`Q${n.val_Q}`, x + 4, y + CLB_SIZE - 6);
         if (n.clk_src === 'C') { ctx.fillStyle = COLOR.iob; ctx.fillText('C', x + CLB_SIZE - 12, y + CLB_SIZE - 6); }
+
+        // Normal PIP：A(左)/B(上)/X,C(右)/Y,D(下) 四個接點，實心方塊，依線段是否 on/值變色
+        const midY = y + CLB_SIZE / 2, midX = x + CLB_SIZE / 2;
+        function pipSquare(px, py, wireOn, val) {
+            ctx.fillStyle = !wireOn ? COLOR.pipOff : (val ? COLOR.pipOn : COLOR.pipMid);
+            ctx.fillRect(px - 3, py - 3, 6, 6);
+        }
+        pipSquare(x - CH_W / 2 + 4, midY, v_wires[n.row][n.col].on, n.in_A);
+        pipSquare(midX, y - CH_W / 2 + 4, h_wires[n.row][n.col].on, n.in_B);
+        pipSquare(x + CLB_SIZE + CH_W / 2 - 4, midY, v_wires[n.row][n.col + 1].on, n.out_X);
+        pipSquare(midX, y + CLB_SIZE + CH_W / 2 - 4, h_wires[n.row + 1][n.col].on, n.out_Y);
     }));
 
     // IOB（黃）
@@ -641,48 +666,95 @@ function updateDetailPanel() {
     }
 }
 
+// 原理圖版面比照使用者提供的 XC2064 CLB 內部架構圖（datasheet／Shirriff 部落格）重繪：
+// INPUTS A/B/C/D → COMB. LOGIC（單一區塊，F/G 由此產生）→ 經多工器(梯形)分別接進
+// D 型正反器的 D/S/R 腳位，K(clock) 另有多工器選全域/本地時脈 → Q 再經 X/Y 輸出多工器。
+// 梯形＝真實資料表上的多工器符號；本引擎目前 D 固定＝F（見 xc2064-reference.md §2/§7，
+// 這點僅有第三方 SystemC 重現專案佐證，這張圖顯示的實際硬體可能真的有 D 選擇多工器，
+// 待進一步確認，此處仍照本引擎現況畫出「D 多工器鎖定在 F」）。
 function drawSchematic(n) {
     sctx.clearRect(0, 0, schematicCanvas.width, schematicCanvas.height);
-    const on = '#3fb950', off = '#8b949e';
-    const valColor = v => v ? on : off;
+    const on = '#3fb950', off = '#8b949e', wireOff = '#484f58';
     function node(x, y, label, val) {
-        sctx.fillStyle = valColor(val);
-        sctx.beginPath(); sctx.arc(x, y, 4, 0, Math.PI * 2); sctx.fill();
-        sctx.fillStyle = '#c9d1d9'; sctx.font = '11px sans-serif';
-        sctx.fillText(`${label}=${val}`, x + 8, y + 4);
+        sctx.fillStyle = val ? on : off;
+        sctx.beginPath(); sctx.arc(x, y, 3.5, 0, Math.PI * 2); sctx.fill();
+        sctx.fillStyle = '#c9d1d9'; sctx.font = '10px sans-serif';
+        sctx.fillText(`${label}=${val}`, x + 7, y + 3);
     }
     function box(x, y, w, h, label, sub) {
         sctx.fillStyle = '#161b22'; sctx.strokeStyle = '#30363d'; sctx.lineWidth = 1.5;
         sctx.fillRect(x, y, w, h); sctx.strokeRect(x, y, w, h);
-        sctx.fillStyle = '#58a6ff'; sctx.font = 'bold 12px sans-serif'; sctx.fillText(label, x + 6, y + 16);
-        if (sub) { sctx.fillStyle = '#8b949e'; sctx.font = '9px sans-serif'; sctx.fillText(sub, x + 6, y + 30); }
+        sctx.fillStyle = '#58a6ff'; sctx.font = 'bold 10px sans-serif';
+        sctx.fillText(label, x + w / 2 - sctx.measureText(label).width / 2, y + h / 2 + 3);
+        if (sub) { sctx.fillStyle = '#8b949e'; sctx.font = '8px sans-serif'; sctx.fillText(sub, x + 2, y + h + 10); }
     }
     function wire(x1, y1, x2, y2, val) {
-        sctx.strokeStyle = val ? on : '#484f58'; sctx.lineWidth = 2;
+        sctx.strokeStyle = val ? on : wireOff; sctx.lineWidth = 1.5;
         sctx.beginPath(); sctx.moveTo(x1, y1); sctx.lineTo(x2, y2); sctx.stroke();
     }
-    const inputs = { A: { y: 20, val: n.in_A }, B: { y: 50, val: n.in_B }, C: { y: 80, val: n.in_C }, D: { y: 110, val: n.in_D } };
-    for (const [letter, info] of Object.entries(inputs)) node(10, info.y, letter, info.val);
+    // 多工器（梯形符號）：selected 標示目前選中的輸入，val 決定線條顏色
+    function mux(cx, cy, label, selected, val) {
+        const w = 16, h = 16;
+        sctx.fillStyle = '#161b22'; sctx.strokeStyle = val ? on : '#30363d'; sctx.lineWidth = 1.2;
+        sctx.beginPath();
+        sctx.moveTo(cx - w / 2, cy - h / 2);
+        sctx.lineTo(cx + w / 2, cy - h / 4);
+        sctx.lineTo(cx + w / 2, cy + h / 4);
+        sctx.lineTo(cx - w / 2, cy + h / 2);
+        sctx.closePath(); sctx.fill(); sctx.stroke();
+        sctx.fillStyle = '#8b949e'; sctx.font = '7px sans-serif';
+        sctx.fillText(label, cx - w / 2, cy + h / 2 + 9);
+        if (selected) { sctx.fillStyle = '#58a6ff'; sctx.font = '7px sans-serif'; sctx.fillText(`→${selected}`, cx - w / 2, cy - h / 2 - 2); }
+    }
+
+    const inputs = { A: { y: 15, val: n.in_A }, B: { y: 38, val: n.in_B }, C: { y: 61, val: n.in_C }, D: { y: 84, val: n.in_D } };
+    for (const [letter, info] of Object.entries(inputs)) {
+        wire(30, info.y, 55, info.y, info.val);
+        sctx.fillStyle = info.val ? on : off; sctx.font = 'bold 10px sans-serif';
+        sctx.fillText(letter, 8, info.y + 3);
+    }
+
     const fSlots = [n.f_slot1, n.f_slot2, n.f_slot3];
     const gSlots = [n.g_slot1, n.g_slot2, n.g_slot3];
-    box(70, 8, 50, 40, 'F', `(${fSlots.join(',')})`);
-    box(70, 78, 50, 40, 'G', `(${gSlots.join(',')})`);
-    for (const letter of fSlots) wire(14, inputs[letter].y, 70, 28, inputs[letter].val);
-    for (const letter of gSlots) wire(14, inputs[letter].y, 70, 98, inputs[letter].val);
-    node(140, 28, 'F', n.val_F); node(140, 98, 'G', n.val_G);
+    box(55, 5, 75, 95, 'COMB.', 'LOGIC');
+    sctx.fillStyle = '#8b949e'; sctx.font = '7px sans-serif';
+    sctx.fillText(`F(${fSlots.join(',')})`, 60, 88);
+    node(140, 25, 'G', n.val_G);
+    node(140, 75, 'F', n.val_F);
+
+    // D 輸入多工器（本引擎固定選 F，見上方註解）、SET、RESET 多工器
     const setSig = getFFSet(n), resetSig = getFFReset(n);
-    box(165, 45, 55, 50, 'FF', `S:${n.set_mode}=${setSig} R:${n.reset_mode}=${resetSig}`);
-    wire(144, 28, 165, 60, n.val_F); wire(144, 98, 165, 80, n.val_G);
-    node(235, 70, 'Q', n.val_Q); wire(220, 70, 231, 70, n.val_Q);
+    mux(165, 50, 'D', 'F', n.val_F);
+    mux(165, 75, 'S', n.set_mode, setSig);
+    mux(165, 100, 'R', n.reset_mode, resetSig);
+    wire(144, 75, 157, 50, n.val_F);
+    wire(144, 25, 157, 75, n.set_mode === 'F' ? n.val_F : 0);
+    wire(144, 75, 157, 100, n.val_G);
+
+    // D 型正反器：D/S/Q/K/R（比照使用者提供的 XC2064 CLB 架構圖標示法）
+    box(185, 40, 45, 65, 'D', '');
+    sctx.fillStyle = '#8b949e'; sctx.font = 'bold 9px sans-serif';
+    sctx.fillText('S', 188, 52); sctx.fillText('Q', 220, 65); sctx.fillText('R', 188, 95);
+    wire(173, 50, 185, 55, n.val_F);
+    node(230, 65, 'Q', n.val_Q);
+
+    // CLOCK：全域時脈或本地 C 輸入（TASK-017），也用多工器示意
+    mux(207, 130, 'K', n.clk_src === 'C' ? 'C' : 'CLK', 1);
+    sctx.fillStyle = '#8b949e'; sctx.font = '8px sans-serif';
+    sctx.fillText('CLOCK K', 185, 150);
+    if (n.clk_src === 'C') sctx.fillText('(本地：C 上升緣，⚠ 未經原廠資料確認)', 8, 150);
+
+    // X、Y 輸出多工器
     const xVal = n.mux_x === 'F' ? n.val_F : n.mux_x === 'G' ? n.val_G : n.val_Q;
     const yVal = n.mux_y === 'F' ? n.val_F : n.mux_y === 'G' ? n.val_G : n.val_Q;
-    node(270, 30, `X(${n.mux_x})`, xVal); node(270, 110, `Y(${n.mux_y})`, yVal);
-    wire(239, 70, 270, 30, xVal); wire(239, 70, 270, 110, yVal);
-    sctx.fillStyle = '#c9d1d9'; sctx.font = '11px monospace';
-    sctx.fillText(`F = ${simplifyBoolean(n.lut_f, fSlots)}`, 10, 150);
-    sctx.fillText(`G = ${simplifyBoolean(n.lut_g, gSlots)}`, 10, 168);
-    sctx.fillStyle = '#8b949e'; sctx.font = '9px sans-serif';
-    sctx.fillText(`clk_src = ${n.clk_src}`, 10, 188);
+    wire(234, 65, 250, 30, xVal); wire(234, 65, 250, 100, yVal);
+    mux(262, 30, 'X', n.mux_x, xVal);
+    mux(262, 100, 'Y', n.mux_y, yVal);
+    node(290, 30, 'X', xVal); node(290, 100, 'Y', yVal);
+
+    sctx.fillStyle = '#c9d1d9'; sctx.font = '10px monospace';
+    sctx.fillText(`F = ${simplifyBoolean(n.lut_f, fSlots)}`, 8, 168);
+    sctx.fillText(`G = ${simplifyBoolean(n.lut_g, gSlots)}`, 8, 183);
 }
 
 // ---- 程式控制 API（console 或外部腳本可直接呼叫）----
