@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XC2064 Shirriff 風格互動檢視頁</title>
+<style>
+    body {
+        margin: 0; padding: 0; background: #0d1117; color: #c9d1d9;
+        font-family: 'Consolas', 'Courier New', monospace;
+        display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+    }
+    #header {
+        padding: 10px 16px; background: #161b22; border-bottom: 1px solid #30363d;
+        display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    }
+    .title { font-size: 1rem; font-weight: bold; color: #58a6ff; }
+    button, input[type=file] {
+        background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+        padding: 6px 10px; cursor: pointer; font-size: 0.8rem; border-radius: 6px;
+    }
+    button:hover { background: #30363d; }
+    #main { flex: 1; display: flex; overflow: hidden; }
+    #canvas-wrap { flex: 1; position: relative; overflow: auto; }
+    canvas { display: block; }
+    #legend {
+        position: absolute; left: 12px; bottom: 12px; background: #161b22cc;
+        border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px;
+        font-size: 0.75rem; line-height: 1.7; backdrop-filter: blur(2px);
+    }
+    #legend .row { display: flex; align-items: center; gap: 6px; }
+    #legend .swatch { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+    #status {
+        position: absolute; left: 12px; top: 12px; background: #161b22cc;
+        border: 1px solid #30363d; border-radius: 8px; padding: 6px 10px;
+        font-size: 0.75rem; color: #8b949e; max-width: 420px;
+    }
+    #sidebar {
+        width: 340px; background: #0d1117; border-left: 1px solid #30363d;
+        padding: 14px; overflow-y: auto; font-size: 0.8rem;
+    }
+    #sidebar h3 { color: #58a6ff; font-size: 0.85rem; margin: 0 0 8px; }
+    #detail-empty { color: #8b949e; }
+    canvas#schematic {
+        width: 100%; max-width: 320px; background: #0d1117;
+        border: 1px solid #30363d; border-radius: 6px; display: block; margin-top: 8px;
+    }
+    .kv { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #21262d; }
+    .val-0 { color: #8b949e; } .val-1 { color: #3fb950; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div id="header">
+    <div class="title">XC2064 Shirriff 風格互動檢視頁（TASK-023，獨立新實作）</div>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <span id="clock-display" style="font-size:0.8rem; color:#8b949e;">CLOCK: LOW</span>
+        <button onclick="stepClockUI()">觸發時鐘</button>
+        <button onclick="document.getElementById('file-input').click()">載入 .bit 檔</button>
+        <input type="file" id="file-input" accept=".bit" style="display:none" onchange="handleFileInput(event)">
+        <button onclick="downloadBitstream()">匯出 .bit</button>
+    </div>
+</div>
+
+<div id="main">
+    <div id="canvas-wrap">
+        <canvas id="viewerCanvas"></canvas>
+        <div id="status">尚未載入 bitstream。可用工具列「載入 .bit 檔」，或在網址列加上 <code>?bitstream=&lt;base64&gt;</code>。點擊 CLB／IOB／switch matrix 交點查看細節。</div>
+        <div id="legend">
+            <div style="color:#c9d1d9; font-weight:bold; margin-bottom:4px;">圖例（沿用 Shirriff 工具的配色）</div>
+            <div class="row"><span class="swatch" style="background:#2ea043"></span>CLB</div>
+            <div class="row"><span class="swatch" style="background:#f85149"></span>LUT (F/G)</div>
+            <div class="row"><span class="swatch" style="background:#a371f7"></span>Switch matrix</div>
+            <div class="row"><span class="swatch" style="background:#58a6ff"></span>PIP（已導通）</div>
+            <div class="row"><span class="swatch" style="background:#e3b341"></span>IOB</div>
+            <div class="row"><span class="swatch" style="background:#f0883e"></span>BIDI（本模擬器無雙向腳位，未使用）</div>
+            <div class="row"><span class="swatch" style="background:#484f58"></span>Other / 未使用</div>
+        </div>
+    </div>
+    <div id="sidebar">
+        <h3>細節面板</h3>
+        <div id="detail-empty">點擊畫布上的 CLB、IOB 或 switch matrix 交點。</div>
+        <div id="detail-clb" style="display:none">
+            <div class="kv"><span>CLB</span><span id="d-clb-id">--</span></div>
+            <canvas id="schematic" width="320" height="230"></canvas>
+            <div class="kv"><span>A</span><span id="d-a" class="val-0">0</span></div>
+            <div class="kv"><span>B</span><span id="d-b" class="val-0">0</span></div>
+            <div class="kv"><span>C</span><span id="d-c" class="val-0">0</span></div>
+            <div class="kv"><span>D</span><span id="d-d" class="val-0">0</span></div>
+            <div class="kv"><span>F</span><span id="d-f" class="val-0">0</span></div>
+            <div class="kv"><span>G</span><span id="d-g" class="val-0">0</span></div>
+            <div class="kv"><span>Q</span><span id="d-q" class="val-0">0</span></div>
+            <div class="kv"><span>X (源:<span id="d-mux-x">F</span>)</span><span id="d-x" class="val-0">0</span></div>
+            <div class="kv"><span>Y (源:<span id="d-mux-y">G</span>)</span><span id="d-y" class="val-0">0</span></div>
+        </div>
+        <div id="detail-iobin" style="display:none">
+            <div class="kv"><span>輸入 IOB</span><span id="d-iobin-id">--</span></div>
+            <div class="kv"><span>目前值</span><span id="d-iobin-val" class="val-0">0</span></div>
+            <button onclick="toggleSelectedIobIn()">切換 0/1</button>
+        </div>
+        <div id="detail-iobout" style="display:none">
+            <div class="kv"><span>輸出 IOB</span><span id="d-iobout-id">--</span></div>
+            <div class="kv"><span>目前值</span><span id="d-iobout-val" class="val-0">0</span></div>
+        </div>
+        <div id="detail-switch" style="display:none">
+            <div class="kv"><span>Switch Matrix</span><span id="d-switch-id">--</span></div>
+            <div id="d-switch-links"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================================
+// TASK-023：獨立新實作（不重用 FPGA.html 的引擎程式碼），但採用同一套已驗證過的
+// XC2064 架構知識（LUT3×2 可程式化輸入槽、D-FF 固定 D=F + SET/RESET、X/Y 三選一）
+// 與同一套 bitstream 版本 4 位元格式，因此可以直接載入 FPGA/tests/ 下已驗證過的
+// decoder-2to4.bit / counter-3bit.bit 做交叉驗證。畫面改走 Ken Shirriff 互動工具
+// （static.righto.com/xc2064/）的視覺語言：固定色彩圖例 + 點擊看細節。
+// ============================================================================
+
+const canvas = document.getElementById('viewerCanvas');
+const ctx = canvas.getContext('2d');
+const schematicCanvas = document.getElementById('schematic');
+const sctx = schematicCanvas.getContext('2d');
+
+const CLB_SIZE = 40, CH_W = 22, OFFSET_X = 50, OFFSET_Y = 40;
+
+const COLOR = {
+    clb: '#2ea043', clbDim: '#1a4d2e',
+    lut: '#f85149',
+    switch: '#a371f7', switchDim: '#3a2d4d',
+    pip: '#58a6ff', pipOff: '#484f58',
+    iob: '#e3b341', iobDim: '#5a4a1f',
+    other: '#484f58'
+};
+
+const SWITCH_LINKS = [['WE'], ['NS'], ['WN'], ['WS'], ['EN'], ['ES']];
+const THRESHOLD_CODES = ['TTL', 'CMOS'];
+const SLOT1_CODES = ['A', 'B'], SLOT2_CODES = ['B', 'C'], SLOT3_CODES = ['C', 'D'];
+const MUX_CODES = ['F', 'G', 'Q'];
+const CLK_SRC_CODES = ['global', 'C'];
+const BITSTREAM_MAGIC = [0x58, 0x53, 0x49, 0x4D];
+const SUPPORTED_VERSION = 4; // 這個獨立新實作只支援目前的版本 4（見 FPGA/docs/bitstream-format.md）
+
+class BitWriter {
+    constructor() { this.bytes = []; this.cur = 0; this.nbits = 0; }
+    writeBits(value, n) {
+        for (let i = n - 1; i >= 0; i--) {
+            const bit = (value >> i) & 1;
+            this.cur = (this.cur << 1) | bit;
+            this.nbits++;
+            if (this.nbits === 8) { this.bytes.push(this.cur); this.cur = 0; this.nbits = 0; }
+        }
+    }
+    finish() {
+        if (this.nbits > 0) { this.cur <<= (8 - this.nbits); this.bytes.push(this.cur); this.cur = 0; this.nbits = 0; }
+        return new Uint8Array(this.bytes);
+    }
+}
+
+class BitReader {
+    constructor(bytes) { this.bytes = bytes; this.byteIdx = 0; this.bitIdx = 0; }
+    readBits(n) {
+        let v = 0;
+        for (let i = 0; i < n; i++) {
+            const byte = this.bytes[this.byteIdx] || 0;
+            const bit = (byte >> (7 - this.bitIdx)) & 1;
+            v = (v << 1) | bit;
+            this.bitIdx++;
+            if (this.bitIdx === 8) { this.bitIdx = 0; this.byteIdx++; }
+        }
+        return v;
+    }
+}
+
+let GRID_SIZE = 8;
+let clbs = [], h_wires = [], v_wires = [], switch_box = [], iob_in = [], iob_out = [], h_long = [], v_long = [];
+let clockVal = 0;
+let selection = null; // { type: 'clb'|'iobIn'|'iobOut'|'switch', ...coords }
+
+function buildBlankGrid(size) {
+    GRID_SIZE = size;
+    clbs = [];
+    for (let r = 0; r < size; r++) {
+        clbs[r] = [];
+        for (let c = 0; c < size; c++) {
+            clbs[r][c] = {
+                row: r, col: c,
+                lut_f: 0xF0, lut_g: 0x00,
+                f_slot1: 'A', f_slot2: 'B', f_slot3: 'C',
+                g_slot1: 'A', g_slot2: 'B', g_slot3: 'D',
+                set_mode: 'none', reset_mode: 'G',
+                mux_x: 'F', mux_y: 'G', clk_src: 'global', prev_in_C: 0,
+                src_a: 'wire', src_b: 'wire', drive_h_long: false, drive_v_long: false,
+                in_A: 0, in_B: 0, in_C: 0, in_D: 0, val_F: 0, val_G: 0, val_Q: 0, out_X: 0, out_Y: 0
+            };
+        }
+    }
+    h_wires = []; switch_box = [];
+    for (let r = 0; r <= size; r++) {
+        h_wires[r] = Array.from({ length: size }, () => ({ on: false, val: 0 }));
+        switch_box[r] = Array.from({ length: size + 1 }, () => ({ WE: false, NS: false, WN: false, WS: false, EN: false, ES: false }));
+    }
+    v_wires = [];
+    for (let r = 0; r < size; r++) v_wires[r] = Array.from({ length: size + 1 }, () => ({ on: false, val: 0 }));
+    iob_in = []; iob_out = []; h_long = []; v_long = [];
+    for (let i = 0; i < size; i++) {
+        iob_in.push({ val: 0, forced: true, pull_up: false, threshold: 'TTL', ff_enabled: false, reg_val: 0, drive_long: false });
+        iob_out.push({ val: 0, tri_state: false, threshold: 'TTL' });
+        h_long.push({ on: false, val: 0 });
+        v_long.push({ on: false, val: 0 });
+    }
+    selection = null;
+}
+
+function calcLut3(mask, v0, v1, v2) {
+    const idx = ((v0 & 1) << 2) | ((v1 & 1) << 1) | (v2 & 1);
+    return (mask >> idx) & 1;
+}
+function getSlotValue(n, letter) {
+    switch (letter) { case 'A': return n.in_A; case 'B': return n.in_B; case 'C': return n.in_C; case 'D': return n.in_D; default: return 0; }
+}
+function getFFSet(n) { return n.set_mode === 'F' ? n.val_F : 0; }
+function getFFReset(n) { return n.reset_mode === 'D_OR_G' ? (n.in_D | n.val_G) : n.val_G; }
+function getIobInEffective(inp) { return inp.ff_enabled ? inp.reg_val : (inp.forced ? inp.val : (inp.pull_up ? 1 : 0)); }
+
+function simulateCombinatorial() {
+    for (let r = 0; r <= GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) h_wires[r][c].val = 0;
+        for (let c = 0; c <= GRID_SIZE; c++) if (r < GRID_SIZE) v_wires[r][c].val = 0;
+    }
+    for (let i = 0; i < GRID_SIZE; i++) { h_long[i].val = 0; v_long[i].val = 0; }
+
+    for (let iter = 0; iter < 6; iter++) {
+        for (let r = 0; r < GRID_SIZE; r++) {
+            const v = getIobInEffective(iob_in[r]);
+            if (h_wires[r][0].on) h_wires[r][0].val |= v;
+            if (iob_in[r].drive_long && h_long[r].on) h_long[r].val |= v;
+        }
+        for (let r = 0; r <= GRID_SIZE; r++) {
+            for (let c = 0; c <= GRID_SIZE; c++) {
+                const sw = switch_box[r][c];
+                const pins = {
+                    W: (c > 0 && h_wires[r][c - 1].on) ? h_wires[r][c - 1] : null,
+                    E: (c < GRID_SIZE && h_wires[r][c].on) ? h_wires[r][c] : null,
+                    N: (r > 0 && v_wires[r - 1][c].on) ? v_wires[r - 1][c] : null,
+                    S: (r < GRID_SIZE && v_wires[r][c].on) ? v_wires[r][c] : null
+                };
+                for (const [key] of SWITCH_LINKS) {
+                    const a = pins[key[0]], b = pins[key[1]];
+                    if (sw[key] && a && b) { const v = a.val | b.val; a.val = v; b.val = v; }
+                }
+            }
+        }
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                const n = clbs[r][c];
+                n.in_A = n.src_a === 'long' ? (h_long[r].on ? h_long[r].val : 0) : (v_wires[r][c].on ? v_wires[r][c].val : 0);
+                n.in_B = n.src_b === 'long' ? (v_long[c].on ? v_long[c].val : 0) : (h_wires[r][c].on ? h_wires[r][c].val : 0);
+                n.in_C = v_wires[r][c + 1].on ? v_wires[r][c + 1].val : 0;
+                n.in_D = h_wires[r + 1][c].on ? h_wires[r + 1][c].val : 0;
+                n.val_F = calcLut3(n.lut_f, getSlotValue(n, n.f_slot1), getSlotValue(n, n.f_slot2), getSlotValue(n, n.f_slot3));
+                n.val_G = calcLut3(n.lut_g, getSlotValue(n, n.g_slot1), getSlotValue(n, n.g_slot2), getSlotValue(n, n.g_slot3));
+                n.out_X = n.mux_x === 'F' ? n.val_F : n.mux_x === 'G' ? n.val_G : n.val_Q;
+                n.out_Y = n.mux_y === 'F' ? n.val_F : n.mux_y === 'G' ? n.val_G : n.val_Q;
+                if (n.drive_h_long && h_long[r].on) h_long[r].val |= n.out_X;
+                if (n.drive_v_long && v_long[c].on) v_long[c].val |= n.out_Y;
+                if (v_wires[r][c + 1].on) v_wires[r][c + 1].val |= n.out_X;
+                if (h_wires[r + 1][c].on) h_wires[r + 1][c].val |= n.out_Y;
+            }
+        }
+    }
+    for (let r = 0; r < GRID_SIZE; r++) iob_out[r].val = h_wires[r][GRID_SIZE - 1].on ? h_wires[r][GRID_SIZE - 1].val : 0;
+}
+
+function latchGlobalClock() {
+    clbs.forEach(row => row.forEach(n => {
+        if (n.clk_src !== 'global') return;
+        if (getFFSet(n)) n.val_Q = 1; else if (getFFReset(n)) n.val_Q = 0; else n.val_Q = n.val_F;
+    }));
+    iob_in.forEach(inp => { inp.reg_val = inp.forced ? inp.val : (inp.pull_up ? 1 : 0); });
+}
+function updateLocalClocks() {
+    clbs.forEach(row => row.forEach(n => {
+        if (n.clk_src === 'C' && n.in_C === 1 && n.prev_in_C === 0) {
+            if (getFFSet(n)) n.val_Q = 1; else if (getFFReset(n)) n.val_Q = 0; else n.val_Q = n.val_F;
+        }
+        n.prev_in_C = n.in_C;
+    }));
+}
+
+function stepClockUI() {
+    clockVal = clockVal ? 0 : 1;
+    document.getElementById('clock-display').innerText = `CLOCK: ${clockVal ? 'HIGH' : 'LOW'}`;
+    document.getElementById('clock-display').style.color = clockVal ? '#3fb950' : '#8b949e';
+    if (clockVal === 1) latchGlobalClock();
+}
+
+// ---- Bitstream（版本 4 相容，見 FPGA/docs/bitstream-format.md）----
+function serializeBitstream() {
+    const w = new BitWriter();
+    for (let r = 0; r < GRID_SIZE; r++) for (let c = 0; c < GRID_SIZE; c++) {
+        const n = clbs[r][c];
+        w.writeBits(n.lut_f, 8); w.writeBits(n.lut_g, 8);
+        w.writeBits(Math.max(0, SLOT1_CODES.indexOf(n.f_slot1)), 1);
+        w.writeBits(Math.max(0, SLOT2_CODES.indexOf(n.f_slot2)), 1);
+        w.writeBits(Math.max(0, SLOT3_CODES.indexOf(n.f_slot3)), 1);
+        w.writeBits(Math.max(0, SLOT1_CODES.indexOf(n.g_slot1)), 1);
+        w.writeBits(Math.max(0, SLOT2_CODES.indexOf(n.g_slot2)), 1);
+        w.writeBits(Math.max(0, SLOT3_CODES.indexOf(n.g_slot3)), 1);
+        w.writeBits(n.set_mode === 'F' ? 1 : 0, 1);
+        w.writeBits(n.reset_mode === 'D_OR_G' ? 1 : 0, 1);
+        w.writeBits(Math.max(0, MUX_CODES.indexOf(n.mux_x)), 2);
+        w.writeBits(Math.max(0, MUX_CODES.indexOf(n.mux_y)), 2);
+        w.writeBits(Math.max(0, CLK_SRC_CODES.indexOf(n.clk_src)), 1);
+        w.writeBits(n.src_a === 'long' ? 1 : 0, 1);
+        w.writeBits(n.src_b === 'long' ? 1 : 0, 1);
+        w.writeBits(n.drive_h_long ? 1 : 0, 1);
+        w.writeBits(n.drive_v_long ? 1 : 0, 1);
+    }
+    for (let r = 0; r <= GRID_SIZE; r++) for (let c = 0; c <= GRID_SIZE; c++) {
+        const sw = switch_box[r][c];
+        for (const [key] of SWITCH_LINKS) w.writeBits(sw[key] ? 1 : 0, 1);
+    }
+    for (let r = 0; r <= GRID_SIZE; r++) for (let c = 0; c < GRID_SIZE; c++) w.writeBits(h_wires[r][c].on ? 1 : 0, 1);
+    for (let r = 0; r < GRID_SIZE; r++) for (let c = 0; c <= GRID_SIZE; c++) w.writeBits(v_wires[r][c].on ? 1 : 0, 1);
+    for (let i = 0; i < GRID_SIZE; i++) {
+        const inp = iob_in[i];
+        w.writeBits(inp.forced ? 1 : 0, 1); w.writeBits(inp.val ? 1 : 0, 1); w.writeBits(inp.pull_up ? 1 : 0, 1);
+        w.writeBits(Math.max(0, THRESHOLD_CODES.indexOf(inp.threshold)), 1);
+        w.writeBits(inp.ff_enabled ? 1 : 0, 1); w.writeBits(inp.drive_long ? 1 : 0, 1);
+    }
+    for (let i = 0; i < GRID_SIZE; i++) {
+        const out = iob_out[i];
+        w.writeBits(out.tri_state ? 1 : 0, 1);
+        w.writeBits(Math.max(0, THRESHOLD_CODES.indexOf(out.threshold)), 1);
+    }
+    for (let i = 0; i < GRID_SIZE; i++) w.writeBits(h_long[i].on ? 1 : 0, 1);
+    for (let i = 0; i < GRID_SIZE; i++) w.writeBits(v_long[i].on ? 1 : 0, 1);
+    const payload = w.finish();
+    const full = new Uint8Array(6 + payload.length);
+    full.set(BITSTREAM_MAGIC, 0); full[4] = SUPPORTED_VERSION; full[5] = GRID_SIZE; full.set(payload, 6);
+    return full;
+}
+
+function deserializeBitstream(bytes) {
+    if (bytes.length < 6 || BITSTREAM_MAGIC.some((b, i) => bytes[i] !== b)) {
+        throw new Error('無效的 bitstream：header magic 不符（需為 "XSIM"）');
+    }
+    const version = bytes[4];
+    if (version !== SUPPORTED_VERSION) {
+        throw new Error(`這個獨立新實作只支援 bitstream 版本 ${SUPPORTED_VERSION}（讀到版本 ${version}）。舊版請用 FPGA/FPGA.html 開啟。`);
+    }
+    const size = bytes[5];
+    const r = new BitReader(bytes.subarray(6));
+    buildBlankGrid(size);
+
+    for (let ri = 0; ri < size; ri++) for (let ci = 0; ci < size; ci++) {
+        const n = clbs[ri][ci];
+        n.lut_f = r.readBits(8); n.lut_g = r.readBits(8);
+        n.f_slot1 = SLOT1_CODES[r.readBits(1)]; n.f_slot2 = SLOT2_CODES[r.readBits(1)]; n.f_slot3 = SLOT3_CODES[r.readBits(1)];
+        n.g_slot1 = SLOT1_CODES[r.readBits(1)]; n.g_slot2 = SLOT2_CODES[r.readBits(1)]; n.g_slot3 = SLOT3_CODES[r.readBits(1)];
+        n.set_mode = r.readBits(1) ? 'F' : 'none';
+        n.reset_mode = r.readBits(1) ? 'D_OR_G' : 'G';
+        n.mux_x = MUX_CODES[r.readBits(2)] || 'F';
+        n.mux_y = MUX_CODES[r.readBits(2)] || 'G';
+        n.clk_src = CLK_SRC_CODES[r.readBits(1)] || 'global';
+        n.src_a = r.readBits(1) ? 'long' : 'wire';
+        n.src_b = r.readBits(1) ? 'long' : 'wire';
+        n.drive_h_long = !!r.readBits(1);
+        n.drive_v_long = !!r.readBits(1);
+    }
+    for (let ri = 0; ri <= size; ri++) for (let ci = 0; ci <= size; ci++) {
+        const sw = switch_box[ri][ci];
+        for (const [key] of SWITCH_LINKS) sw[key] = !!r.readBits(1);
+    }
+    for (let ri = 0; ri <= size; ri++) for (let ci = 0; ci < size; ci++) h_wires[ri][ci].on = !!r.readBits(1);
+    for (let ri = 0; ri < size; ri++) for (let ci = 0; ci <= size; ci++) v_wires[ri][ci].on = !!r.readBits(1);
+    for (let i = 0; i < size; i++) {
+        const inp = iob_in[i];
+        inp.forced = !!r.readBits(1); inp.val = r.readBits(1); inp.pull_up = !!r.readBits(1);
+        inp.threshold = THRESHOLD_CODES[r.readBits(1)] || 'TTL';
+        inp.ff_enabled = !!r.readBits(1); inp.drive_long = !!r.readBits(1);
+        inp.reg_val = inp.forced ? inp.val : (inp.pull_up ? 1 : 0);
+    }
+    for (let i = 0; i < size; i++) {
+        const out = iob_out[i];
+        out.tri_state = !!r.readBits(1);
+        out.threshold = THRESHOLD_CODES[r.readBits(1)] || 'TTL';
+    }
+    for (let i = 0; i < size; i++) h_long[i].on = !!r.readBits(1);
+    for (let i = 0; i < size; i++) v_long[i].on = !!r.readBits(1);
+}
+
+function base64ToBytes(b64) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+}
+function bytesToBase64(bytes) {
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin);
+}
+
+function loadBitstream(bytes) {
+    deserializeBitstream(bytes);
+    resize();
+    setStatus(`已載入 bitstream：${GRID_SIZE}×${GRID_SIZE}，共 ${bytes.length} bytes。`);
+}
+function handleFileInput(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        try { loadBitstream(new Uint8Array(reader.result)); }
+        catch (err) { alert(`載入失敗：${err.message}`); }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+}
+function downloadBitstream() {
+    const bytes = serializeBitstream();
+    const blob = new Blob([bytes], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `xc2064-viewer-${GRID_SIZE}x${GRID_SIZE}.bit`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+function setStatus(text) { document.getElementById('status').innerText = text; }
+
+// ---- 布林式化簡（比照 FPGA/FPGA.html 的 TASK-022 simplifyBoolean，獨立重新實作）----
+function simplifyBoolean(mask, vars) {
+    const ones = [];
+    for (let i = 0; i < 8; i++) if ((mask >> i) & 1) ones.push(i);
+    if (ones.length === 0) return '0';
+    if (ones.length === 8) return '1';
+    let group = ones.map(m => ({ bits: [(m >> 2) & 1, (m >> 1) & 1, m & 1], covers: new Set([m]) }));
+    const primes = [];
+    let changed = true;
+    while (changed) {
+        changed = false;
+        const used = new Set(); const next = [];
+        for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
+            const a = group[i], b = group[j];
+            let diffIdx = -1, diffCount = 0;
+            for (let k = 0; k < 3; k++) {
+                if (a.bits[k] === '-' && b.bits[k] === '-') continue;
+                if (a.bits[k] !== b.bits[k]) { diffIdx = k; diffCount++; }
+            }
+            if (diffCount === 1) {
+                const bits = a.bits.slice(); bits[diffIdx] = '-';
+                const key = bits.join('');
+                if (!next.some(n => n.bits.join('') === key)) next.push({ bits, covers: new Set([...a.covers, ...b.covers]) });
+                used.add(i); used.add(j); changed = true;
+            }
+        }
+        for (let i = 0; i < group.length; i++) if (!used.has(i)) primes.push(group[i]);
+        group = next;
+    }
+    primes.push(...group);
+    const seen = new Set(); const uniquePrimes = [];
+    for (const p of primes) { const key = p.bits.join(''); if (!seen.has(key)) { seen.add(key); uniquePrimes.push(p); } }
+    const remaining = new Set(ones); const chosen = [];
+    while (remaining.size > 0) {
+        let best = null, bestCover = -1;
+        for (const p of uniquePrimes) {
+            const c = [...p.covers].filter(m => remaining.has(m)).length;
+            if (c > bestCover) { bestCover = c; best = p; }
+        }
+        if (!best) break;
+        chosen.push(best);
+        for (const m of best.covers) remaining.delete(m);
+    }
+    return chosen.map(p => {
+        const lits = [];
+        for (let k = 0; k < 3; k++) { if (p.bits[k] === 0) lits.push('~' + vars[k]); else if (p.bits[k] === 1) lits.push(vars[k]); }
+        return lits.length ? lits.join('·') : '1';
+    }).join(' + ');
+}
+
+// ---- 畫布幾何 ----
+function clbX(c) { return OFFSET_X + c * (CLB_SIZE + CH_W); }
+function clbY(r) { return OFFSET_Y + r * (CLB_SIZE + CH_W); }
+function resize() {
+    const minW = OFFSET_X + GRID_SIZE * (CLB_SIZE + CH_W) + 80;
+    const minH = OFFSET_Y + GRID_SIZE * (CLB_SIZE + CH_W) + 60;
+    canvas.width = Math.max(canvas.parentElement.clientWidth, minW);
+    canvas.height = Math.max(canvas.parentElement.clientHeight, minH);
+}
+
+function draw() {
+    simulateCombinatorial();
+    updateLocalClocks();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 通道線段（沿用 PIP 概念：導通=blue，未導通=灰白）
+    ctx.lineWidth = 2;
+    for (let r = 0; r <= GRID_SIZE; r++) for (let c = 0; c < GRID_SIZE; c++) {
+        if (!h_wires[r][c].on) continue;
+        ctx.strokeStyle = h_wires[r][c].val ? COLOR.pip : '#30363d';
+        ctx.beginPath();
+        ctx.moveTo(clbX(c) - CH_W / 2, clbY(r) - CH_W / 2);
+        ctx.lineTo(clbX(c) + CLB_SIZE + CH_W / 2, clbY(r) - CH_W / 2);
+        ctx.stroke();
+    }
+    for (let r = 0; r < GRID_SIZE; r++) for (let c = 0; c <= GRID_SIZE; c++) {
+        if (!v_wires[r][c].on) continue;
+        ctx.strokeStyle = v_wires[r][c].val ? COLOR.pip : '#30363d';
+        ctx.beginPath();
+        ctx.moveTo(clbX(c) - CH_W / 2, clbY(r) - CH_W / 2);
+        ctx.lineTo(clbX(c) - CH_W / 2, clbY(r) + CLB_SIZE + CH_W / 2);
+        ctx.stroke();
+    }
+
+    // Switch matrix（紫）
+    for (let r = 0; r <= GRID_SIZE; r++) for (let c = 0; c <= GRID_SIZE; c++) {
+        const x = clbX(c) - CH_W / 2, y = clbY(r) - CH_W / 2;
+        const sw = switch_box[r][c];
+        const active = sw.WE || sw.NS || sw.WN || sw.WS || sw.EN || sw.ES;
+        ctx.fillStyle = active ? COLOR.switch : COLOR.switchDim;
+        ctx.fillRect(x - 4, y - 4, 8, 8);
+        if (selection && selection.type === 'switch' && selection.r === r && selection.c === c) {
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(x - 6, y - 6, 12, 12);
+        }
+    }
+
+    // CLB（綠底 + 紅色 LUT 子區塊）
+    clbs.forEach(row => row.forEach(n => {
+        const isSel = selection && selection.type === 'clb' && selection.r === n.row && selection.c === n.col;
+        const x = clbX(n.col), y = clbY(n.row);
+        ctx.fillStyle = (n.out_X || n.out_Y || n.val_Q) ? COLOR.clb : COLOR.clbDim;
+        ctx.strokeStyle = isSel ? '#fff' : '#1a4d2e';
+        ctx.lineWidth = isSel ? 2 : 1;
+        ctx.fillRect(x, y, CLB_SIZE, CLB_SIZE);
+        ctx.strokeRect(x, y, CLB_SIZE, CLB_SIZE);
+
+        ctx.fillStyle = COLOR.lut;
+        ctx.fillRect(x + 4, y + 4, CLB_SIZE - 8, 12);
+        ctx.fillStyle = '#0d1117';
+        ctx.font = '8px sans-serif';
+        ctx.fillText('LUT', x + 8, y + 13);
+
+        ctx.fillStyle = n.val_Q ? '#e6edf3' : '#8b949e';
+        ctx.fillText(`Q${n.val_Q}`, x + 4, y + CLB_SIZE - 6);
+        if (n.clk_src === 'C') { ctx.fillStyle = COLOR.iob; ctx.fillText('C', x + CLB_SIZE - 12, y + CLB_SIZE - 6); }
+    }));
+
+    // IOB（黃）
+    for (let i = 0; i < GRID_SIZE; i++) {
+        const y = clbY(i) + CLB_SIZE / 2;
+        const inSel = selection && selection.type === 'iobIn' && selection.i === i;
+        const outSel = selection && selection.type === 'iobOut' && selection.i === i;
+        ctx.fillStyle = getIobInEffective(iob_in[i]) ? COLOR.iob : COLOR.iobDim;
+        ctx.fillRect(OFFSET_X - 40, y - 9, 18, 18);
+        if (inSel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(OFFSET_X - 42, y - 11, 22, 22); }
+
+        const outX = clbX(GRID_SIZE) + 14;
+        ctx.fillStyle = iob_out[i].tri_state ? '#30363d' : (iob_out[i].val ? COLOR.iob : COLOR.iobDim);
+        ctx.beginPath(); ctx.arc(outX, y, 9, 0, Math.PI * 2); ctx.fill();
+        if (outSel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(outX, y, 12, 0, Math.PI * 2); ctx.stroke(); }
+    }
+
+    updateDetailPanel();
+    requestAnimationFrame(draw);
+}
+
+// ---- 互動：點擊 CLB / IOB / switch matrix ----
+function handleClick(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+    if (mx > OFFSET_X - 44 && mx < OFFSET_X - 18) {
+        for (let i = 0; i < GRID_SIZE; i++) {
+            if (Math.abs(my - (clbY(i) + CLB_SIZE / 2)) < 12) { selectIobIn(i); return; }
+        }
+    }
+    const outX = clbX(GRID_SIZE) + 14;
+    if (Math.abs(mx - outX) < 12) {
+        for (let i = 0; i < GRID_SIZE; i++) {
+            if (Math.abs(my - (clbY(i) + CLB_SIZE / 2)) < 12) { selectIobOut(i); return; }
+        }
+    }
+    for (let r = 0; r < GRID_SIZE; r++) for (let c = 0; c < GRID_SIZE; c++) {
+        const x = clbX(c), y = clbY(r);
+        if (mx > x && mx < x + CLB_SIZE && my > y && my < y + CLB_SIZE) { selectClb(r, c); return; }
+    }
+    for (let r = 0; r <= GRID_SIZE; r++) for (let c = 0; c <= GRID_SIZE; c++) {
+        const x = clbX(c) - CH_W / 2, y = clbY(r) - CH_W / 2;
+        if (Math.abs(mx - x) < 8 && Math.abs(my - y) < 8) { selectSwitch(r, c); return; }
+    }
+}
+
+function selectClb(r, c) { selection = { type: 'clb', r, c }; }
+function selectIobIn(i) { selection = { type: 'iobIn', i }; }
+function selectIobOut(i) { selection = { type: 'iobOut', i }; }
+function selectSwitch(r, c) { selection = { type: 'switch', r, c }; }
+function toggleSelectedIobIn() {
+    if (!selection || selection.type !== 'iobIn') return;
+    const inp = iob_in[selection.i];
+    inp.forced = true; inp.val = inp.val ? 0 : 1;
+}
+
+function updateDetailPanel() {
+    document.getElementById('detail-empty').style.display = selection ? 'none' : 'block';
+    document.getElementById('detail-clb').style.display = selection && selection.type === 'clb' ? 'block' : 'none';
+    document.getElementById('detail-iobin').style.display = selection && selection.type === 'iobIn' ? 'block' : 'none';
+    document.getElementById('detail-iobout').style.display = selection && selection.type === 'iobOut' ? 'block' : 'none';
+    document.getElementById('detail-switch').style.display = selection && selection.type === 'switch' ? 'block' : 'none';
+    if (!selection) return;
+
+    if (selection.type === 'clb') {
+        const n = clbs[selection.r][selection.c];
+        document.getElementById('d-clb-id').innerText = `(${selection.r}, ${selection.c})`;
+        const setVal = (id, v) => { const el = document.getElementById(id); el.innerText = v; el.className = v ? 'val-1' : 'val-0'; };
+        setVal('d-a', n.in_A); setVal('d-b', n.in_B); setVal('d-c', n.in_C); setVal('d-d', n.in_D);
+        setVal('d-f', n.val_F); setVal('d-g', n.val_G); setVal('d-q', n.val_Q);
+        setVal('d-x', n.out_X); setVal('d-y', n.out_Y);
+        document.getElementById('d-mux-x').innerText = n.mux_x;
+        document.getElementById('d-mux-y').innerText = n.mux_y;
+        drawSchematic(n);
+    } else if (selection.type === 'iobIn') {
+        const inp = iob_in[selection.i];
+        document.getElementById('d-iobin-id').innerText = `IN${selection.i}`;
+        const el = document.getElementById('d-iobin-val');
+        const v = getIobInEffective(inp);
+        el.innerText = v; el.className = v ? 'val-1' : 'val-0';
+    } else if (selection.type === 'iobOut') {
+        const out = iob_out[selection.i];
+        document.getElementById('d-iobout-id').innerText = `OUT${selection.i}`;
+        const el = document.getElementById('d-iobout-val');
+        el.innerText = out.val; el.className = out.val ? 'val-1' : 'val-0';
+    } else if (selection.type === 'switch') {
+        const sw = switch_box[selection.r][selection.c];
+        document.getElementById('d-switch-id').innerText = `(${selection.r}, ${selection.c})`;
+        document.getElementById('d-switch-links').innerHTML = SWITCH_LINKS.map(([key]) =>
+            `<div class="kv"><span>${key}</span><span class="${sw[key] ? 'val-1' : 'val-0'}">${sw[key] ? 'ON' : 'OFF'}</span></div>`
+        ).join('');
+    }
+}
+
+function drawSchematic(n) {
+    sctx.clearRect(0, 0, schematicCanvas.width, schematicCanvas.height);
+    const on = '#3fb950', off = '#8b949e';
+    const valColor = v => v ? on : off;
+    function node(x, y, label, val) {
+        sctx.fillStyle = valColor(val);
+        sctx.beginPath(); sctx.arc(x, y, 4, 0, Math.PI * 2); sctx.fill();
+        sctx.fillStyle = '#c9d1d9'; sctx.font = '11px sans-serif';
+        sctx.fillText(`${label}=${val}`, x + 8, y + 4);
+    }
+    function box(x, y, w, h, label, sub) {
+        sctx.fillStyle = '#161b22'; sctx.strokeStyle = '#30363d'; sctx.lineWidth = 1.5;
+        sctx.fillRect(x, y, w, h); sctx.strokeRect(x, y, w, h);
+        sctx.fillStyle = '#58a6ff'; sctx.font = 'bold 12px sans-serif'; sctx.fillText(label, x + 6, y + 16);
+        if (sub) { sctx.fillStyle = '#8b949e'; sctx.font = '9px sans-serif'; sctx.fillText(sub, x + 6, y + 30); }
+    }
+    function wire(x1, y1, x2, y2, val) {
+        sctx.strokeStyle = val ? on : '#484f58'; sctx.lineWidth = 2;
+        sctx.beginPath(); sctx.moveTo(x1, y1); sctx.lineTo(x2, y2); sctx.stroke();
+    }
+    const inputs = { A: { y: 20, val: n.in_A }, B: { y: 50, val: n.in_B }, C: { y: 80, val: n.in_C }, D: { y: 110, val: n.in_D } };
+    for (const [letter, info] of Object.entries(inputs)) node(10, info.y, letter, info.val);
+    const fSlots = [n.f_slot1, n.f_slot2, n.f_slot3];
+    const gSlots = [n.g_slot1, n.g_slot2, n.g_slot3];
+    box(70, 8, 50, 40, 'F', `(${fSlots.join(',')})`);
+    box(70, 78, 50, 40, 'G', `(${gSlots.join(',')})`);
+    for (const letter of fSlots) wire(14, inputs[letter].y, 70, 28, inputs[letter].val);
+    for (const letter of gSlots) wire(14, inputs[letter].y, 70, 98, inputs[letter].val);
+    node(140, 28, 'F', n.val_F); node(140, 98, 'G', n.val_G);
+    const setSig = getFFSet(n), resetSig = getFFReset(n);
+    box(165, 45, 55, 50, 'FF', `S:${n.set_mode}=${setSig} R:${n.reset_mode}=${resetSig}`);
+    wire(144, 28, 165, 60, n.val_F); wire(144, 98, 165, 80, n.val_G);
+    node(235, 70, 'Q', n.val_Q); wire(220, 70, 231, 70, n.val_Q);
+    const xVal = n.mux_x === 'F' ? n.val_F : n.mux_x === 'G' ? n.val_G : n.val_Q;
+    const yVal = n.mux_y === 'F' ? n.val_F : n.mux_y === 'G' ? n.val_G : n.val_Q;
+    node(270, 30, `X(${n.mux_x})`, xVal); node(270, 110, `Y(${n.mux_y})`, yVal);
+    wire(239, 70, 270, 30, xVal); wire(239, 70, 270, 110, yVal);
+    sctx.fillStyle = '#c9d1d9'; sctx.font = '11px monospace';
+    sctx.fillText(`F = ${simplifyBoolean(n.lut_f, fSlots)}`, 10, 150);
+    sctx.fillText(`G = ${simplifyBoolean(n.lut_g, gSlots)}`, 10, 168);
+    sctx.fillStyle = '#8b949e'; sctx.font = '9px sans-serif';
+    sctx.fillText(`clk_src = ${n.clk_src}`, 10, 188);
+}
+
+// ---- 程式控制 API（console 或外部腳本可直接呼叫）----
+window.xc2064Viewer = {
+    loadBitstream, exportBitstream: serializeBitstream,
+    selectClb, selectIobIn, selectIobOut, selectSwitch,
+    setIobIn(i, val) { iob_in[i].forced = true; iob_in[i].val = val ? 1 : 0; },
+    stepClock: stepClockUI,
+    getState() {
+        return JSON.parse(JSON.stringify({ GRID_SIZE, clbs, h_wires, v_wires, switch_box, iob_in, iob_out, h_long, v_long, clockVal }));
+    }
+};
+
+function init() {
+    buildBlankGrid(8);
+    canvas.addEventListener('mousedown', handleClick);
+    window.addEventListener('resize', resize);
+    resize();
+
+    const params = new URLSearchParams(window.location.search);
+    const bitstreamParam = params.get('bitstream');
+    if (bitstreamParam) {
+        try { loadBitstream(base64ToBytes(bitstreamParam)); }
+        catch (err) { setStatus(`URL 參數載入失敗：${err.message}`); }
+    }
+    const clbParam = params.get('clb');
+    if (clbParam) {
+        const [r, c] = clbParam.split(',').map(s => parseInt(s, 10));
+        if (Number.isInteger(r) && Number.isInteger(c) && clbs[r] && clbs[r][c]) selectClb(r, c);
+    }
+
+    requestAnimationFrame(draw);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -133,4 +133,11 @@
 - Completed: 使用者附上兩張截圖（我們的畫面 vs Shirriff 參考工具）回饋「線路連結不夠直觀」；先產出四階段重構計畫請使用者選優先序，選了「Phase 1+2 一起做」。新增 `simplifyBoolean()`（3 變數 Quine-McCluskey 化簡，200 組隨機真值表 round-trip 驗證通過）與 `drawClbSchematic()`（側欄新增 320×230 原理圖 canvas，即時畫 A/B/C/D→F/G→SET/RESET/FF→Q→X/Y 資料流與布林式）；新增 `drawClbPinStubs()`（主畫布每顆 CLB 四邊畫腳位樁，選取中的額外顯示 A/B/X-C/Y-D 標籤，右/下邊標「X/C」「Y/D」如實反映本引擎 C/D 為自我回讀的既有架構特性）
 - Errors: none
 - Queued: 待使用者親自在瀏覽器確認畫面（此環境無法截圖驗證）；Phase 3/4 與 [GAME] 軌切換待後續
+- Commit: b37f93a
+
+## 2026-07-08T02:00Z
+- Track: XC2064
+- Completed: 使用者改變目標——查證後發現使用者截圖裡的參考工具其實是 Ken Shirriff 自己的網頁（static.righto.com/xc2064/），不是 lazardjurovic repo 本身（那個 repo 純 SystemC command-line 模擬程式，沒有介面，只是在 README 引用了 Shirriff 的工具當參考）。使用者決定新建 `FPGA/viewer.html`，獨立新實作（不共用 FPGA.html 引擎），JS API 與 URL 參數都要支援程式控制。新頁面：Shirriff 色彩圖例（CLB綠/LUT紅/switch紫/PIP藍/IOB黃）、CLB 網格＋固定圖例、點擊 CLB/IOB/switch matrix 看細節（含原理圖+布林式）、`window.xc2064Viewer` API、`?bitstream=`/`?clb=` URL 參數。Bitstream 格式維持與 FPGA.html 版本 4 相容，因此直接把獨立實作的解析/模擬邏輯拿去跑 `FPGA/tests/` 下兩個既有 .bit 檔做交叉驗證（解碼器 4 組輸入、計數器 16 個 clock 邊緣皆通過），證實新引擎跟舊引擎行為一致
+- Errors: none
+- Queued: 待使用者親自在瀏覽器開啟 `FPGA/viewer.html` 確認視覺呈現；[GAME] 軌切換仍待後續
 - Commit: (pending)

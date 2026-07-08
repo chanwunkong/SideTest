@@ -20,7 +20,14 @@ Two tracks share this queue. Tags: **[XC2064]** = historical bit-accurate replic
   - 新增 `simplifyBoolean(mask, vars)`：3 變數的簡化版 Quine-McCluskey（合併相鄰 minterm 找質蘊涵項 + 貪婪覆蓋），用 `f_slot1-3`/`g_slot1-3` 目前的字母當變數名，例如 `F = A·B + ~A·C`
   - **Phase 2**：新增 `drawClbPinStubs()`，在 `drawCLBs()` 迴圈裡幫每顆 CLB 的四邊畫出實際的腳位樁（短線，依目前值變色）；選取中的 CLB 額外顯示 A/B/X-C/Y-D 文字標籤（其餘 CLB 只畫線不畫字，避免大晶格時文字過度擁擠）——右邊標「X/C」、下邊標「Y/D」是刻意的，因為這兩對在本引擎裡本來就是同一條線的自我回讀（TASK-004 起的既有架構特性），用標籤把這個既有特性視覺化，而不是隱藏它
   - Phase 3（加標籤在高亮路徑上）與 Phase 4（固定圖例）留待之後視需要再排入
-  - 驗證：`simplifyBoolean()` 先在 Node 獨立驗證——已知函數（AND/OR/XOR/NOT_A/PASS_A/ZERO/ONE、解碼器/計數器電路用到的真值表）化簡結果正確；額外對 200 組隨機真值表做 round-trip 檢查（化簡後的式子求值回去等於原始真值表）全部通過，才接進 UI；`new Function()` 解析整段 script 確認無語法錯誤；`build-and-verify.js` 重跑確認純視覺變更沒有影響模擬正確性；瀏覽器開啟後請使用者親自確認畫面（此環境無法自動截圖驗證）
+- [x] TASK-023 [XC2064]: 新增 `FPGA/viewer.html`——Shirriff 風格互動檢視頁（獨立新實作）
+  - **背景**：使用者改變目標，希望有一個新頁面模仿 Ken Shirriff 的 XC2064 互動網頁工具（`static.righto.com/xc2064/`，非 lazardjurovic repo 本身——那個 repo 是純 SystemC command-line 模擬程式，沒有網頁介面，README 裡才提到這個工具當參考）。已確認該工具特色：固定色彩圖例（`red=LUT, green=CLB, blue=PIP, purple=switch, yellow=IOB, orange=BIDI, gray=other, white=unused`）、拖拉/Demo 載入 `.RBT` bitstream、圖形版圖與原始 bitstream 兩種顯示模式切換、點 CLB 看細節
+  - 使用者決定：**獨立新實作**（不重用 `FPGA.html` 的引擎/state，避免兩份程式碼互相牽動），**JS API 與 URL 參數都要**支援程式控制
+  - 新頁面 `FPGA/viewer.html`：CLB 網格依 Shirriff 圖例配色（CLB=綠、LUT 子區塊=紅、switch matrix=紫、PIP=藍／未用灰、IOB=黃），畫面固定角落有色彩圖例；CLB 內部邏輯沿用本專案已驗證過的架構知識（LUT3×2 可程式化輸入槽、D-FF 固定 D=F + SET/RESET、X/Y 三選一），但全部重新寫過，不是複製 `FPGA.html` 的 script
+  - Bitstream 格式與 `FPGA.html` 版本 4 相容（同一套位元排列重新實作 `BitWriter`/`BitReader`），可直接載入 `FPGA/tests/decoder-2to4.bit`／`counter-3bit.bit`
+  - 點擊 CLB／輸入 IOB／輸出 IOB／switch matrix 交點都會在側欄顯示細節；CLB 細節含原理圖＋即時布林式（`simplifyBoolean()`，比照 TASK-022 概念獨立重新實作）
+  - 程式控制 API：`window.xc2064Viewer = { loadBitstream, exportBitstream, selectClb, selectIobIn, selectIobOut, selectSwitch, setIobIn, stepClock, getState }`；URL 參數 `?bitstream=<base64>` 自動匯入、`?clb=r,c` 自動選取
+  - 驗證：把新引擎的 `BitReader`/模擬邏輯抽出寫成獨立驗證腳本，直接載入 `FPGA/tests/decoder-2to4.bit`／`counter-3bit.bit` 兩個既有已驗證電路做交叉驗證——4 組解碼器輸入與 16 個計數器 clock 邊緣全部通過，證實這份全新實作跟 `FPGA.html` 原本的引擎行為一致；`new Function()` 解析整段 script 確認無語法錯誤；瀏覽器開啟（含帶 `?bitstream=`/`?clb=` 參數的網址）後請使用者親自確認視覺呈現（此環境無法截圖）
 
 
 ### [GAME] 現代 FPGA 遊戲化教學
