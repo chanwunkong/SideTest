@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(loop)",
+      "Skill(loop:*)",
+      "WebSearch",
+      "WebFetch(domain:www.righto.com)",
+      "WebFetch(domain:datasheets.hypertriton.com)",
+      "Bash(git commit -m ' *)",
+      "Bash(start \"\" \"d:\\\\github\\\\SideTest\\\\FPGA\\\\FPGA.html\")",
+      "PowerShell(Start-Process \"d:\\\\github\\\\SideTest\\\\FPGA\\\\FPGA.html\")",
+      "Bash(node -e *)",
+      "Bash(node -e ' *)",
+      "Bash(node FPGA/tests/build-and-verify.js)"
+    ]
+  }
+}
