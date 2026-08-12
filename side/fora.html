@@ -301,37 +301,87 @@
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-semibold text-slate-500">傷口部位 <span class="text-red-500">*必填</span></span>
                         <div class="flex bg-slate-100 rounded-lg p-0.5 text-xs">
-                            <button id="btn-body-front" type="button" class="px-3 py-1 rounded-md font-medium text-indigo-700 bg-white shadow-sm">正面</button>
-                            <button id="btn-body-back" type="button" class="px-3 py-1 rounded-md font-medium text-slate-500">背面</button>
+                            <button id="btn-body-front" type="button" data-view="front" class="px-2.5 py-1 rounded-md font-medium text-indigo-700 bg-white shadow-sm">正面</button>
+                            <button id="btn-body-back" type="button" data-view="back" class="px-2.5 py-1 rounded-md font-medium text-slate-500">背面</button>
+                            <button id="btn-body-left" type="button" data-view="left" class="px-2.5 py-1 rounded-md font-medium text-slate-500">左側</button>
+                            <button id="btn-body-right" type="button" data-view="right" class="px-2.5 py-1 rounded-md font-medium text-slate-500">右側</button>
                         </div>
                     </div>
                     <div class="bg-slate-50 rounded-xl p-3 flex flex-col items-center">
-                        <svg id="body-front-svg" viewBox="0 0 120 230" class="w-36 h-auto select-none">
-                            <circle class="body-zone" data-part="head" data-label="頭部" cx="60" cy="22" r="18"/>
-                            <rect class="body-zone" data-part="chest" data-label="胸部" x="34" y="44" width="52" height="38" rx="10"/>
-                            <rect class="body-zone" data-part="abdomen" data-label="腹部" x="34" y="84" width="52" height="34" rx="10"/>
-                            <rect class="body-zone" data-part="left_arm" data-label="左手臂" x="8" y="46" width="20" height="66" rx="10"/>
-                            <rect class="body-zone" data-part="right_arm" data-label="右手臂" x="92" y="46" width="20" height="66" rx="10"/>
-                            <circle class="body-zone" data-part="left_hand" data-label="左手" cx="18" cy="120" r="11"/>
-                            <circle class="body-zone" data-part="right_hand" data-label="右手" cx="102" cy="120" r="11"/>
-                            <rect class="body-zone" data-part="left_leg" data-label="左腿" x="37" y="120" width="20" height="78" rx="10"/>
-                            <rect class="body-zone" data-part="right_leg" data-label="右腿" x="63" y="120" width="20" height="78" rx="10"/>
-                            <ellipse class="body-zone" data-part="left_foot" data-label="左腳" cx="47" cy="208" rx="14" ry="9"/>
-                            <ellipse class="body-zone" data-part="right_foot" data-label="右腳" cx="73" cy="208" rx="14" ry="9"/>
+                        <svg id="body-front-svg" viewBox="0 0 170 336" class="w-48 h-auto select-none">
+                            <rect class="body-zone" data-part="f_head" data-label="頭部" x="70" y="4" width="30" height="10" rx="5"/>
+                            <circle class="body-zone" data-part="f_face" data-label="臉部" cx="85" cy="26" r="15"/>
+                            <circle class="body-zone" data-part="f_ear_l" data-label="左耳" cx="68" cy="26" r="6"/>
+                            <circle class="body-zone" data-part="f_ear_r" data-label="右耳" cx="102" cy="26" r="6"/>
+                            <rect class="body-zone" data-part="f_shoulder_l" data-label="左肩" x="40" y="44" width="26" height="12" rx="6"/>
+                            <rect class="body-zone" data-part="f_shoulder_r" data-label="右肩" x="104" y="44" width="26" height="12" rx="6"/>
+                            <rect class="body-zone" data-part="f_upperarm_l" data-label="左上臂" x="14" y="56" width="22" height="48" rx="10"/>
+                            <rect class="body-zone" data-part="f_upperarm_r" data-label="右上臂" x="134" y="56" width="22" height="48" rx="10"/>
+                            <rect class="body-zone" data-part="f_chest_l" data-label="左胸" x="66" y="56" width="19" height="36" rx="8"/>
+                            <rect class="body-zone" data-part="f_chest_r" data-label="右胸" x="85" y="56" width="19" height="36" rx="8"/>
+                            <rect class="body-zone" data-part="f_forearm_l" data-label="左前臂" x="12" y="104" width="20" height="44" rx="10"/>
+                            <rect class="body-zone" data-part="f_forearm_r" data-label="右前臂" x="138" y="104" width="20" height="44" rx="10"/>
+                            <rect class="body-zone" data-part="f_abdomen" data-label="腹部" x="66" y="92" width="38" height="36" rx="8"/>
+                            <rect class="body-zone" data-part="f_groin_l" data-label="左鼠蹊" x="58" y="128" width="16" height="20" rx="6"/>
+                            <rect class="body-zone" data-part="f_genital" data-label="陰部" x="76" y="128" width="18" height="20" rx="6"/>
+                            <rect class="body-zone" data-part="f_groin_r" data-label="右鼠蹊" x="96" y="128" width="16" height="20" rx="6"/>
+                            <circle class="body-zone" data-part="f_hand_l" data-label="左手" cx="22" cy="158" r="13"/>
+                            <circle class="body-zone" data-part="f_hand_r" data-label="右手" cx="148" cy="158" r="13"/>
+                            <rect class="body-zone" data-part="f_thigh_l" data-label="左大腿" x="60" y="150" width="22" height="78" rx="10"/>
+                            <rect class="body-zone" data-part="f_thigh_r" data-label="右大腿" x="88" y="150" width="22" height="78" rx="10"/>
+                            <rect class="body-zone" data-part="f_knee_l" data-label="左膝" x="60" y="230" width="22" height="22" rx="8"/>
+                            <rect class="body-zone" data-part="f_knee_r" data-label="右膝" x="88" y="230" width="22" height="22" rx="8"/>
+                            <rect class="body-zone" data-part="f_lowerleg_l" data-label="左小腿" x="61" y="254" width="20" height="52" rx="10"/>
+                            <rect class="body-zone" data-part="f_lowerleg_r" data-label="右小腿" x="89" y="254" width="20" height="52" rx="10"/>
+                            <ellipse class="body-zone" data-part="f_foot_l" data-label="左腳" cx="71" cy="318" rx="15" ry="10"/>
+                            <ellipse class="body-zone" data-part="f_foot_r" data-label="右腳" cx="99" cy="318" rx="15" ry="10"/>
                         </svg>
-                        <svg id="body-back-svg" viewBox="0 0 120 230" class="w-36 h-auto select-none hidden">
-                            <circle class="body-zone" data-part="head" data-label="後腦" cx="60" cy="22" r="18"/>
-                            <rect class="body-zone" data-part="upper_back" data-label="上背部" x="34" y="44" width="52" height="32" rx="10"/>
-                            <rect class="body-zone" data-part="lower_back" data-label="下背部(腰部)" x="34" y="78" width="52" height="24" rx="10"/>
-                            <rect class="body-zone" data-part="buttocks" data-label="臀部" x="34" y="104" width="52" height="16" rx="8"/>
-                            <rect class="body-zone" data-part="left_arm" data-label="左手臂" x="8" y="46" width="20" height="66" rx="10"/>
-                            <rect class="body-zone" data-part="right_arm" data-label="右手臂" x="92" y="46" width="20" height="66" rx="10"/>
-                            <circle class="body-zone" data-part="left_hand" data-label="左手" cx="18" cy="120" r="11"/>
-                            <circle class="body-zone" data-part="right_hand" data-label="右手" cx="102" cy="120" r="11"/>
-                            <rect class="body-zone" data-part="left_leg" data-label="左腿" x="37" y="120" width="20" height="78" rx="10"/>
-                            <rect class="body-zone" data-part="right_leg" data-label="右腿" x="63" y="120" width="20" height="78" rx="10"/>
-                            <ellipse class="body-zone" data-part="left_foot" data-label="左腳" cx="47" cy="208" rx="14" ry="9"/>
-                            <ellipse class="body-zone" data-part="right_foot" data-label="右腳" cx="73" cy="208" rx="14" ry="9"/>
+                        <svg id="body-back-svg" viewBox="0 0 170 290" class="w-48 h-auto select-none hidden">
+                            <circle class="body-zone" data-part="b_occiput" data-label="後腦杓" cx="85" cy="20" r="15"/>
+                            <rect class="body-zone" data-part="b_neck" data-label="頸部" x="75" y="36" width="20" height="10" rx="4"/>
+                            <rect class="body-zone" data-part="b_back_l" data-label="左背部" x="48" y="48" width="22" height="46" rx="8"/>
+                            <rect class="body-zone" data-part="b_back_mid" data-label="背部" x="72" y="48" width="26" height="46" rx="8"/>
+                            <rect class="body-zone" data-part="b_back_r" data-label="右背部" x="100" y="48" width="22" height="46" rx="8"/>
+                            <circle class="body-zone" data-part="b_elbow_l" data-label="左手肘" cx="26" cy="100" r="11"/>
+                            <circle class="body-zone" data-part="b_elbow_r" data-label="右手肘" cx="144" cy="100" r="11"/>
+                            <circle class="body-zone" data-part="b_wrist_l" data-label="左手腕" cx="18" cy="140" r="10"/>
+                            <circle class="body-zone" data-part="b_wrist_r" data-label="右手腕" cx="152" cy="140" r="10"/>
+                            <rect class="body-zone" data-part="b_waist" data-label="腰部" x="60" y="96" width="50" height="26" rx="8"/>
+                            <rect class="body-zone" data-part="b_coccyx" data-label="尾薦骨" x="78" y="124" width="14" height="16" rx="4"/>
+                            <rect class="body-zone" data-part="b_perianal" data-label="肛門周圍" x="76" y="142" width="18" height="14" rx="4"/>
+                            <rect class="body-zone" data-part="b_buttock_l" data-label="左臀" x="52" y="124" width="24" height="32" rx="10"/>
+                            <rect class="body-zone" data-part="b_buttock_r" data-label="右臀" x="94" y="124" width="24" height="32" rx="10"/>
+                            <path d="M64 156 L60 260 M106 156 L110 260" stroke="#94a3b8" stroke-width="1.5" fill="none"/>
+                            <ellipse class="body-zone" data-part="b_heel_l" data-label="左腳跟" cx="60" cy="270" rx="16" ry="10"/>
+                            <ellipse class="body-zone" data-part="b_heel_r" data-label="右腳跟" cx="110" cy="270" rx="16" ry="10"/>
+                        </svg>
+                        <svg id="body-left-svg" viewBox="0 0 280 150" class="w-full h-auto select-none hidden">
+                            <circle fill="none" stroke="#94a3b8" stroke-width="1.5" cx="20" cy="75" r="16"/>
+                            <circle class="body-zone" data-part="l_elbow_outer" data-label="左肘外" cx="55" cy="105" r="13"/>
+                            <circle class="body-zone" data-part="l_elbow_inner" data-label="右肘內" cx="55" cy="45" r="13"/>
+                            <rect class="body-zone" data-part="l_rib" data-label="左肋骨" x="80" y="55" width="32" height="40" rx="10"/>
+                            <rect class="body-zone" data-part="l_iliac" data-label="左腸骨" x="118" y="55" width="28" height="40" rx="10"/>
+                            <rect class="body-zone" data-part="l_femur" data-label="左股骨" x="152" y="60" width="30" height="34" rx="10"/>
+                            <circle class="body-zone" data-part="l_knee_outer" data-label="左膝外" cx="198" cy="105" r="14"/>
+                            <circle class="body-zone" data-part="l_knee_inner" data-label="右膝內" cx="198" cy="45" r="14"/>
+                            <circle class="body-zone" data-part="l_ankle_outer" data-label="左踝外" cx="230" cy="105" r="11"/>
+                            <circle class="body-zone" data-part="l_ankle_inner" data-label="右踝內" cx="230" cy="50" r="11"/>
+                            <ellipse class="body-zone" data-part="l_foot_outer" data-label="左足外" cx="262" cy="105" rx="14" ry="10"/>
+                            <ellipse class="body-zone" data-part="l_foot_inner" data-label="右足內" cx="262" cy="55" rx="14" ry="10"/>
+                        </svg>
+                        <svg id="body-right-svg" viewBox="0 0 280 150" class="w-full h-auto select-none hidden">
+                            <circle fill="none" stroke="#94a3b8" stroke-width="1.5" cx="20" cy="75" r="16"/>
+                            <circle class="body-zone" data-part="r_elbow_outer" data-label="右肘外" cx="55" cy="105" r="13"/>
+                            <circle class="body-zone" data-part="r_elbow_inner" data-label="左肘內" cx="55" cy="45" r="13"/>
+                            <rect class="body-zone" data-part="r_rib" data-label="右肋骨" x="80" y="55" width="32" height="40" rx="10"/>
+                            <rect class="body-zone" data-part="r_iliac" data-label="右腸骨" x="118" y="55" width="28" height="40" rx="10"/>
+                            <rect class="body-zone" data-part="r_femur" data-label="右股骨" x="152" y="60" width="30" height="34" rx="10"/>
+                            <circle class="body-zone" data-part="r_knee_outer" data-label="右膝外" cx="198" cy="105" r="14"/>
+                            <circle class="body-zone" data-part="r_knee_inner" data-label="左膝內" cx="198" cy="45" r="14"/>
+                            <circle class="body-zone" data-part="r_ankle_outer" data-label="右踝外" cx="230" cy="105" r="11"/>
+                            <circle class="body-zone" data-part="r_ankle_inner" data-label="左踝內" cx="230" cy="50" r="11"/>
+                            <ellipse class="body-zone" data-part="r_foot_outer" data-label="右足外" cx="262" cy="105" rx="14" ry="10"/>
+                            <ellipse class="body-zone" data-part="r_foot_inner" data-label="左足內" cx="262" cy="55" rx="14" ry="10"/>
                         </svg>
                         <p class="text-sm mt-2"><span class="text-slate-400">已選部位：</span><span id="wound-part-label" class="font-semibold text-slate-400">尚未選擇</span></p>
                     </div>
@@ -559,14 +609,14 @@ document.querySelectorAll('.subtab-btn').forEach(btn=>{
 });
 
 // ── Wound Body Diagram ──
+const BODY_VIEWS=['front','back','left','right'];
 function toggleBodyView(view){
-    document.getElementById('body-front-svg').classList.toggle('hidden',view!=='front');
-    document.getElementById('body-back-svg').classList.toggle('hidden',view!=='back');
-    document.getElementById('btn-body-front').className=`px-3 py-1 rounded-md font-medium ${view==='front'?'text-indigo-700 bg-white shadow-sm':'text-slate-500'}`;
-    document.getElementById('btn-body-back').className=`px-3 py-1 rounded-md font-medium ${view==='back'?'text-indigo-700 bg-white shadow-sm':'text-slate-500'}`;
+    BODY_VIEWS.forEach(v=>{
+        document.getElementById(`body-${v}-svg`).classList.toggle('hidden',v!==view);
+        document.getElementById(`btn-body-${v}`).className=`px-2.5 py-1 rounded-md font-medium ${v===view?'text-indigo-700 bg-white shadow-sm':'text-slate-500'}`;
+    });
 }
-document.getElementById('btn-body-front').addEventListener('click',()=>toggleBodyView('front'));
-document.getElementById('btn-body-back').addEventListener('click',()=>toggleBodyView('back'));
+BODY_VIEWS.forEach(v=>document.getElementById(`btn-body-${v}`).addEventListener('click',()=>toggleBodyView(v)));
 function selectWoundPart(part,label){
     photos.wound.part=part;photos.wound.partLabel=label;
     const lbl=document.getElementById('wound-part-label');
