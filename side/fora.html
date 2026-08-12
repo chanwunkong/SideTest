@@ -789,8 +789,19 @@ async function openPhotoCamera(target){
     document.getElementById('photo-camera-modal').classList.add('open');
     document.body.style.overflow='hidden';
     try{
-        photoStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:2560},height:{ideal:1440}},audio:false});
+        photoStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+        const track=photoStream.getVideoTracks()[0];
+        if(track.getCapabilities){
+            const caps=track.getCapabilities();
+            if(caps.width&&caps.height){
+                log(`鏡頭支援最高解析度：${caps.width.max}×${caps.height.max}`,'data');
+                try{ await track.applyConstraints({width:{ideal:caps.width.max},height:{ideal:caps.height.max}}); }
+                catch(e){ log(`套用最高解析度失敗，改用預設：${e}`,'info'); }
+            }
+        }
         document.getElementById('photo-camera-video').srcObject=photoStream;
+        const settings=track.getSettings();
+        log(`相機串流實際解析度：${settings.width}×${settings.height}`,'data');
     }catch(e){
         log(`相機開啟失敗：${e}`,'error');
         showToast('相機開啟失敗，請確認已授權相機權限','error');
@@ -815,7 +826,7 @@ document.getElementById('btn-shutter').addEventListener('click',()=>{
     const time=fmtDisplayTime(new Date());
     if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;}
     else{photos[target]={dataUrl,time};}
-    log(`已拍攝照片：${target}`,'success');
+    log(`已拍攝照片：${target}（${canvas.width}×${canvas.height}）`,'success');
     showToast('拍照成功','success');
     closePhotoCamera();
     renderPhotoFrame(target);
