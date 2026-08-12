@@ -16,6 +16,7 @@
         .tab-panel.active { display:block; }
         .tab-btn { flex:1;min-width:54px;padding:10px 2px;font-size:.72rem;font-weight:500;color:#64748b;border-bottom:2px solid transparent;text-align:center;white-space:nowrap;transition:color .15s,border-color .15s;background:none;border-top:none;border-left:none;border-right:none; }
         .tab-btn.active { color:#1d4ed8;border-bottom-color:#1d4ed8; }
+        .tab-btn .sdot { display:none; }
         .sdot { display:inline-block;width:7px;height:7px;border-radius:50%;vertical-align:middle;margin-right:3px; }
         .don { background:#22c55e;box-shadow:0 0 0 2px #dcfce7; }
         .doff { background:#94a3b8; }
@@ -23,6 +24,15 @@
         #log-drawer.open { transform:translateY(0); }
         #camera-modal { display:none; }
         #camera-modal.open { display:flex; }
+        #photo-camera-modal { display:none; }
+        #photo-camera-modal.open { display:flex; }
+        .subtab-btn { flex:1;min-width:54px;padding:9px 2px;font-size:.75rem;font-weight:600;color:#64748b;border-bottom:2px solid transparent;text-align:center;white-space:nowrap;transition:color .15s,border-color .15s;background:none;border-top:none;border-left:none;border-right:none; }
+        .subtab-btn.active { color:#4f46e5;border-bottom-color:#4f46e5; }
+        .subtab-panel { display:none; }
+        .subtab-panel.active { display:block; }
+        .body-zone { fill:#e2e8f0;stroke:#94a3b8;stroke-width:1.5;cursor:pointer;transition:fill .15s; }
+        .body-zone:hover { fill:#c7d2fe; }
+        .body-zone.selected { fill:#4f46e5;stroke:#3730a3; }
         .mbg { display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;align-items:flex-end;justify-content:center; }
         .mbg.open { display:flex; }
         .msheet { background:#fff;border-radius:1.25rem 1.25rem 0 0;width:100%;max-width:32rem;max-height:92vh;overflow-y:auto; }
@@ -94,9 +104,10 @@
         <div class="max-w-lg mx-auto flex overflow-x-auto">
             <button class="tab-btn active" data-tab="temp"><span class="sdot doff" id="dot-temp"></span>體溫計</button>
             <button class="tab-btn" data-tab="o2"><span class="sdot doff" id="dot-o2"></span>血氧機</button>
-            <button class="tab-btn" data-tab="d40"><span class="sdot doff" id="dot-d40"></span>血糖血壓</button>
-            <button class="tab-btn" data-tab="md6"><span class="sdot doff" id="dot-md6"></span>六合一</button>
-            <button class="tab-btn" data-tab="history">📋 紀錄</button>
+            <button class="tab-btn" data-tab="d40"><span class="sdot doff" id="dot-d40"></span>血糖血壓2合1</button>
+            <button class="tab-btn" data-tab="md6"><span class="sdot doff" id="dot-md6"></span>血液6合1</button>
+            <button class="tab-btn" data-tab="photo">拍照</button>
+            <button class="tab-btn" data-tab="history">紀錄</button>
         </div>
     </div>
 </div>
@@ -108,7 +119,7 @@
     <div id="tab-temp" class="tab-panel active">
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div class="px-5 py-4 flex items-center justify-between border-b border-slate-100">
-                <div><p class="font-semibold text-slate-800">紅外線額溫槍</p><p class="text-xs text-slate-400 mt-0.5">TD-1242B / IR42</p></div>
+                <div><p class="font-semibold text-slate-800">體溫計</p><p class="text-xs text-slate-400 mt-0.5">FORA IR42</p></div>
                 <span id="temp-status-badge" class="inline-flex items-center text-xs font-medium text-slate-500 bg-slate-100 rounded-full px-3 py-1">
                     <span class="sdot doff" id="temp-badge-dot" style="margin-right:5px"></span><span id="temp-status-text">未連線</span>
                 </span>
@@ -142,7 +153,7 @@
     <div id="tab-o2" class="tab-panel">
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div class="px-5 py-4 flex items-center justify-between border-b border-slate-100">
-                <div><p class="font-semibold text-slate-800">血氧濃度計</p><p class="text-xs text-slate-400 mt-0.5">TD-8255B / FORA O2</p></div>
+                <div><p class="font-semibold text-slate-800">血氧機</p><p class="text-xs text-slate-400 mt-0.5">FORA O2</p></div>
                 <span id="o2-status-badge" class="inline-flex items-center text-xs font-medium text-slate-500 bg-slate-100 rounded-full px-3 py-1">
                     <span class="sdot doff" id="o2-badge-dot" style="margin-right:5px"></span><span id="o2-status-text">未連線</span>
                 </span>
@@ -182,7 +193,7 @@
     <div id="tab-d40" class="tab-panel">
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div class="px-5 py-4 flex items-center justify-between border-b border-slate-100">
-                <div><p class="font-semibold text-slate-800">2合1血糖血壓套組</p><p class="text-xs text-slate-400 mt-0.5">TD-3261B</p></div>
+                <div><p class="font-semibold text-slate-800">血糖血壓2合1</p><p class="text-xs text-slate-400 mt-0.5">FORA D40</p></div>
                 <span id="d40-status-badge" class="inline-flex items-center text-xs font-medium text-slate-500 bg-slate-100 rounded-full px-3 py-1">
                     <span class="sdot doff" id="d40-badge-dot" style="margin-right:5px"></span><span id="d40-status-text">未連線</span>
                 </span>
@@ -228,7 +239,7 @@
     <div id="tab-md6" class="tab-panel">
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div class="px-5 py-4 flex items-center justify-between border-b border-slate-100">
-                <div><p class="font-semibold text-slate-800">血液六合一</p><p class="text-xs text-slate-400 mt-0.5">FORA MD6</p></div>
+                <div><p class="font-semibold text-slate-800">血液6合1</p><p class="text-xs text-slate-400 mt-0.5">FORA MD6</p></div>
                 <span id="md6-status-badge" class="inline-flex items-center text-xs font-medium text-slate-500 bg-slate-100 rounded-full px-3 py-1">
                     <span class="sdot doff" id="md6-badge-dot" style="margin-right:5px"></span><span id="md6-status-text">未連線</span>
                 </span>
@@ -261,11 +272,80 @@
         </div>
     </div>
 
+    <!-- 拍照 -->
+    <div id="tab-photo" class="tab-panel">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100">
+                <p class="font-semibold text-slate-800">拍照</p>
+                <p class="text-xs text-slate-400 mt-0.5">相機拍照</p>
+            </div>
+            <div class="flex border-b border-slate-100">
+                <button class="subtab-btn active" data-subtab="intake">攝入</button>
+                <button class="subtab-btn" data-subtab="output">排出</button>
+                <button class="subtab-btn" data-subtab="wound">傷口</button>
+            </div>
+
+            <!-- 攝入 -->
+            <div id="subtab-intake" class="subtab-panel active p-5">
+                <div id="photoframe-intake"></div>
+            </div>
+
+            <!-- 排出 -->
+            <div id="subtab-output" class="subtab-panel p-5">
+                <div id="photoframe-output"></div>
+            </div>
+
+            <!-- 傷口 -->
+            <div id="subtab-wound" class="subtab-panel p-5 space-y-4">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-semibold text-slate-500">傷口部位 <span class="text-red-500">*必填</span></span>
+                        <div class="flex bg-slate-100 rounded-lg p-0.5 text-xs">
+                            <button id="btn-body-front" type="button" class="px-3 py-1 rounded-md font-medium text-indigo-700 bg-white shadow-sm">正面</button>
+                            <button id="btn-body-back" type="button" class="px-3 py-1 rounded-md font-medium text-slate-500">背面</button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-3 flex flex-col items-center">
+                        <svg id="body-front-svg" viewBox="0 0 120 230" class="w-36 h-auto select-none">
+                            <circle class="body-zone" data-part="head" data-label="頭部" cx="60" cy="22" r="18"/>
+                            <rect class="body-zone" data-part="chest" data-label="胸部" x="34" y="44" width="52" height="38" rx="10"/>
+                            <rect class="body-zone" data-part="abdomen" data-label="腹部" x="34" y="84" width="52" height="34" rx="10"/>
+                            <rect class="body-zone" data-part="left_arm" data-label="左手臂" x="8" y="46" width="20" height="66" rx="10"/>
+                            <rect class="body-zone" data-part="right_arm" data-label="右手臂" x="92" y="46" width="20" height="66" rx="10"/>
+                            <circle class="body-zone" data-part="left_hand" data-label="左手" cx="18" cy="120" r="11"/>
+                            <circle class="body-zone" data-part="right_hand" data-label="右手" cx="102" cy="120" r="11"/>
+                            <rect class="body-zone" data-part="left_leg" data-label="左腿" x="37" y="120" width="20" height="78" rx="10"/>
+                            <rect class="body-zone" data-part="right_leg" data-label="右腿" x="63" y="120" width="20" height="78" rx="10"/>
+                            <ellipse class="body-zone" data-part="left_foot" data-label="左腳" cx="47" cy="208" rx="14" ry="9"/>
+                            <ellipse class="body-zone" data-part="right_foot" data-label="右腳" cx="73" cy="208" rx="14" ry="9"/>
+                        </svg>
+                        <svg id="body-back-svg" viewBox="0 0 120 230" class="w-36 h-auto select-none hidden">
+                            <circle class="body-zone" data-part="head" data-label="後腦" cx="60" cy="22" r="18"/>
+                            <rect class="body-zone" data-part="upper_back" data-label="上背部" x="34" y="44" width="52" height="32" rx="10"/>
+                            <rect class="body-zone" data-part="lower_back" data-label="下背部(腰部)" x="34" y="78" width="52" height="24" rx="10"/>
+                            <rect class="body-zone" data-part="buttocks" data-label="臀部" x="34" y="104" width="52" height="16" rx="8"/>
+                            <rect class="body-zone" data-part="left_arm" data-label="左手臂" x="8" y="46" width="20" height="66" rx="10"/>
+                            <rect class="body-zone" data-part="right_arm" data-label="右手臂" x="92" y="46" width="20" height="66" rx="10"/>
+                            <circle class="body-zone" data-part="left_hand" data-label="左手" cx="18" cy="120" r="11"/>
+                            <circle class="body-zone" data-part="right_hand" data-label="右手" cx="102" cy="120" r="11"/>
+                            <rect class="body-zone" data-part="left_leg" data-label="左腿" x="37" y="120" width="20" height="78" rx="10"/>
+                            <rect class="body-zone" data-part="right_leg" data-label="右腿" x="63" y="120" width="20" height="78" rx="10"/>
+                            <ellipse class="body-zone" data-part="left_foot" data-label="左腳" cx="47" cy="208" rx="14" ry="9"/>
+                            <ellipse class="body-zone" data-part="right_foot" data-label="右腳" cx="73" cy="208" rx="14" ry="9"/>
+                        </svg>
+                        <p class="text-sm mt-2"><span class="text-slate-400">已選部位：</span><span id="wound-part-label" class="font-semibold text-slate-400">尚未選擇</span></p>
+                    </div>
+                </div>
+                <div id="photoframe-wound"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- 紀錄 -->
     <div id="tab-history" class="tab-panel">
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div class="px-5 py-4 flex items-center justify-between border-b border-slate-100">
-                <p class="font-semibold text-slate-800">本機上傳紀錄</p>
+                <p class="font-semibold text-slate-800">紀錄</p>
                 <button id="btn-clear-history" class="text-xs text-red-500 hover:text-red-700 font-medium">清除全部</button>
             </div>
             <div id="history-list"><p class="text-center text-slate-400 text-sm py-10">暫無上傳紀錄</p></div>
@@ -358,6 +438,21 @@
     <div id="qr-reader" class="flex-1 w-full overflow-hidden"></div>
 </div>
 
+<!-- ══ Photo Camera Modal ══ -->
+<div id="photo-camera-modal" class="fixed inset-0 bg-black z-50 flex-col">
+    <div class="bg-gray-900 text-white px-5 py-4 flex items-start justify-between shrink-0">
+        <div><p class="font-semibold" id="photo-camera-title">拍照</p><p class="text-xs text-slate-400 mt-0.5">對準拍攝主體後按下快門</p></div>
+        <button id="btn-close-photo-camera" class="ml-4 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-full px-4 py-1.5">取消</button>
+    </div>
+    <div class="flex-1 relative overflow-hidden bg-black flex items-center justify-center">
+        <video id="photo-camera-video" autoplay playsinline muted class="max-w-full max-h-full"></video>
+    </div>
+    <div class="bg-gray-900 py-6 flex items-center justify-center shrink-0">
+        <button id="btn-shutter" type="button" class="w-16 h-16 rounded-full bg-white border-4 border-gray-400 active:scale-90 transition-transform"></button>
+    </div>
+</div>
+<canvas id="photo-canvas" class="hidden"></canvas>
+
 <!-- ══ Log Drawer ══ -->
 <div id="log-drawer" class="fixed bottom-0 left-0 right-0 h-64 bg-gray-900 z-40 flex flex-col shadow-2xl">
     <div class="bg-gray-800 px-4 py-2.5 flex items-center justify-between border-b border-gray-700 shrink-0">
@@ -387,6 +482,7 @@ if(!navigator.bluetooth) document.getElementById('ble-banner').classList.remove(
 
 // ── State ──
 const meas={temp:null,tempUnit:'C',spo2:null,pluse:null,sbp:null,dbp:null,glu:null,weight:null,resp_rate:null};
+const photos={intake:null,output:null,wound:{part:null,partLabel:null,dataUrl:null,time:null}};
 let uploadTime=null;
 
 function fmtUploadTime(d){const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
@@ -447,10 +543,119 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
         btn.classList.add('active');
         const tab=btn.dataset.tab;
         document.getElementById(`tab-${tab}`).classList.add('active');
-        document.getElementById('section-supplemental').classList.toggle('hidden',tab==='history');
+        document.getElementById('section-supplemental').classList.toggle('hidden',tab==='history'||tab==='photo');
         if(tab==='history') renderHistory();
     });
 });
+
+// ── Photo Sub-Tab System ──
+document.querySelectorAll('.subtab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+        document.querySelectorAll('.subtab-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.subtab-panel').forEach(p=>p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`subtab-${btn.dataset.subtab}`).classList.add('active');
+    });
+});
+
+// ── Wound Body Diagram ──
+function toggleBodyView(view){
+    document.getElementById('body-front-svg').classList.toggle('hidden',view!=='front');
+    document.getElementById('body-back-svg').classList.toggle('hidden',view!=='back');
+    document.getElementById('btn-body-front').className=`px-3 py-1 rounded-md font-medium ${view==='front'?'text-indigo-700 bg-white shadow-sm':'text-slate-500'}`;
+    document.getElementById('btn-body-back').className=`px-3 py-1 rounded-md font-medium ${view==='back'?'text-indigo-700 bg-white shadow-sm':'text-slate-500'}`;
+}
+document.getElementById('btn-body-front').addEventListener('click',()=>toggleBodyView('front'));
+document.getElementById('btn-body-back').addEventListener('click',()=>toggleBodyView('back'));
+function selectWoundPart(part,label){
+    photos.wound.part=part;photos.wound.partLabel=label;
+    const lbl=document.getElementById('wound-part-label');
+    lbl.textContent=label;lbl.classList.remove('text-slate-400');lbl.classList.add('text-indigo-700');
+    document.querySelectorAll('.body-zone').forEach(z=>z.classList.toggle('selected',z.dataset.part===part));
+    renderPhotoFrame('wound');
+}
+document.querySelectorAll('.body-zone').forEach(z=>{
+    z.addEventListener('click',()=>selectWoundPart(z.dataset.part,z.dataset.label));
+});
+
+// ── Photo Capture (攝入 / 排出 / 傷口) ──
+const PHOTO_TITLES={intake:'拍攝攝入照片',output:'拍攝排出照片',wound:'拍攝傷口照片'};
+function renderPhotoFrame(target){
+    const el=document.getElementById(`photoframe-${target}`);
+    const rec=target==='wound'?(photos.wound.dataUrl?photos.wound:null):photos[target];
+    const disabled=target==='wound'&&!photos.wound.part;
+    if(rec){
+        el.innerHTML=`
+            <div class="rounded-xl overflow-hidden border border-slate-200 bg-black">
+                <img src="${rec.dataUrl}" class="w-full max-h-72 object-contain">
+            </div>
+            <p class="text-xs text-slate-400 text-center mt-2">拍攝時間：${rec.time}</p>
+            <div class="flex gap-2 mt-3">
+                <button data-photo-action="retake" data-target="${target}" class="flex-1 bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-xl">重新拍攝</button>
+                <button data-photo-action="delete" data-target="${target}" class="flex-1 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold py-2.5 rounded-xl">刪除</button>
+            </div>`;
+    }else{
+        el.innerHTML=`
+            <button data-photo-action="capture" data-target="${target}" ${disabled?'disabled':''} class="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed ${disabled?'border-slate-200 text-slate-300 cursor-not-allowed':'border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-500'} rounded-xl py-10 transition-colors">
+                <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span class="text-sm font-semibold">${disabled?'請先選擇傷口部位':'開啟相機拍照'}</span>
+            </button>`;
+    }
+}
+document.getElementById('tab-photo').addEventListener('click',e=>{
+    const btn=e.target.closest('[data-photo-action]');
+    if(!btn)return;
+    const action=btn.dataset.photoAction,target=btn.dataset.target;
+    if(action==='capture'||action==='retake'){
+        if(target==='wound'&&!photos.wound.part){showToast('請先選擇傷口部位','error');return;}
+        openPhotoCamera(target);
+    }else if(action==='delete'){
+        if(target==='wound'){photos.wound.dataUrl=null;photos.wound.time=null;}else{photos[target]=null;}
+        renderPhotoFrame(target);
+        showToast('照片已刪除','info');
+    }
+});
+
+let photoStream=null,photoCaptureTarget=null;
+async function openPhotoCamera(target){
+    photoCaptureTarget=target;
+    document.getElementById('photo-camera-title').textContent=PHOTO_TITLES[target]||'拍照';
+    document.getElementById('photo-camera-modal').classList.add('open');
+    document.body.style.overflow='hidden';
+    try{
+        photoStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+        document.getElementById('photo-camera-video').srcObject=photoStream;
+    }catch(e){
+        log(`相機開啟失敗：${e}`,'error');
+        showToast('相機開啟失敗，請確認已授權相機權限','error');
+        closePhotoCamera();
+    }
+}
+function closePhotoCamera(){
+    if(photoStream){photoStream.getTracks().forEach(t=>t.stop());photoStream=null;}
+    document.getElementById('photo-camera-modal').classList.remove('open');
+    document.body.style.overflow='';
+    photoCaptureTarget=null;
+}
+document.getElementById('btn-close-photo-camera').addEventListener('click',closePhotoCamera);
+document.getElementById('btn-shutter').addEventListener('click',()=>{
+    const target=photoCaptureTarget;
+    if(!target)return;
+    const video=document.getElementById('photo-camera-video');
+    const canvas=document.getElementById('photo-canvas');
+    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+    canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
+    const dataUrl=canvas.toDataURL('image/jpeg',0.82);
+    const time=fmtDisplayTime(new Date());
+    if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;}
+    else{photos[target]={dataUrl,time};}
+    log(`已拍攝照片：${target}`,'success');
+    showToast('拍照成功','success');
+    closePhotoCamera();
+    renderPhotoFrame(target);
+});
+
+['intake','output','wound'].forEach(renderPhotoFrame);
 
 // ── Supplemental Toggle ──
 document.getElementById('btn-toggle-supp').addEventListener('click',()=>{
@@ -717,7 +922,13 @@ document.getElementById('btn-upload').addEventListener('click',()=>{
     document.getElementById('preview-loc').textContent=loc.toUpperCase();
     document.getElementById('preview-time').textContent=uploadTime||fmtUploadTime(new Date());
     const LABELS=[['temp','體溫',v=>`${v}°${meas.tempUnit}`],['spo2','血氧 SpO2',v=>`${v}%`],['pluse','心率',v=>`${v} bpm`],['sbp','收縮壓',v=>`${v} mmHg`],['dbp','舒張壓',v=>`${v} mmHg`],['glu','血糖',v=>`${v} mg/dL`],['weight','體重',v=>`${v} kg`],['resp_rate','呼吸率',v=>`${v} /min`]];
-    document.getElementById('preview-rows').innerHTML=LABELS.filter(([k])=>meas[k]!=null).map(([k,label,fmt])=>`<div class="prev-row"><span class="text-sm text-slate-500">${label}</span><span class="text-sm font-semibold text-slate-800">${fmt(meas[k])}</span></div>`).join('');
+    const photoRows=[];
+    if(photos.intake) photoRows.push('📷 攝入照片');
+    if(photos.output) photoRows.push('📷 排出照片');
+    if(photos.wound.dataUrl) photoRows.push(`📷 傷口照片 (${photos.wound.partLabel||''})`);
+    document.getElementById('preview-rows').innerHTML=
+        LABELS.filter(([k])=>meas[k]!=null).map(([k,label,fmt])=>`<div class="prev-row"><span class="text-sm text-slate-500">${label}</span><span class="text-sm font-semibold text-slate-800">${fmt(meas[k])}</span></div>`).join('')
+        +photoRows.map(label=>`<div class="prev-row"><span class="text-sm text-slate-500">${label}</span><span class="text-sm font-semibold text-slate-800">已附加</span></div>`).join('');
     // show preview state
     document.getElementById('modal-state-preview').classList.remove('hidden');
     document.getElementById('modal-state-success').classList.add('hidden');
@@ -735,7 +946,9 @@ document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
     const keyno=document.getElementById('patient-id').value.trim();
     if(!keyno){const errEl=document.getElementById('upload-error');errEl.textContent='病歷號不可為空';errEl.classList.remove('hidden');return;}
     const loc=document.getElementById('location-input').value.trim()||'yt';
-    const payload={keyno,uploadTime:uploadTime||fmtUploadTime(new Date()),temp:meas.temp,pluse:meas.pluse,spo2:meas.spo2,sbp:meas.sbp,dbp:meas.dbp,glu:meas.glu,weight:meas.weight,resp_rate:meas.resp_rate};
+    const payload={keyno,uploadTime:uploadTime||fmtUploadTime(new Date()),temp:meas.temp,pluse:meas.pluse,spo2:meas.spo2,sbp:meas.sbp,dbp:meas.dbp,glu:meas.glu,weight:meas.weight,resp_rate:meas.resp_rate,
+        photo_intake:photos.intake?photos.intake.dataUrl:null,photo_output:photos.output?photos.output.dataUrl:null,photo_wound:photos.wound.dataUrl,photo_wound_part:photos.wound.part};
+    const histMeta={hasPhotoIntake:!!photos.intake,hasPhotoOutput:!!photos.output,hasPhotoWound:!!photos.wound.dataUrl,woundPart:photos.wound.partLabel};
     isUploading=true;
     const btn=document.getElementById('btn-modal-confirm');
     btn.innerHTML='<span class="spin"></span> 上傳中';btn.disabled=true;
@@ -746,19 +959,19 @@ document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
         const res=await fetch(`https://www.sstcmedicare.com/imedical/multi/division/v2/api/repository/uploadPhysiologicalData?location=${loc}`,{method:'POST',body:fd});
         if(res.ok){
             log(`上傳成功 keyno=${keyno}`,'success');
-            addHistory({...payload,location:loc,tempUnit:meas.tempUnit,status:'success'});
+            addHistory({...payload,photo_intake:undefined,photo_output:undefined,photo_wound:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'success'});
             document.getElementById('modal-state-preview').classList.add('hidden');
             document.getElementById('modal-state-success').classList.remove('hidden');
         }else{
             const txt=await res.text().catch(()=>'');
             log(`上傳失敗 HTTP ${res.status}`,'error');
-            addHistory({...payload,location:loc,tempUnit:meas.tempUnit,status:'failed',error:`HTTP ${res.status}`});
+            addHistory({...payload,photo_intake:undefined,photo_output:undefined,photo_wound:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'failed',error:`HTTP ${res.status}`});
             const errEl=document.getElementById('upload-error');errEl.textContent=`上傳失敗 (${res.status})：${txt||'伺服器錯誤'}`;errEl.classList.remove('hidden');
             btn.innerHTML='確認上傳';btn.disabled=false;
         }
     }catch(e){
         log(`網路錯誤：${e}`,'error');
-        addHistory({...payload,location:loc,tempUnit:meas.tempUnit,status:'failed',error:e.message});
+        addHistory({...payload,photo_intake:undefined,photo_output:undefined,photo_wound:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'failed',error:e.message});
         const errEl=document.getElementById('upload-error');errEl.textContent=`網路錯誤：${e.message}`;errEl.classList.remove('hidden');
         btn.innerHTML='確認上傳';btn.disabled=false;
     }finally{
@@ -775,6 +988,11 @@ function resetPatient(){
     uploadTime=null;
     [['temp-value','--'],['temp-unit',''],['temp-time','--'],['o2-spo2-value','--'],['o2-hr-value','--'],['o2-time','--'],['d40-sys-value','--'],['d40-dia-value','--'],['d40-hr-value','--'],['d40-bg-value','--'],['d40-time','--'],['md6-value','--'],['md6-time','--']].forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.textContent=v;});
     document.getElementById('manual-weight').value='';document.getElementById('manual-resp').value='';
+    Object.assign(photos,{intake:null,output:null,wound:{part:null,partLabel:null,dataUrl:null,time:null}});
+    ['intake','output','wound'].forEach(renderPhotoFrame);
+    document.querySelectorAll('.body-zone').forEach(z=>z.classList.remove('selected'));
+    const lbl=document.getElementById('wound-part-label');lbl.textContent='尚未選擇';lbl.classList.remove('text-indigo-700');lbl.classList.add('text-slate-400');
+    toggleBodyView('front');
     refreshBar();
 }
 
@@ -797,6 +1015,9 @@ function renderHistory(){
         if(r.glu!=null) tags.push(`Glu ${r.glu}`);
         if(r.weight!=null) tags.push(`⚖ ${r.weight}kg`);
         if(r.resp_rate!=null) tags.push(`RR ${r.resp_rate}`);
+        if(r.hasPhotoIntake) tags.push('攝入照片');
+        if(r.hasPhotoOutput) tags.push('排出照片');
+        if(r.hasPhotoWound) tags.push(`傷口照片${r.woundPart?`(${r.woundPart})`:''}`);
         return`<div class="px-5 py-4 border-b border-slate-50 last:border-0">
             <div class="flex items-start justify-between mb-1">
                 <span class="font-mono font-bold text-slate-800 text-sm">${r.keyno}</span>
