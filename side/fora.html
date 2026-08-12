@@ -789,7 +789,7 @@ async function openPhotoCamera(target){
     document.getElementById('photo-camera-modal').classList.add('open');
     document.body.style.overflow='hidden';
     try{
-        photoStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+        photoStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:2560},height:{ideal:1440}},audio:false});
         document.getElementById('photo-camera-video').srcObject=photoStream;
     }catch(e){
         log(`相機開啟失敗：${e}`,'error');
@@ -811,7 +811,7 @@ document.getElementById('btn-shutter').addEventListener('click',()=>{
     const canvas=document.getElementById('photo-canvas');
     canvas.width=video.videoWidth;canvas.height=video.videoHeight;
     canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
-    const dataUrl=canvas.toDataURL('image/jpeg',0.82);
+    const dataUrl=canvas.toDataURL('image/jpeg',0.92);
     const time=fmtDisplayTime(new Date());
     if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;}
     else{photos[target]={dataUrl,time};}
