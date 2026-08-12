@@ -35,11 +35,11 @@ export const sessionRepository = {
     },
     save(sessionData) {
         localStorage.setItem('active_session', JSON.stringify(sessionData));
-        if (typeof EventBus !== 'undefined') EventBus.emit(APP_EVENTS.SESSION_UPDATED);
+        EventBus.emit(APP_EVENTS.SESSION_UPDATED);
     },
     clear() {
         localStorage.removeItem('active_session');
-        if (typeof EventBus !== 'undefined') EventBus.emit(APP_EVENTS.SESSION_UPDATED);
+        EventBus.emit(APP_EVENTS.SESSION_UPDATED);
     }
 };
 
@@ -54,12 +54,10 @@ export const recordRepository = {
         records.push(newRecord);
         localStorage.setItem('trainingRecords', JSON.stringify(records));
 
-        if (typeof EventBus !== 'undefined') {
-            EventBus.emit(APP_EVENTS.RECORD_SAVED, {
-                date: newRecord.date,
-                routineId: newRecord.routineId
-            });
-        }
+        EventBus.emit(APP_EVENTS.RECORD_SAVED, {
+            date: newRecord.date,
+            routineId: newRecord.routineId
+        });
     },
 
     updateLog(recordId, queueIndex, payload) {
@@ -77,9 +75,7 @@ export const recordRepository = {
 
         localStorage.setItem('trainingRecords', JSON.stringify(records));
 
-        if (typeof EventBus !== 'undefined') {
-            EventBus.emit(APP_EVENTS.RECORD_SAVED, { date: record.date });
-        }
+        EventBus.emit(APP_EVENTS.RECORD_SAVED, { date: record.date });
     },
 
     delete(recordId, dateStr) {
@@ -87,9 +83,7 @@ export const recordRepository = {
         records = records.filter(rec => rec.id !== recordId);
         localStorage.setItem('trainingRecords', JSON.stringify(records));
 
-        if (typeof EventBus !== 'undefined') {
-            EventBus.emit(APP_EVENTS.RECORD_SAVED, { date: dateStr });
-        }
+        EventBus.emit(APP_EVENTS.RECORD_SAVED, { date: dateStr });
     }
 };
 
@@ -128,6 +122,17 @@ export const formatTime = (s) => {
     return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
 };
 
+// 將使用者輸入的文字安全地嵌入 innerHTML，避免 stored-XSS
+export const escapeHtml = (str) => {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
+
 // --- Utils: 靜態計算總時間 (Recursive) ---
 const calculateDuration = (blocks) => {
     let total = 0;
@@ -159,10 +164,8 @@ export const store = {
         }
 
         // 👇 新增這段：讓課表頁面成為事件驅動
-        if (typeof EventBus !== 'undefined') {
-            EventBus.on(APP_EVENTS.SESSION_UPDATED, () => this.renderRoutines());
-            EventBus.on(APP_EVENTS.ROUTINE_UPDATED, () => this.renderRoutines());
-        }
+        EventBus.on(APP_EVENTS.SESSION_UPDATED, () => this.renderRoutines());
+        EventBus.on(APP_EVENTS.ROUTINE_UPDATED, () => this.renderRoutines());
     },
 
     updateUserUI() {
@@ -300,7 +303,7 @@ export const store = {
             // 生成標籤標籤
             const tagsHtml = (r.tags && r.tags.length > 0)
                 ? `<div class="flex flex-wrap gap-1 mt-1.5">` +
-                r.tags.map(t => `<span class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 font-bold dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">${t}</span>`).join('') +
+                r.tags.map(t => `<span class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 font-bold dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">${escapeHtml(t)}</span>`).join('') +
                 `</div>`
                 : '';
 
@@ -324,18 +327,16 @@ export const recordManager = {
     expandedRecordIds: new Set(),
 
     init() {
-        if (typeof EventBus !== 'undefined') {
-            EventBus.on(APP_EVENTS.RECORD_SAVED, (data) => {
-                this.updateUI();
-                this.renderCalendar();
+        EventBus.on(APP_EVENTS.RECORD_SAVED, (data) => {
+            this.updateUI();
+            this.renderCalendar();
 
-                // 💡 修正邏輯：如果 data 有日期就用 data，沒有就用目前選中的
-                const targetDate = data?.date || this.selectedDate;
-                if (targetDate) {
-                    this.showDayDetail(targetDate);
-                }
-            });
-        }
+            // 💡 修正邏輯：如果 data 有日期就用 data，沒有就用目前選中的
+            const targetDate = data?.date || this.selectedDate;
+            if (targetDate) {
+                this.showDayDetail(targetDate);
+            }
+        });
     },
 
     // 支援跨週/月模式導覽
@@ -538,10 +539,10 @@ export const recordManager = {
                 // 1. 利用 views.executionLogItem 映射生成日誌內容
                 const logsHtml = (rec.executionLogs || []).map((log, lIdx) => {
                     const isFailure = log.actuals && log.actuals.isFailure === true;
-                    const actualsStr = Object.entries(log.actuals || {})
+                    const actualsStr = escapeHtml(Object.entries(log.actuals || {})
                         .filter(([k]) => k !== 'isFailure')
                         .map(([k, v]) => `${k}: ${v === "" || v === undefined ? '0' : v}`)
-                        .join(', ');
+                        .join(', '));
 
                     const failureBadge = isFailure
                         ? `<span class="ml-1.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-500 text-white shadow-sm shrink-0">力竭</span>`
@@ -554,7 +555,7 @@ export const recordManager = {
                     }
 
                     // 調用視圖函數
-                    return views.executionLogItem(rec.id, lIdx, loopText, log.label, actualsStr, failureBadge);
+                    return views.executionLogItem(rec.id, lIdx, loopText, escapeHtml(log.label), actualsStr, failureBadge);
                 }).join('');
 
                 // 2. 調用視圖函數生成整張卡片，並轉為 DOM 節點插入

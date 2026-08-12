@@ -207,7 +207,7 @@
 
             <div class="palette-item select-none shrink-0 w-20 h-16 bg-red-50 border-2 border-red-200 rounded-lg flex flex-col items-center justify-center cursor-grab dark:bg-red-900/40 dark:border-red-700"
                 data-type="timer"
-                data-default-props='{"duration":10,"label":"訓練","color":"red","customMetrics":[{"name":"附加重量","type":"number"}]}'>
+                data-default-props='{"duration":10,"label":"訓練","color":"red","customMetrics":[{"name":"重量","type":"number"}]}'>
                 <span class="text-sm font-bold text-red-700 dark:text-red-300 text-center w-full">訓練</span>
             </div>
 
@@ -235,7 +235,7 @@
 
         <div class="flex justify-between items-center p-6 pb-2 shrink-0">
             <h3 class="font-bold text-lg">編輯積木</h3>
-            <button data-action="editor-close-props" class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
+            <button data-action="editor-close-props" aria-label="關閉" class="p-2 bg-gray-100 rounded-full dark:bg-gray-700">✕</button>
         </div>
 
         <div class="flex-1 overflow-y-auto px-6 pb-4 no-scrollbar">
@@ -277,7 +277,7 @@
         id="goal-sheet">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-extrabold dark:text-white">設定目標</h3>
-            <button data-action="goal-close"
+            <button data-action="goal-close" aria-label="關閉"
                 class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500">✕</button>
         </div>
 
@@ -291,7 +291,7 @@
 
             <div>
                 <label class="block text-sm font-bold text-gray-500 mb-2">追蹤範圍</label>
-                <select id="goal-scope-type" onchange="goalManager.toggleScopeUI()"
+                <select id="goal-scope-type"
                     class="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                     <option value="all">全域 (不限課表)</option>
                     <option value="routine">指定特定課表 (多選)</option>
@@ -345,7 +345,7 @@
         id="pr-sheet">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-extrabold dark:text-white">自訂數據卡片</h3>
-            <button data-action="pr-close"
+            <button data-action="pr-close" aria-label="關閉"
                 class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500">✕</button>
         </div>
 
@@ -437,7 +437,7 @@
                 <input type="date" id="body-editor-date"
                     class="mt-1 bg-transparent text-sm font-mono text-blue-600 font-bold outline-none cursor-pointer dark:text-blue-400 border-none p-0 focus:ring-0">
             </div>
-            <button data-action="body-close"
+            <button data-action="body-close" aria-label="關閉"
                 class="p-2 bg-gray-100 rounded-full dark:bg-gray-700 text-gray-500 hover:bg-gray-200 transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -502,7 +502,7 @@
         </div>
 
         <div class="flex gap-2">
-            <button id="btn-autolog-toggle" data-action="timer-autolog"
+            <button id="btn-autolog-toggle" data-action="timer-autolog" aria-label="自動彈出紀錄面板"
                 class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white" title="自動彈出紀錄面板">
                 <svg id="icon-autolog" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -511,7 +511,7 @@
                 </svg>
             </button>
 
-            <button data-action="timer-manual-log"
+            <button data-action="timer-manual-log" aria-label="手動填寫紀錄"
                 class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50 hover:text-white"
                 title="手動填寫紀錄">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -520,14 +520,14 @@
                     </path>
                 </svg>
             </button>
-            <button id="btn-ble-toggle" data-action="ble-toggle"
+            <button id="btn-ble-toggle" data-action="ble-toggle" aria-label="連接測力計"
                 class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50" title="連接測力計">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <polyline points="6.5 17.5 17.5 6.5 12 1 12 23 17.5 17.5 6.5 6.5" stroke-linecap="round"
                         stroke-linejoin="round"></polyline>
                 </svg>
             </button>
-            <button id="btn-hr-toggle" data-action="hr-toggle"
+            <button id="btn-hr-toggle" data-action="hr-toggle" aria-label="連接心率裝置"
                 class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50" title="連接心率裝置">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -535,7 +535,7 @@
                     </path>
                 </svg>
             </button>
-            <button id="btn-mic-toggle" data-action="voice-toggle"
+            <button id="btn-mic-toggle" data-action="voice-toggle" aria-label="語音指令" title="語音指令"
                 class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all text-white/50">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1172,7 +1172,7 @@
                         <div
                             class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
                             <span class="font-medium">外觀模式</span>
-                            <select id="set-theme-mode" onchange="themeManager.setMode(this.value)"
+                            <select id="set-theme-mode"
                                 class="bg-gray-50 border border-gray-200 text-sm rounded-lg p-1.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
                                 <option value="system">跟隨系統</option>
                                 <option value="light">淺色</option>

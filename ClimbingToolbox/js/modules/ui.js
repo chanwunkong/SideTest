@@ -1,5 +1,5 @@
 // --- js/modules/ui.js ---
-import { store, recordManager, formatTime, routineUtils, uuid } from './storage.js';
+import { store, recordManager, formatTime, routineUtils, uuid, escapeHtml } from './storage.js';
 import { goalManager } from './goalManager.js';
 import { analyticsManager } from './analytics.js';
 
@@ -358,32 +358,26 @@ export const router = {
 
         // 新看板邏輯：同步刷新日曆與目標
         if (viewId === 'dashboard') {
-            if (typeof recordManager !== 'undefined') {
-                recordManager.updateUI();
-                recordManager.renderCalendar();
-                // 同步顯示選取日期的明細
-                if (recordManager.selectedDate) {
-                    recordManager.showDayDetail(recordManager.selectedDate);
-                } else {
-                    // 若無選取，預設顯示今天
-                    const now = new Date();
-                    const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-                    recordManager.showDayDetail(todayStr);
-                }
+            recordManager.updateUI();
+            recordManager.renderCalendar();
+            // 同步顯示選取日期的明細
+            if (recordManager.selectedDate) {
+                recordManager.showDayDetail(recordManager.selectedDate);
+            } else {
+                // 若無選取，預設顯示今天
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+                recordManager.showDayDetail(todayStr);
             }
-            if (typeof goalManager !== 'undefined') {
-                goalManager.renderGoals();
-            }
+            goalManager.renderGoals();
         }
         // 新分析邏輯：刷新 PR 數據卡片
         else if (viewId === 'insight') {
-            if (typeof analyticsManager !== 'undefined') {
-                analyticsManager.renderCards();
-            }
+            analyticsManager.renderCards();
         }
 
         // 課表管理保持不變
-        else if (viewId === 'routines' && typeof store !== 'undefined') {
+        else if (viewId === 'routines') {
             store.renderRoutines();
         }
     }
@@ -495,8 +489,8 @@ export const editor = {
         } else {
             container.innerHTML = this.currentRoutineTags.map(t => `
                 <span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
-                    ${t}
-                    <button type="button" data-action="editor-remove-tag" data-value="${t}" class="text-blue-400 hover:text-blue-700 ml-1 dark:hover:text-blue-100">&times;</button>
+                    ${escapeHtml(t)}
+                    <button type="button" data-action="editor-remove-tag" data-value="${escapeHtml(t)}" class="text-blue-400 hover:text-blue-700 ml-1 dark:hover:text-blue-100">&times;</button>
                 </span>
             `).join('');
         }
@@ -509,8 +503,8 @@ export const editor = {
             suggestions.innerHTML = '<span class="text-[10px] text-gray-400">無歷史建議</span>';
         } else {
             suggestions.innerHTML = availableTags.map(t => `
-                <button type="button" data-action="editor-add-tag" data-value="${t}" class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded text-xs font-bold border border-gray-200 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
-                    + ${t}
+                <button type="button" data-action="editor-add-tag" data-value="${escapeHtml(t)}" class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded text-xs font-bold border border-gray-200 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
+                    + ${escapeHtml(t)}
                 </button>
             `).join('');
         }
@@ -553,7 +547,7 @@ export const editor = {
         header.innerHTML = `
                 <div class="flex items-center gap-2 pointer-events-none flex-1">
                     <span class="text-xs font-bold uppercase opacity-60 dark:text-gray-400">${data.type}</span>
-                    <span class="font-bold text-sm block-label dark:text-white">${this.getLabel(data.type, props)}</span>
+                    <span class="font-bold text-sm block-label dark:text-white">${escapeHtml(this.getLabel(data.type, props))}</span>
                 </div>
                 `;
         header.onclick = (e) => {
@@ -617,20 +611,20 @@ export const editor = {
 
         let html = '';
         if (type !== 'loop') {
-            let optionsHtml = '<option value="" 從歷史紀錄選擇...</option>';
+            let optionsHtml = '<option value="">從歷史紀錄選擇...</option>';
             const historyMap = this.getHistory(type);
             const defaults = this.defaultSuggestions[type] || [];
             const addedLabels = new Set();
 
             defaults.forEach(def => {
                 if (!historyMap.has(def.label)) historyMap.set(def.label, def.color);
-                optionsHtml += `<option value="${def.label}">${def.label}</option>`;
+                optionsHtml += `<option value="${escapeHtml(def.label)}">${escapeHtml(def.label)}</option>`;
                 addedLabels.add(def.label);
             });
 
             historyMap.forEach((color, label) => {
                 if (!addedLabels.has(label)) {
-                    optionsHtml += `<option value="${label}">${label}</option>`;
+                    optionsHtml += `<option value="${escapeHtml(label)}">${escapeHtml(label)}</option>`;
                 }
             });
 
@@ -638,7 +632,7 @@ export const editor = {
                         <div>
                             <label class="block text-sm font-bold text-gray-500 mb-1">標籤</label>
                             <div class="flex flex-col gap-2">
-                                <input type="text" id="inp-label" class="w-full border rounded-lg p-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${props.label || ''}" placeholder="輸入自訂名稱...">
+                                <input type="text" id="inp-label" class="w-full border rounded-lg p-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${escapeHtml(props.label || '')}" placeholder="輸入自訂名稱...">
                                 <select id="sel-label" class="w-full border rounded-lg p-2 text-sm text-gray-600 bg-gray-50 dark:bg-gray-600 dark:text-gray-300 dark:border-gray-500">
                                     ${optionsHtml}
                                 </select>
@@ -747,7 +741,7 @@ export const editor = {
         }
         container.innerHTML = this.tempMetrics.map((m, idx) => `
             <div class="flex justify-between items-center bg-gray-50 border border-gray-200 p-2.5 rounded-lg dark:bg-gray-800 dark:border-gray-700">
-                <span class="text-sm font-bold text-gray-700 dark:text-gray-300">${m.name}</span>
+                <span class="text-sm font-bold text-gray-700 dark:text-gray-300">${escapeHtml(m.name)}</span>
              <button type="button" data-action="editor-remove-metric" data-value="${idx}" class="text-gray-400 hover:text-red-500 font-bold px-2 transition-colors">✕</button>    </div>
         `).join('');
     },
@@ -853,7 +847,7 @@ export const editor = {
             if (dur <= 0) return;
             const pct = (dur / totalDuration) * 100;
             const color = b.props.color || 'gray';
-            html += `<div style="width: ${pct}%" class="h-full bg-${color}-400 border-r border-white/20" title="${b.props.label} (${dur}s)"></div>`;
+            html += `<div style="width: ${pct}%" class="h-full bg-${color}-400 border-r border-white/20" title="${escapeHtml(b.props.label)} (${dur}s)"></div>`;
         });
         container.innerHTML = html;
     },

@@ -496,12 +496,12 @@ export const timer = {
             btn.classList.replace('text-white/30', 'text-white');
             // 鈴鐺圖示
             icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>';
-            if (typeof showToast === 'function') showToast('已開啟自動紀錄彈窗');
+            showToast('已開啟自動紀錄彈窗');
         } else {
             btn.classList.replace('text-white', 'text-white/30');
             // 劃線鈴鐺圖示 (代表靜音/關閉)
             icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9m12-11l-18 18"></path>';
-            if (typeof showToast === 'function') showToast('已關閉自動紀錄彈窗，訓練結束前會自動補齊紀錄');
+            showToast('已關閉自動紀錄彈窗，訓練結束前會自動補齊紀錄');
         }
     },
 
@@ -549,12 +549,12 @@ export const timer = {
             const metrics = targetStep.props.customMetrics;
             if (!metrics || metrics.length === 0) {
                 // 如果這個積木在編輯器裡沒有被加入任何追蹤指標，給予提示
-                if (typeof showToast === 'function') showToast('此動作未設定追蹤指標', 'error');
+                showToast('此動作未設定追蹤指標', 'error');
                 return;
             }
             this.showLogPanel(targetStep, targetIndex);
         } else {
-            if (typeof showToast === 'function') showToast('目前沒有可紀錄的動作', 'error');
+            showToast('目前沒有可紀錄的動作', 'error');
         }
     },
 
@@ -607,11 +607,11 @@ export const timer = {
             recordRepository.updateLog(this.editingRecordId, this.pendingLogIndex, newLog);
 
             // ✨ 關鍵修正：當我們在看板編輯舊紀錄時，儲存後應立即要求看板重新渲染該日明細
-            if (typeof recordManager !== 'undefined' && recordManager.selectedDate) {
+            if (recordManager.selectedDate) {
                 recordManager.showDayDetail(recordManager.selectedDate);
             }
 
-            if (closePanel && typeof showToast === 'function') showToast('紀錄已更新');
+            if (closePanel) showToast('紀錄已更新');
         } else {
             // 模式 B: 當前訓練暫存 (保持不變)
             this.sessionValueMap[blockLabel] = actuals;
@@ -701,9 +701,7 @@ export const timer = {
             // 抓到目標後，直接覆寫面板內容，達成即時刷新
             this.showLogPanel(targetStep, targetIndex, existingActuals, this.editingRecordId);
         } else {
-            if (typeof showToast === 'function') {
-                showToast(direction > 0 ? '沒有下一組可紀錄的動作' : '沒有上一組可紀錄的動作', 'info');
-            }
+            showToast(direction > 0 ? '沒有下一組可紀錄的動作' : '沒有上一組可紀錄的動作', 'info');
         }
     },
 
@@ -749,7 +747,7 @@ export const timer = {
     },
 
     stop() {
-        if (typeof sessionRepository !== 'undefined') sessionRepository.clear();
+        sessionRepository.clear();
 
         this.saveTrainingRecord();
 
@@ -788,15 +786,14 @@ export const timer = {
             totalDuration: this.totalDuration
         };
 
-        if (typeof sessionRepository !== 'undefined') sessionRepository.save(sessionData);
+        sessionRepository.save(sessionData);
 
         clearInterval(this.interval);
         voiceCommander.stop();
         document.getElementById('modal-active-timer').classList.remove('open', 'pulse-urgent');
         this.releaseWakeLock();
 
-        // 確保路由器存在才跳轉
-        if (typeof router !== 'undefined') router.go('routines');
+        router.go('routines');
     },
 
     resumeSession(sessionData) {

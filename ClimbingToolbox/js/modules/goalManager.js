@@ -1,7 +1,7 @@
 // --- js/modules/goalManager.js ---
 import { views } from './views.js';
-import { store, recordManager } from './storage.js';
-import { editor, } from './ui.js';
+import { store, recordManager, EventBus, APP_EVENTS, escapeHtml } from './storage.js';
+import { editor, showToast } from './ui.js';
 
 
 export const goalManager = {
@@ -15,11 +15,9 @@ export const goalManager = {
         this.renderGoals();
 
         // ✅ 補上監聽：有新的訓練紀錄時，自動刷新目標進度
-        if (typeof EventBus !== 'undefined') {
-            EventBus.on(APP_EVENTS.RECORD_SAVED, () => {
-                this.renderGoals();
-            });
-        }
+        EventBus.on(APP_EVENTS.RECORD_SAVED, () => {
+            this.renderGoals();
+        });
     },
 
     save() {
@@ -85,8 +83,8 @@ export const goalManager = {
             }
             targetContainer.innerHTML = allTags.map(t => `
                 <label class="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
-                    <input type="checkbox" value="${t}" class="goal-target-cb w-4 h-4 text-blue-600 rounded border-gray-300">
-                    <span class="text-sm font-bold dark:text-gray-200">${t}</span>
+                    <input type="checkbox" value="${escapeHtml(t)}" class="goal-target-cb w-4 h-4 text-blue-600 rounded border-gray-300">
+                    <span class="text-sm font-bold dark:text-gray-200">${escapeHtml(t)}</span>
                 </label>
             `).join('');
 
@@ -101,7 +99,7 @@ export const goalManager = {
             targetContainer.innerHTML = store.routines.map(r => `
                 <label class="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
                     <input type="checkbox" value="${r.id}" class="goal-target-cb w-4 h-4 text-blue-600 rounded border-gray-300">
-                    <span class="text-sm font-bold dark:text-gray-200">${r.title}</span>
+                    <span class="text-sm font-bold dark:text-gray-200">${escapeHtml(r.title)}</span>
                 </label>
             `).join('');
         }
@@ -298,7 +296,7 @@ export const goalManager = {
             if (g.scope.type === 'routine') scopeText = `指定 ${g.scope.targets.length} 課表`;
             if (g.scope.type === 'tag') {
                 const opText = g.scope.operator === 'AND' ? ' (全部符合)' : '';
-                scopeText = `#${g.scope.targets.join(', #')}${opText}`;
+                scopeText = `#${g.scope.targets.map(escapeHtml).join(', #')}${opText}`;
             }
 
             // 調用視圖函式

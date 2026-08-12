@@ -1,5 +1,5 @@
 // --- js/modules/views.js ---
-import { formatTime } from './storage.js';
+import { formatTime, escapeHtml } from './storage.js';
 
 export const views = {
     /** 訓練紀錄卡片 (看板分頁) */
@@ -10,7 +10,7 @@ export const views = {
                 <div class="flex items-start justify-between w-full">
                     <div class="flex-1 cursor-pointer min-w-0" data-action="record-toggle-logs" data-value="${rec.id}">
                         <div class="flex items-center gap-2">
-                            <div class="font-bold text-gray-800 dark:text-gray-100 truncate">${rec.routineTitle}</div>
+                            <div class="font-bold text-gray-800 dark:text-gray-100 truncate">${escapeHtml(rec.routineTitle)}</div>
                             <svg id="arrow-${rec.id}" class="w-3 h-3 text-gray-400 transition-transform shrink-0" 
                                  style="transform: ${arrowRotation};" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -53,36 +53,13 @@ export const views = {
             </button>`;
     },
 
-    /** 數據看板 PR 卡片 (分析分頁) */
-    prCard(idx, config, isLarge, displayValue, unit, metricLabel, subtitle, prefix, isActive) {
-        const spanClass = isLarge ? 'col-span-2' : '';
-        const activeClass = isActive ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'bg-white hover:border-blue-300 dark:bg-gray-750';
-        const fontSize = isLarge ? '4xl' : '2xl';
-
-        return `
-            <div class="${spanClass} ${activeClass} rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-600 relative overflow-hidden transition-all group">
-                <div class="absolute inset-0 cursor-pointer" data-action="pr-select-card" data-value="${idx}"></div>
-                <div class="relative flex justify-between items-start mb-2 pointer-events-none">
-                    <span class="text-[10px] sm:text-xs text-gray-400 font-bold tracking-wider uppercase truncate pr-6">${prefix}${config.targetItem}</span>
-                </div>
-                <button data-action="pr-open-editor" data-value="${idx}" 
-                        class="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors dark:hover:bg-gray-700 z-10">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                </button>
-                <div class="relative text-${fontSize} font-black text-gray-800 dark:text-gray-100 pointer-events-none leading-none mb-1">
-                    ${displayValue} <span class="text-xs font-bold text-gray-400">${unit}</span>
-                </div>
-                <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest pointer-events-none">${subtitle}${metricLabel}</div>
-            </div>`;
-    },
-
     /** 進行中課表 (Session) 提示卡片 */
     activeSession(session) {
         return `
             <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm flex justify-between items-center dark:bg-blue-900/30 dark:border-blue-800">
                 <div data-action="session-resume" class="flex-1 cursor-pointer">
                     <div class="text-xs font-bold text-blue-600 mb-1 dark:text-blue-400">進行中課表</div>
-                    <div class="font-bold text-lg text-gray-800 dark:text-gray-100">${session.routineTitle}</div>
+                    <div class="font-bold text-lg text-gray-800 dark:text-gray-100">${escapeHtml(session.routineTitle)}</div>
                     <div class="text-xs text-gray-500 mt-1 dark:text-gray-400">已進行: ${formatTime(session.elapsed)}</div>
                 </div>
                 <button data-action="session-clear" class="p-2 text-gray-400 hover:text-red-500">
@@ -107,7 +84,7 @@ export const views = {
     routineItem(r, timeStr, blockCount, tagsHtml) {
         return `
             <div data-action="routine-start" data-value="${r.id}" class="flex-1 cursor-pointer">
-                <div class="font-bold text-lg text-gray-800 dark:text-gray-100">${r.title}</div>
+                <div class="font-bold text-lg text-gray-800 dark:text-gray-100">${escapeHtml(r.title)}</div>
                 ${tagsHtml}
                 <div class="flex gap-3 mt-2 text-xs text-gray-500 font-mono dark:text-gray-400">
                     <span class="bg-gray-100 px-2 py-0.5 rounded dark:bg-gray-600 dark:text-gray-300">⏱ ${timeStr}</span>
@@ -150,7 +127,7 @@ export const views = {
                 <div class="absolute inset-0 cursor-pointer" data-action="pr-select-card" data-value="${idx}"></div>
                 
                 <div class="relative flex justify-between items-start mb-2 pointer-events-none">
-                    <span class="text-[10px] sm:text-xs text-gray-400 font-bold tracking-wider uppercase truncate pr-6">${prefix}${config.targetItem}</span>
+                    <span class="text-[10px] sm:text-xs text-gray-400 font-bold tracking-wider uppercase truncate pr-6">${escapeHtml(prefix)}${escapeHtml(config.targetItem)}</span>
                 </div>
                 
                 <button data-action="pr-open-editor" data-value="${idx}" 
@@ -182,7 +159,7 @@ export const views = {
                 <div class="flex-1 min-w-0">
                     <div class="text-[10px] font-bold text-gray-700 dark:text-gray-300 flex items-center">
                         <span class="text-gray-400 mr-1.5">${log.date.substring(5)}</span>
-                        <span class="truncate">${log.routineTitle}</span>
+                        <span class="truncate">${escapeHtml(log.routineTitle)}</span>
                         ${failureBadge}
                     </div>
                     <div class="text-[10px] text-gray-500 font-mono mt-0.5">${log.reps}RM @ ${log.weight.toFixed(1)}kg</div>
@@ -209,7 +186,7 @@ export const views = {
                 <div class="flex justify-between items-start mb-3">
                     <div class="flex-1 pr-4">
                         <div class="flex items-center gap-2">
-                            <h4 class="font-bold text-sm text-gray-900 dark:text-gray-100">${g.title}</h4>
+                            <h4 class="font-bold text-sm text-gray-900 dark:text-gray-100">${escapeHtml(g.title)}</h4>
                             ${isCompleted && isActive ? '<span class="text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-black dark:bg-orange-900/40">🔥 已達成</span>' : ''}
                         </div>
                         <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-1">
@@ -244,14 +221,14 @@ export const views = {
     quickLogInput(m, idx, initialValue) {
         return `
             <div class="flex items-center justify-between bg-gray-900 rounded-xl p-3 mb-2">
-                <span class="text-gray-300 text-lg font-bold pl-2">${m.name}</span>
+                <span class="text-gray-300 text-lg font-bold pl-2">${escapeHtml(m.name)}</span>
                 <div class="flex items-center gap-4" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
-                    <button type="button" data-action="timer-adjust-log-val" data-index="${idx}" data-value="-1" 
+                    <button type="button" data-action="timer-adjust-log-val" data-index="${idx}" data-value="-1"
                             class="w-10 h-10 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 transition-transform">
                         -
                     </button>
-                    
-                    <input type="number" step="any" id="quick-log-val-${idx}" data-name="${m.name}" value="${initialValue}" 
+
+                    <input type="number" step="any" id="quick-log-val-${idx}" data-name="${escapeHtml(m.name)}" value="${initialValue}"
                            class="w-20 bg-transparent text-white text-lg border-none p-0 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 rounded transition-all">
                     
                     <button type="button" data-action="timer-adjust-log-val" data-index="${idx}" data-value="1" 

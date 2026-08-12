@@ -1,4 +1,7 @@
 // --- js/modules/bleManager.js ---
+import { timer } from './timer.js';
+import { recordManager, escapeHtml } from './storage.js';
+
 export const bleManager = {
     MANUFACTURER_ID: 256,
     WEIGHT_OFFSET: 10,
@@ -79,7 +82,7 @@ export const bleManager = {
     },
 
     getCurrentBlock() {
-        if (typeof timer !== 'undefined' && timer.queue && timer.queue.length > 0) {
+        if (timer.queue && timer.queue.length > 0) {
             const step = timer.queue[timer.currentIndex];
             if (step && (step.type === 'timer' || step.type === 'reps')) {
                 return step;
@@ -171,22 +174,20 @@ export const bleManager = {
             let hasHistory = false;
             let availableHistory = {};
 
-            if (typeof timer !== 'undefined' && timer.currentRoutineTitle) {
-                if (typeof recordManager !== 'undefined') {
-                    const records = recordManager.getAllRecords();
-                    const lastRecord = [...records].reverse().find(r => r.routineTitle === timer.currentRoutineTitle && r.executionLogs);
-                    if (lastRecord) {
-                        lastRecord.executionLogs.forEach(log => {
-                            if (log.actuals) {
-                                Object.entries(log.actuals).forEach(([key, val]) => {
-                                    const numVal = Number(val);
-                                    if (key !== 'isFailure' && key !== '次數' && key !== '秒數' && !isNaN(numVal)) {
-                                        availableHistory[`${log.label}-${key}`] = numVal;
-                                    }
-                                });
-                            }
-                        });
-                    }
+            if (timer.currentRoutineTitle) {
+                const records = recordManager.getAllRecords();
+                const lastRecord = [...records].reverse().find(r => r.routineTitle === timer.currentRoutineTitle && r.executionLogs);
+                if (lastRecord) {
+                    lastRecord.executionLogs.forEach(log => {
+                        if (log.actuals) {
+                            Object.entries(log.actuals).forEach(([key, val]) => {
+                                const numVal = Number(val);
+                                if (key !== 'isFailure' && key !== '次數' && key !== '秒數' && !isNaN(numVal)) {
+                                    availableHistory[`${log.label}-${key}`] = numVal;
+                                }
+                            });
+                        }
+                    });
                 }
 
                 if (timer.sessionValueMap) {
@@ -208,7 +209,7 @@ export const bleManager = {
                 btn.className = 'px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-lg border border-gray-600 transition-colors flex items-center gap-1.5 active:scale-95 whitespace-nowrap';
 
                 const parts = displayLabel.split('-');
-                btn.innerHTML = `<span class="text-gray-400">${parts[0]} <span class="text-gray-500 mx-0.5">|</span> ${parts[1]}</span> <span>${val} kg</span>`;
+                btn.innerHTML = `<span class="text-gray-400">${escapeHtml(parts[0])} <span class="text-gray-500 mx-0.5">|</span> ${escapeHtml(parts[1])}</span> <span>${val} kg</span>`;
                 btn.onclick = () => this.applyHistoryTarget(val);
 
                 historyList.appendChild(btn);

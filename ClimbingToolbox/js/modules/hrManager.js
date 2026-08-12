@@ -1,5 +1,5 @@
 // --- js/modules/hrManager.js ---
-import { settingsManager } from './ui.js';
+import { settingsManager, showToast } from './ui.js';
 
 export const hrManager = {
     HR_SERVICE: 'heart_rate',
@@ -30,7 +30,7 @@ export const hrManager = {
         this.updateButtonUI('connecting');
 
         if (!navigator.bluetooth) {
-            if (typeof showToast === 'function') showToast('無藍牙環境', 'info');
+            showToast('無藍牙環境', 'info');
             this.startMockMode();
             return;
         }

@@ -1,5 +1,5 @@
 // --- js/modules/analytics.js ---
-import { EventBus, APP_EVENTS, recordManager, store } from './storage.js';
+import { EventBus, APP_EVENTS, recordManager, store, escapeHtml } from './storage.js';
 import { editor, initSwipeToClose, } from './ui.js';
 import { views } from './views.js';
 
@@ -17,10 +17,10 @@ export const mathUtils = {
 
     calcDecayRate(logs) {
         if (!logs || logs.length < 2) return null;
-        const validLogs = logs.filter(l => l.actuals && (l.actuals['附加重量'] !== undefined || l.actuals['次數'] !== undefined));
+        const validLogs = logs.filter(l => l.actuals && (l.actuals['重量'] !== undefined || l.actuals['次數'] !== undefined));
         if (validLogs.length < 2) return null;
 
-        const metricKey = validLogs[0].actuals['附加重量'] !== undefined ? '附加重量' : '次數';
+        const metricKey = validLogs[0].actuals['重量'] !== undefined ? '重量' : '次數';
         const firstVal = Number(validLogs[0].actuals[metricKey]);
         const lastVal = Number(validLogs[validLogs.length - 1].actuals[metricKey]);
 
@@ -31,7 +31,7 @@ export const mathUtils = {
 
     calcRelativeStrength(logs, bodyWeight) {
         if (!logs || logs.length === 0 || !bodyWeight || bodyWeight <= 0) return null;
-        const vals = logs.map(l => Number(l.actuals && l.actuals['附加重量'])).filter(v => !isNaN(v));
+        const vals = logs.map(l => Number(l.actuals && l.actuals['重量'])).filter(v => !isNaN(v));
         if (vals.length === 0) return null;
 
         const maxLoad = Math.max(...vals);
@@ -78,7 +78,7 @@ export const analyticsManager = {
             this.configs = JSON.parse(saved);
         } else {
             this.configs = [
-                { sourceType: 'routine', targetItem: '最大懸垂', metric: 'relative_strength', aggregation: 'max', timeRange: 'all' },
+                { sourceType: 'routine', targetItem: '最大指力', metric: 'relative_strength', aggregation: 'max', timeRange: 'all' },
                 { sourceType: 'tag', targetItem: '耐力', metric: 'decay_rate', aggregation: 'avg', timeRange: '28d' },
                 null
             ];
@@ -112,13 +112,9 @@ export const analyticsManager = {
     refresh() {
         console.log("正在刷新分析數據...");
         this.renderCards(); // 刷新 PR 卡片與趨勢圖
-        if (window.insightManager) {
-            insightManager.populateBlockSelector(); // 重新抓取積木清單
-            insightManager.processData();           // 重新計算肌力對比
-        }
-        if (window.bodyManager) {
-            bodyManager.renderCard();               // 刷新身體組成卡片
-        }
+        insightManager.populateBlockSelector(); // 重新抓取積木清單
+        insightManager.processData();           // 重新計算肌力對比
+        bodyManager.renderCard();               // 刷新身體組成卡片
     },
 
     // [新增] 尋找距離特定訓練日期最近的體重紀錄，消除體重噪音
@@ -498,10 +494,10 @@ export const analyticsUI = {
         let html = '<option value="">(請選擇)</option>';
 
         if (sourceType === 'routine') {
-            store.routines.forEach(r => { html += `<option value="${r.title}">${r.title}</option>`; });
+            store.routines.forEach(r => { html += `<option value="${escapeHtml(r.title)}">${escapeHtml(r.title)}</option>`; });
         } else if (sourceType === 'tag') {
             const tags = editor.getRoutineTagHistory();
-            tags.forEach(t => { html += `<option value="${t}">${t}</option>`; });
+            tags.forEach(t => { html += `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`; });
         }
 
         targetSelect.innerHTML = html;
@@ -550,7 +546,7 @@ export const analyticsUI = {
                 }
             });
 
-            customMetricsSet.forEach(m => { html += `<option value="${m}">${m}</option>`; });
+            customMetricsSet.forEach(m => { html += `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`; });
         }
         html += `</optgroup>`;
         metricSelect.innerHTML = html;
@@ -594,9 +590,7 @@ export const bodyManager = {
 
         this.renderCard();
 
-        if (typeof initSwipeToClose === 'function') {
-            initSwipeToClose('body-sheet', () => this.closeEditor());
-        }
+        initSwipeToClose('body-sheet', () => this.closeEditor());
 
         // 2. 綁定連動：當使用者在 Modal 改變日期時，自動讀取該日數據
         const dateInput = document.getElementById('body-editor-date');
@@ -797,9 +791,7 @@ export const bodyManager = {
         this.renderCard();
         this.closeEditor();
 
-        if (typeof EventBus !== 'undefined') {
-            EventBus.emit(APP_EVENTS.BODY_DATA_UPDATED, { date: dateStr });
-        }
+        EventBus.emit(APP_EVENTS.BODY_DATA_UPDATED, { date: dateStr });
     },
 
     deleteRecord() {
@@ -819,9 +811,7 @@ export const bodyManager = {
         this.closeEditor();
 
         // ✅ 改為發送事件
-        if (typeof EventBus !== 'undefined') {
-            EventBus.emit(APP_EVENTS.BODY_DATA_UPDATED, { date: dateStr });
-        }
+        EventBus.emit(APP_EVENTS.BODY_DATA_UPDATED, { date: dateStr });
     }
 };
 
@@ -876,7 +866,7 @@ export const insightManager = {
 
         const prevValue = this.currentBlock || selector.value;
         selector.innerHTML = '<option value="">(選擇分析項目)</option>' +
-            labelsArray.map(l => `<option value="${l}">${l}</option>`).join('');
+            labelsArray.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
 
         if (prevValue && labels.has(prevValue)) {
             selector.value = prevValue;
@@ -905,7 +895,7 @@ export const insightManager = {
             mappingDiv.classList.remove('hidden');
             const keysArr = Array.from(keys);
             const weightKey = keysArr.find(k => k.includes('重') || k.toLowerCase().includes('weight'));
-            selW.innerHTML = keysArr.map(k => `<option value="${k}">${k}</option>`).join('');
+            selW.innerHTML = keysArr.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
             selW.value = weightKey || keysArr[0];
             this.currentMetricW = selW.value;
         }
@@ -1011,7 +1001,6 @@ export const insightManager = {
     renderChart(logsA, logsB) { // 改為接收原始 logs 陣列
         const canvas = document.getElementById('chart-insight-strength');
         if (!canvas) return;
-        if (this.chartStrength) this.chartStrength.destroy();
 
         const labels = Array.from({ length: 30 }, (_, i) => i + 1);
         const datasets = [];
@@ -1049,6 +1038,19 @@ export const insightManager = {
 
         if (dataA) datasets.push({ label: '曲線 A', data: dataA, borderColor: '#3b82f6', tension: 0.3, pointRadius: 0, fill: false });
         if (dataB) datasets.push({ label: '曲線 B', data: dataB, borderColor: '#10b981', tension: 0.3, pointRadius: 0, fill: false });
+
+        // 記憶化渲染：資料未變時跳過重繪 (checkbox 點選很頻繁，避免每次都整個銷毀重建 Canvas)
+        const fingerprint = JSON.stringify(datasets);
+        if (this.chartStrength && this._lastStrengthFingerprint === fingerprint) return;
+        this._lastStrengthFingerprint = fingerprint;
+
+        if (this.chartStrength) {
+            // 資料有變：直接更新現有實例的 data 後呼叫 update()，避免整個銷毀重建 Canvas
+            this.chartStrength.data.labels = labels;
+            this.chartStrength.data.datasets = datasets;
+            this.chartStrength.update();
+            return;
+        }
 
         this.chartStrength = new Chart(canvas.getContext('2d'), {
             type: 'line',
