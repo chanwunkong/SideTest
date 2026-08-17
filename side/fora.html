@@ -30,15 +30,11 @@
         .subtab-btn.active { color:#4f46e5;border-bottom-color:#4f46e5; }
         .subtab-panel { display:none; }
         .subtab-panel.active { display:block; }
-        .body-zone rect { fill:#fff;stroke:#94a3b8;stroke-width:1.2;cursor:pointer;transition:fill .15s; }
-        .body-zone text { font-size:11px;fill:#334155;text-anchor:middle;dominant-baseline:middle;pointer-events:none;font-weight:600; }
-        .body-zone:hover rect { fill:#e0e7ff; }
-        .body-zone.selected rect { fill:#4f46e5;stroke:#3730a3; }
-        .body-zone.selected text { fill:#fff; }
         .body-outline { fill:#f8fafc;stroke:#94a3b8;stroke-width:2; }
         .body-line { stroke:#94a3b8;stroke-width:2;fill:none;stroke-linecap:round; }
-        .body-leader { stroke:#cbd5e1;stroke-width:1; }
-        .body-dot { fill:#94a3b8; }
+        .body-region { fill:#e2e8f0;stroke:#94a3b8;stroke-width:1.5;cursor:pointer;transition:fill .15s; }
+        .body-region:hover { fill:#c7d2fe; }
+        .body-region.selected { fill:#4f46e5;stroke:#3730a3; }
         .mbg { display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;align-items:flex-end;justify-content:center; }
         .mbg.open { display:flex; }
         .msheet { background:#fff;border-radius:1.25rem 1.25rem 0 0;width:100%;max-width:32rem;max-height:92vh;overflow-y:auto; }
@@ -304,8 +300,10 @@
             <!-- 傷口 -->
             <div id="subtab-wound" class="subtab-panel p-5 space-y-4">
                 <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-semibold text-slate-500">傷口部位 <span class="text-red-500">*必填</span></span>
+                    <label class="text-xs font-semibold text-slate-500 mb-1.5 block">傷口部位 <span class="text-red-500">*必填</span></label>
+                    <input type="text" id="wound-part-input" placeholder="輸入傷口部位，或點選下方圖示自動帶入"
+                        class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <div class="flex justify-end mb-2">
                         <div class="flex bg-slate-100 rounded-lg p-0.5 text-xs">
                             <button id="btn-body-front" type="button" data-view="front" class="px-2.5 py-1 rounded-md font-medium text-indigo-700 bg-white shadow-sm">正面</button>
                             <button id="btn-body-back" type="button" data-view="back" class="px-2.5 py-1 rounded-md font-medium text-slate-500">背面</button>
@@ -313,10 +311,8 @@
                             <button id="btn-body-right" type="button" data-view="right" class="px-2.5 py-1 rounded-md font-medium text-slate-500">右側</button>
                         </div>
                     </div>
-                    <div class="bg-slate-50 rounded-xl p-3">
-                        <p class="text-[11px] text-slate-400 mb-1.5">👉 圖可左右滑動</p>
-                        <div class="overflow-x-auto -mx-1 px-1">
-                        <svg id="body-front-svg" viewBox="0 0 700 420" style="width:640px;max-width:none" class="h-auto select-none">
+                    <div class="bg-slate-50 rounded-xl p-3 flex justify-center">
+                        <svg id="body-front-svg" viewBox="230 0 240 410" class="w-44 h-auto select-none">
                             <circle class="body-outline" cx="350" cy="45" r="26"/>
                             <rect class="body-outline" x="340" y="68" width="20" height="10"/>
                             <path class="body-outline" d="M300,80 L400,80 L378,175 L322,175 Z"/>
@@ -329,64 +325,34 @@
                             <ellipse class="body-outline" cx="454" cy="188" rx="10" ry="9"/>
                             <ellipse class="body-outline" cx="327" cy="396" rx="14" ry="8"/>
                             <ellipse class="body-outline" cx="373" cy="396" rx="14" ry="8"/>
-                            <g class="body-dot">
-                                <circle cx="350" cy="20" r="2.5"/><circle cx="352" cy="52" r="2.5"/>
-                                <circle cx="326" cy="48" r="2.5"/><circle cx="374" cy="48" r="2.5"/>
-                                <circle cx="300" cy="80" r="2.5"/><circle cx="400" cy="80" r="2.5"/>
-                                <circle cx="280" cy="110" r="2.5"/><circle cx="420" cy="110" r="2.5"/>
-                                <circle cx="325" cy="100" r="2.5"/><circle cx="375" cy="100" r="2.5"/>
-                                <circle cx="260" cy="150" r="2.5"/><circle cx="440" cy="150" r="2.5"/>
-                                <circle cx="350" cy="150" r="2.5"/><circle cx="350" cy="190" r="2.5"/>
-                                <circle cx="246" cy="185" r="2.5"/><circle cx="454" cy="185" r="2.5"/>
-                                <circle cx="325" cy="185" r="2.5"/><circle cx="375" cy="185" r="2.5"/>
-                                <circle cx="330" cy="230" r="2.5"/><circle cx="370" cy="230" r="2.5"/>
-                                <circle cx="330" cy="290" r="2.5"/><circle cx="370" cy="290" r="2.5"/>
-                                <circle cx="328" cy="340" r="2.5"/><circle cx="372" cy="340" r="2.5"/>
-                                <circle cx="327" cy="395" r="2.5"/><circle cx="373" cy="395" r="2.5"/>
-                            </g>
-                            <g class="body-leader">
-                                <line x1="327" y1="22" x2="350" y2="20"/><line x1="377" y1="22" x2="352" y2="52"/>
-                                <line x1="104" y1="46" x2="326" y2="48"/><line x1="596" y1="46" x2="374" y2="48"/>
-                                <line x1="104" y1="78" x2="300" y2="80"/><line x1="596" y1="78" x2="400" y2="80"/>
-                                <line x1="104" y1="110" x2="280" y2="110"/><line x1="596" y1="110" x2="420" y2="110"/>
-                                <line x1="104" y1="142" x2="325" y2="100"/><line x1="596" y1="142" x2="375" y2="100"/>
-                                <line x1="104" y1="174" x2="260" y2="150"/><line x1="596" y1="174" x2="440" y2="150"/>
-                                <line x1="104" y1="206" x2="350" y2="150"/><line x1="596" y1="206" x2="350" y2="190"/>
-                                <line x1="104" y1="238" x2="246" y2="185"/><line x1="596" y1="238" x2="454" y2="185"/>
-                                <line x1="104" y1="270" x2="325" y2="185"/><line x1="596" y1="270" x2="375" y2="185"/>
-                                <line x1="104" y1="302" x2="330" y2="230"/><line x1="596" y1="302" x2="370" y2="230"/>
-                                <line x1="104" y1="334" x2="330" y2="290"/><line x1="596" y1="334" x2="370" y2="290"/>
-                                <line x1="104" y1="366" x2="328" y2="340"/><line x1="596" y1="366" x2="372" y2="340"/>
-                                <line x1="104" y1="398" x2="327" y2="395"/><line x1="596" y1="398" x2="373" y2="395"/>
-                            </g>
-                            <g class="body-zone" data-part="f_head" data-label="頭部"><rect x="305" y="2" width="45" height="20" rx="4"/><text x="327" y="17">頭部</text></g>
-                            <g class="body-zone" data-part="f_face" data-label="臉部"><rect x="355" y="2" width="45" height="20" rx="4"/><text x="377" y="17">臉部</text></g>
-                            <g class="body-zone" data-part="f_ear_l" data-label="左耳"><rect x="8" y="35" width="96" height="22" rx="4"/><text x="56" y="50">左耳</text></g>
-                            <g class="body-zone" data-part="f_ear_r" data-label="右耳"><rect x="596" y="35" width="96" height="22" rx="4"/><text x="644" y="50">右耳</text></g>
-                            <g class="body-zone" data-part="f_shoulder_l" data-label="左肩"><rect x="8" y="67" width="96" height="22" rx="4"/><text x="56" y="82">左肩</text></g>
-                            <g class="body-zone" data-part="f_shoulder_r" data-label="右肩"><rect x="596" y="67" width="96" height="22" rx="4"/><text x="644" y="82">右肩</text></g>
-                            <g class="body-zone" data-part="f_upperarm_l" data-label="左上臂"><rect x="8" y="99" width="96" height="22" rx="4"/><text x="56" y="114">左上臂</text></g>
-                            <g class="body-zone" data-part="f_upperarm_r" data-label="右上臂"><rect x="596" y="99" width="96" height="22" rx="4"/><text x="644" y="114">右上臂</text></g>
-                            <g class="body-zone" data-part="f_chest_l" data-label="左胸"><rect x="8" y="131" width="96" height="22" rx="4"/><text x="56" y="146">左胸</text></g>
-                            <g class="body-zone" data-part="f_chest_r" data-label="右胸"><rect x="596" y="131" width="96" height="22" rx="4"/><text x="644" y="146">右胸</text></g>
-                            <g class="body-zone" data-part="f_forearm_l" data-label="左前臂"><rect x="8" y="163" width="96" height="22" rx="4"/><text x="56" y="178">左前臂</text></g>
-                            <g class="body-zone" data-part="f_forearm_r" data-label="右前臂"><rect x="596" y="163" width="96" height="22" rx="4"/><text x="644" y="178">右前臂</text></g>
-                            <g class="body-zone" data-part="f_abdomen" data-label="腹部"><rect x="8" y="195" width="96" height="22" rx="4"/><text x="56" y="210">腹部</text></g>
-                            <g class="body-zone" data-part="f_genital" data-label="陰部"><rect x="596" y="195" width="96" height="22" rx="4"/><text x="644" y="210">陰部</text></g>
-                            <g class="body-zone" data-part="f_hand_l" data-label="左手"><rect x="8" y="227" width="96" height="22" rx="4"/><text x="56" y="242">左手</text></g>
-                            <g class="body-zone" data-part="f_hand_r" data-label="右手"><rect x="596" y="227" width="96" height="22" rx="4"/><text x="644" y="242">右手</text></g>
-                            <g class="body-zone" data-part="f_groin_l" data-label="左鼠蹊"><rect x="8" y="259" width="96" height="22" rx="4"/><text x="56" y="274">左鼠蹊</text></g>
-                            <g class="body-zone" data-part="f_groin_r" data-label="右鼠蹊"><rect x="596" y="259" width="96" height="22" rx="4"/><text x="644" y="274">右鼠蹊</text></g>
-                            <g class="body-zone" data-part="f_thigh_l" data-label="左大腿"><rect x="8" y="291" width="96" height="22" rx="4"/><text x="56" y="306">左大腿</text></g>
-                            <g class="body-zone" data-part="f_thigh_r" data-label="右大腿"><rect x="596" y="291" width="96" height="22" rx="4"/><text x="644" y="306">右大腿</text></g>
-                            <g class="body-zone" data-part="f_knee_l" data-label="左膝"><rect x="8" y="323" width="96" height="22" rx="4"/><text x="56" y="338">左膝</text></g>
-                            <g class="body-zone" data-part="f_knee_r" data-label="右膝"><rect x="596" y="323" width="96" height="22" rx="4"/><text x="644" y="338">右膝</text></g>
-                            <g class="body-zone" data-part="f_lowerleg_l" data-label="左小腿"><rect x="8" y="355" width="96" height="22" rx="4"/><text x="56" y="370">左小腿</text></g>
-                            <g class="body-zone" data-part="f_lowerleg_r" data-label="右小腿"><rect x="596" y="355" width="96" height="22" rx="4"/><text x="644" y="370">右小腿</text></g>
-                            <g class="body-zone" data-part="f_foot_l" data-label="左腳"><rect x="8" y="387" width="96" height="22" rx="4"/><text x="56" y="402">左腳</text></g>
-                            <g class="body-zone" data-part="f_foot_r" data-label="右腳"><rect x="596" y="387" width="96" height="22" rx="4"/><text x="644" y="402">右腳</text></g>
+                            <circle class="body-region" data-label="臉部" cx="350" cy="50" r="20"/>
+                            <circle class="body-region" data-label="左耳" cx="322" cy="50" r="9"/>
+                            <circle class="body-region" data-label="右耳" cx="378" cy="50" r="9"/>
+                            <rect class="body-region" data-label="頭部" x="336" y="4" width="28" height="12" rx="6"/>
+                            <rect class="body-region" data-label="左肩" x="294" y="76" width="30" height="14" rx="6"/>
+                            <rect class="body-region" data-label="右肩" x="376" y="76" width="30" height="14" rx="6"/>
+                            <ellipse class="body-region" data-label="左上臂" cx="286" cy="100" rx="16" ry="24"/>
+                            <ellipse class="body-region" data-label="右上臂" cx="414" cy="100" rx="16" ry="24"/>
+                            <ellipse class="body-region" data-label="左前臂" cx="262" cy="140" rx="14" ry="22"/>
+                            <ellipse class="body-region" data-label="右前臂" cx="438" cy="140" rx="14" ry="22"/>
+                            <circle class="body-region" data-label="左手" cx="246" cy="185" r="15"/>
+                            <circle class="body-region" data-label="右手" cx="454" cy="185" r="15"/>
+                            <rect class="body-region" data-label="左胸" x="322" y="84" width="26" height="34" rx="6"/>
+                            <rect class="body-region" data-label="右胸" x="352" y="84" width="26" height="34" rx="6"/>
+                            <rect class="body-region" data-label="腹部" x="322" y="120" width="56" height="32" rx="8"/>
+                            <rect class="body-region" data-label="左鼠蹊" x="315" y="178" width="24" height="18" rx="6"/>
+                            <rect class="body-region" data-label="陰部" x="340" y="178" width="20" height="18" rx="6"/>
+                            <rect class="body-region" data-label="右鼠蹊" x="361" y="178" width="24" height="18" rx="6"/>
+                            <rect class="body-region" data-label="左大腿" x="315" y="198" width="28" height="62" rx="10"/>
+                            <rect class="body-region" data-label="右大腿" x="357" y="198" width="28" height="62" rx="10"/>
+                            <rect class="body-region" data-label="左膝" x="315" y="262" width="28" height="26" rx="8"/>
+                            <rect class="body-region" data-label="右膝" x="357" y="262" width="28" height="26" rx="8"/>
+                            <rect class="body-region" data-label="左小腿" x="316" y="290" width="26" height="70" rx="10"/>
+                            <rect class="body-region" data-label="右小腿" x="358" y="290" width="26" height="70" rx="10"/>
+                            <ellipse class="body-region" data-label="左腳" cx="327" cy="396" rx="18" ry="12"/>
+                            <ellipse class="body-region" data-label="右腳" cx="373" cy="396" rx="18" ry="12"/>
                         </svg>
-                        <svg id="body-back-svg" viewBox="0 0 700 420" style="width:640px;max-width:none" class="h-auto select-none hidden">
+                        <svg id="body-back-svg" viewBox="230 0 240 410" class="w-44 h-auto select-none hidden">
                             <circle class="body-outline" cx="350" cy="45" r="26"/>
                             <rect class="body-outline" x="340" y="68" width="20" height="10"/>
                             <path class="body-outline" d="M300,80 L400,80 L378,175 L322,175 Z"/>
@@ -397,109 +363,67 @@
                             <path class="body-line" d="M370,195 L372,300 L374,390"/>
                             <ellipse class="body-outline" cx="326" cy="396" rx="16" ry="9"/>
                             <ellipse class="body-outline" cx="374" cy="396" rx="16" ry="9"/>
-                            <g class="body-dot">
-                                <circle cx="350" cy="45" r="2.5"/><circle cx="350" cy="72" r="2.5"/>
-                                <circle cx="315" cy="110" r="2.5"/><circle cx="385" cy="110" r="2.5"/><circle cx="350" cy="120" r="2.5"/>
-                                <circle cx="285" cy="120" r="2.5"/><circle cx="415" cy="120" r="2.5"/>
-                                <circle cx="260" cy="190" r="2.5"/><circle cx="440" cy="190" r="2.5"/>
-                                <circle cx="350" cy="175" r="2.5"/><circle cx="350" cy="192" r="2.5"/><circle cx="350" cy="205" r="2.5"/>
-                                <circle cx="328" cy="192" r="2.5"/><circle cx="372" cy="192" r="2.5"/>
-                                <circle cx="326" cy="395" r="2.5"/><circle cx="374" cy="395" r="2.5"/>
-                            </g>
-                            <g class="body-leader">
-                                <line x1="350" y1="23" x2="350" y2="45"/>
-                                <line x1="350" y1="63" x2="350" y2="72"/>
-                                <line x1="350" y1="110" x2="350" y2="120"/>
-                                <line x1="350" y1="165" x2="350" y2="175"/>
-                                <line x1="350" y1="190" x2="350" y2="192"/>
-                                <line x1="350" y1="213" x2="350" y2="205"/>
-                                <line x1="104" y1="71" x2="315" y2="110"/><line x1="596" y1="71" x2="385" y2="110"/>
-                                <line x1="104" y1="151" x2="285" y2="120"/><line x1="596" y1="151" x2="415" y2="120"/>
-                                <line x1="104" y1="231" x2="260" y2="190"/><line x1="596" y1="231" x2="440" y2="190"/>
-                                <line x1="104" y1="311" x2="328" y2="192"/><line x1="596" y1="311" x2="372" y2="192"/>
-                                <line x1="104" y1="391" x2="326" y2="395"/><line x1="596" y1="391" x2="374" y2="395"/>
-                            </g>
-                            <g class="body-zone" data-part="b_occiput" data-label="後腦杓"><rect x="300" y="3" width="100" height="20" rx="4"/><text x="350" y="17">後腦杓</text></g>
-                            <g class="body-zone" data-part="b_neck" data-label="頸部"><rect x="300" y="45" width="100" height="18" rx="4"/><text x="350" y="58">頸部</text></g>
-                            <g class="body-zone" data-part="b_back_mid" data-label="背部"><rect x="300" y="90" width="100" height="20" rx="4"/><text x="350" y="104">背部</text></g>
-                            <g class="body-zone" data-part="b_waist" data-label="腰部"><rect x="300" y="145" width="100" height="20" rx="4"/><text x="350" y="159">腰部</text></g>
-                            <g class="body-zone" data-part="b_coccyx" data-label="尾薦骨"><rect x="300" y="190" width="100" height="18" rx="4"/><text x="350" y="203">尾薦骨</text></g>
-                            <g class="body-zone" data-part="b_perianal" data-label="肛門周圍"><rect x="300" y="213" width="100" height="18" rx="4"/><text x="350" y="226">肛門周圍</text></g>
-                            <g class="body-zone" data-part="b_back_l" data-label="左背部"><rect x="8" y="60" width="96" height="22" rx="4"/><text x="56" y="75">左背部</text></g>
-                            <g class="body-zone" data-part="b_back_r" data-label="右背部"><rect x="596" y="60" width="96" height="22" rx="4"/><text x="644" y="75">右背部</text></g>
-                            <g class="body-zone" data-part="b_elbow_l" data-label="左手肘"><rect x="8" y="140" width="96" height="22" rx="4"/><text x="56" y="155">左手肘</text></g>
-                            <g class="body-zone" data-part="b_elbow_r" data-label="右手肘"><rect x="596" y="140" width="96" height="22" rx="4"/><text x="644" y="155">右手肘</text></g>
-                            <g class="body-zone" data-part="b_wrist_l" data-label="左手腕"><rect x="8" y="220" width="96" height="22" rx="4"/><text x="56" y="235">左手腕</text></g>
-                            <g class="body-zone" data-part="b_wrist_r" data-label="右手腕"><rect x="596" y="220" width="96" height="22" rx="4"/><text x="644" y="235">右手腕</text></g>
-                            <g class="body-zone" data-part="b_buttock_l" data-label="左臀"><rect x="8" y="300" width="96" height="22" rx="4"/><text x="56" y="315">左臀</text></g>
-                            <g class="body-zone" data-part="b_buttock_r" data-label="右臀"><rect x="596" y="300" width="96" height="22" rx="4"/><text x="644" y="315">右臀</text></g>
-                            <g class="body-zone" data-part="b_heel_l" data-label="左腳跟"><rect x="8" y="380" width="96" height="22" rx="4"/><text x="56" y="395">左腳跟</text></g>
-                            <g class="body-zone" data-part="b_heel_r" data-label="右腳跟"><rect x="596" y="380" width="96" height="22" rx="4"/><text x="644" y="395">右腳跟</text></g>
+                            <circle class="body-region" data-label="後腦杓" cx="350" cy="45" r="22"/>
+                            <rect class="body-region" data-label="頸部" x="338" y="68" width="24" height="12" rx="4"/>
+                            <rect class="body-region" data-label="左背部" x="308" y="82" width="30" height="44" rx="8"/>
+                            <rect class="body-region" data-label="背部" x="338" y="82" width="24" height="44" rx="6"/>
+                            <rect class="body-region" data-label="右背部" x="362" y="82" width="30" height="44" rx="8"/>
+                            <circle class="body-region" data-label="左手肘" cx="285" cy="120" r="14"/>
+                            <circle class="body-region" data-label="右手肘" cx="415" cy="120" r="14"/>
+                            <circle class="body-region" data-label="左手腕" cx="260" cy="190" r="12"/>
+                            <circle class="body-region" data-label="右手腕" cx="440" cy="190" r="12"/>
+                            <rect class="body-region" data-label="腰部" x="320" y="130" width="60" height="28" rx="8"/>
+                            <rect class="body-region" data-label="左臀" x="308" y="160" width="28" height="38" rx="10"/>
+                            <rect class="body-region" data-label="右臀" x="364" y="160" width="28" height="38" rx="10"/>
+                            <rect class="body-region" data-label="尾薦骨" x="338" y="182" width="24" height="16" rx="4"/>
+                            <rect class="body-region" data-label="肛門周圍" x="334" y="198" width="32" height="14" rx="4"/>
+                            <ellipse class="body-region" data-label="左腳跟" cx="326" cy="396" rx="18" ry="11"/>
+                            <ellipse class="body-region" data-label="右腳跟" cx="374" cy="396" rx="18" ry="11"/>
                         </svg>
-                        <svg id="body-left-svg" viewBox="0 0 700 200" style="width:640px;max-width:none" class="h-auto select-none hidden">
-                            <circle class="body-outline" cx="25" cy="90" r="20"/>
-                            <path class="body-outline" d="M120,72 L340,78 L342,108 L120,102 Z"/>
-                            <g class="body-dot">
-                                <circle cx="70" cy="130" r="2.5"/><circle cx="70" cy="50" r="2.5"/>
-                                <circle cx="150" cy="90" r="2.5"/><circle cx="230" cy="90" r="2.5"/><circle cx="310" cy="95" r="2.5"/>
-                                <circle cx="390" cy="130" r="2.5"/><circle cx="390" cy="50" r="2.5"/>
-                                <circle cx="470" cy="125" r="2.5"/><circle cx="470" cy="60" r="2.5"/>
-                                <circle cx="550" cy="120" r="2.5"/><circle cx="550" cy="65" r="2.5"/>
-                            </g>
-                            <g class="body-leader">
-                                <line x1="70" y1="150" x2="70" y2="130"/><line x1="70" y1="35" x2="70" y2="50"/>
-                                <line x1="150" y1="150" x2="150" y2="90"/>
-                                <line x1="230" y1="150" x2="230" y2="90"/>
-                                <line x1="310" y1="150" x2="310" y2="95"/>
-                                <line x1="390" y1="150" x2="390" y2="130"/><line x1="390" y1="35" x2="390" y2="50"/>
-                                <line x1="470" y1="150" x2="470" y2="125"/><line x1="470" y1="35" x2="470" y2="60"/>
-                                <line x1="550" y1="150" x2="550" y2="120"/><line x1="550" y1="35" x2="550" y2="65"/>
-                            </g>
-                            <g class="body-zone" data-part="l_elbow_outer" data-label="左肘外"><rect x="38" y="150" width="64" height="20" rx="4"/><text x="70" y="164">左肘外</text></g>
-                            <g class="body-zone" data-part="l_elbow_inner" data-label="右肘內"><rect x="38" y="15" width="64" height="20" rx="4"/><text x="70" y="29">右肘內</text></g>
-                            <g class="body-zone" data-part="l_rib" data-label="左肋骨"><rect x="118" y="150" width="64" height="20" rx="4"/><text x="150" y="164">左肋骨</text></g>
-                            <g class="body-zone" data-part="l_iliac" data-label="左腸骨"><rect x="198" y="150" width="64" height="20" rx="4"/><text x="230" y="164">左腸骨</text></g>
-                            <g class="body-zone" data-part="l_femur" data-label="左股骨"><rect x="278" y="150" width="64" height="20" rx="4"/><text x="310" y="164">左股骨</text></g>
-                            <g class="body-zone" data-part="l_knee_outer" data-label="左膝外"><rect x="358" y="150" width="64" height="20" rx="4"/><text x="390" y="164">左膝外</text></g>
-                            <g class="body-zone" data-part="l_knee_inner" data-label="右膝內"><rect x="358" y="15" width="64" height="20" rx="4"/><text x="390" y="29">右膝內</text></g>
-                            <g class="body-zone" data-part="l_ankle_outer" data-label="左踝外"><rect x="438" y="150" width="64" height="20" rx="4"/><text x="470" y="164">左踝外</text></g>
-                            <g class="body-zone" data-part="l_ankle_inner" data-label="右踝內"><rect x="438" y="15" width="64" height="20" rx="4"/><text x="470" y="29">右踝內</text></g>
-                            <g class="body-zone" data-part="l_foot_outer" data-label="左足外"><rect x="518" y="150" width="64" height="20" rx="4"/><text x="550" y="164">左足外</text></g>
-                            <g class="body-zone" data-part="l_foot_inner" data-label="右足內"><rect x="518" y="15" width="64" height="20" rx="4"/><text x="550" y="29">右足內</text></g>
+                        <svg id="body-left-svg" viewBox="0 0 280 400" class="w-52 h-auto select-none hidden">
+                            <circle class="body-outline" cx="130" cy="40" r="18"/>
+                            <path class="body-line" d="M140,55 L152,68"/>
+                            <path class="body-outline" d="M152,68 C162,100 168,140 162,180 L125,175 C118,135 122,95 135,58 Z"/>
+                            <path class="body-line" d="M150,72 L180,95 L195,130"/>
+                            <path class="body-line" d="M132,65 L85,45 L55,15"/>
+                            <path class="body-line" d="M160,178 L190,260 L202,340 L225,368"/>
+                            <path class="body-line" d="M125,178 L95,255 L85,335 L58,362"/>
+                            <ellipse class="body-outline" cx="225" cy="368" rx="12" ry="7"/>
+                            <ellipse class="body-outline" cx="58" cy="362" rx="12" ry="7"/>
+                            <circle class="body-region" data-label="左肘外" cx="180" cy="95" r="17"/>
+                            <ellipse class="body-region" data-label="左肋骨" cx="150" cy="100" rx="20" ry="26"/>
+                            <ellipse class="body-region" data-label="左腸骨" cx="155" cy="150" rx="20" ry="22"/>
+                            <ellipse class="body-region" data-label="左股骨" cx="175" cy="200" rx="18" ry="24"/>
+                            <circle class="body-region" data-label="右肘內" cx="70" cy="30" r="16"/>
+                            <circle class="body-region" data-label="右膝內" cx="92" cy="258" r="18"/>
+                            <circle class="body-region" data-label="右踝內" cx="84" cy="338" r="13"/>
+                            <ellipse class="body-region" data-label="右足內" cx="58" cy="362" rx="18" ry="12"/>
+                            <circle class="body-region" data-label="左膝外" cx="190" cy="262" r="18"/>
+                            <circle class="body-region" data-label="左踝外" cx="202" cy="340" r="13"/>
+                            <ellipse class="body-region" data-label="左足外" cx="225" cy="368" rx="18" ry="12"/>
                         </svg>
-                        <svg id="body-right-svg" viewBox="0 0 700 200" style="width:640px;max-width:none" class="h-auto select-none hidden">
-                            <circle class="body-outline" cx="25" cy="90" r="20"/>
-                            <path class="body-outline" d="M120,72 L340,78 L342,108 L120,102 Z"/>
-                            <g class="body-dot">
-                                <circle cx="70" cy="130" r="2.5"/><circle cx="70" cy="50" r="2.5"/>
-                                <circle cx="150" cy="90" r="2.5"/><circle cx="230" cy="90" r="2.5"/><circle cx="310" cy="95" r="2.5"/>
-                                <circle cx="390" cy="130" r="2.5"/><circle cx="390" cy="50" r="2.5"/>
-                                <circle cx="470" cy="125" r="2.5"/><circle cx="470" cy="60" r="2.5"/>
-                                <circle cx="550" cy="120" r="2.5"/><circle cx="550" cy="65" r="2.5"/>
-                            </g>
-                            <g class="body-leader">
-                                <line x1="70" y1="150" x2="70" y2="130"/><line x1="70" y1="35" x2="70" y2="50"/>
-                                <line x1="150" y1="150" x2="150" y2="90"/>
-                                <line x1="230" y1="150" x2="230" y2="90"/>
-                                <line x1="310" y1="150" x2="310" y2="95"/>
-                                <line x1="390" y1="150" x2="390" y2="130"/><line x1="390" y1="35" x2="390" y2="50"/>
-                                <line x1="470" y1="150" x2="470" y2="125"/><line x1="470" y1="35" x2="470" y2="60"/>
-                                <line x1="550" y1="150" x2="550" y2="120"/><line x1="550" y1="35" x2="550" y2="65"/>
-                            </g>
-                            <g class="body-zone" data-part="r_elbow_outer" data-label="右肘外"><rect x="38" y="150" width="64" height="20" rx="4"/><text x="70" y="164">右肘外</text></g>
-                            <g class="body-zone" data-part="r_elbow_inner" data-label="左肘內"><rect x="38" y="15" width="64" height="20" rx="4"/><text x="70" y="29">左肘內</text></g>
-                            <g class="body-zone" data-part="r_rib" data-label="右肋骨"><rect x="118" y="150" width="64" height="20" rx="4"/><text x="150" y="164">右肋骨</text></g>
-                            <g class="body-zone" data-part="r_iliac" data-label="右腸骨"><rect x="198" y="150" width="64" height="20" rx="4"/><text x="230" y="164">右腸骨</text></g>
-                            <g class="body-zone" data-part="r_femur" data-label="右股骨"><rect x="278" y="150" width="64" height="20" rx="4"/><text x="310" y="164">右股骨</text></g>
-                            <g class="body-zone" data-part="r_knee_outer" data-label="右膝外"><rect x="358" y="150" width="64" height="20" rx="4"/><text x="390" y="164">右膝外</text></g>
-                            <g class="body-zone" data-part="r_knee_inner" data-label="左膝內"><rect x="358" y="15" width="64" height="20" rx="4"/><text x="390" y="29">左膝內</text></g>
-                            <g class="body-zone" data-part="r_ankle_outer" data-label="右踝外"><rect x="438" y="150" width="64" height="20" rx="4"/><text x="470" y="164">右踝外</text></g>
-                            <g class="body-zone" data-part="r_ankle_inner" data-label="左踝內"><rect x="438" y="15" width="64" height="20" rx="4"/><text x="470" y="29">左踝內</text></g>
-                            <g class="body-zone" data-part="r_foot_outer" data-label="右足外"><rect x="518" y="150" width="64" height="20" rx="4"/><text x="550" y="164">右足外</text></g>
-                            <g class="body-zone" data-part="r_foot_inner" data-label="左足內"><rect x="518" y="15" width="64" height="20" rx="4"/><text x="550" y="29">左足內</text></g>
+                        <svg id="body-right-svg" viewBox="0 0 280 400" class="w-52 h-auto select-none hidden">
+                            <circle class="body-outline" cx="150" cy="40" r="18"/>
+                            <path class="body-line" d="M140,55 L128,68"/>
+                            <path class="body-outline" d="M128,68 C118,100 112,140 118,180 L155,175 C162,135 158,95 145,58 Z"/>
+                            <path class="body-line" d="M130,72 L100,95 L85,130"/>
+                            <path class="body-line" d="M148,65 L195,45 L225,15"/>
+                            <path class="body-line" d="M120,178 L90,260 L78,340 L55,368"/>
+                            <path class="body-line" d="M155,178 L185,255 L195,335 L222,362"/>
+                            <ellipse class="body-outline" cx="55" cy="368" rx="12" ry="7"/>
+                            <ellipse class="body-outline" cx="222" cy="362" rx="12" ry="7"/>
+                            <circle class="body-region" data-label="右肘外" cx="100" cy="95" r="17"/>
+                            <ellipse class="body-region" data-label="右肋骨" cx="130" cy="100" rx="20" ry="26"/>
+                            <ellipse class="body-region" data-label="右腸骨" cx="125" cy="150" rx="20" ry="22"/>
+                            <ellipse class="body-region" data-label="右股骨" cx="105" cy="200" rx="18" ry="24"/>
+                            <circle class="body-region" data-label="左肘內" cx="210" cy="30" r="16"/>
+                            <circle class="body-region" data-label="左膝內" cx="188" cy="258" r="18"/>
+                            <circle class="body-region" data-label="左踝內" cx="196" cy="338" r="13"/>
+                            <ellipse class="body-region" data-label="左足內" cx="222" cy="362" rx="18" ry="12"/>
+                            <circle class="body-region" data-label="右膝外" cx="90" cy="262" r="18"/>
+                            <circle class="body-region" data-label="右踝外" cx="78" cy="340" r="13"/>
+                            <ellipse class="body-region" data-label="右足外" cx="55" cy="368" rx="18" ry="12"/>
                         </svg>
-                        </div>
-                        <p class="text-sm mt-2 text-center"><span class="text-slate-400">已選部位：</span><span id="wound-part-label" class="font-semibold text-slate-400">尚未選擇</span></p>
                     </div>
                 </div>
                 <div id="photoframe-wound"></div>
@@ -648,7 +572,7 @@ if(!navigator.bluetooth) document.getElementById('ble-banner').classList.remove(
 
 // ── State ──
 const meas={temp:null,tempUnit:'C',spo2:null,pluse:null,sbp:null,dbp:null,glu:null,weight:null,resp_rate:null};
-const photos={intake:null,output:null,wound:{part:null,partLabel:null,dataUrl:null,time:null}};
+const photos={intake:null,output:null,wound:{part:null,dataUrl:null,time:null}};
 let uploadTime=null;
 
 function fmtUploadTime(d){const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
@@ -733,15 +657,20 @@ function toggleBodyView(view){
     });
 }
 BODY_VIEWS.forEach(v=>document.getElementById(`btn-body-${v}`).addEventListener('click',()=>toggleBodyView(v)));
-function selectWoundPart(part,label){
-    photos.wound.part=part;photos.wound.partLabel=label;
-    const lbl=document.getElementById('wound-part-label');
-    lbl.textContent=label;lbl.classList.remove('text-slate-400');lbl.classList.add('text-indigo-700');
-    document.querySelectorAll('.body-zone').forEach(z=>z.classList.toggle('selected',z.dataset.part===part));
+function selectWoundPart(label){
+    document.getElementById('wound-part-input').value=label;
+    photos.wound.part=label;
+    document.querySelectorAll('.body-region').forEach(z=>z.classList.toggle('selected',z.dataset.label===label));
     renderPhotoFrame('wound');
 }
-document.querySelectorAll('.body-zone').forEach(z=>{
-    z.addEventListener('click',()=>selectWoundPart(z.dataset.part,z.dataset.label));
+document.querySelectorAll('.body-region').forEach(z=>{
+    z.addEventListener('click',()=>selectWoundPart(z.dataset.label));
+});
+document.getElementById('wound-part-input').addEventListener('input',e=>{
+    const val=e.target.value.trim();
+    photos.wound.part=val||null;
+    document.querySelectorAll('.body-region').forEach(z=>z.classList.toggle('selected',z.dataset.label===val));
+    renderPhotoFrame('wound');
 });
 
 // ── Photo Capture (攝入 / 排出 / 傷口) ──
@@ -1102,7 +1031,7 @@ document.getElementById('btn-upload').addEventListener('click',()=>{
     const photoRows=[];
     if(photos.intake) photoRows.push('📷 攝入照片');
     if(photos.output) photoRows.push('📷 排出照片');
-    if(photos.wound.dataUrl) photoRows.push(`📷 傷口照片 (${photos.wound.partLabel||''})`);
+    if(photos.wound.dataUrl) photoRows.push(`📷 傷口照片 (${photos.wound.part||''})`);
     document.getElementById('preview-rows').innerHTML=
         LABELS.filter(([k])=>meas[k]!=null).map(([k,label,fmt])=>`<div class="prev-row"><span class="text-sm text-slate-500">${label}</span><span class="text-sm font-semibold text-slate-800">${fmt(meas[k])}</span></div>`).join('')
         +photoRows.map(label=>`<div class="prev-row"><span class="text-sm text-slate-500">${label}</span><span class="text-sm font-semibold text-slate-800">已附加</span></div>`).join('');
@@ -1125,7 +1054,7 @@ document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
     const loc=document.getElementById('location-input').value.trim()||'yt';
     const payload={keyno,uploadTime:uploadTime||fmtUploadTime(new Date()),temp:meas.temp,pluse:meas.pluse,spo2:meas.spo2,sbp:meas.sbp,dbp:meas.dbp,glu:meas.glu,weight:meas.weight,resp_rate:meas.resp_rate,
         photo_intake:photos.intake?photos.intake.dataUrl:null,photo_output:photos.output?photos.output.dataUrl:null,photo_wound:photos.wound.dataUrl,photo_wound_part:photos.wound.part};
-    const histMeta={hasPhotoIntake:!!photos.intake,hasPhotoOutput:!!photos.output,hasPhotoWound:!!photos.wound.dataUrl,woundPart:photos.wound.partLabel};
+    const histMeta={hasPhotoIntake:!!photos.intake,hasPhotoOutput:!!photos.output,hasPhotoWound:!!photos.wound.dataUrl,woundPart:photos.wound.part};
     isUploading=true;
     const btn=document.getElementById('btn-modal-confirm');
     btn.innerHTML='<span class="spin"></span> 上傳中';btn.disabled=true;
@@ -1165,10 +1094,10 @@ function resetPatient(){
     uploadTime=null;
     [['temp-value','--'],['temp-unit',''],['temp-time','--'],['o2-spo2-value','--'],['o2-hr-value','--'],['o2-time','--'],['d40-sys-value','--'],['d40-dia-value','--'],['d40-hr-value','--'],['d40-bg-value','--'],['d40-time','--'],['md6-value','--'],['md6-time','--']].forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.textContent=v;});
     document.getElementById('manual-weight').value='';document.getElementById('manual-resp').value='';
-    Object.assign(photos,{intake:null,output:null,wound:{part:null,partLabel:null,dataUrl:null,time:null}});
+    Object.assign(photos,{intake:null,output:null,wound:{part:null,dataUrl:null,time:null}});
     ['intake','output','wound'].forEach(renderPhotoFrame);
-    document.querySelectorAll('.body-zone').forEach(z=>z.classList.remove('selected'));
-    const lbl=document.getElementById('wound-part-label');lbl.textContent='尚未選擇';lbl.classList.remove('text-indigo-700');lbl.classList.add('text-slate-400');
+    document.querySelectorAll('.body-region').forEach(z=>z.classList.remove('selected'));
+    document.getElementById('wound-part-input').value='';
     toggleBodyView('front');
     refreshBar();
 }
