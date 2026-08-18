@@ -518,6 +518,23 @@
 const CONFIG = {
     UPLOAD_API_URL: 'https://www.sstcmedicare.com/imedical/multi/division/v2/api/repository/uploadPhysiologicalData',
     DEFAULT_LOCATION: 'yt',
+    // 上傳 payload 的 JSON 欄位名稱：左邊是程式內部用的名字(不要改)，右邊的字串是實際送給 API 的 key 名稱(依 API 規格改這裡)
+    PAYLOAD_FIELDS: {
+        keyno: 'keyno',
+        uploadTime: 'uploadTime',
+        temp: 'temp',
+        pluse: 'pluse',
+        spo2: 'spo2',
+        sbp: 'sbp',
+        dbp: 'dbp',
+        glu: 'glu',
+        weight: 'weight',
+        resp_rate: 'resp_rate',
+        photo_intake: 'photo_intake',
+        photo_output: 'photo_output',
+        photo_wound: 'photo_wound',
+        photo_wound_part: 'photo_wound_part',
+    },
 };
 document.getElementById('location-input').value = CONFIG.DEFAULT_LOCATION;
 
@@ -1053,8 +1070,23 @@ document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
     const keyno=document.getElementById('patient-id').value.trim();
     if(!keyno){const errEl=document.getElementById('upload-error');errEl.textContent='病歷號不可為空';errEl.classList.remove('hidden');return;}
     const loc=document.getElementById('location-input').value.trim()||CONFIG.DEFAULT_LOCATION;
-    const payload={keyno,uploadTime:uploadTime||fmtUploadTime(new Date()),temp:meas.temp,pluse:meas.pluse,spo2:meas.spo2,sbp:meas.sbp,dbp:meas.dbp,glu:meas.glu,weight:meas.weight,resp_rate:meas.resp_rate,
-        photo_intake:photos.intake?photos.intake.dataUrl:null,photo_output:photos.output?photos.output.dataUrl:null,photo_wound:photos.wound.dataUrl,photo_wound_part:photos.wound.part};
+    const F=CONFIG.PAYLOAD_FIELDS;
+    const payload={
+        [F.keyno]:keyno,
+        [F.uploadTime]:uploadTime||fmtUploadTime(new Date()),
+        [F.temp]:meas.temp,
+        [F.pluse]:meas.pluse,
+        [F.spo2]:meas.spo2,
+        [F.sbp]:meas.sbp,
+        [F.dbp]:meas.dbp,
+        [F.glu]:meas.glu,
+        [F.weight]:meas.weight,
+        [F.resp_rate]:meas.resp_rate,
+        [F.photo_intake]:photos.intake?photos.intake.dataUrl:null,
+        [F.photo_output]:photos.output?photos.output.dataUrl:null,
+        [F.photo_wound]:photos.wound.dataUrl,
+        [F.photo_wound_part]:photos.wound.part,
+    };
     const histMeta={hasPhotoIntake:!!photos.intake,hasPhotoOutput:!!photos.output,hasPhotoWound:!!photos.wound.dataUrl,woundPart:photos.wound.part};
     isUploading=true;
     const btn=document.getElementById('btn-modal-confirm');
@@ -1066,19 +1098,19 @@ document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
         const res=await fetch(`${CONFIG.UPLOAD_API_URL}?location=${loc}`,{method:'POST',body:fd});
         if(res.ok){
             log(`上傳成功 keyno=${keyno}`,'success');
-            addHistory({...payload,photo_intake:undefined,photo_output:undefined,photo_wound:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'success'});
+            addHistory({...payload,[F.photo_intake]:undefined,[F.photo_output]:undefined,[F.photo_wound]:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'success'});
             document.getElementById('modal-state-preview').classList.add('hidden');
             document.getElementById('modal-state-success').classList.remove('hidden');
         }else{
             const txt=await res.text().catch(()=>'');
             log(`上傳失敗 HTTP ${res.status}`,'error');
-            addHistory({...payload,photo_intake:undefined,photo_output:undefined,photo_wound:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'failed',error:`HTTP ${res.status}`});
+            addHistory({...payload,[F.photo_intake]:undefined,[F.photo_output]:undefined,[F.photo_wound]:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'failed',error:`HTTP ${res.status}`});
             const errEl=document.getElementById('upload-error');errEl.textContent=`上傳失敗 (${res.status})：${txt||'伺服器錯誤'}`;errEl.classList.remove('hidden');
             btn.innerHTML='確認上傳';btn.disabled=false;
         }
     }catch(e){
         log(`網路錯誤：${e}`,'error');
-        addHistory({...payload,photo_intake:undefined,photo_output:undefined,photo_wound:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'failed',error:e.message});
+        addHistory({...payload,[F.photo_intake]:undefined,[F.photo_output]:undefined,[F.photo_wound]:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'failed',error:e.message});
         const errEl=document.getElementById('upload-error');errEl.textContent=`網路錯誤：${e.message}`;errEl.classList.remove('hidden');
         btn.innerHTML='確認上傳';btn.disabled=false;
     }finally{
