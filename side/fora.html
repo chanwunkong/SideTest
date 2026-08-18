@@ -35,6 +35,7 @@
         .body-region { fill:#e2e8f0;stroke:#94a3b8;stroke-width:1.5;cursor:pointer;transition:fill .15s; }
         .body-region:hover { fill:#c7d2fe; }
         .body-region.selected { fill:#4f46e5;stroke:#3730a3; }
+        #body-side-svg.mirrored { transform:scaleX(-1); }
         .mbg { display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;align-items:flex-end;justify-content:center; }
         .mbg.open { display:flex; }
         .msheet { background:#fff;border-radius:1.25rem 1.25rem 0 0;width:100%;max-width:32rem;max-height:92vh;overflow-y:auto; }
@@ -380,31 +381,7 @@
                             <ellipse class="body-region" data-label="左腳跟" cx="326" cy="396" rx="18" ry="11"/>
                             <ellipse class="body-region" data-label="右腳跟" cx="374" cy="396" rx="18" ry="11"/>
                         </svg>
-                        <svg id="body-left-svg" viewBox="60 0 280 520" class="w-56 h-auto select-none hidden">
-                            <circle class="body-outline" cx="205" cy="55" r="20"/>
-                            <path class="body-line" d="M185,50 L174,58 L185,62"/>
-                            <path class="body-line" d="M212,74 L222,95"/>
-                            <path class="body-outline" d="M224,98 C235,140 240,200 235,250 L200,245 C195,195 200,145 212,100 Z"/>
-                            <path class="body-line" d="M222,100 L260,150 L250,190"/>
-                            <path class="body-line" d="M215,95 L150,80 L115,45"/>
-                            <path class="body-line" d="M115,45 L105,25 M115,45 L100,35 M115,45 L102,50"/>
-                            <path class="body-line" d="M230,262 L250,360 L270,460 L288,485"/>
-                            <path class="body-line" d="M210,258 L155,340 L142,420 L118,440"/>
-                            <ellipse class="body-outline" cx="292" cy="490" rx="12" ry="7"/>
-                            <ellipse class="body-outline" cx="115" cy="443" rx="12" ry="7"/>
-                            <circle class="body-region" data-label="左肘外" cx="260" cy="150" r="18"/>
-                            <ellipse class="body-region" data-label="左肋骨" cx="215" cy="140" rx="22" ry="30"/>
-                            <ellipse class="body-region" data-label="左腸骨" cx="225" cy="230" rx="20" ry="24"/>
-                            <ellipse class="body-region" data-label="左股骨" cx="245" cy="310" rx="20" ry="28"/>
-                            <circle class="body-region" data-label="右肘內" cx="130" cy="65" r="18"/>
-                            <circle class="body-region" data-label="右膝內" cx="155" cy="340" r="20"/>
-                            <circle class="body-region" data-label="右踝內" cx="142" cy="420" r="14"/>
-                            <ellipse class="body-region" data-label="右足內" cx="118" cy="443" rx="20" ry="13"/>
-                            <circle class="body-region" data-label="左膝外" cx="250" cy="360" r="20"/>
-                            <circle class="body-region" data-label="左踝外" cx="270" cy="460" r="14"/>
-                            <ellipse class="body-region" data-label="左足外" cx="292" cy="488" rx="20" ry="13"/>
-                        </svg>
-                        <svg id="body-right-svg" viewBox="60 0 280 520" class="w-56 h-auto select-none hidden">
+                        <svg id="body-side-svg" viewBox="60 0 280 520" class="w-56 h-auto select-none hidden">
                             <circle class="body-outline" cx="195" cy="55" r="20"/>
                             <path class="body-line" d="M215,50 L226,58 L215,62"/>
                             <path class="body-line" d="M188,74 L178,95"/>
@@ -416,17 +393,17 @@
                             <path class="body-line" d="M190,258 L245,340 L258,420 L282,440"/>
                             <ellipse class="body-outline" cx="108" cy="490" rx="12" ry="7"/>
                             <ellipse class="body-outline" cx="285" cy="443" rx="12" ry="7"/>
-                            <circle class="body-region" data-label="右肘外" cx="140" cy="150" r="18"/>
-                            <ellipse class="body-region" data-label="右肋骨" cx="185" cy="140" rx="22" ry="30"/>
-                            <ellipse class="body-region" data-label="右腸骨" cx="175" cy="230" rx="20" ry="24"/>
-                            <ellipse class="body-region" data-label="右股骨" cx="155" cy="310" rx="20" ry="28"/>
-                            <circle class="body-region" data-label="左肘內" cx="270" cy="65" r="18"/>
-                            <circle class="body-region" data-label="左膝內" cx="245" cy="340" r="20"/>
-                            <circle class="body-region" data-label="左踝內" cx="258" cy="420" r="14"/>
-                            <ellipse class="body-region" data-label="左足內" cx="282" cy="443" rx="20" ry="13"/>
-                            <circle class="body-region" data-label="右膝外" cx="150" cy="360" r="20"/>
-                            <circle class="body-region" data-label="右踝外" cx="130" cy="460" r="14"/>
-                            <ellipse class="body-region" data-label="右足外" cx="112" cy="488" rx="20" ry="13"/>
+                            <circle class="body-region" data-label-right="右肘外" data-label-left="左肘外" cx="140" cy="150" r="18"/>
+                            <ellipse class="body-region" data-label-right="右肋骨" data-label-left="左肋骨" cx="185" cy="140" rx="22" ry="30"/>
+                            <ellipse class="body-region" data-label-right="右腸骨" data-label-left="左腸骨" cx="175" cy="230" rx="20" ry="24"/>
+                            <ellipse class="body-region" data-label-right="右股骨" data-label-left="左股骨" cx="155" cy="310" rx="20" ry="28"/>
+                            <circle class="body-region" data-label-right="左肘內" data-label-left="右肘內" cx="270" cy="65" r="18"/>
+                            <circle class="body-region" data-label-right="左膝內" data-label-left="右膝內" cx="245" cy="340" r="20"/>
+                            <circle class="body-region" data-label-right="左踝內" data-label-left="右踝內" cx="258" cy="420" r="14"/>
+                            <ellipse class="body-region" data-label-right="左足內" data-label-left="右足內" cx="282" cy="443" rx="20" ry="13"/>
+                            <circle class="body-region" data-label-right="右膝外" data-label-left="左膝外" cx="150" cy="360" r="20"/>
+                            <circle class="body-region" data-label-right="右踝外" data-label-left="左踝外" cx="130" cy="460" r="14"/>
+                            <ellipse class="body-region" data-label-right="右足外" data-label-left="左足外" cx="112" cy="488" rx="20" ry="13"/>
                         </svg>
                     </div>
                 </div>
@@ -546,6 +523,7 @@
     </div>
 </div>
 <canvas id="photo-canvas" class="hidden"></canvas>
+<input type="file" id="photo-file-input" accept="image/*" class="hidden">
 
 <!-- ══ Log Drawer ══ -->
 <div id="log-drawer" class="fixed bottom-0 left-0 right-0 h-64 bg-gray-900 z-40 flex flex-col shadow-2xl">
@@ -655,8 +633,16 @@ document.querySelectorAll('.subtab-btn').forEach(btn=>{
 // ── Wound Body Diagram ──
 const BODY_VIEWS=['front','back','left','right'];
 function toggleBodyView(view){
+    document.getElementById('body-front-svg').classList.toggle('hidden',view!=='front');
+    document.getElementById('body-back-svg').classList.toggle('hidden',view!=='back');
+    const sideSvg=document.getElementById('body-side-svg');
+    const isSide=view==='left'||view==='right';
+    sideSvg.classList.toggle('hidden',!isSide);
+    if(isSide){
+        sideSvg.classList.toggle('mirrored',view==='left');
+        sideSvg.querySelectorAll('.body-region').forEach(z=>{z.dataset.label=view==='left'?z.dataset.labelLeft:z.dataset.labelRight;});
+    }
     BODY_VIEWS.forEach(v=>{
-        document.getElementById(`body-${v}-svg`).classList.toggle('hidden',v!==view);
         document.getElementById(`btn-body-${v}`).className=`px-2.5 py-1 rounded-md font-medium ${v===view?'text-indigo-700 bg-white shadow-sm':'text-slate-500'}`;
     });
 }
@@ -688,31 +674,61 @@ function renderPhotoFrame(target){
             <div class="rounded-xl overflow-hidden border border-slate-200 bg-black">
                 <img src="${rec.dataUrl}" class="w-full max-h-72 object-contain">
             </div>
-            <p class="text-xs text-slate-400 text-center mt-2">拍攝時間：${rec.time}</p>
+            <p class="text-xs text-slate-400 text-center mt-2">拍攝時間：${rec.time}　解析度：${rec.width&&rec.height?`${rec.width}×${rec.height}`:'--'}</p>
             <div class="flex gap-2 mt-3">
                 <button data-photo-action="retake" data-target="${target}" class="flex-1 bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-xl">重新拍攝</button>
+                <button data-photo-action="upload" data-target="${target}" class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm font-semibold py-2.5 rounded-xl">從相簿選擇</button>
                 <button data-photo-action="delete" data-target="${target}" class="flex-1 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold py-2.5 rounded-xl">刪除</button>
             </div>`;
     }else{
         el.innerHTML=`
-            <button data-photo-action="capture" data-target="${target}" ${disabled?'disabled':''} class="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed ${disabled?'border-slate-200 text-slate-300 cursor-not-allowed':'border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-500'} rounded-xl py-10 transition-colors">
-                <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                <span class="text-sm font-semibold">${disabled?'請先選擇傷口部位':'開啟相機拍照'}</span>
-            </button>`;
+            <div class="flex flex-col gap-2">
+                <button data-photo-action="capture" data-target="${target}" ${disabled?'disabled':''} class="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed ${disabled?'border-slate-200 text-slate-300 cursor-not-allowed':'border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-500'} rounded-xl py-8 transition-colors">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <span class="text-sm font-semibold">${disabled?'請先選擇傷口部位':'開啟相機拍照'}</span>
+                </button>
+                <button data-photo-action="upload" data-target="${target}" ${disabled?'disabled':''} class="w-full py-2.5 rounded-xl text-sm font-semibold border ${disabled?'border-slate-200 text-slate-300 cursor-not-allowed':'border-slate-300 text-slate-500 hover:border-indigo-400 hover:text-indigo-500'}">從相簿選擇照片</button>
+            </div>`;
     }
 }
 document.getElementById('tab-photo').addEventListener('click',e=>{
     const btn=e.target.closest('[data-photo-action]');
     if(!btn)return;
     const action=btn.dataset.photoAction,target=btn.dataset.target;
+    if(target==='wound'&&!photos.wound.part&&(action==='capture'||action==='upload')){showToast('請先選擇傷口部位','error');return;}
     if(action==='capture'||action==='retake'){
-        if(target==='wound'&&!photos.wound.part){showToast('請先選擇傷口部位','error');return;}
         openPhotoCamera(target);
+    }else if(action==='upload'){
+        photoUploadTarget=target;
+        document.getElementById('photo-file-input').click();
     }else if(action==='delete'){
-        if(target==='wound'){photos.wound.dataUrl=null;photos.wound.time=null;}else{photos[target]=null;}
+        if(target==='wound'){photos.wound.dataUrl=null;photos.wound.time=null;photos.wound.width=null;photos.wound.height=null;}else{photos[target]=null;}
         renderPhotoFrame(target);
         showToast('照片已刪除','info');
     }
+});
+
+let photoUploadTarget=null;
+document.getElementById('photo-file-input').addEventListener('change',e=>{
+    const file=e.target.files[0];
+    e.target.value='';
+    const target=photoUploadTarget;
+    if(!file||!target)return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+        const img=new Image();
+        img.onload=()=>{
+            const dataUrl=reader.result,time=fmtDisplayTime(new Date()),width=img.naturalWidth,height=img.naturalHeight;
+            if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;photos.wound.width=width;photos.wound.height=height;}
+            else{photos[target]={dataUrl,time,width,height};}
+            log(`已從相簿選擇照片：${target}（${width}×${height}）`,'success');
+            showToast('照片已上傳','success');
+            renderPhotoFrame(target);
+        };
+        img.src=reader.result;
+    };
+    reader.onerror=()=>showToast('讀取照片失敗','error');
+    reader.readAsDataURL(file);
 });
 
 let photoStream=null,photoCaptureTarget=null;
@@ -756,10 +772,10 @@ document.getElementById('btn-shutter').addEventListener('click',()=>{
     canvas.width=video.videoWidth;canvas.height=video.videoHeight;
     canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
     const dataUrl=canvas.toDataURL('image/jpeg',0.92);
-    const time=fmtDisplayTime(new Date());
-    if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;}
-    else{photos[target]={dataUrl,time};}
-    log(`已拍攝照片：${target}（${canvas.width}×${canvas.height}）`,'success');
+    const time=fmtDisplayTime(new Date()),width=canvas.width,height=canvas.height;
+    if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;photos.wound.width=width;photos.wound.height=height;}
+    else{photos[target]={dataUrl,time,width,height};}
+    log(`已拍攝照片：${target}（${width}×${height}）`,'success');
     showToast('拍照成功','success');
     closePhotoCamera();
     renderPhotoFrame(target);
