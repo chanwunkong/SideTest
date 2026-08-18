@@ -557,6 +557,7 @@ let uploadTime=null;
 
 function fmtUploadTime(d){const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
 function fmtDisplayTime(d){return d.toLocaleTimeString('zh-TW');}
+function fmtMP(w,h){if(!w||!h)return'--';const wan=Math.round(w*h/10000);return`${w}×${h}（約${wan}萬像素）`;}
 
 function setMeas(key,val){meas[key]=val;uploadTime=fmtUploadTime(new Date());refreshBar();}
 
@@ -672,7 +673,7 @@ function renderPhotoFrame(target){
             <div class="rounded-xl overflow-hidden border border-slate-200 bg-black">
                 <img src="${rec.dataUrl}" class="w-full max-h-72 object-contain">
             </div>
-            <p class="text-xs text-slate-400 text-center mt-2">拍攝時間：${rec.time}　解析度：${rec.width&&rec.height?`${rec.width}×${rec.height}`:'--'}</p>
+            <p class="text-xs text-slate-400 text-center mt-2">拍攝時間：${rec.time}　解析度：${fmtMP(rec.width,rec.height)}</p>
             <div class="flex gap-2 mt-3">
                 <button data-photo-action="retake" data-target="${target}" class="flex-1 bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-xl">重新拍攝</button>
                 <button data-photo-action="upload" data-target="${target}" class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm font-semibold py-2.5 rounded-xl">從相簿選擇</button>
@@ -719,7 +720,7 @@ document.getElementById('photo-file-input').addEventListener('change',e=>{
             const dataUrl=reader.result,time=fmtDisplayTime(new Date()),width=img.naturalWidth,height=img.naturalHeight;
             if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;photos.wound.width=width;photos.wound.height=height;}
             else{photos[target]={dataUrl,time,width,height};}
-            log(`已從相簿選擇照片：${target}（${width}×${height}）`,'success');
+            log(`已從相簿選擇照片：${target}（${fmtMP(width,height)}）`,'success');
             showToast('照片已上傳','success');
             renderPhotoFrame(target);
         };
@@ -741,14 +742,14 @@ async function openPhotoCamera(target){
         if(track.getCapabilities){
             const caps=track.getCapabilities();
             if(caps.width&&caps.height){
-                log(`鏡頭支援最高解析度：${caps.width.max}×${caps.height.max}`,'data');
+                log(`鏡頭支援最高解析度：${fmtMP(caps.width.max,caps.height.max)}`,'data');
                 try{ await track.applyConstraints({width:{ideal:caps.width.max},height:{ideal:caps.height.max}}); }
                 catch(e){ log(`套用最高解析度失敗，改用預設：${e}`,'info'); }
             }
         }
         document.getElementById('photo-camera-video').srcObject=photoStream;
         const settings=track.getSettings();
-        log(`相機串流實際解析度：${settings.width}×${settings.height}`,'data');
+        log(`相機串流實際解析度：${fmtMP(settings.width,settings.height)}（Safari/iOS 的即時預覽串流通常上限約 1200 萬像素，就算鏡頭是 4800 萬像素也一樣，這是瀏覽器本身的限制）`,'data');
     }catch(e){
         log(`相機開啟失敗：${e}`,'error');
         showToast('相機開啟失敗，請確認已授權相機權限','error');
@@ -773,7 +774,7 @@ document.getElementById('btn-shutter').addEventListener('click',()=>{
     const time=fmtDisplayTime(new Date()),width=canvas.width,height=canvas.height;
     if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;photos.wound.width=width;photos.wound.height=height;}
     else{photos[target]={dataUrl,time,width,height};}
-    log(`已拍攝照片：${target}（${width}×${height}）`,'success');
+    log(`已拍攝照片：${target}（${fmtMP(width,height)}）`,'success');
     showToast('拍照成功','success');
     closePhotoCamera();
     renderPhotoFrame(target);
