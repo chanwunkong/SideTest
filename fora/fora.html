@@ -497,7 +497,7 @@
     </div>
 </div>
 <canvas id="photo-canvas" class="hidden"></canvas>
-<input type="file" id="photo-file-input" accept="image/*" class="hidden">
+<input type="file" id="photo-file-input" accept="image/*" capture="environment" class="hidden">
 
 <!-- ══ Log Drawer ══ -->
 <div id="log-drawer" class="fixed bottom-0 left-0 right-0 h-64 bg-gray-900 z-40 flex flex-col shadow-2xl">
@@ -676,7 +676,7 @@ function renderPhotoFrame(target){
             <p class="text-xs text-slate-400 text-center mt-2">拍攝時間：${rec.time}　解析度：${fmtMP(rec.width,rec.height)}</p>
             <div class="flex gap-2 mt-3">
                 <button data-photo-action="retake" data-target="${target}" class="flex-1 bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-xl">重新拍攝</button>
-                <button data-photo-action="upload" data-target="${target}" class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm font-semibold py-2.5 rounded-xl">從相簿選擇</button>
+                <button data-photo-action="upload" data-target="${target}" class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm font-semibold py-2.5 rounded-xl">拍照/選照片（原生畫質）</button>
                 <button data-photo-action="delete" data-target="${target}" class="flex-1 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold py-2.5 rounded-xl">刪除</button>
             </div>`;
     }else{
@@ -684,9 +684,9 @@ function renderPhotoFrame(target){
             <div class="flex flex-col gap-2">
                 <button data-photo-action="capture" data-target="${target}" ${disabled?'disabled':''} class="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed ${disabled?'border-slate-200 text-slate-300 cursor-not-allowed':'border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-500'} rounded-xl py-8 transition-colors">
                     <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    <span class="text-sm font-semibold">${disabled?'請先選擇傷口部位':'開啟相機拍照'}</span>
+                    <span class="text-sm font-semibold">${disabled?'請先選擇傷口部位':'開啟相機拍照（網頁內，約1200萬像素）'}</span>
                 </button>
-                <button data-photo-action="upload" data-target="${target}" ${disabled?'disabled':''} class="w-full py-2.5 rounded-xl text-sm font-semibold border ${disabled?'border-slate-200 text-slate-300 cursor-not-allowed':'border-slate-300 text-slate-500 hover:border-indigo-400 hover:text-indigo-500'}">從相簿選擇照片</button>
+                <button data-photo-action="upload" data-target="${target}" ${disabled?'disabled':''} class="w-full py-2.5 rounded-xl text-sm font-semibold border ${disabled?'border-slate-200 text-slate-300 cursor-not-allowed':'border-slate-300 text-slate-500 hover:border-indigo-400 hover:text-indigo-500'}">拍照或選擇照片（原生畫質）</button>
             </div>`;
     }
 }
@@ -720,8 +720,8 @@ document.getElementById('photo-file-input').addEventListener('change',e=>{
             const dataUrl=reader.result,time=fmtDisplayTime(new Date()),width=img.naturalWidth,height=img.naturalHeight;
             if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;photos.wound.width=width;photos.wound.height=height;}
             else{photos[target]={dataUrl,time,width,height};}
-            log(`已從相簿選擇照片：${target}（${fmtMP(width,height)}）`,'success');
-            showToast('照片已上傳','success');
+            log(`已取得照片：${target}（${fmtMP(width,height)}）`,'success');
+            showToast('照片已取得','success');
             renderPhotoFrame(target);
         };
         img.src=reader.result;
