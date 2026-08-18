@@ -70,7 +70,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                    <input id="location-input" value="yt" maxlength="20"
+                    <input id="location-input" maxlength="20"
                         class="bg-transparent text-white text-xs w-14 focus:outline-none placeholder-blue-300"
                         placeholder="病房代碼">
                     <button id="btn-loc-reset" class="text-blue-300 hover:text-white text-xs font-semibold ml-0.5">YT</button>
@@ -514,6 +514,13 @@
 </div>
 
 <script>
+// ── 設定 (統一管理，之後要換 API 或預設病房代碼都改這裡就好) ──
+const CONFIG = {
+    UPLOAD_API_URL: 'https://www.sstcmedicare.com/imedical/multi/division/v2/api/repository/uploadPhysiologicalData',
+    DEFAULT_LOCATION: 'yt',
+};
+document.getElementById('location-input').value = CONFIG.DEFAULT_LOCATION;
+
 // ── PWA ──
 (function(){
     try {
@@ -781,7 +788,7 @@ setupMode('mode-md6','section-md6-ble','section-md6-manual');
 document.getElementById('manual-d40-type').addEventListener('change',e=>{const bg=e.target.value==='bg';document.getElementById('manual-d40-bp-inputs').classList.toggle('hidden',bg);document.getElementById('manual-d40-bg-inputs').classList.toggle('hidden',!bg);});
 
 // ── Location ──
-document.getElementById('btn-loc-reset').addEventListener('click',()=>{document.getElementById('location-input').value='yt';});
+document.getElementById('btn-loc-reset').addEventListener('click',()=>{document.getElementById('location-input').value=CONFIG.DEFAULT_LOCATION;});
 document.getElementById('patient-id').addEventListener('input',refreshBar);
 
 // ── Log ──
@@ -1014,7 +1021,7 @@ function closeCamera(){
 let isUploading=false;
 document.getElementById('btn-upload').addEventListener('click',()=>{
     const keyno=document.getElementById('patient-id').value.trim();
-    const loc=document.getElementById('location-input').value.trim()||'yt';
+    const loc=document.getElementById('location-input').value.trim()||CONFIG.DEFAULT_LOCATION;
     if(!keyno){showToast('請先輸入病歷號','error');return;}
     if(meas.temp===null&&meas.spo2===null){showToast('至少需要體溫或血氧其中一項','error');return;}
     // populate preview
@@ -1045,7 +1052,7 @@ document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
     if(isUploading) return;
     const keyno=document.getElementById('patient-id').value.trim();
     if(!keyno){const errEl=document.getElementById('upload-error');errEl.textContent='病歷號不可為空';errEl.classList.remove('hidden');return;}
-    const loc=document.getElementById('location-input').value.trim()||'yt';
+    const loc=document.getElementById('location-input').value.trim()||CONFIG.DEFAULT_LOCATION;
     const payload={keyno,uploadTime:uploadTime||fmtUploadTime(new Date()),temp:meas.temp,pluse:meas.pluse,spo2:meas.spo2,sbp:meas.sbp,dbp:meas.dbp,glu:meas.glu,weight:meas.weight,resp_rate:meas.resp_rate,
         photo_intake:photos.intake?photos.intake.dataUrl:null,photo_output:photos.output?photos.output.dataUrl:null,photo_wound:photos.wound.dataUrl,photo_wound_part:photos.wound.part};
     const histMeta={hasPhotoIntake:!!photos.intake,hasPhotoOutput:!!photos.output,hasPhotoWound:!!photos.wound.dataUrl,woundPart:photos.wound.part};
@@ -1056,7 +1063,7 @@ document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
     log(`上傳 keyno=${keyno} location=${loc}`,'info');
     try{
         const fd=new FormData();fd.append('data',JSON.stringify(payload));
-        const res=await fetch(`https://www.sstcmedicare.com/imedical/multi/division/v2/api/repository/uploadPhysiologicalData?location=${loc}`,{method:'POST',body:fd});
+        const res=await fetch(`${CONFIG.UPLOAD_API_URL}?location=${loc}`,{method:'POST',body:fd});
         if(res.ok){
             log(`上傳成功 keyno=${keyno}`,'success');
             addHistory({...payload,photo_intake:undefined,photo_output:undefined,photo_wound:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'success'});
