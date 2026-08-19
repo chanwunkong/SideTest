@@ -561,9 +561,10 @@ function fmtMP(w,h){if(!w||!h)return'--';const wan=Math.round(w*h/10000);return`
 
 function setMeas(key,val){meas[key]=val;uploadTime=fmtUploadTime(new Date());refreshBar();}
 
+function hasAnyPhoto(){return!!(photos.intake||photos.output||photos.wound.dataUrl);}
 function refreshBar(){
     const hasKeyno=document.getElementById('patient-id').value.trim()!=='';
-    const hasMin=meas.temp!==null||meas.spo2!==null;
+    const hasMin=meas.temp!==null||meas.spo2!==null||hasAnyPhoto();
     document.getElementById('btn-upload').disabled=!(hasKeyno&&hasMin);
     const show=(id,valId,val)=>{const el=document.getElementById(id);if(val!=null){el.classList.remove('hidden');document.getElementById(valId).textContent=val;}else el.classList.add('hidden');};
     show('badge-temp','badge-temp-val',meas.temp!=null?`${meas.temp}°${meas.tempUnit}`:null);
@@ -573,7 +574,7 @@ function refreshBar(){
     show('badge-glu','badge-glu-val',meas.glu!=null?`${meas.glu}mg/dL`:null);
     show('badge-wt','badge-wt-val',meas.weight);
     show('badge-rr','badge-rr-val',meas.resp_rate!=null?`${meas.resp_rate}/min`:null);
-    const any=Object.entries(meas).some(([k,v])=>k!=='tempUnit'&&v!==null);
+    const any=Object.entries(meas).some(([k,v])=>k!=='tempUnit'&&v!==null)||hasAnyPhoto();
     document.getElementById('no-measure').classList.toggle('hidden',any);
     // supp summary
     const parts=[];if(meas.weight!=null)parts.push(`${meas.weight}kg`);if(meas.resp_rate!=null)parts.push(`RR${meas.resp_rate}`);
@@ -703,6 +704,7 @@ document.getElementById('tab-photo').addEventListener('click',e=>{
     }else if(action==='delete'){
         if(target==='wound'){photos.wound.dataUrl=null;photos.wound.time=null;photos.wound.width=null;photos.wound.height=null;}else{photos[target]=null;}
         renderPhotoFrame(target);
+        refreshBar();
         showToast('照片已刪除','info');
     }
 });
@@ -723,6 +725,7 @@ document.getElementById('photo-file-input').addEventListener('change',e=>{
             log(`已取得照片：${target}（${fmtMP(width,height)}）`,'success');
             showToast('照片已取得','success');
             renderPhotoFrame(target);
+            refreshBar();
         };
         img.src=reader.result;
     };
@@ -778,6 +781,7 @@ document.getElementById('btn-shutter').addEventListener('click',()=>{
     showToast('拍照成功','success');
     closePhotoCamera();
     renderPhotoFrame(target);
+    refreshBar();
 });
 
 ['intake','output','wound'].forEach(renderPhotoFrame);
@@ -1041,7 +1045,7 @@ document.getElementById('btn-upload').addEventListener('click',()=>{
     const keyno=document.getElementById('patient-id').value.trim();
     const loc=document.getElementById('location-input').value.trim()||CONFIG.DEFAULT_LOCATION;
     if(!keyno){showToast('請先輸入病歷號','error');return;}
-    if(meas.temp===null&&meas.spo2===null){showToast('至少需要體溫或血氧其中一項','error');return;}
+    if(meas.temp===null&&meas.spo2===null&&!hasAnyPhoto()){showToast('至少需要體溫、血氧或一張照片其中一項','error');return;}
     // populate preview
     document.getElementById('preview-keyno').textContent=keyno;
     document.getElementById('preview-loc').textContent=loc.toUpperCase();
