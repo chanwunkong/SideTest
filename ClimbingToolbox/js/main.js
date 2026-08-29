@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     recordManager.updateUI();
     recordManager.renderCalendar();
     analyticsManager.init();
+    bodyManager.init();
 
     // 初始化標籤庫 (JSON + History)
     tagManager.init();

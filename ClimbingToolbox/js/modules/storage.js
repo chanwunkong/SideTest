@@ -10,7 +10,41 @@ export const APP_EVENTS = {
     BODY_DATA_UPDATED: 'BODY_DATA_UPDATED', // 身體數據已更新
     GOAL_UPDATED: 'GOAL_UPDATED',       // 目標設定已變動
     SESSION_UPDATED: 'SESSION_UPDATED', // 暫存狀態改變
-    ROUTINE_UPDATED: 'ROUTINE_UPDATED'  // 課表清單改變
+    ROUTINE_UPDATED: 'ROUTINE_UPDATED', // 課表清單改變
+    AUTH_READY: 'AUTH_READY'            // 登入狀態已確定，可依此載入雲端／本機資料
+};
+
+// --- 雲端同步：首次登入時把本機資料搬到 Firestore，避免登入=資料歸零 ---
+
+// 子集合模式（每筆資料是獨立文件，如 routines / records）
+export const migrateLocalToCloud = async (uid, collectionName, localItems) => {
+    if (!localItems || localItems.length === 0) return;
+    const col = db.collection('users').doc(uid).collection(collectionName);
+    const existing = await col.limit(1).get();
+    if (!existing.empty) return; // 雲端已有資料，不覆蓋
+
+    const batch = db.batch();
+    localItems.forEach(item => {
+        const { id, ...data } = item;
+        const ref = (id && !String(id).startsWith('local_')) ? col.doc(id) : col.doc();
+        batch.set(ref, data);
+    });
+    await batch.commit();
+};
+
+// 單一文件模式（整包資料存一份文件，如 goals / prCardConfigs / bodyLogs）
+export const migrateBlobToCloud = async (uid, docId, localData) => {
+    const isEmpty = !localData ||
+        (Array.isArray(localData) && localData.length === 0) ||
+        (typeof localData === 'object' && !Array.isArray(localData) && Object.keys(localData).length === 0);
+    if (isEmpty) return;
+
+    const ref = db.collection('users').doc(uid).collection('settings').doc(docId);
+    const existing = await ref.get();
+    if (existing.exists) return; // 雲端已有資料，不覆蓋
+
+    const payload = Array.isArray(localData) ? { list: localData } : localData;
+    await ref.set(payload);
 };
 
 // 2. 實作輕量級事件總線
@@ -44,15 +78,38 @@ export const sessionRepository = {
 };
 
 // --- 資料存取層 (Repository) ---
+// 記憶體快取先用本機資料同步初始化，避免登入狀態判定完成前(非同步)畫面短暫空白
 export const recordRepository = {
+    records: JSON.parse(localStorage.getItem('trainingRecords') || '[]'),
+    user: null,
+
+    // 由 store.init() 的 onAuthStateChanged 觸發 (透過 AUTH_READY 事件)
+    async load(user) {
+        this.user = user;
+        if (user) {
+            const localRecords = JSON.parse(localStorage.getItem('trainingRecords') || '[]');
+            await migrateLocalToCloud(user.uid, 'records', localRecords);
+            const snap = await db.collection('users').doc(user.uid).collection('records').orderBy('timestamp', 'asc').get();
+            this.records = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } else {
+            this.records = JSON.parse(localStorage.getItem('trainingRecords') || '[]');
+        }
+        EventBus.emit(APP_EVENTS.RECORD_SAVED, {});
+    },
+
     getAll() {
-        return JSON.parse(localStorage.getItem('trainingRecords') || '[]');
+        return this.records;
     },
 
     save(newRecord) {
-        const records = this.getAll();
-        records.push(newRecord);
-        localStorage.setItem('trainingRecords', JSON.stringify(records));
+        this.records.push(newRecord);
+
+        if (this.user) {
+            const { id, ...data } = newRecord;
+            db.collection('users').doc(this.user.uid).collection('records').doc(id).set(data);
+        } else {
+            localStorage.setItem('trainingRecords', JSON.stringify(this.records));
+        }
 
         EventBus.emit(APP_EVENTS.RECORD_SAVED, {
             date: newRecord.date,
@@ -61,8 +118,7 @@ export const recordRepository = {
     },
 
     updateLog(recordId, queueIndex, payload) {
-        const records = this.getAll();
-        const record = records.find(r => r.id === recordId);
+        const record = this.records.find(r => r.id === recordId);
         if (!record) return;
 
         const logIndex = record.executionLogs.findIndex(l => l.queueIndex === queueIndex);
@@ -73,19 +129,31 @@ export const recordRepository = {
             record.executionLogs.sort((a, b) => a.queueIndex - b.queueIndex);
         }
 
-        localStorage.setItem('trainingRecords', JSON.stringify(records));
+        if (this.user) {
+            const { id, ...data } = record;
+            db.collection('users').doc(this.user.uid).collection('records').doc(id).set(data);
+        } else {
+            localStorage.setItem('trainingRecords', JSON.stringify(this.records));
+        }
 
         EventBus.emit(APP_EVENTS.RECORD_SAVED, { date: record.date });
     },
 
     delete(recordId, dateStr) {
-        let records = this.getAll();
-        records = records.filter(rec => rec.id !== recordId);
-        localStorage.setItem('trainingRecords', JSON.stringify(records));
+        this.records = this.records.filter(rec => rec.id !== recordId);
+
+        if (this.user) {
+            db.collection('users').doc(this.user.uid).collection('records').doc(recordId).delete();
+        } else {
+            localStorage.setItem('trainingRecords', JSON.stringify(this.records));
+        }
 
         EventBus.emit(APP_EVENTS.RECORD_SAVED, { date: dateStr });
     }
 };
+
+// 自我註冊：登入狀態一確定就重新載入訓練紀錄
+EventBus.on(APP_EVENTS.AUTH_READY, (user) => recordRepository.load(user));
 
 // --- 工具函式 ---
 export const routineUtils = {
@@ -154,10 +222,17 @@ export const store = {
 
     init() {
         if (typeof auth !== 'undefined' && auth.onAuthStateChanged) {
-            auth.onAuthStateChanged(user => {
+            auth.onAuthStateChanged(async user => {
                 this.user = user;
                 this.updateUserUI();
-                user ? this.loadRoutines() : this.loadLocalRoutines();
+                if (user) {
+                    const localRoutines = JSON.parse(localStorage.getItem('localRoutines') || '[]');
+                    await migrateLocalToCloud(user.uid, 'routines', localRoutines);
+                    await this.loadRoutines();
+                } else {
+                    this.loadLocalRoutines();
+                }
+                EventBus.emit(APP_EVENTS.AUTH_READY, user);
             });
         } else {
             this.loadLocalRoutines();

@@ -1,5 +1,5 @@
 // --- js/modules/analytics.js ---
-import { EventBus, APP_EVENTS, recordManager, store, escapeHtml } from './storage.js';
+import { EventBus, APP_EVENTS, recordManager, store, escapeHtml, migrateBlobToCloud } from './storage.js';
 import { editor, initSwipeToClose, } from './ui.js';
 import { views } from './views.js';
 
@@ -66,23 +66,22 @@ export const mathUtils = {
     }
 };
 
+const DEFAULT_PR_CONFIGS = [
+    { sourceType: 'routine', targetItem: '最大指力', metric: 'relative_strength', aggregation: 'max', timeRange: 'all' },
+    { sourceType: 'tag', targetItem: '耐力', metric: 'decay_rate', aggregation: 'avg', timeRange: '28d' },
+    null
+];
+
 export const analyticsManager = {
     configs: [],
     chartInstance: null,
     activeCardIndex: 0,
     currentRange: '28d',
+    user: null,
 
     init() {
         const saved = localStorage.getItem('prCardConfigs');
-        if (saved) {
-            this.configs = JSON.parse(saved);
-        } else {
-            this.configs = [
-                { sourceType: 'routine', targetItem: '最大指力', metric: 'relative_strength', aggregation: 'max', timeRange: 'all' },
-                { sourceType: 'tag', targetItem: '耐力', metric: 'decay_rate', aggregation: 'avg', timeRange: '28d' },
-                null
-            ];
-        }
+        this.configs = saved ? JSON.parse(saved) : DEFAULT_PR_CONFIGS;
 
         const rangeFilter = document.getElementById('chart-range-filter');
         if (rangeFilter) {
@@ -101,10 +100,31 @@ export const analyticsManager = {
         EventBus.on(APP_EVENTS.BODY_DATA_UPDATED, () => {
             this.refresh();
         });
+
+        // 登入狀態一確定就改載入雲端(或退回本機)的 PR 卡片設定
+        EventBus.on(APP_EVENTS.AUTH_READY, (user) => this.load(user));
+    },
+
+    async load(user) {
+        this.user = user;
+        if (user) {
+            const localConfigs = JSON.parse(localStorage.getItem('prCardConfigs') || 'null') || DEFAULT_PR_CONFIGS;
+            await migrateBlobToCloud(user.uid, 'prCardConfigs', localConfigs);
+            const doc = await db.collection('users').doc(user.uid).collection('settings').doc('prCardConfigs').get();
+            this.configs = doc.exists ? (doc.data().list || DEFAULT_PR_CONFIGS) : DEFAULT_PR_CONFIGS;
+        } else {
+            const saved = localStorage.getItem('prCardConfigs');
+            this.configs = saved ? JSON.parse(saved) : DEFAULT_PR_CONFIGS;
+        }
+        this.renderCards();
     },
 
     saveConfigs() {
-        localStorage.setItem('prCardConfigs', JSON.stringify(this.configs));
+        if (this.user) {
+            db.collection('users').doc(this.user.uid).collection('settings').doc('prCardConfigs').set({ list: this.configs });
+        } else {
+            localStorage.setItem('prCardConfigs', JSON.stringify(this.configs));
+        }
         this.renderCards();
     },
 
@@ -119,7 +139,7 @@ export const analyticsManager = {
 
     // [新增] 尋找距離特定訓練日期最近的體重紀錄，消除體重噪音
     getClosestWeight(targetDateStr) {
-        const bodyLogs = JSON.parse(localStorage.getItem('bodyLogs') || '{}');
+        const bodyLogs = bodyManager.getAllLogs();
         const dates = Object.keys(bodyLogs).sort();
         if (dates.length === 0) return 60; // 預設防呆值
 
@@ -577,6 +597,8 @@ export const analyticsUI = {
 export const bodyManager = {
     displayDate: new Date(),
     latestHeight: null,
+    logs: JSON.parse(localStorage.getItem('bodyLogs') || '{}'),
+    user: null,
 
     init() {
         // 1. 初始化：預設尋找「最新的一筆紀錄」來顯示
@@ -601,6 +623,25 @@ export const bodyManager = {
                 }
             });
         }
+
+        // 登入狀態一確定就改載入雲端(或退回本機)的身體數據
+        EventBus.on(APP_EVENTS.AUTH_READY, (user) => this.load(user));
+    },
+
+    async load(user) {
+        this.user = user;
+        if (user) {
+            const localLogs = JSON.parse(localStorage.getItem('bodyLogs') || '{}');
+            await migrateBlobToCloud(user.uid, 'bodyLogs', localLogs);
+            const doc = await db.collection('users').doc(user.uid).collection('settings').doc('bodyLogs').get();
+            this.logs = doc.exists ? doc.data() : {};
+        } else {
+            this.logs = JSON.parse(localStorage.getItem('bodyLogs') || '{}');
+        }
+
+        const dates = Object.keys(this.logs).sort();
+        this.displayDate = dates.length > 0 ? this.parseDate(dates[dates.length - 1]) : new Date();
+        this.renderCard();
     },
 
     // 輔助函式：安全解析日期 (避免時區跑版)
@@ -617,7 +658,7 @@ export const bodyManager = {
     },
 
     getAllLogs() {
-        return JSON.parse(localStorage.getItem('bodyLogs') || '{}');
+        return this.logs;
     },
 
     // 3. 跳躍式切換日期 (直接跳過沒有紀錄的日子)
@@ -774,8 +815,7 @@ export const bodyManager = {
         const dateInput = document.getElementById('body-editor-date');
         const dateStr = dateInput ? dateInput.value : this.getFormatDate(this.displayDate);
 
-        const logs = this.getAllLogs();
-        logs[dateStr] = {
+        this.logs[dateStr] = {
             height: h,
             weight: w,
             bodyFat: isNaN(bf) ? null : bf,
@@ -783,7 +823,11 @@ export const bodyManager = {
             updatedAt: Date.now()
         };
 
-        localStorage.setItem('bodyLogs', JSON.stringify(logs));
+        if (this.user) {
+            db.collection('users').doc(this.user.uid).collection('settings').doc('bodyLogs').set(this.logs);
+        } else {
+            localStorage.setItem('bodyLogs', JSON.stringify(this.logs));
+        }
         this.latestHeight = h;
 
         // 存檔後將背景卡片切換至剛儲存/更新的那一天
@@ -800,10 +844,13 @@ export const bodyManager = {
         const dateInput = document.getElementById('body-editor-date');
         const dateStr = dateInput ? dateInput.value : this.getFormatDate(this.displayDate);
 
-        const logs = this.getAllLogs();
-        if (logs[dateStr]) {
-            delete logs[dateStr];
-            localStorage.setItem('bodyLogs', JSON.stringify(logs));
+        if (this.logs[dateStr]) {
+            delete this.logs[dateStr];
+            if (this.user) {
+                db.collection('users').doc(this.user.uid).collection('settings').doc('bodyLogs').set(this.logs);
+            } else {
+                localStorage.setItem('bodyLogs', JSON.stringify(this.logs));
+            }
         }
 
         // [修正] 補上刷新，確保涉及體重的圖表即時更新

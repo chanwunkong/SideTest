@@ -1,6 +1,6 @@
 // --- js/modules/goalManager.js ---
 import { views } from './views.js';
-import { store, recordManager, EventBus, APP_EVENTS, escapeHtml } from './storage.js';
+import { store, recordManager, EventBus, APP_EVENTS, escapeHtml, migrateBlobToCloud } from './storage.js';
 import { editor, showToast } from './ui.js';
 
 
@@ -8,6 +8,7 @@ export const goalManager = {
     goals: [],
     tempOperator: 'OR',
     showOnlyActive: true,
+    user: null,
 
     init() {
         const saved = localStorage.getItem('userGoals');
@@ -18,10 +19,30 @@ export const goalManager = {
         EventBus.on(APP_EVENTS.RECORD_SAVED, () => {
             this.renderGoals();
         });
+
+        // 登入狀態一確定就改載入雲端(或退回本機)的目標清單
+        EventBus.on(APP_EVENTS.AUTH_READY, (user) => this.load(user));
+    },
+
+    async load(user) {
+        this.user = user;
+        if (user) {
+            const localGoals = JSON.parse(localStorage.getItem('userGoals') || '[]');
+            await migrateBlobToCloud(user.uid, 'goals', localGoals);
+            const doc = await db.collection('users').doc(user.uid).collection('settings').doc('goals').get();
+            this.goals = doc.exists ? (doc.data().list || []) : [];
+        } else {
+            this.goals = JSON.parse(localStorage.getItem('userGoals') || '[]');
+        }
+        this.renderGoals();
     },
 
     save() {
-        localStorage.setItem('userGoals', JSON.stringify(this.goals));
+        if (this.user) {
+            db.collection('users').doc(this.user.uid).collection('settings').doc('goals').set({ list: this.goals });
+        } else {
+            localStorage.setItem('userGoals', JSON.stringify(this.goals));
+        }
         this.renderGoals();
     },
 
