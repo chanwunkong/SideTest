@@ -347,6 +347,10 @@ export const store = {
     },
 
     renderRoutines() {
+        // 0. 首次使用引導：完全沒有課表時，在總覽頁顯示建立課表的入口
+        const onboarding = document.getElementById('dashboard-onboarding');
+        if (onboarding) onboarding.classList.toggle('hidden', this.routines.length > 0);
+
         // 1. 渲染進行中暫存 (Session)
         const session = sessionRepository.get();
         const sessionContainer = document.getElementById('active-session-container');

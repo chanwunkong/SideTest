@@ -800,9 +800,26 @@
             <div
                 class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
                 <h1 class="text-2xl font-extrabold dark:text-white">總覽</h1>
-                <button data-action="open-goal-editor"
-                    class="bg-blue-50 text-blue-600 px-4 py-2 rounded-full font-bold text-xs dark:bg-blue-900/30 dark:text-blue-400 active:scale-95 transition-transform">
-                    + 新增目標
+                <div class="flex items-center gap-2">
+                    <a href="StructHealth.html" title="前往 StructHealth 健康總覽"
+                        class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 active:scale-95 transition-transform dark:bg-gray-700 dark:text-gray-300">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                    </a>
+                    <button data-action="open-goal-editor"
+                        class="bg-blue-50 text-blue-600 px-4 py-2 rounded-full font-bold text-xs dark:bg-blue-900/30 dark:text-blue-400 active:scale-95 transition-transform">
+                        + 新增目標
+                    </button>
+                </div>
+            </div>
+
+            <div id="dashboard-onboarding" class="hidden mx-6 mt-4 p-5 rounded-2xl bg-blue-50 border border-blue-100 dark:bg-blue-900/20 dark:border-blue-800">
+                <h3 class="font-bold text-blue-900 dark:text-blue-300 mb-1">開始你的第一次訓練</h3>
+                <p class="text-xs text-blue-700/80 dark:text-blue-400/80 mb-3">建立一份課表，就能用計時器開始練習、自動記錄訓練歷程。</p>
+                <button data-action="route" data-value="routines"
+                    class="w-full bg-blue-600 text-white text-sm font-bold py-2.5 rounded-xl active:scale-95 transition-transform">
+                    前往建立課表
                 </button>
             </div>
 
@@ -882,10 +899,18 @@
             <div
                 class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
                 <h1 class="text-2xl font-extrabold dark:text-white">我的課表</h1>
-                <button data-action="open-editor"
-                    class="bg-blue-50 text-blue-600 px-4 py-2 rounded-full font-bold text-xs dark:bg-blue-900/30 dark:text-blue-400 active:scale-95 transition-transform">
-                    + 新增課表
-                </button>
+                <div class="flex items-center gap-2">
+                    <a href="StructHealth.html" title="前往 StructHealth 健康總覽"
+                        class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 active:scale-95 transition-transform dark:bg-gray-700 dark:text-gray-300">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                    </a>
+                    <button data-action="open-editor"
+                        class="bg-blue-50 text-blue-600 px-4 py-2 rounded-full font-bold text-xs dark:bg-blue-900/30 dark:text-blue-400 active:scale-95 transition-transform">
+                        + 新增課表
+                    </button>
+                </div>
             </div>
 
             <div class="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
@@ -919,10 +944,18 @@
             <div
                 class="p-6 sticky top-0 bg-white/95 backdrop-blur z-20 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
                 <h1 class="text-2xl font-extrabold dark:text-white">數據洞察</h1>
-                <div class="flex flex-col items-end">
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">綜合分析儀表板</span>
-                    <span id="body-date-label"
-                        class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono font-bold dark:bg-gray-700 dark:text-gray-400 mt-1">YYYY-MM-DD</span>
+                <div class="flex items-center gap-3">
+                    <div class="flex flex-col items-end">
+                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">綜合分析儀表板</span>
+                        <span id="body-date-label"
+                            class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono font-bold dark:bg-gray-700 dark:text-gray-400 mt-1">YYYY-MM-DD</span>
+                    </div>
+                    <a href="StructHealth.html" title="前往 StructHealth 健康總覽"
+                        class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 active:scale-95 transition-transform dark:bg-gray-700 dark:text-gray-300">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                    </a>
                 </div>
             </div>
 
@@ -1132,6 +1165,12 @@
             <div
                 class="p-6 sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 flex justify-between items-center dark:bg-gray-800/95 dark:border-gray-700">
                 <h1 class="text-2xl font-extrabold dark:text-white">設定</h1>
+                <a href="StructHealth.html" title="前往 StructHealth 健康總覽"
+                    class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 active:scale-95 transition-transform dark:bg-gray-700 dark:text-gray-300">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg>
+                </a>
             </div>
 
             <div class="p-6 space-y-6">

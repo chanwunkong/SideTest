@@ -7,14 +7,13 @@
   <title>StructHealth</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
-  <script>
-    window.__firebase_config = window.__firebase_config || '{}';
-    window.__app_id = window.__app_id || 'struct-health-vanilla';
-  </script>
+  <script src="config.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap');
@@ -22,7 +21,6 @@
     body {
       font-family: 'Inter', sans-serif;
       -webkit-tap-highlight-color: transparent;
-      background-color: #f8fafc;
     }
 
     .font-mono {
@@ -57,18 +55,27 @@
   </style>
 </head>
 
-<body class="text-slate-900 h-[100dvh] w-full overflow-hidden flex flex-col">
+<body class="bg-gray-50 text-gray-900 h-[100dvh] w-full overflow-hidden flex flex-col dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
 
-  <main class="flex-1 relative overflow-hidden w-full max-w-md mx-auto bg-white shadow-2xl flex flex-col h-full">
+  <main class="flex-1 relative overflow-hidden w-full max-w-md mx-auto bg-white shadow-2xl flex flex-col h-full dark:bg-gray-800 transition-colors duration-300">
 
-    <header class="flex items-center justify-between p-6 bg-white shrink-0 sticky top-0 z-20">
+    <header class="flex items-center justify-between p-6 bg-white shrink-0 sticky top-0 z-20 dark:bg-gray-800 transition-colors duration-300">
       <div class="flex items-center gap-2">
-        <div class="rounded-xl bg-slate-900 p-2 text-white" id="header-icon"></div>
-        <h1 class="text-xl font-black tracking-tight">StructHealth</h1>
+        <div class="rounded-xl bg-gray-900 p-2 text-white dark:bg-gray-700" id="header-icon"></div>
+        <h1 class="text-xl font-black tracking-tight dark:text-white">StructHealth</h1>
       </div>
-      <div id="user-avatar"
-        class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-400">
-        --
+      <div class="flex items-center gap-3">
+        <a href="Hangboard.html" title="前往 Hangboard 指力訓練"
+          class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-400 active:scale-95 transition-transform dark:bg-gray-700 dark:text-gray-300">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </a>
+        <div id="user-avatar" onclick="app.toggleAuth()"
+          class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-400 cursor-pointer active:scale-95 transition-transform dark:bg-gray-700 dark:text-gray-300">
+          --
+        </div>
       </div>
     </header>
 
@@ -77,27 +84,27 @@
       <div id="view-dashboard" class="view-section active space-y-8 py-4">
         <section class="space-y-4">
           <div class="flex items-end justify-between px-1">
-            <h2 class="text-[10px] font-black uppercase tracking-widest text-slate-400">進行中目標</h2>
+            <h2 class="text-[10px] font-black uppercase tracking-widest text-gray-400">進行中目標</h2>
             <button onclick="app.addGoal()"
-              class="text-[10px] font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded active:scale-95">＋ 新增</button>
+              class="text-[10px] font-bold text-gray-900 bg-gray-100 px-2 py-1 rounded active:scale-95 dark:text-white dark:bg-gray-700">＋ 新增</button>
           </div>
           <div id="goals-container" class="grid gap-3"></div>
         </section>
 
         <section class="space-y-4">
           <div class="flex items-end justify-between px-1">
-            <h2 class="text-[10px] font-black uppercase tracking-widest text-slate-400">支柱狀態總覽</h2>
+            <h2 class="text-[10px] font-black uppercase tracking-widest text-gray-400">支柱狀態總覽</h2>
             <button onclick="app.addPillar()"
-              class="text-[10px] font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded active:scale-95">＋ 新增</button>
+              class="text-[10px] font-bold text-gray-900 bg-gray-100 px-2 py-1 rounded active:scale-95 dark:text-white dark:bg-gray-700">＋ 新增</button>
           </div>
           <div id="pillars-container" class="space-y-3"></div>
         </section>
 
         <section class="space-y-4">
-          <h2 class="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">完程度日曆</h2>
-          <div class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+          <h2 class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">完成度日曆</h2>
+          <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
             <div
-              class="mb-6 grid grid-cols-7 gap-2 text-center text-[10px] font-black uppercase tracking-tighter text-slate-300">
+              class="mb-6 grid grid-cols-7 gap-2 text-center text-[10px] font-black uppercase tracking-tighter text-gray-300">
               <div>M</div>
               <div>T</div>
               <div>W</div>
@@ -115,17 +122,17 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <button onclick="app.switchView('dashboard')"
-              class="p-2 bg-slate-50 rounded-full text-slate-400 active:scale-95">
+              class="p-2 bg-gray-50 rounded-full text-gray-400 active:scale-95 dark:bg-gray-700 dark:text-gray-300">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path d="m15 18-6-6 6-6" />
               </svg>
             </button>
-            <h2 id="pillar-detail-title" class="text-xl font-black">載入中...</h2>
+            <h2 id="pillar-detail-title" class="text-xl font-black dark:text-white">載入中...</h2>
           </div>
           <div class="flex gap-2">
             <button onclick="app.addNode('root', 'folder')"
-              class="p-2 bg-slate-100 text-slate-700 rounded-lg active:scale-95">
+              class="p-2 bg-gray-100 text-gray-700 rounded-lg active:scale-95 dark:bg-gray-700 dark:text-gray-200">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path
@@ -133,7 +140,7 @@
               </svg>
             </button>
             <button onclick="app.addNode('root', 'leaf')"
-              class="p-2 bg-slate-900 text-white rounded-lg shadow-md active:scale-95">
+              class="p-2 bg-blue-600 text-white rounded-lg shadow-md active:scale-95">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
@@ -144,7 +151,7 @@
             </button>
           </div>
         </div>
-        <div class="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm min-h-[60vh]">
+        <div class="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm min-h-[60vh] dark:bg-gray-800 dark:border-gray-700">
           <div id="tree-container" class="space-y-2"></div>
         </div>
       </div>
@@ -152,17 +159,17 @@
       <div id="view-execution" class="view-section space-y-8 py-4">
         <header class="flex justify-between items-end">
           <div>
-            <h1 class="text-2xl font-black">執行切片</h1>
-            <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-black">今日行動與任務流</p>
+            <h1 class="text-2xl font-black dark:text-white">執行切片</h1>
+            <p class="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-black">今日行動與任務流</p>
           </div>
           <button onclick="app.addTask()"
-            class="text-[10px] font-bold text-slate-900 px-3 py-1.5 bg-slate-100 rounded-lg active:scale-95">＋
+            class="text-[10px] font-bold text-gray-900 px-3 py-1.5 bg-gray-100 rounded-lg active:scale-95 dark:text-white dark:bg-gray-700">＋
             新增任務</button>
         </header>
 
-        <section class="rounded-3xl bg-slate-900 p-6 text-white shadow-xl relative overflow-hidden">
+        <section class="rounded-3xl bg-gray-900 p-6 text-white shadow-xl relative overflow-hidden dark:bg-black">
           <div class="relative z-10">
-            <h4 class="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-300">AI 動態校準</h4>
+            <h4 class="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-300">AI 動態校準</h4>
             <p class="text-sm font-medium leading-relaxed">
               AI 分析保留區：將依據支柱數值自動重算並調配今日任務。
             </p>
@@ -183,9 +190,9 @@
     </div>
 
     <nav
-      class="fixed bottom-0 left-0 right-0 mx-auto flex h-16 max-w-md items-center justify-around border-t border-slate-100 bg-white/90 backdrop-blur-md z-30 px-4">
+      class="fixed bottom-0 left-0 right-0 mx-auto flex h-16 max-w-md items-center justify-around border-t border-gray-100 bg-white/90 backdrop-blur-md z-30 px-4 dark:bg-gray-800/90 dark:border-gray-700">
       <button onclick="app.switchView('dashboard')"
-        class="nav-btn active flex flex-col items-center gap-1 transition-colors text-slate-900"
+        class="nav-btn active flex flex-col items-center gap-1 transition-colors text-gray-900 dark:text-white"
         data-target="dashboard">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -194,14 +201,14 @@
         <span class="text-[9px] font-black uppercase tracking-widest">概覽</span>
       </button>
       <button onclick="app.switchView('execution')"
-        class="nav-btn flex flex-col items-center gap-1 transition-colors text-slate-400" data-target="execution">
+        class="nav-btn flex flex-col items-center gap-1 transition-colors text-gray-400" data-target="execution">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 6 9 17l-5-5" />
         </svg>
         <span class="text-[9px] font-black uppercase tracking-widest">執行</span>
       </button>
-      <button class="flex flex-col items-center gap-1 transition-colors text-slate-400 pointer-events-none opacity-50">
+      <button class="flex flex-col items-center gap-1 transition-colors text-gray-400 pointer-events-none opacity-50">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path
@@ -264,19 +271,19 @@
           const fieldsHtml = options.fields.map(f => {
             if (f.type === 'select') {
               const opts = f.options.map(o => `<option value="${o.value}" ${o.value === f.value ? 'selected' : ''}>${o.label}</option>`).join('');
-              return `<div><label class="block text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest">${f.label}</label><select id="modal-input-${f.id}" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-slate-900">${opts}</select></div>`;
+              return `<div><label class="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest">${f.label}</label><select id="modal-input-${f.id}" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">${opts}</select></div>`;
             }
-            return `<div><label class="block text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest">${f.label}</label><input type="${f.type}" id="modal-input-${f.id}" value="${f.value || ''}" placeholder="${f.placeholder || ''}" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-slate-900"></div>`;
+            return `<div><label class="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest">${f.label}</label><input type="${f.type}" id="modal-input-${f.id}" value="${f.value || ''}" placeholder="${f.placeholder || ''}" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></div>`;
           }).join('');
 
           const html = `
-                        <div id="modal-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
-                            <div id="modal-card" class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 transform scale-95 translate-y-4 opacity-0 transition-all duration-200 flex flex-col max-h-[90vh]">
-                                <h3 class="text-lg font-black text-slate-900 mb-4">${options.title}</h3>
+                        <div id="modal-backdrop" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
+                            <div id="modal-card" class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 transform scale-95 translate-y-4 opacity-0 transition-all duration-200 flex flex-col max-h-[90vh] dark:bg-gray-800">
+                                <h3 class="text-lg font-black text-gray-900 mb-4 dark:text-white">${options.title}</h3>
                                 <div class="space-y-4 overflow-y-auto no-scrollbar flex-1 py-1">${fieldsHtml}</div>
                                 <div class="flex gap-3 mt-6 pt-2">
-                                    <button id="modal-btn-cancel" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm transition-colors hover:bg-slate-200 active:scale-95">取消</button>
-                                    <button id="modal-btn-confirm" class="flex-1 py-3 rounded-xl bg-slate-900 text-white font-bold text-sm shadow-md transition-transform active:scale-95">確認</button>
+                                    <button id="modal-btn-cancel" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm transition-colors hover:bg-gray-200 active:scale-95 dark:bg-gray-700 dark:text-gray-300">取消</button>
+                                    <button id="modal-btn-confirm" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-md transition-transform active:scale-95">確認</button>
                                 </div>
                             </div>
                         </div>
@@ -295,13 +302,13 @@
       confirm(message) {
         return new Promise(resolve => {
           const html = `
-                        <div id="modal-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
-                            <div id="modal-card" class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center transform scale-95 translate-y-4 opacity-0 transition-all duration-200">
-                                <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">${getIcon('Alert', 32)}</div>
-                                <h3 class="text-lg font-black text-slate-900 mb-2">確認操作</h3>
-                                <p class="text-sm text-slate-500 font-medium mb-6">${message}</p>
+                        <div id="modal-backdrop" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
+                            <div id="modal-card" class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center transform scale-95 translate-y-4 opacity-0 transition-all duration-200 dark:bg-gray-800">
+                                <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 dark:bg-red-900/30">${getIcon('Alert', 32)}</div>
+                                <h3 class="text-lg font-black text-gray-900 mb-2 dark:text-white">確認操作</h3>
+                                <p class="text-sm text-gray-500 font-medium mb-6 dark:text-gray-400">${message}</p>
                                 <div class="flex gap-3">
-                                    <button id="modal-btn-cancel" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm transition-colors hover:bg-slate-200 active:scale-95">取消</button>
+                                    <button id="modal-btn-cancel" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm transition-colors hover:bg-gray-200 active:scale-95 dark:bg-gray-700 dark:text-gray-300">取消</button>
                                     <button id="modal-btn-confirm" class="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm shadow-md transition-transform active:scale-95">確定</button>
                                 </div>
                             </div>
@@ -314,60 +321,118 @@
       }
     };
 
+    const DEFAULT_PILLARS = [
+      { id: 'p1', title: '身體組成', icon: 'Activity', nodes: [] },
+      { id: 'p2', title: '營養代謝', icon: 'Utensils', nodes: [] },
+      { id: 'p3', title: '睡眠恢復', icon: 'Moon', nodes: [] }
+    ];
+
     const app = {
       user: null, goals: [], pillars: [], tasks: [], activePillarId: null, expandedNodes: new Set(),
-      db: null, auth: null, appId: window.__app_id || 'struct-health-vanilla', isFirebaseActive: false,
+      db: null, auth: null, appId: 'struct-health-vanilla', isFirebaseActive: false,
+      hangboardBodyLogs: {},
 
       init() {
         ui.init();
+        this.applyTheme();
         document.getElementById('header-icon').innerHTML = getIcon('Activity', 20);
 
-        let config = {};
-        try { config = JSON.parse(window.__firebase_config); } catch (e) { }
+        this.db = db;
+        this.auth = auth;
 
-        if (Object.keys(config).length > 0) {
-          firebase.initializeApp(config);
-          this.db = firebase.firestore();
-          this.auth = firebase.auth();
-          this.isFirebaseActive = true;
-
-          this.auth.onAuthStateChanged(user => {
-            this.user = user;
-            if (user) {
-              document.getElementById('user-avatar').textContent = user.uid.substring(0, 2).toUpperCase();
-              this.bindRealtimeData();
+        auth.onAuthStateChanged(async user => {
+          this.user = user;
+          if (user) {
+            this.isFirebaseActive = true;
+            document.getElementById('user-avatar').textContent = user.uid.substring(0, 2).toUpperCase();
+            try {
+              await this.migrateLocalToCloud();
+            } catch (e) {
+              console.error('本機資料遷移到雲端失敗:', e);
             }
-          });
-
-          if (typeof window.__initial_auth_token !== 'undefined' && window.__initial_auth_token) {
-            this.auth.signInWithCustomToken(window.__initial_auth_token).catch(console.error);
+            this.bindRealtimeData();
           } else {
-            this.auth.signInAnonymously().catch(console.error);
+            this.isFirebaseActive = false;
+            document.getElementById('user-avatar').textContent = '--';
+            this.loadLocalData();
           }
-        } else {
-          this.user = { uid: 'local' };
-          this.pillars = [
-            { id: 'p1', title: '身體組成', icon: 'Activity', nodes: [] },
-            { id: 'p2', title: '營養代謝', icon: 'Utensils', nodes: [] },
-            { id: 'p3', title: '睡眠恢復', icon: 'Moon', nodes: [] }
-          ];
-          this.renderAll();
-        }
+        });
       },
 
-      bindRealtimeData() {
+      toggleAuth() {
+        if (this.user) handleLogout(); else handleGoogleLogin();
+      },
+
+      // --- 深色模式：跟隨 Hangboard 設定頁寫入的同一個 localStorage 偏好，被動套用不提供切換開關 ---
+      applyTheme() {
+        const mode = localStorage.getItem('themeMode') || 'system';
+        const isDark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', isDark);
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+          if ((localStorage.getItem('themeMode') || 'system') === 'system') this.applyTheme();
+        });
+      },
+
+      // --- 本機資料 (未登入時的持久化，避免重新整理就消失) ---
+      loadLocalData() {
+        const saved = JSON.parse(localStorage.getItem('structHealthData') || 'null');
+        this.pillars = saved?.pillars || DEFAULT_PILLARS;
+        this.goals = saved?.goals || [];
+        this.tasks = saved?.tasks || [];
+        this.renderAll();
+      },
+
+      saveLocalData() {
+        localStorage.setItem('structHealthData', JSON.stringify({
+          pillars: this.pillars, goals: this.goals, tasks: this.tasks
+        }));
+      },
+
+      // --- 首次登入時把本機資料搬到雲端，避免登入=資料歸零 ---
+      async migrateLocalToCloud() {
+        const saved = JSON.parse(localStorage.getItem('structHealthData') || 'null');
+        if (!saved) return;
+
         const dbRoot = this.db.collection('artifacts').doc(this.appId).collection('users').doc(this.user.uid);
+        for (const collectionName of ['goals', 'tasks', 'pillars']) {
+          const items = saved[collectionName];
+          if (!items || items.length === 0) continue;
+          const existing = await dbRoot.collection(collectionName).limit(1).get();
+          if (!existing.empty) continue;
+          const batch = this.db.batch();
+          items.forEach(item => {
+            const { id, ...data } = item;
+            batch.set(dbRoot.collection(collectionName).doc(id), data);
+          });
+          await batch.commit();
+        }
+        localStorage.removeItem('structHealthData');
+      },
+
+      async bindRealtimeData() {
+        const dbRoot = this.db.collection('artifacts').doc(this.appId).collection('users').doc(this.user.uid);
+
+        // 只在使用者從未擁有過任何支柱時播種預設值一次；
+        // 放在即時監聽器內會導致使用者刻意刪光支柱後又被自動復活。
+        const pillarsSnap = await dbRoot.collection('pillars').limit(1).get();
+        if (pillarsSnap.empty) {
+            for (const p of DEFAULT_PILLARS) await dbRoot.collection('pillars').doc(p.id).set(p);
+        }
+
+        // Hangboard 的體重/體脂/肌肉量紀錄（唯讀，供身體組成支柱帶入，不寫回 Hangboard）
+        this.db.collection('users').doc(this.user.uid).collection('settings').doc('bodyLogs')
+          .onSnapshot(doc => {
+            this.hangboardBodyLogs = doc.exists ? doc.data() : {};
+            if (this.activePillarId === 'p1') this.renderTree();
+          });
+
         dbRoot.collection('goals').onSnapshot(snap => { this.goals = snap.docs.map(d => ({ id: d.id, ...d.data() })); this.renderDashboard(); });
         dbRoot.collection('tasks').onSnapshot(snap => { this.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() })); this.renderDashboard(); this.renderExecution(); });
-        dbRoot.collection('pillars').onSnapshot(async snap => {
-          if (snap.empty) {
-            const defaults = [{ id: 'p1', title: '身體組成', icon: 'Activity', nodes: [] }, { id: 'p2', title: '營養代謝', icon: 'Utensils', nodes: [] }, { id: 'p3', title: '睡眠恢復', icon: 'Moon', nodes: [] }];
-            for (const p of defaults) await dbRoot.collection('pillars').doc(p.id).set(p);
-          } else {
-            this.pillars = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.id.localeCompare(b.id));
-            this.renderDashboard();
-            if (this.activePillarId) this.renderTree();
-          }
+        dbRoot.collection('pillars').onSnapshot(snap => {
+          this.pillars = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.id.localeCompare(b.id));
+          this.renderDashboard();
+          if (this.activePillarId) this.renderTree();
         });
       },
 
@@ -376,11 +441,11 @@
         document.getElementById(`view-${viewId}`).classList.add('active');
 
         document.querySelectorAll('.nav-btn').forEach(btn => {
-          btn.classList.remove('text-slate-900');
-          btn.classList.add('text-slate-400');
+          btn.classList.remove('text-gray-900', 'dark:text-white');
+          btn.classList.add('text-gray-400');
           if (btn.dataset.target === viewId) {
-            btn.classList.remove('text-slate-400');
-            btn.classList.add('text-slate-900');
+            btn.classList.remove('text-gray-400');
+            btn.classList.add('text-gray-900', 'dark:text-white');
           }
         });
 
@@ -405,6 +470,7 @@
           if (action === 'add') this[collectionName] = [...list, { id: generateId(), ...data }];
           if (action === 'update') this[collectionName] = list.map(item => item.id === id ? { ...item, ...data } : item);
           if (action === 'delete') this[collectionName] = list.filter(item => item.id !== id);
+          this.saveLocalData();
           this.renderAll();
         }
       },
@@ -414,23 +480,23 @@
       renderDashboard() {
         const goalsContainer = document.getElementById('goals-container');
         if (this.goals.length === 0) {
-          goalsContainer.innerHTML = `<div class="p-4 text-center border border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs font-bold">尚無目標</div>`;
+          goalsContainer.innerHTML = `<div class="p-4 text-center border border-dashed border-gray-200 rounded-2xl text-gray-400 text-xs font-bold dark:border-gray-700">尚無目標</div>`;
         } else {
           goalsContainer.innerHTML = this.goals.map(g => `
-                        <div class="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm relative">
+                        <div class="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm relative dark:bg-gray-800 dark:border-gray-700">
                             <div class="absolute top-4 right-4 flex gap-1 z-10">
-                                <button onclick="event.stopPropagation(); app.editGoal('${g.id}', '${g.title}')" class="text-slate-300 hover:text-blue-500 p-1 bg-slate-50 rounded-full">${getIcon('Edit2', 14)}</button>
-                                <button onclick="event.stopPropagation(); app.deleteGoal('${g.id}')" class="text-slate-300 hover:text-red-400 p-1 bg-slate-50 rounded-full">${getIcon('Trash2', 14)}</button>
+                                <button onclick="event.stopPropagation(); app.editGoal('${g.id}', '${g.title}')" class="text-gray-300 hover:text-blue-500 p-1 bg-gray-50 rounded-full dark:bg-gray-700 dark:text-gray-400">${getIcon('Edit2', 14)}</button>
+                                <button onclick="event.stopPropagation(); app.deleteGoal('${g.id}')" class="text-gray-300 hover:text-red-400 p-1 bg-gray-50 rounded-full dark:bg-gray-700 dark:text-gray-400">${getIcon('Trash2', 14)}</button>
                             </div>
                             <div class="mb-3 flex items-start justify-between cursor-pointer pr-16" onclick="app.updateGoalProgress('${g.id}', ${g.progress})">
                                 <div>
-                                    <h3 class="font-bold text-slate-800">${g.title}</h3>
-                                    <p class="text-[9px] text-slate-400 mt-1 uppercase font-black tracking-tighter">點擊更新進度</p>
+                                    <h3 class="font-bold text-gray-800 dark:text-gray-100">${g.title}</h3>
+                                    <p class="text-[9px] text-gray-400 mt-1 uppercase font-black tracking-tighter">點擊更新進度</p>
                                 </div>
-                                <span class="font-mono text-sm font-bold text-slate-900">${g.progress}%</span>
+                                <span class="font-mono text-sm font-bold text-gray-900 dark:text-white">${g.progress}%</span>
                             </div>
-                            <div class="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                                <div class="h-full bg-slate-900 transition-all" style="width: ${g.progress}%"></div>
+                            <div class="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden dark:bg-gray-700">
+                                <div class="h-full bg-blue-600 transition-all" style="width: ${g.progress}%"></div>
                             </div>
                         </div>
                     `).join('');
@@ -443,17 +509,17 @@
           if (p.nodes) countNodes(p.nodes);
 
           return `
-                        <div class="flex cursor-pointer items-center gap-4 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition-all active:scale-95 relative" onclick="app.openPillar('${p.id}')">
+                        <div class="flex cursor-pointer items-center gap-4 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm transition-all active:scale-95 relative dark:bg-gray-800 dark:border-gray-700" onclick="app.openPillar('${p.id}')">
                             <div class="absolute top-4 right-4 flex gap-1 z-10">
-                                <button onclick="event.stopPropagation(); app.editPillar('${p.id}', '${p.title}')" class="text-slate-300 hover:text-blue-500 p-1 bg-slate-50 rounded-full">${getIcon('Edit2', 14)}</button>
-                                <button onclick="event.stopPropagation(); app.deletePillar('${p.id}')" class="text-slate-300 hover:text-red-400 p-1 bg-slate-50 rounded-full">${getIcon('Trash2', 14)}</button>
+                                <button onclick="event.stopPropagation(); app.editPillar('${p.id}', '${p.title}')" class="text-gray-300 hover:text-blue-500 p-1 bg-gray-50 rounded-full dark:bg-gray-700 dark:text-gray-400">${getIcon('Edit2', 14)}</button>
+                                <button onclick="event.stopPropagation(); app.deletePillar('${p.id}')" class="text-gray-300 hover:text-red-400 p-1 bg-gray-50 rounded-full dark:bg-gray-700 dark:text-gray-400">${getIcon('Trash2', 14)}</button>
                             </div>
-                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl shrink-0 bg-slate-50 text-slate-700">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl shrink-0 bg-gray-50 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
                                 ${getIcon(p.icon || 'Activity', 20)}
                             </div>
                             <div class="flex-1 pr-16">
-                                <h3 class="font-bold text-sm text-slate-800">${p.title}</h3>
-                                <p class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tighter">${count} 項追蹤節點</p>
+                                <h3 class="font-bold text-sm text-gray-800 dark:text-gray-100">${p.title}</h3>
+                                <p class="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">${count} 項追蹤節點</p>
                             </div>
                         </div>
                     `;
@@ -471,11 +537,11 @@
           const isToday = i === 27;
           let dayScore = isToday ? todayScore : (Math.sin(i * 123) * 0.5 + 0.5);
           let dotCount = dayScore >= 0.8 ? 3 : dayScore >= 0.4 ? 2 : dayScore > 0 ? 1 : 0;
-          const dotsHTML = [...Array(3)].map((_, dotIdx) => `<div class="w-1 h-1 rounded-full ${dotIdx < dotCount ? 'bg-slate-800' : 'bg-slate-100'}"></div>`).join('');
+          const dotsHTML = [...Array(3)].map((_, dotIdx) => `<div class="w-1 h-1 rounded-full ${dotIdx < dotCount ? 'bg-gray-800 dark:bg-gray-300' : 'bg-gray-100 dark:bg-gray-700'}"></div>`).join('');
 
           return `
                         <div class="flex flex-col items-center gap-1">
-                            <div class="text-xs font-bold ${isToday ? 'text-slate-900 bg-slate-100 w-6 h-6 rounded-full flex items-center justify-center' : 'text-slate-400'}">${i + 1}</div>
+                            <div class="text-xs font-bold ${isToday ? 'text-gray-900 bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center dark:text-white dark:bg-gray-700' : 'text-gray-400'}">${i + 1}</div>
                             <div class="flex gap-0.5 h-1">${dotsHTML}</div>
                         </div>
                     `;
@@ -531,15 +597,45 @@
       // =====================================
       // 樹狀結構 渲染與邏輯
       // =====================================
+      // --- 身體組成支柱：唯讀帶入 Hangboard 已經記錄的體重/體脂/肌肉量，不用兩邊各填一次 ---
+      getHangboardBodyLogs() {
+        return this.isFirebaseActive
+          ? (this.hangboardBodyLogs || {})
+          : JSON.parse(localStorage.getItem('bodyLogs') || '{}');
+      },
+
+      renderBodySyncCard() {
+        const logs = this.getHangboardBodyLogs();
+        const dates = Object.keys(logs).sort();
+
+        if (dates.length === 0) {
+          return `<div class="mb-4 p-4 rounded-2xl bg-gray-50 border border-dashed border-gray-200 text-center dark:bg-gray-800/50 dark:border-gray-700">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">來自 Hangboard</p>
+            <p class="text-xs text-gray-400">尚未在 Hangboard 記錄過身體數據</p>
+          </div>`;
+        }
+
+        const latest = logs[dates[dates.length - 1]];
+        return `<div class="mb-4 p-4 rounded-2xl bg-blue-50 border border-blue-100 dark:bg-blue-900/20 dark:border-blue-800">
+          <p class="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2">來自 Hangboard · ${dates[dates.length - 1]}</p>
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div><div class="text-lg font-black text-gray-900 dark:text-white">${latest.weight ?? '--'}</div><div class="text-[9px] text-gray-400 font-bold">體重 kg</div></div>
+            <div><div class="text-lg font-black text-gray-900 dark:text-white">${latest.bodyFat ?? '--'}</div><div class="text-[9px] text-gray-400 font-bold">體脂 %</div></div>
+            <div><div class="text-lg font-black text-gray-900 dark:text-white">${latest.muscleMass ?? '--'}</div><div class="text-[9px] text-gray-400 font-bold">肌肉量 kg</div></div>
+          </div>
+        </div>`;
+      },
+
       renderTree() {
         const pillar = this.pillars.find(p => p.id === this.activePillarId);
         if (!pillar) return;
 
         document.getElementById('pillar-detail-title').textContent = pillar.title;
         const container = document.getElementById('tree-container');
+        const syncCardHtml = pillar.id === 'p1' ? this.renderBodySyncCard() : '';
 
         if (!pillar.nodes || pillar.nodes.length === 0) {
-          container.innerHTML = `<div class="text-center p-8 text-slate-400 text-xs font-bold border border-dashed border-slate-200 rounded-2xl">點擊右上角建立自訂層級結構</div>`;
+          container.innerHTML = syncCardHtml + `<div class="text-center p-8 text-gray-400 text-xs font-bold border border-dashed border-gray-200 rounded-2xl dark:border-gray-700">點擊右上角建立自訂層級結構</div>`;
           return;
         }
 
@@ -550,10 +646,10 @@
             let html = `<div class="mt-2 ${depth > 0 ? 'tree-indent' : ''}">`;
 
             html += `
-                            <div class="flex items-center justify-between p-3 rounded-xl border ${isLeaf ? 'bg-white border-slate-100 shadow-sm' : 'bg-slate-50 border-transparent'} transition-colors">
+                            <div class="flex items-center justify-between p-3 rounded-xl border ${isLeaf ? 'bg-white border-gray-100 shadow-sm dark:bg-gray-800 dark:border-gray-700' : 'bg-gray-50 border-transparent dark:bg-gray-700/50'} transition-colors">
                                 <div class="flex items-center gap-2 flex-1">
-                                    ${!isLeaf ? `<button onclick="app.toggleNode('${node.id}')" class="text-slate-400 hover:text-slate-600">${getIcon(isExpanded ? 'ChevronDown' : 'ChevronRight', 16)}</button>` : ''}
-                                    <span class="font-bold ${isLeaf ? 'text-sm text-slate-800' : 'text-xs uppercase tracking-widest text-slate-500'}">${node.name}</span>
+                                    ${!isLeaf ? `<button onclick="app.toggleNode('${node.id}')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">${getIcon(isExpanded ? 'ChevronDown' : 'ChevronRight', 16)}</button>` : ''}
+                                    <span class="font-bold ${isLeaf ? 'text-sm text-gray-800 dark:text-gray-100' : 'text-xs uppercase tracking-widest text-gray-500 dark:text-gray-400'}">${node.name}</span>
                                 </div>
                                 <div class="flex items-center gap-2">
                         `;
@@ -561,24 +657,24 @@
             if (isLeaf) {
               html += `
                                 <div class="flex items-center gap-1">
-                                    <input type="number" value="${node.current}" onchange="app.updateLeaf('${node.id}', 'current', this.value)" class="w-12 bg-slate-100 p-1 rounded text-center font-mono text-xs border-none font-bold text-slate-900 focus:ring-1 focus:ring-slate-400" />
-                                    <span class="text-slate-300 font-bold">/</span>
-                                    <input type="number" value="${node.target}" onchange="app.updateLeaf('${node.id}', 'target', this.value)" class="w-12 bg-white border border-slate-100 p-1 rounded text-center font-mono text-xs text-slate-400 focus:ring-1 focus:ring-slate-400" />
-                                    <span class="text-[9px] font-black uppercase text-slate-300 w-5 text-left truncate">${node.unit}</span>
+                                    <input type="number" value="${node.current}" onchange="app.updateLeaf('${node.id}', 'current', this.value)" class="w-12 bg-gray-100 p-1 rounded text-center font-mono text-xs border-none font-bold text-gray-900 focus:ring-1 focus:ring-gray-400 dark:bg-gray-700 dark:text-white" />
+                                    <span class="text-gray-300 font-bold">/</span>
+                                    <input type="number" value="${node.target}" onchange="app.updateLeaf('${node.id}', 'target', this.value)" class="w-12 bg-white border border-gray-100 p-1 rounded text-center font-mono text-xs text-gray-400 focus:ring-1 focus:ring-gray-400 dark:bg-gray-800 dark:border-gray-600" />
+                                    <span class="text-[9px] font-black uppercase text-gray-300 w-5 text-left truncate">${node.unit}</span>
                                 </div>
                             `;
             } else {
               html += `
                                 <div class="flex gap-1">
-                                    <button onclick="app.addNode('${node.id}', 'folder')" class="p-1 bg-slate-200 rounded text-slate-700 active:scale-95">${getIcon('FolderPlus', 14)}</button>
-                                    <button onclick="app.addNode('${node.id}', 'leaf')" class="p-1 bg-slate-800 text-white rounded active:scale-95">${getIcon('FilePlus', 14)}</button>
+                                    <button onclick="app.addNode('${node.id}', 'folder')" class="p-1 bg-gray-200 rounded text-gray-700 active:scale-95 dark:bg-gray-600 dark:text-gray-200">${getIcon('FolderPlus', 14)}</button>
+                                    <button onclick="app.addNode('${node.id}', 'leaf')" class="p-1 bg-blue-600 text-white rounded active:scale-95">${getIcon('FilePlus', 14)}</button>
                                 </div>
                             `;
             }
 
             html += `
-                                    <button onclick="app.renameNode('${node.id}', '${node.name}')" class="text-slate-300 hover:text-blue-500 p-1 ml-1">${getIcon('Edit2', 14)}</button>
-                                    <button onclick="app.deleteNode('${node.id}')" class="text-slate-300 hover:text-red-400 p-1">${getIcon('Trash2', 14)}</button>
+                                    <button onclick="app.renameNode('${node.id}', '${node.name}')" class="text-gray-300 hover:text-blue-500 p-1 ml-1">${getIcon('Edit2', 14)}</button>
+                                    <button onclick="app.deleteNode('${node.id}')" class="text-gray-300 hover:text-red-400 p-1">${getIcon('Trash2', 14)}</button>
                                 </div>
                             </div>
                         `;
@@ -586,8 +682,8 @@
             if (isLeaf) {
               const pct = Math.min(100, (node.current / Math.max(node.target, 0.001)) * 100);
               html += `
-                                <div class="mt-1.5 h-1 w-full bg-slate-50 rounded-full overflow-hidden">
-                                    <div class="h-full bg-slate-900 transition-all duration-300" style="width: ${pct}%"></div>
+                                <div class="mt-1.5 h-1 w-full bg-gray-50 rounded-full overflow-hidden dark:bg-gray-700">
+                                    <div class="h-full bg-blue-600 transition-all duration-300" style="width: ${pct}%"></div>
                                 </div>
                             `;
             }
@@ -598,7 +694,7 @@
           }).join('');
         };
 
-        container.innerHTML = buildTreeHTML(pillar.nodes, 0);
+        container.innerHTML = syncCardHtml + buildTreeHTML(pillar.nodes, 0);
       },
 
       _updatePillarTree(updaterFn) {
@@ -682,38 +778,38 @@
         }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
         if (todayTasks.length === 0) {
-          container.innerHTML = `<div class="text-center p-8 text-slate-400 text-sm font-bold border border-dashed border-slate-200 rounded-3xl">今日無任務</div>`;
+          container.innerHTML = `<div class="text-center p-8 text-gray-400 text-sm font-bold border border-dashed border-gray-200 rounded-3xl dark:border-gray-700">今日無任務</div>`;
           return;
         }
 
         container.innerHTML = todayTasks.map(t => {
           const isCompleted = (t.completedDates || []).includes(todayStr);
-          const recurringBadge = t.recurring !== 'none' ? `<span class="text-[8px] font-black text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded uppercase">${t.recurring === 'daily' ? '每日' : '每週'}</span>` : '';
+          const recurringBadge = t.recurring !== 'none' ? `<span class="text-[8px] font-black text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded uppercase dark:bg-gray-700 dark:text-gray-300">${t.recurring === 'daily' ? '每日' : '每週'}</span>` : '';
 
           return `
                         <div class="relative flex gap-6 pl-4">
-                            <div class="absolute left-4 top-10 bottom-0 w-px bg-slate-100"></div>
-                            <div class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-4 border-white bg-slate-50">
-                                <div class="h-2 w-2 rounded-full ${isCompleted ? 'bg-slate-900' : 'bg-slate-300'}"></div>
+                            <div class="absolute left-4 top-10 bottom-0 w-px bg-gray-100 dark:bg-gray-700"></div>
+                            <div class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-4 border-white bg-gray-50 dark:border-gray-800 dark:bg-gray-700">
+                                <div class="h-2 w-2 rounded-full ${isCompleted ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-500'}"></div>
                             </div>
-                            
-                            <div class="flex-1 rounded-3xl border border-slate-100 p-5 shadow-sm transition-all relative ${isCompleted ? 'bg-slate-50 opacity-50' : 'bg-white'}">
+
+                            <div class="flex-1 rounded-3xl border border-gray-100 p-5 shadow-sm transition-all relative ${isCompleted ? 'bg-gray-50 opacity-50 dark:bg-gray-800/50' : 'bg-white dark:bg-gray-800'} dark:border-gray-700">
                                 <div class="absolute -right-2 -top-2 flex gap-1 z-10">
-                                    <button onclick="app.editTask('${t.id}')" class="bg-slate-100 text-slate-500 rounded-full p-1.5 shadow-sm hover:text-blue-500">${getIcon('Edit2', 12)}</button>
-                                    <button onclick="app.deleteTask('${t.id}')" class="bg-slate-100 text-red-500 rounded-full p-1.5 shadow-sm hover:bg-red-50">${getIcon('Trash2', 12)}</button>
+                                    <button onclick="app.editTask('${t.id}')" class="bg-gray-100 text-gray-500 rounded-full p-1.5 shadow-sm hover:text-blue-500 dark:bg-gray-700 dark:text-gray-300">${getIcon('Edit2', 12)}</button>
+                                    <button onclick="app.deleteTask('${t.id}')" class="bg-gray-100 text-red-500 rounded-full p-1.5 shadow-sm hover:bg-red-50 dark:bg-gray-700">${getIcon('Trash2', 12)}</button>
                                 </div>
 
                                 <div class="flex justify-between items-start">
                                     <div>
-                                        <div class="font-mono text-[10px] font-bold text-slate-500">${t.time || '未定時'}</div>
-                                        <h4 class="font-bold ${isCompleted ? 'line-through text-slate-500' : 'text-slate-800'}">${t.title}</h4>
+                                        <div class="font-mono text-[10px] font-bold text-gray-500 dark:text-gray-400">${t.time || '未定時'}</div>
+                                        <h4 class="font-bold ${isCompleted ? 'line-through text-gray-500' : 'text-gray-800 dark:text-gray-100'}">${t.title}</h4>
                                         <div class="flex items-center gap-2 mt-1">
-                                            ${getIcon('Target', 12, 'text-slate-300')}
-                                            <span class="text-[10px] font-black text-slate-400">${t.goal}</span>
+                                            ${getIcon('Target', 12, 'text-gray-300')}
+                                            <span class="text-[10px] font-black text-gray-400">${t.goal}</span>
                                             ${recurringBadge}
                                         </div>
                                     </div>
-                                    <button onclick="app.toggleTask('${t.id}')" class="rounded-full p-2 transition-colors active:scale-95 ${isCompleted ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-200'}">
+                                    <button onclick="app.toggleTask('${t.id}')" class="rounded-full p-2 transition-colors active:scale-95 ${isCompleted ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-400 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600'}">
                                         ${getIcon('Check', 16)}
                                     </button>
                                 </div>
