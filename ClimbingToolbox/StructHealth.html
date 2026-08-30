@@ -151,6 +151,8 @@
             </button>
           </div>
         </div>
+        <div id="daily-log-container" class="space-y-4"></div>
+
         <div class="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm min-h-[60vh] dark:bg-gray-800 dark:border-gray-700">
           <div id="tree-container" class="space-y-2"></div>
         </div>
@@ -328,7 +330,7 @@
     ];
 
     const app = {
-      user: null, goals: [], pillars: [], tasks: [], activePillarId: null, expandedNodes: new Set(),
+      user: null, goals: [], pillars: [], tasks: [], dailyEntries: [], activePillarId: null, expandedNodes: new Set(),
       db: null, auth: null, appId: 'struct-health-vanilla', isFirebaseActive: false,
       hangboardBodyLogs: {},
 
@@ -380,12 +382,13 @@
         this.pillars = saved?.pillars || DEFAULT_PILLARS;
         this.goals = saved?.goals || [];
         this.tasks = saved?.tasks || [];
+        this.dailyEntries = saved?.dailyEntries || [];
         this.renderAll();
       },
 
       saveLocalData() {
         localStorage.setItem('structHealthData', JSON.stringify({
-          pillars: this.pillars, goals: this.goals, tasks: this.tasks
+          pillars: this.pillars, goals: this.goals, tasks: this.tasks, dailyEntries: this.dailyEntries
         }));
       },
 
@@ -395,7 +398,7 @@
         if (!saved) return;
 
         const dbRoot = this.db.collection('artifacts').doc(this.appId).collection('users').doc(this.user.uid);
-        for (const collectionName of ['goals', 'tasks', 'pillars']) {
+        for (const collectionName of ['goals', 'tasks', 'pillars', 'dailyEntries']) {
           const items = saved[collectionName];
           if (!items || items.length === 0) continue;
           const existing = await dbRoot.collection(collectionName).limit(1).get();
@@ -432,6 +435,10 @@
         dbRoot.collection('pillars').onSnapshot(snap => {
           this.pillars = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.id.localeCompare(b.id));
           this.renderDashboard();
+          if (this.activePillarId) this.renderTree();
+        });
+        dbRoot.collection('dailyEntries').onSnapshot(snap => {
+          this.dailyEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           if (this.activePillarId) this.renderTree();
         });
       },
@@ -626,11 +633,221 @@
         </div>`;
       },
 
+      // =====================================
+      // 每日目標 / 飲食紀錄
+      // =====================================
+      dailyFieldSuggestions(pillarId) {
+        if (pillarId === 'p2') {
+          return [
+            { name: '熱量', unit: 'kcal', target: 2000 },
+            { name: '水份', unit: 'ml', target: 2000 },
+            { name: '蛋白質', unit: 'g', target: 120 },
+            { name: '碳水', unit: 'g', target: 250 },
+            { name: '脂肪', unit: 'g', target: 65 }
+          ];
+        }
+        if (pillarId === 'p3') {
+          return [{ name: '睡眠時數', unit: 'hr', target: 8 }];
+        }
+        return [];
+      },
+
+      async addDailyField(pillarId) {
+        const pillar = this.pillars.find(p => p.id === pillarId);
+        if (!pillar) return;
+        const res = await ui.prompt({
+          title: '新增每日目標欄位',
+          fields: [
+            { id: 'name', label: '欄位名稱', type: 'text', placeholder: '如：維生素D' },
+            { id: 'unit', label: '單位', type: 'text', placeholder: '如：mg' },
+            { id: 'target', label: '每日目標值', type: 'number', value: '1' }
+          ]
+        });
+        if (!res || !res.name) return;
+        const dailyFields = [...(pillar.dailyFields || []), { id: generateId(), name: res.name, unit: res.unit || '', target: parseFloat(res.target) || 1 }];
+        this.apiAction('pillars', 'update', pillarId, { dailyFields });
+      },
+
+      quickAddDailyFields(pillarId) {
+        const pillar = this.pillars.find(p => p.id === pillarId);
+        if (!pillar) return;
+        const suggestions = this.dailyFieldSuggestions(pillarId);
+        const dailyFields = [...(pillar.dailyFields || []), ...suggestions.map(s => ({ id: generateId(), ...s }))];
+        this.apiAction('pillars', 'update', pillarId, { dailyFields });
+      },
+
+      deleteDailyField(pillarId, fieldId) {
+        const pillar = this.pillars.find(p => p.id === pillarId);
+        if (!pillar) return;
+        const dailyFields = (pillar.dailyFields || []).filter(f => f.id !== fieldId);
+        this.apiAction('pillars', 'update', pillarId, { dailyFields });
+      },
+
+      // 把選好的照片壓縮到最長邊 800px 的 JPEG data URL，避免超過 Firestore 單文件 1MB 上限
+      compressImage(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const maxDim = 800;
+              let { width, height } = img;
+              if (width > height && width > maxDim) { height = height * (maxDim / width); width = maxDim; }
+              else if (height > maxDim) { width = width * (maxDim / height); height = maxDim; }
+              const canvas = document.createElement('canvas');
+              canvas.width = width; canvas.height = height;
+              canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL('image/jpeg', 0.6));
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      },
+
+      openDailyEntryModal(pillarId) {
+        const pillar = this.pillars.find(p => p.id === pillarId);
+        if (!pillar) return;
+        const fields = pillar.dailyFields || [];
+
+        const fieldsHtml = fields.map(f => `
+          <div>
+            <label class="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest">${f.name} (${f.unit})</label>
+            <input type="number" id="entry-field-${f.id}" placeholder="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+          </div>
+        `).join('');
+
+        const html = `
+          <div id="modal-backdrop" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
+            <div id="modal-card" class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 transform scale-95 translate-y-4 opacity-0 transition-all duration-200 flex flex-col max-h-[90vh] dark:bg-gray-800">
+              <h3 class="text-lg font-black text-gray-900 mb-4 dark:text-white">新增今日紀錄</h3>
+              <div class="space-y-4 overflow-y-auto no-scrollbar flex-1 py-1">
+                <div>
+                  <label class="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest">照片(選填)</label>
+                  <input type="file" id="entry-photo-input" accept="image/*" capture="environment" class="w-full text-xs dark:text-gray-300">
+                  <img id="entry-photo-preview" class="hidden mt-2 w-full h-32 object-cover rounded-xl">
+                </div>
+                ${fieldsHtml}
+                <div>
+                  <label class="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest">備註</label>
+                  <input type="text" id="entry-note-input" placeholder="選填" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                </div>
+              </div>
+              <div class="flex gap-3 mt-6 pt-2">
+                <button id="modal-btn-cancel" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm transition-colors hover:bg-gray-200 active:scale-95 dark:bg-gray-700 dark:text-gray-300">取消</button>
+                <button id="modal-btn-confirm" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-md transition-transform active:scale-95">儲存</button>
+              </div>
+            </div>
+          </div>
+        `;
+        ui.open(html);
+
+        let compressedPhoto = null;
+        document.getElementById('entry-photo-input').addEventListener('change', async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          compressedPhoto = await this.compressImage(file);
+          const preview = document.getElementById('entry-photo-preview');
+          preview.src = compressedPhoto;
+          preview.classList.remove('hidden');
+        });
+
+        document.getElementById('modal-btn-cancel').onclick = () => ui.close();
+        document.getElementById('modal-btn-confirm').onclick = () => {
+          const values = {};
+          fields.forEach(f => {
+            const raw = document.getElementById(`entry-field-${f.id}`).value;
+            if (raw !== '') values[f.id] = parseFloat(raw) || 0;
+          });
+          const note = document.getElementById('entry-note-input').value.trim();
+          ui.close();
+          this.apiAction('dailyEntries', 'add', null, {
+            pillarId, date: getTodayStr(), timestamp: Date.now(),
+            photo: compressedPhoto || null, values, note: note || null
+          });
+        };
+      },
+
+      async deleteDailyEntry(id) {
+        if (await ui.confirm('確定要刪除這筆紀錄嗎？')) this.apiAction('dailyEntries', 'delete', id);
+      },
+
+      renderDailyLog(pillar) {
+        const container = document.getElementById('daily-log-container');
+        if (!container) return;
+
+        const fields = pillar.dailyFields || [];
+        const todayStr = getTodayStr();
+        const todayEntries = this.dailyEntries.filter(e => e.pillarId === pillar.id && e.date === todayStr);
+
+        const totals = {};
+        fields.forEach(f => { totals[f.id] = 0; });
+        todayEntries.forEach(e => {
+          Object.entries(e.values || {}).forEach(([fieldId, val]) => {
+            if (totals[fieldId] !== undefined) totals[fieldId] += Number(val) || 0;
+          });
+        });
+
+        const suggestions = this.dailyFieldSuggestions(pillar.id);
+
+        const progressHtml = fields.length === 0
+          ? `<div class="p-4 text-center border border-dashed border-gray-200 rounded-2xl dark:border-gray-700">
+              <p class="text-xs text-gray-400 mb-3">尚未設定每日目標</p>
+              ${suggestions.length > 0 ? `<button onclick="app.quickAddDailyFields('${pillar.id}')" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg dark:bg-blue-900/30 dark:text-blue-400">快速新增：${suggestions.map(s => s.name).join('／')}</button>` : ''}
+              <button onclick="app.addDailyField('${pillar.id}')" class="block mx-auto mt-2 text-xs font-bold text-gray-500 dark:text-gray-400">或自訂欄位</button>
+            </div>`
+          : `<div class="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm dark:bg-gray-800 dark:border-gray-700 space-y-3">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-black uppercase tracking-widest text-gray-400">今日進度</h3>
+                <button onclick="app.addDailyField('${pillar.id}')" class="text-gray-300 hover:text-blue-500 dark:text-gray-500">${getIcon('Edit2', 14)}</button>
+              </div>
+              ${fields.map(f => {
+                const val = totals[f.id] || 0;
+                const pct = Math.min(100, (val / Math.max(f.target, 0.001)) * 100);
+                return `<div>
+                  <div class="flex justify-between items-center text-xs font-bold mb-1">
+                    <span class="text-gray-700 dark:text-gray-200">${f.name}</span>
+                    <div class="flex items-center gap-2">
+                      <span class="font-mono text-gray-500 dark:text-gray-400">${val} / ${f.target} ${f.unit}</span>
+                      <button onclick="app.deleteDailyField('${pillar.id}', '${f.id}')" class="text-gray-300 hover:text-red-400">${getIcon('Trash2', 12)}</button>
+                    </div>
+                  </div>
+                  <div class="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden dark:bg-gray-700">
+                    <div class="h-full bg-blue-600 transition-all" style="width: ${pct}%"></div>
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>`;
+
+        const entriesHtml = todayEntries.length === 0 ? '' : `
+          <div class="space-y-2">
+            ${todayEntries.slice().reverse().map(e => `
+              <div class="flex items-center gap-3 p-3 rounded-2xl bg-white border border-gray-100 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+                ${e.photo ? `<img src="${e.photo}" class="w-12 h-12 rounded-xl object-cover shrink-0" />` : `<div class="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-700 shrink-0 flex items-center justify-center text-gray-300">${getIcon('Utensils', 20)}</div>`}
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] font-mono text-gray-400">${new Date(e.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</div>
+                  <div class="text-xs text-gray-600 dark:text-gray-300 truncate">${Object.entries(e.values || {}).map(([fid, v]) => { const f = fields.find(x => x.id === fid); return f ? `${f.name} ${v}${f.unit}` : ''; }).filter(Boolean).join('、') || e.note || '無備註'}</div>
+                </div>
+                <button onclick="app.deleteDailyEntry('${e.id}')" class="text-gray-300 hover:text-red-400 p-1 shrink-0">${getIcon('Trash2', 14)}</button>
+              </div>
+            `).join('')}
+          </div>`;
+
+        container.innerHTML = progressHtml + `
+          <button onclick="app.openDailyEntryModal('${pillar.id}')" class="w-full py-3 rounded-xl bg-blue-600 text-white font-bold text-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
+            ${getIcon('FilePlus', 16)} 新增今日紀錄
+          </button>
+        ` + entriesHtml;
+      },
+
       renderTree() {
         const pillar = this.pillars.find(p => p.id === this.activePillarId);
         if (!pillar) return;
 
         document.getElementById('pillar-detail-title').textContent = pillar.title;
+        this.renderDailyLog(pillar);
         const container = document.getElementById('tree-container');
         const syncCardHtml = pillar.id === 'p1' ? this.renderBodySyncCard() : '';
 
