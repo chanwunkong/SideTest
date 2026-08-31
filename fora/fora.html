@@ -250,17 +250,39 @@
                     <button id="btn-md6-connect" class="flex-1 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-sm font-semibold py-2.5 rounded-xl transition-all">連線設備</button>
                     <button id="btn-md6-disconnect" class="hidden flex-1 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold py-2.5 rounded-xl">斷開連線</button>
                 </div>
-                <div id="md6-display-container" class="bg-orange-50 rounded-2xl px-6 py-8 text-center">
-                    <p class="text-xs font-bold text-orange-400 uppercase tracking-widest mb-3">最新血液數據</p>
-                    <p class="text-6xl font-bold text-orange-900 leading-none"><span id="md6-value">--</span></p>
-                    <p id="md6-time" class="text-xs text-orange-400 mt-3">--</p>
+                <div id="md6-display-container" class="bg-orange-50 rounded-2xl px-5 py-6 text-center">
+                    <p class="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">血糖</p>
+                    <p class="text-5xl font-bold text-orange-900 leading-none"><span id="md6-glu-value">--</span><span class="text-xl text-orange-500 ml-1">mg/dL</span></p>
                 </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div id="md6-hct-container" class="bg-slate-50 rounded-xl px-3 py-3 text-center">
+                        <p class="text-[11px] font-semibold text-slate-400 mb-1">HCT 血球容積比</p>
+                        <p class="text-lg font-bold text-slate-700"><span id="md6-hct-value">--</span><span class="text-xs text-slate-400"> %</span></p>
+                    </div>
+                    <div id="md6-ketone-container" class="bg-slate-50 rounded-xl px-3 py-3 text-center">
+                        <p class="text-[11px] font-semibold text-slate-400 mb-1">血酮 KETONE</p>
+                        <p class="text-lg font-bold text-slate-700"><span id="md6-ketone-value">--</span><span class="text-xs text-slate-400"> mmol/L</span></p>
+                    </div>
+                    <div id="md6-ua-container" class="bg-slate-50 rounded-xl px-3 py-3 text-center">
+                        <p class="text-[11px] font-semibold text-slate-400 mb-1">尿酸 UA</p>
+                        <p class="text-lg font-bold text-slate-700"><span id="md6-ua-value">--</span><span class="text-xs text-slate-400"> mg/dL</span></p>
+                    </div>
+                    <div id="md6-chol-container" class="bg-slate-50 rounded-xl px-3 py-3 text-center">
+                        <p class="text-[11px] font-semibold text-slate-400 mb-1">總膽固醇 CHOL</p>
+                        <p class="text-lg font-bold text-slate-700"><span id="md6-chol-value">--</span><span class="text-xs text-slate-400"> mg/dL</span></p>
+                    </div>
+                    <div id="md6-hb-container" class="bg-slate-50 rounded-xl px-3 py-3 text-center col-span-2">
+                        <p class="text-[11px] font-semibold text-slate-400 mb-1">血紅素 HB <span id="md6-hb-est-tag" class="hidden">(由 HCT 估算)</span></p>
+                        <p class="text-lg font-bold text-slate-700"><span id="md6-hb-value">--</span><span class="text-xs text-slate-400"> g/dL</span></p>
+                    </div>
+                </div>
+                <p id="md6-time" class="text-xs text-slate-400 text-center">--</p>
             </div>
             <div id="section-md6-manual" class="hidden p-5 space-y-3">
                 <div class="flex gap-2">
                     <select id="manual-md6-type" class="w-2/5 border border-slate-300 rounded-xl px-2 py-3 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-                        <option value="血糖">血糖</option><option value="尿酸">尿酸</option><option value="總膽固醇">總膽固醇</option>
-                        <option value="血酮">血酮</option><option value="血紅素">血紅素</option><option value="血球容積比">血球容積比</option>
+                        <option value="glu">血糖</option><option value="ua">尿酸</option><option value="chol">總膽固醇</option>
+                        <option value="ketone">血酮</option><option value="hb">血紅素</option><option value="hct">血球容積比</option>
                     </select>
                     <input type="number" id="manual-md6-val" step="0.1" placeholder="測量數值" class="flex-1 border border-slate-300 rounded-xl px-3 py-3 text-center text-xl font-mono focus:outline-none focus:ring-2 focus:ring-orange-500">
                 </div>
@@ -589,7 +611,7 @@ document.querySelector('.fixed.bottom-0').addEventListener('click',e=>{
     else if(key==='spo2'){meas.spo2=null;document.getElementById('o2-spo2-value').textContent='--';}
     else if(key==='hr'){meas.pluse=null;document.getElementById('o2-hr-value').textContent='--';document.getElementById('d40-hr-value').textContent='--';}
     else if(key==='bp'){meas.sbp=null;meas.dbp=null;document.getElementById('d40-sys-value').textContent='--';document.getElementById('d40-dia-value').textContent='--';}
-    else if(key==='glu'){meas.glu=null;document.getElementById('d40-bg-value').textContent='--';document.getElementById('md6-value').textContent='--';}
+    else if(key==='glu'){meas.glu=null;document.getElementById('d40-bg-value').textContent='--';document.getElementById('md6-glu-value').textContent='--';}
     else if(key==='weight'){meas.weight=null;document.getElementById('manual-weight').value='';}
     else if(key==='resp'){meas.resp_rate=null;document.getElementById('manual-resp').value='';}
     refreshBar();
@@ -852,35 +874,73 @@ function uiDisconnect(id){
 }
 
 // ── BLE ──
+// 協定依據 BLE_PROTOCOL.md：FORA 系列裝置走自訂 128-bit UUID pipe，不是標準 GATT service。
 let tempDevice=null,o2Device=null,d40Device=null,md6Device=null;
 const TD_SVC='00001523-1212-efde-1523-785feabcd123',TD_CHAR='00001524-1212-efde-1523-785feabcd123';
+const TRIGGER_CMD=new Uint8Array([0x51,0x26,0x00,0x00,0x00,0x00,0xA3,0x1A]);
+const FORA_KEYWORDS=['IR42','O2','D40','MD6'];
+
+// device.name 只能拿到子字串前綴比對不出子型號，選完裝置後用名稱關鍵字防呆，避免在錯的分頁誤解析別種裝置的回應。
+function verifyDeviceKind(name,expected){
+    if(!name)return true;
+    return!FORA_KEYWORDS.some(k=>k!==expected&&name.includes(k));
+}
+
+function buildQueryCmd(cmd,p1=0,p2=0,p3=0,p4=0){
+    const b=[0x51,cmd,p1,p2,p3,p4,0xA3,0];
+    let sum=0;for(let i=0;i<7;i++)sum+=b[i];
+    b[7]=sum&0xFF;
+    return new Uint8Array(b);
+}
+// D40/MD6 的「問記錄」流程一次只能有一個 in-flight 請求：寫指令 → 等對應 Notify → 才送下一個。
+function attachSequentialWaiter(char){
+    let pending=null;
+    char.addEventListener('characteristicvaluechanged',e=>{
+        const v=e.target.value;
+        if(pending&&v.byteLength>=8&&v.getUint8(0)===0x51){const resolve=pending;pending=null;resolve(v);}
+    });
+    return{next(timeoutMs=5000){return new Promise((resolve,reject)=>{
+        pending=resolve;
+        setTimeout(()=>{if(pending===resolve){pending=null;reject(new Error('BLE 回應逾時'));}},timeoutMs);
+    });}};
+}
+async function readForaRecord(char,waiter){
+    let notifier=waiter.next();
+    await char.writeValueWithoutResponse(buildQueryCmd(0x25));
+    const a=await notifier;
+    const partA=[a.getUint8(2),a.getUint8(3),a.getUint8(4),a.getUint8(5)];
+    notifier=waiter.next();
+    await char.writeValueWithoutResponse(buildQueryCmd(0x26));
+    const b=await notifier;
+    const partB=[b.getUint8(2),b.getUint8(3),b.getUint8(4),b.getUint8(5)];
+    return new Uint8Array([...partA,...partB]);
+}
 
 // 體溫計
 document.getElementById('btn-temp-connect').addEventListener('click',async()=>{
     try{
         log('搜尋體溫計...','info');
-        tempDevice=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'FORA IR42'},{namePrefix:'FORA'},{namePrefix:'TAIDOC'}],optionalServices:[0x1809]});
+        tempDevice=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'FORA'}],optionalServices:[TD_SVC]});
+        if(!verifyDeviceKind(tempDevice.name,'IR42')){log(`選到的裝置名稱「${tempDevice.name}」不是體溫計，請重新選擇`,'error');showToast('選錯裝置，請重新選擇體溫計','error');return;}
         tempDevice.addEventListener('gattserverdisconnected',()=>uiDisconnect('temp'));
         const srv=await tempDevice.gatt.connect();
-        const char=await(await srv.getPrimaryService(0x1809)).getCharacteristic(0x2A1C);
+        const char=await(await srv.getPrimaryService(TD_SVC)).getCharacteristic(TD_CHAR);
         await char.startNotifications();
         char.addEventListener('characteristicvaluechanged',e=>{
             const v=e.target.value;
-            log(`TD-1242B 原始: ${buf2hex(v.buffer)}`,'data');
-            const isF=(v.getUint8(0)&0x01)!==0;
-            let m=(v.getUint8(3)<<16)|(v.getUint8(2)<<8)|v.getUint8(1);
-            if((m&0x00800000)>0)m|=0xFF000000;
-            const temp=(m*Math.pow(10,v.getInt8(4))).toFixed(2);
-            const unit=isF?'F':'C';
-            document.getElementById('temp-value').textContent=temp;
-            document.getElementById('temp-unit').textContent=isF?'°F':'°C';
+            log(`體溫計原始: ${buf2hex(v.buffer)}`,'data');
+            if(v.byteLength<8||v.getUint8(0)!==0x51)return;
+            const temp=(((v.getUint8(3)<<8)|v.getUint8(2))&0x0FFF)/10.0;
+            document.getElementById('temp-value').textContent=temp.toFixed(1);
+            document.getElementById('temp-unit').textContent='°C';
             document.getElementById('temp-time').textContent=`量測時間：${fmtDisplayTime(new Date())}`;
             flashEl('temp-display-container');
-            setMeas('temp',parseFloat(temp));setMeas('tempUnit',unit);
-            log(`體溫：${temp}°${unit}`,'success');
+            setMeas('temp',temp);setMeas('tempUnit','C');
+            log(`體溫：${temp.toFixed(1)}°C`,'success');
         });
+        await char.writeValueWithoutResponse(TRIGGER_CMD);
         uiConnect('temp');
-    }catch(e){log(`TD-1242B 失敗: ${e}`,'error');showToast('體溫計連線失敗','error');}
+    }catch(e){log(`體溫計失敗: ${e}`,'error');showToast('體溫計連線失敗','error');}
 });
 document.getElementById('btn-temp-disconnect').addEventListener('click',()=>tempDevice?.gatt.disconnect());
 
@@ -888,88 +948,116 @@ document.getElementById('btn-temp-disconnect').addEventListener('click',()=>temp
 document.getElementById('btn-o2-connect').addEventListener('click',async()=>{
     try{
         log('搜尋血氧機...','info');
-        o2Device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'FORA O2'},{namePrefix:'FORA'}],optionalServices:[TD_SVC]});
+        o2Device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'FORA'}],optionalServices:[TD_SVC]});
+        if(!verifyDeviceKind(o2Device.name,'O2')){log(`選到的裝置名稱「${o2Device.name}」不是血氧機，請重新選擇`,'error');showToast('選錯裝置，請重新選擇血氧機','error');return;}
         o2Device.addEventListener('gattserverdisconnected',()=>uiDisconnect('o2'));
         const srv=await o2Device.gatt.connect();
         const char=await(await srv.getPrimaryService(TD_SVC)).getCharacteristic(TD_CHAR);
         await char.startNotifications();
         char.addEventListener('characteristicvaluechanged',e=>{
             const v=e.target.value;
-            if(v.byteLength>=8&&v.getUint8(0)===0x51&&(v.getUint8(1)===0x26||v.getUint8(1)===0x25)){
-                const spo2=v.getUint8(2),hr=v.getUint8(5);
-                document.getElementById('o2-spo2-value').textContent=spo2;
-                document.getElementById('o2-hr-value').textContent=hr;
-                document.getElementById('o2-time').textContent=`量測時間：${fmtDisplayTime(new Date())}`;
-                flashEl('o2-spo2-container');flashEl('o2-hr-container');
-                setMeas('spo2',spo2);setMeas('pluse',hr);
-                log(`血氧：${spo2}%，心率：${hr}bpm`,'success');
-            }
+            log(`血氧機原始: ${buf2hex(v.buffer)}`,'data');
+            if(v.byteLength<8||v.getUint8(0)!==0x51)return;
+            const spo2=((v.getUint8(3)<<8)|v.getUint8(2))&0x0FFF;
+            const hr=v.getUint8(5);
+            document.getElementById('o2-spo2-value').textContent=spo2;
+            document.getElementById('o2-hr-value').textContent=hr;
+            document.getElementById('o2-time').textContent=`量測時間：${fmtDisplayTime(new Date())}`;
+            flashEl('o2-spo2-container');flashEl('o2-hr-container');
+            setMeas('spo2',spo2);setMeas('pluse',hr);
+            log(`血氧：${spo2}%，心率：${hr}bpm`,'success');
         });
+        await char.writeValueWithoutResponse(TRIGGER_CMD);
         uiConnect('o2');
-    }catch(e){log(`TD-8255B 失敗: ${e}`,'error');showToast('血氧機連線失敗','error');}
+    }catch(e){log(`血氧機失敗: ${e}`,'error');showToast('血氧機連線失敗','error');}
 });
 document.getElementById('btn-o2-disconnect').addEventListener('click',()=>o2Device?.gatt.disconnect());
 
-// 血糖血壓
+// 血糖血壓（D40 一律先配對，Web Bluetooth 沒有主動配對 API，交給瀏覽器/OS 在存取加密特徵值時自動跳出）
 document.getElementById('btn-d40-connect').addEventListener('click',async()=>{
     try{
         log('搜尋血糖血壓設備...','info');
-        d40Device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'FORA D40'},{namePrefix:'FORA'},{namePrefix:'TAIDOC'}],optionalServices:[0x1810,TD_SVC]});
+        d40Device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'FORA'}],optionalServices:[TD_SVC]});
+        if(!verifyDeviceKind(d40Device.name,'D40')){log(`選到的裝置名稱「${d40Device.name}」不是血糖血壓2合1，請重新選擇`,'error');showToast('選錯裝置，請重新選擇血糖血壓2合1','error');return;}
         d40Device.addEventListener('gattserverdisconnected',()=>uiDisconnect('d40'));
         const srv=await d40Device.gatt.connect();
-        try{
-            const bpChar=await(await srv.getPrimaryService(0x1810)).getCharacteristic(0x2A35);
-            await bpChar.startNotifications();
-            bpChar.addEventListener('characteristicvaluechanged',e=>{
-                const v=e.target.value;
-                const sf=off=>{const b=v.getUint16(off,true);let m=b&0x0FFF,ex=b>>12;if(ex>=8)ex-=16;if(m>=2048)m-=4096;return m*Math.pow(10,ex);};
-                const sys=Math.round(sf(1)),dia=Math.round(sf(3));
-                document.getElementById('d40-sys-value').textContent=sys;
-                document.getElementById('d40-dia-value').textContent=dia;
-                if((v.getUint8(0)&0x04)!==0){const hr=Math.round(sf(14));document.getElementById('d40-hr-value').textContent=hr;setMeas('pluse',hr);}
+        const char=await(await srv.getPrimaryService(TD_SVC)).getCharacteristic(TD_CHAR);
+        await char.startNotifications();
+        const waiter=attachSequentialWaiter(char);
+        log('讀取記錄中（裝置可能會跳出系統配對提示）...','info');
+        const rec=await readForaRecord(char,waiter);
+        log(`D40 記錄原始: ${buf2hex(rec.buffer)}`,'data');
+        if((rec[2]&0x80)!==0){
+            const sys=rec[4],dia=rec[6],hr=rec[7];
+            document.getElementById('d40-sys-value').textContent=sys;
+            document.getElementById('d40-dia-value').textContent=dia;
+            document.getElementById('d40-hr-value').textContent=hr;
+            document.getElementById('d40-time').textContent=`量測時間：${fmtDisplayTime(new Date())}`;
+            flashEl('d40-bp-container');
+            setMeas('sbp',sys);setMeas('dbp',dia);setMeas('pluse',hr);
+            log(`血壓：${sys}/${dia} mmHg，心率：${hr}bpm`,'success');
+        }else{
+            const glucose=rec[5]*256+rec[4];
+            const context=(rec[7]>>6)&0x03;
+            if(glucose===65535||glucose===255){
+                log('D40 血糖讀值無效','error');
+            }else if(context===3){
+                log('D40 血糖為 QC 品管測試，略過不計入','info');
+            }else{
+                document.getElementById('d40-bg-value').textContent=glucose;
                 document.getElementById('d40-time').textContent=`量測時間：${fmtDisplayTime(new Date())}`;
-                flashEl('d40-bp-container');setMeas('sbp',sys);setMeas('dbp',dia);
-                log(`血壓：${sys}/${dia} mmHg`,'success');
-            });
-        }catch(e){log('BP特徵值不可用','info');}
-        try{
-            const bgChar=await(await srv.getPrimaryService(TD_SVC)).getCharacteristic(TD_CHAR);
-            await bgChar.startNotifications();
-            bgChar.addEventListener('characteristicvaluechanged',e=>{
-                const v=e.target.value;
-                if(v.byteLength>=8&&v.getUint8(0)===0x51&&(v.getUint8(1)===0x26||v.getUint8(1)===0x25)){
-                    if(v.getUint8(3)===0||v.getUint8(2)>10){
-                        const bg=v.getUint8(2)+(v.getUint8(3)<<8);
-                        if(bg>20){document.getElementById('d40-bg-value').textContent=bg;document.getElementById('d40-time').textContent=`量測時間：${fmtDisplayTime(new Date())}`;flashEl('d40-bg-container');setMeas('glu',bg);log(`血糖：${bg} mg/dL`,'success');}
-                    }
-                }
-            });
-        }catch(e){log('BG特徵值不可用','info');}
+                flashEl('d40-bg-container');
+                setMeas('glu',glucose);
+                log(`血糖：${glucose} mg/dL`,'success');
+            }
+        }
         uiConnect('d40');
-    }catch(e){log(`TD-3261B 失敗: ${e}`,'error');showToast('血糖血壓連線失敗','error');}
+    }catch(e){log(`血糖血壓失敗: ${e}`,'error');showToast('血糖血壓連線失敗','error');}
 });
 document.getElementById('btn-d40-disconnect').addEventListener('click',()=>d40Device?.gatt.disconnect());
 
-// 六合一
+// 六合一（畫面顯示全部 6 項，只有血糖會寫進上傳 payload）
+const MD6_CONTAINER_BY_CODE={0:'md6-display-container',6:'md6-hct-container',7:'md6-ketone-container',8:'md6-ua-container',9:'md6-chol-container',11:'md6-hb-container'};
 document.getElementById('btn-md6-connect').addEventListener('click',async()=>{
     try{
         log('搜尋 FORA MD6...','info');
-        md6Device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'FORA MD6'},{namePrefix:'FORA'}],optionalServices:[TD_SVC,0x1808]});
+        md6Device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'FORA'}],optionalServices:[TD_SVC]});
+        if(!verifyDeviceKind(md6Device.name,'MD6')){log(`選到的裝置名稱「${md6Device.name}」不是血液6合1，請重新選擇`,'error');showToast('選錯裝置，請重新選擇血液6合1','error');return;}
         md6Device.addEventListener('gattserverdisconnected',()=>uiDisconnect('md6'));
         const srv=await md6Device.gatt.connect();
         const char=await(await srv.getPrimaryService(TD_SVC)).getCharacteristic(TD_CHAR);
         await char.startNotifications();
-        char.addEventListener('characteristicvaluechanged',e=>{
-            const v=e.target.value;
-            log(`MD6 原始: ${buf2hex(v.buffer)}`,'data');
-            if(v.byteLength>=8&&v.getUint8(0)===0x51&&(v.getUint8(1)===0x26||v.getUint8(1)===0x25)){
-                const val=v.getUint8(2)+(v.getUint8(3)<<8);
-                document.getElementById('md6-value').textContent=val;
-                document.getElementById('md6-time').textContent=`量測時間：${fmtDisplayTime(new Date())}`;
-                flashEl('md6-display-container');setMeas('glu',val);
-                log(`MD6：${val}`,'success');
+        const waiter=attachSequentialWaiter(char);
+        log('讀取記錄中（裝置可能會跳出系統配對提示）...','info');
+        const rec=await readForaRecord(char,waiter);
+        log(`MD6 記錄原始: ${buf2hex(rec.buffer)}`,'data');
+        const raw=rec[5]*256+rec[4];
+        const itemCode=(rec[7]>>2)&0x0F;
+        const context=(rec[7]>>6)&0x03;
+        const label={0:'血糖',6:'HCT',7:'血酮',8:'尿酸',9:'總膽固醇',11:'血紅素'}[itemCode];
+        if(raw===65535||raw===255||!label){
+            log(`MD6 讀值無效或不支援的項目代碼 (${itemCode})`,'error');
+        }else if(itemCode===0&&context===3){
+            log('MD6 血糖為 QC 品管測試，略過不計入','info');
+        }else{
+            document.getElementById('md6-time').textContent=`量測時間：${fmtDisplayTime(new Date())}`;
+            if(itemCode===0){
+                document.getElementById('md6-glu-value').textContent=raw;
+                setMeas('glu',raw);
+            }else if(itemCode===6){
+                document.getElementById('md6-hct-value').textContent=raw;
+                document.getElementById('md6-hb-value').textContent=(raw*0.34).toFixed(1);
+                document.getElementById('md6-hb-est-tag').classList.remove('hidden');
+                flashEl('md6-hb-container');
+            }else if(itemCode===11){
+                document.getElementById('md6-hb-value').textContent=raw;
+                document.getElementById('md6-hb-est-tag').classList.add('hidden');
+            }else{
+                document.getElementById(`md6-${itemCode===7?'ketone':itemCode===8?'ua':'chol'}-value`).textContent=raw;
             }
-        });
+            flashEl(MD6_CONTAINER_BY_CODE[itemCode]);
+            log(`MD6 ${label}：${raw}`,'success');
+        }
         uiConnect('md6');
     }catch(e){log(`FORA MD6 失敗: ${e}`,'error');showToast('MD6連線失敗','error');}
 });
@@ -1006,8 +1094,15 @@ document.getElementById('btn-manual-d40-add').addEventListener('click',()=>{
 });
 document.getElementById('btn-manual-md6-add').addEventListener('click',()=>{
     const val=document.getElementById('manual-md6-val').value;if(!val)return;
-    document.getElementById('md6-value').textContent=val;document.getElementById('md6-time').textContent=`量測時間：${fmtDisplayTime(new Date())}`;
-    flashEl('md6-display-container');setMeas('glu',parseFloat(val));document.getElementById('manual-md6-val').value='';
+    const type=document.getElementById('manual-md6-type').value;
+    const valueId={glu:'md6-glu-value',hct:'md6-hct-value',ketone:'md6-ketone-value',ua:'md6-ua-value',chol:'md6-chol-value',hb:'md6-hb-value'}[type];
+    const containerId={glu:'md6-display-container',hct:'md6-hct-container',ketone:'md6-ketone-container',ua:'md6-ua-container',chol:'md6-chol-container',hb:'md6-hb-container'}[type];
+    document.getElementById(valueId).textContent=val;
+    if(type==='hb')document.getElementById('md6-hb-est-tag').classList.add('hidden');
+    document.getElementById('md6-time').textContent=`量測時間：${fmtDisplayTime(new Date())}`;
+    flashEl(containerId);
+    if(type==='glu')setMeas('glu',parseFloat(val));
+    document.getElementById('manual-md6-val').value='';
 });
 
 // ── Barcode Scanner ──
@@ -1130,7 +1225,8 @@ function resetPatient(){
     document.getElementById('patient-id').value='';
     Object.assign(meas,{temp:null,tempUnit:'C',spo2:null,pluse:null,sbp:null,dbp:null,glu:null,weight:null,resp_rate:null});
     uploadTime=null;
-    [['temp-value','--'],['temp-unit',''],['temp-time','--'],['o2-spo2-value','--'],['o2-hr-value','--'],['o2-time','--'],['d40-sys-value','--'],['d40-dia-value','--'],['d40-hr-value','--'],['d40-bg-value','--'],['d40-time','--'],['md6-value','--'],['md6-time','--']].forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.textContent=v;});
+    [['temp-value','--'],['temp-unit',''],['temp-time','--'],['o2-spo2-value','--'],['o2-hr-value','--'],['o2-time','--'],['d40-sys-value','--'],['d40-dia-value','--'],['d40-hr-value','--'],['d40-bg-value','--'],['d40-time','--'],['md6-glu-value','--'],['md6-hct-value','--'],['md6-ketone-value','--'],['md6-ua-value','--'],['md6-chol-value','--'],['md6-hb-value','--'],['md6-time','--']].forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.textContent=v;});
+    document.getElementById('md6-hb-est-tag').classList.add('hidden');
     document.getElementById('manual-weight').value='';document.getElementById('manual-resp').value='';
     Object.assign(photos,{intake:null,output:null,wound:{part:null,dataUrl:null,time:null}});
     ['intake','output','wound'].forEach(renderPhotoFrame);
