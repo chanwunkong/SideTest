@@ -73,7 +73,7 @@
                     <input id="location-input" maxlength="20"
                         class="bg-transparent text-white text-xs w-14 focus:outline-none placeholder-blue-300"
                         placeholder="病房代碼">
-                    <button id="btn-loc-reset" class="text-blue-300 hover:text-white text-xs font-semibold ml-0.5">YT</button>
+                    <button id="btn-loc-reset" class="text-blue-300 hover:text-white text-xs font-semibold ml-0.5">DEMO</button>
                 </div>
                 <button id="btn-toggle-log" class="p-1.5 rounded-lg hover:bg-blue-600 transition-colors">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -542,7 +542,7 @@ const CONFIG = {
     // 正式上線前務必改回 false，否則資料不會真的送出。
     DEMO_MODE: true,
     UPLOAD_API_URL: 'https://www.sstcmedicare.com/imedical/multi/division/v2/api/repository/uploadPhysiologicalData',
-    DEFAULT_LOCATION: 'yt',
+    DEFAULT_LOCATION: 'demo',
     // 上傳 payload 的 JSON 欄位名稱：左邊是程式內部用的名字(不要改)，右邊的字串是實際送給 API 的 key 名稱(依 API 規格改這裡)
     PAYLOAD_FIELDS: {
         keyno: 'keyno',
