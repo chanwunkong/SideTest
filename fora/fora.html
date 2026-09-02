@@ -1116,7 +1116,10 @@ function openCamera(){
     document.getElementById('camera-modal').classList.add('open');
     document.body.style.overflow='hidden';
     setTimeout(()=>{
-        scanner=new Html5Qrcode('qr-reader');
+        scanner=new Html5Qrcode('qr-reader',{
+            // 支援的瀏覽器（如 Android Chrome）改用作業系統原生條碼辨識引擎，比純 JS 解碼準確率高很多
+            experimentalFeatures:{useBarCodeDetectorIfSupported:true},
+        });
         scanner.start(
             {facingMode:'environment'},
             {fps:10,qrbox:{width:280,height:100}},
