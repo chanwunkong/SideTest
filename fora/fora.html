@@ -538,6 +538,9 @@
 <script>
 // ── 設定 (統一管理，之後要換 API 或預設病房代碼都改這裡就好) ──
 const CONFIG = {
+    // 展示模式：開啟時，「確認上傳」不會真的呼叫下方 API，一律視為上傳成功（病歷號也不會被後端規則擋下）。
+    // 正式上線前務必改回 false，否則資料不會真的送出。
+    DEMO_MODE: true,
     UPLOAD_API_URL: 'https://www.sstcmedicare.com/imedical/multi/division/v2/api/repository/uploadPhysiologicalData',
     DEFAULT_LOCATION: 'yt',
     // 上傳 payload 的 JSON 欄位名稱：左邊是程式內部用的名字(不要改)，右邊的字串是實際送給 API 的 key 名稱(依 API 規格改這裡)
@@ -1194,8 +1197,15 @@ document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
     document.getElementById('upload-error').classList.add('hidden');
     log(`上傳 keyno=${keyno} location=${loc}`,'info');
     try{
-        const fd=new FormData();fd.append('data',JSON.stringify(payload));
-        const res=await fetch(`${CONFIG.UPLOAD_API_URL}?location=${loc}`,{method:'POST',body:fd});
+        let res;
+        if(CONFIG.DEMO_MODE){
+            log('展示模式：略過實際 API 呼叫，一律視為成功','info');
+            await new Promise(r=>setTimeout(r,500));
+            res={ok:true};
+        }else{
+            const fd=new FormData();fd.append('data',JSON.stringify(payload));
+            res=await fetch(`${CONFIG.UPLOAD_API_URL}?location=${loc}`,{method:'POST',body:fd});
+        }
         if(res.ok){
             log(`上傳成功 keyno=${keyno}`,'success');
             addHistory({...payload,[F.photo_intake]:undefined,[F.photo_output]:undefined,[F.photo_wound]:undefined,...histMeta,location:loc,tempUnit:meas.tempUnit,status:'success'});
