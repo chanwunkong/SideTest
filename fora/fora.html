@@ -587,10 +587,11 @@ function fmtMP(w,h){if(!w||!h)return'--';const wan=Math.round(w*h/10000);return`
 function setMeas(key,val){meas[key]=val;uploadTime=fmtUploadTime(new Date());refreshBar();}
 
 function hasAnyPhoto(){return!!(photos.intake||photos.output||photos.wound.dataUrl);}
+function hasAnyMeasure(){return Object.entries(meas).some(([k,v])=>k!=='tempUnit'&&v!==null)||hasAnyPhoto();}
 function refreshBar(){
     const hasKeyno=document.getElementById('patient-id').value.trim()!=='';
-    const hasMin=meas.temp!==null||meas.spo2!==null||hasAnyPhoto();
-    document.getElementById('btn-upload').disabled=!(hasKeyno&&hasMin);
+    const any=hasAnyMeasure();
+    document.getElementById('btn-upload').disabled=!(hasKeyno&&any);
     const show=(id,valId,val)=>{const el=document.getElementById(id);if(val!=null){el.classList.remove('hidden');document.getElementById(valId).textContent=val;}else el.classList.add('hidden');};
     show('badge-temp','badge-temp-val',meas.temp!=null?`${meas.temp}°${meas.tempUnit}`:null);
     show('badge-spo2','badge-spo2-val',meas.spo2);
@@ -599,7 +600,6 @@ function refreshBar(){
     show('badge-glu','badge-glu-val',meas.glu!=null?`${meas.glu}mg/dL`:null);
     show('badge-wt','badge-wt-val',meas.weight);
     show('badge-rr','badge-rr-val',meas.resp_rate!=null?`${meas.resp_rate}/min`:null);
-    const any=Object.entries(meas).some(([k,v])=>k!=='tempUnit'&&v!==null)||hasAnyPhoto();
     document.getElementById('no-measure').classList.toggle('hidden',any);
     // supp summary
     const parts=[];if(meas.weight!=null)parts.push(`${meas.weight}kg`);if(meas.resp_rate!=null)parts.push(`RR${meas.resp_rate}`);
@@ -1143,7 +1143,7 @@ document.getElementById('btn-upload').addEventListener('click',()=>{
     const keyno=document.getElementById('patient-id').value.trim();
     const loc=document.getElementById('location-input').value.trim()||CONFIG.DEFAULT_LOCATION;
     if(!keyno){showToast('請先輸入病歷號','error');return;}
-    if(meas.temp===null&&meas.spo2===null&&!hasAnyPhoto()){showToast('至少需要體溫、血氧或一張照片其中一項','error');return;}
+    if(!hasAnyMeasure()){showToast('請至少輸入一項生理量測數值或一張照片','error');return;}
     // populate preview
     document.getElementById('preview-keyno').textContent=keyno;
     document.getElementById('preview-loc').textContent=loc.toUpperCase();
