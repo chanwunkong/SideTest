@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>PhotoSim 人像鏡頭模擬器</title>
+    <style>
+        * { box-sizing:border-box; }
+        html,body { margin:0;height:100%;background:#0b0d10;color:#e5e7eb;font-family:system-ui,-apple-system,"Segoe UI","Noto Sans TC","Microsoft JhengHei",sans-serif; }
+        #app { display:flex;height:100%; }
+        #stage { flex:1;min-width:0;position:relative;display:flex;align-items:center;justify-content:center;padding:12px;overflow:hidden; }
+        #view { display:block;border-radius:4px;box-shadow:0 0 0 1px #2a2f37,0 10px 40px rgba(0,0,0,.6);touch-action:none;cursor:grab; }
+        #view.dragging { cursor:grabbing; }
+        #hud { position:absolute;left:20px;top:18px;font-size:13px;font-variant-numeric:tabular-nums;background:rgba(0,0,0,.55);padding:5px 10px;border-radius:6px;pointer-events:none; }
+        #hint { position:absolute;left:20px;bottom:18px;font-size:11px;color:#9ca3af;background:rgba(0,0,0,.45);padding:4px 8px;border-radius:6px;pointer-events:none; }
+        #msg { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:#9ca3af;pointer-events:none;text-align:center;padding:24px; }
+        #panel { width:340px;flex-shrink:0;background:#14171c;border-left:1px solid #2a2f37;overflow-y:auto;padding:14px 16px 20px; }
+        h1 { font-size:15px;margin:0 0 12px;font-weight:600;letter-spacing:.02em; }
+        .row { margin-bottom:13px; }
+        .row label.name { display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:#9ca3af;margin-bottom:4px; }
+        .row label.name b { color:#f3f4f6;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums; }
+        input[type=range] { width:100%;margin:0;accent-color:#f59e0b; }
+        select { width:100%;background:#1f242c;color:#e5e7eb;border:1px solid #2f3540;border-radius:6px;padding:6px 8px;font-size:13px; }
+        .chips { display:flex;flex-wrap:wrap;gap:5px;margin-top:6px; }
+        .chips button,.btn { background:#1f242c;color:#d1d5db;border:1px solid #2f3540;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer; }
+        .chips button:hover,.btn:hover { background:#2a313b; }
+        .check { display:flex;align-items:center;gap:7px;font-size:13px;margin-bottom:9px;cursor:pointer; }
+        .check input { accent-color:#f59e0b;width:15px;height:15px;margin:0; }
+        .sep { border:none;border-top:1px solid #2a2f37;margin:14px 0; }
+        #readout { display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px;font-variant-numeric:tabular-nums; }
+        #readout dt { color:#9ca3af; }
+        #readout dd { margin:0;text-align:right;color:#f3f4f6; }
+        .note { font-size:11px;color:#6b7280;line-height:1.5;margin-top:14px; }
+        .note a { color:#9ca3af; }
+        @media (max-width:820px) {
+            #app { flex-direction:column; }
+            #stage { flex:none;height:46vh;padding:8px; }
+            #panel { width:100%;flex:1;border-left:none;border-top:1px solid #2a2f37; }
+            #hud { left:12px;top:12px; }
+            #hint { display:none; }
+        }
+    </style>
+    <script type="importmap">
+    { "imports": { "three": "./vendor/three/build/three.module.min.js", "three/addons/": "./vendor/three/examples/jsm/" } }
+    </script>
+</head>
+<body>
+<div id="app">
+    <div id="stage">
+        <canvas id="view"></canvas>
+        <div id="hud"></div>
+        <div id="hint">拖曳：改變拍攝角度　滾輪：改變距離　點一下：對焦到該處</div>
+        <div id="msg">載入模型中…</div>
+    </div>
+
+    <div id="panel">
+        <h1>PhotoSim 人像鏡頭模擬器</h1>
+
+        <div class="row">
+            <label class="name">片幅</label>
+            <select id="fmt"></select>
+        </div>
+
+        <div class="row">
+            <label class="name">焦段 <b id="f-val"></b></label>
+            <input type="range" id="f" min="0" max="1000">
+            <div class="chips" id="f-chips"></div>
+        </div>
+
+        <div class="row">
+            <label class="name">光圈 <b id="N-val"></b></label>
+            <input type="range" id="N" min="0" step="1">
+        </div>
+
+        <div class="row">
+            <label class="name">拍攝距離（相機到眼睛） <b id="d-val"></b></label>
+            <input type="range" id="d" min="0" max="1000">
+        </div>
+
+        <label class="check"><input type="checkbox" id="lock"> 鎖定構圖（改焦段時自動調整距離，臉維持一樣大）</label>
+
+        <div class="row">
+            <label class="name">同樣構圖、不同焦段</label>
+            <div class="chips" id="presets"></div>
+        </div>
+
+        <hr class="sep">
+
+        <div class="row">
+            <label class="name">水平角度 <b id="yaw-val"></b></label>
+            <input type="range" id="yaw" min="-180" max="180" step="1">
+        </div>
+        <div class="row">
+            <label class="name">垂直角度（正值為俯拍） <b id="pitch-val"></b></label>
+            <input type="range" id="pitch" min="-80" max="80" step="1">
+        </div>
+
+        <hr class="sep">
+
+        <label class="check"><input type="checkbox" id="af"> 自動對焦在眼睛</label>
+        <div class="row">
+            <label class="name">對焦距離 <b id="s-val"></b></label>
+            <input type="range" id="s" min="0" max="1000">
+        </div>
+        <label class="check"><input type="checkbox" id="dof"> 景深模糊</label>
+
+        <hr class="sep">
+
+        <dl id="readout"></dl>
+
+        <div style="margin-top:14px"><button class="btn" id="reset">重設</button></div>
+
+        <p class="note">
+            透視變形只由拍攝距離決定；焦段與片幅決定視角，光圈、焦段與對焦距離決定景深。
+            背景柱子每 4 公尺一根、每段色帶 50 公分，地磚每格 1 公尺。<br>
+            3D 頭部掃描：Infinite, 3D Head Scan by Lee Perry-Smith
+            （<a href="assets/LeePerrySmith_License.txt">CC BY 3.0</a>）
+        </p>
+    </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ── 常數 ──────────────────────────────────────────────
+const FORMATS = [
+    { id:'ff',   name:'全片幅 36×24',        w:36,   h:24 },
+    { id:'apsc', name:'APS-C 23.5×15.6',     w:23.5, h:15.6 },
+    { id:'m43',  name:'M4/3 17.3×13',        w:17.3, h:13 },
+    { id:'1in',  name:'1 吋 13.2×8.8',       w:13.2, h:8.8 },
+    { id:'ph',   name:'手機主鏡頭 9.8×7.35',  w:9.8,  h:7.35 },
+    { id:'mf',   name:'中片幅 44×33',        w:44,   h:33 },
+];
+const STOPS = [1, 1.2, 1.4, 1.8, 2, 2.8, 4, 5.6, 8, 11, 16, 22];
+const F_RANGE = [4, 600];       // mm
+const D_RANGE = [0.2, 15];      // m
+const S_RANGE = [0.2, 50];      // m
+const FF_DIAG = Math.hypot(36, 24);
+const DEFAULTS = { fmt:'ff', f:85, N:1.8, d:1.2, yaw:0, pitch:0, lock:false, af:true, s:1.2, dof:true };
+
+// 模型單位 → 公尺，以及兩眼之間（軌道中心、預設對焦點）在模型座標的位置
+const MODEL_SCALE = 0.06;
+const EYE_POINT = new THREE.Vector3(0, 1.75, 2.05);
+const GROUND_Y = -1.55;
+const NEAR = 0.02, FAR = 300;
+const TAPS = 180;
+
+// ── 狀態 ──────────────────────────────────────────────
+const state = { ...DEFAULTS };
+(function readHash() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    for (const k of Object.keys(DEFAULTS)) {
+        if (!p.has(k)) continue;
+        const v = p.get(k);
+        if (typeof DEFAULTS[k] === 'boolean') state[k] = v === '1';
+        else if (typeof DEFAULTS[k] === 'number') { if (isFinite(+v)) state[k] = +v; }
+        else if (FORMATS.some(o => o.id === v)) state[k] = v;
+    }
+})();
+const fmt = () => FORMATS.find(o => o.id === state.fmt);
+const clamp = (v, [a, b]) => Math.min(b, Math.max(a, v));
+const toLog = (v, [a, b]) => Math.round(1000 * Math.log(v / a) / Math.log(b / a));
+const fromLog = (t, [a, b]) => a * Math.pow(b / a, t / 1000);
+const $ = id => document.getElementById(id);
+
+// ── Three.js 場景 ─────────────────────────────────────
+const canvas = $('view');
+let renderer;
+try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias:false, powerPreference:'high-performance' });
+} catch (e) {
+    $('msg').textContent = '此瀏覽器不支援 WebGL2，無法執行模擬。';
+    throw e;
+}
+renderer.toneMapping = THREE.NoToneMapping;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1.5, NEAR, FAR);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+
+const key = new THREE.DirectionalLight(0xfff1e0, 2.4);
+key.position.set(1.5, 2, 2.5);
+const rim = new THREE.DirectionalLight(0x88aaff, 1.4);
+rim.position.set(-2, 1, -2.5);
+scene.add(key, rim);
+
+// 天空
+scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(250, 32, 16),
+    new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+        fragmentShader: `varying vec3 vP; void main(){
+            float h = normalize(vP).y;
+            vec3 c = mix(vec3(0.20,0.16,0.20), vec3(0.015,0.03,0.07), smoothstep(-0.02, 0.5, h));
+            gl_FragColor = vec4(c, 1.0); }`
+    })
+));
+
+// 地面：1 公尺格
+{
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = '#5b6068'; g.fillRect(0, 0, 256, 256);
+    g.fillStyle = '#3d4148'; g.fillRect(0, 0, 128, 128); g.fillRect(128, 128, 128, 128);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(100, 100);
+    t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ map:t, roughness:0.9 }));
+    ground.rotation.x = -Math.PI / 2; ground.position.y = GROUND_Y;
+    scene.add(ground);
+}
+
+// 柱子：每 4 公尺一根，色帶每段 50 公分
+{
+    const c = document.createElement('canvas'); c.width = 8; c.height = 64;
+    const g = c.getContext('2d');
+    for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#e8e8e8' : '#c0392b'; g.fillRect(0, i * 8, 8, 8); }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter;
+    const H = 4, pts = [];
+    for (let x = -22; x <= 22; x += 4) for (let z = -22; z <= 22; z += 4) pts.push([x, z]);
+    const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.06, 0.06, H, 16), new THREE.MeshStandardMaterial({ map:t, roughness:0.6 }), pts.length);
+    const m = new THREE.Matrix4();
+    pts.forEach(([x, z], i) => posts.setMatrixAt(i, m.makeTranslation(x, GROUND_Y + H / 2, z)));
+    scene.add(posts);
+}
+
+// 小燈：散佈在不同深度，用來看散景
+{
+    let seed = 12345;
+    const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+    const palette = [[1, 0.72, 0.35], [1, 0.9, 0.75], [0.45, 0.8, 1], [1, 0.4, 0.55], [0.6, 1, 0.6]];
+    const n = 520;
+    const lights = new THREE.InstancedMesh(new THREE.SphereGeometry(0.05, 12, 8), new THREE.MeshBasicMaterial(), n);
+    const m = new THREE.Matrix4(), col = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+        const r = 3 + 32 * Math.sqrt(rnd()), a = rnd() * Math.PI * 2;
+        m.makeTranslation(Math.sin(a) * r, GROUND_Y + 0.3 + rnd() * 3.6, Math.cos(a) * r);
+        lights.setMatrixAt(i, m);
+        const p = palette[Math.floor(rnd() * palette.length)], k = 4 + rnd() * 9;
+        lights.setColorAt(i, col.setRGB(p[0] * k, p[1] * k, p[2] * k));
+    }
+    scene.add(lights);
+}
+
+// 人頭
+const pickables = [];
+{
+    const tl = new THREE.TextureLoader();
+    const map = tl.load('assets/Map-COL.jpg', requestRender);
+    map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
+    const normalMap = tl.load('assets/Infinite-Level_02_Tangent_SmoothUV.jpg', requestRender);
+    const skin = new THREE.MeshPhysicalMaterial({ map, normalMap, roughness:0.58, metalness:0, specularIntensity:0.7, sheen:0.25, sheenRoughness:0.5, sheenColor:new THREE.Color(0.9, 0.5, 0.4) });
+    new GLTFLoader().load('assets/LeePerrySmith.glb', gltf => {
+        const head = gltf.scene.getObjectByName('LeePerrySmith');
+        head.material = skin;
+        const g = new THREE.Group();
+        g.add(head);
+        g.scale.setScalar(MODEL_SCALE);
+        g.position.copy(EYE_POINT).multiplyScalar(-MODEL_SCALE);
+        scene.add(g);
+        pickables.push(head);
+        $('msg').style.display = 'none';
+        requestRender();
+    }, undefined, err => { $('msg').textContent = '模型載入失敗：' + (err.message || err); });
+
+}
+
+// ── 後製：景深 ────────────────────────────────────────
+const rtScene = new THREE.WebGLRenderTarget(4, 4, { type:THREE.HalfFloatType, samples:4, depthTexture:new THREE.DepthTexture(4, 4) });
+const packOpts = { type:THREE.HalfFloatType, minFilter:THREE.NearestFilter, magFilter:THREE.NearestFilter, depthBuffer:false };
+const rtPack = new THREE.WebGLRenderTarget(4, 4, packOpts);
+const rtBlur = new THREE.WebGLRenderTarget(4, 4, packOpts);
+
+const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
+quad.frustumCulled = false;
+const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+const lens = { uK:{ value:0 }, uFocus:{ value:1 }, uCap:{ value:1 }, uR:{ value:0 }, uPx:{ value:new THREE.Vector2() } };
+// 模糊圈半徑（像素）：薄透鏡公式，uK 為無限遠處的半徑
+const COC = `uniform float uK, uFocus, uCap, uR; uniform vec2 uPx;
+    float coc(float z){ return min(abs(uK * (z - uFocus) / z), uCap); }
+    float ign(vec2 p){ return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }`;
+
+// 顏色 + 線性深度（公尺）打包到同一張貼圖
+const packMat = new THREE.ShaderMaterial({
+    uniforms: { tColor:{ value:rtScene.texture }, tDepth:{ value:rtScene.depthTexture } },
+    vertexShader: VERT,
+    fragmentShader: `uniform sampler2D tColor, tDepth; varying vec2 vUv;
+        void main(){
+            float d = texture2D(tDepth, vUv).x;
+            float z = ${NEAR.toFixed(3)} * ${FAR.toFixed(1)} / (${FAR.toFixed(1)} - d * ${(FAR - NEAR).toFixed(3)});
+            gl_FragColor = vec4(texture2D(tColor, vUv).rgb, z);
+        }`
+});
+
+// 收集式散景：每個取樣依自身模糊圈大小決定是否蓋到這個像素，能量依圓面積稀釋
+const gatherMat = new THREE.ShaderMaterial({
+    uniforms: { tPack:{ value:rtPack.texture }, ...lens },
+    vertexShader: VERT,
+    fragmentShader: `uniform sampler2D tPack; varying vec2 vUv; ${COC}
+        void main(){
+            vec4 c = texture2D(tPack, vUv);
+            float zc = c.a, rc = coc(zc);
+            float dr = uR / ${TAPS}.0;
+            float wc = (0.25 * dr * dr + 0.05) / max(rc * rc, 0.25);
+            vec3 acc = c.rgb * wc; float tot = wc;
+            float ang = ign(gl_FragCoord.xy) * 6.2831853;
+            for (int i = 0; i < ${TAPS}; i++) {
+                float r = (float(i) + 0.5) * dr;
+                ang += 2.39996323;
+                vec4 s = texture2D(tPack, vUv + vec2(cos(ang), sin(ang)) * r * uPx);
+                float cs = coc(s.a);
+                float cov = s.a > zc ? min(cs, rc * 2.0) : cs;   // 後方的模糊不蓋到前方清晰的東西
+                float w = 2.0 * r * dr * smoothstep(r - 0.5, r + 0.5, cov) / max(cs * cs, 0.25);
+                acc += s.rgb * w; tot += w;
+            }
+            gl_FragColor = vec4(acc / tot, zc);
+        }`
+});
+
+// 補洞 + 色調映射 + sRGB
+const finalMat = new THREE.ShaderMaterial({
+    uniforms: { tIn:{ value:null }, ...lens },
+    vertexShader: VERT,
+    fragmentShader: `uniform sampler2D tIn; varying vec2 vUv; ${COC}
+        vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+        void main(){
+            vec4 c = texture2D(tIn, vUv);
+            vec3 col = c.rgb;
+            float rc = coc(c.a);
+            float rf = 0.6 * sqrt(6.2831853 * rc * uR / ${TAPS}.0);
+            if (uR > 0.75 && rf > 0.6) {
+                float tot = 1.0, ang = ign(gl_FragCoord.xy + 17.0) * 6.2831853;
+                for (int i = 0; i < 12; i++) {
+                    ang += 2.39996323;
+                    float r = rf * sqrt((float(i) + 0.5) / 12.0);
+                    vec4 s = texture2D(tIn, vUv + vec2(cos(ang), sin(ang)) * r * uPx);
+                    float w = step(0.5 * rc, coc(s.a));
+                    col += s.rgb * w; tot += w;
+                }
+                col /= tot;
+            }
+            col = aces(col);
+            gl_FragColor = vec4(pow(col, vec3(1.0 / 2.2)), 1.0);
+        }`
+});
+
+function pass(mat, target) {
+    quad.material = mat;
+    renderer.setRenderTarget(target);
+    renderer.render(quad, quadCam);
+}
+
+// ── 光學計算 ──────────────────────────────────────────
+function focusDistance() {
+    const s = state.af ? state.d : state.s;
+    return Math.max(s, state.f * 1.2 / 1000);   // 不讓對焦距離小於焦距
+}
+
+function optics() {
+    const F = fmt(), f = state.f, N = state.N, s = focusDistance() * 1000;
+    const diag = Math.hypot(F.w, F.h);
+    const fov = x => 2 * Math.atan(x / (2 * f)) * 180 / Math.PI;
+    const c = diag / 1500;                       // 容許模糊圈
+    const H = f * f / (N * c) + f;
+    const near = s * (H - f) / (H + s - 2 * f);
+    const far = s < H ? s * (H - f) / (H - s) : Infinity;
+    const bgCoc = f * f / (N * (s - f));         // 無限遠處的模糊圈直徑（mm）
+    return { F, diag, fovH:fov(F.w), fovV:fov(F.h), fovD:fov(diag), eq:f * FF_DIAG / diag, H, near, far, bgCoc,
+             fieldW: state.d * F.w / f, fieldH: state.d * F.h / f };
+}
+
+// ── 繪製 ──────────────────────────────────────────────
+let pending = false;
+function requestRender() { if (!pending) { pending = true; requestAnimationFrame(render); } }
+
+function layout() {
+    const F = fmt(), st = $('stage'), pad = st.clientWidth > 600 ? 24 : 16;
+    const aw = st.clientWidth - pad, ah = st.clientHeight - pad, aspect = F.w / F.h;
+    let w = aw, h = aw / aspect;
+    if (h > ah) { h = ah; w = ah * aspect; }
+    w = Math.floor(w); h = Math.floor(h);
+    const pr = Math.min(window.devicePixelRatio || 1, 2, 1440 / h);
+    renderer.setPixelRatio(pr);
+    renderer.setSize(w, h);
+    const bw = renderer.domElement.width, bh = renderer.domElement.height;
+    rtScene.setSize(bw, bh); rtPack.setSize(bw, bh); rtBlur.setSize(bw, bh);
+    lens.uPx.value.set(1 / bw, 1 / bh);
+    camera.aspect = aspect;
+}
+
+function render() {
+    pending = false;
+    const F = fmt(), yaw = state.yaw * Math.PI / 180, pitch = state.pitch * Math.PI / 180;
+    camera.position.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(state.d);
+    camera.lookAt(0, 0, 0);
+    camera.fov = 2 * Math.atan(F.h / (2 * state.f)) * 180 / Math.PI;
+    camera.updateProjectionMatrix();
+
+    const resY = renderer.domElement.height, s = focusDistance();
+    const K = 0.5 * state.f * state.f / (state.N * (s * 1000 - state.f)) / F.h * resY;
+    const cap = 0.1 * resY;
+    const zn = Math.max(0.05, state.d - 0.25);           // 場景中離相機最近的東西（頭的前緣）
+    const R = state.dof ? Math.min(cap, Math.max(K, s > zn ? K * (s - zn) / zn : 0)) : 0;
+    lens.uK.value = K; lens.uFocus.value = s; lens.uCap.value = cap; lens.uR.value = R;
+
+    renderer.setRenderTarget(rtScene);
+    renderer.render(scene, camera);
+    pass(packMat, rtPack);
+    if (R > 0.75) { pass(gatherMat, rtBlur); finalMat.uniforms.tIn.value = rtBlur.texture; }
+    else finalMat.uniforms.tIn.value = rtPack.texture;
+    pass(finalMat, null);
+}
+
+// ── UI ────────────────────────────────────────────────
+const fmtLen = m => !isFinite(m) ? '∞' : m < 1 ? (m * 100).toFixed(m < 0.1 ? 1 : 0) + ' cm' : m.toFixed(m < 10 ? 2 : 1) + ' m';
+const fmtF = f => (f < 20 ? f.toFixed(1) : f.toFixed(0)) + ' mm';
+
+function syncUI() {
+    $('fmt').value = state.fmt;
+    $('f').value = toLog(state.f, F_RANGE); $('f-val').textContent = fmtF(state.f);
+    $('N').value = STOPS.indexOf(state.N); $('N-val').textContent = 'f/' + state.N;
+    $('d').value = toLog(state.d, D_RANGE); $('d-val').textContent = fmtLen(state.d);
+    $('yaw').value = state.yaw; $('yaw-val').textContent = Math.round(state.yaw) + '°';
+    $('pitch').value = state.pitch; $('pitch-val').textContent = Math.round(state.pitch) + '°';
+    $('lock').checked = state.lock; $('af').checked = state.af; $('dof').checked = state.dof;
+    const s = focusDistance();
+    $('s').value = toLog(clamp(s, S_RANGE), S_RANGE); $('s').disabled = state.af; $('s-val').textContent = fmtLen(s);
+
+    const o = optics();
+    $('hud').textContent = `${fmtF(state.f)}　f/${state.N}　${fmtLen(state.d)}`;
+    const rows = [
+        ['等效焦段（全片幅）', fmtF(o.eq)],
+        ['視角（水平 / 垂直）', `${o.fovH.toFixed(1)}° / ${o.fovV.toFixed(1)}°`],
+        ['主體處畫面範圍', `${fmtLen(o.fieldW)} × ${fmtLen(o.fieldH)}`],
+        ['景深範圍', `${fmtLen(o.near / 1000)} – ${fmtLen(o.far / 1000)}`],
+        ['景深總長', fmtLen((o.far - o.near) / 1000)],
+        ['超焦距', fmtLen(o.H / 1000)],
+        ['無限遠背景模糊', (o.bgCoc / o.F.h * 100).toFixed(1) + '% 畫面高'],
+    ];
+    $('readout').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+
+    const p = new URLSearchParams();
+    for (const k of Object.keys(DEFAULTS)) {
+        const v = state[k];
+        p.set(k, typeof v === 'boolean' ? (v ? '1' : '0') : typeof v === 'number' ? +v.toFixed(3) : v);
+    }
+    history.replaceState(null, '', '#' + p.toString());
+}
+
+function update() { syncUI(); requestRender(); }
+
+// 鎖定構圖時，焦段與距離等比例連動
+function setFocal(f) {
+    f = clamp(f, F_RANGE);
+    if (state.lock) {
+        const d = clamp(state.d * f / state.f, D_RANGE);
+        f = state.f * d / state.d;
+        state.d = d;
+    }
+    state.f = f; update();
+}
+function setDistance(d) {
+    d = clamp(d, D_RANGE);
+    if (state.lock) {
+        const f = clamp(state.f * d / state.d, F_RANGE);
+        d = state.d * f / state.f;
+        state.f = f;
+    }
+    state.d = d; update();
+}
+
+$('fmt').innerHTML = FORMATS.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+$('N').max = STOPS.length - 1;
+$('f-chips').innerHTML = [16, 24, 35, 50, 85, 135, 200, 400].map(f => `<button data-f="${f}">${f}</button>`).join('');
+// 同樣的臉部大小：距離與焦段成正比
+$('presets').innerHTML = [[24, '廣角貼近'], [50, '標準'], [85, '人像'], [200, '長焦']]
+    .map(([f, n]) => `<button data-f="${f}">${n} ${f}mm / ${fmtLen(f * 1.2 / 85)}</button>`).join('');
+
+$('fmt').onchange = e => { state.fmt = e.target.value; layout(); update(); };
+$('f').oninput = e => setFocal(fromLog(+e.target.value, F_RANGE));
+$('N').oninput = e => { state.N = STOPS[+e.target.value]; update(); };
+$('d').oninput = e => setDistance(fromLog(+e.target.value, D_RANGE));
+$('yaw').oninput = e => { state.yaw = +e.target.value; update(); };
+$('pitch').oninput = e => { state.pitch = +e.target.value; update(); };
+$('s').oninput = e => { state.s = fromLog(+e.target.value, S_RANGE); update(); };
+$('lock').onchange = e => { state.lock = e.target.checked; update(); };
+$('af').onchange = e => { state.af = e.target.checked; if (!state.af) state.s = state.d; update(); };
+$('dof').onchange = e => { state.dof = e.target.checked; update(); };
+$('f-chips').onclick = e => { if (e.target.dataset.f) setFocal(+e.target.dataset.f); };
+$('presets').onclick = e => {
+    const f = +e.target.dataset.f;
+    if (!f) return;
+    state.f = f; state.d = f * 1.2 / 85; update();
+};
+$('reset').onclick = () => { Object.assign(state, DEFAULTS); layout(); update(); };
+
+// 拖曳改角度；沒拖動就放開 = 對焦到點擊處
+const raycaster = new THREE.Raycaster();
+let drag = null;
+canvas.addEventListener('pointerdown', e => {
+    canvas.setPointerCapture(e.pointerId);
+    drag = { x:e.clientX, y:e.clientY, yaw:state.yaw, pitch:state.pitch, moved:false };
+});
+canvas.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true; canvas.classList.add('dragging');
+    state.yaw = ((drag.yaw - dx * 0.4 + 540) % 360) - 180;
+    state.pitch = Math.min(80, Math.max(-80, drag.pitch + dy * 0.3));
+    update();
+});
+canvas.addEventListener('pointerup', e => {
+    canvas.classList.remove('dragging');
+    const d = drag; drag = null;
+    if (!d || d.moved) return;
+    const r = canvas.getBoundingClientRect();
+    raycaster.setFromCamera(new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+    const hit = raycaster.intersectObjects(scene.children, true).find(h => h.distance < FAR * 0.5);
+    if (!hit) return;
+    const dir = camera.getWorldDirection(new THREE.Vector3());
+    state.af = false;
+    state.s = clamp(hit.point.sub(camera.position).dot(dir), S_RANGE);
+    update();
+});
+canvas.addEventListener('pointercancel', () => { drag = null; canvas.classList.remove('dragging'); });
+canvas.addEventListener('wheel', e => { e.preventDefault(); setDistance(state.d * Math.exp(e.deltaY * 0.001)); }, { passive:false });
+
+window.addEventListener('resize', () => { layout(); requestRender(); });
+
+state.f = clamp(state.f, F_RANGE); state.d = clamp(state.d, D_RANGE); state.s = clamp(state.s, S_RANGE);
+if (!STOPS.includes(state.N)) state.N = DEFAULTS.N;
+layout();
+update();
+</script>
+</body>
+</html>
