@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kırgızça A1.1 — 聽著學吉爾吉斯語</title>
+<style>
+:root{
+  --bg:#faf6ef; --card:#fff; --ink:#2a2420; --mute:#7d736a; --line:#e6ddd0;
+  --red:#c8102e; --red-soft:#fbe9ec; --gold:#e6a700; --gold-soft:#fff4cf; --heard:#2f9e6b;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#1a1614; --card:#26201d; --ink:#f1e9df; --mute:#a3978b; --line:#3a312c;
+    --red:#ff5a70; --red-soft:#3d1f24; --gold:#ffc83d; --gold-soft:#3b3115; --heard:#5fd39c; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Segoe UI","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.55;
+  padding-bottom:200px}
+header{background:var(--red);color:#fff;padding:14px 16px 10px}
+header h1{margin:0;font-size:1.25rem;letter-spacing:.02em}
+header p{margin:2px 0 0;font-size:.85rem;opacity:.9}
+nav{position:sticky;top:0;z-index:5;display:flex;background:var(--card);border-bottom:1px solid var(--line)}
+nav button{flex:1;padding:12px 4px;border:0;background:none;color:var(--mute);font:inherit;font-size:.95rem;
+  border-bottom:3px solid transparent;cursor:pointer}
+nav button.on{color:var(--red);border-color:var(--red);font-weight:600}
+main{max-width:980px;margin:0 auto;padding:14px 16px}
+.settings{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:.85rem;color:var(--mute);
+  padding:10px 16px;max-width:980px;margin:0 auto}
+.settings select{font:inherit;max-width:230px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.settings label{display:flex;gap:5px;align-items:center}
+#voiceNote{flex-basis:100%;font-size:.8rem}
+#voiceNote.warn{color:var(--red)}
+section{display:none} section.on{display:block}
+h2{font-size:1.05rem;margin:22px 0 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h2 small{font-weight:400;color:var(--mute);font-size:.8rem}
+.lead{color:var(--mute);font-size:.9rem;margin:4px 0 12px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;
+  padding:5px 12px;font:inherit;font-size:.82rem;cursor:pointer}
+.btn:hover{border-color:var(--red)}
+.btn.on{background:var(--red);border-color:var(--red);color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:10px 6px 8px;text-align:center;cursor:pointer;font:inherit;color:inherit;min-height:112px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:transform .08s}
+.card:active{transform:scale(.96)}
+.card.playing{border-color:var(--gold);background:var(--gold-soft);box-shadow:0 0 0 2px var(--gold)}
+.card.heard::after{content:"";position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--heard)}
+.card .pic{font-size:2rem;line-height:1.2}
+.card .pic.txt{font-size:1.05rem;font-weight:600;color:var(--red);padding:9px 0}
+.card .lat{font-size:1.02rem;font-weight:600}
+.card .cyr,.cyr{font-size:.78rem;color:var(--mute)}
+.card .zh{font-size:.78rem;color:var(--mute)}
+body.nocyr .cyr{display:none}
+.row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:9px 12px;margin:6px 0;cursor:pointer;width:100%;text-align:left;font:inherit;color:inherit}
+.row.playing{border-color:var(--gold);background:var(--gold-soft)}
+.row .lat{font-weight:600;font-size:1.02rem}
+.row .zh{color:var(--mute);font-size:.88rem}
+.row .spk{margin-left:auto;font-size:1.1rem;opacity:.6}
+.lesson{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:10px 0;overflow:hidden}
+.lesson summary{padding:12px 14px;cursor:pointer;font-weight:600;list-style:none;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.lesson summary::-webkit-details-marker{display:none}
+.lesson summary .wals{font-weight:400;font-size:.72rem;color:var(--red);background:var(--red-soft);padding:1px 7px;border-radius:999px}
+.lesson .body{padding:0 14px 14px;font-size:.93rem}
+.ky{color:var(--red);font-weight:600;cursor:pointer;border-bottom:1px dotted var(--red)}
+.ex{border-top:1px dashed var(--line);padding:9px 0 3px}
+.ex .toks{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end}
+.tok{border:0;background:var(--gold-soft);border-radius:8px;padding:4px 8px;cursor:pointer;font:inherit;color:inherit;text-align:center}
+.tok b{display:block;font-size:1rem}
+.tok i{display:block;font-style:normal;font-size:.72rem;color:var(--mute)}
+.ex .tr{font-size:.86rem;color:var(--mute);margin-top:3px}
+.widget{background:var(--bg);border-radius:10px;padding:10px;margin-top:10px}
+.widget .out{font-size:1.5rem;font-weight:700;text-align:center;padding:10px 0 2px;cursor:pointer}
+.widget .outsub{text-align:center;color:var(--mute);font-size:.85rem}
+#now{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:2px solid var(--gold);
+  padding:10px 16px;display:flex;align-items:center;gap:12px;z-index:9;box-shadow:0 -4px 16px rgba(0,0,0,.08)}
+#now .pic{font-size:2.2rem;min-width:48px;text-align:center}
+#now .mid{flex:1;min-width:0}
+#now .lat{font-size:1.35rem;font-weight:700;overflow-wrap:anywhere}
+#now .zh{font-size:.9rem;color:var(--mute)}
+#now .ctl button{border:1px solid var(--line);background:var(--bg);border-radius:50%;width:44px;height:44px;font-size:1.2rem;cursor:pointer;flex:none}
+#now .ctl button.rec{background:var(--red);color:#fff;border-color:var(--red);animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 7px var(--red-soft)}}
+#nowState{font-size:.82rem;color:var(--red);font-weight:600;min-height:1.2em}
+#meter{display:none;height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:3px}
+#meter i{display:block;height:100%;width:0;background:var(--red)}
+#now .ctl{display:flex;gap:8px;flex:none}
+@media (max-width:560px){#now{flex-wrap:wrap;gap:8px}#now .mid{flex-basis:calc(100% - 64px)}#now .ctl{margin-left:auto}}
+.build .tok b{font-size:1.35rem}
+table.ab{border-collapse:collapse;font-size:.88rem;margin-top:6px}
+table.ab td{padding:2px 10px 2px 0;vertical-align:top}
+</style>
+</head>
+<body>
+<header>
+  <h1>Kırgızça · 吉爾吉斯語 A1.1</h1>
+  <p>用耳朵學：聽示範 → 按 🎙 跟著說 → 聽自己和示範的差別。沒有分數，沒有對錯。</p>
+</header>
+<div class="settings">
+  <label>語音 <select id="voiceSel"></select></label>
+  <label>速度 <select id="rateSel"><option value="0.6">慢</option><option value="0.8" selected>中</option><option value="1">正常</option></select></label>
+  <label><input type="checkbox" id="shadow" checked> 連續聽時留時間讓我跟讀，並錄音回放</label>
+  <label><input type="checkbox" id="zhSpeak"> 也念中文</label>
+  <label><input type="checkbox" id="showCyr" checked> 顯示西里爾原文</label>
+  <span id="voiceNote"></span>
+</div>
+<nav id="nav">
+  <button data-t="abc" class="on">字母與發音</button>
+  <button data-t="voc">詞彙</button>
+  <button data-t="phr">會話</button>
+  <button data-t="gra">文法</button>
+  <button data-t="bld">造句</button>
+</nav>
+<main>
+  <section id="abc" class="on"></section>
+  <section id="voc"></section>
+  <section id="phr"></section>
+  <section id="gra"></section>
+  <section id="bld"></section>
+</main>
+<div id="now">
+  <div class="pic" id="nowPic">🔊</div>
+  <div class="mid"><div class="lat" id="nowLat">點一張卡片開始聽</div><div class="cyr" id="nowCyr"></div><div class="zh" id="nowZh"></div><div id="nowState"></div><div id="meter"><i></i></div></div>
+  <div class="ctl">
+  <button id="nowSlow" title="慢速再聽">🐢</button>
+  <button id="nowAgain" title="再聽一次示範">🔁</button>
+  <button id="nowMic" title="錄下我的發音（再按一次結束）">🎙</button>
+  <button id="nowCmp" title="示範與我的錄音連著聽">👥</button>
+  <button id="nowStop" title="停止">⏹</button>
+  </div>
+</div>
+
+<script>
+// ───────── Cyrillic → Latin (共同突厥字母風格；土耳其語語音可直接朗讀) ─────────
+const C2L = {а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'c',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',ң:'ñ',
+  о:'o',ө:'ö',п:'p',р:'r',с:'s',т:'t',у:'u',ү:'ü',ф:'f',х:'h',ц:'ts',ч:'ç',ш:'ş',щ:'şç',ъ:'',ы:'ı',ь:'',э:'e',ю:'yu',я:'ya'};
+function lat(s){
+  let out = '';
+  for (const ch of s){
+    const lo = ch.toLowerCase();
+    if (!(lo in C2L)) { out += ch; continue; }
+    let l = C2L[lo];
+    if (ch !== lo && l) l = (l[0] === 'i' ? 'İ' : l[0].toUpperCase()) + l.slice(1);
+    out += l;
+  }
+  return out;
+}
+
+// ───────── 資料 ─────────
+// 詞彙：'西里爾|emoji(空=無法用圖示表達)|中文|例句|例句中文'
+const VOCAB = [
+ ['人與家人', [
+  'адам|🧑|人','эркек|👨|男人','аял|👩|女人','бала|🧒|孩子；男孩','кыз|👧|女孩；女兒','уул|👦|兒子','ымыркай|👶|嬰兒',
+  'ата|👨‍👧|爸爸','апа|🤱|媽媽','чоң ата|👴|爺爺','чоң эне|👵|奶奶','байке|🙋‍♂️|哥哥','эже|🙋‍♀️|姊姊','ини|👦🏻|弟弟','сиңди|👧🏻|妹妹',
+  'үй-бүлө|👨‍👩‍👧|家庭','дос|🤝|朋友|Бул менин досум.|這是我的朋友。','мугалим|🧑‍🏫|老師','окуучу|🧑‍🎓|學生','дарыгер|🧑‍⚕️|醫生','ат||名字|Менин атым Айгүл.|我的名字是 Aygül。']],
+ ['身體', [
+  'баш|👤|頭','көз|👁️|眼睛','кулак|👂|耳朵','мурун|👃|鼻子','ооз|👄|嘴','тиш|🦷|牙齒','чач|💇|頭髮','кол|✋|手','бут|🦶|腳；腿','жүрөк|❤️|心']],
+ ['吃與喝', [
+  'тамак|🍽️|食物；餐','нан|🍞|麵包；饢','суу|💧|水|Мен суу ичем.|我喝水。','чай|🍵|茶','сүт|🥛|牛奶','кофе|☕|咖啡','эт|🥩|肉','балык|🐟|魚','жумуртка|🥚|蛋',
+  'күрүч|🍚|米；飯','шорпо|🍲|湯','сыр|🧀|乳酪','май|🧈|奶油；油','бал|🍯|蜂蜜','туз|🧂|鹽','алма|🍎|蘋果','банан|🍌|香蕉','жүзүм|🍇|葡萄','дарбыз|🍉|西瓜','коон|🍈|甜瓜',
+  'апельсин|🍊|柳橙','лимон|🍋|檸檬','картошка|🥔|馬鈴薯','сабиз|🥕|紅蘿蔔','пияз|🧅|洋蔥','помидор|🍅|番茄','торт|🎂|蛋糕','балмуздак|🍦|冰淇淋']],
+ ['動物', [
+  'ит|🐕|狗','мышык|🐈|貓','жылкы|🐎|馬','уй|🐄|牛','кой|🐑|綿羊','эчки|🐐|山羊','төө|🐫|駱駝','тоок|🐔|雞','куш|🐦|鳥','бүркүт|🦅|鷹',
+  'аюу|🐻|熊','карышкыр|🐺|狼','түлкү|🦊|狐狸','коён|🐇|兔子','чычкан|🐭|老鼠','жылан|🐍|蛇','көпөлөк|🦋|蝴蝶','аары|🐝|蜜蜂','пил|🐘|大象','арстан|🦁|獅子','маймыл|🐒|猴子']],
+ ['自然與天氣', [
+  'күн|☀️|太陽；日子','ай|🌙|月亮；月份','жылдыз|⭐|星星','булут|☁️|雲','жамгыр|🌧️|雨','кар|❄️|雪','шамал|🌬️|風','чагылган|⚡|閃電','асан-үсөн|🌈|彩虹',
+  'тоо|⛰️|山','көл|🏞️|湖','деңиз|🌊|海','токой|🌲|森林','дарак|🌳|樹','гүл|🌸|花','от|🔥|火','таш|🪨|石頭','жер|🌍|地；地方']],
+ ['家與物品', [
+  'үй|🏠|房子；家|Мен үйдөмүн.|我在家。','боз үй|⛺|氈房（蒙古包）','эшик|🚪|門','терезе|🪟|窗','отургуч|🪑|椅子','керебет|🛏️|床','китеп|📖|書','калем|🖊️|筆','кагаз|📄|紙',
+  'телефон|📱|電話','компьютер|💻|電腦','саат|⌚|鐘錶；小時','ачкыч|🔑|鑰匙','акча|💰|錢','сумка|👜|包包','кийим|👕|衣服','бут кийим|👟|鞋','көз айнек|👓|眼鏡',
+  'кол чатыр|☂️|雨傘','чырак|💡|燈','бычак|🔪|刀','кашык|🥄|湯匙','белек|🎁|禮物','сүрөт|🖼️|圖畫；照片','топ|⚽|球','дары|💊|藥']],
+ ['地方與交通', [
+  'шаар|🏙️|城市','айыл|🏡|村莊','мектеп|🏫|學校','оорукана|🏥|醫院','дүкөн|🏪|商店','базар|🛒|市集','банк|🏦|銀行','мейманкана|🏨|旅館','ашкана|🍴|餐館；廚房','даараткана|🚻|廁所',
+  'жол|🛣️|路','көпүрө|🌉|橋','унаа|🚗|車','автобус|🚌|公車','такси|🚕|計程車','поезд|🚆|火車','учак|✈️|飛機','велосипед|🚲|腳踏車','кеме|🚢|船','аэропорт|🛫|機場']],
+ ['數字', [
+  'нөл|0️⃣|零','бир|1️⃣|一','эки|2️⃣|二','үч|3️⃣|三','төрт|4️⃣|四','беш|5️⃣|五','алты|6️⃣|六','жети|7️⃣|七','сегиз|8️⃣|八','тогуз|9️⃣|九','он|🔟|十',
+  'он бир|11|十一','жыйырма|20|二十','отуз|30|三十','кырк|40|四十','элүү|50|五十','жүз|💯|一百','миң|1000|一千']],
+ ['顏色', [
+  'кызыл|🔴|紅','көк|🔵|藍','жашыл|🟢|綠','сары|🟡|黃','кара|⚫|黑','ак|⚪|白','күрөң|🟤|棕','кызгылт сары|🟠|橘','кызгылт көк|🟣|紫']],
+ ['時間', [
+  'таң|🌅|清晨','кеч|🌆|傍晚','түн|🌃|夜晚','жума|📅|星期','жыл||年','бүгүн||今天','эртең||明天','кечээ||昨天','азыр||現在','ар дайым||總是']],
+ ['形容', [
+  'жакшы|👍|好','жаман|👎|壞','ысык|🥵|熱','суук|🥶|冷','жаңы|🆕|新','даамдуу|😋|好吃','бактылуу|😊|幸福；快樂','капалуу|😢|難過','оорулуу|🤒|生病的','кымбат|💎|貴',
+  'чоң||大|чоң үй|大房子','кичине||小','эски||舊','узун||長','кыска||短','кооз||漂亮','арзан||便宜','көп||多','аз||少','тез||快','жай||慢']],
+ ['動作（詞幹＝命令式）', [
+  'бар|🚶|去|Мен мектепке барам.|我去學校。','кел|👋|來|Мен келем.|我來。','же|🍴|吃|Мен нан жейм.|我吃麵包。','ич|🥤|喝|Мен чай ичем.|我喝茶。','укта|😴|睡|Мен уктайм.|我睡覺。',
+  'оку|📚|讀；學習|Мен китеп окуйм.|我讀書。','жаз|✍️|寫|Мен жазам.|我寫。','сүйлө|🗣️|說|Мен кыргызча сүйлөйм.|我說吉爾吉斯語。','ук|🎧|聽|Мен угам.|我聽。','көр|👀|看|Мен көрөм.|我看見。',
+  'сүй|😍|愛|Мен сени сүйөм.|我愛你。','иште|💼|工作|Мен иштейм.|我工作。','отур|🧎|坐|Отуруңуз.|請坐。','тур|🧍|站；起來','ойно|🎮|玩|Балдар ойнойт.|孩子們在玩。','ырда|🎤|唱歌','бийле|💃|跳舞',
+  'жүгүр|🏃|跑','сүз|🏊|游泳','жуу|🧼|洗','күл|😄|笑','ыйла|😭|哭','ойлон|🤔|想；思考','күт|⏳|等|Күтө туруңуз.|請等一下。','сатып ал|🛍️|買|Мен нан сатып алам.|我買麵包。',
+  'бил||知道|Мен билем.|我知道。','түшүн||懂|Мен түшүнбөйм.|我不懂。','жаша||住；生活|Мен Бишкекте жашайм.|我住在比什凱克。','ал||拿','бер||給','ач||打開','жап||關上']],
+ ['小詞（無法用圖表達）', [
+  'мен||我','сен||你（熟人）','сиз||您（禮貌）','ал||他；她；它；那','биз||我們','силер||你們','алар||他們','бул||這','ошол||那（剛提到的）',
+  'ооба||是的','жок||不；沒有','бар||有','эмес||不是','жана||和','же||或','бирок||但是','менен||和…一起；用','үчүн||為了',
+  'ким||誰','эмне||什麼','кайда||哪裡','качан||什麼時候','канча||多少','кандай||怎麼樣','эмнеге||為什麼','бул жерде||這裡','ал жерде||那裡','абдан||非常','дагы||也；再']],
+];
+
+// 會話：'西里爾|中文|備註'
+const PHRASES = [
+ ['打招呼', ['Салам!|嗨！|熟人之間','Саламатсызбы!|您好！|禮貌、萬用','Кандайсыз?|您好嗎？','Жакшы, рахмат.|很好，謝謝。','Сизчи?|您呢？','Кутман таң!|早安！','Кутман кеч!|晚安（傍晚問候）！']],
+ ['認識彼此', ['Сиздин атыңыз ким?|您叫什麼名字？|字面：您的名字是誰','Менин атым …|我的名字是…','Сиз кайдансыз?|您從哪裡來？','Мен Тайвандан келдим.|我從台灣來。','Таанышканыма кубанычтамын.|很高興認識您。','Мен кыргызча үйрөнүп жатам.|我正在學吉爾吉斯語。']],
+ ['禮貌', ['Рахмат.|謝謝。','Чоң рахмат!|非常感謝！','Эч нерсе эмес.|不客氣。|字面：沒什麼','Кечиресиз.|對不起；不好意思。','Ооба.|是。','Жок.|不。','Макул.|好的。']],
+ ['聽不懂時', ['Мен түшүнбөйм.|我不懂。','Мен билбейм.|我不知道。','Дагы бир жолу айтыңызчы.|請再說一次。','Жайыраак сүйлөңүзчү.|請說慢一點。','Бул эмне?|這是什麼？','Бул кыргызча эмне деп аталат?|這個吉爾吉斯語怎麼說？']],
+ ['出門', ['Даараткана кайда?|廁所在哪裡？','Бул канча турат?|這個多少錢？','Суу бериңизчи.|請給我水。','Жардам бериңизчи!|請幫幫我！','Мага чай керек.|我需要茶。|字面：對我 茶 需要']],
+ ['道別', ['Жакшы калыңыз.|再見（離開的人說）|字面：請好好留下','Жакшы барыңыз.|再見（留下的人說）|字面：請好好走','Көрүшкөнчө!|回頭見！','Жолуңуз шыдыр болсун!|一路順風！']],
+];
+
+// 文法：依 WALS 特徵描繪吉爾吉斯語的骨架，只取造最簡單句子所需的部分
+// 例句：'詞=註解 詞=註解|標點|中文'（詞內的空格以 _ 表示）
+const GRAMMAR = [
+ {t:'句子的順序：動詞放最後', w:'WALS 81A 主賓動語序',
+  b:'吉爾吉斯語是 <b>主詞 – 受詞 – 動詞</b>（SOV）。和中文最大的不同：動詞永遠壓軸。先聽幾句，感覺動詞落在句尾的節奏。',
+  ex:['Мен=我 чай=茶 ичем=喝(我)|.|我喝茶。','Мен=我 китеп=書 окуйм=讀(我)|.|我讀書。','Апам=我媽媽 нан=麵包 жейт=吃(她)|.|我媽媽吃麵包。','Биз=我們 Бишкекте=在比什凱克 жашайбыз=住(我們)|.|我們住在比什凱克。']},
+ {t:'母音和諧：後綴會變色', w:'WALS 26A 後綴為主的黏著語',
+  b:'所有文法都靠<b>後綴</b>表達，而後綴的母音要跟著詞幹最後一個母音走。以複數 -лар 為例，它有四種母音：{а}／{е}／{о}／{ө}；開頭子音也會隨前一個音變成 л／д／т。不用背規則——多聽，耳朵會自己抓到。<table class="ab"><tr><td>後、不圓唇 (а ы)</td><td>→ а</td></tr><tr><td>前、不圓唇 (е и)</td><td>→ е</td></tr><tr><td>後、圓唇 (о)</td><td>→ о　（у 之後用 а）</td></tr><tr><td>前、圓唇 (ө ү)</td><td>→ ө</td></tr></table>',
+  ex:['ат=馬/名字 аттар=(複數)||馬 → 馬群','ит=狗 иттер=(複數)||狗 → 好幾隻狗','дос=朋友 достор=(複數)||朋友 → 朋友們','көл=湖 көлдөр=(複數)||湖 → 好幾個湖','үй=房子 үйлөр=(複數)||房子 → 好幾間房子','куш=鳥 куштар=(複數)||鳥 → 鳥群']},
+ {t:'沒有性別、沒有冠詞', w:'WALS 30A 性別數量 · 37A/38A 冠詞',
+  b:'名詞沒有陰陽性，{ал} 同時是「他、她、它」。也沒有定冠詞；{бир}（一）有時當作「一個／某個」。',
+  ex:['Ал=他/她 мугалим=老師|.|他（她）是老師。','Бул=這 китеп=書|.|這是書／這是一本書。','Бир=一 чай=茶 бериңизчи=請給|.|請給我一杯茶。']},
+ {t:'「是」不用說出來', w:'WALS 120A 名詞謂語的零繫詞 · 102A 動詞人稱標記',
+  b:'第三人稱直接把兩個名詞擺在一起就是「A 是 B」。第一、二人稱則在謂語後加人稱尾：我 -мин、你 -сиң、您 -сиз、我們 -биз（同樣隨母音和諧變化）。',
+  ex:['Мен=我 студентмин=學生-我是|.|我是學生。','Сен=你 студентсиң=學生-你是|.|你是學生。','Сиз=您 мугалимсиз=老師-您是|.|您是老師。','Ал=他/她 дарыгер=醫生|.|他是醫生。','Биз=我們 студентпиз=學生-我們是|.|我們是學生。','Мен=我 тайвандыкмын=台灣人-我是|.|我是台灣人。']},
+ {t:'你 和 您', w:'WALS 45A 代名詞的禮貌區分',
+  b:'{сен} 用於朋友、小孩；{сиз} 用於長輩、陌生人。初學者一律用 {сиз} 最安全。動詞與所有格尾也跟著分兩套。',
+  ex:['Сен=你 кандайсың=怎麼樣-你|?|你好嗎？（熟人）','Сиз=您 кандайсыз=怎麼樣-您|?|您好嗎？（禮貌）','Сенин=你的 атың=名字-你的 ким=誰|?|你叫什麼名字？','Сиздин=您的 атыңыз=名字-您的 ким=誰|?|您叫什麼名字？']},
+ {t:'可以省略主詞', w:'WALS 101A 代名詞主語的表達',
+  b:'動詞尾巴已經說明是誰，所以 {мен}、{сен} 常常不說。',
+  ex:['Чай=茶 ичем=喝(我)|.|（我）喝茶。','Кайда=哪裡 барасыз=去(您)|?|（您）去哪裡？','Түшүнбөйм=不懂(我)|.|（我）不懂。']},
+ {t:'現在／未來式：動詞人稱', w:'WALS 102A 動詞人稱標記',
+  b:'詞幹 + 母音 (-а/-е/-о/-ө，母音結尾的詞幹用 -й) + 人稱尾。同一個形式表示「習慣做」和「將要做」。選一個動詞和一個人，聽聽看：',
+  widget:'verb',
+  ex:['Мен=我 эртең=明天 барам=去(我)|.|我明天去。','Ал=他 кыргызча=吉爾吉斯語 сүйлөйт=說(他)|.|他說吉爾吉斯語。']},
+ {t:'格：在、去、從', w:'WALS 49A 格的數量 · 51A 格標記為後綴',
+  b:'中文用「在、到、從、的、把」這些詞，吉爾吉斯語把它們黏在名詞後面（六個格）。A1.1 最常用的是<b>在 -да</b>、<b>去 -га</b>、<b>從 -дан</b>。選一個名詞和一個格：',
+  widget:'case',
+  ex:['Мен=我 үйдөмүн=在家-我是|.|我在家。','Мен=我 базарга=去市集 барам=去(我)|.|我去市集。','Ал=他 мектептен=從學校 келет=來(他)|.|他從學校來。','Мен=我 алманы=蘋果(受格) жейм=吃(我)|.|我吃（那個）蘋果。']},
+ {t:'後置詞：介系詞放後面', w:'WALS 85A 附置詞與名詞的語序',
+  b:'像「跟、為了」這類詞放在名詞<b>後面</b>：{менен}（和…一起／用）、{үчүн}（為了）。',
+  ex:['Мен=我 досум=朋友-我的 менен=跟 барам=去(我)|.|我跟朋友一起去。','Чай=茶 сүт=牛奶 менен=加|.|奶茶（茶加牛奶）。','Бул=這 сиз=您 үчүн=為了|.|這是給您的。']},
+ {t:'我的、你的：所有格尾', w:'WALS 57A 所有格詞綴的位置 · 86A 領屬語在名詞前',
+  b:'「我的書」說兩次「我的」：{менин}（我的）+ 名詞 + 所有格尾。前面的代名詞可省略。詞尾 п、к 在母音前會變成 б、г（китеп → китебим）。',
+  ex:['менин=我的 китебим=書-我的||我的書','сенин=你的 китебиң=書-你的||你的書','сиздин=您的 китебиңиз=書-您的||您的書','анын=他的 китеби=書-他的||他（她）的書','биздин=我們的 үйүбүз=家-我們的||我們的家','Менин=我的 атым=名字-我的 Азамат=Azamat|.|我的名字是 Azamat。']},
+ {t:'有 和 沒有', w:'WALS 117A 謂語領有',
+  b:'沒有「有」這個動詞。說「我的 X 存在」：名詞 + 所有格尾 + {бар}（有）／{жок}（沒有）。',
+  ex:['Менин=我的 китебим=書-我的 бар=有|.|我有書。','Менин=我的 акчам=錢-我的 жок=沒有|.|我沒有錢。','Сизде=在您那裡 суу=水 барбы=有-嗎|?|您有水嗎？','Убактым=時間-我的 жок=沒有|.|我沒有時間。']},
+ {t:'問句：加一個 -бы', w:'WALS 116A 是非問句 · 92A 疑問助詞的位置',
+  b:'是非問句在句尾加疑問助詞 -бы（隨母音和諧變成 -би/-бу/-бү，清音後為 -пы/-пи…）。語序不變。',
+  ex:['Бул=這 китеппи=書-嗎|?|這是書嗎？','Сиз=您 студентсизби=學生-您是-嗎|?|您是學生嗎？','Чай=茶 ичесизби=喝(您)-嗎|?|您喝茶嗎？','Жакшысызбы=好-您-嗎|?|您好嗎？']},
+ {t:'疑問詞留在原位', w:'WALS 93A 疑問詞的位置',
+  b:'和中文一樣，疑問詞不用搬到句首，放在答案會出現的位置：{ким} 誰、{эмне} 什麼、{кайда} 哪裡、{качан} 何時、{канча} 多少、{кандай} 怎樣。',
+  ex:['Бул=這 эмне=什麼|?|這是什麼？','Ал=他 ким=誰|?|他是誰？','Сиз=您 кайда=哪裡 жашайсыз=住(您)|?|您住哪裡？','Бул=這 канча=多少 турат=值|?|這個多少錢？']},
+ {t:'否定', w:'WALS 112A 否定語素',
+  b:'兩種方式：動詞在詞幹後加 <b>-ба</b>（-бе/-бо/-бө，清音後 -па…）；名詞、形容詞後面放 {эмес}（不是）。「沒有」用 {жок}。',
+  ex:['Мен=我 барбайм=不去(我)|.|我不去。','Мен=我 эт=肉 жебейм=不吃(我)|.|我不吃肉。','Мен=我 билбейм=不知道(我)|.|我不知道。','Мен=我 студент=學生 эмесмин=不是-我|.|我不是學生。','Бул=這 кымбат=貴 эмес=不是|.|這不貴。']},
+ {t:'修飾語都在前面', w:'WALS 87A 形容詞 · 89A 數詞 · 88A 指示詞 與名詞的語序',
+  b:'形容詞、數詞、「這／那」都放在名詞<b>前</b>，而且形容詞不變化。數詞後面的名詞<b>不加複數</b>：兩本書 = {эки китеп}。',
+  ex:['чоң=大 үй=房子||大房子','кызыл=紅 алма=蘋果||紅蘋果','эки=二 китеп=書||兩本書','бул=這 жакшы=好 китеп=書||這本好書','Менин=我的 үч=三 балам=孩子-我的 бар=有|.|我有三個孩子。']},
+ {t:'數字怎麼組', w:'WALS 131A 數詞的進位基底（十進位）',
+  b:'十進位，由大到小直接排：十一 = 十 一。',
+  ex:['он=十 бир=一||11','жыйырма=二十 беш=五||25','жүз=百 элүү=五十||150','эки=二 миң=千||2000']},
+ {t:'請…：命令與禮貌請求', w:'WALS 70A 形態命令式',
+  b:'動詞詞幹本身就是對 {сен} 的命令。對 {сиз} 加 -ыңыз（-иңиз/-уңуз/-үңүз）；再加 -чы 語氣更柔和。',
+  ex:['Кел=來||來！（對熟人）','Келиңиз=請來||請來／請進。','Отуруңуз=請坐||請坐。','Айтыңызчы=請說(柔和)||請您說一下。','Чай=茶 ичиңиз=請喝||請喝茶。']},
+];
+
+const PERSONS = ['мен','сен','сиз','ал','биз','алар','мен（否定）'];
+const PERSON_ZH = ['我','你','您','他／她','我們','他們','我 不…'];
+const VERBS = {
+ 'бар|去':['барам','барасың','барасыз','барат','барабыз','барышат','барбайм'],
+ 'кел|來':['келем','келесиң','келесиз','келет','келебиз','келишет','келбейм'],
+ 'ич|喝':['ичем','ичесиң','ичесиз','ичет','ичебиз','ичишет','ичпейм'],
+ 'же|吃':['жейм','жейсиң','жейсиз','жейт','жейбиз','жешет','жебейм'],
+ 'оку|讀':['окуйм','окуйсуң','окуйсуз','окуйт','окуйбуз','окушат','окубайм'],
+ 'жаша|住':['жашайм','жашайсың','жашайсыз','жашайт','жашайбыз','жашашат','жашабайм'],
+};
+const CASES = ['原形','複數 們','在 -да','去 -га','從 -дан','的 -нын','把 -ны','我的 -м'];
+const NOUNS = {
+ 'үй|房子':['үй','үйлөр','үйдө','үйгө','үйдөн','үйдүн','үйдү','үйүм'],
+ 'китеп|書':['китеп','китептер','китепте','китепке','китептен','китептин','китепти','китебим'],
+ 'шаар|城市':['шаар','шаарлар','шаарда','шаарга','шаардан','шаардын','шаарды','шаарым'],
+ 'тоо|山':['тоо','тоолор','тоодо','тоого','тоодон','тоонун','тоону','тоом'],
+ 'көл|湖':['көл','көлдөр','көлдө','көлгө','көлдөн','көлдүн','көлдү','көлүм'],
+ 'базар|市集':['базар','базарлар','базарда','базарга','базардан','базардын','базарды','базарым'],
+};
+
+// 字母：'字母|例詞|發音提示'
+const ALPHABET = ['а|алма|','б|бала|','в|вагон|只出現在外來語','г|гүл|在 а о у ы 旁邊發得很靠後（像法語 r）','д|дос|','е|жер|','ё|боёк|yo','ж|жол|像英語 j（不是俄語的 zh）','з|кыз|',
+ 'и|ит|','й|ай|像 y','к|кол|在 а о у ы 旁邊發得靠後（小舌 q）','л|лимон|','м|мышык|','н|нан|','ң|деңиз|ng，如「昂」的韻尾','о|от|','ө|төө|圓唇的 e，像德語 ö','п|пил|','р|дарак|彈舌',
+ 'с|суу|','т|тоо|','у|уй|','ү|үй|像注音 ㄩ','ф|кофе|只出現在外來語','х|рахмат|','ц|цирк|只出現在外來語','ч|чай|像 ch','ш|шаар|像 sh','щ|щётка|只出現在俄語借詞',
+ 'ъ|объект|不發音（俄語借詞）','ы|ыр|不圓唇的 u，嘴角往後拉','ь|апрель|不發音（俄語借詞）','э|эже|','ю|аюу|yu','я|уя|ya'];
+
+// ───────── 語音 ─────────
+const synth = window.speechSynthesis;
+const PREF = ['ky','kk','tr','ru'];
+const QUALITY = {ky:'吉爾吉斯語語音——最佳。', kk:'沒有吉爾吉斯語語音，改用哈薩克語語音念原文（兩者很接近，ж 會偏 zh）。',
+  tr:'沒有吉爾吉斯語語音，改用土耳其語語音念拉丁轉寫（母音準確，ñ 會念成 ng）。',
+  ru:'只找到俄語語音：ö ü ñ 會念成 o u n，僅供參考。建議改用 Microsoft Edge（內建哈薩克語、土耳其語線上語音）。'};
+let voices = [], kyVoice = null, zhVoice = null, token = 0, keep = null, last = null;
+const $ = id => document.getElementById(id);
+const store = { get(k,d){ try{ return JSON.parse(localStorage.getItem('ky_'+k)) ?? d }catch(e){ return d } }, set(k,v){ try{ localStorage.setItem('ky_'+k, JSON.stringify(v)) }catch(e){} } };
+const heard = new Set(store.get('heard', []));
+
+function loadVoices(){
+  if (!synth) { $('voiceNote').textContent = '這個瀏覽器不支援語音合成。'; $('voiceNote').className = 'warn'; return; }
+  voices = synth.getVoices();
+  const usable = voices.filter(v => PREF.includes(v.lang.slice(0,2).toLowerCase()))
+    .sort((a,b) => PREF.indexOf(a.lang.slice(0,2).toLowerCase()) - PREF.indexOf(b.lang.slice(0,2).toLowerCase()));
+  zhVoice = voices.find(v => /zh[-_]TW/i.test(v.lang)) || voices.find(v => /^zh/i.test(v.lang)) || null;
+  const sel = $('voiceSel'), saved = store.get('voice', '');
+  sel.innerHTML = usable.map(v => `<option value="${v.name}">${v.name} (${v.lang})</option>`).join('') || '<option value="">（找不到可用語音）</option>';
+  if (usable.some(v => v.name === saved)) sel.value = saved;
+  setVoice();
+}
+function setVoice(){
+  kyVoice = voices.find(v => v.name === $('voiceSel').value) || null;
+  const n = $('voiceNote');
+  if (!kyVoice) { n.className = 'warn'; n.textContent = voices.length ? '系統裡沒有吉爾吉斯／哈薩克／土耳其／俄語語音。建議用 Microsoft Edge 開啟，或在系統設定安裝土耳其語語音。' : '語音載入中…'; return; }
+  const k = kyVoice.lang.slice(0,2).toLowerCase();
+  n.className = k === 'ru' ? 'warn' : ''; n.textContent = QUALITY[k];
+}
+// 依語音的語言把吉爾吉斯文轉成它讀得出來的字串
+function forVoice(cyr){
+  const k = kyVoice ? kyVoice.lang.slice(0,2).toLowerCase() : '';
+  if (k === 'tr') return lat(cyr).toLowerCase().replace(/ñ/g, 'ng');
+  if (k === 'ru') return cyr.replace(/ө/g,'о').replace(/Ө/g,'О').replace(/ү/g,'у').replace(/Ү/g,'У').replace(/ң/g,'н');
+  return cyr;
+}
+function utter(text, voice, lang, rate){
+  return new Promise(res => {
+    if (!synth) return res();
+    const u = new SpeechSynthesisUtterance(text);
+    if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = lang;
+    u.rate = rate; u.onend = u.onerror = () => res();
+    keep = u; // Chrome 會回收未被引用的 utterance 而不觸發 onend
+    synth.speak(u);
+  });
+}
+const sayKy = (cyr, rate) => utter(forVoice(cyr.replace(/…/g,'')), kyVoice, 'ky-KG', rate || +$('rateSel').value);
+const sayZh = zh => utter(zh.replace(/[（(].*?[)）]/g,''), zhVoice, 'zh-TW', 1);
+// ───────── 跟讀：錄下自己的聲音，和示範連著聽 ─────────
+let micStream = null, analyser = null, rec = null, recTimer = 0, myBlob = null, audioEl = null, audioDone = null;
+const setState = t => $('nowState').textContent = t;
+async function mic(){
+  if (micStream) return micStream;
+  micStream = await navigator.mediaDevices.getUserMedia({audio:true});
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = ctx.createAnalyser(); analyser.fftSize = 512;
+  ctx.createMediaStreamSource(micStream).connect(analyser);
+  return micStream;
+}
+function meterLoop(){
+  if (!rec) { $('meter').style.display = 'none'; return; }
+  const a = new Uint8Array(analyser.fftSize); analyser.getByteTimeDomainData(a);
+  let m = 0; for (const v of a) m = Math.max(m, Math.abs(v - 128));
+  $('meter').firstChild.style.width = Math.min(100, m / 128 * 180) + '%';
+  requestAnimationFrame(meterLoop);
+}
+// 錄 ms 毫秒（或直到 endRec()）；麥克風不可用時回傳 null
+function record(ms){
+  return mic().then(st => new Promise(res => {
+    const chunks = [], r = new MediaRecorder(st);
+    r.ondataavailable = e => chunks.push(e.data);
+    r.onstop = () => { clearTimeout(recTimer); rec = null; $('nowMic').classList.remove('rec'); res(new Blob(chunks, {type:r.mimeType})); };
+    rec = r; r.start(); $('nowMic').classList.add('rec'); $('meter').style.display = 'block'; meterLoop();
+    recTimer = setTimeout(endRec, ms);
+  })).catch(() => null);
+}
+function endRec(){ if (rec && rec.state !== 'inactive') rec.stop(); }
+function playMine(){
+  return new Promise(res => {
+    if (!myBlob) return res();
+    audioDone = res; audioEl = new Audio(URL.createObjectURL(myBlob));
+    audioEl.onended = audioEl.onerror = () => res();
+    audioEl.play().catch(() => res());
+  });
+}
+async function shadow(){
+  if (rec) return endRec();
+  if (!last) return;
+  stop(); const my = token;
+  setState('🎙 換你說——說完再按一次 🎙');
+  const b = await record(8000);
+  if (token !== my) return;
+  if (!b) return setState('用不了麥克風：請允許權限，並以 https 或 localhost 開啟。');
+  myBlob = b; compare();
+}
+async function compare(){
+  if (!last) return;
+  if (!myBlob) return setState('先按 🎙 錄下你的聲音。');
+  stop(); const my = token;
+  setState('示範'); await sayKy(last.c); if (token !== my) return;
+  await wait(300); if (token !== my) return;
+  setState('你的聲音'); await playMine(); if (token !== my) return;
+  setState('再按 🎙 重錄，或 👥 再比較一次');
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+function stop(){ token++; if (synth) synth.cancel(); endRec(); setState('');
+  if (audioEl) { audioEl.pause(); audioEl = null; audioDone && audioDone(); } document.querySelectorAll('.playing').forEach(e => e.classList.remove('playing')); document.querySelectorAll('.btn.listen.on').forEach(b => { b.classList.remove('on'); b.textContent = '▶ 連續聽'; }); }
+
+function show(item){
+  if (item !== last) myBlob = null;
+  last = item;
+  $('nowPic').textContent = item.e || '🔊';
+  $('nowLat').textContent = lat(item.c);
+  $('nowCyr').textContent = item.c;
+  $('nowZh').textContent = item.z || '';
+  if (!heard.has(item.c)) { heard.add(item.c); store.set('heard', [...heard]); }
+  if (item.el) item.el.classList.add('heard');
+}
+function tap(item, rate){ stop(); show(item); return sayKy(item.c, rate); }
+
+// 連續聽：示範 → 留空檔給使用者跟讀並錄音 → 回放使用者的聲音 → 再示範（關閉跟讀時改為念兩遍）
+async function playAll(items, btn){
+  if (btn.classList.contains('on')) return stop();
+  stop(); const my = token;
+  btn.classList.add('on'); btn.textContent = '⏹ 停止';
+  for (const it of items){
+    if (token !== my) return;
+    if (it.el.offsetParent === null) continue;
+    it.el.classList.add('playing'); it.el.scrollIntoView({block:'center', behavior:'smooth'}); show(it);
+    const t0 = performance.now();
+    await sayKy(it.c); if (token !== my) return;
+    if ($('shadow').checked){
+      const gap = Math.max(1800, (performance.now() - t0) * 1.3 + 700);
+      setState('🎙 換你說');
+      const b = await record(gap); if (token !== my) return;
+      if (b) { myBlob = b; setState('你的聲音'); await playMine(); }
+      else { setState('（麥克風未開啟）跟著說一遍'); await wait(gap); }
+      if (token !== my) return;
+      setState('示範再一次'); await sayKy(it.c); setState('');
+    } else { await wait(500); if (token !== my) return; await sayKy(it.c, 0.6); }
+    if (token !== my) return;
+    if ($('zhSpeak').checked && it.z) { await wait(250); await sayZh(it.z); if (token !== my) return; }
+    await wait(700);
+    it.el.classList.remove('playing');
+  }
+  if (token === my) stop();
+}
+
+// ───────── 畫面 ─────────
+const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+function listenBtn(items){ const b = h('button','btn listen','▶ 連續聽'); b.onclick = () => playAll(items, b); return b; }
+
+function renderAlphabet(){
+  const s = $('abc');
+  s.append(h('p','lead','吉爾吉斯語用西里爾字母書寫。這裡把每個字母轉成拉丁字母（共同突厥字母的寫法），之後全站都以拉丁字母為主、西里爾原文為輔。點字母聽例詞。'));
+  const items = [], g = h('div','grid');
+  for (const row of ALPHABET){
+    const [l, w, hint] = row.split('|');
+    const b = h('button','card', `<span class="pic txt">${(lat(l) || '—')} <span class="cyr" style="display:inline">${l.toUpperCase()}${l}</span></span><span class="lat">${lat(w)}</span><span class="cyr">${w}</span><span class="zh">${hint}</span>`);
+    const it = {c:w, z:hint, e:lat(l) || l, el:b}; items.push(it);
+    if (heard.has(w)) b.classList.add('heard');
+    b.onclick = () => tap(it); g.append(b);
+  }
+  const hd = h('h2','', '36 個字母 '); hd.append(listenBtn(items)); s.append(hd, g);
+  s.append(h('h2','','要特別聽的六個音'), h('div','lead',
+   '<table class="ab"><tr><td><b>ö</b> ө</td><td>圓唇的「ㄝ」</td></tr><tr><td><b>ü</b> ү</td><td>注音 ㄩ</td></tr><tr><td><b>ı</b> ы</td><td>沒有點的 i：嘴角後拉的「ㄨ」</td></tr><tr><td><b>ñ</b> ң</td><td>ng</td></tr><tr><td><b>c</b> ж</td><td>英語 j（jam）</td></tr><tr><td><b>ç ş</b> ч ш</td><td>ch、sh</td></tr></table>寫兩個母音（aa、oo、uu、öö、üü）就是把它拉長：<span class="ky" data-c="тоо">too</span> 山、<span class="ky" data-c="суу">suu</span> 水、<span class="ky" data-c="төө">töö</span> 駱駝。'));
+}
+
+function renderVocab(){
+  const s = $('voc');
+  s.append(h('p','lead','約 260 個 A1.1 的基礎概念。能用 emoji 表達的直接看圖聽音；表達不了的（代名詞、連接詞、抽象詞）用中文標示。'));
+  const chips = h('div','chips'); let filt = 'all';
+  const secs = [];
+  [['all','全部'],['emo','🖼 可用圖表達'],['txt','文 只能用文字']].forEach(([k, label]) => {
+    const b = h('button','btn' + (k === 'all' ? ' on' : ''), label);
+    b.onclick = () => { stop(); filt = k; chips.querySelectorAll('.btn').forEach(x => x.classList.toggle('on', x === b));
+      secs.forEach(sec => { let n = 0; sec.items.forEach(it => { const ok = k === 'all' || (k === 'emo') === !!it.e; it.el.style.display = ok ? '' : 'none'; n += ok; }); sec.wrap.style.display = n ? '' : 'none'; }); };
+    chips.append(b);
+  });
+  s.append(chips);
+  for (const [theme, words] of VOCAB){
+    const wrap = h('div'), g = h('div','grid'), items = [];
+    for (const w of words){
+      const [c, e, z, x, xz] = w.split('|');
+      const b = h('button','card', `<span class="pic${e ? '' : ' txt'}">${e || z}</span><span class="lat">${lat(c)}</span><span class="cyr">${c}</span>${e ? `<span class="zh">${z}</span>` : ''}`);
+      const it = {c, e, z, el:b}; items.push(it);
+      if (heard.has(c)) b.classList.add('heard');
+      // 有例句的詞：再點一次同一張卡就聽例句
+      b.onclick = () => { if (x && last === it) { tap({c:x, z:xz, e, el:b}); last = null; } else { tap(it); if (x) $('nowZh').textContent = z + '　（再點一次聽例句）'; } };
+      g.append(b);
+    }
+    const hd = h('h2','', `${theme} <small>${words.length}</small> `); hd.append(listenBtn(items));
+    wrap.append(hd, g); s.append(wrap); secs.push({wrap, items});
+  }
+}
+
+function renderPhrases(){
+  const s = $('phr');
+  s.append(h('p','lead','整句先聽熟，再去文法頁看它為什麼長這樣。'));
+  for (const [theme, list] of PHRASES){
+    const items = [], wrap = h('div');
+    for (const p of list){
+      const [c, z, note] = p.split('|');
+      const b = h('button','row', `<span><span class="lat">${lat(c)}</span><br><span class="cyr">${c}</span><br><span class="zh">${z}${note ? '　·　' + note : ''}</span></span><span class="spk">🔊</span>`);
+      const it = {c, z, e:'💬', el:b}; items.push(it);
+      b.onclick = () => tap(it); wrap.append(b);
+    }
+    const hd = h('h2','', theme + ' '); hd.append(listenBtn(items)); s.append(hd, wrap);
+  }
+}
+
+function picker(labels, onPick){
+  const c = h('div','chips');
+  labels.forEach((l, i) => { const b = h('button','btn' + (i ? '' : ' on'), l); b.onclick = () => { c.querySelectorAll('.btn').forEach(x => x.classList.toggle('on', x === b)); onPick(i); }; c.append(b); });
+  return c;
+}
+function widget(table, colLabels, colZh){
+  const keys = Object.keys(table), w = h('div','widget'), out = h('div','out'), sub = h('div','outsub');
+  let r = 0, c = 0;
+  const upd = speak => { const f = table[keys[r]][c]; out.textContent = lat(f); sub.innerHTML = `<span class="cyr" style="display:inline">${f}</span>　${keys[r].split('|')[1]}・${colZh ? colZh[c] : colLabels[c]}`;
+    if (speak) tap({c:f, z:keys[r].split('|')[1] + '・' + (colZh ? colZh[c] : colLabels[c]), e:'🧩'}); };
+  w.append(picker(keys.map(k => `${lat(k.split('|')[0])} ${k.split('|')[1]}`), i => { r = i; upd(true); }),
+           picker(colLabels.map(l => /[а-яөүң]/.test(l) ? lat(l) : l), i => { c = i; upd(true); }), out, sub);
+  out.onclick = () => upd(true); upd(false);
+  return w;
+}
+
+function renderGrammar(){
+  const s = $('gra');
+  s.append(h('p','lead','用 WALS（世界語言結構地圖集）的類型特徵來看吉爾吉斯語的骨架，只挑造出最簡單句子所需要的部分。每個例句可整句聽，也可以點單字一個一個聽。'));
+  GRAMMAR.forEach((L, i) => {
+    const d = h('details','lesson'); if (!i) d.open = true;
+    d.append(h('summary','', `<span>${i + 1}. ${L.t}</span><span class="wals">${L.w}</span>`));
+    const body = h('div','body', L.b.replace(/\{(.+?)\}/g, (_, c) => `<span class="ky" data-c="${c}">${lat(c)}</span>`));
+    if (L.widget === 'verb') body.append(widget(VERBS, PERSONS, PERSON_ZH));
+    if (L.widget === 'case') body.append(widget(NOUNS, CASES));
+    for (const x of L.ex){
+      const [toks, punct, zh] = x.split('|');
+      const pairs = toks.split(' ').map(t => { const [w, g] = t.split('='); return [w.replace(/_/g,' '), g]; });
+      const full = pairs.map(p => p[0]).join(' ') + punct;
+      const ex = h('div','ex'), row = h('div','toks');
+      for (const [w, g] of pairs){ const b = h('button','tok', `<b>${lat(w)}</b><span class="cyr">${w}</span><i>${g}</i>`); b.onclick = () => tap({c:w, z:g, e:'🧩'}); row.append(b); }
+      const all = h('button','btn','🔊 整句'); all.onclick = () => tap({c:full, z:zh, e:'💬'}); row.append(all);
+      ex.append(row, h('div','tr', zh)); body.append(ex);
+    }
+    d.append(body); s.append(d);
+  });
+  s.append(h('p','lead','註：WALS 是語言類型資料庫，本身不分 CEFR 等級；這裡是以它的特徵項目為清單，挑出 A1.1「自我介紹、指認事物、簡單需求」會用到的結構。'));
+}
+
+// 造句：誰 × 動作 × 對象，動詞人稱自動配合
+const BUILD = [
+ ['ич','{s}喝{o}',['чай|茶','суу|水','сүт|牛奶','кофе|咖啡']],
+ ['же','{s}吃{o}',['нан|麵包','алма|蘋果','эт|肉','балык|魚']],
+ ['оку','{s}讀{o}',['китеп|書','кат|信']],
+ ['бар','{s}去{o}',['мектепке|學校','базарга|市集','үйгө|家','шаарга|城裡']],
+ ['кел','{s}從{o}來',['мектептен|學校','базардан|市集','үйдөн|家','Тайвандан|台灣']],
+ ['жаша','{s}住在{o}',['Бишкекте|比什凱克','шаарда|城裡','айылда|村裡','Тайванда|台灣']],
+];
+function renderBuilder(){
+  const s = $('bld');
+  s.append(h('p','lead','自己換零件造句。三個位置永遠是 <b>誰 → 對象 → 動作</b>，動詞尾巴會跟著「誰」變。每換一次都會念出來——聽完按「🎙 換我說」自己說一遍，再聽兩者的差別。'));
+  const w = h('div','widget build'), out = h('div','toks'), tr = h('div','outsub'), objBox = h('div');
+  let si = 0, vi = 0, oi = 0;
+  const vkey = i => Object.keys(VERBS).find(k => k.startsWith(BUILD[i][0] + '|'));
+  const upd = speak => {
+    const [ , tpl, objs] = BUILD[vi], [o, oz] = objs[oi].split('|'), v = VERBS[vkey(vi)][si], sub = PERSONS[si];
+    const who = PERSON_ZH[si].split('／')[0], zh = tpl.replace('{s}', who).replace('{o}', oz) + '。';
+    const item = {c: sub[0].toUpperCase() + sub.slice(1) + ' ' + o + ' ' + v + '.', z:zh, e:'💬'};
+    out.innerHTML = '';
+    [[sub, who], [o, oz], [v, vkey(vi).split('|')[1] + '（' + who + '）']].forEach(([c, g]) => {
+      const b = h('button','tok', `<b>${lat(c)}</b><span class="cyr">${c}</span><i>${g}</i>`); b.onclick = () => tap({c, z:g, e:'🧩'}); out.append(b); });
+    const all = h('button','btn','🔊 整句'), me = h('button','btn','🎙 換我說');
+    all.onclick = () => tap(item);
+    me.onclick = () => { if (!rec && last !== item) { stop(); show(item); } shadow(); };
+    out.append(all, me); tr.textContent = zh;
+    if (speak) tap(item);
+  };
+  const objs = () => { oi = 0; objBox.innerHTML = ''; objBox.append(picker(BUILD[vi][2].map(x => lat(x.split('|')[0]) + ' ' + x.split('|')[1]), i => { oi = i; upd(true); })); };
+  w.append(h('div','cyr','誰'), picker(PERSONS.slice(0, 6).map((p, i) => lat(p) + ' ' + PERSON_ZH[i]), i => { si = i; upd(true); }),
+           h('div','cyr','動作'), picker(BUILD.map((b, i) => lat(b[0]) + ' ' + vkey(i).split('|')[1]), i => { vi = i; objs(); upd(true); }),
+           h('div','cyr','對象'), objBox, out, tr);
+  objs(); upd(false); s.append(w);
+  s.append(h('p','lead','一百多個句子。試著不看畫面先自己說出來，再點「整句」確認。'));
+}
+
+// ───────── 啟動 ─────────
+renderAlphabet(); renderVocab(); renderPhrases(); renderGrammar(); renderBuilder();
+document.addEventListener('click', e => { const k = e.target.closest('.ky'); if (k) tap({c:k.dataset.c, e:'🔤'}); });
+$('nav').onclick = e => { const t = e.target.dataset.t; if (!t) return; stop();
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b === e.target));
+  document.querySelectorAll('section').forEach(x => x.classList.toggle('on', x.id === t)); window.scrollTo(0, 0); };
+$('voiceSel').onchange = () => { store.set('voice', $('voiceSel').value); setVoice(); };
+$('showCyr').onchange = () => document.body.classList.toggle('nocyr', !$('showCyr').checked);
+$('nowAgain').onclick = () => last && tap(last);
+$('nowSlow').onclick = () => last && tap(last, 0.5);
+$('nowMic').onclick = shadow;
+$('nowCmp').onclick = compare;
+$('nowStop').onclick = stop;
+if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; } else loadVoices();
+</script>
+</body>
+</html>
