@@ -9,6 +9,10 @@
         html,body { margin:0;height:100%;background:#0b0d10;color:#e5e7eb;font-family:system-ui,-apple-system,"Segoe UI","Noto Sans TC","Microsoft JhengHei",sans-serif; }
         #app { display:flex;height:100%; }
         #stage { flex:1;min-width:0;position:relative;display:flex;align-items:center;justify-content:center;padding:12px;overflow:hidden; }
+        #frame { position:relative;line-height:0; }
+        #grid { display:none;position:absolute;inset:0;pointer-events:none;
+            background:linear-gradient(to right,transparent calc(33.333% - .5px),rgba(255,255,255,.45) calc(33.333% - .5px),rgba(255,255,255,.45) calc(33.333% + .5px),transparent calc(33.333% + .5px),transparent calc(66.667% - .5px),rgba(255,255,255,.45) calc(66.667% - .5px),rgba(255,255,255,.45) calc(66.667% + .5px),transparent calc(66.667% + .5px)),
+                       linear-gradient(to bottom,transparent calc(33.333% - .5px),rgba(255,255,255,.45) calc(33.333% - .5px),rgba(255,255,255,.45) calc(33.333% + .5px),transparent calc(33.333% + .5px),transparent calc(66.667% - .5px),rgba(255,255,255,.45) calc(66.667% - .5px),rgba(255,255,255,.45) calc(66.667% + .5px),transparent calc(66.667% + .5px)); }
         #view { display:block;border-radius:4px;box-shadow:0 0 0 1px #2a2f37,0 10px 40px rgba(0,0,0,.6);touch-action:none;cursor:grab; }
         #view.dragging { cursor:grabbing; }
         #hud { position:absolute;left:20px;top:18px;font-size:13px;font-variant-numeric:tabular-nums;background:rgba(0,0,0,.55);padding:5px 10px;border-radius:6px;pointer-events:none; }
@@ -47,9 +51,9 @@
 <body>
 <div id="app">
     <div id="stage">
-        <canvas id="view"></canvas>
+        <div id="frame"><canvas id="view"></canvas><div id="grid"></div></div>
         <div id="hud"></div>
-        <div id="hint">拖曳：改變拍攝角度　滾輪：改變距離　點一下：對焦到該處</div>
+        <div id="hint">拖曳：改變拍攝角度　Shift＋拖曳：移動主體位置　滾輪：改變距離　點一下：對焦到該處</div>
         <div id="msg">載入模型中…</div>
     </div>
 
@@ -97,6 +101,19 @@
 
         <hr class="sep">
 
+        <div class="row">
+            <label class="name">主體水平位置（正值偏右） <b id="ox-val"></b></label>
+            <input type="range" id="ox" min="-48" max="48" step="0.5">
+        </div>
+        <div class="row">
+            <label class="name">主體垂直位置（正值偏上） <b id="oy-val"></b></label>
+            <input type="range" id="oy" min="-48" max="48" step="0.5">
+            <div class="chips" id="pos-chips"></div>
+        </div>
+        <label class="check"><input type="checkbox" id="grid-on"> 顯示三分線</label>
+
+        <hr class="sep">
+
         <label class="check"><input type="checkbox" id="af"> 自動對焦在眼睛</label>
         <div class="row">
             <label class="name">對焦距離 <b id="s-val"></b></label>
@@ -138,7 +155,7 @@ const F_RANGE = [4, 600];       // mm
 const D_RANGE = [0.2, 15];      // m
 const S_RANGE = [0.2, 50];      // m
 const FF_DIAG = Math.hypot(36, 24);
-const DEFAULTS = { fmt:'ff', f:85, N:1.8, d:1.2, yaw:0, pitch:0, lock:false, af:true, s:1.2, dof:true };
+const DEFAULTS = { fmt:'ff', f:85, N:1.8, d:1.2, yaw:0, pitch:0, ox:0, oy:0, grid:false, lock:false, af:true, s:1.2, dof:true };
 
 // 模型單位 → 公尺，以及兩眼之間（軌道中心、預設對焦點）在模型座標的位置
 const MODEL_SCALE = 0.06;
@@ -358,8 +375,17 @@ function pass(mat, target) {
 }
 
 // ── 光學計算 ──────────────────────────────────────────
+// 主體（眼睛）在畫面上的位置由轉動相機達成：ox / oy 是偏離畫面中心的量（佔畫面寬 / 高的 %）
+// 回傳相機繞自身 Y、X 軸的轉角，以及眼睛沿光軸方向的深度
+function aim() {
+    const F = fmt();
+    const X = state.ox / 50 * F.w / (2 * state.f), Y = state.oy / 50 * F.h / (2 * state.f);
+    const b = -Math.atan(Y), a = Math.atan(X * Math.cos(b));
+    return { a, b, depth: state.d * Math.cos(a) * Math.cos(b) };
+}
+
 function focusDistance() {
-    const s = state.af ? state.d : state.s;
+    const s = state.af ? aim().depth : state.s;
     return Math.max(s, state.f * 1.2 / 1000);   // 不讓對焦距離小於焦距
 }
 
@@ -400,6 +426,8 @@ function render() {
     const F = fmt(), yaw = state.yaw * Math.PI / 180, pitch = state.pitch * Math.PI / 180;
     camera.position.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(state.d);
     camera.lookAt(0, 0, 0);
+    const { a, b } = aim();
+    camera.rotateY(a); camera.rotateX(b);
     camera.fov = 2 * Math.atan(F.h / (2 * state.f)) * 180 / Math.PI;
     camera.updateProjectionMatrix();
 
@@ -429,6 +457,9 @@ function syncUI() {
     $('d').value = toLog(state.d, D_RANGE); $('d-val').textContent = fmtLen(state.d);
     $('yaw').value = state.yaw; $('yaw-val').textContent = Math.round(state.yaw) + '°';
     $('pitch').value = state.pitch; $('pitch-val').textContent = Math.round(state.pitch) + '°';
+    $('ox').value = state.ox; $('ox-val').textContent = state.ox.toFixed(0) + '%';
+    $('oy').value = state.oy; $('oy-val').textContent = state.oy.toFixed(0) + '%';
+    $('grid-on').checked = state.grid; $('grid').style.display = state.grid ? 'block' : 'none';
     $('lock').checked = state.lock; $('af').checked = state.af; $('dof').checked = state.dof;
     const s = focusDistance();
     $('s').value = toLog(clamp(s, S_RANGE), S_RANGE); $('s').disabled = state.af; $('s-val').textContent = fmtLen(s);
@@ -483,15 +514,26 @@ $('f-chips').innerHTML = [16, 24, 35, 50, 85, 135, 200, 400].map(f => `<button d
 $('presets').innerHTML = [[24, '廣角貼近'], [50, '標準'], [85, '人像'], [200, '長焦']]
     .map(([f, n]) => `<button data-f="${f}">${n} ${f}mm / ${fmtLen(f * 1.2 / 85)}</button>`).join('');
 
+// 三分線交點與置中
+$('pos-chips').innerHTML = [['左上', -1, 1], ['右上', 1, 1], ['置中', 0, 0], ['左下', -1, -1], ['右下', 1, -1]]
+    .map(([n, x, y]) => `<button data-x="${x}" data-y="${y}">${n}</button>`).join('');
+
 $('fmt').onchange = e => { state.fmt = e.target.value; layout(); update(); };
 $('f').oninput = e => setFocal(fromLog(+e.target.value, F_RANGE));
 $('N').oninput = e => { state.N = STOPS[+e.target.value]; update(); };
 $('d').oninput = e => setDistance(fromLog(+e.target.value, D_RANGE));
 $('yaw').oninput = e => { state.yaw = +e.target.value; update(); };
 $('pitch').oninput = e => { state.pitch = +e.target.value; update(); };
+$('ox').oninput = e => { state.ox = +e.target.value; update(); };
+$('oy').oninput = e => { state.oy = +e.target.value; update(); };
+$('grid-on').onchange = e => { state.grid = e.target.checked; update(); };
+$('pos-chips').onclick = e => {
+    if (e.target.dataset.x === undefined) return;
+    state.ox = +e.target.dataset.x * 100 / 6; state.oy = +e.target.dataset.y * 100 / 6; update();
+};
 $('s').oninput = e => { state.s = fromLog(+e.target.value, S_RANGE); update(); };
 $('lock').onchange = e => { state.lock = e.target.checked; update(); };
-$('af').onchange = e => { state.af = e.target.checked; if (!state.af) state.s = state.d; update(); };
+$('af').onchange = e => { state.af = e.target.checked; if (!state.af) state.s = aim().depth; update(); };
 $('dof').onchange = e => { state.dof = e.target.checked; update(); };
 $('f-chips').onclick = e => { if (e.target.dataset.f) setFocal(+e.target.dataset.f); };
 $('presets').onclick = e => {
@@ -506,15 +548,21 @@ const raycaster = new THREE.Raycaster();
 let drag = null;
 canvas.addEventListener('pointerdown', e => {
     canvas.setPointerCapture(e.pointerId);
-    drag = { x:e.clientX, y:e.clientY, yaw:state.yaw, pitch:state.pitch, moved:false };
+    drag = { x:e.clientX, y:e.clientY, yaw:state.yaw, pitch:state.pitch, ox:state.ox, oy:state.oy, shift:e.shiftKey, moved:false };
 });
 canvas.addEventListener('pointermove', e => {
     if (!drag) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if (!drag.moved && Math.hypot(dx, dy) < 5) return;
     drag.moved = true; canvas.classList.add('dragging');
-    state.yaw = ((drag.yaw - dx * 0.4 + 540) % 360) - 180;
-    state.pitch = Math.min(80, Math.max(-80, drag.pitch + dy * 0.3));
+    if (drag.shift) {
+        const r = canvas.getBoundingClientRect();
+        state.ox = clamp(drag.ox + dx / r.width * 100, [-48, 48]);
+        state.oy = clamp(drag.oy - dy / r.height * 100, [-48, 48]);
+    } else {
+        state.yaw = ((drag.yaw - dx * 0.4 + 540) % 360) - 180;
+        state.pitch = Math.min(80, Math.max(-80, drag.pitch + dy * 0.3));
+    }
     update();
 });
 canvas.addEventListener('pointerup', e => {
@@ -536,6 +584,7 @@ canvas.addEventListener('wheel', e => { e.preventDefault(); setDistance(state.d 
 window.addEventListener('resize', () => { layout(); requestRender(); });
 
 state.f = clamp(state.f, F_RANGE); state.d = clamp(state.d, D_RANGE); state.s = clamp(state.s, S_RANGE);
+state.ox = clamp(state.ox, [-48, 48]); state.oy = clamp(state.oy, [-48, 48]);
 if (!STOPS.includes(state.N)) state.N = DEFAULTS.N;
 layout();
 update();
