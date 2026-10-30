@@ -1,4 +1,4 @@
-import { CARD_TYPES, DEFAULT_CARDS, cardDayState, metricsOf, monthDates, weekDates } from './cards.js';
+import { CARD_TYPES, DEFAULT_CARDS, FREQUENCIES, cardDayState, cardHit, frequencyOf, metricsOf, monthDates, periodDates, weekDates } from './cards.js';
 import { LANGUAGES, lang, setLang, t } from './i18n.js';
 import { addDays, dateKey, goalFor, nutritionTargetsFor, parseDateKey, sevenDayAverage, summarizeDay, targetWeight, weekStart } from './logic.js';
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
@@ -33,10 +33,19 @@ const hours = (seconds) => round(seconds / 3600);
 
 const sheetHeader = (title) => `<div class="row"><h2 style="margin:0">${title}</h2>${closeButton}</div>`;
 
+// 每個身體項目各自找最新一筆，體重和體脂可以不同天量
+function latestMetric(key, date) {
+  const record = store.liveEvents()
+    .filter((e) => e.type === 'body' && e.date <= date && e.data[key] != null)
+    .sort((a, b) => b.occurredAt - a.occurredAt)[0];
+  return record ? { value: record.data[key], date: record.date } : null;
+}
+
 function latestBody(date) {
-  const records = store.liveEvents().filter((e) => e.type === 'body' && e.date <= date).sort((a, b) => b.occurredAt - a.occurredAt);
-  if (!records.length) return null;
-  return { weightKg: records[0].data.weightKg, bodyFat: records.find((r) => r.data.bodyFat)?.data.bodyFat ?? null, muscleKg: records[0].data.muscleKg ?? null, date: records[0].date };
+  const weight = latestMetric('weightKg', date);
+  const bodyFat = latestMetric('bodyFat', date);
+  if (!weight && !bodyFat) return null;
+  return { weightKg: weight?.value ?? null, bodyFat: bodyFat?.value ?? null, date: (weight ?? bodyFat).date };
 }
 
 function dayData(date) {
@@ -89,7 +98,8 @@ function hydrateImages(root) {
 function cardState(card, date) {
   const today = dateKey();
   const start = store.firstRecordDate(CARD_TYPES[card.type].eventTypes) ?? today;
-  const context = { scheduled: schedulesOn(activeSchedules(), date).length > 0, targetSets: targetSetsOn(activeSchedules(), date) };
+  const periodHits = date === today ? periodDates(card, today).filter((d) => cardHit(card, summarizeDay(store.eventsOn(d)))).length : 0;
+  const context = { scheduled: schedulesOn(activeSchedules(), date).length > 0, targetSets: targetSetsOn(activeSchedules(), date), periodHits };
   return cardDayState(card, date, summarizeDay(store.eventsOn(date)), today, start < today ? start : today, context);
 }
 
@@ -118,20 +128,24 @@ function formatValue(value) {
   return value === null || value === undefined ? '—' : round(value).toLocaleString();
 }
 
-// 身體數據不是每天量，顯示最新一筆；其他項目顯示今天
+// 身體數據保留最新一筆並標示幾天前；其他項目顯示今天
 function metricValue(metric, summary, card) {
-  const value = metric.read(summary);
-  if (value !== null || card.type !== 'body') return value;
-  return latestBody(dateKey())?.[metric.key] ?? null;
+  if (!CARD_TYPES[card.type].keepsLatest) return { value: metric.read(summary), age: '' };
+  const latest = latestMetric(metric.key, dateKey());
+  if (!latest) return { value: null, age: '' };
+  const days = Math.round((parseDateKey(dateKey()) - parseDateKey(latest.date)) / 86400000);
+  return { value: latest.value, age: days ? t('card.daysAgo', { n: days }) : '' };
 }
 
 function renderCard(card, summary) {
   const type = CARD_TYPES[card.type];
   const metrics = metricsOf(card);
   const doneToday = cardState(card, dateKey()) === 'done';
-  const values = metrics.length === 1
-    ? `<div class="card-big">${formatValue(metricValue(metrics[0], summary, card))}<small> ${metrics[0].unit}</small></div>`
-    : `<div class="card-rows">${metrics.map((m) => `<div><span>${m.label}</span><strong>${formatValue(metricValue(m, summary, card))}</strong></div>`).join('')}</div>`;
+  const shown = metrics.map((metric) => ({ metric, ...metricValue(metric, summary, card) }));
+  const age = (item) => (item.age ? `<em>${item.age}</em>` : '');
+  const values = shown.length === 1
+    ? `<div class="card-big">${formatValue(shown[0].value)}<small> ${shown[0].metric.unit}</small></div>${age(shown[0])}`
+    : `<div class="card-rows">${shown.map((item) => `<div><span>${item.metric.label}${age(item)}</span><strong>${formatValue(item.value)}</strong></div>`).join('')}</div>`;
 
   return `<button class="health-card" data-action="card-open" data-id="${esc(card.id)}" style="--c:${type.color}" aria-label="${type.label}${doneToday ? '，今天已做到' : ''}">
     <span class="card-head">
@@ -307,7 +321,7 @@ function renderBody() {
   const body = latestBody(today);
   const { profile } = store;
   const height = profile.heightCm / 100;
-  const bmi = body && height ? round(body.weightKg / (height * height)) : null;
+  const bmi = body?.weightKg && height ? round(body.weightKg / (height * height)) : null;
   const goalWeight = body ? targetWeight(goal, body.weightKg, body.bodyFat) : goal.body.targetWeightKg;
   const records = store.liveEvents().filter((e) => e.type === 'body').sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 7);
   const hasGoal = goal.body.targetDate && (goal.body.targetWeightKg || goal.body.targetBodyFat);
@@ -315,7 +329,7 @@ function renderBody() {
   return `
     <header class="topbar"><h1>身體</h1></header>
     <section class="focus">
-      <div class="focus-main">${body ? `${body.weightKg} kg${body.bodyFat ? `・體脂 ${body.bodyFat}%` : ''}` : '還沒有身體數據'}</div>
+      <div class="focus-main">${body ? [body.weightKg && `${body.weightKg} kg`, body.bodyFat && `體脂 ${body.bodyFat}%`].filter(Boolean).join('・') : '還沒有身體數據'}</div>
       ${bmi ? `<div class="muted">BMI ${bmi}・${formatDate(body.date)}</div>` : ''}
       <div class="focus-actions">
         <button class="btn primary" data-action="body-new">記錄數據</button>
@@ -329,7 +343,7 @@ function renderBody() {
     <section class="card">
       <h2>最近紀錄</h2>
       ${records.map((r) => `<button class="entry" data-action="body-open" data-id="${esc(r.id)}">
-        <span class="entry-body"><strong>${r.data.weightKg} kg${r.data.bodyFat ? `・體脂 ${r.data.bodyFat}%` : ''}</strong><span class="muted">${formatDate(r.date)}</span></span>
+        <span class="entry-body"><strong>${[r.data.weightKg && `${r.data.weightKg} kg`, r.data.bodyFat && `體脂 ${r.data.bodyFat}%`, r.data.muscleKg && `肌肉 ${r.data.muscleKg} kg`].filter(Boolean).join('・')}</strong><span class="muted">${formatDate(r.date)}</span></span>
       </button>`).join('') || '<p class="muted">還沒有紀錄</p>'}
     </section>`;
 }
@@ -630,11 +644,10 @@ function openSleepGoal() {
 
 function openBody(id = null) {
   const event = id ? store.events.get(id) : null;
-  const last = latestBody(dateKey());
   state.draft = { id };
   openSheet(`<form class="stack" data-form="body">
     ${sheetHeader('記錄身體數據')}
-    ${numberField('weightKg', '體重（kg）', event?.data.weightKg ?? last?.weightKg, 'required')}
+    ${numberField('weightKg', '體重（kg）', event?.data.weightKg)}
     <div class="grid-2">
       ${numberField('bodyFat', '體脂（%）', event?.data.bodyFat)}
       ${numberField('muscleKg', '肌肉量（kg）', event?.data.muscleKg)}
@@ -649,7 +662,8 @@ function saveBody(form) {
   const { draft } = state;
   const values = new FormData(form);
   const date = values.get('date');
-  const data = { weightKg: Number(values.get('weightKg')), bodyFat: optionalNumber(values.get('bodyFat')), muscleKg: optionalNumber(values.get('muscleKg')) };
+  const data = { weightKg: optionalNumber(values.get('weightKg')), bodyFat: optionalNumber(values.get('bodyFat')), muscleKg: optionalNumber(values.get('muscleKg')) };
+  if (!data.weightKg && !data.bodyFat && !data.muscleKg) { toast('至少填一項'); return; }
   if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt: new Date(`${date}T12:00:00`).getTime() });
   else store.addEvent('body', data, { date });
   closeSheet();
@@ -774,15 +788,18 @@ function openCardSettings(id) {
   const card = cardsList().find((c) => c.id === id);
   const type = CARD_TYPES[card.type];
   state.cardId = id;
-  state.draft = { op: card.rule?.op ?? 'gte' };
+  const frequency = frequencyOf(card);
+  state.draft = { op: card.rule?.op ?? 'gte', frequency: frequency.type };
   const metricChips = type.metrics.map((m) => `<button type="button" class="chip${card.metrics.includes(m.key) ? ' active' : ''}" data-action="metric-toggle" data-value="${m.key}">${m.label}</button>`).join('');
   const dayChips = WEEK_ORDER.map((d) => `<button type="button" class="chip${card.days?.includes(d) ? ' active' : ''}" data-action="chip-toggle" data-value="${d}">${WEEKDAYS[d]}</button>`).join('');
   openSheet(`<form class="stack" data-form="card">
     ${sheetHeader(`${type.label}設定`)}
     <h2>顯示項目（最多 3 項）</h2>
     <div class="chips" data-chip-list="metrics">${metricChips}</div>
-    <h2>哪幾天要做</h2>
-    <p class="muted">都不選就依預設顯示，不算設定目標。</p>
+    <h2>${t('card.frequency')}</h2>
+    ${chipGroup('frequency', FREQUENCIES.map((value) => ({ value, label: t(`frequency.${value}`) })), frequency.type)}
+    ${numberField('count', t('card.count'), frequency.count, 'min="1"')}
+    <p class="muted">${t('card.weekdays')}</p>
     <div class="chips" data-chip-list="days">${dayChips}</div>
     <h2>做到的條件</h2>
     <p class="muted">留空就是有紀錄算做到。填了就用第一個顯示項目判斷。</p>
@@ -798,7 +815,11 @@ function saveCardSettings(form) {
   const metrics = selected('metrics');
   if (!metrics.length) { toast('至少選一個顯示項目'); return; }
   const value = optionalNumber(new FormData(form).get('ruleValue'));
-  const update = { metrics, days: selected('days').map(Number), rule: value === null ? null : { op: state.draft.op, value } };
+  const count = optionalNumber(new FormData(form).get('count'));
+  const update = {
+    metrics, days: selected('days').map(Number), rule: value === null ? null : { op: state.draft.op, value },
+    frequency: { type: state.draft.frequency, count: count ?? 1 },
+  };
   saveCards(cardsList().map((c) => (c.id === state.cardId ? { ...c, ...update } : c)));
   closeSheet();
   toast('已儲存');

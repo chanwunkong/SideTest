@@ -20,6 +20,8 @@ const PASTE = `好的，結果如下：
   const row = (name) => page.locator(`.tracker-row[aria-label="${name}"]`);
   const closeSheet = () => page.locator('#sheet').getByRole('button', { name: '關閉' }).click();
 
+  const y = new Date(Date.now() - 86400000);
+  const yesterday = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
   await page.goto(`${process.env.PW_URL}/index.html`);
 
   // 打開就是總覽，不問問題
@@ -56,6 +58,16 @@ const PASTE = `好的，結果如下：
   await page.fill('input[name=muscleKg]', '32.5');
   await save();
   await card('身體組成').getByText('32.5').waitFor();
+
+  // 只量體脂也能存；舊日期的體重繼續顯示並標示幾天前
+  await card('身體組成').click();
+  await button('記錄身體數據').click();
+  await page.fill('input[name=bodyFat]', '17.5');
+  await page.fill('input[name=date]', yesterday);
+  await save();
+  await card('身體組成').getByText('18', { exact: true }).waitFor();
+  assert.equal(await page.locator('.tracker-row[aria-label="身體組成"] .mark.done').count() >= 1, true);
+  assert.equal(await page.locator('.tracker-row[aria-label="飲食"] .mark.missed').count(), 0);
 
   // 睡眠：設定條件後，沒達到就不算做到
   await card('睡眠').click();

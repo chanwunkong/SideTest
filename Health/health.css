@@ -98,6 +98,7 @@ summary { cursor: pointer; font-size: 14px; color: var(--muted); }
 .card-rows { display: grid; gap: 2px; font-size: 14px; }
 .card-rows div { display: flex; justify-content: space-between; gap: 8px; }
 .card-rows span { color: var(--muted); }
+.health-card em { display: block; color: var(--muted); font-size: 11px; font-style: normal; }
 .card-rows strong { font-variant-numeric: tabular-nums; }
 .tracker { display: grid; gap: 4px; margin-bottom: 20px; padding: 12px; border-radius: var(--radius); background: var(--surface); }
 .tracker-row { display: grid; grid-template-columns: 22px repeat(var(--days), minmax(0, 1fr)); align-items: center; gap: 3px; }

@@ -43,7 +43,7 @@ export const registry = {
   },
   body: {
     version: 1,
-    validate: (data) => data.weightKg > 0,
+    validate: (data) => data.weightKg > 0 || data.bodyFat > 0 || data.muscleKg > 0,
     upgrade: {},
     summarize(day, data, event) {
       day.body.push(event);

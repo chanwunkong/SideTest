@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, weekDates } from '../js/cards.js';
+import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDates, weekDates } from '../js/cards.js';
 import { addDays, DEFAULT_GOAL, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, weekStart } from '../js/logic.js';
 import { moveTotals, scheduleActiveOn, scheduleRemaining, targetSetsOn } from '../js/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
@@ -42,9 +42,34 @@ test('卡片每日狀態：沒排定和開始前都不算沒做到', () => {
   assert.equal(cardDayState(activityCard, '2026-10-19', empty, today, start), 'off');
   assert.equal(cardDayState(activityCard, '2026-10-19', empty, today, start, { scheduled: true }), 'missed');
   assert.equal(cardDayState(activityCard, '2026-10-20', summarizeDay([workout]), today, start), 'done');
-  const weekly = { ...bodyCard, days: [6] };
-  assert.equal(cardDayState(weekly, '2026-10-20', empty, today, start), 'off');
-  assert.equal(cardDayState(weekly, '2026-10-24', empty, today, start), 'missed'); // 週六
+  assert.equal(cardDayState(bodyCard, '2026-10-20', empty, today, start), 'off'); // 身體組成預設不固定
+  const setDays = { ...bodyCard, frequency: { type: 'weekdays' }, days: [6] };
+  assert.equal(cardDayState(setDays, '2026-10-20', empty, today, start), 'off');
+  assert.equal(cardDayState(setDays, '2026-10-24', empty, today, start), 'missed'); // 週六
+  const legacy = { ...bodyCard, days: [6] };
+  assert.equal(cardDayState(legacy, '2026-10-24', empty, today, start), 'missed');
+});
+
+test('每週幾次：只在今天提示，達到次數就不提示', () => {
+  const today = '2026-10-30';
+  const weekly = { ...bodyCard, frequency: { type: 'weekly', count: 2 } };
+  assert.equal(cardDayState(weekly, today, empty, today, '2026-10-01', { periodHits: 1 }), 'missed');
+  assert.equal(cardDayState(weekly, today, empty, today, '2026-10-01', { periodHits: 2 }), 'off');
+  assert.equal(cardDayState(weekly, '2026-10-29', empty, today, '2026-10-01', { periodHits: 0 }), 'off');
+  assert.deepEqual(periodDates(weekly, today).at(0), '2026-10-26');
+  assert.deepEqual(periodDates(weekly, today).at(-1), today);
+});
+
+test('只量體脂也算有紀錄，且各項目分開讀取', () => {
+  const day = summarizeDay([
+    { type: 'body', schemaVersion: 1, data: { weightKg: 70, bodyFat: 18 } },
+    { type: 'body', schemaVersion: 1, data: { weightKg: 69.5, bodyFat: null } },
+  ]);
+  const [weight, fat] = metricsOf(bodyCard);
+  assert.equal(weight.read(day), 69.5);
+  assert.equal(fat.read(day), 18);
+  assert.equal(registry.body.validate({ bodyFat: 18 }), true);
+  assert.equal(registry.body.validate({}), false);
 });
 
 test('多項卡片保留使用者選的順序', () => {

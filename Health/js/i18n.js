@@ -17,6 +17,8 @@ const STRINGS = {
     'schedule.training': '要做的訓練', 'schedule.start': '開始日期', 'schedule.days': '持續幾天', 'schedule.daysHint': '留空代表一直持續', 'schedule.weekdays': '哪幾天', 'schedule.weekdaysHint': '都不選代表每天', 'schedule.target': '目標套數', 'schedule.targetHint': '留空代表有記錄就算做到', 'schedule.everyday': '每天', 'schedule.remaining': '還有 {n} 天', 'schedule.ongoing': '持續中', 'schedule.ended': '已結束',
     'record.title': '記錄 {name}', 'record.sets': '今天做了幾套', 'record.done': '完成', 'record.detail': '記錄更多細節', 'record.extra': '{name}另外多做', 'record.rest': '休息時間（秒）', 'record.date': '日期', 'record.saved': '已記錄運動', 'record.target': '目標 {n} 套',
     'unit.total': '總共',
+    'card.daysAgo': '{n} 天前', 'card.frequency': '多久更新一次', 'card.count': '每週或每月幾次', 'card.weekdays': '指定星期',
+    'frequency.none': '不固定', 'frequency.daily': '每天', 'frequency.weekly': '每週', 'frequency.monthly': '每月', 'frequency.weekdays': '指定星期',
     'nutrient.water_ml': '水分', 'nutrient.protein_g': '蛋白質', 'nutrient.carbs_g': '碳水', 'nutrient.fat_g': '脂肪', 'nutrient.kcal': '熱量', 'nutrient.caffeine_mg': '咖啡因', 'nutrient.creatine_g': '肌酸',
   },
   en: {
@@ -36,6 +38,8 @@ const STRINGS = {
     'schedule.training': 'Workout', 'schedule.start': 'Start date', 'schedule.days': 'Number of days', 'schedule.daysHint': 'Leave blank to keep going', 'schedule.weekdays': 'Days of the week', 'schedule.weekdaysHint': 'None selected means every day', 'schedule.target': 'Target rounds', 'schedule.targetHint': 'Leave blank to count any log as done', 'schedule.everyday': 'Every day', 'schedule.remaining': '{n} days left', 'schedule.ongoing': 'Ongoing', 'schedule.ended': 'Ended',
     'record.title': 'Log {name}', 'record.sets': 'Rounds today', 'record.done': 'Done', 'record.detail': 'Add more detail', 'record.extra': 'Extra {name}', 'record.rest': 'Rest (sec)', 'record.date': 'Date', 'record.saved': 'Workout saved', 'record.target': 'Target {n} rounds',
     'unit.total': 'Total',
+    'card.daysAgo': '{n}d ago', 'card.frequency': 'How often', 'card.count': 'Times per week or month', 'card.weekdays': 'Days of the week',
+    'frequency.none': 'Any time', 'frequency.daily': 'Daily', 'frequency.weekly': 'Weekly', 'frequency.monthly': 'Monthly', 'frequency.weekdays': 'Set days',
     'nutrient.water_ml': 'Water', 'nutrient.protein_g': 'Protein', 'nutrient.carbs_g': 'Carbs', 'nutrient.fat_g': 'Fat', 'nutrient.kcal': 'Calories', 'nutrient.caffeine_mg': 'Caffeine', 'nutrient.creatine_g': 'Creatine',
   },
 };

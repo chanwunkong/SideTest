@@ -2,18 +2,18 @@
 import { addDays, parseDateKey } from './logic.js';
 
 const nutrient = (key, label, unit) => ({ key, label, unit, read: (day) => day.nutrients[key] ?? null });
-const bodyMetric = (key, label, unit) => ({ key, label, unit, read: (day) => day.body.at(-1)?.data[key] ?? null });
+const bodyMetric = (key, label, unit) => ({ key, label, unit, read: (day) => day.body.findLast((b) => b.data[key] != null)?.data[key] ?? null });
 const sum = (list, read) => (list.length ? list.reduce((total, item) => total + read(item), 0) : null);
 
 export const CARD_TYPES = {
   body: {
-    label: '身體組成', color: 'var(--accent)', eventTypes: ['body'],
+    label: '身體組成', color: 'var(--accent)', eventTypes: ['body'], keepsLatest: true, frequency: 'none',
     icon: '<path d="M12 7a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5 22l2-9h10l2 9"/>',
     metrics: [bodyMetric('weightKg', '體重', 'kg'), bodyMetric('bodyFat', '體脂', '%'), bodyMetric('muscleKg', '肌肉', 'kg')],
     hasRecord: (day) => day.body.length > 0,
   },
   diet: {
-    label: '飲食', color: 'var(--diet)', eventTypes: ['meal', 'intake'],
+    label: '飲食', color: 'var(--diet)', eventTypes: ['meal', 'intake'], frequency: 'daily',
     icon: '<path d="M7 2v9a3 3 0 0 0 3 3v8M4 2v6M10 2v6M17 2c-2 2-3 5-3 9h3v11"/>',
     metrics: [
       nutrient('protein_g', '蛋白質', 'g'), nutrient('water_ml', '水分', 'ml'), nutrient('carbs_g', '碳水', 'g'),
@@ -22,13 +22,13 @@ export const CARD_TYPES = {
     hasRecord: (day) => day.meals.length + day.intakes.length > 0,
   },
   sleep: {
-    label: '睡眠', color: 'var(--rest)', eventTypes: ['sleep'],
+    label: '睡眠', color: 'var(--rest)', eventTypes: ['sleep'], frequency: 'daily',
     icon: '<path d="M20 15A8 8 0 1 1 9 4a7 7 0 0 0 11 11z"/>',
     metrics: [{ key: 'hours', label: '睡眠', unit: '小時', read: (day) => sum(day.sleep, (s) => s.data.durationSec / 3600) }],
     hasRecord: (day) => day.sleep.length > 0,
   },
   activity: {
-    label: '活動', color: 'var(--move)', eventTypes: ['workout'],
+    label: '活動', color: 'var(--move)', eventTypes: ['workout'], frequency: 'none',
     icon: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
     metrics: [
       { key: 'sets', label: '套數', unit: '套', read: (day) => sum(day.workouts.filter((w) => w.data.sets), (w) => w.data.sets) },
@@ -57,19 +57,40 @@ export function cardHit(card, day) {
   return card.rule.op === 'lte' ? value <= card.rule.value : value >= card.rule.value;
 }
 
-function isRequired(card, date, context) {
-  if (card.days?.length) return card.days.includes(parseDateKey(date).getDay());
-  if (card.type === 'activity') return context.scheduled;
-  return true;
+export const FREQUENCIES = ['none', 'daily', 'weekly', 'monthly', 'weekdays'];
+
+// 舊設定只有 days，視為指定星期
+export function frequencyOf(card) {
+  if (card.frequency) return card.frequency;
+  if (card.days?.length) return { type: 'weekdays' };
+  return { type: CARD_TYPES[card.type].frequency };
+}
+
+function isRequired(card, date, today, context) {
+  const { type, count = 1 } = frequencyOf(card);
+  if (card.type === 'activity' && context.scheduled) return true;
+  if (type === 'daily') return true;
+  if (type === 'weekdays') return (card.days ?? []).includes(parseDateKey(date).getDay());
+  // 每週或每月幾次：只有今天提示，過去的日子不算沒做到
+  if (type === 'weekly' || type === 'monthly') return date === today && (context.periodHits ?? 0) < count;
+  return false;
+}
+
+// 週期內的日期，用來計算每週或每月做到幾次
+export function periodDates(card, today) {
+  const { type } = frequencyOf(card);
+  if (type === 'weekly') return weekDates(today).filter((d) => d <= today);
+  if (type === 'monthly') return monthDates(today.slice(0, 7)).filter((d) => d && d <= today);
+  return [];
 }
 
 // 狀態只有三種：done 做到、missed 該做沒做到、off 不需要做或還沒到
-// context 是當天排程：scheduled 有沒有排、targetSets 目標套數
+// context：scheduled 當天有排程、targetSets 目標套數、periodHits 本週期已做到次數
 export function cardDayState(card, date, day, today, start, context = {}) {
   const sets = day.workouts.reduce((total, w) => total + (w.data.sets ?? 0), 0);
   const belowTarget = card.type === 'activity' && context.targetSets && sets < context.targetSets;
   if (cardHit(card, day) && !belowTarget) return 'done';
-  if (date > today || date < start || !isRequired(card, date, context)) return 'off';
+  if (date > today || date < start || !isRequired(card, date, today, context)) return 'off';
   return 'missed';
 }
 
