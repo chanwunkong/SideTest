@@ -82,3 +82,37 @@ export function exerciseTotal(records, list, id) {
     ids.has(move.exerciseId) ? sum + (move.metrics?.reps ?? 0) * sets + (extra[i] ?? 0) : sum
   ), 0), 0);
 }
+
+// ---- 第一批分析：只用已記錄的資料計算 ----
+
+const repsOf = ({ moves = [], sets = 0, extra = {} }) => moves.reduce((total, move, i) => total + (move.metrics?.reps ?? 0) * sets + (extra[i] ?? 0), 0);
+
+// 最近 4 週，舊到新
+export function weeklyStats(events, today) {
+  const monday = addDays(today, -((parseDateKey(today).getDay() + 6) % 7));
+  return [21, 14, 7, 0].map((back) => {
+    const start = addDays(monday, -back);
+    const end = addDays(start, 6);
+    const records = events.filter((e) => e.date >= start && e.date <= end);
+    return {
+      start,
+      days: new Set(records.map((e) => e.date)).size,
+      reps: records.reduce((total, e) => total + repsOf(e.data), 0),
+      minutes: Math.round(records.reduce((total, e) => total + (e.data.durationSec ?? 0), 0) / 60),
+    };
+  });
+}
+
+// 每個動作單次最多次數和最大負重
+export function personalBests(events) {
+  const bests = new Map();
+  for (const { data } of events) {
+    (data.moves ?? []).forEach((move, i) => {
+      const key = move.exerciseId ?? move.name;
+      const best = bests.get(key) ?? { key, exerciseId: move.exerciseId, name: move.name, reps: 0, weightKg: 0 };
+      const reps = (move.metrics?.reps ?? 0) * (data.sets ?? 0) + (data.extra?.[i] ?? 0);
+      bests.set(key, { ...best, reps: Math.max(best.reps, reps), weightKg: Math.max(best.weightKg, move.metrics?.weightKg ?? 0) });
+    });
+  }
+  return [...bests.values()].filter((b) => b.reps || b.weightKg).sort((a, b) => b.reps - a.reps);
+}

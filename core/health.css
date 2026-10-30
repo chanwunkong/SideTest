@@ -12,6 +12,8 @@
   --diet: #c2691c;
   --move: #d83a34;
   --rest: #6a4fa3;
+  --move-soft: #fbe6e3;
+  --rest-soft: #e4f1ea;
   --warn: #b3372c;
   --radius: 16px;
   --radius-sm: 10px;
@@ -30,6 +32,8 @@
     --diet: #eda05c;
     --move: #f0746d;
     --rest: #b49cf0;
+    --move-soft: #3a2120;
+    --rest-soft: #1b3325;
     --warn: #f0877c;
   }
 }
@@ -146,6 +150,21 @@ summary { cursor: pointer; font-size: 14px; color: var(--muted); }
 .move-row { display: grid; gap: 8px; padding: 12px; border-radius: var(--radius-sm); background: var(--surface); }
 .check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
 .check input { width: 20px; height: 20px; }
+
+.flow-step { display: grid; gap: 8px; padding: 10px; margin-bottom: 8px; border-radius: var(--radius-sm); background: var(--surface); }
+.flow-step.loop { background: var(--surface-2); }
+.flow-add { margin-bottom: 8px; }
+.flow-add .chip { min-height: 36px; padding: 0 10px; font-size: 13px; }
+.flow-run { position: fixed; inset: 0; z-index: 10; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 24px; text-align: center; background: var(--bg); }
+.flow-run.timer { background: var(--move-soft); }
+.flow-run.rest { background: var(--rest-soft); }
+.flow-progress, .flow-next { margin: 0; color: var(--muted); }
+.flow-label { font-size: 28px; text-wrap: balance; }
+.flow-clock { font-size: clamp(72px, 26vw, 140px); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.flow-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 16px; }
+.week-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 96px; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; }
+.week-row .bar-track { margin: 0; }
+.week-row small { color: var(--muted); text-align: right; white-space: nowrap; }
 
 .tabs {
   position: fixed; inset: auto 0 0 0; z-index: 2;

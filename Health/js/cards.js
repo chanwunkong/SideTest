@@ -1,5 +1,5 @@
 // 首頁卡片：資料和顯示方式分開。新增卡片種類只要在 CARD_TYPES 加一項
-import { addDays, allTargetsMet, parseDateKey } from './logic.js';
+import { addDays, allTargetsMet, parseDateKey } from '../../core/logic.js';
 
 const nutrient = (key, label, unit) => ({ key, label, unit, read: (day) => day.nutrients[key] ?? null });
 const bodyMetric = (key, label, unit) => ({ key, label, unit, read: (day) => day.body.findLast((b) => b.data[key] != null)?.data[key] ?? null });

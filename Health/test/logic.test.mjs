@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDates, weekDates } from '../js/cards.js';
-import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../js/logic.js';
-import { descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, resolveExercise, scheduleActiveOn, scheduleRemaining, targetSetsOn } from '../js/training.js';
+import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../../core/logic.js';
+import { descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, personalBests, resolveExercise, scheduleActiveOn, scheduleRemaining, targetSetsOn, weeklyStats } from '../../core/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
-import { normalizeEvent, registry } from '../js/registry.js';
+import { flattenFlow, flowDuration, flowToRecord } from '../../core/flow.js';
+import { normalizeEvent, registry } from '../../core/registry.js';
 
 const meal = (nutrients = {}) => ({ type: 'meal', schemaVersion: 1, data: { nutrients } });
 const workout = { type: 'workout', schemaVersion: 1, data: { activity: '攀岩', durationSec: 3600 } };
@@ -144,6 +145,43 @@ test('目標套數未達成不算做到，沒設定就是有記錄算做到', ()
   assert.equal(cardDayState(activityCard, today, logged, today, today, { scheduled: true }), 'done');
   assert.equal(cardDayState(activityCard, today, logged, today, today, { scheduled: true, targetSets: 5 }), 'missed');
   assert.equal(targetSetsOn([{ ...schedule, targetSets: 5 }], today), 5);
+});
+
+const sampleFlow = [
+  { type: 'rest', label: '準備', duration: 10 },
+  { type: 'loop', iterations: 2, children: [
+    { type: 'timer', label: '懸掛', duration: 7, exerciseId: 'hang' },
+    { type: 'loop', iterations: 2, children: [{ type: 'reps', label: '引體', count: 5, exerciseId: 'pull' }] },
+    { type: 'rest', label: '休息', duration: 3 },
+  ] },
+];
+
+test('巢狀流程展開與總時間', () => {
+  const steps = flattenFlow(sampleFlow);
+  assert.equal(steps.length, 9);
+  assert.equal(flowDuration(sampleFlow), 30);
+});
+
+test('計時完成的紀錄沿用同一套格式，休息不算動作', () => {
+  const record = flowToRecord({ id: 't', name: '懸吊' }, flattenFlow(sampleFlow), 120.4, true);
+  assert.equal(record.durationSec, 120);
+  assert.equal(record.sets, 1);
+  assert.deepEqual(record.moves.map((m) => [m.exerciseId, m.metrics]), [['hang', { holdSec: 14 }], ['pull', { reps: 20 }]]);
+  assert.deepEqual(moveTotals(record), [{ name: '懸掛', total: 0 }, { name: '引體', total: 20 }].filter((m) => m.total));
+  assert.equal(exerciseTotal([record], [{ id: 'pull', parentId: null, name: '引體' }], 'pull'), 20);
+});
+
+test('週統計與個人最佳', () => {
+  const events = [
+    { date: '2026-10-30', data: { sets: 4, moves: [{ exerciseId: 'a', name: '深蹲', metrics: { reps: 10, weightKg: 60 } }] } },
+    { date: '2026-10-29', data: { sets: 6, moves: [{ exerciseId: 'a', name: '深蹲', metrics: { reps: 10 } }], extra: { 0: 3 } } },
+    { date: '2026-10-20', data: { durationSec: 1800 } },
+  ];
+  const weeks = weeklyStats(events, '2026-10-30');
+  assert.equal(weeks.length, 4);
+  assert.deepEqual(weeks.at(-1), { start: '2026-10-26', days: 2, reps: 103, minutes: 0 });
+  assert.equal(weeks.at(-2).minutes, 30);
+  assert.deepEqual(personalBests(events).map((b) => [b.reps, b.weightKg]), [[63, 60]]);
 });
 
 const exercises = [
