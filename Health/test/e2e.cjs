@@ -21,8 +21,8 @@ const path = require('path');
   });
   await page.goto('http://localhost:8123/index.html');
   await page.getByRole('button', { name: /喝水/ }).click();
-  await page.getByRole('button', { name: /咖啡/ }).click();
-  await page.getByText('250 ml').first().waitFor();
+  await page.getByRole('button', { name: /咖啡因/ }).click();
+  await page.getByText('250 / 2500 ml').waitFor();
 
   // 設定金鑰後走拍照流程
   await page.getByRole('button', { name: '設定' }).click();
@@ -35,32 +35,29 @@ const path = require('path');
   assert.equal(aiBody.fallbacks, 'default');
   assert.equal(aiBody.messages[0].content[0].type, 'image');
   await page.getByRole('button', { name: '儲存', exact: true }).click();
-  await page.getByText('熱量 750 / 2000').waitFor();
+  await page.getByText('38 / 120 g').waitFor();
 
-  // 飲食頁：其餘兩餐標記沒吃，今日應達成
+  // 飲食頁：手動再記一餐，今日應達成
   await page.getByRole('button', { name: '飲食', exact: true }).click();
-  for (const slot of ['早餐', '午餐', '晚餐']) {
-    await page.getByRole('button', { name: `新增${slot}` }).click();
-    const skip = page.getByRole('button', { name: '沒吃', exact: true });
-    if (await skip.count()) await skip.click();
-    else await page.getByRole('button', { name: '關閉' }).click();
-  }
+  await page.getByRole('button', { name: '手動輸入' }).click();
+  await page.fill('input[name=protein_g]', '20');
+  await page.getByRole('button', { name: '儲存', exact: true }).click();
+  await page.getByText('58 / 120 g').waitFor();
   await page.getByRole('button', { name: '今日', exact: true }).click();
-  assert.equal(await page.locator('.slot-pill.done:not(.move)').count(), 3);
 
   // 運動
-  await page.getByRole('button', { name: '動', exact: true }).click();
+  await page.getByRole('button', { name: /運動 0 分/ }).click();
   await page.getByRole('button', { name: '重訓' }).click();
   await page.fill('input[name=minutes]', '45');
   await page.getByRole('button', { name: '儲存', exact: true }).click();
-  await page.locator('.slot-pill.move.done').waitFor();
+  await page.getByText('運動 45 分').waitFor();
   await page.getByRole('button', { name: '運動', exact: true }).click();
   await page.getByText('45 分鐘', { exact: true }).first().waitFor();
   await page.screenshot({ path: process.argv[2] + '/workout.png' });
 
   // 重新整理後資料仍在
   await page.reload();
-  await page.getByText('熱量 750 / 2000').waitFor();
+  await page.getByText('58 / 120 g').waitFor();
   const overflowHome = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
   assert.equal(overflowHome, false, '不可有橫向捲動');
   await page.screenshot({ path: process.argv[2] + '/home.png' });

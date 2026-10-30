@@ -1,28 +1,29 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addDays, DEFAULT_GOAL, defaultSlot, dietStatus, goalFor, summarizeDay, weekStart, workoutStatus } from '../js/logic.js';
+import { addDays, DEFAULT_GOAL, dietStatus, goalFor, summarizeDay, weekStart, workoutStatus } from '../js/logic.js';
 import { normalizeEvent, registry } from '../js/registry.js';
 
-const meal = (slot, nutrients = {}, extra = {}) => ({ type: 'meal', schemaVersion: 1, data: { mealSlot: slot, nutrients, ...extra } });
+const meal = (nutrients = {}) => ({ type: 'meal', schemaVersion: 1, data: { nutrients } });
 const workout = { type: 'workout', schemaVersion: 1, data: { activity: '攀岩', durationSec: 3600 } };
-const threeMeals = summarizeDay([meal('breakfast'), meal('lunch'), meal('dinner', {}, { skipped: true })]);
+const twoMeals = summarizeDay([meal(), meal()]);
 
-test('加總餐點與快速紀錄，略過標記沒吃的餐與未知類型', () => {
+test('加總餐點與快速紀錄，略過未知類型', () => {
   const day = summarizeDay([
-    meal('lunch', { kcal: 600, protein_g: 30 }),
-    meal('dinner', { kcal: 999 }, { skipped: true }),
+    meal({ kcal: 600, protein_g: 30 }),
     { type: 'intake', schemaVersion: 1, data: { nutrients: { water_ml: 250, caffeine_mg: 100 } } },
     { type: 'bloodPressure', schemaVersion: 1, data: { systolic: 120 } },
   ]);
   assert.deepEqual(day.nutrients, { kcal: 600, protein_g: 30, water_ml: 250, caffeine_mg: 100 });
 });
 
-test('飲食判定：三餐都處理才達成，今天未完成不算失敗', () => {
-  const partial = summarizeDay([meal('breakfast')]);
-  assert.equal(dietStatus(threeMeals, '2026-10-20', '2026-10-30', '2026-10-01'), 'done');
-  assert.equal(dietStatus(partial, '2026-10-30', '2026-10-30', '2026-10-01'), 'nodata');
-  assert.equal(dietStatus(partial, '2026-10-20', '2026-10-30', '2026-10-01'), 'missed');
-  assert.equal(dietStatus(partial, '2026-09-01', '2026-10-30', '2026-10-01'), 'nodata');
+test('飲食判定：達到最少餐數才算達成，今天未完成不算失敗', () => {
+  const one = summarizeDay([meal()]);
+  const goal = DEFAULT_GOAL;
+  assert.equal(dietStatus(twoMeals, '2026-10-20', '2026-10-30', goal, '2026-10-01'), 'done');
+  assert.equal(dietStatus(one, '2026-10-30', '2026-10-30', goal, '2026-10-01'), 'nodata');
+  assert.equal(dietStatus(one, '2026-10-20', '2026-10-30', goal, '2026-10-01'), 'missed');
+  assert.equal(dietStatus(one, '2026-09-01', '2026-10-30', goal, '2026-10-01'), 'nodata');
+  assert.equal(dietStatus(one, '2026-10-20', '2026-10-30', { ...goal, minMeals: 1 }, '2026-10-01'), 'done');
 });
 
 test('運動判定：休息日不適用，排定日未做才算未達成', () => {
@@ -50,5 +51,4 @@ test('舊版事件讀取時升級，未知類型原樣保留', () => {
 test('日期計算跨月、以週一為一週開始', () => {
   assert.equal(addDays('2026-10-31', 1), '2026-11-01');
   assert.equal(weekStart('2026-11-01'), '2026-10-26');
-  assert.equal(defaultSlot(new Date(2026, 9, 30, 12, 0)), 'lunch');
 });

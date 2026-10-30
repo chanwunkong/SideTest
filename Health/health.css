@@ -60,17 +60,12 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 .btn.wide { width: 100%; }
 .btn[disabled] { opacity: .5; }
 .icon-btn { min-width: 44px; min-height: 44px; border-radius: 50%; background: var(--surface-2); font-size: 18px; }
-.quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: var(--gap); }
-.quick .btn { min-height: 62px; padding: 6px 4px; background: var(--surface); line-height: 1.25; }
-.quick .full { grid-column: 1 / -1; background: var(--accent); color: var(--on-accent); font-size: 18px; }
-.quick small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
-.slots { display: flex; gap: 8px; }
-.slot-pill { flex: 1; min-height: 48px; text-align: center; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--muted); font-size: 14px; }
-.slot-pill.done { background: var(--diet); color: var(--surface); font-weight: 700; }
-.slot-pill.move.done { background: var(--move); }
-.slot-row { padding: 6px 0; }
-.slot-row + .slot-row { border-top: 1px solid var(--line); }
-.icon-btn.small { min-width: 40px; min-height: 40px; font-size: 20px; }
+.quick { display: grid; gap: 8px; margin-bottom: var(--gap); }
+.quick .full { min-height: 72px; background: var(--accent); color: var(--on-accent); font-size: 18px; }
+.quick .wide-water { min-height: 56px; background: var(--surface); }
+.minor { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; }
+.minor button { min-height: 44px; color: var(--muted); font-size: 14px; }
+.meal-actions { margin-bottom: var(--gap); }
 summary { cursor: pointer; font-size: 14px; color: var(--muted); }
 .bar { margin-top: 12px; }
 .bar-label { display: flex; justify-content: space-between; font-size: 14px; }

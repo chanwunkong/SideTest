@@ -1,7 +1,7 @@
 import { analyzeMeal, getApiKey, setApiKey } from './ai.js';
 import { compressImage } from './image.js';
-import { addDays, dateKey, defaultSlot, dietStatus, goalFor, parseDateKey, summarizeDay, weekStart, workoutStatus } from './logic.js';
-import { ACTIVITIES, INTENSITIES, MEAL_SLOTS, NUTRIENTS } from './registry.js';
+import { addDays, dateKey, dietStatus, goalFor, parseDateKey, summarizeDay, weekStart, workoutStatus } from './logic.js';
+import { ACTIVITIES, INTENSITIES, NUTRIENTS } from './registry.js';
 import { healthStore as store } from './store.js';
 
 const view = document.getElementById('view');
@@ -13,7 +13,6 @@ const state = {
   tab: 'home',
   dietDate: dateKey(),
   month: dateKey().slice(0, 7),
-  photoSlot: null,
   draft: null,
 };
 
@@ -22,7 +21,8 @@ const STATUS_TEXT = { done: '已達成', missed: '未達成', na: '休息日', n
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const round = (value) => Math.round((value + Number.EPSILON) * 10) / 10;
-const slotLabel = (key) => MEAL_SLOTS.find((s) => s.key === key)?.label ?? key;
+const PRIMARY = NUTRIENTS.filter((n) => n.primary);
+const SECONDARY = NUTRIENTS.filter((n) => !n.primary);
 const intensityLabel = (key) => INTENSITIES.find((i) => i.key === key)?.label ?? '';
 
 function dayData(date) {
@@ -33,7 +33,7 @@ function dayData(date) {
   return {
     summary,
     goal,
-    diet: dietStatus(summary, date, today, start),
+    diet: dietStatus(summary, date, today, goal, start),
     workout: workoutStatus(summary, date, today, goal, start),
   };
 }
@@ -44,7 +44,6 @@ function formatDate(key) {
 }
 
 function mealText(meal) {
-  if (meal.data.skipped) return '標記沒吃';
   const items = (meal.data.items || []).map((i) => i.name).join('、');
   return items || meal.data.note || '尚未估算';
 }
@@ -69,8 +68,8 @@ function hydrateImages(root) {
   });
 }
 
-function renderBars(summary, goal) {
-  return NUTRIENTS.map(({ key, label, unit, isLimit }) => {
+function renderBars(list, summary, goal) {
+  return list.map(({ key, label, unit, isLimit }) => {
     const value = summary.nutrients[key] || 0;
     const target = goal.targets[key] || 0;
     const percent = target ? Math.min(100, (value / target) * 100) : 0;
@@ -84,12 +83,9 @@ function renderBars(summary, goal) {
 
 function renderHome() {
   const today = dateKey();
-  const { summary, goal, workout } = dayData(today);
+  const { summary, goal } = dayData(today);
   const { nutrients } = summary;
-  const pills = MEAL_SLOTS.filter((s) => s.required).map((s) => {
-    const done = summary.meals.some((m) => m.data.mealSlot === s.key);
-    return `<button class="slot-pill${done ? ' done' : ''}" data-action="home-slot" data-slot="${s.key}" data-done="${done}">${s.short}</button>`;
-  }).join('');
+  const minutes = summary.workouts.reduce((sum, w) => sum + w.data.durationSec / 60, 0);
 
   return `
     <header class="topbar">
@@ -98,16 +94,13 @@ function renderHome() {
     </header>
     <section class="quick">
       <button class="btn full" data-action="photo">📷 拍照記餐</button>
-      <button class="btn" data-action="quick" data-kind="water">喝水<small>${round(nutrients.water_ml || 0)} ml</small></button>
-      <button class="btn" data-action="quick" data-kind="coffee">咖啡<small>${round(nutrients.caffeine_mg || 0)} mg</small></button>
-      <button class="btn" data-action="quick" data-kind="creatine">肌酸<small>${round(nutrients.creatine_g || 0)} g</small></button>
+      <button class="btn wide-water" data-action="quick" data-kind="water">喝水 +${goal.quick.water_ml} ml</button>
     </section>
-    <section class="card">
-      <div class="slots">
-        ${pills}
-        <button class="slot-pill move${workout === 'done' ? ' done' : ''}" data-action="workout-new">動</button>
-      </div>
-      <p class="muted" style="margin-top:12px;text-align:center">熱量 ${Math.round(nutrients.kcal || 0)} / ${goal.targets.kcal}・蛋白質 ${round(nutrients.protein_g || 0)} / ${goal.targets.protein_g} g</p>
+    <section class="card">${renderBars(PRIMARY, summary, goal)}</section>
+    <section class="minor">
+      <button data-action="quick" data-kind="coffee">咖啡因 ${round(nutrients.caffeine_mg || 0)} mg ＋</button>
+      <button data-action="quick" data-kind="creatine">肌酸 ${round(nutrients.creatine_g || 0)} g ＋</button>
+      <button data-action="workout-new">運動 ${Math.round(minutes)} 分 ＋</button>
     </section>`;
 }
 
@@ -160,17 +153,6 @@ function mealEntry(meal) {
 function renderDiet() {
   const date = state.dietDate;
   const { summary, goal } = dayData(date);
-  const { nutrients } = summary;
-  const slots = MEAL_SLOTS.map((slot) => {
-    const meals = summary.meals.filter((m) => m.data.mealSlot === slot.key);
-    return `<div class="slot-row">
-      <div class="row">
-        <strong>${slot.label}</strong>
-        <button class="icon-btn small" data-action="slot-add" data-slot="${slot.key}" aria-label="新增${slot.label}">+</button>
-      </div>
-      ${meals.map(mealEntry).join('')}
-    </div>`;
-  }).join('');
 
   return `
     <header class="topbar">
@@ -178,10 +160,15 @@ function renderDiet() {
       <div style="text-align:center"><h1>飲食</h1><p class="muted">${formatDate(date)}</p></div>
       <button class="icon-btn" data-action="diet-date" data-delta="1" aria-label="後一天"${date >= dateKey() ? ' disabled' : ''}>›</button>
     </header>
-    <section class="card">${slots}</section>
+    <section class="grid-2 meal-actions">
+      <button class="btn primary" data-action="photo">📷 拍照</button>
+      <button class="btn" data-action="meal-manual">手動輸入</button>
+    </section>
+    ${summary.meals.length ? `<section class="card">${summary.meals.map(mealEntry).join('')}</section>` : ''}
+    <section class="card">${renderBars(PRIMARY, summary, goal)}</section>
     <details class="card">
-      <summary>${Math.round(nutrients.kcal || 0)} kcal・碳水 ${round(nutrients.carbs_g || 0)}・脂肪 ${round(nutrients.fat_g || 0)}・蛋白質 ${round(nutrients.protein_g || 0)}</summary>
-      ${renderBars(summary, goal)}
+      <summary>熱量、咖啡因、肌酸</summary>
+      ${renderBars(SECONDARY, summary, goal)}
     </details>`;
 }
 
@@ -234,7 +221,6 @@ function renderMealSheet() {
   const { draft } = state;
   const fields = NUTRIENTS.map(({ key, label, unit }) => `<label class="field"><span>${label}（${unit}）</span>
     <input type="number" inputmode="decimal" min="0" step="any" name="${key}" value="${draft.nutrients[key] ?? ''}"></label>`).join('');
-  const slots = MEAL_SLOTS.map((s) => `<button type="button" class="chip${s.key === draft.mealSlot ? ' active' : ''}" data-action="draft-slot" data-slot="${s.key}">${s.label}</button>`).join('');
   const items = draft.items.map((i) => `${esc(i.name)}（${esc(i.portion)}）`).join('、');
   const confidence = { low: '低', medium: '中', high: '高' }[draft.confidence];
 
@@ -243,7 +229,6 @@ function renderMealSheet() {
       <button type="button" class="icon-btn" data-action="sheet-close" aria-label="關閉">✕</button></div>
     ${draft.photo ? `<img class="preview" src="${draft.photo}" alt="餐點照片">` : draft.attachmentId ? `<img class="preview" data-attachment="${esc(draft.attachmentId)}" alt="餐點照片">` : ''}
     <p class="muted" id="ai-status">${draft.analyzing ? '正在估算…' : draft.error ? esc(draft.error) : items ? `${items}${confidence ? `｜可信度：${confidence}` : ''}` : ''}</p>
-    <div class="chips">${slots}</div>
     <label class="field"><span>補充說明</span><input name="note" value="${esc(draft.note)}" placeholder="例如：飯只吃一半"></label>
     ${draft.photo || draft.attachmentId ? `<button type="button" class="btn wide" data-action="reanalyze"${draft.analyzing ? ' disabled' : ''}>重新估算</button>` : ''}
     <div class="grid-2">${fields}</div>
@@ -293,7 +278,7 @@ function saveMeal() {
   const { draft } = state;
   readDraftForm();
   const nutrients = Object.fromEntries(Object.entries(draft.nutrients).filter(([, value]) => value !== undefined));
-  const data = { mealSlot: draft.mealSlot, nutrients, items: draft.items, note: draft.note, skipped: false };
+  const data = { nutrients, items: draft.items, note: draft.note };
   const raw = draft.model ? { model: draft.model, confidence: draft.confidence } : draft.raw;
   if (draft.id) {
     store.updateEvent(draft.id, data, { raw });
@@ -305,14 +290,14 @@ function saveMeal() {
   toast('已記錄這一餐');
 }
 
-function newDraft(slot, date, photo = null) {
-  return { id: null, mealSlot: slot, date, photo, attachmentId: null, nutrients: {}, items: [], note: '', confidence: null, model: null, raw: null, analyzing: false, error: '' };
+function newDraft(date, photo = null) {
+  return { id: null, date, photo, attachmentId: null, nutrients: {}, items: [], note: '', confidence: null, model: null, raw: null, analyzing: false, error: '' };
 }
 
 function openMeal(id) {
   const event = store.events.get(id);
   state.draft = {
-    ...newDraft(event.data.mealSlot, event.date),
+    ...newDraft(event.date),
     id,
     attachmentId: event.attachmentIds[0] ?? null,
     nutrients: { ...event.data.nutrients },
@@ -326,8 +311,7 @@ function openMeal(id) {
 
 async function handlePhoto(file) {
   const date = state.tab === 'diet' ? state.dietDate : dateKey();
-  const slot = state.photoSlot ?? defaultSlot();
-  state.draft = newDraft(slot, date);
+  state.draft = newDraft(date);
   state.draft.analyzing = true;
   renderMealSheet();
   try {
@@ -344,18 +328,6 @@ async function handlePhoto(file) {
     state.draft.error = '尚未設定 API 金鑰，可以先手動輸入，照片會保留';
     renderMealSheet();
   }
-}
-
-function openSlotActions(slot) {
-  const required = MEAL_SLOTS.find((s) => s.key === slot).required;
-  const empty = !summarizeDay(store.eventsOn(state.dietDate)).meals.some((m) => m.data.mealSlot === slot);
-  openSheet(`<div class="stack">
-    <div class="row"><h2 style="margin:0">${slotLabel(slot)}</h2>
-      <button class="icon-btn" data-action="sheet-close" aria-label="關閉">✕</button></div>
-    <button class="btn primary wide" data-action="photo" data-slot="${slot}">拍照</button>
-    <button class="btn wide" data-action="meal-manual" data-slot="${slot}">手動輸入</button>
-    ${required && empty ? `<button class="btn wide" data-action="meal-skip" data-slot="${slot}">沒吃</button>` : ''}
-  </div>`);
 }
 
 function openWorkout(id = null, date = dateKey()) {
@@ -421,6 +393,8 @@ function openSettings() {
     <section class="card stack"><h2>帳號</h2>${account}</section>
     <section class="card stack"><h2>每日目標（從今天起生效）</h2><div class="grid-2">${targets}</div>
       <h2>每週訓練日</h2><div class="chips" data-chip-group="days">${days}</div></section>
+    <section class="card stack"><h2>飲食達成</h2>
+      <label class="field"><span>每天至少記幾餐</span><input type="number" inputmode="numeric" min="1" name="minMeals" value="${goal.minMeals}"></label></section>
     <section class="card stack"><h2>快速按鈕份量</h2><div class="grid-2">
       <label class="field"><span>喝水（ml）</span><input type="number" inputmode="numeric" min="0" name="quick_water_ml" value="${goal.quick.water_ml}"></label>
       <label class="field"><span>咖啡因（mg）</span><input type="number" inputmode="numeric" min="0" name="quick_caffeine_mg" value="${goal.quick.caffeine_mg}"></label>
@@ -441,6 +415,7 @@ function saveSettings(form) {
   store.saveGoal({
     targets: Object.fromEntries(NUTRIENTS.map(({ key }) => [key, number(key)])),
     workoutDays,
+    minMeals: number('minMeals') || 1,
     quick: { water_ml: number('quick_water_ml'), caffeine_mg: number('quick_caffeine_mg'), creatine_g: number('quick_creatine_g') },
   });
   setApiKey(values.get('apiKey').trim());
@@ -502,23 +477,8 @@ const actions = {
     if (next <= dateKey()) { state.dietDate = next; render(); }
   },
   'diet-goto': ({ date }) => { closeSheet(); state.tab = 'diet'; state.dietDate = date; render(); scrollTo(0, 0); },
-  photo: ({ slot }) => {
-    if (sheet.open) closeSheet();
-    state.photoSlot = slot ?? null;
-    photoInput.click();
-  },
-  'slot-add': ({ slot }) => openSlotActions(slot),
-  'home-slot': ({ slot, done }) => {
-    state.dietDate = dateKey();
-    if (done === 'true') actions.tab({ tab: 'diet' });
-    else openSlotActions(slot);
-  },
-  'meal-manual': ({ slot }) => { state.draft = newDraft(slot, state.dietDate); renderMealSheet(); },
-  'meal-skip': ({ slot }) => {
-    closeSheet();
-    const event = store.addEvent('meal', { mealSlot: slot, skipped: true }, { date: state.dietDate });
-    toast(`已標記${slotLabel(slot)}沒吃`, () => store.deleteEvent(event.id));
-  },
+  photo: () => photoInput.click(),
+  'meal-manual': () => { state.draft = newDraft(state.dietDate); renderMealSheet(); },
   'meal-open': ({ id }) => openMeal(id),
   'meal-delete': () => {
     const { id } = state.draft;
@@ -526,7 +486,6 @@ const actions = {
     closeSheet();
     toast('已刪除', () => store.restoreEvent(id));
   },
-  'draft-slot': ({ slot }) => { readDraftForm(); state.draft.mealSlot = slot; renderMealSheet(); },
   reanalyze: runAnalysis,
   'workout-new': ({ date }) => openWorkout(null, date),
   'workout-open': ({ id }) => openWorkout(id),
