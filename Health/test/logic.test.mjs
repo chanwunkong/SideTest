@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addDays, dailyTargets, DEFAULT_GOAL, dietStatus, goalFor, sleepStatus, summarizeDay, weekStart, workoutStatus } from '../js/logic.js';
+import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, weekDates } from '../js/cards.js';
+import { addDays, dailyTargets, DEFAULT_GOAL, goalFor, summarizeDay, weekStart } from '../js/logic.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
 import { normalizeEvent, registry } from '../js/registry.js';
 
 const meal = (nutrients = {}) => ({ type: 'meal', schemaVersion: 1, data: { nutrients } });
 const workout = { type: 'workout', schemaVersion: 1, data: { activity: '攀岩', durationSec: 3600 } };
-const twoMeals = summarizeDay([meal(), meal()]);
 
 test('加總餐點與快速紀錄，略過未知類型', () => {
   const day = summarizeDay([
@@ -17,28 +17,47 @@ test('加總餐點與快速紀錄，略過未知類型', () => {
   assert.deepEqual(day.nutrients, { kcal: 600, protein_g: 30, water_ml: 250, caffeine_mg: 100 });
 });
 
-test('飲食判定：達到最少餐數才算達成，今天未完成不算失敗', () => {
-  const one = summarizeDay([meal()]);
-  const goal = DEFAULT_GOAL;
-  assert.equal(dietStatus(twoMeals, '2026-10-20', '2026-10-30', goal, '2026-10-01'), 'done');
-  assert.equal(dietStatus(one, '2026-10-30', '2026-10-30', goal, '2026-10-01'), 'nodata');
-  assert.equal(dietStatus(one, '2026-10-20', '2026-10-30', goal, '2026-10-01'), 'missed');
-  assert.equal(dietStatus(one, '2026-09-01', '2026-10-30', goal, '2026-10-01'), 'nodata');
-  assert.equal(dietStatus(one, '2026-10-20', '2026-10-30', { ...goal, minMeals: 1 }, '2026-10-01'), 'done');
+const [bodyCard, dietCard, sleepCard, activityCard] = DEFAULT_CARDS;
+const sleepDay = (h) => summarizeDay([{ type: 'sleep', schemaVersion: 1, data: { durationSec: h * 3600 } }]);
+const empty = summarizeDay([]);
+
+test('卡片預設有紀錄就算做到，條件由使用者設定', () => {
+  assert.equal(cardHit(sleepCard, sleepDay(5)), true);
+  assert.equal(cardHit(sleepCard, empty), false);
+  const strict = { ...sleepCard, rule: { op: 'gte', value: 7 } };
+  assert.equal(cardHit(strict, sleepDay(5)), false);
+  assert.equal(cardHit(strict, sleepDay(7.5)), true);
+  const limit = { ...dietCard, metrics: ['caffeine_mg'], rule: { op: 'lte', value: 200 } };
+  assert.equal(cardHit(limit, summarizeDay([meal({ caffeine_mg: 100 })])), true);
+  assert.equal(cardHit(limit, summarizeDay([meal({ caffeine_mg: 300 })])), false);
 });
 
-test('運動判定：沒排定不適用，排定日未做才算未達成', () => {
-  const none = summarizeDay([]);
-  const goal = { ...DEFAULT_GOAL, workoutPlan: { 1: { activity: '攀岩', minutes: 60 } } };
-  assert.equal(workoutStatus(none, '2026-10-20', '2026-10-30', goal, '2026-10-01'), 'na'); // 週二
-  assert.equal(workoutStatus(none, '2026-10-19', '2026-10-30', goal, '2026-10-01'), 'missed'); // 週一
-  assert.equal(workoutStatus(summarizeDay([workout]), '2026-10-20', '2026-10-30', goal, '2026-10-01'), 'done');
+test('卡片每日狀態：沒排定和開始前都不算沒做到', () => {
+  const today = '2026-10-30';
+  const start = '2026-10-01';
+  assert.equal(cardDayState(sleepCard, '2026-10-20', empty, today, start, DEFAULT_GOAL), 'missed');
+  assert.equal(cardDayState(sleepCard, '2026-09-20', empty, today, start, DEFAULT_GOAL), 'off');
+  assert.equal(cardDayState(sleepCard, '2026-10-31', empty, today, start, DEFAULT_GOAL), 'off');
+  assert.equal(cardDayState(activityCard, '2026-10-19', empty, today, start, DEFAULT_GOAL), 'off');
+  const plan = { ...DEFAULT_GOAL, workoutPlan: { 1: { activity: '攀岩', minutes: 60 } } };
+  assert.equal(cardDayState(activityCard, '2026-10-19', empty, today, start, plan), 'missed'); // 週一
+  assert.equal(cardDayState(activityCard, '2026-10-20', empty, today, start, plan), 'off'); // 週二
+  assert.equal(cardDayState(activityCard, '2026-10-20', summarizeDay([workout]), today, start, plan), 'done');
+  const weekly = { ...bodyCard, days: [6] };
+  assert.equal(cardDayState(weekly, '2026-10-20', empty, today, start, DEFAULT_GOAL), 'off');
+  assert.equal(cardDayState(weekly, '2026-10-24', empty, today, start, DEFAULT_GOAL), 'missed'); // 週六
 });
 
-test('睡眠判定依目標時數', () => {
-  const sleep = (h) => summarizeDay([{ type: 'sleep', schemaVersion: 1, data: { durationSec: h * 3600 } }]);
-  assert.equal(sleepStatus(sleep(7.5), '2026-10-20', '2026-10-30', DEFAULT_GOAL, '2026-10-01'), 'done');
-  assert.equal(sleepStatus(sleep(6), '2026-10-20', '2026-10-30', DEFAULT_GOAL, '2026-10-01'), 'missed');
+test('多項卡片保留使用者選的順序', () => {
+  assert.deepEqual(metricsOf(dietCard).map((m) => m.label), ['蛋白質', '水分', '碳水']);
+});
+
+test('週與月的日期範圍', () => {
+  assert.deepEqual(weekDates('2026-10-30').slice(0, 2), ['2026-10-26', '2026-10-27']);
+  assert.equal(weekDates('2026-10-30').at(-1), '2026-11-01');
+  const month = monthDates('2026-10');
+  assert.equal(month.filter((d) => d === null).length, 3); // 10/1 是週四
+  assert.equal(month.at(-1), '2026-10-31');
 });
 
 const profile = { heightCm: 175, birthYear: 1996, sex: 'male' };
@@ -94,9 +113,9 @@ test('Gemini 回覆：容忍前後文字，拒絕錯誤內容', () => {
 });
 
 test('修改目標不影響生效日之前', () => {
-  const goals = [{ effectiveFrom: '2026-11-01', minMeals: 3 }];
-  assert.equal(goalFor(goals, '2026-10-31').minMeals, 2);
-  assert.equal(goalFor(goals, '2026-11-02').minMeals, 3);
+  const goals = [{ effectiveFrom: '2026-11-01', sleep: { hours: 8, bedtime: '22:30' } }];
+  assert.equal(goalFor(goals, '2026-10-31').sleep.hours, 7);
+  assert.equal(goalFor(goals, '2026-11-02').sleep.hours, 8);
 });
 
 test('舊版事件讀取時升級，未知類型原樣保留', () => {

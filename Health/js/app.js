@@ -1,7 +1,5 @@
-import {
-  addDays, dailyTargets, dateKey, dietStatus, goalFor, parseDateKey, planFor,
-  sleepStatus, summarizeDay, targetWeight, weekStart, workoutStatus,
-} from './logic.js';
+import { CARD_TYPES, DEFAULT_CARDS, cardDayState, metricsOf, monthDates, weekDates } from './cards.js';
+import { addDays, dailyTargets, dateKey, goalFor, parseDateKey, planFor, summarizeDay, targetWeight, weekStart } from './logic.js';
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
 import { ACTIVITIES, INTENSITIES, NUTRIENTS } from './registry.js';
 import { healthStore as store } from './store.js';
@@ -13,13 +11,15 @@ const toastEl = document.getElementById('toast');
 const state = {
   tab: 'home',
   dietDate: dateKey(),
+  range: 'week',
+  cardId: null,
   month: dateKey().slice(0, 7),
+  recordDate: null,
   draft: null,
 };
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
-const STATUS_TEXT = { done: '已達成', missed: '未達成', na: '不適用', nodata: '尚無資料' };
 const PRIMARY = NUTRIENTS.filter((n) => n.primary);
 const SECONDARY = NUTRIENTS.filter((n) => !n.primary);
 
@@ -38,19 +38,12 @@ function latestBody(date) {
 }
 
 function dayData(date) {
-  const summary = summarizeDay(store.eventsOn(date));
-  const today = dateKey();
-  const start = store.trackingStart();
   const goal = goalFor(store.goals, date);
-  return {
-    summary,
-    goal,
-    plan: planFor(goal, date),
-    diet: dietStatus(summary, date, today, goal, start),
-    workout: workoutStatus(summary, date, today, goal, start),
-    sleep: sleepStatus(summary, date, today, goal, start),
-  };
+  return { summary: summarizeDay(store.eventsOn(date)), goal, plan: planFor(goal, date) };
 }
+
+const cardsList = () => store.profile.cards ?? DEFAULT_CARDS;
+const saveCards = (cards) => store.saveProfile({ cards });
 
 const targetsOn = (goal, date) => dailyTargets(goal, store.profile, latestBody(date), date);
 
@@ -74,7 +67,7 @@ const planText = (plan) => (plan ? `${esc(plan.activity)} ${plan.minutes} 分鐘
 // ---- 畫面 ----
 
 function render() {
-  const screens = { home: renderHome, diet: renderDiet, workout: renderWorkout, rest: renderRest, body: renderBody, calendar: renderCalendar };
+  const screens = { home: renderHome, diet: renderDiet, workout: renderWorkout, rest: renderRest, body: renderBody };
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === state.tab));
   view.innerHTML = screens[state.tab]();
   hydrateImages(view);
@@ -100,91 +93,84 @@ function renderBars(list, summary, targets) {
   }).join('');
 }
 
-function focusCard({ label, kind, tab, main, sub = '', actions = '', complete = false }) {
-  return `<section class="focus${complete ? ' complete' : ''}">
-    <button class="focus-link" data-action="tab" data-tab="${tab}">
-      <span class="focus-label ${kind}">${label}</span>
-      <div class="focus-main">${main}</div>
-      ${sub ? `<div class="muted">${sub}</div>` : ''}
-    </button>
-    ${actions ? `<div class="focus-actions">${actions}</div>` : ''}
+function cardState(card, date) {
+  const today = dateKey();
+  const start = store.firstRecordDate(CARD_TYPES[card.type].eventTypes) ?? today;
+  return cardDayState(card, date, summarizeDay(store.eventsOn(date)), today, start < today ? start : today, goalFor(store.goals, date));
+}
+
+// 上方表格：每張卡片一列、每天一欄，週與月用同一種表格
+function renderTracker(cards, dates) {
+  const today = dateKey();
+  const head = dates.map((date) => {
+    const day = parseDateKey(date).getDate();
+    const label = state.range === 'week' ? day : day === 1 || day % 5 === 0 ? day : '';
+    return `<span class="${date === today ? 'now' : ''}">${label}</span>`;
+  }).join('');
+  const rows = cards.map((card) => {
+    const type = CARD_TYPES[card.type];
+    const marks = dates.map((date) => `<i class="mark ${cardState(card, date)}${date === today ? ' today' : ''}"></i>`).join('');
+    return `<div class="tracker-row" role="img" aria-label="${type.label}" style="--c:${type.color}">
+      <svg class="card-icon on" viewBox="0 0 24 24" aria-hidden="true">${type.icon}</svg>${marks}
+    </div>`;
+  }).join('');
+  return `<section class="tracker ${state.range}" style="--days:${dates.length}">
+    <div class="tracker-row tracker-head"><span></span>${head}</div>
+    ${rows}
   </section>`;
+}
+
+function formatValue(value) {
+  return value === null || value === undefined ? '—' : round(value).toLocaleString();
+}
+
+// 身體數據不是每天量，顯示最新一筆；其他項目顯示今天
+function metricValue(metric, summary, card) {
+  const value = metric.read(summary);
+  if (value !== null || card.type !== 'body') return value;
+  return latestBody(dateKey())?.[metric.key] ?? null;
+}
+
+function renderCard(card, summary) {
+  const type = CARD_TYPES[card.type];
+  const metrics = metricsOf(card);
+  const doneToday = cardState(card, dateKey()) === 'done';
+  const values = metrics.length === 1
+    ? `<div class="card-big">${formatValue(metricValue(metrics[0], summary, card))}<small> ${metrics[0].unit}</small></div>`
+    : `<div class="card-rows">${metrics.map((m) => `<div><span>${m.label}</span><strong>${formatValue(metricValue(m, summary, card))}</strong></div>`).join('')}</div>`;
+
+  return `<button class="health-card" data-action="card-open" data-id="${esc(card.id)}" style="--c:${type.color}" aria-label="${type.label}${doneToday ? '，今天已做到' : ''}">
+    <span class="card-head">
+      <svg class="card-icon${doneToday ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true">${type.icon}</svg>
+      <span>${type.label}</span>
+    </span>
+    ${values}
+  </button>`;
 }
 
 function renderHome() {
   const today = dateKey();
-  const { summary, goal, plan, workout } = dayData(today);
-  const { targets } = targetsOn(goal, today);
-  const { nutrients } = summary;
-  const sleepSeconds = summary.sleep.reduce((sum, s) => sum + s.data.durationSec, 0);
-  const minutes = summary.workouts.reduce((sum, w) => sum + w.data.durationSec / 60, 0);
-  const body = summary.body.at(-1);
-
-  const workoutMain = workout === 'done' ? `已完成 ${Math.round(minutes)} 分鐘` : plan ? `今天排定：${planText(plan)}` : '今天休息';
+  const { summary } = dayData(today);
+  const dates = state.range === 'week' ? weekDates(today) : monthDates(today.slice(0, 7)).filter(Boolean);
+  const cards = cardsList();
 
   return `
     <header class="topbar">
-      <div><h1>今日</h1><p class="muted">${formatDate(today)}</p></div>
+      <div><h1>${formatDate(today)}</h1></div>
+      <div class="switch" role="group" aria-label="日曆範圍">
+        <button data-action="range" data-range="week" aria-pressed="${state.range === 'week'}">週</button>
+        <button data-action="range" data-range="month" aria-pressed="${state.range === 'month'}">月</button>
+      </div>
+    </header>
+    ${renderTracker(cards, dates)}
+    <div class="row overview-head">
+      <h2 style="margin:0">生理功能總覽</h2>
       <div class="chips">
-        <button class="icon-btn" data-action="tab" data-tab="calendar" aria-label="月曆">▦</button>
-        <button class="icon-btn" data-action="settings" aria-label="設定">⚙</button>
+        <button class="plain" data-action="cards-edit">編輯</button>
+        <button class="plain" data-action="settings" aria-label="設定">⚙</button>
       </div>
-    </header>
-    ${focusCard({
-      label: '飲食', kind: 'diet', tab: 'diet',
-      main: `蛋白質 ${round(nutrients.protein_g || 0)} / ${targets.protein_g} g`,
-      sub: `水分 ${round(nutrients.water_ml || 0)} / ${targets.water_ml} ml・${summary.meals.length} 餐`,
-      actions: `<button class="btn primary" data-action="meal-paste">記一餐</button>
-        <button class="btn" data-action="quick">喝水 +${goal.quick.water_ml} ml</button>`,
-    })}
-    ${focusCard({
-      label: '運動', kind: 'move', tab: 'workout', main: workoutMain, complete: workout === 'done' || !plan,
-      actions: plan ? '<button class="btn" data-action="workout-new">完成訓練</button>' : '',
-    })}
-    ${focusCard({
-      label: '休息', kind: 'rest', tab: 'rest',
-      main: sleepSeconds ? `昨晚睡 ${hours(sleepSeconds)} 小時（目標 ${goal.sleep.hours}）` : '昨晚睡眠尚未記錄',
-      sub: `今晚建議 ${esc(goal.sleep.bedtime)} 前上床`,
-      actions: sleepSeconds ? '' : '<button class="btn" data-action="sleep-new">記錄睡眠</button>',
-    })}
-    ${focusCard({
-      label: '身體', kind: 'body', tab: 'body', complete: !!body,
-      main: body ? `今天 ${body.data.weightKg} kg` : '今天還沒量體重',
-      actions: body ? '' : '<button class="btn" data-action="body-new">記錄</button>',
-    })}`;
-}
-
-function renderCalendar() {
-  const today = dateKey();
-  const [year, month] = state.month.split('-').map(Number);
-  const first = `${state.month}-01`;
-  const lead = (parseDateKey(first).getDay() + 6) % 7;
-  const count = new Date(year, month, 0).getDate();
-  const cells = [];
-  for (let i = 0; i < lead; i++) cells.push('<div></div>');
-  for (let d = 1; d <= count; d++) {
-    const date = addDays(first, d - 1);
-    const { diet, workout, sleep } = dayData(date);
-    cells.push(`<button class="day${date === today ? ' today' : ''}" data-action="day" data-date="${date}" aria-label="${date} 飲食${STATUS_TEXT[diet]}、運動${STATUS_TEXT[workout]}、休息${STATUS_TEXT[sleep]}">
-      ${d}<div class="dots"><i class="dot diet ${diet}"></i><i class="dot move ${workout}"></i><i class="dot rest ${sleep}"></i></div>
-    </button>`);
-  }
-  const dows = ['一', '二', '三', '四', '五', '六', '日'].map((d) => `<div class="dow">${d}</div>`).join('');
-  return `
-    <header class="topbar">
-      <button class="icon-btn" data-action="month" data-delta="-1" aria-label="上個月">‹</button>
-      <h1>${year} 年 ${month} 月</h1>
-      <button class="icon-btn" data-action="month" data-delta="1" aria-label="下個月">›</button>
-    </header>
-    <section class="card">
-      <div class="calendar">${dows}${cells.join('')}</div>
-      <div class="legend">
-        <span><i class="dot diet done"></i>飲食</span>
-        <span><i class="dot move done"></i>運動</span>
-        <span><i class="dot rest done"></i>休息</span>
-        <span><i class="dot missed"></i>未達成</span>
-      </div>
-    </section>`;
+    </div>
+    <section class="health-cards">${cards.map((card) => renderCard(card, summary)).join('')}</section>`;
 }
 
 function mealEntry(meal) {
@@ -340,6 +326,7 @@ function openSheet(html) {
 function closeSheet() {
   sheet.close();
   state.draft = null;
+  state.recordDate = null;
 }
 
 const numberField = (name, label, value, attrs = '') => `<label class="field"><span>${label}</span>
@@ -379,7 +366,7 @@ function importMeal(text) {
 }
 
 function newMealDraft() {
-  return { id: null, date: state.tab === 'diet' ? state.dietDate : dateKey(), nutrients: {}, items: [], note: '', confidence: null, source: 'manual' };
+  return { id: null, date: state.recordDate ?? (state.tab === 'diet' ? state.dietDate : dateKey()), nutrients: {}, items: [], note: '', confidence: null, source: 'manual' };
 }
 
 function renderMealSheet() {
@@ -486,7 +473,7 @@ function openSleep(id = null) {
   openSheet(`<form class="stack" data-form="sleep">
     ${sheetHeader('記錄睡眠')}
     ${numberField('hours', '睡了幾小時', event ? hours(event.data.durationSec) : '', 'min="0.5" required')}
-    ${dateField(event?.date ?? dateKey())}
+    ${dateField(event?.date ?? state.recordDate ?? dateKey())}
     <button class="btn primary wide">儲存</button>
     ${id ? deleteButton : ''}
   </form>`);
@@ -524,7 +511,7 @@ function openBody(id = null) {
       ${numberField('bodyFat', '體脂（%）', event?.data.bodyFat)}
       ${numberField('muscleKg', '肌肉量（kg）', event?.data.muscleKg)}
     </div>
-    ${dateField(event?.date ?? dateKey())}
+    ${dateField(event?.date ?? state.recordDate ?? dateKey())}
     <button class="btn primary wide">儲存</button>
     ${id ? deleteButton : ''}
   </form>`);
@@ -580,45 +567,127 @@ function openTargets() {
   </form>`);
 }
 
-function openDay(date) {
-  const { summary } = dayData(date);
-  const entries = [
-    ...summary.meals.map(mealEntry),
-    ...summary.workouts.map((w) => `<button class="entry" data-action="workout-open" data-id="${esc(w.id)}"><span class="entry-body"><strong>${esc(w.data.activity)}</strong><span class="muted">${workoutText(w)}</span></span></button>`),
-    ...summary.sleep.map((s) => `<button class="entry" data-action="sleep-open" data-id="${esc(s.id)}"><span class="entry-body"><strong>睡眠 ${hours(s.data.durationSec)} 小時</strong></span></button>`),
-  ].join('');
-  const nutrition = PRIMARY.filter(({ key }) => summary.nutrients[key]).map(({ key, label, unit }) => `${label} ${round(summary.nutrients[key])} ${unit}`).join('・');
-  openSheet(`<div class="stack">
-    ${sheetHeader(formatDate(date))}
-    ${entries || '<p class="muted">這天沒有紀錄</p>'}
-    ${nutrition ? `<p class="muted">${esc(nutrition)}</p>` : ''}
-    ${date <= dateKey() ? `<button class="btn wide" data-action="diet-goto" data-date="${date}">補記飲食</button>
-    <button class="btn wide" data-action="workout-new" data-date="${date}">補記運動</button>` : ''}
+function recentWaterAmounts() {
+  const amounts = store.liveEvents()
+    .filter((e) => e.type === 'intake' && e.data.nutrients.water_ml)
+    .sort((a, b) => b.occurredAt - a.occurredAt)
+    .map((e) => e.data.nutrients.water_ml);
+  return [...new Set(amounts)].slice(0, 3);
+}
+
+function cardQuickActions(card, date) {
+  if (card.type === 'body') return '<button class="btn primary wide" data-action="body-new">記錄身體數據</button>';
+  if (card.type === 'sleep') return '<button class="btn primary wide" data-action="sleep-new">記錄睡眠</button>';
+  if (card.type === 'activity') return `<button class="btn primary wide" data-action="workout-new" data-date="${date}">記錄運動</button>`;
+  const recent = recentWaterAmounts().map((ml) => `<button class="chip" data-action="water-add" data-ml="${ml}">${ml} ml</button>`).join('');
+  return `<div class="water-entry">
+      ${recent ? `<div class="chips">${recent}</div>` : ''}
+      <div class="amount"><input id="water-input" type="number" inputmode="numeric" min="1" placeholder="喝了多少 ml" aria-label="這次喝了多少毫升">
+      <button class="btn" data-action="water-add">加入水分</button></div>
+    </div>
+    <div class="grid-2">
+      <button class="btn primary" data-action="meal-paste">貼上 Gemini</button>
+      <button class="btn" data-action="meal-manual">手動記餐</button>
+    </div>`;
+}
+
+function openCard(id) {
+  const card = cardsList().find((c) => c.id === id);
+  const type = CARD_TYPES[card.type];
+  state.cardId = id;
+  const date = state.recordDate ?? dateKey();
+  const [year, month] = state.month.split('-').map(Number);
+  const summary = summarizeDay(store.eventsOn(date));
+  const today = dateKey();
+  const cells = monthDates(state.month).map((d) => {
+    if (!d) return '<span></span>';
+    return `<button class="cal-day ${cardState(card, d)}${d === today ? ' today' : ''}${d === date ? ' selected' : ''}" data-action="card-date" data-date="${d}"${d > today ? ' disabled' : ''}>${parseDateKey(d).getDate()}</button>`;
+  }).join('');
+  const dows = ['一', '二', '三', '四', '五', '六', '日'].map((d) => `<span class="muted">${d}</span>`).join('');
+  const values = metricsOf(card).map((m) => `<div class="stat-row"><span>${m.label}</span><strong>${formatValue(m.read(summary))} ${m.unit}</strong></div>`).join('');
+
+  openSheet(`<div class="stack" style="--c:${type.color}">
+    ${sheetHeader(type.label)}
+    <div class="row">
+      <button class="icon-btn" data-action="card-month" data-delta="-1" aria-label="上個月">‹</button>
+      <strong>${year} 年 ${month} 月</strong>
+      <button class="icon-btn" data-action="card-month" data-delta="1" aria-label="下個月">›</button>
+    </div>
+    <div class="card-calendar">${dows}${cells}</div>
+    <p class="muted">${formatDate(date)}</p>
+    <div>${values}</div>
+    ${cardQuickActions(card, date)}
+    <button class="textlink" data-action="card-settings">卡片設定</button>
   </div>`);
 }
 
+function openCardsEditor() {
+  const cards = cardsList();
+  const rows = cards.map((card, i) => `<div class="row edit-row">
+    <button class="edit-name" data-action="card-settings" data-id="${esc(card.id)}">${CARD_TYPES[card.type].label}<span class="muted">${metricsOf(card).map((m) => m.label).join('・')}</span></button>
+    <div class="chips">
+      <button class="icon-btn" data-action="card-move" data-index="${i}" data-delta="-1" aria-label="往前"${i === 0 ? ' disabled' : ''}>↑</button>
+      <button class="icon-btn" data-action="card-move" data-index="${i}" data-delta="1" aria-label="往後"${i === cards.length - 1 ? ' disabled' : ''}>↓</button>
+    </div>
+  </div>`).join('');
+  const addButtons = Object.entries(CARD_TYPES).map(([key, type]) => `<button class="chip" data-action="card-add" data-type="${key}">＋ ${type.label}</button>`).join('');
+  openSheet(`<div class="stack">
+    ${sheetHeader('編輯卡片')}
+    <div>${rows || '<p class="muted">目前沒有卡片</p>'}</div>
+    <h2>新增卡片</h2>
+    <div class="chips">${addButtons}</div>
+  </div>`);
+}
+
+function openCardSettings(id) {
+  const card = cardsList().find((c) => c.id === id);
+  const type = CARD_TYPES[card.type];
+  state.cardId = id;
+  state.draft = { op: card.rule?.op ?? 'gte' };
+  const metricChips = type.metrics.map((m) => `<button type="button" class="chip${card.metrics.includes(m.key) ? ' active' : ''}" data-action="metric-toggle" data-value="${m.key}">${m.label}</button>`).join('');
+  const dayChips = WEEK_ORDER.map((d) => `<button type="button" class="chip${card.days?.includes(d) ? ' active' : ''}" data-action="chip-toggle" data-value="${d}">${WEEKDAYS[d]}</button>`).join('');
+  openSheet(`<form class="stack" data-form="card">
+    ${sheetHeader(`${type.label}設定`)}
+    <h2>顯示項目（最多 3 項）</h2>
+    <div class="chips" data-chip-list="metrics">${metricChips}</div>
+    <h2>哪幾天要做</h2>
+    <p class="muted">都不選就依預設顯示，不算設定目標。</p>
+    <div class="chips" data-chip-list="days">${dayChips}</div>
+    <h2>做到的條件</h2>
+    <p class="muted">留空就是有紀錄算做到。填了就用第一個顯示項目判斷。</p>
+    ${chipGroup('op', [{ value: 'gte', label: '至少' }, { value: 'lte', label: '至多' }], state.draft.op)}
+    ${numberField('ruleValue', '數值', card.rule?.value)}
+    <button class="btn primary wide">儲存</button>
+    <button type="button" class="btn danger wide" data-action="card-remove">移除這張卡片</button>
+  </form>`);
+}
+
+function saveCardSettings(form) {
+  const selected = (list) => [...form.querySelectorAll(`[data-chip-list="${list}"] .chip.active`)].map((c) => c.dataset.value);
+  const metrics = selected('metrics');
+  if (!metrics.length) { toast('至少選一個顯示項目'); return; }
+  const value = optionalNumber(new FormData(form).get('ruleValue'));
+  const update = { metrics, days: selected('days').map(Number), rule: value === null ? null : { op: state.draft.op, value } };
+  saveCards(cardsList().map((c) => (c.id === state.cardId ? { ...c, ...update } : c)));
+  closeSheet();
+  toast('已儲存');
+}
+
 function openSettings() {
-  const goal = goalFor(store.goals, dateKey());
   const account = store.user
     ? `<p class="muted">已登入：${esc(store.user.email)}</p><button type="button" class="btn wide" data-action="sign-out">登出</button>`
     : `<p class="muted">未登入，資料只存在這台裝置。登入後會自動上傳並跨裝置同步。</p>
        <button type="button" class="btn wide" data-action="sign-in"${store.canSignIn ? '' : ' disabled'}>使用 Google 登入</button>`;
 
-  openSheet(`<form class="stack" data-form="settings">
+  openSheet(`<div class="stack">
     ${sheetHeader('設定')}
     <section class="card stack"><h2>帳號</h2>${account}</section>
-    <section class="card stack"><h2>飲食</h2>
-      ${numberField('minMeals', '每天至少記幾餐算達成', goal.minMeals, 'min="1"')}
-      ${numberField('quick_water_ml', '喝水一次（ml）', goal.quick.water_ml)}
-    </section>
-    <button class="btn primary wide">儲存設定</button>
-    <button type="button" class="btn wide" data-action="export">匯出全部資料（JSON）</button>
-  </form>`);
+    <button class="btn wide" data-action="export">匯出全部資料（JSON）</button>
+  </div>`);
 }
 
 function saveGoalForm(form, kind) {
   const values = new FormData(form);
-  const goal = goalFor(store.goals, dateKey());
   if (kind === 'goal') {
     store.saveGoal({ body: {
       targetWeightKg: optionalNumber(values.get('targetWeightKg')),
@@ -632,13 +701,8 @@ function saveGoalForm(form, kind) {
       if (value !== null) targetOverrides[key] = value;
     }
     store.saveGoal({ targetOverrides });
-  } else if (kind === 'sleep-goal') {
-    store.saveGoal({ sleep: { hours: Number(values.get('hours')), bedtime: values.get('bedtime') } });
   } else {
-    store.saveGoal({
-      minMeals: Number(values.get('minMeals')) || 1,
-      quick: { ...goal.quick, water_ml: Number(values.get('quick_water_ml')) || goal.quick.water_ml },
-    });
+    store.saveGoal({ sleep: { hours: Number(values.get('hours')), bedtime: values.get('bedtime') } });
   }
   closeSheet();
   toast('已儲存');
@@ -677,29 +741,61 @@ function toast(message, undo = null) {
   toastTimer = setTimeout(() => { toastEl.hidden = true; }, 4000);
 }
 
-function logWater() {
-  const { quick } = goalFor(store.goals, dateKey());
-  const event = store.addEvent('intake', { label: '喝水', nutrients: { water_ml: quick.water_ml } });
-  toast(`已記錄喝水 ${quick.water_ml} ml`, () => store.deleteEvent(event.id));
+function logWater(ml) {
+  const date = state.recordDate ?? dateKey();
+  const event = store.addEvent('intake', { label: '喝水', nutrients: { water_ml: ml } }, { date });
+  toast(`已記錄水分 ${ml} ml`, () => store.deleteEvent(event.id));
+  openCard(state.cardId);
 }
 
 const actions = {
   tab: ({ tab }) => { state.tab = tab; render(); scrollTo(0, 0); },
   settings: openSettings,
   'sheet-close': closeSheet,
-  quick: logWater,
-  month: ({ delta }) => {
+  range: ({ range }) => { state.range = range; render(); },
+  'card-open': ({ id }) => { state.month = dateKey().slice(0, 7); state.recordDate = null; openCard(id); },
+  'card-month': ({ delta }) => {
     const date = parseDateKey(`${state.month}-01`);
     date.setMonth(date.getMonth() + Number(delta));
     state.month = dateKey(date).slice(0, 7);
-    render();
+    openCard(state.cardId);
   },
-  day: ({ date }) => openDay(date),
+  'card-date': ({ date }) => { state.recordDate = date; openCard(state.cardId); },
+  'water-add': ({ ml }) => {
+    const value = Number(ml ?? sheet.querySelector('#water-input').value);
+    if (value > 0) logWater(value);
+  },
+  'cards-edit': openCardsEditor,
+  'card-settings': ({ id }) => openCardSettings(id ?? state.cardId),
+  'card-move': ({ index, delta }) => {
+    const cards = [...cardsList()];
+    const from = Number(index);
+    const [card] = cards.splice(from, 1);
+    cards.splice(from + Number(delta), 0, card);
+    saveCards(cards);
+    openCardsEditor();
+  },
+  'card-add': ({ type }) => {
+    const metrics = CARD_TYPES[type].metrics.slice(0, 1).map((m) => m.key);
+    saveCards([...cardsList(), { id: crypto.randomUUID(), type, metrics }]);
+    openCardsEditor();
+  },
+  'card-remove': () => {
+    const previous = cardsList();
+    saveCards(previous.filter((c) => c.id !== state.cardId));
+    closeSheet();
+    toast('已移除卡片', () => saveCards(previous));
+  },
+  'metric-toggle': (_, target) => {
+    const active = target.closest('[data-chip-list]').querySelectorAll('.chip.active').length;
+    if (target.classList.contains('active') || active < 3) target.classList.toggle('active');
+    else toast('最多 3 項');
+  },
+  'chip-toggle': (_, target) => target.classList.toggle('active'),
   'diet-date': ({ delta }) => {
     const next = addDays(state.dietDate, Number(delta));
     if (next <= dateKey()) { state.dietDate = next; render(); }
   },
-  'diet-goto': ({ date }) => { closeSheet(); state.tab = 'diet'; state.dietDate = date; render(); scrollTo(0, 0); },
   'meal-paste': openPaste,
   'meal-manual': () => { state.draft = newMealDraft(); renderMealSheet(); },
   'meal-open': ({ id }) => openMeal(id),
@@ -751,7 +847,7 @@ const formHandlers = {
   goal: (form) => saveGoalForm(form, 'goal'),
   targets: (form) => saveGoalForm(form, 'targets'),
   'sleep-goal': (form) => saveGoalForm(form, 'sleep-goal'),
-  settings: (form) => saveGoalForm(form, 'settings'),
+  card: saveCardSettings,
 };
 
 sheet.addEventListener('submit', (event) => {
@@ -760,7 +856,11 @@ sheet.addEventListener('submit', (event) => {
 });
 
 // close 事件是非同步的，此時可能已經開了下一張表單
-sheet.addEventListener('close', () => { if (!sheet.open) state.draft = null; });
+sheet.addEventListener('close', () => {
+  if (sheet.open) return;
+  state.draft = null;
+  state.recordDate = null;
+});
 
 store.addEventListener('change', render);
 store.addEventListener('error', (event) => toast(`資料儲存失敗：${event.detail.message}`));

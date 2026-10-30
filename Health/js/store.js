@@ -144,9 +144,9 @@ class HealthStore extends EventTarget {
     return [...this.events.values()].filter((e) => !e.deletedAt);
   }
 
-  // 第一筆紀錄的日期；在這之前的日子不算未達成
-  trackingStart() {
-    return this.liveEvents().reduce((min, e) => (!min || e.date < min ? e.date : min), null);
+  // 第一筆紀錄的日期；在這之前的日子不算沒做到
+  firstRecordDate(eventTypes) {
+    return this.liveEvents().filter((e) => eventTypes.includes(e.type)).reduce((min, e) => (!min || e.date < min ? e.date : min), null);
   }
 
   addEvent(type, data, { date, source = 'manual', raw = null, attachmentIds = [] } = {}) {

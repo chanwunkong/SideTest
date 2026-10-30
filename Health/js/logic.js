@@ -12,8 +12,6 @@ export const DEFAULT_GOAL = {
   dayOverrides: { dayType: {}, weekday: {}, date: {} },
   workoutPlan: {},
   sleep: { hours: 7, bedtime: '23:00' },
-  minMeals: 2,
-  quick: { water_ml: 250, caffeine_mg: 100, creatine_g: 5 },
 };
 
 const ACTIVITY_FACTOR = { training: 1.6, rest: 1.3 };
@@ -106,25 +104,4 @@ export function summarizeDay(events) {
     if (def && event.schemaVersion <= def.version) def.summarize(day, event.data, event);
   }
   return day;
-}
-
-// 狀態：done 達成、missed 未達成、na 不適用、nodata 尚無資料（含今天還沒結束）
-const pending = (date, today, start) => date >= today || !start || date < start;
-
-export function dietStatus(day, date, today, goal, start) {
-  if (day.meals.length >= goal.minMeals) return 'done';
-  return pending(date, today, start) ? 'nodata' : 'missed';
-}
-
-export function workoutStatus(day, date, today, goal, start) {
-  if (day.workouts.length) return 'done';
-  if (!planFor(goal, date)) return 'na';
-  return pending(date, today, start) ? 'nodata' : 'missed';
-}
-
-export function sleepStatus(day, date, today, goal, start) {
-  const seconds = day.sleep.reduce((sum, s) => sum + s.data.durationSec, 0);
-  if (seconds >= goal.sleep.hours * 3600) return 'done';
-  if (seconds) return 'missed';
-  return pending(date, today, start) ? 'nodata' : 'missed';
 }
