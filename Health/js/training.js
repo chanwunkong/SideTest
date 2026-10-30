@@ -42,3 +42,43 @@ export function moveTotals(record) {
     .map((move, i) => ({ name: move.name, total: (move.metrics?.reps ?? 0) * sets + (extra[i] ?? 0) }))
     .filter((move) => move.total > 0);
 }
+
+// ---- 動作庫：使用者自己的動作，可以有上下層 ----
+
+const childrenOf = (list, parentId) => list
+  .filter((e) => (e.parentId ?? null) === parentId)
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+export function exerciseTree(list, parentId = null, depth = 0) {
+  return childrenOf(list, parentId).flatMap((exercise) => [{ exercise, depth }, ...exerciseTree(list, exercise.id, depth + 1)]);
+}
+
+export function descendantIds(list, id) {
+  return childrenOf(list, id).flatMap((child) => [child.id, ...descendantIds(list, child.id)]);
+}
+
+export function exercisePath(list, id, nameOf = (e) => e.name) {
+  const names = [];
+  const seen = new Set();
+  for (let current = list.find((e) => e.id === id); current && !seen.has(current.id); current = list.find((e) => e.id === current.parentId)) {
+    seen.add(current.id);
+    names.unshift(nameOf(current));
+  }
+  return names.join(' › ');
+}
+
+// 輸入可能是完整路徑或單一名稱，大小寫不影響比對
+export function resolveExercise(list, text, nameOf = (e) => e.name) {
+  const wanted = text.trim().toLowerCase();
+  return list.find((e) => exercisePath(list, e.id, nameOf).toLowerCase() === wanted)
+    ?? list.find((e) => nameOf(e).toLowerCase() === wanted || e.name.toLowerCase() === wanted)
+    ?? null;
+}
+
+// 累計次數可以合計到上層：深蹲包含底下的槓鈴全蹲
+export function exerciseTotal(records, list, id) {
+  const ids = new Set([id, ...descendantIds(list, id)]);
+  return records.reduce((total, { sets = 0, moves = [], extra = {} }) => total + moves.reduce((sum, move, i) => (
+    ids.has(move.exerciseId) ? sum + (move.metrics?.reps ?? 0) * sets + (extra[i] ?? 0) : sum
+  ), 0), 0);
+}

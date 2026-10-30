@@ -3,7 +3,7 @@ import { firebaseConfig } from './firebase-config.js';
 import { dateKey, goalFor } from './logic.js';
 import { normalizeEvent, registry } from './registry.js';
 
-const COLLECTIONS = ['events', 'goals', 'attachments', 'profile', 'trainings', 'schedules'];
+const COLLECTIONS = ['events', 'goals', 'attachments', 'profile', 'trainings', 'schedules', 'exercises'];
 
 class LocalBackend {
   #dbPromise = new Promise((resolve, reject) => {
@@ -66,6 +66,7 @@ class HealthStore extends EventTarget {
   profile = {};
   trainings = [];
   schedules = [];
+  exercises = [];
   #local = new LocalBackend();
   #backend = this.#local;
   #attachments = new Map();
@@ -110,12 +111,13 @@ class HealthStore extends EventTarget {
 
   async #load() {
     try {
-      const [events, goals, profile, trainings, schedules] = await Promise.all(['events', 'goals', 'profile', 'trainings', 'schedules'].map((c) => this.#backend.list(c)));
+      const [events, goals, profile, trainings, schedules, exercises] = await Promise.all(['events', 'goals', 'profile', 'trainings', 'schedules', 'exercises'].map((c) => this.#backend.list(c)));
       this.events = new Map(events.map((e) => [e.id, normalizeEvent(e)]));
       this.goals = goals;
       this.profile = profile[0] ?? {};
       this.trainings = trainings;
       this.schedules = schedules;
+      this.exercises = exercises;
       this.#changed();
     } catch (error) {
       this.#reportError(error);

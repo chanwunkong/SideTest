@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDates, weekDates } from '../js/cards.js';
 import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../js/logic.js';
-import { moveTotals, scheduleActiveOn, scheduleRemaining, targetSetsOn } from '../js/training.js';
+import { descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, resolveExercise, scheduleActiveOn, scheduleRemaining, targetSetsOn } from '../js/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
 import { normalizeEvent, registry } from '../js/registry.js';
 
@@ -146,6 +146,33 @@ test('目標套數未達成不算做到，沒設定就是有記錄算做到', ()
   assert.equal(targetSetsOn([{ ...schedule, targetSets: 5 }], today), 5);
 });
 
+const exercises = [
+  { id: 'squat', name: '深蹲', parentId: null },
+  { id: 'barbell', name: '槓鈴深蹲', parentId: 'squat' },
+  { id: 'full', name: '全蹲', parentId: 'barbell' },
+  { id: 'pull', name: 'Pull-up', parentId: null },
+];
+
+test('動作庫：上下層、路徑與名稱比對', () => {
+  assert.deepEqual(exerciseTree(exercises).map(({ exercise, depth }) => [exercise.id, depth]), [['pull', 0], ['squat', 0], ['barbell', 1], ['full', 2]]);
+  assert.deepEqual(descendantIds(exercises, 'squat'), ['barbell', 'full']);
+  assert.equal(exercisePath(exercises, 'full'), '深蹲 › 槓鈴深蹲 › 全蹲');
+  assert.equal(resolveExercise(exercises, '深蹲 › 槓鈴深蹲 › 全蹲').id, 'full');
+  assert.equal(resolveExercise(exercises, 'pull-UP').id, 'pull');
+  assert.equal(resolveExercise(exercises, '硬舉'), null);
+  assert.equal(exercisePath([{ id: 'a', name: 'A', parentId: 'b' }, { id: 'b', name: 'B', parentId: 'a' }], 'a'), 'B › A');
+});
+
+test('累計次數可以合計到上層', () => {
+  const records = [
+    { sets: 3, moves: [{ exerciseId: 'full', metrics: { reps: 10 } }, { exerciseId: 'pull', metrics: { reps: 5 } }], extra: { 0: 2 } },
+    { sets: 2, moves: [{ exerciseId: 'squat', metrics: { reps: 15 } }] },
+  ];
+  assert.equal(exerciseTotal(records, exercises, 'full'), 32);
+  assert.equal(exerciseTotal(records, exercises, 'squat'), 62);
+  assert.equal(exerciseTotal(records, exercises, 'pull'), 15);
+});
+
 test('總量用當天保存的動作內容，含另外多做的次數', () => {
   const moves = [{ name: '引體向上', metrics: { reps: 5 } }, { name: '懸吊', metrics: { holdSec: 10 } }];
   assert.deepEqual(moveTotals({ moves, sets: 6, extra: { 0: 3 } }), [{ name: '引體向上', total: 33 }]);
@@ -157,10 +184,10 @@ test('Gemini 回覆：容忍前後文字，拒絕錯誤內容', () => {
   const meal = parseMeal(['好的：', '```json', body, '```', '以上'].join('\n'));
   assert.equal(meal.nutrients.kcal, 750);
   assert.equal(meal.items[0].name, '便當');
-  assert.throws(() => parseMeal('今天吃得不錯'), /找不到資料/);
-  assert.throws(() => parseMeal('{"a":1}'), /不是餐點資料/);
-  assert.throws(() => parseMeal(`{"format":"${MEAL_FORMAT}","error":"not_food"}`), /不是食物/);
-  assert.throws(() => parseMeal(body.replace('750', '"很多"')), /數值有誤/);
+  assert.throws(() => parseMeal('今天吃得不錯'), /no_data/);
+  assert.throws(() => parseMeal('{"a":1}'), /not_meal/);
+  assert.throws(() => parseMeal(`{"format":"${MEAL_FORMAT}","error":"not_food"}`), /not_food/);
+  assert.throws(() => parseMeal(body.replace('750', '"很多"')), /bad_value/);
 });
 
 test('修改目標不影響生效日之前', () => {

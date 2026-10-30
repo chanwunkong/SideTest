@@ -30,21 +30,21 @@ const NUTRIENT_KEYS = ['water_ml', 'protein_g', 'carbs_g', 'fat_g', 'kcal', 'caf
 export function parseMeal(text) {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
-  if (start < 0 || end < start) throw new Error('找不到資料，請確認複製的是 Gemini 的完整回覆');
+  if (start < 0 || end < start) throw new Error('no_data');
   let data;
   try {
     data = JSON.parse(text.slice(start, end + 1));
   } catch {
-    throw new Error('格式有誤，請重新複製 Gemini 的回覆');
+    throw new Error('bad_format');
   }
-  if (data.format !== MEAL_FORMAT) throw new Error('這不是餐點資料，請先用 App 提供的提示詞');
-  if (data.error) throw new Error('Gemini 判斷照片裡不是食物');
-  if (!data.nutrients) throw new Error('回覆缺少營養數值');
+  if (data.format !== MEAL_FORMAT) throw new Error('not_meal');
+  if (data.error) throw new Error('not_food');
+  if (!data.nutrients) throw new Error('missing');
 
   const nutrients = {};
   for (const key of NUTRIENT_KEYS) {
     const value = Number(data.nutrients[key]);
-    if (!Number.isFinite(value) || value < 0) throw new Error(`數值有誤：${key}`);
+    if (!Number.isFinite(value) || value < 0) throw new Error('bad_value');
     nutrients[key] = value;
   }
   const items = (Array.isArray(data.items) ? data.items : []).map((i) => ({ name: String(i.name ?? ''), portion: String(i.portion ?? '') }));

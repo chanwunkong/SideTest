@@ -102,6 +102,22 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   assert.match(await activity.getAttribute('class'), /done/);
   await page.locator('.health-card', { hasText: '活動' }).getByText('6', { exact: true }).waitFor();
 
+  // 動作自動進入動作庫；建立下層動作後，上層累計包含下層
+  await tab('運動');
+  const library = page.locator('.card', { hasText: '動作庫' });
+  await library.getByRole('button', { name: '深蹲' }).waitFor();
+  await library.getByRole('button', { name: /新增/ }).click();
+  await page.fill('input[name=name]', '槓鈴深蹲');
+  await page.selectOption('select[name=parentId]', { label: '深蹲' });
+  await save();
+  await library.getByRole('button', { name: '槓鈴深蹲' }).click();
+  await page.getByText('累計次數').waitFor();
+  await page.locator('#sheet').getByRole('button', { name: '關閉' }).click();
+  await library.getByRole('button', { name: '深蹲', exact: true }).click();
+  await page.locator('.stat-row', { hasText: '累計次數' }).getByText('90').waitFor();
+  await page.screenshot({ path: `${shots}/exercise.png` });
+  await page.locator('#sheet').getByRole('button', { name: '關閉' }).click();
+
   // 修改訓練不影響舊紀錄
   await tab('運動');
   await page.locator('.card', { hasText: '訓練天數' }).getByText('6', { exact: true }).waitFor();
@@ -118,6 +134,16 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await button('English').click();
   await page.locator('.tabs').getByRole('button', { name: 'Training', exact: true }).click();
   await page.getByText('Schedules').waitFor();
+  await page.getByText('Exercise library').waitFor();
+  await page.locator('.tabs').getByRole('button', { name: 'Body', exact: true }).click();
+  await page.getByText('No body data yet').waitFor();
+  await page.locator('.tabs').getByRole('button', { name: 'Rest', exact: true }).click();
+  await page.getByText('Log sleep').waitFor();
+  await page.locator('.tabs').getByRole('button', { name: 'Today', exact: true }).click();
+  await page.getByText('Overview').waitFor();
+  const chinese = await page.evaluate(() => document.body.innerText.match(/[\u4e00-\u9fff]/g));
+  assert.equal(chinese, null, '英文模式首頁不應有中文');
+  await page.locator('.tabs').getByRole('button', { name: 'Training', exact: true }).click();
   await page.reload();
   await page.locator('.tabs').getByRole('button', { name: 'Food', exact: true }).waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

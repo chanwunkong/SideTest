@@ -4,7 +4,7 @@ import { addDays, dateKey, formatTarget, goalFor, nutritionTargetsFor, parseDate
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
 import { ACTIVITIES, INTENSITIES, NUTRIENTS } from './registry.js';
 import { healthStore as store } from './store.js';
-import { MODES, MOVE_METRICS, moveTotals, scheduleRemaining, schedulesOn, targetSetsOn } from './training.js';
+import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, resolveExercise, scheduleRemaining, schedulesOn, targetSetsOn } from './training.js';
 
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
@@ -21,18 +21,23 @@ const state = {
   draft: null,
 };
 
-const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+// 2023-01-01 是週日，用來取得當地語言的星期名稱
+const weekdayName = (day) => new Date(2023, 0, 1 + day).toLocaleDateString(lang, { weekday: 'narrow' });
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const PRIMARY = NUTRIENTS.filter((n) => n.primary);
 const SECONDARY = NUTRIENTS.filter((n) => !n.primary);
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const round = (value) => Math.round((value + Number.EPSILON) * 10) / 10;
-const intensityLabel = (key) => INTENSITIES.find((i) => i.key === key)?.label ?? '';
-const closeButton = '<button type="button" class="icon-btn" data-action="sheet-close" aria-label="關閉">✕</button>';
+const intensityLabel = (key) => t(`intensity.${key}`);
+const activityLabel = (name) => (ACTIVITIES.includes(name) ? t(`activity.${name}`) : name);
+const cardLabel = (type) => t(`cardType.${type}`);
+const metricLabel = (metric) => t(`cardMetric.${metric.key}`);
+const metricUnit = (metric) => (['hours', 'sets', 'minutes'].includes(metric.key) ? t(`cardUnit.${metric.key}`) : metric.unit);
+const closeButton = () => `<button type="button" class="icon-btn" data-action="sheet-close" aria-label="${t('common.close')}">✕</button>`;
 const hours = (seconds) => round(seconds / 3600);
 
-const sheetHeader = (title) => `<div class="row"><h2 style="margin:0">${title}</h2>${closeButton}</div>`;
+const sheetHeader = (title) => `<div class="row"><h2 style="margin:0">${title}</h2>${closeButton()}</div>`;
 
 // 每個身體項目各自找最新一筆，體重和體脂可以不同天量
 function latestMetric(key, date) {
@@ -55,6 +60,8 @@ function dayData(date) {
 
 const activeSchedules = () => store.activeDocs('schedules');
 const trainingById = (id) => store.trainings.find((training) => training.id === id);
+const activeExercises = () => store.activeDocs('exercises');
+const exerciseName = (exercise) => (lang === 'en' && exercise.nameEn) || exercise.name;
 
 const cardsList = () => store.profile.cards ?? DEFAULT_CARDS;
 const saveCards = (cards) => store.saveProfile({ cards });
@@ -65,7 +72,7 @@ function formatDate(key) {
 
 function mealText(meal) {
   const items = (meal.data.items || []).map((i) => i.name).join('、');
-  return items || meal.data.note || '未命名餐點';
+  return items || meal.data.note || t('common.unnamedMeal');
 }
 
 function workoutText({ data }) {
@@ -117,7 +124,7 @@ function renderTracker(cards, dates, selected) {
   const rows = cards.map((card) => {
     const type = CARD_TYPES[card.type];
     const marks = dates.map((date) => `<button class="mark ${cardState(card, date)}${date === selected ? ' today' : ''}" ${dateAttrs(date)} aria-label="${formatDate(date)}"></button>`).join('');
-    return `<div class="tracker-row" role="group" aria-label="${type.label}" style="--c:${type.color}">
+    return `<div class="tracker-row" role="group" aria-label="${cardLabel(card.type)}" style="--c:${type.color}">
       <svg class="card-icon on" viewBox="0 0 24 24" aria-hidden="true">${type.icon}</svg>${marks}
     </div>`;
   }).join('');
@@ -147,13 +154,13 @@ function renderCard(card, summary, date) {
   const shown = metrics.map((metric) => ({ metric, ...metricValue(metric, summary, card, date) }));
   const age = (item) => (item.age ? `<em>${item.age}</em>` : '');
   const values = shown.length === 1
-    ? `<div class="card-big">${formatValue(shown[0].value)}<small> ${shown[0].metric.unit}</small></div>${age(shown[0])}`
-    : `<div class="card-rows">${shown.map((item) => `<div><span>${item.metric.label}${age(item)}</span><strong>${formatValue(item.value)}</strong></div>`).join('')}</div>`;
+    ? `<div class="card-big">${formatValue(shown[0].value)}<small> ${metricUnit(shown[0].metric)}</small></div>${age(shown[0])}`
+    : `<div class="card-rows">${shown.map((item) => `<div><span>${metricLabel(item.metric)}${age(item)}</span><strong>${formatValue(item.value)}</strong></div>`).join('')}</div>`;
 
-  return `<button class="health-card" data-action="card-open" data-id="${esc(card.id)}" style="--c:${type.color}" aria-label="${type.label}${doneToday ? '，今天已做到' : ''}">
+  return `<button class="health-card" data-action="card-open" data-id="${esc(card.id)}" style="--c:${type.color}" aria-label="${cardLabel(card.type)}${doneToday ? t('home.doneToday') : ''}">
     <span class="card-head">
       <svg class="card-icon${doneToday ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true">${type.icon}</svg>
-      <span>${type.label}</span>
+      <span>${cardLabel(card.type)}</span>
     </span>
     ${values}
   </button>`;
@@ -169,18 +176,18 @@ function renderHome() {
   return `
     <header class="topbar">
       <div><h1>${formatDate(selected)}</h1>
-      ${selected === today ? '' : '<button class="textlink back-today" data-action="select-date" data-date="">回到今天</button>'}</div>
-      <div class="switch" role="group" aria-label="日曆範圍">
-        <button data-action="range" data-range="week" aria-pressed="${state.range === 'week'}">週</button>
-        <button data-action="range" data-range="month" aria-pressed="${state.range === 'month'}">月</button>
+      ${selected === today ? '' : `<button class="textlink back-today" data-action="select-date" data-date="">${t('common.back')}</button>`}</div>
+      <div class="switch" role="group" aria-label="${t('home.range')}">
+        <button data-action="range" data-range="week" aria-pressed="${state.range === 'week'}">${t('home.week')}</button>
+        <button data-action="range" data-range="month" aria-pressed="${state.range === 'month'}">${t('home.month')}</button>
       </div>
     </header>
     ${renderTracker(cards, dates, selected)}
     <div class="row overview-head">
-      <h2 style="margin:0">生理功能總覽</h2>
+      <h2 style="margin:0">${t('home.overview')}</h2>
       <div class="chips">
-        <button class="plain" data-action="cards-edit">編輯</button>
-        <button class="plain" data-action="settings" aria-label="設定">⚙</button>
+        <button class="plain" data-action="cards-edit">${t('home.edit')}</button>
+        <button class="plain" data-action="settings" aria-label="${t('home.settings')}">⚙</button>
       </div>
     </div>
     <section class="health-cards">${cards.map((card) => renderCard(card, summary, selected)).join('')}</section>`;
@@ -188,12 +195,12 @@ function renderHome() {
 
 function mealEntry(meal) {
   const { kcal, protein_g: protein } = meal.data.nutrients ?? {};
-  const image = meal.attachmentIds[0] ? `<img data-attachment="${esc(meal.attachmentIds[0])}" alt="餐點照片">` : '';
+  const image = meal.attachmentIds[0] ? `<img data-attachment="${esc(meal.attachmentIds[0])}" alt="${t('common.mealPhoto')}">` : '';
   return `<button class="entry" data-action="meal-open" data-id="${esc(meal.id)}">
     ${image}
     <span class="entry-body">
       <strong>${esc(mealText(meal))}</strong>
-      <span class="muted">${kcal ? `${Math.round(kcal)} kcal・` : ''}蛋白質 ${round(protein || 0)} g</span>
+      <span class="muted">${kcal ? `${Math.round(kcal)} kcal・` : ''}${t('diet.proteinLine', { n: round(protein || 0) })}</span>
     </span>
   </button>`;
 }
@@ -283,13 +290,17 @@ function renderWorkout() {
       }).join('')}
     </section>
     <section class="card">
+      <div class="row"><h2 style="margin:0">${t('exercise.library')}</h2><button class="plain" data-action="exercise-edit">＋ ${t('common.add')}</button></div>
+      ${exerciseTree(activeExercises()).map(({ exercise, depth }) => `<button class="plan-row" style="padding-left:${depth * 18}px" data-action="exercise-edit" data-id="${esc(exercise.id)}"><span>${esc(exerciseName(exercise))}</span></button>`).join('') || `<p class="muted">${t('exercise.empty')}</p>`}
+    </section>
+    <section class="card">
       <div class="row"><h2 style="margin:0">${t('workout.trainings')}</h2><button class="plain" data-action="training-edit">＋ ${t('common.add')}</button></div>
       ${trainings.map((training) => `<button class="plan-row" data-action="training-edit" data-id="${esc(training.id)}"><span>${esc(training.name)}</span><span class="muted">${t(`mode.${training.mode}`)}</span></button>`).join('') || `<p class="muted">${t('workout.noTrainings')}</p>`}
     </section>
     <section class="card">
       <h2>${t('workout.recent')}</h2>
       ${recent.map((w) => `<button class="entry" data-action="workout-open" data-id="${esc(w.id)}">
-        <span class="entry-body"><strong>${esc(w.data.activity)}</strong><span class="muted">${formatDate(w.date)}・${esc(workoutText(w))}</span></span>
+        <span class="entry-body"><strong>${esc(activityLabel(w.data.activity))}</strong><span class="muted">${formatDate(w.date)}・${esc(workoutText(w))}</span></span>
       </button>`).join('') || `<p class="muted">${t('workout.noRecords')}</p>`}
     </section>`;
 }
@@ -302,21 +313,21 @@ function renderRest() {
   const average = rows.length ? rows.reduce((sum, s) => sum + s.data.durationSec, 0) / rows.length : 0;
 
   return `
-    <header class="topbar"><h1>休息</h1></header>
+    <header class="topbar"><h1>${t('rest.title')}</h1></header>
     <section class="focus">
-      <div class="focus-main">今晚建議 ${esc(goal.sleep.bedtime)} 前上床</div>
-      <div class="muted">睡眠目標 ${goal.sleep.hours} 小時</div>
+      <div class="focus-main">${t('rest.bedtime', { time: esc(goal.sleep.bedtime) })}</div>
+      <div class="muted">${t('rest.goal', { n: goal.sleep.hours })}</div>
       <div class="focus-actions">
-        <button class="btn primary" data-action="sleep-new">記錄睡眠</button>
-        <button class="btn" data-action="sleep-goal">調整目標</button>
+        <button class="btn primary" data-action="sleep-new">${t('rest.log')}</button>
+        <button class="btn" data-action="sleep-goal">${t('rest.adjust')}</button>
       </div>
     </section>
     <section class="card">
-      <h2>最近 7 天</h2>
-      ${rows.length ? `<div class="stat-row"><span>平均</span><strong>${hours(average)} 小時</strong></div>` : ''}
+      <h2>${t('rest.week')}</h2>
+      ${rows.length ? `<div class="stat-row"><span>${t('rest.average')}</span><strong>${t('rest.hours', { n: hours(average) })}</strong></div>` : ''}
       ${rows.map((s) => `<button class="entry" data-action="sleep-open" data-id="${esc(s.id)}">
-        <span class="entry-body"><strong>${hours(s.data.durationSec)} 小時</strong><span class="muted">${formatDate(s.date)} 起床</span></span>
-      </button>`).join('') || '<p class="muted">還沒有睡眠紀錄</p>'}
+        <span class="entry-body"><strong>${t('rest.hours', { n: hours(s.data.durationSec) })}</strong><span class="muted">${t('rest.woke', { date: formatDate(s.date) })}</span></span>
+      </button>`).join('') || `<p class="muted">${t('rest.none')}</p>`}
     </section>`;
 }
 
@@ -331,25 +342,31 @@ function renderBody() {
   const records = store.liveEvents().filter((e) => e.type === 'body').sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 7);
   const hasGoal = goal.body.targetDate && (goal.body.targetWeightKg || goal.body.targetBodyFat);
 
+  const bodyLine = (data) => [
+    data.weightKg && `${data.weightKg} kg`,
+    data.bodyFat && t('body.fat', { n: data.bodyFat }),
+    data.muscleKg && t('body.muscle', { n: data.muscleKg }),
+  ].filter(Boolean).join('・');
+
   return `
-    <header class="topbar"><h1>身體</h1></header>
+    <header class="topbar"><h1>${t('body.title')}</h1></header>
     <section class="focus">
-      <div class="focus-main">${body ? [body.weightKg && `${body.weightKg} kg`, body.bodyFat && `體脂 ${body.bodyFat}%`].filter(Boolean).join('・') : '還沒有身體數據'}</div>
+      <div class="focus-main">${body ? bodyLine(body) : t('body.none')}</div>
       ${bmi ? `<div class="muted">BMI ${bmi}・${formatDate(body.date)}</div>` : ''}
       <div class="focus-actions">
-        <button class="btn primary" data-action="body-new">記錄數據</button>
-        <button class="btn" data-action="profile-edit">基本資料</button>
+        <button class="btn primary" data-action="body-new">${t('body.log')}</button>
+        <button class="btn" data-action="profile-edit">${t('body.profile')}</button>
       </div>
     </section>
     <section class="card">
-      <div class="row"><h2 style="margin:0">目標</h2><button class="btn" data-action="goal-edit">${hasGoal ? '修改' : '設定'}</button></div>
-      ${hasGoal ? `<p style="margin-top:8px">${goalWeight ? `${round(goalWeight)} kg` : `體脂 ${goal.body.targetBodyFat}%`}・${formatDate(goal.body.targetDate)} 前</p>` : '<p class="muted" style="margin-top:8px">還沒有設定目標</p>'}
+      <div class="row"><h2 style="margin:0">${t('body.goal')}</h2><button class="btn" data-action="goal-edit">${t(hasGoal ? 'body.edit' : 'body.set')}</button></div>
+      ${hasGoal ? `<p style="margin-top:8px">${goalWeight ? `${round(goalWeight)} kg` : t('body.fat', { n: goal.body.targetBodyFat })}・${t('body.before', { date: formatDate(goal.body.targetDate) })}</p>` : `<p class="muted" style="margin-top:8px">${t('body.noGoal')}</p>`}
     </section>
     <section class="card">
-      <h2>最近紀錄</h2>
+      <h2>${t('common.recent')}</h2>
       ${records.map((r) => `<button class="entry" data-action="body-open" data-id="${esc(r.id)}">
-        <span class="entry-body"><strong>${[r.data.weightKg && `${r.data.weightKg} kg`, r.data.bodyFat && `體脂 ${r.data.bodyFat}%`, r.data.muscleKg && `肌肉 ${r.data.muscleKg} kg`].filter(Boolean).join('・')}</strong><span class="muted">${formatDate(r.date)}</span></span>
-      </button>`).join('') || '<p class="muted">還沒有紀錄</p>'}
+        <span class="entry-body"><strong>${bodyLine(r.data)}</strong><span class="muted">${formatDate(r.date)}</span></span>
+      </button>`).join('') || `<p class="muted">${t('common.noRecords')}</p>`}
     </section>`;
 }
 
@@ -369,16 +386,16 @@ function closeSheet() {
 
 const numberField = (name, label, value, attrs = '') => `<label class="field"><span>${label}</span>
   <input ${attrs} type="number" inputmode="decimal" min="0" step="any" name="${name}" value="${value ?? ''}"></label>`;
-const dateField = (value) => `<label class="field"><span>日期</span><input type="date" name="date" max="${dateKey()}" value="${value}" required></label>`;
-const deleteButton = '<button type="button" class="btn danger wide" data-action="event-delete">刪除</button>';
+const dateField = (value) => `<label class="field"><span>${t('common.date')}</span><input type="date" name="date" max="${dateKey()}" value="${value}" required></label>`;
+const deleteButton = () => `<button type="button" class="btn danger wide" data-action="event-delete">${t('common.delete')}</button>`;
 const optionalNumber = (value) => (value === '' || value === null ? null : Number(value));
 
 function openPrompt() {
   openSheet(`<div class="stack">
-    ${sheetHeader('Gemini 提示詞')}
-    <p class="muted">建議存成 Gemini 的 Gem，之後只要拍照；不能用 Gem 就每次先貼這段。</p>
-    <button class="btn primary wide" data-action="prompt-copy">複製提示詞</button>
-    <label class="field"><span>提示詞內容</span><textarea readonly rows="10">${esc(GEMINI_PROMPT)}</textarea></label>
+    ${sheetHeader(t('prompt.title'))}
+    <p class="muted">${t('prompt.hint')}</p>
+    <button class="btn primary wide" data-action="prompt-copy">${t('prompt.copy')}</button>
+    <label class="field"><span>${t('prompt.content')}</span><textarea readonly rows="10">${esc(GEMINI_PROMPT)}</textarea></label>
   </div>`);
 }
 
@@ -387,7 +404,7 @@ function openPaste() {
     ${sheetHeader(t('diet.pasteTitle'))}
     <label class="field"><span>${t('diet.pasteHint')}</span><textarea name="text" id="paste-text"></textarea></label>
     <p class="muted" id="paste-error"></p>
-    <button class="btn wide">確認</button>
+    <button class="btn wide">${t('common.confirm')}</button>
     <button type="button" class="textlink" data-action="prompt-show">${t('diet.prompt')}</button>
   </form>`);
   sheet.querySelector('#paste-text').addEventListener('paste', (event) => {
@@ -402,7 +419,7 @@ function importMeal(text) {
     state.draft = { ...newMealDraft(), ...meal, source: 'gemini_paste' };
     renderMealSheet();
   } catch (error) {
-    sheet.querySelector('#paste-error').textContent = error.message;
+    sheet.querySelector('#paste-error').textContent = t(`paste.${error.message}`);
   }
 }
 
@@ -414,16 +431,16 @@ function renderMealSheet() {
   const { draft } = state;
   const field = ({ key, unit }) => numberField(key, `${t(`nutrient.${key}`)}（${unit}）`, draft.nutrients[key]);
   const items = draft.items.map((i) => `${esc(i.name)}（${esc(i.portion)}）`).join('、');
-  const confidence = { low: '低', medium: '中', high: '高' }[draft.confidence];
+  const confidence = draft.confidence ? t(`confidence.${draft.confidence}`) : '';
 
   openSheet(`<form class="stack" data-form="meal">
     ${sheetHeader(t(draft.id ? 'diet.editMeal' : 'diet.confirm'))}
-    ${items ? `<p class="muted">${items}${confidence ? `｜可信度：${confidence}` : ''}</p>` : ''}
+    ${items ? `<p class="muted">${items}${confidence ? `｜${t('confidence.label', { level: confidence })}` : ''}</p>` : ''}
     <label class="field"><span>${t('diet.note')}</span><input name="note" value="${esc(draft.note)}"></label>
     <div class="grid-2">${PRIMARY.map(field).join('')}</div>
     <details><summary>${t('diet.more')}</summary><div class="grid-2">${SECONDARY.map(field).join('')}</div></details>
     <button class="btn primary wide">${t('common.save')}</button>
-    ${draft.id ? deleteButton : ''}
+    ${draft.id ? deleteButton() : ''}
   </form>`);
 }
 
@@ -454,7 +471,7 @@ function openMeal(id) {
 }
 
 const chipGroup = (name, options, active) => `<div class="chips" data-chip-group="${name}">${options.map((o) => `<button type="button" class="chip${o.value === active ? ' active' : ''}" data-action="chip" data-value="${esc(o.value)}">${esc(o.label)}</button>`).join('')}</div>`;
-const activityOptions = ACTIVITIES.map((a) => ({ value: a, label: a }));
+const activityOptions = () => ACTIVITIES.map((a) => ({ value: a, label: activityLabel(a) }));
 
 function openWorkout(id = null, date = dateKey()) {
   const event = id ? store.events.get(id) : null;
@@ -464,14 +481,14 @@ function openWorkout(id = null, date = dateKey()) {
   state.draft = { id, date: event?.date ?? date, activity, intensity };
   const minutes = event ? Math.round(event.data.durationSec / 60) : 60;
   openSheet(`<form class="stack" data-form="workout">
-    ${sheetHeader(id ? '修改運動' : '記錄運動')}
-    ${chipGroup('activity', activityOptions, activity)}
-    ${numberField('minutes', '時間（分鐘）', minutes, 'min="1" required')}
-    ${chipGroup('intensity', INTENSITIES.map((i) => ({ value: i.key, label: i.label })), intensity)}
+    ${sheetHeader(t(id ? 'workout.edit' : 'workout.log'))}
+    ${chipGroup('activity', activityOptions(), activity)}
+    ${numberField('minutes', t('workout.minutesField'), minutes, 'min="1" required')}
+    ${chipGroup('intensity', INTENSITIES.map((i) => ({ value: i.key, label: intensityLabel(i.key) })), intensity)}
     ${dateField(state.draft.date)}
-    <label class="field"><span>備註</span><input name="note" value="${esc(event?.data.note)}"></label>
-    <button class="btn primary wide">儲存</button>
-    ${id ? deleteButton : ''}
+    <label class="field"><span>${t('workout.note')}</span><input name="note" value="${esc(event?.data.note)}"></label>
+    <button class="btn primary wide">${t('common.save')}</button>
+    ${id ? deleteButton() : ''}
   </form>`);
 }
 
@@ -489,7 +506,7 @@ function openRecord(trainingId, date = dateKey(), event = null) {
     ${extras || rest ? `<details><summary>${t('record.detail')}</summary><div class="stack" style="margin-top:10px">${extras}${rest}</div></details>` : ''}
     ${dateField(event?.date ?? date)}
     <button class="btn primary wide">${t(mode === 'sets' ? 'common.save' : 'record.done')}</button>
-    ${event ? deleteButton : ''}
+    ${event ? deleteButton() : ''}
   </form>`);
 }
 
@@ -529,13 +546,17 @@ function readTrainingForm(form) {
   }));
 }
 
+function moveInputValue(move) {
+  return move.exerciseId ? exercisePath(activeExercises(), move.exerciseId, exerciseName) || move.name : move.name;
+}
+
 function moveFields(move, i) {
   const metricField = ({ key, type }) => `<label class="field"><span>${t(`metric.${key}`)}</span>
     <input name="move-${key}-${i}" type="${type}" ${type === 'number' ? 'inputmode="decimal" min="0" step="any"' : ''} value="${esc(move.metrics?.[key])}"></label>`;
   const [reps, ...more] = MOVE_METRICS;
   return `<div class="move-row">
     <div class="grid-2">
-      <label class="field"><span>${t('training.moveName')}</span><input name="move-name-${i}" value="${esc(move.name)}" required></label>
+      <label class="field"><span>${t('training.moveName')}</span><input name="move-name-${i}" list="exercise-options" autocomplete="off" value="${esc(moveInputValue(move))}" required></label>
       ${metricField(reps)}
     </div>
     <details><summary>${t('training.moreMetrics')}</summary><div class="grid-2">${more.map(metricField).join('')}</div></details>
@@ -550,6 +571,7 @@ function renderTrainingSheet() {
     <h2>${t('training.mode')}</h2>
     ${chipGroup('mode', MODES.map((value) => ({ value, label: t(`mode.${value}`) })), draft.mode)}
     <h2>${t('training.moves')}</h2>
+    <datalist id="exercise-options">${exerciseTree(activeExercises()).map(({ exercise }) => `<option value="${esc(exercisePath(activeExercises(), exercise.id, exerciseName))}"></option>`).join('')}</datalist>
     ${draft.moves.map(moveFields).join('')}
     <button type="button" class="btn wide" data-action="move-add">＋ ${t('training.addMove')}</button>
     <label class="check"><input type="checkbox" name="trackRest"${draft.trackRest ? ' checked' : ''}> ${t('training.trackRest')}</label>
@@ -564,9 +586,61 @@ function openTraining(id) {
   renderTrainingSheet();
 }
 
+// 找不到的動作自動加入動作庫，訓練只引用動作編號
+function linkMove(move) {
+  const text = move.name?.trim();
+  if (!text) return move;
+  const exercise = resolveExercise(activeExercises(), text, exerciseName)
+    ?? store.saveDoc('exercises', { name: text, nameEn: '', parentId: null });
+  return { ...move, exerciseId: exercise.id, name: exerciseName(exercise) };
+}
+
 function saveTraining(form) {
   readTrainingForm(form);
-  store.saveDoc('trainings', state.draft);
+  store.saveDoc('trainings', { ...state.draft, moves: state.draft.moves.map(linkMove) });
+  closeSheet();
+}
+
+// 舊訓練的動作只有名稱，第一次載入時連到動作庫
+function linkExistingTrainings() {
+  for (const training of store.activeDocs('trainings')) {
+    if (training.moves.some((move) => !move.exerciseId && move.name)) {
+      store.saveDoc('trainings', { ...training, moves: training.moves.map(linkMove) });
+    }
+  }
+}
+
+function openExercise(id) {
+  const list = activeExercises();
+  const exercise = id ? list.find((e) => e.id === id) : null;
+  state.draft = { id: exercise?.id, name: exercise?.name ?? '', nameEn: exercise?.nameEn ?? '', parentId: exercise?.parentId ?? null };
+  const blocked = id ? new Set([id, ...descendantIds(list, id)]) : new Set();
+  const parents = exerciseTree(list).filter((row) => !blocked.has(row.exercise.id)).map(({ exercise: option, depth }) => (
+    `<option value="${esc(option.id)}"${option.id === state.draft.parentId ? ' selected' : ''}>${'　'.repeat(depth)}${esc(exerciseName(option))}</option>`
+  )).join('');
+  const records = store.liveEvents().filter((e) => e.type === 'workout').map((e) => e.data);
+  openSheet(`<form class="stack" data-form="exercise">
+    ${sheetHeader(t(id ? 'exercise.edit' : 'exercise.new'))}
+    <label class="field"><span>${t('exercise.name')}</span><input name="name" value="${esc(state.draft.name)}" required></label>
+    <label class="field"><span>${t('exercise.nameEn')}</span><input name="nameEn" value="${esc(state.draft.nameEn)}"></label>
+    <label class="field"><span>${t('exercise.parent')}</span><select name="parentId"><option value="">${t('exercise.noParent')}</option>${parents}</select></label>
+    ${id ? `<div class="stat-row"><span>${t('exercise.total')}</span><strong>${exerciseTotal(records, list, id)}</strong></div>` : ''}
+    <button class="btn primary wide">${t('common.save')}</button>
+    ${id ? `<button type="button" class="btn danger wide" data-action="exercise-delete">${t('common.delete')}</button><p class="muted">${t('exercise.deleteHint')}</p>` : ''}
+  </form>`);
+}
+
+function saveExercise(form) {
+  const values = new FormData(form);
+  store.saveDoc('exercises', { ...state.draft, name: values.get('name').trim(), nameEn: values.get('nameEn').trim(), parentId: values.get('parentId') || null });
+  closeSheet();
+}
+
+function deleteExercise() {
+  const { id, parentId } = state.draft;
+  const exercise = activeExercises().find((e) => e.id === id);
+  activeExercises().filter((e) => e.parentId === id).forEach((child) => store.saveDoc('exercises', { ...child, parentId: parentId ?? null }));
+  store.saveDoc('exercises', { ...exercise, deletedAt: Date.now() });
   closeSheet();
 }
 
@@ -575,7 +649,7 @@ function openSchedule(id) {
   if (!trainings.length) { openTraining(); return; }
   const schedule = id ? activeSchedules().find((s) => s.id === id) : null;
   state.draft = schedule ? { ...schedule } : { trainingId: trainings[0].id };
-  const days = WEEK_ORDER.map((d) => `<button type="button" class="chip${schedule?.weekdays?.includes(d) ? ' active' : ''}" data-action="chip-toggle" data-value="${d}">${WEEKDAYS[d]}</button>`).join('');
+  const days = WEEK_ORDER.map((d) => `<button type="button" class="chip${schedule?.weekdays?.includes(d) ? ' active' : ''}" data-action="chip-toggle" data-value="${d}">${weekdayName(d)}</button>`).join('');
   openSheet(`<form class="stack" data-form="schedule">
     ${sheetHeader(t(id ? 'common.edit' : 'workout.newSchedule'))}
     <h2>${t('schedule.training')}</h2>
@@ -611,18 +685,18 @@ function saveWorkout(form) {
   if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt: new Date(`${date}T12:00:00`).getTime() });
   else store.addEvent('workout', data, { date });
   closeSheet();
-  toast('已記錄運動');
+  toast(t('workout.saved'));
 }
 
 function openSleep(id = null) {
   const event = id ? store.events.get(id) : null;
   state.draft = { id };
   openSheet(`<form class="stack" data-form="sleep">
-    ${sheetHeader('記錄睡眠')}
-    ${numberField('hours', '睡了幾小時', event ? hours(event.data.durationSec) : '', 'min="0.5" required')}
+    ${sheetHeader(t('rest.log'))}
+    ${numberField('hours', t('rest.howLong'), event ? hours(event.data.durationSec) : '', 'min="0.5" required')}
     ${dateField(event?.date ?? state.recordDate ?? dateKey())}
-    <button class="btn primary wide">儲存</button>
-    ${id ? deleteButton : ''}
+    <button class="btn primary wide">${t('common.save')}</button>
+    ${id ? deleteButton() : ''}
   </form>`);
 }
 
@@ -634,16 +708,16 @@ function saveSleep(form) {
   if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt: new Date(`${date}T12:00:00`).getTime() });
   else store.addEvent('sleep', data, { date });
   closeSheet();
-  toast('已記錄睡眠');
+  toast(t('rest.saved'));
 }
 
 function openSleepGoal() {
   const { sleep } = goalFor(store.goals, dateKey());
   openSheet(`<form class="stack" data-form="sleep-goal">
-    ${sheetHeader('睡眠目標')}
-    ${numberField('hours', '每晚目標（小時）', sleep.hours, 'min="1" required')}
-    <label class="field"><span>建議上床時間</span><input type="time" name="bedtime" value="${esc(sleep.bedtime)}" required></label>
-    <button class="btn primary wide">儲存</button>
+    ${sheetHeader(t('rest.goalTitle'))}
+    ${numberField('hours', t('rest.nightly'), sleep.hours, 'min="1" required')}
+    <label class="field"><span>${t('rest.bedtimeField')}</span><input type="time" name="bedtime" value="${esc(sleep.bedtime)}" required></label>
+    <button class="btn primary wide">${t('common.save')}</button>
   </form>`);
 }
 
@@ -651,15 +725,15 @@ function openBody(id = null) {
   const event = id ? store.events.get(id) : null;
   state.draft = { id };
   openSheet(`<form class="stack" data-form="body">
-    ${sheetHeader('記錄身體數據')}
-    ${numberField('weightKg', '體重（kg）', event?.data.weightKg)}
+    ${sheetHeader(t('body.logTitle'))}
+    ${numberField('weightKg', t('body.weight'), event?.data.weightKg)}
     <div class="grid-2">
-      ${numberField('bodyFat', '體脂（%）', event?.data.bodyFat)}
-      ${numberField('muscleKg', '肌肉量（kg）', event?.data.muscleKg)}
+      ${numberField('bodyFat', t('body.fatField'), event?.data.bodyFat)}
+      ${numberField('muscleKg', t('body.muscleField'), event?.data.muscleKg)}
     </div>
     ${dateField(event?.date ?? state.recordDate ?? dateKey())}
-    <button class="btn primary wide">儲存</button>
-    ${id ? deleteButton : ''}
+    <button class="btn primary wide">${t('common.save')}</button>
+    ${id ? deleteButton() : ''}
   </form>`);
 }
 
@@ -668,11 +742,11 @@ function saveBody(form) {
   const values = new FormData(form);
   const date = values.get('date');
   const data = { weightKg: optionalNumber(values.get('weightKg')), bodyFat: optionalNumber(values.get('bodyFat')), muscleKg: optionalNumber(values.get('muscleKg')) };
-  if (!data.weightKg && !data.bodyFat && !data.muscleKg) { toast('至少填一項'); return; }
+  if (!data.weightKg && !data.bodyFat && !data.muscleKg) { toast(t('body.fillOne')); return; }
   if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt: new Date(`${date}T12:00:00`).getTime() });
   else store.addEvent('body', data, { date });
   closeSheet();
-  toast('已記錄身體數據');
+  toast(t('body.saved'));
 }
 
 function openProfile() {
@@ -680,26 +754,26 @@ function openProfile() {
   const sex = profile.sex ?? '';
   state.draft = { sex };
   openSheet(`<form class="stack" data-form="profile">
-    ${sheetHeader('基本資料')}
-    ${numberField('heightCm', '身高（cm）', profile.heightCm)}
-    ${numberField('birthYear', '出生年（西元）', profile.birthYear)}
-    ${chipGroup('sex', [{ value: 'male', label: '男' }, { value: 'female', label: '女' }], sex)}
-    <p class="muted">只用來估算基礎代謝。有體脂紀錄時改用體脂計算。</p>
-    <button class="btn primary wide">儲存</button>
+    ${sheetHeader(t('body.profile'))}
+    ${numberField('heightCm', t('body.height'), profile.heightCm)}
+    ${numberField('birthYear', t('body.birthYear'), profile.birthYear)}
+    ${chipGroup('sex', [{ value: 'male', label: t('body.male') }, { value: 'female', label: t('body.female') }], sex)}
+    <p class="muted">${t('body.profileHint')}</p>
+    <button class="btn primary wide">${t('common.save')}</button>
   </form>`);
 }
 
 function openGoal() {
   const { body } = goalFor(store.goals, dateKey());
   openSheet(`<form class="stack" data-form="goal">
-    ${sheetHeader('目標')}
-    <p class="muted">目標體重和目標體脂填一個就好，兩個都填時以體重為準。</p>
+    ${sheetHeader(t('body.goal'))}
+    <p class="muted">${t('body.goalHint')}</p>
     <div class="grid-2">
-      ${numberField('targetWeightKg', '目標體重（kg）', body.targetWeightKg)}
-      ${numberField('targetBodyFat', '目標體脂（%）', body.targetBodyFat)}
+      ${numberField('targetWeightKg', t('body.targetWeight'), body.targetWeightKg)}
+      ${numberField('targetBodyFat', t('body.targetFat'), body.targetBodyFat)}
     </div>
-    <label class="field"><span>目標日期</span><input type="date" name="targetDate" min="${addDays(dateKey(), 1)}" value="${esc(body.targetDate)}"></label>
-    <button class="btn primary wide">儲存</button>
+    <label class="field"><span>${t('body.targetDate')}</span><input type="date" name="targetDate" min="${addDays(dateKey(), 1)}" value="${esc(body.targetDate)}"></label>
+    <button class="btn primary wide">${t('common.save')}</button>
   </form>`);
 }
 
@@ -731,8 +805,8 @@ function recentWaterAmounts() {
 }
 
 function cardQuickActions(card, date) {
-  if (card.type === 'body') return '<button class="btn primary wide" data-action="body-new">記錄身體數據</button>';
-  if (card.type === 'sleep') return '<button class="btn primary wide" data-action="sleep-new">記錄睡眠</button>';
+  if (card.type === 'body') return `<button class="btn primary wide" data-action="body-new">${t('body.logTitle')}</button>`;
+  if (card.type === 'sleep') return `<button class="btn primary wide" data-action="sleep-new">${t('rest.log')}</button>`;
   if (card.type === 'activity') {
     const scheduled = schedulesOn(activeSchedules(), date).filter((x) => trainingById(x.trainingId));
     const buttons = scheduled.map((x) => `<button class="btn primary wide" data-action="record-open" data-id="${esc(x.trainingId)}" data-date="${date}">${esc(trainingById(x.trainingId).name)}</button>`).join('');
@@ -741,12 +815,12 @@ function cardQuickActions(card, date) {
   const recent = recentWaterAmounts().map((ml) => `<button class="chip" data-action="water-add" data-ml="${ml}">${ml} ml</button>`).join('');
   return `<div class="water-entry">
       ${recent ? `<div class="chips">${recent}</div>` : ''}
-      <div class="amount"><input id="water-input" type="number" inputmode="numeric" min="1" placeholder="喝了多少 ml" aria-label="這次喝了多少毫升">
-      <button class="btn" data-action="water-add">加入水分</button></div>
+      <div class="amount"><input id="water-input" type="number" inputmode="numeric" min="1" placeholder="${t('diet.waterPlaceholder')}" aria-label="${t('diet.waterLabel')}">
+      <button class="btn" data-action="water-add">${t('diet.addWater')}</button></div>
     </div>
     <div class="grid-2">
-      <button class="btn primary" data-action="meal-paste">貼上 Gemini</button>
-      <button class="btn" data-action="meal-manual">手動記餐</button>
+      <button class="btn primary" data-action="meal-paste">${t('diet.pasteShort')}</button>
+      <button class="btn" data-action="meal-manual">${t('diet.manualShort')}</button>
     </div>`;
 }
 
@@ -762,38 +836,38 @@ function openCard(id) {
     if (!d) return '<span></span>';
     return `<button class="cal-day ${cardState(card, d)}${d === today ? ' today' : ''}${d === date ? ' selected' : ''}" data-action="card-date" data-date="${d}"${d > today ? ' disabled' : ''}>${parseDateKey(d).getDate()}</button>`;
   }).join('');
-  const dows = ['一', '二', '三', '四', '五', '六', '日'].map((d) => `<span class="muted">${d}</span>`).join('');
-  const values = metricsOf(card).map((m) => `<div class="stat-row"><span>${m.label}</span><strong>${formatValue(m.read(summary))} ${m.unit}</strong></div>`).join('');
+  const dows = WEEK_ORDER.map((d) => `<span class="muted">${weekdayName(d)}</span>`).join('');
+  const values = metricsOf(card).map((m) => `<div class="stat-row"><span>${metricLabel(m)}</span><strong>${formatValue(m.read(summary))} ${metricUnit(m)}</strong></div>`).join('');
 
   openSheet(`<div class="stack" style="--c:${type.color}">
-    ${sheetHeader(type.label)}
+    ${sheetHeader(cardLabel(card.type))}
     <div class="row">
-      <button class="icon-btn" data-action="card-month" data-delta="-1" aria-label="上個月">‹</button>
-      <strong>${year} 年 ${month} 月</strong>
-      <button class="icon-btn" data-action="card-month" data-delta="1" aria-label="下個月">›</button>
+      <button class="icon-btn" data-action="card-month" data-delta="-1" aria-label="${t('common.prevMonth')}">‹</button>
+      <strong>${new Date(year, month - 1).toLocaleDateString(lang, { year: 'numeric', month: 'long' })}</strong>
+      <button class="icon-btn" data-action="card-month" data-delta="1" aria-label="${t('common.nextMonth')}">›</button>
     </div>
     <div class="card-calendar">${dows}${cells}</div>
     <p class="muted">${formatDate(date)}</p>
     <div>${values}</div>
     ${cardQuickActions(card, date)}
-    <button class="textlink" data-action="card-settings">卡片設定</button>
+    <button class="textlink" data-action="card-settings">${t('cards.settings')}</button>
   </div>`);
 }
 
 function openCardsEditor() {
   const cards = cardsList();
   const rows = cards.map((card, i) => `<div class="row edit-row">
-    <button class="edit-name" data-action="card-settings" data-id="${esc(card.id)}">${CARD_TYPES[card.type].label}<span class="muted">${metricsOf(card).map((m) => m.label).join('・')}</span></button>
+    <button class="edit-name" data-action="card-settings" data-id="${esc(card.id)}">${cardLabel(card.type)}<span class="muted">${metricsOf(card).map(metricLabel).join('・')}</span></button>
     <div class="chips">
-      <button class="icon-btn" data-action="card-move" data-index="${i}" data-delta="-1" aria-label="往前"${i === 0 ? ' disabled' : ''}>↑</button>
-      <button class="icon-btn" data-action="card-move" data-index="${i}" data-delta="1" aria-label="往後"${i === cards.length - 1 ? ' disabled' : ''}>↓</button>
+      <button class="icon-btn" data-action="card-move" data-index="${i}" data-delta="-1" aria-label="${t('cards.up')}"${i === 0 ? ' disabled' : ''}>↑</button>
+      <button class="icon-btn" data-action="card-move" data-index="${i}" data-delta="1" aria-label="${t('cards.down')}"${i === cards.length - 1 ? ' disabled' : ''}>↓</button>
     </div>
   </div>`).join('');
-  const addButtons = Object.entries(CARD_TYPES).map(([key, type]) => `<button class="chip" data-action="card-add" data-type="${key}">＋ ${type.label}</button>`).join('');
+  const addButtons = Object.keys(CARD_TYPES).map((key) => `<button class="chip" data-action="card-add" data-type="${key}">＋ ${cardLabel(key)}</button>`).join('');
   openSheet(`<div class="stack">
-    ${sheetHeader('編輯卡片')}
-    <div>${rows || '<p class="muted">目前沒有卡片</p>'}</div>
-    <h2>新增卡片</h2>
+    ${sheetHeader(t('cards.title'))}
+    <div>${rows || `<p class="muted">${t('cards.none')}</p>`}</div>
+    <h2>${t('cards.add')}</h2>
     <div class="chips">${addButtons}</div>
   </div>`);
 }
@@ -804,31 +878,31 @@ function openCardSettings(id) {
   state.cardId = id;
   const frequency = frequencyOf(card);
   state.draft = { op: card.rule?.op ?? 'gte', frequency: frequency.type };
-  const metricChips = type.metrics.map((m) => `<button type="button" class="chip${card.metrics.includes(m.key) ? ' active' : ''}" data-action="metric-toggle" data-value="${m.key}">${m.label}</button>`).join('');
-  const dayChips = WEEK_ORDER.map((d) => `<button type="button" class="chip${card.days?.includes(d) ? ' active' : ''}" data-action="chip-toggle" data-value="${d}">${WEEKDAYS[d]}</button>`).join('');
+  const metricChips = type.metrics.map((m) => `<button type="button" class="chip${card.metrics.includes(m.key) ? ' active' : ''}" data-action="metric-toggle" data-value="${m.key}">${metricLabel(m)}</button>`).join('');
+  const dayChips = WEEK_ORDER.map((d) => `<button type="button" class="chip${card.days?.includes(d) ? ' active' : ''}" data-action="chip-toggle" data-value="${d}">${weekdayName(d)}</button>`).join('');
   openSheet(`<form class="stack" data-form="card">
-    ${sheetHeader(`${type.label}設定`)}
-    <h2>顯示項目（最多 3 項）</h2>
+    ${sheetHeader(t('cards.settingsTitle', { name: cardLabel(card.type) }))}
+    <h2>${t('cards.metrics')}</h2>
     <div class="chips" data-chip-list="metrics">${metricChips}</div>
     <h2>${t('card.frequency')}</h2>
     ${chipGroup('frequency', FREQUENCIES.map((value) => ({ value, label: t(`frequency.${value}`) })), frequency.type)}
     ${numberField('count', t('card.count'), frequency.count, 'min="1"')}
     <p class="muted">${t('card.weekdays')}</p>
     <div class="chips" data-chip-list="days">${dayChips}</div>
-    <h2>做到的條件</h2>
+    <h2>${t('cards.condition')}</h2>
     ${card.type === 'diet' ? `<label class="check"><input type="checkbox" name="requireTargets"${card.requireTargets ? ' checked' : ''}> ${t('card.requireTargets')}</label>` : ''}
-    <p class="muted">留空就是有紀錄算做到。填了就用第一個顯示項目判斷。</p>
-    ${chipGroup('op', [{ value: 'gte', label: '至少' }, { value: 'lte', label: '至多' }], state.draft.op)}
-    ${numberField('ruleValue', '數值', card.rule?.value)}
-    <button class="btn primary wide">儲存</button>
-    <button type="button" class="btn danger wide" data-action="card-remove">移除這張卡片</button>
+    <p class="muted">${t('cards.conditionHint')}</p>
+    ${chipGroup('op', [{ value: 'gte', label: t('cards.atLeast') }, { value: 'lte', label: t('cards.atMost') }], state.draft.op)}
+    ${numberField('ruleValue', t('cards.value'), card.rule?.value)}
+    <button class="btn primary wide">${t('common.save')}</button>
+    <button type="button" class="btn danger wide" data-action="card-remove">${t('cards.remove')}</button>
   </form>`);
 }
 
 function saveCardSettings(form) {
   const selected = (list) => [...form.querySelectorAll(`[data-chip-list="${list}"] .chip.active`)].map((c) => c.dataset.value);
   const metrics = selected('metrics');
-  if (!metrics.length) { toast('至少選一個顯示項目'); return; }
+  if (!metrics.length) { toast(t('cards.metricsMin')); return; }
   const value = optionalNumber(new FormData(form).get('ruleValue'));
   const count = optionalNumber(new FormData(form).get('count'));
   const update = {
@@ -838,7 +912,7 @@ function saveCardSettings(form) {
   };
   saveCards(cardsList().map((c) => (c.id === state.cardId ? { ...c, ...update } : c)));
   closeSheet();
-  toast('已儲存');
+  toast(t('common.saved'));
 }
 
 // Android 瀏覽器提供安裝事件；iPhone 只能由使用者手動加入
@@ -856,18 +930,18 @@ function installSection() {
 
 function openSettings() {
   const account = store.user
-    ? `<p class="muted">已登入：${esc(store.user.email)}</p><button type="button" class="btn wide" data-action="sign-out">登出</button>`
-    : `<p class="muted">未登入，資料只存在這台裝置。登入後會自動上傳並跨裝置同步。</p>
-       <button type="button" class="btn wide" data-action="sign-in"${store.canSignIn ? '' : ' disabled'}>使用 Google 登入</button>`;
+    ? `<p class="muted">${t('account.signedIn', { email: esc(store.user.email) })}</p><button type="button" class="btn wide" data-action="sign-out">${t('account.signOut')}</button>`
+    : `<p class="muted">${t('account.signedOut')}</p>
+       <button type="button" class="btn wide" data-action="sign-in"${store.canSignIn ? '' : ' disabled'}>${t('account.signIn')}</button>`;
 
   openSheet(`<div class="stack">
-    ${sheetHeader('設定')}
-    <section class="card stack"><h2>帳號</h2>${account}</section>
+    ${sheetHeader(t('settings.title'))}
+    <section class="card stack"><h2>${t('account.title')}</h2>${account}</section>
     <section class="card stack"><h2>${t('settings.language')}</h2>
       <div class="chips">${LANGUAGES.map((l) => `<button class="chip${l.value === lang ? ' active' : ''}" data-action="lang-set" data-value="${l.value}">${l.label}</button>`).join('')}</div>
     </section>
     ${installSection()}
-    <button class="btn wide" data-action="export">匯出全部資料（JSON）</button>
+    <button class="btn wide" data-action="export">${t('settings.export')}</button>
   </div>`);
 }
 
@@ -891,14 +965,14 @@ function saveGoalForm(form, kind) {
     store.saveGoal({ sleep: { hours: Number(values.get('hours')), bedtime: values.get('bedtime') } });
   }
   closeSheet();
-  toast('已儲存');
+  toast(t('common.saved'));
 }
 
 function saveProfile(form) {
   const values = new FormData(form);
   store.saveProfile({ heightCm: optionalNumber(values.get('heightCm')), birthYear: optionalNumber(values.get('birthYear')), sex: state.draft.sex || null });
   closeSheet();
-  toast('已儲存');
+  toast(t('common.saved'));
 }
 
 async function exportData() {
@@ -919,7 +993,7 @@ function toast(message, undo = null) {
   toastEl.textContent = message;
   if (undo) {
     const button = document.createElement('button');
-    button.textContent = '復原';
+    button.textContent = t('common.undo');
     button.onclick = () => { undo(); toastEl.hidden = true; };
     toastEl.append(button);
   }
@@ -929,8 +1003,8 @@ function toast(message, undo = null) {
 
 function logWater(ml) {
   const date = state.recordDate ?? dateKey();
-  const event = store.addEvent('intake', { label: '喝水', nutrients: { water_ml: ml } }, { date });
-  toast(`已記錄水分 ${ml} ml`, () => store.deleteEvent(event.id));
+  const event = store.addEvent('intake', { nutrients: { water_ml: ml } }, { date });
+  toast(t('diet.waterSaved', { n: ml }), () => store.deleteEvent(event.id));
   openCard(state.cardId);
 }
 
@@ -975,12 +1049,12 @@ const actions = {
     const previous = cardsList();
     saveCards(previous.filter((c) => c.id !== state.cardId));
     closeSheet();
-    toast('已移除卡片', () => saveCards(previous));
+    toast(t('cards.removed'), () => saveCards(previous));
   },
   'metric-toggle': (_, target) => {
     const active = target.closest('[data-chip-list]').querySelectorAll('.chip.active').length;
     if (target.classList.contains('active') || active < 3) target.classList.toggle('active');
-    else toast('最多 3 項');
+    else toast(t('cards.metricsMax'));
   },
   'chip-toggle': (_, target) => target.classList.toggle('active'),
   'diet-date': ({ delta }) => {
@@ -991,17 +1065,19 @@ const actions = {
   'meal-manual': () => { state.draft = newMealDraft(); renderMealSheet(); },
   'meal-open': ({ id }) => openMeal(id),
   'prompt-show': openPrompt,
-  'prompt-copy': () => navigator.clipboard.writeText(GEMINI_PROMPT).then(() => toast('已複製提示詞')).catch(() => toast('無法複製，請長按文字手動複製')),
+  'prompt-copy': () => navigator.clipboard.writeText(GEMINI_PROMPT).then(() => toast(t('prompt.copied'))).catch(() => toast(t('prompt.copyFailed'))),
   'event-delete': () => {
     const { id } = state.draft;
     store.deleteEvent(id);
     closeSheet();
-    toast('已刪除', () => store.restoreEvent(id));
+    toast(t('common.deleted'), () => store.restoreEvent(id));
   },
   'workout-new': ({ date }) => openWorkout(null, date),
   'workout-open': ({ id }) => openWorkout(id),
   'record-open': ({ id, date }) => openRecord(id, date ?? dateKey()),
   'training-edit': ({ id }) => openTraining(id),
+  'exercise-edit': ({ id }) => openExercise(id),
+  'exercise-delete': deleteExercise,
   'schedule-edit': ({ id }) => openSchedule(id),
   'move-add': () => {
     readTrainingForm(sheet.querySelector('form'));
@@ -1028,9 +1104,9 @@ const actions = {
     group.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c === target));
     state.draft[group.dataset.chipGroup] = value;
   },
-  'sign-in': () => store.signIn().then(closeSheet).catch((error) => toast(`登入失敗：${error.message}`)),
+  'sign-in': () => store.signIn().then(closeSheet).catch((error) => toast(t('account.signInFailed', { error: error.message }))),
   'sign-out': () => store.signOut().then(closeSheet),
-  export: () => exportData().catch((error) => toast(`匯出失敗：${error.message}`)),
+  export: () => exportData().catch((error) => toast(t('settings.exportFailed', { error: error.message }))),
 };
 
 document.addEventListener('click', (event) => {
@@ -1044,6 +1120,7 @@ const formHandlers = {
   workout: saveWorkout,
   record: saveRecord,
   training: saveTraining,
+  exercise: saveExercise,
   schedule: saveSchedule,
   sleep: saveSleep,
   body: saveBody,
@@ -1071,8 +1148,11 @@ window.addEventListener('beforeinstallprompt', (event) => {
   installPrompt = event;
 });
 
-store.addEventListener('change', render);
-store.addEventListener('error', (event) => toast(`資料儲存失敗：${event.detail.message}`));
+store.addEventListener('change', () => {
+  linkExistingTrainings();
+  render();
+});
+store.addEventListener('error', (event) => toast(t('error.save', { error: event.detail.message })));
 
 // 回到 App 時同步其他裝置的新資料
 document.addEventListener('visibilitychange', () => {
@@ -1080,6 +1160,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 render();
-store.init().catch((error) => toast(`啟動失敗：${error.message}`));
+store.init().catch((error) => toast(t('error.start', { error: error.message })));
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
