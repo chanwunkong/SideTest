@@ -1,11 +1,11 @@
 // 資料類型清單：新增資料只要在這裡加一項，不必改資料庫結構
 export const NUTRIENTS = [
+  { key: 'kcal', label: '熱量', unit: 'kcal', primary: true },
   { key: 'water_ml', label: '水分', unit: 'ml', primary: true },
   { key: 'protein_g', label: '蛋白質', unit: 'g', primary: true },
   { key: 'carbs_g', label: '碳水', unit: 'g', primary: true },
   { key: 'fat_g', label: '脂肪', unit: 'g', primary: true },
-  { key: 'kcal', label: '熱量', unit: 'kcal' },
-  { key: 'caffeine_mg', label: '咖啡因', unit: 'mg', isLimit: true },
+  { key: 'caffeine_mg', label: '咖啡因', unit: 'mg' },
   { key: 'creatine_g', label: '肌酸', unit: 'g' },
 ];
 

@@ -1,5 +1,5 @@
 // 首頁卡片：資料和顯示方式分開。新增卡片種類只要在 CARD_TYPES 加一項
-import { addDays, parseDateKey } from './logic.js';
+import { addDays, allTargetsMet, parseDateKey } from './logic.js';
 
 const nutrient = (key, label, unit) => ({ key, label, unit, read: (day) => day.nutrients[key] ?? null });
 const bodyMetric = (key, label, unit) => ({ key, label, unit, read: (day) => day.body.findLast((b) => b.data[key] != null)?.data[key] ?? null });
@@ -16,8 +16,8 @@ export const CARD_TYPES = {
     label: '飲食', color: 'var(--diet)', eventTypes: ['meal', 'intake'], frequency: 'daily',
     icon: '<path d="M7 2v9a3 3 0 0 0 3 3v8M4 2v6M10 2v6M17 2c-2 2-3 5-3 9h3v11"/>',
     metrics: [
-      nutrient('protein_g', '蛋白質', 'g'), nutrient('water_ml', '水分', 'ml'), nutrient('carbs_g', '碳水', 'g'),
-      nutrient('fat_g', '脂肪', 'g'), nutrient('kcal', '熱量', 'kcal'), nutrient('caffeine_mg', '咖啡因', 'mg'), nutrient('creatine_g', '肌酸', 'g'),
+      nutrient('kcal', '熱量', 'kcal'), nutrient('protein_g', '蛋白質', 'g'), nutrient('water_ml', '水分', 'ml'), nutrient('carbs_g', '碳水', 'g'),
+      nutrient('fat_g', '脂肪', 'g'), nutrient('caffeine_mg', '咖啡因', 'mg'), nutrient('creatine_g', '肌酸', 'g'),
     ],
     hasRecord: (day) => day.meals.length + day.intakes.length > 0,
   },
@@ -40,7 +40,7 @@ export const CARD_TYPES = {
 
 export const DEFAULT_CARDS = [
   { id: 'body', type: 'body', metrics: ['weightKg', 'bodyFat', 'muscleKg'] },
-  { id: 'diet', type: 'diet', metrics: ['protein_g', 'water_ml', 'carbs_g'] },
+  { id: 'diet', type: 'diet', metrics: ['kcal', 'protein_g', 'water_ml'] },
   { id: 'sleep', type: 'sleep', metrics: ['hours'] },
   { id: 'activity', type: 'activity', metrics: ['sets', 'minutes'] },
 ];
@@ -48,9 +48,11 @@ export const DEFAULT_CARDS = [
 export const metricsOf = (card) => card.metrics.map((key) => CARD_TYPES[card.type].metrics.find((m) => m.key === key)).filter(Boolean);
 
 // 預設有紀錄就算做到；使用者設定條件後，用第一個項目判斷
-export function cardHit(card, day) {
+export function cardHit(card, day, context = {}) {
   const type = CARD_TYPES[card.type];
   if (!type.hasRecord(day)) return false;
+  // 開啟「全部達成」但還沒設定目標時，退回有紀錄就算做到
+  if (card.requireTargets && Object.keys(context.nutritionTargets ?? {}).length) return allTargetsMet(context.nutritionTargets, day.nutrients);
   if (!card.rule) return true;
   const value = metricsOf(card)[0]?.read(day);
   if (value === null || value === undefined) return false;
@@ -85,11 +87,11 @@ export function periodDates(card, today) {
 }
 
 // 狀態只有三種：done 做到、missed 該做沒做到、off 不需要做或還沒到
-// context：scheduled 當天有排程、targetSets 目標套數、periodHits 本週期已做到次數
+// context：scheduled 當天有排程、targetSets 目標套數、periodHits 本週期已做到次數、nutritionTargets 當天飲食目標
 export function cardDayState(card, date, day, today, start, context = {}) {
   const sets = day.workouts.reduce((total, w) => total + (w.data.sets ?? 0), 0);
   const belowTarget = card.type === 'activity' && context.targetSets && sets < context.targetSets;
-  if (cardHit(card, day) && !belowTarget) return 'done';
+  if (cardHit(card, day, context) && !belowTarget) return 'done';
   if (date > today || date < start || !isRequired(card, date, today, context)) return 'off';
   return 'missed';
 }

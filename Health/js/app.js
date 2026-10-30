@@ -1,6 +1,6 @@
 import { CARD_TYPES, DEFAULT_CARDS, FREQUENCIES, cardDayState, cardHit, frequencyOf, metricsOf, monthDates, periodDates, weekDates } from './cards.js';
 import { LANGUAGES, lang, setLang, t } from './i18n.js';
-import { addDays, dateKey, goalFor, nutritionTargetsFor, parseDateKey, sevenDayAverage, summarizeDay, targetWeight, weekStart } from './logic.js';
+import { addDays, dateKey, formatTarget, goalFor, nutritionTargetsFor, parseDateKey, sevenDayAverage, summarizeDay, targetMet, targetWeight, weekStart } from './logic.js';
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
 import { ACTIVITIES, INTENSITIES, NUTRIENTS } from './registry.js';
 import { healthStore as store } from './store.js';
@@ -98,8 +98,9 @@ function hydrateImages(root) {
 function cardState(card, date) {
   const today = dateKey();
   const start = store.firstRecordDate(CARD_TYPES[card.type].eventTypes) ?? today;
-  const periodHits = date === today ? periodDates(card, today).filter((d) => cardHit(card, summarizeDay(store.eventsOn(d)))).length : 0;
-  const context = { scheduled: schedulesOn(activeSchedules(), date).length > 0, targetSets: targetSetsOn(activeSchedules(), date), periodHits };
+  const targetsOn = (d) => nutritionTargetsFor(goalFor(store.goals, d), d);
+  const periodHits = date === today ? periodDates(card, today).filter((d) => cardHit(card, summarizeDay(store.eventsOn(d)), { nutritionTargets: targetsOn(d) })).length : 0;
+  const context = { scheduled: schedulesOn(activeSchedules(), date).length > 0, targetSets: targetSetsOn(activeSchedules(), date), periodHits, nutritionTargets: targetsOn(date) };
   return cardDayState(card, date, summarizeDay(store.eventsOn(date)), today, start < today ? start : today, context);
 }
 
@@ -196,9 +197,9 @@ function mealEntry(meal) {
 function nutrientRows(list, summary, average, targets) {
   return list.map(({ key, unit }) => `<div class="nutrient-row">
     <span>${t(`nutrient.${key}`)}</span>
-    <strong>${formatValue(summary.nutrients[key] ?? null)}</strong>
+    <strong class="${targets[key] !== undefined && targetMet(targets[key], summary.nutrients[key]) ? 'met' : ''}">${formatValue(summary.nutrients[key] ?? null)}</strong>
     <span>${formatValue(average[key] ?? null)}</span>
-    <span>${formatValue(targets[key] ?? null)}</span>
+    <span>${formatTarget(targets[key]) ?? t('common.none')}</span>
     <small>${unit}</small>
   </div>`).join('');
 }
@@ -700,10 +701,19 @@ function openGoal() {
 
 function openTargets() {
   const goal = goalFor(store.goals, dateKey());
+  const rows = NUTRIENTS.map(({ key, unit }) => {
+    const current = goal.nutritionTargets[key];
+    const target = typeof current === 'number' ? { min: current } : current;
+    return `<div class="target-row">
+      <span>${t(`nutrient.${key}`)}<small> ${unit}</small></span>
+      <input type="number" inputmode="decimal" min="0" step="any" name="min-${key}" value="${target?.min ?? ''}" placeholder="${t('diet.min')}" aria-label="${t(`nutrient.${key}`)} ${t('diet.min')}">
+      <input type="number" inputmode="decimal" min="0" step="any" name="max-${key}" value="${target?.max ?? ''}" placeholder="${t('diet.max')}" aria-label="${t(`nutrient.${key}`)} ${t('diet.max')}">
+    </div>`;
+  }).join('');
   openSheet(`<form class="stack" data-form="targets">
     ${sheetHeader(t('diet.setTargets'))}
     <p class="muted">${t('diet.targetsHint')}</p>
-    <div class="grid-2">${NUTRIENTS.map(({ key, unit }) => numberField(key, `${t(`nutrient.${key}`)}（${unit}）`, goal.nutritionTargets[key])).join('')}</div>
+    <div>${rows}</div>
     <button class="btn primary wide">${t('common.save')}</button>
   </form>`);
 }
@@ -802,6 +812,7 @@ function openCardSettings(id) {
     <p class="muted">${t('card.weekdays')}</p>
     <div class="chips" data-chip-list="days">${dayChips}</div>
     <h2>做到的條件</h2>
+    ${card.type === 'diet' ? `<label class="check"><input type="checkbox" name="requireTargets"${card.requireTargets ? ' checked' : ''}> ${t('card.requireTargets')}</label>` : ''}
     <p class="muted">留空就是有紀錄算做到。填了就用第一個顯示項目判斷。</p>
     ${chipGroup('op', [{ value: 'gte', label: '至少' }, { value: 'lte', label: '至多' }], state.draft.op)}
     ${numberField('ruleValue', '數值', card.rule?.value)}
@@ -819,6 +830,7 @@ function saveCardSettings(form) {
   const update = {
     metrics, days: selected('days').map(Number), rule: value === null ? null : { op: state.draft.op, value },
     frequency: { type: state.draft.frequency, count: count ?? 1 },
+    requireTargets: !!form.querySelector('[name=requireTargets]')?.checked,
   };
   saveCards(cardsList().map((c) => (c.id === state.cardId ? { ...c, ...update } : c)));
   closeSheet();
@@ -866,8 +878,9 @@ function saveGoalForm(form, kind) {
   } else if (kind === 'targets') {
     const nutritionTargets = {};
     for (const { key } of NUTRIENTS) {
-      const value = optionalNumber(values.get(key));
-      if (value !== null) nutritionTargets[key] = value;
+      const min = optionalNumber(values.get(`min-${key}`));
+      const max = optionalNumber(values.get(`max-${key}`));
+      if (min !== null || max !== null) nutritionTargets[key] = { min, max };
     }
     store.saveGoal({ nutritionTargets });
   } else {

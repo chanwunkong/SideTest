@@ -37,9 +37,24 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   const row = page.locator('.nutrient-row', { hasText: '蛋白質' }).first();
   assert.deepEqual((await row.innerText()).split(/\s+/).slice(1, 4), ['40', '30', '—']);
   await button('設定目標').click();
-  await page.fill('input[name=protein_g]', '140');
+  await page.fill('input[name=min-protein_g]', '140');
+  await page.fill('input[name=min-kcal]', '2300');
+  await page.fill('input[name=max-kcal]', '2700');
+  await page.fill('input[name=max-caffeine_mg]', '400');
   await save();
-  assert.deepEqual((await row.innerText()).split(/\s+/).slice(1, 4), ['40', '30', '140']);
+  assert.deepEqual((await row.innerText()).split(/\s+/).slice(1, 4), ['40', '30', '≥140']);
+  await page.locator('.nutrient-row', { hasText: '熱量' }).getByText('2300–2700').waitFor();
+
+  // 飲食卡預設有紀錄就亮，開啟全部達成後未達標變空框
+  await tab('今日');
+  const food = page.locator('.tracker-row[aria-label="飲食"] .mark.today');
+  assert.match(await food.getAttribute('class'), /done/);
+  await page.locator('.health-card', { hasText: '飲食' }).click();
+  await button('卡片設定').click();
+  await page.getByLabel('飲食目標全部達成才亮').check();
+  await save();
+  assert.match(await food.getAttribute('class'), /missed/);
+  await tab('飲食');
   await page.screenshot({ path: `${shots}/diet.png`, fullPage: true });
 
   // 建立 Cindy

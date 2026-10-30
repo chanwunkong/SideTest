@@ -46,6 +46,27 @@ export function targetWeight(goal, weight, bodyFat) {
   return null;
 }
 
+// 目標格式 { min, max }：只有 min 是至少，只有 max 是至多，兩者都有是範圍。舊資料是單一數字，視為至少
+const toTarget = (value) => (typeof value === 'number' ? { min: value, max: null } : value);
+
+export function targetMet(target, value) {
+  const { min, max } = toTarget(target);
+  const amount = value ?? 0;
+  return (min === null || min === undefined || amount >= min) && (max === null || max === undefined || amount <= max);
+}
+
+export function formatTarget(target) {
+  if (target === undefined) return null;
+  const { min, max } = toTarget(target);
+  if (min != null && max != null) return `${min}–${max}`;
+  return min != null ? `≥${min}` : `≤${max}`;
+}
+
+export function allTargetsMet(targets, nutrients) {
+  const entries = Object.entries(targets);
+  return entries.length > 0 && entries.every(([key, target]) => targetMet(target, nutrients[key]));
+}
+
 // 使用者設定的飲食目標，沒填的項目就沒有目標
 export function nutritionTargetsFor(goal, date) {
   const { weekday = {}, date: byDate = {} } = goal.dayOverrides;

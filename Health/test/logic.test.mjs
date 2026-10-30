@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDates, weekDates } from '../js/cards.js';
-import { addDays, DEFAULT_GOAL, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, weekStart } from '../js/logic.js';
+import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../js/logic.js';
 import { moveTotals, scheduleActiveOn, scheduleRemaining, targetSetsOn } from '../js/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
 import { normalizeEvent, registry } from '../js/registry.js';
@@ -73,7 +73,7 @@ test('只量體脂也算有紀錄，且各項目分開讀取', () => {
 });
 
 test('多項卡片保留使用者選的順序', () => {
-  assert.deepEqual(metricsOf(dietCard).map((m) => m.label), ['蛋白質', '水分', '碳水']);
+  assert.deepEqual(metricsOf(dietCard).map((m) => m.label), ['熱量', '蛋白質', '水分']);
 });
 
 test('週與月的日期範圍', () => {
@@ -85,11 +85,37 @@ test('週與月的日期範圍', () => {
 });
 
 test('飲食目標只有使用者填的項目，單日可覆蓋', () => {
-  const goal = { ...DEFAULT_GOAL, nutritionTargets: { protein_g: 140 }, dayOverrides: { weekday: { 2: { protein_g: 100 } }, date: { '2026-10-20': { protein_g: 90 } } } };
+  const goal = { ...DEFAULT_GOAL, nutritionTargets: { protein_g: { min: 140, max: null } }, dayOverrides: { weekday: { 2: { protein_g: 100 } }, date: { '2026-10-20': { protein_g: 90 } } } };
   assert.deepEqual(nutritionTargetsFor(DEFAULT_GOAL, '2026-10-21'), {});
-  assert.equal(nutritionTargetsFor(goal, '2026-10-21').protein_g, 140);
+  assert.equal(nutritionTargetsFor(goal, '2026-10-21').protein_g.min, 140);
   assert.equal(nutritionTargetsFor(goal, '2026-10-27').protein_g, 100); // 週二
   assert.equal(nutritionTargetsFor(goal, '2026-10-20').protein_g, 90);
+});
+
+test('目標支援範圍、至少、至多，舊資料的單一數字視為至少', () => {
+  const range = { min: 2300, max: 2700 };
+  assert.equal(targetMet(range, 2500), true);
+  assert.equal(targetMet(range, 2800), false);
+  assert.equal(targetMet({ min: 140, max: null }, 100), false);
+  assert.equal(targetMet({ min: null, max: 400 }, undefined), true);
+  assert.equal(targetMet(140, 150), true);
+  assert.equal(formatTarget(range), '2300–2700');
+  assert.equal(formatTarget({ min: 140, max: null }), '≥140');
+  assert.equal(formatTarget({ min: null, max: 400 }), '≤400');
+  assert.equal(formatTarget(undefined), null);
+  assert.equal(allTargetsMet({}, {}), false);
+  assert.equal(allTargetsMet({ kcal: range, caffeine_mg: { max: 400 } }, { kcal: 2500 }), true);
+});
+
+test('飲食卡可要求全部目標達成才亮，沒設定目標時有紀錄就亮', () => {
+  const strict = { ...dietCard, requireTargets: true };
+  const day = summarizeDay([meal({ kcal: 2000 })]);
+  const today = '2026-10-30';
+  const context = { nutritionTargets: { kcal: { min: 2300, max: 2700 } } };
+  assert.equal(cardDayState(strict, today, day, today, today, context), 'missed');
+  assert.equal(cardDayState(dietCard, today, day, today, today, context), 'done');
+  assert.equal(cardDayState(strict, today, day, today, today, { nutritionTargets: {} }), 'done');
+  assert.equal(cardDayState(strict, today, summarizeDay([meal({ kcal: 2500 })]), today, today, context), 'done');
 });
 
 test('7 天平均只算有紀錄的日子', () => {
