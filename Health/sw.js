@@ -1,6 +1,6 @@
 // 先用網路，離線時才用快取，避免舊版畫面卡在手機上
-const CACHE_NAME = 'health-v5';
-const SHELL = ['./', './index.html', './health.css', './manifest.json', './js/app.js', './js/store.js', './js/logic.js', './js/registry.js', './js/mealImport.js', './js/cards.js', './js/i18n.js', './js/training.js', './js/firebase-config.js'];
+const CACHE_NAME = 'health-v6';
+const SHELL = ['./', './index.html', './health.css', './manifest.json', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './js/app.js', './js/store.js', './js/logic.js', './js/registry.js', './js/mealImport.js', './js/cards.js', './js/i18n.js', './js/training.js', './js/firebase-config.js'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL)));

@@ -825,6 +825,19 @@ function saveCardSettings(form) {
   toast('已儲存');
 }
 
+// Android 瀏覽器提供安裝事件；iPhone 只能由使用者手動加入
+let installPrompt = null;
+const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+
+function installSection() {
+  if (isInstalled()) return '';
+  const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const body = installPrompt
+    ? `<button class="btn primary wide" data-action="install">${t('install.button')}</button>`
+    : `<p class="muted">${t(isIos ? 'install.ios' : 'install.android')}</p>`;
+  return `<section class="card stack"><h2>${t('install.title')}</h2>${body}</section>`;
+}
+
 function openSettings() {
   const account = store.user
     ? `<p class="muted">已登入：${esc(store.user.email)}</p><button type="button" class="btn wide" data-action="sign-out">登出</button>`
@@ -837,6 +850,7 @@ function openSettings() {
     <section class="card stack"><h2>${t('settings.language')}</h2>
       <div class="chips">${LANGUAGES.map((l) => `<button class="chip${l.value === lang ? ' active' : ''}" data-action="lang-set" data-value="${l.value}">${l.label}</button>`).join('')}</div>
     </section>
+    ${installSection()}
     <button class="btn wide" data-action="export">匯出全部資料（JSON）</button>
   </div>`);
 }
@@ -973,6 +987,11 @@ const actions = {
     renderTrainingSheet();
   },
   'doc-delete': ({ col }) => { store.saveDoc(col, { ...state.draft, deletedAt: Date.now() }); closeSheet(); },
+  install: async () => {
+    await installPrompt.prompt();
+    installPrompt = null;
+    closeSheet();
+  },
   'lang-set': ({ value }) => { setLang(value); store.saveProfile({ lang: value }); closeSheet(); render(); },
   'sleep-new': () => openSleep(),
   'sleep-open': ({ id }) => openSleep(id),
@@ -1023,6 +1042,11 @@ sheet.addEventListener('close', () => {
   if (sheet.open) return;
   state.draft = null;
   state.recordDate = null;
+});
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  installPrompt = event;
 });
 
 store.addEventListener('change', render);
