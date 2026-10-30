@@ -1,5 +1,5 @@
 // 首頁卡片：資料和顯示方式分開。新增卡片種類只要在 CARD_TYPES 加一項
-import { addDays, parseDateKey, planFor } from './logic.js';
+import { addDays, parseDateKey } from './logic.js';
 
 const nutrient = (key, label, unit) => ({ key, label, unit, read: (day) => day.nutrients[key] ?? null });
 const bodyMetric = (key, label, unit) => ({ key, label, unit, read: (day) => day.body.at(-1)?.data[key] ?? null });
@@ -30,7 +30,10 @@ export const CARD_TYPES = {
   activity: {
     label: '活動', color: 'var(--move)', eventTypes: ['workout'],
     icon: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
-    metrics: [{ key: 'minutes', label: '運動', unit: '分', read: (day) => sum(day.workouts, (w) => w.data.durationSec / 60) }],
+    metrics: [
+      { key: 'sets', label: '套數', unit: '套', read: (day) => sum(day.workouts.filter((w) => w.data.sets), (w) => w.data.sets) },
+      { key: 'minutes', label: '運動', unit: '分', read: (day) => sum(day.workouts.filter((w) => w.data.durationSec), (w) => w.data.durationSec / 60) },
+    ],
     hasRecord: (day) => day.workouts.length > 0,
   },
 };
@@ -39,7 +42,7 @@ export const DEFAULT_CARDS = [
   { id: 'body', type: 'body', metrics: ['weightKg', 'bodyFat', 'muscleKg'] },
   { id: 'diet', type: 'diet', metrics: ['protein_g', 'water_ml', 'carbs_g'] },
   { id: 'sleep', type: 'sleep', metrics: ['hours'] },
-  { id: 'activity', type: 'activity', metrics: ['minutes'] },
+  { id: 'activity', type: 'activity', metrics: ['sets', 'minutes'] },
 ];
 
 export const metricsOf = (card) => card.metrics.map((key) => CARD_TYPES[card.type].metrics.find((m) => m.key === key)).filter(Boolean);
@@ -54,16 +57,19 @@ export function cardHit(card, day) {
   return card.rule.op === 'lte' ? value <= card.rule.value : value >= card.rule.value;
 }
 
-function isRequired(card, date, goal) {
+function isRequired(card, date, context) {
   if (card.days?.length) return card.days.includes(parseDateKey(date).getDay());
-  if (card.type === 'activity') return !!planFor(goal, date);
+  if (card.type === 'activity') return context.scheduled;
   return true;
 }
 
 // 狀態只有三種：done 做到、missed 該做沒做到、off 不需要做或還沒到
-export function cardDayState(card, date, day, today, start, goal) {
-  if (cardHit(card, day)) return 'done';
-  if (date > today || date < start || !isRequired(card, date, goal)) return 'off';
+// context 是當天排程：scheduled 有沒有排、targetSets 目標套數
+export function cardDayState(card, date, day, today, start, context = {}) {
+  const sets = day.workouts.reduce((total, w) => total + (w.data.sets ?? 0), 0);
+  const belowTarget = card.type === 'activity' && context.targetSets && sets < context.targetSets;
+  if (cardHit(card, day) && !belowTarget) return 'done';
+  if (date > today || date < start || !isRequired(card, date, context)) return 'off';
   return 'missed';
 }
 

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, weekDates } from '../js/cards.js';
-import { addDays, dailyTargets, DEFAULT_GOAL, goalFor, summarizeDay, weekStart } from '../js/logic.js';
+import { addDays, DEFAULT_GOAL, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, weekStart } from '../js/logic.js';
+import { moveTotals, scheduleActiveOn, scheduleRemaining, targetSetsOn } from '../js/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
 import { normalizeEvent, registry } from '../js/registry.js';
 
@@ -35,17 +36,15 @@ test('卡片預設有紀錄就算做到，條件由使用者設定', () => {
 test('卡片每日狀態：沒排定和開始前都不算沒做到', () => {
   const today = '2026-10-30';
   const start = '2026-10-01';
-  assert.equal(cardDayState(sleepCard, '2026-10-20', empty, today, start, DEFAULT_GOAL), 'missed');
-  assert.equal(cardDayState(sleepCard, '2026-09-20', empty, today, start, DEFAULT_GOAL), 'off');
-  assert.equal(cardDayState(sleepCard, '2026-10-31', empty, today, start, DEFAULT_GOAL), 'off');
-  assert.equal(cardDayState(activityCard, '2026-10-19', empty, today, start, DEFAULT_GOAL), 'off');
-  const plan = { ...DEFAULT_GOAL, workoutPlan: { 1: { activity: '攀岩', minutes: 60 } } };
-  assert.equal(cardDayState(activityCard, '2026-10-19', empty, today, start, plan), 'missed'); // 週一
-  assert.equal(cardDayState(activityCard, '2026-10-20', empty, today, start, plan), 'off'); // 週二
-  assert.equal(cardDayState(activityCard, '2026-10-20', summarizeDay([workout]), today, start, plan), 'done');
+  assert.equal(cardDayState(sleepCard, '2026-10-20', empty, today, start), 'missed');
+  assert.equal(cardDayState(sleepCard, '2026-09-20', empty, today, start), 'off');
+  assert.equal(cardDayState(sleepCard, '2026-10-31', empty, today, start), 'off');
+  assert.equal(cardDayState(activityCard, '2026-10-19', empty, today, start), 'off');
+  assert.equal(cardDayState(activityCard, '2026-10-19', empty, today, start, { scheduled: true }), 'missed');
+  assert.equal(cardDayState(activityCard, '2026-10-20', summarizeDay([workout]), today, start), 'done');
   const weekly = { ...bodyCard, days: [6] };
-  assert.equal(cardDayState(weekly, '2026-10-20', empty, today, start, DEFAULT_GOAL), 'off');
-  assert.equal(cardDayState(weekly, '2026-10-24', empty, today, start, DEFAULT_GOAL), 'missed'); // 週六
+  assert.equal(cardDayState(weekly, '2026-10-20', empty, today, start), 'off');
+  assert.equal(cardDayState(weekly, '2026-10-24', empty, today, start), 'missed'); // 週六
 });
 
 test('多項卡片保留使用者選的順序', () => {
@@ -60,44 +59,45 @@ test('週與月的日期範圍', () => {
   assert.equal(month.at(-1), '2026-10-31');
 });
 
-const profile = { heightCm: 175, birthYear: 1996, sex: 'male' };
-const plan = { 1: { activity: '攀岩', minutes: 60 } };
-
-test('每日標準：缺資料用通用值並標明', () => {
-  const result = dailyTargets(DEFAULT_GOAL, {}, null, '2026-10-19');
-  assert.equal(result.personalized, false);
-  assert.equal(result.targets.kcal, 2000);
+test('飲食目標只有使用者填的項目，單日可覆蓋', () => {
+  const goal = { ...DEFAULT_GOAL, nutritionTargets: { protein_g: 140 }, dayOverrides: { weekday: { 2: { protein_g: 100 } }, date: { '2026-10-20': { protein_g: 90 } } } };
+  assert.deepEqual(nutritionTargetsFor(DEFAULT_GOAL, '2026-10-21'), {});
+  assert.equal(nutritionTargetsFor(goal, '2026-10-21').protein_g, 140);
+  assert.equal(nutritionTargetsFor(goal, '2026-10-27').protein_g, 100); // 週二
+  assert.equal(nutritionTargetsFor(goal, '2026-10-20').protein_g, 90);
 });
 
-test('每日標準：訓練日高於休息日，依體重計算', () => {
-  const goal = { ...DEFAULT_GOAL, workoutPlan: plan };
-  const training = dailyTargets(goal, profile, { weightKg: 70 }, '2026-10-19');
-  const rest = dailyTargets(goal, profile, { weightKg: 70 }, '2026-10-20');
-  assert.equal(training.dayType, 'training');
-  assert.equal(rest.dayType, 'rest');
-  assert.ok(training.targets.kcal > rest.targets.kcal);
-  assert.equal(training.targets.water_ml, 2450);
-  assert.equal(training.targets.protein_g, 126);
+test('7 天平均只算有紀錄的日子', () => {
+  const byDate = { '2026-10-30': [meal({ protein_g: 100 })], '2026-10-28': [meal({ protein_g: 50 })], '2026-10-01': [meal({ protein_g: 999 })] };
+  const { average, dayCount } = sevenDayAverage((d) => byDate[d] ?? [], '2026-10-30');
+  assert.equal(dayCount, 2);
+  assert.equal(average.protein_g, 75);
+  assert.deepEqual(sevenDayAverage(() => [], '2026-10-30'), { average: {}, dayCount: 0 });
 });
 
-test('每日標準：減重有上限，過於激進會標示', () => {
-  const goal = { ...DEFAULT_GOAL, body: { targetWeightKg: 60, targetBodyFat: null, targetDate: '2026-11-01' } };
-  const plain = dailyTargets(DEFAULT_GOAL, profile, { weightKg: 70 }, '2026-10-20').targets.kcal;
-  const result = dailyTargets(goal, profile, { weightKg: 70 }, '2026-10-20');
-  assert.equal(result.capped, true);
-  assert.ok(Math.abs(result.targets.kcal - plain * 0.8) <= 10);
+const schedule = { startDate: '2026-10-30', days: 3, weekdays: [], targetSets: null };
+
+test('排程：持續天數與星期', () => {
+  assert.equal(scheduleActiveOn(schedule, '2026-10-29'), false);
+  assert.equal(scheduleActiveOn(schedule, '2026-11-01'), true);
+  assert.equal(scheduleActiveOn(schedule, '2026-11-02'), false);
+  assert.equal(scheduleActiveOn({ ...schedule, days: null }, '2027-05-01'), true);
+  assert.equal(scheduleActiveOn({ ...schedule, days: null, weekdays: [1] }, '2026-11-03'), false); // 週二
+  assert.equal(scheduleRemaining(schedule, '2026-10-31'), 2);
+  assert.equal(scheduleRemaining(schedule, '2026-11-09'), 0);
 });
 
-test('每日標準：覆蓋優先序為單日 > 星期 > 日類型 > 全部', () => {
-  const goal = {
-    ...DEFAULT_GOAL,
-    targetOverrides: { kcal: 1000 },
-    dayOverrides: { dayType: { rest: { kcal: 1100 } }, weekday: { 2: { kcal: 1200 } }, date: { '2026-10-20': { kcal: 1300 } } },
-  };
-  assert.equal(dailyTargets(goal, profile, null, '2026-10-20').targets.kcal, 1300); // 週二
-  assert.equal(dailyTargets(goal, profile, null, '2026-10-27').targets.kcal, 1200); // 週二
-  assert.equal(dailyTargets(goal, profile, null, '2026-10-21').targets.kcal, 1100); // 週三
-  assert.equal(dailyTargets({ ...goal, dayOverrides: {} }, profile, null, '2026-10-21').targets.kcal, 1000);
+test('目標套數未達成不算做到，沒設定就是有記錄算做到', () => {
+  const today = '2026-10-30';
+  const logged = summarizeDay([{ type: 'workout', schemaVersion: 1, data: { trainingId: 'c', sets: 4 } }]);
+  assert.equal(cardDayState(activityCard, today, logged, today, today, { scheduled: true }), 'done');
+  assert.equal(cardDayState(activityCard, today, logged, today, today, { scheduled: true, targetSets: 5 }), 'missed');
+  assert.equal(targetSetsOn([{ ...schedule, targetSets: 5 }], today), 5);
+});
+
+test('總量用當天保存的動作內容，含另外多做的次數', () => {
+  const moves = [{ name: '引體向上', metrics: { reps: 5 } }, { name: '懸吊', metrics: { holdSec: 10 } }];
+  assert.deepEqual(moveTotals({ moves, sets: 6, extra: { 0: 3 } }), [{ name: '引體向上', total: 33 }]);
 });
 
 test('Gemini 回覆：容忍前後文字，拒絕錯誤內容', () => {

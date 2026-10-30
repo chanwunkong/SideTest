@@ -3,7 +3,7 @@ import { firebaseConfig } from './firebase-config.js';
 import { dateKey, goalFor } from './logic.js';
 import { normalizeEvent, registry } from './registry.js';
 
-const COLLECTIONS = ['events', 'goals', 'attachments', 'profile'];
+const COLLECTIONS = ['events', 'goals', 'attachments', 'profile', 'trainings', 'schedules'];
 
 class LocalBackend {
   #dbPromise = new Promise((resolve, reject) => {
@@ -64,6 +64,8 @@ class HealthStore extends EventTarget {
   events = new Map();
   goals = [];
   profile = {};
+  trainings = [];
+  schedules = [];
   #local = new LocalBackend();
   #backend = this.#local;
   #attachments = new Map();
@@ -108,10 +110,12 @@ class HealthStore extends EventTarget {
 
   async #load() {
     try {
-      const [events, goals, profile] = await Promise.all(['events', 'goals', 'profile'].map((c) => this.#backend.list(c)));
+      const [events, goals, profile, trainings, schedules] = await Promise.all(['events', 'goals', 'profile', 'trainings', 'schedules'].map((c) => this.#backend.list(c)));
       this.events = new Map(events.map((e) => [e.id, normalizeEvent(e)]));
       this.goals = goals;
       this.profile = profile[0] ?? {};
+      this.trainings = trainings;
+      this.schedules = schedules;
       this.#changed();
     } catch (error) {
       this.#reportError(error);
@@ -199,6 +203,19 @@ class HealthStore extends EventTarget {
     this.#changed();
   }
 
+  // 訓練和排程共用同一種存法，刪除只做標記
+  saveDoc(col, doc) {
+    const saved = { ...doc, id: doc.id ?? crypto.randomUUID(), updatedAt: Date.now() };
+    this[col] = [...this[col].filter((d) => d.id !== saved.id), saved];
+    this.#write(col, saved.id, saved);
+    this.#changed();
+    return saved;
+  }
+
+  activeDocs(col) {
+    return this[col].filter((d) => !d.deletedAt);
+  }
+
   saveProfile(patch) {
     this.profile = { ...this.profile, ...patch, id: 'main', updatedAt: Date.now() };
     this.#write('profile', 'main', this.profile);
@@ -214,8 +231,8 @@ class HealthStore extends EventTarget {
   }
 
   async exportAll() {
-    const [events, goals, attachments, profile] = await Promise.all(COLLECTIONS.map((c) => this.#backend.list(c)));
-    return { exportedAt: new Date().toISOString(), events, goals, attachments, profile };
+    const lists = await Promise.all(COLLECTIONS.map((c) => this.#backend.list(c)));
+    return { exportedAt: new Date().toISOString(), ...Object.fromEntries(COLLECTIONS.map((c, i) => [c, lists[i]])) };
   }
 
   signIn() {

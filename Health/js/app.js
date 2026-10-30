@@ -1,8 +1,10 @@
 import { CARD_TYPES, DEFAULT_CARDS, cardDayState, metricsOf, monthDates, weekDates } from './cards.js';
-import { addDays, dailyTargets, dateKey, goalFor, parseDateKey, planFor, summarizeDay, targetWeight, weekStart } from './logic.js';
+import { LANGUAGES, lang, setLang, t } from './i18n.js';
+import { addDays, dateKey, goalFor, nutritionTargetsFor, parseDateKey, sevenDayAverage, summarizeDay, targetWeight, weekStart } from './logic.js';
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
 import { ACTIVITIES, INTENSITIES, NUTRIENTS } from './registry.js';
 import { healthStore as store } from './store.js';
+import { MODES, MOVE_METRICS, moveTotals, scheduleRemaining, schedulesOn, targetSetsOn } from './training.js';
 
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
@@ -38,18 +40,17 @@ function latestBody(date) {
 }
 
 function dayData(date) {
-  const goal = goalFor(store.goals, date);
-  return { summary: summarizeDay(store.eventsOn(date)), goal, plan: planFor(goal, date) };
+  return { summary: summarizeDay(store.eventsOn(date)), goal: goalFor(store.goals, date) };
 }
+
+const activeSchedules = () => store.activeDocs('schedules');
+const trainingById = (id) => store.trainings.find((training) => training.id === id);
 
 const cardsList = () => store.profile.cards ?? DEFAULT_CARDS;
 const saveCards = (cards) => store.saveProfile({ cards });
 
-const targetsOn = (goal, date) => dailyTargets(goal, store.profile, latestBody(date), date);
-
 function formatDate(key) {
-  const date = parseDateKey(key);
-  return `${date.getMonth() + 1}月${date.getDate()}日 週${WEEKDAYS[date.getDay()]}`;
+  return parseDateKey(key).toLocaleDateString(lang, { month: 'long', day: 'numeric', weekday: 'short' });
 }
 
 function mealText(meal) {
@@ -57,18 +58,23 @@ function mealText(meal) {
   return items || meal.data.note || '未命名餐點';
 }
 
-function workoutText(event) {
-  const minutes = Math.round(event.data.durationSec / 60);
-  return `${minutes} 分鐘${event.data.intensity ? `・${intensityLabel(event.data.intensity)}` : ''}`;
+function workoutText({ data }) {
+  const parts = [];
+  if (data.sets) parts.push(t('workout.setsValue', { n: data.sets }));
+  if (data.durationSec) parts.push(t('workout.minutes', { n: Math.round(data.durationSec / 60) }));
+  if (data.intensity) parts.push(intensityLabel(data.intensity));
+  return parts.join('・');
 }
-
-const planText = (plan) => (plan ? `${esc(plan.activity)} ${plan.minutes} 分鐘` : '休息');
 
 // ---- 畫面 ----
 
 function render() {
   const screens = { home: renderHome, diet: renderDiet, workout: renderWorkout, rest: renderRest, body: renderBody };
-  document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === state.tab));
+  document.documentElement.lang = lang;
+  document.querySelectorAll('.tabs button').forEach((b) => {
+    b.classList.toggle('active', b.dataset.tab === state.tab);
+    b.textContent = t(`tab.${b.dataset.tab}`);
+  });
   view.innerHTML = screens[state.tab]();
   hydrateImages(view);
 }
@@ -80,23 +86,11 @@ function hydrateImages(root) {
   });
 }
 
-function renderBars(list, summary, targets) {
-  return list.map(({ key, label, unit, isLimit }) => {
-    const value = summary.nutrients[key] || 0;
-    const target = targets[key] || 0;
-    const percent = target ? Math.min(100, (value / target) * 100) : 0;
-    const over = isLimit && value > target;
-    return `<div class="bar">
-      <div class="bar-label"><span>${label}</span><span class="muted">${round(value)} / ${target} ${unit}${isLimit ? ' 上限' : ''}</span></div>
-      <div class="bar-track"><div class="bar-fill${over ? ' over' : ''}" style="width:${percent}%"></div></div>
-    </div>`;
-  }).join('');
-}
-
 function cardState(card, date) {
   const today = dateKey();
   const start = store.firstRecordDate(CARD_TYPES[card.type].eventTypes) ?? today;
-  return cardDayState(card, date, summarizeDay(store.eventsOn(date)), today, start < today ? start : today, goalFor(store.goals, date));
+  const context = { scheduled: schedulesOn(activeSchedules(), date).length > 0, targetSets: targetSetsOn(activeSchedules(), date) };
+  return cardDayState(card, date, summarizeDay(store.eventsOn(date)), today, start < today ? start : today, context);
 }
 
 // 上方表格：每張卡片一列、每天一欄，週與月用同一種表格
@@ -185,67 +179,99 @@ function mealEntry(meal) {
   </button>`;
 }
 
+function nutrientRows(list, summary, average, targets) {
+  return list.map(({ key, unit }) => `<div class="nutrient-row">
+    <span>${t(`nutrient.${key}`)}</span>
+    <strong>${formatValue(summary.nutrients[key] ?? null)}</strong>
+    <span>${formatValue(average[key] ?? null)}</span>
+    <span>${formatValue(targets[key] ?? null)}</span>
+    <small>${unit}</small>
+  </div>`).join('');
+}
+
 function renderDiet() {
   const date = state.dietDate;
   const { summary, goal } = dayData(date);
-  const { targets, personalized } = targetsOn(goal, date);
+  const targets = nutritionTargetsFor(goal, date);
+  const { average, dayCount } = sevenDayAverage((d) => store.eventsOn(d), date);
 
   return `
     <header class="topbar">
-      <button class="icon-btn" data-action="diet-date" data-delta="-1" aria-label="前一天">‹</button>
-      <div style="text-align:center"><h1>飲食</h1><p class="muted">${formatDate(date)}</p></div>
-      <button class="icon-btn" data-action="diet-date" data-delta="1" aria-label="後一天"${date >= dateKey() ? ' disabled' : ''}>›</button>
+      <button class="icon-btn" data-action="diet-date" data-delta="-1" aria-label="‹">‹</button>
+      <div style="text-align:center"><h1>${t('diet.title')}</h1><p class="muted">${formatDate(date)}</p></div>
+      <button class="icon-btn" data-action="diet-date" data-delta="1" aria-label="›"${date >= dateKey() ? ' disabled' : ''}>›</button>
     </header>
     <section class="grid-2 meal-actions">
-      <button class="btn primary" data-action="meal-paste">貼上 Gemini 結果</button>
-      <button class="btn" data-action="meal-manual">手動輸入</button>
+      <button class="btn primary" data-action="meal-paste">${t('diet.paste')}</button>
+      <button class="btn" data-action="meal-manual">${t('diet.manual')}</button>
     </section>
-    ${summary.meals.length ? `<section class="card">${summary.meals.map(mealEntry).join('')}</section>` : ''}
-    <section class="card">${renderBars(PRIMARY, summary, targets)}
-      ${personalized ? '' : '<p class="muted" style="margin-top:12px">目前是通用標準。到身體頁填資料後，會改成依你計算。</p>'}
+    <section class="card">${summary.meals.map(mealEntry).join('') || `<p class="muted">${t('diet.noMeals')}</p>`}</section>
+    <section class="card">
+      <div class="nutrient-row head"><span></span><span>${t('diet.today')}</span><span>${t('diet.average')}</span><span>${t('diet.target')}</span><small></small></div>
+      ${nutrientRows(PRIMARY, summary, average, targets)}
+      <details><summary>${t('diet.more')}</summary>${nutrientRows(SECONDARY, summary, average, targets)}</details>
+      <div class="row" style="margin-top:10px">
+        <span class="muted">${t('diet.days', { n: dayCount })}</span>
+        <button class="plain" data-action="targets-edit">${t('diet.setTargets')}</button>
+      </div>
     </section>
-    <details class="card">
-      <summary>熱量、咖啡因、肌酸</summary>
-      ${renderBars(SECONDARY, summary, targets)}
-    </details>
-    <button class="textlink" data-action="prompt-show">查看 Gemini 提示詞</button>`;
+    <button class="textlink" data-action="prompt-show">${t('diet.prompt')}</button>`;
 }
 
 function renderWorkout() {
   const today = dateKey();
-  const start = weekStart(today);
-  const dates = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(weekStart(today), i));
   const week = dates.flatMap((d) => summarizeDay(store.eventsOn(d)).workouts);
-  const goal = goalFor(store.goals, today);
-  const plan = planFor(goal, today);
-  const planned = Object.keys(goal.workoutPlan).length;
-  const minutes = week.reduce((sum, w) => sum + w.data.durationSec / 60, 0);
+  const minutes = week.reduce((sum, w) => sum + (w.data.durationSec ?? 0) / 60, 0);
+  const sets = week.reduce((sum, w) => sum + (w.data.sets ?? 0), 0);
   const activeDays = new Set(week.map((w) => w.date)).size;
-  const recent = store.liveEvents()
-    .filter((e) => e.type === 'workout')
-    .sort((a, b) => b.occurredAt - a.occurredAt)
-    .slice(0, 10);
+  const todays = summarizeDay(store.eventsOn(today)).workouts;
+  const scheduled = schedulesOn(activeSchedules(), today).filter((s) => trainingById(s.trainingId));
+  const trainings = store.activeDocs('trainings');
+  const recent = store.liveEvents().filter((e) => e.type === 'workout').sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 10);
+
+  const todayRows = scheduled.map((schedule) => {
+    const training = trainingById(schedule.trainingId);
+    const done = todays.filter((w) => w.data.trainingId === training.id);
+    const count = done.reduce((sum, w) => sum + (w.data.sets ?? 0), 0);
+    const status = schedule.targetSets ? t('record.target', { n: schedule.targetSets }) : '';
+    return `<div class="row plan-row">
+      <div><strong>${esc(training.name)}</strong>
+      <div class="muted">${[count ? t('workout.setsValue', { n: count }) : '', status].filter(Boolean).join('・')}</div></div>
+      <button class="btn primary" data-action="record-open" data-id="${esc(training.id)}">${t('record.done')}</button>
+    </div>`;
+  }).join('');
 
   return `
-    <header class="topbar"><h1>運動</h1></header>
-    <section class="focus">
-      <div class="focus-main">今天：${planText(plan)}</div>
-      <div class="focus-actions"><button class="btn primary" data-action="workout-new">記錄運動</button></div>
+    <header class="topbar"><h1>${t('workout.title')}</h1></header>
+    <section class="card">
+      <h2>${t('workout.today')}</h2>
+      ${todayRows || `<p class="muted">${t('workout.noneToday')}</p>`}
+      <button class="textlink" data-action="workout-new">${t('workout.free')}</button>
     </section>
     <section class="card">
-      <h2>本週</h2>
-      <div class="stat-row"><span>訓練天數</span><strong>${activeDays}${planned ? ` / ${planned}` : ''} 天</strong></div>
-      <div class="stat-row"><span>總時間</span><strong>${Math.round(minutes)} 分鐘</strong></div>
+      <h2>${t('workout.week')}</h2>
+      <div class="stat-row"><span>${t('workout.days')}</span><strong>${activeDays}</strong></div>
+      <div class="stat-row"><span>${t('workout.sets')}</span><strong>${sets}</strong></div>
+      <div class="stat-row"><span>${t('workout.time')}</span><strong>${t('workout.minutes', { n: Math.round(minutes) })}</strong></div>
     </section>
     <section class="card">
-      <h2>週課表</h2>
-      ${WEEK_ORDER.map((d) => `<button class="plan-row" data-action="plan-edit" data-day="${d}"><span>週${WEEKDAYS[d]}</span><span class="muted">${planText(goal.workoutPlan[d])}</span></button>`).join('')}
+      <div class="row"><h2 style="margin:0">${t('workout.schedules')}</h2><button class="plain" data-action="schedule-edit">＋ ${t('common.add')}</button></div>
+      ${activeSchedules().map((schedule) => {
+        const left = scheduleRemaining(schedule, today);
+        const label = left === null ? t('schedule.ongoing') : left ? t('schedule.remaining', { n: left }) : t('schedule.ended');
+        return `<button class="plan-row" data-action="schedule-edit" data-id="${esc(schedule.id)}"><span>${esc(trainingById(schedule.trainingId)?.name)}</span><span class="muted">${label}</span></button>`;
+      }).join('')}
     </section>
     <section class="card">
-      <h2>最近紀錄</h2>
+      <div class="row"><h2 style="margin:0">${t('workout.trainings')}</h2><button class="plain" data-action="training-edit">＋ ${t('common.add')}</button></div>
+      ${trainings.map((training) => `<button class="plan-row" data-action="training-edit" data-id="${esc(training.id)}"><span>${esc(training.name)}</span><span class="muted">${t(`mode.${training.mode}`)}</span></button>`).join('') || `<p class="muted">${t('workout.noTrainings')}</p>`}
+    </section>
+    <section class="card">
+      <h2>${t('workout.recent')}</h2>
       ${recent.map((w) => `<button class="entry" data-action="workout-open" data-id="${esc(w.id)}">
-        <span class="entry-body"><strong>${esc(w.data.activity)}</strong><span class="muted">${formatDate(w.date)}・${workoutText(w)}</span></span>
-      </button>`).join('') || '<p class="muted">還沒有運動紀錄</p>'}
+        <span class="entry-body"><strong>${esc(w.data.activity)}</strong><span class="muted">${formatDate(w.date)}・${esc(workoutText(w))}</span></span>
+      </button>`).join('') || `<p class="muted">${t('workout.noRecords')}</p>`}
     </section>`;
 }
 
@@ -283,7 +309,6 @@ function renderBody() {
   const height = profile.heightCm / 100;
   const bmi = body && height ? round(body.weightKg / (height * height)) : null;
   const goalWeight = body ? targetWeight(goal, body.weightKg, body.bodyFat) : goal.body.targetWeightKg;
-  const result = targetsOn(goal, today);
   const records = store.liveEvents().filter((e) => e.type === 'body').sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 7);
   const hasGoal = goal.body.targetDate && (goal.body.targetWeightKg || goal.body.targetBodyFat);
 
@@ -300,12 +325,6 @@ function renderBody() {
     <section class="card">
       <div class="row"><h2 style="margin:0">目標</h2><button class="btn" data-action="goal-edit">${hasGoal ? '修改' : '設定'}</button></div>
       ${hasGoal ? `<p style="margin-top:8px">${goalWeight ? `${round(goalWeight)} kg` : `體脂 ${goal.body.targetBodyFat}%`}・${formatDate(goal.body.targetDate)} 前</p>` : '<p class="muted" style="margin-top:8px">還沒有設定目標</p>'}
-      ${result.capped ? '<p class="muted" style="margin-top:8px">這個時程太趕，每日標準已限制在安全範圍內，實際可能需要更長時間。</p>' : ''}
-    </section>
-    <section class="card">
-      <div class="row"><h2 style="margin:0">今日標準</h2><button class="btn" data-action="targets-edit">手動調整</button></div>
-      <p class="muted" style="margin-top:8px">${result.personalized ? `依你的數據估算・${result.dayType === 'training' ? '訓練日' : '休息日'}` : '通用標準：填體重，以及體脂或基本資料後會改成個人估算'}</p>
-      ${NUTRIENTS.map(({ key, label, unit }) => `<div class="stat-row"><span>${label}</span><span>${result.targets[key]} ${unit}</span></div>`).join('')}
     </section>
     <section class="card">
       <h2>最近紀錄</h2>
@@ -346,13 +365,16 @@ function openPrompt() {
 
 function openPaste() {
   openSheet(`<form class="stack" data-form="paste">
-    ${sheetHeader('貼上 Gemini 結果')}
-    <button type="button" class="btn primary wide" data-action="paste-clipboard">從剪貼簿貼上</button>
-    <label class="field"><span>或貼在這裡</span><textarea name="text"></textarea></label>
+    ${sheetHeader(t('diet.pasteTitle'))}
+    <label class="field"><span>${t('diet.pasteHint')}</span><textarea name="text" id="paste-text"></textarea></label>
     <p class="muted" id="paste-error"></p>
     <button class="btn wide">確認</button>
-    <button type="button" class="textlink" data-action="prompt-show">查看 Gemini 提示詞</button>
+    <button type="button" class="textlink" data-action="prompt-show">${t('diet.prompt')}</button>
   </form>`);
+  sheet.querySelector('#paste-text').addEventListener('paste', (event) => {
+    event.preventDefault();
+    importMeal(event.clipboardData.getData('text'));
+  });
 }
 
 function importMeal(text) {
@@ -371,16 +393,17 @@ function newMealDraft() {
 
 function renderMealSheet() {
   const { draft } = state;
-  const fields = NUTRIENTS.map(({ key, label, unit }) => numberField(key, `${label}（${unit}）`, draft.nutrients[key])).join('');
+  const field = ({ key, unit }) => numberField(key, `${t(`nutrient.${key}`)}（${unit}）`, draft.nutrients[key]);
   const items = draft.items.map((i) => `${esc(i.name)}（${esc(i.portion)}）`).join('、');
   const confidence = { low: '低', medium: '中', high: '高' }[draft.confidence];
 
   openSheet(`<form class="stack" data-form="meal">
-    ${sheetHeader(draft.id ? '修改餐點' : '確認餐點')}
+    ${sheetHeader(t(draft.id ? 'diet.editMeal' : 'diet.confirm'))}
     ${items ? `<p class="muted">${items}${confidence ? `｜可信度：${confidence}` : ''}</p>` : ''}
-    <label class="field"><span>名稱或備註</span><input name="note" value="${esc(draft.note)}"></label>
-    <div class="grid-2">${fields}</div>
-    <button class="btn primary wide">儲存</button>
+    <label class="field"><span>${t('diet.note')}</span><input name="note" value="${esc(draft.note)}"></label>
+    <div class="grid-2">${PRIMARY.map(field).join('')}</div>
+    <details><summary>${t('diet.more')}</summary><div class="grid-2">${SECONDARY.map(field).join('')}</div></details>
+    <button class="btn primary wide">${t('common.save')}</button>
     ${draft.id ? deleteButton : ''}
   </form>`);
 }
@@ -398,7 +421,7 @@ function saveMeal(form) {
   if (draft.id) store.updateEvent(draft.id, data);
   else store.addEvent('meal', data, { date: draft.date, source: draft.source, raw });
   closeSheet();
-  toast('已記錄這一餐');
+  toast(t('diet.saved'));
 }
 
 function openMeal(id) {
@@ -416,11 +439,11 @@ const activityOptions = ACTIVITIES.map((a) => ({ value: a, label: a }));
 
 function openWorkout(id = null, date = dateKey()) {
   const event = id ? store.events.get(id) : null;
-  const plan = planFor(goalFor(store.goals, date), date);
-  const activity = event?.data.activity ?? plan?.activity ?? ACTIVITIES[0];
+  if (event?.data.trainingId) { openRecord(event.data.trainingId, event.date, event); return; }
+  const activity = event?.data.activity ?? ACTIVITIES[0];
   const intensity = event?.data.intensity ?? 'moderate';
   state.draft = { id, date: event?.date ?? date, activity, intensity };
-  const minutes = event ? Math.round(event.data.durationSec / 60) : plan?.minutes ?? 60;
+  const minutes = event ? Math.round(event.data.durationSec / 60) : 60;
   openSheet(`<form class="stack" data-form="workout">
     ${sheetHeader(id ? '修改運動' : '記錄運動')}
     ${chipGroup('activity', activityOptions, activity)}
@@ -433,6 +456,134 @@ function openWorkout(id = null, date = dateKey()) {
   </form>`);
 }
 
+// 依訓練的記錄方式顯示欄位，細節都是選填
+function openRecord(trainingId, date = dateKey(), event = null) {
+  const training = trainingById(trainingId);
+  const moves = event?.data.moves ?? training?.moves ?? [];
+  const mode = event?.data.mode ?? training.mode;
+  state.draft = { id: event?.id ?? null, trainingId, mode, moves, name: event?.data.activity ?? training.name };
+  const extras = moves.map((move, i) => (move.metrics?.reps ? numberField(`extra-${i}`, t('record.extra', { name: esc(move.name) }), event?.data.extra?.[i]) : '')).join('');
+  const rest = training?.trackRest ? numberField('restSec', t('record.rest'), event?.data.restSec) : '';
+  openSheet(`<form class="stack" data-form="record">
+    ${sheetHeader(t('record.title', { name: esc(state.draft.name) }))}
+    ${mode === 'sets' ? numberField('sets', t('record.sets'), event?.data.sets, 'min="1" required') : ''}
+    ${extras || rest ? `<details><summary>${t('record.detail')}</summary><div class="stack" style="margin-top:10px">${extras}${rest}</div></details>` : ''}
+    ${dateField(event?.date ?? date)}
+    <button class="btn primary wide">${t(mode === 'sets' ? 'common.save' : 'record.done')}</button>
+    ${event ? deleteButton : ''}
+  </form>`);
+}
+
+function saveRecord(form) {
+  const { draft } = state;
+  const values = new FormData(form);
+  const date = values.get('date');
+  const extra = {};
+  draft.moves.forEach((_, i) => {
+    const value = optionalNumber(values.get(`extra-${i}`));
+    if (value) extra[i] = value;
+  });
+  const data = {
+    trainingId: draft.trainingId, activity: draft.name, mode: draft.mode, moves: draft.moves,
+    sets: optionalNumber(values.get('sets')), extra, restSec: optionalNumber(values.get('restSec')),
+  };
+  if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt: new Date(`${date}T12:00:00`).getTime() });
+  else store.addEvent('workout', data, { date });
+  closeSheet();
+  const totals = moveTotals(data).map((m) => `${m.name} ${m.total}`).join('、');
+  toast(totals || t('record.saved'));
+}
+
+function readTrainingForm(form) {
+  const { draft } = state;
+  const values = new FormData(form);
+  draft.name = values.get('name');
+  draft.trackRest = form.querySelector('[name=trackRest]').checked;
+  draft.moves = draft.moves.map((move, i) => ({
+    ...move,
+    name: values.get(`move-name-${i}`),
+    metrics: Object.fromEntries(MOVE_METRICS.flatMap(({ key, type }) => {
+      const value = values.get(`move-${key}-${i}`);
+      if (!value) return [];
+      return [[key, type === 'number' ? Number(value) : value]];
+    })),
+  }));
+}
+
+function moveFields(move, i) {
+  const metricField = ({ key, type }) => `<label class="field"><span>${t(`metric.${key}`)}</span>
+    <input name="move-${key}-${i}" type="${type}" ${type === 'number' ? 'inputmode="decimal" min="0" step="any"' : ''} value="${esc(move.metrics?.[key])}"></label>`;
+  const [reps, ...more] = MOVE_METRICS;
+  return `<div class="move-row">
+    <div class="grid-2">
+      <label class="field"><span>${t('training.moveName')}</span><input name="move-name-${i}" value="${esc(move.name)}" required></label>
+      ${metricField(reps)}
+    </div>
+    <details><summary>${t('training.moreMetrics')}</summary><div class="grid-2">${more.map(metricField).join('')}</div></details>
+  </div>`;
+}
+
+function renderTrainingSheet() {
+  const { draft } = state;
+  openSheet(`<form class="stack" data-form="training">
+    ${sheetHeader(t(draft.id ? 'common.edit' : 'workout.newTraining'))}
+    <label class="field"><span>${t('training.name')}</span><input name="name" value="${esc(draft.name)}" required></label>
+    <h2>${t('training.mode')}</h2>
+    ${chipGroup('mode', MODES.map((value) => ({ value, label: t(`mode.${value}`) })), draft.mode)}
+    <h2>${t('training.moves')}</h2>
+    ${draft.moves.map(moveFields).join('')}
+    <button type="button" class="btn wide" data-action="move-add">＋ ${t('training.addMove')}</button>
+    <label class="check"><input type="checkbox" name="trackRest"${draft.trackRest ? ' checked' : ''}> ${t('training.trackRest')}</label>
+    <button class="btn primary wide">${t('common.save')}</button>
+    ${draft.id ? `<button type="button" class="btn danger wide" data-action="doc-delete" data-col="trainings">${t('common.delete')}</button>` : ''}
+  </form>`);
+}
+
+function openTraining(id) {
+  const training = id ? trainingById(id) : null;
+  state.draft = training ? structuredClone(training) : { name: '', mode: 'sets', moves: [{ name: '', metrics: {} }], trackRest: false };
+  renderTrainingSheet();
+}
+
+function saveTraining(form) {
+  readTrainingForm(form);
+  store.saveDoc('trainings', state.draft);
+  closeSheet();
+}
+
+function openSchedule(id) {
+  const trainings = store.activeDocs('trainings');
+  if (!trainings.length) { openTraining(); return; }
+  const schedule = id ? activeSchedules().find((s) => s.id === id) : null;
+  state.draft = schedule ? { ...schedule } : { trainingId: trainings[0].id };
+  const days = WEEK_ORDER.map((d) => `<button type="button" class="chip${schedule?.weekdays?.includes(d) ? ' active' : ''}" data-action="chip-toggle" data-value="${d}">${WEEKDAYS[d]}</button>`).join('');
+  openSheet(`<form class="stack" data-form="schedule">
+    ${sheetHeader(t(id ? 'common.edit' : 'workout.newSchedule'))}
+    <h2>${t('schedule.training')}</h2>
+    ${chipGroup('trainingId', trainings.map((x) => ({ value: x.id, label: x.name })), state.draft.trainingId)}
+    <label class="field"><span>${t('schedule.start')}</span><input type="date" name="startDate" value="${schedule?.startDate ?? dateKey()}" required></label>
+    ${numberField('days', `${t('schedule.days')}（${t('schedule.daysHint')}）`, schedule?.days, 'min="1"')}
+    <h2>${t('schedule.weekdays')}</h2>
+    <p class="muted">${t('schedule.weekdaysHint')}</p>
+    <div class="chips" data-chip-list="weekdays">${days}</div>
+    ${numberField('targetSets', `${t('schedule.target')}（${t('schedule.targetHint')}）`, schedule?.targetSets, 'min="1"')}
+    <button class="btn primary wide">${t('common.save')}</button>
+    ${id ? `<button type="button" class="btn danger wide" data-action="doc-delete" data-col="schedules">${t('common.delete')}</button>` : ''}
+  </form>`);
+}
+
+function saveSchedule(form) {
+  const values = new FormData(form);
+  store.saveDoc('schedules', {
+    ...state.draft,
+    startDate: values.get('startDate'),
+    days: optionalNumber(values.get('days')),
+    weekdays: [...form.querySelectorAll('[data-chip-list="weekdays"] .chip.active')].map((c) => Number(c.dataset.value)),
+    targetSets: optionalNumber(values.get('targetSets')),
+  });
+  closeSheet();
+}
+
 function saveWorkout(form) {
   const { draft } = state;
   const values = new FormData(form);
@@ -442,29 +593,6 @@ function saveWorkout(form) {
   else store.addEvent('workout', data, { date });
   closeSheet();
   toast('已記錄運動');
-}
-
-function openPlan(day) {
-  const goal = goalFor(store.goals, dateKey());
-  const plan = goal.workoutPlan[day];
-  const activity = plan?.activity ?? '';
-  state.draft = { day, activity };
-  openSheet(`<form class="stack" data-form="plan">
-    ${sheetHeader(`週${WEEKDAYS[day]}的訓練`)}
-    ${chipGroup('activity', [{ value: '', label: '休息' }, ...activityOptions], activity)}
-    ${numberField('minutes', '時間（分鐘）', plan?.minutes ?? 60)}
-    <button class="btn primary wide">儲存</button>
-  </form>`);
-}
-
-function savePlan(form) {
-  const { day, activity } = state.draft;
-  const workoutPlan = { ...goalFor(store.goals, dateKey()).workoutPlan };
-  if (activity) workoutPlan[day] = { activity, minutes: Number(new FormData(form).get('minutes')) || 60 };
-  else delete workoutPlan[day];
-  store.saveGoal({ workoutPlan });
-  closeSheet();
-  toast('週課表已更新');
 }
 
 function openSleep(id = null) {
@@ -558,12 +686,11 @@ function openGoal() {
 
 function openTargets() {
   const goal = goalFor(store.goals, dateKey());
-  const computed = dailyTargets({ ...goal, targetOverrides: {} }, store.profile, latestBody(dateKey()), dateKey()).targets;
   openSheet(`<form class="stack" data-form="targets">
-    ${sheetHeader('手動調整標準')}
-    <p class="muted">留空就使用自動估算；填了就固定用你的數字。</p>
-    <div class="grid-2">${NUTRIENTS.map(({ key, label, unit }) => numberField(key, `${label}（${unit}）`, goal.targetOverrides[key], `placeholder="${computed[key]}"`)).join('')}</div>
-    <button class="btn primary wide">儲存</button>
+    ${sheetHeader(t('diet.setTargets'))}
+    <p class="muted">${t('diet.targetsHint')}</p>
+    <div class="grid-2">${NUTRIENTS.map(({ key, unit }) => numberField(key, `${t(`nutrient.${key}`)}（${unit}）`, goal.nutritionTargets[key])).join('')}</div>
+    <button class="btn primary wide">${t('common.save')}</button>
   </form>`);
 }
 
@@ -578,7 +705,11 @@ function recentWaterAmounts() {
 function cardQuickActions(card, date) {
   if (card.type === 'body') return '<button class="btn primary wide" data-action="body-new">記錄身體數據</button>';
   if (card.type === 'sleep') return '<button class="btn primary wide" data-action="sleep-new">記錄睡眠</button>';
-  if (card.type === 'activity') return `<button class="btn primary wide" data-action="workout-new" data-date="${date}">記錄運動</button>`;
+  if (card.type === 'activity') {
+    const scheduled = schedulesOn(activeSchedules(), date).filter((x) => trainingById(x.trainingId));
+    const buttons = scheduled.map((x) => `<button class="btn primary wide" data-action="record-open" data-id="${esc(x.trainingId)}" data-date="${date}">${esc(trainingById(x.trainingId).name)}</button>`).join('');
+    return `${buttons}<button class="btn wide" data-action="workout-new" data-date="${date}">${t('workout.free')}</button>`;
+  }
   const recent = recentWaterAmounts().map((ml) => `<button class="chip" data-action="water-add" data-ml="${ml}">${ml} ml</button>`).join('');
   return `<div class="water-entry">
       ${recent ? `<div class="chips">${recent}</div>` : ''}
@@ -682,6 +813,9 @@ function openSettings() {
   openSheet(`<div class="stack">
     ${sheetHeader('設定')}
     <section class="card stack"><h2>帳號</h2>${account}</section>
+    <section class="card stack"><h2>${t('settings.language')}</h2>
+      <div class="chips">${LANGUAGES.map((l) => `<button class="chip${l.value === lang ? ' active' : ''}" data-action="lang-set" data-value="${l.value}">${l.label}</button>`).join('')}</div>
+    </section>
     <button class="btn wide" data-action="export">匯出全部資料（JSON）</button>
   </div>`);
 }
@@ -695,12 +829,12 @@ function saveGoalForm(form, kind) {
       targetDate: values.get('targetDate') || null,
     } });
   } else if (kind === 'targets') {
-    const targetOverrides = {};
+    const nutritionTargets = {};
     for (const { key } of NUTRIENTS) {
       const value = optionalNumber(values.get(key));
-      if (value !== null) targetOverrides[key] = value;
+      if (value !== null) nutritionTargets[key] = value;
     }
-    store.saveGoal({ targetOverrides });
+    store.saveGoal({ nutritionTargets });
   } else {
     store.saveGoal({ sleep: { hours: Number(values.get('hours')), bedtime: values.get('bedtime') } });
   }
@@ -801,9 +935,6 @@ const actions = {
   'meal-open': ({ id }) => openMeal(id),
   'prompt-show': openPrompt,
   'prompt-copy': () => navigator.clipboard.writeText(GEMINI_PROMPT).then(() => toast('已複製提示詞')).catch(() => toast('無法複製，請長按文字手動複製')),
-  'paste-clipboard': () => navigator.clipboard.readText().then(importMeal).catch(() => {
-    sheet.querySelector('#paste-error').textContent = '無法讀取剪貼簿，請直接貼到下方';
-  }),
   'event-delete': () => {
     const { id } = state.draft;
     store.deleteEvent(id);
@@ -812,7 +943,16 @@ const actions = {
   },
   'workout-new': ({ date }) => openWorkout(null, date),
   'workout-open': ({ id }) => openWorkout(id),
-  'plan-edit': ({ day }) => openPlan(Number(day)),
+  'record-open': ({ id, date }) => openRecord(id, date ?? dateKey()),
+  'training-edit': ({ id }) => openTraining(id),
+  'schedule-edit': ({ id }) => openSchedule(id),
+  'move-add': () => {
+    readTrainingForm(sheet.querySelector('form'));
+    state.draft.moves.push({ name: '', metrics: {} });
+    renderTrainingSheet();
+  },
+  'doc-delete': ({ col }) => { store.saveDoc(col, { ...state.draft, deletedAt: Date.now() }); closeSheet(); },
+  'lang-set': ({ value }) => { setLang(value); store.saveProfile({ lang: value }); closeSheet(); render(); },
   'sleep-new': () => openSleep(),
   'sleep-open': ({ id }) => openSleep(id),
   'sleep-goal': openSleepGoal,
@@ -840,7 +980,9 @@ const formHandlers = {
   paste: (form) => importMeal(new FormData(form).get('text')),
   meal: saveMeal,
   workout: saveWorkout,
-  plan: savePlan,
+  record: saveRecord,
+  training: saveTraining,
+  schedule: saveSchedule,
   sleep: saveSleep,
   body: saveBody,
   profile: saveProfile,

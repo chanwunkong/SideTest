@@ -59,7 +59,7 @@ export const registry = {
   },
   workout: {
     version: 1,
-    validate: (data) => !!data.activity && data.durationSec > 0,
+    validate: (data) => !!data.trainingId || (!!data.activity && data.durationSec > 0),
     upgrade: {},
     summarize(day, data, event) {
       day.workouts.push(event);

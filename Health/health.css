@@ -128,6 +128,16 @@ summary { cursor: pointer; font-size: 14px; color: var(--muted); }
 .edit-name { flex: 1; min-width: 0; text-align: left; font-weight: 600; }
 .edit-name .muted { display: block; font-weight: 400; }
 
+.nutrient-row { display: grid; grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 1fr)) 34px; align-items: baseline; gap: 6px; padding: 7px 0; text-align: right; font-variant-numeric: tabular-nums; }
+.nutrient-row > :first-child { text-align: left; }
+.nutrient-row span { color: var(--muted); }
+.nutrient-row > :first-child { color: var(--text); }
+.nutrient-row small { color: var(--muted); font-size: 11px; text-align: left; }
+.nutrient-row.head { font-size: 12px; padding-top: 0; }
+.move-row { display: grid; gap: 8px; padding: 12px; border-radius: var(--radius-sm); background: var(--surface); }
+.check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.check input { width: 20px; height: 20px; }
+
 .tabs {
   position: fixed; inset: auto 0 0 0; z-index: 2;
   display: grid; grid-template-columns: repeat(5, 1fr);
