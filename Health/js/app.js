@@ -15,6 +15,7 @@ const state = {
   dietDate: dateKey(),
   range: 'week',
   cardId: null,
+  selectedDate: null,
   month: dateKey().slice(0, 7),
   recordDate: null,
   draft: null,
@@ -105,17 +106,18 @@ function cardState(card, date) {
 }
 
 // 上方表格：每張卡片一列、每天一欄，週與月用同一種表格
-function renderTracker(cards, dates) {
+function renderTracker(cards, dates, selected) {
   const today = dateKey();
+  const dateAttrs = (date) => `data-action="select-date" data-date="${date}"${date > today ? ' disabled' : ''}`;
   const head = dates.map((date) => {
     const day = parseDateKey(date).getDate();
     const label = state.range === 'week' ? day : day === 1 || day % 5 === 0 ? day : '';
-    return `<span class="${date === today ? 'now' : ''}">${label}</span>`;
+    return `<button class="${date === selected ? 'now' : ''}" ${dateAttrs(date)} aria-label="${formatDate(date)}">${label}</button>`;
   }).join('');
   const rows = cards.map((card) => {
     const type = CARD_TYPES[card.type];
-    const marks = dates.map((date) => `<i class="mark ${cardState(card, date)}${date === today ? ' today' : ''}"></i>`).join('');
-    return `<div class="tracker-row" role="img" aria-label="${type.label}" style="--c:${type.color}">
+    const marks = dates.map((date) => `<button class="mark ${cardState(card, date)}${date === selected ? ' today' : ''}" ${dateAttrs(date)} aria-label="${formatDate(date)}"></button>`).join('');
+    return `<div class="tracker-row" role="group" aria-label="${type.label}" style="--c:${type.color}">
       <svg class="card-icon on" viewBox="0 0 24 24" aria-hidden="true">${type.icon}</svg>${marks}
     </div>`;
   }).join('');
@@ -130,19 +132,19 @@ function formatValue(value) {
 }
 
 // 身體數據保留最新一筆並標示幾天前；其他項目顯示今天
-function metricValue(metric, summary, card) {
+function metricValue(metric, summary, card, date) {
   if (!CARD_TYPES[card.type].keepsLatest) return { value: metric.read(summary), age: '' };
-  const latest = latestMetric(metric.key, dateKey());
+  const latest = latestMetric(metric.key, date);
   if (!latest) return { value: null, age: '' };
-  const days = Math.round((parseDateKey(dateKey()) - parseDateKey(latest.date)) / 86400000);
+  const days = Math.round((parseDateKey(date) - parseDateKey(latest.date)) / 86400000);
   return { value: latest.value, age: days ? t('card.daysAgo', { n: days }) : '' };
 }
 
-function renderCard(card, summary) {
+function renderCard(card, summary, date) {
   const type = CARD_TYPES[card.type];
   const metrics = metricsOf(card);
-  const doneToday = cardState(card, dateKey()) === 'done';
-  const shown = metrics.map((metric) => ({ metric, ...metricValue(metric, summary, card) }));
+  const doneToday = cardState(card, date) === 'done';
+  const shown = metrics.map((metric) => ({ metric, ...metricValue(metric, summary, card, date) }));
   const age = (item) => (item.age ? `<em>${item.age}</em>` : '');
   const values = shown.length === 1
     ? `<div class="card-big">${formatValue(shown[0].value)}<small> ${shown[0].metric.unit}</small></div>${age(shown[0])}`
@@ -159,19 +161,21 @@ function renderCard(card, summary) {
 
 function renderHome() {
   const today = dateKey();
-  const { summary } = dayData(today);
-  const dates = state.range === 'week' ? weekDates(today) : monthDates(today.slice(0, 7)).filter(Boolean);
+  const selected = state.selectedDate ?? today;
+  const { summary } = dayData(selected);
+  const dates = state.range === 'week' ? weekDates(selected) : monthDates(selected.slice(0, 7)).filter(Boolean);
   const cards = cardsList();
 
   return `
     <header class="topbar">
-      <div><h1>${formatDate(today)}</h1></div>
+      <div><h1>${formatDate(selected)}</h1>
+      ${selected === today ? '' : '<button class="textlink back-today" data-action="select-date" data-date="">回到今天</button>'}</div>
       <div class="switch" role="group" aria-label="日曆範圍">
         <button data-action="range" data-range="week" aria-pressed="${state.range === 'week'}">週</button>
         <button data-action="range" data-range="month" aria-pressed="${state.range === 'month'}">月</button>
       </div>
     </header>
-    ${renderTracker(cards, dates)}
+    ${renderTracker(cards, dates, selected)}
     <div class="row overview-head">
       <h2 style="margin:0">生理功能總覽</h2>
       <div class="chips">
@@ -179,7 +183,7 @@ function renderHome() {
         <button class="plain" data-action="settings" aria-label="設定">⚙</button>
       </div>
     </div>
-    <section class="health-cards">${cards.map((card) => renderCard(card, summary)).join('')}</section>`;
+    <section class="health-cards">${cards.map((card) => renderCard(card, summary, selected)).join('')}</section>`;
 }
 
 function mealEntry(meal) {
@@ -935,7 +939,12 @@ const actions = {
   settings: openSettings,
   'sheet-close': closeSheet,
   range: ({ range }) => { state.range = range; render(); },
-  'card-open': ({ id }) => { state.month = dateKey().slice(0, 7); state.recordDate = null; openCard(id); },
+  'select-date': ({ date }) => { state.selectedDate = date || null; render(); },
+  'card-open': ({ id }) => {
+    state.recordDate = state.selectedDate;
+    state.month = (state.selectedDate ?? dateKey()).slice(0, 7);
+    openCard(id);
+  },
   'card-month': ({ delta }) => {
     const date = parseDateKey(`${state.month}-01`);
     date.setMonth(date.getMonth() + Number(delta));

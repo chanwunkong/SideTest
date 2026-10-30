@@ -22,6 +22,10 @@ const PASTE = `好的，結果如下：
 
   const y = new Date(Date.now() - 86400000);
   const yesterday = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+  const day = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  const week = Array.from({ length: 7 }, (_, i) => day(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i)));
   await page.goto(`${process.env.PW_URL}/index.html`);
 
   // 打開就是總覽，不問問題
@@ -88,6 +92,20 @@ const PASTE = `好的，結果如下：
   await page.fill('input[name=minutes]', '45');
   await save();
   await card('活動').getByText('45', { exact: true }).waitFor();
+
+  // 點表格的前一天：卡片切換成那天，身體數值顯示當時最新，也能補記
+  await page.locator('.tracker-row[aria-label="睡眠"] .mark').nth(week.indexOf(yesterday)).click();
+  await page.getByText('回到今天').waitFor();
+  await card('身體組成').getByText('17.5').waitFor();
+  assert.equal(await card('飲食').getByText('—').count(), 3);
+  await card('睡眠').click();
+  await button('記錄睡眠').click();
+  assert.equal(await page.inputValue('input[name=date]'), yesterday);
+  await page.fill('input[name=hours]', '8');
+  await save();
+  await card('睡眠').getByText(/^8 小時/).waitFor();
+  await page.getByText('回到今天').click();
+  await card('身體組成').getByText('18', { exact: true }).waitFor();
 
   // 週月一起切換
   await button('月').click();
