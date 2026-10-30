@@ -1,73 +1,104 @@
-// 手機尺寸端對端測試：node test/e2e.cjs（需先在 Health/ 起 http.server 8123）
+// 手機尺寸端對端測試：node test/e2e.cjs <截圖資料夾>（需先在 Health/ 起 http.server，網址用 PW_URL）
 const { chromium, devices } = require('playwright');
 const assert = require('assert');
-const path = require('path');
+
+const PASTE = `好的，結果如下：
+\`\`\`json
+{"format":"health-meal-v1","items":[{"name":"雞腿便當","portion":"1 份"}],"nutrients":{"water_ml":100,"protein_g":38,"carbs_g":90,"fat_g":25,"kcal":750,"caffeine_mg":0},"confidence":"medium"}
+\`\`\``;
+
 (async () => {
+  const shots = process.argv[2];
   const browser = await chromium.launch({ channel: process.env.PW_CHANNEL });
   const ctx = await browser.newContext({ ...devices['iPhone 13'], serviceWorkers: 'block' });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  let aiBody = null;
-  await page.route('https://api.anthropic.com/**', async (route) => {
-    if (route.request().method() === 'OPTIONS') {
-      return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
-    }
-    aiBody = route.request().postDataJSON();
-    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({
-      id: 'm', type: 'message', role: 'assistant', model: 'claude-opus-5-5', stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 },
-      content: [{ type: 'text', text: JSON.stringify({ is_food: true, confidence: 'medium', items: [{ name: '<b>雞腿</b>便當', portion: '1 份' }], nutrients: { kcal: 750, carbs_g: 90, fat_g: 25, protein_g: 38, water_ml: 100, caffeine_mg: 0 } }) }],
-    }) });
-  });
-  await page.goto('http://localhost:8123/index.html');
-  await page.getByRole('button', { name: /喝水/ }).click();
-  await page.getByRole('button', { name: /咖啡因/ }).click();
-  await page.getByText('250 / 2500 ml').waitFor();
+  const button = (name, exact = true) => page.getByRole('button', { name, exact });
+  const save = () => button('儲存').click();
+  const tab = (name) => page.locator('.tabs').getByRole('button', { name, exact: true }).click();
 
-  // 設定金鑰後走拍照流程
-  await page.getByRole('button', { name: '設定' }).click();
-  await page.fill('input[name=apiKey]', 'sk-ant-test');
-  await page.getByRole('button', { name: '儲存設定' }).click();
-  await page.setInputFiles('#photo-input', path.join(__dirname, '..', 'icons', 'icon-512.png'));
-  await page.getByText('可信度：中').waitFor({ timeout: 15000 }).catch(async (e) => { throw new Error('狀態：' + await page.locator('#ai-status').textContent()); });
+  await page.goto(`${process.env.PW_URL}/index.html`);
+
+  // 今日：空白狀態
+  await page.getByText('今天還沒量體重').waitFor();
+  await page.getByText('昨晚睡眠尚未記錄').waitFor();
+  await page.getByText('今天休息').waitFor();
+  await page.screenshot({ path: `${shots}/home-empty.png` });
+
+  // 格式錯誤不能存
+  await button('記一餐').click();
+  await page.fill('textarea[name=text]', '今天吃得不錯');
+  await button('確認').click();
+  await page.getByText('找不到資料').waitFor();
+
+  // Gemini 貼上後確認存檔
+  await page.fill('textarea[name=text]', PASTE);
+  await button('確認').click();
+  await page.getByText('可信度：中').waitFor();
   assert.equal(await page.inputValue('input[name=kcal]'), '750');
-  assert.equal(await page.locator('#sheet b').count(), 0, 'AI 文字必須被跳脫');
-  assert.equal(aiBody.fallbacks, 'default');
-  assert.equal(aiBody.messages[0].content[0].type, 'image');
-  await page.getByRole('button', { name: '儲存', exact: true }).click();
-  await page.getByText('38 / 120 g').waitFor();
+  await save();
+  await page.getByText('蛋白質 38 / 120 g').waitFor();
 
-  // 飲食頁：手動再記一餐，今日應達成
-  await page.getByRole('button', { name: '飲食', exact: true }).click();
-  await page.getByRole('button', { name: '手動輸入' }).click();
-  await page.fill('input[name=protein_g]', '20');
-  await page.getByRole('button', { name: '儲存', exact: true }).click();
-  await page.getByText('58 / 120 g').waitFor();
-  await page.getByRole('button', { name: '今日', exact: true }).click();
+  await button(/喝水/, false).click();
+  await page.getByText('水分 350 / 2500 ml').waitFor();
 
-  // 運動
-  await page.getByRole('button', { name: /運動 0 分/ }).click();
-  await page.getByRole('button', { name: '重訓' }).click();
+  // 身體：基本資料、數據、目標，每日標準應改成個人估算
+  await tab('身體');
+  await page.getByText('通用標準', { exact: false }).first().waitFor();
+  await button('基本資料').click();
+  await page.fill('input[name=heightCm]', '175');
+  await page.fill('input[name=birthYear]', '1996');
+  await button('男').click();
+  await save();
+  await button('記錄數據').click();
+  await page.fill('input[name=weightKg]', '70');
+  await page.fill('input[name=bodyFat]', '18');
+  await save();
+  await page.getByText('依你的數據估算', { exact: false }).waitFor();
+  await button('設定').click();
+  await page.fill('input[name=targetWeightKg]', '68');
+  await page.fill('input[name=targetDate]', '2027-03-01');
+  await save();
+  await page.screenshot({ path: `${shots}/body.png`, fullPage: true });
+
+  // 週課表：今天排定後，今日顯示提醒
+  await tab('運動');
+  const today = new Date().getDay();
+  await page.locator(`.plan-row[data-day="${today}"]`).click();
+  await button('攀岩').click();
   await page.fill('input[name=minutes]', '45');
-  await page.getByRole('button', { name: '儲存', exact: true }).click();
-  await page.getByText('運動 45 分').waitFor();
-  await page.getByRole('button', { name: '運動', exact: true }).click();
-  await page.getByText('45 分鐘', { exact: true }).first().waitFor();
-  await page.screenshot({ path: process.argv[2] + '/workout.png' });
+  await save();
+  await page.getByText('今天：攀岩 45 分鐘').waitFor();
+  await page.screenshot({ path: `${shots}/workout.png`, fullPage: true });
+  await tab('今日');
+  await page.getByText('今天排定：攀岩 45 分鐘').waitFor();
+  await page.screenshot({ path: `${shots}/home.png` });
+  await button('完成訓練').click();
+  await save();
+  await page.getByText('已完成 45 分鐘').waitFor();
 
-  // 重新整理後資料仍在
+  // 休息
+  await tab('休息');
+  await button('記錄睡眠').click();
+  await page.fill('input[name=hours]', '6.5');
+  await save();
+  await page.getByText('平均').waitFor();
+  await page.screenshot({ path: `${shots}/rest.png`, fullPage: true });
+
+  // 重新整理後資料仍在；月曆與飲食
   await page.reload();
-  await page.getByText('58 / 120 g').waitFor();
-  const overflowHome = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
-  assert.equal(overflowHome, false, '不可有橫向捲動');
-  await page.screenshot({ path: process.argv[2] + '/home.png' });
-  await page.getByRole('button', { name: '月曆', exact: true }).click();
-  assert.equal(await page.locator('.dot.diet.done').count() >= 1, true);
-  await page.screenshot({ path: process.argv[2] + '/calendar.png' });
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
-  assert.equal(overflow, false, '不可有橫向捲動');
-  await page.getByRole('button', { name: '飲食', exact: true }).click();
-  await page.screenshot({ path: process.argv[2] + '/diet.png' });
+  await page.getByText('已完成 45 分鐘').waitFor();
+  await page.getByText('昨晚睡 6.5 小時', { exact: false }).waitFor();
+  await page.getByRole('button', { name: '月曆' }).click();
+  assert.equal(await page.locator('.dot.move.done').count() >= 2, true);
+  await page.screenshot({ path: `${shots}/calendar.png`, fullPage: true });
+  await tab('飲食');
+  await page.getByText('雞腿便當').waitFor();
+  await page.screenshot({ path: `${shots}/diet.png`, fullPage: true });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, '不可有橫向捲動');
+  await button('查看 Gemini 提示詞').click();
+  await page.getByText('複製提示詞').waitFor();
   assert.deepEqual(errors, []);
   console.log('E2E OK');
   await browser.close();

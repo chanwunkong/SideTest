@@ -41,6 +41,22 @@ export const registry = {
       addNutrients(day, data.nutrients);
     },
   },
+  body: {
+    version: 1,
+    validate: (data) => data.weightKg > 0,
+    upgrade: {},
+    summarize(day, data, event) {
+      day.body.push(event);
+    },
+  },
+  sleep: {
+    version: 1,
+    validate: (data) => data.durationSec > 0,
+    upgrade: {},
+    summarize(day, data, event) {
+      day.sleep.push(event);
+    },
+  },
   workout: {
     version: 1,
     validate: (data) => !!data.activity && data.durationSec > 0,

@@ -1,9 +1,9 @@
 // healthStore：整個 App 唯一能讀寫資料的地方。未登入存在本機，登入後存 Firestore
 import { firebaseConfig } from './firebase-config.js';
-import { dateKey } from './logic.js';
+import { dateKey, goalFor } from './logic.js';
 import { normalizeEvent, registry } from './registry.js';
 
-const COLLECTIONS = ['events', 'goals', 'attachments'];
+const COLLECTIONS = ['events', 'goals', 'attachments', 'profile'];
 
 class LocalBackend {
   #dbPromise = new Promise((resolve, reject) => {
@@ -63,6 +63,7 @@ class HealthStore extends EventTarget {
   user = null;
   events = new Map();
   goals = [];
+  profile = {};
   #local = new LocalBackend();
   #backend = this.#local;
   #attachments = new Map();
@@ -107,9 +108,10 @@ class HealthStore extends EventTarget {
 
   async #load() {
     try {
-      const [events, goals] = await Promise.all([this.#backend.list('events'), this.#backend.list('goals')]);
+      const [events, goals, profile] = await Promise.all(['events', 'goals', 'profile'].map((c) => this.#backend.list(c)));
       this.events = new Map(events.map((e) => [e.id, normalizeEvent(e)]));
       this.goals = goals;
+      this.profile = profile[0] ?? {};
       this.#changed();
     } catch (error) {
       this.#reportError(error);
@@ -188,20 +190,19 @@ class HealthStore extends EventTarget {
     this.#changed();
   }
 
-  // 同一天改目標就覆蓋當天那筆，改動從今天起生效
-  saveGoal(goal) {
+  // 目標只增不改：同一天的修改覆蓋當天那筆，歷史判定不受影響
+  saveGoal(patch) {
     const effectiveFrom = dateKey();
-    const doc = { ...goal, id: effectiveFrom, effectiveFrom, updatedAt: Date.now() };
+    const doc = { ...goalFor(this.goals, effectiveFrom), ...patch, id: effectiveFrom, effectiveFrom, updatedAt: Date.now() };
     this.goals = [...this.goals.filter((g) => g.id !== doc.id), doc];
     this.#write('goals', doc.id, doc);
     this.#changed();
   }
 
-  saveAttachment(dataUrl, mime) {
-    const doc = { id: crypto.randomUUID(), mime, dataUrl, createdAt: Date.now() };
-    this.#attachments.set(doc.id, doc);
-    this.#write('attachments', doc.id, doc);
-    return doc.id;
+  saveProfile(patch) {
+    this.profile = { ...this.profile, ...patch, id: 'main', updatedAt: Date.now() };
+    this.#write('profile', 'main', this.profile);
+    this.#changed();
   }
 
   async getAttachment(id) {
@@ -213,8 +214,8 @@ class HealthStore extends EventTarget {
   }
 
   async exportAll() {
-    const [events, goals, attachments] = await Promise.all(COLLECTIONS.map((c) => this.#backend.list(c)));
-    return { exportedAt: new Date().toISOString(), events, goals, attachments };
+    const [events, goals, attachments, profile] = await Promise.all(COLLECTIONS.map((c) => this.#backend.list(c)));
+    return { exportedAt: new Date().toISOString(), events, goals, attachments, profile };
   }
 
   signIn() {
