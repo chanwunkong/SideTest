@@ -227,6 +227,13 @@ dialog.full { max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; pa
 .pick-row.create { color: var(--accent); font-weight: 700; }
 .repeat { display: grid; gap: 8px; }
 .tabs.train-tabs { grid-template-columns: repeat(4, 1fr); }
+.chip.small { min-height: 34px; padding: 0 11px; font-size: 13px; }
+.panel-save { position: sticky; bottom: -16px; margin: 0 -16px -16px; padding: 10px 16px calc(env(safe-area-inset-bottom) + 12px); background: var(--bg); }
+.editor-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tag { padding: 3px 9px; border-radius: 12px; background: var(--surface-2); font-size: 13px; }
+.editor-tools { display: flex; justify-content: space-between; gap: 8px; }
+.plain.danger { color: var(--warn); }
+.tag-list { max-height: 34dvh; overflow-y: auto; }
 .week-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 96px; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; }
 .week-row .bar-track { margin: 0; }
 .week-row small { color: var(--muted); text-align: right; white-space: nowrap; }

@@ -1,9 +1,10 @@
 // 訓練 App 和獨立計時器共用這份程式，資料也和健康管理共用同一個資料庫
-import { COLORS, LOG_METRICS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, newStep, normalizeFlow } from './flow.js';
+import { COLORS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, newStep, normalizeFlow } from './flow.js';
 import { dateKey, parseDateKey } from './logic.js';
 import { autoLogOn, clearSession, runFlow, savedSession, setAutoLog, setSound, soundOn } from './flowRun.js';
 import { lang, setLang, t } from './i18n.js';
 import { healthStore as store } from './store.js';
+import { TAG_GROUPS, recentTags, rememberTag, tagLabel } from './tags.js';
 import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, linkExercise, personalBests, scheduleRemaining, weeklyStats } from './training.js';
 
 // 計時器入口只有課表和訓練；訓練 App 多了動作、排程和紀錄
@@ -34,7 +35,9 @@ const chipGroup = (name, options, active) => `<div class="chips" data-chip-group
 const exerciseName = (exercise) => (lang === 'en' && exercise.nameEn) || exercise.name;
 
 const allRoutines = () => store.activeDocs('trainings');
-const routines = () => (isTimerApp ? allRoutines().filter((r) => r.flow?.length) : allRoutines());
+const lastUsed = (routine) => workoutEvents().reduce((latest, e) => (e.data.trainingId === routine.id ? Math.max(latest, e.occurredAt) : latest), 0);
+const routines = () => (isTimerApp ? allRoutines().filter((r) => r.flow?.length) : allRoutines())
+  .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || lastUsed(b) - lastUsed(a));
 const findRoutine = (id) => store.trainings.find((r) => r.id === id);
 const workoutEvents = () => store.liveEvents().filter((e) => e.type === 'workout');
 const stepName = (step) => step.label || t(step.type === 'reps' ? 'step.reps' : 'step.timer');
@@ -62,8 +65,8 @@ function routineRow(routine) {
     : `<a class="btn link-btn" href="../Health/?record=${esc(routine.id)}">${t('workout.log')}</a>`;
   return `<article class="routine">
     <button class="routine-open" data-action="edit" data-id="${esc(routine.id)}">
-      <strong>${esc(routine.name)}</strong>
-      <span class="muted">${detail}${routine.tags?.length ? `・${routine.tags.map(esc).join('、')}` : ''}</span>
+      <strong>${routine.pinned ? '📌 ' : ''}${esc(routine.name)}</strong>
+      <span class="muted">${detail}${routine.tags?.length ? `・${routine.tags.map((tag) => esc(tagLabel(tag, lang))).join('、')}` : ''}</span>
       ${colors ? `<span class="run-line small">${colors}</span>` : ''}
     </button>
     ${action}
@@ -321,10 +324,15 @@ function renderEditor() {
     </div>
     <footer class="editor-foot">
       <button class="btn primary wide" data-action="add">${state.selected?.type === 'loop' ? t('editor.addInLoop') : t('editor.add')}</button>
-      <details class="editor-more"><summary>${t('editor.more')}</summary>
-        <label class="field"><span>${t('editor.tags')}</span><input id="routine-tags" value="${esc((routine.tags ?? []).join(', '))}"></label>
-        ${routine.id ? `<button class="btn danger wide" data-action="delete">${t('editor.deleteRoutine')}</button>` : ''}
-      </details>
+      <div class="editor-tags">
+        ${(routine.tags ?? []).map((tag) => `<span class="tag">${esc(tagLabel(tag, lang))}</span>`).join('')}
+        <button class="plain" data-action="tags-open">${t('tags.add')}</button>
+      </div>
+      <div class="editor-tools">
+        <button class="plain" data-action="pin">${t(routine.pinned ? 'editor.unpin' : 'editor.pin')}</button>
+        ${routine.id ? `<button class="plain" data-action="duplicate">${t('editor.duplicate')}</button>
+        <button class="plain danger" data-action="delete">${t('common.delete')}</button>` : ''}
+      </div>
     </footer>
   </div>`;
   if (!sheet.open) { sheet.showModal(); sheet.focus(); }
@@ -333,8 +341,6 @@ function renderEditor() {
 
 function readEditorFields() {
   state.routine.name = sheet.querySelector('#routine-name')?.value ?? state.routine.name;
-  const tags = sheet.querySelector('#routine-tags');
-  if (tags) state.routine.tags = tags.value.split(/[,，、]/).map((tag) => tag.trim()).filter(Boolean);
 }
 
 function openPanel(html) {
@@ -405,23 +411,92 @@ function renderStep() {
     ? `<label class="field"><span>${t('metric.reps')}</span><input type="number" inputmode="numeric" min="1" name="count" value="${step.count}" required></label>`
     : `<label class="field"><span>${t('step.seconds')}</span><input type="number" inputmode="numeric" min="1" name="duration" value="${step.duration}" required></label>`;
   const swatches = COLORS.map((color) => `<button type="button" class="swatch tone-${color}${step.color === color ? ' active' : ''}" data-action="color" data-color="${color}" aria-label="${color}"></button>`).join('');
-  const metrics = LOG_METRICS.map((metric) => `<label class="check"><input type="checkbox" name="metric" value="${metric}"${step.metrics.includes(metric) ? ' checked' : ''}> ${t(`metric.${metric}`)}</label>`).join('');
+  const names = commonNames(step.type).map((item, i) => `<button type="button" class="chip small" data-action="name-pick" data-index="${i}">${esc(item.label)}</button>`).join('');
   openPanel(`<form class="stack" data-form="step">
     <div class="row"><h2 style="margin:0">${t(step.type === 'reps' ? 'step.reps' : 'step.timer')}</h2><button type="button" class="icon-btn" data-action="back" aria-label="${t('common.close')}">✕</button></div>
     <div class="grid-2">
       <label class="field"><span>${t('step.name')}</span><input name="label" list="exercise-options" autocomplete="off" value="${esc(step.label)}"></label>
       ${amount}
     </div>
+    ${names ? `<div class="chips" aria-label="${t('editor.names')}">${names}</div>` : ''}
     <datalist id="exercise-options">${exerciseOptions()}</datalist>
+    ${step.type === 'reps' ? numberField('estimate', t('editor.estimate'), step.estimate, 'min="1"') : ''}
     <div class="swatches">${swatches}</div>
-    <details><summary>${t('editor.moreOptions')}</summary>
-      ${step.type === 'timer' ? `<label class="check"><input type="checkbox" name="rest"${step.rest ? ' checked' : ''}> ${t('editor.isRest')}</label>
-      <label class="check"><input type="checkbox" name="skipOnLast"${step.skipOnLast ? ' checked' : ''}> ${t('editor.skipOnLast')}</label>` : ''}
-      <p class="muted">${t('editor.logHint')}</p>${metrics}
-    </details>
-    <button class="btn primary wide">${t('common.save')}</button>
+    <h2>${t('editor.metrics')}</h2>
+    <div class="stack" id="metric-box">${metricBox()}</div>
+    ${step.type === 'timer' ? `<label class="check"><input type="checkbox" name="rest"${step.rest ? ' checked' : ''}> ${t('editor.isRest')}</label>
+    <label class="check"><input type="checkbox" name="skipOnLast"${step.skipOnLast ? ' checked' : ''}> ${t('editor.skipOnLast')}</label>` : ''}
     ${isNew ? '' : `<div class="grid-2"><button type="button" class="btn" data-action="copy">${t('editor.copy')}</button><button type="button" class="btn danger" data-action="remove">${t('common.delete')}</button></div>`}
+    <div class="panel-save"><button class="btn primary wide">${t('common.save')}</button></div>
   </form>`);
+  panel.querySelector('#metric-name').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); addMetric(); }
+  });
+}
+
+// 所有課表用過的步驟，最新的在前面；舊版的預設名稱放在最後
+function usedSteps() {
+  const steps = [];
+  for (const routine of [...allRoutines()].reverse()) mapFlow(normalizeFlow(routine.flow ?? []), (step) => { steps.push(step); return step; });
+  return steps;
+}
+
+function commonNames(type) {
+  const defaults = type === 'reps'
+    ? [{ label: t('template.pullUp'), color: 'indigo' }, { label: t('template.squat'), color: 'pink' }]
+    : [{ label: t('step.prepare'), color: 'blue', duration: 10, rest: true }, { label: t('template.hang'), color: 'orange', duration: 7 }, { label: t('step.rest'), color: 'green', duration: 60, rest: true }];
+  const seen = new Set();
+  state.names = [...usedSteps().filter((step) => step.type === type), ...defaults]
+    .filter((item) => item.label && !seen.has(item.label) && seen.add(item.label))
+    .slice(0, 8);
+  return state.names;
+}
+
+function commonMetrics() {
+  const names = [...usedSteps().flatMap((step) => step.metrics.map((metric) => metric.name)), t('log.weight'), t('log.reps')];
+  const chosen = new Set(state.step.metrics.map((metric) => metric.name));
+  return [...new Set(names)].filter((name) => !chosen.has(name)).slice(0, 6);
+}
+
+function metricBox() {
+  const chosen = state.step.metrics.map((metric, i) => `<button type="button" class="chip active" data-action="metric-remove" data-index="${i}">${esc(metric.name)} ✕</button>`).join('');
+  const quick = commonMetrics().map((name) => `<button type="button" class="chip" data-action="metric-quick" data-name="${esc(name)}">＋ ${esc(name)}</button>`).join('');
+  return `${chosen ? `<div class="chips">${chosen}</div>` : ''}
+    <div class="chips">${quick}</div>
+    <div class="amount"><input id="metric-name" autocomplete="off" placeholder="${t('editor.metricPlaceholder')}" aria-label="${t('editor.metricPlaceholder')}">
+    <button type="button" class="btn" data-action="metric-add">${t('editor.addMetric')}</button></div>`;
+}
+
+function refreshMetrics() {
+  const box = panel.querySelector('#metric-box');
+  box.innerHTML = metricBox();
+  box.querySelector('#metric-name').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); addMetric(); }
+  });
+}
+
+function addMetric(name = panel.querySelector('#metric-name').value.trim()) {
+  if (name && !state.step.metrics.some((metric) => metric.name === name)) state.step.metrics.push({ name, type: 'number' });
+  refreshMetrics();
+}
+
+function renderTags() {
+  const selected = new Set(state.routine.tags ?? []);
+  const groups = ['history', ...Object.keys(TAG_GROUPS)];
+  const list = state.tagGroup === 'history' ? recentTags() : TAG_GROUPS[state.tagGroup];
+  openPanel(`<div class="stack">
+    <div class="row"><h2 style="margin:0">${t('tags.title')}</h2><button class="icon-btn" data-action="back" aria-label="${t('common.close')}">✕</button></div>
+    <div class="chips">${groups.map((group) => `<button class="chip small${group === state.tagGroup ? ' active' : ''}" data-action="tag-group" data-group="${group}">${t(`tagGroup.${group}`)}</button>`).join('')}</div>
+    <div class="tag-list chips">${list.map((tag) => `<button class="chip${selected.has(tag) ? ' active' : ''}" data-action="tag-toggle" data-tag="${esc(tag)}">${esc(tagLabel(tag, lang))}</button>`).join('') || `<p class="muted">${t('tags.none')}</p>`}</div>
+    <div class="amount"><input id="tag-name" autocomplete="off" placeholder="${t('tags.custom')}" aria-label="${t('tags.custom')}"><button class="btn" data-action="tag-add">${t('tags.addCustom')}</button></div>
+  </div>`);
+}
+
+function toggleTag(tag) {
+  const tags = new Set(state.routine.tags ?? []);
+  if (tags.has(tag)) tags.delete(tag);
+  else { tags.add(tag); rememberTag(tag); }
+  state.routine.tags = [...tags];
 }
 
 function addStep(step) {
@@ -439,15 +514,18 @@ function saveStep(form) {
   if (step.type === 'loop') step.iterations = Number(values.get('iterations'));
   else {
     step.label = values.get('label').trim();
-    if (step.type === 'reps') step.count = Number(values.get('count'));
-    else {
+    if (step.type === 'reps') {
+      step.count = Number(values.get('count'));
+      step.estimate = optionalNumber(values.get('estimate'));
+    } else {
       step.duration = Number(values.get('duration'));
       step.rest = values.get('rest') === 'on';
       step.skipOnLast = values.get('skipOnLast') === 'on';
     }
-    step.metrics = values.getAll('metric');
   }
   if (state.adding) state.stepList.push(step);
+  else if (step.type === 'loop') findRow(step.id).step.iterations = step.iterations;
+  else Object.assign(findRow(step.id).step, step);
   state.adding = false;
   panel.close();
   renderEditor();
@@ -560,22 +638,49 @@ const actions = {
   add: () => { readEditorFields(); renderPicker(); },
   pick: ({ type }) => addStep(newStep(type)),
   preset: ({ key }) => addStep(newStep('timer', state.presets.find((p) => p.key === key).props)),
+  'name-pick': ({ index }) => {
+    const item = state.names[Number(index)];
+    const form = panel.querySelector('form');
+    form.elements.label.value = item.label;
+    if (item.count && form.elements.count) form.elements.count.value = item.count;
+    if (item.duration && form.elements.duration) form.elements.duration.value = item.duration;
+    if (form.elements.rest) form.elements.rest.checked = !!item.rest;
+    if (item.color) actions.color({ color: item.color }, panel.querySelector(`.swatch.tone-${item.color}`));
+  },
+  'metric-add': () => addMetric(),
+  'metric-quick': ({ name }) => addMetric(name),
+  'metric-remove': ({ index }) => { state.step.metrics.splice(Number(index), 1); refreshMetrics(); },
+  'tags-open': () => { readEditorFields(); state.tagGroup = recentTags().length ? 'history' : 'fitness'; renderTags(); },
+  'tag-group': ({ group }) => { state.tagGroup = group; renderTags(); },
+  'tag-toggle': ({ tag }) => { toggleTag(tag); renderTags(); renderEditor(); },
+  'tag-add': () => {
+    const tag = panel.querySelector('#tag-name').value.trim();
+    if (tag && !state.routine.tags?.includes(tag)) toggleTag(tag);
+    renderTags();
+    renderEditor();
+  },
+  pin: () => { readEditorFields(); state.routine.pinned = !state.routine.pinned; renderEditor(); },
+  duplicate: () => {
+    readEditorFields();
+    const { id, updatedAt, ...copy } = state.routine;
+    store.saveDoc('trainings', { ...copy, name: `${copy.name}${t('editor.copySuffix')}`, pinned: false });
+    closeEditor();
+  },
   color: ({ color }, target) => {
     state.step.color = color;
     panel.querySelectorAll('.swatch').forEach((el) => el.classList.toggle('active', el === target));
   },
   copy: () => {
-    const clone = structuredClone(state.step);
     const fresh = (step) => ({ ...step, id: crypto.randomUUID(), ...(step.children ? { children: step.children.map(fresh) } : {}) });
-    const list = findRow(state.step.id).list;
-    list.splice(list.indexOf(state.step) + 1, 0, fresh(clone));
+    const { list, step, index } = findRow(state.step.id);
+    list.splice(index + 1, 0, fresh(structuredClone(step)));
     panel.close();
     renderEditor();
   },
   remove: () => {
     const { list, index } = findRow(state.step.id);
     list.splice(index, 1);
-    if (state.selected === state.step) state.selected = null;
+    if (state.selected?.id === state.step.id) state.selected = null;
     panel.close();
     renderEditor();
   },
@@ -602,7 +707,7 @@ document.addEventListener('click', (event) => {
   const { step } = findRow(row.dataset.row);
   // 循環先選取，才知道新增要放進哪裡；再點一次才編輯
   if (step.type === 'loop' && state.selected !== step) { state.selected = step; renderEditor(); return; }
-  state.step = step;
+  state.step = structuredClone(step);
   state.adding = false;
   renderStep();
 });

@@ -182,6 +182,15 @@ test('切回畫面時依經過時間前進，遇到次數步驟就停', () => {
   assert.deepEqual(advanceBy(queue, 3, 3, 9), { index: 4, remaining: 0, passed: [3], finished: true });
 });
 
+test('舊的記錄代碼轉成名稱，自訂名稱保留', () => {
+  const [step] = normalizeFlow([{ type: 'timer', label: '懸掛', duration: 7, metrics: ['weightKg', { name: 'RPE' }] }]);
+  assert.deepEqual(step.metrics, [{ name: '重量' }, { name: 'RPE' }]);
+});
+
+test('次數步驟的預估時間算入總時間', () => {
+  assert.equal(flowDuration(normalizeFlow([{ type: 'reps', label: '引體', count: 5, estimate: 30 }, { type: 'timer', duration: 10 }])), 40);
+});
+
 test('上次的紀錄值會帶入', () => {
   const events = [
     { occurredAt: 1, data: { logs: [{ label: '懸掛', values: { weightKg: 5 } }] } },

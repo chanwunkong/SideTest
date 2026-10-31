@@ -83,9 +83,9 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
 
   function showLog(step, stepIndex) {
     if (!autoLogOn() || !step.metrics?.length) return;
-    const fields = step.metrics.map((metric) => {
-      const value = lastLogValue([{ occurredAt: Infinity, data: { logs } }, ...events], step.label, metric) ?? '';
-      return `<label class="field"><span>${t(`metric.${metric}`)}</span><input type="number" inputmode="decimal" min="0" step="any" name="${esc(metric)}" value="${value}"></label>`;
+    const fields = step.metrics.map((metric, i) => {
+      const value = lastLogValue([{ occurredAt: Infinity, data: { logs } }, ...events], step.label, metric.name) ?? '';
+      return `<label class="field"><span>${esc(metric.name)}</span><input type="number" inputmode="decimal" step="any" name="m${i}" value="${value}"></label>`;
     }).join('');
     const panel = document.createElement('form');
     panel.className = 'run-log';
@@ -97,7 +97,7 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
       event.preventDefault();
       const data = new FormData(panel);
       const values = {};
-      for (const metric of step.metrics) if (data.get(metric)) values[metric] = Number(data.get(metric));
+      step.metrics.forEach((metric, i) => { if (data.get(`m${i}`)) values[metric.name] = Number(data.get(`m${i}`)); });
       logs.push({ stepIndex, label: step.label, exerciseId: step.exerciseId ?? null, loopState: step.loopState, values, failure: data.get('failure') === 'on' });
       panel.remove();
       persist();

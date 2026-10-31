@@ -1,11 +1,14 @@
 // 課表內容：純資料與計算。步驟是計時、次數或循環，循環可以放循環
 export const COLORS = ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'indigo', 'violet', 'pink'];
-export const LOG_METRICS = ['reps', 'weightKg', 'holdSec', 'distanceM'];
+
+// 上一版的記錄數值是代碼，讀取時轉成名稱
+const OLD_METRICS = { reps: '次數', weightKg: '重量', holdSec: '秒數', distanceM: '距離' };
+const toMetric = (metric) => (typeof metric === 'string' ? { name: OLD_METRICS[metric] ?? metric } : metric);
 
 export function newStep(type, props = {}) {
   const id = crypto.randomUUID();
   if (type === 'loop') return { id, type, iterations: 3, children: [], ...props };
-  if (type === 'reps') return { id, type, label: '', count: 5, color: 'blue', metrics: [], ...props };
+  if (type === 'reps') return { id, type, label: '', count: 5, estimate: null, color: 'blue', metrics: [], ...props };
   return { id, type: 'timer', label: '', duration: 10, color: 'orange', rest: false, skipOnLast: false, metrics: [], ...props };
 }
 
@@ -13,8 +16,9 @@ export function newStep(type, props = {}) {
 export function normalizeFlow(flow = []) {
   return flow.map((step) => {
     if (step.type === 'loop') return { ...step, children: normalizeFlow(step.children) };
-    if (step.type === 'rest') return { ...newStep('timer'), ...step, type: 'timer', rest: true, color: step.color ?? 'green' };
-    return { ...newStep(step.type), ...step };
+    if (step.type === 'rest') return { ...newStep('timer'), ...step, type: 'timer', rest: true, color: step.color ?? 'green', metrics: (step.metrics ?? []).map(toMetric) };
+    const normalized = { ...newStep(step.type), ...step };
+    return { ...normalized, metrics: normalized.metrics.map(toMetric) };
   });
 }
 
@@ -30,7 +34,7 @@ export function flattenFlow(flow = [], loops = []) {
   });
 }
 
-export const flowDuration = (flow) => flattenFlow(flow).reduce((sum, step) => sum + (step.duration ?? 0), 0);
+export const flowDuration = (flow) => flattenFlow(flow).reduce((sum, step) => sum + (step.duration ?? step.estimate ?? 0), 0);
 
 export const formatClock = (seconds) => {
   const whole = Math.ceil(seconds);
@@ -92,13 +96,13 @@ export function flowToRecord(training, doneSteps, logs, elapsedSec, completed) {
 
 const timer = (label, duration, color, extra = {}) => newStep('timer', { label, duration, color, ...extra });
 const rest = (label, duration, extra = {}) => timer(label, duration, 'green', { rest: true, ...extra });
-const reps = (label, count, color = 'blue') => newStep('reps', { label, count, color, metrics: ['reps'] });
+const reps = (label, count, color, metricName) => newStep('reps', { label, count, color, metrics: [{ name: metricName }] });
 const loop = (iterations, children) => newStep('loop', { iterations, children });
 
 // 內建範本：按加入才建立，內容都可以改
 export const TEMPLATES = {
-  max: (t) => ({ name: t('template.max'), tags: [t('tag.strength'), t('tag.finger')], flow: [rest(t('step.prepare'), 10), loop(5, [timer(t('template.hang'), 10, 'red', { metrics: ['weightKg'] }), rest(t('step.rest'), 180, { skipOnLast: true })])] }),
+  max: (t) => ({ name: t('template.max'), tags: [t('tag.strength'), t('tag.finger')], flow: [rest(t('step.prepare'), 10), loop(5, [timer(t('template.hang'), 10, 'red', { metrics: [{ name: t('log.weight') }] }), rest(t('step.rest'), 180, { skipOnLast: true })])] }),
   repeaters: (t) => ({ name: t('template.repeaters'), tags: [t('tag.endurance'), t('tag.finger')], flow: [rest(t('step.prepare'), 10), loop(3, [loop(6, [timer(t('template.hang'), 7, 'red'), rest(t('step.rest'), 3, { skipOnLast: true })]), rest(t('template.setRest'), 180, { skipOnLast: true })])] }),
   interval: (t) => ({ name: t('template.interval'), tags: [t('tag.cardio')], flow: [rest(t('step.prepare'), 10), loop(8, [timer(t('template.fast'), 60, 'orange'), rest(t('template.easy'), 60, { skipOnLast: true })])] }),
-  strength: (t) => ({ name: t('template.strength'), tags: [t('tag.strength')], flow: [rest(t('step.prepare'), 10), loop(5, [reps(t('template.squat'), 5), rest(t('step.rest'), 180, { skipOnLast: true })]), rest(t('template.change'), 300), loop(5, [reps(t('template.pullUp'), 5, 'indigo'), rest(t('step.rest'), 180, { skipOnLast: true })])] }),
+  strength: (t) => ({ name: t('template.strength'), tags: [t('tag.strength')], flow: [rest(t('step.prepare'), 10), loop(5, [reps(t('template.squat'), 5, 'blue', t('log.reps')), rest(t('step.rest'), 180, { skipOnLast: true })]), rest(t('template.change'), 300), loop(5, [reps(t('template.pullUp'), 5, 'indigo', t('log.reps')), rest(t('step.rest'), 180, { skipOnLast: true })])] }),
 };

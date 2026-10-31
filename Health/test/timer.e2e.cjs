@@ -54,13 +54,16 @@ const assert = require('assert');
   await addTimer('懸掛', 2, 'red');
   await addTimer('休息', 2, 'green');
   await page.locator('.flow-row', { hasText: '休息' }).click();
-  await page.getByText('更多選項').click();
   await page.getByLabel('這是休息').check();
   await page.getByLabel('最後一次略過').check();
   await page.locator('#panel .btn.primary.wide').click();
   await page.locator('.flow-row', { hasText: '懸掛' }).click();
-  await page.getByText('更多選項').click();
-  await page.getByLabel('負重').check();
+  // 設定全部在同一頁：快捷加入重量，也能自訂名稱
+  await page.getByRole('button', { name: '＋ 重量' }).click();
+  await page.fill('#metric-name', 'RPE');
+  await page.getByRole('button', { name: '加入', exact: true }).click();
+  await page.getByRole('button', { name: 'RPE ✕' }).waitFor();
+  await page.screenshot({ path: `${shots}/step.png`, fullPage: true });
   await page.locator('#panel .btn.primary.wide').click();
   assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '懸掛' }).count(), 1);
   assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '伏地挺身' }).count(), 0);
@@ -97,6 +100,17 @@ const assert = require('assert');
   const rows = await page.locator('.flow-row').allInnerTexts();
   const order = rows.map((r) => r.split('\n')[0]).filter((name) => ['懸掛', '休息', '伏地挺身'].includes(name));
   assert.equal(order.length, 3);
+  // 標籤庫、釘選
+  await page.locator('[data-action=tags-open]').click();
+  await page.getByRole('button', { name: '體能' }).click();
+  await page.locator('#panel').getByRole('button', { name: '爆發力' }).click();
+  await page.fill('#tag-name', '自訂標籤');
+  await page.getByRole('button', { name: '加入', exact: true }).click();
+  await page.locator('#panel [data-action=back]').click();
+  await page.locator('.editor-tags').getByText('爆發力').waitFor();
+  await page.locator('.editor-tags').getByText('自訂標籤').waitFor();
+  await page.locator('[data-action=pin]').click();
+
   // 有修改時取消要先確認
   await page.locator('[data-action=close]').click();
   await page.getByText('要放棄這次修改嗎？').waitFor();
@@ -105,6 +119,7 @@ const assert = require('assert');
   await page.locator('[data-action=save]').click();
 
   // 全螢幕顏色會跟著步驟改變，次數步驟要按完成
+  await page.locator('.routine', { hasText: '爆發力' }).waitFor();
   await page.locator('.routine', { hasText: '測試課表' }).getByRole('button', { name: '開始' }).click();
   await page.locator('.run.tone-blue').waitFor();
   await page.locator('.run-next.tone-red').waitFor();
@@ -119,10 +134,10 @@ const assert = require('assert');
     if (needLog) {
       await page.locator('.run-log').waitFor({ timeout: 3000 });
       if (logs === 0) {
-        await page.fill('.run-log input[name=weightKg]', '5');
+        await page.fill('.run-log input[name=m0]', '5');
         await page.getByLabel('力竭').check();
       } else {
-        assert.equal(await page.inputValue('.run-log input[name=weightKg]'), '5');
+        assert.equal(await page.inputValue('.run-log input[name=m0]'), '5');
       }
       await page.getByRole('button', { name: '確認紀錄' }).click();
       logs += 1;
