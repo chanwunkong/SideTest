@@ -1,8 +1,8 @@
 // 訓練 App 和獨立計時器共用這份程式，資料也和健康管理共用同一個資料庫
 import { COLORS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, newStep, normalizeFlow } from './flow.js';
 import { dateKey, parseDateKey } from './logic.js';
-import { autoLogOn, clearSession, runFlow, savedSession, setAutoLog, setSound, soundOn } from './flowRun.js';
-import { lang, setLang, t } from './i18n.js';
+import { clearSession, getSettings, runFlow, savedSession, setSetting, speak } from './flowRun.js';
+import { LANGUAGES, lang, setLang, t } from './i18n.js';
 import { healthStore as store } from './store.js';
 import { TAG_GROUPS, recentTags, rememberTag, tagLabel } from './tags.js';
 import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, linkExercise, personalBests, scheduleRemaining, weeklyStats } from './training.js';
@@ -125,20 +125,36 @@ function renderHome() {
     button.textContent = t(`train.${button.dataset.tab}`);
   });
   const screens = { exercises: renderExercises, routines: renderRoutines, schedules: renderSchedules, records: renderRecords };
-  const title = isTimerApp ? t('timer.appTitle') : t(`train.${state.tab}`);
+  const title = isTimerApp && state.tab === 'routines' ? t('timer.appTitle') : t(`train.${state.tab}`);
   view.innerHTML = `<header class="topbar"><h1>${title}</h1>
       <div class="chips">${isTimerApp ? '' : `<a class="plain" href="../Health/">${t('timer.health')}</a>`}<button class="icon-btn" data-action="settings" aria-label="${t('train.settings')}">⚙</button></div>
     </header>${screens[state.tab]()}`;
 }
 
 function openSettings() {
+  const settings = getSettings();
+  const check = (key, label) => `<label class="check"><input type="checkbox" data-setting="${key}"${settings[key] ? ' checked' : ''}> ${label}</label>`;
+  const voices = window.speechSynthesis?.getVoices() ?? [];
+  const voiceOptions = voices.map((v) => `<option value="${esc(v.voiceURI)}"${v.voiceURI === settings.voiceURI ? ' selected' : ''}>${esc(v.name)}</option>`).join('');
   const account = store.user
     ? `<p class="muted">${t('account.signedIn', { email: esc(store.user.email) })}</p>`
     : `<p class="muted">${t('account.signedOut')}</p>${store.canSignIn ? `<button class="btn wide" data-action="sign-in">${t('account.signIn')}</button>` : ''}`;
   openPanel(`<div class="stack">
     ${panelHeader(t('train.settings'))}
-    <label class="check"><input type="checkbox" data-option="sound"${soundOn() ? ' checked' : ''}> ${t('timer.sound')}</label>
-    <label class="check"><input type="checkbox" data-option="log"${autoLogOn() ? ' checked' : ''}> ${t('timer.autoLog')}</label>
+    <h2>${t('set.sound')}</h2>
+    ${check('sound', t('set.soundOn'))}${check('soundStart', t('set.soundStart'))}${check('soundCountdown', t('set.soundCountdown'))}${check('soundFinish', t('set.soundFinish'))}
+    ${numberField('countdownSec', t('set.countdown'), settings.countdownSec, 'min="0" max="10" data-setting="countdownSec"')}
+    ${check('pulse', t('set.pulse'))}
+    <h2>${t('set.voice')}</h2>
+    ${check('tts', t('set.tts'))}
+    <label class="field"><span>${t('set.rate')}</span><input type="range" min="0.5" max="2" step="0.1" value="${settings.rate}" data-setting="rate"></label>
+    ${voices.length ? `<label class="field"><span>${t('set.voiceName')}</span><select data-setting="voiceURI"><option value="">${t('set.defaultVoice')}</option>${voiceOptions}</select></label>` : ''}
+    <button class="btn wide" data-action="voice-test">${t('set.test')}</button>
+    <h2>${t('set.training')}</h2>
+    ${check('autoLog', t('timer.autoLog'))}
+    <h2>${t('set.language')}</h2>
+    <div class="chips">${LANGUAGES.map((l) => `<button class="chip${l.value === lang ? ' active' : ''}" data-action="lang-set" data-value="${l.value}">${l.label}</button>`).join('')}</div>
+    <h2>${t('account.title')}</h2>
     ${account}
   </div>`);
 }
@@ -695,6 +711,17 @@ const actions = {
   'start-now': ({ id }) => { panel.close(); start(findRoutine(id)); },
   resume: () => { const session = savedSession(); start(findRoutine(session.trainingId), session); },
   'drop-session': () => { clearSession(); renderHome(); },
+  'voice-test': () => {
+    if (!getSettings().tts) setSetting('tts', true);
+    speak(t('set.testText'));
+    openSettings();
+  },
+  'lang-set': (_, target) => {
+    setLang(target.dataset.value);
+    store.saveProfile({ lang: target.dataset.value });
+    panel.close();
+    renderHome();
+  },
   'sign-in': () => store.signIn().catch((error) => toast(t('account.signInFailed', { error: error.message }))),
 };
 
@@ -713,9 +740,12 @@ document.addEventListener('click', (event) => {
 });
 
 panel.addEventListener('change', (event) => {
-  const { option } = event.target.dataset;
-  if (option === 'sound') setSound(event.target.checked);
-  if (option === 'log') setAutoLog(event.target.checked);
+  const { target } = event;
+  const key = target.dataset.setting;
+  if (!key) return;
+  if (target.type === 'checkbox') setSetting(key, target.checked);
+  else if (key === 'voiceURI') setSetting(key, target.value);
+  else setSetting(key, Number(target.value));
 });
 
 const formHandlers = { step: saveStep, exercise: saveExercise, moves: saveMoves, schedule: saveSchedule };

@@ -1,21 +1,33 @@
-// 全螢幕訓練畫面：背景就是目前步驟的顏色，不看字也知道階段
+// 全螢幕訓練畫面：使用者流汗或很累時不想操作，所以沒有操作也能自己跑完
 import { advanceBy, flattenFlow, flowToRecord, formatClock, lastLogValue } from './flow.js';
 import { t } from './i18n.js';
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const SESSION_KEY = 'timer.session';
-const option = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; } };
-const store = (key, value) => { try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* 無法保存時只影響這次 */ } };
+const SETTINGS_KEY = 'timer.settings';
+const NOTE_SECONDS = 5;
+const SWIPE_PIXELS = 60;
+const DEFAULTS = { sound: true, soundStart: true, soundCountdown: true, soundFinish: true, countdownSec: 3, tts: false, rate: 1, voiceURI: '', pulse: false, autoLog: true };
 
-export const soundOn = () => option('timer.sound', 'on') === 'on';
-export const setSound = (on) => store('timer.sound', on ? 'on' : 'off');
-export const autoLogOn = () => option('timer.autoLog', 'on') === 'on';
-export const setAutoLog = (on) => store('timer.autoLog', on ? 'on' : 'off');
+const read = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
+const write = (key, value) => { try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, JSON.stringify(value)); } catch { /* 無法保存時只影響這次 */ } };
 
-export function savedSession() {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
+export const getSettings = () => ({ ...DEFAULTS, ...read(SETTINGS_KEY) });
+export const setSetting = (key, value) => write(SETTINGS_KEY, { ...getSettings(), [key]: value });
+export const savedSession = () => read(SESSION_KEY);
+export const clearSession = () => write(SESSION_KEY, null);
+
+export function speak(text) {
+  const settings = getSettings();
+  if (!settings.tts || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = settings.rate;
+  utterance.lang = document.documentElement.lang;
+  const voice = window.speechSynthesis.getVoices().find((v) => v.voiceURI === settings.voiceURI);
+  if (voice) utterance.voice = voice;
+  window.speechSynthesis.speak(utterance);
 }
-export const clearSession = () => store(SESSION_KEY, null);
 
 const stepName = (step) => step.label || t(step.type === 'reps' ? 'step.reps' : 'step.timer');
 const stepAmount = (step) => (step.type === 'reps' ? t('step.times', { n: step.count }) : formatClock(step.duration));
@@ -28,6 +40,8 @@ function loopText(step) {
   const inner = state.at(-1);
   return t('run.loops', { oc: outer.current, ot: outer.total, ic: inner.current, it: inner.total });
 }
+
+const valueText = (log) => Object.entries(log.values).map(([name, value]) => `${name} ${value}`).join('・');
 
 // 用時間差計算，畫面暫停或掉格也不會累積誤差
 export function runFlow(training, { events, onFinish, onClose, resume = null }) {
@@ -44,8 +58,12 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
   let lastBeep = null;
   let wakeLock = null;
   let recognition = null;
+  let noteTimer = null;
+  let swipeStart = null;
+  let tapLocked = false;
   const audio = window.AudioContext ? new AudioContext() : null;
 
+  const wakeAudio = () => { if (audio?.state === 'suspended') audio.resume().catch(() => {}); };
   const elapsed = () => elapsedBefore + (paused ? 0 : (Date.now() - startedAt) / 1000);
 
   const overlay = document.createElement('div');
@@ -55,7 +73,7 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
   keepAwake();
 
   const tone = (frequency, delay = 0, length = 0.14) => {
-    if (!audio || !soundOn()) return;
+    if (!audio || !getSettings().sound) return;
     const oscillator = audio.createOscillator();
     const gain = audio.createGain();
     gain.gain.value = 0.3;
@@ -64,41 +82,121 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
     oscillator.start(audio.currentTime + delay);
     oscillator.stop(audio.currentTime + delay + length);
   };
-  const soundStep = () => { tone(660); tone(990, 0.16); };
-  const soundFinish = () => { tone(660); tone(880, 0.18); tone(1100, 0.36, 0.3); };
+  const soundStep = () => { if (getSettings().soundStart) { tone(660); tone(990, 0.16); } };
+  const soundCountdown = () => { if (getSettings().soundCountdown) tone(880); };
+  const soundFinish = () => { if (getSettings().soundFinish) { tone(660); tone(880, 0.18); tone(1100, 0.36, 0.3); } };
 
-  const persist = () => store(SESSION_KEY, JSON.stringify({ trainingId: training.id, index, remaining, elapsed: elapsed(), logs, done: [...doneIndexes] }));
+  const persist = () => write(SESSION_KEY, { trainingId: training.id, index, remaining, elapsed: elapsed(), logs, done: [...doneIndexes] });
 
-  function close(completed, save) {
+  function shutdown() {
     clearInterval(timer);
+    clearTimeout(noteTimer);
     document.removeEventListener('visibilitychange', onVisible);
     overlay.remove();
     wakeLock?.release().catch(() => {});
-    recognition?.stop();
+    if (recognition) { const active = recognition; recognition = null; active.stop(); }
     audio?.close();
-    clearSession();
-    if (save) onFinish(flowToRecord(training, [...doneIndexes].map((i) => queue[i]), logs, elapsed(), completed));
+    window.speechSynthesis?.cancel();
     onClose?.();
   }
 
-  function showLog(step, stepIndex) {
-    if (!autoLogOn() || !step.metrics?.length) return;
-    const fields = step.metrics.map((metric, i) => {
-      const value = lastLogValue([{ occurredAt: Infinity, data: { logs } }, ...events], step.label, metric.name) ?? '';
-      return `<label class="field"><span>${esc(metric.name)}</span><input type="number" inputmode="decimal" step="any" name="m${i}" value="${value}"></label>`;
+  function finish(completed, save) {
+    clearSession();
+    if (!save) { shutdown(); return; }
+    const elapsedSec = elapsed();
+    if (!logs.length) {
+      shutdown();
+      onFinish(flowToRecord(training, [...doneIndexes].map((i) => queue[i]), logs, elapsedSec, completed));
+      return;
+    }
+    showSummary(completed, elapsedSec);
+  }
+
+  // 結束時一次看完所有數值，訓練中可以完全不操作
+  function showSummary(completed, elapsedSec) {
+    paused = true;
+    tapLocked = true;
+    const rows = logs.map((log, i) => {
+      const step = queue[log.stepIndex];
+      const fields = step.metrics.map((metric) => `<label class="field"><span>${esc(metric.name)}</span>
+        <input type="number" inputmode="decimal" step="any" data-log="${i}" data-metric="${esc(metric.name)}" value="${log.values[metric.name] ?? ''}"></label>`).join('');
+      return `<div class="move-row"><strong>${esc(log.label)} ${loopText(step)}</strong>
+        <div class="grid-2">${fields}</div>
+        <label class="check"><input type="checkbox" data-failure="${i}"${log.failure ? ' checked' : ''}> ${t('run.failure')}</label></div>`;
     }).join('');
+    overlay.className = 'run run-summary';
+    overlay.innerHTML = `<h1>${t('run.summary')}</h1><div class="stack run-summary-list">${rows}</div>
+      <button class="btn primary wide" data-run="save-summary">${t('run.saveLog')}</button>`;
+    overlay.querySelector('[data-run="save-summary"]').addEventListener('click', () => {
+      overlay.querySelectorAll('[data-log]').forEach((input) => {
+        const log = logs[Number(input.dataset.log)];
+        if (input.value === '') delete log.values[input.dataset.metric];
+        else log.values[input.dataset.metric] = Number(input.value);
+      });
+      overlay.querySelectorAll('[data-failure]').forEach((input) => { logs[Number(input.dataset.failure)].failure = input.checked; });
+      const record = flowToRecord(training, [...doneIndexes].map((i) => queue[i]), logs, elapsedSec, completed);
+      shutdown();
+      onFinish(record);
+    });
+  }
+
+  // 步驟結束時直接沿用預設值，不打斷訓練；想改才點提示
+  function createLog(stepIndex) {
+    const step = queue[stepIndex];
+    if (!getSettings().autoLog || !step.metrics?.length) return null;
+    const sources = [{ occurredAt: Infinity, data: { logs } }, ...events];
+    const values = {};
+    for (const metric of step.metrics) {
+      const value = lastLogValue(sources, step.label, metric.name);
+      if (value !== null) values[metric.name] = value;
+    }
+    const log = { stepIndex, label: step.label, exerciseId: step.exerciseId ?? null, loopState: step.loopState, values, failure: false };
+    logs.push(log);
+    return log;
+  }
+
+  function showNote(log) {
+    clearTimeout(noteTimer);
+    overlay.querySelector('.run-note')?.remove();
+    const note = document.createElement('button');
+    note.className = 'run-note';
+    note.dataset.run = 'note';
+    note.textContent = `${log.label} ${valueText(log) || t('run.tapToFill')}`;
+    note.logRef = log;
+    overlay.append(note);
+    noteTimer = setTimeout(() => note.remove(), NOTE_SECONDS * 1000);
+  }
+
+  function openLog(log) {
+    clearTimeout(noteTimer);
+    overlay.querySelector('.run-note')?.remove();
+    overlay.querySelector('.run-log')?.remove();
+    const step = queue[log.stepIndex];
+    const fields = step.metrics.map((metric, i) => `<div class="log-row"><span>${esc(metric.name)}</span>
+      <div class="stepper">
+        <button type="button" data-step-field="${i}" data-delta="-1" aria-label="-">−</button>
+        <input type="number" inputmode="decimal" step="any" name="m${i}" value="${log.values[metric.name] ?? ''}" aria-label="${esc(metric.name)}">
+        <button type="button" data-step-field="${i}" data-delta="1" aria-label="+">＋</button>
+      </div></div>`).join('');
     const panel = document.createElement('form');
     panel.className = 'run-log';
-    panel.innerHTML = `<strong>${esc(stepName(step))}</strong>
-      <div class="grid-2">${fields}</div>
-      <label class="check"><input type="checkbox" name="failure"> ${t('run.failure')}</label>
+    panel.innerHTML = `<strong>${esc(stepName(step))}</strong>${fields}
+      <label class="check"><input type="checkbox" name="failure"${log.failure ? ' checked' : ''}> ${t('run.failure')}</label>
       <button class="btn primary wide">${t('run.saveLog')}</button>`;
+    panel.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-step-field]');
+      if (!button) return;
+      const input = panel.elements[`m${button.dataset.stepField}`];
+      input.value = Math.max(0, (Number(input.value) || 0) + Number(button.dataset.delta));
+    });
     panel.addEventListener('submit', (event) => {
       event.preventDefault();
       const data = new FormData(panel);
-      const values = {};
-      step.metrics.forEach((metric, i) => { if (data.get(`m${i}`)) values[metric.name] = Number(data.get(`m${i}`)); });
-      logs.push({ stepIndex, label: step.label, exerciseId: step.exerciseId ?? null, loopState: step.loopState, values, failure: data.get('failure') === 'on' });
+      step.metrics.forEach((metric, i) => {
+        if (data.get(`m${i}`) === '') delete log.values[metric.name];
+        else log.values[metric.name] = Number(data.get(`m${i}`));
+      });
+      log.failure = data.get('failure') === 'on';
       panel.remove();
       persist();
     });
@@ -112,16 +210,18 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
     endsAt = remaining === null ? null : Date.now() + remaining * 1000;
     lastBeep = null;
     soundStep();
+    speak(stepName(queue[index]));
     paint();
     persist();
   }
 
   function advance(markDone = true) {
-    const step = queue[index];
+    const finished = index;
     if (markDone) doneIndexes.add(index);
-    if (index + 1 >= queue.length) { soundFinish(); close(true, true); return; }
+    const log = markDone ? createLog(finished) : null;
+    if (index + 1 >= queue.length) { soundFinish(); finish(true, true); return; }
     enter(index + 1);
-    if (markDone) showLog(step, index - 1);
+    if (log) showNote(log);
   }
 
   function timeline() {
@@ -136,28 +236,30 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
   function paint() {
     const step = queue[index];
     const next = queue[index + 1];
-    overlay.className = `run tone-${step.color}`;
+    const settings = getSettings();
+    const note = overlay.querySelector('.run-note');
+    overlay.className = `run tone-${step.color}${paused ? ' paused' : ''}`;
     overlay.innerHTML = `
       <div class="run-top"><span>${loopText(step)}</span><span id="run-clock-left">${formatClock(left())}</span></div>
       <div class="run-main">
         <h1>${esc(stepName(step))}</h1>
         <div class="run-clock">${step.type === 'reps' ? t('step.times', { n: step.count }) : formatClock(remaining)}</div>
         <div class="run-progress"><i id="run-progress" style="width:100%"></i></div>
+        <p class="run-hint">${t(step.type === 'reps' ? 'run.hintReps' : 'run.hintTimer')}</p>
       </div>
       <div class="run-next ${next ? `tone-${next.color}` : ''}">
         <span>${t('run.next')}</span><strong>${next ? `${esc(stepName(next))}　${stepAmount(next)}` : t('run.end')}</strong>
       </div>
       <div class="run-line">${timeline()}</div>
-      <div class="run-controls">
-        <button data-run="back" aria-label="${t('run.back')}"${index === 0 ? ' disabled' : ''}>‹</button>
-        ${step.type === 'reps' ? `<button class="main" data-run="done">${t('run.done')}</button>` : `<button class="main" data-run="pause">${t(paused ? 'run.resume' : 'run.pause')}</button>`}
-        <button data-run="skip" aria-label="${t('run.skip')}">›</button>
-      </div>
-      <div class="run-tools">
-        <button data-run="stop">${t('run.stop')}</button>
-        <button data-run="sound">${t(soundOn() ? 'run.soundOn' : 'run.soundOff')}</button>
+      ${paused ? `<div class="run-menu">
+        <button class="main" data-run="resume">${t('run.resume')}</button>
+        <button data-run="log">${t('run.logNow')}</button>
+        <button data-run="sound">${t(settings.sound ? 'run.soundOn' : 'run.soundOff')}</button>
         <button data-run="voice">${t(recognition ? 'run.voiceOn' : 'run.voiceOff')}</button>
-      </div>`;
+        <button data-run="leave">${t('run.leave')}</button>
+        <button data-run="stop">${t('run.stop')}</button>
+      </div>` : ''}`;
+    if (note) overlay.append(note);
   }
 
   function togglePause() {
@@ -173,15 +275,15 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
     persist();
   }
 
-  function stop() {
-    if (!paused) togglePause();
+  function askStop() {
+    tapLocked = true;
     overlay.innerHTML = `<div class="run-main"><h1>${t('run.stopTitle')}</h1>
-      <div class="run-controls"><button class="main" data-run="save">${t('run.savePartial')}</button><button data-run="discard">${t('run.discard')}</button><button data-run="continue">${t('run.resume')}</button></div></div>`;
+      <div class="run-menu"><button class="main" data-run="save">${t('run.savePartial')}</button><button data-run="discard">${t('run.discard')}</button><button data-run="back-menu">${t('run.resume')}</button></div></div>`;
     overlay.className = 'run tone-gray';
   }
 
   function toggleVoice() {
-    if (recognition) { recognition.stop(); recognition = null; paint(); return; }
+    if (recognition) { const active = recognition; recognition = null; active.stop(); paint(); return; }
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Speech) { paint(); return; }
     recognition = new Speech();
@@ -200,23 +302,45 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
   }
 
   const handlers = {
-    done: () => advance(),
-    skip: () => advance(false),
-    back: () => enter(Math.max(0, index - 1)),
-    pause: togglePause,
-    stop,
-    sound: () => { setSound(!soundOn()); paint(); },
+    resume: togglePause,
+    log: () => {
+      const last = logs.at(-1) ?? createLog(Math.max(0, index - 1)) ?? createLog(index);
+      if (last) openLog(last);
+    },
+    sound: () => { setSetting('sound', !getSettings().sound); paint(); },
     voice: toggleVoice,
-    save: () => close(false, true),
-    discard: () => close(false, false),
-    continue: () => { togglePause(); },
+    leave: () => { persist(); shutdown(); },
+    stop: askStop,
+    save: () => finish(false, true),
+    discard: () => finish(false, false),
+    'back-menu': () => { tapLocked = false; paint(); },
   };
 
+  const isControl = (target) => target.closest('[data-run], .run-log, .run-note, .run-menu');
+
   overlay.addEventListener('click', (event) => {
-    const action = event.target.closest('[data-run]')?.dataset.run;
-    if (!action) return;
-    audio?.resume();
-    handlers[action]();
+    const button = event.target.closest('[data-run]');
+    if (!button) return;
+    wakeAudio();
+    if (button.dataset.run === 'note') { openLog(button.logRef); return; }
+    if (button.dataset.run !== 'save-summary') handlers[button.dataset.run]();
+  });
+
+  // 整個畫面都是按鈕：點一下暫停或完成，左右滑動切換步驟
+  overlay.addEventListener('pointerdown', (event) => {
+    if (tapLocked || isControl(event.target)) return;
+    swipeStart = event.clientX;
+  });
+  overlay.addEventListener('pointerup', (event) => {
+    if (swipeStart === null || isControl(event.target)) { swipeStart = null; return; }
+    const moved = event.clientX - swipeStart;
+    swipeStart = null;
+    wakeAudio();
+    if (moved <= -SWIPE_PIXELS) advance(false);
+    else if (moved >= SWIPE_PIXELS) { if (index > 0) enter(index - 1); }
+    else if (paused) togglePause();
+    else if (queue[index].type === 'reps') advance();
+    else togglePause();
   });
 
   // 手機切到背景時計時器會停，回來後依實際經過時間補上
@@ -224,8 +348,8 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
     if (paused || endsAt === null || Date.now() < endsAt) return;
     const overdue = (Date.now() - endsAt) / 1000;
     const result = advanceBy(queue, index, 0, overdue);
-    result.passed.forEach((i) => doneIndexes.add(i));
-    if (result.finished) { soundFinish(); close(true, true); return; }
+    result.passed.forEach((i) => { doneIndexes.add(i); createLog(i); });
+    if (result.finished) { soundFinish(); finish(true, true); return; }
     index = result.index;
     remaining = result.remaining;
     endsAt = remaining === null ? null : Date.now() + remaining * 1000;
@@ -237,25 +361,30 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
 
   function onVisible() {
     if (document.visibilityState !== 'visible') return;
-    audio?.resume();
+    wakeAudio();
     keepAwake();
     catchUp();
   }
   document.addEventListener('visibilitychange', onVisible);
 
   const timer = setInterval(() => {
-    if (paused) return;
-    const clockLeft = overlay.querySelector('#run-clock-left');
-    if (endsAt === null) return;
+    if (paused || endsAt === null) return;
+    const settings = getSettings();
     remaining = Math.max(0, (endsAt - Date.now()) / 1000);
     const whole = Math.ceil(remaining);
-    if (whole <= 3 && whole > 0 && whole !== lastBeep) { lastBeep = whole; tone(880); }
+    overlay.classList.toggle('pulse', settings.pulse && whole <= settings.countdownSec);
+    if (whole <= settings.countdownSec && whole > 0 && whole !== lastBeep) {
+      lastBeep = whole;
+      soundCountdown();
+      speak(String(whole));
+    }
     if (remaining <= 0) { advance(); return; }
     overlay.querySelector('.run-clock').textContent = formatClock(remaining);
     overlay.querySelector('#run-progress').style.width = `${(remaining / queue[index].duration) * 100}%`;
-    if (clockLeft) clockLeft.textContent = formatClock(left());
+    overlay.querySelector('#run-clock-left').textContent = formatClock(left());
   }, 200);
 
+  speak(stepName(queue[index]));
   paint();
   persist();
 }

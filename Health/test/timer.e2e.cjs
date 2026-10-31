@@ -124,38 +124,53 @@ const assert = require('assert');
   await page.locator('.run.tone-blue').waitFor();
   await page.locator('.run-next.tone-red').waitFor();
   await page.screenshot({ path: `${shots}/run.png` });
-  // 依編輯器的實際順序跑兩輪，休息在第二輪略過；懸掛結束時要記錄
+  // 訓練中不用操作：步驟結束只顯示提示，想改才點開；次數步驟點畫面完成
+  await page.locator('.run-hint').waitFor();
   const tones = { 懸掛: 'red', 休息: 'green', 伏地挺身: 'blue' };
   const steps = [...order, ...order.filter((name) => name !== '休息')];
-  let needLog = false;
-  let logs = 0;
+  let needNote = false;
+  let notes = 0;
   for (const name of steps) {
     await page.locator(`.run.tone-${tones[name]} .run-main h1`, { hasText: name }).waitFor({ timeout: 6000 });
-    if (needLog) {
-      await page.locator('.run-log').waitFor({ timeout: 3000 });
-      if (logs === 0) {
+    if (needNote) {
+      await page.locator('.run-note').waitFor({ timeout: 3000 });
+      if (notes === 0) {
+        await page.locator('.run-note').click();
+        await page.locator('.run-log .stepper [data-delta="1"]').first().click();
         await page.fill('.run-log input[name=m0]', '5');
         await page.getByLabel('力竭').check();
+        await page.screenshot({ path: `${shots}/run-log.png` });
+        await page.getByRole('button', { name: '確認紀錄' }).click();
       } else {
-        assert.equal(await page.inputValue('.run-log input[name=m0]'), '5');
+        assert.match(await page.locator('.run-note').innerText(), /重量 5/);
       }
-      await page.getByRole('button', { name: '確認紀錄' }).click();
-      logs += 1;
-      needLog = false;
+      notes += 1;
+      needNote = false;
     }
-    if (name === '伏地挺身') await page.locator('.run [data-run=done]').click();
-    if (name === '懸掛') needLog = true;
+    if (name === '伏地挺身') await page.locator('.run-main').click();
+    if (name === '懸掛') needNote = true;
   }
-  assert.ok(logs >= 1);
+  assert.ok(notes >= 1);
+  await page.locator('.run-summary').waitFor({ timeout: 6000 });
+  await page.screenshot({ path: `${shots}/run-summary.png` });
+  await page.getByRole('button', { name: '確認紀錄' }).click();
   await page.getByText('已記錄運動').waitFor();
 
   // 中斷續跑
   await page.locator('.routine', { hasText: '測試課表' }).getByRole('button', { name: '開始' }).click();
   await page.locator('.run').waitFor();
+  // 點畫面暫停才出現其他操作，再點一次繼續
+  assert.equal(await page.locator('.run [data-run=stop]').count(), 0);
+  await page.locator('.run-main').click();
+  await page.locator('.run [data-run=leave]').waitFor();
+  await page.screenshot({ path: `${shots}/run-paused.png` });
+  await page.locator('.run [data-run=resume]').click();
+  assert.equal(await page.locator('.run [data-run=stop]').count(), 0);
   await page.reload();
   await page.getByText('有未完成的訓練').waitFor();
   await page.getByRole('button', { name: '繼續' }).click();
   await page.locator('.run').waitFor();
+  await page.locator('.run-main').click();
   await page.locator('.run [data-run=stop]').click();
   await page.locator('.run [data-run=discard]').click();
   assert.equal(await page.getByText('有未完成的訓練').count(), 0);
@@ -175,12 +190,23 @@ const assert = require('assert');
   await page.goto(`${timerUrl}?run=${routineId}`);
   await page.locator('#panel [data-action=start-now]').click();
   await page.locator('.run').waitFor();
+  await page.locator('.run-main').click();
   await page.locator('.run [data-run=stop]').click();
   await page.locator('.run [data-run=discard]').click();
   await page.goto(timerUrl);
   await page.screenshot({ path: `${shots}/timer-page.png` });
   // 計時器入口只有課表，沒有分頁，也不能建立只記組數的課表
-  assert.equal(await page.locator('.train-tabs').count(), 0);
+  assert.equal(await page.locator('.train-tabs button').count(), 2);
+  await page.locator('.train-tabs').getByRole('button', { name: '紀錄' }).click();
+  await page.locator('.entry, .stat-row', { hasText: '測試課表' }).first().waitFor();
+  await page.locator('.train-tabs').getByRole('button', { name: '課表' }).click();
+
+  // 設定：倒數秒數和語音
+  await page.getByRole('button', { name: '設定' }).click();
+  await page.locator('#panel input[data-setting=countdownSec]').fill('5');
+  await page.locator('#panel input[data-setting=countdownSec]').dispatchEvent('change');
+  await page.locator('#panel [data-action=back]').first().click();
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('timer.settings')).countdownSec), 5);
   await page.getByRole('heading', { name: '訓練計時' }).waitFor();
   await button('＋ 新增課表').click();
   assert.equal(await page.getByText('只記組數').count(), 0);
