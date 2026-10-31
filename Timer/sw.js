@@ -1,5 +1,5 @@
 // 先向伺服器確認新版，離線時才用快取
-const CACHE_NAME = 'timer-v1';
+const CACHE_NAME = 'timer-v3';
 const SHELL = ['./', './index.html', './timer.js', '../core/health.css', '../core/i18n.js', '../core/logic.js', '../core/registry.js', '../core/store.js', '../core/training.js', '../core/flow.js', '../core/flowRun.js', '../core/firebase-config.js'];
 
 self.addEventListener('install', (event) => {

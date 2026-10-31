@@ -43,6 +43,22 @@ export function formatDuration(seconds, t) {
   return [minutes && t('time.minutes', { n: minutes }), rest && t('time.seconds', { n: rest })].filter(Boolean).join(' ') || t('time.seconds', { n: 0 });
 }
 
+// 依經過秒數往前推算步驟；次數步驟要等使用者按完成，所以停在那裡
+export function advanceBy(queue, index, remaining, seconds) {
+  const passed = [];
+  let left = seconds;
+  let current = index;
+  let stepLeft = remaining;
+  while (stepLeft !== null && left >= stepLeft) {
+    left -= stepLeft;
+    passed.push(current);
+    current += 1;
+    if (current >= queue.length) return { index: current, remaining: 0, passed, finished: true };
+    stepLeft = queue[current].duration ?? null;
+  }
+  return { index: current, remaining: stepLeft === null ? null : stepLeft - left, passed, finished: false };
+}
+
 export function mapFlow(flow, fn) {
   return flow.map((step) => (step.type === 'loop' ? { ...step, children: mapFlow(step.children, fn) } : fn(step)));
 }

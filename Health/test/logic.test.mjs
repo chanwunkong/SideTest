@@ -4,7 +4,7 @@ import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDate
 import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../../core/logic.js';
 import { descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, personalBests, resolveExercise, scheduleActiveOn, scheduleRemaining, targetSetsOn, weeklyStats } from '../../core/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
-import { flattenFlow, flowDuration, flowToRecord, lastLogValue, normalizeFlow } from '../../core/flow.js';
+import { advanceBy, flattenFlow, flowDuration, flowToRecord, lastLogValue, normalizeFlow } from '../../core/flow.js';
 import { normalizeEvent, registry } from '../../core/registry.js';
 
 const meal = (nutrients = {}) => ({ type: 'meal', schemaVersion: 1, data: { nutrients } });
@@ -172,6 +172,14 @@ test('訓練紀錄沿用同一套格式，休息不算動作，並保留每步�
   assert.equal(record.logs[0].failure, true);
   assert.deepEqual(record.moves.map((m) => [m.exerciseId, m.metrics]), [['hang', { holdSec: 14 }], ['pull', { reps: 20 }]]);
   assert.equal(exerciseTotal([record], [{ id: 'pull', parentId: null, name: '引體' }], 'pull'), 20);
+});
+
+test('切回畫面時依經過時間前進，遇到次數步驟就停', () => {
+  const queue = [{ duration: 10 }, { duration: 5 }, { count: 5 }, { duration: 3 }];
+  assert.deepEqual(advanceBy(queue, 0, 10, 4), { index: 0, remaining: 6, passed: [], finished: false });
+  assert.deepEqual(advanceBy(queue, 0, 10, 12), { index: 1, remaining: 3, passed: [0], finished: false });
+  assert.deepEqual(advanceBy(queue, 0, 10, 100), { index: 2, remaining: null, passed: [0, 1], finished: false });
+  assert.deepEqual(advanceBy(queue, 3, 3, 9), { index: 4, remaining: 0, passed: [3], finished: true });
 });
 
 test('上次的紀錄值會帶入', () => {

@@ -14,6 +14,13 @@ const assert = require('assert');
   await page.goto(timerUrl);
 
   // 建立課表：計時 + 循環 2 次（懸掛、休息最後略過）+ 次數
+  // 空課表不能存，取消新課表不需要確認
+  await button('＋ 新增課表').click();
+  await page.locator('[data-action=save]').click();
+  await page.getByText('請輸入課表名稱').waitFor();
+  await page.locator('[data-action=close]').click();
+  assert.equal(await page.locator('#sheet[open]').count(), 0);
+
   await button('＋ 新增課表').click();
   await page.fill('#routine-name', '測試課表');
   const addTimer = async (label, seconds, color) => {
@@ -22,30 +29,37 @@ const assert = require('assert');
     await page.fill('input[name=label]', label);
     await page.fill('input[name=duration]', String(seconds));
     await page.locator(`.swatch.tone-${color}`).click();
-    await button('儲存').click();
+    await page.locator('#panel .btn.primary.wide').click();
   };
-  await addTimer('準備', 1, 'blue');
+  // 開新增面板時，後面維持編輯器，不會露出首頁
+  await page.locator('.editor-foot .btn.primary').click();
+  await page.locator('#panel[open]').waitFor();
+  assert.equal(await page.locator('#sheet[open] .editor').count(), 1);
+  assert.equal(await page.evaluate(() => document.activeElement.tagName), 'DIALOG');
+  await page.screenshot({ path: `${shots}/panel.png` });
+  await page.locator('#panel [data-action=back]').click();
+  await addTimer('準備', 2, 'blue');
   await page.locator('.editor-foot .btn.primary').click();
   await button('循環').click();
   await page.fill('input[name=iterations]', '2');
-  await button('儲存').click();
+  await page.locator('#panel .btn.primary.wide').click();
   await page.locator('.editor-foot .btn.primary').click();
   await button('次數').click();
   await page.fill('input[name=label]', '伏地挺身');
   await page.fill('input[name=count]', '5');
-  await button('儲存').click();
+  await page.locator('#panel .btn.primary.wide').click();
   await page.locator('.loop-title').click();
-  await addTimer('懸掛', 1, 'red');
-  await addTimer('休息', 1, 'green');
+  await addTimer('懸掛', 2, 'red');
+  await addTimer('休息', 2, 'green');
   await page.locator('.flow-row', { hasText: '休息' }).click();
   await page.getByText('更多選項').click();
   await page.getByLabel('這是休息').check();
   await page.getByLabel('最後一次略過').check();
-  await button('儲存').click();
+  await page.locator('#panel .btn.primary.wide').click();
   await page.locator('.flow-row', { hasText: '懸掛' }).click();
   await page.getByText('更多選項').click();
   await page.getByLabel('負重').check();
-  await button('儲存').click();
+  await page.locator('#panel .btn.primary.wide').click();
   assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '懸掛' }).count(), 1);
   assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '伏地挺身' }).count(), 0);
   await page.screenshot({ path: `${shots}/editor.png` });
@@ -62,6 +76,15 @@ const assert = require('assert');
     await page.mouse.up();
     await page.waitForTimeout(250);
   };
+  const dragBox = await page.locator('.flow-item:not(.flow-loop)', { hasText: '伏地挺身' }).boundingBox();
+  await page.mouse.move(dragBox.x + 40, dragBox.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(dragBox.x + 44, dragBox.y - 30, { steps: 6 });
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('.flow-drag').isVisible(), true, '拖曳中要看得到項目');
+  await page.screenshot({ path: `${shots}/dragging.png` });
+  await page.mouse.up();
+  await page.waitForTimeout(250);
   const push = page.locator('.flow-item:not(.flow-loop)', { hasText: '伏地挺身' });
   await drag(push, page.locator('.flow-group .flow-group .flow-item', { hasText: '休息' }));
   assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '伏地挺身' }).count(), 1);
@@ -69,28 +92,44 @@ const assert = require('assert');
   assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '伏地挺身' }).count(), 0);
   await drag(page.locator('.flow-item:not(.flow-loop)', { hasText: '伏地挺身' }), page.locator('.flow-group .flow-group .flow-item', { hasText: '休息' }));
   assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '伏地挺身' }).count(), 1);
-  await button('儲存').click();
+  const rows = await page.locator('.flow-row').allInnerTexts();
+  const order = rows.map((r) => r.split('\n')[0]).filter((name) => ['懸掛', '休息', '伏地挺身'].includes(name));
+  assert.equal(order.length, 3);
+  // 有修改時取消要先確認
+  await page.locator('[data-action=close]').click();
+  await page.getByText('要放棄這次修改嗎？').waitFor();
+  await button('繼續編輯').click();
+  assert.equal(await page.locator('#sheet[open] .editor').count(), 1);
+  await page.locator('[data-action=save]').click();
 
   // 全螢幕顏色會跟著步驟改變，次數步驟要按完成
   await page.locator('.routine', { hasText: '測試課表' }).getByRole('button', { name: '開始' }).click();
   await page.locator('.run.tone-blue').waitFor();
   await page.locator('.run-next.tone-red').waitFor();
   await page.screenshot({ path: `${shots}/run.png` });
-  await page.locator('.run.tone-red').waitFor({ timeout: 5000 });
-  await page.getByText('第 1/2 次').waitFor();
-  await page.locator('.run.tone-green').waitFor({ timeout: 5000 });
-  await page.locator('.run-log').waitFor();
-  await page.fill('.run-log input[name=weightKg]', '5');
-  await page.getByLabel('力竭').check();
-  await page.getByRole('button', { name: '確認紀錄' }).click();
-  await page.locator('.run.tone-blue').waitFor({ timeout: 5000 });
-  await page.getByRole('button', { name: '完成' }).click();
-  await page.locator('.run.tone-red').waitFor();
-  await page.locator('.run-log').waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
-  await page.locator('.run.tone-blue').waitFor({ timeout: 5000 });
-  await page.locator('.run-log input[name=weightKg]').waitFor();
-  assert.equal(await page.inputValue('.run-log input[name=weightKg]'), '5');
-  await page.getByRole('button', { name: '完成' }).click();
+  // 依編輯器的實際順序跑兩輪，休息在第二輪略過；懸掛結束時要記錄
+  const tones = { 懸掛: 'red', 休息: 'green', 伏地挺身: 'blue' };
+  const steps = [...order, ...order.filter((name) => name !== '休息')];
+  let needLog = false;
+  let logs = 0;
+  for (const name of steps) {
+    await page.locator(`.run.tone-${tones[name]} .run-main h1`, { hasText: name }).waitFor({ timeout: 6000 });
+    if (needLog) {
+      await page.locator('.run-log').waitFor({ timeout: 3000 });
+      if (logs === 0) {
+        await page.fill('.run-log input[name=weightKg]', '5');
+        await page.getByLabel('力竭').check();
+      } else {
+        assert.equal(await page.inputValue('.run-log input[name=weightKg]'), '5');
+      }
+      await page.getByRole('button', { name: '確認紀錄' }).click();
+      logs += 1;
+      needLog = false;
+    }
+    if (name === '伏地挺身') await page.locator('.run [data-run=done]').click();
+    if (name === '懸掛') needLog = true;
+  }
+  assert.ok(logs >= 1);
   await page.getByText('已記錄運動').waitFor();
 
   // 中斷續跑
@@ -107,6 +146,18 @@ const assert = require('assert');
   // 範本和健康管理互通
   await page.getByRole('button', { name: '＋ 7/3 手指耐力' }).click();
   await page.locator('.routine', { hasText: '7/3 手指耐力' }).waitFor();
+  await page.getByRole('button', { name: '＋ 7/3 手指耐力' }).click();
+  await page.getByText('已經有這份課表了').waitFor();
+  assert.equal(await page.locator('.routine', { hasText: '7/3 手指耐力' }).count(), 1);
+
+  // 從連結進來時先點一下才開始，手機才能播放提示音
+  const routineId = await page.locator('.routine', { hasText: '7/3 手指耐力' }).locator('[data-action=start]').getAttribute('data-id');
+  await page.goto(`${timerUrl}?run=${routineId}`);
+  await page.locator('#panel [data-action=start-now]').click();
+  await page.locator('.run').waitFor();
+  await page.locator('.run [data-run=stop]').click();
+  await page.locator('.run [data-run=discard]').click();
+  await page.goto(timerUrl);
   await page.screenshot({ path: `${shots}/timer-page.png` });
   await page.goto(`${process.env.PW_URL}/index.html`);
   await page.locator('.tabs').getByRole('button', { name: '運動', exact: true }).click();

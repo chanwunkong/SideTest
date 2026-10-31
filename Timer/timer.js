@@ -1,17 +1,18 @@
 // 訓練計時：獨立網頁，資料和健康管理共用
 import { COLORS, LOG_METRICS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, newStep, normalizeFlow } from '../core/flow.js';
 import { autoLogOn, clearSession, runFlow, savedSession, setAutoLog, setSound, soundOn } from '../core/flowRun.js';
-import { lang, t } from '../core/i18n.js';
+import { lang, setLang, t } from '../core/i18n.js';
 import { healthStore as store } from '../core/store.js';
 import { exercisePath, exerciseTree, resolveExercise } from '../core/training.js';
 
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
+const panel = document.getElementById('panel');
 const toastEl = document.getElementById('toast');
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const query = new URLSearchParams(location.search);
 
-const state = { routine: null, selected: null, step: null, stepList: null, adding: false, handledQuery: false };
+const state = { routine: null, original: '', selected: null, step: null, stepList: null, adding: false, handledQuery: false };
 
 function toast(message) {
   toastEl.hidden = false;
@@ -25,6 +26,7 @@ const workoutEvents = () => store.liveEvents().filter((e) => e.type === 'workout
 const stepName = (step) => step.label || t(step.type === 'reps' ? 'step.reps' : 'step.timer');
 
 function start(routine, resume = null) {
+  if (!flattenFlow(normalizeFlow(routine.flow)).length) { toast(t('editor.needStep')); return; }
   runFlow({ ...routine, flow: normalizeFlow(routine.flow) }, {
     events: workoutEvents(),
     resume,
@@ -94,7 +96,6 @@ function stepHtml(step) {
 function renderEditor() {
   const { routine } = state;
   const line = flattenFlow(routine.flow).filter((s) => s.duration).map((s) => `<i class="tone-${s.color}" style="flex:${s.duration}"></i>`).join('');
-  sheet.className = 'full';
   sheet.innerHTML = `<div class="editor">
     <header class="row editor-head">
       <button class="plain" data-action="close">${t('editor.cancel')}</button>
@@ -115,7 +116,7 @@ function renderEditor() {
       </details>
     </footer>
   </div>`;
-  if (!sheet.open) sheet.showModal();
+  if (!sheet.open) { sheet.showModal(); sheet.focus(); }
   attachSortable();
 }
 
@@ -125,6 +126,34 @@ function readEditorFields() {
   if (tags) state.routine.tags = tags.value.split(/[,，、]/).map((tag) => tag.trim()).filter(Boolean);
 }
 
+function openPanel(html) {
+  panel.innerHTML = html;
+  if (!panel.open) { panel.showModal(); panel.focus(); }
+}
+
+function closeEditor() {
+  if (panel.open) panel.close();
+  if (sheet.open) sheet.close();
+}
+
+function openRoutine(routine) {
+  state.routine = routine;
+  state.original = JSON.stringify(routine);
+  state.selected = null;
+  renderEditor();
+}
+
+// 有修改時先確認，避免取消或系統返回時內容不見
+function requestClose() {
+  readEditorFields();
+  if (JSON.stringify(state.routine) === state.original) { closeEditor(); return; }
+  openPanel(`<div class="stack">
+    <h2>${t('editor.discardTitle')}</h2>
+    <button class="btn danger wide" data-action="discard">${t('editor.discard')}</button>
+    <button class="btn wide" data-action="back">${t('editor.keepEditing')}</button>
+  </div>`);
+}
+
 function renderPicker() {
   const presets = [
     { key: 'prepare', label: t('step.prepare'), props: { label: t('step.prepare'), duration: 10, color: 'blue', rest: true } },
@@ -132,8 +161,7 @@ function renderPicker() {
     { key: 'rest', label: t('step.rest'), props: { label: t('step.rest'), duration: 60, color: 'green', rest: true } },
   ];
   state.presets = presets;
-  sheet.className = '';
-  sheet.innerHTML = `<div class="stack">
+  openPanel(`<div class="stack">
     <div class="row"><h2 style="margin:0">${t('editor.whatToAdd')}</h2><button class="icon-btn" data-action="back" aria-label="${t('common.close')}">✕</button></div>
     <div class="picker">
       <button class="btn" data-action="pick" data-type="timer">${t('step.timer')}</button>
@@ -142,7 +170,7 @@ function renderPicker() {
     </div>
     <h2>${t('editor.common')}</h2>
     <div class="chips">${presets.map((p) => `<button class="chip tone-chip-${p.props.color}" data-action="preset" data-key="${p.key}">${p.label}</button>`).join('')}</div>
-  </div>`;
+  </div>`);
 }
 
 function exerciseOptions() {
@@ -153,14 +181,13 @@ function exerciseOptions() {
 function renderStep() {
   const { step } = state;
   const isNew = state.adding;
-  sheet.className = '';
   if (step.type === 'loop') {
-    sheet.innerHTML = `<form class="stack" data-form="step">
+    openPanel(`<form class="stack" data-form="step">
       <div class="row"><h2 style="margin:0">${t('step.loop')}</h2><button type="button" class="icon-btn" data-action="back" aria-label="${t('common.close')}">✕</button></div>
       <label class="field"><span>${t('step.iterations')}</span><input type="number" inputmode="numeric" min="1" name="iterations" value="${step.iterations}" required></label>
       <button class="btn primary wide">${t('common.save')}</button>
       ${isNew ? '' : `<div class="grid-2"><button type="button" class="btn" data-action="copy">${t('editor.copy')}</button><button type="button" class="btn danger" data-action="remove">${t('common.delete')}</button></div>`}
-    </form>`;
+    </form>`);
     return;
   }
   const amount = step.type === 'reps'
@@ -168,7 +195,7 @@ function renderStep() {
     : `<label class="field"><span>${t('step.seconds')}</span><input type="number" inputmode="numeric" min="1" name="duration" value="${step.duration}" required></label>`;
   const swatches = COLORS.map((color) => `<button type="button" class="swatch tone-${color}${step.color === color ? ' active' : ''}" data-action="color" data-color="${color}" aria-label="${color}"></button>`).join('');
   const metrics = LOG_METRICS.map((metric) => `<label class="check"><input type="checkbox" name="metric" value="${metric}"${step.metrics.includes(metric) ? ' checked' : ''}> ${t(`metric.${metric}`)}</label>`).join('');
-  sheet.innerHTML = `<form class="stack" data-form="step">
+  openPanel(`<form class="stack" data-form="step">
     <div class="row"><h2 style="margin:0">${t(step.type === 'reps' ? 'step.reps' : 'step.timer')}</h2><button type="button" class="icon-btn" data-action="back" aria-label="${t('common.close')}">✕</button></div>
     <div class="grid-2">
       <label class="field"><span>${t('step.name')}</span><input name="label" list="exercise-options" autocomplete="off" value="${esc(step.label)}"></label>
@@ -183,7 +210,7 @@ function renderStep() {
     </details>
     <button class="btn primary wide">${t('common.save')}</button>
     ${isNew ? '' : `<div class="grid-2"><button type="button" class="btn" data-action="copy">${t('editor.copy')}</button><button type="button" class="btn danger" data-action="remove">${t('common.delete')}</button></div>`}
-  </form>`;
+  </form>`);
 }
 
 function addStep(step) {
@@ -211,6 +238,7 @@ function saveStep(form) {
   }
   if (state.adding) state.stepList.push(step);
   state.adding = false;
+  panel.close();
   renderEditor();
 }
 
@@ -234,15 +262,17 @@ function attachSortable() {
       group: 'flow',
       draggable: '.flow-item',
       animation: 150,
-      delay: 200,
-      delayOnTouchOnly: true,
-      touchStartThreshold: 5,
-      forceFallback: true,
-      fallbackOnBody: true,
-      swapThreshold: 0.65,
+      emptyInsertThreshold: 50,
       ghostClass: 'flow-ghost',
       dragClass: 'flow-drag',
-      emptyInsertThreshold: 24,
+      delay: 150,
+      delayOnTouchOnly: true,
+      fallbackTolerance: 10,
+      forceFallback: true,
+      supportPointer: false,
+      scroll: true,
+      bubbleScroll: true,
+      swapThreshold: 0.65,
       onEnd: () => {
         const steps = new Map(editorRows(state.routine.flow).map(({ step }) => [step.id, step]));
         readEditorFields();
@@ -263,49 +293,53 @@ function linkFlow(flow) {
 }
 
 const actions = {
-  new: () => { state.routine = { name: '', mode: 'sets', moves: [], trackRest: false, tags: [], flow: [] }; state.selected = null; renderEditor(); },
+  new: () => openRoutine({ name: '', mode: 'sets', moves: [], trackRest: false, tags: [], flow: [] }),
   edit: ({ id }) => {
     const routine = structuredClone(findRoutine(id));
-    state.routine = { ...routine, flow: normalizeFlow(routine.flow) };
-    state.selected = null;
-    renderEditor();
+    openRoutine({ ...routine, flow: normalizeFlow(routine.flow) });
   },
-  close: () => sheet.close(),
-  back: () => { state.adding = false; renderEditor(); },
+  close: requestClose,
+  discard: closeEditor,
+  back: () => { state.adding = false; panel.close(); },
   save: () => {
     readEditorFields();
     const name = state.routine.name.trim();
     if (!name) { toast(t('editor.needName')); return; }
-    if (!state.routine.flow.length) { toast(t('editor.needStep')); return; }
+    if (!flattenFlow(state.routine.flow).length) { toast(t('editor.needStep')); return; }
     store.saveDoc('trainings', { ...state.routine, name, flow: linkFlow(state.routine.flow) });
-    sheet.close();
+    closeEditor();
   },
-  delete: () => { store.saveDoc('trainings', { ...state.routine, deletedAt: Date.now() }); sheet.close(); },
+  delete: () => { store.saveDoc('trainings', { ...state.routine, deletedAt: Date.now() }); closeEditor(); },
   add: () => { readEditorFields(); renderPicker(); },
   pick: ({ type }) => addStep(newStep(type)),
   preset: ({ key }) => addStep(newStep('timer', state.presets.find((p) => p.key === key).props)),
   color: ({ color }, target) => {
     state.step.color = color;
-    sheet.querySelectorAll('.swatch').forEach((el) => el.classList.toggle('active', el === target));
+    panel.querySelectorAll('.swatch').forEach((el) => el.classList.toggle('active', el === target));
   },
   copy: () => {
     const clone = structuredClone(state.step);
     const fresh = (step) => ({ ...step, id: crypto.randomUUID(), ...(step.children ? { children: step.children.map(fresh) } : {}) });
     const list = findRow(state.step.id).list;
     list.splice(list.indexOf(state.step) + 1, 0, fresh(clone));
+    panel.close();
     renderEditor();
   },
   remove: () => {
     const { list, index } = findRow(state.step.id);
     list.splice(index, 1);
     if (state.selected === state.step) state.selected = null;
+    panel.close();
     renderEditor();
   },
   template: ({ key }) => {
-    store.saveDoc('trainings', { mode: 'sets', moves: [], trackRest: false, ...TEMPLATES[key](t) });
+    const template = TEMPLATES[key](t);
+    if (routines().some((routine) => routine.name === template.name)) { toast(t('timer.exists')); return; }
+    store.saveDoc('trainings', { mode: 'sets', moves: [], trackRest: false, ...template });
     toast(t('common.saved'));
   },
   start: ({ id }) => start(findRoutine(id)),
+  'start-now': ({ id }) => { panel.close(); start(findRoutine(id)); },
   resume: () => { const session = savedSession(); start(findRoutine(session.trainingId), session); },
   'drop-session': () => { clearSession(); renderHome(); },
   'sign-in': () => store.signIn().catch((error) => toast(t('account.signInFailed', { error: error.message }))),
@@ -331,9 +365,15 @@ view.addEventListener('change', (event) => {
   if (option === 'log') setAutoLog(event.target.checked);
 });
 
-sheet.addEventListener('submit', (event) => {
+panel.addEventListener('submit', (event) => {
   event.preventDefault();
   saveStep(event.target);
+});
+
+// 系統返回或 Esc 關閉編輯器時，也走同一個確認流程
+sheet.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  requestClose();
 });
 
 function handleQuery() {
@@ -343,11 +383,20 @@ function handleQuery() {
   const routine = findRoutine(id);
   if (!routine) return;
   state.handledQuery = true;
-  if (query.get('run')) start(routine);
-  else actions.edit({ id });
+  if (query.get('run')) {
+    // 手機要在這一頁點一下才能播放提示音
+    openPanel(`<div class="stack">
+      <h2>${esc(routine.name)}</h2>
+      <button class="btn primary wide" data-action="start-now" data-id="${esc(id)}">${t('step.start')}</button>
+    </div>`);
+  } else actions.edit({ id });
 }
 
-store.addEventListener('change', () => { renderHome(); handleQuery(); });
+store.addEventListener('change', () => {
+  if (store.profile.lang && store.profile.lang !== lang) setLang(store.profile.lang);
+  renderHome();
+  handleQuery();
+});
 store.addEventListener('error', (event) => toast(t('error.save', { error: event.detail.message })));
 renderHome();
 store.init().catch((error) => toast(t('error.start', { error: error.message })));

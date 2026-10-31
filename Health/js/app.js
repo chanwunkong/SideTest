@@ -403,7 +403,7 @@ function renderBody() {
 function openSheet(html) {
   sheet.innerHTML = html;
   hydrateImages(sheet);
-  if (!sheet.open) sheet.showModal();
+  if (!sheet.open) { sheet.showModal(); sheet.focus(); }
 }
 
 function closeSheet() {
@@ -1178,6 +1178,7 @@ window.addEventListener('beforeinstallprompt', (event) => {
 });
 
 store.addEventListener('change', () => {
+  if (store.profile.lang && store.profile.lang !== lang) setLang(store.profile.lang);
   linkExistingTrainings();
   render();
 });

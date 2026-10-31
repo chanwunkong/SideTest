@@ -1,5 +1,5 @@
 // 全螢幕訓練畫面：背景就是目前步驟的顏色，不看字也知道階段
-import { flattenFlow, flowToRecord, formatClock, lastLogValue } from './flow.js';
+import { advanceBy, flattenFlow, flowToRecord, formatClock, lastLogValue } from './flow.js';
 import { t } from './i18n.js';
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -51,7 +51,8 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
   const overlay = document.createElement('div');
   overlay.className = 'run';
   document.body.append(overlay);
-  navigator.wakeLock?.request('screen').then((lock) => { wakeLock = lock; }).catch(() => {});
+  const keepAwake = () => navigator.wakeLock?.request('screen').then((lock) => { wakeLock = lock; }).catch(() => {});
+  keepAwake();
 
   const tone = (frequency, delay = 0, length = 0.14) => {
     if (!audio || !soundOn()) return;
@@ -70,6 +71,7 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
 
   function close(completed, save) {
     clearInterval(timer);
+    document.removeEventListener('visibilitychange', onVisible);
     overlay.remove();
     wakeLock?.release().catch(() => {});
     recognition?.stop();
@@ -216,6 +218,30 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
     audio?.resume();
     handlers[action]();
   });
+
+  // 手機切到背景時計時器會停，回來後依實際經過時間補上
+  function catchUp() {
+    if (paused || endsAt === null || Date.now() < endsAt) return;
+    const overdue = (Date.now() - endsAt) / 1000;
+    const result = advanceBy(queue, index, 0, overdue);
+    result.passed.forEach((i) => doneIndexes.add(i));
+    if (result.finished) { soundFinish(); close(true, true); return; }
+    index = result.index;
+    remaining = result.remaining;
+    endsAt = remaining === null ? null : Date.now() + remaining * 1000;
+    lastBeep = null;
+    soundStep();
+    paint();
+    persist();
+  }
+
+  function onVisible() {
+    if (document.visibilityState !== 'visible') return;
+    audio?.resume();
+    keepAwake();
+    catchUp();
+  }
+  document.addEventListener('visibilitychange', onVisible);
 
   const timer = setInterval(() => {
     if (paused) return;
