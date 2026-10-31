@@ -202,12 +202,12 @@ class HealthStore extends EventTarget {
     return this.liveEvents().filter((e) => eventTypes.includes(e.type)).reduce((min, e) => (!min || e.date < min ? e.date : min), null);
   }
 
-  addEvent(type, data, { date, source = 'manual', raw = null, attachmentIds = [] } = {}) {
+  addEvent(type, data, { date, occurredAt: time, source = 'manual', raw = null, attachmentIds = [] } = {}) {
     if (!registry[type].validate(data)) throw new Error(`資料不完整：${type}`);
     const now = new Date();
     const today = dateKey(now);
     const eventDate = date ?? today;
-    const occurredAt = eventDate === today ? now.getTime() : new Date(`${eventDate}T12:00:00`).getTime();
+    const occurredAt = time ?? (eventDate === today ? now.getTime() : new Date(`${eventDate}T12:00:00`).getTime());
     const event = {
       id: crypto.randomUUID(), type, schemaVersion: registry[type].version,
       occurredAt, tzOffset: -now.getTimezoneOffset(), date: eventDate,

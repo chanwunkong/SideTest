@@ -118,6 +118,23 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await page.screenshot({ path: `${shots}/exercise.png` });
   await page.locator('#sheet').getByRole('button', { name: '關閉' }).click();
 
+  // 動作的預設持續時間會自動帶入，運動紀錄有開始時間，並寫入動作庫
+  await library.getByRole('button', { name: /新增/ }).click();
+  await page.fill('input[name=name]', '跑步');
+  await page.fill('input[name=defaultMinutes]', '20');
+  await save();
+  await button('記錄其他運動').click();
+  await page.fill('input[name=exercise]', '跑步');
+  assert.equal(await page.inputValue('input[name=minutes]'), '20');
+  await page.fill('input[name=startTime]', '07:30');
+  await save();
+  await page.locator('.entry', { hasText: '跑步' }).getByText('07:30').waitFor();
+  await button('記錄其他運動').click();
+  await page.fill('input[name=exercise]', '新動作');
+  await page.fill('input[name=minutes]', '15');
+  await save();
+  await library.getByRole('button', { name: '新動作' }).waitFor();
+
   // 修改訓練不影響舊紀錄
   await tab('運動');
   await page.locator('.card', { hasText: '訓練天數' }).getByText('6', { exact: true }).waitFor();
@@ -130,7 +147,11 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
 
   // 資料庫連線失效時，表單仍會關閉，畫面更新，並顯示錯誤
   await page.evaluate(() => {
-    IDBDatabase.prototype.transaction = () => { throw new Error('The client has already been terminated.'); };
+    const original = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function transaction(...args) {
+      if (this.name === 'health') throw new Error('The client has already been terminated.');
+      return original.apply(this, args);
+    };
   });
   await page.locator('.plan-row', { hasText: '記組數' }).locator('.edit-name').click();
   await page.fill('input[name=name]', 'Cindy 2');

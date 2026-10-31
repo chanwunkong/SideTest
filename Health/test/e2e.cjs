@@ -89,6 +89,7 @@ const PASTE = `好的，結果如下：
   // 活動
   await card('活動').click();
   await button('記錄其他運動').click();
+  await page.fill('input[name=exercise]', '攀岩');
   await page.fill('input[name=minutes]', '45');
   await save();
   await card('活動').getByText('45', { exact: true }).waitFor();

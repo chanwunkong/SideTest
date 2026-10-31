@@ -309,7 +309,7 @@ function renderWorkout() {
     <section class="card">
       <h2>${t('workout.recent')}</h2>
       ${recent.map((w) => `<button class="entry" data-action="workout-open" data-id="${esc(w.id)}">
-        <span class="entry-body"><strong>${esc(activityLabel(w.data.activity))}</strong><span class="muted">${formatDate(w.date)}・${esc(workoutText(w))}</span></span>
+        <span class="entry-body"><strong>${esc(activityLabel(w.data.activity))}</strong><span class="muted">${formatDate(w.date)} ${timeOf(w.occurredAt)}・${esc(workoutText(w))}</span></span>
       </button>`).join('') || `<p class="muted">${t('workout.noRecords')}</p>`}
     </section>`;
 }
@@ -499,25 +499,44 @@ function openMeal(id) {
 }
 
 const chipGroup = (name, options, active) => `<div class="chips" data-chip-group="${name}">${options.map((o) => `<button type="button" class="chip${o.value === active ? ' active' : ''}" data-action="chip" data-value="${esc(o.value)}">${esc(o.label)}</button>`).join('')}</div>`;
-const activityOptions = () => ACTIVITIES.map((a) => ({ value: a, label: activityLabel(a) }));
+
+const timeOf = (timestamp) => {
+  const time = new Date(timestamp);
+  return `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+};
+
+const timeField = (timestamp) => `<label class="field"><span>${t('workout.startTime')}</span><input type="time" name="startTime" value="${timeOf(timestamp)}" required></label>`;
+
+const startedAt = (values) => new Date(`${values.get('date')}T${values.get('startTime')}`).getTime();
 
 function openWorkout(id = null, date = dateKey()) {
   const event = id ? store.events.get(id) : null;
   if (event?.data.trainingId) { openRecord(event.data.trainingId, event.date, event); return; }
-  const activity = event?.data.activity ?? ACTIVITIES[0];
   const intensity = event?.data.intensity ?? 'moderate';
-  state.draft = { id, date: event?.date ?? date, activity, intensity };
-  const minutes = event ? Math.round(event.data.durationSec / 60) : 60;
+  state.draft = { id, date: event?.date ?? date, intensity };
+  const list = activeExercises();
+  const options = exerciseTree(list).map(({ exercise }) => `<option value="${esc(exercisePath(list, exercise.id, exerciseName))}"></option>`).join('');
+  const minutes = event?.data.durationSec ? Math.round(event.data.durationSec / 60) : '';
   openSheet(`<form class="stack" data-form="workout">
     ${sheetHeader(t(id ? 'workout.edit' : 'workout.log'))}
-    ${chipGroup('activity', activityOptions(), activity)}
-    ${numberField('minutes', t('workout.minutesField'), minutes, 'min="1" required')}
+    <label class="field"><span>${t('workout.exercise')}</span><input name="exercise" list="exercise-options" autocomplete="off" value="${esc(event?.data.activity)}" required></label>
+    <datalist id="exercise-options">${options}</datalist>
+    <div class="grid-2">
+      ${timeField(event?.occurredAt ?? Date.now())}
+      ${numberField('minutes', t('workout.duration'), minutes, 'min="1" required')}
+    </div>
+    <h2>${t('workout.intensity')}</h2>
     ${chipGroup('intensity', INTENSITIES.map((i) => ({ value: i.key, label: intensityLabel(i.key) })), intensity)}
     ${dateField(state.draft.date)}
     <label class="field"><span>${t('workout.note')}</span><input name="note" value="${esc(event?.data.note)}"></label>
     <button class="btn primary wide">${t('common.save')}</button>
     ${id ? deleteButton() : ''}
   </form>`);
+  sheet.querySelector('[name=exercise]').addEventListener('input', (changed) => {
+    const exercise = resolveExercise(activeExercises(), changed.target.value, exerciseName);
+    const field = sheet.querySelector('[name=minutes]');
+    if (exercise?.defaultMinutes && !field.value) field.value = exercise.defaultMinutes;
+  });
 }
 
 // 依訓練的記錄方式顯示欄位，細節都是選填
@@ -531,6 +550,10 @@ function openRecord(trainingId, date = dateKey(), event = null) {
   openSheet(`<form class="stack" data-form="record">
     ${sheetHeader(t('record.title', { name: esc(state.draft.name) }))}
     ${mode === 'sets' ? numberField('sets', t('record.sets'), event?.data.sets, 'min="1" required') : ''}
+    <div class="grid-2">
+      ${timeField(event?.occurredAt ?? Date.now())}
+      ${numberField('minutes', t('workout.duration'), event?.data.durationSec ? Math.round(event.data.durationSec / 60) : '', 'min="1"')}
+    </div>
     ${extras || rest ? `<details><summary>${t('record.detail')}</summary><div class="stack" style="margin-top:10px">${extras}${rest}</div></details>` : ''}
     ${dateField(event?.date ?? date)}
     <button class="btn primary wide">${t(mode === 'sets' ? 'common.save' : 'record.done')}</button>
@@ -550,9 +573,11 @@ function saveRecord(form) {
   const data = {
     trainingId: draft.trainingId, activity: draft.name, mode: draft.mode, moves: draft.moves,
     sets: optionalNumber(values.get('sets')), extra, restSec: optionalNumber(values.get('restSec')),
+    durationSec: (optionalNumber(values.get('minutes')) ?? 0) * 60 || null,
   };
-  if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt: new Date(`${date}T12:00:00`).getTime() });
-  else store.addEvent('workout', data, { date });
+  const occurredAt = startedAt(values);
+  if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt });
+  else store.addEvent('workout', data, { date, occurredAt });
   closeSheet();
   const totals = moveTotals(data).map((m) => `${m.name} ${m.total}`).join('、');
   toast(totals || t('record.saved'));
@@ -642,7 +667,7 @@ function linkExistingTrainings() {
 function openExercise(id) {
   const list = activeExercises();
   const exercise = id ? list.find((e) => e.id === id) : null;
-  state.draft = { id: exercise?.id, name: exercise?.name ?? '', nameEn: exercise?.nameEn ?? '', parentId: exercise?.parentId ?? null };
+  state.draft = { id: exercise?.id, name: exercise?.name ?? '', nameEn: exercise?.nameEn ?? '', parentId: exercise?.parentId ?? null, defaultMinutes: exercise?.defaultMinutes ?? null };
   const blocked = id ? new Set([id, ...descendantIds(list, id)]) : new Set();
   const parents = exerciseTree(list).filter((row) => !blocked.has(row.exercise.id)).map(({ exercise: option, depth }) => (
     `<option value="${esc(option.id)}"${option.id === state.draft.parentId ? ' selected' : ''}>${'　'.repeat(depth)}${esc(exerciseName(option))}</option>`
@@ -652,6 +677,7 @@ function openExercise(id) {
     ${sheetHeader(t(id ? 'exercise.edit' : 'exercise.new'))}
     <label class="field"><span>${t('exercise.name')}</span><input name="name" value="${esc(state.draft.name)}" required></label>
     <label class="field"><span>${t('exercise.nameEn')}</span><input name="nameEn" value="${esc(state.draft.nameEn)}"></label>
+    ${numberField('defaultMinutes', t('exercise.defaultMinutes'), state.draft.defaultMinutes, 'min="1"')}
     <label class="field"><span>${t('exercise.parent')}</span><select name="parentId"><option value="">${t('exercise.noParent')}</option>${parents}</select></label>
     ${id ? `<div class="stat-row"><span>${t('exercise.total')}</span><strong>${exerciseTotal(records, list, id)}</strong></div>` : ''}
     <button class="btn primary wide">${t('common.save')}</button>
@@ -661,7 +687,7 @@ function openExercise(id) {
 
 function saveExercise(form) {
   const values = new FormData(form);
-  store.saveDoc('exercises', { ...state.draft, name: values.get('name').trim(), nameEn: values.get('nameEn').trim(), parentId: values.get('parentId') || null });
+  store.saveDoc('exercises', { ...state.draft, name: values.get('name').trim(), nameEn: values.get('nameEn').trim(), parentId: values.get('parentId') || null, defaultMinutes: optionalNumber(values.get('defaultMinutes')) });
   closeSheet();
 }
 
@@ -710,9 +736,15 @@ function saveWorkout(form) {
   const { draft } = state;
   const values = new FormData(form);
   const date = values.get('date');
-  const data = { activity: draft.activity, intensity: draft.intensity, durationSec: Number(values.get('minutes')) * 60, note: values.get('note') };
-  if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt: new Date(`${date}T12:00:00`).getTime() });
-  else store.addEvent('workout', data, { date });
+  const { exerciseId, name } = linkMove({ name: values.get('exercise') });
+  const data = {
+    exerciseId, activity: name, intensity: draft.intensity,
+    durationSec: Number(values.get('minutes')) * 60, note: values.get('note'),
+    moves: [{ exerciseId, name, metrics: {} }],
+  };
+  const occurredAt = startedAt(values);
+  if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt });
+  else store.addEvent('workout', data, { date, occurredAt });
   closeSheet();
   toast(t('workout.saved'));
 }
