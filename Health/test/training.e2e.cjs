@@ -128,6 +128,21 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await button('記錄更多細節', false).waitFor().catch(() => {});
   await page.locator('#sheet').getByRole('button', { name: '關閉' }).click();
 
+  // 資料庫連線失效時，表單仍會關閉，畫面更新，並顯示錯誤
+  await page.evaluate(() => {
+    IDBDatabase.prototype.transaction = () => { throw new Error('The client has already been terminated.'); };
+  });
+  await page.locator('.plan-row', { hasText: '記組數' }).locator('.edit-name').click();
+  await page.fill('input[name=name]', 'Cindy 2');
+  await save();
+  assert.equal(await page.locator('#sheet[open]').count(), 0, '儲存要有反應');
+  await page.getByText('Cindy 2').first().waitFor();
+  await page.locator('.edit-name', { hasText: 'Cindy 2' }).click();
+  await page.locator('#sheet .btn.danger').click();
+  assert.equal(await page.locator('#sheet[open]').count(), 0, '刪除要有反應');
+  assert.equal(await page.locator('.edit-name', { hasText: 'Cindy 2' }).count(), 0);
+  await page.reload();
+
   // 語言切換與重新整理
   await tab('今日');
   await button('設定').click();

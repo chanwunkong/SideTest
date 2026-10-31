@@ -6,14 +6,18 @@ import { normalizeEvent, registry } from './registry.js';
 const COLLECTIONS = ['events', 'goals', 'attachments', 'profile', 'trainings', 'schedules', 'exercises'];
 
 class LocalBackend {
-  #dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open('health', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('docs', { keyPath: 'key' });
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  #dbPromise = this.#open();
 
-  async #run(mode, fn) {
+  #open() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('health', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('docs', { keyPath: 'key' });
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async #transact(mode, fn) {
     const db = await this.#dbPromise;
     return new Promise((resolve, reject) => {
       const tx = db.transaction('docs', mode);
@@ -21,6 +25,16 @@ class LocalBackend {
       tx.oncomplete = () => resolve(request.result);
       tx.onerror = () => reject(tx.error);
     });
+  }
+
+  // iPhone 切到背景後資料庫連線可能失效，失敗時重新開一次
+  async #run(mode, fn) {
+    try {
+      return await this.#transact(mode, fn);
+    } catch {
+      this.#dbPromise = this.#open();
+      return this.#transact(mode, fn);
+    }
   }
 
   async list(col) {
@@ -79,8 +93,8 @@ class HealthStore extends EventTarget {
     firebase.initializeApp(firebaseConfig);
     this.#db = firebase.firestore();
     this.#auth = firebase.auth();
-    await this.#db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
     this.#auth.onAuthStateChanged((user) => this.#switchUser(user));
+    window.addEventListener('online', () => this.reload());
   }
 
   async #switchUser(user) {
@@ -89,6 +103,7 @@ class HealthStore extends EventTarget {
     if (user) {
       this.#backend = new FirestoreBackend(this.#db, user.uid);
       await this.#uploadLocalData();
+      await this.#flushOutbox().catch(() => {});
     } else {
       this.#backend = this.#local;
     }
@@ -109,22 +124,46 @@ class HealthStore extends EventTarget {
     }
   }
 
+  // 雲端讀不到時用上次的備份，再疊上還沒送出的修改，離線也能繼續用
   async #load() {
+    const names = ['events', 'goals', 'profile', 'trainings', 'schedules', 'exercises'];
+    let lists;
     try {
-      const [events, goals, profile, trainings, schedules, exercises] = await Promise.all(['events', 'goals', 'profile', 'trainings', 'schedules', 'exercises'].map((c) => this.#backend.list(c)));
-      this.events = new Map(events.map((e) => [e.id, normalizeEvent(e)]));
-      this.goals = goals;
-      this.profile = profile[0] ?? {};
-      this.trainings = trainings;
-      this.schedules = schedules;
-      this.exercises = exercises;
-      this.#changed();
+      lists = Object.fromEntries(await Promise.all(names.map(async (c) => [c, await this.#backend.list(c)])));
+      if (this.user) await this.#local.put('mirror', this.user.uid, { id: this.user.uid, lists });
     } catch (error) {
-      this.#reportError(error);
+      lists = this.user ? (await this.#local.get('mirror', this.user.uid).catch(() => null))?.lists : null;
+      if (!lists) { this.#reportError(error); return; }
+    }
+    if (this.user) {
+      for (const item of await this.#pendingWrites()) {
+        lists[item.col] = [...lists[item.col].filter((doc) => doc.id !== item.doc.id), item.doc];
+      }
+    }
+    this.events = new Map(lists.events.map((e) => [e.id, normalizeEvent(e)]));
+    this.goals = lists.goals;
+    this.profile = lists.profile[0] ?? {};
+    this.trainings = lists.trainings;
+    this.schedules = lists.schedules;
+    this.exercises = lists.exercises;
+    this.#changed();
+  }
+
+  async #pendingWrites() {
+    const items = await this.#local.list('outbox').catch(() => []);
+    return items.filter((item) => item.uid === this.user?.uid && item.col !== 'attachments');
+  }
+
+  // 重新連線後，把還沒送出的修改補送
+  async #flushOutbox() {
+    for (const item of await this.#pendingWrites()) {
+      await this.#backend.put(item.col, item.doc.id, item.doc);
+      await this.#local.delete('outbox', item.id);
     }
   }
 
-  reload() {
+  async reload() {
+    if (this.user) await this.#flushOutbox().catch(() => {});
     return this.#load();
   }
 
@@ -137,9 +176,17 @@ class HealthStore extends EventTarget {
     this.dispatchEvent(new CustomEvent('error', { detail: error }));
   }
 
-  // Firestore 離線時寫入要等連線才完成，所以先更新畫面，失敗再回報
+  // 先存到本機待送清單，雲端確認後才移除；網路或連線失敗時資料不會消失
   #write(col, id, doc) {
-    this.#backend.put(col, id, doc).catch((error) => this.#reportError(error));
+    const key = `${col}:${id}`;
+    if (this.user) this.#local.put('outbox', key, { id: key, col, doc, uid: this.user.uid }).catch(() => {});
+    try {
+      Promise.resolve(this.#backend.put(col, id, doc))
+        .then(() => (this.user ? this.#local.delete('outbox', key) : null))
+        .catch((error) => this.#reportError(error));
+    } catch (error) {
+      this.#reportError(error);
+    }
   }
 
   eventsOn(date) {
