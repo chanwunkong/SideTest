@@ -1,11 +1,13 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-app="timer">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>訓練</title>
+  <title>訓練計時</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="計時">
   <link rel="apple-touch-icon" href="../Health/icons/icon-180.png">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="../core/health.css">
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -14,15 +16,9 @@
 </head>
 <body>
   <main id="view"></main>
-  <nav class="tabs train-tabs" aria-label="主要分頁">
-    <button data-action="tab" data-tab="exercises"></button>
-    <button data-action="tab" data-tab="routines"></button>
-    <button data-action="tab" data-tab="schedules"></button>
-    <button data-action="tab" data-tab="records"></button>
-  </nav>
   <dialog id="sheet" class="full" tabindex="-1"></dialog>
   <dialog id="panel" tabindex="-1"></dialog>
   <div id="toast" role="status" hidden></div>
-  <script type="module" src="timer.js?v=6"></script>
+  <script type="module" src="../core/trainingApp.js?v=7"></script>
 </body>
 </html>

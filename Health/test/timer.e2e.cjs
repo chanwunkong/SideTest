@@ -164,6 +164,17 @@ const assert = require('assert');
   await page.locator('.run [data-run=discard]').click();
   await page.goto(timerUrl);
   await page.screenshot({ path: `${shots}/timer-page.png` });
+  // 計時器入口只有課表，沒有分頁，也不能建立只記組數的課表
+  assert.equal(await page.locator('.train-tabs').count(), 0);
+  await page.getByRole('heading', { name: '訓練計時' }).waitFor();
+  await button('＋ 新增課表').click();
+  assert.equal(await page.getByText('只記組數').count(), 0);
+  await page.locator('#panel [data-action=back]').click();
+
+  // 訓練 App 看到同一份課表，並可以使用四個分頁
+  await page.goto(`${process.env.PW_URL.replace('/Health', '/Training')}/index.html`);
+  await page.locator('.routine', { hasText: '測試課表' }).waitFor();
+  assert.equal(await page.locator('.train-tabs button').count(), 4);
   await page.goto(`${process.env.PW_URL}/index.html`);
   await page.locator('.tabs').getByRole('button', { name: '運動', exact: true }).click();
   await page.locator('.entry', { hasText: '測試課表' }).waitFor();

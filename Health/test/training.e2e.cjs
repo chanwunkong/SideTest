@@ -14,7 +14,7 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   const button = (name, exact = true) => page.getByRole('button', { name, exact });
   const tab = (name) => page.locator('.tabs').getByRole('button', { name, exact: true }).click();
   const save = () => button('儲存').click();
-  const timerUrl = `${process.env.PW_URL.replace('/Health', '/Timer')}/index.html`;
+  const timerUrl = `${process.env.PW_URL.replace('/Health', '/Training')}/index.html`;
   const healthUrl = `${process.env.PW_URL}/index.html`;
   const trainTab = (name) => page.locator('.train-tabs').getByRole('button', { name, exact: true }).click();
   const panelSave = () => page.locator('#panel .btn.primary.wide').click();

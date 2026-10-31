@@ -1,11 +1,13 @@
-// 訓練計時：獨立網頁，資料和健康管理共用
-import { COLORS, LOG_METRICS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, newStep, normalizeFlow } from '../core/flow.js';
-import { dateKey, parseDateKey } from '../core/logic.js';
-import { autoLogOn, clearSession, runFlow, savedSession, setAutoLog, setSound, soundOn } from '../core/flowRun.js';
-import { lang, setLang, t } from '../core/i18n.js';
-import { healthStore as store } from '../core/store.js';
-import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, linkExercise, personalBests, scheduleRemaining, weeklyStats } from '../core/training.js';
+// 訓練 App 和獨立計時器共用這份程式，資料也和健康管理共用同一個資料庫
+import { COLORS, LOG_METRICS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, newStep, normalizeFlow } from './flow.js';
+import { dateKey, parseDateKey } from './logic.js';
+import { autoLogOn, clearSession, runFlow, savedSession, setAutoLog, setSound, soundOn } from './flowRun.js';
+import { lang, setLang, t } from './i18n.js';
+import { healthStore as store } from './store.js';
+import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, linkExercise, personalBests, scheduleRemaining, weeklyStats } from './training.js';
 
+// 計時器入口只有課表和訓練；訓練 App 多了動作、排程和紀錄
+const isTimerApp = document.documentElement.dataset.app === 'timer';
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
 const panel = document.getElementById('panel');
@@ -31,7 +33,8 @@ const numberField = (name, label, value, attrs = '') => `<label class="field"><s
 const chipGroup = (name, options, active) => `<div class="chips" data-chip-group="${name}">${options.map((o) => `<button type="button" class="chip${o.value === active ? ' active' : ''}" data-action="chip" data-value="${esc(o.value)}">${esc(o.label)}</button>`).join('')}</div>`;
 const exerciseName = (exercise) => (lang === 'en' && exercise.nameEn) || exercise.name;
 
-const routines = () => store.activeDocs('trainings');
+const allRoutines = () => store.activeDocs('trainings');
+const routines = () => (isTimerApp ? allRoutines().filter((r) => r.flow?.length) : allRoutines());
 const findRoutine = (id) => store.trainings.find((r) => r.id === id);
 const workoutEvents = () => store.liveEvents().filter((e) => e.type === 'workout');
 const stepName = (step) => step.label || t(step.type === 'reps' ? 'step.reps' : 'step.timer');
@@ -119,8 +122,9 @@ function renderHome() {
     button.textContent = t(`train.${button.dataset.tab}`);
   });
   const screens = { exercises: renderExercises, routines: renderRoutines, schedules: renderSchedules, records: renderRecords };
-  view.innerHTML = `<header class="topbar"><h1>${t(`train.${state.tab}`)}</h1>
-      <div class="chips"><a class="plain" href="../Health/">${t('timer.health')}</a><button class="icon-btn" data-action="settings" aria-label="${t('train.settings')}">⚙</button></div>
+  const title = isTimerApp ? t('timer.appTitle') : t(`train.${state.tab}`);
+  view.innerHTML = `<header class="topbar"><h1>${title}</h1>
+      <div class="chips">${isTimerApp ? '' : `<a class="plain" href="../Health/">${t('timer.health')}</a>`}<button class="icon-btn" data-action="settings" aria-label="${t('train.settings')}">⚙</button></div>
     </header>${screens[state.tab]()}`;
 }
 
@@ -141,7 +145,7 @@ function openNewRoutine() {
   openPanel(`<div class="stack">
     ${panelHeader(t('timer.new'))}
     <button class="pick-row" data-action="new-blank"><span>${t('train.blank')}</span><span class="muted">${t('train.blankHint')}</span></button>
-    <button class="pick-row" data-action="new-sets"><span>${t('train.setsOnly')}</span><span class="muted">${t('train.setsHint')}</span></button>
+    ${isTimerApp ? '' : `<button class="pick-row" data-action="new-sets"><span>${t('train.setsOnly')}</span><span class="muted">${t('train.setsHint')}</span></button>`}
     <h2>${t('timer.examples')}</h2>
     <div class="chips">${templates}</div>
   </div>`);
@@ -245,7 +249,7 @@ function saveMoves(form) {
 // ---- 排程 ----
 
 function openSchedule(id) {
-  const trainings = routines();
+  const trainings = allRoutines();
   if (!trainings.length) { toast(t('train.noRoutineForSchedule')); return; }
   const schedule = id ? store.activeDocs('schedules').find((s) => s.id === id) : null;
   state.draft = schedule ? { ...schedule } : { trainingId: trainings[0].id };
@@ -500,7 +504,7 @@ function linkFlow(flow) {
 
 // 舊課表的動作只有名稱，載入時連到動作庫
 function linkExistingRoutines() {
-  for (const routine of routines()) {
+  for (const routine of allRoutines()) {
     if (routine.moves?.some((move) => !move.exerciseId && move.name)) {
       const moves = routine.moves.map((move) => (move.name ? { ...move, ...linkExercise(store, move.name, exerciseName) } : move));
       store.saveDoc('trainings', { ...routine, moves });

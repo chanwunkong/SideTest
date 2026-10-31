@@ -258,7 +258,7 @@ function renderWorkout() {
   const pendingRows = pending.map((schedule) => {
     const training = trainingById(schedule.trainingId);
     const target = schedule.targetSets ? `<div class="muted">${t('record.target', { n: schedule.targetSets })}</div>` : '';
-    const start = training.flow?.length ? `<a class="btn primary link-btn" href="../Timer/?run=${esc(training.id)}">${t('step.start')}</a>` : '';
+    const start = training.flow?.length ? `<a class="btn primary link-btn" href="../Training/?run=${esc(training.id)}">${t('step.start')}</a>` : '';
     return `<div class="row plan-row">
       <div><strong>${esc(training.name)}</strong>${target}</div>
       <div class="chips">${start}<button class="btn${start ? '' : ' primary'}" data-action="record-open" data-id="${esc(training.id)}">${t('workout.log')}</button></div>
@@ -282,7 +282,7 @@ function renderWorkout() {
       <div class="stat-row"><span>${t('workout.sets')}</span><strong>${sets}</strong></div>
       <div class="stat-row"><span>${t('workout.time')}</span><strong>${t('workout.minutes', { n: Math.round(minutes) })}</strong></div>
     </section>
-    <a class="btn wide link-btn" href="../Timer/">${t('workout.openTimer')} ›</a>`;
+    <a class="btn wide link-btn" href="../Training/">${t('workout.openTimer')} ›</a>`;
 }
 
 function renderRest() {
