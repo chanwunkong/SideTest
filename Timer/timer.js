@@ -351,3 +351,5 @@ store.addEventListener('change', () => { renderHome(); handleQuery(); });
 store.addEventListener('error', (event) => toast(t('error.save', { error: event.detail.message })));
 renderHome();
 store.init().catch((error) => toast(t('error.start', { error: error.message })));
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
