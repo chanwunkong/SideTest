@@ -121,7 +121,7 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   // 修改訓練不影響舊紀錄
   await tab('運動');
   await page.locator('.card', { hasText: '訓練天數' }).getByText('6', { exact: true }).waitFor();
-  await page.locator('.plan-row', { hasText: '累積套數' }).click();
+  await page.locator('.plan-row', { hasText: '記組數' }).click();
   await page.fill('input[name=move-reps-0]', '7');
   await save();
   await page.locator('.entry', { hasText: 'Cindy' }).last().click();

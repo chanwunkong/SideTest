@@ -1,6 +1,5 @@
 import { CARD_TYPES, DEFAULT_CARDS, FREQUENCIES, cardDayState, cardHit, frequencyOf, metricsOf, monthDates, periodDates, weekDates } from './cards.js';
-import { mapFlow } from '../../core/flow.js';
-import { attachFlowEditor, flowSummary, renderFlowEditor, runFlow } from '../../core/flowUi.js';
+import { flowDuration, formatClock } from '../../core/flow.js';
 import { LANGUAGES, lang, setLang, t } from '../../core/i18n.js';
 import { addDays, dateKey, formatTarget, goalFor, nutritionTargetsFor, parseDateKey, sevenDayAverage, summarizeDay, targetMet, targetWeight, weekStart } from '../../core/logic.js';
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
@@ -267,7 +266,7 @@ function renderWorkout() {
       <div><strong>${esc(training.name)}</strong>
       <div class="muted">${[count ? t('workout.setsValue', { n: count }) : '', status].filter(Boolean).join('・')}</div></div>
       <div class="chips">
-        ${training.flow?.length ? `<button class="btn primary" data-action="flow-start" data-id="${esc(training.id)}">${t('step.start')}</button>` : ''}
+        ${training.flow?.length ? `<a class="btn primary link-btn" href="../Timer/?run=${esc(training.id)}">${t('step.start')}</a>` : ''}
         <button class="btn${training.flow?.length ? '' : ' primary'}" data-action="record-open" data-id="${esc(training.id)}">${t('record.done')}</button>
       </div>
     </div>`;
@@ -279,6 +278,7 @@ function renderWorkout() {
       <h2>${t('workout.today')}</h2>
       ${todayRows || `<p class="muted">${t('workout.noneToday')}</p>`}
       <button class="textlink" data-action="workout-new">${t('workout.free')}</button>
+      <a class="textlink" href="../Timer/">${t('workout.openTimer')}</a>
     </section>
     <section class="card">
       <h2>${t('workout.week')}</h2>
@@ -301,8 +301,8 @@ function renderWorkout() {
     <section class="card">
       <div class="row"><h2 style="margin:0">${t('workout.trainings')}</h2><button class="plain" data-action="training-edit">＋ ${t('common.add')}</button></div>
       ${trainings.map((training) => `<div class="row plan-row">
-        <button class="edit-name" data-action="training-edit" data-id="${esc(training.id)}">${esc(training.name)}<span class="muted">${t(`mode.${training.mode}`)}${training.flow?.length ? `・${flowSummary(training.flow)}` : ''}</span></button>
-        ${training.flow?.length ? `<button class="btn" data-action="flow-start" data-id="${esc(training.id)}">${t('step.start')}</button>` : ''}
+        <button class="edit-name" data-action="training-edit" data-id="${esc(training.id)}">${esc(training.name)}<span class="muted">${t(`mode.${training.mode}`)}${training.flow?.length ? `・${formatClock(flowDuration(training.flow))}` : ''}</span></button>
+        ${training.flow?.length ? `<a class="btn link-btn" href="../Timer/?run=${esc(training.id)}">${t('step.start')}</a>` : ''}
       </div>`).join('') || `<p class="muted">${t('workout.noTrainings')}</p>`}
     </section>
     ${renderAnalysis(today)}
@@ -603,24 +603,15 @@ function renderTrainingSheet() {
     ${draft.moves.map(moveFields).join('')}
     <button type="button" class="btn wide" data-action="move-add">＋ ${t('training.addMove')}</button>
     <label class="check"><input type="checkbox" name="trackRest"${draft.trackRest ? ' checked' : ''}> ${t('training.trackRest')}</label>
-    <details${draft.flow.length ? ' open' : ''}><summary>${t('flow.title')}</summary>
-      <p class="muted">${t('flow.hint')}</p>
-      ${renderFlowEditor(draft.flow)}
-    </details>
+    ${draft.id ? `<a class="textlink" href="../Timer/?edit=${esc(draft.id)}">${t('workout.editTimer')}</a>` : ''}
     <button class="btn primary wide">${t('common.save')}</button>
     ${draft.id ? `<button type="button" class="btn danger wide" data-action="doc-delete" data-col="trainings">${t('common.delete')}</button>` : ''}
   </form>`);
-  const editor = sheet.querySelector('#flow-editor');
-  attachFlowEditor(editor, () => state.draft.flow, () => {
-    readTrainingForm(sheet.querySelector('form'));
-    renderTrainingSheet();
-    sheet.querySelector('details').open = true;
-  });
 }
 
 function openTraining(id) {
   const training = id ? trainingById(id) : null;
-  state.draft = training ? { flow: [], ...structuredClone(training) } : { name: '', mode: 'sets', moves: [{ name: '', metrics: {} }], trackRest: false, flow: [] };
+  state.draft = training ? structuredClone(training) : { name: '', mode: 'sets', moves: [{ name: '', metrics: {} }], trackRest: false };
   renderTrainingSheet();
 }
 
@@ -635,12 +626,7 @@ function linkMove(move) {
 
 function saveTraining(form) {
   readTrainingForm(form);
-  const linkStep = (step) => {
-    if (step.type === 'rest' || !step.label?.trim()) return step;
-    const { exerciseId, name } = linkMove({ name: step.label });
-    return { ...step, exerciseId, label: name };
-  };
-  store.saveDoc('trainings', { ...state.draft, moves: state.draft.moves.map(linkMove), flow: mapFlow(state.draft.flow, linkStep) });
+  store.saveDoc('trainings', { ...state.draft, moves: state.draft.moves.map(linkMove) });
   closeSheet();
 }
 
@@ -1118,12 +1104,6 @@ const actions = {
   'workout-new': ({ date }) => openWorkout(null, date),
   'workout-open': ({ id }) => openWorkout(id),
   'record-open': ({ id, date }) => openRecord(id, date ?? dateKey()),
-  'flow-start': ({ id }) => runFlow(trainingById(id), {
-    onFinish: (record) => {
-      store.addEvent('workout', record, { source: 'timer' });
-      toast(t('workout.saved'));
-    },
-  }),
   'training-edit': ({ id }) => openTraining(id),
   'exercise-edit': ({ id }) => openExercise(id),
   'exercise-delete': deleteExercise,
