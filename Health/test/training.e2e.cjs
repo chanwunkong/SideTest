@@ -14,6 +14,10 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   const button = (name, exact = true) => page.getByRole('button', { name, exact });
   const tab = (name) => page.locator('.tabs').getByRole('button', { name, exact: true }).click();
   const save = () => button('儲存').click();
+  const manage = async () => {
+    await tab('運動');
+    await button('動作與課表管理 ›').click();
+  };
   await page.goto(`${process.env.PW_URL}/index.html`);
 
   // 貼上時自動讀取，直接進確認畫面
@@ -58,8 +62,17 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await page.screenshot({ path: `${shots}/diet.png`, fullPage: true });
 
   // 建立 Cindy
+  // 不用排程也能新增今天的運動
   await tab('運動');
-  await page.locator('.card', { hasText: '排程' }).getByRole('button', { name: /新增/ }).click();
+  await button('＋ 新增').click();
+  await page.fill('#pick-search', '散步');
+  await button('新增「散步」').click();
+  await page.fill('input[name=minutes]', '10');
+  await save();
+  await page.locator('.entry', { hasText: '散步' }).getByText('已完成').waitFor();
+  await page.screenshot({ path: `${shots}/workout-today.png`, fullPage: true });
+  await manage();
+  await page.locator('.card', { hasText: '課表' }).getByRole('button', { name: /新增/ }).click();
   await page.fill('input[name=name]', 'Cindy');
   await page.fill('input[name=move-name-0]', '引體向上');
   await page.fill('input[name=move-reps-0]', '5');
@@ -73,7 +86,7 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await save();
 
   // 排程每天 30 天，目標 5 套
-  await page.locator('.card', { hasText: '排程' }).getByRole('button', { name: /新增/ }).click();
+  await page.locator('.card', { hasText: '重複安排' }).getByRole('button', { name: /新增/ }).click();
   await page.fill('input[name=days]', '30');
   await page.fill('input[name=targetSets]', '5');
   await save();
@@ -95,7 +108,9 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await page.getByText('引體向上 23').waitFor();
   assert.match(await activity.getAttribute('class'), /missed/);
   await tab('運動');
-  await page.locator('.plan-row', { hasText: 'Cindy' }).first().getByRole('button', { name: '完成' }).click();
+  // 課表和動作在同一份清單：今天已記錄的 Cindy 從新增選單再記一次
+  await button('＋ 新增').click();
+  await page.locator('.pick-row', { hasText: 'Cindy' }).click();
   await page.fill('input[name=sets]', '2');
   await save();
   await tab('今日');
@@ -103,7 +118,7 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await page.locator('.health-card', { hasText: '活動' }).getByText('6', { exact: true }).waitFor();
 
   // 動作自動進入動作庫；建立下層動作後，上層累計包含下層
-  await tab('運動');
+  await manage();
   const library = page.locator('.card', { hasText: '動作庫' });
   await library.getByRole('button', { name: '深蹲' }).waitFor();
   await library.getByRole('button', { name: /新增/ }).click();
@@ -123,24 +138,32 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await page.fill('input[name=name]', '跑步');
   await page.fill('input[name=defaultMinutes]', '20');
   await save();
-  await button('記錄其他運動').click();
-  await page.fill('input[name=exercise]', '跑步');
+  await tab('運動');
+  await button('＋ 新增').click();
+  await page.locator('.pick-row', { hasText: '跑步' }).click();
   assert.equal(await page.inputValue('input[name=minutes]'), '20');
   await page.fill('input[name=startTime]', '07:30');
   await save();
   await page.locator('.entry', { hasText: '跑步' }).getByText('07:30').waitFor();
-  await button('記錄其他運動').click();
-  await page.fill('input[name=exercise]', '新動作');
+  await button('＋ 新增').click();
+  await page.fill('#pick-search', '新動作');
+  await button('新增「新動作」').click();
   await page.fill('input[name=minutes]', '15');
+  // 選重複時才顯示後續欄位，儲存後出現在重複安排
+  assert.equal(await page.locator('input[name=repeatDays]').isVisible(), false);
+  await page.selectOption('select[name=repeat]', 'daily');
+  await page.fill('input[name=repeatDays]', '7');
   await save();
+  await page.locator('.card', { hasText: '訓練天數' }).getByText('6', { exact: true }).waitFor();
+  await manage();
   await library.getByRole('button', { name: '新動作' }).waitFor();
+  await page.locator('.card', { hasText: '重複安排' }).getByText('新動作').waitFor();
 
   // 修改訓練不影響舊紀錄
-  await tab('運動');
-  await page.locator('.card', { hasText: '訓練天數' }).getByText('6', { exact: true }).waitFor();
   await page.locator('.plan-row', { hasText: '記組數' }).click();
   await page.fill('input[name=move-reps-0]', '7');
   await save();
+  await tab('運動');
   await page.locator('.entry', { hasText: 'Cindy' }).last().click();
   await button('記錄更多細節', false).waitFor().catch(() => {});
   await page.locator('#sheet').getByRole('button', { name: '關閉' }).click();
@@ -153,6 +176,7 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
       return original.apply(this, args);
     };
   });
+  await manage();
   await page.locator('.plan-row', { hasText: '記組數' }).locator('.edit-name').click();
   await page.fill('input[name=name]', 'Cindy 2');
   await save();
@@ -169,7 +193,7 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await button('設定').click();
   await button('English').click();
   await page.locator('.tabs').getByRole('button', { name: 'Training', exact: true }).click();
-  await page.getByText('Schedules').waitFor();
+  await page.getByRole('button', { name: 'Exercises and routines ›' }).click();
   await page.getByText('Exercise library').waitFor();
   await page.locator('.tabs').getByRole('button', { name: 'Body', exact: true }).click();
   await page.getByText('No body data yet').waitFor();

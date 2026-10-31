@@ -87,10 +87,10 @@ function workoutText({ data }) {
 // ---- 畫面 ----
 
 function render() {
-  const screens = { home: renderHome, diet: renderDiet, workout: renderWorkout, rest: renderRest, body: renderBody };
+  const screens = { home: renderHome, diet: renderDiet, workout: renderWorkout, manage: renderManage, rest: renderRest, body: renderBody };
   document.documentElement.lang = lang;
   document.querySelectorAll('.tabs button').forEach((b) => {
-    b.classList.toggle('active', b.dataset.tab === state.tab);
+    b.classList.toggle('active', b.dataset.tab === (state.tab === 'manage' ? 'workout' : state.tab));
     b.textContent = t(`tab.${b.dataset.tab}`);
   });
   view.innerHTML = screens[state.tab]();
@@ -252,33 +252,31 @@ function renderWorkout() {
   const minutes = week.reduce((sum, w) => sum + (w.data.durationSec ?? 0) / 60, 0);
   const sets = week.reduce((sum, w) => sum + (w.data.sets ?? 0), 0);
   const activeDays = new Set(week.map((w) => w.date)).size;
-  const todays = summarizeDay(store.eventsOn(today)).workouts;
-  const scheduled = schedulesOn(activeSchedules(), today).filter((s) => trainingById(s.trainingId));
-  const trainings = store.activeDocs('trainings');
-  const recent = store.liveEvents().filter((e) => e.type === 'workout').sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 10);
+  const todays = summarizeDay(store.eventsOn(today)).workouts.sort((a, b) => a.occurredAt - b.occurredAt);
+  const logged = new Set(todays.map((w) => w.data.trainingId));
+  const pending = schedulesOn(activeSchedules(), today).filter((s) => trainingById(s.trainingId) && !logged.has(s.trainingId));
+  const recent = store.liveEvents().filter((e) => e.type === 'workout' && e.date !== today).sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 10);
 
-  const todayRows = scheduled.map((schedule) => {
+  const pendingRows = pending.map((schedule) => {
     const training = trainingById(schedule.trainingId);
-    const done = todays.filter((w) => w.data.trainingId === training.id);
-    const count = done.reduce((sum, w) => sum + (w.data.sets ?? 0), 0);
-    const status = schedule.targetSets ? t('record.target', { n: schedule.targetSets }) : '';
+    const target = schedule.targetSets ? `<div class="muted">${t('record.target', { n: schedule.targetSets })}</div>` : '';
+    const start = training.flow?.length ? `<a class="btn primary link-btn" href="../Timer/?run=${esc(training.id)}">${t('step.start')}</a>` : '';
     return `<div class="row plan-row">
-      <div><strong>${esc(training.name)}</strong>
-      <div class="muted">${[count ? t('workout.setsValue', { n: count }) : '', status].filter(Boolean).join('・')}</div></div>
-      <div class="chips">
-        ${training.flow?.length ? `<a class="btn primary link-btn" href="../Timer/?run=${esc(training.id)}">${t('step.start')}</a>` : ''}
-        <button class="btn${training.flow?.length ? '' : ' primary'}" data-action="record-open" data-id="${esc(training.id)}">${t('record.done')}</button>
-      </div>
+      <div><strong>${esc(training.name)}</strong>${target}</div>
+      <div class="chips">${start}<button class="btn${start ? '' : ' primary'}" data-action="record-open" data-id="${esc(training.id)}">${t('workout.log')}</button></div>
     </div>`;
   }).join('');
+  const doneRows = todays.map((w) => `<button class="entry" data-action="workout-open" data-id="${esc(w.id)}">
+    <span class="entry-body"><strong>${esc(activityLabel(w.data.activity))}</strong><span class="muted">${timeOf(w.occurredAt)}・${esc(workoutText(w))}</span></span>
+    <span class="muted">${t('workout.done')}</span>
+  </button>`).join('');
 
   return `
     <header class="topbar"><h1>${t('workout.title')}</h1></header>
     <section class="card">
-      <h2>${t('workout.today')}</h2>
-      ${todayRows || `<p class="muted">${t('workout.noneToday')}</p>`}
-      <button class="textlink" data-action="workout-new">${t('workout.free')}</button>
-      <a class="textlink" href="../Timer/">${t('workout.openTimer')}</a>
+      <div class="row"><h2 style="margin:0">${t('workout.todayList')}</h2><button class="btn primary" data-action="workout-add">＋ ${t('workout.add')}</button></div>
+      ${pendingRows}${doneRows}
+      ${pendingRows || doneRows ? '' : `<p class="muted" style="margin-top:10px">${t('workout.empty')}</p>`}
     </section>
     <section class="card">
       <h2>${t('workout.week')}</h2>
@@ -286,14 +284,25 @@ function renderWorkout() {
       <div class="stat-row"><span>${t('workout.sets')}</span><strong>${sets}</strong></div>
       <div class="stat-row"><span>${t('workout.time')}</span><strong>${t('workout.minutes', { n: Math.round(minutes) })}</strong></div>
     </section>
-    <section class="card">
-      <div class="row"><h2 style="margin:0">${t('workout.schedules')}</h2><button class="plain" data-action="schedule-edit">＋ ${t('common.add')}</button></div>
-      ${activeSchedules().map((schedule) => {
-        const left = scheduleRemaining(schedule, today);
-        const label = left === null ? t('schedule.ongoing') : left ? t('schedule.remaining', { n: left }) : t('schedule.ended');
-        return `<button class="plan-row" data-action="schedule-edit" data-id="${esc(schedule.id)}"><span>${esc(trainingById(schedule.trainingId)?.name)}</span><span class="muted">${label}</span></button>`;
-      }).join('')}
-    </section>
+    ${renderAnalysis(today)}
+    ${recent.length ? `<section class="card"><h2>${t('workout.recent')}</h2>
+      ${recent.map((w) => `<button class="entry" data-action="workout-open" data-id="${esc(w.id)}">
+        <span class="entry-body"><strong>${esc(activityLabel(w.data.activity))}</strong><span class="muted">${formatDate(w.date)} ${timeOf(w.occurredAt)}・${esc(workoutText(w))}</span></span>
+      </button>`).join('')}
+    </section>` : ''}
+    <button class="btn wide" data-action="tab" data-tab="manage">${t('workout.manage')} ›</button>
+    <a class="textlink" href="../Timer/">${t('workout.openTimer')}</a>`;
+}
+
+// 動作、課表和重複安排都放在管理頁，平常記錄不需要進來
+function renderManage() {
+  const today = dateKey();
+  const trainings = store.activeDocs('trainings');
+  return `
+    <header class="topbar">
+      <button class="icon-btn" data-action="tab" data-tab="workout" aria-label="${t('common.close')}">‹</button>
+      <h1>${t('workout.manage')}</h1><span></span>
+    </header>
     <section class="card">
       <div class="row"><h2 style="margin:0">${t('exercise.library')}</h2><button class="plain" data-action="exercise-edit">＋ ${t('common.add')}</button></div>
       ${exerciseTree(activeExercises()).map(({ exercise, depth }) => `<button class="plan-row" style="padding-left:${depth * 18}px" data-action="exercise-edit" data-id="${esc(exercise.id)}"><span>${esc(exerciseName(exercise))}</span></button>`).join('') || `<p class="muted">${t('exercise.empty')}</p>`}
@@ -305,12 +314,13 @@ function renderWorkout() {
         ${training.flow?.length ? `<a class="btn link-btn" href="../Timer/?run=${esc(training.id)}">${t('step.start')}</a>` : ''}
       </div>`).join('') || `<p class="muted">${t('workout.noTrainings')}</p>`}
     </section>
-    ${renderAnalysis(today)}
     <section class="card">
-      <h2>${t('workout.recent')}</h2>
-      ${recent.map((w) => `<button class="entry" data-action="workout-open" data-id="${esc(w.id)}">
-        <span class="entry-body"><strong>${esc(activityLabel(w.data.activity))}</strong><span class="muted">${formatDate(w.date)} ${timeOf(w.occurredAt)}・${esc(workoutText(w))}</span></span>
-      </button>`).join('') || `<p class="muted">${t('workout.noRecords')}</p>`}
+      <div class="row"><h2 style="margin:0">${t('repeat.schedules')}</h2><button class="plain" data-action="schedule-edit">＋ ${t('common.add')}</button></div>
+      ${activeSchedules().map((schedule) => {
+        const left = scheduleRemaining(schedule, today);
+        const label = left === null ? t('schedule.ongoing') : left ? t('schedule.remaining', { n: left }) : t('schedule.ended');
+        return `<button class="plan-row" data-action="schedule-edit" data-id="${esc(schedule.id)}"><span>${esc(trainingById(schedule.trainingId)?.name)}</span><span class="muted">${label}</span></button>`;
+      }).join('')}
     </section>`;
 }
 
@@ -509,7 +519,66 @@ const timeField = (timestamp) => `<label class="field"><span>${t('workout.startT
 
 const startedAt = (values) => new Date(`${values.get('date')}T${values.get('startTime')}`).getTime();
 
-function openWorkout(id = null, date = dateKey()) {
+// 動作和課表放在同一份清單，最近用過的排前面
+function pickItems() {
+  const recent = new Map();
+  store.liveEvents().filter((e) => e.type === 'workout').sort((a, b) => a.occurredAt - b.occurredAt)
+    .forEach((e) => recent.set(e.data.trainingId ?? e.data.exerciseId, e.occurredAt));
+  const routines = store.activeDocs('trainings').map((training) => ({ kind: 'routine', id: training.id, name: training.name }));
+  const exercises = activeExercises().map((exercise) => ({ kind: 'exercise', id: exercise.id, name: exerciseName(exercise) }));
+  return [...routines, ...exercises].sort((a, b) => (recent.get(b.id) ?? 0) - (recent.get(a.id) ?? 0));
+}
+
+function renderPickList(query, date) {
+  const text = query.trim().toLowerCase();
+  const matches = pickItems().filter((item) => item.name.toLowerCase().includes(text));
+  const rows = matches.map((item) => `<button class="pick-row" data-action="workout-pick" data-kind="${item.kind}" data-id="${esc(item.id)}" data-date="${date}">
+    <span>${esc(item.name)}</span>${item.kind === 'routine' ? `<span class="muted">${t('workout.routineBadge')}</span>` : ''}
+  </button>`).join('');
+  const exact = matches.some((item) => item.name.toLowerCase() === text);
+  const create = text && !exact ? `<button class="pick-row create" data-action="workout-create" data-name="${esc(query.trim())}" data-date="${date}">${t('workout.create', { name: esc(query.trim()) })}</button>` : '';
+  return rows + create;
+}
+
+function openAddWorkout(date = dateKey()) {
+  openSheet(`<div class="stack">
+    ${sheetHeader(t('workout.addTitle'))}
+    <label class="field"><span>${t('workout.search')}</span><input id="pick-search" autocomplete="off"></label>
+    <div class="pick-list" id="pick-list">${renderPickList('', date)}</div>
+  </div>`);
+  const search = sheet.querySelector('#pick-search');
+  search.addEventListener('input', () => {
+    sheet.querySelector('#pick-list').innerHTML = renderPickList(search.value, date);
+  });
+}
+
+const repeatFields = () => `<div class="repeat">
+  <label class="field"><span>${t('repeat.label')}</span><select name="repeat" data-repeat>
+    <option value="none">${t('repeat.none')}</option>
+    <option value="daily">${t('repeat.daily')}</option>
+    <option value="weekdays">${t('repeat.weekdays')}</option>
+  </select></label>
+  <div class="stack" data-repeat-more hidden>
+    <div class="chips" data-chip-list="repeat-days" data-repeat-days hidden>${WEEK_ORDER.map((d) => `<button type="button" class="chip" data-action="chip-toggle" data-value="${d}">${weekdayName(d)}</button>`).join('')}</div>
+    ${numberField('repeatDays', t('repeat.days'), '', 'min="1"')}
+  </div>
+</div>`;
+
+// 重複只是新增時的選項；只有單一動作時，建立一份同名課表來排定
+function saveRepeat(form, trainingId, date) {
+  const values = new FormData(form);
+  const repeat = values.get('repeat');
+  if (!repeat || repeat === 'none') return;
+  const weekdays = [...form.querySelectorAll('[data-chip-list="repeat-days"] .chip.active')].map((c) => Number(c.dataset.value));
+  store.saveDoc('schedules', { trainingId, startDate: date, days: optionalNumber(values.get('repeatDays')), weekdays: repeat === 'weekdays' ? weekdays : [], targetSets: null });
+}
+
+function trainingForExercise(exerciseId, name) {
+  return store.activeDocs('trainings').find((x) => x.moves?.length === 1 && x.moves[0].exerciseId === exerciseId && x.mode === 'check')
+    ?? store.saveDoc('trainings', { name, mode: 'check', moves: [{ exerciseId, name, metrics: {} }], trackRest: false });
+}
+
+function openWorkout(id = null, date = dateKey(), preset = '') {
   const event = id ? store.events.get(id) : null;
   if (event?.data.trainingId) { openRecord(event.data.trainingId, event.date, event); return; }
   const intensity = event?.data.intensity ?? 'moderate';
@@ -518,8 +587,8 @@ function openWorkout(id = null, date = dateKey()) {
   const options = exerciseTree(list).map(({ exercise }) => `<option value="${esc(exercisePath(list, exercise.id, exerciseName))}"></option>`).join('');
   const minutes = event?.data.durationSec ? Math.round(event.data.durationSec / 60) : '';
   openSheet(`<form class="stack" data-form="workout">
-    ${sheetHeader(t(id ? 'workout.edit' : 'workout.log'))}
-    <label class="field"><span>${t('workout.exercise')}</span><input name="exercise" list="exercise-options" autocomplete="off" value="${esc(event?.data.activity)}" required></label>
+    ${sheetHeader(t(id ? 'workout.edit' : 'workout.logTitle'))}
+    <label class="field"><span>${t('workout.exercise')}</span><input name="exercise" list="exercise-options" autocomplete="off" value="${esc(event?.data.activity ?? preset)}" required></label>
     <datalist id="exercise-options">${options}</datalist>
     <div class="grid-2">
       ${timeField(event?.occurredAt ?? Date.now())}
@@ -529,14 +598,18 @@ function openWorkout(id = null, date = dateKey()) {
     ${chipGroup('intensity', INTENSITIES.map((i) => ({ value: i.key, label: intensityLabel(i.key) })), intensity)}
     ${dateField(state.draft.date)}
     <label class="field"><span>${t('workout.note')}</span><input name="note" value="${esc(event?.data.note)}"></label>
+    ${id ? '' : repeatFields()}
     <button class="btn primary wide">${t('common.save')}</button>
     ${id ? deleteButton() : ''}
   </form>`);
-  sheet.querySelector('[name=exercise]').addEventListener('input', (changed) => {
-    const exercise = resolveExercise(activeExercises(), changed.target.value, exerciseName);
+  const exerciseInput = sheet.querySelector('[name=exercise]');
+  const fillDefault = () => {
+    const exercise = resolveExercise(activeExercises(), exerciseInput.value, exerciseName);
     const field = sheet.querySelector('[name=minutes]');
     if (exercise?.defaultMinutes && !field.value) field.value = exercise.defaultMinutes;
-  });
+  };
+  exerciseInput.addEventListener('input', fillDefault);
+  fillDefault();
 }
 
 // 依訓練的記錄方式顯示欄位，細節都是選填
@@ -556,6 +629,7 @@ function openRecord(trainingId, date = dateKey(), event = null) {
     </div>
     ${extras || rest ? `<details><summary>${t('record.detail')}</summary><div class="stack" style="margin-top:10px">${extras}${rest}</div></details>` : ''}
     ${dateField(event?.date ?? date)}
+    ${event ? '' : repeatFields()}
     <button class="btn primary wide">${t(mode === 'sets' ? 'common.save' : 'record.done')}</button>
     ${event ? deleteButton() : ''}
   </form>`);
@@ -577,7 +651,10 @@ function saveRecord(form) {
   };
   const occurredAt = startedAt(values);
   if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt });
-  else store.addEvent('workout', data, { date, occurredAt });
+  else {
+    store.addEvent('workout', data, { date, occurredAt });
+    saveRepeat(form, draft.trainingId, date);
+  }
   closeSheet();
   const totals = moveTotals(data).map((m) => `${m.name} ${m.total}`).join('、');
   toast(totals || t('record.saved'));
@@ -744,7 +821,10 @@ function saveWorkout(form) {
   };
   const occurredAt = startedAt(values);
   if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt });
-  else store.addEvent('workout', data, { date, occurredAt });
+  else {
+    store.addEvent('workout', data, { date, occurredAt });
+    if (values.get('repeat') !== 'none') saveRepeat(form, trainingForExercise(exerciseId, name).id, date);
+  }
   closeSheet();
   toast(t('workout.saved'));
 }
@@ -871,7 +951,7 @@ function cardQuickActions(card, date) {
   if (card.type === 'activity') {
     const scheduled = schedulesOn(activeSchedules(), date).filter((x) => trainingById(x.trainingId));
     const buttons = scheduled.map((x) => `<button class="btn primary wide" data-action="record-open" data-id="${esc(x.trainingId)}" data-date="${date}">${esc(trainingById(x.trainingId).name)}</button>`).join('');
-    return `${buttons}<button class="btn wide" data-action="workout-new" data-date="${date}">${t('workout.free')}</button>`;
+    return `${buttons}<button class="btn wide" data-action="workout-add" data-date="${date}">${t('workout.free')}</button>`;
   }
   const recent = recentWaterAmounts().map((ml) => `<button class="chip" data-action="water-add" data-ml="${ml}">${ml} ml</button>`).join('');
   return `<div class="water-entry">
@@ -1133,7 +1213,13 @@ const actions = {
     closeSheet();
     toast(t('common.deleted'), () => store.restoreEvent(id));
   },
-  'workout-new': ({ date }) => openWorkout(null, date),
+  'workout-add': ({ date }) => openAddWorkout(date),
+  'workout-pick': ({ kind, id, date }) => {
+    if (kind === 'routine') { openRecord(id, date); return; }
+    const exercise = activeExercises().find((e) => e.id === id);
+    openWorkout(null, date, exerciseName(exercise));
+  },
+  'workout-create': ({ name, date }) => openWorkout(null, date, name),
   'workout-open': ({ id }) => openWorkout(id),
   'record-open': ({ id, date }) => openRecord(id, date ?? dateKey()),
   'training-edit': ({ id }) => openTraining(id),
@@ -1198,6 +1284,14 @@ sheet.addEventListener('submit', (event) => {
 });
 
 // close 事件是非同步的，此時可能已經開了下一張表單
+// 選了重複方式才顯示後續欄位
+sheet.addEventListener('change', (event) => {
+  if (!event.target.matches('[data-repeat]')) return;
+  const { value } = event.target;
+  sheet.querySelector('[data-repeat-more]').hidden = value === 'none';
+  sheet.querySelector('[data-repeat-days]').hidden = value !== 'weekdays';
+});
+
 sheet.addEventListener('close', () => {
   if (sheet.open) return;
   state.draft = null;
