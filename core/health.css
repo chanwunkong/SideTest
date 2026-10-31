@@ -193,13 +193,16 @@ dialog.full { max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; pa
 .editor-title { flex: 1; min-width: 0; min-height: 44px; border: 0; background: none; text-align: center; font-size: 18px; font-weight: 700; }
 .plain.strong { color: var(--accent); font-size: 16px; font-weight: 700; }
 .editor-total { text-align: center; margin-bottom: 6px; }
-.flow-list { flex: 1; overflow-y: auto; margin-top: 12px; touch-action: pan-y; }
-.flow-list.drag-mode { touch-action: none; }
-.flow-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-height: 50px; margin-bottom: 4px; padding: 0 12px 0 calc(12px + var(--depth) * 20px); text-align: left; border-radius: var(--radius-sm); background: var(--surface); user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.flow-row.loop { background: none; font-weight: 700; }
-.flow-row.selected { outline: 2px solid var(--accent); }
-.flow-row.dragging { opacity: .5; }
-.flow-row.drag-over { outline: 2px dashed var(--accent); }
+.flow-list { flex: 1; overflow-y: auto; margin-top: 12px; }
+.flow-group { display: grid; gap: 4px; min-height: 8px; }
+.flow-group .flow-group { min-height: 48px; margin: 4px 0 0 4px; padding-left: 12px; border-left: 5px solid var(--accent); }
+.flow-group .flow-group .flow-group { border-left-color: var(--rest); }
+.flow-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 0 12px; text-align: left; border-radius: var(--radius-sm); background: var(--surface); user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.flow-row.loop-title { min-height: 40px; padding: 0 4px; background: none; font-weight: 700; }
+.flow-loop.selected > .loop-title { color: var(--accent); }
+.flow-loop.selected > .flow-group { border-left-width: 7px; background: var(--surface-2); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.flow-ghost { opacity: .4; outline: 2px dashed var(--accent); border-radius: var(--radius-sm); }
+.flow-drag { opacity: .95; }
 .tone-bar-gray { box-shadow: inset 5px 0 #4b5563; }
 .tone-bar-red { box-shadow: inset 5px 0 #dc2626; }
 .tone-bar-orange { box-shadow: inset 5px 0 #ea580c; }

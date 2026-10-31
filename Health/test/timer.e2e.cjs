@@ -34,7 +34,7 @@ const assert = require('assert');
   await page.fill('input[name=label]', '伏地挺身');
   await page.fill('input[name=count]', '5');
   await button('儲存').click();
-  await page.locator('.flow-row.loop').click();
+  await page.locator('.loop-title').click();
   await addTimer('懸掛', 1, 'red');
   await addTimer('休息', 1, 'green');
   await page.locator('.flow-row', { hasText: '休息' }).click();
@@ -46,18 +46,29 @@ const assert = require('assert');
   await page.getByText('更多選項').click();
   await page.getByLabel('負重').check();
   await button('儲存').click();
-  assert.deepEqual(await page.locator('.flow-row').evaluateAll((rows) => rows.map((r) => r.style.getPropertyValue('--depth'))), ['0', '0', '1', '1', '0']);
+  assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '懸掛' }).count(), 1);
+  assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '伏地挺身' }).count(), 0);
   await page.screenshot({ path: `${shots}/editor.png` });
 
-  // 按住拖曳：把次數拖到循環裡
-  const source = await page.locator('.flow-row', { hasText: '伏地挺身' }).boundingBox();
-  const loopBox = await page.locator('.flow-row.loop').boundingBox();
-  await page.mouse.move(source.x + 30, source.y + 20);
-  await page.mouse.down();
-  await page.waitForTimeout(450);
-  await page.mouse.move(loopBox.x + 30, loopBox.y + 20, { steps: 5 });
-  await page.mouse.up();
-  assert.equal(await page.locator('.flow-row', { hasText: '伏地挺身' }).evaluate((r) => r.style.getPropertyValue('--depth')), '1');
+  // 拖曳：把次數拖進循環，再拖出來，然後再拖回去
+  const drag = async (from, to, offset = 8) => {
+    const a = await from.boundingBox();
+    const b = await to.boundingBox();
+    await page.mouse.move(a.x + 40, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + 42, a.y + a.height / 2 - 8, { steps: 4 });
+    await page.mouse.move(b.x + 40, b.y + offset, { steps: 12 });
+    await page.waitForTimeout(250);
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+  };
+  const push = page.locator('.flow-item:not(.flow-loop)', { hasText: '伏地挺身' });
+  await drag(push, page.locator('.flow-group .flow-group .flow-item', { hasText: '休息' }));
+  assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '伏地挺身' }).count(), 1);
+  await drag(page.locator('.flow-item:not(.flow-loop)', { hasText: '伏地挺身' }), page.locator('.flow-group.root > .flow-item').last());
+  assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '伏地挺身' }).count(), 0);
+  await drag(page.locator('.flow-item:not(.flow-loop)', { hasText: '伏地挺身' }), page.locator('.flow-group .flow-group .flow-item', { hasText: '休息' }));
+  assert.equal(await page.locator('.flow-loop .flow-row', { hasText: '伏地挺身' }).count(), 1);
   await button('儲存').click();
 
   // 全螢幕顏色會跟著步驟改變，次數步驟要按完成

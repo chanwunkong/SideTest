@@ -77,18 +77,22 @@ function editorRows(list, depth = 0) {
   });
 }
 
-function rowHtml({ step, depth }) {
+function stepHtml(step) {
   const selected = state.selected === step ? ' selected' : '';
   if (step.type === 'loop') {
-    return `<button class="flow-row loop${selected}" style="--depth:${depth}" data-step="${esc(step.id)}"><span>${t('step.loopTimes', { n: step.iterations })}</span></button>`;
+    return `<div class="flow-item flow-loop${selected}" data-step="${esc(step.id)}">
+      <button class="flow-row loop-title" data-row="${esc(step.id)}">${t('step.loopTimes', { n: step.iterations })}</button>
+      <div class="flow-group">${step.children.map(stepHtml).join('')}</div>
+    </div>`;
   }
   const amount = step.type === 'reps' ? t('step.times', { n: step.count }) : formatDuration(step.duration, t);
-  return `<button class="flow-row tone-bar-${step.color}${selected}" style="--depth:${depth}" data-step="${esc(step.id)}"><span>${esc(stepName(step))}</span><span class="muted">${amount}</span></button>`;
+  return `<div class="flow-item" data-step="${esc(step.id)}">
+    <button class="flow-row tone-bar-${step.color}" data-row="${esc(step.id)}"><span>${esc(stepName(step))}</span><span class="muted">${amount}</span></button>
+  </div>`;
 }
 
 function renderEditor() {
   const { routine } = state;
-  const rows = editorRows(routine.flow);
   const line = flattenFlow(routine.flow).filter((s) => s.duration).map((s) => `<i class="tone-${s.color}" style="flex:${s.duration}"></i>`).join('');
   sheet.className = 'full';
   sheet.innerHTML = `<div class="editor">
@@ -99,7 +103,10 @@ function renderEditor() {
     </header>
     <p class="muted editor-total">${formatDuration(flowDuration(routine.flow), t)}</p>
     <div class="run-line">${line}</div>
-    <div class="flow-list">${rows.map(rowHtml).join('') || `<p class="muted">${t('editor.empty')}</p>`}</div>
+    <div class="flow-list">
+      <div class="flow-group root">${routine.flow.map(stepHtml).join('')}</div>
+      ${routine.flow.length ? '' : `<p class="muted">${t('editor.empty')}</p>`}
+    </div>
     <footer class="editor-foot">
       <button class="btn primary wide" data-action="add">${state.selected?.type === 'loop' ? t('editor.addInLoop') : t('editor.add')}</button>
       <details class="editor-more"><summary>${t('editor.more')}</summary>
@@ -109,7 +116,7 @@ function renderEditor() {
     </footer>
   </div>`;
   if (!sheet.open) sheet.showModal();
-  attachDrag();
+  attachSortable();
 }
 
 function readEditorFields() {
@@ -211,57 +218,39 @@ function findRow(id) {
   return editorRows(state.routine.flow).find((row) => row.step.id === id);
 }
 
-// 按住一行拖曳：放到循環上就進入循環，放到其他步驟就排到它前面
-function attachDrag() {
-  const list = sheet.querySelector('.flow-list');
-  let dragId = null;
-  let holdTimer = null;
-  let target = null;
+// 拖曳沿用舊版的 SortableJS：每個循環都是一個拖曳區，可以調整順序、拖進或拖出循環
+function readGroup(group, steps) {
+  return [...group.children].filter((el) => el.classList.contains('flow-item')).map((el) => {
+    const step = steps.get(el.dataset.step);
+    if (step.type === 'loop') step.children = readGroup(el.querySelector(':scope > .flow-group'), steps);
+    return step;
+  });
+}
 
-  const clear = () => {
-    clearTimeout(holdTimer);
-    list.querySelectorAll('.drag-over,.dragging').forEach((el) => el.classList.remove('drag-over', 'dragging'));
-    dragId = null;
-    target = null;
-  };
-
-  list.addEventListener('pointerdown', (event) => {
-    const row = event.target.closest('.flow-row');
-    if (!row) return;
-    holdTimer = setTimeout(() => {
-      dragId = row.dataset.step;
-      row.classList.add('dragging');
-      list.classList.add('drag-mode');
-    }, 350);
+function attachSortable() {
+  if (!window.Sortable) return;
+  sheet.querySelectorAll('.flow-group').forEach((group) => {
+    new Sortable(group, {
+      group: 'flow',
+      draggable: '.flow-item',
+      animation: 150,
+      delay: 200,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 5,
+      forceFallback: true,
+      fallbackOnBody: true,
+      swapThreshold: 0.65,
+      ghostClass: 'flow-ghost',
+      dragClass: 'flow-drag',
+      emptyInsertThreshold: 24,
+      onEnd: () => {
+        const steps = new Map(editorRows(state.routine.flow).map(({ step }) => [step.id, step]));
+        readEditorFields();
+        state.routine.flow = readGroup(sheet.querySelector('.flow-group.root'), steps);
+        renderEditor();
+      },
+    });
   });
-  list.addEventListener('pointermove', (event) => {
-    if (!dragId) return;
-    event.preventDefault();
-    const over = document.elementFromPoint(event.clientX, event.clientY)?.closest('.flow-row');
-    list.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
-    target = over && over.dataset.step !== dragId ? over : null;
-    target?.classList.add('drag-over');
-  });
-  list.addEventListener('touchmove', (event) => { if (dragId) event.preventDefault(); }, { passive: false });
-  list.addEventListener('pointerup', () => {
-    clearTimeout(holdTimer);
-    if (!dragId) return;
-    list.classList.remove('drag-mode');
-    state.justDragged = true;
-    if (target) {
-      const from = findRow(dragId);
-      const to = findRow(target.dataset.step);
-      const inside = from.step.type === 'loop' && JSON.stringify(from.step).includes(to.step.id);
-      if (!inside) {
-        from.list.splice(from.index, 1);
-        if (to.step.type === 'loop') to.step.children.push(from.step);
-        else to.list.splice(to.list.indexOf(to.step), 0, from.step);
-      }
-    }
-    clear();
-    renderEditor();
-  });
-  list.addEventListener('pointercancel', clear);
 }
 
 function linkFlow(flow) {
@@ -327,9 +316,8 @@ document.addEventListener('click', (event) => {
   if (target) { actions[target.dataset.action](target.dataset, target); return; }
   const row = event.target.closest('.flow-row');
   if (!row) return;
-  if (state.justDragged) { state.justDragged = false; return; }
   readEditorFields();
-  const { step } = findRow(row.dataset.step);
+  const { step } = findRow(row.dataset.row);
   // 循環先選取，才知道新增要放進哪裡；再點一次才編輯
   if (step.type === 'loop' && state.selected !== step) { state.selected = step; renderEditor(); return; }
   state.step = step;
