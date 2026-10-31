@@ -94,7 +94,7 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
     document.removeEventListener('visibilitychange', onVisible);
     overlay.remove();
     wakeLock?.release().catch(() => {});
-    if (recognition) { const active = recognition; recognition = null; active.stop(); }
+    stopVoice();
     audio?.close();
     window.speechSynthesis?.cancel();
     onClose?.();
@@ -227,7 +227,8 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
   function timeline() {
     return queue.filter((step) => step.duration).map((step) => {
       const position = queue.indexOf(step);
-      return `<i class="tone-${step.color}${position < index ? ' past' : ''}" style="flex:${step.duration}"></i>`;
+      const stateClass = position < index ? ' past' : position === index ? ' now' : '';
+      return `<i class="tone-${step.color}${stateClass}" style="flex:${step.duration}"></i>`;
     }).join('');
   }
 
@@ -250,7 +251,7 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
       <div class="run-next ${next ? `tone-${next.color}` : ''}">
         <span>${t('run.next')}</span><strong>${next ? `${esc(stepName(next))}　${stepAmount(next)}` : t('run.end')}</strong>
       </div>
-      <div class="run-line">${timeline()}</div>
+      <div class="run-line track">${timeline()}</div>
       ${paused ? `<div class="run-menu">
         <button class="main" data-run="resume">${t('run.resume')}</button>
         <button data-run="log">${t('run.logNow')}</button>
@@ -282,22 +283,64 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
     overlay.className = 'run tone-gray';
   }
 
+  function showMessage(text) {
+    clearTimeout(noteTimer);
+    overlay.querySelector('.run-note')?.remove();
+    const note = document.createElement('div');
+    note.className = 'run-note message';
+    note.textContent = text;
+    overlay.append(note);
+    noteTimer = setTimeout(() => note.remove(), NOTE_SECONDS * 1000);
+  }
+
+  function stopVoice() {
+    const active = recognition;
+    recognition = null;
+    if (!active) return;
+    active.onend = null;
+    active.onerror = null;
+    try { active.stop(); } catch { /* 已經停止 */ }
+  }
+
+  function voiceFailed() {
+    stopVoice();
+    paint();
+    showMessage(t('run.voiceFailed'));
+  }
+
+  // 語音辨識在部分手機瀏覽器不能用；失敗就關閉，不能重試到卡住畫面
   function toggleVoice() {
-    if (recognition) { const active = recognition; recognition = null; active.stop(); paint(); return; }
+    if (recognition) { stopVoice(); paint(); return; }
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Speech) { paint(); return; }
-    recognition = new Speech();
-    recognition.continuous = true;
-    recognition.lang = document.documentElement.lang;
-    recognition.onresult = (event) => {
+    if (!Speech) { voiceFailed(); return; }
+    let startedAt = Date.now();
+    let quickEnds = 0;
+    const session = new Speech();
+    recognition = session;
+    session.continuous = true;
+    session.lang = document.documentElement.lang;
+    session.onresult = (event) => {
       const said = event.results[event.results.length - 1][0].transcript;
       if (/暫停|pause|stop/i.test(said) && !paused) togglePause();
       else if (/繼續|開始|resume|start/i.test(said) && paused) togglePause();
       else if (/下一|跳過|next|skip/i.test(said)) advance(false);
       else if (/完成|好了|done/i.test(said) && queue[index].type === 'reps') advance();
     };
-    recognition.onend = () => { if (recognition) recognition.start(); };
-    recognition.start();
+    session.onerror = (event) => {
+      if (event.error === 'no-speech' || event.error === 'aborted') return;
+      voiceFailed();
+    };
+    session.onend = () => {
+      if (recognition !== session) return;
+      quickEnds = Date.now() - startedAt < 1500 ? quickEnds + 1 : 0;
+      if (quickEnds >= 3) { voiceFailed(); return; }
+      setTimeout(() => {
+        if (recognition !== session) return;
+        startedAt = Date.now();
+        try { session.start(); } catch { voiceFailed(); }
+      }, 400);
+    };
+    try { session.start(); } catch { voiceFailed(); return; }
     paint();
   }
 

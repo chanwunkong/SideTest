@@ -1,6 +1,6 @@
 // 訓練 App 和獨立計時器共用這份程式，資料也和健康管理共用同一個資料庫
 import { COLORS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, newStep, normalizeFlow } from './flow.js';
-import { dateKey, parseDateKey } from './logic.js';
+import { addDays, dateKey, parseDateKey, weekStart } from './logic.js';
 import { clearSession, getSettings, runFlow, savedSession, setSetting, speak } from './flowRun.js';
 import { LANGUAGES, lang, setLang, t } from './i18n.js';
 import { healthStore as store } from './store.js';
@@ -16,7 +16,7 @@ const toastEl = document.getElementById('toast');
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const query = new URLSearchParams(location.search);
 
-const state = { tab: 'routines', draft: null, routine: null, original: '', selected: null, step: null, stepList: null, adding: false, handledQuery: false };
+const state = { recRange: 'month', recDate: dateKey(), tab: 'routines', draft: null, routine: null, original: '', selected: null, step: null, stepList: null, adding: false, handledQuery: false };
 
 function toast(message) {
   toastEl.hidden = false;
@@ -100,9 +100,131 @@ function renderSchedules() {
     <button class="btn wide" data-action="schedule-edit">＋ ${t('train.newSchedule')}</button>`;
 }
 
+function calendarDates() {
+  if (state.recRange === 'week') {
+    const start = weekStart(state.recDate);
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  }
+  const first = `${state.recDate.slice(0, 7)}-01`;
+  const start = parseDateKey(first);
+  const lead = (start.getDay() + 6) % 7;
+  const count = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+  return [...Array(lead).fill(null), ...Array.from({ length: count }, (_, i) => addDays(first, i))];
+}
+
+function renderCalendar(events) {
+  const today = dateKey();
+  const trained = new Set(events.map((e) => e.date));
+  const heads = WEEK_ORDER.map((d) => `<span class="muted">${weekdayName(d)}</span>`).join('');
+  const cells = calendarDates().map((date) => {
+    if (!date) return '<span></span>';
+    return `<button class="rec-day${trained.has(date) ? ' trained' : ''}${date === today ? ' today' : ''}" data-action="rec-day" data-date="${date}"${date > today ? ' disabled' : ''}>${parseDateKey(date).getDate()}</button>`;
+  }).join('');
+  const title = parseDateKey(state.recDate).toLocaleDateString(lang, { year: 'numeric', month: 'long' });
+  return `<section class="card">
+    <div class="rec-head">
+      <button class="icon-btn" data-action="rec-move" data-delta="-1" aria-label="${t('rec.prev')}">‹</button>
+      <strong>${title}</strong>
+      <button class="icon-btn" data-action="rec-move" data-delta="1" aria-label="${t('rec.next')}">›</button>
+    </div>
+    <div class="rec-head">
+      <div class="chips">
+        <button class="chip small${state.recRange === 'week' ? ' active' : ''}" data-action="rec-range" data-range="week">${t('rec.week')}</button>
+        <button class="chip small${state.recRange === 'month' ? ' active' : ''}" data-action="rec-range" data-range="month">${t('rec.month')}</button>
+      </div>
+    </div>
+    <div class="rec-calendar">${heads}${cells}</div>
+  </section>`;
+}
+
+const timeText = (timestamp) => {
+  const time = new Date(timestamp);
+  return `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+};
+
+function recordSummary({ data, occurredAt }) {
+  const parts = [timeText(occurredAt)];
+  if (data.sets && data.mode !== 'flow') parts.push(t('workout.setsValue', { n: data.sets }));
+  if (data.durationSec) parts.push(t('workout.minutes', { n: Math.round(data.durationSec / 60) }));
+  return parts.join('・');
+}
+
+function openDay(date) {
+  state.recordDate = date;
+  const records = workoutEvents().filter((e) => e.date === date).sort((a, b) => a.occurredAt - b.occurredAt);
+  const rows = records.map((event) => {
+    const logs = (event.data.logs ?? []).map((log) => `<div class="rec-log">${esc(log.label)}：${Object.entries(log.values ?? {}).map(([name, value]) => `${esc(name)} ${value}`).join('・')}${log.failure ? `・${t('rec.failure')}` : ''}</div>`).join('');
+    return `<button class="rec-entry" data-action="rec-edit" data-id="${esc(event.id)}"><strong>${esc(event.data.activity)}</strong><span class="muted">${recordSummary(event)}</span>${logs}</button>`;
+  }).join('');
+  openPanel(`<div class="stack">
+    ${panelHeader(parseDateKey(date).toLocaleDateString(lang, { month: 'long', day: 'numeric', weekday: 'short' }))}
+    <div>${rows || `<p class="muted">${t('rec.none')}</p>`}</div>
+    <button class="btn primary wide" data-action="rec-add">${t('rec.add')}</button>
+  </div>`);
+}
+
+function openRecordEdit(id) {
+  const event = store.events.get(id);
+  state.draft = { id };
+  const logs = (event.data.logs ?? []).map((log, i) => `<div class="move-row"><strong>${esc(log.label)}</strong>
+    <div class="grid-2">${Object.keys(log.values ?? {}).map((name) => numberField(`log-${i}-${name}`, esc(name), log.values[name])).join('')}</div>
+    <label class="check"><input type="checkbox" name="failure-${i}"${log.failure ? ' checked' : ''}> ${t('rec.failure')}</label></div>`).join('');
+  openPanel(`<form class="stack" data-form="record">
+    ${panelHeader(t('rec.edit'))}
+    <strong>${esc(event.data.activity)}</strong>
+    <label class="field"><span>${t('common.date')}</span><input type="date" name="date" max="${dateKey()}" value="${event.date}" required></label>
+    <div class="grid-2">
+      <label class="field"><span>${t('workout.startTime')}</span><input type="time" name="startTime" value="${timeText(event.occurredAt)}" required></label>
+      ${numberField('minutes', t('workout.duration'), event.data.durationSec ? Math.round(event.data.durationSec / 60) : '', 'min="1"')}
+    </div>
+    ${event.data.mode === 'sets' ? numberField('sets', t('rec.sets'), event.data.sets, 'min="1"') : ''}
+    ${logs}
+    <button class="btn primary wide">${t('common.save')}</button>
+    <button type="button" class="btn danger wide" data-action="rec-delete">${t('common.delete')}</button>
+  </form>`);
+}
+
+function saveRecordEdit(form) {
+  const event = store.events.get(state.draft.id);
+  const values = new FormData(form);
+  const date = values.get('date');
+  const logs = (event.data.logs ?? []).map((log, i) => ({
+    ...log,
+    failure: values.get(`failure-${i}`) === 'on',
+    values: Object.fromEntries(Object.keys(log.values ?? {}).map((name) => [name, optionalNumber(values.get(`log-${i}-${name}`))]).filter(([, value]) => value !== null)),
+  }));
+  const minutes = optionalNumber(values.get('minutes'));
+  const data = { logs, durationSec: minutes ? minutes * 60 : null };
+  if (event.data.mode === 'sets') data.sets = optionalNumber(values.get('sets'));
+  store.updateEvent(event.id, data, { date, occurredAt: new Date(`${date}T${values.get('startTime')}`).getTime() });
+  openDay(date);
+}
+
+function openRecordAdd() {
+  const items = [
+    ...allRoutines().map((routine) => ({ kind: 'routine', id: routine.id, name: routine.name })),
+    ...store.activeDocs('exercises').map((exercise) => ({ kind: 'exercise', id: exercise.id, name: exerciseName(exercise) })),
+  ];
+  openPanel(`<div class="stack">
+    ${panelHeader(t('rec.pick'))}
+    <div class="pick-list">${items.map((item) => `<button class="pick-row" data-action="rec-pick" data-kind="${item.kind}" data-id="${esc(item.id)}"><span>${esc(item.name)}</span>${item.kind === 'routine' ? `<span class="muted">${t('workout.routineBadge')}</span>` : ''}</button>`).join('') || `<p class="muted">${t('rec.noOptions')}</p>`}</div>
+  </div>`);
+}
+
+function addRecord(kind, id) {
+  const date = state.recordDate;
+  const routine = kind === 'routine' ? findRoutine(id) : null;
+  const exercise = kind === 'exercise' ? store.activeDocs('exercises').find((e) => e.id === id) : null;
+  const data = routine
+    ? { trainingId: routine.id, activity: routine.name, mode: routine.mode, moves: routine.moves ?? [], sets: routine.mode === 'sets' ? 1 : null, extra: {} }
+    : { exerciseId: exercise.id, activity: exerciseName(exercise), durationSec: (exercise.defaultMinutes ?? 30) * 60, moves: [{ exerciseId: exercise.id, name: exerciseName(exercise), metrics: {} }] };
+  const added = store.addEvent('workout', data, { date, source: 'manual' });
+  openRecordEdit(added.id);
+}
+
 function renderRecords() {
   const events = workoutEvents();
-  if (!events.length) return `<section class="card"><p class="muted">${t('train.noRecords')}</p></section>`;
+  if (!events.length) return `${renderCalendar(events)}<section class="card"><p class="muted">${t('train.noRecords')}</p></section>`;
   const weeks = weeklyStats(events, dateKey());
   const peak = Math.max(1, ...weeks.map((w) => w.reps));
   const rows = weeks.map((week) => `<div class="week-row">
@@ -112,8 +234,8 @@ function renderRecords() {
   </div>`).join('');
   const nameOf = (best) => store.activeDocs('exercises').find((e) => e.id === best.exerciseId)?.name ?? best.name;
   const bests = personalBests(events).slice(0, 5).map((best) => `<div class="stat-row"><span>${esc(nameOf(best))}</span><strong>${[best.reps && t('analysis.reps', { n: best.reps }), best.weightKg && `${best.weightKg} kg`].filter(Boolean).join('・')}</strong></div>`).join('');
-  const recent = [...events].sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 20).map((e) => `<div class="stat-row"><span>${esc(e.data.activity)}</span><span class="muted">${parseDateKey(e.date).toLocaleDateString(lang, { month: 'numeric', day: 'numeric' })}</span></div>`).join('');
-  return `<section class="card"><h2>${t('analysis.title')}</h2>${rows}
+  const recent = [...events].sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 20).map((e) => `<button class="plan-row" data-action="rec-edit" data-id="${esc(e.id)}"><span>${esc(e.data.activity)}</span><span class="muted">${parseDateKey(e.date).toLocaleDateString(lang, { month: 'numeric', day: 'numeric' })}</span></button>`).join('');
+  return `${renderCalendar(events)}<section class="card"><h2>${t('analysis.title')}</h2>${rows}
       ${bests ? `<h2 style="margin-top:14px">${t('analysis.best')}</h2>${bests}` : ''}</section>
     <section class="card"><h2>${t('workout.recent')}</h2>${recent}</section>`;
 }
@@ -639,6 +761,24 @@ const actions = {
     state.draft[group.dataset.chipGroup] = value;
   },
   'chip-toggle': (_, target) => target.classList.toggle('active'),
+  'rec-range': ({ range }) => { state.recRange = range; renderHome(); },
+  'rec-move': ({ delta }) => {
+    if (state.recRange === 'week') state.recDate = addDays(state.recDate, Number(delta) * 7);
+    else {
+      const date = parseDateKey(state.recDate);
+      state.recDate = dateKey(new Date(date.getFullYear(), date.getMonth() + Number(delta), 1));
+    }
+    renderHome();
+  },
+  'rec-day': ({ date }) => openDay(date),
+  'rec-add': openRecordAdd,
+  'rec-pick': ({ kind, id }) => addRecord(kind, id),
+  'rec-edit': ({ id }) => openRecordEdit(id),
+  'rec-delete': () => {
+    const { date } = store.events.get(state.draft.id);
+    store.deleteEvent(state.draft.id);
+    openDay(date);
+  },
   close: requestClose,
   discard: closeEditor,
   back: () => { state.adding = false; panel.close(); },
@@ -748,7 +888,7 @@ panel.addEventListener('change', (event) => {
   else setSetting(key, Number(target.value));
 });
 
-const formHandlers = { step: saveStep, exercise: saveExercise, moves: saveMoves, schedule: saveSchedule };
+const formHandlers = { step: saveStep, exercise: saveExercise, moves: saveMoves, schedule: saveSchedule, record: saveRecordEdit };
 
 panel.addEventListener('submit', (event) => {
   event.preventDefault();

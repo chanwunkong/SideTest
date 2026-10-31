@@ -164,6 +164,13 @@ const assert = require('assert');
   await page.locator('.run-main').click();
   await page.locator('.run [data-run=leave]').waitFor();
   await page.screenshot({ path: `${shots}/run-paused.png` });
+  // 語音無法使用時顯示提示，按鍵不能卡住；模擬瀏覽器立刻結束辨識
+  await page.evaluate(() => {
+    window.webkitSpeechRecognition = class { start() { setTimeout(() => this.onend?.(), 10); } stop() {} };
+  });
+  await page.locator('.run [data-run=voice]').click();
+  await page.getByText('這個瀏覽器不能使用語音指令').waitFor({ timeout: 6000 });
+  await page.locator('.run [data-run=voice]', { hasText: '語音 關' }).waitFor();
   await page.locator('.run [data-run=resume]').click();
   assert.equal(await page.locator('.run [data-run=stop]').count(), 0);
   await page.reload();
@@ -198,7 +205,25 @@ const assert = require('assert');
   // 計時器入口只有課表，沒有分頁，也不能建立只記組數的課表
   assert.equal(await page.locator('.train-tabs button').count(), 2);
   await page.locator('.train-tabs').getByRole('button', { name: '紀錄' }).click();
-  await page.locator('.entry, .stat-row', { hasText: '測試課表' }).first().waitFor();
+  // 紀錄：日曆、單日明細、修改、補記、刪除
+  await page.locator('.rec-day.today.trained').click();
+  await page.locator('.rec-entry', { hasText: '測試課表' }).first().waitFor();
+  await page.locator('.rec-log', { hasText: '重量 5' }).first().waitFor();
+  await page.screenshot({ path: `${shots}/record-day.png` });
+  await page.locator('.rec-entry', { hasText: '測試課表' }).first().click();
+  await page.fill('#panel input[name=minutes]', '33');
+  await page.locator('#panel .btn.primary.wide').click();
+  await page.locator('.rec-entry', { hasText: '33 分鐘' }).waitFor();
+  await page.getByRole('button', { name: '補記訓練' }).click();
+  await page.locator('.pick-row', { hasText: '伏地挺身' }).click();
+  await page.locator('#panel .btn.primary.wide').click();
+  await page.locator('.rec-entry', { hasText: '伏地挺身' }).waitFor();
+  await page.locator('.rec-entry', { hasText: '伏地挺身' }).click();
+  await page.locator('#panel [data-action=rec-delete]').click();
+  await page.locator('.rec-entry', { hasText: '伏地挺身' }).waitFor({ state: 'detached' });
+  await page.locator('#panel [data-action=back]').click();
+  await page.getByRole('button', { name: '週', exact: true }).click();
+  await page.locator('.rec-day.today').waitFor();
   await page.locator('.train-tabs').getByRole('button', { name: '課表' }).click();
 
   // 設定：倒數秒數和語音
