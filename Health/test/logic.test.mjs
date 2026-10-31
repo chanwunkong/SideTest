@@ -4,6 +4,7 @@ import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDate
 import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../../core/logic.js';
 import { descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, personalBests, resolveExercise, scheduleActiveOn, scheduleRemaining, targetSetsOn, weeklyStats } from '../../core/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
+import { byTag, collectRows, dailySeries, defaultCards, filterRows, headline, metricNames } from '../../core/analysis.js';
 import { advanceBy, flattenFlow, flowDuration, flowToRecord, lastLogValue, normalizeFlow } from '../../core/flow.js';
 import { normalizeEvent, registry } from '../../core/registry.js';
 
@@ -274,4 +275,27 @@ test('舊版事件讀取時升級，未知類型原樣保留', () => {
 test('日期計算跨月、以週一為一週開始', () => {
   assert.equal(addDays('2026-10-31', 1), '2026-11-01');
   assert.equal(weekStart('2026-11-01'), '2026-10-26');
+});
+
+test('分析：攤平紀錄，依動作上層和分類篩選，算法只做計算', () => {
+  const exercises = [{ id: 'squat', name: '深蹲', parentId: null, tags: ['下肢'] }, { id: 'bar', name: '槓鈴深蹲', parentId: 'squat', tags: ['肌力'] }];
+  const event = (date, weights) => ({
+    id: date, date, occurredAt: Date.parse(date),
+    data: { activity: '腿', durationSec: 600, sets: 2, moves: [{ exerciseId: 'bar', name: '槓鈴深蹲', metrics: { reps: 5 } }], logs: weights.map((v) => ({ label: '槓鈴深蹲', exerciseId: 'bar', values: { 速度: v } })) },
+  });
+  const rows = collectRows([event('2026-10-20', [1, 0.8]), event('2026-10-27', [1.2, 0.9])], exercises, []);
+  const today = '2026-10-30';
+  const squat = filterRows(rows, { kind: 'exercise', id: 'squat' }, 'all', today);
+  assert.equal(squat.length, 6);
+  assert.ok(metricNames(rows).includes('速度'));
+  assert.equal(headline(squat, '速度', 'max'), 1.2);
+  assert.equal(Math.round(headline(squat, '速度', 'drop')), 25);
+  assert.equal(Math.round(headline(squat, '速度', 'delta') * 10) / 10, 0.1);
+  assert.deepEqual(dailySeries(squat, '速度', 'max').map((p) => p.value), [1, 1.2]);
+  assert.equal(filterRows(rows, { kind: 'tag', id: '下肢' }, '7d', today).length, 3);
+  assert.equal(headline(filterRows(rows, { kind: 'all' }, 'all', today), '速度', 'max'), 1.2);
+  assert.equal(headline(filterRows(rows, { kind: 'all' }, 'all', today), 'minutes', 'sum'), 20);
+  assert.deepEqual(byTag(filterRows(rows, { kind: 'all' }, 'all', today), 'minutes'), [{ tag: '肌力', value: 20 }, { tag: '下肢', value: 20 }]);
+  assert.equal(headline([], '速度', 'max'), null);
+  assert.equal(defaultCards(rows)[1].metric, '速度');
 });

@@ -224,6 +224,21 @@ const assert = require('assert');
   await page.locator('#panel [data-action=back]').click();
   await page.getByRole('button', { name: '週', exact: true }).click();
   await page.locator('.rec-day.today').waitFor();
+
+  // 分析卡片：打開就有數據，在卡片上切換；只呈現數字和圖表
+  await page.locator('.an-card').first().waitFor();
+  const firstCard = page.locator('.an-card').first();
+  assert.match(await firstCard.locator('.an-value').innerText(), /\d/);
+  await firstCard.locator('select[data-field=view]').selectOption('table');
+  await page.locator('.an-card').first().locator('.an-table').waitFor();
+  await page.locator('.an-card').first().locator('select[data-field=view]').selectOption('line');
+  await page.locator('.an-card').first().locator('.an-chart').waitFor();
+  await page.getByRole('button', { name: /新增分析/ }).click();
+  const added = page.locator('.an-card').last();
+  await added.locator('select[data-field=metric]').selectOption('重量');
+  await page.locator('.an-card').last().locator('select[data-field=calc]').selectOption('max');
+  await page.screenshot({ path: `${shots}/analysis.png`, fullPage: true });
+  await page.locator('.an-card').last().getByRole('button', { name: '移除' }).click();
   await page.locator('.train-tabs').getByRole('button', { name: '課表' }).click();
 
   // 設定：倒數秒數和語音

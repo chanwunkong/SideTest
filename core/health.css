@@ -263,7 +263,21 @@ dialog.full { max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; pa
 .editor-tools { display: flex; justify-content: space-between; gap: 8px; }
 .plain.danger { color: var(--warn); }
 .tag-list { max-height: 34dvh; overflow-y: auto; }
-.week-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 96px; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.an-card { display: grid; gap: 6px; padding: 14px; border-radius: var(--radius); background: var(--surface); }
+.an-controls { display: flex; flex-wrap: wrap; gap: 6px; }
+.an-select select { min-height: 34px; max-width: 150px; padding: 0 8px; border: 0; border-radius: 9px; background: var(--surface-2); font-size: 13px; }
+.an-value { font-size: 36px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.an-value .muted { font-weight: 400; }
+.an-point { min-height: 20px; margin: 0; }
+.an-chart { display: block; width: 100%; height: auto; overflow: visible; }
+.an-axis { stroke: var(--line); stroke-width: 1; }
+.an-line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.an-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; pointer-events: none; }
+.an-hit { fill: transparent; cursor: pointer; }
+.an-bar { fill: var(--accent); cursor: pointer; }
+.an-table { max-height: 220px; overflow-y: auto; }
+.week-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 56px; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; }
 .week-row .bar-track { margin: 0; }
 .week-row small { color: var(--muted); text-align: right; white-space: nowrap; }
 

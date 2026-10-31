@@ -170,7 +170,7 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await trainTab('排程');
   await page.locator('.plan-row', { hasText: '新動作' }).waitFor();
   await trainTab('紀錄');
-  await page.getByText('個人最佳').waitFor();
+  await page.locator('.an-card').first().waitFor();
 
   // 修改課表不影響舊紀錄
   await trainTab('課表');

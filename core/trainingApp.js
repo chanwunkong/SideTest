@@ -1,11 +1,12 @@
 // 訓練 App 和獨立計時器共用這份程式，資料也和健康管理共用同一個資料庫
+import { CALCS, RANGES, VIEWS, byTag, collectRows, dailySeries, defaultCards, filterRows, headline, metricNames } from './analysis.js';
 import { COLORS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, newStep, normalizeFlow } from './flow.js';
 import { addDays, dateKey, parseDateKey, weekStart } from './logic.js';
 import { clearSession, getSettings, runFlow, savedSession, setSetting, speak } from './flowRun.js';
 import { LANGUAGES, lang, setLang, t } from './i18n.js';
 import { healthStore as store } from './store.js';
 import { TAG_GROUPS, recentTags, rememberTag, tagLabel } from './tags.js';
-import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, linkExercise, personalBests, scheduleRemaining, weeklyStats } from './training.js';
+import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, linkExercise, scheduleRemaining } from './training.js';
 
 // 計時器入口只有課表和訓練；訓練 App 多了動作、排程和紀錄
 const isTimerApp = document.documentElement.dataset.app === 'timer';
@@ -222,22 +223,114 @@ function addRecord(kind, id) {
   openRecordEdit(added.id);
 }
 
+const analysisRows = () => collectRows(workoutEvents(), store.activeDocs('exercises'), allRoutines());
+const analysisCards = (rows) => store.profile.analysisCards ?? defaultCards(rows);
+const round = (value) => Math.round(value * 10) / 10;
+const metricLabel = (metric) => (['minutes', 'sets', 'reps'].includes(metric) ? t(`an.metric.${metric}`) : metric);
+const shortDate = (date) => parseDateKey(date).toLocaleDateString(lang, { month: 'numeric', day: 'numeric' });
+
+function sourceOptions(card) {
+  const value = `${card.source.kind}:${card.source.id ?? ''}`;
+  const option = (key, label) => `<option value="${esc(key)}"${key === value ? ' selected' : ''}>${esc(label)}</option>`;
+  const tags = [...new Set([...store.activeDocs('exercises').flatMap((e) => e.tags ?? []), ...allRoutines().flatMap((r) => r.tags ?? [])])];
+  return [
+    option('all:', t('an.all')),
+    ...exerciseTree(store.activeDocs('exercises')).map(({ exercise }) => option(`exercise:${exercise.id}`, exerciseName(exercise))),
+    ...allRoutines().map((routine) => option(`routine:${routine.id}`, routine.name)),
+    ...tags.map((tag) => option(`tag:${tag}`, tagLabel(tag, lang))),
+  ].join('');
+}
+
+const selectControl = (card, field, label, options) => `<label class="an-select"><span class="sr-only">${label}</span><select data-card="${esc(card.id)}" data-field="${field}" aria-label="${label}">${options}</select></label>`;
+
+const optionList = (values, active, labelOf) => values.map((value) => `<option value="${esc(value)}"${value === active ? ' selected' : ''}>${esc(labelOf(value))}</option>`).join('');
+
+// 折線和長條都是單一數列，用同一個主色；點圖上的點或長條會顯示該筆數值
+function chartPoints(series) {
+  const peak = Math.max(...series.map((point) => point.value), 0) || 1;
+  const low = Math.min(...series.map((point) => point.value), 0);
+  return series.map((point, i) => ({
+    ...point,
+    x: series.length === 1 ? 150 : 12 + (i * 276) / (series.length - 1),
+    y: 100 - ((point.value - low) / (peak - low || 1)) * 88,
+  }));
+}
+
+function lineChart(series) {
+  const points = chartPoints(series);
+  const path = points.map((p) => `${p.x},${p.y}`).join(' ');
+  const hits = points.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="14" class="an-hit" data-action="an-point" data-label="${shortDate(p.date)} ${round(p.value)}"></circle><circle cx="${p.x}" cy="${p.y}" r="4" class="an-dot"></circle>`).join('');
+  return `<svg class="an-chart" viewBox="0 0 300 112" role="img" aria-label="${t('an.view.line')}">
+    <line x1="0" y1="104" x2="300" y2="104" class="an-axis"></line>
+    <polyline points="${path}" class="an-line"></polyline>${hits}
+  </svg>`;
+}
+
+function barChart(series) {
+  const peak = Math.max(...series.map((point) => point.value), 0) || 1;
+  const gap = 2;
+  const width = Math.max(2, (300 - gap * (series.length - 1)) / series.length);
+  const bars = series.map((point, i) => {
+    const height = Math.max(2, (point.value / peak) * 96);
+    return `<rect x="${i * (width + gap)}" y="${104 - height}" width="${width}" height="${height}" rx="4" class="an-bar" data-action="an-point" data-label="${shortDate(point.date)} ${round(point.value)}"></rect>`;
+  }).join('');
+  return `<svg class="an-chart" viewBox="0 0 300 112" role="img" aria-label="${t('an.view.bar')}"><line x1="0" y1="104" x2="300" y2="104" class="an-axis"></line>${bars}</svg>`;
+}
+
+const tableView = (series) => `<div class="an-table">${[...series].reverse().map((point) => `<div class="stat-row"><span>${shortDate(point.date)}</span><strong>${round(point.value)}</strong></div>`).join('')}</div>`;
+
+function tagView(rows, metric) {
+  const groups = byTag(rows, metric);
+  if (!groups.length) return `<p class="muted">${t('an.noTags')}</p>`;
+  const peak = groups[0].value || 1;
+  return groups.map((group) => `<div class="week-row"><span>${esc(tagLabel(group.tag, lang))}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${(group.value / peak) * 100}%"></div></div>
+    <small>${round(group.value)}</small></div>`).join('');
+}
+
+function analysisCard(card, allRows) {
+  const today = dateKey();
+  const rows = filterRows(allRows, card.source, card.range, today);
+  const metrics = [...new Set([card.metric, ...metricNames(allRows)])];
+  const value = headline(rows, card.metric, card.calc);
+  const series = dailySeries(rows, card.metric, card.calc);
+  const views = { line: lineChart, bar: barChart, table: tableView };
+  let body = '';
+  if (card.view === 'tags') body = tagView(rows, card.metric);
+  else if (series.length && views[card.view]) body = views[card.view](series);
+  return `<article class="an-card">
+    <div class="an-controls">
+      ${selectControl(card, 'source', t('an.tag'), sourceOptions(card))}
+      ${selectControl(card, 'metric', t('an.value'), optionList(metrics, card.metric, metricLabel))}
+      ${selectControl(card, 'calc', t('an.value'), optionList(CALCS, card.calc, (v) => t(`an.calc.${v}`)))}
+      ${selectControl(card, 'range', t('an.date'), optionList(Object.keys(RANGES), card.range, (v) => t(`an.range.${v}`)))}
+      ${selectControl(card, 'view', t('an.view.number'), optionList(VIEWS, card.view, (v) => t(`an.view.${v}`)))}
+    </div>
+    <div class="an-value">${value === null ? `<span class="muted">${t('an.noData')}</span>` : round(value)}</div>
+    <p class="muted an-point"></p>
+    ${body}
+    <button class="plain" data-action="an-remove" data-id="${esc(card.id)}">${t('an.remove')}</button>
+  </article>`;
+}
+
+function renderAnalysis() {
+  const rows = analysisRows();
+  const cards = analysisCards(rows);
+  return `<section class="stack">
+    <div class="row"><h2 style="margin:0">${t('an.title')}</h2><button class="plain" data-action="an-add">＋ ${t('an.add')}</button></div>
+    ${cards.map((card) => analysisCard(card, rows)).join('') || `<p class="muted">${t('an.empty')}</p>`}
+  </section>`;
+}
+
+function saveAnalysisCards(cards) {
+  store.saveProfile({ analysisCards: cards });
+}
+
 function renderRecords() {
   const events = workoutEvents();
   if (!events.length) return `${renderCalendar(events)}<section class="card"><p class="muted">${t('train.noRecords')}</p></section>`;
-  const weeks = weeklyStats(events, dateKey());
-  const peak = Math.max(1, ...weeks.map((w) => w.reps));
-  const rows = weeks.map((week) => `<div class="week-row">
-    <span class="muted">${parseDateKey(week.start).toLocaleDateString(lang, { month: 'numeric', day: 'numeric' })}</span>
-    <div class="bar-track"><div class="bar-fill" style="width:${(week.reps / peak) * 100}%"></div></div>
-    <small>${t('analysis.reps', { n: week.reps })}・${t('analysis.days', { n: week.days })}</small>
-  </div>`).join('');
-  const nameOf = (best) => store.activeDocs('exercises').find((e) => e.id === best.exerciseId)?.name ?? best.name;
-  const bests = personalBests(events).slice(0, 5).map((best) => `<div class="stat-row"><span>${esc(nameOf(best))}</span><strong>${[best.reps && t('analysis.reps', { n: best.reps }), best.weightKg && `${best.weightKg} kg`].filter(Boolean).join('・')}</strong></div>`).join('');
-  const recent = [...events].sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 20).map((e) => `<button class="plan-row" data-action="rec-edit" data-id="${esc(e.id)}"><span>${esc(e.data.activity)}</span><span class="muted">${parseDateKey(e.date).toLocaleDateString(lang, { month: 'numeric', day: 'numeric' })}</span></button>`).join('');
-  return `${renderCalendar(events)}<section class="card"><h2>${t('analysis.title')}</h2>${rows}
-      ${bests ? `<h2 style="margin-top:14px">${t('analysis.best')}</h2>${bests}` : ''}</section>
-    <section class="card"><h2>${t('workout.recent')}</h2>${recent}</section>`;
+  const recent = [...events].sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 20).map((e) => `<button class="plan-row" data-action="rec-edit" data-id="${esc(e.id)}"><span>${esc(e.data.activity)}</span><span class="muted">${shortDate(e.date)}</span></button>`).join('');
+  return `${renderCalendar(events)}${renderAnalysis()}<section class="card"><h2>${t('workout.recent')}</h2>${recent}</section>`;
 }
 
 function renderHome() {
@@ -297,7 +390,14 @@ function openNewRoutine() {
 function openExercise(id) {
   const list = store.activeDocs('exercises');
   const exercise = id ? list.find((e) => e.id === id) : null;
-  state.draft = { id: exercise?.id, name: exercise?.name ?? '', nameEn: exercise?.nameEn ?? '', parentId: exercise?.parentId ?? null, defaultMinutes: exercise?.defaultMinutes ?? null };
+  state.draft = { id: exercise?.id, name: exercise?.name ?? '', nameEn: exercise?.nameEn ?? '', parentId: exercise?.parentId ?? null, defaultMinutes: exercise?.defaultMinutes ?? null, tags: exercise?.tags ?? [] };
+  renderExerciseForm();
+}
+
+function renderExerciseForm() {
+  const list = store.activeDocs('exercises');
+  const { id } = state.draft;
+  state.tagTarget = null;
   const blocked = id ? new Set([id, ...descendantIds(list, id)]) : new Set();
   const parents = exerciseTree(list).filter((row) => !blocked.has(row.exercise.id)).map(({ exercise: option, depth }) => (
     `<option value="${esc(option.id)}"${option.id === state.draft.parentId ? ' selected' : ''}>${'　'.repeat(depth)}${esc(exerciseName(option))}</option>`
@@ -309,15 +409,23 @@ function openExercise(id) {
     <label class="field"><span>${t('exercise.nameEn')}</span><input name="nameEn" value="${esc(state.draft.nameEn)}"></label>
     ${numberField('defaultMinutes', t('exercise.defaultMinutes'), state.draft.defaultMinutes, 'min="1"')}
     <label class="field"><span>${t('exercise.parent')}</span><select name="parentId"><option value="">${t('exercise.noParent')}</option>${parents}</select></label>
+    <h2>${t('exercise.tags')}</h2>
+    <div class="editor-tags">${state.draft.tags.map((tag) => `<span class="tag">${esc(tagLabel(tag, lang))}</span>`).join('')}
+      <button type="button" class="plain" data-action="exercise-tags">${t('exercise.addTag')}</button></div>
     ${id ? `<div class="stat-row"><span>${t('exercise.total')}</span><strong>${exerciseTotal(records, list, id)}</strong></div>` : ''}
     <button class="btn primary wide">${t('common.save')}</button>
     ${id ? `<button type="button" class="btn danger wide" data-action="exercise-delete">${t('common.delete')}</button><p class="muted">${t('exercise.deleteHint')}</p>` : ''}
   </form>`);
 }
 
+function readExerciseForm() {
+  const values = new FormData(panel.querySelector('form'));
+  Object.assign(state.draft, { name: values.get('name'), nameEn: values.get('nameEn'), parentId: values.get('parentId') || null, defaultMinutes: optionalNumber(values.get('defaultMinutes')) });
+}
+
 function saveExercise(form) {
-  const values = new FormData(form);
-  store.saveDoc('exercises', { ...state.draft, name: values.get('name').trim(), nameEn: values.get('nameEn').trim(), parentId: values.get('parentId') || null, defaultMinutes: optionalNumber(values.get('defaultMinutes')) });
+  readExerciseForm();
+  store.saveDoc('exercises', { ...state.draft, name: state.draft.name.trim(), nameEn: state.draft.nameEn.trim() });
   panel.close();
 }
 
@@ -619,7 +727,7 @@ function addMetric(name = panel.querySelector('#metric-name').value.trim()) {
 }
 
 function renderTags() {
-  const selected = new Set(state.routine.tags ?? []);
+  const selected = new Set(tagHost().tags ?? []);
   const groups = ['history', ...Object.keys(TAG_GROUPS)];
   const list = state.tagGroup === 'history' ? recentTags() : TAG_GROUPS[state.tagGroup];
   openPanel(`<div class="stack">
@@ -630,11 +738,19 @@ function renderTags() {
   </div>`);
 }
 
+const tagHost = () => (state.tagTarget === 'exercise' ? state.draft : state.routine);
+
 function toggleTag(tag) {
-  const tags = new Set(state.routine.tags ?? []);
+  const host = tagHost();
+  const tags = new Set(host.tags ?? []);
   if (tags.has(tag)) tags.delete(tag);
   else { tags.add(tag); rememberTag(tag); }
-  state.routine.tags = [...tags];
+  host.tags = [...tags];
+}
+
+function refreshAfterTag() {
+  renderTags();
+  if (state.tagTarget !== 'exercise') renderEditor();
 }
 
 function addStep(step) {
@@ -781,7 +897,11 @@ const actions = {
   },
   close: requestClose,
   discard: closeEditor,
-  back: () => { state.adding = false; panel.close(); },
+  back: () => {
+    state.adding = false;
+    if (state.tagTarget === 'exercise') { renderExerciseForm(); return; }
+    panel.close();
+  },
   save: () => {
     readEditorFields();
     const name = state.routine.name.trim();
@@ -806,14 +926,29 @@ const actions = {
   'metric-add': () => addMetric(),
   'metric-quick': ({ name }) => addMetric(name),
   'metric-remove': ({ index }) => { state.step.metrics.splice(Number(index), 1); refreshMetrics(); },
+  'exercise-tags': () => {
+    readExerciseForm();
+    state.tagTarget = 'exercise';
+    state.tagGroup = recentTags().length ? 'history' : 'zones';
+    renderTags();
+  },
+  'an-point': ({ label }, target) => {
+    target.closest('.an-card').querySelector('.an-point').textContent = label;
+  },
+  'an-remove': ({ id }) => {
+    saveAnalysisCards(analysisCards(analysisRows()).filter((card) => card.id !== id));
+  },
+  'an-add': () => {
+    const cards = analysisCards(analysisRows());
+    saveAnalysisCards([...cards, { id: crypto.randomUUID(), source: { kind: 'all' }, metric: 'minutes', calc: 'sum', range: '4w', view: 'number' }]);
+  },
   'tags-open': () => { readEditorFields(); state.tagGroup = recentTags().length ? 'history' : 'fitness'; renderTags(); },
   'tag-group': ({ group }) => { state.tagGroup = group; renderTags(); },
-  'tag-toggle': ({ tag }) => { toggleTag(tag); renderTags(); renderEditor(); },
+  'tag-toggle': ({ tag }) => { toggleTag(tag); refreshAfterTag(); },
   'tag-add': () => {
     const tag = panel.querySelector('#tag-name').value.trim();
-    if (tag && !state.routine.tags?.includes(tag)) toggleTag(tag);
-    renderTags();
-    renderEditor();
+    if (tag && !tagHost().tags?.includes(tag)) toggleTag(tag);
+    refreshAfterTag();
   },
   pin: () => { readEditorFields(); state.routine.pinned = !state.routine.pinned; renderEditor(); },
   duplicate: () => {
@@ -877,6 +1012,18 @@ document.addEventListener('click', (event) => {
   state.step = structuredClone(step);
   state.adding = false;
   renderStep();
+});
+
+view.addEventListener('change', (event) => {
+  const { card: cardId, field } = event.target.dataset;
+  if (!cardId) return;
+  const cards = analysisCards(analysisRows()).map((card) => {
+    if (card.id !== cardId) return card;
+    if (field !== 'source') return { ...card, [field]: event.target.value };
+    const [kind, ...rest] = event.target.value.split(':');
+    return { ...card, source: kind === 'all' ? { kind } : { kind, id: rest.join(':') } };
+  });
+  saveAnalysisCards(cards);
 });
 
 panel.addEventListener('change', (event) => {
