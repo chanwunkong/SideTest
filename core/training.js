@@ -116,3 +116,11 @@ export function personalBests(events) {
   }
   return [...bests.values()].filter((b) => b.reps || b.weightKg).sort((a, b) => b.reps - a.reps);
 }
+
+// 找不到的動作自動加入動作庫，課表和紀錄只引用動作編號
+export function linkExercise(store, text, nameOf = (e) => e.name) {
+  const name = text.trim();
+  const list = store.activeDocs('exercises');
+  const exercise = resolveExercise(list, name, nameOf) ?? store.saveDoc('exercises', { name, nameEn: '', parentId: null });
+  return { exerciseId: exercise.id, name: nameOf(exercise) };
+}

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>訓練計時</title>
+  <title>訓練</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="apple-touch-icon" href="../Health/icons/icon-180.png">
   <link rel="stylesheet" href="../core/health.css">
@@ -14,9 +14,15 @@
 </head>
 <body>
   <main id="view"></main>
+  <nav class="tabs train-tabs" aria-label="主要分頁">
+    <button data-action="tab" data-tab="exercises"></button>
+    <button data-action="tab" data-tab="routines"></button>
+    <button data-action="tab" data-tab="schedules"></button>
+    <button data-action="tab" data-tab="records"></button>
+  </nav>
   <dialog id="sheet" class="full" tabindex="-1"></dialog>
   <dialog id="panel" tabindex="-1"></dialog>
   <div id="toast" role="status" hidden></div>
-  <script type="module" src="timer.js?v=5"></script>
+  <script type="module" src="timer.js?v=6"></script>
 </body>
 </html>

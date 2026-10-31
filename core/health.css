@@ -226,6 +226,7 @@ dialog.full { max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; pa
 .pick-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 0 14px; border-radius: var(--radius-sm); background: var(--surface); text-align: left; }
 .pick-row.create { color: var(--accent); font-weight: 700; }
 .repeat { display: grid; gap: 8px; }
+.train-tabs { grid-template-columns: repeat(4, 1fr); }
 .week-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 96px; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; }
 .week-row .bar-track { margin: 0; }
 .week-row small { color: var(--muted); text-align: right; white-space: nowrap; }

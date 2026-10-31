@@ -1,9 +1,10 @@
 // 訓練計時：獨立網頁，資料和健康管理共用
 import { COLORS, LOG_METRICS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, newStep, normalizeFlow } from '../core/flow.js';
+import { dateKey, parseDateKey } from '../core/logic.js';
 import { autoLogOn, clearSession, runFlow, savedSession, setAutoLog, setSound, soundOn } from '../core/flowRun.js';
 import { lang, setLang, t } from '../core/i18n.js';
 import { healthStore as store } from '../core/store.js';
-import { exercisePath, exerciseTree, resolveExercise } from '../core/training.js';
+import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, linkExercise, personalBests, scheduleRemaining, weeklyStats } from '../core/training.js';
 
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
@@ -12,7 +13,7 @@ const toastEl = document.getElementById('toast');
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const query = new URLSearchParams(location.search);
 
-const state = { routine: null, original: '', selected: null, step: null, stepList: null, adding: false, handledQuery: false };
+const state = { tab: 'routines', draft: null, routine: null, original: '', selected: null, step: null, stepList: null, adding: false, handledQuery: false };
 
 function toast(message) {
   toastEl.hidden = false;
@@ -20,7 +21,17 @@ function toast(message) {
   setTimeout(() => { toastEl.hidden = true; }, 3000);
 }
 
-const routines = () => store.activeDocs('trainings').filter((r) => r.flow?.length);
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const weekdayName = (day) => new Date(2023, 0, 1 + day).toLocaleDateString(lang, { weekday: 'narrow' });
+const optionalNumber = (value) => (value === '' || value === null ? null : Number(value));
+const closeButton = (action = 'back') => `<button type="button" class="icon-btn" data-action="${action}" aria-label="${t('common.close')}">✕</button>`;
+const panelHeader = (title) => `<div class="row"><h2 style="margin:0">${title}</h2>${closeButton()}</div>`;
+const numberField = (name, label, value, attrs = '') => `<label class="field"><span>${label}</span>
+  <input ${attrs} type="number" inputmode="decimal" min="0" step="any" name="${name}" value="${value ?? ''}"></label>`;
+const chipGroup = (name, options, active) => `<div class="chips" data-chip-group="${name}">${options.map((o) => `<button type="button" class="chip${o.value === active ? ' active' : ''}" data-action="chip" data-value="${esc(o.value)}">${esc(o.label)}</button>`).join('')}</div>`;
+const exerciseName = (exercise) => (lang === 'en' && exercise.nameEn) || exercise.name;
+
+const routines = () => store.activeDocs('trainings');
 const findRoutine = (id) => store.trainings.find((r) => r.id === id);
 const workoutEvents = () => store.liveEvents().filter((e) => e.type === 'workout');
 const stepName = (step) => step.label || t(step.type === 'reps' ? 'step.reps' : 'step.timer');
@@ -38,36 +49,232 @@ function start(routine, resume = null) {
   });
 }
 
-function renderHome() {
-  document.documentElement.lang = lang;
+function routineRow(routine) {
+  const flow = normalizeFlow(routine.flow ?? []);
+  const hasFlow = flow.length > 0;
+  const colors = flattenFlow(flow).filter((s) => s.duration).slice(0, 40).map((s) => `<i class="tone-${s.color}" style="flex:${s.duration}"></i>`).join('');
+  const detail = hasFlow ? formatDuration(flowDuration(flow), t) : t(`mode.${routine.mode}`);
+  const action = hasFlow
+    ? `<button class="btn primary" data-action="start" data-id="${esc(routine.id)}">${t('step.start')}</button>`
+    : `<a class="btn link-btn" href="../Health/?record=${esc(routine.id)}">${t('workout.log')}</a>`;
+  return `<article class="routine">
+    <button class="routine-open" data-action="edit" data-id="${esc(routine.id)}">
+      <strong>${esc(routine.name)}</strong>
+      <span class="muted">${detail}${routine.tags?.length ? `・${routine.tags.map(esc).join('、')}` : ''}</span>
+      ${colors ? `<span class="run-line small">${colors}</span>` : ''}
+    </button>
+    ${action}
+  </article>`;
+}
+
+function renderRoutines() {
   const session = savedSession();
   const sessionRoutine = session && findRoutine(session.trainingId);
-  const rows = routines().map((routine) => {
-    const flow = normalizeFlow(routine.flow);
-    const colors = flattenFlow(flow).filter((s) => s.duration).slice(0, 40).map((s) => `<i class="tone-${s.color}" style="flex:${s.duration}"></i>`).join('');
-    return `<article class="routine">
-      <button class="routine-open" data-action="edit" data-id="${esc(routine.id)}">
-        <strong>${esc(routine.name)}</strong>
-        <span class="muted">${formatDuration(flowDuration(flow), t)}${routine.tags?.length ? `・${routine.tags.map(esc).join('、')}` : ''}</span>
-        <span class="run-line small">${colors}</span>
-      </button>
-      <button class="btn primary" data-action="start" data-id="${esc(routine.id)}">${t('step.start')}</button>
-    </article>`;
-  }).join('');
-  const examples = Object.keys(TEMPLATES).map((key) => `<button class="chip" data-action="template" data-key="${key}">＋ ${t(`template.${key}`)}</button>`).join('');
-  view.innerHTML = `
-    <header class="topbar"><h1>${t('timer.title')}</h1><a class="plain" href="../Health/">${t('timer.health')}</a></header>
+  return `
     ${sessionRoutine ? `<section class="card row"><span>${t('timer.resume', { name: esc(sessionRoutine.name) })}</span>
       <div class="chips"><button class="btn primary" data-action="resume">${t('run.resume')}</button><button class="plain" data-action="drop-session">${t('run.discard')}</button></div></section>` : ''}
-    <section class="routines">${rows || `<p class="muted">${t('timer.empty')}</p>`}</section>
-    <button class="btn wide meal-actions" data-action="new">＋ ${t('timer.new')}</button>
-    <section class="card stack"><h2>${t('timer.examples')}</h2><div class="chips">${examples}</div></section>
-    <section class="card stack"><h2>${t('timer.options')}</h2>
-      <label class="check"><input type="checkbox" data-option="sound"${soundOn() ? ' checked' : ''}> ${t('timer.sound')}</label>
-      <label class="check"><input type="checkbox" data-option="log"${autoLogOn() ? ' checked' : ''}> ${t('timer.autoLog')}</label>
-    </section>
-    <p class="muted">${store.user ? t('account.signedIn', { email: esc(store.user.email) }) : t('account.signedOut')}</p>
-    ${store.user || !store.canSignIn ? '' : `<button class="btn wide" data-action="sign-in">${t('account.signIn')}</button>`}`;
+    <section class="routines">${routines().map(routineRow).join('') || `<p class="muted">${t('timer.empty')}</p>`}</section>
+    <button class="btn wide" data-action="new">＋ ${t('timer.new')}</button>`;
+}
+
+function renderExercises() {
+  const rows = exerciseTree(store.activeDocs('exercises')).map(({ exercise, depth }) => `<button class="plan-row" style="padding-left:${depth * 18}px" data-action="exercise-edit" data-id="${esc(exercise.id)}"><span>${esc(exerciseName(exercise))}</span></button>`).join('');
+  return `<section class="card">${rows || `<p class="muted">${t('exercise.empty')}</p>`}</section>
+    <button class="btn wide" data-action="exercise-edit">＋ ${t('train.newExercise')}</button>`;
+}
+
+function renderSchedules() {
+  const today = dateKey();
+  const rows = store.activeDocs('schedules').map((schedule) => {
+    const left = scheduleRemaining(schedule, today);
+    const label = left === null ? t('schedule.ongoing') : left ? t('schedule.remaining', { n: left }) : t('schedule.ended');
+    return `<button class="plan-row" data-action="schedule-edit" data-id="${esc(schedule.id)}"><span>${esc(findRoutine(schedule.trainingId)?.name)}</span><span class="muted">${label}</span></button>`;
+  }).join('');
+  return `<section class="card">${rows || `<p class="muted">${t('train.noSchedules')}</p>`}</section>
+    <button class="btn wide" data-action="schedule-edit">＋ ${t('train.newSchedule')}</button>`;
+}
+
+function renderRecords() {
+  const events = workoutEvents();
+  if (!events.length) return `<section class="card"><p class="muted">${t('train.noRecords')}</p></section>`;
+  const weeks = weeklyStats(events, dateKey());
+  const peak = Math.max(1, ...weeks.map((w) => w.reps));
+  const rows = weeks.map((week) => `<div class="week-row">
+    <span class="muted">${parseDateKey(week.start).toLocaleDateString(lang, { month: 'numeric', day: 'numeric' })}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${(week.reps / peak) * 100}%"></div></div>
+    <small>${t('analysis.reps', { n: week.reps })}・${t('analysis.days', { n: week.days })}</small>
+  </div>`).join('');
+  const nameOf = (best) => store.activeDocs('exercises').find((e) => e.id === best.exerciseId)?.name ?? best.name;
+  const bests = personalBests(events).slice(0, 5).map((best) => `<div class="stat-row"><span>${esc(nameOf(best))}</span><strong>${[best.reps && t('analysis.reps', { n: best.reps }), best.weightKg && `${best.weightKg} kg`].filter(Boolean).join('・')}</strong></div>`).join('');
+  const recent = [...events].sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 20).map((e) => `<div class="stat-row"><span>${esc(e.data.activity)}</span><span class="muted">${parseDateKey(e.date).toLocaleDateString(lang, { month: 'numeric', day: 'numeric' })}</span></div>`).join('');
+  return `<section class="card"><h2>${t('analysis.title')}</h2>${rows}
+      ${bests ? `<h2 style="margin-top:14px">${t('analysis.best')}</h2>${bests}` : ''}</section>
+    <section class="card"><h2>${t('workout.recent')}</h2>${recent}</section>`;
+}
+
+function renderHome() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('.train-tabs button').forEach((button) => {
+    button.classList.toggle('active', button.dataset.tab === state.tab);
+    button.textContent = t(`train.${button.dataset.tab}`);
+  });
+  const screens = { exercises: renderExercises, routines: renderRoutines, schedules: renderSchedules, records: renderRecords };
+  view.innerHTML = `<header class="topbar"><h1>${t(`train.${state.tab}`)}</h1>
+      <div class="chips"><a class="plain" href="../Health/">${t('timer.health')}</a><button class="icon-btn" data-action="settings" aria-label="${t('train.settings')}">⚙</button></div>
+    </header>${screens[state.tab]()}`;
+}
+
+function openSettings() {
+  const account = store.user
+    ? `<p class="muted">${t('account.signedIn', { email: esc(store.user.email) })}</p>`
+    : `<p class="muted">${t('account.signedOut')}</p>${store.canSignIn ? `<button class="btn wide" data-action="sign-in">${t('account.signIn')}</button>` : ''}`;
+  openPanel(`<div class="stack">
+    ${panelHeader(t('train.settings'))}
+    <label class="check"><input type="checkbox" data-option="sound"${soundOn() ? ' checked' : ''}> ${t('timer.sound')}</label>
+    <label class="check"><input type="checkbox" data-option="log"${autoLogOn() ? ' checked' : ''}> ${t('timer.autoLog')}</label>
+    ${account}
+  </div>`);
+}
+
+function openNewRoutine() {
+  const templates = Object.keys(TEMPLATES).map((key) => `<button class="chip" data-action="template" data-key="${key}">＋ ${t(`template.${key}`)}</button>`).join('');
+  openPanel(`<div class="stack">
+    ${panelHeader(t('timer.new'))}
+    <button class="pick-row" data-action="new-blank"><span>${t('train.blank')}</span><span class="muted">${t('train.blankHint')}</span></button>
+    <button class="pick-row" data-action="new-sets"><span>${t('train.setsOnly')}</span><span class="muted">${t('train.setsHint')}</span></button>
+    <h2>${t('timer.examples')}</h2>
+    <div class="chips">${templates}</div>
+  </div>`);
+}
+
+// ---- 動作 ----
+
+function openExercise(id) {
+  const list = store.activeDocs('exercises');
+  const exercise = id ? list.find((e) => e.id === id) : null;
+  state.draft = { id: exercise?.id, name: exercise?.name ?? '', nameEn: exercise?.nameEn ?? '', parentId: exercise?.parentId ?? null, defaultMinutes: exercise?.defaultMinutes ?? null };
+  const blocked = id ? new Set([id, ...descendantIds(list, id)]) : new Set();
+  const parents = exerciseTree(list).filter((row) => !blocked.has(row.exercise.id)).map(({ exercise: option, depth }) => (
+    `<option value="${esc(option.id)}"${option.id === state.draft.parentId ? ' selected' : ''}>${'　'.repeat(depth)}${esc(exerciseName(option))}</option>`
+  )).join('');
+  const records = workoutEvents().map((e) => e.data);
+  openPanel(`<form class="stack" data-form="exercise">
+    ${panelHeader(t(id ? 'exercise.edit' : 'exercise.new'))}
+    <label class="field"><span>${t('exercise.name')}</span><input name="name" value="${esc(state.draft.name)}" required></label>
+    <label class="field"><span>${t('exercise.nameEn')}</span><input name="nameEn" value="${esc(state.draft.nameEn)}"></label>
+    ${numberField('defaultMinutes', t('exercise.defaultMinutes'), state.draft.defaultMinutes, 'min="1"')}
+    <label class="field"><span>${t('exercise.parent')}</span><select name="parentId"><option value="">${t('exercise.noParent')}</option>${parents}</select></label>
+    ${id ? `<div class="stat-row"><span>${t('exercise.total')}</span><strong>${exerciseTotal(records, list, id)}</strong></div>` : ''}
+    <button class="btn primary wide">${t('common.save')}</button>
+    ${id ? `<button type="button" class="btn danger wide" data-action="exercise-delete">${t('common.delete')}</button><p class="muted">${t('exercise.deleteHint')}</p>` : ''}
+  </form>`);
+}
+
+function saveExercise(form) {
+  const values = new FormData(form);
+  store.saveDoc('exercises', { ...state.draft, name: values.get('name').trim(), nameEn: values.get('nameEn').trim(), parentId: values.get('parentId') || null, defaultMinutes: optionalNumber(values.get('defaultMinutes')) });
+  panel.close();
+}
+
+function deleteExercise() {
+  const { id, parentId } = state.draft;
+  const list = store.activeDocs('exercises');
+  list.filter((e) => e.parentId === id).forEach((child) => store.saveDoc('exercises', { ...child, parentId: parentId ?? null }));
+  store.saveDoc('exercises', { ...list.find((e) => e.id === id), deletedAt: Date.now() });
+  panel.close();
+}
+
+// ---- 只記組數的課表 ----
+
+function readMovesForm(form) {
+  const { draft } = state;
+  const values = new FormData(form);
+  draft.name = values.get('name');
+  draft.trackRest = form.querySelector('[name=trackRest]').checked;
+  draft.moves = draft.moves.map((move, i) => ({
+    ...move,
+    name: values.get(`move-name-${i}`),
+    metrics: Object.fromEntries(MOVE_METRICS.flatMap(({ key, type }) => {
+      const value = values.get(`move-${key}-${i}`);
+      if (!value) return [];
+      return [[key, type === 'number' ? Number(value) : value]];
+    })),
+  }));
+}
+
+function moveFields(move, i) {
+  const metricField = ({ key, type }) => `<label class="field"><span>${t(`metric.${key}`)}</span>
+    <input name="move-${key}-${i}" type="${type}" ${type === 'number' ? 'inputmode="decimal" min="0" step="any"' : ''} value="${esc(move.metrics?.[key])}"></label>`;
+  const [reps, ...more] = MOVE_METRICS;
+  const list = store.activeDocs('exercises');
+  const value = move.exerciseId ? exercisePath(list, move.exerciseId, exerciseName) || move.name : move.name;
+  return `<div class="move-row">
+    <div class="grid-2">
+      <label class="field"><span>${t('training.moveName')}</span><input name="move-name-${i}" list="exercise-options" autocomplete="off" value="${esc(value)}" required></label>
+      ${metricField(reps)}
+    </div>
+    <details><summary>${t('training.moreMetrics')}</summary><div class="grid-2">${more.map(metricField).join('')}</div></details>
+  </div>`;
+}
+
+function renderMovesForm() {
+  const { draft } = state;
+  openPanel(`<form class="stack" data-form="moves">
+    ${panelHeader(t(draft.id ? 'common.edit' : 'train.setsOnly'))}
+    <label class="field"><span>${t('training.name')}</span><input name="name" value="${esc(draft.name)}" required></label>
+    <h2>${t('training.mode')}</h2>
+    ${chipGroup('mode', MODES.map((value) => ({ value, label: t(`mode.${value}`) })), draft.mode)}
+    <h2>${t('training.moves')}</h2>
+    <datalist id="exercise-options">${exerciseOptions()}</datalist>
+    ${draft.moves.map(moveFields).join('')}
+    <button type="button" class="btn wide" data-action="move-add">＋ ${t('training.addMove')}</button>
+    <label class="check"><input type="checkbox" name="trackRest"${draft.trackRest ? ' checked' : ''}> ${t('training.trackRest')}</label>
+    <button class="btn primary wide">${t('common.save')}</button>
+    ${draft.id ? `<button type="button" class="btn wide" data-action="moves-to-flow">${t('train.addTimer')}</button>
+    <button type="button" class="btn danger wide" data-action="moves-delete">${t('common.delete')}</button>` : ''}
+  </form>`);
+}
+
+function saveMoves(form) {
+  readMovesForm(form);
+  const moves = state.draft.moves.map((move) => ({ ...move, ...linkExercise(store, move.name, exerciseName) }));
+  store.saveDoc('trainings', { ...state.draft, moves });
+  panel.close();
+}
+
+// ---- 排程 ----
+
+function openSchedule(id) {
+  const trainings = routines();
+  if (!trainings.length) { toast(t('train.noRoutineForSchedule')); return; }
+  const schedule = id ? store.activeDocs('schedules').find((s) => s.id === id) : null;
+  state.draft = schedule ? { ...schedule } : { trainingId: trainings[0].id };
+  const days = WEEK_ORDER.map((d) => `<button type="button" class="chip${schedule?.weekdays?.includes(d) ? ' active' : ''}" data-action="chip-toggle" data-value="${d}">${weekdayName(d)}</button>`).join('');
+  openPanel(`<form class="stack" data-form="schedule">
+    ${panelHeader(t(id ? 'common.edit' : 'train.newSchedule'))}
+    <h2>${t('schedule.training')}</h2>
+    ${chipGroup('trainingId', trainings.map((x) => ({ value: x.id, label: x.name })), state.draft.trainingId)}
+    <label class="field"><span>${t('schedule.start')}</span><input type="date" name="startDate" value="${schedule?.startDate ?? dateKey()}" required></label>
+    ${numberField('days', `${t('schedule.days')}（${t('schedule.daysHint')}）`, schedule?.days, 'min="1"')}
+    <h2>${t('schedule.weekdays')}</h2>
+    <p class="muted">${t('schedule.weekdaysHint')}</p>
+    <div class="chips" data-chip-list="weekdays">${days}</div>
+    ${numberField('targetSets', `${t('schedule.target')}（${t('schedule.targetHint')}）`, schedule?.targetSets, 'min="1"')}
+    <button class="btn primary wide">${t('common.save')}</button>
+    ${id ? `<button type="button" class="btn danger wide" data-action="schedule-delete">${t('common.delete')}</button>` : ''}
+  </form>`);
+}
+
+function saveSchedule(form) {
+  const values = new FormData(form);
+  store.saveDoc('schedules', {
+    ...state.draft,
+    startDate: values.get('startDate'),
+    days: optionalNumber(values.get('days')),
+    weekdays: [...form.querySelectorAll('[data-chip-list="weekdays"] .chip.active')].map((c) => Number(c.dataset.value)),
+    targetSets: optionalNumber(values.get('targetSets')),
+  });
+  panel.close();
 }
 
 // ---- 編輯器：整份課表一次看完，用縮排表示層級 ----
@@ -286,18 +493,54 @@ function attachSortable() {
 function linkFlow(flow) {
   return mapFlow(flow, (step) => {
     if (step.rest || !step.label) return step;
-    const list = store.activeDocs('exercises');
-    const exercise = resolveExercise(list, step.label) ?? store.saveDoc('exercises', { name: step.label, nameEn: '', parentId: null });
-    return { ...step, exerciseId: exercise.id, label: exercise.name };
+    const { exerciseId, name } = linkExercise(store, step.label);
+    return { ...step, exerciseId, label: name };
   });
 }
 
+// 舊課表的動作只有名稱，載入時連到動作庫
+function linkExistingRoutines() {
+  for (const routine of routines()) {
+    if (routine.moves?.some((move) => !move.exerciseId && move.name)) {
+      const moves = routine.moves.map((move) => (move.name ? { ...move, ...linkExercise(store, move.name, exerciseName) } : move));
+      store.saveDoc('trainings', { ...routine, moves });
+    }
+  }
+}
+
 const actions = {
-  new: () => openRoutine({ name: '', mode: 'sets', moves: [], trackRest: false, tags: [], flow: [] }),
+  tab: ({ tab }) => { state.tab = tab; renderHome(); scrollTo(0, 0); },
+  settings: openSettings,
+  new: openNewRoutine,
+  'new-blank': () => { panel.close(); openRoutine({ name: '', mode: 'sets', moves: [], trackRest: false, tags: [], flow: [] }); },
+  'new-sets': () => { state.draft = { name: '', mode: 'sets', moves: [{ name: '', metrics: {} }], trackRest: false }; renderMovesForm(); },
   edit: ({ id }) => {
     const routine = structuredClone(findRoutine(id));
+    if (!routine.flow?.length) { state.draft = routine; renderMovesForm(); return; }
     openRoutine({ ...routine, flow: normalizeFlow(routine.flow) });
   },
+  'move-add': () => {
+    readMovesForm(panel.querySelector('form'));
+    state.draft.moves.push({ name: '', metrics: {} });
+    renderMovesForm();
+  },
+  'moves-to-flow': () => {
+    readMovesForm(panel.querySelector('form'));
+    const routine = { ...state.draft, flow: [] };
+    panel.close();
+    openRoutine(routine);
+  },
+  'moves-delete': () => { store.saveDoc('trainings', { ...state.draft, deletedAt: Date.now() }); panel.close(); },
+  'exercise-edit': ({ id }) => openExercise(id),
+  'exercise-delete': deleteExercise,
+  'schedule-edit': ({ id }) => openSchedule(id),
+  'schedule-delete': () => { store.saveDoc('schedules', { ...state.draft, deletedAt: Date.now() }); panel.close(); },
+  chip: ({ value }, target) => {
+    const group = target.closest('[data-chip-group]');
+    group.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c === target));
+    state.draft[group.dataset.chipGroup] = value;
+  },
+  'chip-toggle': (_, target) => target.classList.toggle('active'),
   close: requestClose,
   discard: closeEditor,
   back: () => { state.adding = false; panel.close(); },
@@ -336,6 +579,7 @@ const actions = {
     const template = TEMPLATES[key](t);
     if (routines().some((routine) => routine.name === template.name)) { toast(t('timer.exists')); return; }
     store.saveDoc('trainings', { mode: 'sets', moves: [], trackRest: false, ...template });
+    if (panel.open) panel.close();
     toast(t('common.saved'));
   },
   start: ({ id }) => start(findRoutine(id)),
@@ -359,15 +603,17 @@ document.addEventListener('click', (event) => {
   renderStep();
 });
 
-view.addEventListener('change', (event) => {
+panel.addEventListener('change', (event) => {
   const { option } = event.target.dataset;
   if (option === 'sound') setSound(event.target.checked);
   if (option === 'log') setAutoLog(event.target.checked);
 });
 
+const formHandlers = { step: saveStep, exercise: saveExercise, moves: saveMoves, schedule: saveSchedule };
+
 panel.addEventListener('submit', (event) => {
   event.preventDefault();
-  saveStep(event.target);
+  formHandlers[event.target.dataset.form](event.target);
 });
 
 // 系統返回或 Esc 關閉編輯器時，也走同一個確認流程
@@ -394,6 +640,7 @@ function handleQuery() {
 
 store.addEventListener('change', () => {
   if (store.profile.lang && store.profile.lang !== lang) setLang(store.profile.lang);
+  linkExistingRoutines();
   renderHome();
   handleQuery();
 });

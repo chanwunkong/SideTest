@@ -16,12 +16,14 @@ const assert = require('assert');
   // 建立課表：計時 + 循環 2 次（懸掛、休息最後略過）+ 次數
   // 空課表不能存，取消新課表不需要確認
   await button('＋ 新增課表').click();
+  await button(/空白課表/, false).click();
   await page.locator('[data-action=save]').click();
   await page.getByText('請輸入課表名稱').waitFor();
   await page.locator('[data-action=close]').click();
   assert.equal(await page.locator('#sheet[open]').count(), 0);
 
   await button('＋ 新增課表').click();
+  await button(/空白課表/, false).click();
   await page.fill('#routine-name', '測試課表');
   const addTimer = async (label, seconds, color) => {
     await page.locator('.editor-foot .btn.primary').click();
@@ -144,10 +146,13 @@ const assert = require('assert');
   assert.equal(await page.getByText('有未完成的訓練').count(), 0);
 
   // 範本和健康管理互通
+  await button('＋ 新增課表').click();
   await page.getByRole('button', { name: '＋ 7/3 手指耐力' }).click();
   await page.locator('.routine', { hasText: '7/3 手指耐力' }).waitFor();
+  await button('＋ 新增課表').click();
   await page.getByRole('button', { name: '＋ 7/3 手指耐力' }).click();
   await page.getByText('已經有這份課表了').waitFor();
+  await page.locator('#panel [data-action=back]').click();
   assert.equal(await page.locator('.routine', { hasText: '7/3 手指耐力' }).count(), 1);
 
   // 從連結進來時先點一下才開始，手機才能播放提示音

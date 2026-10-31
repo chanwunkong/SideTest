@@ -1,11 +1,10 @@
 import { CARD_TYPES, DEFAULT_CARDS, FREQUENCIES, cardDayState, cardHit, frequencyOf, metricsOf, monthDates, periodDates, weekDates } from './cards.js';
-import { flowDuration, formatClock } from '../../core/flow.js';
 import { LANGUAGES, lang, setLang, t } from '../../core/i18n.js';
 import { addDays, dateKey, formatTarget, goalFor, nutritionTargetsFor, parseDateKey, sevenDayAverage, summarizeDay, targetMet, targetWeight, weekStart } from '../../core/logic.js';
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
 import { ACTIVITIES, INTENSITIES, NUTRIENTS } from '../../core/registry.js';
 import { healthStore as store } from '../../core/store.js';
-import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, personalBests, resolveExercise, scheduleRemaining, schedulesOn, targetSetsOn, weeklyStats } from '../../core/training.js';
+import { exercisePath, exerciseTree, linkExercise, moveTotals, resolveExercise, schedulesOn, targetSetsOn } from '../../core/training.js';
 
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
@@ -87,10 +86,10 @@ function workoutText({ data }) {
 // ---- 畫面 ----
 
 function render() {
-  const screens = { home: renderHome, diet: renderDiet, workout: renderWorkout, manage: renderManage, rest: renderRest, body: renderBody };
+  const screens = { home: renderHome, diet: renderDiet, workout: renderWorkout, rest: renderRest, body: renderBody };
   document.documentElement.lang = lang;
   document.querySelectorAll('.tabs button').forEach((b) => {
-    b.classList.toggle('active', b.dataset.tab === (state.tab === 'manage' ? 'workout' : state.tab));
+    b.classList.toggle('active', b.dataset.tab === state.tab);
     b.textContent = t(`tab.${b.dataset.tab}`);
   });
   view.innerHTML = screens[state.tab]();
@@ -255,7 +254,6 @@ function renderWorkout() {
   const todays = summarizeDay(store.eventsOn(today)).workouts.sort((a, b) => a.occurredAt - b.occurredAt);
   const logged = new Set(todays.map((w) => w.data.trainingId));
   const pending = schedulesOn(activeSchedules(), today).filter((s) => trainingById(s.trainingId) && !logged.has(s.trainingId));
-  const recent = store.liveEvents().filter((e) => e.type === 'workout' && e.date !== today).sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 10);
 
   const pendingRows = pending.map((schedule) => {
     const training = trainingById(schedule.trainingId);
@@ -284,63 +282,7 @@ function renderWorkout() {
       <div class="stat-row"><span>${t('workout.sets')}</span><strong>${sets}</strong></div>
       <div class="stat-row"><span>${t('workout.time')}</span><strong>${t('workout.minutes', { n: Math.round(minutes) })}</strong></div>
     </section>
-    ${renderAnalysis(today)}
-    ${recent.length ? `<section class="card"><h2>${t('workout.recent')}</h2>
-      ${recent.map((w) => `<button class="entry" data-action="workout-open" data-id="${esc(w.id)}">
-        <span class="entry-body"><strong>${esc(activityLabel(w.data.activity))}</strong><span class="muted">${formatDate(w.date)} ${timeOf(w.occurredAt)}・${esc(workoutText(w))}</span></span>
-      </button>`).join('')}
-    </section>` : ''}
-    <button class="btn wide" data-action="tab" data-tab="manage">${t('workout.manage')} ›</button>
-    <a class="textlink" href="../Timer/">${t('workout.openTimer')}</a>`;
-}
-
-// 動作、課表和重複安排都放在管理頁，平常記錄不需要進來
-function renderManage() {
-  const today = dateKey();
-  const trainings = store.activeDocs('trainings');
-  return `
-    <header class="topbar">
-      <button class="icon-btn" data-action="tab" data-tab="workout" aria-label="${t('common.close')}">‹</button>
-      <h1>${t('workout.manage')}</h1><span></span>
-    </header>
-    <section class="card">
-      <div class="row"><h2 style="margin:0">${t('exercise.library')}</h2><button class="plain" data-action="exercise-edit">＋ ${t('common.add')}</button></div>
-      ${exerciseTree(activeExercises()).map(({ exercise, depth }) => `<button class="plan-row" style="padding-left:${depth * 18}px" data-action="exercise-edit" data-id="${esc(exercise.id)}"><span>${esc(exerciseName(exercise))}</span></button>`).join('') || `<p class="muted">${t('exercise.empty')}</p>`}
-    </section>
-    <section class="card">
-      <div class="row"><h2 style="margin:0">${t('workout.trainings')}</h2><button class="plain" data-action="training-edit">＋ ${t('common.add')}</button></div>
-      ${trainings.map((training) => `<div class="row plan-row">
-        <button class="edit-name" data-action="training-edit" data-id="${esc(training.id)}">${esc(training.name)}<span class="muted">${t(`mode.${training.mode}`)}${training.flow?.length ? `・${formatClock(flowDuration(training.flow))}` : ''}</span></button>
-        ${training.flow?.length ? `<a class="btn link-btn" href="../Timer/?run=${esc(training.id)}">${t('step.start')}</a>` : ''}
-      </div>`).join('') || `<p class="muted">${t('workout.noTrainings')}</p>`}
-    </section>
-    <section class="card">
-      <div class="row"><h2 style="margin:0">${t('repeat.schedules')}</h2><button class="plain" data-action="schedule-edit">＋ ${t('common.add')}</button></div>
-      ${activeSchedules().map((schedule) => {
-        const left = scheduleRemaining(schedule, today);
-        const label = left === null ? t('schedule.ongoing') : left ? t('schedule.remaining', { n: left }) : t('schedule.ended');
-        return `<button class="plan-row" data-action="schedule-edit" data-id="${esc(schedule.id)}"><span>${esc(trainingById(schedule.trainingId)?.name)}</span><span class="muted">${label}</span></button>`;
-      }).join('')}
-    </section>`;
-}
-
-function renderAnalysis(today) {
-  const events = store.liveEvents().filter((e) => e.type === 'workout');
-  if (!events.length) return `<section class="card"><h2>${t('analysis.title')}</h2><p class="muted">${t('analysis.none')}</p></section>`;
-  const weeks = weeklyStats(events, today);
-  const peak = Math.max(1, ...weeks.map((w) => w.reps));
-  const rows = weeks.map((week) => `<div class="week-row">
-    <span class="muted">${parseDateKey(week.start).toLocaleDateString(lang, { month: 'numeric', day: 'numeric' })}</span>
-    <div class="bar-track"><div class="bar-fill" style="width:${(week.reps / peak) * 100}%"></div></div>
-    <small>${t('analysis.reps', { n: week.reps })}・${t('analysis.days', { n: week.days })}</small>
-  </div>`).join('');
-  const nameOf = (best) => activeExercises().find((e) => e.id === best.exerciseId)?.name ?? best.name;
-  const bests = personalBests(events).slice(0, 5).map((best) => `<div class="stat-row"><span>${esc(nameOf(best))}</span><strong>${[best.reps && t('analysis.reps', { n: best.reps }), best.weightKg && `${best.weightKg} kg`].filter(Boolean).join('・')}</strong></div>`).join('');
-  return `<section class="card">
-    <h2>${t('analysis.title')}</h2>
-    ${rows}
-    ${bests ? `<h2 style="margin-top:14px">${t('analysis.best')}</h2>${bests}` : ''}
-  </section>`;
+    <a class="btn wide link-btn" href="../Timer/">${t('workout.openTimer')} ›</a>`;
 }
 
 function renderRest() {
@@ -660,160 +602,11 @@ function saveRecord(form) {
   toast(totals || t('record.saved'));
 }
 
-function readTrainingForm(form) {
-  const { draft } = state;
-  const values = new FormData(form);
-  draft.name = values.get('name');
-  draft.trackRest = form.querySelector('[name=trackRest]').checked;
-  draft.moves = draft.moves.map((move, i) => ({
-    ...move,
-    name: values.get(`move-name-${i}`),
-    metrics: Object.fromEntries(MOVE_METRICS.flatMap(({ key, type }) => {
-      const value = values.get(`move-${key}-${i}`);
-      if (!value) return [];
-      return [[key, type === 'number' ? Number(value) : value]];
-    })),
-  }));
-}
-
-function moveInputValue(move) {
-  return move.exerciseId ? exercisePath(activeExercises(), move.exerciseId, exerciseName) || move.name : move.name;
-}
-
-function moveFields(move, i) {
-  const metricField = ({ key, type }) => `<label class="field"><span>${t(`metric.${key}`)}</span>
-    <input name="move-${key}-${i}" type="${type}" ${type === 'number' ? 'inputmode="decimal" min="0" step="any"' : ''} value="${esc(move.metrics?.[key])}"></label>`;
-  const [reps, ...more] = MOVE_METRICS;
-  return `<div class="move-row">
-    <div class="grid-2">
-      <label class="field"><span>${t('training.moveName')}</span><input name="move-name-${i}" list="exercise-options" autocomplete="off" value="${esc(moveInputValue(move))}" required></label>
-      ${metricField(reps)}
-    </div>
-    <details><summary>${t('training.moreMetrics')}</summary><div class="grid-2">${more.map(metricField).join('')}</div></details>
-  </div>`;
-}
-
-function renderTrainingSheet() {
-  const { draft } = state;
-  openSheet(`<form class="stack" data-form="training">
-    ${sheetHeader(t(draft.id ? 'common.edit' : 'workout.newTraining'))}
-    <label class="field"><span>${t('training.name')}</span><input name="name" value="${esc(draft.name)}" required></label>
-    <h2>${t('training.mode')}</h2>
-    ${chipGroup('mode', MODES.map((value) => ({ value, label: t(`mode.${value}`) })), draft.mode)}
-    <h2>${t('training.moves')}</h2>
-    <datalist id="exercise-options">${exerciseTree(activeExercises()).map(({ exercise }) => `<option value="${esc(exercisePath(activeExercises(), exercise.id, exerciseName))}"></option>`).join('')}</datalist>
-    ${draft.moves.map(moveFields).join('')}
-    <button type="button" class="btn wide" data-action="move-add">＋ ${t('training.addMove')}</button>
-    <label class="check"><input type="checkbox" name="trackRest"${draft.trackRest ? ' checked' : ''}> ${t('training.trackRest')}</label>
-    ${draft.id ? `<a class="textlink" href="../Timer/?edit=${esc(draft.id)}">${t('workout.editTimer')}</a>` : ''}
-    <button class="btn primary wide">${t('common.save')}</button>
-    ${draft.id ? `<button type="button" class="btn danger wide" data-action="doc-delete" data-col="trainings">${t('common.delete')}</button>` : ''}
-  </form>`);
-}
-
-function openTraining(id) {
-  const training = id ? trainingById(id) : null;
-  state.draft = training ? structuredClone(training) : { name: '', mode: 'sets', moves: [{ name: '', metrics: {} }], trackRest: false };
-  renderTrainingSheet();
-}
-
-// 找不到的動作自動加入動作庫，訓練只引用動作編號
-function linkMove(move) {
-  const text = move.name?.trim();
-  if (!text) return move;
-  const exercise = resolveExercise(activeExercises(), text, exerciseName)
-    ?? store.saveDoc('exercises', { name: text, nameEn: '', parentId: null });
-  return { ...move, exerciseId: exercise.id, name: exerciseName(exercise) };
-}
-
-function saveTraining(form) {
-  readTrainingForm(form);
-  store.saveDoc('trainings', { ...state.draft, moves: state.draft.moves.map(linkMove) });
-  closeSheet();
-}
-
-// 舊訓練的動作只有名稱，第一次載入時連到動作庫
-function linkExistingTrainings() {
-  for (const training of store.activeDocs('trainings')) {
-    if (training.moves.some((move) => !move.exerciseId && move.name)) {
-      store.saveDoc('trainings', { ...training, moves: training.moves.map(linkMove) });
-    }
-  }
-}
-
-function openExercise(id) {
-  const list = activeExercises();
-  const exercise = id ? list.find((e) => e.id === id) : null;
-  state.draft = { id: exercise?.id, name: exercise?.name ?? '', nameEn: exercise?.nameEn ?? '', parentId: exercise?.parentId ?? null, defaultMinutes: exercise?.defaultMinutes ?? null };
-  const blocked = id ? new Set([id, ...descendantIds(list, id)]) : new Set();
-  const parents = exerciseTree(list).filter((row) => !blocked.has(row.exercise.id)).map(({ exercise: option, depth }) => (
-    `<option value="${esc(option.id)}"${option.id === state.draft.parentId ? ' selected' : ''}>${'　'.repeat(depth)}${esc(exerciseName(option))}</option>`
-  )).join('');
-  const records = store.liveEvents().filter((e) => e.type === 'workout').map((e) => e.data);
-  openSheet(`<form class="stack" data-form="exercise">
-    ${sheetHeader(t(id ? 'exercise.edit' : 'exercise.new'))}
-    <label class="field"><span>${t('exercise.name')}</span><input name="name" value="${esc(state.draft.name)}" required></label>
-    <label class="field"><span>${t('exercise.nameEn')}</span><input name="nameEn" value="${esc(state.draft.nameEn)}"></label>
-    ${numberField('defaultMinutes', t('exercise.defaultMinutes'), state.draft.defaultMinutes, 'min="1"')}
-    <label class="field"><span>${t('exercise.parent')}</span><select name="parentId"><option value="">${t('exercise.noParent')}</option>${parents}</select></label>
-    ${id ? `<div class="stat-row"><span>${t('exercise.total')}</span><strong>${exerciseTotal(records, list, id)}</strong></div>` : ''}
-    <button class="btn primary wide">${t('common.save')}</button>
-    ${id ? `<button type="button" class="btn danger wide" data-action="exercise-delete">${t('common.delete')}</button><p class="muted">${t('exercise.deleteHint')}</p>` : ''}
-  </form>`);
-}
-
-function saveExercise(form) {
-  const values = new FormData(form);
-  store.saveDoc('exercises', { ...state.draft, name: values.get('name').trim(), nameEn: values.get('nameEn').trim(), parentId: values.get('parentId') || null, defaultMinutes: optionalNumber(values.get('defaultMinutes')) });
-  closeSheet();
-}
-
-function deleteExercise() {
-  const { id, parentId } = state.draft;
-  const exercise = activeExercises().find((e) => e.id === id);
-  activeExercises().filter((e) => e.parentId === id).forEach((child) => store.saveDoc('exercises', { ...child, parentId: parentId ?? null }));
-  store.saveDoc('exercises', { ...exercise, deletedAt: Date.now() });
-  closeSheet();
-}
-
-function openSchedule(id) {
-  const trainings = store.activeDocs('trainings');
-  if (!trainings.length) { openTraining(); return; }
-  const schedule = id ? activeSchedules().find((s) => s.id === id) : null;
-  state.draft = schedule ? { ...schedule } : { trainingId: trainings[0].id };
-  const days = WEEK_ORDER.map((d) => `<button type="button" class="chip${schedule?.weekdays?.includes(d) ? ' active' : ''}" data-action="chip-toggle" data-value="${d}">${weekdayName(d)}</button>`).join('');
-  openSheet(`<form class="stack" data-form="schedule">
-    ${sheetHeader(t(id ? 'common.edit' : 'workout.newSchedule'))}
-    <h2>${t('schedule.training')}</h2>
-    ${chipGroup('trainingId', trainings.map((x) => ({ value: x.id, label: x.name })), state.draft.trainingId)}
-    <label class="field"><span>${t('schedule.start')}</span><input type="date" name="startDate" value="${schedule?.startDate ?? dateKey()}" required></label>
-    ${numberField('days', `${t('schedule.days')}（${t('schedule.daysHint')}）`, schedule?.days, 'min="1"')}
-    <h2>${t('schedule.weekdays')}</h2>
-    <p class="muted">${t('schedule.weekdaysHint')}</p>
-    <div class="chips" data-chip-list="weekdays">${days}</div>
-    ${numberField('targetSets', `${t('schedule.target')}（${t('schedule.targetHint')}）`, schedule?.targetSets, 'min="1"')}
-    <button class="btn primary wide">${t('common.save')}</button>
-    ${id ? `<button type="button" class="btn danger wide" data-action="doc-delete" data-col="schedules">${t('common.delete')}</button>` : ''}
-  </form>`);
-}
-
-function saveSchedule(form) {
-  const values = new FormData(form);
-  store.saveDoc('schedules', {
-    ...state.draft,
-    startDate: values.get('startDate'),
-    days: optionalNumber(values.get('days')),
-    weekdays: [...form.querySelectorAll('[data-chip-list="weekdays"] .chip.active')].map((c) => Number(c.dataset.value)),
-    targetSets: optionalNumber(values.get('targetSets')),
-  });
-  closeSheet();
-}
-
 function saveWorkout(form) {
   const { draft } = state;
   const values = new FormData(form);
   const date = values.get('date');
-  const { exerciseId, name } = linkMove({ name: values.get('exercise') });
+  const { exerciseId, name } = linkExercise(store, values.get('exercise'), exerciseName);
   const data = {
     exerciseId, activity: name, intensity: draft.intensity,
     durationSec: Number(values.get('minutes')) * 60, note: values.get('note'),
@@ -1222,16 +1015,6 @@ const actions = {
   'workout-create': ({ name, date }) => openWorkout(null, date, name),
   'workout-open': ({ id }) => openWorkout(id),
   'record-open': ({ id, date }) => openRecord(id, date ?? dateKey()),
-  'training-edit': ({ id }) => openTraining(id),
-  'exercise-edit': ({ id }) => openExercise(id),
-  'exercise-delete': deleteExercise,
-  'schedule-edit': ({ id }) => openSchedule(id),
-  'move-add': () => {
-    readTrainingForm(sheet.querySelector('form'));
-    state.draft.moves.push({ name: '', metrics: {} });
-    renderTrainingSheet();
-  },
-  'doc-delete': ({ col }) => { store.saveDoc(col, { ...state.draft, deletedAt: Date.now() }); closeSheet(); },
   install: async () => {
     await installPrompt.prompt();
     installPrompt = null;
@@ -1266,9 +1049,6 @@ const formHandlers = {
   meal: saveMeal,
   workout: saveWorkout,
   record: saveRecord,
-  training: saveTraining,
-  exercise: saveExercise,
-  schedule: saveSchedule,
   sleep: saveSleep,
   body: saveBody,
   profile: saveProfile,
@@ -1305,8 +1085,8 @@ window.addEventListener('beforeinstallprompt', (event) => {
 
 store.addEventListener('change', () => {
   if (store.profile.lang && store.profile.lang !== lang) setLang(store.profile.lang);
-  linkExistingTrainings();
   render();
+  openRecordFromLink();
 });
 store.addEventListener('error', (event) => toast(t('error.save', { error: event.detail.message })));
 
@@ -1314,6 +1094,16 @@ store.addEventListener('error', (event) => toast(t('error.save', { error: event.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !sheet.open) store.reload();
 });
+
+// 訓練 App 記錄只記組數的課表時，會帶著課表編號過來
+function openRecordFromLink() {
+  const id = new URLSearchParams(location.search).get('record');
+  if (!id || state.recordLinkHandled || !trainingById(id)) return;
+  state.recordLinkHandled = true;
+  state.tab = 'workout';
+  render();
+  openRecord(id);
+}
 
 render();
 store.init().catch((error) => toast(t('error.start', { error: error.message })));
