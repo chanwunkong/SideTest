@@ -62,6 +62,28 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await page.screenshot({ path: `${shots}/diet.png`, fullPage: true });
 
   // 建立 Cindy
+  // 紀錄形式不限縮：只記全天步數，不填時間
+  await tab('運動');
+  await button('＋ 新增').click();
+  await page.fill('#pick-search', '走路');
+  await button('新增「走路」').click();
+  await button('＋ 步數').click();
+  await page.fill('input[name=val-0]', '8000');
+  await page.getByLabel('全天，不記開始時間').check();
+  await page.screenshot({ path: `${shots}/free-log.png`, fullPage: true });
+  await save();
+  await page.locator('.entry', { hasText: '走路' }).getByText('全天・步數 8,000').waitFor();
+  // 自訂數值，下次同動作自動帶入
+  await button('＋ 新增').click();
+  await page.locator('.pick-row', { hasText: '走路' }).click();
+  await page.locator('input[name=val-0]').waitFor();
+  await page.fill('#value-name', '心情');
+  await button('加入').click();
+  await page.fill('input[name=val-1]', '8');
+  await page.fill('input[name=val-0]', '500');
+  await save();
+  await page.locator('.entry', { hasText: '心情 8' }).waitFor();
+
   // 不用排程也能新增今天的運動
   await tab('運動');
   await button('＋ 新增').click();

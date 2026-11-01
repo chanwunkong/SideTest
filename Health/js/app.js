@@ -33,7 +33,7 @@ const intensityLabel = (key) => t(`intensity.${key}`);
 const activityLabel = (name) => (ACTIVITIES.includes(name) ? t(`activity.${name}`) : name);
 const cardLabel = (type) => t(`cardType.${type}`);
 const metricLabel = (metric) => t(`cardMetric.${metric.key}`);
-const metricUnit = (metric) => (['hours', 'sets', 'minutes'].includes(metric.key) ? t(`cardUnit.${metric.key}`) : metric.unit);
+const metricUnit = (metric) => (['hours', 'sets', 'minutes', 'steps'].includes(metric.key) ? t(`cardUnit.${metric.key}`) : metric.unit);
 const closeButton = () => `<button type="button" class="icon-btn" data-action="sheet-close" aria-label="${t('common.close')}">✕</button>`;
 const hours = (seconds) => round(seconds / 3600);
 
@@ -79,9 +79,14 @@ function workoutText({ data }) {
   const parts = [];
   if (data.sets) parts.push(t('workout.setsValue', { n: data.sets }));
   if (data.durationSec) parts.push(t('workout.minutes', { n: Math.round(data.durationSec / 60) }));
+  for (const log of data.logs ?? []) {
+    for (const [name, value] of Object.entries(log.values ?? {})) parts.push(`${name} ${value.toLocaleString()}`);
+  }
   if (data.intensity) parts.push(intensityLabel(data.intensity));
   return parts.join('・');
 }
+
+const startText = (event) => (event.data.allDay ? t('free.allDayShort') : timeOf(event.occurredAt));
 
 // ---- 畫面 ----
 
@@ -265,7 +270,7 @@ function renderWorkout() {
     </div>`;
   }).join('');
   const doneRows = todays.map((w) => `<button class="entry" data-action="workout-open" data-id="${esc(w.id)}">
-    <span class="entry-body"><strong>${esc(activityLabel(w.data.activity))}</strong><span class="muted">${timeOf(w.occurredAt)}・${esc(workoutText(w))}</span></span>
+    <span class="entry-body"><strong>${esc(activityLabel(w.data.activity))}</strong><span class="muted">${[startText(w), workoutText(w)].filter(Boolean).map(esc).join('・')}</span></span>
     <span class="muted">${t('workout.done')}</span>
   </button>`).join('');
 
@@ -520,11 +525,40 @@ function trainingForExercise(exerciseId, name) {
     ?? store.saveDoc('trainings', { name, mode: 'check', moves: [{ exerciseId, name, metrics: {} }], trackRest: false });
 }
 
+// 只有動作名稱是必填；時間、持續時間和數值都由使用者決定要不要記
+function valueBox() {
+  const { fields, values } = state.draft;
+  const rows = fields.map((name, i) => `<div class="value-row">
+    <label class="field"><span>${esc(name)}</span><input type="number" inputmode="decimal" step="any" name="val-${i}" value="${values[name] ?? ''}"></label>
+    <button type="button" class="icon-btn" data-action="value-remove" data-index="${i}" aria-label="${t('common.delete')} ${esc(name)}">✕</button>
+  </div>`).join('');
+  const quick = [t('free.steps'), t('free.distance'), t('free.reps'), t('free.weight')].filter((name) => !fields.includes(name))
+    .map((name) => `<button type="button" class="chip" data-action="value-add" data-name="${esc(name)}">＋ ${esc(name)}</button>`).join('');
+  return `${rows}<div class="chips">${quick}</div>
+    <div class="amount"><input id="value-name" autocomplete="off" placeholder="${t('free.placeholder')}" aria-label="${t('free.placeholder')}">
+    <button type="button" class="btn" data-action="value-add">${t('free.add')}</button></div>`;
+}
+
+function readValues() {
+  const form = sheet.querySelector('form');
+  state.draft.fields.forEach((name, i) => {
+    const value = form.elements[`val-${i}`]?.value;
+    if (value === undefined) return;
+    if (value === '') delete state.draft.values[name];
+    else state.draft.values[name] = Number(value);
+  });
+}
+
+function refreshValues() {
+  sheet.querySelector('#value-box').innerHTML = valueBox();
+}
+
 function openWorkout(id = null, date = dateKey(), preset = '') {
   const event = id ? store.events.get(id) : null;
   if (event?.data.trainingId) { openRecord(event.data.trainingId, event.date, event); return; }
-  const intensity = event?.data.intensity ?? 'moderate';
-  state.draft = { id, date: event?.date ?? date, intensity };
+  const intensity = event?.data.intensity ?? null;
+  const values = { ...(event?.data.logs?.[0]?.values ?? {}) };
+  state.draft = { id, date: event?.date ?? date, intensity, fields: Object.keys(values), values };
   const list = activeExercises();
   const options = exerciseTree(list).map(({ exercise }) => `<option value="${esc(exercisePath(list, exercise.id, exerciseName))}"></option>`).join('');
   const minutes = event?.data.durationSec ? Math.round(event.data.durationSec / 60) : '';
@@ -532,10 +566,11 @@ function openWorkout(id = null, date = dateKey(), preset = '') {
     ${sheetHeader(t(id ? 'workout.edit' : 'workout.logTitle'))}
     <label class="field"><span>${t('workout.exercise')}</span><input name="exercise" list="exercise-options" autocomplete="off" value="${esc(event?.data.activity ?? preset)}" required></label>
     <datalist id="exercise-options">${options}</datalist>
-    <div class="grid-2">
-      ${timeField(event?.occurredAt ?? Date.now())}
-      ${numberField('minutes', t('workout.duration'), minutes, 'min="1" required')}
-    </div>
+    <h2>${t('free.values')}</h2>
+    <div class="stack" id="value-box">${valueBox()}</div>
+    ${numberField('minutes', t('free.duration'), minutes, 'min="1"')}
+    <label class="check"><input type="checkbox" name="allDay"${event?.data.allDay ? ' checked' : ''}> ${t('free.allDay')}</label>
+    <div data-start-time${event?.data.allDay ? ' hidden' : ''}>${timeField(event?.occurredAt ?? Date.now())}</div>
     <h2>${t('workout.intensity')}</h2>
     ${chipGroup('intensity', INTENSITIES.map((i) => ({ value: i.key, label: intensityLabel(i.key) })), intensity)}
     ${dateField(state.draft.date)}
@@ -547,8 +582,17 @@ function openWorkout(id = null, date = dateKey(), preset = '') {
   const exerciseInput = sheet.querySelector('[name=exercise]');
   const fillDefault = () => {
     const exercise = resolveExercise(activeExercises(), exerciseInput.value, exerciseName);
+    if (!exercise) return;
     const field = sheet.querySelector('[name=minutes]');
-    if (exercise?.defaultMinutes && !field.value) field.value = exercise.defaultMinutes;
+    if (exercise.defaultMinutes && !field.value) field.value = exercise.defaultMinutes;
+    if (exercise.fields?.length && !state.draft.fields.length) {
+      state.draft.fields = [...exercise.fields];
+      refreshValues();
+    }
+    if (exercise.allDay) {
+      sheet.querySelector('[name=allDay]').checked = true;
+      sheet.querySelector('[data-start-time]').hidden = true;
+    }
   };
   exerciseInput.addEventListener('input', fillDefault);
   fillDefault();
@@ -603,16 +647,24 @@ function saveRecord(form) {
 }
 
 function saveWorkout(form) {
+  readValues();
   const { draft } = state;
   const values = new FormData(form);
   const date = values.get('date');
+  const allDay = values.get('allDay') === 'on';
   const { exerciseId, name } = linkExercise(store, values.get('exercise'), exerciseName);
+  const minutes = optionalNumber(values.get('minutes'));
+  const logged = Object.fromEntries(Object.entries(draft.values).filter(([key]) => draft.fields.includes(key)));
   const data = {
-    exerciseId, activity: name, intensity: draft.intensity,
-    durationSec: Number(values.get('minutes')) * 60, note: values.get('note'),
+    exerciseId, activity: name, intensity: draft.intensity, allDay,
+    durationSec: minutes ? minutes * 60 : null, note: values.get('note'),
     moves: [{ exerciseId, name, metrics: {} }],
+    logs: Object.keys(logged).length ? [{ label: name, exerciseId, values: logged, failure: false }] : [],
   };
-  const occurredAt = startedAt(values);
+  const occurredAt = allDay ? new Date(`${date}T12:00:00`).getTime() : startedAt(values);
+  // 記住這個動作用的欄位，下次自動帶入
+  const exercise = activeExercises().find((e) => e.id === exerciseId);
+  store.saveDoc('exercises', { ...exercise, fields: draft.fields, allDay });
   if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt });
   else {
     store.addEvent('workout', data, { date, occurredAt });
@@ -1006,6 +1058,19 @@ const actions = {
     closeSheet();
     toast(t('common.deleted'), () => store.restoreEvent(id));
   },
+  'value-add': ({ name }) => {
+    readValues();
+    const field = name ?? sheet.querySelector('#value-name').value.trim();
+    if (field && !state.draft.fields.includes(field)) state.draft.fields.push(field);
+    refreshValues();
+    const index = state.draft.fields.indexOf(field);
+    sheet.querySelector(`[name="val-${index}"]`)?.focus();
+  },
+  'value-remove': ({ index }) => {
+    readValues();
+    state.draft.fields.splice(Number(index), 1);
+    refreshValues();
+  },
   'workout-add': ({ date }) => openAddWorkout(date),
   'workout-pick': ({ kind, id, date }) => {
     if (kind === 'routine') { openRecord(id, date); return; }
@@ -1066,6 +1131,10 @@ sheet.addEventListener('submit', (event) => {
 // close 事件是非同步的，此時可能已經開了下一張表單
 // 選了重複方式才顯示後續欄位
 sheet.addEventListener('change', (event) => {
+  if (event.target.name === 'allDay') {
+    sheet.querySelector('[data-start-time]').hidden = event.target.checked;
+    return;
+  }
   if (!event.target.matches('[data-repeat]')) return;
   const { value } = event.target;
   sheet.querySelector('[data-repeat-more]').hidden = value === 'none';

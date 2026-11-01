@@ -33,6 +33,7 @@ export const CARD_TYPES = {
     metrics: [
       { key: 'sets', label: '套數', unit: '套', read: (day) => sum(day.workouts.filter((w) => w.data.sets), (w) => w.data.sets) },
       { key: 'minutes', label: '運動', unit: '分', read: (day) => sum(day.workouts.filter((w) => w.data.durationSec), (w) => w.data.durationSec / 60) },
+      { key: 'steps', label: '步數', unit: '步', read: (day) => sum(day.workouts.filter((w) => w.data.logs?.some((log) => log.values?.步數 ?? log.values?.Steps)), (w) => w.data.logs.reduce((total, log) => total + (log.values?.步數 ?? log.values?.Steps ?? 0), 0)) },
     ],
     hasRecord: (day) => day.workouts.length > 0,
   },
