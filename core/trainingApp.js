@@ -1,5 +1,5 @@
 // 訓練 App 和獨立計時器共用這份程式，資料也和健康管理共用同一個資料庫
-import { CALCS, RANGES, VIEWS, byTag, collectRows, dailySeries, defaultCards, filterRows, headline, metricNames } from './analysis.js';
+import { CALCS, RANGES, VIEWS, byTag, collectRows, currentWeek, cycleWeeks, dailySeries, defaultCards, filterRows, headline, metricNames } from './analysis.js';
 import { COLORS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, newStep, normalizeFlow } from './flow.js';
 import { addDays, dateKey, parseDateKey, weekStart } from './logic.js';
 import { clearSession, getSettings, runFlow, savedSession, setSetting, speak } from './flowRun.js';
@@ -17,7 +17,7 @@ const toastEl = document.getElementById('toast');
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const query = new URLSearchParams(location.search);
 
-const state = { recRange: 'month', recDate: dateKey(), tab: 'routines', draft: null, routine: null, original: '', selected: null, step: null, stepList: null, adding: false, handledQuery: false };
+const state = { cycle: null, phase: null, recRange: 'month', recDate: dateKey(), tab: 'routines', draft: null, routine: null, original: '', selected: null, step: null, stepList: null, adding: false, handledQuery: false };
 
 function toast(message) {
   toastEl.hidden = false;
@@ -92,13 +92,131 @@ function renderExercises() {
 
 function renderSchedules() {
   const today = dateKey();
-  const rows = store.activeDocs('schedules').map((schedule) => {
+  const cycles = store.activeDocs('cycles').map((cycle) => {
+    const position = currentWeek(cycle, today);
+    const label = position ? t('cycle.position', position) : t('cycle.notActive');
+    return `<button class="plan-row" data-action="cycle-open" data-id="${esc(cycle.id)}"><span>${esc(cycle.name)}</span><span class="muted">${esc(label)}</span></button>`;
+  }).join('');
+  const rows = store.activeDocs('schedules').filter((schedule) => !schedule.cycleId).map((schedule) => {
     const left = scheduleRemaining(schedule, today);
     const label = left === null ? t('schedule.ongoing') : left ? t('schedule.remaining', { n: left }) : t('schedule.ended');
     return `<button class="plan-row" data-action="schedule-edit" data-id="${esc(schedule.id)}"><span>${esc(findRoutine(schedule.trainingId)?.name)}</span><span class="muted">${label}</span></button>`;
   }).join('');
-  return `<section class="card">${rows || `<p class="muted">${t('train.noSchedules')}</p>`}</section>
+  return `<section class="card"><h2>${t('cycle.title')}</h2>${cycles || `<p class="muted">${t('cycle.none')}</p>`}</section>
+    <button class="btn wide meal-actions" data-action="cycle-new">＋ ${t('cycle.new')}</button>
+    <section class="card"><h2>${t('train.schedules')}</h2>${rows || `<p class="muted">${t('train.noSchedules')}</p>`}</section>
     <button class="btn wide" data-action="schedule-edit">＋ ${t('train.newSchedule')}</button>`;
+}
+
+// ---- 週期：階段的課表會變成排程，首頁和今天的運動不用另外處理 ----
+
+const newPhase = (name = '') => ({ id: crypto.randomUUID(), name, weeks: 4, trainingIds: [], weekdays: [], planned: [] });
+
+function renderCycleForm() {
+  const { cycle } = state;
+  const phases = cycle.phases.map((phase, i) => `<button type="button" class="plan-row" data-action="phase-edit" data-index="${i}"><span>${esc(phase.name || t('cycle.phase'))}</span><span class="muted">${t('cycle.weekCount', { n: phase.weeks })}</span></button>`).join('');
+  openPanel(`<form class="stack" data-form="cycle">
+    ${panelHeader(t(cycle.id ? 'cycle.edit' : 'cycle.new'))}
+    <label class="field"><span>${t('cycle.name')}</span><input name="name" value="${esc(cycle.name)}" required></label>
+    <label class="field"><span>${t('cycle.start')}</span><input type="date" name="startDate" value="${cycle.startDate}" required></label>
+    <h2>${t('cycle.phases')}</h2>
+    <div>${phases}</div>
+    <div class="chips">
+      <button type="button" class="chip" data-action="phase-add">＋ ${t('cycle.addPhase')}</button>
+      ${cycle.phases.length ? '' : `<button type="button" class="chip" data-action="cycle-template">${t('cycle.template')}</button>`}
+    </div>
+    <div class="panel-save"><button class="btn primary wide">${t('common.save')}</button></div>
+    ${cycle.id ? `<button type="button" class="btn danger wide" data-action="cycle-delete">${t('common.delete')}</button>` : ''}
+  </form>`);
+}
+
+function readCycleForm() {
+  const values = new FormData(panel.querySelector('form'));
+  state.cycle.name = values.get('name');
+  state.cycle.startDate = values.get('startDate');
+}
+
+function renderPhaseForm() {
+  const { phase } = state;
+  const routineChips = allRoutines().map((routine) => `<button type="button" class="chip${phase.trainingIds.includes(routine.id) ? ' active' : ''}" data-action="phase-routine" data-id="${esc(routine.id)}">${esc(routine.name)}</button>`).join('');
+  const dayChips = WEEK_ORDER.map((d) => `<button type="button" class="chip${phase.weekdays.includes(d) ? ' active' : ''}" data-action="phase-day" data-value="${d}">${weekdayName(d)}</button>`).join('');
+  const metrics = metricNames(analysisRows());
+  const planned = phase.planned.map((item, i) => `<div class="stat-row"><span>${esc(metricLabel(item.metric))}</span><span>${item.value} <button type="button" class="plain" data-action="planned-remove" data-index="${i}" aria-label="${t('common.delete')}">✕</button></span></div>`).join('');
+  openPanel(`<form class="stack" data-form="phase">
+    ${panelHeader(t('cycle.phase'))}
+    <div class="grid-2">
+      <label class="field"><span>${t('cycle.phaseName')}</span><input name="name" value="${esc(phase.name)}" required></label>
+      ${numberField('weeks', t('cycle.weeks'), phase.weeks, 'min="1" required')}
+    </div>
+    <h2>${t('cycle.routines')}</h2>
+    <div class="chips">${routineChips || `<p class="muted">${t('train.noRoutineForSchedule')}</p>`}</div>
+    <h2>${t('cycle.days')}</h2>
+    <p class="muted">${t('cycle.daysHint')}</p>
+    <div class="chips">${dayChips}</div>
+    <h2>${t('cycle.planned')}</h2>
+    ${planned}
+    <div class="amount">
+      <select id="planned-metric" aria-label="${t('cycle.metric')}">${optionList(metrics, metrics[0], metricLabel)}</select>
+      <input id="planned-value" type="number" inputmode="decimal" min="0" step="any" placeholder="${t('cycle.value')}" aria-label="${t('cycle.value')}">
+      <button type="button" class="btn" data-action="planned-add">${t('cycle.addPlanned')}</button>
+    </div>
+    <div class="panel-save"><button class="btn primary wide">${t('common.save')}</button></div>
+    <button type="button" class="btn danger wide" data-action="phase-delete">${t('common.delete')}</button>
+  </form>`);
+}
+
+function readPhaseForm() {
+  const values = new FormData(panel.querySelector('form'));
+  state.phase.name = values.get('name');
+  state.phase.weeks = Number(values.get('weeks')) || 1;
+}
+
+function savePhase() {
+  readPhaseForm();
+  const { cycle, phase } = state;
+  const index = cycle.phases.findIndex((item) => item.id === phase.id);
+  if (index >= 0) cycle.phases[index] = phase;
+  else cycle.phases.push(phase);
+  state.phase = null;
+  renderCycleForm();
+}
+
+function removeCycleSchedules(cycleId) {
+  store.activeDocs('schedules').filter((schedule) => schedule.cycleId === cycleId).forEach((schedule) => store.saveDoc('schedules', { ...schedule, deletedAt: Date.now() }));
+}
+
+function saveCycle() {
+  readCycleForm();
+  const { cycle } = state;
+  if (!cycle.phases.length) { toast(t('cycle.needPhase')); return; }
+  const saved = store.saveDoc('cycles', cycle);
+  removeCycleSchedules(saved.id);
+  let startDate = saved.startDate;
+  for (const phase of saved.phases) {
+    for (const trainingId of phase.trainingIds) {
+      store.saveDoc('schedules', { trainingId, startDate, days: phase.weeks * 7, weekdays: phase.weekdays, targetSets: null, cycleId: saved.id });
+    }
+    startDate = addDays(startDate, phase.weeks * 7);
+  }
+  state.cycle = null;
+  panel.close();
+}
+
+function openCycle(id) {
+  const cycle = store.activeDocs('cycles').find((item) => item.id === id);
+  const weeks = cycleWeeks(cycle, analysisRows());
+  const metrics = [...new Set(weeks.flatMap((week) => week.cells.map((cell) => cell.metric)))];
+  const head = metrics.map((metric) => `<th colspan="2">${esc(metricLabel(metric))}</th>`).join('');
+  const sub = metrics.map(() => `<th>${t('cycle.plannedShort')}</th><th>${t('cycle.actual')}</th>`).join('');
+  const body = weeks.map((week) => `<tr><td>${week.index}</td><td>${esc(week.phase)}</td>${metrics.map((metric) => {
+    const cell = week.cells.find((item) => item.metric === metric);
+    return `<td>${cell?.planned ?? '—'}</td><td>${cell ? round(cell.actual) : '—'}</td>`;
+  }).join('')}</tr>`).join('');
+  openPanel(`<div class="stack">
+    ${panelHeader(esc(cycle.name))}
+    <div class="table-wrap"><table class="cycle-table"><thead><tr><th>${t('cycle.week')}</th><th>${t('cycle.phase')}</th>${head}</tr><tr><th></th><th></th>${sub}</tr></thead><tbody>${body}</tbody></table></div>
+    <button class="btn wide" data-action="cycle-edit" data-id="${esc(cycle.id)}">${t('cycle.edit')}</button>
+  </div>`);
 }
 
 function calendarDates() {
@@ -877,6 +995,53 @@ const actions = {
     state.draft[group.dataset.chipGroup] = value;
   },
   'chip-toggle': (_, target) => target.classList.toggle('active'),
+  'cycle-new': () => { state.cycle = { name: '', startDate: dateKey(), phases: [] }; renderCycleForm(); },
+  'cycle-open': ({ id }) => openCycle(id),
+  'cycle-edit': ({ id }) => { state.cycle = structuredClone(store.activeDocs('cycles').find((c) => c.id === id)); renderCycleForm(); },
+  'cycle-template': () => {
+    readCycleForm();
+    state.cycle.phases = [['cycle.base', 4], ['cycle.strength', 4], ['cycle.power', 3], ['cycle.deload', 1]].map(([key, weeks]) => ({ ...newPhase(t(key)), weeks }));
+    renderCycleForm();
+  },
+  'cycle-delete': () => {
+    removeCycleSchedules(state.cycle.id);
+    store.saveDoc('cycles', { ...state.cycle, deletedAt: Date.now() });
+    state.cycle = null;
+    panel.close();
+  },
+  'phase-add': () => { readCycleForm(); state.phase = newPhase(); renderPhaseForm(); },
+  'phase-edit': ({ index }) => { readCycleForm(); state.phase = structuredClone(state.cycle.phases[Number(index)]); renderPhaseForm(); },
+  'phase-delete': () => {
+    state.cycle.phases = state.cycle.phases.filter((item) => item.id !== state.phase.id);
+    state.phase = null;
+    renderCycleForm();
+  },
+  'phase-routine': ({ id }, target) => {
+    const ids = new Set(state.phase.trainingIds);
+    if (ids.has(id)) ids.delete(id); else ids.add(id);
+    state.phase.trainingIds = [...ids];
+    target.classList.toggle('active');
+  },
+  'phase-day': ({ value }, target) => {
+    const day = Number(value);
+    const days = new Set(state.phase.weekdays);
+    if (days.has(day)) days.delete(day); else days.add(day);
+    state.phase.weekdays = [...days];
+    target.classList.toggle('active');
+  },
+  'planned-add': () => {
+    readPhaseForm();
+    const metric = panel.querySelector('#planned-metric').value;
+    const value = optionalNumber(panel.querySelector('#planned-value').value);
+    if (value === null) return;
+    state.phase.planned = [...state.phase.planned.filter((item) => item.metric !== metric), { metric, value }];
+    renderPhaseForm();
+  },
+  'planned-remove': ({ index }) => {
+    readPhaseForm();
+    state.phase.planned.splice(Number(index), 1);
+    renderPhaseForm();
+  },
   'rec-range': ({ range }) => { state.recRange = range; renderHome(); },
   'rec-move': ({ delta }) => {
     if (state.recRange === 'week') state.recDate = addDays(state.recDate, Number(delta) * 7);
@@ -900,6 +1065,8 @@ const actions = {
   back: () => {
     state.adding = false;
     if (state.tagTarget === 'exercise') { renderExerciseForm(); return; }
+    if (state.phase) { state.phase = null; renderCycleForm(); return; }
+    state.cycle = null;
     panel.close();
   },
   save: () => {
@@ -1035,7 +1202,7 @@ panel.addEventListener('change', (event) => {
   else setSetting(key, Number(target.value));
 });
 
-const formHandlers = { step: saveStep, exercise: saveExercise, moves: saveMoves, schedule: saveSchedule, record: saveRecordEdit };
+const formHandlers = { step: saveStep, exercise: saveExercise, moves: saveMoves, schedule: saveSchedule, record: saveRecordEdit, cycle: saveCycle, phase: savePhase };
 
 panel.addEventListener('submit', (event) => {
   event.preventDefault();

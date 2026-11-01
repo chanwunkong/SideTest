@@ -4,7 +4,7 @@ import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDate
 import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../../core/logic.js';
 import { descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, personalBests, resolveExercise, scheduleActiveOn, scheduleRemaining, targetSetsOn, weeklyStats } from '../../core/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
-import { byTag, collectRows, dailySeries, defaultCards, filterRows, headline, metricNames } from '../../core/analysis.js';
+import { byTag, collectRows, currentWeek, cycleWeeks, dailySeries, defaultCards, filterRows, headline, metricNames } from '../../core/analysis.js';
 import { advanceBy, flattenFlow, flowDuration, flowToRecord, lastLogValue, normalizeFlow } from '../../core/flow.js';
 import { normalizeEvent, registry } from '../../core/registry.js';
 
@@ -298,4 +298,18 @@ test('分析：攤平紀錄，依動作上層和分類篩選，算法只做計�
   assert.deepEqual(byTag(filterRows(rows, { kind: 'all' }, 'all', today), 'minutes'), [{ tag: '肌力', value: 20 }, { tag: '下肢', value: 20 }]);
   assert.equal(headline([], '速度', 'max'), null);
   assert.equal(defaultCards(rows)[1].metric, '速度');
+});
+
+test('週期：每週預定和實際並排，只做加總', () => {
+  const cycle = { startDate: '2026-11-02', phases: [{ name: '基礎', weeks: 2, planned: [{ metric: 'minutes', value: 100 }] }, { name: '減量', weeks: 1, planned: [] }] };
+  const rows = [{ date: '2026-11-03', values: { minutes: 40 } }, { date: '2026-11-05', values: { minutes: 30 } }, { date: '2026-11-10', values: { minutes: 20 } }];
+  const weeks = cycleWeeks(cycle, rows);
+  assert.equal(weeks.length, 3);
+  assert.deepEqual(weeks[0].cells, [{ metric: 'minutes', planned: 100, actual: 70 }]);
+  assert.equal(weeks[1].cells[0].actual, 20);
+  assert.equal(weeks[2].phase, '減量');
+  assert.equal(weeks[2].cells[0].planned, null);
+  assert.deepEqual(currentWeek(cycle, '2026-11-17'), { index: 3, total: 3, phase: '減量' });
+  assert.equal(currentWeek(cycle, '2026-11-01'), null);
+  assert.equal(currentWeek(cycle, '2026-11-23'), null);
 });

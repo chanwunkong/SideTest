@@ -3,7 +3,7 @@ import { firebaseConfig } from './firebase-config.js';
 import { dateKey, goalFor } from './logic.js';
 import { normalizeEvent, registry } from './registry.js';
 
-const COLLECTIONS = ['events', 'goals', 'attachments', 'profile', 'trainings', 'schedules', 'exercises'];
+const COLLECTIONS = ['events', 'goals', 'attachments', 'profile', 'trainings', 'schedules', 'exercises', 'cycles'];
 
 class LocalBackend {
   #dbPromise = this.#open();
@@ -81,6 +81,7 @@ class HealthStore extends EventTarget {
   trainings = [];
   schedules = [];
   exercises = [];
+  cycles = [];
   #local = new LocalBackend();
   #backend = this.#local;
   #attachments = new Map();
@@ -126,7 +127,7 @@ class HealthStore extends EventTarget {
 
   // 雲端讀不到時用上次的備份，再疊上還沒送出的修改，離線也能繼續用
   async #load() {
-    const names = ['events', 'goals', 'profile', 'trainings', 'schedules', 'exercises'];
+    const names = ['events', 'goals', 'profile', 'trainings', 'schedules', 'exercises', 'cycles'];
     let lists;
     try {
       lists = Object.fromEntries(await Promise.all(names.map(async (c) => [c, await this.#backend.list(c)])));
@@ -146,6 +147,7 @@ class HealthStore extends EventTarget {
     this.trainings = lists.trainings;
     this.schedules = lists.schedules;
     this.exercises = lists.exercises;
+    this.cycles = lists.cycles ?? [];
     this.#changed();
   }
 

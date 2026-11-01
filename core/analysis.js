@@ -107,3 +107,39 @@ export function defaultCards(rows) {
   };
   return [{ id: 'default-time', source: { kind: 'all' }, metric: 'minutes', calc: 'sum', range: '4w', view: 'bar' }, ...top.map(cardFor)];
 }
+
+// 週期的每一週：預定和實際並排，差多少由使用者判斷
+export function cycleWeeks(cycle, rows) {
+  const weeks = [];
+  let start = cycle.startDate;
+  for (const phase of cycle.phases) {
+    for (let week = 1; week <= phase.weeks; week += 1) {
+      const end = addDays(start, 6);
+      const inWeek = rows.filter((row) => row.date >= start && row.date <= end);
+      const metrics = [...new Set(['minutes', ...phase.planned.map((p) => p.metric)])];
+      weeks.push({
+        index: weeks.length + 1, phase: phase.name, week, start, end,
+        cells: metrics.map((metric) => ({
+          metric,
+          planned: phase.planned.find((p) => p.metric === metric)?.value ?? null,
+          actual: withMetric(inWeek, metric).reduce((total, row) => total + row.values[metric], 0),
+        })),
+      });
+      start = addDays(start, 7);
+    }
+  }
+  return weeks;
+}
+
+export function currentWeek(cycle, today) {
+  const total = cycle.phases.reduce((sum, phase) => sum + phase.weeks, 0);
+  const days = Math.floor((new Date(`${today}T12:00:00`) - new Date(`${cycle.startDate}T12:00:00`)) / 86400000);
+  if (days < 0 || days >= total * 7) return null;
+  const index = Math.floor(days / 7);
+  let passed = 0;
+  for (const phase of cycle.phases) {
+    if (index < passed + phase.weeks) return { index: index + 1, total, phase: phase.name };
+    passed += phase.weeks;
+  }
+  return null;
+}

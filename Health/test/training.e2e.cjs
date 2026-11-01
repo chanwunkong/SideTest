@@ -194,6 +194,26 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await trainTab('紀錄');
   await page.locator('.an-card').first().waitFor();
 
+  // 週期：範本建立階段，階段課表變成排程，預定和實際用表格對照
+  await trainTab('排程');
+  await button('＋ 新增週期').click();
+  await page.fill('#panel input[name=name]', '12 週肌力');
+  await button('12 週範本').click();
+  await page.locator('#panel .plan-row', { hasText: '基礎期' }).click();
+  await page.locator('#panel').getByRole('button', { name: 'Cindy' }).click();
+  await page.selectOption('#planned-metric', 'minutes');
+  await page.fill('#planned-value', '120');
+  await button('加入').click();
+  await panelSave();
+  await page.locator('#panel .plan-row', { hasText: '減量期' }).waitFor();
+  await panelSave();
+  await page.locator('.plan-row', { hasText: '12 週肌力' }).getByText('第 1/12 週・基礎期').waitFor();
+  await page.locator('.plan-row', { hasText: '12 週肌力' }).click();
+  await page.locator('.cycle-table tbody tr').first().getByText('120').waitFor();
+  assert.equal(await page.locator('.cycle-table tbody tr').count(), 12);
+  await page.screenshot({ path: `${shots}/cycle.png` });
+  await page.locator('#panel [data-action=back]').click();
+
   // 修改課表不影響舊紀錄
   await trainTab('課表');
   await page.locator('.routine', { hasText: 'Cindy' }).locator('.routine-open').click();
