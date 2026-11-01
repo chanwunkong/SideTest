@@ -1023,7 +1023,7 @@ const actions = {
   'sheet-close': closeSheet,
   range: ({ range }) => { state.range = range; render(); },
   'select-date': ({ date }) => {
-    if (state.swiped) { state.swiped = false; return; }
+    if (state.swiped && date) { state.swiped = false; return; }
     state.selectedDate = date || null;
     if (!date) state.anchorDate = null;
     render();
@@ -1150,7 +1150,7 @@ view.addEventListener('pointerup', (event) => {
   if (Math.abs(moved) < 50) return;
   state.swiped = true;
   moveTracker(moved < 0 ? 1 : -1);
-  setTimeout(() => { state.swiped = false; }, 300);
+  setTimeout(() => { state.swiped = false; }, 50);
 });
 
 const formHandlers = {

@@ -1195,7 +1195,7 @@ view.addEventListener('pointerup', (event) => {
   if (Math.abs(moved) < 50) return;
   state.swiped = true;
   moveRecords(moved < 0 ? 1 : -1);
-  setTimeout(() => { state.swiped = false; }, 300);
+  setTimeout(() => { state.swiped = false; }, 50);
 });
 
 view.addEventListener('change', (event) => {
