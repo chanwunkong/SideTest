@@ -16,6 +16,7 @@ const state = {
   range: 'week',
   cardId: null,
   selectedDate: null,
+  anchorDate: null,
   month: dateKey().slice(0, 7),
   recordDate: null,
   draft: null,
@@ -133,10 +134,31 @@ function renderTracker(cards, dates, selected) {
       <svg class="card-icon on" viewBox="0 0 24 24" aria-hidden="true">${type.icon}</svg>${marks}
     </div>`;
   }).join('');
+  const label = state.range === 'week'
+    ? `${shortDay(dates[0])} – ${shortDay(dates.at(-1))}`
+    : parseDateKey(dates[0]).toLocaleDateString(lang, { year: 'numeric', month: 'long' });
   return `<section class="tracker ${state.range}" style="--days:${dates.length}">
+    <div class="tracker-nav">
+      <button class="icon-btn" data-action="tracker-move" data-delta="-1" aria-label="${t('rec.prev')}">‹</button>
+      <strong>${label}</strong>
+      <button class="icon-btn" data-action="tracker-move" data-delta="1" aria-label="${t('rec.next')}">›</button>
+    </div>
     <div class="tracker-row tracker-head"><span></span>${head}</div>
     ${rows}
   </section>`;
+}
+
+const shortDay = (date) => parseDateKey(date).toLocaleDateString(lang, { month: 'numeric', day: 'numeric' });
+
+// 只移動表格顯示的範圍，下方卡片維持選取的日期
+function moveTracker(delta) {
+  const anchor = state.anchorDate ?? state.selectedDate ?? dateKey();
+  if (state.range === 'week') state.anchorDate = addDays(anchor, delta * 7);
+  else {
+    const date = parseDateKey(anchor);
+    state.anchorDate = dateKey(new Date(date.getFullYear(), date.getMonth() + delta, 1));
+  }
+  render();
 }
 
 function formatValue(value) {
@@ -175,13 +197,14 @@ function renderHome() {
   const today = dateKey();
   const selected = state.selectedDate ?? today;
   const { summary } = dayData(selected);
-  const dates = state.range === 'week' ? weekDates(selected) : monthDates(selected.slice(0, 7)).filter(Boolean);
+  const anchor = state.anchorDate ?? selected;
+  const dates = state.range === 'week' ? weekDates(anchor) : monthDates(anchor.slice(0, 7)).filter(Boolean);
   const cards = cardsList();
 
   return `
     <header class="topbar">
       <div><h1>${formatDate(selected)}</h1>
-      ${selected === today ? '' : `<button class="textlink back-today" data-action="select-date" data-date="">${t('common.back')}</button>`}</div>
+      ${selected === today && !state.anchorDate ? '' : `<button class="textlink back-today" data-action="select-date" data-date="">${t('common.back')}</button>`}</div>
       <div class="switch" role="group" aria-label="${t('home.range')}">
         <button data-action="range" data-range="week" aria-pressed="${state.range === 'week'}">${t('home.week')}</button>
         <button data-action="range" data-range="month" aria-pressed="${state.range === 'month'}">${t('home.month')}</button>
@@ -999,7 +1022,13 @@ const actions = {
   settings: openSettings,
   'sheet-close': closeSheet,
   range: ({ range }) => { state.range = range; render(); },
-  'select-date': ({ date }) => { state.selectedDate = date || null; render(); },
+  'select-date': ({ date }) => {
+    if (state.swiped) { state.swiped = false; return; }
+    state.selectedDate = date || null;
+    if (!date) state.anchorDate = null;
+    render();
+  },
+  'tracker-move': ({ delta }) => moveTracker(Number(delta)),
   'card-open': ({ id }) => {
     state.recordDate = state.selectedDate;
     state.month = (state.selectedDate ?? dateKey()).slice(0, 7);
@@ -1107,6 +1136,21 @@ const actions = {
 document.addEventListener('click', (event) => {
   const target = event.target.closest('[data-action]');
   if (target) actions[target.dataset.action](target.dataset, target);
+});
+
+// 左右滑動表格切換前後週或前後月
+let swipeStart = null;
+view.addEventListener('pointerdown', (event) => {
+  swipeStart = event.target.closest('.tracker') ? event.clientX : null;
+});
+view.addEventListener('pointerup', (event) => {
+  if (swipeStart === null) return;
+  const moved = event.clientX - swipeStart;
+  swipeStart = null;
+  if (Math.abs(moved) < 50) return;
+  state.swiped = true;
+  moveTracker(moved < 0 ? 1 : -1);
+  setTimeout(() => { state.swiped = false; }, 300);
 });
 
 const formHandlers = {

@@ -219,6 +219,15 @@ function openCycle(id) {
   </div>`);
 }
 
+function moveRecords(delta) {
+  if (state.recRange === 'week') state.recDate = addDays(state.recDate, delta * 7);
+  else {
+    const date = parseDateKey(state.recDate);
+    state.recDate = dateKey(new Date(date.getFullYear(), date.getMonth() + delta, 1));
+  }
+  renderHome();
+}
+
 function calendarDates() {
   if (state.recRange === 'week') {
     const start = weekStart(state.recDate);
@@ -1043,15 +1052,8 @@ const actions = {
     renderPhaseForm();
   },
   'rec-range': ({ range }) => { state.recRange = range; renderHome(); },
-  'rec-move': ({ delta }) => {
-    if (state.recRange === 'week') state.recDate = addDays(state.recDate, Number(delta) * 7);
-    else {
-      const date = parseDateKey(state.recDate);
-      state.recDate = dateKey(new Date(date.getFullYear(), date.getMonth() + Number(delta), 1));
-    }
-    renderHome();
-  },
-  'rec-day': ({ date }) => openDay(date),
+  'rec-move': ({ delta }) => moveRecords(Number(delta)),
+  'rec-day': ({ date }) => { if (!state.swiped) openDay(date); },
   'rec-add': openRecordAdd,
   'rec-pick': ({ kind, id }) => addRecord(kind, id),
   'rec-edit': ({ id }) => openRecordEdit(id),
@@ -1179,6 +1181,21 @@ document.addEventListener('click', (event) => {
   state.step = structuredClone(step);
   state.adding = false;
   renderStep();
+});
+
+// 左右滑動日曆切換前後週或前後月
+let swipeStart = null;
+view.addEventListener('pointerdown', (event) => {
+  swipeStart = event.target.closest('.rec-calendar') ? event.clientX : null;
+});
+view.addEventListener('pointerup', (event) => {
+  if (swipeStart === null) return;
+  const moved = event.clientX - swipeStart;
+  swipeStart = null;
+  if (Math.abs(moved) < 50) return;
+  state.swiped = true;
+  moveRecords(moved < 0 ? 1 : -1);
+  setTimeout(() => { state.swiped = false; }, 300);
 });
 
 view.addEventListener('change', (event) => {

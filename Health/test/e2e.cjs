@@ -96,7 +96,9 @@ const PASTE = `好的，結果如下：
   await card('活動').getByText('45', { exact: true }).waitFor();
 
   // 點表格的前一天：卡片切換成那天，身體數值顯示當時最新，也能補記
-  await page.locator('.tracker-row[aria-label="睡眠"] .mark').nth(week.indexOf(yesterday)).click();
+  const inThisWeek = week.includes(yesterday);
+  if (!inThisWeek) await page.locator('.tracker-nav [data-delta="-1"]').click();
+  await page.locator('.tracker-row[aria-label="睡眠"] .mark').nth(inThisWeek ? week.indexOf(yesterday) : 6).click();
   await page.getByText('回到今天').waitFor();
   await card('身體組成').getByText('17.5').waitFor();
   assert.equal(await card('飲食').getByText('—').count(), 3);
@@ -109,11 +111,31 @@ const PASTE = `好的，結果如下：
   await page.getByText('回到今天').click();
   await card('身體組成').getByText('18', { exact: true }).waitFor();
 
+  // 表格可以用按鈕和左右滑動切換前後週，下方卡片不變
+  const firstDay = () => page.locator('.tracker-head button').first().innerText();
+  const startDay = await firstDay();
+  await page.locator('.tracker-nav [data-delta="-1"]').click();
+  assert.notEqual(await firstDay(), startDay);
+  await page.locator('.tracker-nav [data-delta="1"]').click();
+  assert.equal(await firstDay(), startDay);
+  const box = await page.locator('.tracker').boundingBox();
+  await page.mouse.move(box.x + 300, box.y + 120);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 100, box.y + 120, { steps: 5 });
+  await page.mouse.up();
+  assert.notEqual(await firstDay(), startDay);
+  await page.getByText('回到今天').click();
+  assert.equal(await firstDay(), startDay);
+
   // 週月一起切換
   await button('月').click();
   const days = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
   assert.equal(await row('活動').locator('.mark').count(), days);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, '月表格不可橫向捲動');
+  const monthLabel = await page.locator('.tracker-nav strong').innerText();
+  await page.locator('.tracker-nav [data-delta="-1"]').click();
+  assert.notEqual(await page.locator('.tracker-nav strong').innerText(), monthLabel);
+  await page.locator('.tracker-nav [data-delta="1"]').click();
   await page.screenshot({ path: `${shots}/home-month.png` });
   await button('週').click();
 
