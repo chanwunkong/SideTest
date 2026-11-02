@@ -125,7 +125,8 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
         <label class="check"><input type="checkbox" data-failure="${i}"${log.failure ? ' checked' : ''}> ${t('run.failure')}</label></div>`;
     }).join('');
     overlay.className = 'run run-summary';
-    overlay.innerHTML = `<h1>${t('run.summary')}</h1><div class="stack run-summary-list">${rows}</div>
+    overlay.innerHTML = `<h1>${t('run.summary')}</h1><div class="stack run-summary-list">${rows}
+        <label class="field"><span>${t('rpe.label')}</span><input type="number" inputmode="numeric" min="0" max="10" step="1" data-rpe></label></div>
       <button class="btn primary wide" data-run="save-summary">${t('run.saveLog')}</button>`;
     overlay.querySelector('[data-run="save-summary"]').addEventListener('click', () => {
       overlay.querySelectorAll('[data-log]').forEach((input) => {
@@ -135,6 +136,8 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
       });
       overlay.querySelectorAll('[data-failure]').forEach((input) => { logs[Number(input.dataset.failure)].failure = input.checked; });
       const record = flowToRecord(training, [...doneIndexes].map((i) => queue[i]), logs, elapsedSec, completed);
+      const rpe = overlay.querySelector('[data-rpe]').value;
+      if (rpe !== '') record.rpe = Number(rpe);
       shutdown();
       onFinish(record);
     });

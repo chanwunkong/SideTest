@@ -3,6 +3,7 @@ import { LANGUAGES, lang, setLang, t } from '../../core/i18n.js';
 import { addDays, dateKey, formatTarget, goalFor, nutritionTargetsFor, parseDateKey, sevenDayAverage, summarizeDay, targetMet, targetWeight, weekStart } from '../../core/logic.js';
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
 import { ACTIVITIES, INTENSITIES, NUTRIENTS } from '../../core/registry.js';
+import { DEFAULT_FATIGUE, MUSCLES, fatigueAt, modelOf, presetMuscles, shapePoints, silhouettePaths, unmappedExercises } from '../../core/muscles.js';
 import { healthStore as store } from '../../core/store.js';
 import { exercisePath, exerciseTree, linkExercise, moveTotals, resolveExercise, schedulesOn, targetSetsOn } from '../../core/training.js';
 
@@ -16,6 +17,7 @@ const state = {
   range: 'week',
   cardId: null,
   selectedDate: null,
+  fatigueHours: 0,
   anchorDate: null,
   month: dateKey().slice(0, 7),
   recordDate: null,
@@ -64,7 +66,11 @@ const trainingById = (id) => store.trainings.find((training) => training.id === 
 const activeExercises = () => store.activeDocs('exercises');
 const exerciseName = (exercise) => (lang === 'en' && exercise.nameEn) || exercise.name;
 
-const cardsList = () => store.profile.cards ?? DEFAULT_CARDS;
+const cardsList = () => {
+  const cards = store.profile.cards ?? DEFAULT_CARDS;
+  const missing = store.profile.fatigueCardRemoved || cards.some((card) => card.type === 'fatigue');
+  return missing ? cards : [...cards, DEFAULT_CARDS.find((card) => card.type === 'fatigue')];
+};
 const saveCards = (cards) => store.saveProfile({ cards });
 
 function formatDate(key) {
@@ -83,7 +89,8 @@ function workoutText({ data }) {
   for (const log of data.logs ?? []) {
     for (const [name, value] of Object.entries(log.values ?? {})) parts.push(`${name} ${value.toLocaleString()}`);
   }
-  if (data.intensity) parts.push(intensityLabel(data.intensity));
+  if (data.rpe != null) parts.push(t('rpe.value', { n: data.rpe }));
+  else if (data.intensity) parts.push(intensityLabel(data.intensity));
   return parts.join('・');
 }
 
@@ -174,8 +181,38 @@ function metricValue(metric, summary, card, date) {
   return { value: latest.value, age: days ? t('card.daysAgo', { n: days }) : '' };
 }
 
+const muscleName = (id) => t(`muscle.${id}`);
+const fatigueSettings = () => ({ ...DEFAULT_FATIGUE, ...store.profile.fatigue });
+const fatigueEvents = () => store.liveEvents().filter((e) => e.type === 'workout');
+const fatigueValues = (hours = 0) => fatigueAt(fatigueEvents(), activeExercises(), fatigueSettings(), Date.now() + hours * 3600000);
+
+function bodySvg(values, view, interactive) {
+  const fill = (id) => {
+    const value = values.get(id)?.value ?? 0;
+    return `style="fill-opacity:${Math.min(1, 0.12 + (value / 100) * 0.88)}"`;
+  };
+  const regions = MUSCLES.filter((muscle) => muscle.view === view || muscle.view === 'both').flatMap((muscle) => muscle.shapes.map((shape) => (
+    `<polygon points="${shapePoints(shape)}" class="muscle" ${fill(muscle.id)}${interactive ? ` data-action="muscle-open" data-id="${muscle.id}"` : ''}><title>${muscleName(muscle.id)}</title></polygon>`
+  ))).join('');
+  const base = silhouettePaths().map((path) => `<path d="${path}" class="body-base"></path>`).join('');
+  return `<svg class="body-figure" viewBox="20 8 160 390" role="img" aria-label="${t(`fatigue.${view}`)}">${base}${regions}</svg>`;
+}
+
+function peakMuscle(values) {
+  return [...values.values()].sort((a, b) => b.value - a.value)[0] ?? null;
+}
+
 function renderCard(card, summary, date) {
   const type = CARD_TYPES[card.type];
+  if (card.type === 'fatigue') {
+    const values = fatigueValues();
+    const peak = peakMuscle(values);
+    return `<button class="health-card" data-action="tab" data-tab="rest" style="--c:${type.color}" aria-label="${cardLabel(card.type)}">
+      <span class="card-head"><svg class="card-icon on" viewBox="0 0 24 24" aria-hidden="true">${type.icon}</svg><span>${cardLabel(card.type)}</span></span>
+      <span class="mini-body">${bodySvg(values, 'front', false)}${bodySvg(values, 'back', false)}</span>
+      <span class="muted small-text">${peak ? t('fatigue.peak', { name: muscleName(peak.muscle), value: round(peak.value) }) : t('fatigue.none')}</span>
+    </button>`;
+  }
   const metrics = metricsOf(card);
   const doneToday = cardState(card, date) === 'done';
   const shown = metrics.map((metric) => ({ metric, ...metricValue(metric, summary, card, date) }));
@@ -313,15 +350,40 @@ function renderWorkout() {
     <a class="btn wide link-btn" href="../Training/">${t('workout.openTimer')} ›</a>`;
 }
 
+function fatigueLive() {
+  const values = fatigueValues(state.fatigueHours);
+  const ranked = [...values.values()].filter((item) => item.value >= 0.5).sort((a, b) => b.value - a.value);
+  return `<div class="body-pair">
+      <figure>${bodySvg(values, 'front', true)}<figcaption class="muted">${t('fatigue.front')}</figcaption></figure>
+      <figure>${bodySvg(values, 'back', true)}<figcaption class="muted">${t('fatigue.back')}</figcaption></figure>
+    </div>
+    ${ranked.map((item) => `<button class="stat-row muscle-row" data-action="muscle-open" data-id="${item.muscle}"><span>${muscleName(item.muscle)}</span><strong>${round(item.value)}</strong></button>`).join('') || `<p class="muted">${t('fatigue.none')}</p>`}`;
+}
+
+const fatigueTimeLabel = () => (state.fatigueHours ? t('fatigue.later', { n: state.fatigueHours }) : t('fatigue.now'));
+
 function renderRest() {
   const today = dateKey();
   const goal = goalFor(store.goals, today);
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, -i));
   const rows = days.flatMap((d) => summarizeDay(store.eventsOn(d)).sleep);
   const average = rows.length ? rows.reduce((sum, s) => sum + s.data.durationSec, 0) / rows.length : 0;
+  const unmapped = unmappedExercises(fatigueEvents(), activeExercises()).map(exerciseName);
+  const feelings = store.liveEvents().filter((e) => e.type === 'feeling').sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 8);
 
   return `
     <header class="topbar"><h1>${t('rest.title')}</h1></header>
+    <section class="card stack">
+      <div class="row"><h2 style="margin:0">${t('fatigue.title')}</h2><button class="btn" data-action="feeling-new">${t('fatigue.log')}</button></div>
+      <p class="muted">${t('fatigue.note')}</p>
+      <label class="field"><span>${t('fatigue.time')}：<strong id="fatigue-time">${fatigueTimeLabel()}</strong></span><input type="range" min="0" max="48" step="1" value="${state.fatigueHours}" data-fatigue-time aria-label="${t('fatigue.time')}"></label>
+      <div class="stack" id="fatigue-live">${fatigueLive()}</div>
+      ${unmapped.length ? `<p class="muted">${t('fatigue.unmapped', { names: esc(unmapped.join('、')) })}</p>` : ''}
+      <button class="plain" data-action="fatigue-settings">${t('fatigue.settings')}</button>
+    </section>
+    ${feelings.length ? `<section class="card"><h2>${t('feel.history')}</h2>${feelings.map((event) => `<button class="entry" data-action="feeling-open" data-id="${esc(event.id)}">
+      <span class="entry-body"><strong>${esc(feelingPart(event))}・${esc(feelingItem(event.data.item))} ${event.data.score}/10</strong><span class="muted">${formatDate(event.date)} ${timeOf(event.occurredAt)}${event.data.note ? `・${esc(event.data.note)}` : ''}</span></span>
+    </button>`).join('')}</section>` : ''}
     <section class="focus">
       <div class="focus-main">${t('rest.bedtime', { time: esc(goal.sleep.bedtime) })}</div>
       <div class="muted">${t('rest.goal', { n: goal.sleep.hours })}</div>
@@ -337,6 +399,90 @@ function renderRest() {
         <span class="entry-body"><strong>${t('rest.hours', { n: hours(s.data.durationSec) })}</strong><span class="muted">${t('rest.woke', { date: formatDate(s.date) })}</span></span>
       </button>`).join('') || `<p class="muted">${t('rest.none')}</p>`}
     </section>`;
+}
+
+const FEELING_ITEMS = ['soreness', 'recovery', 'fatigue'];
+const feelingItem = (item) => (FEELING_ITEMS.includes(item) ? t(`feel.${item}`) : item);
+const feelingPart = (event) => (event.data.muscle ? muscleName(event.data.muscle) : t('fatigue.whole'));
+
+function openMuscle(id) {
+  const entry = fatigueValues(state.fatigueHours).get(id);
+  const sources = [...(entry?.sources ?? [])].sort((a, b) => b.value - a.value).slice(0, 6)
+    .map((source) => `<div class="stat-row"><span>${esc(source.activity)}・${shortDay(source.date)}</span><span>${round(source.value)}</span></div>`).join('');
+  const feelings = store.liveEvents().filter((e) => e.type === 'feeling' && e.data.muscle === id).sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 4)
+    .map((event) => `<div class="stat-row"><span>${esc(feelingItem(event.data.item))}・${shortDay(event.date)}</span><span>${event.data.score}/10</span></div>`).join('');
+  openSheet(`<div class="stack">
+    ${sheetHeader(muscleName(id))}
+    <div class="card-big">${round(entry?.value ?? 0)}</div>
+    ${sources ? `<h2>${t('fatigue.sources')}</h2><div>${sources}</div>` : ''}
+    ${feelings ? `<h2>${t('feel.history')}</h2><div>${feelings}</div>` : ''}
+    <button class="btn primary wide" data-action="feeling-new" data-muscle="${id}">${t('fatigue.log')}</button>
+  </div>`);
+}
+
+function localTime(timestamp) {
+  const date = new Date(timestamp - new Date(timestamp).getTimezoneOffset() * 60000);
+  return date.toISOString().slice(0, 16);
+}
+
+function openFeeling(id, muscle = '') {
+  const event = id ? store.events.get(id) : null;
+  const item = event?.data.item ?? 'soreness';
+  const custom = FEELING_ITEMS.includes(item) ? '' : item;
+  state.draft = { id, item: custom ? '' : item, score: event?.data.score ?? 5 };
+  const muscleOptions = MUSCLES.map((entry) => `<option value="${entry.id}"${entry.id === (event?.data.muscle ?? muscle) ? ' selected' : ''}>${muscleName(entry.id)}</option>`).join('');
+  openSheet(`<form class="stack" data-form="feeling">
+    ${sheetHeader(t('feel.title'))}
+    <label class="field"><span>${t('feel.part')}</span><select name="muscle"><option value="">${t('fatigue.whole')}</option>${muscleOptions}</select></label>
+    <h2>${t('feel.item')}</h2>
+    ${chipGroup('item', FEELING_ITEMS.map((value) => ({ value, label: t(`feel.${value}`) })), state.draft.item)}
+    <label class="field"><span>${t('feel.custom')}</span><input name="customItem" value="${esc(custom)}"></label>
+    <label class="field"><span>${t('feel.score')}：<strong id="score-label">${state.draft.score}</strong></span><input type="range" name="score" min="0" max="10" step="1" value="${state.draft.score}"></label>
+    <label class="field"><span>${t('feel.when')}</span><input type="datetime-local" name="when" max="${localTime(Date.now())}" value="${localTime(event?.occurredAt ?? Date.now())}" required></label>
+    <label class="field"><span>${t('feel.note')}</span><input name="note" value="${esc(event?.data.note)}"></label>
+    <button class="btn primary wide">${t('common.save')}</button>
+    ${event ? deleteButton() : ''}
+  </form>`);
+}
+
+function saveFeeling(form) {
+  const values = new FormData(form);
+  const when = new Date(values.get('when'));
+  const data = {
+    muscle: values.get('muscle') || null,
+    item: values.get('customItem').trim() || state.draft.item,
+    score: Number(values.get('score')),
+    note: values.get('note'),
+  };
+  const date = dateKey(when);
+  if (state.draft.id) store.updateEvent(state.draft.id, data, { date, occurredAt: when.getTime() });
+  else store.addEvent('feeling', data, { date, occurredAt: when.getTime() });
+  closeSheet();
+  toast(t('feel.saved'));
+}
+
+function openFatigueSettings() {
+  const settings = fatigueSettings();
+  const rows = MUSCLES.map((muscle) => numberField(`hl-${muscle.id}`, muscleName(muscle.id), settings.muscles[muscle.id]?.halfLife, 'min="1"')).join('');
+  openSheet(`<form class="stack" data-form="fatigue">
+    ${sheetHeader(t('fatigue.settings'))}
+    ${numberField('halfLife', t('fatigue.halfLife'), settings.halfLife, 'min="1" required')}
+    <p class="muted">${t('fatigue.halfLifeHint')}</p>
+    <div class="grid-2">${rows}</div>
+    <button class="btn primary wide">${t('common.save')}</button>
+  </form>`);
+}
+
+function saveFatigueSettings(form) {
+  const values = new FormData(form);
+  const muscles = {};
+  for (const muscle of MUSCLES) {
+    const halfLife = optionalNumber(values.get(`hl-${muscle.id}`));
+    if (halfLife) muscles[muscle.id] = { ...modelOf({ muscles: {} }, muscle.id), halfLife };
+  }
+  store.saveProfile({ fatigue: { halfLife: Number(values.get('halfLife')) || DEFAULT_FATIGUE.halfLife, muscles } });
+  closeSheet();
+  toast(t('common.saved'));
 }
 
 function renderBody() {
@@ -576,12 +722,21 @@ function refreshValues() {
   sheet.querySelector('#value-box').innerHTML = valueBox();
 }
 
+const rpeField = (value) => `<h2>${t('rpe.label')}</h2>
+  <div class="chips rpe-chips" data-chip-group="rpe">${Array.from({ length: 11 }, (_, n) => `<button type="button" class="chip${value === n ? ' active' : ''}" data-action="rpe-pick" data-value="${n}">${n}</button>`).join('')}</div>`;
+
+function renderPartChips() {
+  const box = sheet.querySelector('#part-chips');
+  if (!box) return;
+  const active = new Set(state.draft.muscles.map((item) => item.muscle));
+  box.innerHTML = MUSCLES.map((muscle) => `<button type="button" class="chip small${active.has(muscle.id) ? ' active' : ''}" data-action="part-toggle" data-id="${muscle.id}">${muscleName(muscle.id)}</button>`).join('');
+}
+
 function openWorkout(id = null, date = dateKey(), preset = '') {
   const event = id ? store.events.get(id) : null;
   if (event?.data.trainingId) { openRecord(event.data.trainingId, event.date, event); return; }
-  const intensity = event?.data.intensity ?? null;
   const values = { ...(event?.data.logs?.[0]?.values ?? {}) };
-  state.draft = { id, date: event?.date ?? date, intensity, fields: Object.keys(values), values };
+  state.draft = { id, date: event?.date ?? date, rpe: event?.data.rpe ?? null, intensity: event?.data.intensity ?? null, fields: Object.keys(values), values, muscles: [] };
   const list = activeExercises();
   const options = exerciseTree(list).map(({ exercise }) => `<option value="${esc(exercisePath(list, exercise.id, exerciseName))}"></option>`).join('');
   const minutes = event?.data.durationSec ? Math.round(event.data.durationSec / 60) : '';
@@ -594,8 +749,8 @@ function openWorkout(id = null, date = dateKey(), preset = '') {
     ${numberField('minutes', t('free.duration'), minutes, 'min="1"')}
     <label class="check"><input type="checkbox" name="allDay"${event?.data.allDay ? ' checked' : ''}> ${t('free.allDay')}</label>
     <div data-start-time${event?.data.allDay ? ' hidden' : ''}>${timeField(event?.occurredAt ?? Date.now())}</div>
-    <h2>${t('workout.intensity')}</h2>
-    ${chipGroup('intensity', INTENSITIES.map((i) => ({ value: i.key, label: intensityLabel(i.key) })), intensity)}
+    ${rpeField(state.draft.rpe)}
+    <details id="part-box"><summary>${t('workout.parts')}</summary><div class="chips" id="part-chips"></div></details>
     ${dateField(state.draft.date)}
     <label class="field"><span>${t('workout.note')}</span><input name="note" value="${esc(event?.data.note)}"></label>
     ${id ? '' : repeatFields()}
@@ -605,6 +760,8 @@ function openWorkout(id = null, date = dateKey(), preset = '') {
   const exerciseInput = sheet.querySelector('[name=exercise]');
   const fillDefault = () => {
     const exercise = resolveExercise(activeExercises(), exerciseInput.value, exerciseName);
+    state.draft.muscles = exercise?.muscles?.length ? exercise.muscles : presetMuscles(exerciseInput.value);
+    renderPartChips();
     if (!exercise) return;
     const field = sheet.querySelector('[name=minutes]');
     if (exercise.defaultMinutes && !field.value) field.value = exercise.defaultMinutes;
@@ -626,7 +783,7 @@ function openRecord(trainingId, date = dateKey(), event = null) {
   const training = trainingById(trainingId);
   const moves = event?.data.moves ?? training?.moves ?? [];
   const mode = event?.data.mode ?? training.mode;
-  state.draft = { id: event?.id ?? null, trainingId, mode, moves, name: event?.data.activity ?? training.name };
+  state.draft = { id: event?.id ?? null, trainingId, mode, moves, name: event?.data.activity ?? training.name, rpe: event?.data.rpe ?? null };
   const extras = moves.map((move, i) => (move.metrics?.reps ? numberField(`extra-${i}`, t('record.extra', { name: esc(move.name) }), event?.data.extra?.[i]) : '')).join('');
   const rest = training?.trackRest ? numberField('restSec', t('record.rest'), event?.data.restSec) : '';
   openSheet(`<form class="stack" data-form="record">
@@ -636,6 +793,7 @@ function openRecord(trainingId, date = dateKey(), event = null) {
       ${timeField(event?.occurredAt ?? Date.now())}
       ${numberField('minutes', t('workout.duration'), event?.data.durationSec ? Math.round(event.data.durationSec / 60) : '', 'min="1"')}
     </div>
+    ${rpeField(state.draft.rpe)}
     ${extras || rest ? `<details><summary>${t('record.detail')}</summary><div class="stack" style="margin-top:10px">${extras}${rest}</div></details>` : ''}
     ${dateField(event?.date ?? date)}
     ${event ? '' : repeatFields()}
@@ -654,7 +812,7 @@ function saveRecord(form) {
     if (value) extra[i] = value;
   });
   const data = {
-    trainingId: draft.trainingId, activity: draft.name, mode: draft.mode, moves: draft.moves,
+    trainingId: draft.trainingId, activity: draft.name, mode: draft.mode, moves: draft.moves, rpe: draft.rpe,
     sets: optionalNumber(values.get('sets')), extra, restSec: optionalNumber(values.get('restSec')),
     durationSec: (optionalNumber(values.get('minutes')) ?? 0) * 60 || null,
   };
@@ -679,7 +837,7 @@ function saveWorkout(form) {
   const minutes = optionalNumber(values.get('minutes'));
   const logged = Object.fromEntries(Object.entries(draft.values).filter(([key]) => draft.fields.includes(key)));
   const data = {
-    exerciseId, activity: name, intensity: draft.intensity, allDay,
+    exerciseId, activity: name, rpe: draft.rpe, intensity: draft.intensity, allDay,
     durationSec: minutes ? minutes * 60 : null, note: values.get('note'),
     moves: [{ exerciseId, name, metrics: {} }],
     logs: Object.keys(logged).length ? [{ label: name, exerciseId, values: logged, failure: false }] : [],
@@ -687,7 +845,7 @@ function saveWorkout(form) {
   const occurredAt = allDay ? new Date(`${date}T12:00:00`).getTime() : startedAt(values);
   // 記住這個動作用的欄位，下次自動帶入
   const exercise = activeExercises().find((e) => e.id === exerciseId);
-  store.saveDoc('exercises', { ...exercise, fields: draft.fields, allDay });
+  store.saveDoc('exercises', { ...exercise, fields: draft.fields, allDay, muscles: draft.muscles });
   if (draft.id) store.updateEvent(draft.id, data, { date, occurredAt });
   else {
     store.addEvent('workout', data, { date, occurredAt });
@@ -1062,6 +1220,7 @@ const actions = {
   },
   'card-remove': () => {
     const previous = cardsList();
+    if (previous.find((c) => c.id === state.cardId)?.type === 'fatigue') store.saveProfile({ fatigueCardRemoved: true });
     saveCards(previous.filter((c) => c.id !== state.cardId));
     closeSheet();
     toast(t('cards.removed'), () => saveCards(previous));
@@ -1087,6 +1246,23 @@ const actions = {
     closeSheet();
     toast(t('common.deleted'), () => store.restoreEvent(id));
   },
+  'rpe-pick': ({ value }, target) => {
+    const score = Number(value);
+    state.draft.rpe = state.draft.rpe === score ? null : score;
+    target.parentElement.querySelectorAll('.chip').forEach((chip) => chip.classList.toggle('active', Number(chip.dataset.value) === state.draft.rpe));
+  },
+  'part-toggle': ({ id }) => {
+    const chosen = state.draft.muscles.some((item) => item.muscle === id)
+      ? state.draft.muscles.filter((item) => item.muscle !== id)
+      : [...state.draft.muscles, { muscle: id, percent: 0 }];
+    const percent = chosen.length ? Math.round(100 / chosen.length) : 0;
+    state.draft.muscles = chosen.map((item) => ({ ...item, percent }));
+    renderPartChips();
+  },
+  'muscle-open': ({ id }) => openMuscle(id),
+  'feeling-new': ({ muscle }) => openFeeling(null, muscle),
+  'feeling-open': ({ id }) => openFeeling(id),
+  'fatigue-settings': openFatigueSettings,
   'value-add': ({ name }) => {
     readValues();
     const field = name ?? sheet.querySelector('#value-name').value.trim();
@@ -1159,6 +1335,8 @@ const formHandlers = {
   workout: saveWorkout,
   record: saveRecord,
   sleep: saveSleep,
+  feeling: saveFeeling,
+  fatigue: saveFatigueSettings,
   body: saveBody,
   profile: saveProfile,
   goal: (form) => saveGoalForm(form, 'goal'),
@@ -1174,6 +1352,17 @@ sheet.addEventListener('submit', (event) => {
 
 // close 事件是非同步的，此時可能已經開了下一張表單
 // 選了重複方式才顯示後續欄位
+view.addEventListener('input', (event) => {
+  if (!event.target.matches('[data-fatigue-time]')) return;
+  state.fatigueHours = Number(event.target.value);
+  view.querySelector('#fatigue-time').textContent = fatigueTimeLabel();
+  view.querySelector('#fatigue-live').innerHTML = fatigueLive();
+});
+
+sheet.addEventListener('input', (event) => {
+  if (event.target.name === 'score') sheet.querySelector('#score-label').textContent = event.target.value;
+});
+
 sheet.addEventListener('change', (event) => {
   if (event.target.name === 'allDay') {
     sheet.querySelector('[data-start-time]').hidden = event.target.checked;

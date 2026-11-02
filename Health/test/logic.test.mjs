@@ -4,6 +4,7 @@ import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDate
 import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../../core/logic.js';
 import { descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, personalBests, resolveExercise, scheduleActiveOn, scheduleRemaining, targetSetsOn, weeklyStats } from '../../core/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
+import { DEFAULT_FATIGUE, MUSCLES, fatigueAt, loadOf, modelOf, presetMuscles, unmappedExercises } from '../../core/muscles.js';
 import { byTag, collectRows, currentWeek, cycleWeeks, dailySeries, defaultCards, filterRows, headline, metricNames } from '../../core/analysis.js';
 import { advanceBy, flattenFlow, flowDuration, flowToRecord, lastLogValue, normalizeFlow } from '../../core/flow.js';
 import { normalizeEvent, registry } from '../../core/registry.js';
@@ -312,4 +313,34 @@ test('週期：每週預定和實際並排，只做加總', () => {
   assert.deepEqual(currentWeek(cycle, '2026-11-17'), { index: 3, total: 3, phase: '減量' });
   assert.equal(currentWeek(cycle, '2026-11-01'), null);
   assert.equal(currentWeek(cycle, '2026-11-23'), null);
+});
+
+test('肌肉疲勞：依比例分配、依半衰期衰減，每塊肌肉可用不同參數', () => {
+  assert.equal(MUSCLES.length, 17);
+  const exercises = [{ id: 'pull', muscles: [{ muscle: 'lats', percent: 50 }, { muscle: 'biceps', percent: 50 }] }, { id: 'none' }];
+  const start = Date.UTC(2026, 10, 1);
+  const events = [{ id: 'a', occurredAt: start, date: '2026-11-01', data: { activity: '引體', exerciseId: 'pull', durationSec: 3600, rpe: 5, moves: [{ exerciseId: 'pull', metrics: {} }] } }];
+  const settings = { halfLife: 24, muscles: { biceps: { halfLife: 12 } } };
+  const now = fatigueAt(events, exercises, settings, start);
+  assert.equal(now.get('lats').value, 30);
+  const later = fatigueAt(events, exercises, settings, start + 24 * 3600000);
+  assert.equal(later.get('lats').value, 15);
+  assert.equal(later.get('biceps').value, 7.5);
+  assert.equal(later.get('lats').sources[0].activity, '引體');
+  assert.equal(fatigueAt(events, exercises, settings, start - 1000).size, 0);
+  assert.deepEqual(modelOf(DEFAULT_FATIGUE, 'lats'), { model: 'halfLife', halfLife: 24 });
+});
+
+test('負荷依時間或次數，RPE 優先於舊的強度', () => {
+  assert.equal(loadOf({ durationSec: 600, rpe: 10 }), 20);
+  assert.equal(loadOf({ durationSec: 600, intensity: 'hard' }), 14);
+  assert.equal(loadOf({ sets: 2, moves: [{ metrics: { reps: 10 } }] }), 4);
+  assert.equal(loadOf({}), 5);
+});
+
+test('常見動作有起始對應，沒有設定的動作會列出', () => {
+  assert.equal(presetMuscles('槓鈴深蹲')[0].muscle, 'quads');
+  assert.deepEqual(presetMuscles('自創動作'), []);
+  const names = unmappedExercises([{ data: { exerciseId: 'a' } }], [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }]);
+  assert.deepEqual(names.map((e) => e.id), ['a']);
 });

@@ -286,6 +286,17 @@ dialog.full { max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; pa
 .cycle-table th:nth-child(2), .cycle-table td:nth-child(2) { text-align: left; }
 .cycle-table th { color: var(--muted); font-weight: 500; }
 .amount select { max-width: 110px; min-height: 46px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
+.body-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.body-pair figure { margin: 0; text-align: center; }
+.body-figure { display: block; width: 100%; height: auto; }
+.body-base { fill: var(--surface-2); }
+.muscle { fill: var(--rest); stroke: var(--surface); stroke-width: 1.5; }
+.muscle[data-action] { cursor: pointer; }
+.mini-body { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: auto; }
+.small-text { font-size: 12px; }
+.muscle-row { width: 100%; }
+.rpe-chips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.rpe-chips .chip { padding: 0; min-height: 44px; }
 .week-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 56px; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; }
 .week-row .bar-track { margin: 0; }
 .week-row small { color: var(--muted); text-align: right; white-space: nowrap; }

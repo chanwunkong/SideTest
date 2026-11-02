@@ -49,6 +49,14 @@ export const registry = {
       day.body.push(event);
     },
   },
+  feeling: {
+    version: 1,
+    validate: (data) => typeof data.score === 'number' && !!data.item,
+    upgrade: {},
+    summarize(day, data, event) {
+      day.feelings.push(event);
+    },
+  },
   sleep: {
     version: 1,
     validate: (data) => data.durationSec > 0,

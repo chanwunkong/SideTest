@@ -30,9 +30,9 @@ const PASTE = `好的，結果如下：
 
   // 打開就是總覽，不問問題
   await page.getByText('生理功能總覽').waitFor();
-  assert.equal(await page.locator('.health-card').count(), 4);
+  assert.equal(await page.locator('.health-card').count(), 5);
   assert.equal(await row('飲食').locator('.mark').count(), 7);
-  assert.equal(await page.locator('.tracker-row[aria-label]').count(), 4);
+  assert.equal(await page.locator('.tracker-row[aria-label]').count(), 5);
   assert.equal(await page.locator('#sheet[open]').count(), 0);
   await page.screenshot({ path: `${shots}/home-empty.png` });
 
@@ -143,14 +143,14 @@ const PASTE = `好的，結果如下：
   await button('編輯').click();
   await page.locator('.edit-row', { hasText: '活動' }).getByRole('button', { name: '往前' }).click();
   await button('＋ 身體組成').click();
-  assert.equal(await page.locator('.edit-row').count(), 5);
+  assert.equal(await page.locator('.edit-row').count(), 6);
   await closeSheet();
-  assert.equal(await page.locator('.tracker-row[aria-label]').count(), 5);
+  assert.equal(await page.locator('.tracker-row[aria-label]').count(), 6);
   assert.equal(await page.locator('.health-card').nth(2).locator('.card-head').innerText(), '活動');
-  await page.locator('.health-card').nth(4).click();
+  await page.locator('.health-card').nth(5).click();
   await button('卡片設定').click();
   await button('移除這張卡片').click();
-  assert.equal(await page.locator('.health-card').count(), 4);
+  assert.equal(await page.locator('.health-card').count(), 5);
 
   await page.screenshot({ path: `${shots}/home.png` });
 

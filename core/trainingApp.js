@@ -4,6 +4,7 @@ import { COLORS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, 
 import { addDays, dateKey, parseDateKey, weekStart } from './logic.js';
 import { clearSession, getSettings, runFlow, savedSession, setSetting, speak } from './flowRun.js';
 import { LANGUAGES, lang, setLang, t } from './i18n.js';
+import { MUSCLES, presetMuscles } from './muscles.js';
 import { healthStore as store } from './store.js';
 import { TAG_GROUPS, recentTags, rememberTag, tagLabel } from './tags.js';
 import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, linkExercise, scheduleRemaining } from './training.js';
@@ -306,6 +307,7 @@ function openRecordEdit(id) {
       ${numberField('minutes', t('workout.duration'), event.data.durationSec ? Math.round(event.data.durationSec / 60) : '', 'min="1"')}
     </div>
     ${event.data.mode === 'sets' ? numberField('sets', t('rec.sets'), event.data.sets, 'min="1"') : ''}
+    ${numberField('rpe', t('rpe.label'), event.data.rpe, 'min="0" max="10" step="1"')}
     ${logs}
     <button class="btn primary wide">${t('common.save')}</button>
     <button type="button" class="btn danger wide" data-action="rec-delete">${t('common.delete')}</button>
@@ -322,7 +324,7 @@ function saveRecordEdit(form) {
     values: Object.fromEntries(Object.keys(log.values ?? {}).map((name) => [name, optionalNumber(values.get(`log-${i}-${name}`))]).filter(([, value]) => value !== null)),
   }));
   const minutes = optionalNumber(values.get('minutes'));
-  const data = { logs, durationSec: minutes ? minutes * 60 : null };
+  const data = { logs, durationSec: minutes ? minutes * 60 : null, rpe: optionalNumber(values.get('rpe')) };
   if (event.data.mode === 'sets') data.sets = optionalNumber(values.get('sets'));
   store.updateEvent(event.id, data, { date, occurredAt: new Date(`${date}T${values.get('startTime')}`).getTime() });
   openDay(date);
@@ -517,7 +519,7 @@ function openNewRoutine() {
 function openExercise(id) {
   const list = store.activeDocs('exercises');
   const exercise = id ? list.find((e) => e.id === id) : null;
-  state.draft = { id: exercise?.id, name: exercise?.name ?? '', nameEn: exercise?.nameEn ?? '', parentId: exercise?.parentId ?? null, defaultMinutes: exercise?.defaultMinutes ?? null, tags: exercise?.tags ?? [] };
+  state.draft = { id: exercise?.id, name: exercise?.name ?? '', nameEn: exercise?.nameEn ?? '', parentId: exercise?.parentId ?? null, defaultMinutes: exercise?.defaultMinutes ?? null, tags: exercise?.tags ?? [], muscles: exercise?.muscles ?? presetMuscles(exercise?.name ?? '') };
   renderExerciseForm();
 }
 
@@ -536,6 +538,15 @@ function renderExerciseForm() {
     <label class="field"><span>${t('exercise.nameEn')}</span><input name="nameEn" value="${esc(state.draft.nameEn)}"></label>
     ${numberField('defaultMinutes', t('exercise.defaultMinutes'), state.draft.defaultMinutes, 'min="1"')}
     <label class="field"><span>${t('exercise.parent')}</span><select name="parentId"><option value="">${t('exercise.noParent')}</option>${parents}</select></label>
+    <h2>${t('exercise.muscles')}</h2>
+    ${state.draft.muscles.map((item, i) => `<div class="value-row">
+      ${numberField(`muscle-${i}`, t('exercise.percent', { name: t(`muscle.${item.muscle}`) }), item.percent, 'min="0" max="100"')}
+      <button type="button" class="icon-btn" data-action="muscle-remove" data-index="${i}" aria-label="${t('common.delete')}">✕</button>
+    </div>`).join('')}
+    <div class="amount">
+      <select id="muscle-pick" aria-label="${t('exercise.muscles')}">${MUSCLES.filter((m) => !state.draft.muscles.some((item) => item.muscle === m.id)).map((m) => `<option value="${m.id}">${t(`muscle.${m.id}`)}</option>`).join('')}</select>
+      <button type="button" class="btn" data-action="muscle-add">${t('exercise.addMuscle')}</button>
+    </div>
     <h2>${t('exercise.tags')}</h2>
     <div class="editor-tags">${state.draft.tags.map((tag) => `<span class="tag">${esc(tagLabel(tag, lang))}</span>`).join('')}
       <button type="button" class="plain" data-action="exercise-tags">${t('exercise.addTag')}</button></div>
@@ -547,6 +558,7 @@ function renderExerciseForm() {
 
 function readExerciseForm() {
   const values = new FormData(panel.querySelector('form'));
+  state.draft.muscles = state.draft.muscles.map((item, i) => ({ ...item, percent: Number(values.get(`muscle-${i}`)) || 0 }));
   Object.assign(state.draft, { name: values.get('name'), nameEn: values.get('nameEn'), parentId: values.get('parentId') || null, defaultMinutes: optionalNumber(values.get('defaultMinutes')) });
 }
 
@@ -1095,6 +1107,17 @@ const actions = {
   'metric-add': () => addMetric(),
   'metric-quick': ({ name }) => addMetric(name),
   'metric-remove': ({ index }) => { state.step.metrics.splice(Number(index), 1); refreshMetrics(); },
+  'muscle-add': () => {
+    readExerciseForm();
+    const muscle = panel.querySelector('#muscle-pick').value;
+    if (muscle && !state.draft.muscles.some((item) => item.muscle === muscle)) state.draft.muscles.push({ muscle, percent: 0 });
+    renderExerciseForm();
+  },
+  'muscle-remove': ({ index }) => {
+    readExerciseForm();
+    state.draft.muscles.splice(Number(index), 1);
+    renderExerciseForm();
+  },
   'exercise-tags': () => {
     readExerciseForm();
     state.tagTarget = 'exercise';

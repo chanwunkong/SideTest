@@ -39,11 +39,19 @@ export const CARD_TYPES = {
   },
 };
 
+CARD_TYPES.fatigue = {
+  label: '肌肉疲勞', color: 'var(--rest)', eventTypes: ['feeling'], frequency: 'none',
+  icon: '<path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 22l2-9-3-4 5 1h4l5-1-3 4 2 9"/>',
+  metrics: [{ key: 'peak', label: '最高', unit: '', read: () => null }],
+  hasRecord: (day) => day.feelings.length > 0,
+};
+
 export const DEFAULT_CARDS = [
   { id: 'body', type: 'body', metrics: ['weightKg', 'bodyFat', 'muscleKg'] },
   { id: 'diet', type: 'diet', metrics: ['kcal', 'protein_g', 'water_ml'] },
   { id: 'sleep', type: 'sleep', metrics: ['hours'] },
   { id: 'activity', type: 'activity', metrics: ['sets', 'minutes'] },
+  { id: 'fatigue', type: 'fatigue', metrics: ['peak'] },
 ];
 
 export const metricsOf = (card) => card.metrics.map((key) => CARD_TYPES[card.type].metrics.find((m) => m.key === key)).filter(Boolean);

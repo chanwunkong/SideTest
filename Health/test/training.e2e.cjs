@@ -84,6 +84,44 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await save();
   await page.locator('.entry', { hasText: '心情 8' }).waitFor();
 
+  // 肌肉疲勞：動作帶入常見肌肉，RPE 計入，人形圖和首頁卡片更新
+  await button('＋ 新增').click();
+  await page.fill('#pick-search', '深蹲訓練');
+  await button('新增「深蹲訓練」').click();
+  await page.fill('input[name=minutes]', '60');
+  await page.locator('[data-action=rpe-pick][data-value="8"]').click();
+  await page.getByText('部位（選填）').click();
+  assert.match(await page.locator('[data-action=part-toggle].active').first().innerText(), /股四頭肌/);
+  await save();
+  await tab('休息');
+  await page.locator('.body-figure').first().waitFor();
+  assert.equal(await page.locator('.body-pair .body-figure').count(), 2);
+  // 前面的走路紀錄也會累積，所以比較數值變化，不寫死總數
+  const quads = async () => Number(await page.locator('.muscle-row', { hasText: '股四頭肌' }).locator('strong').innerText());
+  const fresh = await quads();
+  assert.ok(fresh >= 47.9, `fresh ${fresh}`);
+  await page.screenshot({ path: `${shots}/fatigue.png`, fullPage: true });
+  await page.locator('.muscle-row', { hasText: '股四頭肌' }).click();
+  await page.getByText('深蹲訓練').first().waitFor();
+  await page.locator('#sheet [data-action=feeling-new]').click();
+  assert.equal(await page.inputValue('select[name=muscle]'), 'quads');
+  await page.locator('input[name=score]').fill('7');
+  await page.getByRole('button', { name: '儲存' }).click();
+  await page.getByText('股四頭肌・肌肉痠痛 7/10').waitFor();
+  await page.locator('[data-fatigue-time]').fill('24');
+  await page.getByText('24 小時後').waitFor();
+  const dayLater = await quads();
+  assert.ok(dayLater >= 23.9 && dayLater < fresh * 0.6, `day later ${dayLater}`);
+  await page.getByRole('button', { name: '計算設定' }).click();
+  await page.fill('#sheet input[name=hl-quads]', '12');
+  await save();
+  await page.locator('[data-fatigue-time]').waitFor();
+  const shorter = await quads();
+  assert.ok(shorter < dayLater * 0.6, `shorter half-life ${shorter}`);
+  await tab('今日');
+  await page.locator('.health-card', { hasText: '肌肉疲勞' }).getByText('最高', { exact: false }).waitFor();
+  await page.screenshot({ path: `${shots}/home-fatigue.png`, fullPage: true });
+
   // 不用排程也能新增今天的運動
   await tab('運動');
   await button('＋ 新增').click();
@@ -146,7 +184,7 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await page.goto(timerUrl);
   await trainTab('動作');
   const library = page.locator('.card').first();
-  await library.getByRole('button', { name: '深蹲' }).waitFor();
+  await library.getByRole('button', { name: '深蹲', exact: true }).waitFor();
   await button('＋ 新增動作').click();
   await page.fill('#panel input[name=name]', '槓鈴深蹲');
   await page.selectOption('select[name=parentId]', { label: '深蹲' });

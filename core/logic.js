@@ -86,7 +86,7 @@ export function sevenDayAverage(eventsOn, today) {
 }
 
 export function summarizeDay(events) {
-  const day = { nutrients: {}, meals: [], intakes: [], workouts: [], body: [], sleep: [] };
+  const day = { nutrients: {}, meals: [], intakes: [], workouts: [], body: [], sleep: [], feelings: [] };
   for (const event of events) {
     const def = registry[event.type];
     if (def && event.schemaVersion <= def.version) def.summarize(day, event.data, event);
