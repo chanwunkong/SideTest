@@ -1,5 +1,5 @@
 // 先用網路，離線時才用快取，避免舊版畫面卡在手機上
-const CACHE_NAME = 'health-v30';
+const CACHE_NAME = 'health-v31';
 const SHELL = ['./', './index.html', './manifest.json', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './js/app.js', './js/cards.js', './js/mealImport.js', '../core/health.css', '../core/i18n.js', '../core/logic.js', '../core/registry.js', '../core/store.js', '../core/training.js', '../core/flow.js', '../core/muscles.js', '../core/flowRun.js', '../core/tags.js', '../core/firebase-config.js'];
 
 self.addEventListener('install', (event) => {

@@ -4,7 +4,7 @@ import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDate
 import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../../core/logic.js';
 import { descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, personalBests, resolveExercise, scheduleActiveOn, scheduleRemaining, targetSetsOn, weeklyStats } from '../../core/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
-import { DEFAULT_FATIGUE, MUSCLES, fatigueAt, levelOf, loadOf, modelOf, presetMuscles, scoreOf, unmappedExercises } from '../../core/muscles.js';
+import { DEFAULT_FATIGUE, MUSCLES, fatigueAt, levelOf, loadOf, modelOf, presetMuscles, scoreOf, systemicAt, systemicLoadOf, systemicScore, unmappedExercises } from '../../core/muscles.js';
 import { byTag, collectRows, currentWeek, cycleWeeks, dailySeries, defaultCards, filterRows, headline, metricNames } from '../../core/analysis.js';
 import { advanceBy, flattenFlow, flowDuration, flowToRecord, lastLogValue, normalizeFlow } from '../../core/flow.js';
 import { normalizeEvent, registry } from '../../core/registry.js';
@@ -322,17 +322,18 @@ test('肌肉疲勞：依比例分配、依半衰期衰減，每塊肌肉可用�
   const events = [{ id: 'a', occurredAt: start, date: '2026-11-01', data: { activity: '引體', exerciseId: 'pull', durationSec: 3600, rpe: 5, moves: [{ exerciseId: 'pull', metrics: {} }] } }];
   const settings = { halfLife: 24, muscles: { biceps: { halfLife: 12 } } };
   const now = fatigueAt(events, exercises, settings, start);
-  assert.equal(now.get('lats').value, 30);
+  assert.equal(now.get('lats').value, 60);
   const later = fatigueAt(events, exercises, settings, start + 24 * 3600000);
-  assert.equal(later.get('lats').value, 15);
-  assert.equal(later.get('biceps').value, 7.5);
+  assert.equal(later.get('lats').value, 30);
+  assert.equal(later.get('biceps').value, 15);
   assert.equal(later.get('lats').sources[0].activity, '引體');
   assert.equal(fatigueAt(events, exercises, settings, start - 1000).size, 0);
   assert.deepEqual(modelOf(DEFAULT_FATIGUE, 'lats'), { model: 'halfLife', halfLife: 24 });
 });
 
 test('負荷依時間或次數，RPE 優先於舊的強度', () => {
-  assert.equal(loadOf({ durationSec: 600, rpe: 10 }), 20);
+  assert.equal(loadOf({ durationSec: 600, rpe: 10 }), 30);
+  assert.equal(loadOf({ durationSec: 3600, rpe: 5 }), 60);
   assert.equal(loadOf({ durationSec: 600, intensity: 'hard' }), 14);
   assert.equal(loadOf({ sets: 2, moves: [{ metrics: { reps: 10 } }] }), 4);
   assert.equal(loadOf({}), 5);
@@ -351,4 +352,21 @@ test('疲勞分數是 0 到 10，依分界分成五級', () => {
   assert.equal(scoreOf(30, { fullLoad: 30 }), 10);
   assert.deepEqual([0, 0.4, 2, 5, 8, 10].map((score) => levelOf(score, DEFAULT_FATIGUE)), ['none', 'low', 'mid', 'high', 'top', 'top']);
   assert.equal(levelOf(3, { levels: [4, 6, 8] }), 'low');
+});
+
+test('Cindy 兩輪做到極限：不靠最大能力，動作多不稀釋，肌肉和心肺分開', () => {
+  const exercises = [
+    { id: 'pull', muscles: [{ muscle: 'lats', percent: 50 }, { muscle: 'biceps', percent: 50 }] },
+    { id: 'push', muscles: [{ muscle: 'chest', percent: 100 }] },
+    { id: 'squat', muscles: [{ muscle: 'quads', percent: 100 }] },
+  ];
+  const moves = ['pull', 'push', 'squat'].map((exerciseId, i) => ({ exerciseId, metrics: { reps: (i + 1) * 5 } }));
+  const data = { moves, sets: 2, limit: 'both' };
+  const values = fatigueAt([{ id: 'c', occurredAt: 0, date: '2026-11-02', data }], exercises, DEFAULT_FATIGUE, 0);
+  assert.equal(values.get('chest').value, 33.75);
+  assert.equal(values.get('lats').value, 33.75 / 2 * 1);
+  assert.equal(systemicLoadOf(data), 168.75);
+  assert.equal(loadOf({ ...data, limit: 'cardio' }), 27);
+  assert.equal(systemicLoadOf({ ...data, limit: 'muscle' }), 135);
+  assert.equal(systemicScore(systemicAt([{ occurredAt: 0, data }], DEFAULT_FATIGUE, 0), DEFAULT_FATIGUE), 4.21875);
 });

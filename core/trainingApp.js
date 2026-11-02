@@ -4,7 +4,7 @@ import { COLORS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, 
 import { addDays, dateKey, parseDateKey, weekStart } from './logic.js';
 import { clearSession, getSettings, runFlow, savedSession, setSetting, speak } from './flowRun.js';
 import { LANGUAGES, lang, setLang, t } from './i18n.js';
-import { MUSCLES, presetMuscles } from './muscles.js';
+import { LIMITS, MUSCLES, presetMuscles } from './muscles.js';
 import { healthStore as store } from './store.js';
 import { TAG_GROUPS, recentTags, rememberTag, tagLabel } from './tags.js';
 import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, linkExercise, scheduleRemaining } from './training.js';
@@ -313,6 +313,7 @@ function openRecordEdit(id) {
     </div>
     ${event.data.mode === 'sets' ? numberField('sets', t('rec.sets'), event.data.sets, 'min="1"') : ''}
     ${numberField('rpe', t('rpe.label'), event.data.rpe, 'min="0" max="10" step="1"')}
+    <label class="field"><span>${t('limit.label')}</span><select name="limit"><option value=""></option>${LIMITS.map((key) => `<option value="${key}"${event.data.limit === key ? ' selected' : ''}>${t(`limit.${key}`)}</option>`).join('')}</select></label>
     ${logs}
     <button class="btn primary wide">${t('common.save')}</button>
     <button type="button" class="btn danger wide" data-action="rec-delete">${t('common.delete')}</button>
@@ -329,7 +330,7 @@ function saveRecordEdit(form) {
     values: Object.fromEntries(Object.keys(log.values ?? {}).map((name) => [name, optionalNumber(values.get(`log-${i}-${name}`))]).filter(([, value]) => value !== null)),
   }));
   const minutes = optionalNumber(values.get('minutes'));
-  const data = { logs, durationSec: minutes ? minutes * 60 : null, rpe: optionalNumber(values.get('rpe')) };
+  const data = { logs, durationSec: minutes ? minutes * 60 : null, rpe: optionalNumber(values.get('rpe')), limit: values.get('limit') || null };
   if (event.data.mode === 'sets') data.sets = optionalNumber(values.get('sets'));
   store.updateEvent(event.id, data, { date, occurredAt: new Date(`${date}T${values.get('startTime')}`).getTime() });
   openDay(date);

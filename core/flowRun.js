@@ -126,8 +126,14 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
     }).join('');
     overlay.className = 'run run-summary';
     overlay.innerHTML = `<h1>${t('run.summary')}</h1><div class="stack run-summary-list">${rows}
-        <label class="field"><span>${t('rpe.label')}</span><input type="number" inputmode="numeric" min="0" max="10" step="1" data-rpe></label></div>
+        <label class="field"><span>${t('rpe.label')}</span><input type="number" inputmode="numeric" min="0" max="10" step="1" data-rpe></label>
+        <div class="chips">${['muscle', 'cardio', 'both'].map((key) => `<button type="button" class="chip" data-limit="${key}">${t(`limit.${key}`)}</button>`).join('')}</div></div>
       <button class="btn primary wide" data-run="save-summary">${t('run.saveLog')}</button>`;
+    overlay.querySelectorAll('[data-limit]').forEach((chip) => chip.addEventListener('click', () => {
+      const active = chip.classList.contains('active');
+      overlay.querySelectorAll('[data-limit]').forEach((other) => other.classList.remove('active'));
+      chip.classList.toggle('active', !active);
+    }));
     overlay.querySelector('[data-run="save-summary"]').addEventListener('click', () => {
       overlay.querySelectorAll('[data-log]').forEach((input) => {
         const log = logs[Number(input.dataset.log)];
@@ -138,6 +144,8 @@ export function runFlow(training, { events, onFinish, onClose, resume = null }) 
       const record = flowToRecord(training, [...doneIndexes].map((i) => queue[i]), logs, elapsedSec, completed);
       const rpe = overlay.querySelector('[data-rpe]').value;
       if (rpe !== '') record.rpe = Number(rpe);
+      const limit = overlay.querySelector('[data-limit].active');
+      if (limit) record.limit = limit.dataset.limit;
       shutdown();
       onFinish(record);
     });

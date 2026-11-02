@@ -3,7 +3,7 @@ import { LANGUAGES, lang, setLang, t } from '../../core/i18n.js';
 import { addDays, dateKey, formatTarget, goalFor, nutritionTargetsFor, parseDateKey, sevenDayAverage, summarizeDay, targetMet, targetWeight, weekStart } from '../../core/logic.js';
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
 import { ACTIVITIES, INTENSITIES, NUTRIENTS } from '../../core/registry.js';
-import { DEFAULT_FATIGUE, MUSCLES, fatigueAt, levelOf, modelOf, presetMuscles, scoreOf, shapePoints, silhouettePaths, unmappedExercises } from '../../core/muscles.js';
+import { DEFAULT_FATIGUE, LIMITS, MUSCLES, fatigueAt, levelOf, modelOf, presetMuscles, scoreOf, shapePoints, silhouettePaths, systemicAt, systemicScore, unmappedExercises } from '../../core/muscles.js';
 import { healthStore as store } from '../../core/store.js';
 import { exercisePath, exerciseTree, linkExercise, moveTotals, resolveExercise, schedulesOn, targetSetsOn } from '../../core/training.js';
 
@@ -97,6 +97,7 @@ function workoutText({ data }) {
   }
   if (data.rpe != null) parts.push(t('rpe.value', { n: data.rpe }));
   else if (data.intensity) parts.push(intensityLabel(data.intensity));
+  if (data.limit) parts.push(t(`limit.${data.limit}`));
   return parts.join('・');
 }
 
@@ -202,6 +203,14 @@ function bodySvg(values, view, interactive) {
   return `<svg class="body-figure" viewBox="20 8 160 390" role="img" aria-label="${t(`fatigue.${view}`)}">${base}${regions}</svg>`;
 }
 
+const limitField = (value) => `<h2>${t('limit.label')}</h2>${chipGroup('limit', LIMITS.map((key) => ({ value: key, label: t(`limit.${key}`) })), value)}`;
+const systemicNow = (hours = 0) => systemicScore(systemicAt(fatigueEvents(), fatigueSettings(), Date.now() + hours * 3600000), fatigueSettings());
+
+function systemicRow() {
+  const score = systemicNow(state.fatigueHours);
+  return `<div class="stat-row systemic-row"><span>${t('fatigue.systemic')}</span><span class="muscle-score"><span class="muted">${t(`fatigue.level.${levelOf(score, fatigueSettings())}`)}</span><strong>${round(score)}</strong></span></div>`;
+}
+
 const fatigueScore = (value) => round(scoreOf(value, fatigueSettings()));
 
 function fatigueLegend() {
@@ -223,6 +232,7 @@ function renderCard(card, summary, date) {
       <span class="card-head"><svg class="card-icon on" viewBox="0 0 24 24" aria-hidden="true">${type.icon}</svg><span>${cardLabel(card.type)}</span></span>
       <span class="mini-body">${bodySvg(values, 'front', false)}${bodySvg(values, 'back', false)}</span>
       <span class="muted small-text">${peak ? t('fatigue.peak', { name: muscleName(peak.muscle), value: fatigueScore(peak.value) }) : t('fatigue.none')}</span>
+      <span class="muted small-text">${t('fatigue.systemic')} ${round(systemicNow())}</span>
     </button>`;
   }
   const metrics = metricsOf(card);
@@ -366,7 +376,7 @@ function fatigueLive() {
   const values = fatigueValues(state.fatigueHours);
   const settings = fatigueSettings();
   const ranked = [...values.values()].map((item) => ({ ...item, score: scoreOf(item.value, settings) })).filter((item) => item.score >= 0.1).sort((a, b) => b.value - a.value);
-  return `<div class="body-pair">
+  return `${systemicRow()}<div class="body-pair">
       <figure>${bodySvg(values, 'front', true)}<figcaption class="muted">${t('fatigue.front')}</figcaption></figure>
       <figure>${bodySvg(values, 'back', true)}<figcaption class="muted">${t('fatigue.back')}</figcaption></figure>
     </div>
@@ -424,7 +434,10 @@ function openMuscle(id) {
   const sources = [...(entry?.sources ?? [])].sort((a, b) => b.value - a.value).slice(0, 6)
     .map((source) => `<div class="stat-row"><span>${esc(source.activity)}・${shortDay(source.date)}</span><span>${fatigueScore(source.value)}</span></div>`).join('');
   const feelings = store.liveEvents().filter((e) => e.type === 'feeling' && e.data.muscle === id).sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 4)
-    .map((event) => `<div class="stat-row"><span>${esc(feelingItem(event.data.item))}・${shortDay(event.date)}</span><span>${event.data.score}/10</span></div>`).join('');
+    .map((event) => {
+      const calculated = fatigueAt(fatigueEvents(), activeExercises(), fatigueSettings(), event.occurredAt).get(id)?.value ?? 0;
+      return `<div class="stat-row"><span>${esc(feelingItem(event.data.item))}・${shortDay(event.date)}</span><span>${t('fatigue.compare', { score: event.data.score, value: fatigueScore(calculated) })}</span></div>`;
+    }).join('');
   openSheet(`<div class="stack">
     ${sheetHeader(muscleName(id))}
     <div class="card-big">${fatigueScore(entry?.value ?? 0)}<span class="muted small-text"> / 10</span></div>
@@ -482,6 +495,8 @@ function openFatigueSettings() {
     ${sheetHeader(t('fatigue.settings'))}
     ${numberField('fullLoad', t('fatigue.fullLoad'), settings.fullLoad, 'min="1" required')}
     <div class="grid-2">${['low', 'mid', 'high'].map((key, i) => numberField(`level-${i}`, t(`fatigue.limit.${key}`), settings.levels[i], 'min="0" max="10" step="any" required')).join('')}</div>
+    ${numberField('systemicLoad', t('fatigue.systemicLoad'), settings.systemicLoad, 'min="1" required')}
+    ${numberField('shortMinutes', t('fatigue.shortMinutes'), settings.shortMinutes, 'min="0" required')}
     ${numberField('halfLife', t('fatigue.halfLife'), settings.halfLife, 'min="1" required')}
     <p class="muted">${t('fatigue.halfLifeHint')}</p>
     <div class="grid-2">${rows}</div>
@@ -500,6 +515,8 @@ function saveFatigueSettings(form) {
   store.saveProfile({ fatigue: {
     halfLife: Number(values.get('halfLife')) || DEFAULT_FATIGUE.halfLife,
     fullLoad: Number(values.get('fullLoad')) || DEFAULT_FATIGUE.fullLoad,
+    systemicLoad: Number(values.get('systemicLoad')) || DEFAULT_FATIGUE.systemicLoad,
+    shortMinutes: Number(values.get('shortMinutes')),
     levels, muscles,
   } });
   closeSheet();
@@ -757,7 +774,7 @@ function openWorkout(id = null, date = dateKey(), preset = '') {
   const event = id ? store.events.get(id) : null;
   if (event?.data.trainingId) { openRecord(event.data.trainingId, event.date, event); return; }
   const values = { ...(event?.data.logs?.[0]?.values ?? {}) };
-  state.draft = { id, date: event?.date ?? date, rpe: event?.data.rpe ?? null, intensity: event?.data.intensity ?? null, fields: Object.keys(values), values, muscles: [] };
+  state.draft = { id, date: event?.date ?? date, rpe: event?.data.rpe ?? null, limit: event?.data.limit ?? null, intensity: event?.data.intensity ?? null, fields: Object.keys(values), values, muscles: [] };
   const list = activeExercises();
   const options = exerciseTree(list).map(({ exercise }) => `<option value="${esc(exercisePath(list, exercise.id, exerciseName))}"></option>`).join('');
   const minutes = event?.data.durationSec ? Math.round(event.data.durationSec / 60) : '';
@@ -771,6 +788,7 @@ function openWorkout(id = null, date = dateKey(), preset = '') {
     <label class="check"><input type="checkbox" name="allDay"${event?.data.allDay ? ' checked' : ''}> ${t('free.allDay')}</label>
     <div data-start-time${event?.data.allDay ? ' hidden' : ''}>${timeField(event?.occurredAt ?? Date.now())}</div>
     ${rpeField(state.draft.rpe)}
+    ${limitField(state.draft.limit)}
     <details id="part-box"><summary>${t('workout.parts')}</summary><div class="chips" id="part-chips"></div></details>
     ${dateField(state.draft.date)}
     <label class="field"><span>${t('workout.note')}</span><input name="note" value="${esc(event?.data.note)}"></label>
@@ -804,7 +822,7 @@ function openRecord(trainingId, date = dateKey(), event = null) {
   const training = trainingById(trainingId);
   const moves = event?.data.moves ?? training?.moves ?? [];
   const mode = event?.data.mode ?? training.mode;
-  state.draft = { id: event?.id ?? null, trainingId, mode, moves, name: event?.data.activity ?? training.name, rpe: event?.data.rpe ?? null };
+  state.draft = { id: event?.id ?? null, trainingId, mode, moves, name: event?.data.activity ?? training.name, rpe: event?.data.rpe ?? null, limit: event?.data.limit ?? null };
   const extras = moves.map((move, i) => (move.metrics?.reps ? numberField(`extra-${i}`, t('record.extra', { name: esc(move.name) }), event?.data.extra?.[i]) : '')).join('');
   const rest = training?.trackRest ? numberField('restSec', t('record.rest'), event?.data.restSec) : '';
   openSheet(`<form class="stack" data-form="record">
@@ -815,6 +833,7 @@ function openRecord(trainingId, date = dateKey(), event = null) {
       ${numberField('minutes', t('workout.duration'), event?.data.durationSec ? Math.round(event.data.durationSec / 60) : '', 'min="1"')}
     </div>
     ${rpeField(state.draft.rpe)}
+    ${limitField(state.draft.limit)}
     ${extras || rest ? `<details><summary>${t('record.detail')}</summary><div class="stack" style="margin-top:10px">${extras}${rest}</div></details>` : ''}
     ${dateField(event?.date ?? date)}
     ${event ? '' : repeatFields()}
@@ -833,7 +852,7 @@ function saveRecord(form) {
     if (value) extra[i] = value;
   });
   const data = {
-    trainingId: draft.trainingId, activity: draft.name, mode: draft.mode, moves: draft.moves, rpe: draft.rpe,
+    trainingId: draft.trainingId, activity: draft.name, mode: draft.mode, moves: draft.moves, rpe: draft.rpe, limit: draft.limit,
     sets: optionalNumber(values.get('sets')), extra, restSec: optionalNumber(values.get('restSec')),
     durationSec: (optionalNumber(values.get('minutes')) ?? 0) * 60 || null,
   };
@@ -858,7 +877,7 @@ function saveWorkout(form) {
   const minutes = optionalNumber(values.get('minutes'));
   const logged = Object.fromEntries(Object.entries(draft.values).filter(([key]) => draft.fields.includes(key)));
   const data = {
-    exerciseId, activity: name, rpe: draft.rpe, intensity: draft.intensity, allDay,
+    exerciseId, activity: name, rpe: draft.rpe, limit: draft.limit, intensity: draft.intensity, allDay,
     durationSec: minutes ? minutes * 60 : null, note: values.get('note'),
     moves: [{ exerciseId, name, metrics: {} }],
     logs: Object.keys(logged).length ? [{ label: name, exerciseId, values: logged, failure: false }] : [],
@@ -1323,8 +1342,10 @@ const actions = {
   'targets-edit': openTargets,
   chip: ({ value }, target) => {
     const group = target.closest('[data-chip-group]');
-    group.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c === target));
-    state.draft[group.dataset.chipGroup] = value;
+    // 停下來的原因是選填，再按一次取消
+    const cleared = group.dataset.chipGroup === 'limit' && state.draft.limit === value;
+    group.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c === target && !cleared));
+    state.draft[group.dataset.chipGroup] = cleared ? null : value;
   },
   'sign-in': () => store.signIn().then(closeSheet).catch((error) => toast(t('account.signInFailed', { error: error.message }))),
   'sign-out': () => store.signOut().then(closeSheet),
