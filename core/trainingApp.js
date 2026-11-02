@@ -22,6 +22,11 @@ const state = { cycle: null, phase: null, recRange: 'month', recDate: dateKey(),
 
 function toast(message) {
   toastEl.hidden = false;
+  // 提示要蓋在開啟中的視窗上，舊瀏覽器沒有 popover 時維持原本位置
+  if (toastEl.showPopover) {
+    if (toastEl.matches(':popover-open')) toastEl.hidePopover();
+    toastEl.showPopover();
+  }
   toastEl.textContent = message;
   setTimeout(() => { toastEl.hidden = true; }, 3000);
 }

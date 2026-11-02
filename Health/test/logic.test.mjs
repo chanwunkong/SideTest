@@ -4,7 +4,7 @@ import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDate
 import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../../core/logic.js';
 import { descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, personalBests, resolveExercise, scheduleActiveOn, scheduleRemaining, targetSetsOn, weeklyStats } from '../../core/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
-import { DEFAULT_FATIGUE, MUSCLES, fatigueAt, loadOf, modelOf, presetMuscles, unmappedExercises } from '../../core/muscles.js';
+import { DEFAULT_FATIGUE, MUSCLES, fatigueAt, levelOf, loadOf, modelOf, presetMuscles, scoreOf, unmappedExercises } from '../../core/muscles.js';
 import { byTag, collectRows, currentWeek, cycleWeeks, dailySeries, defaultCards, filterRows, headline, metricNames } from '../../core/analysis.js';
 import { advanceBy, flattenFlow, flowDuration, flowToRecord, lastLogValue, normalizeFlow } from '../../core/flow.js';
 import { normalizeEvent, registry } from '../../core/registry.js';
@@ -343,4 +343,12 @@ test('常見動作有起始對應，沒有設定的動作會列出', () => {
   assert.deepEqual(presetMuscles('自創動作'), []);
   const names = unmappedExercises([{ data: { exerciseId: 'a' } }], [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }]);
   assert.deepEqual(names.map((e) => e.id), ['a']);
+});
+
+test('疲勞分數是 0 到 10，依分界分成五級', () => {
+  assert.equal(scoreOf(30, DEFAULT_FATIGUE), 5);
+  assert.equal(scoreOf(600, DEFAULT_FATIGUE), 10);
+  assert.equal(scoreOf(30, { fullLoad: 30 }), 10);
+  assert.deepEqual([0, 0.4, 2, 5, 8, 10].map((score) => levelOf(score, DEFAULT_FATIGUE)), ['none', 'low', 'mid', 'high', 'top', 'top']);
+  assert.equal(levelOf(3, { levels: [4, 6, 8] }), 'low');
 });

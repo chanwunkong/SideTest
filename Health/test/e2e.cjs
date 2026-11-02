@@ -45,6 +45,14 @@ const PASTE = `好的，結果如下：
 
   // Gemini 貼上
   await button('貼上 Gemini').click();
+  // 提示要蓋在開啟中的視窗上
+  await page.locator('[data-action=prompt-show]').click();
+  await page.locator('[data-action=prompt-copy]').click();
+  await page.locator('#toast:popover-open', { hasText: '複製' }).waitFor();
+  await page.screenshot({ path: `${shots}/toast-over-sheet.png` });
+  await closeSheet();
+  await card('飲食').click();
+  await button('貼上 Gemini').click();
   await page.fill('textarea[name=text]', PASTE);
   await button('確認').click();
   await save();

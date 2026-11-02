@@ -48,7 +48,8 @@ export function presetMuscles(name) {
   return key ? Object.entries(EXERCISE_PRESETS[key]).map(([muscle, percent]) => ({ muscle, percent })) : [];
 }
 
-export const DEFAULT_FATIGUE = { halfLife: 24, muscles: {} };
+// fullLoad：負荷到這個數值就是 10 分；levels：綠黃、黃橘、橘紅的分界
+export const DEFAULT_FATIGUE = { halfLife: 24, fullLoad: 60, levels: [2, 5, 8], muscles: {} };
 
 // 新增模型只要在這裡加一項
 export const MODELS = {
@@ -92,6 +93,18 @@ export function fatigueAt(events, exercises, settings, time) {
     }
   }
   return result;
+}
+
+export function scoreOf(value, settings) {
+  return Math.min(10, (value / (settings.fullLoad ?? DEFAULT_FATIGUE.fullLoad)) * 10);
+}
+
+export function levelOf(score, settings) {
+  if (score < 0.1) return 'none';
+  const [low, mid, high] = settings.levels ?? DEFAULT_FATIGUE.levels;
+  if (score < low) return 'low';
+  if (score < mid) return 'mid';
+  return score < high ? 'high' : 'top';
 }
 
 export function unmappedExercises(events, exercises) {

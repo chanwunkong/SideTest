@@ -12,6 +12,11 @@
   --diet: #c2691c;
   --move: #d83a34;
   --rest: #6a4fa3;
+  --level-none: #dcdfda;
+  --level-low: #4caf7d;
+  --level-mid: #e6b422;
+  --level-high: #e8842a;
+  --level-top: #d83a34;
   --move-soft: #fbe6e3;
   --rest-soft: #e4f1ea;
   --warn: #b3372c;
@@ -32,6 +37,11 @@
     --diet: #eda05c;
     --move: #f0746d;
     --rest: #b49cf0;
+    --level-none: #3a3f3c;
+    --level-low: #54c29a;
+    --level-mid: #f0c95c;
+    --level-high: #eda05c;
+    --level-top: #f0746d;
     --move-soft: #3a2120;
     --rest-soft: #1b3325;
     --warn: #f0877c;
@@ -290,7 +300,20 @@ dialog.full { max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; pa
 .body-pair figure { margin: 0; text-align: center; }
 .body-figure { display: block; width: 100%; height: auto; }
 .body-base { fill: var(--surface-2); }
-.muscle { fill: var(--rest); stroke: var(--surface); stroke-width: 1.5; }
+.muscle { stroke: var(--surface); stroke-width: 1.5; }
+.muscle.level-none { fill: var(--level-none); }
+.muscle.level-low { fill: var(--level-low); }
+.muscle.level-mid { fill: var(--level-mid); }
+.muscle.level-high { fill: var(--level-high); }
+.muscle.level-top { fill: var(--level-top); }
+.level-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.level-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.level-dot { width: 10px; height: 10px; border-radius: 3px; }
+.level-dot.level-low { background: var(--level-low); }
+.level-dot.level-mid { background: var(--level-mid); }
+.level-dot.level-high { background: var(--level-high); }
+.level-dot.level-top { background: var(--level-top); }
+.muscle-score { display: inline-flex; align-items: baseline; gap: 10px; }
 .muscle[data-action] { cursor: pointer; }
 .mini-body { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: auto; }
 .small-text { font-size: 12px; }
@@ -331,7 +354,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .45); }
 .chip { min-height: 40px; padding: 0 14px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); }
 .chip.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 #toast {
-  position: fixed; left: 16px; right: 16px; z-index: 5; bottom: calc(env(safe-area-inset-bottom) + 68px);
+  position: fixed; inset: auto 16px calc(env(safe-area-inset-bottom) + 68px); z-index: 5; width: auto; height: auto; border: 0;
   display: flex; justify-content: space-between; gap: 12px; max-width: 528px; margin: 0 auto; padding: 12px 16px;
   border-radius: var(--radius-sm); background: var(--text); color: var(--bg);
 }

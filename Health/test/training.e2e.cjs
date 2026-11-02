@@ -99,7 +99,9 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   // 前面的走路紀錄也會累積，所以比較數值變化，不寫死總數
   const quads = async () => Number(await page.locator('.muscle-row', { hasText: '股四頭肌' }).locator('strong').innerText());
   const fresh = await quads();
-  assert.ok(fresh >= 47.9, `fresh ${fresh}`);
+  assert.ok(fresh >= 7.9 && fresh <= 10, `fresh ${fresh}`);
+  assert.ok(await page.locator('.body-pair polygon.level-top, .body-pair polygon.level-high').count() >= 2);
+  assert.ok(await page.locator('.level-legend').count() === 1);
   await page.screenshot({ path: `${shots}/fatigue.png`, fullPage: true });
   await page.locator('.muscle-row', { hasText: '股四頭肌' }).click();
   await page.getByText('深蹲訓練').first().waitFor();
@@ -111,7 +113,8 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await page.locator('[data-fatigue-time]').fill('24');
   await page.getByText('24 小時後').waitFor();
   const dayLater = await quads();
-  assert.ok(dayLater >= 23.9 && dayLater < fresh * 0.6, `day later ${dayLater}`);
+  assert.ok(dayLater >= 3.9 && dayLater < fresh * 0.6, `day later ${dayLater}`);
+  await page.locator('.muscle-row', { hasText: '股四頭肌' }).getByText('中', { exact: true }).waitFor();
   await page.getByRole('button', { name: '計算設定' }).click();
   await page.fill('#sheet input[name=hl-quads]', '12');
   await save();

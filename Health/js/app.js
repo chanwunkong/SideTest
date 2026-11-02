@@ -3,13 +3,19 @@ import { LANGUAGES, lang, setLang, t } from '../../core/i18n.js';
 import { addDays, dateKey, formatTarget, goalFor, nutritionTargetsFor, parseDateKey, sevenDayAverage, summarizeDay, targetMet, targetWeight, weekStart } from '../../core/logic.js';
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
 import { ACTIVITIES, INTENSITIES, NUTRIENTS } from '../../core/registry.js';
-import { DEFAULT_FATIGUE, MUSCLES, fatigueAt, modelOf, presetMuscles, shapePoints, silhouettePaths, unmappedExercises } from '../../core/muscles.js';
+import { DEFAULT_FATIGUE, MUSCLES, fatigueAt, levelOf, modelOf, presetMuscles, scoreOf, shapePoints, silhouettePaths, unmappedExercises } from '../../core/muscles.js';
 import { healthStore as store } from '../../core/store.js';
 import { exercisePath, exerciseTree, linkExercise, moveTotals, resolveExercise, schedulesOn, targetSetsOn } from '../../core/training.js';
 
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
 const toastEl = document.getElementById('toast');
+// 提示要蓋在開啟中的視窗上，舊瀏覽器沒有 popover 時維持原本位置
+function raiseToast() {
+  if (!toastEl.showPopover) return;
+  if (toastEl.matches(':popover-open')) toastEl.hidePopover();
+  toastEl.showPopover();
+}
 
 const state = {
   tab: 'home',
@@ -187,15 +193,21 @@ const fatigueEvents = () => store.liveEvents().filter((e) => e.type === 'workout
 const fatigueValues = (hours = 0) => fatigueAt(fatigueEvents(), activeExercises(), fatigueSettings(), Date.now() + hours * 3600000);
 
 function bodySvg(values, view, interactive) {
-  const fill = (id) => {
-    const value = values.get(id)?.value ?? 0;
-    return `style="fill-opacity:${Math.min(1, 0.12 + (value / 100) * 0.88)}"`;
-  };
+  const settings = fatigueSettings();
+  const level = (id) => levelOf(scoreOf(values.get(id)?.value ?? 0, settings), settings);
   const regions = MUSCLES.filter((muscle) => muscle.view === view || muscle.view === 'both').flatMap((muscle) => muscle.shapes.map((shape) => (
-    `<polygon points="${shapePoints(shape)}" class="muscle" ${fill(muscle.id)}${interactive ? ` data-action="muscle-open" data-id="${muscle.id}"` : ''}><title>${muscleName(muscle.id)}</title></polygon>`
+    `<polygon points="${shapePoints(shape)}" class="muscle level-${level(muscle.id)}"${interactive ? ` data-action="muscle-open" data-id="${muscle.id}"` : ''}><title>${muscleName(muscle.id)}</title></polygon>`
   ))).join('');
   const base = silhouettePaths().map((path) => `<path d="${path}" class="body-base"></path>`).join('');
   return `<svg class="body-figure" viewBox="20 8 160 390" role="img" aria-label="${t(`fatigue.${view}`)}">${base}${regions}</svg>`;
+}
+
+const fatigueScore = (value) => round(scoreOf(value, fatigueSettings()));
+
+function fatigueLegend() {
+  const [low, mid, high] = fatigueSettings().levels;
+  const ranges = { low: `0–${low}`, mid: `${low}–${mid}`, high: `${mid}–${high}`, top: `${high}–10` };
+  return `<div class="level-legend">${Object.entries(ranges).map(([level, range]) => `<span><i class="level-dot level-${level}"></i>${t(`fatigue.level.${level}`)} ${range}</span>`).join('')}</div>`;
 }
 
 function peakMuscle(values) {
@@ -210,7 +222,7 @@ function renderCard(card, summary, date) {
     return `<button class="health-card" data-action="tab" data-tab="rest" style="--c:${type.color}" aria-label="${cardLabel(card.type)}">
       <span class="card-head"><svg class="card-icon on" viewBox="0 0 24 24" aria-hidden="true">${type.icon}</svg><span>${cardLabel(card.type)}</span></span>
       <span class="mini-body">${bodySvg(values, 'front', false)}${bodySvg(values, 'back', false)}</span>
-      <span class="muted small-text">${peak ? t('fatigue.peak', { name: muscleName(peak.muscle), value: round(peak.value) }) : t('fatigue.none')}</span>
+      <span class="muted small-text">${peak ? t('fatigue.peak', { name: muscleName(peak.muscle), value: fatigueScore(peak.value) }) : t('fatigue.none')}</span>
     </button>`;
   }
   const metrics = metricsOf(card);
@@ -352,12 +364,14 @@ function renderWorkout() {
 
 function fatigueLive() {
   const values = fatigueValues(state.fatigueHours);
-  const ranked = [...values.values()].filter((item) => item.value >= 0.5).sort((a, b) => b.value - a.value);
+  const settings = fatigueSettings();
+  const ranked = [...values.values()].map((item) => ({ ...item, score: scoreOf(item.value, settings) })).filter((item) => item.score >= 0.1).sort((a, b) => b.value - a.value);
   return `<div class="body-pair">
       <figure>${bodySvg(values, 'front', true)}<figcaption class="muted">${t('fatigue.front')}</figcaption></figure>
       <figure>${bodySvg(values, 'back', true)}<figcaption class="muted">${t('fatigue.back')}</figcaption></figure>
     </div>
-    ${ranked.map((item) => `<button class="stat-row muscle-row" data-action="muscle-open" data-id="${item.muscle}"><span>${muscleName(item.muscle)}</span><strong>${round(item.value)}</strong></button>`).join('') || `<p class="muted">${t('fatigue.none')}</p>`}`;
+    ${fatigueLegend()}
+    ${ranked.map((item) => `<button class="stat-row muscle-row" data-action="muscle-open" data-id="${item.muscle}"><span>${muscleName(item.muscle)}</span><span class="muscle-score"><span class="muted">${t(`fatigue.level.${levelOf(item.score, settings)}`)}</span><strong>${round(item.score)}</strong></span></button>`).join('') || `<p class="muted">${t('fatigue.none')}</p>`}`;
 }
 
 const fatigueTimeLabel = () => (state.fatigueHours ? t('fatigue.later', { n: state.fatigueHours }) : t('fatigue.now'));
@@ -408,12 +422,12 @@ const feelingPart = (event) => (event.data.muscle ? muscleName(event.data.muscle
 function openMuscle(id) {
   const entry = fatigueValues(state.fatigueHours).get(id);
   const sources = [...(entry?.sources ?? [])].sort((a, b) => b.value - a.value).slice(0, 6)
-    .map((source) => `<div class="stat-row"><span>${esc(source.activity)}・${shortDay(source.date)}</span><span>${round(source.value)}</span></div>`).join('');
+    .map((source) => `<div class="stat-row"><span>${esc(source.activity)}・${shortDay(source.date)}</span><span>${fatigueScore(source.value)}</span></div>`).join('');
   const feelings = store.liveEvents().filter((e) => e.type === 'feeling' && e.data.muscle === id).sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 4)
     .map((event) => `<div class="stat-row"><span>${esc(feelingItem(event.data.item))}・${shortDay(event.date)}</span><span>${event.data.score}/10</span></div>`).join('');
   openSheet(`<div class="stack">
     ${sheetHeader(muscleName(id))}
-    <div class="card-big">${round(entry?.value ?? 0)}</div>
+    <div class="card-big">${fatigueScore(entry?.value ?? 0)}<span class="muted small-text"> / 10</span></div>
     ${sources ? `<h2>${t('fatigue.sources')}</h2><div>${sources}</div>` : ''}
     ${feelings ? `<h2>${t('feel.history')}</h2><div>${feelings}</div>` : ''}
     <button class="btn primary wide" data-action="feeling-new" data-muscle="${id}">${t('fatigue.log')}</button>
@@ -466,6 +480,8 @@ function openFatigueSettings() {
   const rows = MUSCLES.map((muscle) => numberField(`hl-${muscle.id}`, muscleName(muscle.id), settings.muscles[muscle.id]?.halfLife, 'min="1"')).join('');
   openSheet(`<form class="stack" data-form="fatigue">
     ${sheetHeader(t('fatigue.settings'))}
+    ${numberField('fullLoad', t('fatigue.fullLoad'), settings.fullLoad, 'min="1" required')}
+    <div class="grid-2">${['low', 'mid', 'high'].map((key, i) => numberField(`level-${i}`, t(`fatigue.limit.${key}`), settings.levels[i], 'min="0" max="10" step="any" required')).join('')}</div>
     ${numberField('halfLife', t('fatigue.halfLife'), settings.halfLife, 'min="1" required')}
     <p class="muted">${t('fatigue.halfLifeHint')}</p>
     <div class="grid-2">${rows}</div>
@@ -480,7 +496,12 @@ function saveFatigueSettings(form) {
     const halfLife = optionalNumber(values.get(`hl-${muscle.id}`));
     if (halfLife) muscles[muscle.id] = { ...modelOf({ muscles: {} }, muscle.id), halfLife };
   }
-  store.saveProfile({ fatigue: { halfLife: Number(values.get('halfLife')) || DEFAULT_FATIGUE.halfLife, muscles } });
+  const levels = [0, 1, 2].map((i) => Number(values.get(`level-${i}`))).sort((a, b) => a - b);
+  store.saveProfile({ fatigue: {
+    halfLife: Number(values.get('halfLife')) || DEFAULT_FATIGUE.halfLife,
+    fullLoad: Number(values.get('fullLoad')) || DEFAULT_FATIGUE.fullLoad,
+    levels, muscles,
+  } });
   closeSheet();
   toast(t('common.saved'));
 }
@@ -1157,6 +1178,7 @@ async function exportData() {
 let toastTimer;
 function toast(message, undo = null) {
   toastEl.hidden = false;
+  raiseToast();
   toastEl.textContent = message;
   if (undo) {
     const button = document.createElement('button');
