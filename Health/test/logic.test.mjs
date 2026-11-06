@@ -4,7 +4,7 @@ import { cardDayState, cardHit, DEFAULT_CARDS, metricsOf, monthDates, periodDate
 import { addDays, allTargetsMet, DEFAULT_GOAL, formatTarget, goalFor, nutritionTargetsFor, sevenDayAverage, summarizeDay, targetMet, weekStart } from '../../core/logic.js';
 import { descendantIds, exercisePath, exerciseTotal, exerciseTree, moveTotals, personalBests, resolveExercise, scheduleActiveOn, scheduleRemaining, targetSetsOn, weeklyStats } from '../../core/training.js';
 import { MEAL_FORMAT, parseMeal } from '../js/mealImport.js';
-import { DEFAULT_FATIGUE, MUSCLES, fatigueAt, levelOf, loadOf, modelOf, presetMuscles, scoreOf, systemicAt, systemicLoadOf, systemicScore, unmappedExercises } from '../../core/muscles.js';
+import { DEFAULT_FATIGUE, GROUPS, JOINTS, MUSCLES, fatigueAt, levelOf, loadOf, modelOf, pickableAt, presetMuscles, regionsAt, relatedIds, scoreOf, systemicAt, systemicLoadOf, systemicScore, unmappedExercises } from '../../core/muscles.js';
 import { byTag, collectRows, currentWeek, cycleWeeks, dailySeries, defaultCards, filterRows, headline, metricNames } from '../../core/analysis.js';
 import { advanceBy, flattenFlow, flowDuration, flowToRecord, lastLogValue, normalizeFlow } from '../../core/flow.js';
 import { normalizeEvent, registry } from '../../core/registry.js';
@@ -369,4 +369,63 @@ test('Cindy 兩輪做到極限：不靠最大能力，動作多不稀釋，肌�
   assert.equal(loadOf({ ...data, limit: 'cardio' }), 27);
   assert.equal(systemicLoadOf({ ...data, limit: 'muscle' }), 135);
   assert.equal(systemicScore(systemicAt([{ occurredAt: 0, data }], DEFAULT_FATIGUE, 0), DEFAULT_FATIGUE), 4.21875);
+});
+
+test('課程紀錄自己選的部位也計入，關節只用在主觀感受', () => {
+  const data = { activity: '瑜伽', durationSec: 3600, rpe: 5, muscles: [{ muscle: 'glutes', percent: 50 }, { muscle: 'hamstrings', percent: 50 }] };
+  const values = fatigueAt([{ id: 'y', occurredAt: 0, date: '2026-11-03', data }], [], DEFAULT_FATIGUE, 0);
+  assert.equal(values.get('glutes').value, 60);
+  assert.equal(values.get('hamstrings').value, 60);
+  assert.equal(values.size, 2);
+  assert.equal(JOINTS.length, 8);
+  assert.ok(JOINTS.every((joint) => !MUSCLES.some((muscle) => muscle.id === joint)));
+});
+
+const loads = (entries) => new Map(Object.entries(entries).map(([id, value]) => [id, { value }]));
+const valueOfRegion = (regions, id) => regions.find((region) => region.id === id)?.value;
+
+test('人形圖三種細分程度：基礎 8 區、中等 17 區、進階 28 區', () => {
+  assert.deepEqual(pickableAt('basic'), Object.keys(GROUPS));
+  assert.equal(pickableAt('mid').length, 17);
+  assert.equal(pickableAt('advanced').length, 28);
+  assert.deepEqual(pickableAt('mid'), MUSCLES.map((m) => m.id).sort((a, b) => Object.values(GROUPS).flat().indexOf(a) - Object.values(GROUPS).flat().indexOf(b)));
+  assert.equal(new Set(pickableAt('advanced')).size, 28);
+});
+
+test('細分：資料存在使用者選的那一層，底下取最高值，沒細到的留在上層', () => {
+  assert.equal(valueOfRegion(regionsAt('basic', loads({ quads: 30, hamstrings: 60 })), 'g_thigh'), 60);
+  assert.equal(valueOfRegion(regionsAt('mid', loads({ rectusFemoris: 20 })), 'quads'), 20);
+  // 大部位層的資料：基礎直接顯示；中等沒有更細的資料，就維持大部位一整塊
+  const thigh = loads({ g_thigh: 20 });
+  assert.equal(valueOfRegion(regionsAt('basic', thigh), 'g_thigh'), 20);
+  const mid = regionsAt('mid', thigh);
+  assert.equal(valueOfRegion(mid, 'g_thigh'), 20);
+  assert.equal(mid.some((region) => region.id === 'quads'), false);
+  // 進階：中等層的資料沒有細到，顯示整塊；底下有資料才切開，並帶上層的數值
+  assert.equal(valueOfRegion(regionsAt('advanced', loads({ quads: 30 })), 'quads'), 30);
+  const split = regionsAt('advanced', loads({ quads: 30, vastusLateralis: 10 }));
+  assert.equal(valueOfRegion(split, 'vastusLateralis'), 40);
+  assert.equal(valueOfRegion(split, 'rectusFemoris'), 30);
+  assert.equal(valueOfRegion(split, 'quads'), undefined);
+  // 深層肌肉不會因為上層有資料就跟著上色
+  assert.equal(valueOfRegion(regionsAt('advanced', loads({ quads: 30 })), 'hipFlexors'), 0);
+  assert.equal(valueOfRegion(regionsAt('advanced', loads({ glutes: 30 })), 'hipRotators'), 0);
+  // 深層肌肉疊在原區域上，原區域不會被切開
+  const deep = regionsAt('advanced', loads({ rotatorCuff: 15 }));
+  assert.equal(valueOfRegion(deep, 'rotatorCuff'), 15);
+  assert.equal(valueOfRegion(regionsAt('mid', loads({ rotatorCuff: 15 })), 'deltRear'), 15);
+  assert.equal(valueOfRegion(regionsAt('basic', loads({ rotatorCuff: 15 })), 'g_shoulder'), 15);
+  assert.deepEqual(relatedIds('quads').sort(), ['g_thigh', 'hipFlexors', 'quads', 'rectusFemoris', 'vastusLateralis', 'vastusMedialis'].sort());
+});
+
+test('每個區域都有正反面的圖形，且在畫布範圍內', () => {
+  for (const level of ['basic', 'mid', 'advanced']) {
+    for (const region of regionsAt(level, new Map())) {
+      assert.ok(region.parts.length >= 1, region.id);
+      for (const part of region.parts) {
+        assert.ok(part.points.length >= 3, region.id);
+        for (const [x, y] of part.points) assert.ok(x >= 20 && x <= 180 && y >= 8 && y <= 398, `${region.id} ${x},${y}`);
+      }
+    }
+  }
 });

@@ -26,9 +26,13 @@ export const MUSCLES = [
 const SILHOUETTE = ['M100 12a21 21 0 1 0 .01 0Z', 'M90 56h20v18H90Z',
   'M60 74Q100 62 140 74L152 98 156 146 162 196 166 228H148L142 200 138 150 134 112V192L132 300 128 392H108L104 300 100 272 96 300 92 392H72L68 300 66 192V112L62 150 58 200 52 228H34L38 196 44 146 48 98Z'];
 
+// 關節不畫在人形圖上，只用在主觀感受
+export const JOINTS = ['neck', 'shoulder', 'spine', 'elbow', 'wrist', 'hip', 'knee', 'ankle'];
+
 export const silhouettePaths = () => SILHOUETTE;
 
-export const shapePoints = (shape) => shape.map(([x, y]) => `${x},${y}`).join(' ');
+const round1 = (n) => Math.round(n * 10) / 10;
+export const shapePoints = (shape) => shape.map(([x, y]) => `${round1(x)},${round1(y)}`).join(' ');
 
 // 常見動作的起始對應，使用者可以改
 export const EXERCISE_PRESETS = {
@@ -49,7 +53,7 @@ export function presetMuscles(name) {
 }
 
 // fullLoad：負荷到這個數值就是 10 分；levels：綠黃、黃橘、橘紅的分界
-export const DEFAULT_FATIGUE = { halfLife: 24, fullLoad: 60, systemicLoad: 400, shortMinutes: 15, levels: [2, 5, 8], muscles: {} };
+export const DEFAULT_FATIGUE = { detail: 'basic', halfLife: 24, fullLoad: 60, systemicLoad: 400, shortMinutes: 15, levels: [2, 5, 8], muscles: {} };
 
 // 新增模型只要在這裡加一項
 export const MODELS = {
@@ -89,11 +93,13 @@ export function systemicLoadOf(data, settings = DEFAULT_FATIGUE) {
 }
 
 // 整次訓練算一個負荷，用最多的肌肉當 100%，動作多不會把負荷稀釋掉
-function muscleShares(ids, exercises) {
+function muscleShares(ids, exercises, own = []) {
   const shares = new Map();
   for (const id of ids) {
     for (const { muscle, percent } of exercises.find((e) => e.id === id)?.muscles ?? []) shares.set(muscle, (shares.get(muscle) ?? 0) + percent);
   }
+  // 紀錄本身選的部位，用在沒有動作清單的課程，例如瑜伽課
+  for (const { muscle, percent } of own) shares.set(muscle, (shares.get(muscle) ?? 0) + percent);
   const top = Math.max(0, ...shares.values());
   return [...shares].map(([muscle, value]) => [muscle, value / top]);
 }
@@ -111,7 +117,7 @@ export function fatigueAt(events, exercises, settings, time) {
     const moves = (event.data.moves ?? []).filter((move) => move.exerciseId);
     const ids = moves.length ? moves.map((move) => move.exerciseId) : [event.data.exerciseId].filter(Boolean);
     const load = loadOf(event.data, settings);
-    for (const [muscle, share] of muscleShares(ids, exercises)) {
+    for (const [muscle, share] of muscleShares(ids, exercises, event.data.muscles)) {
       const value = load * share * decayed(settings, muscle, event, time);
       const entry = result.get(muscle) ?? { muscle, value: 0, sources: [] };
       entry.value += value;
@@ -147,3 +153,115 @@ export function unmappedExercises(events, exercises) {
   const ids = new Set(events.flatMap((event) => [event.data.exerciseId, ...(event.data.moves ?? []).map((move) => move.exerciseId)]).filter(Boolean));
   return exercises.filter((exercise) => ids.has(exercise.id) && !exercise.muscles?.length);
 }
+
+// ---- 細分程度：基礎只有大部位，中等是原本的 17 區，進階再細分 ----
+// 資料存在使用者選的那一層；沒有細到的資料就留在上一層顯示，不假裝更精確
+export const DETAILS = ['basic', 'mid', 'advanced'];
+const DEPTH = { basic: 1, mid: 2, advanced: 3 };
+
+export const GROUPS = {
+  g_chest: ['chest'],
+  g_shoulder: ['deltFront', 'deltRear'],
+  g_back: ['traps', 'lats'],
+  g_arm: ['biceps', 'triceps', 'forearm'],
+  g_core: ['abs', 'obliques', 'lowerBack'],
+  g_glutes: ['glutes'],
+  g_thigh: ['quads', 'hamstrings', 'adductors'],
+  g_calf: ['calfFront', 'calfBack'],
+};
+
+const lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+
+// 四邊形 [左上, 右上, 右下, 左下]：strips 切成直條（由外到內），rows 切成橫條（由上到下）
+const strips = (cuts) => ([a, b, c, d]) => cuts.slice(0, -1).map((t, i) => [lerp(a, b, t), lerp(a, b, cuts[i + 1]), lerp(d, c, cuts[i + 1]), lerp(d, c, t)]);
+const rows = (cuts) => ([a, b, c, d]) => cuts.slice(0, -1).map((t, i) => [lerp(a, d, t), lerp(b, c, t), lerp(b, c, cuts[i + 1]), lerp(a, d, cuts[i + 1])]);
+
+function clipY(poly, y, below) {
+  const keep = (p) => (below ? p[1] >= y : p[1] <= y);
+  const out = [];
+  poly.forEach((p, i) => {
+    const q = poly[(i + 1) % poly.length];
+    if (keep(p)) out.push(p);
+    if (keep(p) !== keep(q)) out.push([p[0] + ((q[0] - p[0]) * (y - p[1])) / (q[1] - p[1]), y]);
+  });
+  return out;
+}
+const splitAtY = (y) => (poly) => [clipY(poly, y, false), clipY(poly, y, true)];
+
+// 中等區域再切開的進階區域
+const SPLITS = {
+  chest: [['upperChest', 'lowerChest'], splitAtY(100)],
+  abs: [['upperAbs', 'lowerAbs'], splitAtY(152)],
+  traps: [['upperTraps', 'midLowerTraps'], splitAtY(90)],
+  quads: [['vastusLateralis', 'rectusFemoris', 'vastusMedialis'], strips([0, 0.3, 0.65, 1])],
+  hamstrings: [['bicepsFemoris', 'semitendinosus'], strips([0, 0.55, 1])],
+  glutes: [['gluteMed', 'gluteMax'], rows([0, 0.4, 1])],
+  calfBack: [['gastrocnemius', 'soleus'], rows([0, 0.6, 1])],
+};
+
+// 深層肌肉只能示意位置，疊在原區域上，不切開原區域
+const EXTRAS = [
+  { id: 'hipFlexors', parent: 'quads', view: 'front', shapes: both([[76, 184], [99, 186], [98, 194], [74, 192]]) },
+  { id: 'hipRotators', parent: 'glutes', view: 'back', shapes: both([[84, 204], [98, 204], [98, 218], [84, 218]]) },
+  { id: 'rotatorCuff', parent: 'deltRear', view: 'back', shapes: both([[66, 88], [82, 90], [82, 104], [66, 102]]) },
+];
+
+const partsOf = (view, shapes) => (view === 'both' ? ['front', 'back'] : [view]).flatMap((v) => shapes.map((points) => ({ view: v, points })));
+
+const NODES = new Map();
+const addNode = (node) => NODES.set(node.id, { children: [], ...node });
+Object.keys(GROUPS).forEach((id) => addNode({ id, depth: 1, parent: null }));
+for (const [groupId, members] of Object.entries(GROUPS)) {
+  for (const id of members) {
+    const muscle = MUSCLES.find((m) => m.id === id);
+    addNode({ id, depth: 2, parent: groupId, parts: partsOf(muscle.view, muscle.shapes) });
+  }
+}
+for (const [parent, [ids, slicer]] of Object.entries(SPLITS)) {
+  const muscle = MUSCLES.find((m) => m.id === parent);
+  const pieces = muscle.shapes.map(slicer);
+  ids.forEach((id, i) => addNode({ id, depth: 3, parent, parts: partsOf(muscle.view, pieces.map((list) => list[i])) }));
+}
+EXTRAS.forEach((extra) => addNode({ id: extra.id, depth: 3, parent: extra.parent, overlay: true, parts: partsOf(extra.view, extra.shapes) }));
+NODES.forEach((node) => { if (node.parent) NODES.get(node.parent).children.push(node); });
+Object.keys(GROUPS).forEach((id) => { const group = NODES.get(id); group.parts = group.children.flatMap((child) => child.parts); });
+
+// 要畫的區域和數值：數值 = 自己的 + 底下最高的 + 上層沒有細分的部分；深層肌肉只看自己的資料
+export function regionsAt(detail, values) {
+  const depth = DEPTH[detail] ?? 1;
+  const own = (id) => values.get(id)?.value ?? 0;
+  const memo = new Map();
+  const down = (node) => {
+    if (!memo.has(node.id)) memo.set(node.id, own(node.id) + Math.max(0, ...node.children.map(down)));
+    return memo.get(node.id);
+  };
+  const inherited = (node) => {
+    let total = 0;
+    for (let p = NODES.get(node.parent); p; p = NODES.get(p.parent)) total += own(p.id);
+    return total;
+  };
+  const picked = [];
+  const visit = (node) => {
+    const real = node.children.filter((child) => !child.overlay);
+    const split = node.depth < depth && real.length > 0 && (own(node.id) === 0 || real.some((child) => down(child) > 0));
+    if (split) real.forEach(visit);
+    else picked.push(node);
+    if (depth >= 3) node.children.filter((child) => child.overlay).forEach((child) => picked.push(child));
+  };
+  Object.keys(GROUPS).forEach((id) => visit(NODES.get(id)));
+  return picked.map((node) => ({ id: node.id, depth: node.depth, parts: node.parts, value: down(node) + (node.overlay ? 0 : inherited(node)) }));
+}
+
+// 某區域的數值來自哪些部位：自己、底下的和上層的
+export function relatedIds(id) {
+  const node = NODES.get(id);
+  if (!node) return [id];
+  const ids = [];
+  const walk = (current) => { ids.push(current.id); current.children.forEach(walk); };
+  walk(node);
+  for (let p = NODES.get(node.parent); p; p = NODES.get(p.parent)) ids.push(p.id);
+  return ids;
+}
+
+// 設定動作或記錄感受時可以選的部位
+export const pickableAt = (detail) => regionsAt(detail, new Map()).map((region) => region.id);

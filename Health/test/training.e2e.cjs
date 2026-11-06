@@ -97,6 +97,15 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await tab('休息');
   await page.locator('.body-figure').first().waitFor();
   assert.equal(await page.locator('.body-pair .body-figure').count(), 2);
+  // 預設只有大部位；中等和進階可以切換
+  await page.locator('.muscle-row', { hasText: '大腿' }).waitFor();
+  const basicCount = await page.locator('.body-pair polygon').count();
+  await page.screenshot({ path: `${shots}/fatigue-basic.png`, fullPage: true });
+  await page.locator('[data-action=fatigue-detail][data-detail=advanced]').click();
+  await page.locator('.muscle-row', { hasText: '股四頭肌' }).waitFor();
+  assert.ok(await page.locator('.body-pair polygon').count() > basicCount);
+  await page.screenshot({ path: `${shots}/fatigue-advanced.png`, fullPage: true });
+  await page.locator('[data-action=fatigue-detail][data-detail=mid]').click();
   // 前面的走路紀錄也會累積，所以比較數值變化，不寫死總數
   const quads = async () => Number(await page.locator('.muscle-row', { hasText: '股四頭肌' }).locator('strong').innerText());
   const fresh = await quads();
@@ -110,8 +119,20 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await page.locator('#sheet [data-action=feeling-new]').click();
   assert.equal(await page.inputValue('select[name=muscle]'), 'quads');
   await page.locator('input[name=score]').fill('7');
-  await page.getByRole('button', { name: '儲存' }).click();
+  await page.getByRole('button', { name: '儲存', exact: true }).click();
   await page.getByText('股四頭肌・肌肉痠痛 7/10').waitFor();
+  // 關節、左右和連續記錄
+  await button('記錄感受').click();
+  await page.selectOption('select[name=muscle]', 'joint:hip');
+  await page.selectOption('select[name=side]', 'right');
+  await page.locator('[data-chip-group=item] .chip', { hasText: '緊繃' }).click();
+  await page.getByText('10 = 非常緊繃').waitFor();
+  await page.getByRole('button', { name: '儲存並再記一筆' }).click();
+  await page.locator('[data-chip-group=item] .chip.active', { hasText: '緊繃' }).waitFor();
+  await page.selectOption('select[name=muscle]', 'joint:shoulder');
+  await page.getByRole('button', { name: '儲存', exact: true }).click();
+  await page.getByText('右髖關節・緊繃 5/10').waitFor();
+  await page.getByText('肩關節・緊繃 5/10').waitFor();
   await page.locator('[data-fatigue-time]').fill('24');
   await page.getByText('24 小時後').waitFor();
   const dayLater = await quads();
@@ -156,6 +177,9 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   await button('＋ 新增排程').click();
   await page.fill('#panel input[name=days]', '30');
   await page.fill('#panel input[name=targetSets]', '5');
+  await page.fill('#panel input[name=startTime]', '00:05');
+  await page.fill('#panel input[name=durationMin]', '12');
+  await page.fill('#panel input[name=rpe]', '3');
   await panelSave();
   await page.getByText('還有 30 天').waitFor();
   await page.screenshot({ path: `${shots}/workout.png` });
@@ -169,12 +193,20 @@ const meal = (protein) => JSON.stringify({ format: 'health-meal-v1', items: [{ n
   // 從活動卡記錄：未達目標仍是空框，達標才亮
   await page.locator('.health-card', { hasText: '活動' }).click();
   await button('Cindy').click();
+  // 排程的時間、時長和 RPE 會帶入紀錄
+  assert.equal(await page.inputValue('input[name=startTime]'), '00:05');
+  assert.equal(await page.inputValue('input[name=minutes]'), '12');
+  assert.equal(await page.locator('.rpe-chips .chip.active').innerText(), '3');
+  await page.getByText('部位（選填）').click();
+  await page.locator('[data-action=part-toggle]', { hasText: '背闊肌' }).click();
   await page.fill('input[name=sets]', '4');
   await page.getByText('記錄更多細節').click();
   await page.fill('input[name=extra-0]', '3');
   await save();
   await page.getByText('引體向上 23').waitFor();
   assert.match(await activity.getAttribute('class'), /missed/);
+  await tab('休息');
+  await page.locator('.muscle-row', { hasText: '背闊肌' }).waitFor();
   await tab('運動');
   // 課表和動作在同一份清單：今天已記錄的 Cindy 從新增選單再記一次
   await button('＋ 新增').click();

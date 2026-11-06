@@ -3,7 +3,7 @@ import { LANGUAGES, lang, setLang, t } from '../../core/i18n.js';
 import { addDays, dateKey, formatTarget, goalFor, nutritionTargetsFor, parseDateKey, sevenDayAverage, summarizeDay, targetMet, targetWeight, weekStart } from '../../core/logic.js';
 import { GEMINI_PROMPT, parseMeal } from './mealImport.js';
 import { ACTIVITIES, INTENSITIES, NUTRIENTS } from '../../core/registry.js';
-import { DEFAULT_FATIGUE, LIMITS, MUSCLES, fatigueAt, levelOf, modelOf, presetMuscles, scoreOf, shapePoints, silhouettePaths, systemicAt, systemicScore, unmappedExercises } from '../../core/muscles.js';
+import { DEFAULT_FATIGUE, DETAILS, JOINTS, LIMITS, MUSCLES, fatigueAt, levelOf, modelOf, pickableAt, presetMuscles, regionsAt, relatedIds, scoreOf, shapePoints, silhouettePaths, systemicAt, systemicScore, unmappedExercises } from '../../core/muscles.js';
 import { healthStore as store } from '../../core/store.js';
 import { exercisePath, exerciseTree, linkExercise, moveTotals, resolveExercise, schedulesOn, targetSetsOn } from '../../core/training.js';
 
@@ -68,6 +68,8 @@ function dayData(date) {
 }
 
 const activeSchedules = () => store.activeDocs('schedules');
+const scheduleFor = (trainingId, date) => schedulesOn(activeSchedules(), date).find((s) => s.trainingId === trainingId);
+const plannedStart = (schedule, date) => (schedule?.startTime ? new Date(`${date}T${schedule.startTime}`).getTime() : null);
 const trainingById = (id) => store.trainings.find((training) => training.id === id);
 const activeExercises = () => store.activeDocs('exercises');
 const exerciseName = (exercise) => (lang === 'en' && exercise.nameEn) || exercise.name;
@@ -193,14 +195,18 @@ const fatigueSettings = () => ({ ...DEFAULT_FATIGUE, ...store.profile.fatigue })
 const fatigueEvents = () => store.liveEvents().filter((e) => e.type === 'workout');
 const fatigueValues = (hours = 0) => fatigueAt(fatigueEvents(), activeExercises(), fatigueSettings(), Date.now() + hours * 3600000);
 
-function bodySvg(values, view, interactive) {
+const fatigueRegions = (values) => regionsAt(fatigueSettings().detail, values);
+
+function bodySvg(regions, view, interactive) {
   const settings = fatigueSettings();
-  const level = (id) => levelOf(scoreOf(values.get(id)?.value ?? 0, settings), settings);
-  const regions = MUSCLES.filter((muscle) => muscle.view === view || muscle.view === 'both').flatMap((muscle) => muscle.shapes.map((shape) => (
-    `<polygon points="${shapePoints(shape)}" class="muscle level-${level(muscle.id)}"${interactive ? ` data-action="muscle-open" data-id="${muscle.id}"` : ''}><title>${muscleName(muscle.id)}</title></polygon>`
-  ))).join('');
+  const shapes = regions.flatMap((region) => {
+    const level = levelOf(scoreOf(region.value, settings), settings);
+    return region.parts.filter((part) => part.view === view).map((part) => (
+      `<polygon points="${shapePoints(part.points)}" class="muscle level-${level}${region.depth === 1 ? ' merged' : ''}"${interactive ? ` data-action="muscle-open" data-id="${region.id}"` : ''}><title>${muscleName(region.id)}</title></polygon>`
+    ));
+  }).join('');
   const base = silhouettePaths().map((path) => `<path d="${path}" class="body-base"></path>`).join('');
-  return `<svg class="body-figure" viewBox="20 8 160 390" role="img" aria-label="${t(`fatigue.${view}`)}">${base}${regions}</svg>`;
+  return `<svg class="body-figure" viewBox="20 8 160 390" role="img" aria-label="${t(`fatigue.${view}`)}">${base}${shapes}</svg>`;
 }
 
 const limitField = (value) => `<h2>${t('limit.label')}</h2>${chipGroup('limit', LIMITS.map((key) => ({ value: key, label: t(`limit.${key}`) })), value)}`;
@@ -219,19 +225,20 @@ function fatigueLegend() {
   return `<div class="level-legend">${Object.entries(ranges).map(([level, range]) => `<span><i class="level-dot level-${level}"></i>${t(`fatigue.level.${level}`)} ${range}</span>`).join('')}</div>`;
 }
 
-function peakMuscle(values) {
-  return [...values.values()].sort((a, b) => b.value - a.value)[0] ?? null;
+function peakMuscle(regions) {
+  const top = [...regions].sort((a, b) => b.value - a.value)[0];
+  return top?.value > 0 ? top : null;
 }
 
 function renderCard(card, summary, date) {
   const type = CARD_TYPES[card.type];
   if (card.type === 'fatigue') {
-    const values = fatigueValues();
-    const peak = peakMuscle(values);
+    const regions = fatigueRegions(fatigueValues());
+    const peak = peakMuscle(regions);
     return `<button class="health-card" data-action="tab" data-tab="rest" style="--c:${type.color}" aria-label="${cardLabel(card.type)}">
       <span class="card-head"><svg class="card-icon on" viewBox="0 0 24 24" aria-hidden="true">${type.icon}</svg><span>${cardLabel(card.type)}</span></span>
-      <span class="mini-body">${bodySvg(values, 'front', false)}${bodySvg(values, 'back', false)}</span>
-      <span class="muted small-text">${peak ? t('fatigue.peak', { name: muscleName(peak.muscle), value: fatigueScore(peak.value) }) : t('fatigue.none')}</span>
+      <span class="mini-body">${bodySvg(regions, 'front', false)}${bodySvg(regions, 'back', false)}</span>
+      <span class="muted small-text">${peak ? t('fatigue.peak', { name: muscleName(peak.id), value: fatigueScore(peak.value) }) : t('fatigue.none')}</span>
       <span class="muted small-text">${t('fatigue.systemic')} ${round(systemicNow())}</span>
     </button>`;
   }
@@ -347,7 +354,7 @@ function renderWorkout() {
     const target = schedule.targetSets ? `<div class="muted">${t('record.target', { n: schedule.targetSets })}</div>` : '';
     const start = training.flow?.length ? `<a class="btn primary link-btn" href="../Training/?run=${esc(training.id)}">${t('step.start')}</a>` : '';
     return `<div class="row plan-row">
-      <div><strong>${esc(training.name)}</strong>${target}</div>
+      <div><strong>${esc(training.name)}</strong>${schedule.startTime ? `<div class="muted">${schedule.startTime}${schedule.durationMin ? `・${t('workout.minutes', { n: schedule.durationMin })}` : ''}</div>` : ''}${target}</div>
       <div class="chips">${start}<button class="btn${start ? '' : ' primary'}" data-action="record-open" data-id="${esc(training.id)}">${t('workout.log')}</button></div>
     </div>`;
   }).join('');
@@ -373,15 +380,15 @@ function renderWorkout() {
 }
 
 function fatigueLive() {
-  const values = fatigueValues(state.fatigueHours);
+  const regions = fatigueRegions(fatigueValues(state.fatigueHours));
   const settings = fatigueSettings();
-  const ranked = [...values.values()].map((item) => ({ ...item, score: scoreOf(item.value, settings) })).filter((item) => item.score >= 0.1).sort((a, b) => b.value - a.value);
+  const ranked = regions.map((item) => ({ ...item, score: scoreOf(item.value, settings) })).filter((item) => item.score >= 0.1).sort((a, b) => b.value - a.value);
   return `${systemicRow()}<div class="body-pair">
-      <figure>${bodySvg(values, 'front', true)}<figcaption class="muted">${t('fatigue.front')}</figcaption></figure>
-      <figure>${bodySvg(values, 'back', true)}<figcaption class="muted">${t('fatigue.back')}</figcaption></figure>
+      <figure>${bodySvg(regions, 'front', true)}<figcaption class="muted">${t('fatigue.front')}</figcaption></figure>
+      <figure>${bodySvg(regions, 'back', true)}<figcaption class="muted">${t('fatigue.back')}</figcaption></figure>
     </div>
     ${fatigueLegend()}
-    ${ranked.map((item) => `<button class="stat-row muscle-row" data-action="muscle-open" data-id="${item.muscle}"><span>${muscleName(item.muscle)}</span><span class="muscle-score"><span class="muted">${t(`fatigue.level.${levelOf(item.score, settings)}`)}</span><strong>${round(item.score)}</strong></span></button>`).join('') || `<p class="muted">${t('fatigue.none')}</p>`}`;
+    ${ranked.map((item) => `<button class="stat-row muscle-row" data-action="muscle-open" data-id="${item.id}"><span>${muscleName(item.id)}</span><span class="muscle-score"><span class="muted">${t(`fatigue.level.${levelOf(item.score, settings)}`)}</span><strong>${round(item.score)}</strong></span></button>`).join('') || `<p class="muted">${t('fatigue.none')}</p>`}`;
 }
 
 const fatigueTimeLabel = () => (state.fatigueHours ? t('fatigue.later', { n: state.fatigueHours }) : t('fatigue.now'));
@@ -402,6 +409,9 @@ function renderRest() {
       <p class="muted">${t('fatigue.note')}</p>
       <label class="field"><span>${t('fatigue.time')}：<strong id="fatigue-time">${fatigueTimeLabel()}</strong></span><input type="range" min="0" max="48" step="1" value="${state.fatigueHours}" data-fatigue-time aria-label="${t('fatigue.time')}"></label>
       <div class="stack" id="fatigue-live">${fatigueLive()}</div>
+      <div class="stack detail-picker"><span class="muted">${t('fatigue.detail.label')}</span>
+        <div class="chips">${DETAILS.map((key) => `<button type="button" class="chip${fatigueSettings().detail === key ? ' active' : ''}" data-action="fatigue-detail" data-detail="${key}">${t(`fatigue.detail.${key}`)}</button>`).join('')}</div>
+        <span class="muted small-text">${t(`fatigue.detail.note.${fatigueSettings().detail}`)}</span></div>
       ${unmapped.length ? `<p class="muted">${t('fatigue.unmapped', { names: esc(unmapped.join('、')) })}</p>` : ''}
       <button class="plain" data-action="fatigue-settings">${t('fatigue.settings')}</button>
     </section>
@@ -425,22 +435,31 @@ function renderRest() {
     </section>`;
 }
 
-const FEELING_ITEMS = ['soreness', 'recovery', 'fatigue'];
+const FEELING_ITEMS = ['soreness', 'tight', 'stiffness', 'hold', 'mobility', 'recovery', 'fatigue'];
 const feelingItem = (item) => (FEELING_ITEMS.includes(item) ? t(`feel.${item}`) : item);
-const feelingPart = (event) => (event.data.muscle ? muscleName(event.data.muscle) : t('fatigue.whole'));
+// 每個項目的 10 分代表什麼要固定，數字才能互相比較
+const feelingHint = (item) => (FEELING_ITEMS.includes(item) ? t(`feel.hint.${item}`) : '');
+function feelingPart(event) {
+  const { joint, muscle, side } = event.data;
+  const part = joint ? t(`joint.${joint}`) : muscle ? muscleName(muscle) : t('fatigue.whole');
+  return side ? t('side.format', { side: t(`side.${side}`), part }) : part;
+}
 
 function openMuscle(id) {
-  const entry = fatigueValues(state.fatigueHours).get(id);
-  const sources = [...(entry?.sources ?? [])].sort((a, b) => b.value - a.value).slice(0, 6)
+  const values = fatigueValues(state.fatigueHours);
+  const related = relatedIds(id);
+  const entry = { value: fatigueRegions(values).find((region) => region.id === id)?.value ?? values.get(id)?.value ?? 0, sources: related.flatMap((key) => values.get(key)?.sources ?? []) };
+  const sources = [...entry.sources].sort((a, b) => b.value - a.value).slice(0, 6)
     .map((source) => `<div class="stat-row"><span>${esc(source.activity)}・${shortDay(source.date)}</span><span>${fatigueScore(source.value)}</span></div>`).join('');
-  const feelings = store.liveEvents().filter((e) => e.type === 'feeling' && e.data.muscle === id).sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 4)
+  const feelings = store.liveEvents().filter((e) => e.type === 'feeling' && related.includes(e.data.muscle)).sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 4)
     .map((event) => {
-      const calculated = fatigueAt(fatigueEvents(), activeExercises(), fatigueSettings(), event.occurredAt).get(id)?.value ?? 0;
+      const at = fatigueAt(fatigueEvents(), activeExercises(), fatigueSettings(), event.occurredAt);
+      const calculated = related.reduce((total, key) => total + (at.get(key)?.value ?? 0), 0);
       return `<div class="stat-row"><span>${esc(feelingItem(event.data.item))}・${shortDay(event.date)}</span><span>${t('fatigue.compare', { score: event.data.score, value: fatigueScore(calculated) })}</span></div>`;
     }).join('');
   openSheet(`<div class="stack">
     ${sheetHeader(muscleName(id))}
-    <div class="card-big">${fatigueScore(entry?.value ?? 0)}<span class="muted small-text"> / 10</span></div>
+    <div class="card-big">${fatigueScore(entry.value)}<span class="muted small-text"> / 10</span></div>
     ${sources ? `<h2>${t('fatigue.sources')}</h2><div>${sources}</div>` : ''}
     ${feelings ? `<h2>${t('feel.history')}</h2><div>${feelings}</div>` : ''}
     <button class="btn primary wide" data-action="feeling-new" data-muscle="${id}">${t('fatigue.log')}</button>
@@ -452,31 +471,45 @@ function localTime(timestamp) {
   return date.toISOString().slice(0, 16);
 }
 
-function openFeeling(id, muscle = '') {
+function openFeeling(id, muscle = '', keep = null) {
   const event = id ? store.events.get(id) : null;
-  const item = event?.data.item ?? 'soreness';
+  const item = event?.data.item ?? keep?.item ?? 'soreness';
   const custom = FEELING_ITEMS.includes(item) ? '' : item;
-  state.draft = { id, item: custom ? '' : item, score: event?.data.score ?? 5 };
-  const muscleOptions = MUSCLES.map((entry) => `<option value="${entry.id}"${entry.id === (event?.data.muscle ?? muscle) ? ' selected' : ''}>${muscleName(entry.id)}</option>`).join('');
+  const score = event?.data.score ?? keep?.score ?? 5;
+  state.draft = { id, item: custom ? '' : item, score };
+  const chosen = event?.data.joint ? `joint:${event.data.joint}` : event?.data.muscle ?? muscle;
+  const option = (value, label) => `<option value="${value}"${value === chosen ? ' selected' : ''}>${label}</option>`;
+  const pickable = pickableAt(fatigueSettings().detail);
+  if (chosen && !chosen.startsWith('joint:') && !pickable.includes(chosen)) pickable.push(chosen);
+  const muscleOptions = pickable.map((key) => option(key, muscleName(key))).join('');
+  const jointOptions = JOINTS.map((key) => option(`joint:${key}`, t(`joint.${key}`))).join('');
+  const sideOptions = ['left', 'right'].map((key) => `<option value="${key}"${event?.data.side === key ? ' selected' : ''}>${t(`side.${key}`)}</option>`).join('');
   openSheet(`<form class="stack" data-form="feeling">
     ${sheetHeader(t('feel.title'))}
-    <label class="field"><span>${t('feel.part')}</span><select name="muscle"><option value="">${t('fatigue.whole')}</option>${muscleOptions}</select></label>
+    <label class="field"><span>${t('feel.part')}</span><select name="muscle"><option value="">${t('fatigue.whole')}</option>
+      <optgroup label="${t('feel.muscles')}">${muscleOptions}</optgroup><optgroup label="${t('feel.joints')}">${jointOptions}</optgroup></select></label>
+    <label class="field"><span>${t('feel.side')}</span><select name="side"><option value=""></option>${sideOptions}</select></label>
     <h2>${t('feel.item')}</h2>
     ${chipGroup('item', FEELING_ITEMS.map((value) => ({ value, label: t(`feel.${value}`) })), state.draft.item)}
     <label class="field"><span>${t('feel.custom')}</span><input name="customItem" value="${esc(custom)}"></label>
-    <label class="field"><span>${t('feel.score')}：<strong id="score-label">${state.draft.score}</strong></span><input type="range" name="score" min="0" max="10" step="1" value="${state.draft.score}"></label>
-    <label class="field"><span>${t('feel.when')}</span><input type="datetime-local" name="when" max="${localTime(Date.now())}" value="${localTime(event?.occurredAt ?? Date.now())}" required></label>
+    <label class="field"><span>${t('feel.score')}：<strong id="score-label">${score}</strong></span><input type="range" name="score" min="0" max="10" step="1" value="${score}"></label>
+    <p class="muted" id="score-hint">${feelingHint(state.draft.item)}</p>
+    <label class="field"><span>${t('feel.when')}</span><input type="datetime-local" name="when" max="${localTime(Date.now())}" value="${event || !keep ? localTime(event?.occurredAt ?? Date.now()) : keep.when}" required></label>
     <label class="field"><span>${t('feel.note')}</span><input name="note" value="${esc(event?.data.note)}"></label>
     <button class="btn primary wide">${t('common.save')}</button>
-    ${event ? deleteButton() : ''}
+    ${event ? deleteButton() : `<button type="button" class="btn wide" data-action="feeling-again">${t('feel.again')}</button>`}
   </form>`);
 }
 
 function saveFeeling(form) {
   const values = new FormData(form);
   const when = new Date(values.get('when'));
+  const part = values.get('muscle');
+  const isJoint = part.startsWith('joint:');
   const data = {
-    muscle: values.get('muscle') || null,
+    muscle: part && !isJoint ? part : null,
+    joint: isJoint ? part.slice(6) : null,
+    side: values.get('side') || null,
     item: values.get('customItem').trim() || state.draft.item,
     score: Number(values.get('score')),
     note: values.get('note'),
@@ -484,8 +517,13 @@ function saveFeeling(form) {
   const date = dateKey(when);
   if (state.draft.id) store.updateEvent(state.draft.id, data, { date, occurredAt: when.getTime() });
   else store.addEvent('feeling', data, { date, occurredAt: when.getTime() });
-  closeSheet();
   toast(t('feel.saved'));
+  if (state.feelingAgain) {
+    state.feelingAgain = false;
+    openFeeling(null, '', { item: data.item, score: data.score, when: values.get('when') });
+    return;
+  }
+  closeSheet();
 }
 
 function openFatigueSettings() {
@@ -517,7 +555,7 @@ function saveFatigueSettings(form) {
     fullLoad: Number(values.get('fullLoad')) || DEFAULT_FATIGUE.fullLoad,
     systemicLoad: Number(values.get('systemicLoad')) || DEFAULT_FATIGUE.systemicLoad,
     shortMinutes: Number(values.get('shortMinutes')),
-    levels, muscles,
+    levels, muscles, detail: fatigueSettings().detail,
   } });
   closeSheet();
   toast(t('common.saved'));
@@ -767,7 +805,8 @@ function renderPartChips() {
   const box = sheet.querySelector('#part-chips');
   if (!box) return;
   const active = new Set(state.draft.muscles.map((item) => item.muscle));
-  box.innerHTML = MUSCLES.map((muscle) => `<button type="button" class="chip small${active.has(muscle.id) ? ' active' : ''}" data-action="part-toggle" data-id="${muscle.id}">${muscleName(muscle.id)}</button>`).join('');
+  const ids = [...new Set([...pickableAt(fatigueSettings().detail), ...active])];
+  box.innerHTML = ids.map((id) => `<button type="button" class="chip small${active.has(id) ? ' active' : ''}" data-action="part-toggle" data-id="${id}">${muscleName(id)}</button>`).join('');
 }
 
 function openWorkout(id = null, date = dateKey(), preset = '') {
@@ -822,24 +861,27 @@ function openRecord(trainingId, date = dateKey(), event = null) {
   const training = trainingById(trainingId);
   const moves = event?.data.moves ?? training?.moves ?? [];
   const mode = event?.data.mode ?? training.mode;
-  state.draft = { id: event?.id ?? null, trainingId, mode, moves, name: event?.data.activity ?? training.name, rpe: event?.data.rpe ?? null, limit: event?.data.limit ?? null };
+  const planned = event ? null : scheduleFor(trainingId, date);
+  state.draft = { id: event?.id ?? null, trainingId, mode, moves, name: event?.data.activity ?? training.name, rpe: event ? event.data.rpe ?? null : planned?.rpe ?? null, limit: event?.data.limit ?? null, muscles: event?.data.muscles ?? [] };
   const extras = moves.map((move, i) => (move.metrics?.reps ? numberField(`extra-${i}`, t('record.extra', { name: esc(move.name) }), event?.data.extra?.[i]) : '')).join('');
   const rest = training?.trackRest ? numberField('restSec', t('record.rest'), event?.data.restSec) : '';
   openSheet(`<form class="stack" data-form="record">
     ${sheetHeader(t('record.title', { name: esc(state.draft.name) }))}
     ${mode === 'sets' ? numberField('sets', t('record.sets'), event?.data.sets, 'min="1" required') : ''}
     <div class="grid-2">
-      ${timeField(event?.occurredAt ?? Date.now())}
-      ${numberField('minutes', t('workout.duration'), event?.data.durationSec ? Math.round(event.data.durationSec / 60) : '', 'min="1"')}
+      ${timeField(event?.occurredAt ?? plannedStart(planned, date) ?? Date.now())}
+      ${numberField('minutes', t('workout.duration'), event ? (event.data.durationSec ? Math.round(event.data.durationSec / 60) : '') : planned?.durationMin ?? '', 'min="1"')}
     </div>
     ${rpeField(state.draft.rpe)}
     ${limitField(state.draft.limit)}
+    <details id="part-box"><summary>${t('workout.parts')}</summary><div class="chips" id="part-chips"></div></details>
     ${extras || rest ? `<details><summary>${t('record.detail')}</summary><div class="stack" style="margin-top:10px">${extras}${rest}</div></details>` : ''}
     ${dateField(event?.date ?? date)}
     ${event ? '' : repeatFields()}
     <button class="btn primary wide">${t(mode === 'sets' ? 'common.save' : 'record.done')}</button>
     ${event ? deleteButton() : ''}
   </form>`);
+  renderPartChips();
 }
 
 function saveRecord(form) {
@@ -852,7 +894,7 @@ function saveRecord(form) {
     if (value) extra[i] = value;
   });
   const data = {
-    trainingId: draft.trainingId, activity: draft.name, mode: draft.mode, moves: draft.moves, rpe: draft.rpe, limit: draft.limit,
+    trainingId: draft.trainingId, activity: draft.name, mode: draft.mode, moves: draft.moves, rpe: draft.rpe, limit: draft.limit, muscles: draft.muscles,
     sets: optionalNumber(values.get('sets')), extra, restSec: optionalNumber(values.get('restSec')),
     durationSec: (optionalNumber(values.get('minutes')) ?? 0) * 60 || null,
   };
@@ -1301,8 +1343,10 @@ const actions = {
     renderPartChips();
   },
   'muscle-open': ({ id }) => openMuscle(id),
+  'fatigue-detail': ({ detail }) => { store.saveProfile({ fatigue: { ...fatigueSettings(), detail } }); render(); },
   'feeling-new': ({ muscle }) => openFeeling(null, muscle),
   'feeling-open': ({ id }) => openFeeling(id),
+  'feeling-again': () => { state.feelingAgain = true; sheet.querySelector('form').requestSubmit(); },
   'fatigue-settings': openFatigueSettings,
   'value-add': ({ name }) => {
     readValues();
@@ -1346,6 +1390,7 @@ const actions = {
     const cleared = group.dataset.chipGroup === 'limit' && state.draft.limit === value;
     group.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c === target && !cleared));
     state.draft[group.dataset.chipGroup] = cleared ? null : value;
+    if (group.dataset.chipGroup === 'item') sheet.querySelector('#score-hint').textContent = feelingHint(value);
   },
   'sign-in': () => store.signIn().then(closeSheet).catch((error) => toast(t('account.signInFailed', { error: error.message }))),
   'sign-out': () => store.signOut().then(closeSheet),

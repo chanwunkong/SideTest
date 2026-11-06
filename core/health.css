@@ -104,7 +104,7 @@ summary { cursor: pointer; font-size: 14px; color: var(--muted); }
 .switch button[aria-pressed="true"] { background: var(--surface); color: var(--text); font-weight: 700; }
 .overview-head { margin-bottom: 10px; }
 .plain { min-height: 40px; padding: 0 8px; color: var(--muted); font-size: 14px; }
-.health-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: var(--gap); }
+.health-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
 .health-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px; border-radius: var(--radius); background: var(--surface); text-align: left; }
 .card-head { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 14px; }
 .card-icon { width: 20px; height: 20px; flex: none; fill: none; stroke: var(--line); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -300,12 +300,19 @@ dialog.full { max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; pa
 .body-pair figure { margin: 0; text-align: center; }
 .body-figure { display: block; width: 100%; height: auto; }
 .body-base { fill: var(--surface-2); }
-.muscle { stroke: var(--surface); stroke-width: 1.5; }
+.muscle { stroke: var(--surface); stroke-width: 1.5; stroke-linejoin: round; }
+.body-base { stroke-linejoin: round; }
 .muscle.level-none { fill: var(--level-none); }
 .muscle.level-low { fill: var(--level-low); }
 .muscle.level-mid { fill: var(--level-mid); }
 .muscle.level-high { fill: var(--level-high); }
 .muscle.level-top { fill: var(--level-top); }
+.muscle.merged.level-none { stroke: var(--level-none); }
+.muscle.merged.level-low { stroke: var(--level-low); }
+.muscle.merged.level-mid { stroke: var(--level-mid); }
+.muscle.merged.level-high { stroke: var(--level-high); }
+.muscle.merged.level-top { stroke: var(--level-top); }
+.detail-picker { gap: 6px; }
 .level-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
 .level-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .level-dot { width: 10px; height: 10px; border-radius: 3px; }

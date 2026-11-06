@@ -4,7 +4,7 @@ import { COLORS, TEMPLATES, flattenFlow, flowDuration, formatDuration, mapFlow, 
 import { addDays, dateKey, parseDateKey, weekStart } from './logic.js';
 import { clearSession, getSettings, runFlow, savedSession, setSetting, speak } from './flowRun.js';
 import { LANGUAGES, lang, setLang, t } from './i18n.js';
-import { LIMITS, MUSCLES, presetMuscles } from './muscles.js';
+import { LIMITS, pickableAt, presetMuscles } from './muscles.js';
 import { healthStore as store } from './store.js';
 import { TAG_GROUPS, recentTags, rememberTag, tagLabel } from './tags.js';
 import { MODES, MOVE_METRICS, descendantIds, exercisePath, exerciseTotal, exerciseTree, linkExercise, scheduleRemaining } from './training.js';
@@ -550,7 +550,7 @@ function renderExerciseForm() {
       <button type="button" class="icon-btn" data-action="muscle-remove" data-index="${i}" aria-label="${t('common.delete')}">✕</button>
     </div>`).join('')}
     <div class="amount">
-      <select id="muscle-pick" aria-label="${t('exercise.muscles')}">${MUSCLES.filter((m) => !state.draft.muscles.some((item) => item.muscle === m.id)).map((m) => `<option value="${m.id}">${t(`muscle.${m.id}`)}</option>`).join('')}</select>
+      <select id="muscle-pick" aria-label="${t('exercise.muscles')}">${pickableAt(store.profile.fatigue?.detail ?? 'basic').filter((id) => !state.draft.muscles.some((item) => item.muscle === id)).map((id) => `<option value="${id}">${t(`muscle.${id}`)}</option>`).join('')}</select>
       <button type="button" class="btn" data-action="muscle-add">${t('exercise.addMuscle')}</button>
     </div>
     <h2>${t('exercise.tags')}</h2>
@@ -658,6 +658,11 @@ function openSchedule(id) {
     <p class="muted">${t('schedule.weekdaysHint')}</p>
     <div class="chips" data-chip-list="weekdays">${days}</div>
     ${numberField('targetSets', `${t('schedule.target')}（${t('schedule.targetHint')}）`, schedule?.targetSets, 'min="1"')}
+    <div class="grid-2">
+      <label class="field"><span>${t('schedule.startTime')}</span><input type="time" name="startTime" value="${schedule?.startTime ?? ''}"></label>
+      ${numberField('durationMin', t('schedule.durationMin'), schedule?.durationMin, 'min="1"')}
+    </div>
+    ${numberField('rpe', t('schedule.rpe'), schedule?.rpe, 'min="0" max="10" step="1"')}
     <button class="btn primary wide">${t('common.save')}</button>
     ${id ? `<button type="button" class="btn danger wide" data-action="schedule-delete">${t('common.delete')}</button>` : ''}
   </form>`);
@@ -671,6 +676,9 @@ function saveSchedule(form) {
     days: optionalNumber(values.get('days')),
     weekdays: [...form.querySelectorAll('[data-chip-list="weekdays"] .chip.active')].map((c) => Number(c.dataset.value)),
     targetSets: optionalNumber(values.get('targetSets')),
+    startTime: values.get('startTime') || null,
+    durationMin: optionalNumber(values.get('durationMin')),
+    rpe: optionalNumber(values.get('rpe')),
   });
   panel.close();
 }
