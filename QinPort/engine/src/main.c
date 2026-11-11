@@ -14,7 +14,7 @@
 #define ACT_IDLE 0           // 動作起點（序列 = 動作 + 方向），見 RoleMdl.txt「平時休息/平時走路」
 #define ACT_WALK 8
 #define FRAME_MS 70          // shortcut: 幀延遲先用固定值，動畫檔裡的延遲欄位還沒確認
-#define HERO_SPEED 4.0f      // 格/秒
+#define HERO_SPEED 8         // 每幀動畫在畫面上走幾像素（RoleMdl.txt 遊俠「平時速度」）
 
 // 畫面方向(0=上，順時針每 45°) → 動畫方向編號。動畫方向從「右」開始逆時針排（手機實測校正）
 static const int DIR_MAP[8] = {2, 1, 0, 7, 6, 5, 4, 3};
@@ -114,16 +114,14 @@ static void hero_draw(const Role *r, const Hero *h, int sx, int sy, Uint32 now) 
         if (order[i] < r->part_count) draw_frame(r->body[order[i]], seq, frame, sx, sy, 0);
 }
 
-// 往畫面方向 (sdx, sdy) 走 dist 格；格子座標：畫面右 = (+x, -y)，畫面下 = (+x, +y)
-static void hero_step(Hero *h, const Scene *s, float sdx, float sdy, float dist) {
+// 往畫面方向 (sdx, sdy) 走 px 個畫面像素。畫面上各方向等速（格子寬 64 高 32，若照格子等速，上下會只有左右一半快）
+static void hero_step(Hero *h, const Scene *s, float sdx, float sdy, float px) {
     float len = sqrtf(sdx * sdx + sdy * sdy);
     if (len < 0.01f) return;
     sdx /= len;
     sdy /= len;
-    // 畫面上 1 格寬 64、高 32，換算回格子方向
-    float gx = sdx / 2 + sdy, gy = -sdx / 2 + sdy, glen = sqrtf(gx * gx + gy * gy);
-    gx = gx / glen * dist;
-    gy = gy / glen * dist;
+    // 畫面位移 → 格子位移：畫面 x = (gx - gy) * 32，畫面 y = (gx + gy) * 16
+    float gx = (sdx / 64 + sdy / 32) * px, gy = (-sdx / 64 + sdy / 32) * px;
     // 能走就走；撞牆時試著只沿一個軸滑動
     if (scene_walkable(s, (int)(h->x + gx), (int)(h->y + gy))) { h->x += gx; h->y += gy; }
     else if (scene_walkable(s, (int)(h->x + gx), (int)h->y)) h->x += gx;
@@ -201,7 +199,7 @@ int main(int argc, char **argv) {
         if (pointer_down) { mx = px - vw / 2; my = py - (vh / 2 - 40); }  // 主角腳底在畫面中央，指向身體中段附近
         int was_moving = hero.moving;
         hero.moving = 0;
-        if (mx * mx + my * my > (pointer_down ? 64 : 0.01f)) hero_step(&hero, &scene, mx, my, HERO_SPEED * dt);
+        if (mx * mx + my * my > (pointer_down ? 64 : 0.01f)) hero_step(&hero, &scene, mx, my, HERO_SPEED * 1000.0f / FRAME_MS * dt);
         if (hero.moving != was_moving) hero.anim_start = ticks;
 
         // 主角腳底的世界像素；鏡頭跟著主角
