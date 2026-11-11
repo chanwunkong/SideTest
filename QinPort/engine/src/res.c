@@ -147,6 +147,7 @@ static Anim *anims;
 static int anim_count, anim_cap;
 
 const Anim *anim_get(uint32_t gid) {
+    if (!gid) return NULL;  // 找不到定義（例如某些部件沒有影子）
     for (int i = 0; i < anim_count; i++)
         if (anims[i].gid == gid) return anims[i].count ? &anims[i] : NULL;
     if (anim_count == anim_cap) anims = realloc(anims, (anim_cap = anim_cap ? anim_cap * 2 : 64) * sizeof(Anim));

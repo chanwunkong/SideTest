@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "res.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #define HERO_ROLE 1201       // 主角（遊俠），ObjMdl/RoleMdl.txt 的圖形 ID
 #define ACT_IDLE 0           // 動作起點（序列 = 動作 + 方向），見 RoleMdl.txt「平時休息/平時走路」
@@ -153,6 +156,8 @@ int main(int argc, char **argv) {
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!win || !ren) { fprintf(stderr, "%s\n", SDL_GetError()); return 1; }
     SDL_RenderSetLogicalSize(ren, vw, vh);  // 視窗多大都等比例縮放，畫面內容固定 vw x vh
+    // 先以 1:1 畫在畫布上再整張放大；直接放大每塊磁磚會在接縫透出細線
+    SDL_Texture *canvas = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
     SDL_GameController *pad = NULL;
     for (int i = 0; i < SDL_NumJoysticks() && !pad; i++)
         if (SDL_IsGameController(i)) pad = SDL_GameControllerOpen(i);
@@ -204,6 +209,7 @@ int main(int argc, char **argv) {
         int ox = hx - vw / 2, oy = hy - vh / 2;
 
         // ---- 畫面 ----
+        SDL_SetRenderTarget(ren, canvas);
         SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
         SDL_RenderClear(ren);
         for (int y = 0; y < scene.h; y++)
@@ -238,7 +244,13 @@ int main(int argc, char **argv) {
             SDL_FreeSurface(surf);
             running = 0;
         }
+        SDL_SetRenderTarget(ren, NULL);
+        SDL_RenderClear(ren);
+        SDL_RenderCopy(ren, canvas, NULL, NULL);
         SDL_RenderPresent(ren);
+#ifdef __EMSCRIPTEN__
+        emscripten_sleep(0);  // 交還給瀏覽器（ASYNCIFY），否則網頁會卡住
+#endif
 
         frames++;
         if (now - fps_t > SDL_GetPerformanceFrequency()) {
@@ -254,6 +266,7 @@ int main(int argc, char **argv) {
 
     for (uint32_t i = 0; i < slot_cap; i++)
         if (slots[i].s.tex) SDL_DestroyTexture(slots[i].s.tex);
+    SDL_DestroyTexture(canvas);
     role_free(&role);
     scene_free(&scene);
     SDL_Quit();
