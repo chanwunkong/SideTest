@@ -16,8 +16,8 @@
 #define FRAME_MS 70          // shortcut: 幀延遲先用固定值，動畫檔裡的延遲欄位還沒確認
 #define HERO_SPEED 4.0f      // 格/秒
 
-// 畫面方向(0=上，順時針每 45°) → 動畫方向編號。shortcut: 從靜態圖推測的，實際走動後再校正
-static const int DIR_MAP[8] = {0, 1, 2, 3, 6, 5, 4, 7};
+// 畫面方向(0=上，順時針每 45°) → 動畫方向編號。動畫方向從「右」開始逆時針排（手機實測校正）
+static const int DIR_MAP[8] = {2, 1, 0, 7, 6, 5, 4, 3};
 
 typedef struct { SDL_Texture *tex; int w, h; } Sprite;
 
