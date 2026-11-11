@@ -3,3 +3,4 @@ QinPort/extracted/
 QinPort/engine/qin
 QinPort/web/game/
 QinPort/web/index.*
+QinPort/tools/__pycache__/

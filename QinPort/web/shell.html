@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>秦殤 測試版</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #ccc; overflow: hidden; touch-action: none; font-family: sans-serif; }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; image-rendering: auto; }
+  #status { position: fixed; top: 8px; left: 0; right: 0; text-align: center; font-size: 14px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas></div>
+<div id="status">載入中…</div>
+<script>
+  const canvas = document.getElementById('canvas');
+  const status = document.getElementById('status');
+  // 畫面固定 4:3，等比例塞滿螢幕（手機請橫放）
+  function fit() {
+    const s = Math.min(innerWidth / 4, innerHeight / 3);
+    canvas.style.width = 4 * s + 'px';
+    canvas.style.height = 3 * s + 'px';
+  }
+  addEventListener('resize', fit);
+  fit();
+  var Module = {
+    canvas,
+    setStatus: (t) => { status.textContent = t; if (!t) setTimeout(() => status.textContent = '按住畫面往那個方向走', 0); },
+    print: (t) => console.log(t),
+    printErr: (t) => console.warn(t),
+  };
+  new ResizeObserver(fit).observe(canvas);
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>
