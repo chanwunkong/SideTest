@@ -455,9 +455,10 @@ static void strike(Actor *a, Actor *t, Uint32 tick) {
     if (!alive(t)) return;
     t->fight = FIGHT_TICKS;
     if (t->mon && !t->foe) t->foe = a;  // 被打的怪物會反擊
-    // shortcut: 命中判定在原版還沒找到，先用 HR / (HR + SR)，夾在 5%~95%
-    int chance = a->hr + t->sr > 0 ? a->hr * 100 / (a->hr + t->sr) : 50;
-    if (rand() % 100 >= (chance < 5 ? 5 : chance > 95 ? 95 : chance)) return;
+    // 命中（Poq.exe 0x48c600，CCharactor 虛擬函式第 104 格）：千分比 = HR×1000 / (SR + HR)，夾在 100~900；HR 0 當 1
+    // shortcut: 之前還有一段盾牌格擋（0x48c4e3，看防守方 +0x4e7 的裝備和攻擊方向），沒有盾的主角用不到，還沒做
+    int hr = a->hr ? a->hr : 1, chance = hr * 1000 / (t->sr + hr);
+    if (rand() % 1000 >= (chance < 100 ? 100 : chance > 900 ? 900 : chance)) return;
     int dmg = a->ap + (a->ap_max > a->ap ? rand() % (a->ap_max - a->ap + 1) : 0);
     int loss = dmg + t->dp / 2 > 0 ? dmg * dmg / (dmg + t->dp / 2) : 0;
     if (loss < 3) loss = 3;
