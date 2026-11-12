@@ -443,6 +443,7 @@ static Item hero_weapon, hero_armor;
 static int hero_armor_dp;  // 護甲防禦在「防御力小～大」之間，道具產生時決定
 
 static const int hero_str = 30, hero_con = 25, hero_dex = 25, hero_savvy = 30, hero_charm = 40, hero_wisdom = 20;  // 遊俠扶苏模板
+static const int hero_money = 100;  // 同一模板的 Money。shortcut: 還沒有撿錢、買賣，錢不會變
 static const int hero_gender = 0, hero_age = 29, hero_prof = 1;  // 同一模板的 Gender、Age；職業序號（0x94c2fb，2131 + 序號 = 游侠）
 
 static void hero_stats(Actor *h, int level) {
@@ -629,6 +630,13 @@ static void gbk_utf8(const char *in, char *out, size_t n) {
         else { out[o++] = (char)(0xE0 | c >> 12); out[o++] = (char)(0x80 | (c >> 6 & 0x3F)); out[o++] = (char)(0x80 | (c & 0x3F)); }
     }
     out[o] = 0;
+}
+
+// 一行字的寬度（置中用）
+static int text_width(const char *t) {
+    int w = 0;
+    for (const char *q = t; *q;) { uint32_t c = utf8_next(&q); glyph(c); w += glyph_adv[c <= 0xFFFF ? c : '?']; }
+    return w;
 }
 
 // 行距 16：原版 m_pDescribe 框高 84 要放 5 行。從 (x, y) 開始寫，超過 maxw 換行；draw = 0 只量高度。回傳用掉的高度
@@ -902,9 +910,7 @@ static void hud_draw(const Actor *hero) {
         if (nm) {
             char u[96];
             gbk_utf8(t->mon->title, u, sizeof u);
-            int w = 0;
-            for (const char *q = u; *q;) { uint32_t c = utf8_next(&q); glyph(c); w += glyph_adv[c <= 0xFFFF ? c : '?']; }
-            draw_text(ex + nm->x + (nm->w - w) / 2, ey + nm->y + 3, u, nm->w, 0xBECDCE, 1);
+            draw_text(ex + nm->x + (nm->w - text_width(u)) / 2, ey + nm->y + 3, u, nm->w, 0xBECDCE, 1);
         }
         if (bl) ui_bar(bl, ex, ey, t->hp, t->hp_max);
     }
@@ -946,7 +952,16 @@ static void hud_draw(const Actor *hero) {
             draw_text(wx + desc->x + 2, wy + desc->y + 2, t, desc->w - 4, 0xBECDCE, 1);
         }
     }
-    if (win_right.open) ui_draw(&win_right.d, win_x(&win_right), win_y(&win_right));
+    if (win_right.open) {
+        int wx = win_x(&win_right), wy = win_y(&win_right);
+        ui_draw(&win_right.d, wx, wy);
+        UiCtrl *money = ui_find(&win_right.d, "m_pMoney");  // 道具：原版把錢數交給 m_pMoney 顯示（Poq.exe 0x54db42），「金钱：%d」是提示文字
+        if (money) {
+            char t[16];
+            snprintf(t, sizeof t, "%d", hero_money);
+            draw_text(wx + money->x + (money->w - text_width(t)) / 2, wy + money->y + (money->h - 16) / 2, t, money->w, 0xBECDCE, 1);
+        }
+    }
 }
 
 static int cmp_actor_depth(const void *a, const void *b) {
