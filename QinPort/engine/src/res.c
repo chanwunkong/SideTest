@@ -497,14 +497,22 @@ void res_cache_clear(void) {
 }
 
 // xbm：0x14 寬、0x18 高；0x40 起每列 u32 位移(相對 0x40)；每列交替 u16(透明 bytes / 不透明 bytes + RGB565)
+// 0x24 = 1 的是半透明圖（特效、部分建築）：0x40 起先是 w×h bytes 的 alpha（長度在 0x28），列位移表接在後面
 uint32_t *xbm_decode(const uint8_t *x, uint32_t size, int *w, int *h) {
     if (!x || size < 0x40 || memcmp(x, "xbm", 3)) return NULL;
     *w = u32(x + 0x14);
     *h = u32(x + 0x18);
-    if (*w <= 0 || *h <= 0 || *w > 4096 || *h > 4096 || 0x40 + (uint32_t)*h * 4 > size) return NULL;
+    if (*w <= 0 || *h <= 0 || *w > 4096 || *h > 4096) return NULL;
+    uint32_t base = 0x40;
+    const uint8_t *alpha = NULL;
+    if (u32(x + 0x24) == 1 && u32(x + 0x28) >= (uint32_t)*w * *h && u32(x + 0x28) < size) {
+        alpha = x + 0x40;
+        base += u32(x + 0x28);
+    }
+    if (base + (uint32_t)*h * 4 > size) return NULL;
     uint32_t *px = calloc((size_t)*w * *h, 4);
     for (int y = 0; y < *h; y++) {
-        uint32_t p = 0x40 + u32(x + 0x40 + y * 4);
+        uint32_t p = base + u32(x + base + y * 4);
         int col = 0, opaque = 0;
         while (col < *w && p + 2 <= size) {
             int n = u16(x + p) / 2;
@@ -513,7 +521,8 @@ uint32_t *xbm_decode(const uint8_t *x, uint32_t size, int *w, int *h) {
                 for (int i = 0; i < n && col + i < *w && p + i * 2 + 2 <= size; i++) {
                     uint16_t c = u16(x + p + i * 2);
                     uint8_t r = (c >> 11) * 255 / 31, g = ((c >> 5) & 63) * 255 / 63, b = (c & 31) * 255 / 31;
-                    px[y * *w + col + i] = 0xFF000000u | b << 16 | g << 8 | r;  // RGBA32 位元組順序
+                    uint32_t a = alpha ? alpha[y * *w + col + i] : 0xFF;
+                    px[y * *w + col + i] = a << 24 | b << 16 | g << 8 | r;  // RGBA32 位元組順序
                 }
                 p += n * 2;
             }
@@ -1149,12 +1158,42 @@ const Method *method_find(int auto_id) {
             } else if (t && !strcmp(k, "iWhatFrame")) t->frame = v;
             else if (t && !strcmp(k, "iTriType")) t->type = v;
             else if (t && !strcmp(k, "iTriID")) t->id = v;
+            else if (t && !strcmp(k, "iTriPos")) t->pos = v;
         }
         free(d);
     }
     for (int i = 0; i < method_count; i++)
         if (methods[i].id == auto_id) return &methods[i];
     return NULL;
+}
+
+// 招式單位表：同樣的 key=value 格式，每個單位以 wType= 開頭
+static struct { int id; uint32_t anim; } *units;
+static int unit_count;
+
+uint32_t unit_anim(int auto_id) {
+    if (!unit_count) {
+        size_t n;
+        uint8_t *d = res_file("ObjMdl", "MethodUnit_Mdl.ini", &n);
+        if (!d) return 0;
+        res_unxor(d, n);
+        int cap = 0;
+        for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n")) {
+            char *eq = strchr(line, '=');
+            if (!eq) continue;
+            *eq = 0;
+            if (!strcmp(line, "wType")) {
+                if (unit_count == cap) units = realloc(units, (cap = cap ? cap * 2 : 512) * sizeof *units);
+                units[unit_count].id = -1;
+                units[unit_count++].anim = 0;
+            } else if (unit_count && !strcmp(line, "wAutoID")) units[unit_count - 1].id = atoi(eq + 1);
+            else if (unit_count && !strcmp(line, "dData0")) units[unit_count - 1].anim = (uint32_t)atoi(eq + 1);
+        }
+        free(d);
+    }
+    for (int i = 0; i < unit_count; i++)
+        if (units[i].id == auto_id) return units[i].anim;
+    return 0;
 }
 
 // ---- 技能表 Data/skill_npc.txt、skill_1..5.txt：0 索引名、8 Attack ID ----

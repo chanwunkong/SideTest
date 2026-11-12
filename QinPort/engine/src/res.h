@@ -152,10 +152,12 @@ int item_find(int type, int row, Item *out);  // 找不到回 0
 void styles_equip(char *styles, size_t n, const char *graphic, int pli_no, const char *equip);
 
 // ---- 招式 ObjMdl/MethodMdl.ini：動作序列、攻擊距離、各幀觸發（type 0 = 命中、1 = 音效、2 = 特效；flag 1 = 打中對方時）----
-typedef struct { int flag, frame, type, id; } Trig;
+typedef struct { int flag, frame, type, id, pos; } Trig;  // pos：特效位置，0 = 自己、1 = 對方
 #define MAX_TRIG 24
 typedef struct { int id, seq, range_min, range_max, trig_count; Trig trig[MAX_TRIG]; } Method;
 const Method *method_find(int auto_id);  // 依 wAutoID 找；第一次呼叫時載入
+// 招式單位 ObjMdl/MethodUnit_Mdl.ini（特效）：wAutoID → dData0 的 Res00 動畫編號；找不到回 0
+uint32_t unit_anim(int auto_id);
 // 技能表 Data/skill_*.txt 的「索引名」→ Attack ID（= 招式 wAutoID）；找不到回 -1
 int skill_attack(const char *index_name);
 static inline int stat_at(Stat s, int level) { return (int)(s.base + s.per * level); }

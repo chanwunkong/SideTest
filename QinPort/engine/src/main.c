@@ -450,8 +450,23 @@ static void hero_stats(Actor *h, int level) {
 }
 
 // 一次命中（EasyRPG.dll 0x10033140 物理傷害）：攻擊 = AP~AP_MAX 隨機，損血 = 攻擊² / (攻擊 + DP/2)，至少 3
+// ---- 招式特效（觸發 type 2 → MethodUnit_Mdl.ini 的 Res00 動畫，播一次）----
+#define MAX_FX 64
+static struct { uint32_t gid; float x, y; Uint32 start; } fx[MAX_FX];
+static int fx_count;
+
+// shortcut: pos 只分自己和對方（0、1 以外的 2、3、7、8、11 都先當自己），特效的混色（bData3）還沒做
+static void fx_spawn(const Trig *t, const Actor *self, const Actor *foe, Uint32 tick) {
+    const Actor *at = t->pos == 1 && foe ? foe : self;
+    uint32_t gid = unit_anim(t->id);
+    if (!gid || fx_count == MAX_FX) return;
+    fx[fx_count].gid = gid;
+    fx[fx_count].x = at->x;
+    fx[fx_count].y = at->y;
+    fx[fx_count++].start = tick;
+}
+
 static void strike(Actor *a, Actor *t, Uint32 tick) {
-    (void)tick;
     if (!alive(t)) return;
     t->fight = FIGHT_TICKS;
     if (t->mon && !t->foe) t->foe = a;  // 被打的怪物會反擊
@@ -463,9 +478,13 @@ static void strike(Actor *a, Actor *t, Uint32 tick) {
     int loss = dmg + t->dp / 2 > 0 ? dmg * dmg / (dmg + t->dp / 2) : 0;
     if (loss < 3) loss = 3;
     t->hp -= loss;
-    if (a->atk)  // 打中對方時的音效（招式 iFlag = 1）。shortcut: 特效（type 2）還沒做
-        for (int i = 0; i < a->atk->trig_count; i++)
-            if (a->atk->trig[i].flag == 1 && a->atk->trig[i].type == 1) audio_sfx(a->atk->trig[i].id);
+    if (a->atk)  // 打中對方時的音效和特效（招式 iFlag = 1）
+        for (int i = 0; i < a->atk->trig_count; i++) {
+            const Trig *g = &a->atk->trig[i];
+            if (g->flag != 1) continue;
+            if (g->type == 1) audio_sfx(g->id);
+            else if (g->type == 2) fx_spawn(g, a, t, tick);
+        }
     if (t->hp <= 0) {
         t->hp = 0;
         start_act(t, ACT_DEAD, t->def->death);
@@ -496,6 +515,7 @@ static void action_tick(Actor *a, Uint32 tick) {
                 if (t->flag || t->frame != fr) continue;
                 if (t->type == 1) audio_sfx(t->id);
                 else if (t->type == 0) strike(a, a->foe, tick);
+                else if (t->type == 2) fx_spawn(t, a, a->foe, tick);
             }
     a->last_frame = f;
     a->act_tick++;
@@ -674,6 +694,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     preload_roles(scene, hd);
     if (hd) actor_setup(hero, hd);
     spawn_npcs(scene);
+    fx_count = 0;
     const Entry *en = scene_entry(scene, entry_id);
     if (en) {
         hero->x = en->x + 0.5f;
@@ -951,6 +972,13 @@ int main(int argc, char **argv) {
                 if (pt->anim) { if (a) draw_frame(a, 0, frame_at(&a->seqs[0], tick), sx + pt->dx, sy + pt->dy, 0); }  // Res00 動畫，播第一個序列
                 else draw(image(pt->gid), sx + pt->dx, sy + pt->dy);
             }
+        }
+        for (int i = 0; i < fx_count; i++) {  // 特效畫在最上層，播完就移除
+            const Anim *a = anim_get(fx[i].gid);
+            if (a && a->count && tick - fx[i].start >= seq_ticks(&a->seqs[0])) { fx[i--] = fx[--fx_count]; continue; }
+            if (a && a->count)
+                draw_frame(a, 0, frame_at(&a->seqs[0], tick - fx[i].start), (int)((fx[i].x - fx[i].y + scene.h - 1) * TILE_W / 2) - ox,
+                           (int)((fx[i].x + fx[i].y) * TILE_H / 2) - oy, 0);
         }
         for (int i = 1; i < actor_count; i++)
             if (actors[i].mon && alive(&actors[i]) && actors[i].hp < actors[i].hp_max)

@@ -18,8 +18,11 @@ def lib_entries(data, base=0):
 def decode_xbm(data, base=0):
     w, h = struct.unpack_from('<II', data, base + 0x14)
     rgba = bytearray(w * h * 4)
+    t, alpha = base + 0x40, None
+    if struct.unpack_from('<I', data, base + 0x24)[0] == 1:  # 半透明圖：0x40 起 w×h bytes alpha，列位移表在後面
+        alpha, t = data[t:t + w * h], t + struct.unpack_from('<I', data, base + 0x28)[0]
     for y in range(h):
-        p = base + 0x40 + struct.unpack_from('<I', data, base + 0x40 + y * 4)[0]
+        p = t + struct.unpack_from('<I', data, t + y * 4)[0]
         x, opaque = 0, False
         while x < w:
             n = struct.unpack_from('<H', data, p)[0] // 2
@@ -28,7 +31,8 @@ def decode_xbm(data, base=0):
                 for i in range(min(n, w - x)):
                     c = struct.unpack_from('<H', data, p + i * 2)[0]
                     o = (y * w + x + i) * 4
-                    rgba[o:o + 4] = bytes(((c >> 11) * 255 // 31, ((c >> 5) & 63) * 255 // 63, (c & 31) * 255 // 31, 255))
+                    rgba[o:o + 4] = bytes(((c >> 11) * 255 // 31, ((c >> 5) & 63) * 255 // 63, (c & 31) * 255 // 31,
+                                        alpha[y * w + x + i] if alpha else 255))
                 p += n * 2
             x += n
             opaque = not opaque
