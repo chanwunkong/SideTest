@@ -167,6 +167,6 @@ int skill_attack(const char *index_name);
 // 欄位：2 名稱ID（Dlg/name_C.dlg）、3 等级需求、4 等级需求增量、5 技能等級數、7 左右键位、10 图标ID、25 初始技能等級
 // 技能參數（26 欄起每 5 欄一組：屬性ID、初始值、增量、是否對敵有效、是否百分比；EasyRPG 0x100757a0）
 typedef struct { int id, enemy, pct; float init, incr; } SkillMod;
-typedef struct { char key[40]; int name_id, req, req_add, max_level, hand, icon, level, status, estatus, range, mod_n; float mpu, mpu_inc, time, time_inc; SkillMod mod[12]; } SkillRow;  // key = 索引名（skill_attack 用）
+typedef struct { char key[40]; int name_id, req, req_add, max_level, wtype, hand, icon, attack, level, status, estatus, range, mod_n; float mpu, mpu_inc, time, time_inc, range_inc; SkillMod mod[12]; } SkillRow;  // key = 索引名（skill_attack 用）
 int skill_rows(int prof, SkillRow *out, int max);
 static inline int stat_at(Stat s, int level) { return (int)(s.base + s.per * level); }

@@ -151,7 +151,7 @@ static int frame_at(const Seq *q, Uint32 t) {
 // ---- 角色（主角與 NPC 共用）----
 enum { ACT_NONE, ACT_ATTACK, ACT_HIT, ACT_DEAD };  // 單次動作：播一次就回到平常；死亡停在最後一幀
 // 身上的一個狀態（原版 Status_N = "經過秒數 時間 技能"）：帶著施放時的技能等級
-typedef struct { const SkillRow *skill; int level, status, elapsed, time; } Buff;
+typedef struct { const SkillRow *skill; int level, status, elapsed, time, side; } Buff;  // side 1 = 別人放在身上的（套「是否对敌」的參數）
 
 typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
@@ -377,6 +377,8 @@ static void spawn_npcs(const Scene *s) {
 #define MON_WANDER 4  // shortcut: 怪物閒逛半徑（格）是自訂的，原版 AI 還沒拆
 static NpcSpec mon_specs[MAX_ACTORS];
 
+static void mon_derive(Actor *a);
+
 static void spawn_monsters(const Scene *s, const World *w, int room) {
     if (room < 0) return;
     const Room *r = &w->rooms[room];
@@ -410,12 +412,8 @@ static void spawn_monsters(const Scene *s, const World *w, int room) {
             int lv = mg->level, tier = mg->tier;
             if (lv < 0) lv = tier * 5 - rand() % 5;
             a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
-            a->hp = a->hp_max = stat_at(m->hp, a->level);
-            a->ap = stat_at(m->ap, a->level);
-            a->ap_max = stat_at(m->ap_max, a->level);
-            a->dp = stat_at(m->dp, a->level);
-            a->hr = stat_at(m->hit, a->level);
-            a->sr = stat_at(m->dodge, a->level);
+            mon_derive(a);
+            a->hp = a->hp_max;
             a->exp = stat_at(m->exp, a->level);
             a->atk = method_find(skill_attack(m->skill));
             actor_setup(a, d);
@@ -464,12 +462,13 @@ static float skill_value(float init, float incr, int level) { return (level - 1)
 
 // 狀態帶的技能參數套到身上（0x100300f0 → 0x10036160）。屬性代號 20~99 對名稱表 "Invincible" 起每格 0x40（.data 0x1039b5f0）；
 // 原版鍵名 HR = 閃避、SR = 命中，這裡 hr = 命中、sr = 閃避。百分比 = 加上目前值 × v / 100
-// shortcut: 只對得上 Actor 有的欄位（HP/MP 上限、攻防、命中閃避、回復）；力量等屬性、移動攻擊速度、對敵的參數還沒做
-static void hero_mods(Actor *h, int pct) {
+// 參數「是否对敌」的套在對方身上（0x1002fe20），其他的套在放技能的人身上
+// shortcut: 只對得上 Actor 有的欄位（HP/MP 上限、攻防、命中閃避、回復）；力量等屬性、移動攻擊速度還沒做
+static void actor_mods(Actor *h, int pct) {
     for (int b = 0; b < h->buff_n; b++)
         for (int i = 0; i < h->buff[b].skill->mod_n; i++) {
             const SkillMod *m = &h->buff[b].skill->mod[i];
-            if (m->enemy || m->pct != pct) continue;
+            if ((m->enemy > 0) != h->buff[b].side || m->pct != pct) continue;
             int *f = m->id == 23 ? &h->hp_max : m->id == 24 ? &h->mp_max : m->id == 41 ? &h->ap : m->id == 42 ? &h->ap_max : m->id == 53 ? &h->dp :
                      m->id == 60 ? &h->sr : m->id == 61 ? &h->hr : m->id == 62 ? &h->hp_speed : m->id == 63 ? &h->mp_speed : NULL;
             float v = skill_value(m->init, m->incr, h->buff[b].level);
@@ -486,7 +485,7 @@ static void hero_derive(Actor *h) {
     h->ap_max = hero_weapon.ap_max;
     h->dp = hero_armor_dp;
     h->hr = h->sr = h->hp_speed = h->mp_speed = 0;
-    hero_mods(h, 0);
+    actor_mods(h, 0);
     // 回復速度依職業：HP_SPEED = (Con − a) × HP_MAX × b / 100 / 分母，MP 同理用 Wisdom；分母 0 當 1
     static const int R[6][8] = {{0}, {25, 50, 25, 4, 20, 50, 10, 2}, {30, 60, 15, 2, 10, 40, 5, 2}, {20, 50, 10, 2, 20, 50, 10, 2},
                                 {25, 40, 25, 4, 35, 60, 35, 4}, {20, 40, 10, 2, 40, 60, 20, 2}};
@@ -500,10 +499,28 @@ static void hero_derive(Actor *h) {
     // 原版鍵名 SR = 命中率、HR = 闪避率（UI_C.dlg 2116/2115 對 Poq.exe 0x54f820 的顯示順序）；這裡 hr = 命中、sr = 閃避（跟怪物表一樣）
     h->hr = (h->hr + 4 * dex) * (dex + K) / K;
     h->sr = (h->sr + 3 * dex) * (dex + K) / K;
-    hero_mods(h, 1);
+    actor_mods(h, 1);
     if (h->hp > h->hp_max) h->hp = h->hp_max;
     if (h->mp > h->mp_max) h->mp = h->mp_max;
 }
+
+// 怪物數值：表上的基礎值 → 固定加值 → 百分比（同 0x1002d8d0，沒有職業倍率）
+static void mon_derive(Actor *a) {
+    const MonDef *m = a->mon;
+    a->hp_max = stat_at(m->hp, a->level);
+    a->ap = stat_at(m->ap, a->level);
+    a->ap_max = stat_at(m->ap_max, a->level);
+    a->dp = stat_at(m->dp, a->level);
+    a->hr = stat_at(m->hit, a->level);
+    a->sr = stat_at(m->dodge, a->level);
+    a->hp_speed = a->mp_speed = 0;  // shortcut: 怪物的回復速度還沒查，先不回
+    actor_mods(a, 0);
+    actor_mods(a, 1);
+    if (a->hp > a->hp_max) a->hp = a->hp_max;
+}
+
+static void hero_derive(Actor *h);
+static void actor_derive(Actor *a) { if (a->mon) mon_derive(a); else hero_derive(a); }
 
 static void hero_stats(Actor *h, int level) {
     h->level = level;
@@ -513,11 +530,11 @@ static void hero_stats(Actor *h, int level) {
 }
 
 // 系統心跳（Poq.exe 註冊的 refresh 指令「每秒一次」→ USER_Refresh）：狀態計時（0x10055e90），再回 HP、MP（0x10054450）
-static void hero_second(Actor *h) {
+static void actor_second(Actor *h) {
     int changed = 0;
     for (int b = 0; b < h->buff_n; b++)
         if (++h->buff[b].elapsed >= h->buff[b].time && h->buff[b].time >= 0) { h->buff[b--] = h->buff[--h->buff_n]; changed = 1; }
-    if (changed) hero_derive(h);
+    if (changed) actor_derive(h);
     if (h->act == ACT_DEAD) return;
     int hs = h->hp_speed, ms = h->mp_speed;
     if (!h->fight) {  // 不在戰鬥（FightStatus 0）回得快三倍
@@ -536,15 +553,64 @@ static void hero_second(Actor *h) {
 static int skill_mpu(const SkillRow *r) { return (int)skill_value(r->mpu, r->mpu_inc, r->level); }
 static int skill_time(const SkillRow *r) { return r->time < 0 ? 5 : (int)skill_value(r->time, r->time_inc, r->level); }
 
-// 技能打中時（0x1003f590）：有我方状态、身上還沒有，就加上狀態，技能參數跟著生效（0x10037f40、0x1002fe20）
-// shortcut: 同類狀態互斥（0x10054d50、0x100588c0）、敌方状态、對敵參數還沒做
-static void skill_status(Actor *h, const SkillRow *r) {
-    if (r->status < 1 || h->buff_n == 8) return;
-    for (int b = 0; b < h->buff_n; b++)
-        if (h->buff[b].status == r->status) return;
-    h->buff[h->buff_n++] = (Buff){r, r->level, r->status, 0, skill_time(r)};
-    hero_derive(h);
-    printf("狀態 %d 生效 %d 秒，回復 HP %d MP %d（每秒百分之一點）\n", r->status, skill_time(r), h->hp_speed, h->mp_speed);
+// 主角拿的武器類（Hand，0x1003b760）：右手道具類型 8（刀）、左手空 → 0
+// shortcut: 只有開局的青銅彎刀，換武器、左手道具還沒做，先固定 0
+static const int hero_hand = 0;
+
+// 技能能不能用（0x1004c2a0）：等級 > 0、精气夠、武器合 W_Type（-1 不限；相同可以；0 也接受 Hand < 0、1 接受 2、4 接受 5）
+static int skill_usable(const Actor *h, const SkillRow *r) {
+    int w = r->wtype;
+    if (r->level < 1 || h->mp < skill_mpu(r)) return 0;
+    return w < 0 || w == hero_hand || (w == 0 ? hero_hand < 0 : w == 1 ? hero_hand == 2 : w == 4 && hero_hand == 5);
+}
+
+// 狀態分類（.data 0x1039f5c8，11 類各 13 格；0x100588c0）：不在表上回 -1
+static int status_class(int st) {
+    static const int T[11][13] = {{13, 42, 41, 44}, {76, 77, 82, 79, 80, 81, 78}, {5, 12, 20, 25, 39, 40, 49},
+                                  {36, 38, 27, 37, 6, 35, 31, 32, 43, 51, 52, 53, 54}, {71, 72, 73, 74, 75}, {14, 23, 46, 47, 48, 63, 64},
+                                  {65}, {11, 62}, {10, 1, 4, 33, 2, 17}, {8}, {19, 121}};
+    for (int r = 0; r < 11; r++)
+        for (int j = 0; j < 13 && T[r][j]; j++)
+            if (T[r][j] == st) return r + 1;
+    return -1;
+}
+
+static int has_status(const Actor *a, int st) {
+    for (int b = 0; b < a->buff_n; b++)
+        if (a->buff[b].status == st) return 1;
+    return 0;
+}
+
+// 加狀態：先移掉互斥的（0x10054d50：同為第 1、3、4、6 類互斥；3 蓋 4、4 蓋 2/3/5、7 蓋 6、11 蓋 10），參數跟著生效
+static void buff_add(Actor *a, const SkillRow *r, int status, int side) {
+    int c = status_class(status);
+    for (int b = 0; c > 0 && b < a->buff_n; b++) {
+        int o = status_class(a->buff[b].status);
+        if (a->buff[b].status == status || o < 0) continue;
+        if ((o == c && (c == 1 || c == 3 || c == 4 || c == 6)) || (c == 3 && o == 4) || (c == 4 && (o == 2 || o == 3 || o == 5)) ||
+            (c == 7 && o == 6) || (c == 11 && o == 10))
+            a->buff[b--] = a->buff[--a->buff_n];
+    }
+    if (a->buff_n == 8) return;
+    a->buff[a->buff_n++] = (Buff){r, r->level, status, 0, skill_time(r), side};
+    actor_derive(a);
+    printf("狀態 %d 生效 %d 秒（%s）\n", status, skill_time(r), side ? "對方" : "自己");
+}
+
+static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick);
+
+// 技能打中（0x1003f590）：我方状态、敌方状态都沒填就不加；我方状态已在自己身上、敌方状态已在對方身上也不加。
+// 否則自己加我方状态、對方加敌方状态（0x1002fe20 → 0x10037f40）。Attack方式 = 0 的技能不造成傷害（0x10025b70）
+// shortcut: Attack方式空白當物理攻擊（原版基底預設值沒查）；陷阱（istrap）、免疫（B_QTIMMU）還沒做；
+// 沒有敌方状态但有對敵參數的（點石成俑）也當成狀態加在對方身上，時間同作用時間
+static void skill_hit(Actor *a, Actor *t, const SkillRow *r, Uint32 tick) {
+    if (r && (r->status > 0 || r->estatus > 0) && !(r->status > 0 && has_status(a, r->status)) && !(t && r->estatus > 0 && has_status(t, r->estatus))) {
+        if (r->status > 0) buff_add(a, r, r->status, 0);
+        int enemy_mod = 0;
+        for (int i = 0; i < r->mod_n; i++) enemy_mod |= r->mod[i].enemy > 0 && r->mod[i].id >= 20 && r->mod[i].id < 100;
+        if (t && t != a && alive(t) && (r->estatus > 0 || enemy_mod)) buff_add(t, r, r->estatus, 1);
+    }
+    if (t && t != a && (!r || r->attack != 0)) strike(a, t, r, tick);
 }
 
 // 一次命中（EasyRPG.dll 0x10033140 物理傷害）：攻擊 = AP~AP_MAX 隨機，損血 = 攻擊² / (攻擊 + DP/2)，至少 3
@@ -564,7 +630,7 @@ static void fx_spawn(const Trig *t, const Actor *self, const Actor *foe, Uint32 
     fx[fx_count++].start = tick;
 }
 
-static void strike(Actor *a, Actor *t, Uint32 tick) {
+static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     if (!alive(t)) return;
     t->fight = FIGHT_TICKS;
     if (t->mon && !t->foe) t->foe = a;  // 被打的怪物會反擊
@@ -572,21 +638,32 @@ static void strike(Actor *a, Actor *t, Uint32 tick) {
     // shortcut: 之前還有一段盾牌格擋（0x48c4e3，看防守方 +0x4e7 的裝備和攻擊方向），沒有盾的主角用不到，還沒做
     int hr = a->hr ? a->hr : 1, chance = hr * 1000 / (t->sr + hr);
     if (rand() % 1000 >= (chance < 100 ? 100 : chance > 900 ? 900 : chance)) return;
-    // 技能參數（EasyRPG 0x10024xxx 一屬性一個處理）：值 = (技能等級 − 1) × 增量 + 初始值，是否百分比分兩組；
-    // 250、251 加到 AP、AP_MAX；ID > 500 拆成 ID−300、ID−299 兩個。攻擊 = (AP + 加值) × (100 + 百分比) / 100
-    // shortcut: 只做 250、251（物理攻擊）；252 起的法術攻擊 MAP1~5、269 等還沒做，怪物的技能也還沒算
-    float add[2] = {0}, pct[2] = {0};
-    const SkillRow *sk = a->casting ? NULL : a->skill;  // shortcut: 左手技能的 250 起參數還沒算
+    // 技能參數（EasyRPG 0x10024xxx 一屬性一個處理，0x1039e628 起的函式表）：值 = (技能等級 − 1) × 增量 + 初始值，是否百分比分兩組；
+    // 250、251 加到 AP、AP_MAX；252~261 兩兩一組加到 MAP1~5、MAP1~5_MAX；ID > 500 拆成 ID−300、ID−299 兩個。
+    // 269 寫進的變數（0x10478a7c、b44）整個 dll 沒有讀，沒作用。218 等觸發狀態的機率（B_XYRATE 等）還沒做
+    float add[12] = {0}, pct[12] = {0};
     for (int i = 0; sk && i < sk->mod_n; i++) {
         const SkillMod *m = &sk->mod[i];
         float v = skill_value(m->init, m->incr, sk->level);
         for (int id = m->id > 500 ? m->id - 300 : m->id; id <= (m->id > 500 ? m->id - 299 : m->id); id++)
-            if (id == 250 || id == 251) (m->pct ? pct : add)[id - 250] = v;
+            if (id >= 250 && id < 262) (m->pct ? pct : add)[id - 250] = v;
     }
+    // 物理（0x10033140）：攻擊 = (AP + 加值) × (100 + 百分比) / 100，AP~AP_MAX 隨機；損血 = 攻擊² / (攻擊 + DP/2)
     int ap = (int)((a->ap + add[0]) * (pct[0] + 100) / 100), ap_max = (int)((a->ap_max + add[1]) * (pct[1] + 100) / 100);
     int dmg = ap + (ap_max > ap ? rand() % (ap_max - ap + 1) : 0);
-    int loss = dmg + t->dp / 2 > 0 ? dmg * dmg / (dmg + t->dp / 2) : 0;
-    if (loss < 3) loss = 3;
+    int loss = dmg + t->dp / 2 ? dmg * dmg / (dmg + t->dp / 2) : 0;
+    // 法術 MAP1~5（同一函式）：最大值用的百分比跟最小值同一格（原版如此）；抗性 MDP > 0 時損 = MAP² / (MAP + MDP)，
+    // MDP ≤ 0 時 = MAP × (MAP − 2·MDP) / (MAP − MDP)。shortcut: 主角、怪物都還沒有 MAP、MDP 欄位，現在只有技能加的法術攻擊
+    int magic = 0;
+    for (int i = 0; i < 5; i++) {
+        int lo = (int)(add[2 + 2 * i] * (pct[2 + 2 * i] + 100) / 100), hi = (int)(add[3 + 2 * i] * (pct[2 + 2 * i] + 100) / 100), mdp = 0;
+        if (lo < hi) lo += rand() % (hi - lo + 1);
+        if (!lo) continue;
+        if (mdp < 1 ? lo - mdp : lo + mdp) magic += (int)(mdp < 1 ? (float)(lo - 2 * mdp) / (lo - mdp) * lo : (float)lo / (lo + mdp) * lo);
+        if (magic < 0) magic = 0;
+    }
+    loss += magic;
+    if (loss <= 0) loss = 3;  // 總損血不到 1 才補成 3（原版 -1 < 損 → -3）
     t->hp -= loss;
     if (a->atk)  // 打中對方時的音效和特效（招式 iFlag = 1）
         for (int i = 0; i < a->atk->trig_count; i++) {
@@ -627,9 +704,9 @@ static void action_tick(Actor *a, Uint32 tick) {
                 if (t->flag || t->frame != fr) continue;
                 if (t->type == 1) audio_sfx(t->id);
                 else if (t->type == 0) {
-                    // shortcut: 原版打中處理（0x1003f590）怎麼分「只對自己」的技能還沒查清；先當沒填作用範圍的左手技能不打人
-                    if (a->casting) skill_status(a, a->cast);  // 同一狀態已在身上就不會再加
-                    if (!a->casting || a->cast->range >= 0) strike(a, a->foe, tick);
+                    // shortcut: 原版怎麼決定技能打誰還沒查清；先當沒填作用範圍的左手技能打自己
+                    if (a->casting) skill_hit(a, a->cast->range < 0 ? a : a->foe, a->cast, tick);
+                    else skill_hit(a, a->foe, a->skill, tick);
                 }
                 else if (t->type == 2) fx_spawn(t, a, a->foe, tick);
             }
@@ -638,7 +715,7 @@ static void action_tick(Actor *a, Uint32 tick) {
     if (a->act != ACT_DEAD && (!q || a->act_tick >= seq_ticks(q))) {
         if (a->act == ACT_ATTACK) a->cool = a->def->atk_delay;
         if (a->casting) {  // 左手技能放完：招式沒有打中的觸發就在這裡生效，換回右手招式
-            skill_status(a, a->cast);
+            if (a->cast->range < 0) skill_hit(a, a, a->cast, tick);
             a->cast = NULL;
             a->atk = a->atk_rh;
             a->casting = 0;
@@ -661,7 +738,7 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
         a->moving = 0;
         a->act_tick++;
         // 主角技能要夠精气才能用（0x1004c2a0），出手時扣（Poq.exe 0x48ffe0 送 0x13a → EasyRPG 0x1003f370）
-        if (a->cool <= 0 && (!a->skill || a->mp >= skill_mpu(a->skill))) {
+        if (a->cool <= 0 && (!a->skill || skill_usable(a, a->skill))) {
             if (a->skill) a->mp -= skill_mpu(a->skill);
             start_act(a, ACT_ATTACK, a->atk ? a->atk->seq : a->fidle);
         }
@@ -992,13 +1069,14 @@ static void hero_skill_apply(Actor *h) {
 }
 
 // 放左手技能（原版右鍵 → Poq.exe 0x48ffe0 手 = 1）：技能等級 > 0、精气夠，招式開始才扣精气
-// shortcut: 武器限制（W_Type）、作用範圍（RangeMin/Max）還沒檢查，原地對目前目標放
+// 有作用範圍（第 19、20 欄）的要對著目標、在範圍內才放。shortcut: 原版會走過去再放，這裡不在範圍內就不放；作用範圍最小還沒用
 static void hero_cast(Actor *h) {
     int k = cur_skill[1];
     if (k < 0 || k >= hero_skill_n || h->act || h->casting) return;
     const SkillRow *r = &hero_skill[k];
     const Method *m = method_find(skill_attack(r->key));
-    if (r->level < 1 || h->mp < skill_mpu(r) || !m) return;
+    if (!skill_usable(h, r) || !m) return;
+    if (r->range >= 0 && (!alive(h->foe) || cell_dist(h, h->foe) > skill_value(r->range, r->range_inc, r->level) + 0.5f)) return;
     h->mp -= skill_mpu(r);
     h->cast = r;
     h->casting = 1;
@@ -1035,9 +1113,14 @@ static void pick_pos(int *x, int *y) {
 }
 
 // 技能圖示置中畫在格子 c 上
+// shortcut: 不能用（精气不夠、武器不合）時畫暗一點是自訂的，原版怎麼表示還沒查
 static void skill_icon(const UiCtrl *c, int ox, int oy, int k) {
     const Sprite *bg = ui_image(c->img, 0), *ic = k >= 0 && k < hero_skill_n ? ui_image(hero_skill[k].icon, 0) : NULL;
-    if (bg && ic) draw(ic, ox + c->x + (bg->w - ic->w) / 2, oy + c->y + (bg->h - ic->h) / 2);
+    if (!bg || !ic) return;
+    int dim = !skill_usable(&actors[0], &hero_skill[k]);  // actors[0] = 主角
+    if (dim) SDL_SetTextureColorMod(ic->tex, 100, 100, 100);
+    draw(ic, ox + c->x + (bg->w - ic->w) / 2, oy + c->y + (bg->h - ic->h) / 2);
+    if (dim) SDL_SetTextureColorMod(ic->tex, 255, 255, 255);
 }
 
 // 按鈕名稱 → 開的視窗（主列和人物屬性視窗裡的 m_pRole／m_pSkill／m_pProp 同名同作用）
@@ -1641,7 +1724,8 @@ int main(int argc, char **argv) {
         while (now_ms - logic_ms >= TICK_MS) {
             logic_ms += TICK_MS;
             ++tick;
-            if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000) hero_second(hero);
+            if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000) for (int i = 0; i < actor_count; i++)
+                    if (!i || actors[i].mon) actor_second(&actors[i]);
             for (int i = 0; i < actor_count; i++) {
                 if (actors[i].cool > 0) actors[i].cool--;
                 if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
