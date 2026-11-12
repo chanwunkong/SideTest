@@ -869,12 +869,61 @@ static void skill_add(int i) {
     hero_extra_skill--;
 }
 
+static void skills_load(void) {
+    if (hero_skill_n < 0) hero_skill_n = skill_rows(hero_prof, hero_skill, 20);
+}
+
+// 主列的右手、左手技能（原版 SkillData 的 CurRSkillID、CurLSkillID）：hero_skill 的第幾個，-1 = 空。
+// shortcut: 開局兩手都是斩棘披荆（第 0 個，左右鍵位 2）是猜的，原版開新遊戲怎麼設還沒找到
+static int cur_skill[2];
+
+// 點敵人用右手技能的招式（技能表 Attack ID）。shortcut: 左手技能（止血回春等）還不能施放；手機點一下對應哪一手是自訂的
+static void hero_skill_apply(Actor *h) {
+    skills_load();
+    int k = cur_skill[0];
+    h->atk = k >= 0 && k < hero_skill_n ? method_find(skill_attack(hero_skill[k].key)) : NULL;
+}
+
+// 快捷技能視窗（Poq.exe 0x504d90 開 JM514 = 右手、0x504b40 開 JM515 = 左手；0x564360 填格子）：
+// 依序放進左右鍵位等於這隻手或 2（兩手都行）、等級 > 0 的技能，第 n 個放 m_pItem[n]。
+// shortcut: 原版還要 SpeType == 0（存檔欄位，來源沒找到，先當都是 0）；視窗位置原版 0x583790 還沒翻，先貼在該手的按鈕上方
+#define JM514 "JM514_\xbf\xec\xbd\xdd\xbc\xbc\xc4\xdc\xbd\xe7\xc3\xe6"
+#define JM515 "JM515_\xbf\xec\xbd\xdd\xbc\xbc\xc4\xdc\xbd\xe7\xc3\xe6"
+static UiDialog pick;
+static int pick_hand = -1, pick_skill[24], pick_n;
+
+static void pick_open(int hand) {
+    if (pick_hand == hand) { pick_hand = -1; return; }
+    skills_load();
+    pick_hand = ui_load(hand ? JM515 : JM514, &pick) > 0 ? hand : -1;
+    pick_n = 0;
+    for (int k = 0; k < hero_skill_n && pick_n < 24; k++)
+        if ((hero_skill[k].hand == hand || hero_skill[k].hand == 2) && hero_skill[k].level > 0) pick_skill[pick_n++] = k;
+}
+
+static void pick_pos(int *x, int *y) {
+    char key[16];
+    snprintf(key, sizeof key, "m_pSkill[%d]", pick_hand);
+    const UiCtrl *b = ui_find(&bar, key);
+    const Sprite *s = b ? ui_image(b->img, 0) : NULL;
+    int bx = (vw - bar.w) / 2 + (b ? b->x : 0);
+    *x = pick_hand ? bx : bx + (s ? s->w : 0) - pick.w;
+    *y = vh - bar.h - pick.h;
+}
+
+// 技能圖示置中畫在格子 c 上
+static void skill_icon(const UiCtrl *c, int ox, int oy, int k) {
+    const Sprite *bg = ui_image(c->img, 0), *ic = k >= 0 && k < hero_skill_n ? ui_image(hero_skill[k].icon, 0) : NULL;
+    if (bg && ic) draw(ic, ox + c->x + (bg->w - ic->w) / 2, oy + c->y + (bg->h - ic->h) / 2);
+}
+
 // 按鈕名稱 → 開的視窗（主列和人物屬性視窗裡的 m_pRole／m_pSkill／m_pProp 同名同作用）
 static void ui_command(const char *name) {
     if (!strcmp(name, "m_pRole")) win_toggle(&win_left, JM52);
     else if (!strcmp(name, "m_pSkill")) { skill_mode = 1; win_toggle(&win_right, JM53); }
     else if (!strcmp(name, "m_pProp")) win_toggle(&win_right, JM54);
     else if (!strncmp(name, "m_pPage[", 8)) skill_page = atoi(name + 8) - 1;  // 技能頁籤：m_pPage[1]~[5] = 第 0~4 頁（[6] 藏著）
+    else if (!strncmp(name, "m_pSkill[", 9)) pick_open(name[9] == '1');  // 主列 m_pSkill[0] 右手、[1] 左手
     else if (!strcmp(name, "m_pEquip")) win_toggle(&win_left, JM55);  // 道具視窗的装备：原版開在中線左邊（Poq.exe 0x54ad87）
 }
 
@@ -894,6 +943,18 @@ static int in_rect(const SDL_Rect *r, int x, int y) { return x >= r->x && x < r-
 
 // 介面吃掉的點擊回 1（不再拿去走路、打怪）。shortcut: 主列只有按鈕吃點擊，主列底圖空白處還是會走路
 static int hud_tap(int x, int y) {
+    if (pick_hand >= 0) {  // 快捷技能視窗開著：點格子換技能；點哪裡都收起來
+        int px, py;
+        pick_pos(&px, &py);
+        const UiCtrl *c = ui_button_at(&pick, px, py, x, y);
+        int i = c && !strncmp(c->name, "m_pItem[", 8) ? atoi(c->name + 8) : -1;
+        if (i >= 0 && i < pick_n) {
+            cur_skill[pick_hand] = pick_skill[i];
+            if (pick_hand == 0) hero_skill_apply(&actors[0]);
+        }
+        pick_hand = -1;
+        return 1;
+    }
     Win *ws[2] = {&win_left, &win_right};
     for (int i = 0; i < 2; i++) {
         Win *w = ws[i];
@@ -975,7 +1036,7 @@ static void hero_describe(const Actor *h, char *out, size_t cap) {
 // 等級 0 的技能畫成灰的（原版沒學會的那列加 0x40000 旗標）。加點模式下面顯示「技能升级点数：」2202 和剩餘技能點。
 // shortcut: 0x40000 當成灰色、m_pAdd 不能按時照畫，還沒對 UIWndEx.dll；左右鍵圖示還沒做
 static void skill_draw(UiDialog *d, int wx, int wy) {
-    if (hero_skill_n < 0) hero_skill_n = skill_rows(hero_prof, hero_skill, 20);
+    skills_load();
     char key[16], name[128], g[64];
     if (!skill_mode) {
         UiCtrl *bt = ui_find(d, "m_pSkillBonusTitle"), *bn = ui_find(d, "m_pSkillBonus");
@@ -1037,6 +1098,12 @@ static void hud_draw(const Actor *hero) {
     UiCtrl *red = ui_find(&bar, "m_pRed"), *blue = ui_find(&bar, "m_pBlue");
     if (red) ui_bar(red, ox, oy, hero->hp, hero->hp_max);
     if (blue) ui_bar(blue, ox, oy, hero->mp, hero->mp_max);
+    for (int i = 0; i < 2; i++) {
+        char key[16];
+        snprintf(key, sizeof key, "m_pSkill[%d]", i);
+        const UiCtrl *c = ui_find(&bar, key);
+        if (c) skill_icon(c, ox, oy, cur_skill[i]);
+    }
     if (party.count) {
         int px = vw - party.w, py = oy - party.h;
         for (int i = 0; i < party.count; i++) {  // 只有主角：畫背景和第 0 格。shortcut: 頭像（G_PicID）、隊友還沒做
@@ -1118,6 +1185,17 @@ static void hud_draw(const Actor *hero) {
             char t[16];
             snprintf(t, sizeof t, "%d", hero_money);
             draw_text(wx + money->x + (money->w - text_width(t)) / 2, wy + money->y + (money->h - 16) / 2, t, money->w, 0xBECDCE, 1);
+        }
+    }
+    if (pick_hand >= 0) {
+        int px, py;
+        pick_pos(&px, &py);
+        ui_draw(&pick, px, py);
+        for (int i = 0; i < pick_n; i++) {
+            char key[16];
+            snprintf(key, sizeof key, "m_pItem[%d]", i);
+            const UiCtrl *c = ui_find(&pick, key);
+            if (c) skill_icon(c, px, py, pick_skill[i]);
         }
     }
 }
@@ -1482,8 +1560,10 @@ int main(int argc, char **argv) {
         if (monsters_due && !res_loading() && (world_tried || world_ready())) {
             monsters_due = 0;
             if (!world_tried) room = load_world(&world, &world_tried, alias);
-            if (!hero->atk) {  // 戰鬥資料也等開場畫面好了才讀（網頁版不拖慢開場）
-                hero->atk = method_find(skill_attack("\xd3\xce\xcf\xc0_\xd5\xb6\xbc\xac\xc5\xfb\xbe\xa3"));  // 游侠_斩棘披荆（1 級技能，原版的普通攻擊）
+            static int fight_loaded;
+            if (!fight_loaded) {  // 戰鬥資料也等開場畫面好了才讀（網頁版不拖慢開場）
+                fight_loaded = 1;
+                hero_skill_apply(hero);
                 size_t n;
                 uint8_t *d = res_file("Data", "experience.txt", &n);
                 if (d) {

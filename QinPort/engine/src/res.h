@@ -165,6 +165,6 @@ uint32_t unit_anim(int auto_id);
 int skill_attack(const char *index_name);
 // 職業技能表 Data/skill_<職業>.txt 的單機列（「网络」開頭的是連線版，跳過），照表的順序：技能視窗第 p 頁是第 4p~4p+3 列
 // 欄位：2 名稱ID（Dlg/name_C.dlg）、3 等级需求、4 等级需求增量、5 技能等級數、7 左右键位、10 图标ID、25 初始技能等級
-typedef struct { int name_id, req, req_add, max_level, hand, icon, level; } SkillRow;
+typedef struct { char key[40]; int name_id, req, req_add, max_level, hand, icon, level; } SkillRow;  // key = 索引名（skill_attack 用）
 int skill_rows(int prof, SkillRow *out, int max);
 static inline int stat_at(Stat s, int level) { return (int)(s.base + s.per * level); }
