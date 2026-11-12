@@ -5,7 +5,8 @@
 ## 原則（使用者的要求）
 
 - **目標是復刻原版**：遊戲行為、數值、手感都以原版為準。技術選擇自己決定，依據是原版資源或執行檔的分析結果，不要一直問使用者選哪個方案。只有真的需要使用者實機測試或回報手感時才請他看。
-- **平台**：R36S 掌機（640×480、手把、1GB RAM、RK3326）、Mac（800×600 等比例放大、滑鼠鍵盤）、iPad 與 Android 平板（觸控）。掌機若有觸控螢幕也要支援。
+- **主要平台：線上手機版**（網頁版，`make web`，手機橫向、觸控，透過 Tailscale 連 Mac 上的伺服器）。新功能先以手機網頁版能玩、能測為準。
+- 其他平台：Mac（800×600 等比例放大、滑鼠鍵盤，開發用）。iPad 與 Android 平板之後再做。**R36S 掌機暫停**（使用者 2026-11-12 決定）：已能交叉編譯，但不再往下做，也不必維護。
 - **輸入**：所有輸入（滑鼠、觸控、手把、鍵盤）都轉成同一套指令。介面依螢幕邊緣排版，不寫死 800×600 座標。
 - **授權**：遊戲資源只從使用者的正版讀取，絕不打包或散布。網頁測試版只開在 Tailscale 內網。
 - 動畫、圖片、音效一律用原版的，不重畫。
@@ -18,7 +19,8 @@
 | `QinPort/engine/src/res.c/.h` | 讀資源：封包、圖片、動畫、場景、模型、主角 PLI | 是 |
 | `QinPort/engine/src/main.c` | 主迴圈、繪製、角色與 NPC、場景切換、輸入 | 是 |
 | `QinPort/engine/src/audio.c/.h` | 音樂串流、音效 | 是 |
-| `QinPort/engine/Makefile` | `make`（Mac 原生）、`make web`（Emscripten） | 是 |
+| `QinPort/engine/Makefile` | `make`（Mac 原生）、`make web`（Emscripten）、`make r36s`（aarch64 Linux） | 是 |
+| `QinPort/r36s/` | PortMaster 版：`QinPort.sh` 啟動檔＋`qinport/qin`（產出，不進 git）＋`qinport/game/`（使用者自己放） | 只有 .sh |
 | `QinPort/tools/*.py` | Python 工具：libtool（封包/圖片）、maptool（場景渲染）、roletool（主角疊圖）、roomtool（DLL 房間表）、webserve（網頁版伺服器）、webpack（舊的整包精簡，已不需要） | 是 |
 | `QinPort/web/shell.html` | 網頁版外框 | 是 |
 | `QinPort/web/game/`, `web/index.*` | 網頁版產出 | 否 |
@@ -39,9 +41,16 @@ cd QinPort && ./engine/qin game CHENG001.Scn       # 800×600；加 --640 是 R3
 cd engine && make web
 cd .. && python3 tools/webserve.py web game 100.83.41.116 8642   # Mac 的 Tailscale IP；只記 404
 # 手機打開 http://100.83.41.116:8642/  （?scene=別名&warp=N 可直接測觸發區）
+
+
+# R36S（暫停；PortMaster，ArkOS／ROCKNIX／muOS 都適用）
+cd engine && make r36s        # zig 交叉編譯；第一次會下載 Debian 11 arm64 的 SDL2 標頭到 engine/build/
+# 複製到 SD 卡：r36s/QinPort.sh → ports/；r36s/qinport/ → ports/qinport/；game/ → ports/qinport/game/
+# 不用實機的測試：Lima 的 Debian arm64 VM（limactl shell qin，~/qin 有遊戲檔）
+limactl copy r36s/qinport/qin qin:/tmp/q && limactl shell qin bash -c 'cd ~/qin && cp /tmp/q qin && SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./qin game xianyang --640 --shot /tmp/a.bmp'
 ```
 
-- 依賴：Homebrew 的 `sdl2`、`emscripten`、`radare2`（逆向用）。
+- 依賴：Homebrew 的 `sdl2`、`emscripten`、`radare2`（逆向用）、`zig` 和 `lima`（R36S）。
 - 自動測網頁版：`/Users/martini/github/grid-icon/node_modules/playwright` 搭配 `chromium.launch({channel:'chrome'})`，用 iPhone landscape 裝置模擬。範例腳本在 `/tmp/qintest/t.cjs`，可能已被清掉。
 - `.bmp` 截圖轉 PNG：見 `tools/libtool.py` 的 `png()`。
 
@@ -201,7 +210,9 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 1. ~~節拍與移動單位~~（已完成）
 2. ~~場景切換、NPC 顯示與平時行為~~（已完成；閒逛的停留時間是自訂的，跟隨類型 15 目前站著不動）。
 3. ~~音樂、腳步聲~~（已完成）。`snd.lib`（Mfx sound lib 2.0）還沒拆，可能是介面或技能音效。
-4. 交叉編譯到 R36S（aarch64 Linux + SDL2，ArkOS 或 ROCKNIX；用 Docker 工具鏈），實機測效能。使用者的掌機系統還沒確認，到時候再問他。
+4. R36S：**暫停**。目前做到的：`make r36s` 交叉編譯、PortMaster 啟動檔，Linux VM 驗證場景和切換都正常（咸陽記憶體峰值約 82MB），沒有實機測過。
 5. 戰鬥：怪物（RoleMdl 的怪物列、Res 動畫）、Data 數值表、技能（MethodMdl.ini）。
-6. 介面：ResUI* 圖片，依螢幕邊緣排版，支援 640×480 與觸控按鈕。
+6. 介面：ResUI* 圖片，依螢幕邊緣排版，以手機橫向觸控為主。
+
+其他待查：原版鏡頭可能會停在地圖邊緣，不露出黑邊；要對照原版確認。
 7. 平板版：iOS（Xcode，使用者兩種平板都有）和 Android（APK）。

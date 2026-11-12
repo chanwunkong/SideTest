@@ -1,6 +1,10 @@
 QinPort/game/
 QinPort/extracted/
 QinPort/engine/qin
+QinPort/engine/build/
+QinPort/r36s/qinport/qin
+QinPort/r36s/qinport/game/
+QinPort/r36s/qinport/log.txt
 QinPort/web/game/
 QinPort/web/index.*
 QinPort/tools/__pycache__/
