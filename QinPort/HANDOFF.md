@@ -35,7 +35,7 @@ cd QinPort && ./engine/qin game CHENG001.Scn       # 800×600；加 --640 是 R3
 ./engine/qin game xianyang --warp 2 --shot /tmp/b.bmp  # 站到第 2 個觸發區，測場景切換
 
 # 網頁版（手機透過 Tailscale 測）
-python3 tools/webpack.py game web/game CHENG001.Scn bdj_cave1.Scn
+python3 tools/webpack.py game web/game xianyang.Scn LISHAN.Scn xishuicun.Scn xy_hs2.Scn xy_inn.Scn
 cd engine && make web
 cd ../web && python3 -m http.server 8642 --bind 100.83.41.116   # Mac 的 Tailscale IP
 # 手機打開 http://100.83.41.116:8642/  （?scene=別名&warp=N 可直接測觸發區）
@@ -179,6 +179,7 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 輸入：鍵盤、手把（十字鍵、左搖桿，Select + Start 離開）、滑鼠和觸控（按住就往那個方向走）。
 
 ### 已知問題
+- 網頁版是把資料整包預載進記憶體（5 個場景約 80MB）。之後要改成用到才下載（fetch 單一封包項目），才能放整個遊戲。
 - 遮擋排序是簡化版，大型建築可能疊錯。
 - 速度比調整動畫延遲（加速／減速時）還沒做；目前只有平常速度。
 - 驪山 LISHAN 有大片空地面，推測是地圖外圍，沒有跟原版對照過。

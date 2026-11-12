@@ -5,10 +5,10 @@
 用法：python3 webpack.py <遊戲資料夾> <輸出資料夾> <場景.Scn>...
 """
 import os, re, shutil, struct, sys
-from maptool import load_map, load_bnt, load_models, scn_files
+from maptool import load_map, load_bnt, load_models, scn_files, scn_ont
 from roletool import LIBS, Res, load_pli
 
-HERO = 1201
+HERO = '1201'
 
 
 def find_ci(d, name):
@@ -44,13 +44,15 @@ def main(game, out, scenes):
     res = Res(game)
     gids = set()  # 全域編號（含 Res00 動畫本身）
 
-    def add_anim(gid):
+    def add_anim(gid, seqs=None):
+        """seqs = 會播的序列（None = 全部）；只打包這些序列的圖。"""
         gids.add(gid)
-        for seq in res.sprite(gid):
-            for f in seq:
-                gids.add(f[2] & 0xFFFFFF)
+        for i, seq in enumerate(res.sprite(gid)):
+            if seqs is None or i in seqs:
+                for f in seq:
+                    gids.add(f[2] & 0xFFFFFF)
 
-    tiles = {}
+    tiles, tmpls = {}, set()
     for scn in scenes:
         scn = copy(game, out, 'scene', scn)
         map_name, bnt_name = scn_files(os.path.join(game, 'scene', scn))
@@ -58,22 +60,41 @@ def main(game, out, scenes):
         bnt_name = copy(game, out, 'scene/Int', bnt_name)
         w, h, lib, cells = load_map(os.path.join(game, 'scene/Map', map_name))
         tiles.setdefault(lib, set()).update(t for c in cells for t in c[:2] if t != 0xFFFF)
+        ont = scn_ont(os.path.join(game, 'scene', scn))
+        if ont:
+            ont = copy(game, out, 'scene/Int', ont)
+            tmpls.update(int(t) for t in re.findall(r'\n\xc4\xa3\xb0\xe5ID=(\d+)', open(os.path.join(game, 'scene/Int', ont), 'rb').read().decode('latin1')))
         mdl, recs = load_bnt(os.path.join(game, 'scene/Int', bnt_name))
         mdl = copy(game, out, 'Mdl', mdl)
         models = load_models(os.path.join(game, 'Mdl', mdl))
         for _, mid, _, _ in recs:
             for anim, pic, lib_flag, _, _ in models.get(mid, []):
                 gid = pic | lib_flag << 16
-                add_anim(gid) if anim else gids.add(gid)
+                add_anim(gid, {0}) if anim else gids.add(gid)  # 場景動畫只播第 0 序列
 
     copy(game, out, '.', 'EasyRPG.dll')  # 場景出口定義（引擎啟動時掃描）
     defs_name = copy(game, out, 'PLI', '0000_001.PLI')
     defs = dict(re.findall(r'(SPR_\w+)\t(\d+)', open(os.path.join(game, 'PLI', defs_name), 'rb').read().decode('latin1')))
-    pli = copy(game, out, 'PLI', f'{HERO}_001.PLI')
-    for part, style in load_pli(os.path.join(game, 'PLI', pli))[0]:
-        for key in (f'SPR_ROLE_{HERO}_{part}_{style}_001', f'SPR_ROLE_{HERO}_{part}S_{style}_001'):
-            if key in defs:
-                add_anim(int(defs[key]))
+    # 角色表：主角（圖形 1201）+ 場景 NPC 用到的模板，依「屬性」打包每個部件的動畫
+    copy(game, out, 'ObjMdl', 'RoleMdl.txt')
+    raw = open(os.path.join(game, 'ObjMdl', 'RoleMdl.txt'), 'rb').read()
+    rows = [l.split('\t') for l in bytes(c ^ 0x78 for c in raw[1:]).decode('gbk', 'replace').splitlines()[1:]]
+    for r in rows:
+        if len(r) < 21 or not r[1].isdigit() or not r[2].isdigit():
+            continue
+        if int(r[1]) not in tmpls and r[2] != HERO:
+            continue
+        graphic, pli_no, styles = r[2], int(r[5]), r[3].split('*')
+        first = lambda v: int(v.split('*')[0]) if v.split('*')[0].isdigit() else 0
+        seqs = {first(r[7]) + d for d in range(8)} | {first(r[8]) + d for d in range(8)}  # shortcut: 只有站立和走路，做戰鬥時再加
+        try:
+            pli = copy(game, out, 'PLI', f'{graphic}_{pli_no:03d}.PLI')
+        except FileNotFoundError:
+            continue
+        for (part, _), style in zip(load_pli(os.path.join(game, 'PLI', pli))[0], styles):
+            for key in (f'SPR_ROLE_{graphic}_{part}_{style}_{pli_no:03d}', f'SPR_ROLE_{graphic}_{part}S_{style}_{pli_no:03d}'):
+                if key in defs:
+                    add_anim(int(defs[key]), seqs)
 
     os.makedirs(os.path.join(out, 'Res'), exist_ok=True)
     total = 0

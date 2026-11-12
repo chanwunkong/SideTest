@@ -50,6 +50,12 @@ def load_bnt(path):
     return mdl, recs
 
 
+def scn_ont(path):
+    """場景的 .ONT 檔名（第 3 行 IntObj名称=），沒有就回 None。"""
+    lines = open(path, 'rb').read().decode('gbk').splitlines()
+    return lines[2].split('=', 1)[1].strip() if len(lines) > 2 and '=' in lines[2] and lines[2].split('=', 1)[1].strip() else None
+
+
 def scn_files(path):
     text = open(path, 'rb').read().decode('gbk')
     return re.findall(r'=(\S+\.(?:MAP|BNT))', text, re.I)
