@@ -823,11 +823,14 @@ static const UiCtrl *ui_button_at(const UiDialog *d, int ox, int oy, int x, int 
 #define JM54 "JM54_\xb5\xc0\xbe\xdf\xbd\xe7\xc3\xe6"                      // JM54_道具界面
 #define JM55 "JM55_\xd7\xb0\xb1\xb8\xbd\xe7\xc3\xe6"                      // JM55_装备界面
 
+static int skill_page;  // 原版 SkillData 的 CurSkillPage
+
 // 按鈕名稱 → 開的視窗（主列和人物屬性視窗裡的 m_pRole／m_pSkill／m_pProp 同名同作用）
 static void ui_command(const char *name) {
     if (!strcmp(name, "m_pRole")) win_toggle(&win_left, JM52);
     else if (!strcmp(name, "m_pSkill")) win_toggle(&win_right, JM53);
     else if (!strcmp(name, "m_pProp")) win_toggle(&win_right, JM54);
+    else if (!strncmp(name, "m_pPage[", 8)) skill_page = atoi(name + 8) - 1;  // 技能頁籤：m_pPage[1]~[5] = 第 0~4 頁（[6] 藏著）
     else if (!strcmp(name, "m_pEquip")) win_toggle(&win_left, JM55);  // 道具視窗的装备：原版開在中線左邊（Poq.exe 0x54ad87）
 }
 
@@ -917,6 +920,39 @@ static void hero_describe(const Actor *h, char *out, size_t cap) {
     snprintf(out, cap, "%s\n%s%s\n%s%s\n%s%d\n%s%d\n", "扶苏", l[0], prof, l[1], gender, l[2], hero_age, l[3], h->level);
 }
 
+// 技能視窗一頁 4 列（Poq.exe 0x560f30 → 0x55f900）：m_pItem[i] 圖示（ResID）、m_pItemInfo[i] 名稱、m_pOK[i] 等級。
+// 等級 0 的技能畫成灰的（原版沒學會的那列加 0x40000 旗標）。shortcut: 0x40000 當成灰色，還沒對 UIWndEx.dll；左右鍵圖示、加點還沒做
+static void skill_draw(UiDialog *d, int wx, int wy) {
+    static SkillRow rows[20];
+    static int n = -1;
+    if (n < 0) n = skill_rows(hero_prof, rows, 20);
+    char key[16], name[128], g[64];
+    for (int i = 0; i < 4 && skill_page * 4 + i < n; i++) {
+        const SkillRow *r = &rows[skill_page * 4 + i];
+        snprintf(key, sizeof key, "m_pItem[%d]", i);
+        UiCtrl *slot = ui_find(d, key);
+        const Sprite *bg = slot ? ui_image(slot->img, 0) : NULL, *ic = ui_image(r->icon, 0);
+        if (slot && bg && ic) {
+            int grey = r->level ? 255 : 110;
+            SDL_SetTextureColorMod(ic->tex, grey, grey, grey);
+            draw(ic, wx + slot->x + (bg->w - ic->w) / 2, wy + slot->y + (bg->h - ic->h) / 2);
+            SDL_SetTextureColorMod(ic->tex, 255, 255, 255);
+        }
+        snprintf(key, sizeof key, "m_pItemInfo[%d]", i);
+        UiCtrl *info = ui_find(d, key);
+        if (info && res_dlg("name_C.dlg", r->name_id, g, sizeof g)) {
+            gbk_utf8(g, name, sizeof name);
+            draw_text(wx + info->x + (info->w - text_width(name)) / 2, wy + info->y + (info->h - 16) / 2, name, info->w, 0xBECDCE, 1);
+        }
+        snprintf(key, sizeof key, "m_pOK[%d]", i);
+        UiCtrl *lv = ui_find(d, key);
+        if (lv) {
+            snprintf(name, sizeof name, "%d", r->level);
+            draw_text(wx + lv->x + (lv->w - text_width(name)) / 2, wy + lv->y, name, lv->w, 0xD5D5D5, 1);
+        }
+    }
+}
+
 static void hud_draw(const Actor *hero) {
     static int tried;
     if (!tried) {
@@ -1000,6 +1036,7 @@ static void hud_draw(const Actor *hero) {
     if (win_right.open) {
         int wx = win_x(&win_right), wy = win_y(&win_right);
         ui_draw(&win_right.d, wx, wy);
+        if (!strcmp(win_right.d.name, JM53)) skill_draw(&win_right.d, wx, wy);
         UiCtrl *money = ui_find(&win_right.d, "m_pMoney");  // 道具：原版把錢數交給 m_pMoney 顯示（Poq.exe 0x54db42），「金钱：%d」是提示文字
         if (money) {
             char t[16];

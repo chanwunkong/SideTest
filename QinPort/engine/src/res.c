@@ -1235,6 +1235,32 @@ int skill_attack(const char *index_name) {
     return -1;
 }
 
+int skill_rows(int prof, SkillRow *out, int max) {
+    char name[32];
+    size_t n;
+    snprintf(name, sizeof name, "skill_%d.txt", prof);
+    uint8_t *d = res_file("Data", name, &n);
+    if (!d) return 0;
+    res_unxor(d, n);
+    int k = 0, line_no = 0;
+    for (char *line = strtok((char *)d, "\r\n"); line && k < max; line = strtok(NULL, "\r\n"), line_no++) {
+        if (line_no < 2 || !strncmp(line, "\xcd\xf8\xc2\xe7", 4)) continue;  // 分類列、欄名列；「网络」（GBK）
+        char *col[26] = {0};
+        int c = 0;
+        for (char *p = line; c < 26; c++) {
+            col[c] = p;
+            char *t = strchr(p, '\t');
+            if (!t) { c++; break; }
+            *t = 0;
+            p = t + 1;
+        }
+        if (c < 26 || !col[0][0]) continue;
+        out[k++] = (SkillRow){atoi(col[2]), atoi(col[5]), atoi(col[7]), atoi(col[10]), atoi(col[25])};
+    }
+    free(d);
+    return k;
+}
+
 // ---- 道具表 ----
 int item_find(int type, int row, Item *out) {
     char name[32];
@@ -1304,14 +1330,16 @@ static uint32_t dlg_u32(const uint8_t *b) {
 }
 
 int res_dlg(const char *name, int id, char *out, size_t cap) {
-    static char cached[64];
-    static uint8_t *d;
-    static size_t n;
-    if (strcmp(cached, name)) {
-        free(d);
-        d = res_file("Dlg", name, &n);
-        snprintf(cached, sizeof cached, "%s", name);
+    static struct { char name[64]; uint8_t *d; size_t n; } cache[4];  // 介面字（UI_C）和名稱（name_C）每畫面都會查，各留一份
+    int c = 0;
+    while (c < 4 && cache[c].name[0] && strcmp(cache[c].name, name)) c++;
+    if (c == 4) { free(cache[3].d); c = 3; cache[3].name[0] = 0; }
+    if (!cache[c].name[0]) {
+        cache[c].d = res_file("Dlg", name, &cache[c].n);
+        snprintf(cache[c].name, sizeof cache[c].name, "%s", name);
     }
+    uint8_t *d = cache[c].d;
+    size_t n = cache[c].n;
     if (!d || n < 0x5c || !cap) return 0;
     uint32_t table, count;
     memcpy(&table, d + 0x50, 4);
