@@ -718,7 +718,7 @@ static Actor *npc_at(int px, int py, int ox, int oy, const Scene *s) {
 // ---- 原版介面：ini/DialogInfo.ini 每個 [介面] 一段；每個元件「名稱=種類,x,y,寬,高,旗標,ID,提示,圖,…」----
 // 種類：1 背景、2 按鈕（圖的各幀 = 平常、指著、按下）、6 進度條、9 靜態圖。圖是 ResUI 的編號：
 // 多半是動畫定義（Res00 格式，取第 0 序列第 0 幀），少數直接是 xbm
-typedef struct { char name[32]; int type, x, y, w, h, flags, img; } UiCtrl;
+typedef struct { char name[32]; int type, x, y, w, h, flags, img, sb[4]; } UiCtrl;  // sb：文字框捲軸的軌道、上、下、滑塊圖
 typedef struct { char name[48]; int w, h, count; UiCtrl c[128]; } UiDialog;
 
 static int ui_load(const char *section, UiDialog *out) {
@@ -733,13 +733,14 @@ static int ui_load(const char *section, UiDialog *out) {
         char *eq = strchr(l, '=');
         if (!on || !eq) continue;
         *eq = 0;
-        int f[9] = {0}, k = 0;
-        for (char *p = eq + 1; k < 9 && p; p = strchr(p, ','), p = p ? p + 1 : NULL) f[k++] = atoi(p);
+        int f[13] = {0}, k = 0;
+        for (char *p = eq + 1; k < 13 && p; p = strchr(p, ','), p = p ? p + 1 : NULL) f[k++] = atoi(p);
         if (!strcmp(l, "Dialog")) { out->w = f[3]; out->h = f[4]; continue; }
         if (out->count == 128) break;
         UiCtrl *c = &out->c[out->count++];
         snprintf(c->name, sizeof c->name, "%s", l);
         c->type = f[0]; c->x = f[1]; c->y = f[2]; c->w = f[3]; c->h = f[4]; c->flags = f[5]; c->img = f[8];
+        for (int j = 0; j < 4; j++) c->sb[j] = f[9 + j];
     }
     snprintf(out->name, sizeof out->name, "%s", section);
     free(d);
@@ -830,6 +831,20 @@ static void ui_command(const char *name) {
     else if (!strcmp(name, "m_pEquip")) win_toggle(&win_left, JM55);  // 道具視窗的装备：原版開在中線左邊（Poq.exe 0x54ad87）
 }
 
+// 多行文字框（種類 3）的捲軸：ini 第 10~13 欄是軌道、上箭頭、下箭頭、滑塊的圖。字超過框高才有捲軸。
+// shortcut: 捲軸位置照常見做法（框內右緣、箭頭在上下兩端），還沒對原版 UIWndEx.dll；只有箭頭能點，拖滑塊還沒做
+static int info_top;  // 人物屬性 m_pInfo 捲到第幾行
+typedef struct { SDL_Rect track, up, down; } Scroll;
+static int text_scroll(const UiCtrl *c, int ox, int oy, Scroll *out) {
+    const Sprite *t = ui_image(c->sb[0], 0), *u = ui_image(c->sb[1], 0), *d = ui_image(c->sb[2], 0);
+    if (!t || !u || !d) return 0;
+    int x = ox + c->x + c->w - t->w, y = oy + c->y;
+    *out = (Scroll){{x, y, t->w, c->h}, {x + (t->w - u->w) / 2, y, u->w, u->h}, {x + (t->w - d->w) / 2, y + c->h - d->h, d->w, d->h}};
+    return 1;
+}
+
+static int in_rect(const SDL_Rect *r, int x, int y) { return x >= r->x && x < r->x + r->w && y >= r->y && y < r->y + r->h; }
+
 // 介面吃掉的點擊回 1（不再拿去走路、打怪）。shortcut: 主列只有按鈕吃點擊，主列底圖空白處還是會走路
 static int hud_tap(int x, int y) {
     Win *ws[2] = {&win_left, &win_right};
@@ -838,6 +853,12 @@ static int hud_tap(int x, int y) {
         if (!w->open) continue;
         int ox = win_x(w), oy = win_y(w);
         if (x < ox || x >= ox + w->d.w || y < oy || y >= oy + w->d.h) continue;
+        UiCtrl *info = ui_find(&w->d, "m_pInfo");
+        Scroll sc;
+        if (info && !(info->flags & 0x20000) && text_scroll(info, ox, oy, &sc)) {
+            if (in_rect(&sc.up, x, y)) { info_top--; return 1; }  // 範圍在畫的時候夾住
+            if (in_rect(&sc.down, x, y)) { info_top++; return 1; }
+        }
         const UiCtrl *c = ui_button_at(&w->d, ox, oy, x, y);
         if (c && !strcmp(c->name, "m_pCClose")) w->open = 0;
         else if (c) ui_command(c->name);
@@ -943,8 +964,21 @@ static void hud_draw(const Actor *hero) {
             char t[2048];
             hero_info(hero, t, sizeof t);
             SDL_Rect clip = {wx + info->x, wy + info->y, info->w, info->h};
-            SDL_RenderSetClipRect(ren, &clip);  // shortcut: 超出框的行先切掉，原版的捲動還沒做
-            draw_text(clip.x + 2, clip.y + 2, t, info->w - 4, 0xBECDCE, 1);
+            Scroll sc;
+            int bar = text_scroll(info, wx, wy, &sc), tw = info->w - 4 - (bar ? sc.track.w : 0);
+            int rows = (draw_text(0, 0, t, tw, 0, 0) - 1) / 16, fit = (info->h - 4) / 16;  // draw_text 量到的高度多算一行
+            if (info_top > rows - fit) info_top = rows - fit;
+            if (info_top < 0) info_top = 0;
+            SDL_RenderSetClipRect(ren, &clip);
+            draw_text(clip.x + 2, clip.y + 2 - info_top * 16, t, tw, 0xBECDCE, 1);
+            if (bar && rows > fit) {
+                const Sprite *th = ui_image(info->sb[3], 0);
+                draw(ui_image(info->sb[0], 0), sc.track.x, sc.track.y);
+                draw(ui_image(info->sb[1], 0), sc.up.x, sc.up.y);
+                draw(ui_image(info->sb[2], 0), sc.down.x, sc.down.y);
+                int span = sc.down.y - (sc.up.y + sc.up.h) - (th ? th->h : 0);
+                if (th) draw(th, sc.track.x + (sc.track.w - th->w) / 2, sc.up.y + sc.up.h + span * info_top / (rows - fit));
+            }
             SDL_RenderSetClipRect(ren, NULL);
         }
         // 裝備：主角開局的武器、布衣，圖示畫在 m_pItem[UI_Pos − 30]（劇情檔 UI_Pos：武器 32 右手、布衣 31 盔甲）
