@@ -102,7 +102,9 @@ static const Sprite *tile(Lib *tiles, uint16_t i) {
 // 網頁上方的提示：n < 0 = 正在載入場景；n > 0 = 背景還有 n 張圖在下載
 EM_JS(void, js_status, (int n), {
     const el = document.getElementById('status');
-    if (el) el.textContent = n < 0 ? '載入場景中…' : n > 0 ? '載入中… 還有 ' + n + ' 張圖' : '按住畫面走路，點怪物攻擊';
+    if (!el) return;
+    // 操作說明只給還沒碰過畫面的人看，之後收掉，不擋原版敵人狀態（同在畫面上方）
+    el.textContent = n < 0 ? '載入場景中…' : n > 0 ? '載入中… 還有 ' + n + ' 張圖' : window.qinTouched ? "" : '按住畫面走路，點怪物攻擊';
 });
 #else
 static void js_status(int n) { (void)n; }
@@ -159,7 +161,7 @@ typedef struct Actor {
     float tx, ty;     // AI 目標格
     int has_target, path_i, rest;  // rest = 還要休息幾拍
     const MonDef *mon;  // 怪物的數值表列；NPC 與主角為 NULL
-    int level, hp, hp_max, ap, ap_max, dp, hr, sr, exp;
+    int level, hp, hp_max, mp, mp_max, ap, ap_max, dp, hr, sr, exp;
     int act, act_seq, last_frame;  // 單次動作與它的序列起點、上一拍的幀（觸發用）
     const Method *atk;             // 普通攻擊的招式
     struct Actor *foe;             // 攻擊目標
@@ -431,7 +433,8 @@ static void start_act(Actor *a, int act, int seq) {
     a->moving = 0;
 }
 
-// 主角數值。遊俠模板（EasyRPG.dll 0x1013c380）：Str 30、Con 25、Dex 25，HP_MAX = 120 + 28×等級
+// 主角數值。遊俠模板（EasyRPG.dll 0x1013c380）：Str 30、Con 25、Dex 25；升級表 Upgrade_HP_MAX = 120 28、Upgrade_MP_MAX = 140 4
+// → HP_MAX = 120 + 28×等級、MP_MAX（精氣）= 140 + 4×等級
 // 職業倍率（0x1002d510，遊俠 K = 150）：AP、AP_MAX = 基礎 × (Str+K)/K；DP = 基礎 × (Con+K)/K；
 // HR = (基礎 + 3×Dex) × (Dex+K)/K；SR = (基礎 + 4×Dex) × (Dex+K)/K
 // 基礎 AP 來自武器、DP 來自護甲（模板給的扶苏武器 = item_8 第 1 列青銅彎刀、布衣 = item_26 第 1 列）；HR/SR 基礎 0
@@ -443,6 +446,7 @@ static void hero_stats(Actor *h, int level) {
     const int K = 150, str = 30, con = 25, dex = 25;
     h->level = level;
     h->hp = h->hp_max = 120 + 28 * level;
+    h->mp = h->mp_max = 140 + 4 * level;
     h->ap = hero_weapon.ap * (str + K) / K;
     h->ap_max = hero_weapon.ap_max * (str + K) / K;
     h->dp = hero_armor_dp * (con + K) / K;
@@ -797,7 +801,7 @@ static void hud_draw(const Actor *hero) {
     ui_draw(&bar, ox, oy);
     UiCtrl *red = ui_find(&bar, "m_pRed"), *blue = ui_find(&bar, "m_pBlue");
     if (red) ui_bar(red, ox, oy, hero->hp, hero->hp_max);
-    if (blue) ui_bar(blue, ox, oy, 1, 1);  // shortcut: 精氣（MP）還沒做，先畫滿
+    if (blue) ui_bar(blue, ox, oy, hero->mp, hero->mp_max);
     if (party.count) {
         int px = vw - party.w, py = oy - party.h;
         for (int i = 0; i < party.count; i++) {  // 只有主角：畫背景和第 0 格。shortcut: 頭像（G_PicID）、隊友還沒做
@@ -809,7 +813,7 @@ static void hud_draw(const Actor *hero) {
         }
         UiCtrl *hp = ui_find(&party, "m_pRoleHP[0]"), *mp = ui_find(&party, "m_pRoleMP[0]");
         if (hp) ui_bar(hp, px, py, hero->hp, hero->hp_max);
-        if (mp) ui_bar(mp, px, py, 1, 1);
+        if (mp) ui_bar(mp, px, py, hero->mp, hero->mp_max);
     }
 }
 
@@ -1127,7 +1131,7 @@ int main(int argc, char **argv) {
                 if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
             }
             if (hero->act == ACT_DEAD) {  // shortcut: 原版死亡後的處理（回城、掉經驗）還沒做，先 3 秒後原地復活
-                if (++hero->dead_ticks > 180) { hero->act = ACT_NONE; hero->dead_ticks = 0; hero->hp = hero->hp_max; }
+                if (++hero->dead_ticks > 180) { hero->act = ACT_NONE; hero->dead_ticks = 0; hero->hp = hero->hp_max; hero->mp = hero->mp_max; }
                 action_tick(hero, tick);
             } else if (hero->act) action_tick(hero, tick);
             else if (mx * mx + my * my > 0.01f) { hero->foe = NULL; actor_tick(hero, &scene, mx, my, tick); }  // 自己走 = 放棄目標

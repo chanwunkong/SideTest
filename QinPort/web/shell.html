@@ -18,6 +18,8 @@
 <script>
   const canvas = document.getElementById('canvas');
   const status = document.getElementById('status');
+  for (const ev of ['pointerdown', 'keydown'])
+    addEventListener(ev, () => { window.qinTouched = 1; if (!status.textContent.startsWith('載入')) status.textContent = ''; }, true);
   // 畫面固定 4:3，等比例塞滿螢幕（手機請橫放）
   function fit() {
     const s = Math.min(innerWidth / 4, innerHeight / 3);
