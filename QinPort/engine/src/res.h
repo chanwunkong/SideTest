@@ -35,8 +35,15 @@ typedef struct { int id, part_count; size_t start; Part parts[MAX_PARTS]; } Mode
 typedef struct { uint16_t ground, over; uint8_t walk; } Cell;
 typedef struct { int model, x, y; const Model *m; } Object;  // m 在載入時查好，可能為 NULL
 
+typedef struct { int id, x, y, dir; } Entry;          // .Scn 入口點：從入口 id 進來時站的位置與方向
+typedef struct { int x, y; char event[48]; } Trigger;  // BNT 類型 4：踩到就觸發事件（例如 "go east"）
+
 typedef struct {
     int w, h, start_x, start_y;
+    Entry *entries;
+    int entry_count;
+    Trigger *triggers;
+    int trigger_count;
     Cell *cells;
     Object *objects;  // 已依畫面深度排序
     int object_count;
@@ -46,6 +53,7 @@ typedef struct {
 } Scene;
 
 int scene_load(Scene *s, const char *scn_name);
+const Entry *scene_entry(const Scene *s, int id);  // 找不到就回第一個入口
 void scene_free(Scene *s);
 int scene_walkable(const Scene *s, int x, int y);
 
@@ -64,3 +72,13 @@ typedef struct {
 
 int role_load(Role *r, int role_id, int pli_no);
 void role_free(Role *r);
+
+// ---- 世界（原版劇情引擎 EasyRPG.dll 裡的房間定義）----
+// 房間 = 一個場景：別名 = 場景檔名，出口 = (事件方向, 目的房間, 目的入口編號)
+typedef struct { char dir[32]; int to, entry; } Exit;
+typedef struct { char path[96], name[48], alias[48]; int first_exit, exit_count; } Room;
+typedef struct { Room *rooms; int room_count; Exit *exits; int exit_count; } World;
+
+int world_load(World *w);
+int world_find(const World *w, const char *alias);  // 依別名找房間，找不到回 -1
+void world_free(World *w);

@@ -66,6 +66,7 @@ def main(game, out, scenes):
                 gid = pic | lib_flag << 16
                 add_anim(gid) if anim else gids.add(gid)
 
+    copy(game, out, '.', 'EasyRPG.dll')  # 場景出口定義（引擎啟動時掃描）
     defs_name = copy(game, out, 'PLI', '0000_001.PLI')
     defs = dict(re.findall(r'(SPR_\w+)\t(\d+)', open(os.path.join(game, 'PLI', defs_name), 'rb').read().decode('latin1')))
     pli = copy(game, out, 'PLI', f'{HERO}_001.PLI')

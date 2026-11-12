@@ -26,8 +26,13 @@
   }
   addEventListener('resize', fit);
   fit();
+  // 網址參數：?scene=別名&warp=N（測試用，直接站到第 N 個觸發區）
+  const q = new URLSearchParams(location.search);
+  const args = ['game', q.get('scene') || 'xianyang'];
+  if (q.get('warp')) args.push('--warp', q.get('warp'));
   var Module = {
     canvas,
+    arguments: args,
     setStatus: (t) => { status.textContent = t; if (!t) setTimeout(() => status.textContent = '按住畫面往那個方向走', 0); },
     print: (t) => console.log(t),
     printErr: (t) => console.warn(t),

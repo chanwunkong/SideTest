@@ -1,10 +1,12 @@
 // 秦殤原生引擎（第 2 階段）：讀原版資源，畫出場景與主角，主角可以走動。
-// 用法：qin [遊戲資料夾] [場景.Scn] [--640] [--shot 檔名.bmp（畫一幀存檔後結束，給測試用）]
+// 用法：qin [遊戲資料夾] [場景別名] [--640] [--shot 檔名.bmp] [--warp N]
+// --shot：畫面穩定後存一張圖就結束；--warp：一開始站到第 N 個觸發區（測場景切換用）
 #include <SDL.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include "res.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -49,6 +51,15 @@ static Sprite *slot_find(uint32_t key) {
     while (slots[i].key && slots[i].key != key) i = (i + 1) & (slot_cap - 1);
     if (!slots[i].key) { slots[i].key = key; slot_used++; }
     return &slots[i].s;
+}
+
+// 換場景時清空：磁磚 key 只有序號，不同場景的磁磚封包會撞號
+static void cache_clear(void) {
+    for (uint32_t i = 0; i < slot_cap; i++)
+        if (slots[i].s.tex) SDL_DestroyTexture(slots[i].s.tex);
+    free(slots);
+    slots = NULL;
+    slot_cap = slot_used = 0;
 }
 
 static const Sprite *upload(Sprite *s, uint32_t *px) {
@@ -166,19 +177,64 @@ static void hero_tick(Hero *h, const Scene *s, float mx, float my, Uint32 tick) 
     h->act_tick = h->moving == was_moving ? h->act_tick + 1 : 0;
 }
 
+// 載入場景（別名 = 場景檔名），主角站到入口 entry_id；失敗時保留原場景
+static int enter_scene(Scene *scene, Hero *hero, const char *alias, int entry_id) {
+    char file[96];
+    snprintf(file, sizeof file, "%.80s.Scn", alias);
+    Scene next;
+    if (!scene_load(&next, file)) { fprintf(stderr, "載入場景失敗：%s\n", file); return 0; }
+    if (scene->cells) scene_free(scene);
+    *scene = next;
+    cache_clear();
+    const Entry *en = scene_entry(scene, entry_id);
+    if (en) {
+        hero->x = en->x + 0.5f;
+        hero->y = en->y + 0.5f;
+        for (int o = 0; o < 8; o++)
+            if (DIR_MAP[o] == en->dir) hero->dir = o;  // shortcut: 假設入口方向跟動畫方向同編號，還沒跟原版對照
+    }
+    hero->moving = 0;
+    hero->act_tick = 0;
+    return 1;
+}
+
+// 主角是否站在觸發區上（以觸發區所在格為中心 3×3 格）。shortcut: 觸發區實際形狀在 MDL 的佔地格，還沒解析
+static const Trigger *trigger_at(const Scene *s, const Hero *h) {
+    for (int i = 0; i < s->trigger_count; i++) {
+        const Trigger *t = &s->triggers[i];
+        if (fabsf(h->x - (t->x + 0.5f)) <= 1.5f && fabsf(h->y - (t->y + 0.5f)) <= 1.5f) return t;
+    }
+    return NULL;
+}
+
 int main(int argc, char **argv) {
-    const char *game = "game", *scn = "CHENG001.Scn", *shot = NULL;
-    int pos = 0;
+    const char *game = "game", *scn = "xianyang", *shot = NULL;
+    int pos = 0, warp = -1;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
+        else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (pos++ == 0) game = argv[i];
         else scn = argv[i];
     }
     res_init(game);
 
-    Scene scene;
-    if (!scene_load(&scene, scn)) { fprintf(stderr, "載入場景失敗：%s/scene/%s\n", game, scn); return 1; }
+    World world;
+    if (!world_load(&world)) fprintf(stderr, "讀不到 EasyRPG.dll 的房間資料，不能切換場景\n");
+    char alias[64];
+    snprintf(alias, sizeof alias, "%s", scn);
+    char *dot = strrchr(alias, '.');
+    if (dot && !strcasecmp(dot, ".Scn")) *dot = 0;
+    Scene scene = {0};
+    Hero hero = {0, 0, 4, 0, HERO_SPEED, 0};
+    if (!enter_scene(&scene, &hero, alias, -1)) return 1;
+    int room = world_find(&world, alias), armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
+    if (warp >= 0 && warp < scene.trigger_count) {
+        hero.x = scene.triggers[warp].x + 0.5f;
+        hero.y = scene.triggers[warp].y + 0.5f;
+        armed = 1;
+        printf("站到觸發區 %d：%s\n", warp, scene.triggers[warp].event);
+    }
     Role role;
     if (!role_load(&role, HERO_ROLE, 1)) { fprintf(stderr, "載入主角失敗\n"); return 1; }
 
@@ -195,7 +251,6 @@ int main(int argc, char **argv) {
     for (int i = 0; i < SDL_NumJoysticks() && !pad; i++)
         if (SDL_IsGameController(i)) pad = SDL_GameControllerOpen(i);
 
-    Hero hero = {scene.start_x + 0.5f, scene.start_y + 0.5f, 4, 0, HERO_SPEED, 0};
     Uint64 fps_t = SDL_GetPerformanceCounter();
     Uint32 logic_ms = SDL_GetTicks(), tick = 0;
     int frames = 0, running = 1, pointer_down = 0, px = 0, py = 0;
@@ -240,6 +295,22 @@ int main(int argc, char **argv) {
         while (now_ms - logic_ms >= TICK_MS) {
             logic_ms += TICK_MS;
             hero_tick(&hero, &scene, mx, my, ++tick);
+            // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
+            const Trigger *t = trigger_at(&scene, &hero);
+            if (!t) armed = 1;
+            else if (armed && room >= 0 && !strncmp(t->event, "go ", 3)) {
+                const Room *r = &world.rooms[room];
+                for (int i = 0; i < r->exit_count; i++) {
+                    const Exit *x = &world.exits[r->first_exit + i];
+                    if (strcmp(x->dir, t->event + 3) || x->to < 0) continue;
+                    if (enter_scene(&scene, &hero, world.rooms[x->to].alias, x->entry)) {
+                        room = x->to;
+                        printf("進入 %s\n", world.rooms[room].alias);
+                    }
+                    armed = 0;
+                    break;
+                }
+            }
         }
 
         // 主角腳底的世界像素；鏡頭跟著主角
@@ -276,7 +347,7 @@ int main(int argc, char **argv) {
                 else draw(image(pt->gid), sx + pt->dx, sy + pt->dy);
             }
         }
-        if (shot) {
+        if (shot && tick > 3) {
             SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, vw, vh, 32, SDL_PIXELFORMAT_ARGB8888);
             SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, surf->pixels, surf->pitch);
             SDL_SaveBMP(surf, shot);
@@ -303,8 +374,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    for (uint32_t i = 0; i < slot_cap; i++)
-        if (slots[i].s.tex) SDL_DestroyTexture(slots[i].s.tex);
+    cache_clear();
+    world_free(&world);
     SDL_DestroyTexture(canvas);
     role_free(&role);
     scene_free(&scene);

@@ -4,8 +4,8 @@
   0x196 起 u16 對照表(長度不定，目前都是 0,1,2...)；檔尾 w*h 格，每格 10 bytes：
   (地板磁磚 u16, 疊加磁磚 u16, 可走旗標 u8, ?, ? u16, 填充)，0xFFFF = 空。
 磁磚 64x32 菱形，菱形投影：sx=(x-y)*32, sy=(x+y)*16。
-.BNT：0x22 模型檔名；0x480 起每筆 (類型 u16, 模型編號 u16, x u32, y u32, 8 bytes)，
-  類型 4 = 觸發區，後面多 128 bytes 文字。
+.BNT：0x22 模型檔名；0x480 起每筆 (類型 u16, 模型編號 u16, x u32, y u32, 4 bytes, 名稱長度 i32)，
+  接著名稱（長度 -1 = 沒有）；類型 4 = 觸發區，再多 128 bytes 事件文字。
 .MDL：每個模型 = 0x03 0x00 + 名稱[32] + (?, 模型編號 u16, ...)，後接數個部件：
   "部件\\0" + 3 bytes + 動畫旗標 u8 + 圖號 u16 + 封包旗標 u16(0x20 = Res01) + 位移 x,y (i32)。
 用法：python3 maptool.py <Scn> <遊戲資料夾> <輸出.png>
@@ -44,7 +44,8 @@ def load_bnt(path):
     p, recs = 0x480, []
     while p < len(d):
         recs.append(struct.unpack_from('<HHII', d, p))
-        p += 20 + (128 if recs[-1][0] == 4 else 0)
+        name_len = struct.unpack_from('<i', d, p + 16)[0]  # -1 = 沒有名稱
+        p += 20 + max(name_len, 0) + (128 if recs[-1][0] == 4 else 0)
     assert p == len(d), f'{path}: 解析長度不符'
     return mdl, recs
 

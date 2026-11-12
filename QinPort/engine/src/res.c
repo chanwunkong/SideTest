@@ -227,9 +227,16 @@ int scene_load(Scene *s, const char *scn_name) {
     if (!text) return 0;
     scn_value(text, 0, map_name, sizeof map_name);
     scn_value(text, 1, bnt_name, sizeof bnt_name);
-    // 第一個入口點：第 5 行起「前场景名称、x、y、方向」
-    scn_value(text, 5, v, sizeof v); s->start_x = atoi(v);
-    scn_value(text, 6, v, sizeof v); s->start_y = atoi(v);
+    // 第 4 行「入口点数」，之後每個入口 4 行：前场景名称(入口編號)、x、y、角色初始方向
+    scn_value(text, 3, v, sizeof v);
+    int n = atoi(v);
+    s->entries = calloc(n > 0 ? n : 1, sizeof(Entry));
+    for (int i = 0; i < n; i++) {
+        int f[4];
+        for (int k = 0; k < 4; k++) { scn_value(text, 4 + i * 4 + k, v, sizeof v); f[k] = atoi(v); }
+        s->entries[s->entry_count++] = (Entry){f[0], f[1], f[2], f[3]};
+    }
+    if (s->entry_count) { s->start_x = s->entries[0].x; s->start_y = s->entries[0].y; }
     free(text);
 
     snprintf(dir, sizeof dir, "%s/scene/Map", game_dir);
@@ -254,11 +261,22 @@ int scene_load(Scene *s, const char *scn_name) {
         snprintf(name, sizeof name, "%s", (const char *)bnt + 0x22);
         for (size_t p = 0x480; p + 20 <= size;) {
             uint16_t kind = u16(bnt + p);
-            if (kind == 3) {  // 4 = 觸發區，不畫
+            // 第 16 byte 起是名稱長度（-1 = 沒有），名稱接在 20 bytes 之後
+            int32_t name_len = (int32_t)u32(bnt + p + 16);
+            size_t extra = name_len > 0 ? (size_t)name_len : 0;
+            if (kind == 4) {  // 觸發區：名稱後面 128 bytes 是事件文字
+                s->triggers = realloc(s->triggers, (s->trigger_count + 1) * sizeof(Trigger));
+                Trigger *t = &s->triggers[s->trigger_count++];
+                t->x = u32(bnt + p + 4);
+                t->y = u32(bnt + p + 8);
+                size_t at = p + 20 + extra;
+                snprintf(t->event, sizeof t->event, "%.*s", at + 128 <= size ? 128 : 0, (const char *)bnt + at);
+            }
+            if (kind == 3) {
                 s->objects = realloc(s->objects, (s->object_count + 1) * sizeof(Object));
                 s->objects[s->object_count++] = (Object){u16(bnt + p + 2), u32(bnt + p + 4), u32(bnt + p + 8), NULL};
             }
-            p += 20 + (kind == 4 ? 128 : 0);
+            p += 20 + extra + (kind == 4 ? 128 : 0);
         }
         qsort(s->objects, s->object_count, sizeof(Object), cmp_obj);
         snprintf(dir, sizeof dir, "%s/Mdl", game_dir);
@@ -273,12 +291,20 @@ int scene_load(Scene *s, const char *scn_name) {
     return 1;
 }
 
+const Entry *scene_entry(const Scene *s, int id) {
+    for (int i = 0; i < s->entry_count; i++)
+        if (s->entries[i].id == id) return &s->entries[i];
+    return s->entry_count ? &s->entries[0] : NULL;
+}
+
 int scene_walkable(const Scene *s, int x, int y) {
     return x >= 0 && y >= 0 && x < s->w && y < s->h && s->cells[y * s->w + x].walk == 1;
 }
 
 void scene_free(Scene *s) {
     free(s->cells);
+    free(s->entries);
+    free(s->triggers);
     free(s->objects);
     free(s->models);
     lib_close(&s->tiles);
@@ -337,4 +363,98 @@ void role_free(Role *r) {
     for (int s = 0; s < r->seq_count; s++) free(r->order[s]);
     free(r->order);
     free(r->frames);
+}
+
+// ---- 世界：掃描 EasyRPG.dll 的房間初始化程式（見 tools/roomtool.py）----
+// 每個房間依序呼叫固定的設定函式，參數是 push 進去的立即值（字串位址或數字）
+enum { CALL_ROOM = 0x1005d390, CALL_PATH = 0x10023c60, CALL_NAME = 0x10023cf0, CALL_ALIAS = 0x10023c40, CALL_EXIT = 0x1005d8b0 };
+
+typedef struct { uint32_t va, raw, size; } Section;
+
+static const char *pe_str(const uint8_t *d, size_t n, const Section *sec, int nsec, uint32_t va) {
+    for (int i = 0; i < nsec; i++)
+        if (va >= sec[i].va && va < sec[i].va + sec[i].size) {
+            size_t o = sec[i].raw + (va - sec[i].va);
+            return o < n && memchr(d + o, 0, n - o) ? (const char *)d + o : NULL;
+        }
+    return NULL;
+}
+
+int world_load(World *w) {
+    memset(w, 0, sizeof *w);
+    size_t n;
+    uint8_t *d = read_all(game_dir, "EasyRPG.dll", &n);
+    if (!d || n < 0x400) { free(d); return 0; }
+    uint32_t pe = u32(d + 0x3c), base = u32(d + pe + 52);
+    int nsec = u16(d + pe + 6), opt = u16(d + pe + 20);
+    Section sec[32], text = {0};
+    if (nsec > 32) nsec = 32;
+    for (int i = 0; i < nsec; i++) {
+        const uint8_t *h = d + pe + 24 + opt + i * 40;
+        sec[i] = (Section){base + u32(h + 12), u32(h + 20), u32(h + 16)};
+        if (!memcmp(h, ".text", 5)) text = sec[i];
+    }
+    // 出口的目的地先存路徑字串，全部房間讀完再換成房間索引
+    const char **to_path = NULL;
+    uint32_t push[8];
+    int npush = 0, cur = -1, cap_r = 0, cap_e = 0;
+    for (size_t i = text.raw; i + 5 < text.raw + text.size && i + 5 < n;) {
+        uint8_t op = d[i];
+        if (op == 0x68) { if (npush < 8) push[npush++] = u32(d + i + 1); else { memmove(push, push + 1, 7 * 4); push[7] = u32(d + i + 1); } i += 5; continue; }
+        if (op == 0x6a) { if (npush < 8) push[npush++] = d[i + 1]; else { memmove(push, push + 1, 7 * 4); push[7] = d[i + 1]; } i += 2; continue; }
+        if (op == 0xe8) {
+            uint32_t dst = text.va + (uint32_t)(i - text.raw) + 5 + u32(d + i + 1);
+            if (dst == CALL_ROOM) {
+                if (w->room_count == cap_r) w->rooms = realloc(w->rooms, (cap_r = cap_r ? cap_r * 2 : 512) * sizeof(Room));
+                cur = w->room_count++;
+                memset(&w->rooms[cur], 0, sizeof(Room));
+                w->rooms[cur].first_exit = w->exit_count;
+            } else if (cur >= 0 && npush) {
+                Room *r = &w->rooms[cur];
+                const char *str = pe_str(d, n, sec, nsec, push[npush - 1]);
+                if (dst == CALL_PATH && str) snprintf(r->path, sizeof r->path, "%s", str);
+                else if (dst == CALL_NAME && str) snprintf(r->name, sizeof r->name, "%s", str);
+                else if (dst == CALL_ALIAS && str) snprintf(r->alias, sizeof r->alias, "%s", str);
+                else if (dst == CALL_EXIT && npush >= 3 && str) {  // 參數由右到左：入口編號、目的路徑、方向
+                    const char *to = pe_str(d, n, sec, nsec, push[npush - 2]);
+                    if (to) {
+                        if (w->exit_count == cap_e) {
+                            cap_e = cap_e ? cap_e * 2 : 1024;
+                            w->exits = realloc(w->exits, cap_e * sizeof(Exit));
+                            to_path = realloc(to_path, cap_e * sizeof(char *));
+                        }
+                        Exit *e = &w->exits[w->exit_count];
+                        snprintf(e->dir, sizeof e->dir, "%s", str);
+                        e->entry = push[npush - 3];
+                        e->to = -1;
+                        to_path[w->exit_count++] = to;
+                        r->exit_count++;
+                    }
+                }
+            }
+            npush = 0;
+            i += 5;
+            continue;
+        }
+        if (op == 0xc3 || op == 0xc2) { cur = -1; npush = 0; }
+        i++;
+    }
+    for (int i = 0; i < w->exit_count; i++)
+        for (int j = 0; j < w->room_count; j++)
+            if (!strcmp(w->rooms[j].path, to_path[i])) { w->exits[i].to = j; break; }
+    free(to_path);
+    free(d);
+    return w->room_count > 0;
+}
+
+int world_find(const World *w, const char *alias) {
+    for (int i = 0; i < w->room_count; i++)
+        if (w->rooms[i].alias[0] && !strcasecmp(w->rooms[i].alias, alias)) return i;
+    return -1;
+}
+
+void world_free(World *w) {
+    free(w->rooms);
+    free(w->exits);
+    memset(w, 0, sizeof *w);
 }

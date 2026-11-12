@@ -30,13 +30,14 @@
 ```bash
 cd QinPort/engine && make                          # Mac 原生版
 cd QinPort && ./engine/qin game CHENG001.Scn       # 800×600；加 --640 是 R36S 視野
-./engine/qin game CHENG001.Scn --shot /tmp/a.bmp   # 畫一幀存檔後結束（自動測試用）
+./engine/qin game xianyang --shot /tmp/a.bmp       # 畫面穩定後存檔結束（自動測試用）
+./engine/qin game xianyang --warp 2 --shot /tmp/b.bmp  # 站到第 2 個觸發區，測場景切換
 
 # 網頁版（手機透過 Tailscale 測）
 python3 tools/webpack.py game web/game CHENG001.Scn bdj_cave1.Scn
 cd engine && make web
 cd ../web && python3 -m http.server 8642 --bind 100.83.41.116   # Mac 的 Tailscale IP
-# 手機打開 http://100.83.41.116:8642/
+# 手機打開 http://100.83.41.116:8642/  （?scene=別名&warp=N 可直接測觸發區）
 ```
 
 - 依賴：Homebrew 的 `sdl2`、`emscripten`、`radare2`（逆向用）。
@@ -88,7 +89,7 @@ cd ../web && python3 -m http.server 8642 --bind 100.83.41.116   # Mac 的 Tailsc
   - 0x196 起是 u16 對照表（目前都是恆等，長度不固定）。
   - **檔尾 w×h 格**，每格 10 bytes：`(地面磁磚 u16, 疊加磁磚 u16, 可走 u8（1 = 可走）, ?, ? u16, 填充)`；0xFFFF = 空。
   - 磁磚是 64×32 的菱形，投影公式：`sx = (x−y+h−1)·32`，`sy = (x+y)·16`。
-- **`.BNT`**：0x22 = 模型檔名；0x480 起每筆 `(類型 u16, 模型編號 u16, x u32, y u32, 8 bytes)`。類型 4 是觸發區（例如切換場景），後面多 128 bytes 文字，例如 `go east`。
+- **`.BNT`**：0x22 = 模型檔名；0x480 起每筆 `(類型 u16, 模型編號 u16, x u32, y u32, 4 bytes, 名稱長度 i32)`，接著名稱（−1 = 沒有）。類型 4 是觸發區，名稱後再接 128 bytes 事件文字，例如 `go east`。全部 BNT 都驗證過長度。
 - **`.MDL`**：
   - 模型 = `03 00` + 名稱[32] +（部件數 u16, 模型編號 u16, …）。
   - 部件 = GBK `部件\0` + 3 bytes + 動畫旗標 u8 + **全域編號 u32** + dx, dy（i32）。
@@ -144,6 +145,18 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 腳步聲：每 (15 − A) × 2 拍一次（0x48704f）。
 - 0x503f20 的 250/500ms 是介面閃爍；0x404e2b 是音量。`游戏速度`（0x4f4b06）的用途還沒追。
 
+### 世界與場景切換（`EasyRPG.dll`，原版劇情引擎）
+- 劇情、房間、出口、NPC 都編譯在 `EasyRPG.dll` 裡，結構像文字 MUD。`tools/roomtool.py` 和 `res.c` 的 `world_load` 會掃描每個房間的初始化程式，依序呼叫的設定函式如下：
+  - `0x1005d390`：房間開頭
+  - `0x10023c60`：路徑，例如 `秦殇/咸阳/ROOM/绣女家`
+  - `0x10023cf0`：名稱
+  - `0x10023c40`：別名（= 場景檔名，例如 `xy_hs2`）
+  - `0x1005d8b0`：出口（方向, 目的路徑, 入口編號）
+  - `0x1005f320`：NPC（路徑, 數量）
+- 抽出 497 個房間、1015 個出口、1634 個 NPC；484 個別名對得到 `.Scn`。
+- 觸發區事件 `go <方向>` 對應目前房間的出口，切到目的房間的 `.Scn`，主角站到該場景「前场景名称 = 入口編號」的入口點。全部場景 2479/2544 個觸發區都對得到；對不到的都在隨機戰場（`go out` 由劇情決定）。
+- 真正的咸陽是 `xianyang.Scn`，`CHENG001` 是開發用的測試場景。新遊戲的開場房間還沒查（`ER_GetStartType` 一帶）。
+
 ## 引擎現況
 
 - 場景：地面、疊加層、建築和樹（Res01）、動畫部件（Res00 第 0 序列）都正確，抽驗了 4 張地圖。
@@ -162,7 +175,7 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 ## 下一步（照順序做，不必再問使用者）
 
 1. ~~節拍與移動單位~~（已完成）
-2. 場景切換：BNT 類型 4 的觸發區 + `.Scn` 入口點，加上 `.ONT` 的 NPC。
+2. ~~場景切換~~（已完成，觸發範圍暫用 3×3 格，入口方向編號待確認）。接著做 `.ONT` 的 NPC 與房間 NPC。
 3. 音效和音樂：`snd.lib`、`sound/*.wav`、`Music/`。
 4. 交叉編譯到 R36S（aarch64 Linux + SDL2，ArkOS 或 ROCKNIX；用 Docker 工具鏈），實機測效能。使用者的掌機系統還沒確認，到時候再問他。
 5. 戰鬥：怪物（RoleMdl 的怪物列、Res 動畫）、Data 數值表、技能（MethodMdl.ini）。
