@@ -110,6 +110,8 @@ int role_anim_ids(const char *graphic, int pli_no, const char *styles, uint32_t 
 // ObjMdl/RoleMdl.txt 角色表（XOR 0x78 加密的 GBK、tab 分隔）
 typedef struct {
     int id, pli, idle, walk, speed;  // pli = 動作方式；idle/walk = 動作起點序列；speed = 平時速度
+    int fight_idle, fight_walk, hit, death, fight_speed;  // 戰鬥休息/走路、挨打、死亡的動作起點（0 = 沒有）、戰鬥速度
+    int seek, chase, atk_delay, snd_death, snd_hit;       // 索敌/追击范围（格）、攻击延时（拍）、死亡/挨打聲音
     char graphic[16], styles[96];
 } RoleDef;
 int roledefs_load(void);
@@ -135,10 +137,18 @@ void world_free(World *w);
 typedef struct { float base, per; } Stat;
 typedef struct {
     char name[32];  // 人物类型，例如「动物山魈A」
+    char skill[32]; // 技能1（普通攻擊），例如「狼_抓」→ Data/skill_npc.txt
     int role;       // 图形1 = RoleMdl 角色 ID
     Stat hp, ap, ap_max, dp, hit, dodge, exp;
 } MonDef;
 int mondefs_load(void);
 // 名稱前綴相符的列隨機挑一列（原版 0x10077670 收集相符列再隨機取）；找不到回 NULL
 const MonDef *mondef_pick(const char *prefix);
+// ---- 招式 ObjMdl/MethodMdl.ini：動作序列、攻擊距離、各幀觸發（type 0 = 命中、1 = 音效、2 = 特效；flag 1 = 打中對方時）----
+typedef struct { int flag, frame, type, id; } Trig;
+#define MAX_TRIG 24
+typedef struct { int id, seq, range_min, range_max, trig_count; Trig trig[MAX_TRIG]; } Method;
+const Method *method_find(int auto_id);  // 依 wAutoID 找；第一次呼叫時載入
+// 技能表 Data/skill_*.txt 的「索引名」→ Attack ID（= 招式 wAutoID）；找不到回 -1
+int skill_attack(const char *index_name);
 static inline int stat_at(Stat s, int level) { return (int)(s.base + s.per * level); }

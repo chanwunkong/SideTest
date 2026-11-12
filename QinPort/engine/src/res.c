@@ -999,7 +999,8 @@ void world_free(World *w) {
 }
 
 // ---- 角色表 ObjMdl/RoleMdl.txt ----
-// 欄位：0 名稱、1 ID、2 圖形ID、3 屬性、5 動作方式、7 平時休息、8 平時走路、20 平時速度（多值欄位用 * 分隔，取第一個）
+// 欄位：0 名稱、1 ID、2 圖形ID、3 屬性、5 動作方式、7 平時休息、8 平時走路、9 戰鬥休息、10 戰鬥走路、11 挨打、14 死亡、20 平時速度、
+// 21 戰鬥速度、24 索敌范围、25 追击范围、31 死亡聲音、34 挨打聲音、39 攻击延时（多值欄位用 * 分隔，取第一個）
 static RoleDef *roledefs;
 static int roledef_count;
 
@@ -1013,9 +1014,9 @@ int roledefs_load(void) {
     int cap = 0, line_no = 0;
     for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n"), line_no++) {
         if (!line_no) continue;  // 標題列
-        char *col[24] = {0};
+        char *col[42] = {0};
         int c = 0;
-        for (char *p = line; c < 24; c++) {
+        for (char *p = line; c < 42; c++) {
             col[c] = p;
             char *t = strchr(p, '\t');
             if (!t) { c++; break; }
@@ -1032,6 +1033,10 @@ int roledefs_load(void) {
         r->idle = atoi(col[7]);
         r->walk = atoi(col[8]);
         r->speed = atoi(col[20]);
+#define COL(i) (c > (i) ? atoi(col[i]) : 0)
+        r->fight_idle = COL(9); r->fight_walk = COL(10); r->hit = COL(11); r->death = COL(14); r->fight_speed = COL(21);
+        r->seek = COL(24); r->chase = COL(25); r->snd_death = COL(31); r->snd_hit = COL(34); r->atk_delay = COL(39);
+#undef COL
     }
     free(d);
     return roledef_count;
@@ -1065,23 +1070,29 @@ int mondefs_load(void) {
         uint8_t *d = res_file("Data", MON_FILES[f], &n);
         if (!d || n < 2) { free(d); continue; }
         res_unxor(d, n);
-        int line_no = 0;
+        int line_no = 0, skill_col = -1;
         for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n"), line_no++) {
-            if (line_no < 2) continue;  // 分類列、欄名列
-            char *col[36] = {0};
+            if (line_no < 1) continue;  // 分類列
+            char *col[96] = {0};
             int c = 0;
-            for (char *p = line; c < 36; c++) {
+            for (char *p = line; c < 96; c++) {
                 col[c] = p;
                 char *t = strchr(p, '\t');
                 if (!t) { c++; break; }
                 *t = 0;
                 p = t + 1;
             }
+            if (line_no == 1) {  // 欄名列：找「技能1」在第幾欄（各檔不同）
+                for (int k = 0; k < c; k++)
+                    if (!strcmp(col[k], "\xbc\xbc\xc4\xdc" "1")) skill_col = k;
+                continue;
+            }
             if (c < 35 || !col[0][0] || !atoi(col[34])) continue;
             if (mondef_count == cap) mondefs = realloc(mondefs, (cap = cap ? cap * 2 : 512) * sizeof(MonDef));
             MonDef *m = &mondefs[mondef_count++];
             snprintf(m->name, sizeof m->name, "%s", col[0]);
             m->role = atoi(col[34]);
+            snprintf(m->skill, sizeof m->skill, "%s", skill_col >= 0 && skill_col < c ? col[skill_col] : "");
 #define STAT(i) ((Stat){(float)atof(col[i]), (float)atof(col[(i) + 1])})
             m->hp = STAT(5); m->ap = STAT(7); m->ap_max = STAT(9); m->dp = STAT(16);
             m->hit = STAT(28); m->dodge = STAT(30); m->exp = STAT(32);
@@ -1101,4 +1112,85 @@ const MonDef *mondef_pick(const char *prefix) {
     for (int i = 0; i < mondef_count; i++)
         if (!strncmp(mondefs[i].name, prefix, len) && !k--) return &mondefs[i];
     return NULL;
+}
+
+// ---- 招式表 ObjMdl/MethodMdl.ini（XOR 加密的 key=value，每招以 wType= 開頭；觸發以 iFlag= 開頭）----
+static Method *methods;
+static int method_count;
+
+const Method *method_find(int auto_id) {
+    if (!method_count) {
+        size_t n;
+        uint8_t *d = res_file("ObjMdl", "MethodMdl.ini", &n);
+        if (!d) return NULL;
+        res_unxor(d, n);
+        int cap = 0;
+        Method *m = NULL;
+        Trig *t = NULL;
+        for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n")) {
+            char *eq = strchr(line, '=');
+            if (!eq) continue;
+            *eq = 0;
+            const char *k = line;
+            int v = atoi(eq + 1);
+            if (!strcmp(k, "wType")) {
+                if (method_count == cap) methods = realloc(methods, (cap = cap ? cap * 2 : 1024) * sizeof(Method));
+                m = &methods[method_count++];
+                memset(m, 0, sizeof *m);
+                t = NULL;
+            } else if (!m) continue;
+            else if (!strcmp(k, "wAutoID")) m->id = v;
+            else if (!strcmp(k, "wSprIndex")) m->seq = v;
+            else if (!strcmp(k, "\xd7\xee\xb4\xf3\xb9\xa5\xbb\xf7\xbe\xe0\xc0\xeb")) m->range_max = v;  // 最大攻击距离
+            else if (!strcmp(k, "\xd7\xee\xd0\xa1\xb9\xa5\xbb\xf7\xbe\xe0\xc0\xeb")) m->range_min = v;  // 最小攻击距离
+            else if (!strcmp(k, "iFlag")) {
+                t = m->trig_count < MAX_TRIG ? &m->trig[m->trig_count++] : NULL;
+                if (t) t->flag = v;
+            } else if (t && !strcmp(k, "iWhatFrame")) t->frame = v;
+            else if (t && !strcmp(k, "iTriType")) t->type = v;
+            else if (t && !strcmp(k, "iTriID")) t->id = v;
+        }
+        free(d);
+    }
+    for (int i = 0; i < method_count; i++)
+        if (methods[i].id == auto_id) return &methods[i];
+    return NULL;
+}
+
+// ---- 技能表 Data/skill_npc.txt、skill_1..5.txt：0 索引名、8 Attack ID ----
+typedef struct { char name[40]; int attack; } SkillDef;
+static SkillDef *skills;
+static int skill_count;
+
+int skill_attack(const char *index_name) {
+    if (!skill_count) {
+        static const char *const files[] = {"skill_npc.txt", "skill_1.txt", "skill_2.txt", "skill_3.txt", "skill_4.txt", "skill_5.txt"};
+        int cap = 0;
+        res_preload("Data", files, 6);
+        for (int f = 0; f < 6; f++) {
+            size_t n;
+            uint8_t *d = res_file("Data", files[f], &n);
+            if (!d) continue;
+            res_unxor(d, n);
+            for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n")) {
+                char *col[9] = {0};
+                int c = 0;
+                for (char *p = line; c < 9; c++) {
+                    col[c] = p;
+                    char *t = strchr(p, '\t');
+                    if (!t) { c++; break; }
+                    *t = 0;
+                    p = t + 1;
+                }
+                if (c < 9 || !col[0][0] || !atoi(col[8])) continue;
+                if (skill_count == cap) skills = realloc(skills, (cap = cap ? cap * 2 : 512) * sizeof(SkillDef));
+                snprintf(skills[skill_count].name, sizeof skills[0].name, "%s", col[0]);
+                skills[skill_count++].attack = atoi(col[8]);
+            }
+            free(d);
+        }
+    }
+    for (int i = 0; i < skill_count; i++)
+        if (!strcmp(skills[i].name, index_name)) return skills[i].attack;
+    return -1;
 }

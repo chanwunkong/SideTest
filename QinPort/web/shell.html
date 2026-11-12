@@ -26,10 +26,12 @@
   }
   addEventListener('resize', fit);
   fit();
-  // 網址參數：?scene=別名&warp=N（測試用，直接站到第 N 個觸發區）
+  // 網址參數：?scene=別名&warp=N&level=N&at=X,Y（測試用：站到第 N 個觸發區、主角等級、站到某格）
   const q = new URLSearchParams(location.search);
   const args = ['game', q.get('scene') || 'xianyang'];
   if (q.get('warp')) args.push('--warp', q.get('warp'));
+  if (q.get('level')) args.push('--level', q.get('level'));
+  if (q.get('at')) args.push('--at', q.get('at'));
   var Module = {
     canvas,
     arguments: args,

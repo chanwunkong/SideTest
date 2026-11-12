@@ -100,7 +100,7 @@ static const Sprite *tile(Lib *tiles, uint16_t i) {
 // 網頁上方的提示：n < 0 = 正在載入場景；n > 0 = 背景還有 n 張圖在下載
 EM_JS(void, js_status, (int n), {
     const el = document.getElementById('status');
-    if (el) el.textContent = n < 0 ? '載入場景中…' : n > 0 ? '載入中… 還有 ' + n + ' 張圖' : '按住畫面往那個方向走';
+    if (el) el.textContent = n < 0 ? '載入場景中…' : n > 0 ? '載入中… 還有 ' + n + ' 張圖' : '按住畫面走路，點怪物攻擊';
 });
 #else
 static void js_status(int n) { (void)n; }
@@ -145,33 +145,67 @@ static int frame_at(const Seq *q, Uint32 t) {
 }
 
 // ---- 角色（主角與 NPC 共用）----
-typedef struct {
+enum { ACT_NONE, ACT_ATTACK, ACT_HIT, ACT_DEAD };  // 單次動作：播一次就回到平常；死亡停在最後一幀
+typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
     int dir, moving, speed;
-    int idle, walk;   // 動作起點序列（角色表「平時休息/平時走路」）
+    int idle, walk, fidle, fwalk;  // 動作起點序列（角色表「平時/戰鬥」的休息與走路）
     Uint32 act_tick;  // 目前動作已經過幾拍（換動作時歸零）
     const Role *role;
+    const RoleDef *def;
     const NpcSpec *spec;  // NPC 的擺放資料；主角為 NULL
     float tx, ty;     // AI 目標格
     int has_target, path_i, rest;  // rest = 還要休息幾拍
     const MonDef *mon;  // 怪物的數值表列；NPC 與主角為 NULL
-    int level, hp;
+    int level, hp, hp_max, ap, ap_max, dp, hr, sr, exp;
+    int act, act_seq, last_frame;  // 單次動作與它的序列起點、上一拍的幀（觸發用）
+    const Method *atk;             // 普通攻擊的招式
+    struct Actor *foe;             // 攻擊目標
+    int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
 } Actor;
+
+// 角色某序列的節奏：各部件的幀延遲相同，拿第一個有資料的部件
+static const Seq *role_seq(const Role *r, int seq) {
+    for (int i = 0; r && i < r->part_count; i++)
+        if (r->body[i] && seq < r->body[i]->count && r->body[i]->seqs[seq].count) return &r->body[i]->seqs[seq];
+    return NULL;
+}
+
+static Uint32 seq_ticks(const Seq *q) {
+    Uint32 t = 0;
+    for (int i = 0; i < q->count; i++) t += q->frames[i].delay > 0 ? q->frames[i].delay : 1;
+    return t;
+}
+
+static int actor_seq(const Actor *a) {
+    int base = a->act ? a->act_seq : a->moving ? (a->fight ? a->fwalk : a->walk) : (a->fight ? a->fidle : a->idle);
+    return base + DIR_MAP[a->dir];
+}
+
+// 目前該畫第幾幀：平常循環播放，單次動作播完停在最後一幀
+static int actor_frame(const Actor *a, int seq) {
+    const Seq *q = role_seq(a->role, seq);
+    if (!q) return 0;
+    if (a->act && a->act_tick >= seq_ticks(q)) return q->count - 1;
+    return frame_at(q, a->act_tick);
+}
 
 static void actor_draw(const Actor *a, int sx, int sy) {
     const Role *r = a->role;
     if (!r) return;
-    int seq = (a->moving ? a->walk : a->idle) + DIR_MAP[a->dir];
+    int seq = actor_seq(a);
     if (seq >= r->seq_count || !r->frames[seq]) return;
-    // 各部件的幀延遲相同，拿第一個有資料的部件當節奏
-    int frame = 0;
-    for (int i = 0; i < r->part_count; i++)
-        if (r->body[i] && seq < r->body[i]->count) { frame = frame_at(&r->body[i]->seqs[seq], a->act_tick); break; }
-    frame %= r->frames[seq];
+    int frame = actor_frame(a, seq) % r->frames[seq];
     for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
     const uint8_t *order = r->order[seq] + frame * r->part_count;
     for (int i = 0; i < r->part_count; i++)
         if (order[i] < r->part_count) draw_frame(r->body[order[i]], seq, frame, sx, sy, 0);
+}
+
+// 面向畫面方向 (sdx, sdy)
+static void face(Actor *a, float sdx, float sdy) {
+    int oct = (int)lroundf(atan2f(sdx, -sdy) / (float)(M_PI / 4));
+    a->dir = (oct + 8) % 8;
 }
 
 // 往畫面方向 (sdx, sdy) 走 px 個畫面像素。畫面上各方向等速（格子寬 64 高 32，若照格子等速，上下會只有左右一半快）
@@ -186,8 +220,7 @@ static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px)
     if (scene_walkable(s, (int)(h->x + gx), (int)(h->y + gy))) { h->x += gx; h->y += gy; }
     else if (scene_walkable(s, (int)(h->x + gx), (int)h->y)) h->x += gx;
     else if (scene_walkable(s, (int)h->x, (int)(h->y + gy))) h->y += gy;
-    int oct = (int)lroundf(atan2f(sdx, -sdy) / (float)(M_PI / 4));
-    h->dir = (oct + 8) % 8;
+    face(h, sdx, sdy);
     h->moving = 1;
 }
 
@@ -263,8 +296,11 @@ static int actor_count;
 
 static void actor_setup(Actor *a, const RoleDef *d) {
     a->role = role_for(d);
+    a->def = d;
     a->idle = d->idle;
     a->walk = d->walk;
+    a->fidle = d->fight_idle;
+    a->fwalk = d->fight_walk ? d->fight_walk : d->walk;
     a->speed = d->speed;
 }
 
@@ -360,11 +396,161 @@ static void spawn_monsters(const Scene *s, const World *w, int room) {
             int lv = mg->level, tier = mg->tier;
             if (lv < 0) lv = tier * 5 - rand() % 5;
             a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
-            a->hp = stat_at(m->hp, a->level);
+            a->hp = a->hp_max = stat_at(m->hp, a->level);
+            a->ap = stat_at(m->ap, a->level);
+            a->ap_max = stat_at(m->ap_max, a->level);
+            a->dp = stat_at(m->dp, a->level);
+            a->hr = stat_at(m->hit, a->level);
+            a->sr = stat_at(m->dodge, a->level);
+            a->exp = stat_at(m->exp, a->level);
+            a->atk = method_find(skill_attack(m->skill));
             actor_setup(a, d);
             printf("怪物 %s Lv%d HP%d 在 (%d,%d)\n", m->name, a->level, a->hp, x, y);
         }
     }
+}
+
+// ---- 戰鬥 ----
+#define FIGHT_TICKS 300  // shortcut: 打完多久收起戰鬥姿態是自訂的（約 5 秒）
+#define CORPSE_TICKS 600 // shortcut: 屍體留多久是自訂的（約 10 秒）
+static int exp_table[100], exp_levels;  // Data/experience.txt：第 n 列 = 升到 n+1 級要的經驗
+
+static int alive(const Actor *a) { return a && a->role && a->act != ACT_DEAD; }
+
+static float cell_dist(const Actor *a, const Actor *b) {
+    return fmaxf(fabsf(a->x - b->x), fabsf(a->y - b->y));
+}
+
+static void start_act(Actor *a, int act, int seq) {
+    a->act = act;
+    a->act_seq = seq;
+    a->act_tick = 0;
+    a->last_frame = -1;
+    a->moving = 0;
+}
+
+// 主角數值。遊俠模板（EasyRPG.dll 0x1013c380）：Str 30、Con 25、Dex 25，HP_MAX = 120 + 28×等級
+// 職業倍率（0x1002d510，遊俠 K = 150）：AP、AP_MAX = 基礎 × (Str+K)/K；DP = 基礎 × (Con+K)/K；
+// HR = (基礎 + 3×Dex) × (Dex+K)/K；SR = (基礎 + 4×Dex) × (Dex+K)/K
+// shortcut: 基礎 AP/DP/HR/SR 來自武器與護甲，裝備系統還沒做，先用空手假設 AP 10~15、DP 0、HR/SR 基礎 0；升級加點也還沒做
+static void hero_stats(Actor *h, int level) {
+    const int K = 150, str = 30, con = 25, dex = 25;
+    h->level = level;
+    h->hp = h->hp_max = 120 + 28 * level;
+    h->ap = 10 * (str + K) / K;
+    h->ap_max = 15 * (str + K) / K;
+    h->dp = 0 * (con + K) / K;
+    h->hr = 3 * dex * (dex + K) / K;
+    h->sr = 4 * dex * (dex + K) / K;
+}
+
+// 一次命中（EasyRPG.dll 0x10033140 物理傷害）：攻擊 = AP~AP_MAX 隨機，損血 = 攻擊² / (攻擊 + DP/2)，至少 3
+static void strike(Actor *a, Actor *t, Uint32 tick) {
+    (void)tick;
+    if (!alive(t)) return;
+    t->fight = FIGHT_TICKS;
+    if (t->mon && !t->foe) t->foe = a;  // 被打的怪物會反擊
+    // shortcut: 命中判定在原版還沒找到，先用 HR / (HR + SR)，夾在 5%~95%
+    int chance = a->hr + t->sr > 0 ? a->hr * 100 / (a->hr + t->sr) : 50;
+    if (rand() % 100 >= (chance < 5 ? 5 : chance > 95 ? 95 : chance)) return;
+    int dmg = a->ap + (a->ap_max > a->ap ? rand() % (a->ap_max - a->ap + 1) : 0);
+    int loss = dmg + t->dp / 2 > 0 ? dmg * dmg / (dmg + t->dp / 2) : 0;
+    if (loss < 3) loss = 3;
+    t->hp -= loss;
+    if (a->atk)  // 打中對方時的音效（招式 iFlag = 1）。shortcut: 特效（type 2）還沒做
+        for (int i = 0; i < a->atk->trig_count; i++)
+            if (a->atk->trig[i].flag == 1 && a->atk->trig[i].type == 1) audio_sfx(a->atk->trig[i].id);
+    if (t->hp <= 0) {
+        t->hp = 0;
+        start_act(t, ACT_DEAD, t->def->death);
+        if (t->def->snd_death) audio_sfx(t->def->snd_death);
+        if (!a->mon && t->mon) {  // 主角拿經驗，夠了就升級
+            a->exp += t->exp;
+            while (a->level < exp_levels && a->exp >= exp_table[a->level]) {
+                hero_stats(a, a->level + 1);
+                printf("升到 %d 級\n", a->level);
+            }
+        }
+        printf("%s 倒下\n", t->mon ? "怪物" : "主角");
+        return;
+    }
+    if (t->def->snd_hit) audio_sfx(t->def->snd_hit);
+    if (t->def->hit && t->act != ACT_ATTACK) start_act(t, ACT_HIT, t->def->hit);
+}
+
+// 單次動作的進度：攻擊依招式各幀觸發音效與命中；播完回到平常（死亡除外）
+static void action_tick(Actor *a, Uint32 tick) {
+    int seq = actor_seq(a);
+    const Seq *q = role_seq(a->role, seq);
+    int f = actor_frame(a, seq);
+    if (a->act == ACT_ATTACK && a->atk)
+        for (int fr = a->last_frame + 1; fr <= f; fr++)
+            for (int i = 0; i < a->atk->trig_count; i++) {
+                const Trig *t = &a->atk->trig[i];
+                if (t->flag || t->frame != fr) continue;
+                if (t->type == 1) audio_sfx(t->id);
+                else if (t->type == 0) strike(a, a->foe, tick);
+            }
+    a->last_frame = f;
+    a->act_tick++;
+    if (a->act != ACT_DEAD && (!q || a->act_tick >= seq_ticks(q))) {
+        if (a->act == ACT_ATTACK) a->cool = a->def->atk_delay;
+        a->act = ACT_NONE;
+        a->act_tick = 0;
+    }
+}
+
+// 追打目標：在招式距離內就面向它出手，否則往它走。回傳 0 = 沒有目標
+static int pursue(Actor *a, const Scene *s, Uint32 tick) {
+    if (!alive(a->foe)) { a->foe = NULL; return 0; }
+    Actor *t = a->foe;
+    a->fight = FIGHT_TICKS;
+    float gx = t->x - a->x, gy = t->y - a->y;
+    float sdx = (gx - gy) * 32, sdy = (gx + gy) * 16;  // 格子方向 → 畫面方向
+    int range = a->atk && a->atk->range_max > 0 ? a->atk->range_max : 1;
+    if (cell_dist(a, t) <= range + 0.5f) {
+        face(a, sdx, sdy);
+        a->moving = 0;
+        a->act_tick++;
+        if (a->cool <= 0) start_act(a, ACT_ATTACK, a->atk ? a->atk->seq : a->fidle);
+        return 1;
+    }
+    actor_tick(a, s, sdx, sdy, tick);
+    return 1;
+}
+
+// 怪物：主角進入索敌范围就追上去打，離出生點超過追击范围就放棄回去閒逛
+static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
+    if (a->foe && (!alive(a->foe) || fabsf(a->x - a->spec->rx - MON_WANDER) + fabsf(a->y - a->spec->ry - MON_WANDER) > a->def->chase))
+        a->foe = NULL;
+    if (!a->foe && alive(hero) && cell_dist(a, hero) <= a->def->seek) a->foe = hero;
+    a->speed = a->foe ? a->def->fight_speed : a->def->speed;
+    if (!pursue(a, s, tick)) npc_think(a, s, tick);
+}
+
+// 畫面上點到哪隻活著的怪物（腳底附近、往上約一個身高）
+static Actor *monster_at(int px, int py, int ox, int oy, const Scene *s) {
+    Actor *best = NULL;
+    int best_d = 1 << 30;
+    for (int i = 1; i < actor_count; i++) {
+        Actor *a = &actors[i];
+        if (!a->mon || !alive(a)) continue;
+        int fx = (int)((a->x - a->y + s->h - 1) * TILE_W / 2) - ox, fy = (int)((a->x + a->y) * TILE_H / 2) - oy;
+        int dx = px - fx, dy = py - (fy - 30);
+        if (abs(dx) > 36 || dy < -70 || dy > 40) continue;
+        if (dx * dx + dy * dy < best_d) { best_d = dx * dx + dy * dy; best = a; }
+    }
+    return best;
+}
+
+// 血條：shortcut: 原版介面（ResUI 血球）還沒做，先畫簡單的條
+static void hp_bar(const Actor *a, int x, int y, int w) {
+    if (!a->hp_max) return;
+    SDL_Rect bg = {x, y, w, 4}, fg = {x, y, w * a->hp / a->hp_max, 4};
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+    SDL_RenderFillRect(ren, &bg);
+    SDL_SetRenderDrawColor(ren, 200, 30, 30, 255);
+    SDL_RenderFillRect(ren, &fg);
 }
 
 static int cmp_actor_depth(const void *a, const void *b) {
@@ -524,12 +710,13 @@ static int load_world(World *world, int *tried, const char *alias) {
 
 int main(int argc, char **argv) {
     const char *game = "game", *scn = "xianyang", *shot = NULL;
-    int pos = 0, warp = -1, at_x = -1, at_y = -1;
+    int pos = 0, warp = -1, at_x = -1, at_y = -1, level = 1;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
+        else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
         else if (pos++ == 0) game = argv[i];
         else scn = argv[i];
     }
@@ -549,6 +736,7 @@ int main(int argc, char **argv) {
     hero->dir = 4;
     if (!enter_scene(&scene, hero, alias, -1)) return 1;
     if (!hero->role) { fprintf(stderr, "載入主角失敗\n"); return 1; }
+    hero_stats(hero, level < 1 ? 1 : level > 99 ? 99 : level);
     int room = -1, armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
     int monsters_due = 1;      // 進場景後等圖片都下載好，再讀房間表放怪物（網頁版開場不用等 4MB 的 DLL）
     if (at_x >= 0) { hero->x = at_x + 0.5f; hero->y = at_y + 0.5f; }
@@ -586,7 +774,7 @@ int main(int argc, char **argv) {
 
     Uint64 fps_t = SDL_GetPerformanceCounter();
     Uint32 logic_ms = SDL_GetTicks(), tick = 0;
-    int frames = 0, running = 1, pointer_down = 0, px = 0, py = 0;
+    int frames = 0, running = 1, pointer_down = 0, px = 0, py = 0, ox = 0, oy = 0;
 
     while (running) {
         SDL_Event e;
@@ -596,7 +784,20 @@ int main(int argc, char **argv) {
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_f)
                 SDL_SetWindowFullscreen(win, SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
             // 滑鼠與觸控（SDL 預設會把觸控也送成滑鼠事件）：按住就一直往指的地方走
-            else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) { pointer_down = 1; px = e.button.x; py = e.button.y; }
+            else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+                px = e.button.x;
+                py = e.button.y;
+                Actor *m = monster_at(px, py, ox, oy, &scene);  // 點怪物 = 攻擊它；點其他地方 = 按住走路
+                if (m) hero->foe = m;
+                else pointer_down = 1;
+            }
+            // 空白鍵／手把 A：打最近的怪物
+            else if ((e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE) ||
+                     (e.type == SDL_CONTROLLERBUTTONDOWN && e.cbutton.button == SDL_CONTROLLER_BUTTON_A)) {
+                float best = hero->def ? hero->def->seek : 10;
+                for (int i = 1; i < actor_count; i++)
+                    if (actors[i].mon && alive(&actors[i]) && cell_dist(hero, &actors[i]) <= best) { best = cell_dist(hero, &actors[i]); hero->foe = &actors[i]; }
+            }
             else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) pointer_down = 0;
             else if (e.type == SDL_MOUSEMOTION) { px = e.motion.x; py = e.motion.y; }
             else if (e.type == SDL_CONTROLLERDEVICEADDED && !pad) pad = SDL_GameControllerOpen(e.cdevice.which);
@@ -627,11 +828,28 @@ int main(int argc, char **argv) {
         if (now_ms - logic_ms > 250) logic_ms = now_ms - TICK_MS;  // 卡頓或切到背景後不要一次補太多拍
         while (now_ms - logic_ms >= TICK_MS) {
             logic_ms += TICK_MS;
-            actor_tick(hero, &scene, mx, my, ++tick);
+            ++tick;
+            for (int i = 0; i < actor_count; i++) {
+                if (actors[i].cool > 0) actors[i].cool--;
+                if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
+            }
+            if (hero->act == ACT_DEAD) {  // shortcut: 原版死亡後的處理（回城、掉經驗）還沒做，先 3 秒後原地復活
+                if (++hero->dead_ticks > 180) { hero->act = ACT_NONE; hero->dead_ticks = 0; hero->hp = hero->hp_max; }
+                action_tick(hero, tick);
+            } else if (hero->act) action_tick(hero, tick);
+            else if (mx * mx + my * my > 0.01f) { hero->foe = NULL; actor_tick(hero, &scene, mx, my, tick); }  // 自己走 = 放棄目標
+            else if (!pursue(hero, &scene, tick)) actor_tick(hero, &scene, 0, 0, tick);
             // 腳步聲：每 max((15 - A) * 2, 10) 拍一次（Poq.exe 0x48704f），80 號音效
             int sp = hero->speed < 0 ? 0 : hero->speed > 59 ? 59 : hero->speed, step = (15 - SPEED_A[sp]) * 2;
             if (hero->moving && tick % (step < 10 ? 10 : step) == 0) audio_sfx(80);  // shortcut: 原版某些地面改用 81 號，地面類型還沒對應
-            for (int i = 1; i < actor_count; i++) npc_think(&actors[i], &scene, tick);
+            for (int i = 1; i < actor_count; i++) {
+                Actor *a = &actors[i];
+                if (!a->mon) npc_think(a, &scene, tick);
+                else if (!a->role) continue;
+                else if (a->act == ACT_DEAD) { action_tick(a, tick); if (++a->dead_ticks > CORPSE_TICKS) a->role = NULL; }
+                else if (a->act) action_tick(a, tick);
+                else monster_think(a, hero, &scene, tick);
+            }
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = trigger_at(&scene, hero);
             if (!t) armed = 1;
@@ -660,12 +878,23 @@ int main(int argc, char **argv) {
         if (monsters_due && !res_loading() && (world_tried || world_ready())) {
             monsters_due = 0;
             if (!world_tried) room = load_world(&world, &world_tried, alias);
+            if (!hero->atk) {  // 戰鬥資料也等開場畫面好了才讀（網頁版不拖慢開場）
+                hero->atk = method_find(skill_attack("\xd3\xce\xcf\xc0_\xd5\xb6\xbc\xac\xc5\xfb\xbe\xa3"));  // 游侠_斩棘披荆（1 級技能，原版的普通攻擊）
+                size_t n;
+                uint8_t *d = res_file("Data", "experience.txt", &n);
+                if (d) {
+                    res_unxor(d, n);
+                    for (char *l = strtok((char *)d, "\r\n"); l && exp_levels < 100; l = strtok(NULL, "\r\n")) exp_table[exp_levels++] = atoi(l);
+                    free(d);
+                }
+            }
             if (mondefs_load()) spawn_monsters(&scene, &world, room);
         }
 
         // 主角腳底的世界像素；鏡頭跟著主角
         int hx = (int)((hero->x - hero->y + scene.h - 1) * TILE_W / 2), hy = (int)((hero->x + hero->y) * TILE_H / 2);
-        int ox = hx - vw / 2, oy = hy - vh / 2;
+        ox = hx - vw / 2;
+        oy = hy - vh / 2;
 
         // ---- 畫面 ----
         SDL_SetRenderTarget(ren, canvas);
@@ -699,6 +928,10 @@ int main(int argc, char **argv) {
                 else draw(image(pt->gid), sx + pt->dx, sy + pt->dy);
             }
         }
+        for (int i = 1; i < actor_count; i++)
+            if (actors[i].mon && alive(&actors[i]) && actors[i].hp < actors[i].hp_max)
+                hp_bar(&actors[i], (int)((actors[i].x - actors[i].y + scene.h - 1) * TILE_W / 2) - ox - 20, (int)((actors[i].x + actors[i].y) * TILE_H / 2) - oy - 90, 40);
+        hp_bar(hero, 10, 10, 160);
         if (shot && tick > 3) {
             SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, vw, vh, 32, SDL_PIXELFORMAT_ARGB8888);
             SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, surf->pixels, surf->pitch);
