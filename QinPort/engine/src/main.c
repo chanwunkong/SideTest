@@ -10,6 +10,7 @@
 #include <time.h>
 #include "res.h"
 #include "audio.h"
+#include "gbk.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -569,7 +570,6 @@ static Actor *monster_at(int px, int py, int ox, int oy, const Scene *s) {
     return best;
 }
 
-#ifdef STORY  // shortcut: 目前只有對話用到文字，等傷害數字、介面也要用時再拿掉這個條件
 // ---- 文字：原版字型 font/16Point.fnt：0xB4 起依 Unicode 每字 32 bytes（16 列 × 16 位元，0 = 筆畫）----
 static uint8_t *font16;
 static SDL_Texture *glyph_tex[65536];
@@ -610,6 +610,19 @@ static uint32_t utf8_next(const char **p) {
     return c;
 }
 
+// 原版資料檔的 GBK 文字轉成 UTF-8（字型依 Unicode 排）
+static void gbk_utf8(const char *in, char *out, size_t n) {
+    size_t o = 0;
+    for (const uint8_t *p = (const uint8_t *)in; *p && o + 4 < n; p++) {
+        uint32_t c = *p;
+        if (c >= 0x81 && c <= 0xFE && p[1] >= 0x40 && p[1] <= 0xFE) { c = gbk_uni[(c - 0x81) * 191 + (p[1] - 0x40)]; p++; }
+        if (c < 0x80) out[o++] = (char)c;
+        else if (c < 0x800) { out[o++] = (char)(0xC0 | c >> 6); out[o++] = (char)(0x80 | (c & 0x3F)); }
+        else { out[o++] = (char)(0xE0 | c >> 12); out[o++] = (char)(0x80 | (c >> 6 & 0x3F)); out[o++] = (char)(0x80 | (c & 0x3F)); }
+    }
+    out[o] = 0;
+}
+
 // 從 (x, y) 開始寫，超過 maxw 換行；draw = 0 只量高度。回傳用掉的高度
 static int draw_text(int x, int y, const char *t, int maxw, Uint32 rgb, int draw) {
     int cx = 0, cy = 0;
@@ -629,6 +642,7 @@ static int draw_text(int x, int y, const char *t, int maxw, Uint32 rgb, int draw
     return cy + 18;
 }
 
+#ifdef STORY
 // ---- 對話（劇情來自原版 EasyRPG.dll，見 story/）：畫面下方的框，說話者、台詞、回答選項 ----
 #include "story/story.h"
 static int dialog_open;
@@ -685,14 +699,118 @@ static Actor *npc_at(int px, int py, int ox, int oy, const Scene *s) {
 }
 #endif
 
-// 血條：shortcut: 原版介面（ResUI 血球）還沒做，先畫簡單的條
-static void hp_bar(const Actor *a, int x, int y, int w) {
-    if (!a->hp_max) return;
-    SDL_Rect bg = {x, y, w, 4}, fg = {x, y, w * a->hp / a->hp_max, 4};
-    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
-    SDL_RenderFillRect(ren, &bg);
-    SDL_SetRenderDrawColor(ren, 200, 30, 30, 255);
-    SDL_RenderFillRect(ren, &fg);
+// ---- 原版介面：ini/DialogInfo.ini 每個 [介面] 一段；每個元件「名稱=種類,x,y,寬,高,旗標,ID,提示,圖,…」----
+// 種類：1 背景、2 按鈕（圖的各幀 = 平常、指著、按下）、6 進度條、9 靜態圖。圖是 ResUI 的編號：
+// 多半是動畫定義（Res00 格式，取第 0 序列第 0 幀），少數直接是 xbm
+typedef struct { char name[32]; int type, x, y, w, h, flags, img; } UiCtrl;
+typedef struct { char name[48]; int w, h, count; UiCtrl c[64]; } UiDialog;
+
+static int ui_load(const char *section, UiDialog *out) {
+    size_t n;
+    uint8_t *d = res_file("ini", "DialogInfo.ini", &n);
+    if (!d) return 0;
+    if (n && d[0] == 0x80) n = res_unxor(d, n);
+    memset(out, 0, sizeof *out);
+    int on = 0;
+    for (char *l = strtok((char *)d, "\r\n"); l; l = strtok(NULL, "\r\n")) {
+        if (l[0] == '[') { if (on) break; on = !strncmp(l + 1, section, strlen(section)) && l[1 + strlen(section)] == ']'; continue; }
+        char *eq = strchr(l, '=');
+        if (!on || !eq) continue;
+        *eq = 0;
+        int f[9] = {0}, k = 0;
+        for (char *p = eq + 1; k < 9 && p; p = strchr(p, ','), p = p ? p + 1 : NULL) f[k++] = atoi(p);
+        if (!strcmp(l, "Dialog")) { out->w = f[3]; out->h = f[4]; continue; }
+        if (out->count == 64) break;
+        UiCtrl *c = &out->c[out->count++];
+        snprintf(c->name, sizeof c->name, "%s", l);
+        c->type = f[0]; c->x = f[1]; c->y = f[2]; c->w = f[3]; c->h = f[4]; c->flags = f[5]; c->img = f[8];
+    }
+    snprintf(out->name, sizeof out->name, "%s", section);
+    free(d);
+    return out->count;
+}
+
+static const Sprite *ui_image(int img, int frame) {
+    const Anim *a = anim_get((uint32_t)img);
+    if (!a) return image((uint32_t)img);  // 直接是 xbm
+    int i = 0;
+    for (int s = 0; s < a->count; s++)
+        for (int f = 0; f < a->seqs[s].count; f++, i++)
+            if (i == frame) return image(a->seqs[s].frames[f].ref);
+    return a->seqs[0].count ? image(a->seqs[0].frames[0].ref) : NULL;
+}
+
+static UiCtrl *ui_find(UiDialog *d, const char *name) {
+    for (int i = 0; i < d->count; i++)
+        if (!strcmp(d->c[i].name, name)) return &d->c[i];
+    return NULL;
+}
+
+// 進度條（種類 6，原版 Poq.exe CProgress 第 12 格 0x401690）：旗標 0x4000 = 直的、由下往上；否則橫的、從左往右
+static void ui_bar(const UiCtrl *c, int ox, int oy, int value, int max) {
+    const Sprite *s = ui_image(c->img, 0);
+    if (!s || max <= 0) return;
+    int v = value < 0 ? 0 : value > max ? max : value;
+    SDL_Rect src = {0, 0, s->w, s->h};
+    if (c->flags & 0x4000) { src.y = s->h - s->h * v / max; src.h = s->h - src.y; }
+    else src.w = s->w * v / max;
+    SDL_Rect dst = {ox + c->x + src.x, oy + c->y + src.y, src.w, src.h};
+    SDL_RenderCopy(ren, s->tex, &src, &dst);
+}
+
+// 畫整個介面（進度條另外畫）；(ox, oy) = 介面左上角
+static void ui_draw(UiDialog *d, int ox, int oy) {
+    for (int i = 0; i < d->count; i++) {
+        const UiCtrl *c = &d->c[i];
+        if (c->type == 6 || !c->img || c->flags & 0x20000) continue;  // shortcut: 旗標 0x20000 當成「一開始隱藏」（物品格的選取框、狀態圖示都有），還沒對原版
+        draw(ui_image(c->img, 0), ox + c->x, oy + c->y);
+    }
+}
+
+// 主畫面介面，位置照原版（Poq.exe 0x5d3xxx 建立介面那段）：
+// 底部主列 JM51_状态界面_中间 = 底部置中；隊伍面板 JM51_状态界面_主控 = 右緣、貼在主列上方
+static void hud_draw(const Actor *hero) {
+    static UiDialog bar, party, enemy;
+    static int tried;
+    if (!tried) {
+        tried = 1;
+        ui_load("JM51_\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6_\xd6\xd0\xbc\xe4", &bar);      // JM51_状态界面_中间（GBK）
+        ui_load("JM51_\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6_\xd6\xf7\xbf\xd8", &party);    // JM51_状态界面_主控
+        ui_load("JM515_\xb5\xd0\xc8\xcb\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6", &enemy);    // JM515_敌人状态界面
+    }
+    // 敵人狀態：上方置中、距頂 20（原版位置）；顯示目前打的怪物名字和血。shortcut: 原版是滑鼠指著的對象，手機沒有指著，先用攻擊目標
+    const Actor *t = hero->foe;
+    if (enemy.count && t && t->mon && t->act != ACT_DEAD) {
+        int ex = (vw - enemy.w) / 2, ey = 20;
+        UiCtrl *nm = ui_find(&enemy, "m_pName"), *bl = ui_find(&enemy, "m_pBlood");
+        if (nm) {
+            char u[96];
+            gbk_utf8(t->mon->title, u, sizeof u);
+            int w = 0;
+            for (const char *q = u; *q;) { uint32_t c = utf8_next(&q); glyph(c); w += glyph_adv[c <= 0xFFFF ? c : '?']; }
+            draw_text(ex + nm->x + (nm->w - w) / 2, ey + nm->y + 3, u, nm->w, 0xBECDCE, 1);
+        }
+        if (bl) ui_bar(bl, ex, ey, t->hp, t->hp_max);
+    }
+    if (!bar.count) return;
+    int ox = (vw - bar.w) / 2, oy = vh - bar.h;
+    ui_draw(&bar, ox, oy);
+    UiCtrl *red = ui_find(&bar, "m_pRed"), *blue = ui_find(&bar, "m_pBlue");
+    if (red) ui_bar(red, ox, oy, hero->hp, hero->hp_max);
+    if (blue) ui_bar(blue, ox, oy, 1, 1);  // shortcut: 精氣（MP）還沒做，先畫滿
+    if (party.count) {
+        int px = vw - party.w, py = oy - party.h;
+        for (int i = 0; i < party.count; i++) {  // 只有主角：畫背景和第 0 格。shortcut: 頭像（G_PicID）、隊友還沒做
+            const UiCtrl *c = &party.c[i];
+            if (c->type == 6 || !c->img || c->flags & 0x20000 || (strchr(c->name, '[') && !strstr(c->name, "[0]"))) continue;
+            // 升級提示、狀態圖示：有事才顯示（原版 ini 的狀態圖示五格都叫 m_pRoleStatus[0][x]，不能靠 [0] 分）
+            if (!strncmp(c->name, "m_pUpgrade", 10) || !strncmp(c->name, "m_pRoleStatus", 13)) continue;
+            draw(ui_image(c->img, 0), px + c->x, py + c->y);
+        }
+        UiCtrl *hp = ui_find(&party, "m_pRoleHP[0]"), *mp = ui_find(&party, "m_pRoleMP[0]");
+        if (hp) ui_bar(hp, px, py, hero->hp, hero->hp_max);
+        if (mp) ui_bar(mp, px, py, 1, 1);
+    }
 }
 
 static int cmp_actor_depth(const void *a, const void *b) {
@@ -1110,10 +1228,7 @@ int main(int argc, char **argv) {
                 draw_frame(a, 0, frame_at(&a->seqs[0], tick - fx[i].start), (int)((fx[i].x - fx[i].y + scene.h - 1) * TILE_W / 2) - ox,
                            (int)((fx[i].x + fx[i].y) * TILE_H / 2) - oy, 0);
         }
-        for (int i = 1; i < actor_count; i++)
-            if (actors[i].mon && alive(&actors[i]) && actors[i].hp < actors[i].hp_max)
-                hp_bar(&actors[i], (int)((actors[i].x - actors[i].y + scene.h - 1) * TILE_W / 2) - ox - 20, (int)((actors[i].x + actors[i].y) * TILE_H / 2) - oy - 90, 40);
-        hp_bar(hero, 10, 10, 160);
+        hud_draw(hero);
 #ifdef STORY
         dialog_draw();
 #endif

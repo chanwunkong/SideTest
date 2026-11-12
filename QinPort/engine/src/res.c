@@ -1100,6 +1100,7 @@ int mondefs_load(void) {
             if (mondef_count == cap) mondefs = realloc(mondefs, (cap = cap ? cap * 2 : 512) * sizeof(MonDef));
             MonDef *m = &mondefs[mondef_count++];
             snprintf(m->name, sizeof m->name, "%s", col[0]);
+            snprintf(m->title, sizeof m->title, "%s", col[1]);
             m->role = atoi(col[34]);
             snprintf(m->skill, sizeof m->skill, "%s", skill_col >= 0 && skill_col < c ? col[skill_col] : "");
 #define STAT(i) ((Stat){(float)atof(col[i]), (float)atof(col[(i) + 1])})

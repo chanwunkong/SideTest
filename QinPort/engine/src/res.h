@@ -137,6 +137,7 @@ void world_free(World *w);
 typedef struct { float base, per; } Stat;
 typedef struct {
     char name[32];  // 人物类型，例如「动物山魈A」
+    char title[32];  // 人物名称（畫面上顯示的，GBK），例如「狼」
     char skill[32]; // 技能1（普通攻擊），例如「狼_抓」→ Data/skill_npc.txt
     int role;       // 图形1 = RoleMdl 角色 ID
     Stat hp, ap, ap_max, dp, hit, dodge, exp;
