@@ -143,16 +143,17 @@ uint32_t *res_image(uint32_t ref, int *w, int *h) {
 }
 
 // ---- 動畫：u32 序列數；每序列 (幀數, ?, ?) + 每幀 7 個 u32 (?, 停留拍數, ref, ?, ?, dx, dy) ----
-static Anim *anims;
+// 每個動畫各自配置：回傳的指標要一直有效（陣列 realloc 會讓舊指標失效）
+static Anim **anims;
 static int anim_count, anim_cap;
 
 const Anim *anim_get(uint32_t gid) {
     if (!gid) return NULL;  // 找不到定義（例如某些部件沒有影子）
     for (int i = 0; i < anim_count; i++)
-        if (anims[i].gid == gid) return anims[i].count ? &anims[i] : NULL;
-    if (anim_count == anim_cap) anims = realloc(anims, (anim_cap = anim_cap ? anim_cap * 2 : 64) * sizeof(Anim));
-    Anim *a = &anims[anim_count++];
-    memset(a, 0, sizeof *a);
+        if (anims[i]->gid == gid) return anims[i]->count ? anims[i] : NULL;
+    if (anim_count == anim_cap) anims = realloc(anims, (anim_cap = anim_cap ? anim_cap * 2 : 64) * sizeof(Anim *));
+    Anim *a = calloc(1, sizeof(Anim));
+    anims[anim_count++] = a;
     a->gid = gid;
     uint32_t size;
     uint8_t *d = res_read(gid, &size);
@@ -212,6 +213,38 @@ static void parse_models(Scene *s, const uint8_t *d, size_t n) {
     }
 }
 
+// .ONT（GBK 文字）：每個物件以 iType= 開頭，後面是 key=value 行
+static void parse_ont(Scene *s, char *text) {
+    int cap = 0;
+    NpcSpec *n = NULL;
+    for (char *line = strtok(text, "\r\n"); line; line = strtok(NULL, "\r\n")) {
+        char *eq = strchr(line, '=');
+        if (!eq) continue;
+        *eq = 0;
+        const char *k = line, *v = eq + 1;
+        int iv = atoi(v);
+        if (!strcmp(k, "iType")) {
+            if (iv < 12 || iv > 15) { n = NULL; continue; }
+            if (s->npc_count == cap) s->npcs = realloc(s->npcs, (cap = cap ? cap * 2 : 32) * sizeof(NpcSpec));
+            n = &s->npcs[s->npc_count++];
+            memset(n, 0, sizeof *n);
+            n->type = iv;
+        } else if (!n) {
+            continue;
+        } else if (!strcmp(k, "\xc4\xa3\xb0\xe5" "ID")) n->tmpl = iv;                  // 模板ID
+        else if (!strcmp(k, "\xb5\xd8\xcd\xbc\xd7\xf8\xb1\xea" "X")) n->x = iv;      // 地图坐标X
+        else if (!strcmp(k, "\xb5\xd8\xcd\xbc\xd7\xf8\xb1\xea" "Y")) n->y = iv;      // 地图坐标Y
+        else if (!strcmp(k, "\xb7\xbd\xcf\xf2")) n->dir = iv;                           // 方向
+        else if (!strcmp(k, "\xca\xc2\xbc\xfe" "ID")) snprintf(n->event, sizeof n->event, "%s", v);  // 事件ID
+        else if (!strcmp(k, "x")) n->rx = iv;
+        else if (!strcmp(k, "y")) n->ry = iv;
+        else if (!strcmp(k, "cx")) n->rw = iv;
+        else if (!strcmp(k, "cy")) n->rh = iv;
+        else if (!strcmp(k, "PathMapX") && n->path_n < MAX_PATH) n->path[n->path_n][0] = iv;
+        else if (!strcmp(k, "PathMapY") && n->path_n < MAX_PATH) n->path[n->path_n++][1] = iv;
+    }
+}
+
 static int cmp_obj(const void *a, const void *b) {
     const Object *x = a, *y = b;
     int d = (x->x + x->y) - (y->x + y->y);
@@ -220,13 +253,14 @@ static int cmp_obj(const void *a, const void *b) {
 
 int scene_load(Scene *s, const char *scn_name) {
     memset(s, 0, sizeof *s);
-    char dir[1100], name[256], map_name[128], bnt_name[128], v[32];
+    char dir[1100], name[256], map_name[128], bnt_name[128], ont_name[128], v[32];
     size_t size;
     snprintf(dir, sizeof dir, "%s/scene", game_dir);
     char *text = (char *)read_all(dir, scn_name, &size);
     if (!text) return 0;
     scn_value(text, 0, map_name, sizeof map_name);
     scn_value(text, 1, bnt_name, sizeof bnt_name);
+    scn_value(text, 2, ont_name, sizeof ont_name);
     // 第 4 行「入口点数」，之後每個入口 4 行：前场景名称(入口編號)、x、y、角色初始方向
     scn_value(text, 3, v, sizeof v);
     int n = atoi(v);
@@ -288,6 +322,10 @@ int scene_load(Scene *s, const char *scn_name) {
                 if (s->models[j].id == s->objects[i].model) { s->objects[i].m = &s->models[j]; break; }
     }
     free(bnt);
+    snprintf(dir, sizeof dir, "%s/scene/Int", game_dir);
+    char *ont = (char *)read_all(dir, ont_name, &size);
+    if (ont) parse_ont(s, ont);
+    free(ont);
     return 1;
 }
 
@@ -305,6 +343,7 @@ void scene_free(Scene *s) {
     free(s->cells);
     free(s->entries);
     free(s->triggers);
+    free(s->npcs);
     free(s->objects);
     free(s->models);
     lib_close(&s->tiles);
@@ -322,28 +361,38 @@ static uint32_t find_define(const char *defs, const char *key) {
     return 0;
 }
 
-int role_load(Role *r, int role_id, int pli_no) {
+int role_load(Role *r, const char *graphic, int pli_no, const char *styles) {
     memset(r, 0, sizeof *r);
     char dir[1100], name[64], key[96];
     size_t size, dsize;
     snprintf(dir, sizeof dir, "%s/PLI", game_dir);
     char *defs = (char *)read_all(dir, "0000_001.PLI", &dsize);
-    snprintf(name, sizeof name, "%04d_%03d.PLI", role_id, pli_no);
+    snprintf(name, sizeof name, "%.8s_%03d.PLI", graphic, pli_no);
     uint8_t *p = read_all(dir, name, &size);
     if (!defs || !p || size < 0xb8 || memcmp(p, "PLI", 3)) { free(defs); free(p); return 0; }
-    // 0x22 部件數；0x28 起每筆 (部件名[5], 款式[5])
+    // 0x22 部件數；0x28 起每筆 (部件名[5], 款式[5])；角色表的「屬性」依序覆蓋款式
     r->part_count = p[0x22] < MAX_ROLE_PARTS ? p[0x22] : MAX_ROLE_PARTS;
+    const char *st = styles;
     for (int i = 0; i < r->part_count; i++) {
-        const char *part = (const char *)p + 0x28 + i * 10, *style = part + 5;
-        snprintf(key, sizeof key, "SPR_ROLE_%04d_%.4s_%.4s_%03d", role_id, part, style, pli_no);
+        const char *part = (const char *)p + 0x28 + i * 10;
+        char style[8];
+        snprintf(style, sizeof style, "%.4s", part + 5);
+        if (st && *st) {
+            snprintf(style, sizeof style, "%.3s", st);
+            st = strchr(st, '*');
+            st = st ? st + 1 : "";
+        }
+        if (!strcmp(style, "000")) continue;  // 沒有這個部件（例如沒拿盾）
+        snprintf(key, sizeof key, "SPR_ROLE_%s_%.4s_%s_%03d", graphic, part, style, pli_no);
         r->body[i] = anim_get(find_define(defs, key));
-        snprintf(key, sizeof key, "SPR_ROLE_%04d_%.4sS_%.4s_%03d", role_id, part, style, pli_no);
+        snprintf(key, sizeof key, "SPR_ROLE_%s_%.4sS_%s_%03d", graphic, part, style, pli_no);
         r->shadow[i] = anim_get(find_define(defs, key));
     }
-    // 0xb6：u16 序列數；每序列 u16 幀數 + 每幀 part_count 個部件索引（疊圖順序）
+    // 部件清單後隔 0x20：u16 序列數；每序列 u16 幀數 + 每幀 n 個部件索引（疊圖順序）
     int n = p[0x22];
-    size_t q = 0xb8;
-    r->seq_count = u16(p + 0xb6);
+    size_t t = 0x28 + (size_t)n * 10 + 0x20, q = t + 2;
+    if (q > size) { free(defs); free(p); return 0; }
+    r->seq_count = u16(p + t);
     r->order = calloc(r->seq_count, sizeof *r->order);
     r->frames = calloc(r->seq_count, sizeof *r->frames);
     for (int s = 0; s < r->seq_count && q + 2 <= size; s++) {
@@ -457,4 +506,55 @@ void world_free(World *w) {
     free(w->rooms);
     free(w->exits);
     memset(w, 0, sizeof *w);
+}
+
+// ---- 角色表 ObjMdl/RoleMdl.txt ----
+// 欄位：0 名稱、1 ID、2 圖形ID、3 屬性、5 動作方式、7 平時休息、8 平時走路、20 平時速度（多值欄位用 * 分隔，取第一個）
+static RoleDef *roledefs;
+static int roledef_count;
+
+int roledefs_load(void) {
+    char dir[1100];
+    size_t n;
+    snprintf(dir, sizeof dir, "%s/ObjMdl", game_dir);
+    uint8_t *d = read_all(dir, "RoleMdl.txt", &n);
+    if (!d || n < 2) { free(d); return 0; }
+    if (d[0] == 0x80) { for (size_t i = 1; i < n; i++) d[i - 1] = d[i] ^ 0x78; d[--n] = 0; }
+    int cap = 0, line_no = 0;
+    for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n"), line_no++) {
+        if (!line_no) continue;  // 標題列
+        char *col[24] = {0};
+        int c = 0;
+        for (char *p = line; c < 24; c++) {
+            col[c] = p;
+            char *t = strchr(p, '\t');
+            if (!t) { c++; break; }
+            *t = 0;
+            p = t + 1;
+        }
+        if (c < 21 || !col[1][0]) continue;
+        if (roledef_count == cap) roledefs = realloc(roledefs, (cap = cap ? cap * 2 : 256) * sizeof(RoleDef));
+        RoleDef *r = &roledefs[roledef_count++];
+        r->id = atoi(col[1]);
+        snprintf(r->graphic, sizeof r->graphic, "%s", col[2]);
+        snprintf(r->styles, sizeof r->styles, "%s", col[3]);
+        r->pli = atoi(col[5]);
+        r->idle = atoi(col[7]);
+        r->walk = atoi(col[8]);
+        r->speed = atoi(col[20]);
+    }
+    free(d);
+    return roledef_count;
+}
+
+const RoleDef *roledef_find(int id) {
+    for (int i = 0; i < roledef_count; i++)
+        if (roledefs[i].id == id) return &roledefs[i];
+    return NULL;
+}
+
+const RoleDef *roledef_by_graphic(const char *graphic) {
+    for (int i = 0; i < roledef_count; i++)
+        if (!strcmp(roledefs[i].graphic, graphic)) return &roledefs[i];
+    return NULL;
 }

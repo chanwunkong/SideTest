@@ -3,7 +3,7 @@
 全域資源編號：Res/Combination.ini 的「最小值」決定屬於哪個封包，編號 - 最小值 = 封包內序號。
 PLI/0000_001.PLI：文字 #define SPR_ROLE_<角色>_<部件>[S=影子]_<款式>_<PLI檔號> <資源編號>。
 PLI/<角色>_<檔號>.PLI：0x22 部件數 n(u8)，0x28 起 n 筆 (部件名[5], 款式[5])；
-  0xb6 起 u16 動作序列數，每序列 u16 幀數 + 每幀 n bytes 疊圖順序(部件索引)。
+  0x28 + n*10 + 0x20 起 u16 動作序列數，每序列 u16 幀數 + 每幀 n bytes 疊圖順序(部件索引)。
 動畫(Res00 項目)：u32 序列數；每序列 (幀數, ?, ?) u32 ×3，每幀 7 個 u32：
   (?, 延遲?, 圖片編號, ?, ?, 腳底 x, 腳底 y)。圖片編號高 8 位 = 幀號(從 1 起)，低 24 位 = xbmgroup。
 序列 = 動作 * 8 + 方向（動作起點見 ObjMdl/RoleMdl.txt）。
@@ -50,8 +50,9 @@ def load_pli(path):
     n = p[0x22]
     parts = [(p[0x28 + i * 10:0x2d + i * 10].split(b'\0')[0].decode(), p[0x2d + i * 10:0x32 + i * 10].split(b'\0')[0].decode())
              for i in range(n)]
-    q, orders = 0xb8, []
-    for _ in range(struct.unpack_from('<H', p, 0xb6)[0]):
+    t = 0x28 + n * 10 + 0x20  # 部件清單後隔 0x20 是疊圖順序表
+    q, orders = t + 2, []
+    for _ in range(struct.unpack_from('<H', p, t)[0]):
         f = struct.unpack_from('<H', p, q)[0]
         orders.append([list(p[q + 2 + k * n:q + 2 + (k + 1) * n]) for k in range(f)])
         q += 2 + f * n

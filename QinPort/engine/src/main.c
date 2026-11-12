@@ -1,6 +1,6 @@
 // 秦殤原生引擎（第 2 階段）：讀原版資源，畫出場景與主角，主角可以走動。
-// 用法：qin [遊戲資料夾] [場景別名] [--640] [--shot 檔名.bmp] [--warp N]
-// --shot：畫面穩定後存一張圖就結束；--warp：一開始站到第 N 個觸發區（測場景切換用）
+// 用法：qin [遊戲資料夾] [場景別名] [--640] [--shot 檔名.bmp] [--warp N] [--at X,Y]
+// --shot：畫面穩定後存一張圖就結束；--warp：一開始站到第 N 個觸發區（測場景切換用）；--at：站到指定格
 #include <SDL.h>
 #include <math.h>
 #include <stdio.h>
@@ -12,10 +12,7 @@
 #include <emscripten.h>
 #endif
 
-#define HERO_ROLE 1201       // 主角（遊俠），ObjMdl/RoleMdl.txt 的圖形 ID
-#define ACT_IDLE 0           // 動作起點（序列 = 動作 + 方向），見 RoleMdl.txt「平時休息/平時走路」
-#define ACT_WALK 8
-#define HERO_SPEED 8         // RoleMdl.txt 遊俠「平時速度」
+#define HERO_GRAPHIC "1201"  // 主角（遊俠）在 ObjMdl/RoleMdl.txt 的圖形 ID；外觀、動作、速度都照角色表
 #define TICK_MS 16           // 原版固定節拍：每 16ms 更新一次遊戲邏輯（Poq.exe 0x449f50）
 
 // 原版速度對照表（Poq.exe 0x5f21d0/0x5f23b0/0x5f22c0）：速度 s → 每 B 拍移動 A + C/10 像素
@@ -127,20 +124,27 @@ static int frame_at(const Seq *q, Uint32 t) {
     return 0;
 }
 
-// ---- 主角 ----
+// ---- 角色（主角與 NPC 共用）----
 typedef struct {
     float x, y;       // 格子座標（可有小數）
     int dir, moving, speed;
+    int idle, walk;   // 動作起點序列（角色表「平時休息/平時走路」）
     Uint32 act_tick;  // 目前動作已經過幾拍（換動作時歸零）
-} Hero;
+    const Role *role;
+    const NpcSpec *spec;  // NPC 的擺放資料；主角為 NULL
+    float tx, ty;     // AI 目標格
+    int has_target, path_i, rest;  // rest = 還要休息幾拍
+} Actor;
 
-static void hero_draw(const Role *r, const Hero *h, int sx, int sy) {
-    int seq = (h->moving ? ACT_WALK : ACT_IDLE) + DIR_MAP[h->dir];
+static void actor_draw(const Actor *a, int sx, int sy) {
+    const Role *r = a->role;
+    if (!r) return;
+    int seq = (a->moving ? a->walk : a->idle) + DIR_MAP[a->dir];
     if (seq >= r->seq_count || !r->frames[seq]) return;
     // 各部件的幀延遲相同，拿第一個有資料的部件當節奏
     int frame = 0;
     for (int i = 0; i < r->part_count; i++)
-        if (r->body[i] && seq < r->body[i]->count) { frame = frame_at(&r->body[i]->seqs[seq], h->act_tick); break; }
+        if (r->body[i] && seq < r->body[i]->count) { frame = frame_at(&r->body[i]->seqs[seq], a->act_tick); break; }
     frame %= r->frames[seq];
     for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
     const uint8_t *order = r->order[seq] + frame * r->part_count;
@@ -149,7 +153,7 @@ static void hero_draw(const Role *r, const Hero *h, int sx, int sy) {
 }
 
 // 往畫面方向 (sdx, sdy) 走 px 個畫面像素。畫面上各方向等速（格子寬 64 高 32，若照格子等速，上下會只有左右一半快）
-static void hero_step(Hero *h, const Scene *s, float sdx, float sdy, float px) {
+static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px) {
     float len = sqrtf(sdx * sdx + sdy * sdy);
     if (len < 0.01f) return;
     sdx /= len;
@@ -165,20 +169,109 @@ static void hero_step(Hero *h, const Scene *s, float sdx, float sdy, float px) {
     h->moving = 1;
 }
 
-// 一拍的主角更新：原版每 B 拍移動 A + C/10 像素（速度對照表）
-static void hero_tick(Hero *h, const Scene *s, float mx, float my, Uint32 tick) {
-    int was_moving = h->moving;
-    h->moving = 0;
+// 一拍的角色更新：往畫面方向 (mx, my) 走；原版每 B 拍移動 A + C/10 像素（速度對照表）
+static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick) {
+    int was_moving = a->moving;
+    a->moving = 0;
     if (mx * mx + my * my > 0.01f) {
-        int sp = h->speed < 0 ? 0 : h->speed > 59 ? 59 : h->speed;
+        int sp = a->speed < 0 ? 0 : a->speed > 59 ? 59 : a->speed;
         float px = tick % SPEED_B[sp] ? 0 : SPEED_A[sp] + SPEED_C[sp] / 10.0f;
-        hero_step(h, s, mx, my, px);
+        actor_step(a, s, mx, my, px);
     }
-    h->act_tick = h->moving == was_moving ? h->act_tick + 1 : 0;
+    a->act_tick = a->moving == was_moving ? a->act_tick + 1 : 0;
+}
+
+// NPC 平時邏輯：13 在範圍內隨機走走停停、14 沿路線來回巡邏、其他站著
+static void npc_think(Actor *a, const Scene *s, Uint32 tick) {
+    const NpcSpec *n = a->spec;
+    float mx = 0, my = 0;
+    if (a->rest > 0) a->rest--;
+    else if (n->type == 13 || (n->type == 14 && n->path_n)) {
+        if (!a->has_target) {
+            if (n->type == 14) {
+                a->path_i = (a->path_i + 1) % n->path_n;
+                a->tx = n->path[a->path_i][0] + 0.5f;
+                a->ty = n->path[a->path_i][1] + 0.5f;
+            } else {  // shortcut: 閒逛的停留時間與選點方式是自訂的，原版邏輯還沒拆
+                a->tx = n->rx + rand() % (n->rw > 0 ? n->rw : 1) + 0.5f;
+                a->ty = n->ry + rand() % (n->rh > 0 ? n->rh : 1) + 0.5f;
+            }
+            a->has_target = scene_walkable(s, (int)a->tx, (int)a->ty);
+        }
+        float gx = a->tx - a->x, gy = a->ty - a->y;
+        if (!a->has_target || gx * gx + gy * gy < 0.04f) {
+            a->has_target = 0;
+            if (n->type == 13) a->rest = 60 + rand() % 180;
+        } else {
+            mx = (gx - gy) * 32;  // 格子方向 → 畫面方向
+            my = (gx + gy) * 16;
+        }
+    }
+    float bx = a->x, by = a->y;
+    actor_tick(a, s, mx, my, tick);
+    if (a->moving && a->x == bx && a->y == by) { a->has_target = 0; a->rest = 30; }  // 卡住就換目標
+}
+
+// 依角色表載入外觀；roles 是這個場景已載入過的外觀快取（同一模板共用）
+#define MAX_ROLES 64
+typedef struct { int tmpl; Role role; } RoleSlot;
+static RoleSlot roles[MAX_ROLES];
+static int role_count;
+
+static const Role *role_for(const RoleDef *d) {
+    for (int i = 0; i < role_count; i++)
+        if (roles[i].tmpl == d->id) return &roles[i].role;
+    if (role_count == MAX_ROLES) return NULL;
+    RoleSlot *r = &roles[role_count];
+    if (!role_load(&r->role, d->graphic, d->pli, d->styles)) return NULL;
+    r->tmpl = d->id;
+    role_count++;
+    return &r->role;
+}
+
+static void roles_clear(void) {
+    for (int i = 0; i < role_count; i++) role_free(&roles[i].role);
+    role_count = 0;
+}
+
+// 主角 + 場景 NPC
+#define MAX_ACTORS 256
+static Actor actors[MAX_ACTORS];
+static int actor_count;
+
+static void actor_setup(Actor *a, const RoleDef *d) {
+    a->role = role_for(d);
+    a->idle = d->idle;
+    a->walk = d->walk;
+    a->speed = d->speed;
+}
+
+static void spawn_npcs(const Scene *s) {
+    actor_count = 1;  // actors[0] 是主角
+    for (int i = 0; i < s->npc_count && actor_count < MAX_ACTORS; i++) {
+        const NpcSpec *n = &s->npcs[i];
+        const RoleDef *d = roledef_find(n->tmpl);
+        if (!d || !atoi(d->graphic)) continue;  // shortcut: 圖形 ID 是名字的（怪物）用另一套格式，之後做戰鬥時處理
+        Actor *a = &actors[actor_count++];
+        memset(a, 0, sizeof *a);
+        a->x = n->x + 0.5f;
+        a->y = n->y + 0.5f;
+        for (int o = 0; o < 8; o++)
+            if (DIR_MAP[o] == n->dir) a->dir = o;
+        a->spec = n;
+        a->act_tick = rand() % 200;  // 錯開動作，不要整排同步
+        actor_setup(a, d);
+    }
+}
+
+static int cmp_actor_depth(const void *a, const void *b) {
+    const Actor *x = *(Actor *const *)a, *y = *(Actor *const *)b;
+    float d = (x->x + x->y) - (y->x + y->y);
+    return d < 0 ? -1 : d > 0;
 }
 
 // 載入場景（別名 = 場景檔名），主角站到入口 entry_id；失敗時保留原場景
-static int enter_scene(Scene *scene, Hero *hero, const char *alias, int entry_id) {
+static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_id) {
     char file[96];
     snprintf(file, sizeof file, "%.80s.Scn", alias);
     Scene next;
@@ -186,6 +279,11 @@ static int enter_scene(Scene *scene, Hero *hero, const char *alias, int entry_id
     if (scene->cells) scene_free(scene);
     *scene = next;
     cache_clear();
+    // 外觀快取跟著場景換：先留主角的，再重建 NPC
+    const RoleDef *hd = roledef_by_graphic(HERO_GRAPHIC);
+    roles_clear();
+    if (hd) actor_setup(hero, hd);
+    spawn_npcs(scene);
     const Entry *en = scene_entry(scene, entry_id);
     if (en) {
         hero->x = en->x + 0.5f;
@@ -199,7 +297,7 @@ static int enter_scene(Scene *scene, Hero *hero, const char *alias, int entry_id
 }
 
 // 主角是否站在觸發區上（以觸發區所在格為中心 3×3 格）。shortcut: 觸發區實際形狀在 MDL 的佔地格，還沒解析
-static const Trigger *trigger_at(const Scene *s, const Hero *h) {
+static const Trigger *trigger_at(const Scene *s, const Actor *h) {
     for (int i = 0; i < s->trigger_count; i++) {
         const Trigger *t = &s->triggers[i];
         if (fabsf(h->x - (t->x + 0.5f)) <= 1.5f && fabsf(h->y - (t->y + 0.5f)) <= 1.5f) return t;
@@ -209,11 +307,12 @@ static const Trigger *trigger_at(const Scene *s, const Hero *h) {
 
 int main(int argc, char **argv) {
     const char *game = "game", *scn = "xianyang", *shot = NULL;
-    int pos = 0, warp = -1;
+    int pos = 0, warp = -1, at_x = -1, at_y = -1;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
         else if (pos++ == 0) game = argv[i];
         else scn = argv[i];
     }
@@ -225,18 +324,20 @@ int main(int argc, char **argv) {
     snprintf(alias, sizeof alias, "%s", scn);
     char *dot = strrchr(alias, '.');
     if (dot && !strcasecmp(dot, ".Scn")) *dot = 0;
+    if (!roledefs_load()) { fprintf(stderr, "讀不到角色表 ObjMdl/RoleMdl.txt\n"); return 1; }
     Scene scene = {0};
-    Hero hero = {0, 0, 4, 0, HERO_SPEED, 0};
-    if (!enter_scene(&scene, &hero, alias, -1)) return 1;
+    Actor *hero = &actors[0];
+    hero->dir = 4;
+    if (!enter_scene(&scene, hero, alias, -1)) return 1;
+    if (!hero->role) { fprintf(stderr, "載入主角失敗\n"); return 1; }
     int room = world_find(&world, alias), armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
+    if (at_x >= 0) { hero->x = at_x + 0.5f; hero->y = at_y + 0.5f; }
     if (warp >= 0 && warp < scene.trigger_count) {
-        hero.x = scene.triggers[warp].x + 0.5f;
-        hero.y = scene.triggers[warp].y + 0.5f;
+        hero->x = scene.triggers[warp].x + 0.5f;
+        hero->y = scene.triggers[warp].y + 0.5f;
         armed = 1;
         printf("站到觸發區 %d：%s\n", warp, scene.triggers[warp].event);
     }
-    Role role;
-    if (!role_load(&role, HERO_ROLE, 1)) { fprintf(stderr, "載入主角失敗\n"); return 1; }
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER)) { fprintf(stderr, "%s\n", SDL_GetError()); return 1; }
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
@@ -294,16 +395,17 @@ int main(int argc, char **argv) {
         if (now_ms - logic_ms > 250) logic_ms = now_ms - TICK_MS;  // 卡頓或切到背景後不要一次補太多拍
         while (now_ms - logic_ms >= TICK_MS) {
             logic_ms += TICK_MS;
-            hero_tick(&hero, &scene, mx, my, ++tick);
+            actor_tick(hero, &scene, mx, my, ++tick);
+            for (int i = 1; i < actor_count; i++) npc_think(&actors[i], &scene, tick);
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
-            const Trigger *t = trigger_at(&scene, &hero);
+            const Trigger *t = trigger_at(&scene, hero);
             if (!t) armed = 1;
             else if (armed && room >= 0 && !strncmp(t->event, "go ", 3)) {
                 const Room *r = &world.rooms[room];
                 for (int i = 0; i < r->exit_count; i++) {
                     const Exit *x = &world.exits[r->first_exit + i];
                     if (strcmp(x->dir, t->event + 3) || x->to < 0) continue;
-                    if (enter_scene(&scene, &hero, world.rooms[x->to].alias, x->entry)) {
+                    if (enter_scene(&scene, hero, world.rooms[x->to].alias, x->entry)) {
                         room = x->to;
                         printf("進入 %s\n", world.rooms[room].alias);
                     }
@@ -314,7 +416,7 @@ int main(int argc, char **argv) {
         }
 
         // 主角腳底的世界像素；鏡頭跟著主角
-        int hx = (int)((hero.x - hero.y + scene.h - 1) * TILE_W / 2), hy = (int)((hero.x + hero.y) * TILE_H / 2);
+        int hx = (int)((hero->x - hero->y + scene.h - 1) * TILE_W / 2), hy = (int)((hero->x + hero->y) * TILE_H / 2);
         int ox = hx - vw / 2, oy = hy - vh / 2;
 
         // ---- 畫面 ----
@@ -329,14 +431,16 @@ int main(int argc, char **argv) {
                 if (c->ground != 0xFFFF) draw(tile(&scene.tiles, c->ground), sx, sy);
                 if (c->over != 0xFFFF) draw(tile(&scene.tiles, c->over), sx, sy);
             }
-        // 物件已依深度(x+y)排序；主角在經過自己的深度時插進去畫
-        float hero_depth = hero.x + hero.y;
-        int hero_drawn = 0;
+        // 物件已依深度(x+y)排序；角色也依深度排好，經過自己的深度時插進去畫
+        Actor *order[MAX_ACTORS];
+        for (int i = 0; i < actor_count; i++) order[i] = &actors[i];
+        qsort(order, actor_count, sizeof *order, cmp_actor_depth);
+        int next_actor = 0;
         for (int i = 0; i <= scene.object_count; i++) {
             const Object *o = i < scene.object_count ? &scene.objects[i] : NULL;
-            if (!hero_drawn && (!o || o->x + o->y + 1 > hero_depth)) {
-                hero_draw(&role, &hero, hx - ox, hy - oy);
-                hero_drawn = 1;
+            while (next_actor < actor_count && (!o || o->x + o->y + 1 > order[next_actor]->x + order[next_actor]->y)) {
+                const Actor *a = order[next_actor++];
+                actor_draw(a, (int)((a->x - a->y + scene.h - 1) * TILE_W / 2) - ox, (int)((a->x + a->y) * TILE_H / 2) - oy);
             }
             if (!o || !o->m) continue;
             int sx = world_x(&scene, o->x, o->y) + TILE_W / 2 - ox, sy = world_y(&scene, o->x, o->y) + TILE_H / 2 - oy;
@@ -377,7 +481,7 @@ int main(int argc, char **argv) {
     cache_clear();
     world_free(&world);
     SDL_DestroyTexture(canvas);
-    role_free(&role);
+    roles_clear();
     scene_free(&scene);
     SDL_Quit();
     return 0;

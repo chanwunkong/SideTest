@@ -38,12 +38,23 @@ typedef struct { int model, x, y; const Model *m; } Object;  // m 在載入時�
 typedef struct { int id, x, y, dir; } Entry;          // .Scn 入口點：從入口 id 進來時站的位置與方向
 typedef struct { int x, y; char event[48]; } Trigger;  // BNT 類型 4：踩到就觸發事件（例如 "go east"）
 
+// .ONT 角色擺放。類型 = 平時邏輯：12 站立、13 範圍內閒逛、14 沿路線巡邏、15 跟隨
+#define MAX_PATH 32
+typedef struct {
+    int type, tmpl, x, y, dir;
+    int rx, ry, rw, rh;           // 類型 13 的閒逛範圍（格）
+    int path_n, path[MAX_PATH][2];  // 類型 14 的巡邏路線（格）
+    char event[32];               // 事件 ID（對話、劇情用）
+} NpcSpec;
+
 typedef struct {
     int w, h, start_x, start_y;
     Entry *entries;
     int entry_count;
     Trigger *triggers;
     int trigger_count;
+    NpcSpec *npcs;
+    int npc_count;
     Cell *cells;
     Object *objects;  // 已依畫面深度排序
     int object_count;
@@ -70,7 +81,17 @@ typedef struct {
     int *frames;      // frames[序列] = 幀數
 } Role;
 
-int role_load(Role *r, int role_id, int pli_no);
+// styles：角色表的「屬性」，例如 "009*009*001*000"，依 PLI 部件順序指定款式（000 = 不畫這個部件）；NULL = 用 PLI 預設
+int role_load(Role *r, const char *graphic, int pli_no, const char *styles);
+
+// ObjMdl/RoleMdl.txt 角色表（XOR 0x78 加密的 GBK、tab 分隔）
+typedef struct {
+    int id, pli, idle, walk, speed;  // pli = 動作方式；idle/walk = 動作起點序列；speed = 平時速度
+    char graphic[16], styles[96];
+} RoleDef;
+int roledefs_load(void);
+const RoleDef *roledef_find(int id);
+const RoleDef *roledef_by_graphic(const char *graphic);
 void role_free(Role *r);
 
 // ---- 世界（原版劇情引擎 EasyRPG.dll 裡的房間定義）----
