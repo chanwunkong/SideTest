@@ -9,7 +9,8 @@ qin: src/main.c src/res.c src/res.h src/audio.c src/audio.h
 clean:
 	rm -f qin
 
-# 網頁版（給手機透過 Tailscale 測試）：先用 tools/webpack.py 產生 ../web/game
+# 網頁版（給手機透過 Tailscale 測試）：遊戲檔不打包，執行時跟 tools/webserve.py 要
 web: src/main.c src/res.c src/res.h src/audio.c src/audio.h ../web/shell.html
-	emcc -O2 -sUSE_SDL=2 -sASYNCIFY -sALLOW_MEMORY_GROWTH --preload-file ../web/game@/game \
+	emcc -O2 -sUSE_SDL=2 -sASYNCIFY -sALLOW_MEMORY_GROWTH -sFORCE_FILESYSTEM -sEXPORTED_RUNTIME_METHODS=FS \
+		-sEXPORTED_FUNCTIONS=_main,_malloc,_free \
 		--shell-file ../web/shell.html -o ../web/index.html src/main.c src/res.c src/audio.c

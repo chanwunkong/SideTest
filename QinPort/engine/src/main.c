@@ -271,6 +271,50 @@ static int cmp_actor_depth(const void *a, const void *b) {
     return d < 0 ? -1 : d > 0;
 }
 
+// 進場景時一次抓齊會用到的圖（網頁版走批次請求；原生版直接讀硬碟，這裡幾乎不花時間）
+typedef struct { uint32_t *v; int n, cap; } IdList;
+static void id_add(IdList *l, uint32_t v) {
+    if (l->n == l->cap) l->v = realloc(l->v, (l->cap = l->cap ? l->cap * 2 : 1024) * sizeof *l->v);
+    l->v[l->n++] = v;
+}
+
+static void add_seq_frames(IdList *l, const Anim *a, int seq) {
+    if (a && seq >= 0 && seq < a->count)
+        for (int f = 0; f < a->seqs[seq].count; f++) id_add(l, a->seqs[seq].frames[f].ref & 0xFFFFFF);
+}
+
+static void prefetch_scene(Scene *s) {
+    IdList tiles = {0}, ids = {0}, anims = {0};
+    for (int i = 0; i < s->w * s->h; i++) {
+        if (s->cells[i].ground != 0xFFFF) id_add(&tiles, s->cells[i].ground);
+        if (s->cells[i].over != 0xFFFF) id_add(&tiles, s->cells[i].over);
+    }
+    lib_prefetch(&s->tiles, tiles.v, tiles.n);
+    // 物件：一般部件直接是圖；動畫部件先抓動畫定義，再抓第 0 序列的圖
+    for (int i = 0; i < s->object_count; i++)
+        for (int p = 0; s->objects[i].m && p < s->objects[i].m->part_count; p++) {
+            const Part *pt = &s->objects[i].m->parts[p];
+            id_add(pt->anim ? &anims : &ids, pt->gid);
+        }
+    res_prefetch(anims.v, anims.n);
+    for (int i = 0; i < anims.n; i++) add_seq_frames(&ids, anim_get(anims.v[i]), 0);
+    // 角色：站立與走路的 8 個方向
+    for (int i = 0; i < actor_count; i++) {
+        const Role *r = actors[i].role;
+        for (int p = 0; r && p < r->part_count; p++)
+            for (int d = 0; d < 8; d++) {
+                add_seq_frames(&ids, r->body[p], actors[i].idle + d);
+                add_seq_frames(&ids, r->body[p], actors[i].walk + d);
+                add_seq_frames(&ids, r->shadow[p], actors[i].idle + d);
+                add_seq_frames(&ids, r->shadow[p], actors[i].walk + d);
+            }
+    }
+    res_prefetch(ids.v, ids.n);
+    free(tiles.v);
+    free(ids.v);
+    free(anims.v);
+}
+
 // 載入場景（別名 = 場景檔名），主角站到入口 entry_id；失敗時保留原場景
 static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_id) {
     char file[96];
@@ -280,11 +324,13 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     if (scene->cells) scene_free(scene);
     *scene = next;
     cache_clear();
+    res_cache_clear();
     // 外觀快取跟著場景換：先留主角的，再重建 NPC
     const RoleDef *hd = roledef_by_graphic(HERO_GRAPHIC);
     roles_clear();
     if (hd) actor_setup(hero, hd);
     spawn_npcs(scene);
+    prefetch_scene(scene);
     const Entry *en = scene_entry(scene, entry_id);
     if (en) {
         hero->x = en->x + 0.5f;
@@ -505,6 +551,7 @@ int main(int argc, char **argv) {
         SDL_RenderClear(ren);
         SDL_RenderCopy(ren, canvas, NULL, NULL);
         SDL_RenderPresent(ren);
+        audio_update();
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);  // 交還給瀏覽器（ASYNCIFY），否則網頁會卡住
 #endif

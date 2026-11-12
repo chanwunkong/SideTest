@@ -5,6 +5,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <unistd.h>
+
+// 網頁版：音樂在背景下載進記憶體檔案系統的 /music，下載完 audio_update 才開始播
+EM_JS(void, js_fetch_music, (const char *name), {
+    const n = UTF8ToString(name);
+    fetch('game/Music/' + n + '.wav').then(r => r.ok ? r.arrayBuffer() : null).then(b => {
+        if (!b) return;
+        try { FS.mkdir('/music'); } catch (e) {}
+        FS.writeFile('/music/' + n + '.wav.part', new Uint8Array(b));
+        FS.rename('/music/' + n + '.wav.part', '/music/' + n + '.wav');
+    });
+});
+static char pending[96], playing_path[128];
+#endif
 
 #define VOICES 16
 #define MAX_SFX 1024
@@ -96,6 +112,15 @@ void audio_init(int music_percent, int sfx_percent) {
     SDL_PauseAudioDevice(dev, 0);
 }
 
+static void music_start(FILE *f) {
+    SDL_AudioSpec src = {0};
+    SDL_LockAudioDevice(dev);
+    if ((music_file = f) && wav_open(music_file, &src, &music_data, &music_end))
+        music_stream = SDL_NewAudioStream(src.format, src.channels, src.freq, have.format, have.channels, have.freq);
+    if (!music_stream && music_file) { fclose(music_file); music_file = NULL; }
+    SDL_UnlockAudioDevice(dev);
+}
+
 void audio_music(const char *name) {
     if (!dev) return;
     SDL_LockAudioDevice(dev);
@@ -103,13 +128,30 @@ void audio_music(const char *name) {
     if (music_file) fclose(music_file);
     music_stream = NULL;
     music_file = NULL;
+    SDL_UnlockAudioDevice(dev);
+    if (!name[0]) return;
+#ifdef __EMSCRIPTEN__
+    if (playing_path[0]) remove(playing_path);  // 上一首最大 45MB，不留在記憶體
+    playing_path[0] = 0;
+    snprintf(pending, sizeof pending, "%.80s", name);
+    js_fetch_music(name);
+#else
     char file[96];
     snprintf(file, sizeof file, "%.80s.wav", name);
-    SDL_AudioSpec src = {0};
-    if (name[0] && (music_file = res_fopen("Music", file)) && wav_open(music_file, &src, &music_data, &music_end))
-        music_stream = SDL_NewAudioStream(src.format, src.channels, src.freq, have.format, have.channels, have.freq);
-    if (!music_stream && music_file) { fclose(music_file); music_file = NULL; }
-    SDL_UnlockAudioDevice(dev);
+    music_start(res_fopen("Music", file));
+#endif
+}
+
+void audio_update(void) {
+#ifdef __EMSCRIPTEN__
+    if (!pending[0]) return;
+    char path[128];
+    snprintf(path, sizeof path, "/music/%s.wav", pending);
+    if (access(path, F_OK)) return;
+    pending[0] = 0;
+    snprintf(playing_path, sizeof playing_path, "%s", path);
+    music_start(fopen(path, "rb"));
+#endif
 }
 
 void audio_sfx(int id) {

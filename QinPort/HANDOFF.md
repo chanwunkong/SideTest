@@ -19,7 +19,7 @@
 | `QinPort/engine/src/main.c` | 主迴圈、繪製、角色與 NPC、場景切換、輸入 | 是 |
 | `QinPort/engine/src/audio.c/.h` | 音樂串流、音效 | 是 |
 | `QinPort/engine/Makefile` | `make`（Mac 原生）、`make web`（Emscripten） | 是 |
-| `QinPort/tools/*.py` | Python 分析工具：libtool（封包/圖片）、maptool（場景渲染）、roletool（主角疊圖）、webpack（網頁版資源精簡） | 是 |
+| `QinPort/tools/*.py` | Python 工具：libtool（封包/圖片）、maptool（場景渲染）、roletool（主角疊圖）、roomtool（DLL 房間表）、webserve（網頁版伺服器）、webpack（舊的整包精簡，已不需要） | 是 |
 | `QinPort/web/shell.html` | 網頁版外框 | 是 |
 | `QinPort/web/game/`, `web/index.*` | 網頁版產出 | 否 |
 | `QinPort/extracted/` | 解出來的圖，除錯用 | 否 |
@@ -35,10 +35,9 @@ cd QinPort && ./engine/qin game CHENG001.Scn       # 800×600；加 --640 是 R3
 ./engine/qin game xianyang --shot /tmp/a.bmp       # 畫面穩定後存檔結束（自動測試用）
 ./engine/qin game xianyang --warp 2 --shot /tmp/b.bmp  # 站到第 2 個觸發區，測場景切換
 
-# 網頁版（手機透過 Tailscale 測）
-python3 tools/webpack.py game web/game xianyang.Scn LISHAN.Scn xishuicun.Scn xy_hs2.Scn xy_inn.Scn
+# 網頁版（手機透過 Tailscale 測）：遊戲檔不打包，進場景時才跟伺服器批次要
 cd engine && make web
-cd ../web && python3 -m http.server 8642 --bind 100.83.41.116   # Mac 的 Tailscale IP
+cd .. && python3 tools/webserve.py web game 100.83.41.116 8642   # Mac 的 Tailscale IP；只記 404
 # 手機打開 http://100.83.41.116:8642/  （?scene=別名&warp=N 可直接測觸發區）
 ```
 
@@ -186,7 +185,7 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 輸入：鍵盤、手把（十字鍵、左搖桿，Select + Start 離開）、滑鼠和觸控（按住就往那個方向走）。
 
 ### 已知問題
-- 網頁版是把資料整包預載進記憶體（5 個場景加 2 首音樂約 110MB）。之後要改成用到才下載（fetch 單一封包項目），才能放整個遊戲。
+- 網頁版改成進場景時批次抓取（`res_prefetch`/`lib_prefetch` → `POST /batch`），全部場景都能去。咸陽一進場約抓 35MB，加上音樂（背景下載，最大 45MB）。之後可以改成只抓畫面附近的部分。
 - 遮擋排序是簡化版，大型建築可能疊錯。
 - 速度比調整動畫延遲（加速／減速時）還沒做；目前只有平常速度。
 - 驪山 LISHAN 有大片空地面，推測是地圖外圍，沒有跟原版對照過。

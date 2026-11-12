@@ -7,11 +7,16 @@
 #define TILE_H 32
 
 // ---- 封包：只把索引放記憶體，圖片用到才從檔案讀（R36S 只有 1GB RAM）----
-typedef struct { FILE *f; uint32_t count, *index; } Lib;  // index = (offset, size) * count
+// 網頁版沒有本機檔案：path 是伺服器上的路徑，讀過的項目放在 cache（進新場景時清掉）
+typedef struct { FILE *f; char path[256]; uint32_t count, *index; uint8_t **cache; uint32_t *cache_len; } Lib;  // index = (offset, size) * count
 
 int lib_open(Lib *lib, const char *dir, const char *name);
 uint8_t *lib_read(Lib *lib, uint32_t i, uint32_t *size);  // 呼叫者 free；失敗回 NULL
 void lib_close(Lib *lib);
+// 預先抓一批項目（網頁版一次批次請求；原生版直接讀硬碟，不用預抓）
+void lib_prefetch(Lib *lib, const uint32_t *idx, int n);
+void res_prefetch(const uint32_t *gids, int n);  // 全域編號（ref 的高 8 位會忽略）
+void res_cache_clear(void);                      // 換場景時釋放網頁版快取
 
 // ---- 全域資源編號（Res/Combination.ini）：編號落在哪個封包的區間 ----
 void res_init(const char *game);
