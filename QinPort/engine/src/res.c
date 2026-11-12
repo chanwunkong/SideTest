@@ -1245,9 +1245,9 @@ int skill_rows(int prof, SkillRow *out, int max) {
     int k = 0, line_no = 0;
     for (char *line = strtok((char *)d, "\r\n"); line && k < max; line = strtok(NULL, "\r\n"), line_no++) {
         if (line_no < 2 || !strncmp(line, "\xcd\xf8\xc2\xe7", 4)) continue;  // 分類列、欄名列；「网络」（GBK）
-        char *col[26] = {0};
+        char *col[86] = {0};
         int c = 0;
-        for (char *p = line; c < 26; c++) {
+        for (char *p = line; c < 86; c++) {
             col[c] = p;
             char *t = strchr(p, '\t');
             if (!t) { c++; break; }
@@ -1255,7 +1255,18 @@ int skill_rows(int prof, SkillRow *out, int max) {
             p = t + 1;
         }
         if (c < 26 || !col[0][0]) continue;
-        out[k] = (SkillRow){"", atoi(col[2]), atoi(col[3]), atoi(col[4]), atoi(col[5]), atoi(col[7]), atoi(col[10]), atoi(col[25])};
+        out[k] = (SkillRow){"", atoi(col[2]), atoi(col[3]), atoi(col[4]), atoi(col[5]), atoi(col[7]), atoi(col[10]), atoi(col[25]), 0, {{0}}};
+        // 原版：屬性ID 空白或 < 0 跳過；初始值、增量空白當 -1，是否對敵、是否百分比空白或 < 0 當 0
+        for (int i = c; i < 86; i++) col[i] = "";
+        for (int g = 26; g < 86; g += 5) {
+            if (!col[g][0] || atoi(col[g]) < 0) continue;
+            SkillMod *m = &out[k].mod[out[k].mod_n++];
+            m->id = atoi(col[g]);
+            m->init = col[g + 1][0] ? atof(col[g + 1]) : -1;
+            m->incr = col[g + 2][0] ? atof(col[g + 2]) : -1;
+            m->enemy = atoi(col[g + 3]) > 0 ? atoi(col[g + 3]) : 0;
+            m->pct = atoi(col[g + 4]) > 0 ? atoi(col[g + 4]) : 0;
+        }
         snprintf(out[k++].key, sizeof out[0].key, "%s", col[0]);
     }
     free(d);

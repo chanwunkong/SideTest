@@ -164,6 +164,7 @@ typedef struct Actor {
     int level, hp, hp_max, mp, mp_max, ap, ap_max, dp, hr, sr, exp;
     int act, act_seq, last_frame;  // 單次動作與它的序列起點、上一拍的幀（觸發用）
     const Method *atk;             // 普通攻擊的招式
+    const SkillRow *skill;         // 攻擊用的技能（主角右手）；怪物為 NULL
     struct Actor *foe;             // 攻擊目標
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
 } Actor;
@@ -492,7 +493,18 @@ static void strike(Actor *a, Actor *t, Uint32 tick) {
     // shortcut: 之前還有一段盾牌格擋（0x48c4e3，看防守方 +0x4e7 的裝備和攻擊方向），沒有盾的主角用不到，還沒做
     int hr = a->hr ? a->hr : 1, chance = hr * 1000 / (t->sr + hr);
     if (rand() % 1000 >= (chance < 100 ? 100 : chance > 900 ? 900 : chance)) return;
-    int dmg = a->ap + (a->ap_max > a->ap ? rand() % (a->ap_max - a->ap + 1) : 0);
+    // 技能參數（EasyRPG 0x10024xxx 一屬性一個處理）：值 = (技能等級 − 1) × 增量 + 初始值，是否百分比分兩組；
+    // 250、251 加到 AP、AP_MAX；ID > 500 拆成 ID−300、ID−299 兩個。攻擊 = (AP + 加值) × (100 + 百分比) / 100
+    // shortcut: 只做 250、251（物理攻擊）；252 起的法術攻擊 MAP1~5、269 等還沒做，怪物的技能也還沒算
+    float add[2] = {0}, pct[2] = {0};
+    for (int i = 0; a->skill && i < a->skill->mod_n; i++) {
+        const SkillMod *m = &a->skill->mod[i];
+        float v = (a->skill->level - 1) * m->incr + m->init;
+        for (int id = m->id > 500 ? m->id - 300 : m->id; id <= (m->id > 500 ? m->id - 299 : m->id); id++)
+            if (id == 250 || id == 251) (m->pct ? pct : add)[id - 250] = v;
+    }
+    int ap = (int)((a->ap + add[0]) * (pct[0] + 100) / 100), ap_max = (int)((a->ap_max + add[1]) * (pct[1] + 100) / 100);
+    int dmg = ap + (ap_max > ap ? rand() % (ap_max - ap + 1) : 0);
     int loss = dmg + t->dp / 2 > 0 ? dmg * dmg / (dmg + t->dp / 2) : 0;
     if (loss < 3) loss = 3;
     t->hp -= loss;
@@ -881,7 +893,8 @@ static int cur_skill[2];
 static void hero_skill_apply(Actor *h) {
     skills_load();
     int k = cur_skill[0];
-    h->atk = k >= 0 && k < hero_skill_n ? method_find(skill_attack(hero_skill[k].key)) : NULL;
+    h->skill = k >= 0 && k < hero_skill_n ? &hero_skill[k] : NULL;
+    h->atk = h->skill ? method_find(skill_attack(h->skill->key)) : NULL;
 }
 
 // 快捷技能視窗（Poq.exe 0x504d90 開 JM514 = 右手、0x504b40 開 JM515 = 左手；0x564360 填格子）：
