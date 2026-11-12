@@ -2,13 +2,17 @@
 
 - GET  /index.html 等：web/ 底下的引擎
 - GET  /game/<路徑>：原版遊戲檔（檔名不分大小寫，跟 Windows 一樣）
-- POST /batch：一次抓很多段檔案內容。內容是 JSON [[路徑, 位移, 長度], ...]，
+- POST /batch：一次抓很多段檔案內容。內容是 JSON 陣列，每項是
+    [路徑, 位移, 長度]：檔案的一段
+    [路徑, -1, 序號]：Lib 封包的第幾項（伺服器自己查索引，手機不用下載索引表）
+    [路徑, 0, -1]：整個檔案
   回傳全部片段依序串在一起（每段前面 4 bytes 長度，讀不到的長度為 0）。
   進場景時引擎用它一次抓回幾百張圖，避免一張一張來回。
+- 瀏覽器支援 gzip 時回應會壓縮（行動網路差很多）。
 只綁 Tailscale 位址，不要開到公開網路：遊戲檔只給自己的裝置用。
 用法：python3 webserve.py <web 資料夾> <遊戲資料夾> <綁定位址> [連接埠]
 """
-import http.server, json, os, struct, sys
+import gzip, http.server, json, os, struct, sys
 from functools import lru_cache
 from socketserver import ThreadingMixIn
 
@@ -35,6 +39,15 @@ def resolve(rel):
     return path if os.path.isfile(path) else None
 
 
+def send_body(handler, data):
+    if 'gzip' in handler.headers.get('Accept-Encoding', '') and len(data) > 1024:
+        data = gzip.compress(data, compresslevel=4)
+        handler.send_header('Content-Encoding', 'gzip')
+    handler.send_header('Content-Length', str(len(data)))
+    handler.end_headers()
+    handler.wfile.write(data)
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **k):
         super().__init__(*a, directory=WEB, **k)
@@ -54,12 +67,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         path = resolve(unquote(self.path[len('/game/'):].split('?')[0]))
         if not path:
             return self.send_error(404)
-        data = open(path, 'rb').read()
         self.send_response(200)
         self.send_header('Content-Type', 'application/octet-stream')
-        self.send_header('Content-Length', str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
+        send_body(self, open(path, 'rb').read())
 
     def do_POST(self):
         if self.path != '/batch':
@@ -72,19 +82,27 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         for rel, off, length in reqs:
             path = resolve(rel)
             chunk = b''
-            if path and length > 0:
+            if path:
                 f = files.get(path) or files.setdefault(path, open(path, 'rb'))
-                f.seek(off)
-                chunk = f.read(length)
+                if off == -1:  # Lib 封包的第 length 項：0x10 項目數，0x100 起 (位移, 大小)
+                    f.seek(16)
+                    count = struct.unpack('<I', f.read(4))[0]
+                    off, index, length = 0, length, 0
+                    if 0 <= index < count:
+                        f.seek(0x100 + index * 8)
+                        off, length = struct.unpack('<II', f.read(8))
+                if length == -1:  # 整個檔案
+                    f.seek(0)
+                    chunk = f.read()
+                elif length > 0:
+                    f.seek(off)
+                    chunk = f.read(length)
             out.append(struct.pack('<I', len(chunk)) + chunk)
         for f in files.values():
             f.close()
-        body = b''.join(out)
         self.send_response(200)
         self.send_header('Content-Type', 'application/octet-stream')
-        self.send_header('Content-Length', str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        send_body(self, b''.join(out))
 
 
 class Server(ThreadingMixIn, http.server.HTTPServer):

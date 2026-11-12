@@ -20,6 +20,7 @@ EM_JS(void, js_fetch_music, (const char *name), {
     });
 });
 static char pending[96], playing_path[128];
+static int fetching;
 #endif
 
 #define VOICES 16
@@ -134,7 +135,7 @@ void audio_music(const char *name) {
     if (playing_path[0]) remove(playing_path);  // 上一首最大 45MB，不留在記憶體
     playing_path[0] = 0;
     snprintf(pending, sizeof pending, "%.80s", name);
-    js_fetch_music(name);
+    fetching = 0;  // 等場景的圖下載完才開始抓（行動網路不要跟畫面搶）
 #else
     char file[96];
     snprintf(file, sizeof file, "%.80s.wav", name);
@@ -142,15 +143,23 @@ void audio_music(const char *name) {
 #endif
 }
 
-void audio_update(void) {
+void audio_update(int network_idle) {
 #ifdef __EMSCRIPTEN__
     if (!pending[0]) return;
+    if (!fetching) {
+        if (!network_idle) return;
+        fetching = 1;
+        js_fetch_music(pending);
+        return;
+    }
     char path[128];
     snprintf(path, sizeof path, "/music/%s.wav", pending);
     if (access(path, F_OK)) return;
     pending[0] = 0;
     snprintf(playing_path, sizeof playing_path, "%s", path);
     music_start(fopen(path, "rb"));
+#else
+    (void)network_idle;
 #endif
 }
 

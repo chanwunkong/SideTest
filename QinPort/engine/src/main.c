@@ -69,11 +69,19 @@ static const Sprite *upload(Sprite *s, uint32_t *px) {
     return s->tex ? s : NULL;
 }
 
+// 網頁版圖片還在下載時回 NULL 但不記成失敗，下一幀再試
+static const Sprite *upload_or_wait(Sprite *s, uint32_t *px) {
+    if (!px && res_waiting) return NULL;
+    return upload(s, px);
+}
+
 // 全域圖片 ref（高 8 位幀號）。ref 不會是 0xFFxxxxxx，所以磁磚用那段當 key
 static const Sprite *image(uint32_t ref) {
     Sprite *s = slot_find(ref);
     if (s->tex) return s;
-    return s->w < 0 ? NULL : upload(s, res_image(ref, &s->w, &s->h));
+    if (s->w < 0) return NULL;
+    res_waiting = 0;
+    return upload_or_wait(s, res_image(ref, &s->w, &s->h));
 }
 
 static const Sprite *tile(Lib *tiles, uint16_t i) {
@@ -81,11 +89,22 @@ static const Sprite *tile(Lib *tiles, uint16_t i) {
     if (s->tex) return s;
     if (s->w < 0) return NULL;
     uint32_t size;
-    uint8_t *d = lib_read(tiles, i, &size);
+    res_waiting = 0;
+    uint8_t *d = lib_try(tiles, i, &size);
     uint32_t *px = d ? xbm_decode(d, size, &s->w, &s->h) : NULL;
     free(d);
-    return upload(s, px);
+    return upload_or_wait(s, px);
 }
+
+#ifdef __EMSCRIPTEN__
+// 網頁上方的提示：n < 0 = 正在載入場景；n > 0 = 背景還有 n 張圖在下載
+EM_JS(void, js_status, (int n), {
+    const el = document.getElementById('status');
+    if (el) el.textContent = n < 0 ? '載入場景中…' : n > 0 ? '載入中… 還有 ' + n + ' 張圖' : '按住畫面往那個方向走';
+});
+#else
+static void js_status(int n) { (void)n; }
+#endif
 
 static void draw(const Sprite *s, int x, int y) {
     if (!s || x >= vw || y >= vh || x + s->w <= 0 || y + s->h <= 0) return;
@@ -247,6 +266,43 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     a->speed = d->speed;
 }
 
+// 編號清單（預抓用）
+typedef struct { uint32_t *v; int n, cap; } IdList;
+static void id_add(IdList *l, uint32_t v) {
+    if (l->n == l->cap) l->v = realloc(l->v, (l->cap = l->cap ? l->cap * 2 : 1024) * sizeof *l->v);
+    l->v[l->n++] = v;
+}
+
+// 進場景前一次收齊所有角色要的 PLI 與動畫定義（網頁版每個角色各抓一次會來回上百趟）
+static void preload_roles(const Scene *s, const RoleDef *hero_def) {
+    const RoleDef *defs[MAX_ACTORS];
+    int n = 0;
+    if (hero_def) defs[n++] = hero_def;
+    for (int i = 0; i < s->npc_count && n < MAX_ACTORS; i++) {
+        const RoleDef *d = roledef_find(s->npcs[i].tmpl);
+        int dup = !d || !atoi(d->graphic);
+        for (int k = 0; k < n && !dup; k++) dup = defs[k] == d;
+        if (!dup) defs[n++] = d;
+    }
+    char names[MAX_ACTORS + 1][24];
+    const char *list[MAX_ACTORS + 1];
+    snprintf(names[0], sizeof names[0], "0000_001.PLI");
+    list[0] = names[0];
+    for (int i = 0; i < n; i++) {
+        snprintf(names[i + 1], sizeof names[i + 1], "%.8s_%03d.PLI", defs[i]->graphic, defs[i]->pli);
+        list[i + 1] = names[i + 1];
+    }
+    res_preload("PLI", list, n + 1);
+    IdList ids = {0};
+    for (int i = 0; i < n; i++) {
+        uint32_t g[MAX_ROLE_PARTS * 2];
+        int m = role_anim_ids(defs[i]->graphic, defs[i]->pli, defs[i]->styles, g, MAX_ROLE_PARTS * 2);
+        for (int k = 0; k < m; k++) id_add(&ids, g[k]);
+    }
+    res_fetch_now(ids.v, ids.n);
+    free(ids.v);
+}
+
 static void spawn_npcs(const Scene *s) {
     actor_count = 1;  // actors[0] 是主角
     for (int i = 0; i < s->npc_count && actor_count < MAX_ACTORS; i++) {
@@ -272,47 +328,80 @@ static int cmp_actor_depth(const void *a, const void *b) {
 }
 
 // 進場景時一次抓齊會用到的圖（網頁版走批次請求；原生版直接讀硬碟，這裡幾乎不花時間）
-typedef struct { uint32_t *v; int n, cap; } IdList;
-static void id_add(IdList *l, uint32_t v) {
-    if (l->n == l->cap) l->v = realloc(l->v, (l->cap = l->cap ? l->cap * 2 : 1024) * sizeof *l->v);
-    l->v[l->n++] = v;
-}
 
 static void add_seq_frames(IdList *l, const Anim *a, int seq) {
     if (a && seq >= 0 && seq < a->count)
         for (int f = 0; f < a->seqs[seq].count; f++) id_add(l, a->seqs[seq].frames[f].ref & 0xFFFFFF);
 }
 
-static void prefetch_scene(Scene *s) {
-    IdList tiles = {0}, ids = {0}, anims = {0};
-    for (int i = 0; i < s->w * s->h; i++) {
-        if (s->cells[i].ground != 0xFFFF) id_add(&tiles, s->cells[i].ground);
-        if (s->cells[i].over != 0xFFFF) id_add(&tiles, s->cells[i].over);
-    }
-    lib_prefetch(&s->tiles, tiles.v, tiles.n);
-    // 物件：一般部件直接是圖；動畫部件先抓動畫定義，再抓第 0 序列的圖
+// 依離主角的距離排序（近的先下載）
+typedef struct { float d; uint32_t id; } Near;
+static int cmp_near(const void *a, const void *b) {
+    float x = ((const Near *)a)->d, y = ((const Near *)b)->d;
+    return x < y ? -1 : x > y;
+}
+
+static void want_sorted(Near *v, int n, Lib *lib) {
+    qsort(v, n, sizeof *v, cmp_near);
+    uint32_t *ids = malloc((n ? n : 1) * sizeof *ids);
+    for (int i = 0; i < n; i++) ids[i] = v[i].id;
+    if (lib) lib_want(lib, ids, n);
+    else res_want(ids, n);
+    free(ids);
+}
+
+static float dist_to(const Actor *a, float x, float y) { return fabsf(x - a->x) + fabsf(y - a->y); }
+
+static void prefetch_scene(Scene *s, const Actor *hero) {
+    // 動畫定義是小資料、而且要先有才知道要哪些圖：等它下載完
+    IdList anims = {0};
     for (int i = 0; i < s->object_count; i++)
-        for (int p = 0; s->objects[i].m && p < s->objects[i].m->part_count; p++) {
-            const Part *pt = &s->objects[i].m->parts[p];
-            id_add(pt->anim ? &anims : &ids, pt->gid);
+        for (int p = 0; s->objects[i].m && p < s->objects[i].m->part_count; p++)
+            if (s->objects[i].m->parts[p].anim) id_add(&anims, s->objects[i].m->parts[p].gid);
+    res_fetch_now(anims.v, anims.n);
+    free(anims.v);
+    // 圖片都排進背景下載，離主角近的先
+    Near *v = malloc(((size_t)s->w * s->h * 2 + 1) * sizeof *v);
+    int n = 0;
+    for (int i = 0; i < s->w * s->h; i++) {
+        float d = dist_to(hero, i % s->w + 0.5f, i / s->w + 0.5f);
+        if (s->cells[i].ground != 0xFFFF) v[n++] = (Near){d, s->cells[i].ground};
+        if (s->cells[i].over != 0xFFFF) v[n++] = (Near){d, s->cells[i].over};
+    }
+    want_sorted(v, n, &s->tiles);
+    n = 0;
+    IdList frames = {0};
+    for (int i = 0; i < s->object_count; i++) {
+        const Object *o = &s->objects[i];
+        for (int p = 0; o->m && p < o->m->part_count; p++) {
+            frames.n = 0;
+            if (o->m->parts[p].anim) add_seq_frames(&frames, anim_get(o->m->parts[p].gid), 0);
+            else id_add(&frames, o->m->parts[p].gid);
+            for (int k = 0; k < frames.n; k++) {
+                if (n % 4096 == 0) v = realloc(v, (n + 4096) * sizeof *v);
+                v[n++] = (Near){dist_to(hero, o->x + 0.5f, o->y + 0.5f) + 2, frames.v[k]};  // 建築大，稍微讓地面先
+            }
         }
-    res_prefetch(anims.v, anims.n);
-    for (int i = 0; i < anims.n; i++) add_seq_frames(&ids, anim_get(anims.v[i]), 0);
+    }
     // 角色：站立與走路的 8 個方向
     for (int i = 0; i < actor_count; i++) {
-        const Role *r = actors[i].role;
-        for (int p = 0; r && p < r->part_count; p++)
+        const Actor *a = &actors[i];
+        frames.n = 0;
+        for (int p = 0; a->role && p < a->role->part_count; p++)
             for (int d = 0; d < 8; d++) {
-                add_seq_frames(&ids, r->body[p], actors[i].idle + d);
-                add_seq_frames(&ids, r->body[p], actors[i].walk + d);
-                add_seq_frames(&ids, r->shadow[p], actors[i].idle + d);
-                add_seq_frames(&ids, r->shadow[p], actors[i].walk + d);
+                add_seq_frames(&frames, a->role->body[p], a->idle + d);
+                add_seq_frames(&frames, a->role->body[p], a->walk + d);
+                add_seq_frames(&frames, a->role->shadow[p], a->idle + d);
+                add_seq_frames(&frames, a->role->shadow[p], a->walk + d);
             }
+        for (int k = 0; k < frames.n; k++) {
+            if (n % 4096 == 0) v = realloc(v, (n + 4096) * sizeof *v);
+            v[n++] = (Near){i ? dist_to(hero, a->x, a->y) : 0, frames.v[k]};
+        }
     }
-    res_prefetch(ids.v, ids.n);
-    free(tiles.v);
-    free(ids.v);
-    free(anims.v);
+    want_sorted(v, n, NULL);
+    free(frames.v);
+    free(v);
 }
 
 // 載入場景（別名 = 場景檔名），主角站到入口 entry_id；失敗時保留原場景
@@ -328,9 +417,9 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     // 外觀快取跟著場景換：先留主角的，再重建 NPC
     const RoleDef *hd = roledef_by_graphic(HERO_GRAPHIC);
     roles_clear();
+    preload_roles(scene, hd);
     if (hd) actor_setup(hero, hd);
     spawn_npcs(scene);
-    prefetch_scene(scene);
     const Entry *en = scene_entry(scene, entry_id);
     if (en) {
         hero->x = en->x + 0.5f;
@@ -340,6 +429,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     }
     hero->moving = 0;
     hero->act_tick = 0;
+    prefetch_scene(scene, hero);
     return 1;
 }
 
@@ -391,8 +481,10 @@ int main(int argc, char **argv) {
     }
     res_init(game);
 
-    World world;
-    if (!world_load(&world)) fprintf(stderr, "讀不到 EasyRPG.dll 的房間資料，不能切換場景\n");
+    js_status(-1);
+    // 房間表（EasyRPG.dll，4MB）等第一次踩到出口才讀：網頁版開場不用等它
+    World world = {0};
+    int world_tried = 0;
     char alias[64];
     snprintf(alias, sizeof alias, "%s", scn);
     char *dot = strrchr(alias, '.');
@@ -403,7 +495,7 @@ int main(int argc, char **argv) {
     hero->dir = 4;
     if (!enter_scene(&scene, hero, alias, -1)) return 1;
     if (!hero->role) { fprintf(stderr, "載入主角失敗\n"); return 1; }
-    int room = world_find(&world, alias), armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
+    int room = -1, armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
     if (at_x >= 0) { hero->x = at_x + 0.5f; hero->y = at_y + 0.5f; }
     if (warp >= 0 && warp < scene.trigger_count) {
         hero->x = scene.triggers[warp].x + 0.5f;
@@ -487,13 +579,22 @@ int main(int argc, char **argv) {
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = trigger_at(&scene, hero);
             if (!t) armed = 1;
-            else if (armed && room >= 0 && !strncmp(t->event, "go ", 3)) {
+            else if (armed && !strncmp(t->event, "go ", 3)) {
+                if (!world_tried) {
+                    world_tried = 1;
+                    js_status(-1);
+                    if (!world_load(&world)) fprintf(stderr, "讀不到 EasyRPG.dll 的房間資料，不能切換場景\n");
+                    room = world_find(&world, alias);
+                }
+                if (room < 0) { armed = 0; continue; }
                 const Room *r = &world.rooms[room];
                 for (int i = 0; i < r->exit_count; i++) {
                     const Exit *x = &world.exits[r->first_exit + i];
                     if (strcmp(x->dir, t->event + 3) || x->to < 0) continue;
+                    js_status(-1);
                     if (enter_scene(&scene, hero, world.rooms[x->to].alias, x->entry)) {
                         room = x->to;
+                        snprintf(alias, sizeof alias, "%s", world.rooms[room].alias);
                         scene_music(world.rooms[room].alias, music, sizeof music);
                         audio_music(music);
                         printf("進入 %s\n", world.rooms[room].alias);
@@ -551,7 +652,12 @@ int main(int argc, char **argv) {
         SDL_RenderClear(ren);
         SDL_RenderCopy(ren, canvas, NULL, NULL);
         SDL_RenderPresent(ren);
-        audio_update();
+        res_pump();
+        audio_update(res_loading() == 0);
+        static int shown = -2;  // 只在數字變了才更新網頁文字
+        int loading = res_loading();
+        if (loading != shown) js_status(loading);
+        shown = loading;
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);  // 交還給瀏覽器（ASYNCIFY），否則網頁會卡住
 #endif

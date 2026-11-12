@@ -52,14 +52,46 @@ static FILE *open_ci(const char *dir, const char *name) {
     return f;
 }
 
+#ifdef __EMSCRIPTEN__
+// 網頁版的小檔案快取（PLI、場景檔…）：同一個檔案不重複下載；1MB 以上的不留
+#define FILE_CACHE 512
+static struct { char key[200]; uint8_t *data; size_t size; } file_cache[FILE_CACHE];
+static int file_cache_n;
+
+static int file_cached(const char *key) {
+    for (int i = 0; i < file_cache_n; i++)
+        if (!strcasecmp(file_cache[i].key, key)) return i;
+    return -1;
+}
+
+static void file_cache_put(const char *key, const uint8_t *data, size_t size) {
+    if (size > (1u << 20) || file_cached(key) >= 0) return;
+    int i = file_cache_n < FILE_CACHE ? file_cache_n++ : FILE_CACHE - 1;  // 滿了就蓋最後一格
+    free(file_cache[i].data);
+    snprintf(file_cache[i].key, sizeof file_cache[i].key, "%s", key);
+    file_cache[i].data = malloc(size + 1);
+    memcpy(file_cache[i].data, data, size);
+    file_cache[i].data[size] = 0;
+    file_cache[i].size = size;
+}
+#endif
+
 static uint8_t *read_all(const char *dir, const char *name, size_t *size) {
 #ifdef __EMSCRIPTEN__
     char url[1400];
-    int n = 0;
     snprintf(url, sizeof url, "%s/%s", dir, name);
+    int c = file_cached(url);
+    if (c >= 0) {
+        uint8_t *d = malloc(file_cache[c].size + 1);
+        memcpy(d, file_cache[c].data, file_cache[c].size + 1);
+        *size = file_cache[c].size;
+        return d;
+    }
+    int n = 0;
     uint8_t *d = js_get(url, &n);
     *size = n;
     if (!d) fprintf(stderr, "找不到 %s\n", url);
+    else file_cache_put(url, d, n);
     return d;
 #else
     FILE *f = open_ci(dir, name);
@@ -77,7 +109,7 @@ static uint8_t *read_all(const char *dir, const char *name, size_t *size) {
 
 #ifdef __EMSCRIPTEN__
 // 伺服器上一段檔案內容；回傳 malloc 的資料
-typedef struct { const char *path; uint32_t off, len; } Span;
+typedef struct { const char *path; uint32_t off, len; int32_t entry; } Span;  // entry >= 0：Lib 的第幾項（伺服器查索引）；-2：整個檔案
 
 static uint8_t **fetch_spans(const Span *sp, int n, uint32_t *lens) {
     uint8_t **out = calloc(n ? n : 1, sizeof *out);
@@ -88,7 +120,9 @@ static uint8_t **fetch_spans(const Span *sp, int n, uint32_t *lens) {
         char *json = malloc(cap);
         json[0] = '[';
         for (int i = start; i < end; i++)
-            len += snprintf(json + len, cap - len, "%s[\"%s\",%u,%u]", i > start ? "," : "", sp[i].path, sp[i].off, sp[i].len);
+            len += sp[i].entry >= 0 ? snprintf(json + len, cap - len, "%s[\"%s\",-1,%d]", i > start ? "," : "", sp[i].path, sp[i].entry)
+                 : sp[i].entry == -2 ? snprintf(json + len, cap - len, "%s[\"%s\",0,-1]", i > start ? "," : "", sp[i].path)
+                                    : snprintf(json + len, cap - len, "%s[\"%s\",%u,%u]", i > start ? "," : "", sp[i].path, sp[i].off, sp[i].len);
         snprintf(json + len, cap - len, "]");
         int size = 0;
         uint8_t *d = js_batch(json, &size);
@@ -106,25 +140,59 @@ static uint8_t **fetch_spans(const Span *sp, int n, uint32_t *lens) {
 }
 #endif
 
+// 網頁版每個項目的狀態
+enum { ST_NONE, ST_QUEUED, ST_URGENT, ST_SENT, ST_DONE, ST_FAIL };  // URGENT = 已在優先佇列，不重複排
+int res_waiting;  // 最近一次非阻塞讀取是因為還在下載而回 NULL
+#ifdef __EMSCRIPTEN__
+static int pending;  // 排隊中加上下載中的項目數
+#endif
+
+#ifdef __EMSCRIPTEN__
+// 背景批次下載：開始後立刻返回，之後每幀用 js_batch_take 收結果（不在 JS 回呼裡呼叫 C，ASYNCIFY 比較安全）
+EM_JS(void, js_batch_start, (int id, const char *json), {
+    Module.qinBatch = Module.qinBatch || {};
+    Module.qinBatch[id] = null;
+    fetch('batch', { method: 'POST', body: UTF8ToString(json) })
+        .then(r => r.ok ? r.arrayBuffer() : new ArrayBuffer(0))
+        .then(b => { Module.qinBatch[id] = new Uint8Array(b); })
+        .catch(() => { Module.qinBatch[id] = new Uint8Array(0); });
+});
+
+EM_JS(uint8_t *, js_batch_take, (int id, int *size), {
+    const b = Module.qinBatch && Module.qinBatch[id];
+    if (!b) return 0;
+    delete Module.qinBatch[id];
+    const p = _malloc(b.length + 1);
+    HEAPU8.set(b, p);
+    HEAP32[size >> 2] = b.length;
+    return p;
+});
+
+static const char *lib_rel(const Lib *lib) { return strchr(lib->path, '/') ? strchr(lib->path, '/') + 1 : lib->path; }  // 去掉開頭的 game/
+
+static void lib_store(Lib *lib, uint32_t i, uint8_t *data, uint32_t len) {
+    if (lib->state[i] == ST_QUEUED || lib->state[i] == ST_URGENT || lib->state[i] == ST_SENT) pending--;
+    free(lib->cache[i]);
+    lib->cache[i] = data;
+    lib->cache_len[i] = len;
+    lib->state[i] = data ? ST_DONE : ST_FAIL;
+}
+#endif
+
 int lib_open(Lib *lib, const char *dir, const char *name) {
     memset(lib, 0, sizeof *lib);
 #ifdef __EMSCRIPTEN__
     snprintf(lib->path, sizeof lib->path, "%s/%s", dir, name);
-    const char *rel = strchr(lib->path, '/') ? strchr(lib->path, '/') + 1 : lib->path;  // 去掉開頭的 game/
-    Span sp = {rel, 0, 0x100};
+    Span sp = {lib_rel(lib), 0, 0x100, -1};  // 只抓檔頭；索引表很大（最大 1.4MB），由伺服器查
     uint32_t len = 0;
     uint8_t **head = fetch_spans(&sp, 1, &len);
     if (!head[0] || len < 0x100 || memcmp(head[0], "Lib 1.01", 8)) { free(head[0]); free(head); fprintf(stderr, "找不到 %s\n", lib->path); return 0; }
     lib->count = u32(head[0] + 16);
     free(head[0]);
     free(head);
-    sp = (Span){rel, 0x100, lib->count * 8};
-    uint8_t **idx = fetch_spans(&sp, 1, &len);
-    if (!idx[0] || len != lib->count * 8) { free(idx[0]); free(idx); return 0; }
-    lib->index = (uint32_t *)idx[0];
-    free(idx);
     lib->cache = calloc(lib->count + 1, sizeof *lib->cache);
     lib->cache_len = calloc(lib->count + 1, sizeof *lib->cache_len);
+    lib->state = calloc(lib->count + 1, 1);
     return 1;
 #else
     uint8_t head[0x100];
@@ -137,18 +205,20 @@ int lib_open(Lib *lib, const char *dir, const char *name) {
 #endif
 }
 
+static uint32_t entry_len(const Lib *lib, uint32_t i) { return u32((const uint8_t *)&lib->index[i * 2 + 1]); }
+
 uint8_t *lib_read(Lib *lib, uint32_t i, uint32_t *size) {
 #ifdef __EMSCRIPTEN__
-    if (!lib->index || i >= lib->count) return NULL;
-    if (!lib->cache[i]) lib_prefetch(lib, &i, 1);  // 沒預抓到的就單獨抓
-    if (!lib->cache[i]) return NULL;
+    if (!lib->state || i >= lib->count) return NULL;
+    if (lib->state[i] != ST_DONE) lib_fetch_now(lib, &i, 1);  // 一定要等的資料：沒有就馬上抓
+    if (lib->state[i] != ST_DONE) return NULL;
     uint8_t *copy = malloc(lib->cache_len[i]);
     memcpy(copy, lib->cache[i], lib->cache_len[i]);
     if (size) *size = lib->cache_len[i];
     return copy;
 #else
     if (!lib->f || i >= lib->count) return NULL;
-    uint32_t off = u32((uint8_t *)&lib->index[i * 2]), len = u32((uint8_t *)&lib->index[i * 2 + 1]);
+    uint32_t off = u32((uint8_t *)&lib->index[i * 2]), len = entry_len(lib, i);
     if (!len) return NULL;
     uint8_t *data = malloc(len);
     fseek(lib->f, off, SEEK_SET);
@@ -159,34 +229,29 @@ uint8_t *lib_read(Lib *lib, uint32_t i, uint32_t *size) {
 }
 
 static void lib_cache_clear(Lib *lib) {
-    for (uint32_t i = 0; lib->cache && i < lib->count; i++) { free(lib->cache[i]); lib->cache[i] = NULL; }
+    for (uint32_t i = 0; lib->cache && i < lib->count; i++) { free(lib->cache[i]); lib->cache[i] = NULL; lib->state[i] = ST_NONE; }
+#ifdef __EMSCRIPTEN__
+    pending = 0;  // 只在換場景時整批清（res_cache_clear），所以直接歸零
+#endif
 }
 
-void lib_prefetch(Lib *lib, const uint32_t *idx, int n) {
+// 阻塞：一次批次抓齊（給動畫定義這類一定要先有的小資料）
+void lib_fetch_now(Lib *lib, const uint32_t *idx, int n) {
 #ifdef __EMSCRIPTEN__
-    if (!lib->index) return;
+    if (!lib->state) return;
     Span *sp = malloc((n ? n : 1) * sizeof *sp);
     uint32_t *which = malloc((n ? n : 1) * sizeof *which), *lens = calloc(n ? n : 1, sizeof *lens);
-    const char *rel = strchr(lib->path, '/') ? strchr(lib->path, '/') + 1 : lib->path;
-    uint8_t *seen = calloc(lib->count + 1, 1);  // 同一批裡重複的只抓一次
     int m = 0;
     for (int k = 0; k < n; k++) {
         uint32_t i = idx[k];
-        if (i >= lib->count || lib->cache[i] || seen[i]) continue;
-        uint32_t off = u32((uint8_t *)&lib->index[i * 2]), len = u32((uint8_t *)&lib->index[i * 2 + 1]);
-        if (!len) continue;
-        seen[i] = 1;
-        sp[m] = (Span){rel, off, len};
+        if (i >= lib->count || lib->state[i] == ST_DONE || lib->state[i] == ST_FAIL) continue;
+        if (lib->state[i] == 0xFF) continue;  // 同一批重複
+        lib->state[i] = 0xFF;
+        sp[m] = (Span){lib_rel(lib), 0, 0, (int32_t)i};
         which[m++] = i;
     }
-    free(seen);
     uint8_t **got = fetch_spans(sp, m, lens);
-    for (int k = 0; k < m; k++) {
-        if (!got[k]) continue;
-        if (lib->cache[which[k]]) { free(got[k]); continue; }
-        lib->cache[which[k]] = got[k];
-        lib->cache_len[which[k]] = lens[k];
-    }
+    for (int k = 0; k < m; k++) lib_store(lib, which[k], got[k], lens[k]);
     free(got);
     free(sp);
     free(which);
@@ -196,10 +261,121 @@ void lib_prefetch(Lib *lib, const uint32_t *idx, int n) {
 #endif
 }
 
+// ---- 網頁版背景下載佇列：urgent = 畫面正要用的，background = 進場景時預排的 ----
+#ifdef __EMSCRIPTEN__
+typedef struct { Lib *lib; uint32_t i; } Want;
+typedef struct { Want *v; int head, n, cap; } Queue;
+typedef struct { int id, gen, n; Want *items; } Flight;
+static Queue urgent, background;
+static Flight flights[1];  // 一次只送一批：兩批同時下載會互搶頻寬，畫面附近的圖反而變慢
+static int next_flight = 1, generation = 1;
+
+static void queue_push(Queue *q, Lib *lib, uint32_t i) {
+    if (q->head == q->n) q->head = q->n = 0;
+    if (q->n == q->cap) q->v = realloc(q->v, (q->cap = q->cap ? q->cap * 2 : 1024) * sizeof *q->v);
+    q->v[q->n++] = (Want){lib, i};
+}
+#endif
+
+void lib_want(Lib *lib, const uint32_t *idx, int n) {
+#ifdef __EMSCRIPTEN__
+    for (int k = 0; lib->state && k < n; k++) {
+        uint32_t i = idx[k];
+        if (i < lib->count && lib->state[i] == ST_NONE) {
+            lib->state[i] = ST_QUEUED;
+            pending++;
+            queue_push(&background, lib, i);
+        }
+    }
+#else
+    (void)lib; (void)idx; (void)n;
+#endif
+}
+
+uint8_t *lib_try(Lib *lib, uint32_t i, uint32_t *size) {
+#ifdef __EMSCRIPTEN__
+    if (!lib->state || i >= lib->count) return NULL;
+    uint8_t st = lib->state[i];
+    if (st == ST_DONE) return lib_read(lib, i, size);
+    if (st == ST_FAIL) return NULL;
+    if (st == ST_NONE || st == ST_QUEUED) {  // 排到最前面（背景佇列裡那份送出時會被略過）
+        if (st == ST_NONE) pending++;
+        lib->state[i] = ST_URGENT;
+        queue_push(&urgent, lib, i);
+    }
+    res_waiting = 1;
+    return NULL;
+#else
+    return lib_read(lib, i, size);
+#endif
+}
+
+void res_pump(void) {
+#ifdef __EMSCRIPTEN__
+    for (int f = 0; f < (int)(sizeof flights / sizeof flights[0]); f++) {
+        Flight *fl = &flights[f];
+        if (fl->id) {  // 收結果
+            int size = 0;
+            uint8_t *d = js_batch_take(fl->id, &size);
+            if (!d) continue;
+            for (int k = 0, p = 0; k < fl->n; k++) {
+                Want *w = &fl->items[k];
+                uint32_t l = 0;
+                if (p + 4 <= size) { l = d[p] | d[p + 1] << 8 | d[p + 2] << 16 | (uint32_t)d[p + 3] << 24; p += 4; }
+                if (fl->gen != generation) { p += l; continue; }  // 已經換場景，丟掉（Lib 可能已經關掉）
+                if (!size) { w->lib->state[w->i] = ST_NONE; pending--; continue; }  // 網路失敗，畫的時候會重排
+                uint8_t *data = NULL;
+                if (l && p + (int)l <= size) { data = malloc(l); memcpy(data, d + p, l); }
+                lib_store(w->lib, w->i, data, l);
+                if (l) w->lib->avg = w->lib->avg ? (w->lib->avg * 7 + l) / 8 : l;  // 平均項目大小（下一批分量用）
+                p += l;
+            }
+            free(d);
+            free(fl->items);
+            memset(fl, 0, sizeof *fl);
+        }
+        if (fl->id) continue;  // 這批還在路上
+        // 送新的一批：先 urgent 再 background；每批約 400KB（依各封包的平均項目大小估），
+        // 小批一點畫面附近的圖才能很快插隊回來
+        Want *items = malloc(400 * sizeof *items);
+        int n = 0;
+        uint32_t bytes = 0;
+        Queue *qs[2] = {&urgent, &background};
+        for (int q = 0; q < 2 && n < 400 && bytes < 400000; q++)
+            while (qs[q]->head < qs[q]->n && n < 400 && bytes < 400000) {
+                Want w = qs[q]->v[qs[q]->head++];
+                if (w.lib->state[w.i] != ST_QUEUED && w.lib->state[w.i] != ST_URGENT) continue;
+                w.lib->state[w.i] = ST_SENT;
+                items[n++] = w;
+                bytes += w.lib->avg ? w.lib->avg : 10000;
+            }
+        if (!n) { free(items); continue; }
+        size_t cap = 64 + (size_t)n * 300, len = 1;
+        char *json = malloc(cap);
+        json[0] = '[';
+        for (int k = 0; k < n; k++)
+            len += snprintf(json + len, cap - len, "%s[\"%s\",-1,%u]", k ? "," : "", lib_rel(items[k].lib), items[k].i);
+        snprintf(json + len, cap - len, "]");
+        *fl = (Flight){next_flight++, generation, n, items};
+        js_batch_start(fl->id, json);
+        free(json);
+    }
+#endif
+}
+
+int res_loading(void) {
+#ifdef __EMSCRIPTEN__
+    return pending;
+#else
+    return 0;
+#endif
+}
+
 void lib_close(Lib *lib) {
     lib_cache_clear(lib);
     free(lib->cache);
     free(lib->cache_len);
+    free(lib->state);
     if (lib->f) fclose(lib->f);
     free(lib->index);
     memset(lib, 0, sizeof *lib);
@@ -232,6 +408,38 @@ uint8_t *res_file(const char *sub, const char *name, size_t *size) {
     return read_all(dir, name, size);
 }
 
+void res_preload(const char *sub, const char *const *names, int n) {
+#ifdef __EMSCRIPTEN__
+    Span *sp = calloc(n ? n : 1, sizeof *sp);
+    char (*rel)[200] = calloc(n ? n : 1, sizeof *rel);
+    uint32_t *lens = calloc(n ? n : 1, sizeof *lens);
+    int m = 0;
+    for (int i = 0; i < n; i++) {
+        char key[200];
+        snprintf(key, sizeof key, "%s/%s/%s", game_dir, sub, names[i]);
+        if (file_cached(key) >= 0) continue;
+        snprintf(rel[m], sizeof rel[m], "%s/%s", sub, names[i]);
+        sp[m] = (Span){rel[m], 0, 0, -2};
+        m++;
+    }
+    uint8_t **got = fetch_spans(sp, m, lens);
+    for (int i = 0; i < m; i++) {
+        if (got[i]) {
+            char key[220];
+            snprintf(key, sizeof key, "%s/%s", game_dir, rel[i]);
+            file_cache_put(key, got[i], lens[i]);
+        }
+        free(got[i]);
+    }
+    free(got);
+    free(sp);
+    free(rel);
+    free(lens);
+#else
+    (void)sub; (void)names; (void)n;
+#endif
+}
+
 size_t res_unxor(uint8_t *d, size_t n) {
     if (!n || d[0] != 0x80) return n;
     for (size_t i = 1; i < n; i++) d[i - 1] = d[i] ^ 0x78;
@@ -239,8 +447,9 @@ size_t res_unxor(uint8_t *d, size_t n) {
     return n - 1;
 }
 
-uint8_t *res_read(uint32_t gid, uint32_t *size) {
+static Lib *lib_for(uint32_t gid, uint32_t *index) {
     int k = -1;
+    gid &= 0xFFFFFF;
     for (int i = 0; i < LIB_N; i++)
         if (gid >= LIBS[i].base) k = i;
     if (k < 0) return NULL;
@@ -250,38 +459,40 @@ uint8_t *res_read(uint32_t gid, uint32_t *size) {
         lib_open(&libs[k], dir, LIBS[k].name);
         lib_tried[k] = 1;
     }
-    return lib_read(&libs[k], gid - LIBS[k].base, size);
+    *index = gid - LIBS[k].base;
+    return &libs[k];
 }
 
-void res_prefetch(const uint32_t *gids, int n) {
-#ifdef __EMSCRIPTEN__
+uint8_t *res_read(uint32_t gid, uint32_t *size) {
+    uint32_t i;
+    Lib *lib = lib_for(gid, &i);
+    return lib ? lib_read(lib, i, size) : NULL;
+}
+
+// 依封包分組後呼叫 fn（全域編號 → 各封包序號）
+static void by_lib(const uint32_t *gids, int n, void (*fn)(Lib *, const uint32_t *, int)) {
     uint32_t *idx = malloc((n ? n : 1) * sizeof *idx);
     for (int k = 0; k < LIB_N; k++) {
         int m = 0;
-        for (int i = 0; i < n; i++) {
-            uint32_t g = gids[i] & 0xFFFFFF;
-            int lib = -1;
-            for (int j = 0; j < LIB_N; j++)
-                if (g >= LIBS[j].base) lib = j;
-            if (lib == k) idx[m++] = g - LIBS[k].base;
+        for (int j = 0; j < n; j++) {
+            uint32_t i;
+            Lib *lib = (gids[j] & 0xFFFFFF) >= LIBS[k].base && (k + 1 == LIB_N || (gids[j] & 0xFFFFFF) < LIBS[k + 1].base) ? lib_for(gids[j], &i) : NULL;
+            if (lib) idx[m++] = i;
         }
-        if (!m) continue;
-        if (!lib_tried[k]) {
-            char dir[1100];
-            snprintf(dir, sizeof dir, "%s/Res", game_dir);
-            lib_open(&libs[k], dir, LIBS[k].name);
-            lib_tried[k] = 1;
-        }
-        lib_prefetch(&libs[k], idx, m);
+        if (m) fn(&libs[k], idx, m);
     }
     free(idx);
-#else
-    (void)gids; (void)n;
-#endif
 }
+
+void res_fetch_now(const uint32_t *gids, int n) { by_lib(gids, n, lib_fetch_now); }
+void res_want(const uint32_t *gids, int n) { by_lib(gids, n, lib_want); }
 
 void res_cache_clear(void) {
     for (int k = 0; k < LIB_N; k++) lib_cache_clear(&libs[k]);
+#ifdef __EMSCRIPTEN__
+    generation++;  // 還在路上的結果作廢
+    urgent.head = urgent.n = background.head = background.n = 0;
+#endif
 }
 
 // xbm：0x14 寬、0x18 高；0x40 起每列 u32 位移(相對 0x40)；每列交替 u16(透明 bytes / 不透明 bytes + RGB565)
@@ -313,8 +524,9 @@ uint32_t *xbm_decode(const uint8_t *x, uint32_t size, int *w, int *h) {
 }
 
 uint32_t *res_image(uint32_t ref, int *w, int *h) {
-    uint32_t size;
-    uint8_t *d = res_read(ref & 0xFFFFFF, &size);
+    uint32_t size, i;
+    Lib *lib = lib_for(ref, &i);
+    uint8_t *d = lib ? lib_try(lib, i, &size) : NULL;
     uint32_t *px = NULL;
     if (d && size >= 0x18 && !memcmp(d, "xbmgroup", 8)) {
         uint32_t n = u32(d + 0x10), f = (ref >> 24) ? (ref >> 24) - 1 : 0;
@@ -548,6 +760,38 @@ static uint32_t find_define(const char *defs, const char *key) {
     return 0;
 }
 
+// 算出一個角色所有部件（含影子）的動畫編號，不載入；回傳個數
+int role_anim_ids(const char *graphic, int pli_no, const char *styles, uint32_t *out, int max) {
+    char dir[1100], name[64], key[96];
+    size_t size, dsize;
+    snprintf(dir, sizeof dir, "%s/PLI", game_dir);
+    char *defs = (char *)read_all(dir, "0000_001.PLI", &dsize);
+    snprintf(name, sizeof name, "%.8s_%03d.PLI", graphic, pli_no);
+    uint8_t *p = read_all(dir, name, &size);
+    int n = 0;
+    if (defs && p && size >= 0x28 && !memcmp(p, "PLI", 3)) {
+        const char *st = styles;
+        for (int i = 0; i < p[0x22] && i < MAX_ROLE_PARTS && n + 2 <= max && 0x32u + i * 10 <= size; i++) {
+            const char *part = (const char *)p + 0x28 + i * 10;
+            char style[8];
+            snprintf(style, sizeof style, "%.4s", part + 5);
+            if (st && *st) {
+                snprintf(style, sizeof style, "%.3s", st);
+                st = strchr(st, '*');
+                st = st ? st + 1 : "";
+            }
+            if (!strcmp(style, "000")) continue;
+            snprintf(key, sizeof key, "SPR_ROLE_%s_%.4s_%s_%03d", graphic, part, style, pli_no);
+            out[n++] = find_define(defs, key);
+            snprintf(key, sizeof key, "SPR_ROLE_%s_%.4sS_%s_%03d", graphic, part, style, pli_no);
+            out[n++] = find_define(defs, key);
+        }
+    }
+    free(defs);
+    free(p);
+    return n;
+}
+
 int role_load(Role *r, const char *graphic, int pli_no, const char *styles) {
     memset(r, 0, sizeof *r);
     char dir[1100], name[64], key[96];
@@ -581,7 +825,7 @@ int role_load(Role *r, const char *graphic, int pli_no, const char *styles) {
         r->body[i] = anim_get(body);
         r->shadow[i] = anim_get(shadow);
     }
-    if (pass == 0) res_prefetch(want, nwant);
+    if (pass == 0) res_fetch_now(want, nwant);
     }
     // 部件清單後隔 0x20：u16 序列數；每序列 u16 幀數 + 每幀 n 個部件索引（疊圖順序）
     int n = p[0x22];

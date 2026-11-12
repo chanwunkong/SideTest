@@ -7,15 +7,24 @@
 #define TILE_H 32
 
 // ---- 封包：只把索引放記憶體，圖片用到才從檔案讀（R36S 只有 1GB RAM）----
-// 網頁版沒有本機檔案：path 是伺服器上的路徑，讀過的項目放在 cache（進新場景時清掉）
-typedef struct { FILE *f; char path[256]; uint32_t count, *index; uint8_t **cache; uint32_t *cache_len; } Lib;  // index = (offset, size) * count
+// 網頁版沒有本機檔案：path 是伺服器上的路徑，讀過的項目放在 cache，state 記下載狀態（進新場景時清掉）
+typedef struct { FILE *f; char path[256]; uint32_t count, *index; uint8_t **cache; uint32_t *cache_len; uint8_t *state; uint32_t avg; } Lib;  // avg = 網頁版估計的平均項目大小（分批用）  // index = (offset, size) * count
 
 int lib_open(Lib *lib, const char *dir, const char *name);
-uint8_t *lib_read(Lib *lib, uint32_t i, uint32_t *size);  // 呼叫者 free；失敗回 NULL
+uint8_t *lib_read(Lib *lib, uint32_t i, uint32_t *size);  // 呼叫者 free；失敗回 NULL。網頁版會等下載
 void lib_close(Lib *lib);
-// 預先抓一批項目（網頁版一次批次請求；原生版直接讀硬碟，不用預抓）
-void lib_prefetch(Lib *lib, const uint32_t *idx, int n);
-void res_prefetch(const uint32_t *gids, int n);  // 全域編號（ref 的高 8 位會忽略）
+// 網頁版的下載方式（原生版都是直接讀硬碟）：
+//   lib_try   不等：還沒下載好就排到最前面、設 res_waiting = 1、回 NULL（給畫圖用）
+//   lib_want  排進背景佇列（進場景時預排）
+//   lib_fetch_now 等到一批全部下載完（給一定要先有的小資料）
+extern int res_waiting;
+uint8_t *lib_try(Lib *lib, uint32_t i, uint32_t *size);
+void lib_want(Lib *lib, const uint32_t *idx, int n);
+void lib_fetch_now(Lib *lib, const uint32_t *idx, int n);
+void res_want(const uint32_t *gids, int n);       // 全域編號（ref 的高 8 位會忽略）
+void res_fetch_now(const uint32_t *gids, int n);
+void res_pump(void);                              // 每幀呼叫：收下載結果、送下一批
+int res_loading(void);                            // 還在排隊或下載中的項目數
 void res_cache_clear(void);                      // 換場景時釋放網頁版快取
 
 // ---- 全域資源編號（Res/Combination.ini）：編號落在哪個封包的區間 ----
@@ -24,10 +33,13 @@ const char *res_game(void);
 // 遊戲資料夾下的一般檔案（檔名不分大小寫）。res_file 整個讀進來（呼叫者 free，結尾多補一個 0）
 FILE *res_fopen(const char *sub, const char *name);
 uint8_t *res_file(const char *sub, const char *name, size_t *size);
+// 一次預載多個小檔案（網頁版一個請求；原生版不需要）
+void res_preload(const char *sub, const char *const *names, int n);
 // 原版加密文字檔（第一個 byte 0x80，其餘 XOR 0x78）就地解開，回傳文字長度
 size_t res_unxor(uint8_t *d, size_t n);
 uint8_t *res_read(uint32_t gid, uint32_t *size);
-// 圖片：xbm 直接解；xbmgroup 用 ref 高 8 位當幀號(從 1 起)。回傳 RGBA32，呼叫者 free
+// 圖片：xbm 直接解；xbmgroup 用 ref 高 8 位當幀號(從 1 起)。回傳 RGBA32，呼叫者 free。
+// 網頁版不等下載：還沒到就回 NULL 並設 res_waiting
 uint32_t *res_image(uint32_t ref, int *w, int *h);
 uint32_t *xbm_decode(const uint8_t *xbm, uint32_t size, int *w, int *h);
 
@@ -93,6 +105,7 @@ typedef struct {
 
 // styles：角色表的「屬性」，例如 "009*009*001*000"，依 PLI 部件順序指定款式（000 = 不畫這個部件）；NULL = 用 PLI 預設
 int role_load(Role *r, const char *graphic, int pli_no, const char *styles);
+int role_anim_ids(const char *graphic, int pli_no, const char *styles, uint32_t *out, int max);  // 預抓用
 
 // ObjMdl/RoleMdl.txt 角色表（XOR 0x78 加密的 GBK、tab 分隔）
 typedef struct {

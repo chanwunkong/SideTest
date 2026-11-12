@@ -33,7 +33,7 @@
   var Module = {
     canvas,
     arguments: args,
-    setStatus: (t) => { status.textContent = t; if (!t) setTimeout(() => status.textContent = '按住畫面往那個方向走', 0); },
+    setStatus: (t) => { status.textContent = t || '載入中…'; },  // 之後由遊戲自己更新（載入場景、剩幾張圖）
     print: (t) => console.log(t),
     printErr: (t) => console.warn(t),
   };
