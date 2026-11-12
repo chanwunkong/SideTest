@@ -7,13 +7,13 @@
 #include <string.h>
 
 // ---- 類別登記（每個劇情檔一個）----
-typedef struct { const char *path, *cls; int kind, n; const StorySlot *slots; } Class;
+typedef struct { const char *path, *alias, *cls; int kind, n; const StorySlot *slots; } Class;
 static Class *classes;
 static int class_count, class_cap;
 
-void story_register(const char *path, int kind, const char *cls, const StorySlot *slots, int n) {
+void story_register(const char *path, const char *alias, int kind, const char *cls, const StorySlot *slots, int n) {
     if (class_count == class_cap) classes = realloc(classes, (class_cap = class_cap ? class_cap * 2 : 4096) * sizeof *classes);
-    classes[class_count++] = (Class){path, cls, kind, n, slots};
+    classes[class_count++] = (Class){path, alias, cls, kind, n, slots};
 }
 
 static const Class *class_find(const char *path) {
@@ -76,11 +76,28 @@ int story_new(const char *path, int parent) {
 }
 
 int story_player(void) {
-    if (!the_player) the_player = story_new("秦殇/主角", 0);  // shortcut: 主角的類別還沒查，先用空物件
+    if (!the_player) the_player = story_new("秦殇/主角/游侠扶苏", 0);  // 劇情模式的主角（遊俠扶蘇）
     return the_player;
 }
 
 const char *story_name(int h) { return O(h) ? O(h)->name : ""; }
+
+// 進房間（依別名，= 場景檔名，例如 xy_hs2）：每個房間只產生一次（原版房間一直存在，NPC 和旗標跟著留著）；
+// 第 1 格會用 add_npc 放進 NPC。找不到回 0
+int story_room(const char *alias) {
+    for (int i = 1; i < obj_count; i++)
+        if (objs[i].cls && objs[i].cls->kind == 0 && !strcmp(objs[i].cls->alias, alias)) return i;
+    for (int i = 0; i < class_count; i++)
+        if (classes[i].kind == 0 && !strcmp(classes[i].alias, alias)) return story_new(classes[i].path, 0);
+    return 0;
+}
+
+// 房間裡別名是 alias 的物件（場景 .ONT 的「事件ID」= 劇情 NPC 的別名）
+int story_find(int room, const char *alias) {
+    for (int i = 1; i < obj_count; i++)
+        if (objs[i].parent == room && !strcmp(objs[i].alias, alias)) return i;
+    return 0;
+}
 
 // ---- 對話：原版用 0x5dd 訊息把說話者、台詞、選項送給畫面 ----
 StoryDialog story_dialog;
@@ -162,6 +179,7 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
         for (int i = 1; i < obj_count; i++)
             if (objs[i].parent == a[0] && !strcmp(objs[i].alias, S(a[1]))) return i;
         return 0;
+    case 0x1005f320: case 0x1005f300:                                        // add_npc、add_item(自己, 路徑, 數量)
     case 0x10054880:                                                         // give_object(物件, 路徑, 數量)
         for (int i = 0; i < (a[2] > 0 ? a[2] : 1); i++) story_new(S(a[1]), (int)a[0]);
         return 0;

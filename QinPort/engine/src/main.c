@@ -569,6 +569,122 @@ static Actor *monster_at(int px, int py, int ox, int oy, const Scene *s) {
     return best;
 }
 
+#ifdef STORY  // shortcut: 目前只有對話用到文字，等傷害數字、介面也要用時再拿掉這個條件
+// ---- 文字：原版字型 font/16Point.fnt：0xB4 起依 Unicode 每字 32 bytes（16 列 × 16 位元，0 = 筆畫）----
+static uint8_t *font16;
+static SDL_Texture *glyph_tex[65536];
+static uint8_t glyph_adv[65536];  // 0 = 還沒量
+
+static SDL_Texture *glyph(uint32_t c) {
+    if (c > 0xFFFF) c = '?';
+    if (glyph_tex[c]) return glyph_tex[c];
+    if (!font16) {
+        size_t n;
+        font16 = res_file("font", "16Point.fnt", &n);
+        if (!font16 || n < 0xB4 + 65536 * 32) { free(font16); font16 = NULL; return NULL; }
+    }
+    uint32_t px[16 * 16];
+    int right = -1;
+    for (int y = 0; y < 16; y++) {
+        int row = font16[0xB4 + c * 32 + y * 2] << 8 | font16[0xB4 + c * 32 + y * 2 + 1];
+        for (int x = 0; x < 16; x++) {
+            int ink = !(row >> (15 - x) & 1);
+            px[y * 16 + x] = ink ? 0xFFFFFFFFu : 0;
+            if (ink && x > right) right = x;
+        }
+    }
+    // 間距：中日韓文字佔滿 16；其他照筆畫寬度 + 2（空白 5）。shortcut: 檔尾每字 2 bytes 的表意義還沒查
+    glyph_adv[c] = c >= 0x2E80 ? 16 : right < 0 ? 5 : right + 2;
+    glyph_tex[c] = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, 16, 16);
+    SDL_UpdateTexture(glyph_tex[c], NULL, px, 16 * 4);
+    SDL_SetTextureBlendMode(glyph_tex[c], SDL_BLENDMODE_BLEND);
+    return glyph_tex[c];
+}
+
+static uint32_t utf8_next(const char **p) {
+    const uint8_t *s = (const uint8_t *)*p;
+    uint32_t c = *s++;
+    if (c >= 0xE0 && s[0] && s[1]) { c = (c & 0x0F) << 12 | (s[0] & 0x3F) << 6 | (s[1] & 0x3F); s += 2; }
+    else if (c >= 0xC0 && s[0]) { c = (c & 0x1F) << 6 | (s[0] & 0x3F); s += 1; }
+    *p = (const char *)s;
+    return c;
+}
+
+// 從 (x, y) 開始寫，超過 maxw 換行；draw = 0 只量高度。回傳用掉的高度
+static int draw_text(int x, int y, const char *t, int maxw, Uint32 rgb, int draw) {
+    int cx = 0, cy = 0;
+    while (*t) {
+        uint32_t c = utf8_next(&t);
+        if (c == '\n') { cx = 0; cy += 18; continue; }
+        SDL_Texture *g = glyph(c);
+        if (!g) return 0;
+        if (cx + glyph_adv[c] > maxw) { cx = 0; cy += 18; }
+        if (draw) {
+            SDL_SetTextureColorMod(g, rgb >> 16, rgb >> 8 & 0xFF, rgb & 0xFF);
+            SDL_Rect r = {x + cx, y + cy, 16, 16};
+            SDL_RenderCopy(ren, g, NULL, &r);
+        }
+        cx += glyph_adv[c];
+    }
+    return cy + 18;
+}
+
+// ---- 對話（劇情來自原版 EasyRPG.dll，見 story/）：畫面下方的框，說話者、台詞、回答選項 ----
+#include "story/story.h"
+static int dialog_open;
+static int opt_y0[STORY_MAX_OPTIONS], opt_y1[STORY_MAX_OPTIONS];
+
+// shortcut: 原版對話框的介面圖（ResUI）還沒做，先畫半透明的框
+static void dialog_draw(void) {
+    if (!dialog_open) return;
+    const StoryDialog *d = &story_dialog;
+    int x = 10, w = vw - 20, tw = w - 20;
+    int h = 10 + 18 + draw_text(0, 0, d->text, tw, 0, 0) + 10;
+    for (int i = 0; i < d->option_count; i++) h += draw_text(0, 0, d->options[i].text, tw - 20, 0, 0) + 6;
+    int y = vh - h - 10;
+    SDL_Rect box = {x, y, w, h};
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 200);
+    SDL_RenderFillRect(ren, &box);
+    SDL_SetRenderDrawColor(ren, 160, 130, 80, 255);
+    SDL_RenderDrawRect(ren, &box);
+    int cy = y + 10;
+    cy += draw_text(x + 10, cy, d->speaker, tw, 0xF0D080, 1);
+    cy += draw_text(x + 10, cy, d->text, tw, 0xFFFFFF, 1) + 4;
+    for (int i = 0; i < d->option_count; i++) {
+        opt_y0[i] = cy - 3;
+        cy += draw_text(x + 30, cy, d->options[i].text, tw - 20, 0x80E0FF, 1) + 6;
+        opt_y1[i] = cy - 3;
+        draw_text(x + 10, opt_y0[i] + 3, "\xe2\x96\xb6", 20, 0x80E0FF, 1);  // ▶
+    }
+}
+
+// 對話中點畫面：點到選項就選；沒有選項時點哪裡都關掉
+static void dialog_tap(int py) {
+    for (int i = 0; i < story_dialog.option_count; i++)
+        if (py >= opt_y0[i] && py < opt_y1[i]) {
+            story_choose(i);
+            if (!story_dialog.text[0] && !story_dialog.option_count) dialog_open = 0;
+            return;
+        }
+    if (!story_dialog.option_count) dialog_open = 0;
+}
+#endif
+
+#ifdef STORY
+// 點到的 NPC（有事件 ID 的，才能對話）
+static Actor *npc_at(int px, int py, int ox, int oy, const Scene *s) {
+    for (int i = 1; i < actor_count; i++) {
+        Actor *a = &actors[i];
+        if (a->mon || !a->spec || !a->spec->event[0]) continue;
+        int fx = (int)((a->x - a->y + s->h - 1) * TILE_W / 2) - ox, fy = (int)((a->x + a->y) * TILE_H / 2) - oy;
+        int dx = px - fx, dy = py - (fy - 30);
+        if (abs(dx) <= 36 && dy >= -70 && dy <= 40) return a;
+    }
+    return NULL;
+}
+#endif
+
 // 血條：shortcut: 原版介面（ResUI 血球）還沒做，先畫簡單的條
 static void hp_bar(const Actor *a, int x, int y, int w) {
     if (!a->hp_max) return;
@@ -764,6 +880,9 @@ int main(int argc, char **argv) {
         else scn = argv[i];
     }
     res_init(game);
+#ifdef STORY
+    story_register_all();
+#endif
 
     js_status(-1);
     // 房間表（EasyRPG.dll，4MB）等第一次踩到出口才讀：網頁版開場不用等它
@@ -832,8 +951,18 @@ int main(int argc, char **argv) {
             else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
                 px = e.button.x;
                 py = e.button.y;
-                Actor *m = monster_at(px, py, ox, oy, &scene);  // 點怪物 = 攻擊它；點其他地方 = 按住走路
+#ifdef STORY
+                if (dialog_open) { dialog_tap(py); continue; }  // 對話中不走路
+#endif
+                Actor *m = monster_at(px, py, ox, oy, &scene);  // 點怪物 = 攻擊它；點 NPC = 說話；點其他地方 = 按住走路
                 if (m) hero->foe = m;
+#ifdef STORY
+                else if ((m = npc_at(px, py, ox, oy, &scene))) {
+                    int npc = story_find(story_room(alias), m->spec->event);
+                    if (npc) { story_talk(npc); dialog_open = 1; }
+                    else printf("劇情裡找不到 NPC %s\n", m->spec->event);
+                }
+#endif
                 else pointer_down = 1;
             }
             // 空白鍵／手把 A：打最近的怪物
@@ -984,6 +1113,9 @@ int main(int argc, char **argv) {
             if (actors[i].mon && alive(&actors[i]) && actors[i].hp < actors[i].hp_max)
                 hp_bar(&actors[i], (int)((actors[i].x - actors[i].y + scene.h - 1) * TILE_W / 2) - ox - 20, (int)((actors[i].x + actors[i].y) * TILE_H / 2) - oy - 90, 40);
         hp_bar(hero, 10, 10, 160);
+#ifdef STORY
+        dialog_draw();
+#endif
         if (shot && tick > 3) {
             SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, vw, vh, 32, SDL_PIXELFORMAT_ARGB8888);
             SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, surf->pixels, surf->pitch);

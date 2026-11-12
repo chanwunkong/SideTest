@@ -74,5 +74,5 @@ intptr_t engine_call(uint32_t addr, intptr_t *a);
 
 // ---- 物件登記：每個劇情檔一個 story_reg_N，登記路徑、種類（0 房間 1 NPC 2 道具 5 技能 6 劇情事件）和自己的方法
 typedef struct { int slot; intptr_t (*fn)(intptr_t *a); } StorySlot;  // a[0] = this
-void story_register(const char *path, int kind, const char *cls, const StorySlot *slots, int n);
+void story_register(const char *path, const char *alias, int kind, const char *cls, const StorySlot *slots, int n);
 void story_register_all(void);

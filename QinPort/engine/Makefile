@@ -28,10 +28,12 @@ storytest: src/story/storytest.c src/story/story_rt.c src/story/story.h build/st
 	emcc -O1 -Wall -Wextra -Isrc/story -sALLOW_MEMORY_GROWTH -o build/storytest.js src/story/storytest.c src/story/story_rt.c build/story-wasm.a
 
 # 網頁版（給手機透過 Tailscale 測試）：遊戲檔不打包，執行時跟 tools/webserve.py 要
-web: src/main.c src/res.c src/res.h src/audio.c src/audio.h ../web/shell.html
+# 有 ../story（tools/storytool.py 產生）就把原版劇情編進去（-DSTORY）；劇情只在 32 位元下才對，所以只有網頁版有
+WEB_STORY = $(if $(wildcard ../story/index.txt),-DSTORY -Isrc/story src/story/story_rt.c build/story-wasm.a)
+web: src/main.c src/res.c src/res.h src/audio.c src/audio.h ../web/shell.html $(if $(WEB_STORY),build/story-wasm.a src/story/story_rt.c)
 	emcc -O2 -sUSE_SDL=2 -sASYNCIFY -sALLOW_MEMORY_GROWTH -sFORCE_FILESYSTEM -sEXPORTED_RUNTIME_METHODS=FS \
 		-sEXPORTED_FUNCTIONS=_main,_malloc,_free \
-		--shell-file ../web/shell.html -o ../web/index.html src/main.c src/res.c src/audio.c
+		--shell-file ../web/shell.html -o ../web/index.html src/main.c src/res.c src/audio.c $(WEB_STORY)
 
 # R36S（ArkOS、ROCKNIX 等 aarch64 Linux）：zig 交叉編譯，只連 Debian 11 的 SDL2 標頭與 .so；執行時用掌機系統內建的 SDL2
 SDL_DEB = https://deb.debian.org/debian/pool/main/libs/libsdl2

@@ -175,7 +175,7 @@ def main(game, decomp, out):
                 w.write(f'// ---- 第 {s} 格（原 {own[s]}）\n' + b + '\n' + wrapper(names[own[s]], b) + '\n\n')
             slots = ', '.join(f'{{{s}, {names[own[s]]}_w}}' for s in bodies)
             w.write(f'void {reg}(void) {{\n    static const StorySlot slots[] = {{{slots}}};\n'
-                    f'    story_register("{path}", {kind}, "{cls}", slots, {len(bodies)});\n}}\n')
+                    f'    story_register("{path}", "{alias or ""}", {kind}, "{cls}", slots, {len(bodies)});\n}}\n')
         index.append(f'{path}\t{kname}\t{cls}\t{rel}\t{len(own)}')
     with open(os.path.join(out, 'index.txt'), 'w', encoding='utf-8') as w:
         w.write('\n'.join(index) + '\n')

@@ -19,5 +19,7 @@ extern StoryDialog story_dialog;  // 目前畫面上的對話
 int story_new(const char *path, int parent);  // 產生物件，回傳代號
 int story_player(void);
 const char *story_name(int h);
+int story_room(const char *alias);             // 進房間（依別名 = 場景檔名；同一房間只產生一次）
+int story_find(int room, const char *alias);   // 房間裡的物件
 void story_talk(int npc);    // 點 NPC 說話
 void story_choose(int i);    // 選第 i 個回答

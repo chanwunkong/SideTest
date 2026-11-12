@@ -205,7 +205,9 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 引擎函式一律經 `engine_call(位址, 參數[8])`，劇情方法被當選項處理傳遞時用 `<名>_w(intptr_t *a)` 包裝：WebAssembly 不容許參數不符的呼叫。
   - **劇情只在 32 位元下才對**（原版把 −1 寫成 `0xffffffff` 等），所以只編進網頁版；測試也用 WebAssembly：`cd engine && make storytest && node build/storytest.js 秦殇/咸阳/NPC/绣女 0 1`（參數是依序選的選項）。`STORY_TRACE=1` 會印出每個引擎呼叫。
   - 绣女沒接任務時的對話已照原版跑出來。主角的類別（`秦殇/主角`）還沒找。
-- 下一步：找主角類別和開場；把 `story_rt.c` 印出的「還沒翻的原版函式」照 `decomp/` 逐一補上；接進 `main.c`（點 NPC → `story_talk`，畫對話框和選項）。
+- **網頁版已能跟 NPC 對話（2026-11-12）**：點有「事件ID」的 NPC（.ONT 的事件ID = 劇情 NPC 的別名）→ `story_room(場景別名)` 產生房間（第 1 格的 `add_npc` 放進 NPC）→ `story_talk` → 畫面下方對話框，點選項 `story_choose`。文字用原版字型 `font/16Point.fnt`（0xB4 起依 Unicode 每字 32 bytes，16 列 × 16 位元，0 = 筆畫；`13Point` 每字 26 bytes；檔尾每字 2 bytes 的表還沒查）。劇情只編進網頁版（`-DSTORY`，有 `../story` 才編；`index.wasm` 因此約 8.7MB）。對話框還不是原版介面圖。
+  - 主角類別：劇情模式是 `秦殇/主角/游侠扶苏`（`story_player`）。
+- 下一步：找開場房間；把 `story_rt.c` 印出的「還沒翻的原版函式」照 `decomp/` 逐一補上；接進 `main.c`（點 NPC → `story_talk`，畫對話框和選項）。
 - （舊）讓這些劇情檔能在引擎裡編譯執行。要先照原版補上它用到的物件模型（`CERObject` 的具名整數和字串屬性、`CERPerson` 的旗標、房間裝物件、對話選項）和 API 函式，從 `decomp/EasyRPG.dll.c` 照翻。先以咸陽开場和绣女的對話為第一個能玩的目標。
 - 打算的格式：劇情保留成 C（每個 NPC、房間一個檔，引擎函式換成好讀的名字，例如 `say`、`option`、`quest_state`），編進引擎；AI 改劇情就是改這些檔，Mac 重新建置。
 
