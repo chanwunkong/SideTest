@@ -443,6 +443,7 @@ static Item hero_weapon, hero_armor;
 static int hero_armor_dp;  // 護甲防禦在「防御力小～大」之間，道具產生時決定
 
 static const int hero_str = 30, hero_con = 25, hero_dex = 25, hero_savvy = 30, hero_charm = 40, hero_wisdom = 20;  // 遊俠扶苏模板
+static const int hero_gender = 0, hero_age = 29, hero_prof = 1;  // 同一模板的 Gender、Age；職業序號（0x94c2fb，2131 + 序號 = 游侠）
 
 static void hero_stats(Actor *h, int level) {
     const int K = 150, str = hero_str, con = hero_con, dex = hero_dex;
@@ -630,15 +631,15 @@ static void gbk_utf8(const char *in, char *out, size_t n) {
     out[o] = 0;
 }
 
-// 從 (x, y) 開始寫，超過 maxw 換行；draw = 0 只量高度。回傳用掉的高度
+// 行距 16：原版 m_pDescribe 框高 84 要放 5 行。從 (x, y) 開始寫，超過 maxw 換行；draw = 0 只量高度。回傳用掉的高度
 static int draw_text(int x, int y, const char *t, int maxw, Uint32 rgb, int draw) {
     int cx = 0, cy = 0;
     while (*t) {
         uint32_t c = utf8_next(&t);
-        if (c == '\n') { cx = 0; cy += 18; continue; }
+        if (c == '\n') { cx = 0; cy += 16; continue; }
         SDL_Texture *g = glyph(c);
         if (!g) return 0;
-        if (cx + glyph_adv[c] > maxw) { cx = 0; cy += 18; }
+        if (cx + glyph_adv[c] > maxw) { cx = 0; cy += 16; }
         if (draw) {
             SDL_SetTextureColorMod(g, rgb >> 16, rgb >> 8 & 0xFF, rgb & 0xFF);
             SDL_Rect r = {x + cx, y + cy, 16, 16};
@@ -646,7 +647,7 @@ static int draw_text(int x, int y, const char *t, int maxw, Uint32 rgb, int draw
         }
         cx += glyph_adv[c];
     }
-    return cy + 18;
+    return cy + 16;
 }
 
 #ifdef STORY
@@ -875,6 +876,16 @@ static void hero_info(const Actor *h, char *out, size_t cap) {
     }
 }
 
+// 人物屬性視窗的 m_pDescribe（Poq.exe 0x554600）：名字、职业、性别、年龄、等级
+static void hero_describe(const Actor *h, char *out, size_t cap) {
+    char l[4][64], prof[64], gender[16];
+    for (int i = 0; i < 4; i++) ui_text(2101 + i, l[i], sizeof l[i]);
+    ui_text(2131 + hero_prof, prof, sizeof prof);
+    ui_text(2197 + hero_gender, gender, sizeof gender);
+    // shortcut: 名字原版來自開新遊戲畫面的輸入（0x94c358），那個畫面還沒做，先用劇情主角的名字
+    snprintf(out, cap, "%s\n%s%s\n%s%s\n%s%d\n%s%d\n", "扶苏", l[0], prof, l[1], gender, l[2], hero_age, l[3], h->level);
+}
+
 static void hud_draw(const Actor *hero) {
     static int tried;
     if (!tried) {
@@ -925,8 +936,14 @@ static void hud_draw(const Actor *hero) {
             hero_info(hero, t, sizeof t);
             SDL_Rect clip = {wx + info->x, wy + info->y, info->w, info->h};
             SDL_RenderSetClipRect(ren, &clip);  // shortcut: 超出框的行先切掉，原版的捲動還沒做
-            draw_text(clip.x + 4, clip.y + 4, t, info->w - 8, 0xBECDCE, 1);
+            draw_text(clip.x + 2, clip.y + 2, t, info->w - 4, 0xBECDCE, 1);
             SDL_RenderSetClipRect(ren, NULL);
+        }
+        UiCtrl *desc = ui_find(&win_left.d, "m_pDescribe");
+        if (desc) {
+            char t[512];
+            hero_describe(hero, t, sizeof t);
+            draw_text(wx + desc->x + 2, wy + desc->y + 2, t, desc->w - 4, 0xBECDCE, 1);
         }
     }
     if (win_right.open) ui_draw(&win_right.d, win_x(&win_right), win_y(&win_right));
