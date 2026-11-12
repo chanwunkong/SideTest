@@ -773,8 +773,63 @@ static void ui_draw(UiDialog *d, int ox, int oy) {
 
 // 主畫面介面，位置照原版（Poq.exe 0x5d3xxx 建立介面那段）：
 // 底部主列 JM51_状态界面_中间 = 底部置中；隊伍面板 JM51_状态界面_主控 = 右緣、貼在主列上方
+static UiDialog bar, party, enemy;
+
+// 視窗：原版 人物属性（JM52）開在畫面中線左邊（x = W/2 − 寬），技能（JM53）、道具（JM54）開在中線右邊（x = W/2）；
+// y 都是垂直置中再往上 50（Poq.exe 0x4ff3xx、0x5004xx、0x4feexx）。左右各一個，可以同時開
+typedef struct { UiDialog d; int open; } Win;
+static Win win_left, win_right;
+
+static void win_toggle(Win *w, const char *section) {
+    if (w->open && !strcmp(w->d.name, section)) { w->open = 0; return; }
+    w->open = ui_load(section, &w->d) > 0;
+}
+
+static int win_x(const Win *w) { return w == &win_left ? vw / 2 - w->d.w : vw / 2; }
+static int win_y(const Win *w) { return (vh - w->d.h) / 2 - 50; }
+
+// 點到哪個按鈕（按鈕在 ini 裡寬高是 0，大小取圖的第 0 幀）
+static const UiCtrl *ui_button_at(const UiDialog *d, int ox, int oy, int x, int y) {
+    for (int i = 0; i < d->count; i++) {
+        const UiCtrl *c = &d->c[i];
+        if (c->type != 2 || !c->img || c->flags & 0x20000) continue;
+        const Sprite *s = ui_image(c->img, 0);
+        if (s && x >= ox + c->x && x < ox + c->x + s->w && y >= oy + c->y && y < oy + c->y + s->h) return c;
+    }
+    return NULL;
+}
+
+#define JM52 "JM52_\xc8\xcb\xce\xef\xca\xf4\xd0\xd4\xbd\xe7\xc3\xe6"  // JM52_人物属性界面（GBK）
+#define JM53 "JM53_\xbc\xbc\xc4\xdc\xbd\xe7\xc3\xe6"                      // JM53_技能界面
+#define JM54 "JM54_\xb5\xc0\xbe\xdf\xbd\xe7\xc3\xe6"                      // JM54_道具界面
+
+// 按鈕名稱 → 開的視窗（主列和人物屬性視窗裡的 m_pRole／m_pSkill／m_pProp 同名同作用）
+static void ui_command(const char *name) {
+    if (!strcmp(name, "m_pRole")) win_toggle(&win_left, JM52);
+    else if (!strcmp(name, "m_pSkill")) win_toggle(&win_right, JM53);
+    else if (!strcmp(name, "m_pProp")) win_toggle(&win_right, JM54);
+}
+
+// 介面吃掉的點擊回 1（不再拿去走路、打怪）。shortcut: 主列只有按鈕吃點擊，主列底圖空白處還是會走路
+static int hud_tap(int x, int y) {
+    Win *ws[2] = {&win_left, &win_right};
+    for (int i = 0; i < 2; i++) {
+        Win *w = ws[i];
+        if (!w->open) continue;
+        int ox = win_x(w), oy = win_y(w);
+        if (x < ox || x >= ox + w->d.w || y < oy || y >= oy + w->d.h) continue;
+        const UiCtrl *c = ui_button_at(&w->d, ox, oy, x, y);
+        if (c && !strcmp(c->name, "m_pCClose")) w->open = 0;
+        else if (c) ui_command(c->name);
+        return 1;
+    }
+    const UiCtrl *c = bar.count ? ui_button_at(&bar, (vw - bar.w) / 2, vh - bar.h, x, y) : NULL;
+    if (!c) return 0;
+    ui_command(c->name);
+    return 1;
+}
+
 static void hud_draw(const Actor *hero) {
-    static UiDialog bar, party, enemy;
     static int tried;
     if (!tried) {
         tried = 1;
@@ -815,6 +870,8 @@ static void hud_draw(const Actor *hero) {
         if (hp) ui_bar(hp, px, py, hero->hp, hero->hp_max);
         if (mp) ui_bar(mp, px, py, hero->mp, hero->mp_max);
     }
+    if (win_left.open) ui_draw(&win_left.d, win_x(&win_left), win_y(&win_left));
+    if (win_right.open) ui_draw(&win_right.d, win_x(&win_right), win_y(&win_right));
 }
 
 static int cmp_actor_depth(const void *a, const void *b) {
@@ -1077,6 +1134,7 @@ int main(int argc, char **argv) {
 #ifdef STORY
                 if (dialog_open) { dialog_tap(py); continue; }  // 對話中不走路
 #endif
+                if (hud_tap(px, py)) continue;
                 Actor *m = monster_at(px, py, ox, oy, &scene);  // 點怪物 = 攻擊它；點 NPC = 說話；點其他地方 = 按住走路
                 if (m) hero->foe = m;
 #ifdef STORY
