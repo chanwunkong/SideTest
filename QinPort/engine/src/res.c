@@ -1262,6 +1262,7 @@ int item_find(int type, int row, Item *out) {
         out->ap_max = atoi(col[14]);
         out->dp_min = atoi(col[15]);
         out->dp_max = atoi(col[16]);
+        out->icon = c > 31 && *col[31] && atoi(col[31]) >= 0 ? atoi(col[31]) : 0xfeb;
         for (int k = 0; k < 5 && 33 + k < c; k++) snprintf(out->equip[k], sizeof out->equip[k], "%s", col[33 + k]);
         found = 1;
     }

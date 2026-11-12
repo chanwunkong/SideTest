@@ -719,7 +719,7 @@ static Actor *npc_at(int px, int py, int ox, int oy, const Scene *s) {
 // 種類：1 背景、2 按鈕（圖的各幀 = 平常、指著、按下）、6 進度條、9 靜態圖。圖是 ResUI 的編號：
 // 多半是動畫定義（Res00 格式，取第 0 序列第 0 幀），少數直接是 xbm
 typedef struct { char name[32]; int type, x, y, w, h, flags, img; } UiCtrl;
-typedef struct { char name[48]; int w, h, count; UiCtrl c[64]; } UiDialog;
+typedef struct { char name[48]; int w, h, count; UiCtrl c[128]; } UiDialog;
 
 static int ui_load(const char *section, UiDialog *out) {
     size_t n;
@@ -736,7 +736,7 @@ static int ui_load(const char *section, UiDialog *out) {
         int f[9] = {0}, k = 0;
         for (char *p = eq + 1; k < 9 && p; p = strchr(p, ','), p = p ? p + 1 : NULL) f[k++] = atoi(p);
         if (!strcmp(l, "Dialog")) { out->w = f[3]; out->h = f[4]; continue; }
-        if (out->count == 64) break;
+        if (out->count == 128) break;
         UiCtrl *c = &out->c[out->count++];
         snprintf(c->name, sizeof c->name, "%s", l);
         c->type = f[0]; c->x = f[1]; c->y = f[2]; c->w = f[3]; c->h = f[4]; c->flags = f[5]; c->img = f[8];
@@ -820,12 +820,14 @@ static const UiCtrl *ui_button_at(const UiDialog *d, int ox, int oy, int x, int 
 #define JM52 "JM52_\xc8\xcb\xce\xef\xca\xf4\xd0\xd4\xbd\xe7\xc3\xe6"  // JM52_人物属性界面（GBK）
 #define JM53 "JM53_\xbc\xbc\xc4\xdc\xbd\xe7\xc3\xe6"                      // JM53_技能界面
 #define JM54 "JM54_\xb5\xc0\xbe\xdf\xbd\xe7\xc3\xe6"                      // JM54_道具界面
+#define JM55 "JM55_\xd7\xb0\xb1\xb8\xbd\xe7\xc3\xe6"                      // JM55_装备界面
 
 // 按鈕名稱 → 開的視窗（主列和人物屬性視窗裡的 m_pRole／m_pSkill／m_pProp 同名同作用）
 static void ui_command(const char *name) {
     if (!strcmp(name, "m_pRole")) win_toggle(&win_left, JM52);
     else if (!strcmp(name, "m_pSkill")) win_toggle(&win_right, JM53);
     else if (!strcmp(name, "m_pProp")) win_toggle(&win_right, JM54);
+    else if (!strcmp(name, "m_pEquip")) win_toggle(&win_left, JM55);  // 道具視窗的装备：原版開在中線左邊（Poq.exe 0x54ad87）
 }
 
 // 介面吃掉的點擊回 1（不再拿去走路、打怪）。shortcut: 主列只有按鈕吃點擊，主列底圖空白處還是會走路
@@ -944,6 +946,15 @@ static void hud_draw(const Actor *hero) {
             SDL_RenderSetClipRect(ren, &clip);  // shortcut: 超出框的行先切掉，原版的捲動還沒做
             draw_text(clip.x + 2, clip.y + 2, t, info->w - 4, 0xBECDCE, 1);
             SDL_RenderSetClipRect(ren, NULL);
+        }
+        // 裝備：主角開局的武器、布衣，圖示畫在 m_pItem[UI_Pos − 30]（劇情檔 UI_Pos：武器 32 右手、布衣 31 盔甲）
+        const struct { const Item *it; int slot; } eq[] = {{&hero_weapon, 2}, {&hero_armor, 1}};
+        for (int i = 0; !strcmp(win_left.d.name, JM55) && i < 2; i++) {
+            char slot[16];
+            snprintf(slot, sizeof slot, "m_pItem[%d]", eq[i].slot);
+            UiCtrl *c = ui_find(&win_left.d, slot);
+            const Sprite *bg = c ? ui_image(c->img, 0) : NULL, *s = eq[i].it->icon ? ui_image(eq[i].it->icon, 0) : NULL;
+            if (c && s) draw(s, wx + c->x + ((bg ? bg->w : s->w) - s->w) / 2, wy + c->y + ((bg ? bg->h : s->h) - s->h) / 2);
         }
         UiCtrl *desc = ui_find(&win_left.d, "m_pDescribe");
         if (desc) {

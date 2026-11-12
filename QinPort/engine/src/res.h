@@ -148,8 +148,8 @@ int mondefs_load(void);
 // 名稱前綴相符的列隨機挑一列（原版 0x10077670 收集相符列再隨機取）；找不到回 NULL
 const MonDef *mondef_pick(const char *prefix);
 // ---- 道具表 Data/item_<類型>.txt（XOR、tab，第 2 列是欄名）：依「级别」欄找列 ----
-// 欄位：0 级别、1 名称、9 等级限制、13/14 攻击力小/大、15/16 防御力小/大、33~37 各職業裝備串（遊俠、力士、刺客、術士、巫師）
-typedef struct { char name[32]; int ap, ap_max, dp_min, dp_max; char equip[5][96]; } Item;
+// 欄位：0 级别、1 名称、9 等级限制、13/14 攻击力小/大、15/16 防御力小/大、31 道具栏图片ID（原版 G_PicID2，空的用 0xfeb）、33~37 各職業裝備串（遊俠、力士、刺客、術士、巫師）
+typedef struct { char name[32]; int ap, ap_max, dp_min, dp_max, icon; char equip[5][96]; } Item;
 int item_find(int type, int row, Item *out);  // 找不到回 0
 // 裝備串（例如 "RH_010_001" 或 "CA_009*TK_009"）覆蓋角色表「屬性」裡對應部件的款式；styles 依 PLI 部件順序、用 * 分隔
 void styles_equip(char *styles, size_t n, const char *graphic, int pli_no, const char *equip);
