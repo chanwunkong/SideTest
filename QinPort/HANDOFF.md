@@ -4,6 +4,17 @@
 
 **目前的目標：做成線上手機版。**也就是網頁版（`make web`），手機橫向、觸控遊玩，透過 Tailscale 連 Mac 上的伺服器。所有工作都以手機網頁版能玩、能測為準。
 
+**方向（使用者 2026-11-12 決定）：隨時用手機玩原版劇情，而且之後能交給 AI 修改、擴充。**
+- 不用串流；Mac 只當伺服器提供檔案，遊戲在手機瀏覽器裡跑。
+- 原版程式先用 Ghidra 整個反編譯成 C（`decomp/`，只在本機當參考，不進 git）。查規則一律查這份，不要再用 radare2 一段段讀機器碼（太耗 token）。
+- 劇情（房間、出口、NPC、對話、任務、事件）用工具從 `EasyRPG.dll` 批次抽成看得懂的劇情檔，引擎讀劇情檔來跑。AI 之後擴充就是改劇情檔。
+- 功能照「從開場一路玩下去」的順序補：開場房間 → 對話框 → 跟 NPC 對話 → 任務 → 道具 → 存檔。
+- 使用者原話：「我要的是復刻遊戲，而不是要你重新推理遊戲」。照原版的程式翻，不要自己設計。
+- 「擴充」指的是**改玩法**，像葉舞的秦殤改版：新打造系統（普系、五行系，材料可疊加、圖紙、煉化、強化）、調降精氣消耗、前期難度和升級速度、新怪物、BOSS 和高等級地圖、提高等級上限、顯示傷害和經驗、商店調整、銷毀裝備換經驗、高解析度、連線組隊。所以：
+  - 數值表（道具、技能、怪物、招式、經驗）一律讀原版的文字表；改版放在另一個 mod 資料夾，同名檔案覆蓋原版，原版檔不動。
+  - 遊戲規則（傷害、命中、升級、掉寶、打造）集中在看得懂的地方，數字不要散在程式各處。
+  - 地圖、怪物用原版格式讀，新地圖、新怪物照同樣格式加進 mod 資料夾就能用。
+
 ## 原則（使用者的要求）
 
 - **目標是復刻原版**：遊戲行為、數值、手感都以原版為準。技術選擇自己決定，依據是原版資源或執行檔的分析結果，不要一直問使用者選哪個方案。只有真的需要使用者實機測試或回報手感時才請他看。
@@ -26,6 +37,8 @@
 | `QinPort/web/shell.html` | 網頁版外框 | 是 |
 | `QinPort/web/game/`, `web/index.*` | 網頁版產出 | 否 |
 | `QinPort/extracted/` | 解出來的圖，除錯用 | 否 |
+| `QinPort/decomp/` | Ghidra 反編譯的 `Poq.exe.c`、`EasyRPG.dll.c`（每個函式前有 `// ==== 位址 名稱`） | 否 |
+| `QinPort/tools/ghidra/DumpC.java` | 反編譯腳本，用法見「建置與測試」 | 是 |
 
 分支：`qinport`，已推到 origin。這台 Mac 沒有 `gh`，所以還沒開 PR。
 **注意**：磁碟上的資料夾名是小寫 `qinport`，git 記錄的是 `QinPort`。新增檔案要用完整路徑 `git add QinPort/…/檔名`，`git add QinPort` 不會把新檔加進去。
@@ -51,7 +64,12 @@ cd engine && make r36s        # zig 交叉編譯；第一次會下載 Debian 11 
 limactl copy r36s/qinport/qin qin:/tmp/q && limactl shell qin bash -c 'cd ~/qin && cp /tmp/q qin && SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./qin game xianyang --640 --shot /tmp/a.bmp'
 ```
 
-- 依賴：Homebrew 的 `sdl2`、`emscripten`、`radare2`（逆向用）、`zig` 和 `lima`（R36S）。
+- 反編譯（約 1 小時，Ghidra 12 要 JDK 21 以上）：
+  ```bash
+  export JAVA_HOME=/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home
+  for f in EasyRPG.dll Poq.exe; do /opt/homebrew/Cellar/ghidra/12.2/libexec/support/analyzeHeadless /tmp/ghproj qin -import game/$f -overwrite -scriptPath tools/ghidra -postScript DumpC.java "$PWD/decomp"; done
+  ```
+- 依賴：Homebrew 的 `ghidra`、`sdl2`、`emscripten`、`radare2`（逆向用）、`zig` 和 `lima`（R36S）。
 - 自動測網頁版：`/Users/martini/github/grid-icon/node_modules/playwright` 搭配 `chromium.launch({channel:'chrome'})`，用 iPhone landscape 裝置模擬。範例腳本在 `/tmp/qintest/t.cjs`，可能已被清掉。
 - `.bmp` 截圖轉 PNG：見 `tools/libtool.py` 的 `png()`。
 
@@ -138,7 +156,7 @@ limactl copy r36s/qinport/qin qin:/tmp/q && limactl shell qin bash -c 'cd ~/qin 
 
 ## 原版執行檔逆向（`Poq.exe`，PE32 i386，radare2）
 
-只取規則和數值，不複製程式碼。
+反編譯結果只在本機給自己參考，不散布。
 
 **角色結構欄位**（從除錯字串 `m_iB_C_MOVE_SPEED…` 在 0x477613 的用法得出；結構是 pack(1)）：
 
@@ -174,6 +192,14 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - **動畫每幀的第 2 個 u32 = 停留拍數**：站立是 25、10…，走路是 3、2、2…。速度比調整：比值 ≥ 1.5 時延遲減 1～5，< 1 時加 1～7（0x496b61 起）。
 - 腳步聲：每 (15 − A) × 2 拍一次（0x48704f）。
 - 0x503f20 的 250/500ms 是介面閃爍；0x404e2b 是音量。`游戏速度`（0x4f4b06）的用途還沒追。
+
+### 劇情程式的結構（從 `decomp/EasyRPG.dll.c` 看，2026-11-12）
+- `tools/decomp_strings.py` 把反編譯裡的 GBK 字串換回中文（反編譯後要跑一次）。`decomp/EasyRPG.dll.vtables.txt` 是每個類別的虛擬函式表（`tools/ghidra/DumpVtables.java`，用 `-process EasyRPG.dll -noanalysis` 跑）。
+- 每個 NPC 是一個類別（例如绣女 = `CERPerson02724`），由 `FUN_1007f970(工廠, 路徑, 1, 0)` 登記。虛擬函式表第 1 格 = 設定（路徑、名稱、別名、`FUN_10023c90(屬性, 值)`），第 17～42 格 = 對話處理，其餘是基底類別的預設。
+- 對話：`FUN_100542e0(文字)` 顯示一句；`FUN_1005f780(鍵如 "ask3", 處理, 0,0,0, 選項文字)` 加一個回答選項；處理是 `mov eax,[ecx]; jmp [eax+N]` 的小跳板 = 呼叫同一個 NPC 的第 N/4 格；`FUN_1005df70` 回傳任務狀態（例如 `"shuxiu"`，−1 = 沒接）。
+- 約 5000 個函式（10 萬行）是劇情，常用的引擎函式約 40 個。
+- **注意**：Ghidra 把部分引擎函式的呼叫方式猜錯（ecx 傳 this 的 `__thiscall` 被當成一般函式），所以參數會錯位，例如 `FUN_100558b0("shuxiu")` 其實只是取主角、字串是下一個呼叫的參數。自動轉換前要先在 Ghidra 把這些函式設成正確的呼叫方式再重新反編譯。
+- 打算的格式：劇情保留成 C（每個 NPC、房間一個檔，引擎函式換成好讀的名字，例如 `say`、`option`、`quest_state`），編進引擎；AI 改劇情就是改這些檔，Mac 重新建置。
 
 ### 世界與場景切換（`EasyRPG.dll`，原版劇情引擎）
 - 劇情、房間、出口、NPC 都編譯在 `EasyRPG.dll` 裡，結構像文字 MUD。`tools/roomtool.py` 和 `res.c` 的 `world_load` 會掃描每個房間的初始化程式，依序呼叫的設定函式如下：
