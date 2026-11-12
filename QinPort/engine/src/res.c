@@ -1194,3 +1194,63 @@ int skill_attack(const char *index_name) {
         if (!strcmp(skills[i].name, index_name)) return skills[i].attack;
     return -1;
 }
+
+// ---- 道具表 ----
+int item_find(int type, int row, Item *out) {
+    char name[32];
+    size_t n;
+    snprintf(name, sizeof name, "item_%d.txt", type);
+    uint8_t *d = res_file("Data", name, &n);
+    if (!d) return 0;
+    res_unxor(d, n);
+    int found = 0, line_no = 0;
+    for (char *line = strtok((char *)d, "\r\n"); line && !found; line = strtok(NULL, "\r\n"), line_no++) {
+        if (line_no < 2) continue;  // 分類列、欄名列
+        char *col[38] = {0};
+        int c = 0;
+        for (char *p = line; c < 38; c++) {
+            col[c] = p;
+            char *t = strchr(p, '\t');
+            if (!t) { c++; break; }
+            *t = 0;
+            p = t + 1;
+        }
+        if (c < 17 || atoi(col[0]) != row) continue;
+        memset(out, 0, sizeof *out);
+        snprintf(out->name, sizeof out->name, "%s", col[1]);
+        out->ap = atoi(col[13]);
+        out->ap_max = atoi(col[14]);
+        out->dp_min = atoi(col[15]);
+        out->dp_max = atoi(col[16]);
+        for (int k = 0; k < 5 && 33 + k < c; k++) snprintf(out->equip[k], sizeof out->equip[k], "%s", col[33 + k]);
+        found = 1;
+    }
+    free(d);
+    return found;
+}
+
+void styles_equip(char *styles, size_t n, const char *graphic, int pli_no, const char *equip) {
+    char dir[1100], name[64];
+    size_t size;
+    snprintf(dir, sizeof dir, "%s/PLI", game_dir);
+    snprintf(name, sizeof name, "%.8s_%03d.PLI", graphic, pli_no);
+    uint8_t *p = read_all(dir, name, &size);
+    if (!p || size < 0x28) { free(p); return; }
+    int parts = p[0x22] < MAX_ROLE_PARTS ? p[0x22] : MAX_ROLE_PARTS;
+    char st[MAX_ROLE_PARTS][4] = {{0}};
+    const char *s = styles;
+    for (int i = 0; i < parts; i++) {  // 原本的款式，缺的用 PLI 預設
+        snprintf(st[i], 4, "%.3s", s && *s ? s : (const char *)p + 0x28 + i * 10 + 5);
+        s = s ? strchr(s, '*') : NULL;
+        if (s) s++;
+    }
+    for (const char *e = equip; e && *e;) {  // "部件_款式[_動作方式]"，多個用 * 分隔
+        for (int i = 0; i < parts; i++)
+            if (!strncmp(e, (const char *)p + 0x28 + i * 10, 2) && e[2] == '_') snprintf(st[i], 4, "%.3s", e + 3);
+        e = strchr(e, '*');
+        if (e) e++;
+    }
+    size_t len = 0;
+    for (int i = 0; i < parts && len + 4 < n; i++) len += snprintf(styles + len, n - len, "%s%s", i ? "*" : "", st[i]);
+    free(p);
+}

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include "res.h"
 #include "audio.h"
 #ifdef __EMSCRIPTEN__
@@ -432,14 +433,18 @@ static void start_act(Actor *a, int act, int seq) {
 // 主角數值。遊俠模板（EasyRPG.dll 0x1013c380）：Str 30、Con 25、Dex 25，HP_MAX = 120 + 28×等級
 // 職業倍率（0x1002d510，遊俠 K = 150）：AP、AP_MAX = 基礎 × (Str+K)/K；DP = 基礎 × (Con+K)/K；
 // HR = (基礎 + 3×Dex) × (Dex+K)/K；SR = (基礎 + 4×Dex) × (Dex+K)/K
-// shortcut: 基礎 AP/DP/HR/SR 來自武器與護甲，裝備系統還沒做，先用空手假設 AP 10~15、DP 0、HR/SR 基礎 0；升級加點也還沒做
+// 基礎 AP 來自武器、DP 來自護甲（模板給的扶苏武器 = item_8 第 1 列青銅彎刀、布衣 = item_26 第 1 列）；HR/SR 基礎 0
+// shortcut: 道具的隨機特性、升級加點、其他部位的裝備還沒做
+static Item hero_weapon, hero_armor;
+static int hero_armor_dp;  // 護甲防禦在「防御力小～大」之間，道具產生時決定
+
 static void hero_stats(Actor *h, int level) {
     const int K = 150, str = 30, con = 25, dex = 25;
     h->level = level;
     h->hp = h->hp_max = 120 + 28 * level;
-    h->ap = 10 * (str + K) / K;
-    h->ap_max = 15 * (str + K) / K;
-    h->dp = 0 * (con + K) / K;
+    h->ap = hero_weapon.ap * (str + K) / K;
+    h->ap_max = hero_weapon.ap_max * (str + K) / K;
+    h->dp = hero_armor_dp * (con + K) / K;
     h->hr = 3 * dex * (dex + K) / K;
     h->sr = 4 * dex * (dex + K) / K;
 }
@@ -636,6 +641,22 @@ static void prefetch_scene(Scene *s, const Actor *hero) {
     free(v);
 }
 
+// 主角的角色表列，外觀加上身上裝備（道具表的遊俠裝備串）
+static RoleDef hero_def;
+
+static void hero_equip(void) {
+    const RoleDef *d = roledef_by_graphic(HERO_GRAPHIC);
+    if (!d) return;
+    hero_def = *d;
+    static const char *const items[] = {"item_8.txt", "item_26.txt"};
+    res_preload("Data", items, 2);
+    if (item_find(8, 1, &hero_weapon)) styles_equip(hero_def.styles, sizeof hero_def.styles, d->graphic, d->pli, hero_weapon.equip[0]);
+    if (item_find(26, 1, &hero_armor)) {
+        styles_equip(hero_def.styles, sizeof hero_def.styles, d->graphic, d->pli, hero_armor.equip[0]);
+        hero_armor_dp = hero_armor.dp_min + rand() % (hero_armor.dp_max - hero_armor.dp_min + 1);
+    }
+}
+
 // 載入場景（別名 = 場景檔名），主角站到入口 entry_id；失敗時保留原場景
 static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_id) {
     char file[96];
@@ -647,7 +668,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     cache_clear();
     res_cache_clear();
     // 外觀快取跟著場景換：先留主角的，再重建 NPC
-    const RoleDef *hd = roledef_by_graphic(HERO_GRAPHIC);
+    const RoleDef *hd = hero_def.id ? &hero_def : roledef_by_graphic(HERO_GRAPHIC);
     roles_clear();
     preload_roles(scene, hd);
     if (hd) actor_setup(hero, hd);
@@ -731,6 +752,8 @@ int main(int argc, char **argv) {
     char *dot = strrchr(alias, '.');
     if (dot && !strcasecmp(dot, ".Scn")) *dot = 0;
     if (!roledefs_load()) { fprintf(stderr, "讀不到角色表 ObjMdl/RoleMdl.txt\n"); return 1; }
+    srand((unsigned)time(NULL));
+    hero_equip();
     Scene scene = {0};
     Actor *hero = &actors[0];
     hero->dir = 4;
