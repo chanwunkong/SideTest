@@ -142,7 +142,7 @@ uint32_t *res_image(uint32_t ref, int *w, int *h) {
     return px;
 }
 
-// ---- 動畫：u32 序列數；每序列 (幀數, ?, ?) + 每幀 7 個 u32 (?, ?, ref, ?, ?, dx, dy) ----
+// ---- 動畫：u32 序列數；每序列 (幀數, ?, ?) + 每幀 7 個 u32 (?, 停留拍數, ref, ?, ?, dx, dy) ----
 static Anim *anims;
 static int anim_count, anim_cap;
 
@@ -169,7 +169,7 @@ const Anim *anim_get(uint32_t gid) {
         a->seqs[s].count = f;
         a->seqs[s].frames = malloc(f * sizeof(Frame) + 1);
         for (uint32_t j = 0; j < f; j++, p += 28)
-            a->seqs[s].frames[j] = (Frame){u32(d + p + 8), (int32_t)u32(d + p + 20), (int32_t)u32(d + p + 24)};
+            a->seqs[s].frames[j] = (Frame){u32(d + p + 8), (int)u32(d + p + 4), (int32_t)u32(d + p + 20), (int32_t)u32(d + p + 24)};
     }
     free(d);
     return a->count ? a : NULL;

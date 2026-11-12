@@ -13,8 +13,13 @@
 #define HERO_ROLE 1201       // 主角（遊俠），ObjMdl/RoleMdl.txt 的圖形 ID
 #define ACT_IDLE 0           // 動作起點（序列 = 動作 + 方向），見 RoleMdl.txt「平時休息/平時走路」
 #define ACT_WALK 8
-#define FRAME_MS 70          // shortcut: 幀延遲先用固定值，動畫檔裡的延遲欄位還沒確認
-#define HERO_SPEED 8         // 每幀動畫在畫面上走幾像素（RoleMdl.txt 遊俠「平時速度」）
+#define HERO_SPEED 8         // RoleMdl.txt 遊俠「平時速度」
+#define TICK_MS 16           // 原版固定節拍：每 16ms 更新一次遊戲邏輯（Poq.exe 0x449f50）
+
+// 原版速度對照表（Poq.exe 0x5f21d0/0x5f23b0/0x5f22c0）：速度 s → 每 B 拍移動 A + C/10 像素
+static const uint8_t SPEED_A[60] = {0,1,0,1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,6,6,6,7,7,7,8,8,8,9,9,9,10,10,10,11,11,11,12,12,12,13,13,13,14,14,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,19};
+static const uint8_t SPEED_B[60] = {90,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+static const uint8_t SPEED_C[60] = {0,0,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,0,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7};
 
 // 畫面方向(0=上，順時針每 45°) → 動畫方向編號。動畫方向從「右」開始逆時針排（手機實測校正）
 static const int DIR_MAP[8] = {2, 1, 0, 7, 6, 5, 4, 3};
@@ -97,17 +102,35 @@ static void draw_frame(const Anim *a, int seq, int frame, int x, int y, int shad
     else draw(s, x - f->dx, y - f->dy);
 }
 
+// 依每幀停留拍數循環播放：第 t 拍該顯示哪一幀
+static int frame_at(const Seq *q, Uint32 t) {
+    Uint32 total = 0;
+    for (int i = 0; i < q->count; i++) total += q->frames[i].delay > 0 ? q->frames[i].delay : 1;
+    if (!total) return 0;
+    t %= total;
+    for (int i = 0; i < q->count; i++) {
+        Uint32 d = q->frames[i].delay > 0 ? q->frames[i].delay : 1;
+        if (t < d) return i;
+        t -= d;
+    }
+    return 0;
+}
+
 // ---- 主角 ----
 typedef struct {
-    float x, y;  // 格子座標（可有小數）
-    int dir, moving;
-    Uint32 anim_start;
+    float x, y;       // 格子座標（可有小數）
+    int dir, moving, speed;
+    Uint32 act_tick;  // 目前動作已經過幾拍（換動作時歸零）
 } Hero;
 
-static void hero_draw(const Role *r, const Hero *h, int sx, int sy, Uint32 now) {
+static void hero_draw(const Role *r, const Hero *h, int sx, int sy) {
     int seq = (h->moving ? ACT_WALK : ACT_IDLE) + DIR_MAP[h->dir];
     if (seq >= r->seq_count || !r->frames[seq]) return;
-    int frame = (now - h->anim_start) / FRAME_MS % r->frames[seq];
+    // 各部件的幀延遲相同，拿第一個有資料的部件當節奏
+    int frame = 0;
+    for (int i = 0; i < r->part_count; i++)
+        if (r->body[i] && seq < r->body[i]->count) { frame = frame_at(&r->body[i]->seqs[seq], h->act_tick); break; }
+    frame %= r->frames[seq];
     for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
     const uint8_t *order = r->order[seq] + frame * r->part_count;
     for (int i = 0; i < r->part_count; i++)
@@ -129,6 +152,18 @@ static void hero_step(Hero *h, const Scene *s, float sdx, float sdy, float px) {
     int oct = (int)lroundf(atan2f(sdx, -sdy) / (float)(M_PI / 4));
     h->dir = (oct + 8) % 8;
     h->moving = 1;
+}
+
+// 一拍的主角更新：原版每 B 拍移動 A + C/10 像素（速度對照表）
+static void hero_tick(Hero *h, const Scene *s, float mx, float my, Uint32 tick) {
+    int was_moving = h->moving;
+    h->moving = 0;
+    if (mx * mx + my * my > 0.01f) {
+        int sp = h->speed < 0 ? 0 : h->speed > 59 ? 59 : h->speed;
+        float px = tick % SPEED_B[sp] ? 0 : SPEED_A[sp] + SPEED_C[sp] / 10.0f;
+        hero_step(h, s, mx, my, px);
+    }
+    h->act_tick = h->moving == was_moving ? h->act_tick + 1 : 0;
 }
 
 int main(int argc, char **argv) {
@@ -160,8 +195,9 @@ int main(int argc, char **argv) {
     for (int i = 0; i < SDL_NumJoysticks() && !pad; i++)
         if (SDL_IsGameController(i)) pad = SDL_GameControllerOpen(i);
 
-    Hero hero = {scene.start_x + 0.5f, scene.start_y + 0.5f, 4, 0, 0};
-    Uint64 last = SDL_GetPerformanceCounter(), fps_t = last;
+    Hero hero = {scene.start_x + 0.5f, scene.start_y + 0.5f, 4, 0, HERO_SPEED, 0};
+    Uint64 fps_t = SDL_GetPerformanceCounter();
+    Uint32 logic_ms = SDL_GetTicks(), tick = 0;
     int frames = 0, running = 1, pointer_down = 0, px = 0, py = 0;
 
     while (running) {
@@ -181,10 +217,6 @@ int main(int argc, char **argv) {
             running = 0;
 
         Uint64 now = SDL_GetPerformanceCounter();
-        float dt = (float)(now - last) / SDL_GetPerformanceFrequency();
-        if (dt > 0.1f) dt = 0.1f;
-        last = now;
-        Uint32 ticks = SDL_GetTicks();
 
         // ---- 指令：所有輸入都變成「往畫面某方向走」----
         const Uint8 *k = SDL_GetKeyboardState(NULL);
@@ -196,11 +228,19 @@ int main(int argc, char **argv) {
             float ax = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX) / 32767.0f, ay = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY) / 32767.0f;
             if (ax * ax + ay * ay > 0.1f) { mx += ax; my += ay; }
         }
-        if (pointer_down) { mx = px - vw / 2; my = py - (vh / 2 - 40); }  // 主角腳底在畫面中央，指向身體中段附近
-        int was_moving = hero.moving;
-        hero.moving = 0;
-        if (mx * mx + my * my > (pointer_down ? 64 : 0.01f)) hero_step(&hero, &scene, mx, my, HERO_SPEED * 1000.0f / FRAME_MS * dt);
-        if (hero.moving != was_moving) hero.anim_start = ticks;
+        if (pointer_down) {  // 主角腳底在畫面中央，指向身體中段附近；太靠近就不動
+            mx = px - vw / 2;
+            my = py - (vh / 2 - 40);
+            if (mx * mx + my * my < 64) mx = my = 0;
+        }
+
+        // ---- 固定節拍：跟原版一樣每 16ms 一拍，畫面多快都不影響遊戲速度 ----
+        Uint32 now_ms = SDL_GetTicks();
+        if (now_ms - logic_ms > 250) logic_ms = now_ms - TICK_MS;  // 卡頓或切到背景後不要一次補太多拍
+        while (now_ms - logic_ms >= TICK_MS) {
+            logic_ms += TICK_MS;
+            hero_tick(&hero, &scene, mx, my, ++tick);
+        }
 
         // 主角腳底的世界像素；鏡頭跟著主角
         int hx = (int)((hero.x - hero.y + scene.h - 1) * TILE_W / 2), hy = (int)((hero.x + hero.y) * TILE_H / 2);
@@ -224,14 +264,15 @@ int main(int argc, char **argv) {
         for (int i = 0; i <= scene.object_count; i++) {
             const Object *o = i < scene.object_count ? &scene.objects[i] : NULL;
             if (!hero_drawn && (!o || o->x + o->y + 1 > hero_depth)) {
-                hero_draw(&role, &hero, hx - ox, hy - oy, ticks);
+                hero_draw(&role, &hero, hx - ox, hy - oy);
                 hero_drawn = 1;
             }
             if (!o || !o->m) continue;
             int sx = world_x(&scene, o->x, o->y) + TILE_W / 2 - ox, sy = world_y(&scene, o->x, o->y) + TILE_H / 2 - oy;
             for (int p = 0; p < o->m->part_count; p++) {
                 const Part *pt = &o->m->parts[p];
-                if (pt->anim) draw_frame(anim_get(pt->gid), 0, ticks / FRAME_MS, sx + pt->dx, sy + pt->dy, 0);  // Res00 動畫，播第一個序列
+                const Anim *a = pt->anim ? anim_get(pt->gid) : NULL;
+                if (pt->anim) { if (a) draw_frame(a, 0, frame_at(&a->seqs[0], tick), sx + pt->dx, sy + pt->dy, 0); }  // Res00 動畫，播第一個序列
                 else draw(image(pt->gid), sx + pt->dx, sy + pt->dy);
             }
         }

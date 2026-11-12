@@ -21,8 +21,8 @@ uint8_t *res_read(uint32_t gid, uint32_t *size);
 uint32_t *res_image(uint32_t ref, int *w, int *h);
 uint32_t *xbm_decode(const uint8_t *xbm, uint32_t size, int *w, int *h);
 
-// ---- 動畫(Res00)：序列 = 動作*8 + 方向，每幀 = 圖片 ref + 腳底位移 ----
-typedef struct { uint32_t ref; int dx, dy; } Frame;
+// ---- 動畫(Res00)：序列 = 動作*8 + 方向，每幀 = 圖片 ref + 停留拍數 + 腳底位移 ----
+typedef struct { uint32_t ref; int delay, dx, dy; } Frame;  // delay = 這幀停留幾拍（1 拍 16ms）
 typedef struct { int count; Frame *frames; } Seq;
 typedef struct { uint32_t gid; int count; Seq *seqs; } Anim;
 
