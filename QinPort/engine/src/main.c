@@ -150,6 +150,9 @@ static int frame_at(const Seq *q, Uint32 t) {
 
 // ---- 角色（主角與 NPC 共用）----
 enum { ACT_NONE, ACT_ATTACK, ACT_HIT, ACT_DEAD };  // 單次動作：播一次就回到平常；死亡停在最後一幀
+// 身上的一個狀態（原版 Status_N = "經過秒數 時間 技能"）：帶著施放時的技能等級
+typedef struct { const SkillRow *skill; int level, status, elapsed, time; } Buff;
+
 typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
     int dir, moving, speed;
@@ -165,6 +168,12 @@ typedef struct Actor {
     int act, act_seq, last_frame;  // 單次動作與它的序列起點、上一拍的幀（觸發用）
     const Method *atk;             // 普通攻擊的招式
     const SkillRow *skill;         // 攻擊用的技能（主角右手）；怪物為 NULL
+    const SkillRow *cast;          // 正在放的左手技能（casting 時有效）
+    const Method *atk_rh;          // 放左手技能時先存起來的右手招式
+    int casting;
+    int hp_speed, mp_speed, hp_tmp, mp_tmp;  // 每秒回復（百分之一點）與累積的零頭（EasyRPG 0x10054450）
+    Buff buff[8];
+    int buff_n;
     struct Actor *foe;             // 攻擊目標
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
 } Actor;
@@ -450,22 +459,92 @@ static int hero_extra_exp, hero_extra_skill;  // 剩餘屬性點、技能點：�
 static const int hero_money = 100;  // 同一模板的 Money。shortcut: 還沒有撿錢、買賣，錢不會變
 static const int hero_gender = 0, hero_age = 29, hero_prof = 1;  // 同一模板的 Gender、Age；職業序號（0x94c2fb，2131 + 序號 = 游侠）
 
-// 屬性換算出的攻防、命中閃避（加點後也要重算，不回血）
+// 技能參數的值：(技能等級 − 1) × 增量 + 初始值（EasyRPG 0x10036160、0x10024xxx 都是這個式子）
+static float skill_value(float init, float incr, int level) { return (level - 1) * incr + init; }
+
+// 狀態帶的技能參數套到身上（0x100300f0 → 0x10036160）。屬性代號 20~99 對名稱表 "Invincible" 起每格 0x40（.data 0x1039b5f0）；
+// 原版鍵名 HR = 閃避、SR = 命中，這裡 hr = 命中、sr = 閃避。百分比 = 加上目前值 × v / 100
+// shortcut: 只對得上 Actor 有的欄位（HP/MP 上限、攻防、命中閃避、回復）；力量等屬性、移動攻擊速度、對敵的參數還沒做
+static void hero_mods(Actor *h, int pct) {
+    for (int b = 0; b < h->buff_n; b++)
+        for (int i = 0; i < h->buff[b].skill->mod_n; i++) {
+            const SkillMod *m = &h->buff[b].skill->mod[i];
+            if (m->enemy || m->pct != pct) continue;
+            int *f = m->id == 23 ? &h->hp_max : m->id == 24 ? &h->mp_max : m->id == 41 ? &h->ap : m->id == 42 ? &h->ap_max : m->id == 53 ? &h->dp :
+                     m->id == 60 ? &h->sr : m->id == 61 ? &h->hr : m->id == 62 ? &h->hp_speed : m->id == 63 ? &h->mp_speed : NULL;
+            float v = skill_value(m->init, m->incr, h->buff[b].level);
+            if (f) *f += (int)(pct ? *f * v / 100 : v);
+        }
+}
+
+// 重算數值（0x1002d8d0）：基礎值 → 固定加值 → 回復速度（0x1002fa90）→ 職業倍率（0x1002d510）→ 百分比。加點、升級、狀態變化後呼叫，不回血
 static void hero_derive(Actor *h) {
-    const int K = 150, str = hero_attr[STR], con = hero_attr[CON], dex = hero_attr[DEX];
-    h->ap = hero_weapon.ap * (str + K) / K;
-    h->ap_max = hero_weapon.ap_max * (str + K) / K;
-    h->dp = hero_armor_dp * (con + K) / K;
+    const int K = 150, str = hero_attr[STR], con = hero_attr[CON], dex = hero_attr[DEX], wis = hero_attr[WISDOM], lv = h->level;
+    h->hp_max = 120 + 28 * lv;
+    h->mp_max = 140 + 4 * lv;
+    h->ap = hero_weapon.ap;
+    h->ap_max = hero_weapon.ap_max;
+    h->dp = hero_armor_dp;
+    h->hr = h->sr = h->hp_speed = h->mp_speed = 0;
+    hero_mods(h, 0);
+    // 回復速度依職業：HP_SPEED = (Con − a) × HP_MAX × b / 100 / 分母，MP 同理用 Wisdom；分母 0 當 1
+    static const int R[6][8] = {{0}, {25, 50, 25, 4, 20, 50, 10, 2}, {30, 60, 15, 2, 10, 40, 5, 2}, {20, 50, 10, 2, 20, 50, 10, 2},
+                                {25, 40, 25, 4, 35, 60, 35, 4}, {20, 40, 10, 2, 40, 60, 20, 2}};
+    const int *r = R[hero_prof];  // 分母：R[3]=2 → Con + (Lv − c)×2；R[3]=4 → Lv×2 − c + Con（原版兩種寫法）
+    int hd = r[3] == 2 ? con + (lv - r[2]) * 2 : lv * 2 - r[2] + con, md = r[7] == 2 ? wis + (lv - r[6]) * 2 : lv * 2 - r[6] + wis;
+    h->hp_speed = (con - r[0]) * h->hp_max * r[1] / 100 / (hd ? hd : 1);
+    h->mp_speed = (wis - r[4]) * h->mp_max * r[5] / 100 / (md ? md : 1);
+    h->ap = h->ap * (str + K) / K;
+    h->ap_max = h->ap_max * (str + K) / K;
+    h->dp = h->dp * (con + K) / K;
     // 原版鍵名 SR = 命中率、HR = 闪避率（UI_C.dlg 2116/2115 對 Poq.exe 0x54f820 的顯示順序）；這裡 hr = 命中、sr = 閃避（跟怪物表一樣）
-    h->hr = 4 * dex * (dex + K) / K;
-    h->sr = 3 * dex * (dex + K) / K;
+    h->hr = (h->hr + 4 * dex) * (dex + K) / K;
+    h->sr = (h->sr + 3 * dex) * (dex + K) / K;
+    hero_mods(h, 1);
+    if (h->hp > h->hp_max) h->hp = h->hp_max;
+    if (h->mp > h->mp_max) h->mp = h->mp_max;
 }
 
 static void hero_stats(Actor *h, int level) {
     h->level = level;
-    h->hp = h->hp_max = 120 + 28 * level;
-    h->mp = h->mp_max = 140 + 4 * level;
     hero_derive(h);
+    h->hp = h->hp_max;
+    h->mp = h->mp_max;
+}
+
+// 系統心跳（Poq.exe 註冊的 refresh 指令「每秒一次」→ USER_Refresh）：狀態計時（0x10055e90），再回 HP、MP（0x10054450）
+static void hero_second(Actor *h) {
+    int changed = 0;
+    for (int b = 0; b < h->buff_n; b++)
+        if (++h->buff[b].elapsed >= h->buff[b].time && h->buff[b].time >= 0) { h->buff[b--] = h->buff[--h->buff_n]; changed = 1; }
+    if (changed) hero_derive(h);
+    if (h->act == ACT_DEAD) return;
+    int hs = h->hp_speed, ms = h->mp_speed;
+    if (!h->fight) {  // 不在戰鬥（FightStatus 0）回得快三倍
+        if (hs > 0) hs *= 3;
+        if (ms > 0) ms *= 3;
+    }
+    h->hp += (hs + h->hp_tmp) / 100;
+    h->hp_tmp = (hs + h->hp_tmp) % 100;
+    h->mp += (ms + h->mp_tmp) / 100;
+    h->mp_tmp = (ms + h->mp_tmp) % 100;
+    h->hp = h->hp < 0 ? 0 : h->hp > h->hp_max ? h->hp_max : h->hp;  // shortcut: 原版回復是負的（中毒）扣到 0 會死，還沒有負的回復
+    h->mp = h->mp < 0 ? 0 : h->mp > h->mp_max ? h->mp_max : h->mp;
+}
+
+// 技能的精气消耗（MPU）、作用時間（Time，沒填預設 5 秒）
+static int skill_mpu(const SkillRow *r) { return (int)skill_value(r->mpu, r->mpu_inc, r->level); }
+static int skill_time(const SkillRow *r) { return r->time < 0 ? 5 : (int)skill_value(r->time, r->time_inc, r->level); }
+
+// 技能打中時（0x1003f590）：有我方状态、身上還沒有，就加上狀態，技能參數跟著生效（0x10037f40、0x1002fe20）
+// shortcut: 同類狀態互斥（0x10054d50、0x100588c0）、敌方状态、對敵參數還沒做
+static void skill_status(Actor *h, const SkillRow *r) {
+    if (r->status < 1 || h->buff_n == 8) return;
+    for (int b = 0; b < h->buff_n; b++)
+        if (h->buff[b].status == r->status) return;
+    h->buff[h->buff_n++] = (Buff){r, r->level, r->status, 0, skill_time(r)};
+    hero_derive(h);
+    printf("狀態 %d 生效 %d 秒，回復 HP %d MP %d（每秒百分之一點）\n", r->status, skill_time(r), h->hp_speed, h->mp_speed);
 }
 
 // 一次命中（EasyRPG.dll 0x10033140 物理傷害）：攻擊 = AP~AP_MAX 隨機，損血 = 攻擊² / (攻擊 + DP/2)，至少 3
@@ -497,9 +576,10 @@ static void strike(Actor *a, Actor *t, Uint32 tick) {
     // 250、251 加到 AP、AP_MAX；ID > 500 拆成 ID−300、ID−299 兩個。攻擊 = (AP + 加值) × (100 + 百分比) / 100
     // shortcut: 只做 250、251（物理攻擊）；252 起的法術攻擊 MAP1~5、269 等還沒做，怪物的技能也還沒算
     float add[2] = {0}, pct[2] = {0};
-    for (int i = 0; a->skill && i < a->skill->mod_n; i++) {
-        const SkillMod *m = &a->skill->mod[i];
-        float v = (a->skill->level - 1) * m->incr + m->init;
+    const SkillRow *sk = a->casting ? NULL : a->skill;  // shortcut: 左手技能的 250 起參數還沒算
+    for (int i = 0; sk && i < sk->mod_n; i++) {
+        const SkillMod *m = &sk->mod[i];
+        float v = skill_value(m->init, m->incr, sk->level);
         for (int id = m->id > 500 ? m->id - 300 : m->id; id <= (m->id > 500 ? m->id - 299 : m->id); id++)
             if (id == 250 || id == 251) (m->pct ? pct : add)[id - 250] = v;
     }
@@ -546,13 +626,23 @@ static void action_tick(Actor *a, Uint32 tick) {
                 const Trig *t = &a->atk->trig[i];
                 if (t->flag || t->frame != fr) continue;
                 if (t->type == 1) audio_sfx(t->id);
-                else if (t->type == 0) strike(a, a->foe, tick);
+                else if (t->type == 0) {
+                    // shortcut: 原版打中處理（0x1003f590）怎麼分「只對自己」的技能還沒查清；先當沒填作用範圍的左手技能不打人
+                    if (a->casting) skill_status(a, a->cast);  // 同一狀態已在身上就不會再加
+                    if (!a->casting || a->cast->range >= 0) strike(a, a->foe, tick);
+                }
                 else if (t->type == 2) fx_spawn(t, a, a->foe, tick);
             }
     a->last_frame = f;
     a->act_tick++;
     if (a->act != ACT_DEAD && (!q || a->act_tick >= seq_ticks(q))) {
         if (a->act == ACT_ATTACK) a->cool = a->def->atk_delay;
+        if (a->casting) {  // 左手技能放完：招式沒有打中的觸發就在這裡生效，換回右手招式
+            skill_status(a, a->cast);
+            a->cast = NULL;
+            a->atk = a->atk_rh;
+            a->casting = 0;
+        }
         a->act = ACT_NONE;
         a->act_tick = 0;
     }
@@ -570,7 +660,11 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
         face(a, sdx, sdy);
         a->moving = 0;
         a->act_tick++;
-        if (a->cool <= 0) start_act(a, ACT_ATTACK, a->atk ? a->atk->seq : a->fidle);
+        // 主角技能要夠精气才能用（0x1004c2a0），出手時扣（Poq.exe 0x48ffe0 送 0x13a → EasyRPG 0x1003f370）
+        if (a->cool <= 0 && (!a->skill || a->mp >= skill_mpu(a->skill))) {
+            if (a->skill) a->mp -= skill_mpu(a->skill);
+            start_act(a, ACT_ATTACK, a->atk ? a->atk->seq : a->fidle);
+        }
         return 1;
     }
     actor_tick(a, s, sdx, sdy, tick);
@@ -895,6 +989,22 @@ static void hero_skill_apply(Actor *h) {
     int k = cur_skill[0];
     h->skill = k >= 0 && k < hero_skill_n ? &hero_skill[k] : NULL;
     h->atk = h->skill ? method_find(skill_attack(h->skill->key)) : NULL;
+}
+
+// 放左手技能（原版右鍵 → Poq.exe 0x48ffe0 手 = 1）：技能等級 > 0、精气夠，招式開始才扣精气
+// shortcut: 武器限制（W_Type）、作用範圍（RangeMin/Max）還沒檢查，原地對目前目標放
+static void hero_cast(Actor *h) {
+    int k = cur_skill[1];
+    if (k < 0 || k >= hero_skill_n || h->act || h->casting) return;
+    const SkillRow *r = &hero_skill[k];
+    const Method *m = method_find(skill_attack(r->key));
+    if (r->level < 1 || h->mp < skill_mpu(r) || !m) return;
+    h->mp -= skill_mpu(r);
+    h->cast = r;
+    h->casting = 1;
+    h->atk_rh = h->atk;
+    h->atk = m;
+    start_act(h, ACT_ATTACK, m->seq);
 }
 
 // 快捷技能視窗（Poq.exe 0x504d90 開 JM514 = 右手、0x504b40 開 JM515 = 左手；0x564360 填格子）：
@@ -1475,6 +1585,8 @@ int main(int argc, char **argv) {
                 if (dialog_open) { dialog_tap(py); continue; }  // 對話中不走路
 #endif
                 if (hud_tap(px, py)) continue;
+                // 手機沒有右鍵：點主角自己 = 右鍵放左手技能（左手技能多是對自己的增益）
+                if (abs(px - vw / 2) <= 36 && py - (vh / 2 - 30) >= -70 && py - (vh / 2 - 30) <= 40) { hero_cast(hero); continue; }
                 Actor *m = monster_at(px, py, ox, oy, &scene);  // 點怪物 = 攻擊它；點 NPC = 說話；點其他地方 = 按住走路
                 if (m) hero->foe = m;
 #ifdef STORY
@@ -1492,6 +1604,11 @@ int main(int argc, char **argv) {
                 float best = hero->def ? hero->def->seek : 10;
                 for (int i = 1; i < actor_count; i++)
                     if (actors[i].mon && alive(&actors[i]) && cell_dist(hero, &actors[i]) <= best) { best = cell_dist(hero, &actors[i]); hero->foe = &actors[i]; }
+            }
+            else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_RIGHT) {  // 右鍵：對點到的怪物放左手技能
+                Actor *m = monster_at(e.button.x, e.button.y, ox, oy, &scene);
+                if (m) hero->foe = m;
+                hero_cast(hero);
             }
             else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) pointer_down = 0;
             else if (e.type == SDL_MOUSEMOTION) { px = e.motion.x; py = e.motion.y; }
@@ -1524,6 +1641,7 @@ int main(int argc, char **argv) {
         while (now_ms - logic_ms >= TICK_MS) {
             logic_ms += TICK_MS;
             ++tick;
+            if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000) hero_second(hero);
             for (int i = 0; i < actor_count; i++) {
                 if (actors[i].cool > 0) actors[i].cool--;
                 if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;

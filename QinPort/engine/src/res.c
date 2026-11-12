@@ -1255,9 +1255,12 @@ int skill_rows(int prof, SkillRow *out, int max) {
             p = t + 1;
         }
         if (c < 26 || !col[0][0]) continue;
-        out[k] = (SkillRow){"", atoi(col[2]), atoi(col[3]), atoi(col[4]), atoi(col[5]), atoi(col[7]), atoi(col[10]), atoi(col[25]), 0, {{0}}};
-        // 原版：屬性ID 空白或 < 0 跳過；初始值、增量空白當 -1，是否對敵、是否百分比空白或 < 0 當 0
         for (int i = c; i < 86; i++) col[i] = "";
+        out[k] = (SkillRow){"", atoi(col[2]), atoi(col[3]), atoi(col[4]), atoi(col[5]), atoi(col[7]), atoi(col[10]), atoi(col[25]),
+                            atoi(col[21]) > 0 ? atoi(col[21]) : -1, atoi(col[22]) > 0 ? atoi(col[22]) : -1, col[19][0] ? atoi(col[19]) : -1, 0,
+                            atof(col[15]) > 0 ? atof(col[15]) : 0, atof(col[16]) > 0 ? atof(col[16]) : 0, col[23][0] ? atof(col[23]) : -1, atof(col[24]) > 0 ? atof(col[24]) : 0, {{0}}};
+        // 精气消耗（第 15、16 欄 → MPU）、作用時間（23、24 → Time）、我方／敌方状态（21、22）照 0x100757a0：負的或空白當 0，狀態 < 1 不設
+        // 參數組：屬性ID 空白或 < 0 跳過；初始值、增量空白當 -1，是否对敌、是否百分比空白或 < 0 當 0
         for (int g = 26; g < 86; g += 5) {
             if (!col[g][0] || atoi(col[g]) < 0) continue;
             SkillMod *m = &out[k].mod[out[k].mod_n++];
