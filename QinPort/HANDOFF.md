@@ -199,6 +199,9 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 對話：`FUN_100542e0(文字)` 顯示一句；`FUN_1005f780(鍵如 "ask3", 處理, 0,0,0, 選項文字)` 加一個回答選項；處理是 `mov eax,[ecx]; jmp [eax+N]` 的小跳板 = 呼叫同一個 NPC 的第 N/4 格；`FUN_1005df70` 回傳任務狀態（例如 `"shuxiu"`，−1 = 沒接）。
 - 約 5000 個函式（10 萬行）是劇情，常用的引擎函式約 40 個。
 - **注意**：Ghidra 把部分引擎函式的呼叫方式猜錯（ecx 傳 this 的 `__thiscall` 被當成一般函式），所以參數會錯位，例如 `FUN_100558b0("shuxiu")` 其實只是取主角、字串是下一個呼叫的參數。自動轉換前要先在 Ghidra 把這些函式設成正確的呼叫方式再重新反編譯。
+- `tools/ghidra/ParamId.java`（匯入前開 Decompiler Parameter ID）已修好上面的呼叫方式問題：現在 `get_flag(player(), "shuxiu")` 這類參數是對的。
+- **`tools/storytool.py` 已能產生劇情檔**：`python3 tools/storytool.py game decomp story` → `story/<room|npc|item|skill|plot>/<路徑>.c`，共 2539 個物件（房間 491、NPC 1208、道具 553、技能 206、劇情事件 81），加 `story/index.txt`。`story/` 是原版程式翻出來的，跟 `decomp/` 一樣只留本機、不進 git。檔案裡 `<別名>_s<N>` = 該物件虛擬函式表第 N 格；選項處理已換成對應格的方法名；引擎函式依 `API` 表換名，沒命名的還是 `FUN_位址`。
+- 下一步：讓這些劇情檔能在引擎裡編譯執行。要先照原版補上它用到的物件模型（`CERObject` 的具名整數和字串屬性、`CERPerson` 的旗標、房間裝物件、對話選項）和 API 函式，從 `decomp/EasyRPG.dll.c` 照翻。先以咸陽开場和绣女的對話為第一個能玩的目標。
 - 打算的格式：劇情保留成 C（每個 NPC、房間一個檔，引擎函式換成好讀的名字，例如 `say`、`option`、`quest_state`），編進引擎；AI 改劇情就是改這些檔，Mac 重新建置。
 
 ### 世界與場景切換（`EasyRPG.dll`，原版劇情引擎）
