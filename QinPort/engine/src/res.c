@@ -1255,7 +1255,7 @@ int skill_rows(int prof, SkillRow *out, int max) {
             p = t + 1;
         }
         if (c < 26 || !col[0][0]) continue;
-        out[k++] = (SkillRow){atoi(col[2]), atoi(col[5]), atoi(col[7]), atoi(col[10]), atoi(col[25])};
+        out[k++] = (SkillRow){atoi(col[2]), atoi(col[3]), atoi(col[4]), atoi(col[5]), atoi(col[7]), atoi(col[10]), atoi(col[25])};
     }
     free(d);
     return k;
