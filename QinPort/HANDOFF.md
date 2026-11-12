@@ -201,7 +201,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - **注意**：Ghidra 把部分引擎函式的呼叫方式猜錯（ecx 傳 this 的 `__thiscall` 被當成一般函式），所以參數會錯位，例如 `FUN_100558b0("shuxiu")` 其實只是取主角、字串是下一個呼叫的參數。自動轉換前要先在 Ghidra 把這些函式設成正確的呼叫方式再重新反編譯。
 - `tools/ghidra/ParamId.java`（匯入前開 Decompiler Parameter ID）已修好上面的呼叫方式問題：現在 `get_flag(player(), "shuxiu")` 這類參數是對的。
 - **`tools/storytool.py` 已能產生劇情檔**：`python3 tools/storytool.py game decomp story` → `story/<room|npc|item|skill|plot>/<路徑>.c`，共 2539 個物件（房間 491、NPC 1208、道具 553、技能 206、劇情事件 81），加 `story/index.txt`。`story/` 是原版程式翻出來的，跟 `decomp/` 一樣只留本機、不進 git。檔案裡 `<別名>_s<N>` = 該物件虛擬函式表第 N 格；選項處理已換成對應格的方法名；引擎函式依 `API` 表換名，沒命名的還是 `FUN_位址`。
-- 下一步：讓這些劇情檔能在引擎裡編譯執行。要先照原版補上它用到的物件模型（`CERObject` 的具名整數和字串屬性、`CERPerson` 的旗標、房間裝物件、對話選項）和 API 函式，從 `decomp/EasyRPG.dll.c` 照翻。先以咸陽开場和绣女的對話為第一個能玩的目標。
+- **劇情已能執行（2026-11-12）**：`engine/src/story/`：`qinstory.h`（劇情檔共用：Ghidra 型別、引擎函式巨集）、`story_rt.c`（照原版的物件模型：具名整數屬性、旗標、裝的東西、對話選項；引擎函式依原版位址在 `engine_call` 分派，還沒翻的第一次呼叫會印出位址）、`story.h`（給引擎：`story_new`、`story_talk`、`story_choose`、`story_dialog`）。
+  - 引擎函式一律經 `engine_call(位址, 參數[8])`，劇情方法被當選項處理傳遞時用 `<名>_w(intptr_t *a)` 包裝：WebAssembly 不容許參數不符的呼叫。
+  - **劇情只在 32 位元下才對**（原版把 −1 寫成 `0xffffffff` 等），所以只編進網頁版；測試也用 WebAssembly：`cd engine && make storytest && node build/storytest.js 秦殇/咸阳/NPC/绣女 0 1`（參數是依序選的選項）。`STORY_TRACE=1` 會印出每個引擎呼叫。
+  - 绣女沒接任務時的對話已照原版跑出來。主角的類別（`秦殇/主角`）還沒找。
+- 下一步：找主角類別和開場；把 `story_rt.c` 印出的「還沒翻的原版函式」照 `decomp/` 逐一補上；接進 `main.c`（點 NPC → `story_talk`，畫對話框和選項）。
+- （舊）讓這些劇情檔能在引擎裡編譯執行。要先照原版補上它用到的物件模型（`CERObject` 的具名整數和字串屬性、`CERPerson` 的旗標、房間裝物件、對話選項）和 API 函式，從 `decomp/EasyRPG.dll.c` 照翻。先以咸陽开場和绣女的對話為第一個能玩的目標。
 - 打算的格式：劇情保留成 C（每個 NPC、房間一個檔，引擎函式換成好讀的名字，例如 `say`、`option`、`quest_state`），編進引擎；AI 改劇情就是改這些檔，Mac 重新建置。
 
 ### 世界與場景切換（`EasyRPG.dll`，原版劇情引擎）
