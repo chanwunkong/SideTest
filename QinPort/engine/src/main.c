@@ -442,21 +442,29 @@ static void start_act(Actor *a, int act, int seq) {
 static Item hero_weapon, hero_armor;
 static int hero_armor_dp;  // 護甲防禦在「防御力小～大」之間，道具產生時決定
 
-static const int hero_str = 30, hero_con = 25, hero_dex = 25, hero_savvy = 30, hero_charm = 40, hero_wisdom = 20;  // 遊俠扶苏模板
+// 六項屬性，順序 = 人物屬性加點面板 m_pAttrib[0..5] = 力量、体质、敏捷、悟性、魅力、智慧（Poq.exe 0x554d66 起）。開局值照遊俠扶苏模板
+enum { STR, CON, DEX, SAVVY, CHARM, WISDOM };
+static int hero_attr[6] = {30, 25, 25, 30, 40, 20};
+static int hero_extra_exp, hero_extra_skill;  // 剩餘屬性點、技能點：每升一級 +10、+1（EasyRPG.dll 0x10026d30）
 static const int hero_money = 100;  // 同一模板的 Money。shortcut: 還沒有撿錢、買賣，錢不會變
 static const int hero_gender = 0, hero_age = 29, hero_prof = 1;  // 同一模板的 Gender、Age；職業序號（0x94c2fb，2131 + 序號 = 游侠）
 
-static void hero_stats(Actor *h, int level) {
-    const int K = 150, str = hero_str, con = hero_con, dex = hero_dex;
-    h->level = level;
-    h->hp = h->hp_max = 120 + 28 * level;
-    h->mp = h->mp_max = 140 + 4 * level;
+// 屬性換算出的攻防、命中閃避（加點後也要重算，不回血）
+static void hero_derive(Actor *h) {
+    const int K = 150, str = hero_attr[STR], con = hero_attr[CON], dex = hero_attr[DEX];
     h->ap = hero_weapon.ap * (str + K) / K;
     h->ap_max = hero_weapon.ap_max * (str + K) / K;
     h->dp = hero_armor_dp * (con + K) / K;
     // 原版鍵名 SR = 命中率、HR = 闪避率（UI_C.dlg 2116/2115 對 Poq.exe 0x54f820 的顯示順序）；這裡 hr = 命中、sr = 閃避（跟怪物表一樣）
     h->hr = 4 * dex * (dex + K) / K;
     h->sr = 3 * dex * (dex + K) / K;
+}
+
+static void hero_stats(Actor *h, int level) {
+    h->level = level;
+    h->hp = h->hp_max = 120 + 28 * level;
+    h->mp = h->mp_max = 140 + 4 * level;
+    hero_derive(h);
 }
 
 // 一次命中（EasyRPG.dll 0x10033140 物理傷害）：攻擊 = AP~AP_MAX 隨機，損血 = 攻擊² / (攻擊 + DP/2)，至少 3
@@ -503,6 +511,8 @@ static void strike(Actor *a, Actor *t, Uint32 tick) {
             a->exp += t->exp;
             while (a->level < exp_levels && a->exp >= exp_table[a->level]) {
                 hero_stats(a, a->level + 1);
+                hero_extra_exp += 10;
+                hero_extra_skill += 1;
                 printf("升到 %d 級\n", a->level);
             }
         }
@@ -779,7 +789,7 @@ static void ui_bar(const UiCtrl *c, int ox, int oy, int value, int max) {
 static void ui_draw(UiDialog *d, int ox, int oy) {
     for (int i = 0; i < d->count; i++) {
         const UiCtrl *c = &d->c[i];
-        if (c->type == 6 || !c->img || !(c->flags & 9)) continue;  // shortcut: 旗標 0x1、0x8 都沒有當成「一開始隱藏」（升級提示、選取框、成套裝備欄都是），還沒對原版
+        if (c->type == 6 || c->type == 10 || !c->img || !(c->flags & 9)) continue;  // 種類 10（文字欄）的圖不是底圖（4326 是勾勾）。shortcut: 旗標 0x1、0x8 都沒有當成「一開始隱藏」（升級提示、選取框、成套裝備欄都是），還沒對原版
         draw(ui_image(c->img, 0), ox + c->x, oy + c->y);
     }
 }
@@ -793,15 +803,35 @@ static UiDialog bar, party, enemy;
 typedef struct { UiDialog d; int open; } Win;
 static Win win_left, win_right;
 
+#define JM52 "JM52_\xc8\xcb\xce\xef\xca\xf4\xd0\xd4\xbd\xe7\xc3\xe6"  // JM52_人物属性界面（GBK）
+
+// 人物屬性兩種模式（Poq.exe 0x554370）：0 = 加點（m_pPanel、m_pAttrib、m_pOK、m_pBonus、m_pBonusTitle），1 = 顯示 m_pInfo。
+// 要 0 但沒有剩餘屬性點時改成 1
+static int role_mode = 1;
+static void role_set_mode(int mode) {
+    if (hero_extra_exp <= 0) mode = 1;
+    role_mode = mode;
+    for (int i = 0; i < win_left.d.count; i++) {
+        UiCtrl *c = &win_left.d.c[i];
+        int up = !strcmp(c->name, "m_pPanel") || !strncmp(c->name, "m_pAttrib", 9) || !strncmp(c->name, "m_pOK", 5) || !strncmp(c->name, "m_pBonus", 8);
+        if (up || !strcmp(c->name, "m_pInfo")) c->flags = (c->flags & ~9) | ((up == (mode == 0)) ? 9 : 0);
+    }
+}
+
+// 加點按鈕 m_pOK[i]（Poq.exe 0x553b00）：剩餘點數 −1、送 0x200 訊息讓第 i 項屬性 +1，再照目前模式重整（點數用完就回顯示模式）。
+// shortcut: 原版按住會越加越快（間隔 400 → 50 毫秒），這裡一下一點
+static void role_add_point(int i) {
+    if (hero_extra_exp <= 0 || i < 0 || i > 5) return;
+    hero_extra_exp--;
+    hero_attr[i]++;
+    hero_derive(&actors[0]);
+    role_set_mode(role_mode);
+}
+
 static void win_toggle(Win *w, const char *section) {
     if (w->open && !strcmp(w->d.name, section)) { w->open = 0; return; }
     w->open = ui_load(section, &w->d) > 0;
-    // 人物屬性：沒有剩餘點數（Extra_Exp）時原版藏起加點面板、顯示 m_pInfo（Poq.exe 0x554370）。shortcut: 加點還沒做，一律是顯示模式
-    for (int i = 0; i < w->d.count; i++) {
-        const char *n = w->d.c[i].name;
-        if (!strcmp(n, "m_pPanel") || !strncmp(n, "m_pAttrib", 9) || !strncmp(n, "m_pOK", 5) || !strncmp(n, "m_pBonus", 8))
-            w->d.c[i].flags &= ~9;
-    }
+    if (w->open && !strcmp(section, JM52)) role_set_mode(1);  // 開人物屬性是顯示模式（Poq.exe 0x554080）
 }
 
 static int win_x(const Win *w) { return w == &win_left ? vw / 2 - w->d.w : vw / 2; }
@@ -818,7 +848,6 @@ static const UiCtrl *ui_button_at(const UiDialog *d, int ox, int oy, int x, int 
     return NULL;
 }
 
-#define JM52 "JM52_\xc8\xcb\xce\xef\xca\xf4\xd0\xd4\xbd\xe7\xc3\xe6"  // JM52_人物属性界面（GBK）
 #define JM53 "JM53_\xbc\xbc\xc4\xdc\xbd\xe7\xc3\xe6"                      // JM53_技能界面
 #define JM54 "JM54_\xb5\xc0\xbe\xdf\xbd\xe7\xc3\xe6"                      // JM54_道具界面
 #define JM55 "JM55_\xd7\xb0\xb1\xb8\xbd\xe7\xc3\xe6"                      // JM55_装备界面
@@ -863,8 +892,13 @@ static int hud_tap(int x, int y) {
             if (in_rect(&sc.down, x, y)) { info_top++; return 1; }
         }
         const UiCtrl *c = ui_button_at(&w->d, ox, oy, x, y);
+        int role = !strcmp(w->d.name, JM52);
         if (c && !strcmp(c->name, "m_pCClose")) w->open = 0;
-        else if (c) ui_command(c->name);
+        else if (c && role && !strncmp(c->name, "m_pOK[", 6)) role_add_point(atoi(c->name + 6));
+        else if (c && role && !strcmp(c->name, "m_pUpgrade")) {  // 升级（Poq.exe 0x5538a0）：切到加點模式，右邊開技能
+            role_set_mode(0);
+            if (!win_right.open || strcmp(win_right.d.name, JM53)) win_toggle(&win_right, JM53);
+        } else if (c) ui_command(c->name);
         return 1;
     }
     const UiCtrl *c = bar.count ? ui_button_at(&bar, (vw - bar.w) / 2, vh - bar.h, x, y) : NULL;
@@ -896,8 +930,8 @@ static void hero_info(const Actor *h, char *out, size_t cap) {
     int next = h->level < exp_levels ? exp_table[h->level] - h->exp : 0;
     // 數值：經驗、下一級、聲望、生命、精氣、力量、體質、敏捷、悟性、魅力、智慧、命中、閃避、攻擊、五行攻擊 ×5、防禦、五行防禦 ×5
     // shortcut: 聲望、五行攻防還沒有，先 0
-    int v[25][2] = {{h->exp}, {next}, {0}, {h->hp, h->hp_max}, {h->mp, h->mp_max}, {hero_str}, {hero_con}, {hero_dex},
-                    {hero_savvy}, {hero_charm}, {hero_wisdom}, {h->hr}, {h->sr}, {h->ap, h->ap_max},
+    int v[25][2] = {{h->exp}, {next}, {0}, {h->hp, h->hp_max}, {h->mp, h->mp_max}, {hero_attr[STR]}, {hero_attr[CON]}, {hero_attr[DEX]},
+                    {hero_attr[SAVVY]}, {hero_attr[CHARM]}, {hero_attr[WISDOM]}, {h->hr}, {h->sr}, {h->ap, h->ap_max},
                     {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {h->dp}};
     static const unsigned pair = 1 << 3 | 1 << 4 | 1 << 13 | 1 << 14 | 1 << 15 | 1 << 16 | 1 << 17 | 1 << 18;  // 「%d/%d」的行
     size_t k = 0;
@@ -996,7 +1030,7 @@ static void hud_draw(const Actor *hero) {
         int wx = win_x(&win_left), wy = win_y(&win_left);
         ui_draw(&win_left.d, wx, wy);
         UiCtrl *info = ui_find(&win_left.d, "m_pInfo");
-        if (info) {
+        if (info && info->flags & 9) {
             char t[2048];
             hero_info(hero, t, sizeof t);
             SDL_Rect clip = {wx + info->x, wy + info->y, info->w, info->h};
@@ -1025,6 +1059,24 @@ static void hud_draw(const Actor *hero) {
             UiCtrl *c = ui_find(&win_left.d, slot);
             const Sprite *bg = c ? ui_image(c->img, 0) : NULL, *s = eq[i].it->icon ? ui_image(eq[i].it->icon, 0) : NULL;
             if (c && s) draw(s, wx + c->x + ((bg ? bg->w : s->w) - s->w) / 2, wy + c->y + ((bg ? bg->h : s->h) - s->h) / 2);
+        }
+        if (!strcmp(win_left.d.name, JM52) && role_mode == 0) {  // 加點面板：m_pAttrib[i] =「%s[2%d]」標籤 + 數值（Poq.exe 0x554d66 起）
+            static const int label[6] = {2110, 2111, 2112, 2117, 2118, 2119};
+            char key[16], l[64], t[96];
+            for (int i = 0; i < 6; i++) {
+                snprintf(key, sizeof key, "m_pAttrib[%d]", i);
+                UiCtrl *a = ui_find(&win_left.d, key);
+                if (!a) continue;
+                ui_text(label[i], l, sizeof l);
+                snprintf(t, sizeof t, "%s%d", l, hero_attr[i]);  // shortcut: [2 …] 顏色標記先用控制項字色
+                draw_text(wx + a->x, wy + a->y + (a->h - 16) / 2, t, a->w, 0xBECDCE, 1);
+            }
+            UiCtrl *bt = ui_find(&win_left.d, "m_pBonusTitle"), *bn = ui_find(&win_left.d, "m_pBonus");
+            if (bt) { ui_text(2201, l, sizeof l); draw_text(wx + bt->x, wy + bt->y + 2, l, bt->w, 0xBECDCE, 1); }  // 属性升级点数：
+            if (bn) {
+                snprintf(t, sizeof t, "%d", hero_extra_exp);
+                draw_text(wx + bn->x + (bn->w - text_width(t)) / 2, wy + bn->y + (bn->h - 16) / 2, t, bn->w, 0xBECDCE, 1);
+            }
         }
         UiCtrl *desc = ui_find(&win_left.d, "m_pDescribe");
         if (desc) {
@@ -1253,6 +1305,7 @@ int main(int argc, char **argv) {
     if (!enter_scene(&scene, hero, alias, -1)) return 1;
     if (!hero->role) { fprintf(stderr, "載入主角失敗\n"); return 1; }
     hero_stats(hero, level < 1 ? 1 : level > 99 ? 99 : level);
+    hero_extra_exp = 10 * (hero->level - 1), hero_extra_skill = hero->level - 1;  // 測試用 --level：當成從 1 級升上來，點數照原版給
     int room = -1, armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
     int monsters_due = 1;      // 進場景後等圖片都下載好，再讀房間表放怪物（網頁版開場不用等 4MB 的 DLL）
     if (at_x >= 0) { hero->x = at_x + 0.5f; hero->y = at_y + 0.5f; }
