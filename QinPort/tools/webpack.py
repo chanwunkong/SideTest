@@ -73,6 +73,20 @@ def main(game, out, scenes):
                 add_anim(gid, {0}) if anim else gids.add(gid)  # 場景動畫只播第 0 序列
 
     copy(game, out, '.', 'EasyRPG.dll')  # 場景出口定義（引擎啟動時掃描）
+    # 聲音：設定檔、音樂對照表、腳步聲；音樂只放 20MB 以下的（網頁版整包預載，太大手機吃不消）
+    copy(game, out, 'ini', 'Config.ini')
+    copy(game, out, 'Data', 'music.txt')
+    copy(game, out, 'sound', '080.wav')
+    raw = open(os.path.join(game, 'Data', 'music.txt'), 'rb').read()
+    music = {l.split('\t')[0].lower(): l.split('\t')[1] for l in bytes(c ^ 0x78 for c in raw[1:]).decode('gbk', 'replace').splitlines()[1:] if '\t' in l}
+    for scn in scenes:
+        name = music.get(scn.rsplit('.', 1)[0].lower(), 'normal1') + '.wav'
+        try:
+            path = os.path.join(game, 'Music', find_ci(os.path.join(game, 'Music'), name))
+            if os.path.getsize(path) < 20_000_000:
+                copy(game, out, 'Music', name)
+        except FileNotFoundError:
+            pass
     defs_name = copy(game, out, 'PLI', '0000_001.PLI')
     defs = dict(re.findall(r'(SPR_\w+)\t(\d+)', open(os.path.join(game, 'PLI', defs_name), 'rb').read().decode('latin1')))
     # 角色表：主角（圖形 1201）+ 場景 NPC 用到的模板，依「屬性」打包每個部件的動畫

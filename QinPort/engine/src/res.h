@@ -16,6 +16,11 @@ void lib_close(Lib *lib);
 // ---- 全域資源編號（Res/Combination.ini）：編號落在哪個封包的區間 ----
 void res_init(const char *game);
 const char *res_game(void);
+// 遊戲資料夾下的一般檔案（檔名不分大小寫）。res_file 整個讀進來（呼叫者 free，結尾多補一個 0）
+FILE *res_fopen(const char *sub, const char *name);
+uint8_t *res_file(const char *sub, const char *name, size_t *size);
+// 原版加密文字檔（第一個 byte 0x80，其餘 XOR 0x78）就地解開，回傳文字長度
+size_t res_unxor(uint8_t *d, size_t n);
 uint8_t *res_read(uint32_t gid, uint32_t *size);
 // 圖片：xbm 直接解；xbmgroup 用 ref 高 8 位當幀號(從 1 起)。回傳 RGBA32，呼叫者 free
 uint32_t *res_image(uint32_t ref, int *w, int *h);

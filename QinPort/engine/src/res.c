@@ -83,6 +83,25 @@ static char game_dir[1024];
 void res_init(const char *game) { snprintf(game_dir, sizeof game_dir, "%s", game); }
 const char *res_game(void) { return game_dir; }
 
+FILE *res_fopen(const char *sub, const char *name) {
+    char dir[1100];
+    snprintf(dir, sizeof dir, "%s/%s", game_dir, sub);
+    return open_ci(dir, name);
+}
+
+uint8_t *res_file(const char *sub, const char *name, size_t *size) {
+    char dir[1100];
+    snprintf(dir, sizeof dir, "%s/%s", game_dir, sub);
+    return read_all(dir, name, size);
+}
+
+size_t res_unxor(uint8_t *d, size_t n) {
+    if (!n || d[0] != 0x80) return n;
+    for (size_t i = 1; i < n; i++) d[i - 1] = d[i] ^ 0x78;
+    d[n - 1] = 0;
+    return n - 1;
+}
+
 uint8_t *res_read(uint32_t gid, uint32_t *size) {
     int k = -1;
     for (int i = 0; i < LIB_N; i++)
@@ -519,7 +538,7 @@ int roledefs_load(void) {
     snprintf(dir, sizeof dir, "%s/ObjMdl", game_dir);
     uint8_t *d = read_all(dir, "RoleMdl.txt", &n);
     if (!d || n < 2) { free(d); return 0; }
-    if (d[0] == 0x80) { for (size_t i = 1; i < n; i++) d[i - 1] = d[i] ^ 0x78; d[--n] = 0; }
+    n = res_unxor(d, n);
     int cap = 0, line_no = 0;
     for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n"), line_no++) {
         if (!line_no) continue;  // 標題列

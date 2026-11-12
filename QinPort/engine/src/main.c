@@ -8,6 +8,7 @@
 #include <string.h>
 #include <strings.h>
 #include "res.h"
+#include "audio.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -296,6 +297,32 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     return 1;
 }
 
+// 原版加密設定檔裡 key=value 的數值（key 是 GBK）；找不到回 def
+static int ini_int(const char *text, const char *key, int def) {
+    size_t n = strlen(key);
+    for (const char *p = text; p && *p; p = strchr(p, '\n'), p = p ? p + 1 : NULL)
+        if (!strncmp(p, key, n)) return atoi(p + n);
+    return def;
+}
+
+// Data/music.txt：場景別名 → 背景音樂檔名（第 2 欄）
+static void scene_music(const char *alias, char *out, size_t n) {
+    snprintf(out, n, "normal1");
+    size_t size;
+    uint8_t *d = res_file("Data", "music.txt", &size);
+    if (!d) return;
+    res_unxor(d, size);
+    for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n")) {
+        char *tab = strchr(line, '\t');
+        if (!tab || (size_t)(tab - line) != strlen(alias) || strncasecmp(line, alias, tab - line)) continue;
+        char *end = strchr(tab + 1, '\t');
+        if (end) *end = 0;
+        if (tab[1]) snprintf(out, n, "%s", tab + 1);
+        break;
+    }
+    free(d);
+}
+
 // 主角是否站在觸發區上（以觸發區所在格為中心 3×3 格）。shortcut: 觸發區實際形狀在 MDL 的佔地格，還沒解析
 static const Trigger *trigger_at(const Scene *s, const Actor *h) {
     for (int i = 0; i < s->trigger_count; i++) {
@@ -348,6 +375,17 @@ int main(int argc, char **argv) {
     SDL_RenderSetLogicalSize(ren, vw, vh);  // 視窗多大都等比例縮放，畫面內容固定 vw x vh
     // 先以 1:1 畫在畫布上再整張放大；直接放大每塊磁磚會在接縫透出細線
     SDL_Texture *canvas = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
+    // 音量與開關照原版 ini/Config.ini（[音频] 音效、音乐、音效音量、音乐音量）
+    size_t cfg_size;
+    uint8_t *cfg = res_file("ini", "Config.ini", &cfg_size);
+    if (cfg) res_unxor(cfg, cfg_size);
+    const char *cfg_text = cfg ? (const char *)cfg : "";
+    audio_init(ini_int(cfg_text, "\xd2\xf4\xc0\xd6=", 1) ? ini_int(cfg_text, "\xd2\xf4\xc0\xd6\xd2\xf4\xc1\xbf=", 15) : 0,   // 音乐、音乐音量
+               ini_int(cfg_text, "\xd2\xf4\xd0\xa7=", 1) ? ini_int(cfg_text, "\xd2\xf4\xd0\xa7\xd2\xf4\xc1\xbf=", 100) : 0);  // 音效、音效音量
+    free(cfg);
+    char music[64];
+    scene_music(alias, music, sizeof music);
+    audio_music(music);
     SDL_GameController *pad = NULL;
     for (int i = 0; i < SDL_NumJoysticks() && !pad; i++)
         if (SDL_IsGameController(i)) pad = SDL_GameControllerOpen(i);
@@ -396,6 +434,9 @@ int main(int argc, char **argv) {
         while (now_ms - logic_ms >= TICK_MS) {
             logic_ms += TICK_MS;
             actor_tick(hero, &scene, mx, my, ++tick);
+            // 腳步聲：每 max((15 - A) * 2, 10) 拍一次（Poq.exe 0x48704f），80 號音效
+            int sp = hero->speed < 0 ? 0 : hero->speed > 59 ? 59 : hero->speed, step = (15 - SPEED_A[sp]) * 2;
+            if (hero->moving && tick % (step < 10 ? 10 : step) == 0) audio_sfx(80);  // shortcut: 原版某些地面改用 81 號，地面類型還沒對應
             for (int i = 1; i < actor_count; i++) npc_think(&actors[i], &scene, tick);
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = trigger_at(&scene, hero);
@@ -407,6 +448,8 @@ int main(int argc, char **argv) {
                     if (strcmp(x->dir, t->event + 3) || x->to < 0) continue;
                     if (enter_scene(&scene, hero, world.rooms[x->to].alias, x->entry)) {
                         room = x->to;
+                        scene_music(world.rooms[room].alias, music, sizeof music);
+                        audio_music(music);
                         printf("進入 %s\n", world.rooms[room].alias);
                     }
                     armed = 0;
@@ -479,6 +522,7 @@ int main(int argc, char **argv) {
     }
 
     cache_clear();
+    audio_quit();
     world_free(&world);
     SDL_DestroyTexture(canvas);
     roles_clear();

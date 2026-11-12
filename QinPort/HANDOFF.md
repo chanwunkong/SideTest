@@ -16,7 +16,8 @@
 |---|---|---|
 | `QinPort/game/` | 原版遊戲檔（SteamCMD 下載的 Windows 版，App 970500） | 否 |
 | `QinPort/engine/src/res.c/.h` | 讀資源：封包、圖片、動畫、場景、模型、主角 PLI | 是 |
-| `QinPort/engine/src/main.c` | 主迴圈、繪製、主角移動、輸入 | 是 |
+| `QinPort/engine/src/main.c` | 主迴圈、繪製、角色與 NPC、場景切換、輸入 | 是 |
+| `QinPort/engine/src/audio.c/.h` | 音樂串流、音效 | 是 |
 | `QinPort/engine/Makefile` | `make`（Mac 原生）、`make web`（Emscripten） | 是 |
 | `QinPort/tools/*.py` | Python 分析工具：libtool（封包/圖片）、maptool（場景渲染）、roletool（主角疊圖）、webpack（網頁版資源精簡） | 是 |
 | `QinPort/web/shell.html` | 網頁版外框 | 是 |
@@ -118,6 +119,12 @@ cd ../web && python3 -m http.server 8642 --bind 100.83.41.116   # Mac 的 Tailsc
   - 共用欄位：`模板ID`（= RoleMdl ID）、`地图坐标X/Y`、`方向`、`事件ID`（對話用）。
 - 圖形 ID 是名字（例如 `ZHIZHU`）的是怪物，用另一套格式，還沒做。
 
+### 聲音
+- 音樂 `Music/*.wav`：PCM，取樣率不統一（22.05k 或 44.1k），最大 45MB。引擎用 `SDL_AudioStream` 邊讀檔邊轉換，循環播放。
+- `Data/music.txt`（XOR）：場景別名 → 背景音樂、戰鬥音樂。找不到就用 `normal1`。
+- 音效 `sound/NNN.wav`：22.05k 單聲道，檔名 = 音效編號。腳步聲 80 號（某些地面 81 號，地面類型還沒對應）。
+- 音量照 `ini/Config.ini` 的 `[音频]`：音效 100、音乐音量 15（百分比）。已用 SDL disk 驅動驗證輸出 = 原檔 × 15%。
+
 ## 原版執行檔逆向（`Poq.exe`，PE32 i386，radare2）
 
 只取規則和數值，不複製程式碼。
@@ -179,7 +186,7 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 輸入：鍵盤、手把（十字鍵、左搖桿，Select + Start 離開）、滑鼠和觸控（按住就往那個方向走）。
 
 ### 已知問題
-- 網頁版是把資料整包預載進記憶體（5 個場景約 80MB）。之後要改成用到才下載（fetch 單一封包項目），才能放整個遊戲。
+- 網頁版是把資料整包預載進記憶體（5 個場景加 2 首音樂約 110MB）。之後要改成用到才下載（fetch 單一封包項目），才能放整個遊戲。
 - 遮擋排序是簡化版，大型建築可能疊錯。
 - 速度比調整動畫延遲（加速／減速時）還沒做；目前只有平常速度。
 - 驪山 LISHAN 有大片空地面，推測是地圖外圍，沒有跟原版對照過。
@@ -189,7 +196,7 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 
 1. ~~節拍與移動單位~~（已完成）
 2. ~~場景切換、NPC 顯示與平時行為~~（已完成；閒逛的停留時間是自訂的，跟隨類型 15 目前站著不動）。
-3. 音效和音樂：`snd.lib`、`sound/*.wav`、`Music/`。
+3. ~~音樂、腳步聲~~（已完成）。`snd.lib`（Mfx sound lib 2.0）還沒拆，可能是介面或技能音效。
 4. 交叉編譯到 R36S（aarch64 Linux + SDL2，ArkOS 或 ROCKNIX；用 Docker 工具鏈），實機測效能。使用者的掌機系統還沒確認，到時候再問他。
 5. 戰鬥：怪物（RoleMdl 的怪物列、Res 動畫）、Data 數值表、技能（MethodMdl.ini）。
 6. 介面：ResUI* 圖片，依螢幕邊緣排版，支援 640×480 與觸控按鈕。
