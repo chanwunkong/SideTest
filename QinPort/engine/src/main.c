@@ -779,7 +779,7 @@ static void ui_bar(const UiCtrl *c, int ox, int oy, int value, int max) {
 static void ui_draw(UiDialog *d, int ox, int oy) {
     for (int i = 0; i < d->count; i++) {
         const UiCtrl *c = &d->c[i];
-        if (c->type == 6 || !c->img || c->flags & 0x20000) continue;  // shortcut: 旗標 0x20000 當成「一開始隱藏」（物品格的選取框、狀態圖示都有），還沒對原版
+        if (c->type == 6 || !c->img || !(c->flags & 9)) continue;  // shortcut: 旗標 0x1、0x8 都沒有當成「一開始隱藏」（升級提示、選取框、成套裝備欄都是），還沒對原版
         draw(ui_image(c->img, 0), ox + c->x, oy + c->y);
     }
 }
@@ -800,7 +800,7 @@ static void win_toggle(Win *w, const char *section) {
     for (int i = 0; i < w->d.count; i++) {
         const char *n = w->d.c[i].name;
         if (!strcmp(n, "m_pPanel") || !strncmp(n, "m_pAttrib", 9) || !strncmp(n, "m_pOK", 5) || !strncmp(n, "m_pBonus", 8))
-            w->d.c[i].flags |= 0x20000;
+            w->d.c[i].flags &= ~9;
     }
 }
 
@@ -811,7 +811,7 @@ static int win_y(const Win *w) { return (vh - w->d.h) / 2 - 50; }
 static const UiCtrl *ui_button_at(const UiDialog *d, int ox, int oy, int x, int y) {
     for (int i = 0; i < d->count; i++) {
         const UiCtrl *c = &d->c[i];
-        if (c->type != 2 || !c->img || c->flags & 0x20000) continue;
+        if (c->type != 2 || !c->img || !(c->flags & 9)) continue;
         const Sprite *s = ui_image(c->img, 0);
         if (s && x >= ox + c->x && x < ox + c->x + s->w && y >= oy + c->y && y < oy + c->y + s->h) return c;
     }
@@ -855,7 +855,7 @@ static int hud_tap(int x, int y) {
         if (x < ox || x >= ox + w->d.w || y < oy || y >= oy + w->d.h) continue;
         UiCtrl *info = ui_find(&w->d, "m_pInfo");
         Scroll sc;
-        if (info && !(info->flags & 0x20000) && text_scroll(info, ox, oy, &sc)) {
+        if (info && info->flags & 9 && text_scroll(info, ox, oy, &sc)) {
             if (in_rect(&sc.up, x, y)) { info_top--; return 1; }  // 範圍在畫的時候夾住
             if (in_rect(&sc.down, x, y)) { info_top++; return 1; }
         }
@@ -947,7 +947,7 @@ static void hud_draw(const Actor *hero) {
         int px = vw - party.w, py = oy - party.h;
         for (int i = 0; i < party.count; i++) {  // 只有主角：畫背景和第 0 格。shortcut: 頭像（G_PicID）、隊友還沒做
             const UiCtrl *c = &party.c[i];
-            if (c->type == 6 || !c->img || c->flags & 0x20000 || (strchr(c->name, '[') && !strstr(c->name, "[0]"))) continue;
+            if (c->type == 6 || !c->img || !(c->flags & 9) || (strchr(c->name, '[') && !strstr(c->name, "[0]"))) continue;
             // 升級提示、狀態圖示：有事才顯示（原版 ini 的狀態圖示五格都叫 m_pRoleStatus[0][x]，不能靠 [0] 分）
             if (!strncmp(c->name, "m_pUpgrade", 10) || !strncmp(c->name, "m_pRoleStatus", 13)) continue;
             draw(ui_image(c->img, 0), px + c->x, py + c->y);
