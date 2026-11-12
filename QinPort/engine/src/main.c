@@ -882,6 +882,7 @@ int main(int argc, char **argv) {
     res_init(game);
 #ifdef STORY
     story_register_all();
+    if (pos < 2 && story_start_room()) scn = story_start_room();  // 沒指定場景 = 新遊戲，從原版的開場房間開始
 #endif
 
     js_status(-1);

@@ -21,5 +21,6 @@ int story_player(void);
 const char *story_name(int h);
 int story_room(const char *alias);             // 進房間（依別名 = 場景檔名；同一房間只產生一次）
 int story_find(int room, const char *alias);   // 房間裡的物件
+const char *story_start_room(void);            // 新遊戲的開場房間別名
 void story_talk(int npc);    // 點 NPC 說話
 void story_choose(int i);    // 選第 i 個回答

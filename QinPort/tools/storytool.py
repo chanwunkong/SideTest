@@ -104,7 +104,8 @@ def main(game, decomp, out):
         return stub_cache[lab]
 
     index = []
-    for fac, path, kind in re.findall(r'FUN_1007f970\(FUN_([0-9a-f]{8}),"([^"]*)",(\d),0\)', src):
+    # 第 4 個參數 1 = 新遊戲的開場房間（原版 0x1003f7d0 找的就是它；只有秦殇/赵村/ROOM/赵村）
+    for fac, path, kind, start in re.findall(r'FUN_1007f970\(FUN_([0-9a-f]{8}),"([^"]*)",(\d),(\d)\)', src):
         m = re.search(r'= ([\w:]+)::vftable;', funcs.get(fac, ''))
         if not m:
             continue
@@ -175,7 +176,7 @@ def main(game, decomp, out):
                 w.write(f'// ---- 第 {s} 格（原 {own[s]}）\n' + b + '\n' + wrapper(names[own[s]], b) + '\n\n')
             slots = ', '.join(f'{{{s}, {names[own[s]]}_w}}' for s in bodies)
             w.write(f'void {reg}(void) {{\n    static const StorySlot slots[] = {{{slots}}};\n'
-                    f'    story_register("{path}", "{alias or ""}", {kind}, "{cls}", slots, {len(bodies)});\n}}\n')
+                    f'    story_register("{path}", "{alias or ""}", {kind}, {start}, "{cls}", slots, {len(bodies)});\n}}\n')
         index.append(f'{path}\t{kname}\t{cls}\t{rel}\t{len(own)}')
     with open(os.path.join(out, 'index.txt'), 'w', encoding='utf-8') as w:
         w.write('\n'.join(index) + '\n')

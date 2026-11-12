@@ -7,13 +7,13 @@
 #include <string.h>
 
 // ---- 類別登記（每個劇情檔一個）----
-typedef struct { const char *path, *alias, *cls; int kind, n; const StorySlot *slots; } Class;
+typedef struct { const char *path, *alias, *cls; int kind, start, n; const StorySlot *slots; } Class;
 static Class *classes;
 static int class_count, class_cap;
 
-void story_register(const char *path, const char *alias, int kind, const char *cls, const StorySlot *slots, int n) {
+void story_register(const char *path, const char *alias, int kind, int start, const char *cls, const StorySlot *slots, int n) {
     if (class_count == class_cap) classes = realloc(classes, (class_cap = class_cap ? class_cap * 2 : 4096) * sizeof *classes);
-    classes[class_count++] = (Class){path, alias, cls, kind, n, slots};
+    classes[class_count++] = (Class){path, alias, cls, kind, start, n, slots};
 }
 
 static const Class *class_find(const char *path) {
@@ -90,6 +90,13 @@ int story_room(const char *alias) {
     for (int i = 0; i < class_count; i++)
         if (classes[i].kind == 0 && !strcmp(classes[i].alias, alias)) return story_new(classes[i].path, 0);
     return 0;
+}
+
+// 新遊戲的開場房間別名（登記時第 4 個參數 = 1 的房間）
+const char *story_start_room(void) {
+    for (int i = 0; i < class_count; i++)
+        if (classes[i].kind == 0 && classes[i].start) return classes[i].alias;
+    return NULL;
 }
 
 // 房間裡別名是 alias 的物件（場景 .ONT 的「事件ID」= 劇情 NPC 的別名）
