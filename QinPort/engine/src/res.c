@@ -7,6 +7,7 @@
 #include <strings.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <unistd.h>
 
 // 網頁版：檔案都跟伺服器要（tools/webserve.py）。ASYNCIFY 讓這些 await 在 C 裡看起來是同步的
 EM_ASYNC_JS(uint8_t *, js_get, (const char *path, int *size), {
@@ -855,7 +856,7 @@ void role_free(Role *r) {
 
 // ---- 世界：掃描 EasyRPG.dll 的房間初始化程式（見 tools/roomtool.py）----
 // 每個房間依序呼叫固定的設定函式，參數是 push 進去的立即值（字串位址或數字）
-enum { CALL_ROOM = 0x1005d390, CALL_PATH = 0x10023c60, CALL_NAME = 0x10023cf0, CALL_ALIAS = 0x10023c40, CALL_EXIT = 0x1005d8b0 };
+enum { CALL_ROOM = 0x1005d390, CALL_PATH = 0x10023c60, CALL_NAME = 0x10023cf0, CALL_ALIAS = 0x10023c40, CALL_EXIT = 0x1005d8b0, CALL_MONSTER = 0x10052550 };
 
 typedef struct { uint32_t va, raw, size; } Section;
 
@@ -868,10 +869,46 @@ static const char *pe_str(const uint8_t *d, size_t n, const Section *sec, int ns
     return NULL;
 }
 
+#ifdef __EMSCRIPTEN__
+// 網頁版：房間表 4MB，在背景下載到記憶體檔案系統，不卡住遊戲（同音樂的做法）
+EM_JS(void, js_fetch_world, (void), {
+    fetch('game/EasyRPG.dll').then(r => r.ok ? r.arrayBuffer() : null).then(b => {
+        if (!b) return;
+        try { FS.mkdir('/pre'); } catch (e) {}
+        FS.writeFile('/pre/EasyRPG.dll.part', new Uint8Array(b));
+        FS.rename('/pre/EasyRPG.dll.part', '/pre/EasyRPG.dll');
+    });
+});
+#endif
+
+int world_ready(void) {
+#ifdef __EMSCRIPTEN__
+    static int started;
+    if (!started) { started = 1; js_fetch_world(); }
+    return access("/pre/EasyRPG.dll", F_OK) == 0;
+#else
+    return 1;
+#endif
+}
+
 int world_load(World *w) {
     memset(w, 0, sizeof *w);
     size_t n;
+#ifdef __EMSCRIPTEN__
+    uint8_t *d = NULL;
+    FILE *f = world_ready() ? fopen("/pre/EasyRPG.dll", "rb") : NULL;
+    if (f) {  // 背景下載好的檔案在記憶體檔案系統；還沒好就照舊跟伺服器要
+        fseek(f, 0, SEEK_END);
+        n = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        d = malloc(n);
+        if (fread(d, 1, n, f) != n) { free(d); d = NULL; }
+        fclose(f);
+    }
+    if (!d) d = read_all(game_dir, "EasyRPG.dll", &n);
+#else
     uint8_t *d = read_all(game_dir, "EasyRPG.dll", &n);
+#endif
     if (!d || n < 0x400) { free(d); return 0; }
     uint32_t pe = u32(d + 0x3c), base = u32(d + pe + 52);
     int nsec = u16(d + pe + 6), opt = u16(d + pe + 20);
@@ -885,11 +922,12 @@ int world_load(World *w) {
     // 出口的目的地先存路徑字串，全部房間讀完再換成房間索引
     const char **to_path = NULL;
     uint32_t push[8];
-    int npush = 0, cur = -1, cap_r = 0, cap_e = 0;
+    int npush = 0, cur = -1, cap_r = 0, cap_e = 0, cap_g = 0;
     for (size_t i = text.raw; i + 5 < text.raw + text.size && i + 5 < n;) {
         uint8_t op = d[i];
         if (op == 0x68) { if (npush < 8) push[npush++] = u32(d + i + 1); else { memmove(push, push + 1, 7 * 4); push[7] = u32(d + i + 1); } i += 5; continue; }
-        if (op == 0x6a) { if (npush < 8) push[npush++] = d[i + 1]; else { memmove(push, push + 1, 7 * 4); push[7] = d[i + 1]; } i += 2; continue; }
+        if (op == 0x6a) { uint32_t v = (uint32_t)(int8_t)d[i + 1];  // push imm8 會帶號擴展：0xff = -1
+            if (npush < 8) push[npush++] = v; else { memmove(push, push + 1, 7 * 4); push[7] = v; } i += 2; continue; }
         if (op == 0xe8) {
             uint32_t dst = text.va + (uint32_t)(i - text.raw) + 5 + u32(d + i + 1);
             if (dst == CALL_ROOM) {
@@ -897,12 +935,24 @@ int world_load(World *w) {
                 cur = w->room_count++;
                 memset(&w->rooms[cur], 0, sizeof(Room));
                 w->rooms[cur].first_exit = w->exit_count;
+                w->rooms[cur].first_group = w->group_count;
             } else if (cur >= 0 && npush) {
                 Room *r = &w->rooms[cur];
                 const char *str = pe_str(d, n, sec, nsec, push[npush - 1]);
                 if (dst == CALL_PATH && str) snprintf(r->path, sizeof r->path, "%s", str);
                 else if (dst == CALL_NAME && str) snprintf(r->name, sizeof r->name, "%s", str);
                 else if (dst == CALL_ALIAS && str) snprintf(r->alias, sizeof r->alias, "%s", str);
+                else if (dst == CALL_MONSTER && npush >= 6 && str) {  // 由右到左：名稱、數量、區域、等級、級數、AI 群組
+                    if (w->group_count == cap_g) w->groups = realloc(w->groups, (cap_g = cap_g ? cap_g * 2 : 1024) * sizeof(MonGroup));
+                    MonGroup *g = &w->groups[w->group_count++];
+                    snprintf(g->name, sizeof g->name, "%s", str);
+                    g->count = (int32_t)push[npush - 2];
+                    g->area = (int32_t)push[npush - 3];
+                    g->level = (int32_t)push[npush - 4];
+                    g->tier = (int32_t)push[npush - 5];
+                    g->ai = (int32_t)push[npush - 6];
+                    r->group_count++;
+                }
                 else if (dst == CALL_EXIT && npush >= 3 && str) {  // 參數由右到左：入口編號、目的路徑、方向
                     const char *to = pe_str(d, n, sec, nsec, push[npush - 2]);
                     if (to) {
@@ -944,6 +994,7 @@ int world_find(const World *w, const char *alias) {
 void world_free(World *w) {
     free(w->rooms);
     free(w->exits);
+    free(w->groups);
     memset(w, 0, sizeof *w);
 }
 
@@ -995,5 +1046,59 @@ const RoleDef *roledef_find(int id) {
 const RoleDef *roledef_by_graphic(const char *graphic) {
     for (int i = 0; i < roledef_count; i++)
         if (!strcmp(roledefs[i].graphic, graphic)) return &roledefs[i];
+    return NULL;
+}
+
+// ---- 怪物表 Data/npc_*.txt ----
+// 欄位：0 人物类型、5/6 生命、7/8 攻击力、9/10 攻击力大、16/17 防御、28/29 命中、30/31 闪避、32/33 经验、34 图形1
+static MonDef *mondefs;
+static int mondef_count;
+static const char *const MON_FILES[] = {"npc_bxw.txt", "npc_dwys.txt", "npc_gn.txt", "npc_jr.txt", "npc_qj.txt", "npc_smll.txt",
+                                        "npc_szlk.txt", "npc_xj.txt", "npc_xn.txt", "npc_yj.txt", "npc_zhs.txt"};
+
+int mondefs_load(void) {
+    if (mondef_count) return mondef_count;
+    int nf = (int)(sizeof MON_FILES / sizeof *MON_FILES), cap = 0;
+    res_preload("Data", MON_FILES, nf);
+    for (int f = 0; f < nf; f++) {
+        size_t n;
+        uint8_t *d = res_file("Data", MON_FILES[f], &n);
+        if (!d || n < 2) { free(d); continue; }
+        res_unxor(d, n);
+        int line_no = 0;
+        for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n"), line_no++) {
+            if (line_no < 2) continue;  // 分類列、欄名列
+            char *col[36] = {0};
+            int c = 0;
+            for (char *p = line; c < 36; c++) {
+                col[c] = p;
+                char *t = strchr(p, '\t');
+                if (!t) { c++; break; }
+                *t = 0;
+                p = t + 1;
+            }
+            if (c < 35 || !col[0][0] || !atoi(col[34])) continue;
+            if (mondef_count == cap) mondefs = realloc(mondefs, (cap = cap ? cap * 2 : 512) * sizeof(MonDef));
+            MonDef *m = &mondefs[mondef_count++];
+            snprintf(m->name, sizeof m->name, "%s", col[0]);
+            m->role = atoi(col[34]);
+#define STAT(i) ((Stat){(float)atof(col[i]), (float)atof(col[(i) + 1])})
+            m->hp = STAT(5); m->ap = STAT(7); m->ap_max = STAT(9); m->dp = STAT(16);
+            m->hit = STAT(28); m->dodge = STAT(30); m->exp = STAT(32);
+#undef STAT
+        }
+        free(d);
+    }
+    return mondef_count;
+}
+
+const MonDef *mondef_pick(const char *prefix) {
+    size_t len = strlen(prefix);
+    int n = 0;
+    for (int i = 0; i < mondef_count; i++) n += !strncmp(mondefs[i].name, prefix, len);
+    if (!n) return NULL;
+    int k = rand() % n;
+    for (int i = 0; i < mondef_count; i++)
+        if (!strncmp(mondefs[i].name, prefix, len) && !k--) return &mondefs[i];
     return NULL;
 }

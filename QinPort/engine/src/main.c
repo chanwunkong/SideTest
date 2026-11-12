@@ -154,6 +154,8 @@ typedef struct {
     const NpcSpec *spec;  // NPC 的擺放資料；主角為 NULL
     float tx, ty;     // AI 目標格
     int has_target, path_i, rest;  // rest = 還要休息幾拍
+    const MonDef *mon;  // 怪物的數值表列；NPC 與主角為 NULL
+    int level, hp;
 } Actor;
 
 static void actor_draw(const Actor *a, int sx, int sy) {
@@ -321,6 +323,50 @@ static void spawn_npcs(const Scene *s) {
     }
 }
 
+// 房間的怪物群（EasyRPG.dll 0x10052550）：每群挑一個「前场景名称 = 區域」的入口點，整群出現在附近
+#define MON_WANDER 4  // shortcut: 怪物閒逛半徑（格）是自訂的，原版 AI 還沒拆
+static NpcSpec mon_specs[MAX_ACTORS];
+
+static void spawn_monsters(const Scene *s, const World *w, int room) {
+    if (room < 0) return;
+    const Room *r = &w->rooms[room];
+    for (int g = 0; g < r->group_count; g++) {
+        const MonGroup *mg = &w->groups[r->first_group + g];
+        int n = 0, pick = -1;
+        for (int i = 0; i < s->entry_count; i++)
+            if (s->entries[i].id == mg->area && rand() % ++n == 0) pick = i;
+        if (pick < 0) continue;
+        const Entry *en = &s->entries[pick];
+        for (int k = 0; k < mg->count && actor_count < MAX_ACTORS; k++) {
+            const MonDef *m = mondef_pick(mg->name);
+            const RoleDef *d = m ? roledef_find(m->role) : NULL;
+            if (!d || !atoi(d->graphic)) continue;  // shortcut: 圖形 ID 是名字的（蝙蝠、骷髏、蜘蛛）用另一套格式，還沒做
+            int x = en->x, y = en->y;
+            for (int t = 0; t < 20; t++) {  // 在入口點附近找一格能站的
+                int tx = en->x + rand() % 7 - 3, ty = en->y + rand() % 7 - 3;
+                if (scene_walkable(s, tx, ty)) { x = tx; y = ty; break; }
+            }
+            Actor *a = &actors[actor_count];
+            NpcSpec *sp = &mon_specs[actor_count++];
+            *sp = (NpcSpec){.type = 13, .tmpl = d->id, .x = x, .y = y, .rx = en->x - MON_WANDER, .ry = en->y - MON_WANDER,
+                            .rw = MON_WANDER * 2 + 1, .rh = MON_WANDER * 2 + 1};
+            memset(a, 0, sizeof *a);
+            a->x = x + 0.5f;
+            a->y = y + 0.5f;
+            a->dir = rand() % 8;
+            a->spec = sp;
+            a->act_tick = rand() % 200;
+            a->mon = m;
+            int lv = mg->level, tier = mg->tier;
+            if (lv < 0) lv = tier * 5 - rand() % 5;
+            a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
+            a->hp = stat_at(m->hp, a->level);
+            actor_setup(a, d);
+            printf("怪物 %s Lv%d HP%d 在 (%d,%d)\n", m->name, a->level, a->hp, x, y);
+        }
+    }
+}
+
 static int cmp_actor_depth(const void *a, const void *b) {
     const Actor *x = *(Actor *const *)a, *y = *(Actor *const *)b;
     float d = (x->x + x->y) - (y->x + y->y);
@@ -468,6 +514,14 @@ static const Trigger *trigger_at(const Scene *s, const Actor *h) {
     return NULL;
 }
 
+// 第一次需要時才讀房間表（EasyRPG.dll），回傳目前場景的房間索引
+static int load_world(World *world, int *tried, const char *alias) {
+    *tried = 1;
+    js_status(-1);
+    if (!world_load(world)) { fprintf(stderr, "讀不到 EasyRPG.dll 的房間資料，不能切換場景\n"); return -1; }
+    return world_find(world, alias);
+}
+
 int main(int argc, char **argv) {
     const char *game = "game", *scn = "xianyang", *shot = NULL;
     int pos = 0, warp = -1, at_x = -1, at_y = -1;
@@ -496,6 +550,7 @@ int main(int argc, char **argv) {
     if (!enter_scene(&scene, hero, alias, -1)) return 1;
     if (!hero->role) { fprintf(stderr, "載入主角失敗\n"); return 1; }
     int room = -1, armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
+    int monsters_due = 1;      // 進場景後等圖片都下載好，再讀房間表放怪物（網頁版開場不用等 4MB 的 DLL）
     if (at_x >= 0) { hero->x = at_x + 0.5f; hero->y = at_y + 0.5f; }
     if (warp >= 0 && warp < scene.trigger_count) {
         hero->x = scene.triggers[warp].x + 0.5f;
@@ -581,12 +636,7 @@ int main(int argc, char **argv) {
             const Trigger *t = trigger_at(&scene, hero);
             if (!t) armed = 1;
             else if (armed && !strncmp(t->event, "go ", 3)) {
-                if (!world_tried) {
-                    world_tried = 1;
-                    js_status(-1);
-                    if (!world_load(&world)) fprintf(stderr, "讀不到 EasyRPG.dll 的房間資料，不能切換場景\n");
-                    room = world_find(&world, alias);
-                }
+                if (!world_tried) room = load_world(&world, &world_tried, alias);
                 if (room < 0) { armed = 0; continue; }
                 const Room *r = &world.rooms[room];
                 for (int i = 0; i < r->exit_count; i++) {
@@ -595,6 +645,7 @@ int main(int argc, char **argv) {
                     js_status(-1);
                     if (enter_scene(&scene, hero, world.rooms[x->to].alias, x->entry)) {
                         room = x->to;
+                        monsters_due = 1;
                         snprintf(alias, sizeof alias, "%s", world.rooms[room].alias);
                         scene_music(world.rooms[room].alias, music, sizeof music);
                         audio_music(music);
@@ -604,6 +655,12 @@ int main(int argc, char **argv) {
                     break;
                 }
             }
+        }
+
+        if (monsters_due && !res_loading() && (world_tried || world_ready())) {
+            monsters_due = 0;
+            if (!world_tried) room = load_world(&world, &world_tried, alias);
+            if (mondefs_load()) spawn_monsters(&scene, &world, room);
         }
 
         // 主角腳底的世界像素；鏡頭跟著主角

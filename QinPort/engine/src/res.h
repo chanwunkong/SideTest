@@ -120,9 +120,25 @@ void role_free(Role *r);
 // ---- 世界（原版劇情引擎 EasyRPG.dll 裡的房間定義）----
 // 房間 = 一個場景：別名 = 場景檔名，出口 = (事件方向, 目的房間, 目的入口編號)
 typedef struct { char dir[32]; int to, entry; } Exit;
-typedef struct { char path[96], name[48], alias[48]; int first_exit, exit_count; } Room;
-typedef struct { Room *rooms; int room_count; Exit *exits; int exit_count; } World;
+// 怪物群（0x10052550）：name 是怪物表的名稱前綴（例如「动物山魈」，對到 A、B… 各列），在場景「前场景名称 = area」的入口點出現。
+// level < 0 → 等級 = tier×5 − 隨機 0..4；tier < 0 → tier = level/5 + 1（EasyRPG.dll 0x100730c0）。ai = G_AIGroup
+typedef struct { char name[32]; int count, area, level, tier, ai; } MonGroup;
+typedef struct { char path[96], name[48], alias[48]; int first_exit, exit_count, first_group, group_count; } Room;
+typedef struct { Room *rooms; int room_count; Exit *exits; int exit_count; MonGroup *groups; int group_count; } World;
 
 int world_load(World *w);
+int world_ready(void);  // 網頁版：第一次呼叫開始背景下載，下載好才回 1；原生版永遠 1
 int world_find(const World *w, const char *alias);  // 依別名找房間，找不到回 -1
 void world_free(World *w);
+
+// ---- 怪物表 Data/npc_*.txt（XOR 加密、tab 分隔，第 2 列是欄名）：數值 = 基準值 + 參數 × 等級 ----
+typedef struct { float base, per; } Stat;
+typedef struct {
+    char name[32];  // 人物类型，例如「动物山魈A」
+    int role;       // 图形1 = RoleMdl 角色 ID
+    Stat hp, ap, ap_max, dp, hit, dodge, exp;
+} MonDef;
+int mondefs_load(void);
+// 名稱前綴相符的列隨機挑一列（原版 0x10077670 收集相符列再隨機取）；找不到回 NULL
+const MonDef *mondef_pick(const char *prefix);
+static inline int stat_at(Stat s, int level) { return (int)(s.base + s.per * level); }
