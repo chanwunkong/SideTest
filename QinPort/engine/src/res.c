@@ -1294,3 +1294,54 @@ void styles_equip(char *styles, size_t n, const char *graphic, int pli_no, const
     for (int i = 0; i < parts && len + 4 < n; i++) len += snprintf(styles + len, n - len, "%s%s", i ? "*" : "", st[i]);
     free(p);
 }
+
+// Dlg/*.dlg（Poq.exe CDlgFile::ReadItem 0x4c1b10，格式說明見 tools/dlgtool.py）。最近讀過的一個檔留在記憶體
+static uint32_t dlg_u32(const uint8_t *b) {
+    uint32_t v = 0;
+    for (int i = 0; i < 4; i++) v |= (uint32_t)(b[i] ^ (uint8_t)(0xAD - i)) << (8 * i);
+    return v;
+}
+
+int res_dlg(const char *name, int id, char *out, size_t cap) {
+    static char cached[64];
+    static uint8_t *d;
+    static size_t n;
+    if (strcmp(cached, name)) {
+        free(d);
+        d = res_file("Dlg", name, &n);
+        snprintf(cached, sizeof cached, "%s", name);
+    }
+    if (!d || n < 0x5c || !cap) return 0;
+    uint32_t table, count;
+    memcpy(&table, d + 0x50, 4);
+    memcpy(&count, d + 0x58, 4);
+    if (id < 0 || (uint32_t)id >= count || table + (uint64_t)id * 8 + 8 > n) return 0;
+    int32_t flag;
+    uint32_t off, len;
+    memcpy(&flag, d + table + id * 8, 4);
+    memcpy(&off, d + table + id * 8 + 4, 4);
+    if (flag < 0 || !off || (uint64_t)off + 4 > n) return 0;
+    memcpy(&len, d + off, 4);
+    const uint8_t *b = d + off + 4, *end = b + len;
+    if (end > d + n || len < 4) return 0;
+    uint32_t fields = dlg_u32(b), p = 4;
+    for (uint32_t f = 0; f < fields && b + p + 4 <= end; f++) {
+        uint32_t kind = dlg_u32(b + p);
+        p += 4;
+        if (kind == 0x64 || kind == 0x65) { p += 4; continue; }
+        if (kind < 0x66 || kind > 0x69 || b + p + 4 > end) return 0;
+        uint32_t m = dlg_u32(b + p);
+        p += 4;
+        if (b + p + m > end) return 0;
+        size_t k = 0;
+        for (uint32_t i = 0; i < m && k + 1 < cap; i++) {
+            uint8_t c = b[p + i] ^ (uint8_t)(m - i + 0xA9);
+            if (!c) break;
+            out[k++] = (char)c;
+        }
+        out[k] = 0;
+        p += m;
+        if (k) return 1;  // 前面幾個字串欄常是空的
+    }
+    return 0;
+}

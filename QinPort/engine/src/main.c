@@ -436,22 +436,25 @@ static void start_act(Actor *a, int act, int seq) {
 // 主角數值。遊俠模板（EasyRPG.dll 0x1013c380）：Str 30、Con 25、Dex 25；升級表 Upgrade_HP_MAX = 120 28、Upgrade_MP_MAX = 140 4
 // → HP_MAX = 120 + 28×等級、MP_MAX（精氣）= 140 + 4×等級
 // 職業倍率（0x1002d510，遊俠 K = 150）：AP、AP_MAX = 基礎 × (Str+K)/K；DP = 基礎 × (Con+K)/K；
-// HR = (基礎 + 3×Dex) × (Dex+K)/K；SR = (基礎 + 4×Dex) × (Dex+K)/K
+// HR（閃避）= (基礎 + 3×Dex) × (Dex+K)/K；SR（命中）= (基礎 + 4×Dex) × (Dex+K)/K
 // 基礎 AP 來自武器、DP 來自護甲（模板給的扶苏武器 = item_8 第 1 列青銅彎刀、布衣 = item_26 第 1 列）；HR/SR 基礎 0
 // shortcut: 道具的隨機特性、升級加點、其他部位的裝備還沒做
 static Item hero_weapon, hero_armor;
 static int hero_armor_dp;  // 護甲防禦在「防御力小～大」之間，道具產生時決定
 
+static const int hero_str = 30, hero_con = 25, hero_dex = 25, hero_savvy = 30, hero_charm = 40, hero_wisdom = 20;  // 遊俠扶苏模板
+
 static void hero_stats(Actor *h, int level) {
-    const int K = 150, str = 30, con = 25, dex = 25;
+    const int K = 150, str = hero_str, con = hero_con, dex = hero_dex;
     h->level = level;
     h->hp = h->hp_max = 120 + 28 * level;
     h->mp = h->mp_max = 140 + 4 * level;
     h->ap = hero_weapon.ap * (str + K) / K;
     h->ap_max = hero_weapon.ap_max * (str + K) / K;
     h->dp = hero_armor_dp * (con + K) / K;
-    h->hr = 3 * dex * (dex + K) / K;
-    h->sr = 4 * dex * (dex + K) / K;
+    // 原版鍵名 SR = 命中率、HR = 闪避率（UI_C.dlg 2116/2115 對 Poq.exe 0x54f820 的顯示順序）；這裡 hr = 命中、sr = 閃避（跟怪物表一樣）
+    h->hr = 4 * dex * (dex + K) / K;
+    h->sr = 3 * dex * (dex + K) / K;
 }
 
 // 一次命中（EasyRPG.dll 0x10033140 物理傷害）：攻擊 = AP~AP_MAX 隨機，損血 = 攻擊² / (攻擊 + DP/2)，至少 3
@@ -783,6 +786,12 @@ static Win win_left, win_right;
 static void win_toggle(Win *w, const char *section) {
     if (w->open && !strcmp(w->d.name, section)) { w->open = 0; return; }
     w->open = ui_load(section, &w->d) > 0;
+    // 人物屬性：沒有剩餘點數（Extra_Exp）時原版藏起加點面板、顯示 m_pInfo（Poq.exe 0x554370）。shortcut: 加點還沒做，一律是顯示模式
+    for (int i = 0; i < w->d.count; i++) {
+        const char *n = w->d.c[i].name;
+        if (!strcmp(n, "m_pPanel") || !strncmp(n, "m_pAttrib", 9) || !strncmp(n, "m_pOK", 5) || !strncmp(n, "m_pBonus", 8))
+            w->d.c[i].flags |= 0x20000;
+    }
 }
 
 static int win_x(const Win *w) { return w == &win_left ? vw / 2 - w->d.w : vw / 2; }
@@ -829,6 +838,43 @@ static int hud_tap(int x, int y) {
     return 1;
 }
 
+// 原版文字表 UI_C.dlg 第 id 筆轉成 UTF-8，拿掉顏色標記「[數字 … ]」。shortcut: 標記裡的顏色還沒照原版上色，都用控制項的字色
+static void ui_text(int id, char *out, size_t cap) {
+    char g[512], u[1024];
+    out[0] = 0;
+    if (!res_dlg("UI_C.dlg", id, g, sizeof g)) return;
+    gbk_utf8(g, u, sizeof u);
+    size_t k = 0;
+    for (const char *p = u; *p && k + 1 < cap; p++) {
+        if (*p == '[' && p[1] >= '0' && p[1] <= '9') { p++; continue; }
+        if (*p == ']') continue;
+        out[k++] = *p;
+    }
+    while (k && out[k - 1] == ' ') k--;
+    out[k] = 0;
+}
+
+// 人物屬性視窗的 m_pInfo（Poq.exe 0x54f820）：25 行「標籤 數值」，順序和標籤編號照原版
+static void hero_info(const Actor *h, char *out, size_t cap) {
+    static const int label[25] = {2105, 2106, 2107, 2108, 2109, 2110, 2111, 2112, 2117, 2118, 2119, 2116, 2115,
+                                  2113, 2156, 2157, 2158, 2159, 2160, 2114, 2121, 2122, 2123, 2124, 2125};
+    int next = h->level < exp_levels ? exp_table[h->level] - h->exp : 0;
+    // 數值：經驗、下一級、聲望、生命、精氣、力量、體質、敏捷、悟性、魅力、智慧、命中、閃避、攻擊、五行攻擊 ×5、防禦、五行防禦 ×5
+    // shortcut: 聲望、五行攻防還沒有，先 0
+    int v[25][2] = {{h->exp}, {next}, {0}, {h->hp, h->hp_max}, {h->mp, h->mp_max}, {hero_str}, {hero_con}, {hero_dex},
+                    {hero_savvy}, {hero_charm}, {hero_wisdom}, {h->hr}, {h->sr}, {h->ap, h->ap_max},
+                    {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {h->dp}};
+    static const unsigned pair = 1 << 3 | 1 << 4 | 1 << 13 | 1 << 14 | 1 << 15 | 1 << 16 | 1 << 17 | 1 << 18;  // 「%d/%d」的行
+    size_t k = 0;
+    out[0] = 0;
+    for (int i = 0; i < 25 && k < cap; i++) {
+        char t[128];
+        ui_text(label[i], t, sizeof t);
+        k += pair >> i & 1 ? snprintf(out + k, cap - k, "%s%d/%d\n", t, v[i][0], v[i][1])
+                           : snprintf(out + k, cap - k, "%s%d\n", t, v[i][0]);
+    }
+}
+
 static void hud_draw(const Actor *hero) {
     static int tried;
     if (!tried) {
@@ -870,7 +916,19 @@ static void hud_draw(const Actor *hero) {
         if (hp) ui_bar(hp, px, py, hero->hp, hero->hp_max);
         if (mp) ui_bar(mp, px, py, hero->mp, hero->mp_max);
     }
-    if (win_left.open) ui_draw(&win_left.d, win_x(&win_left), win_y(&win_left));
+    if (win_left.open) {
+        int wx = win_x(&win_left), wy = win_y(&win_left);
+        ui_draw(&win_left.d, wx, wy);
+        UiCtrl *info = ui_find(&win_left.d, "m_pInfo");
+        if (info) {
+            char t[2048];
+            hero_info(hero, t, sizeof t);
+            SDL_Rect clip = {wx + info->x, wy + info->y, info->w, info->h};
+            SDL_RenderSetClipRect(ren, &clip);  // shortcut: 超出框的行先切掉，原版的捲動還沒做
+            draw_text(clip.x + 4, clip.y + 4, t, info->w - 8, 0xBECDCE, 1);
+            SDL_RenderSetClipRect(ren, NULL);
+        }
+    }
     if (win_right.open) ui_draw(&win_right.d, win_x(&win_right), win_y(&win_right));
 }
 

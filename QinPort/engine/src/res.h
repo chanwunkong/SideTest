@@ -37,6 +37,8 @@ uint8_t *res_file(const char *sub, const char *name, size_t *size);
 void res_preload(const char *sub, const char *const *names, int n);
 // 原版加密文字檔（第一個 byte 0x80，其餘 XOR 0x78）就地解開，回傳文字長度
 size_t res_unxor(uint8_t *d, size_t n);
+// 原版文字表 Dlg/<name>（例如 UI_C.dlg）第 id 筆的第一個非空字串（GBK，含原版的 [1…] 標記）；沒有回 0
+int res_dlg(const char *name, int id, char *out, size_t cap);
 uint8_t *res_read(uint32_t gid, uint32_t *size);
 // 圖片：xbm 直接解；xbmgroup 用 ref 高 8 位當幀號(從 1 起)。回傳 RGBA32，呼叫者 free。
 // 網頁版不等下載：還沒到就回 NULL 並設 res_waiting
