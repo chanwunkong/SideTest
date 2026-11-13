@@ -1106,6 +1106,16 @@ int mondefs_load(void) {
 #define STAT(i) ((Stat){(float)atof(col[i]), (float)atof(col[(i) + 1])})
             m->hp = STAT(5); m->ap = STAT(7); m->ap_max = STAT(9); m->dp = STAT(16);
             m->hit = STAT(28); m->dodge = STAT(30); m->exp = STAT(32);
+            // 魔法攻击属性 1~5 → 魔法攻击（第 12、13 欄）、魔法攻击大（14、15）放到 MAP<属性>、MAP<属性>_MAX（EasyRPG 0x1006xxxx 讀表）
+            m->melem = atoi(col[11]);
+            m->map = STAT(12); m->map_max = STAT(14);
+            for (int k = 0; k < 5; k++) m->mdp[k] = STAT(18 + 2 * k);
+            // 技能1 後面第 10 欄起：打击恢复率、减少物理／魔法伤害、眩晕~溃散、其他免疫、是否陷阱、生命恢复率（空白或負的當 0）
+#define COL(k) (skill_col >= 0 && skill_col + (k) < c && atoi(col[skill_col + (k)]) > 0 ? atoi(col[skill_col + (k)]) : 0)
+            m->djhf = COL(10); m->jswl = COL(11); m->jsmf = COL(12);
+            for (int k = 0; k < 7; k++) m->immu[k] = COL(13 + k);
+            m->istrap = COL(20); m->regen = COL(21);
+#undef COL
 #undef STAT
         }
         free(d);
@@ -1122,6 +1132,38 @@ const MonDef *mondef_pick(const char *prefix) {
     for (int i = 0; i < mondef_count; i++)
         if (!strncmp(mondefs[i].name, prefix, len) && !k--) return &mondefs[i];
     return NULL;
+}
+
+// ---- 角色狀態表 ObjMdl/RoleEffectMdl.txt（Poq.exe 0x48b2f0 依狀態序號查）----
+const StatusDef *status_def(int id) {
+    static StatusDef defs[128];
+    static int loaded;
+    if (!loaded) {
+        loaded = 1;
+        for (int i = 0; i < 128; i++) defs[i] = (StatusDef){-1, 0, 0, 0, 0, 0, 0};
+        size_t n;
+        uint8_t *d = res_file("ObjMdl", "RoleEffectMdl.txt", &n);
+        if (!d) return NULL;
+        res_unxor(d, n);
+        int line_no = 0;
+        for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n"), line_no++) {
+            if (!line_no) continue;  // 欄名列
+            char *col[24] = {0};
+            int c = 0;
+            for (char *p = line; c < 24; c++) {
+                col[c] = p;
+                char *t = strchr(p, '\t');
+                if (!t) { c++; break; }
+                *t = 0;
+                p = t + 1;
+            }
+            if (c < 20 || !col[1][0] || atoi(col[1]) < 0 || atoi(col[1]) >= 128) continue;
+            // 序号、停止动画循环、速度变化（%，空白 = 不變）、攻击不能、无敌、头上／身上／脚下效果、…、声音（第 19 欄）
+            defs[atoi(col[1])] = (StatusDef){col[3][0] ? atoi(col[3]) : -1, atoi(col[2]), atoi(col[4]), atoi(col[6]), atoi(col[7]), atoi(col[8]), atoi(col[19])};
+        }
+        free(d);
+    }
+    return id >= 0 && id < 128 ? &defs[id] : NULL;
 }
 
 // ---- 招式表 ObjMdl/MethodMdl.ini（XOR 加密的 key=value，每招以 wType= 開頭；觸發以 iFlag= 開頭）----
@@ -1237,8 +1279,12 @@ int skill_attack(const char *index_name) {
 
 int skill_rows(int prof, SkillRow *out, int max) {
     char name[32];
-    size_t n;
     snprintf(name, sizeof name, "skill_%d.txt", prof);
+    return skill_rows_file(name, out, max);
+}
+
+int skill_rows_file(const char *name, SkillRow *out, int max) {
+    size_t n;
     uint8_t *d = res_file("Data", name, &n);
     if (!d) return 0;
     res_unxor(d, n);
@@ -1256,10 +1302,10 @@ int skill_rows(int prof, SkillRow *out, int max) {
         }
         if (c < 26 || !col[0][0]) continue;
         for (int i = c; i < 86; i++) col[i] = "";
-        out[k] = (SkillRow){"", atoi(col[2]), atoi(col[3]), atoi(col[4]), atoi(col[5]), col[6][0] ? atoi(col[6]) : -1, atoi(col[7]), atoi(col[10]), col[11][0] ? atoi(col[11]) : -1, atoi(col[25]),
+        out[k] = (SkillRow){"", atoi(col[2]), atoi(col[3]), atoi(col[4]), atoi(col[5]), col[6][0] ? atoi(col[6]) : -1, atoi(col[7]), atoi(col[10]), col[11][0] ? atoi(col[11]) : 1, atoi(col[25]),
                             atoi(col[21]) > 0 ? atoi(col[21]) : -1, atoi(col[22]) > 0 ? atoi(col[22]) : -1, col[19][0] ? atoi(col[19]) : -1, 0,
-                            atof(col[15]) > 0 ? atof(col[15]) : 0, atof(col[16]) > 0 ? atof(col[16]) : 0, col[23][0] ? atof(col[23]) : -1, atof(col[24]) > 0 ? atof(col[24]) : 0, atof(col[20]) > 0 ? atof(col[20]) : 0, {{0}}};
-        // 武器限制（第 6 欄 W_Type，空白 -1）、Attack方式（11，空白 = 不設）；精气消耗（第 15、16 欄 → MPU）、作用時間（23、24 → Time）、我方／敌方状态（21、22）照 0x100757a0：負的或空白當 0，狀態 < 1 不設
+                            atof(col[15]) > 0 ? atof(col[15]) : 0, atof(col[16]) > 0 ? atof(col[16]) : 0, col[23][0] ? atof(col[23]) : -1, atof(col[24]) > 0 ? atof(col[24]) : 0, atof(col[20]) > 0 ? atof(col[20]) : 0, atof(col[17]), atof(col[18]), {{0}}};
+        // 武器限制（第 6 欄 W_Type，空白 -1）、Attack方式（11，空白 = 原版基底預設 1 物理，技能基底 0x1005d4a0 的預設）；精气消耗（第 15、16 欄 → MPU）、作用時間（23、24 → Time）、我方／敌方状态（21、22）照 0x100757a0：負的或空白當 0，狀態 < 1 不設
         // 參數組：屬性ID 空白或 < 0 跳過；初始值、增量空白當 -1，是否对敌、是否百分比空白或 < 0 當 0
         for (int g = 26; g < 86; g += 5) {
             if (!col[g][0] || atoi(col[g]) < 0) continue;

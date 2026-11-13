@@ -143,6 +143,9 @@ typedef struct {
     char skill[32]; // 技能1（普通攻擊），例如「狼_抓」→ Data/skill_npc.txt
     int role;       // 图形1 = RoleMdl 角色 ID
     Stat hp, ap, ap_max, dp, hit, dodge, exp;
+    int melem;          // 魔法攻击属性 1~5（0 = 沒有）
+    Stat map, map_max, mdp[5];
+    int djhf, jswl, jsmf, immu[7], istrap, regen;  // 打击恢复率、减少物理／魔法伤害、眩晕~其他免疫、是否陷阱、生命恢复率
 } MonDef;
 int mondefs_load(void);
 // 名稱前綴相符的列隨機挑一列（原版 0x10077670 收集相符列再隨機取）；找不到回 NULL
@@ -167,6 +170,10 @@ int skill_attack(const char *index_name);
 // 欄位：2 名稱ID（Dlg/name_C.dlg）、3 等级需求、4 等级需求增量、5 技能等級數、7 左右键位、10 图标ID、25 初始技能等級
 // 技能參數（26 欄起每 5 欄一組：屬性ID、初始值、增量、是否對敵有效、是否百分比；EasyRPG 0x100757a0）
 typedef struct { int id, enemy, pct; float init, incr; } SkillMod;
-typedef struct { char key[40]; int name_id, req, req_add, max_level, wtype, hand, icon, attack, level, status, estatus, range, mod_n; float mpu, mpu_inc, time, time_inc, range_inc; SkillMod mod[12]; } SkillRow;  // key = 索引名（skill_attack 用）
+typedef struct { char key[40]; int name_id, req, req_add, max_level, wtype, hand, icon, attack, level, status, estatus, range, mod_n; float mpu, mpu_inc, time, time_inc, range_inc, range_min, range_min_inc; SkillMod mod[12]; } SkillRow;  // key = 索引名（skill_attack 用）
 int skill_rows(int prof, SkillRow *out, int max);
+int skill_rows_file(const char *name, SkillRow *out, int max);  // 例如 skill_npc.txt（怪物的技能）
+// 角色狀態表 ObjMdl/RoleEffectMdl.txt：速度變化（%，-1 = 不變）、停止動畫、不能攻擊、頭上／身上／腳下效果（圖形 ID）、聲音
+typedef struct { int speed, stop, noattack, head, body, foot, sound; } StatusDef;
+const StatusDef *status_def(int id);
 static inline int stat_at(Stat s, int level) { return (int)(s.base + s.per * level); }

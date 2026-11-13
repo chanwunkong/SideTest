@@ -6,6 +6,10 @@ LDLIBS += $(shell sdl2-config --libs)
 qin: src/main.c src/res.c src/res.h src/audio.c src/audio.h
 	$(CC) $(CFLAGS) -o $@ src/main.c src/res.c src/audio.c $(LDLIBS)
 
+# 技能戰鬥規則的自我檢查（要有 ../game）
+skilltest: test/skilltest.c src/main.c src/res.c src/res.h src/audio.c src/audio.h
+	$(CC) $(CFLAGS) -Wno-unused-function -o build/skilltest test/skilltest.c src/res.c src/audio.c $(LDLIBS) && cd test && ../build/skilltest
+
 clean:
 	rm -rf qin build storytest
 
