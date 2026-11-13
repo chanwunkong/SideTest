@@ -918,16 +918,21 @@ static int method_unit_hit(const Method *m) {
     return unit;
 }
 
-// 招式打中的對象（Poq.exe 0x43c4f0 → 0x438a00 依 iTriID）：5~10 = 目標點周圍 0、64、128、192、256、320 像素（0~5 格）內全部；
-// 11~13 = 自己周圍 0xc0（3 格）內全部；30 = 直接打目標；其他（0、2、3、0x14）= 前方第一個，這裡打攻擊目標。
+// 招式打中的對象（Poq.exe 0x43c4f0 → 0x438a00 依 iTriID，0x439fb0 找範圍內的、模式 0 只打第一個）：
+// 6~10 = 目標周圍 64~320 像素（1~5 格）內全部；12 = 目標周圍 0xc0（3 格）內全部（中心 0x4395f0 = 目標，沒有就目標點）；
+// 5、11、13 = 目標點附近第一個；30 = 直接打目標；0、2、3、0x14 = 前方第一個。單一的這裡都打攻擊目標。
 // type 16：0x16 = 向四周放 ID2 個單位（疾風掃落葉 8 個），0x14 = 向前放 ID2 個（穿心一擊）
-// shortcut: 16 的單位打到誰用技能作用範圍最大估：四周 = 範圍內全部，向前 = 朝目標方向寬 1 格的直線上；11、12 原版中心點（0x4395f0）沒拆，先當自己
+// shortcut: 16 的單位打到誰用技能作用範圍最大估：四周 = 範圍內全部，向前 = 朝目標方向寬 1 格的直線上
 static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
     const SkillRow *sk = a->casting ? a->cast : a->skill;
     Actor *foe = a->foe;
     float cx = a->x, cy = a->y, r = -1, ux = 0, uy = 0;
-    if (t->type == 0 && t->id >= 5 && t->id <= 10) { if (!alive(foe)) return; cx = foe->x; cy = foe->y; r = t->id - 5; }
-    else if (t->type == 0 && t->id >= 11 && t->id <= 13) r = 3;
+    if (t->type == 0 && ((t->id >= 6 && t->id <= 10) || t->id == 12)) {
+        if (!alive(foe)) return;
+        cx = foe->x;
+        cy = foe->y;
+        r = t->id == 12 ? 3 : t->id - 5;
+    }
     else if (t->type == 16) {
         r = sk ? skill_range_max(sk) : 1;
         if (t->id == 0x14) {
