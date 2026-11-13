@@ -12,6 +12,7 @@ static void mk(Actor *a) {
     a->role = (const Role *)1;  // alive() 只看有沒有角色
     a->def = &def;
     a->mon = &md;
+    a->side = 1;
     a->level = 1;
     mon_derive(a);
     a->hp = a->hp_max;
@@ -80,6 +81,7 @@ int main(void) {
     actor_count = 4;
     for (int i = 0; i < 4; i++) mk(&actors[i]);
     actors[0].mon = NULL;
+    actors[0].side = 0;
     actors[0].hr = 100000;
     actors[1].x = 5; actors[2].x = 6.5f; actors[3].x = 12;
     actors[0].foe = &actors[1];
@@ -133,6 +135,54 @@ int main(void) {
     a.atk = &fm;
     act_end(&a);
     assert(a.flags == 0);
+    // 力士、刺客的特殊攻擊方式
+    static SkillRow s2[64], s3[64];
+    int n2 = skill_rows_file("skill_2.txt", s2, 64), n3 = skill_rows_file("skill_3.txt", s3, 64);
+    const SkillRow *tm = NULL, *tp = NULL, *dz = NULL, *cl = NULL;
+    for (int i = 0; i < n2; i++) if (s2[i].attack == 2) tm = &s2[i];
+    for (int i = 0; i < n3; i++) {
+        if (s3[i].attack == 8 && !tp) tp = &s3[i];
+        if (s3[i].attack == 9) dz = &s3[i];
+        if (s3[i].attack == 11) cl = &s3[i];
+    }
+    assert(tm && tp && dz && cl);
+    SkillRow tm1 = *tm, tp1 = *tp, dz1 = *dz, cl1 = *cl;
+    tm1.level = tp1.level = dz1.level = cl1.level = 1;
+    actor_count = 3;
+    for (int i = 0; i < 3; i++) mk(&actors[i]);
+    actors[0].mon = NULL;
+    actors[0].side = 0;
+    // 馴服：只收 istrap 10 的，等級 1 最多 1 隻（271 = 1 + 1×等級 → 原版公式另算，這裡只驗上限有作用）
+    MonDef beast = md, rock = md;
+    beast.istrap = 10;
+    actors[1].mon = &beast;
+    actors[2].mon = &beast;
+    actors[0].foe = &actors[1];
+    skill_hit(&actors[0], &actors[1], &tm1, 0);
+    assert(actors[1].side == 0 && actors[1].owner == &actors[0] && !actors[0].foe);
+    for (int i = 0; i < 20; i++) skill_hit(&actors[0], &actors[2], &tm1, 0);
+    assert(actors[2].side == (skill_param(&tm1, 271) > 1 ? 0 : 1));
+    actors[2].side = 1;
+    actors[2].mon = &rock;
+    skill_hit(&actors[0], &actors[2], &tm1, 0);
+    assert(actors[2].side == 1);
+    // 陷阱：放在旁邊、跟主角同隊、攻擊力照抄（主角狀態 19 重算後的）、角色是小動物表的動畫
+    actor_count = 1;
+    skill_hit(&actors[0], &actors[0], &tp1, 0);
+    assert(actor_count == 2 && actors[1].side == 0 && actors[1].mon->istrap == 1 && actors[1].ap == actors[0].ap && actors[1].ap_max == actors[0].ap_max && actors[1].role);
+    // 除障：別隊的陷阱等級 5 以下（技能 1 級 − 5/5 = 0）打掉，等級 10 不行
+    actors[1].side = 1;
+    actors[1].level = 10;
+    skill_hit(&actors[0], &actors[1], &dz1, 0);
+    assert(alive(&actors[1]) && actors[1].act != ACT_DEAD);
+    actors[1].level = 5;
+    skill_hit(&actors[0], &actors[1], &dz1, 0);
+    assert(actors[1].act == ACT_DEAD);
+    // 分身：只能一個
+    actor_count = 1;
+    skill_hit(&actors[0], &actors[0], &cl1, 0);
+    skill_hit(&actors[0], &actors[0], &cl1, 0);
+    assert(actor_count == 2 && actors[1].owner == &actors[0] && actors[1].side == 0);
     puts("skilltest ok");
     return 0;
 }

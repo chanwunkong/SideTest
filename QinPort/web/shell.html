@@ -28,12 +28,13 @@
   }
   addEventListener('resize', fit);
   fit();
-  // 網址參數：?scene=別名&warp=N&level=N&at=X,Y（測試用：站到第 N 個觸發區、主角等級、站到某格）
+  // 網址參數：?scene=別名&warp=N&level=N&prof=N&at=X,Y（測試用：站到第 N 個觸發區、主角等級、職業、站到某格）
   const q = new URLSearchParams(location.search);
   const args = ['game'];
   if (q.get('scene')) args.push(q.get('scene'));  // 沒指定 = 新遊戲（從原版開場房間開始）
   if (q.get('warp')) args.push('--warp', q.get('warp'));
   if (q.get('level')) args.push('--level', q.get('level'));
+  if (q.get('prof')) args.push('--prof', q.get('prof'));
   if (q.get('at')) args.push('--at', q.get('at'));
   var Module = {
     canvas,

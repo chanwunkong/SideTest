@@ -857,6 +857,22 @@ int role_load(Role *r, const char *graphic, int pli_no, const char *styles) {
     return 1;
 }
 
+int role_load_anim(Role *r, uint32_t gid) {
+    memset(r, 0, sizeof *r);
+    const Anim *a = anim_get(gid);
+    if (!a || !a->count) return 0;
+    r->part_count = 1;
+    r->body[0] = a;
+    r->seq_count = a->count;
+    r->order = calloc(a->count, sizeof *r->order);
+    r->frames = calloc(a->count, sizeof *r->frames);
+    for (int s = 0; s < a->count; s++) {
+        r->frames[s] = a->seqs[s].count;
+        r->order[s] = calloc((size_t)a->seqs[s].count + 1, 1);
+    }
+    return 1;
+}
+
 void role_free(Role *r) {
     for (int s = 0; s < r->seq_count; s++) free(r->order[s]);
     free(r->order);
@@ -1048,6 +1064,33 @@ int roledefs_load(void) {
 #undef COL
     }
     free(d);
+    // 小動物表 BeastieMdl.txt（Poq.exe 跟 RoleMdl 一起讀，0x44b2xx）：0 名稱、1 ID、2 图素ID、5 低速、6 高速、12 索敌范围；陷阱的角色在這裡
+    d = read_all(dir, "BeastieMdl.txt", &n);
+    if (d && n > 1) {
+        n = res_unxor(d, n);
+        line_no = 0;
+        for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n"), line_no++) {
+            char *col[18] = {0};
+            int c = 0;
+            for (char *p = line; c < 18; c++) {
+                col[c] = p;
+                char *t = strchr(p, '\t');
+                if (!t) { c++; break; }
+                *t = 0;
+                p = t + 1;
+            }
+            if (!line_no || c < 7 || atoi(col[1]) <= 0 || roledef_find(atoi(col[1]))) continue;
+            if (roledef_count == cap) roledefs = realloc(roledefs, (cap = cap ? cap * 2 : 256) * sizeof(RoleDef));
+            RoleDef *r = &roledefs[roledef_count++];
+            memset(r, 0, sizeof *r);
+            r->id = atoi(col[1]);
+            r->anim = (uint32_t)strtoul(col[2], NULL, 10);
+            r->speed = atoi(col[5]);
+            r->fight_speed = atoi(col[6]);
+            r->seek = c > 12 ? atoi(col[12]) : 0;
+        }
+    }
+    free(d);
     return roledef_count;
 }
 
@@ -1123,6 +1166,12 @@ int mondefs_load(void) {
         free(d);
     }
     return mondef_count;
+}
+
+const MonDef *mondef_find(const char *name) {
+    for (int i = 0; i < mondef_count; i++)
+        if (!strcmp(mondefs[i].name, name)) return &mondefs[i];
+    return NULL;
 }
 
 const MonDef *mondef_pick(const char *prefix) {

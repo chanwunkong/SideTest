@@ -184,6 +184,8 @@ typedef struct Actor {
     int ex[100];  // 沒有獨立欄位的屬性，依屬性代號（Invincible 20、MAP1~5 43~52、MDP1~5 54~58、B_* 64~98）
     struct Actor *foe;             // 攻擊目標
     struct Actor *owner;           // 召喚出來的：召喚者
+    int side;                      // 隊伍：0 = 主角這邊（主角、他的召喚兽、馴服的、陷阱、分身），1 = 怪物
+    int copied, copy[12];          // 陷阱：放的人的 AP、AP_MAX、MAP1~5、MAP1~5_MAX（0x10034cb0 照抄）
     float dash_x, dash_y;          // 招式衝刺／跳躍的目標點（dash = 1 時）
     int dash;
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
@@ -203,6 +205,7 @@ static Uint32 seq_ticks(const Seq *q) {
 }
 
 static int actor_seq(const Actor *a) {
+    if (a->def && a->def->anim) return 0;  // shortcut: 小動物、陷阱的動畫有 3 個序列，各序列什麼時候用還沒查，都畫第一個
     int base = a->act ? a->act_seq : a->moving ? (a->fight ? a->fwalk : a->walk) : (a->fight ? a->fidle : a->idle);
     return base + DIR_MAP[a->dir];
 }
@@ -331,7 +334,7 @@ static const Role *role_for(const RoleDef *d) {
         if (roles[i].tmpl == d->id) return &roles[i].role;
     if (role_count == MAX_ROLES) return NULL;
     RoleSlot *r = &roles[role_count];
-    if (!role_load(&r->role, d->graphic, d->pli, d->styles)) return NULL;
+    if (!(d->anim ? role_load_anim(&r->role, d->anim) : role_load(&r->role, d->graphic, d->pli, d->styles))) return NULL;
     r->tmpl = d->id;
     role_count++;
     return &r->role;
@@ -443,6 +446,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->act_tick = rand() % 200;
     a->mon = m;
     a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
+    a->side = 1;
     mon_derive(a);
     a->hp = a->hp_max;
     a->exp = stat_at(m->exp, a->level);
@@ -464,7 +468,7 @@ static void spawn_monsters(const Scene *s, const World *w, int room) {
         for (int k = 0; k < mg->count && actor_count < MAX_ACTORS; k++) {
             const MonDef *m = mondef_pick(mg->name);
             const RoleDef *d = m ? roledef_find(m->role) : NULL;
-            if (!d || !atoi(d->graphic)) continue;  // shortcut: 圖形 ID 是名字的（蝙蝠、骷髏、蜘蛛）用另一套格式，還沒做
+            if (!d || (!atoi(d->graphic) && !d->anim)) continue;  // shortcut: 圖形 ID 是名字的（蝙蝠、骷髏、蜘蛛）用另一套格式，還沒做
             int x = en->x, y = en->y;
             for (int t = 0; t < 20; t++) {  // 在入口點附近找一格能站的
                 int tx = en->x + rand() % 7 - 3, ty = en->y + rand() % 7 - 3;
@@ -545,7 +549,9 @@ enum { STR, CON, DEX, SAVVY, CHARM, WISDOM };
 static int hero_attr[6] = {30, 25, 25, 30, 40, 20};
 static int hero_extra_exp, hero_extra_skill;  // 剩餘屬性點、技能點：每升一級 +10、+1（EasyRPG.dll 0x10026d30）
 static const int hero_money = 100;  // 同一模板的 Money。shortcut: 還沒有撿錢、買賣，錢不會變
-static const int hero_gender = 0, hero_age = 29, hero_prof = 1;  // 同一模板的 Gender、Age；職業序號（0x94c2fb，2131 + 序號 = 游侠）
+static const int hero_gender = 0, hero_age = 29;  // 同一模板的 Gender、Age
+static int hero_prof = 1;  // 職業序號（0x94c2fb，2131 + 序號 = 1 游侠、2 力士、3 刺客…）；測試用 --prof 換
+// shortcut: 開新遊戲選職業的畫面還沒做
 
 // 技能參數的值：(技能等級 − 1) × 增量 + 初始值（EasyRPG 0x10036160、0x10024xxx 都是這個式子）
 static float skill_value(float init, float incr, int level) { return (level - 1) * incr + init; }
@@ -629,6 +635,11 @@ static void mon_derive(Actor *a) {
         a->ex[42 + 2 * m->melem] = stat_at(m->map_max, a->level);
     }
     for (int k = 0; k < 5; k++) a->ex[54 + k] = stat_at(m->mdp[k], a->level);
+    if (a->copied) {
+        a->ap = a->copy[0];
+        a->ap_max = a->copy[1];
+        memcpy(&a->ex[43], &a->copy[2], 10 * sizeof(int));
+    }
     actor_mods(a, 0);
     actor_mods(a, 1);
     status_patch(a);
@@ -687,6 +698,7 @@ static int skill_attack_id(const SkillRow *r) { return (int)skill_field(r, 10, s
 // 技能要不要對著敵人放：會造成傷害（Attack方式 ≠ 0）、有敌方状态、或有對敵的屬性參數
 // shortcut: 原版放技能時由 Poq.exe 帶目標（0x48ffe0 → 0x43acb0），怎麼選目標還沒拆完；這裡不需要敵人的就對自己放
 static int skill_needs_foe(const SkillRow *r) {
+    if (r->attack == 3 || r->attack == 8 || r->attack == 11) return 0;  // 召喚、陷阱、分身放在自己旁邊
     if (r->attack != 0 || r->estatus > 0) return 1;
     for (int i = 0; i < r->mod_n; i++)
         if (r->mod[i].enemy > 0 && r->mod[i].id >= 20 && r->mod[i].id < 100) return 1;
@@ -816,15 +828,86 @@ static void summon(Actor *a, const SkillRow *r) {
     if (!d || actor_count >= MAX_ACTORS) return;
     Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, (int)a->x, (int)a->y, a->level);
     s->owner = a;
+    s->side = a->side;
     s->foe = a->foe;
     printf("召喚 %s\n", m->name);
+}
+
+// 技能參數 id 的值（沒有 = -1）
+static int skill_param(const SkillRow *r, int id) {
+    for (int i = 0; i < r->mod_n; i++)
+        if (r->mod[i].id == id) return (int)skill_value(r->mod[i].init, r->mod[i].incr, r->level);
+    return -1;
+}
+
+// 加入 a 的隊伍：同隊打它的都停手
+static void join(Actor *t, Actor *a) {
+    t->side = a->side;
+    t->owner = a;
+    t->foe = NULL;
+    for (int i = 0; i < actor_count; i++)
+        if (actors[i].foe == t && actors[i].side == t->side) actors[i].foe = NULL;
+}
+
+// 在 a 旁邊放一隻怪物表上叫 name 的，加入 a 的隊伍
+// shortcut: 原版放在攻擊位置（G_PosX/Y）、等級用表上的（FUN_10059870 沒設），這裡放在旁邊、等級跟放的人一樣
+static Actor *make_beside(Actor *a, const char *name) {
+    const MonDef *m = mondef_find(name);
+    const RoleDef *d = m ? roledef_find(m->role) : NULL;
+    if (!d || actor_count >= MAX_ACTORS) return NULL;
+    Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, (int)a->x, (int)a->y, a->level);
+    join(s, a);
+    s->exp = 0;
+    printf("放出 %s\n", m->name);
+    return s;
+}
+
+// 馴服（Attack方式 2，0x10035370）：只對 istrap 10 的動物，隊上 istrap 10 的已有參數 271 隻就不行；成功就加入隊伍
+// shortcut: 原版還看 Friend ≥ 4（敵對的）、失敗會出提示字（5000、0x138a、0x1400），這裡只看是不是別隊的、不出字
+static void tame(Actor *a, Actor *t, const SkillRow *r) {
+    if (!t || !alive(t) || t->side == a->side || !t->mon || t->mon->istrap != 10) return;
+    int n = 0;
+    for (int i = 0; i < actor_count; i++) n += alive(&actors[i]) && actors[i].side == a->side && actors[i].mon && actors[i].mon->istrap == 10;
+    if (n >= skill_param(r, 271)) return;
+    join(t, a);
+    printf("馴服 %s\n", t->mon->name);
+}
+
+// 陷阱（Attack方式 8，0x10034cb0）：參數 286 選 1 猎杀陷阱、2 引蜂术、3 捆仙之索、4 陷地毒签、5 无情箭阱；自己的陷阱超過 7 個不放。
+// 攻擊力、法術攻擊照抄放的人，不給經驗
+static void trap(Actor *a, const SkillRow *r) {
+    static const char *N[6] = {"", "\xc1\xd4\xc9\xb1\xcf\xdd\xda\xe5", "\xd2\xfd\xb7\xe4\xca\xf5", "\xc0\xa6\xcf\xc9\xd6\xae\xcb\xf7", "\xcf\xdd\xb5\xd8\xb6\xbe\xc7\xa9", "\xce\xde\xc7\xe9\xbc\xfd\xda\xe5"};
+    int k = skill_param(r, 286), n = 0;
+    for (int i = 0; i < actor_count; i++) n += alive(&actors[i]) && actors[i].owner == a && actors[i].mon && actors[i].mon->istrap == 1;
+    if (k < 1 || k > 5 || n > 7) return;
+    Actor *s = make_beside(a, N[k]);
+    if (!s) return;
+    s->copied = 1;
+    s->copy[0] = a->ap;
+    s->copy[1] = a->ap_max;
+    memcpy(&s->copy[2], &a->ex[43], 10 * sizeof(int));
+    mon_derive(s);
+}
+
+// 除障（Attack方式 9）：對 istrap 1 的陷阱，技能等級 − 陷阱等級/5 ≥ 0 就讓它 HP 歸零
+static void disarm(Actor *a, Actor *t, const SkillRow *r) {
+    (void)a;
+    if (t && alive(t) && t->mon && t->mon->istrap == 1 && r->level - t->level / 5 >= 0) actor_kill(t, NULL);
+}
+
+// 分身（Attack方式 11，0x10034140）：已有分身就不放；拿弓（Hand 2、5）放克隆刺客弓，否則克隆刺客刀
+// shortcut: 原版把放的人的裝備（G_EquipStr3 → 分身的 G_EquipStr1）給分身，換裝還沒做
+static void clone(Actor *a) {
+    for (int i = 0; i < actor_count; i++)
+        if (alive(&actors[i]) && actors[i].owner == a && !strncmp(actors[i].mon->name, "\xbf\xcb\xc2\xa1", 4)) return;
+    make_beside(a, hero_hand == 2 || hero_hand == 5 ? "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb9\xad" : "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb5\xb6");
 }
 
 // 技能打中（0x1003f590）：我方状态、敌方状态都沒填就不加；我方状态已在自己身上、敌方状态已在對方身上也不加。
 // 否則自己加我方状态、對方加敌方状态（0x1002fe20 → 0x10037f40），時間 = 作用時間。
 // 再算攻擊（0x10025b70）：立即生效的參數照「是否对敌」給對方或自己；Attack方式 = 0 不造成傷害
-// shortcut: 沒有敌方状态但有對敵參數的（點石成俑）也當成狀態加在對方身上；Attack方式 2、3、5~13（法術、召喚、陷阱、界面技能）都先當物理，
-// 遊俠只用到 0、1；陷阱（istrap）還沒做
+// Attack方式：1、4、10 物理，2 馴服，3 召喚，8 陷阱，9 除障，11 分身；5 開鎖、6 偷竊、12 清狀態、13 界面技能沒有技能用到，沒做
+// shortcut: 沒有敌方状态但有對敵參數的（點石成俑）也當成狀態加在對方身上
 static void skill_hit(Actor *a, Actor *t, const SkillRow *r, Uint32 tick) {
     if (r && (r->status > 0 || r->estatus > 0) && !(r->status > 0 && has_status(a, r->status)) && !(t && r->estatus > 0 && has_status(t, r->estatus))) {
         if (r->status > 0) buff_add(a, r, r->status, 0, skill_time(r), 0);
@@ -836,8 +919,13 @@ static void skill_hit(Actor *a, Actor *t, const SkillRow *r, Uint32 tick) {
         const SkillMod *m = &r->mod[i];
         if (m->id == 21 || m->id == 22 || m->id == 292 || m->id == 293) skill_now(m->enemy > 0 && t ? t : a, m, r->level);
     }
-    if (r && r->attack == 3) summon(a, r);
-    else if (t && t != a && (!r || r->attack != 0)) strike(a, t, r, tick);
+    int k = r ? r->attack : 1;
+    if (k == 2) tame(a, t, r);
+    else if (k == 3) summon(a, r);
+    else if (k == 8) trap(a, r);
+    else if (k == 9) disarm(a, t, r);
+    else if (k == 11) clone(a);
+    else if (t && t != a && (k == 1 || k == 4 || k == 10)) strike(a, t, r, tick);
 }
 
 
@@ -951,8 +1039,8 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     if (t->def->hit && t->act != ACT_ATTACK) start_act(t, ACT_HIT, t->def->hit);
 }
 
-// 敵對：主角打怪物，怪物（和牠們召喚的）打主角
-static int hostile(const Actor *a, const Actor *e) { return e != a && alive(e) && (a->mon ? !e->mon : e->mon != NULL); }
+// 敵對：不同隊伍的
+static int hostile(const Actor *a, const Actor *e) { return e != a && alive(e) && e->side != a->side; }
 
 // 沒有打中觸發（type 0、16 的 0x14／0x16）的招式，靠飛出去的招式單位打中（弓箭、劍氣）：回傳第一個 type 2 觸發的序號，否則 -1
 static int method_unit_hit(const Method *m) {
@@ -1052,7 +1140,7 @@ static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
 static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     int seq = actor_seq(a);
     const Seq *q = role_seq(a->role, seq);
-    int f = actor_frame(a, seq);
+    int f = q || a->act != ACT_ATTACK ? actor_frame(a, seq) : 99;  // 角色沒有這招的動作（陷阱）：觸發一次全放
     if (a->act == ACT_ATTACK && a->atk)
         for (int fr = a->last_frame + 1; fr <= f; fr++)
             for (int i = 0; i < a->atk->trig_count; i++) {
@@ -1199,11 +1287,25 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
 
 // 怪物：主角進入索敌范围就追上去打，離出生點超過追击范围就放棄回去閒逛
 static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
+    (void)hero;
+    if (a->owner && alive(a->owner)) {  // 主人那邊的：閒逛、追击范围都以主人為中心
+        mon_specs[a - actors].rx = (int)a->owner->x - MON_WANDER;
+        mon_specs[a - actors].ry = (int)a->owner->y - MON_WANDER;
+    }
     if (a->foe && (!alive(a->foe) || fabsf(a->x - a->spec->rx - MON_WANDER) + fabsf(a->y - a->spec->ry - MON_WANDER) > a->def->chase))
         a->foe = NULL;
     // 目標有 0x10（0x488a10）或 0x4000（0x489730）就放掉；找目標（0x48ba50）跳過 0x10、0x20000，自己有 0x4000 不找
     if (a->foe && a->foe->flags & 0x4010) a->foe = NULL;
-    if (!a->foe && alive(hero) && !(hero->flags & 0x20010) && !(a->flags & 0x4000) && cell_dist(a, hero) <= a->def->seek) a->foe = hero;
+    // 找索敌范围內最近的別隊（主角、怪物、雙方的召喚兽）
+    Actor *near = NULL;
+    // shortcut: 陷阱（小動物表）沒有索敌范围，原版怎麼觸發（Poq 物件種類 3）還沒拆，先用它技能的作用範圍
+    const SkillRow *ts = a->mon && a->mon->istrap == 1 ? npc_skill(a->mon->skill[0]) : NULL;
+    int seek = a->def->seek ? a->def->seek : ts ? skill_range_max(ts) : 0;
+    for (int i = 0; !a->foe && !(a->flags & 0x4000) && i < actor_count; i++) {
+        Actor *e = &actors[i];
+        if (hostile(a, e) && !(e->flags & 0x20010) && cell_dist(a, e) <= seek && (!near || cell_dist(a, e) < cell_dist(a, near))) near = e;
+    }
+    if (near) a->foe = near;
     a->speed = a->foe ? a->def->fight_speed : a->def->speed;
     if (!pursue(a, s, tick)) npc_think(a, s, tick);
 }
@@ -1214,7 +1316,7 @@ static Actor *monster_at(int px, int py, int ox, int oy, const Scene *s) {
     int best_d = 1 << 30;
     for (int i = 1; i < actor_count; i++) {
         Actor *a = &actors[i];
-        if (!a->mon || !alive(a)) continue;
+        if (a->side != 1 || !alive(a)) continue;
         int fx = (int)((a->x - a->y + s->h - 1) * TILE_W / 2) - ox, fy = (int)((a->x + a->y) * TILE_H / 2) - oy;
         int dx = px - fx, dy = py - (fy - 30);
         if (abs(dx) > 36 || dy < -70 || dy > 40) continue;
@@ -2044,6 +2146,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
         else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--prof") && i + 1 < argc) hero_prof = atoi(argv[++i]) < 1 || atoi(argv[i]) > 5 ? 1 : atoi(argv[i]);
         else if (pos++ == 0) game = argv[i];
         else scn = argv[i];
     }
@@ -2143,7 +2246,7 @@ int main(int argc, char **argv) {
                      (e.type == SDL_CONTROLLERBUTTONDOWN && e.cbutton.button == SDL_CONTROLLER_BUTTON_A)) {
                 float best = hero->def ? hero->def->seek : 10;
                 for (int i = 1; i < actor_count; i++)
-                    if (actors[i].mon && alive(&actors[i]) && cell_dist(hero, &actors[i]) <= best) { best = cell_dist(hero, &actors[i]); hero->foe = &actors[i]; }
+                    if (hostile(hero, &actors[i]) && cell_dist(hero, &actors[i]) <= best) { best = cell_dist(hero, &actors[i]); hero->foe = &actors[i]; }
             }
             else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_RIGHT) {  // 右鍵：對點到的怪物放左手技能
                 Actor *m = monster_at(e.button.x, e.button.y, ox, oy, &scene);

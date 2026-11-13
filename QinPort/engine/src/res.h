@@ -108,6 +108,7 @@ typedef struct {
 // styles：角色表的「屬性」，例如 "009*009*001*000"，依 PLI 部件順序指定款式（000 = 不畫這個部件）；NULL = 用 PLI 預設
 int role_load(Role *r, const char *graphic, int pli_no, const char *styles);
 int role_anim_ids(const char *graphic, int pli_no, const char *styles, uint32_t *out, int max);  // 預抓用
+int role_load_anim(Role *r, uint32_t gid);  // 一個動畫當成一個部件的角色
 
 // ObjMdl/RoleMdl.txt 角色表（XOR 0x78 加密的 GBK、tab 分隔）
 typedef struct {
@@ -115,6 +116,7 @@ typedef struct {
     int fight_idle, fight_walk, hit, death, fight_speed;  // 戰鬥休息/走路、挨打、死亡的動作起點（0 = 沒有）、戰鬥速度
     int seek, chase, atk_delay, snd_death, snd_hit;       // 索敌/追击范围（格）、攻击延时（拍）、死亡/挨打聲音
     char graphic[16], styles[96];
+    uint32_t anim;  // BeastieMdl.txt 的小動物、陷阱：只有一個動畫（图素ID），graphic 空白
 } RoleDef;
 int roledefs_load(void);
 const RoleDef *roledef_find(int id);
@@ -151,6 +153,7 @@ typedef struct {
 int mondefs_load(void);
 // 名稱前綴相符的列隨機挑一列（原版 0x10077670 收集相符列再隨機取）；找不到回 NULL
 const MonDef *mondef_pick(const char *prefix);
+const MonDef *mondef_find(const char *name);
 // ---- 道具表 Data/item_<類型>.txt（XOR、tab，第 2 列是欄名）：依「级别」欄找列 ----
 // 欄位：0 级别、1 名称、9 等级限制、13/14 攻击力小/大、15/16 防御力小/大、31 道具栏图片ID（原版 G_PicID2，空的用 0xfeb）、33~37 各職業裝備串（遊俠、力士、刺客、術士、巫師）
 typedef struct { char name[32]; int ap, ap_max, dp_min, dp_max, icon; char equip[5][96]; } Item;
