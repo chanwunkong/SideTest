@@ -71,6 +71,19 @@ int main(void) {
     mk(&actors[0]);
     for (int i = 0; i < 5; i++) skill_hit(&actors[0], NULL, sm, 0);
     assert(actor_count == 3 && actors[1].owner == &actors[0]);
+    // 範圍打擊：type 0 ID 7 = 目標周圍 2 格內全部；ID 0 = 只打目標
+    actor_count = 4;
+    for (int i = 0; i < 4; i++) mk(&actors[i]);
+    actors[0].mon = NULL;
+    actors[0].hr = 100000;
+    actors[1].x = 5; actors[2].x = 6.5f; actors[3].x = 12;
+    actors[0].foe = &actors[1];
+    int h1 = actors[1].hp, h2 = actors[2].hp, h3 = actors[3].hp;
+    method_hits(&actors[0], &(Trig){.type = 0, .id = 7}, 0);
+    assert(actors[1].hp < h1 && actors[2].hp < h2 && actors[3].hp == h3);
+    h2 = actors[2].hp;
+    method_hits(&actors[0], &(Trig){.type = 0, .id = 0}, 0);
+    assert(actors[2].hp == h2);
     puts("skilltest ok");
     return 0;
 }

@@ -902,6 +902,55 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     if (t->def->hit && t->act != ACT_ATTACK) start_act(t, ACT_HIT, t->def->hit);
 }
 
+// 敵對：主角打怪物，怪物（和牠們召喚的）打主角
+static int hostile(const Actor *a, const Actor *e) { return e != a && alive(e) && (a->mon ? !e->mon : e->mon != NULL); }
+
+// 沒有打中觸發（type 0、16 的 0x14／0x16）的招式，靠飛出去的招式單位打中（弓箭、劍氣）：回傳第一個 type 2 觸發的序號，否則 -1
+// shortcut: 原版是單位（MethodUnit_Mdl.ini）飛到目標才算打中；這裡在放出單位那一幀就算打中
+static int method_unit_hit(const Method *m) {
+    int unit = -1;
+    for (int i = 0; m && i < m->trig_count; i++) {
+        const Trig *t = &m->trig[i];
+        if (t->flag) continue;
+        if (t->type == 0 || (t->type == 16 && (t->id == 0x14 || t->id == 0x16))) return -1;
+        if (t->type == 2 && unit < 0) unit = i;
+    }
+    return unit;
+}
+
+// 招式打中的對象（Poq.exe 0x43c4f0 → 0x438a00 依 iTriID）：5~10 = 目標點周圍 0、64、128、192、256、320 像素（0~5 格）內全部；
+// 11~13 = 自己周圍 0xc0（3 格）內全部；30 = 直接打目標；其他（0、2、3、0x14）= 前方第一個，這裡打攻擊目標。
+// type 16：0x16 = 向四周放 ID2 個單位（疾風掃落葉 8 個），0x14 = 向前放 ID2 個（穿心一擊）
+// shortcut: 16 的單位打到誰用技能作用範圍最大估：四周 = 範圍內全部，向前 = 朝目標方向寬 1 格的直線上；11、12 原版中心點（0x4395f0）沒拆，先當自己
+static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
+    const SkillRow *sk = a->casting ? a->cast : a->skill;
+    Actor *foe = a->foe;
+    float cx = a->x, cy = a->y, r = -1, ux = 0, uy = 0;
+    if (t->type == 0 && t->id >= 5 && t->id <= 10) { if (!alive(foe)) return; cx = foe->x; cy = foe->y; r = t->id - 5; }
+    else if (t->type == 0 && t->id >= 11 && t->id <= 13) r = 3;
+    else if (t->type == 16) {
+        r = sk ? skill_range_max(sk) : 1;
+        if (t->id == 0x14) {
+            if (!alive(foe)) return;
+            float len = cell_dist(a, foe);
+            ux = (foe->x - a->x) / (len > 0 ? len : 1);
+            uy = (foe->y - a->y) / (len > 0 ? len : 1);
+        }
+    }
+    if (r < 0) skill_hit(a, a->casting && !skill_needs_foe(a->cast) ? a : foe, sk, tick);
+    else {
+        if (sk && sk->status > 0) skill_hit(a, NULL, sk, tick);  // 自己的狀態只加一次
+        for (int i = 0; i < actor_count; i++) {
+            Actor *e = &actors[i];
+            float dx = e->x - cx, dy = e->y - cy, along = dx * ux + dy * uy;
+            if (!hostile(a, e)) continue;
+            if (ux || uy ? along < 0 || along > r + 0.5f || fabsf(dx * uy - dy * ux) > 1 : sqrtf(dx * dx + dy * dy) > r + 0.5f) continue;
+            skill_hit(a, e, sk, tick);
+        }
+    }
+    if (a->casting) a->casting = 2;
+}
+
 // 單次動作的進度：攻擊依招式各幀觸發音效與命中；播完回到平常（死亡除外）
 static void action_tick(Actor *a, Uint32 tick) {
     int seq = actor_seq(a);
@@ -913,11 +962,18 @@ static void action_tick(Actor *a, Uint32 tick) {
                 const Trig *t = &a->atk->trig[i];
                 if (t->flag || t->frame != fr) continue;
                 if (t->type == 1) audio_sfx(t->id);
-                else if (t->type == 0) {
-                    if (a->casting) { skill_hit(a, skill_needs_foe(a->cast) ? a->foe : a, a->cast, tick); a->casting = 2; }
-                    else skill_hit(a, a->foe, a->skill, tick);
+                else if (t->type == 0 || (t->type == 16 && (t->id == 0x14 || t->id == 0x16))) method_hits(a, t, tick);
+                else if (t->type == 2) {
+                    fx_spawn(t, a, a->foe, tick);
+                    if (i == method_unit_hit(a->atk)) method_hits(a, t, tick);
                 }
-                else if (t->type == 2) fx_spawn(t, a, a->foe, tick);
+                else if ((t->type == 5 || t->type == 7) && alive(a->foe) && cell_dist(a, a->foe) > 1.5f) {
+                    // 衝過去／跳過去（Poq.exe 0x43c4f0 type 5、7 → 角色動作 10、7 到招式的目標點）
+                    // shortcut: 直接移到目標旁邊一格，沒有播位移過程、沒檢查能不能站
+                    float dx = a->foe->x - a->x, dy = a->foe->y - a->y, len = sqrtf(dx * dx + dy * dy);
+                    a->x = a->foe->x - dx / len;
+                    a->y = a->foe->y - dy / len;
+                }
             }
     a->last_frame = f;
     a->act_tick++;

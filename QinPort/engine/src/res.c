@@ -1203,6 +1203,7 @@ const Method *method_find(int auto_id) {
             } else if (t && !strcmp(k, "iWhatFrame")) t->frame = v;
             else if (t && !strcmp(k, "iTriType")) t->type = v;
             else if (t && !strcmp(k, "iTriID")) t->id = v;
+            else if (t && !strcmp(k, "iTriID2")) t->id2 = v;
             else if (t && !strcmp(k, "iTriPos")) t->pos = v;
         }
         free(d);
