@@ -124,6 +124,15 @@ int main(void) {
         printf("  skill %d: manual %d ai %d range %d\n", k, m ? m->manual : -1, m ? m->ai : -1, r ? skill_range_max(r) : -1);
     }
     assert(seen[0] && seen[1]);
+    // 招式旗標：動作中設 0x10，動作結束（iFlag 3）清掉
+    Method fm = {.trig_count = 2, .trig = {{.flag = 0, .type = 8, .id = 16, .id2 = 1}, {.flag = 3, .type = 8, .id = 16, .id2 = 0}}};
+    mk(&a);
+    act_flags(&a, &fm.trig[0]);
+    assert(a.flags == 16);
+    a.act = ACT_ATTACK;
+    a.atk = &fm;
+    act_end(&a);
+    assert(a.flags == 0);
     puts("skilltest ok");
     return 0;
 }

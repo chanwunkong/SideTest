@@ -169,6 +169,8 @@ typedef struct Actor {
     int act, act_seq, last_frame;  // 單次動作與它的序列起點、上一拍的幀（觸發用）
     int act_frame, frame_tick, act_done;  // 單次動作播到第幾幀、這幀停了幾拍、播完了沒
     int adj, extra;                // 這次動作每幀延遲的調整（序列 +0x14）、攻速多出來要補到間隔的拍數
+    int flags;                     // 招式設的旗標（type 8）：0x10 = 怪物不選它當目標、0x200 = 在空中、0x4000 = 打它的會停手
+    int z, vz, zmax;               // 離地高度、每拍升降、上限（+0x2d7、+0x2db、+0x2df）
     const Method *atk;             // 普通攻擊的招式
     const SkillRow *skill;         // 攻擊用的技能（主角右手；怪物是這一招選的，打完清掉）
     const SkillRow *last_skill;    // 怪物上一招
@@ -237,8 +239,8 @@ static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy, tick, 1);
     const uint8_t *order = r->order[seq] + frame * r->part_count;
     for (int i = 0; i < r->part_count; i++)
-        if (order[i] < r->part_count) draw_frame(r->body[order[i]], seq, frame, sx, sy, 0);
-    if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy, tick, 0);
+        if (order[i] < r->part_count) draw_frame(r->body[order[i]], seq, frame, sx, sy - a->z, 0);  // 影子留在地上
+    if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy - a->z, tick, 0);
 }
 
 // 面向畫面方向 (sdx, sdy)
@@ -506,7 +508,21 @@ static void attack_speed(Actor *a) {
     }
 }
 
+// 招式觸發 type 8：ID2 非 0 設旗標、0 清掉（角色虛擬函式 +0x48）
+static void act_flags(Actor *a, const Trig *t) {
+    if (t->id2) a->flags |= t->id;
+    else a->flags &= ~t->id;
+}
+
+// 動作結束（播完或被換掉）：招式 iFlag 3 的旗標觸發（多半是把動作中設的旗標清掉）
+// shortcut: iFlag 3 當成「動作結束時」是從成對的設定／清除推的；其他種類的 iFlag 3 觸發沒做
+static void act_end(Actor *a) {
+    for (int i = 0; a->act == ACT_ATTACK && a->atk && i < a->atk->trig_count; i++)
+        if (a->atk->trig[i].flag == 3 && a->atk->trig[i].type == 8) act_flags(a, &a->atk->trig[i]);
+}
+
 static void start_act(Actor *a, int act, int seq) {
+    act_end(a);
     a->act = act;
     a->act_seq = seq;
     a->act_tick = a->act_frame = a->frame_tick = a->act_done = a->adj = a->extra = 0;
@@ -1053,7 +1069,12 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
                         if (hit) method_hits(a, t, tick);
                     }
                 }
-                else if (t->type == 13) a->adj = t->id - 5;  // 改這個動作的每幀延遲（0x43c4f0 → 序列 +0x14 = ID − 5）
+                else if (t->type == 13) a->adj = t->id - 5;
+                else if (t->type == 8) act_flags(a, t);
+                else if (t->type == 11) {  // 離地：每拍升降 ID、最高 ID2（0x43c4f0 → 0x4961e0）
+                    a->vz = t->id;
+                    a->zmax = t->id2;
+                }  // 改這個動作的每幀延遲（0x43c4f0 → 序列 +0x14 = ID − 5）
                 else if ((t->type == 5 || t->type == 7) && alive(a->foe) && cell_dist(a, a->foe) > 1.5f) {
                     // 衝過去／跳過去（Poq.exe 0x43c4f0 type 5、7 → 角色動作 10、7 → 移動狀態 0x15、0x16 到招式的目標點）
                     float dx = a->foe->x - a->x, dy = a->foe->y - a->y, len = sqrtf(dx * dx + dy * dy);
@@ -1071,6 +1092,12 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     }
     a->last_frame = f;
     a->act_tick++;
+    // 離地高度（0x495010）：升時到上限為止；降到 0 停住；沒在升降時直接落地。shortcut: 高度當成畫面像素
+    if (a->vz) {
+        a->z += a->vz;
+        if (a->vz > 0 && a->z > a->zmax) a->z = a->zmax;
+        if (a->vz < 0 && a->z <= 0) a->z = a->vz = 0;
+    } else a->z = 0;
     // 逐幀推進：每幀停 延遲 + 調整 拍。shortcut: 調整後不到 1 拍時當 1 拍，原版播放器（Gfx）的下限沒查
     if (q && q->count) {
         int d = (q->frames[a->act_frame].delay > 0 ? q->frames[a->act_frame].delay : 1) + a->adj;
@@ -1096,8 +1123,9 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
             a->atk = a->atk_rh;
             a->casting = 0;
         }
+        act_end(a);
         a->act = ACT_NONE;
-        a->act_tick = 0;
+        a->act_tick = a->z = a->vz = 0;  // shortcut: 原版高度在角色每拍都更新，這裡只在動作中更新，動作結束直接落地
     }
 }
 
@@ -1173,7 +1201,9 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
 static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
     if (a->foe && (!alive(a->foe) || fabsf(a->x - a->spec->rx - MON_WANDER) + fabsf(a->y - a->spec->ry - MON_WANDER) > a->def->chase))
         a->foe = NULL;
-    if (!a->foe && alive(hero) && cell_dist(a, hero) <= a->def->seek) a->foe = hero;
+    // 目標有 0x10（0x488a10）或 0x4000（0x489730）就放掉；找目標（0x48ba50）跳過 0x10、0x20000，自己有 0x4000 不找
+    if (a->foe && a->foe->flags & 0x4010) a->foe = NULL;
+    if (!a->foe && alive(hero) && !(hero->flags & 0x20010) && !(a->flags & 0x4000) && cell_dist(a, hero) <= a->def->seek) a->foe = hero;
     a->speed = a->foe ? a->def->fight_speed : a->def->speed;
     if (!pursue(a, s, tick)) npc_think(a, s, tick);
 }
