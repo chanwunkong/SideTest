@@ -178,6 +178,7 @@ typedef struct Actor {
     int buff_n;
     int ex[100];  // 沒有獨立欄位的屬性，依屬性代號（Invincible 20、MAP1~5 43~52、MDP1~5 54~58、B_* 64~98）
     struct Actor *foe;             // 攻擊目標
+    struct Actor *owner;           // 召喚出來的：召喚者
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
 } Actor;
 
@@ -421,6 +422,29 @@ static const SkillRow *npc_skill(const char *key) {
     return NULL;
 }
 
+// 放一隻怪物在 (x, y)，閒逛範圍以 (cx, cy) 為中心
+static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, int cy, int lv) {
+    Actor *a = &actors[actor_count];
+    NpcSpec *sp = &mon_specs[actor_count++];
+    *sp = (NpcSpec){.type = 13, .tmpl = d->id, .x = x, .y = y, .rx = cx - MON_WANDER, .ry = cy - MON_WANDER,
+                    .rw = MON_WANDER * 2 + 1, .rh = MON_WANDER * 2 + 1};
+    memset(a, 0, sizeof *a);
+    a->x = x + 0.5f;
+    a->y = y + 0.5f;
+    a->dir = rand() % 8;
+    a->spec = sp;
+    a->act_tick = rand() % 200;
+    a->mon = m;
+    a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
+    mon_derive(a);
+    a->hp = a->hp_max;
+    a->exp = stat_at(m->exp, a->level);
+    a->skill = npc_skill(m->skill);
+    a->atk = method_find(a->skill ? skill_attack_id(a->skill) : skill_attack(m->skill));
+    actor_setup(a, d);
+    return a;
+}
+
 static void spawn_monsters(const Scene *s, const World *w, int room) {
     if (room < 0) return;
     const Room *r = &w->rooms[room];
@@ -440,26 +464,9 @@ static void spawn_monsters(const Scene *s, const World *w, int room) {
                 int tx = en->x + rand() % 7 - 3, ty = en->y + rand() % 7 - 3;
                 if (scene_walkable(s, tx, ty)) { x = tx; y = ty; break; }
             }
-            Actor *a = &actors[actor_count];
-            NpcSpec *sp = &mon_specs[actor_count++];
-            *sp = (NpcSpec){.type = 13, .tmpl = d->id, .x = x, .y = y, .rx = en->x - MON_WANDER, .ry = en->y - MON_WANDER,
-                            .rw = MON_WANDER * 2 + 1, .rh = MON_WANDER * 2 + 1};
-            memset(a, 0, sizeof *a);
-            a->x = x + 0.5f;
-            a->y = y + 0.5f;
-            a->dir = rand() % 8;
-            a->spec = sp;
-            a->act_tick = rand() % 200;
-            a->mon = m;
             int lv = mg->level, tier = mg->tier;
             if (lv < 0) lv = tier * 5 - rand() % 5;
-            a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
-            mon_derive(a);
-            a->hp = a->hp_max;
-            a->exp = stat_at(m->exp, a->level);
-            a->skill = npc_skill(m->skill);
-            a->atk = method_find(a->skill ? skill_attack_id(a->skill) : skill_attack(m->skill));
-            actor_setup(a, d);
+            Actor *a = mon_make(m, d, x, y, en->x, en->y, lv);
             printf("怪物 %s Lv%d HP%d 在 (%d,%d)\n", m->name, a->level, a->hp, x, y);
         }
     }
@@ -737,6 +744,33 @@ static void skill_now(Actor *x, const SkillMod *m, int level) {
     *f = *f < 0 ? 0 : *f > max ? max : *f;
 }
 
+// 原版 0x10052a00：n > 1 時 rand() % n，否則 0
+static int rnd(int n) { return n > 1 ? rand() % n : 0; }
+
+// 召喚（Attack方式 3，0x100355d0）：參數 273 選召喚兽（1 狼、2 老虎、3 熊、4 鸟、5 白狼、6 木偶、7 狗、8 虎蛟、9 狍鸮、10 朱厌；
+// 原版表上第 11 個善翼超出檢查範圍，不會召出來），278 = 最多幾隻；選狼時 rand()%100 是 3 的倍數就換白狼。等級同召喚者，跟召喚者同一邊
+// shortcut: 放在召喚者旁邊（原版放在攻擊位置）；原版數量滿之前會先移掉前 6 種裡的某些舊召喚兽（0x1003dd80 的比對還沒拆），這裡不移
+static void summon(Actor *a, const SkillRow *r) {
+    static const char *N[10] = {"\xd5\xd9\xbb\xbd\xca\xde\xc0\xc7", "\xd5\xd9\xbb\xbd\xca\xde\xc0\xcf\xbb\xa2", "\xd5\xd9\xbb\xbd\xca\xde\xd0\xdc", "\xd5\xd9\xbb\xbd\xca\xde\xc4\xf1", "\xd5\xd9\xbb\xbd\xca\xde\xb0\xd7\xc0\xc7", "\xd5\xd9\xbb\xbd\xca\xde\xc4\xbe\xc5\xbc", "\xd5\xd9\xbb\xbd\xca\xde\xb9\xb7", "\xd5\xd9\xbb\xbd\xca\xde\xbb\xa2\xf2\xd4", "\xd5\xd9\xbb\xbd\xca\xde\xe1\xf3\xfb\x5e", "\xd5\xd9\xbb\xbd\xca\xde\xd6\xec\xd1\xe1"};
+    int k = -1, max = 0;
+    for (int i = 0; i < r->mod_n; i++) {
+        int v = (int)skill_value(r->mod[i].init, r->mod[i].incr, r->level);
+        if (r->mod[i].id == 273) k = v - 1;
+        else if (r->mod[i].id == 278) max = v;
+    }
+    if (k < 0 || k > 9 || max > 9) return;
+    if (k == 0 && rnd(100) % 3 == 0) k = 4;
+    const MonDef *m = mondef_pick(N[k]);
+    int n = 0;
+    for (int i = 0; i < actor_count; i++) n += actors[i].owner == a && alive(&actors[i]) && actors[i].mon == m;
+    const RoleDef *d = m ? roledef_find(m->role) : NULL;
+    if (n >= max || !d || actor_count >= MAX_ACTORS) return;
+    Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, (int)a->x, (int)a->y, a->level);
+    s->owner = a;
+    s->foe = a->foe;
+    printf("召喚 %s\n", m->name);
+}
+
 // 技能打中（0x1003f590）：我方状态、敌方状态都沒填就不加；我方状态已在自己身上、敌方状态已在對方身上也不加。
 // 否則自己加我方状态、對方加敌方状态（0x1002fe20 → 0x10037f40），時間 = 作用時間。
 // 再算攻擊（0x10025b70）：立即生效的參數照「是否对敌」給對方或自己；Attack方式 = 0 不造成傷害
@@ -753,11 +787,10 @@ static void skill_hit(Actor *a, Actor *t, const SkillRow *r, Uint32 tick) {
         const SkillMod *m = &r->mod[i];
         if (m->id == 21 || m->id == 22 || m->id == 292 || m->id == 293) skill_now(m->enemy > 0 && t ? t : a, m, r->level);
     }
-    if (t && t != a && (!r || r->attack != 0)) strike(a, t, r, tick);
+    if (r && r->attack == 3) summon(a, r);
+    else if (t && t != a && (!r || r->attack != 0)) strike(a, t, r, tick);
 }
 
-// 原版 0x10052a00：n > 1 時 rand() % n，否則 0
-static int rnd(int n) { return n > 1 ? rand() % n : 0; }
 
 // 倒下（0x100574e0）：播死亡動作，被主角打死的怪物給經驗，夠了就升級
 static void actor_kill(Actor *t, Actor *by) {

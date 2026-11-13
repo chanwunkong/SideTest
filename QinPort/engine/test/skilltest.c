@@ -62,6 +62,15 @@ int main(void) {
     t.hp = 1;
     actor_second(&t);
     assert(t.act == ACT_DEAD);
+    // 召喚：匈奴法师_召唤（273 = 10 → 朱厌，最多 2 隻）
+    roledefs_load();
+    mondefs_load();
+    const SkillRow *sm = npc_skill("\xd0\xd9\xc5\xab\xb7\xa8\xca\xa6_\xd5\xd9\xbb\xbd");
+    assert(sm && sm->attack == 3);
+    actor_count = 1;
+    mk(&actors[0]);
+    for (int i = 0; i < 5; i++) skill_hit(&actors[0], NULL, sm, 0);
+    assert(actor_count == 3 && actors[1].owner == &actors[0]);
     puts("skilltest ok");
     return 0;
 }
