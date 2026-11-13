@@ -102,6 +102,28 @@ int main(void) {
     assert(t.hp < hp && missile_count == 0);
     const Anim *arrow = anim_get(unit_find(0)->anim);
     printf("arrow seqs %d\n", arrow ? arrow->count : -1);
+    // 怪物選招：老虎（抓、扑、冲）三招都會被選到
+    MonDef tiger = md;
+    strcpy(tiger.skill[0], "\xc0\xcf\xbb\xa2_\xd7\xa5");
+    strcpy(tiger.skill[1], "\xc0\xcf\xbb\xa2_\xc6\xcb");
+    strcpy(tiger.skill[2], "\xc0\xcf\xbb\xa2_\xb3\xe5");
+    mk(&a); mk(&t);
+    a.mon = &tiger;
+    a.foe = &t;
+    t.x = 1;
+    int seen[3] = {0};
+    for (int i = 0; i < 600; i++) {
+        const SkillRow *r = mon_pick(&a);
+        for (int k = 0; r && k < 3; k++) seen[k] += r == npc_skill(tiger.skill[k]);
+        if (r) a.last_skill = r;
+    }
+    printf("tiger picks %d %d %d\n", seen[0], seen[1], seen[2]);
+    for (int k = 0; k < 3; k++) {
+        const SkillRow *r = npc_skill(tiger.skill[k]);
+        const Method *m = r ? method_find(skill_attack_id(r)) : NULL;
+        printf("  skill %d: manual %d ai %d range %d\n", k, m ? m->manual : -1, m ? m->ai : -1, r ? skill_range_max(r) : -1);
+    }
+    assert(seen[0] && seen[1]);
     puts("skilltest ok");
     return 0;
 }

@@ -168,7 +168,8 @@ typedef struct Actor {
     int level, hp, hp_max, mp, mp_max, ap, ap_max, dp, hr, sr, exp;
     int act, act_seq, last_frame;  // 單次動作與它的序列起點、上一拍的幀（觸發用）
     const Method *atk;             // 普通攻擊的招式
-    const SkillRow *skill;         // 攻擊用的技能（主角右手）；怪物為 NULL
+    const SkillRow *skill;         // 攻擊用的技能（主角右手；怪物是這一招選的，打完清掉）
+    const SkillRow *last_skill;    // 怪物上一招
     const SkillRow *cast;          // 正在放的左手技能（casting 時有效；1 = 還沒打中，2 = 打中觸發過了）
     const SkillRow *want;          // 要放、正在走過去的左手技能
     const Method *atk_rh;          // 放左手技能時先存起來的右手招式
@@ -441,8 +442,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     mon_derive(a);
     a->hp = a->hp_max;
     a->exp = stat_at(m->exp, a->level);
-    a->skill = npc_skill(m->skill);
-    a->atk = method_find(a->skill ? skill_attack_id(a->skill) : skill_attack(m->skill));
+    a->atk = method_find(skill_attack(m->skill[0]));  // 技能表沒有這招時的招式；有的話每次出手前由 mon_pick 選
     actor_setup(a, d);
     return a;
 }
@@ -1051,6 +1051,10 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     if (a->act != ACT_DEAD && (!q || a->act_tick >= seq_ticks(q))) {
         // 攻擊間隔（Poq.exe 0x48d330）：主角 = 間隔 × 100 / (100 + 攻速)，攻速 = B_C_FIGHT_SPEED v > 0 時 v×120/(v+120)；怪物 = 間隔 + 隨機(間隔)
         // shortcut: 原版攻速也會跳過招式動作的幾幀（同一函式），這裡只縮短間隔
+        if (a->act == ACT_ATTACK && a->mon && a->skill) {  // 怪物打完一招：記成上一招，下次重選（0x4911b0）
+            a->last_skill = a->skill;
+            a->skill = NULL;
+        }
         if (a->act == ACT_ATTACK) {
             int v = a->ex[65], f = (v > 0 ? v * 120 / (v + 120) : v) + 100;
             a->cool = a->mon ? a->def->atk_delay + rnd(a->def->atk_delay) : f ? a->def->atk_delay * 100 / f : a->def->atk_delay;
@@ -1066,6 +1070,35 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     }
 }
 
+// 怪物選招（Poq.exe 0x4906c0，每次出手前；技能1~8 依序看招式表的 wManualID、Reserve3）：
+// wManualID 0、3 且 Reserve3 = 1（遠程招）：一半機率考慮，RangeMax < 3 時目標在範圍內就用、否則距離（格，|dx|+|dy|）≥ RangeMax 且不是上一招就用；
+// wManualID 1、4，或 0、3 而 Reserve3 ≠ 1：Reserve3 = 0 的招數 n 從 1 起累加，已選過時 1/n 機率才再看；
+// 再看 Reserve3：0 = 選、2 = 一半機率、3 = 1/3 機率（都要不是上一招）、5 = 血少於 40% 才選、4 和其他 = 不選。其他 wManualID 不選
+// shortcut: 原版還看技能能不能用（SkillUnit Enable）；怪物不扣精气，這裡都當能用。+0x507 當成血量百分比（初值 100），沒有完全確認
+static const SkillRow *mon_pick(const Actor *a) {
+    const SkillRow *pick = NULL;
+    int n = 1;
+    for (int i = 0; i < 8; i++) {
+        const SkillRow *r = npc_skill(a->mon->skill[i]);
+        const Method *m = r ? method_find(skill_attack_id(r)) : NULL;
+        if (!m) continue;
+        if ((m->manual == 0 || m->manual == 3) && m->ai == 1) {
+            if (rand() % 2 && alive(a->foe)) {
+                int range = skill_range_max(r), d = (int)(fabsf(a->x - a->foe->x) + fabsf(a->y - a->foe->y));
+                if (range < 3 ? cell_dist(a, a->foe) <= range + 0.5f : d >= range && r != a->last_skill) return r;
+            }
+            continue;
+        }
+        if (m->manual != 0 && m->manual != 1 && m->manual != 3 && m->manual != 4) continue;
+        if (!m->ai) n++;
+        if (pick && rand() % n) continue;
+        if (m->ai == 0 || (m->ai == 2 && rand() % 2 && r != a->last_skill) || (m->ai == 3 && rand() % 3 == 1 && r != a->last_skill) ||
+            (m->ai == 5 && a->hp * 100 < a->hp_max * 40))
+            pick = r;
+    }
+    return pick;
+}
+
 static void cast_start(Actor *h, const SkillRow *r);
 
 // 追打目標：在招式距離內就面向它出手，否則往它走。回傳 0 = 沒有目標
@@ -1076,7 +1109,14 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
     float gx = t->x - a->x, gy = t->y - a->y;
     float sdx = (gx - gy) * 32, sdy = (gx + gy) * 16;  // 格子方向 → 畫面方向
     // 技能的作用範圍最大（RangeMax，原版送給 Poq.exe 的 0x524 訊息）決定走多近；怪物用招式的攻擊距離
-    // shortcut: 作用範圍最小（RangeMin）沒用：原版太近時怎麼處理還沒拆，這裡照打
+    // 作用範圍最小（RangeMin）原版送進 Poq.exe 的 SkillUnit（+0x1c）後沒有讀，太近也照打
+    if (a->mon && !a->skill && npc_skill(a->mon->skill[0])) {
+        if (!(a->skill = mon_pick(a))) {  // 這次沒選到招：站著，下一拍再選
+            a->moving = 0;
+            return 1;
+        }
+        a->atk = method_find(skill_attack_id(a->skill));
+    }
     const SkillRow *use = a->want ? a->want : a->skill;
     int range = use ? skill_range_max(use) : a->atk && a->atk->range_max > 0 ? a->atk->range_max : 1;
     if (cell_dist(a, t) <= range + 0.5f) {

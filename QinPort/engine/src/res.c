@@ -1102,7 +1102,7 @@ int mondefs_load(void) {
             snprintf(m->name, sizeof m->name, "%s", col[0]);
             snprintf(m->title, sizeof m->title, "%s", col[1]);
             m->role = atoi(col[34]);
-            snprintf(m->skill, sizeof m->skill, "%s", skill_col >= 0 && skill_col < c ? col[skill_col] : "");
+            for (int k = 0; k < 8; k++) snprintf(m->skill[k], sizeof m->skill[k], "%s", skill_col >= 0 && skill_col + k < c ? col[skill_col + k] : "");
 #define STAT(i) ((Stat){(float)atof(col[i]), (float)atof(col[(i) + 1])})
             m->hp = STAT(5); m->ap = STAT(7); m->ap_max = STAT(9); m->dp = STAT(16);
             m->hit = STAT(28); m->dodge = STAT(30); m->exp = STAT(32);
@@ -1195,6 +1195,8 @@ const Method *method_find(int auto_id) {
             } else if (!m) continue;
             else if (!strcmp(k, "wAutoID")) m->id = v;
             else if (!strcmp(k, "wSprIndex")) m->seq = v;
+            else if (!strcmp(k, "wManualID")) m->manual = v;
+            else if (!strcmp(k, "Reserve3")) m->ai = v;
             else if (!strcmp(k, "\xd7\xee\xb4\xf3\xb9\xa5\xbb\xf7\xbe\xe0\xc0\xeb")) m->range_max = v;  // 最大攻击距离
             else if (!strcmp(k, "\xd7\xee\xd0\xa1\xb9\xa5\xbb\xf7\xbe\xe0\xc0\xeb")) m->range_min = v;  // 最小攻击距离
             else if (!strcmp(k, "iFlag")) {

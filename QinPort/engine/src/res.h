@@ -140,7 +140,7 @@ typedef struct { float base, per; } Stat;
 typedef struct {
     char name[32];  // 人物类型，例如「动物山魈A」
     char title[32];  // 人物名称（畫面上顯示的，GBK），例如「狼」
-    char skill[32]; // 技能1（普通攻擊），例如「狼_抓」→ Data/skill_npc.txt
+    char skill[8][32]; // 技能1~8，例如「狼_抓」→ Data/skill_npc.txt；技能1 是普通攻擊
     int role;       // 图形1 = RoleMdl 角色 ID
     Stat hp, ap, ap_max, dp, hit, dodge, exp;
     int melem;          // 魔法攻击属性 1~5（0 = 沒有）
@@ -161,7 +161,8 @@ void styles_equip(char *styles, size_t n, const char *graphic, int pli_no, const
 // ---- 招式 ObjMdl/MethodMdl.ini：動作序列、攻擊距離、各幀觸發（type 0 = 命中、1 = 音效、2 = 特效；flag 1 = 打中對方時）----
 typedef struct { int flag, frame, type, id, id2, pos; } Trig;  // pos：特效位置，0 = 自己、1 = 對方
 #define MAX_TRIG 24
-typedef struct { int id, seq, range_min, range_max, trig_count; Trig trig[MAX_TRIG]; } Method;
+// manual = wManualID、ai = Reserve3（怪物選招用，Poq.exe 0x4906c0）
+typedef struct { int id, manual, ai, seq, range_min, range_max, trig_count; Trig trig[MAX_TRIG]; } Method;
 const Method *method_find(int auto_id);  // 依 wAutoID 找；第一次呼叫時載入
 // 招式單位 ObjMdl/MethodUnit_Mdl.ini：wManualID 201 = 飛行物（Poq.exe 0x450700 依 dData2 分類，2 = CARROW），
 // dData0 = Res00 動畫、bData3 = 每拍飛幾像素（0x4368c0）；觸發 flag 1 = 打中時、5 = 放出時
