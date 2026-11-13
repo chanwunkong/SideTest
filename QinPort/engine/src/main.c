@@ -179,6 +179,8 @@ typedef struct Actor {
     int ex[100];  // 沒有獨立欄位的屬性，依屬性代號（Invincible 20、MAP1~5 43~52、MDP1~5 54~58、B_* 64~98）
     struct Actor *foe;             // 攻擊目標
     struct Actor *owner;           // 召喚出來的：召喚者
+    float dash_x, dash_y;          // 招式衝刺／跳躍的目標點（dash = 1 時）
+    int dash;
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
 } Actor;
 
@@ -749,7 +751,8 @@ static int rnd(int n) { return n > 1 ? rand() % n : 0; }
 
 // 召喚（Attack方式 3，0x100355d0）：參數 273 選召喚兽（1 狼、2 老虎、3 熊、4 鸟、5 白狼、6 木偶、7 狗、8 虎蛟、9 狍鸮、10 朱厌；
 // 原版表上第 11 個善翼超出檢查範圍，不會召出來），278 = 最多幾隻；選狼時 rand()%100 是 3 的倍數就換白狼。等級同召喚者，跟召喚者同一邊
-// shortcut: 放在召喚者旁邊（原版放在攻擊位置）；原版數量滿之前會先移掉前 6 種裡的某些舊召喚兽（0x1003dd80 的比對還沒拆），這裡不移
+// 數量：同種的（選狼時狼和白狼一起算）已有 278 隻就不召；召前 6 種時先移掉別種的召喚兽（狼、白狼互不移）。
+// shortcut: 放在召喚者旁邊（原版放在攻擊位置）；原版數的是整隊的召喚兽（istrap 20），這裡只數這個召喚者的
 static void summon(Actor *a, const SkillRow *r) {
     static const char *N[10] = {"\xd5\xd9\xbb\xbd\xca\xde\xc0\xc7", "\xd5\xd9\xbb\xbd\xca\xde\xc0\xcf\xbb\xa2", "\xd5\xd9\xbb\xbd\xca\xde\xd0\xdc", "\xd5\xd9\xbb\xbd\xca\xde\xc4\xf1", "\xd5\xd9\xbb\xbd\xca\xde\xb0\xd7\xc0\xc7", "\xd5\xd9\xbb\xbd\xca\xde\xc4\xbe\xc5\xbc", "\xd5\xd9\xbb\xbd\xca\xde\xb9\xb7", "\xd5\xd9\xbb\xbd\xca\xde\xbb\xa2\xf2\xd4", "\xd5\xd9\xbb\xbd\xca\xde\xe1\xf3\xfb\x5e", "\xd5\xd9\xbb\xbd\xca\xde\xd6\xec\xd1\xe1"};
     int k = -1, max = 0;
@@ -759,12 +762,20 @@ static void summon(Actor *a, const SkillRow *r) {
         else if (r->mod[i].id == 278) max = v;
     }
     if (k < 0 || k > 9 || max > 9) return;
+    int n = 0;
+    for (int i = 0; i < actor_count; i++) {
+        const Actor *e = &actors[i];
+        if (e->owner == a && alive(e)) n += !strcmp(e->mon->name, N[k]) || (k == 0 && !strcmp(e->mon->name, N[4]));
+    }
+    if (n >= max) return;
+    for (int i = 0; k < 6 && i < actor_count; i++) {
+        Actor *e = &actors[i];
+        if (e->owner == a && alive(e) && strcmp(e->mon->name, N[k]) && !(k == 0 && !strcmp(e->mon->name, N[4]))) e->role = NULL;
+    }
     if (k == 0 && rnd(100) % 3 == 0) k = 4;
     const MonDef *m = mondef_pick(N[k]);
-    int n = 0;
-    for (int i = 0; i < actor_count; i++) n += actors[i].owner == a && alive(&actors[i]) && actors[i].mon == m;
     const RoleDef *d = m ? roledef_find(m->role) : NULL;
-    if (n >= max || !d || actor_count >= MAX_ACTORS) return;
+    if (!d || actor_count >= MAX_ACTORS) return;
     Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, (int)a->x, (int)a->y, a->level);
     s->owner = a;
     s->foe = a->foe;
@@ -1000,7 +1011,7 @@ static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
 }
 
 // 單次動作的進度：攻擊依招式各幀觸發音效與命中；播完回到平常（死亡除外）
-static void action_tick(Actor *a, Uint32 tick) {
+static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     int seq = actor_seq(a);
     const Seq *q = role_seq(a->role, seq);
     int f = actor_frame(a, seq);
@@ -1021,13 +1032,20 @@ static void action_tick(Actor *a, Uint32 tick) {
                     }
                 }
                 else if ((t->type == 5 || t->type == 7) && alive(a->foe) && cell_dist(a, a->foe) > 1.5f) {
-                    // 衝過去／跳過去（Poq.exe 0x43c4f0 type 5、7 → 角色動作 10、7 到招式的目標點）
-                    // shortcut: 直接移到目標旁邊一格，沒有播位移過程、沒檢查能不能站
+                    // 衝過去／跳過去（Poq.exe 0x43c4f0 type 5、7 → 角色動作 10、7 → 移動狀態 0x15、0x16 到招式的目標點）
                     float dx = a->foe->x - a->x, dy = a->foe->y - a->y, len = sqrtf(dx * dx + dy * dy);
-                    a->x = a->foe->x - dx / len;
-                    a->y = a->foe->y - dy / len;
+                    a->dash_x = a->foe->x - dx / len;
+                    a->dash_y = a->foe->y - dy / len;
+                    a->dash = 1;
                 }
             }
+    // shortcut: 衝刺／跳躍用平常走路的速度逐拍移過去；原版跳躍（0x16）另有高度（速度/2 起跳、每拍 +4，0x496550），還沒畫高度
+    if (a->dash) {
+        float gx = a->dash_x - a->x, gy = a->dash_y - a->y;
+        int sp = actor_speed(a);
+        if (gx * gx + gy * gy < 0.04f || a->act != ACT_ATTACK) a->dash = 0;
+        else if (tick % SPEED_B[sp] == 0) actor_step(a, s, (gx - gy) * 32, (gx + gy) * 16, SPEED_A[sp] + SPEED_C[sp] / 10.0f);
+    }
     a->last_frame = f;
     a->act_tick++;
     if (a->act != ACT_DEAD && (!q || a->act_tick >= seq_ticks(q))) {
@@ -2070,8 +2088,8 @@ int main(int argc, char **argv) {
             }
             if (hero->act == ACT_DEAD) {  // shortcut: 原版死亡後的處理（回城、掉經驗）還沒做，先 3 秒後原地復活
                 if (++hero->dead_ticks > 180) { hero->act = ACT_NONE; hero->dead_ticks = 0; hero->hp = hero->hp_max; hero->mp = hero->mp_max; }
-                action_tick(hero, tick);
-            } else if (hero->act) action_tick(hero, tick);
+                action_tick(hero, &scene, tick);
+            } else if (hero->act) action_tick(hero, &scene, tick);
             else if (mx * mx + my * my > 0.01f) { hero->foe = NULL; hero->want = NULL; actor_tick(hero, &scene, mx, my, tick); }  // 自己走 = 放棄目標
             else if (!pursue(hero, &scene, tick)) actor_tick(hero, &scene, 0, 0, tick);
             // 腳步聲：每 max((15 - A) * 2, 10) 拍一次（Poq.exe 0x48704f），80 號音效
@@ -2081,8 +2099,8 @@ int main(int argc, char **argv) {
                 Actor *a = &actors[i];
                 if (!a->mon) npc_think(a, &scene, tick);
                 else if (!a->role) continue;
-                else if (a->act == ACT_DEAD) { action_tick(a, tick); if (++a->dead_ticks > CORPSE_TICKS) a->role = NULL; }
-                else if (a->act) action_tick(a, tick);
+                else if (a->act == ACT_DEAD) { action_tick(a, &scene, tick); if (++a->dead_ticks > CORPSE_TICKS) a->role = NULL; }
+                else if (a->act) action_tick(a, &scene, tick);
                 else monster_think(a, hero, &scene, tick);
             }
             missile_tick(tick);

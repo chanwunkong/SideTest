@@ -71,6 +71,11 @@ int main(void) {
     mk(&actors[0]);
     for (int i = 0; i < 5; i++) skill_hit(&actors[0], NULL, sm, 0);
     assert(actor_count == 3 && actors[1].owner == &actors[0]);
+    // 改召狼（前 6 種）：先移掉別種（朱厌）
+    SkillRow wolf = *sm;
+    for (int i = 0; i < wolf.mod_n; i++) if (wolf.mod[i].id == 273) wolf.mod[i].init = 1, wolf.mod[i].incr = 0;
+    skill_hit(&actors[0], NULL, &wolf, 0);
+    assert(!actors[1].role && !actors[2].role && actor_count == 4 && actors[3].role);
     // 範圍打擊：type 0 ID 7 = 目標周圍 2 格內全部；ID 0 = 只打目標
     actor_count = 4;
     for (int i = 0; i < 4; i++) mk(&actors[i]);
