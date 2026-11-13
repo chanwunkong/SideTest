@@ -207,16 +207,32 @@ static int actor_frame(const Actor *a, int seq) {
     return frame_at(q, a->act_tick);
 }
 
-static void actor_draw(const Actor *a, int sx, int sy) {
+// 身上狀態的效果動畫（RoleEffectMdl.txt 头上／身上／脚下效果 → Poq.exe 0x48ebd0 的三個位置），循環播
+// shortcut: 三個位置都畫在角色腳底的錨點（動畫自己帶偏移），原版頭上效果的高度還沒對
+static void status_fx_draw(const Actor *a, int sx, int sy, Uint32 tick, int foot) {
+    for (int b = 0; b < a->buff_n; b++) {
+        const StatusDef *d = status_def(a->buff[b].status);
+        if (!d) continue;
+        int g[2] = {foot ? d->foot : d->body, foot ? 0 : d->head};
+        for (int k = 0; k < 2; k++) {
+            const Anim *an = g[k] > 0 ? anim_get((uint32_t)g[k]) : NULL;
+            if (an && an->count) draw_frame(an, 0, frame_at(&an->seqs[0], tick), sx, sy, 0);
+        }
+    }
+}
+
+static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
     const Role *r = a->role;
     if (!r) return;
     int seq = actor_seq(a);
     if (seq >= r->seq_count || !r->frames[seq]) return;
     int frame = actor_frame(a, seq) % r->frames[seq];
     for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
+    if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy, tick, 1);
     const uint8_t *order = r->order[seq] + frame * r->part_count;
     for (int i = 0; i < r->part_count; i++)
         if (order[i] < r->part_count) draw_frame(r->body[order[i]], seq, frame, sx, sy, 0);
+    if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy, tick, 0);
 }
 
 // 面向畫面方向 (sdx, sdy)
@@ -243,13 +259,23 @@ static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px)
 
 static int status_speed(const Actor *a);
 
+// 實際速度（Poq.exe 0x488540）：速度 × 狀態速度變化% / 100（原本不是 0 就至少 1），
+// 再 × (100 + 加速) / 100，加速 = B_C_MOVE_SPEED v > 0 時 v×150/(v+150)（0x48f7a0）
+// shortcut: 原版還有一個欄位（+0x2e3 < 101）時再減半，意思沒查出來
+static int actor_speed(const Actor *a) {
+    int s = a->speed, st = status_speed(a), v = s * st / 100, m = a->ex[64];
+    if (s && st && v < 1) v = 1;
+    v = ((m > 0 ? m * 150 / (m + 150) : m) + 100) * v / 100;
+    return v < 0 ? 0 : v > 59 ? 59 : v;
+}
+
 // 一拍的角色更新：往畫面方向 (mx, my) 走；原版每 B 拍移動 A + C/10 像素（速度對照表）
 static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick) {
     int was_moving = a->moving;
     a->moving = 0;
     if (mx * mx + my * my > 0.01f) {
-        int sp = a->speed < 0 ? 0 : a->speed > 59 ? 59 : a->speed;
-        float px = tick % SPEED_B[sp] ? 0 : (SPEED_A[sp] + SPEED_C[sp] / 10.0f) * status_speed(a) / 100;  // 狀態的速度變化（%）。shortcut: 乘在每步的距離上，原版 Poq.exe 怎麼套還沒對
+        int sp = actor_speed(a);
+        float px = tick % SPEED_B[sp] ? 0 : SPEED_A[sp] + SPEED_C[sp] / 10.0f;
         actor_step(a, s, mx, my, px);
     }
     a->act_tick = a->moving == was_moving ? a->act_tick + 1 : 0;
@@ -545,6 +571,8 @@ static void mon_derive(Actor *a) {
     a->hp_speed = m->regen * a->hp_max / 10;
     a->mp_speed = 0;
     memset(a->ex, 0, sizeof a->ex);
+    a->ex[64] = m->mspeed;
+    a->ex[65] = m->mfight;
     a->ex[75] = m->djhf;
     a->ex[76] = m->jswl;
     a->ex[77] = m->jsmf;
@@ -658,12 +686,12 @@ static int status_blocked(const Actor *a, int st) {
     return 0;
 }
 
-// 狀態表（RoleEffectMdl.txt）的效果：速度變化取最慢的（0 = 不能動）、攻击不能
+// 狀態表（RoleEffectMdl.txt）的效果：速度變化（0 = 不能動；幾個狀態都有時用序號最小的，Poq.exe 0x48b2f0 從 127 往下設）、攻击不能
 static int status_speed(const Actor *a) {
-    int v = 100;
+    int v = 100, id = 1 << 30;
     for (int b = 0; b < a->buff_n; b++) {
         const StatusDef *d = status_def(a->buff[b].status);
-        if (d && d->speed >= 0 && d->speed < v) v = d->speed;
+        if (d && d->speed >= 0 && a->buff[b].status < id) { v = d->speed; id = a->buff[b].status; }
     }
     return v;
 }
@@ -861,7 +889,12 @@ static void action_tick(Actor *a, Uint32 tick) {
     a->last_frame = f;
     a->act_tick++;
     if (a->act != ACT_DEAD && (!q || a->act_tick >= seq_ticks(q))) {
-        if (a->act == ACT_ATTACK) a->cool = a->def->atk_delay;
+        // 攻擊間隔（Poq.exe 0x48d330）：主角 = 間隔 × 100 / (100 + 攻速)，攻速 = B_C_FIGHT_SPEED v > 0 時 v×120/(v+120)；怪物 = 間隔 + 隨機(間隔)
+        // shortcut: 原版攻速也會跳過招式動作的幾幀（同一函式），這裡只縮短間隔
+        if (a->act == ACT_ATTACK) {
+            int v = a->ex[65], f = (v > 0 ? v * 120 / (v + 120) : v) + 100;
+            a->cool = a->mon ? a->def->atk_delay + rnd(a->def->atk_delay) : f ? a->def->atk_delay * 100 / f : a->def->atk_delay;
+        }
         if (a->casting) {  // 左手技能放完：招式沒有打中的觸發就在這裡生效，換回右手招式
             if (a->casting == 1) skill_hit(a, skill_needs_foe(a->cast) ? a->foe : a, a->cast, tick);
             a->cast = NULL;
@@ -1979,7 +2012,7 @@ int main(int argc, char **argv) {
             const Object *o = i < scene.object_count ? &scene.objects[i] : NULL;
             while (next_actor < actor_count && (!o || o->x + o->y + 1 > order[next_actor]->x + order[next_actor]->y)) {
                 const Actor *a = order[next_actor++];
-                actor_draw(a, (int)((a->x - a->y + scene.h - 1) * TILE_W / 2) - ox, (int)((a->x + a->y) * TILE_H / 2) - oy);
+                actor_draw(a, (int)((a->x - a->y + scene.h - 1) * TILE_W / 2) - ox, (int)((a->x + a->y) * TILE_H / 2) - oy, tick);
             }
             if (!o || !o->m) continue;
             int sx = world_x(&scene, o->x, o->y) + TILE_W / 2 - ox, sy = world_y(&scene, o->x, o->y) + TILE_H / 2 - oy;

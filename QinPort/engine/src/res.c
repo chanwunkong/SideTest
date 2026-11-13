@@ -1107,6 +1107,8 @@ int mondefs_load(void) {
             m->hp = STAT(5); m->ap = STAT(7); m->ap_max = STAT(9); m->dp = STAT(16);
             m->hit = STAT(28); m->dodge = STAT(30); m->exp = STAT(32);
             // 魔法攻击属性 1~5 → 魔法攻击（第 12、13 欄）、魔法攻击大（14、15）放到 MAP<属性>、MAP<属性>_MAX（EasyRPG 0x1006xxxx 讀表）
+            m->mspeed = (int)atof(col[3]);
+            m->mfight = (int)atof(col[4]);
             m->melem = atoi(col[11]);
             m->map = STAT(12); m->map_max = STAT(14);
             for (int k = 0; k < 5; k++) m->mdp[k] = STAT(18 + 2 * k);

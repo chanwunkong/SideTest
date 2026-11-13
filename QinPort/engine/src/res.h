@@ -145,6 +145,7 @@ typedef struct {
     Stat hp, ap, ap_max, dp, hit, dodge, exp;
     int melem;          // 魔法攻击属性 1~5（0 = 沒有）
     Stat map, map_max, mdp[5];
+    int mspeed, mfight;  // 移动速度、攻击频率 → B_C_MOVE_SPEED、B_C_FIGHT_SPEED（0x10073e30）
     int djhf, jswl, jsmf, immu[7], istrap, regen;  // 打击恢复率、减少物理／魔法伤害、眩晕~其他免疫、是否陷阱、生命恢复率
 } MonDef;
 int mondefs_load(void);
