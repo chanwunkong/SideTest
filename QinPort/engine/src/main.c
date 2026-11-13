@@ -187,7 +187,8 @@ typedef struct Actor {
     int side;                      // 隊伍：0 = 主角這邊（主角、他的召喚兽、馴服的、陷阱、分身），1 = 怪物
     int copied, copy[12];
     float knock_x, knock_y;        // 被擊退要滑到的點（knock = 1 時）
-    int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）          // 陷阱：放的人的 AP、AP_MAX、MAP1~5、MAP1~5_MAX（0x10034cb0 照抄）
+    int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
+    int ai_tick, flee;             // 怪物 AI 計數（+0xbb，起始隨機 0~99）、正在拉開距離（走向 tx, ty）          // 陷阱：放的人的 AP、AP_MAX、MAP1~5、MAP1~5_MAX（0x10034cb0 照抄）
     float dash_x, dash_y;          // 招式衝刺／跳躍的目標點（dash = 1 時）
     int dash;
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
@@ -446,6 +447,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->dir = rand() % 8;
     a->spec = sp;
     a->act_tick = rand() % 200;
+    a->ai_tick = rand() % 100;
     a->mon = m;
     a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
     a->side = 1;
@@ -1332,6 +1334,26 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
     }
     const SkillRow *use = a->want ? a->want : a->skill;
     int range = use ? skill_range_max(use) : a->atk && a->atk->range_max > 0 ? a->atk->range_max : 1;
+    // 拉開距離（0x4911b0）：每 61 拍一次，這招 Reserve3 ≠ 1、目標在 範圍−2 的方框內、n = 範圍 − 距離 − 2 ≥ 2 時，
+    // 往遠離目標的 8 方向走 n 格（OmUtil GetFleePos = WhatDir8 + MoveDirForSpeed）
+    if (a->mon && a->skill && ++a->ai_tick % 61 == 2 && a->atk && a->atk->ai != 1) {
+        int dx = (int)a->x - (int)t->x, dy = (int)a->y - (int)t->y, n = range - (int)sqrtf((float)(dx * dx + dy * dy)) - 2;
+        if (abs(dx) <= range - 2 && abs(dy) <= range - 2 && n >= 2 && (dx || dy)) {
+            int oct = (int)lroundf(atan2f((float)dy, (float)dx) / (float)(M_PI / 4));
+            static const int OX[8] = {1, 1, 0, -1, -1, -1, 0, 1}, OY[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+            a->tx = (int)a->x + OX[(oct + 8) % 8] * n + 0.5f;
+            a->ty = (int)a->y + OY[(oct + 8) % 8] * n + 0.5f;
+            a->flee = 60;  // shortcut: 原版走到為止（動作 1），這裡最多走 60 拍，免得卡牆一直走
+        }
+    }
+    if (a->flee > 0) {
+        float fx = a->tx - a->x, fy = a->ty - a->y;
+        if (--a->flee && fx * fx + fy * fy > 0.04f) {
+            actor_tick(a, s, (fx - fy) * 32, (fx + fy) * 16, tick);
+            return 1;
+        }
+        a->flee = 0;
+    }
     if (cell_dist(a, t) <= range + 0.5f) {
         face(a, sdx, sdy);
         a->moving = 0;

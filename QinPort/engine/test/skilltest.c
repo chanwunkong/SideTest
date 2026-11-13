@@ -206,6 +206,17 @@ int main(void) {
     mk(&a);
     skill_hit(&a, &a, &th1, 0);
     assert(has_status(&a, 42));
+    // 拉開距離：射程 8 的招、目標貼身 → 第 61 拍算出往反方向走 n = 8 − 1 − 2 = 5 格
+    static Cell cells[40 * 40];
+    for (int i = 0; i < 40 * 40; i++) cells[i].walk = 1;
+    Scene sc = {.w = 40, .h = 40, .cells = cells};
+    SkillRow far = {.level = 1, .range = 8};
+    Method fm2 = {.ai = 0};
+    mk(&a); mk(&t);
+    a.x = 20.5f; a.y = 20.5f; t.x = 21.5f; t.y = 20.5f;
+    a.foe = &t; a.skill = &far; a.ai_tick = 0; a.cool = 100000;  // 不出手（測試角色沒有動畫）
+    for (int i = 0; i < 61 && !a.flee; i++) { a.atk = &fm2; a.skill = &far; pursue(&a, &sc, 0); }
+    assert(a.flee && (int)a.tx == 15 && (int)a.ty == 20);
     puts("skilltest ok");
     return 0;
 }
