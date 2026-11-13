@@ -197,6 +197,15 @@ int main(void) {
     t.ex[75] = 200;
     hit_react(&a, &t, &kb);
     assert(!t.knock && !t.stun);
+    // 對同隊的招式（wManualID 2，力士_反刺猬甲）：不用敵人，敌方状态 42 加在自己（目標）身上
+    const SkillRow *thorn = NULL;
+    for (int i = 0; i < n2; i++) if (s2[i].estatus == 42) thorn = &s2[i];
+    assert(thorn && skill_manual(thorn) == 2 && !skill_needs_foe(thorn));
+    SkillRow th1 = *thorn;
+    th1.level = 1;
+    mk(&a);
+    skill_hit(&a, &a, &th1, 0);
+    assert(has_status(&a, 42));
     puts("skilltest ok");
     return 0;
 }

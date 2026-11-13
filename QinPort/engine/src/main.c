@@ -697,9 +697,18 @@ static int skill_time(const SkillRow *r) { return (int)skill_field(r, 14, r->tim
 static int skill_range_max(const SkillRow *r) { return (int)skill_field(r, 13, r->range < 0 ? 1 : (int)skill_value(r->range, r->range_inc, r->level)); }
 static int skill_attack_id(const SkillRow *r) { return (int)skill_field(r, 10, skill_attack(r->key)); }
 
+// 招式的 wManualID：2 = 對同隊的（0x43acb0 要同一隊 +0x339，反刺猬甲、妙手回春），3 = 對地點（凌空虚渡），4 = 放東西（召喚、分身），5 = 對陷阱（巧手除障）
+static int skill_manual(const SkillRow *r) {
+    const Method *m = method_find(skill_attack_id(r));
+    return m ? m->manual : 0;
+}
+
 // 技能要不要對著敵人放：會造成傷害（Attack方式 ≠ 0）、有敌方状态、或有對敵的屬性參數
-// shortcut: 原版放技能時由 Poq.exe 帶目標（0x48ffe0 → 0x43acb0），怎麼選目標還沒拆完；這裡不需要敵人的就對自己放
+// shortcut: 原版目標是滑鼠點到的角色或地點（0x48ffe0 帶進 0x43acb0）；對同隊的（2）這裡都對自己放，對地點（3）也放在自己身上
 static int skill_needs_foe(const SkillRow *r) {
+    int man = skill_manual(r);
+    if (man == 2 || man == 3 || man == 4) return 0;
+    if (man == 5) return 1;
     if (r->attack == 3 || r->attack == 8 || r->attack == 11) return 0;  // 召喚、陷阱、分身放在自己旁邊
     if (r->attack != 0 || r->estatus > 0) return 1;
     for (int i = 0; i < r->mod_n; i++)
@@ -915,7 +924,7 @@ static void skill_hit(Actor *a, Actor *t, const SkillRow *r, Uint32 tick) {
         if (r->status > 0) buff_add(a, r, r->status, 0, skill_time(r), 0);
         int enemy_mod = 0;
         for (int i = 0; i < r->mod_n; i++) enemy_mod |= r->mod[i].enemy > 0 && r->mod[i].id >= 20 && r->mod[i].id < 100;
-        if (t && t != a && alive(t) && (r->estatus > 0 || enemy_mod)) buff_add(t, r, r->estatus, 1, skill_time(r), 0);
+        if (t && (t != a || skill_manual(r) == 2) && alive(t) && (r->estatus > 0 || enemy_mod)) buff_add(t, r, r->estatus, 1, skill_time(r), 0);
     }
     for (int i = 0; r && i < r->mod_n; i++) {
         const SkillMod *m = &r->mod[i];
@@ -1186,7 +1195,11 @@ static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
     if (a->casting) a->casting = 2;
 }
 
+// 震畫面（觸發 type 14 ID 4 → 0x44ca40 → 0x461180）：還在震就不重來；剩下拍數每 5 拍換一次上下，幅度 = 畫面寬/640×25×剩下/總共（0x45bxxx）
+static int shake_left, shake_total;
+
 // 單次動作的進度：攻擊依招式各幀觸發音效與命中；播完回到平常（死亡除外）
+// shortcut: type 6（只對物件種類 7）、type 10（招式物件虛擬函式 0x20 = 0x43a760）還沒做
 static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     int seq = actor_seq(a);
     const Seq *q = role_seq(a->role, seq);
@@ -1208,6 +1221,9 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
                     }
                 }
                 else if (t->type == 13) a->adj = t->id - 5;
+                else if (t->type == 15) method_hits(a, t, tick);  // 送 0x13b 帶攻擊位置給 EasyRPG 結算技能（陷阱招式用）
+                else if (t->type == 14 && t->id == 4 && shake_left < 1 && fabsf(a->x - actors[0].x) + fabsf(a->y - actors[0].y) < 20)
+                    shake_left = shake_total = t->id2;  // shortcut: 原版看角色在不在畫面矩形裡，這裡用離主角 20 格內估
                 else if (t->type == 8) act_flags(a, t);
                 else if (t->type == 11) {  // 離地：每拍升降 ID、最高 ID2（0x43c4f0 → 0x4961e0）
                     a->vz = t->id;
@@ -2336,6 +2352,7 @@ int main(int argc, char **argv) {
             ++tick;
             if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000) for (int i = 0; i < actor_count; i++)
                     if (!i || actors[i].mon) actor_second(&actors[i]);
+            if (shake_left > 0) shake_left--;
             for (int i = 0; i < actor_count; i++) {
                 if (actors[i].cool > 0) actors[i].cool--;
                 if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
@@ -2408,6 +2425,7 @@ int main(int argc, char **argv) {
         int hx = (int)((hero->x - hero->y + scene.h - 1) * TILE_W / 2), hy = (int)((hero->x + hero->y) * TILE_H / 2);
         ox = hx - vw / 2;
         oy = hy - vh / 2;
+        if (shake_left > 0 && shake_left / 5 % 2 == 0) oy -= (int)(vw / 640.0f * 25 * shake_left / shake_total);
 
         // ---- 畫面 ----
         SDL_SetRenderTarget(ren, canvas);
