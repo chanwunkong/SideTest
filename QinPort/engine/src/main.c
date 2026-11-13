@@ -167,6 +167,8 @@ typedef struct Actor {
     const MonDef *mon;  // 怪物的數值表列；NPC 與主角為 NULL
     int level, hp, hp_max, mp, mp_max, ap, ap_max, dp, hr, sr, exp;
     int act, act_seq, last_frame;  // 單次動作與它的序列起點、上一拍的幀（觸發用）
+    int act_frame, frame_tick, act_done;  // 單次動作播到第幾幀、這幀停了幾拍、播完了沒
+    int adj, extra;                // 這次動作每幀延遲的調整（序列 +0x14）、攻速多出來要補到間隔的拍數
     const Method *atk;             // 普通攻擊的招式
     const SkillRow *skill;         // 攻擊用的技能（主角右手；怪物是這一招選的，打完清掉）
     const SkillRow *last_skill;    // 怪物上一招
@@ -207,7 +209,7 @@ static int actor_seq(const Actor *a) {
 static int actor_frame(const Actor *a, int seq) {
     const Seq *q = role_seq(a->role, seq);
     if (!q) return 0;
-    if (a->act && a->act_tick >= seq_ticks(q)) return q->count - 1;
+    if (a->act) return a->act_frame < q->count ? a->act_frame : q->count - 1;
     return frame_at(q, a->act_tick);
 }
 
@@ -485,12 +487,32 @@ static float cell_dist(const Actor *a, const Actor *b) {
     return fmaxf(fabsf(a->x - b->x), fabsf(a->y - b->y));
 }
 
+// 攻速（Poq.exe 0x48d330，出手時）：縮短 = 招式總拍數 − 總拍數 × 100 / (100 + 攻速)；每幀延遲調整 = −縮短 / 幀數。
+// 有餘數時：縮短 > 0 調整再 −1、要補 幀數 − 餘數 拍，否則補 −餘數 拍；調整 < −1 時補的減半。補的（> 0 才算）加到出手間隔
+// shortcut: 原版 +0x345 有值時調整再 +2，那個欄位的意思沒查
+static void attack_speed(Actor *a) {
+    const Seq *q = role_seq(a->role, actor_seq(a));
+    int v = a->ex[65], pct = (v > 0 ? v * 120 / (v + 120) : v) + 100;
+    if (!q || !q->count || pct <= 0) return;
+    int total = (int)seq_ticks(q), cut = total - total * 100 / pct, rem = cut % q->count;
+    a->adj = -(cut / q->count);
+    if (rem) {
+        if (cut < 1) a->extra = -rem;
+        else {
+            a->adj--;
+            a->extra = q->count - rem;
+        }
+        if (a->adj < -1) a->extra /= 2;
+    }
+}
+
 static void start_act(Actor *a, int act, int seq) {
     a->act = act;
     a->act_seq = seq;
-    a->act_tick = 0;
+    a->act_tick = a->act_frame = a->frame_tick = a->act_done = a->adj = a->extra = 0;
     a->last_frame = -1;
     a->moving = 0;
+    if (act == ACT_ATTACK) attack_speed(a);
 }
 
 // 主角數值。遊俠模板（EasyRPG.dll 0x1013c380）：Str 30、Con 25、Dex 25；升級表 Upgrade_HP_MAX = 120 28、Upgrade_MP_MAX = 140 4
@@ -1031,6 +1053,7 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
                         if (hit) method_hits(a, t, tick);
                     }
                 }
+                else if (t->type == 13) a->adj = t->id - 5;  // 改這個動作的每幀延遲（0x43c4f0 → 序列 +0x14 = ID − 5）
                 else if ((t->type == 5 || t->type == 7) && alive(a->foe) && cell_dist(a, a->foe) > 1.5f) {
                     // 衝過去／跳過去（Poq.exe 0x43c4f0 type 5、7 → 角色動作 10、7 → 移動狀態 0x15、0x16 到招式的目標點）
                     float dx = a->foe->x - a->x, dy = a->foe->y - a->y, len = sqrtf(dx * dx + dy * dy);
@@ -1048,16 +1071,24 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     }
     a->last_frame = f;
     a->act_tick++;
-    if (a->act != ACT_DEAD && (!q || a->act_tick >= seq_ticks(q))) {
+    // 逐幀推進：每幀停 延遲 + 調整 拍。shortcut: 調整後不到 1 拍時當 1 拍，原版播放器（Gfx）的下限沒查
+    if (q && q->count) {
+        int d = (q->frames[a->act_frame].delay > 0 ? q->frames[a->act_frame].delay : 1) + a->adj;
+        if (++a->frame_tick >= (d < 1 ? 1 : d)) {
+            a->frame_tick = 0;
+            if (a->act_frame < q->count - 1) a->act_frame++;
+            else a->act_done = 1;
+        }
+    }
+    if (a->act != ACT_DEAD && (!q || a->act_done)) {
         // 攻擊間隔（Poq.exe 0x48d330）：主角 = 間隔 × 100 / (100 + 攻速)，攻速 = B_C_FIGHT_SPEED v > 0 時 v×120/(v+120)；怪物 = 間隔 + 隨機(間隔)
-        // shortcut: 原版攻速也會跳過招式動作的幾幀（同一函式），這裡只縮短間隔
         if (a->act == ACT_ATTACK && a->mon && a->skill) {  // 怪物打完一招：記成上一招，下次重選（0x4911b0）
             a->last_skill = a->skill;
             a->skill = NULL;
         }
         if (a->act == ACT_ATTACK) {
             int v = a->ex[65], f = (v > 0 ? v * 120 / (v + 120) : v) + 100;
-            a->cool = a->mon ? a->def->atk_delay + rnd(a->def->atk_delay) : f ? a->def->atk_delay * 100 / f : a->def->atk_delay;
+            a->cool = (a->mon ? a->def->atk_delay + rnd(a->def->atk_delay) : f ? a->def->atk_delay * 100 / f : a->def->atk_delay) + (a->extra > 0 ? a->extra : 0);
         }
         if (a->casting) {  // 左手技能放完：招式沒有打中的觸發就在這裡生效，換回右手招式
             if (a->casting == 1) skill_hit(a, skill_needs_foe(a->cast) ? a->foe : a, a->cast, tick);
