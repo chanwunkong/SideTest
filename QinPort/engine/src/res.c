@@ -1213,33 +1213,56 @@ const Method *method_find(int auto_id) {
     return NULL;
 }
 
-// 招式單位表：同樣的 key=value 格式，每個單位以 wType= 開頭
-static struct { int id; uint32_t anim; } *units;
+// 招式單位表：同樣的 key=value 格式，每個單位以 wType= 開頭，觸發以 iFlag= 開頭
+static Unit *units;
 static int unit_count;
 
-uint32_t unit_anim(int auto_id) {
+const Unit *unit_find(int auto_id) {
     if (!unit_count) {
         size_t n;
         uint8_t *d = res_file("ObjMdl", "MethodUnit_Mdl.ini", &n);
-        if (!d) return 0;
+        if (!d) return NULL;
         res_unxor(d, n);
         int cap = 0;
+        Unit *u = NULL;
+        Trig *t = NULL;
         for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n")) {
             char *eq = strchr(line, '=');
             if (!eq) continue;
             *eq = 0;
-            if (!strcmp(line, "wType")) {
+            const char *k = line;
+            int v = atoi(eq + 1);
+            if (!strcmp(k, "wType")) {
                 if (unit_count == cap) units = realloc(units, (cap = cap ? cap * 2 : 512) * sizeof *units);
-                units[unit_count].id = -1;
-                units[unit_count++].anim = 0;
-            } else if (unit_count && !strcmp(line, "wAutoID")) units[unit_count - 1].id = atoi(eq + 1);
-            else if (unit_count && !strcmp(line, "dData0")) units[unit_count - 1].anim = (uint32_t)atoi(eq + 1);
+                u = &units[unit_count++];
+                memset(u, 0, sizeof *u);
+                u->id = -1;
+                t = NULL;
+            } else if (!u) continue;
+            else if (!strcmp(k, "wAutoID")) u->id = v;
+            else if (!strcmp(k, "wManualID")) u->manual = v;
+            else if (!strcmp(k, "dData0")) u->anim = (uint32_t)v;
+            else if (!strcmp(k, "dData2")) u->kind = v;
+            else if (!strcmp(k, "bData3")) u->speed = v;
+            else if (!strcmp(k, "iFlag")) {
+                t = u->trig_count < MAX_TRIG ? &u->trig[u->trig_count++] : NULL;
+                if (t) t->flag = v;
+            } else if (t && !strcmp(k, "iWhatFrame")) t->frame = v;
+            else if (t && !strcmp(k, "iTriType")) t->type = v;
+            else if (t && !strcmp(k, "iTriID")) t->id = v;
+            else if (t && !strcmp(k, "iTriID2")) t->id2 = v;
+            else if (t && !strcmp(k, "iTriPos")) t->pos = v;
         }
         free(d);
     }
     for (int i = 0; i < unit_count; i++)
-        if (units[i].id == auto_id) return units[i].anim;
-    return 0;
+        if (units[i].id == auto_id) return &units[i];
+    return NULL;
+}
+
+uint32_t unit_anim(int auto_id) {
+    const Unit *u = unit_find(auto_id);
+    return u ? u->anim : 0;
 }
 
 // ---- 技能表 Data/skill_npc.txt、skill_1..5.txt：0 索引名、8 Attack ID ----

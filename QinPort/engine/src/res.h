@@ -163,8 +163,11 @@ typedef struct { int flag, frame, type, id, id2, pos; } Trig;  // pos：特效�
 #define MAX_TRIG 24
 typedef struct { int id, seq, range_min, range_max, trig_count; Trig trig[MAX_TRIG]; } Method;
 const Method *method_find(int auto_id);  // 依 wAutoID 找；第一次呼叫時載入
-// 招式單位 ObjMdl/MethodUnit_Mdl.ini（特效）：wAutoID → dData0 的 Res00 動畫編號；找不到回 0
-uint32_t unit_anim(int auto_id);
+// 招式單位 ObjMdl/MethodUnit_Mdl.ini：wManualID 201 = 飛行物（Poq.exe 0x450700 依 dData2 分類，2 = CARROW），
+// dData0 = Res00 動畫、bData3 = 每拍飛幾像素（0x4368c0）；觸發 flag 1 = 打中時、5 = 放出時
+typedef struct { int id, manual, kind, speed, trig_count; uint32_t anim; Trig trig[MAX_TRIG]; } Unit;
+const Unit *unit_find(int auto_id);
+uint32_t unit_anim(int auto_id);  // dData0 的 Res00 動畫編號；找不到回 0
 // 技能表 Data/skill_*.txt 的「索引名」→ Attack ID（= 招式 wAutoID）；找不到回 -1
 int skill_attack(const char *index_name);
 // 職業技能表 Data/skill_<職業>.txt 的單機列（「网络」開頭的是連線版，跳過），照表的順序：技能視窗第 p 頁是第 4p~4p+3 列

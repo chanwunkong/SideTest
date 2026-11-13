@@ -906,7 +906,6 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
 static int hostile(const Actor *a, const Actor *e) { return e != a && alive(e) && (a->mon ? !e->mon : e->mon != NULL); }
 
 // 沒有打中觸發（type 0、16 的 0x14／0x16）的招式，靠飛出去的招式單位打中（弓箭、劍氣）：回傳第一個 type 2 觸發的序號，否則 -1
-// shortcut: 原版是單位（MethodUnit_Mdl.ini）飛到目標才算打中；這裡在放出單位那一幀就算打中
 static int method_unit_hit(const Method *m) {
     int unit = -1;
     for (int i = 0; m && i < m->trig_count; i++) {
@@ -916,6 +915,50 @@ static int method_unit_hit(const Method *m) {
         if (t->type == 2 && unit < 0) unit = i;
     }
     return unit;
+}
+
+// ---- 飛行物（招式單位 wManualID 201，Poq.exe CFlyEffect／CARROW）----
+// 放出時（0x4368c0）：拍數 = 到目標點的距離（一格 64）÷ bData3，0 當 2，之後每拍等速前進；拍數用完（0x436d60）在目標點觸發打中
+// shortcut: 打中的是放出時的目標（還活著就算），原版是到目標點才找；路上撞牆（0x435c00）、bData3 < 2 時亂飄還沒做
+#define MAX_MISSILE 32
+static struct { Actor *a, *t; const SkillRow *sk; const Unit *u; float x, y, vx, vy; int left, dir; Uint32 start; } missile[MAX_MISSILE];
+static int missile_count;
+
+// 單位自己的觸發：flag 5 = 放出時、1 = 打中時；type 1 音效、2 特效（位置 1 = 對方）
+static void unit_trigs(const Unit *u, int flag, const Actor *self, const Actor *foe, Uint32 tick) {
+    for (int i = 0; i < u->trig_count; i++) {
+        const Trig *g = &u->trig[i];
+        if (g->flag != flag) continue;
+        if (g->type == 1) audio_sfx(g->id);
+        else if (g->type == 2) fx_spawn(g, self, foe, tick);
+    }
+}
+
+// 飛行物動畫的前 16 個序列 = 16 個方向，從畫面朝右起逆時針（截圖對過）。shortcut: 後面 32 個序列（可能是拋物線上升、下降）沒用
+static void missile_launch(Actor *a, const Unit *u, Uint32 tick) {
+    const SkillRow *sk = a->casting ? a->cast : a->skill;
+    if (a->casting) a->casting = 2;
+    float dx = a->foe->x - a->x, dy = a->foe->y - a->y;
+    if (missile_count == MAX_MISSILE) { skill_hit(a, a->foe, sk, tick); return; }
+    int n = (int)(sqrtf(dx * dx + dy * dy) * 64) / u->speed;
+    if (!n) n = 2;
+    missile[missile_count++] = (typeof(missile[0])){a, a->foe, sk, u, a->x, a->y, dx / n, dy / n, n,
+        (int)lroundf(atan2f(-(dx + dy) * 16, (dx - dy) * 32) / (float)(M_PI / 8)) + 16, tick};
+    unit_trigs(u, 5, a, a->foe, tick);
+}
+
+static void missile_tick(Uint32 tick) {
+    for (int i = 0; i < missile_count; i++) {
+        typeof(missile[0]) *m = &missile[i];
+        m->x += m->vx;
+        m->y += m->vy;
+        if (--m->left > 0) continue;
+        if (alive(m->a) && alive(m->t)) {
+            unit_trigs(m->u, 1, m->t, m->t, tick);
+            skill_hit(m->a, m->t, m->sk, tick);
+        }
+        missile[i--] = missile[--missile_count];
+    }
 }
 
 // 招式打中的對象（Poq.exe 0x43c4f0 → 0x438a00 依 iTriID，0x439fb0 找範圍內的、模式 0 只打第一個）：
@@ -969,8 +1012,13 @@ static void action_tick(Actor *a, Uint32 tick) {
                 if (t->type == 1) audio_sfx(t->id);
                 else if (t->type == 0 || (t->type == 16 && (t->id == 0x14 || t->id == 0x16))) method_hits(a, t, tick);
                 else if (t->type == 2) {
-                    fx_spawn(t, a, a->foe, tick);
-                    if (i == method_unit_hit(a->atk)) method_hits(a, t, tick);
+                    const Unit *u = unit_find(t->id);
+                    int hit = i == method_unit_hit(a->atk);
+                    if (hit && u && u->manual == 201 && u->speed > 0 && alive(a->foe)) missile_launch(a, u, tick);
+                    else {
+                        fx_spawn(t, a, a->foe, tick);
+                        if (hit) method_hits(a, t, tick);
+                    }
                 }
                 else if ((t->type == 5 || t->type == 7) && alive(a->foe) && cell_dist(a, a->foe) > 1.5f) {
                     // 衝過去／跳過去（Poq.exe 0x43c4f0 type 5、7 → 角色動作 10、7 到招式的目標點）
@@ -1811,7 +1859,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     preload_roles(scene, hd);
     if (hd) actor_setup(hero, hd);
     spawn_npcs(scene);
-    fx_count = 0;
+    fx_count = missile_count = 0;
     const Entry *en = scene_entry(scene, entry_id);
     if (en) {
         hero->x = en->x + 0.5f;
@@ -2037,6 +2085,7 @@ int main(int argc, char **argv) {
                 else if (a->act) action_tick(a, tick);
                 else monster_think(a, hero, &scene, tick);
             }
+            missile_tick(tick);
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = trigger_at(&scene, hero);
             if (!t) armed = 1;
@@ -2123,6 +2172,12 @@ int main(int argc, char **argv) {
             if (a && a->count)
                 draw_frame(a, 0, frame_at(&a->seqs[0], tick - fx[i].start), (int)((fx[i].x - fx[i].y + scene.h - 1) * TILE_W / 2) - ox,
                            (int)((fx[i].x + fx[i].y) * TILE_H / 2) - oy, 0);
+        }
+        for (int i = 0; i < missile_count; i++) {  // 飛行物：16 方向各一個序列（少於 16 個就播第一個）
+            const Anim *a = anim_get(missile[i].u->anim);
+            if (a && a->count)
+                draw_frame(a, a->count >= 16 ? missile[i].dir % 16 : 0, frame_at(&a->seqs[a->count >= 16 ? missile[i].dir % 16 : 0], tick - missile[i].start),
+                           (int)((missile[i].x - missile[i].y + scene.h - 1) * TILE_W / 2) - ox, (int)((missile[i].x + missile[i].y) * TILE_H / 2) - oy, 0);
         }
         hud_draw(hero);
 #ifdef STORY

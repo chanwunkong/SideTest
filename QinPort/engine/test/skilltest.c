@@ -84,6 +84,19 @@ int main(void) {
     h2 = actors[2].hp;
     method_hits(&actors[0], &(Trig){.type = 0, .id = 0}, 0);
     assert(actors[2].hp == h2);
+    // 箭（普通弓箭1，bData3 = 30）：5 格 = 320 像素 → 第 10 拍才打中
+    mk(&a); mk(&t);
+    t.x = 5;
+    a.foe = &t;
+    a.hr = 100000;
+    hp = t.hp;
+    missile_launch(&a, unit_find(0), 0);
+    for (int i = 0; i < 9; i++) missile_tick(0);
+    assert(t.hp == hp && missile_count == 1);
+    missile_tick(0);
+    assert(t.hp < hp && missile_count == 0);
+    const Anim *arrow = anim_get(unit_find(0)->anim);
+    printf("arrow seqs %d\n", arrow ? arrow->count : -1);
     puts("skilltest ok");
     return 0;
 }
