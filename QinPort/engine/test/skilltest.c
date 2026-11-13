@@ -55,7 +55,7 @@ int main(void) {
     a.hr = 100000;
     a.ex[70] = 100;
     a.hp = 10;
-    strike(&a, &t, NULL, 0);
+    for (int i = 0; i < 20 && a.hp <= 10; i++) strike(&a, &t, NULL, 0);  // 命中最多 90%
     assert(a.hp > 10);
     // 中毒扣到 0 會死（不是無敌）
     mk(&t);
@@ -86,7 +86,7 @@ int main(void) {
     actors[1].x = 5; actors[2].x = 6.5f; actors[3].x = 12;
     actors[0].foe = &actors[1];
     int h1 = actors[1].hp, h2 = actors[2].hp, h3 = actors[3].hp;
-    method_hits(&actors[0], &(Trig){.type = 0, .id = 7}, 0);
+    for (int i = 0; i < 20 && (actors[1].hp == h1 || actors[2].hp == h2); i++) method_hits(&actors[0], &(Trig){.type = 0, .id = 7}, 0);
     assert(actors[1].hp < h1 && actors[2].hp < h2 && actors[3].hp == h3);
     h2 = actors[2].hp;
     method_hits(&actors[0], &(Trig){.type = 0, .id = 0}, 0);
@@ -183,6 +183,20 @@ int main(void) {
     skill_hit(&actors[0], &actors[0], &cl1, 0);
     skill_hit(&actors[0], &actors[0], &cl1, 0);
     assert(actor_count == 2 && actors[1].owner == &actors[0] && actors[1].side == 0);
+    // 打中反應：JDR 200 對 DJHF 0 一定被擊退（② 機率 2000‰），往反方向；JDR −1 不反應；DJHF 200 不會被擊退
+    SkillRow kb = {.level = 1, .mod_n = 1, .mod = {{.id = 18, .init = 200}}};
+    mk(&a); mk(&t);
+    t.x = 5; t.y = 5; a.x = 4; a.y = 5;
+    hit_react(&a, &t, &kb);
+    assert(t.knock && t.knock_x > 5 + 3.9f && t.stun >= 0);
+    mk(&t); t.x = 5; t.y = 5;
+    kb.mod[0].init = -1;
+    hit_react(&a, &t, &kb);
+    assert(!t.knock && !t.stun);
+    kb.mod[0].init = 200;
+    t.ex[75] = 200;
+    hit_react(&a, &t, &kb);
+    assert(!t.knock && !t.stun);
     puts("skilltest ok");
     return 0;
 }

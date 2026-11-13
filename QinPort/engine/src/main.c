@@ -185,7 +185,9 @@ typedef struct Actor {
     struct Actor *foe;             // 攻擊目標
     struct Actor *owner;           // 召喚出來的：召喚者
     int side;                      // 隊伍：0 = 主角這邊（主角、他的召喚兽、馴服的、陷阱、分身），1 = 怪物
-    int copied, copy[12];          // 陷阱：放的人的 AP、AP_MAX、MAP1~5、MAP1~5_MAX（0x10034cb0 照抄）
+    int copied, copy[12];
+    float knock_x, knock_y;        // 被擊退要滑到的點（knock = 1 時）
+    int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）          // 陷阱：放的人的 AP、AP_MAX、MAP1~5、MAP1~5_MAX（0x10034cb0 照抄）
     float dash_x, dash_y;          // 招式衝刺／跳躍的目標點（dash = 1 時）
     int dash;
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
@@ -962,6 +964,54 @@ static void fx_spawn(const Trig *t, const Actor *self, const Actor *foe, Uint32 
     fx[fx_count++].start = tick;
 }
 
+// 往 a 的反方向推 cells 格（擋住就停），面向 a（Poq.exe 狀態 0x1f：0x4942d0 方向反過來當面向、0x493cb0 每次走一格）
+static void knock_back(Actor *t, const Actor *a, int cells) {
+    float dx = t->x - a->x, dy = t->y - a->y, len = sqrtf(dx * dx + dy * dy);
+    if (len < 0.01f || cells < 1) return;
+    dx /= len;
+    dy /= len;
+    t->knock_x = t->x + dx * cells;
+    t->knock_y = t->y + dy * cells;
+    t->knock = 1;
+    face(t, (a->x - t->x - (a->y - t->y)) * 32, (a->x - t->x + a->y - t->y) * 16);
+}
+
+// 打中後的反應（Poq.exe 0x48c3a0）：JDR = 攻方 B_C_JDR + 攻方這招的 JDR（技能欄 18），DJHF = 守方 B_C_DJHF（怪物表打击恢复率）+ 守方正在放的招的 DJHF（欄 19）。
+// 這招 JDR 是 −1 的不反應。① JDR > 100 時千分之 (200 − DJHF)(JDR − 100)/500×10 擊退 (隨機(JDR)/80 + JDR/100 + 1) 格、硬直 格數×20 + 30 + 擲值/40 拍；
+// ② JDR > 0 時千分之 (200 − DJHF)×JDR/200×10 擊退 (隨機(JDR)/80 + JDR/80 + 2) 格；③ 千分之 (200 − DJHF)×1000/(DJHF + 200) 挨打（播挨打動作）
+// shortcut: ① 原版還要角色表 +0xa4 < 0x577100 的值（意義沒查），這裡都當成立；主角的 B_C_JDR、B_C_DJHF 原版從模板讀，這裡當 0；
+// 硬直、擊退原版只在平常狀態（+0x73 = 1、0xb）接受，這裡出手中照樣挨打不播動作（跟之前一樣）
+static void hit_react(Actor *a, Actor *t, const SkillRow *sk) {
+    const SkillRow *ts = t->act == ACT_ATTACK ? (t->casting ? t->cast : t->skill) : NULL;
+    int sj = sk ? (int)skill_field(sk, 18, 0) : 0;
+    if (sj == -1) return;
+    int jdr = a->ex[74] + sj, djhf = t->ex[75] + (ts ? (int)skill_field(ts, 19, 0) : 0);
+    if (jdr > 100) {
+        int r = rand() % 1000;
+        if (r < (int)((200.0f - djhf) * (jdr - 100.0f) / 500 * 10)) {
+            int n = (int)((float)(rand() % jdr / 80) + jdr / 100.0f + 1);
+            knock_back(t, a, n);
+            int st = n * 20 + 30 + r / 40;
+            if (st > t->stun) t->stun = st;
+        }
+    }
+    if (jdr > 0 && rand() % 1000 < (int)((200.0f - djhf) * jdr / 200 * 10))
+        knock_back(t, a, (int)((float)(rand() % jdr / 80) + jdr / 80.0f + 2));
+    if (rand() % 1000 < (int)((200.0f - djhf) * 1000 / (djhf + 200.0f)) && t->def->hit && t->act != ACT_ATTACK) start_act(t, ACT_HIT, t->def->hit);
+}
+
+// 擊退、硬直：每拍滑一點、硬直倒數。回傳 1 = 這拍不能自己動
+static int react_tick(Actor *a, const Scene *s) {
+    if (a->knock) {
+        float gx = a->knock_x - a->x, gy = a->knock_y - a->y;
+        float x = a->x, y = a->y;
+        if (gx * gx + gy * gy >= 0.04f) actor_step(a, s, (gx - gy) * 32, (gx + gy) * 16, SPEED_A[20] + SPEED_C[20] / 10.0f);  // 0x1f 用速度 20（0x496ae0）
+        if (a->x == x && a->y == y) a->knock = 0;  // 到了或撞牆
+    }
+    if (a->stun > 0) a->stun--;
+    return a->knock || a->stun > 0;
+}
+
 static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     if (!alive(t)) return;
     t->fight = FIGHT_TICKS;
@@ -1036,7 +1086,7 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     if (a->hp <= 0 && alive(a)) actor_kill(a, t);
     if (t->hp <= 0) { actor_kill(t, a); return; }
     if (t->def->snd_hit) audio_sfx(t->def->snd_hit);
-    if (t->def->hit && t->act != ACT_ATTACK) start_act(t, ACT_HIT, t->def->hit);
+    hit_react(a, t, sk);
 }
 
 // 敵對：不同隊伍的
@@ -2290,10 +2340,12 @@ int main(int argc, char **argv) {
                 if (actors[i].cool > 0) actors[i].cool--;
                 if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
             }
+            int held = hero->act != ACT_DEAD && react_tick(hero, &scene);
             if (hero->act == ACT_DEAD) {  // shortcut: 原版死亡後的處理（回城、掉經驗）還沒做，先 3 秒後原地復活
                 if (++hero->dead_ticks > 180) { hero->act = ACT_NONE; hero->dead_ticks = 0; hero->hp = hero->hp_max; hero->mp = hero->mp_max; }
                 action_tick(hero, &scene, tick);
             } else if (hero->act) action_tick(hero, &scene, tick);
+            else if (held) hero->moving = 0;
             else if (mx * mx + my * my > 0.01f) { hero->foe = NULL; hero->want = NULL; actor_tick(hero, &scene, mx, my, tick); }  // 自己走 = 放棄目標
             else if (!pursue(hero, &scene, tick)) actor_tick(hero, &scene, 0, 0, tick);
             // 腳步聲：每 max((15 - A) * 2, 10) 拍一次（Poq.exe 0x48704f），80 號音效
@@ -2304,6 +2356,7 @@ int main(int argc, char **argv) {
                 if (!a->mon) npc_think(a, &scene, tick);
                 else if (!a->role) continue;
                 else if (a->act == ACT_DEAD) { action_tick(a, &scene, tick); if (++a->dead_ticks > CORPSE_TICKS) a->role = NULL; }
+                else if (react_tick(a, &scene) && !a->act) a->moving = 0;
                 else if (a->act) action_tick(a, &scene, tick);
                 else monster_think(a, hero, &scene, tick);
             }
