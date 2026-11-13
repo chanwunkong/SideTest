@@ -217,6 +217,19 @@ int main(void) {
     a.foe = &t; a.skill = &far; a.ai_tick = 0; a.cool = 100000;  // 不出手（測試角色沒有動畫）
     for (int i = 0; i < 61 && !a.flee; i++) { a.atk = &fm2; a.skill = &far; pursue(&a, &sc, 0); }
     assert(a.flee && (int)a.tx == 15 && (int)a.ty == 20);
+    // 致命一击 100%：物理損加倍（AP 10、DP 0 → 10 → 20）；会心一击 100%：不算 DP
+    mk(&a); mk(&t);
+    a.hr = 100000; a.ap = a.ap_max = 10; t.dp = 0;
+    a.ex[72] = 100;
+    int h0 = t.hp;
+    for (int i = 0; i < 20 && t.hp == h0; i++) strike(&a, &t, NULL, 0);
+    assert(h0 - t.hp == 20);
+    mk(&t);
+    t.dp = 1000;
+    a.ex[72] = 0; a.ex[73] = 100;
+    h0 = t.hp;
+    for (int i = 0; i < 20 && t.hp == h0; i++) strike(&a, &t, NULL, 0);
+    assert(h0 - t.hp == 10);
     puts("skilltest ok");
     return 0;
 }

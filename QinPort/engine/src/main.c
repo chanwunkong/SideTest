@@ -1044,7 +1044,9 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     // 物理（0x10033140）：攻擊 = (AP + 加值) × (100 + 百分比) / 100，AP~AP_MAX 隨機；損血 = 攻擊² / (攻擊 + DP/2)
     int ap = (int)((a->ap + add[50]) * (pct[50] + 100) / 100), ap_max = (int)((a->ap_max + add[51]) * (pct[51] + 100) / 100);
     int dmg = ap + (ap_max > ap ? rnd(ap_max - ap + 1) : 0);
-    int phys = dmg + t->dp / 2 ? dmg * dmg / (dmg + t->dp / 2) : 0;
+    // 致命一击／会心一击（Poq.exe 0x48c3a0 擲完送 0x13b → EasyRPG 0x10033140）：百分之 B_C_ZMYJ 物理損 ×2；否則百分之 B_C_HXYJ 不算對方防禦
+    int crit = rand() % 100 < a->ex[72] ? -1 : rand() % 100 < a->ex[73] ? -2 : 0, dp = crit == -2 ? 0 : t->dp;
+    int phys = dmg + dp / 2 ? dmg * dmg / (dmg + dp / 2) * (crit == -1 ? 2 : 1) : 0;
     // 法術 MAP1~5 對 MDP1~5（同一函式）：最大值用的百分比跟最小值同一格（原版如此）；MDP > 0 時損 = MAP² / (MAP + MDP)、比例 = MAP / (MAP + MDP)，
     // MDP ≤ 0 時損 = MAP × (MAP − 2·MDP) / (MAP − MDP)、比例 1。比例乘在該屬性觸發狀態的機率上；中毒的毒傷 = MAP2 擲出的值
     int magic = 0, poison = 0;
