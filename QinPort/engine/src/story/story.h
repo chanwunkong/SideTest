@@ -13,7 +13,8 @@ typedef struct {
     char speaker[64], text[4096];
     int option_count;
     StoryOption options[STORY_MAX_OPTIONS];
-    int shop;  // 劇情叫出了買賣介面（原版 0x10055990 送 0x5fc）：商人的代號，引擎看到後打開、清 0
+    int shop;
+    int store;  // 劇情叫出寄存介面（0x1004ec80 → 0x61b 訊息）  // 劇情叫出了買賣介面（原版 0x10055990 送 0x5fc）：商人的代號，引擎看到後打開、清 0
 } StoryDialog;
 extern StoryDialog story_dialog;  // 目前畫面上的對話
 

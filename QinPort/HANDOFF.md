@@ -349,5 +349,6 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 主角的錢、身上道具跟劇情同步（story_begin/story_end）；開場裝備改由劇情的扶苏（UI_Pos 32、31）給。
 - **劇情看得到 inv（2026-11-14）**：Item.sh = 劇情那邊的道具物件。story_begin 把 inv 每件放回主角物件身上（held：物件留著給 find_item／find_in_bag 找別名、move_object 0x1004bcf0 拿走），story_end 把被拿走的從 inv 移除（道具跟著物件走）、新給的收進 inv。item_new 照原版把物件別名設成道具表別名（劇情再 set_alias 會蓋掉；所以萍儿找 "fachai" 找不到改名成 fachaiyaoshi 的发钗，原版就是這樣）。add_exp 0x1003d270 → hero_gain_exp，quest_log 0x1004dd00 → hud_say。storytest 可帶 `give=物件路徑`、`flag=旗標=值`。
 - **打造、镶嵌（2026-11-14）**：交易介面的 m_pMake／m_pEnchase 開 JM56_打造界面（Poq CMakePropDialog 0x540230，模式 −1 打造、1 镶嵌）。配方 = `ObjMdl/MakeMdl.txt`（XOR）：类别、物品類型、木矿骨皮筋件數、主材、文字ID（UI_C.dlg）。打造規則 EasyRPG produce 0x10051530（NPC：等級 = UIS_Produce、錢 = 材料 ValueUn 總和；材料特性合併後加到 item_new 的產品上，價格 ×1.2）；镶嵌 addgem 0x10037690（武器去防禦類、防具去攻擊類特性，價格 + 寶石價 ×1.5，SlotMax 上限）、拆除 removegem 0x10053a40（寶石毀掉）。Item 多了 gem_n/gem_icon/gem_value，ItemFx.gem 記是哪顆寶石的。測試網址可加 `item=類型,等級`（可多個）、`money=N`。沒做：自己用技能打造、五行換算 0x10058900、m_pMakerInfo。
-- **還沒做（各自另一個系統）**：成套武装（weaponset：把幾件裝備組成一件「秦殇/道具/成套武装」，0x1001eaa0）、寄存（JM73）、存檔。待查：原版說明文字（0x100279b0）、can_eat 設在哪、拖放規則、地上道具畫法、超重效果、箭的消耗、系統訊息字串表。
+- **寄存（2026-11-14）**：商人選項叫 0x1004ec80 → 0x61b → JM73_寄存界面（40 格）在左、道具在右。全國共用一個寄存箱（main.c `store[40]`）。原版寄存道具存在哪還沒查。
+- **還沒做**：成套武装（JM55 的 m_pCombo「weaponset #主角 null 各件」、m_Asunder「weaponset #主角 #套裝」；EasyRPG 0x1001eaa0 把身上的裝備移進一件「秦殇/道具/成套武装」，套裝放 UI_Pos 40 = 第 11 個裝備欄，裡面的道具保留原本的 UI_Pos。穿脫套裝 0x1004cc5c 那段把 30~40 都當裝備欄，套裝內的道具怎麼算數值還沒查）、存檔（寄存箱也要存）。待查：原版說明文字（0x100279b0）、can_eat 設在哪、拖放規則、地上道具畫法、超重效果、箭的消耗、系統訊息字串表。
 

@@ -2105,6 +2105,7 @@ static void ground_walk(Actor *h, const Scene *s, Uint32 tick) {
 // shortcut: 原版用滑鼠拖放、右鍵使用，手機改成點選；打造（m_pMake）、镶嵌（m_pEnchase）、查看（m_LookOver）另外的系統，還沒做
 #ifdef STORY
 static int shop_bag_act(int p);
+static int store_bag_act(int p);
 #endif
 static void bag_use(int p) {
     if (inv[p].part > 0) item_equip(&actors[0], p);
@@ -2115,7 +2116,7 @@ static void bag_button(const char *name) {
     int sel = item_sel >= 0 && inv[item_sel].name[0] ? item_sel : -1;
     if (p >= 0) {
 #ifdef STORY
-        if (p == sel && shop_bag_act(p)) return;
+        if (p == sel && (shop_bag_act(p) || store_bag_act(p))) return;
 #endif
         if (p == sel) bag_use(p);
         else if (inv[p].name[0]) item_sel = p;
@@ -2506,6 +2507,62 @@ static void make_draw(UiDialog *d, int wx, int wy) {
     }
 }
 
+// ---- 寄存（原版 JM73_寄存界面）：商人選項叫 0x1004ec80 → 0x61b 訊息打開，左邊寄存、右邊道具。40 格
+// 店家的台詞說「小店还可以为你将寄存物品运送到全国各地」，所以全國共用一個寄存箱。
+// 點寄存的道具 = 選取，再點 = 拿回背包；背包選了道具點寄存空格 = 放進那格；背包的道具點兩下 = 放進第一個空格。
+// shortcut: 原版寄存的道具放在哪（EasyRPG 那邊的物件、UI_Pos）還沒查，存檔時要一起存
+#define JM73 "JM73_\xbc\xc4\xb4\xe6\xbd\xe7\xc3\xe6"  // JM73_寄存界面
+#define STORE_N 40
+static Item store[STORE_N];
+static int store_sel = -1;
+
+static int store_on(void) { return win_left.open && !strcmp(win_left.d.name, JM73); }
+
+static void store_open(void) {
+    store_sel = item_sel = -1;
+    win_left.open = ui_load(JM73, &win_left.d) > 0;
+    if (!(win_right.open && !strcmp(win_right.d.name, JM54))) win_toggle(&win_right, JM54);
+}
+
+static int store_bag_act(int p) {
+    if (!store_on() || p < 0 || p >= INV_BAG || !inv[p].name[0]) return 0;
+    for (int i = 0; i < STORE_N; i++)
+        if (!store[i].name[0]) { store[i] = inv[p]; store[i].pos = -1; inv[p].name[0] = 0; item_sel = -1; return 1; }
+    hud_say("寄存箱滿了");
+    return 1;
+}
+
+static void store_button(const char *name) {
+    if (!strcmp(name, "m_pCClose")) { win_left.open = 0; return; }
+    if (strncmp(name, "m_pItem[", 8)) return;
+    int i = atoi(name + 8), b;
+    if (i < 0 || i >= STORE_N) return;
+    if (i == store_sel && store[i].name[0]) {
+        if ((b = bag_free()) < 0) { hud_say("背包已滿"); return; }
+        inv[b] = store[i];
+        inv[b].pos = b;
+        store[i].name[0] = 0;
+        store_sel = -1;
+    } else if (store[i].name[0]) store_sel = i;
+    else if (item_sel >= 0 && item_sel < INV_BAG && inv[item_sel].name[0]) {
+        store[i] = inv[item_sel];
+        store[i].pos = -1;
+        inv[item_sel].name[0] = 0;
+        item_sel = -1;
+    }
+}
+
+static void store_draw(UiDialog *d, int wx, int wy) {
+    char key[24];
+    UiCtrl *c;
+    for (int i = 0; i < STORE_N; i++) {
+        snprintf(key, sizeof key, "m_pItem[%d]", i);
+        item_icon(d, key, wx, wy, &store[i]);
+    }
+    snprintf(key, sizeof key, "m_pHItem[%d]", store_sel);
+    if (store_sel >= 0 && (c = ui_find(d, key))) draw(ui_image(c->img, 0), wx + c->x, wy + c->y);
+}
+
 // 劇情的道具物件 = 引擎的 Item（item_new）；原版 item_new 也把物件的別名設成道具表的別名
 static void *story_item_new(int h, int type, int level, int col, const char *alias) {
     Item *it = malloc(sizeof *it);
@@ -2555,6 +2612,7 @@ static void story_end(void) {
     }
     if (equip) hero_refresh(&actors[0]);
     if (story_dialog.shop) { shop_open(story_dialog.shop); story_dialog.shop = 0; }
+    if (story_dialog.store) { store_open(); story_dialog.store = 0; }
 }
 #endif
 
@@ -2602,6 +2660,7 @@ static int hud_tap(int x, int y) {
         int role = !strcmp(w->d.name, JM52);
 #ifdef STORY
         if (c && !strcmp(w->d.name, JM63)) { shop_button(c->name); return 1; }
+        if (!strcmp(w->d.name, JM73)) { if (c) store_button(c->name); return 1; }
         if (!strcmp(w->d.name, JM56)) { if (c) make_button(c->name); else make_list_tap(x, y, ox, oy); return 1; }
 #endif
         if (c && !strcmp(c->name, "m_pCClose")) w->open = 0;
@@ -2882,6 +2941,7 @@ static void hud_draw(const Actor *hero) {
 #ifdef STORY
         if (!strcmp(win_left.d.name, JM63)) shop_draw(&win_left.d, wx, wy);
         if (!strcmp(win_left.d.name, JM56)) make_draw(&win_left.d, wx, wy);
+        if (!strcmp(win_left.d.name, JM73)) store_draw(&win_left.d, wx, wy);
 #endif
         UiCtrl *info = ui_find(&win_left.d, "m_pInfo");
         if (info && info->flags & 9) {

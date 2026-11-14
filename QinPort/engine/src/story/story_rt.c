@@ -323,6 +323,7 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
     case 0x1004c5a0: spawn_count = (int)a[0]; return 0;
     case 0x1004b0d0: return o && kv_find(o->ints, o->nints, "Amount") ? story_get_int(a[0], "Amount") : story_get_int(a[0], "Money");  // get_amount
     case 0x10052a00: return a[0] > 1 ? rand() % a[0] : 0;                   // rand_n
+    case 0x1004ec80: story_dialog.store = 1; return 0;                       // 打開寄存介面(主角)
     case 0x10055990: story_dialog.shop = (int)a[1]; return 0;                 // 打開買賣介面(主角, 商人)
     }
     Fn *f = fn_find(addr);  // 劇情呼叫別的類別的方法（例如衍生類別先跑基底的第 1 格）
