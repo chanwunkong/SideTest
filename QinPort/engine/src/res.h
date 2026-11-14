@@ -167,6 +167,7 @@ typedef struct {
     char name[32], alias[40], equip[5][96];                              // 鑲嵌數、已鑑定、金錢數、箭數、UI_Pos（−1 = 不在身上）
     int fx_n;
     ItemFx fx[32];
+    int sh;  // 劇情那邊對應的道具物件（0 = 還沒有；網頁版劇情用）
 } Item;
 // 產生一件：type = 道具表類型（或掉寶類型，經 item_type_pick），level < 0 時依 col（SLevel_i 的欄）隨機等級，
 // alias 非空時找别名開頭相符的列。失敗回 0

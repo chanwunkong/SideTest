@@ -974,21 +974,24 @@ static void skill_hit(Actor *a, Actor *t, const SkillRow *r, Uint32 tick) {
 }
 
 
+// 加經驗（0x10026d30），夠了就升級
+static void hero_gain_exp(Actor *h, int exp) {
+    h->exp += exp;
+    while (h->level < exp_levels && h->exp >= exp_table[h->level]) {
+        hero_stats(h, h->level + 1);
+        hero_extra_exp += 10;
+        hero_extra_skill += 1;
+        printf("升到 %d 級\n", h->level);
+    }
+}
+
 // 倒下（0x100574e0）：播死亡動作，被主角打死的怪物給經驗，夠了就升級
 static void actor_kill(Actor *t, Actor *by) {
     t->hp = 0;
     start_act(t, ACT_DEAD, t->def->death);
     if (t->def->snd_death) audio_sfx(t->def->snd_death);
     if (t->mon) mon_loot(t);
-    if (by && !by->mon && t->mon) {
-        by->exp += t->exp;
-        while (by->level < exp_levels && by->exp >= exp_table[by->level]) {
-            hero_stats(by, by->level + 1);
-            hero_extra_exp += 10;
-            hero_extra_skill += 1;
-            printf("升到 %d 級\n", by->level);
-        }
-    }
+    if (by && !by->mon && t->mon) hero_gain_exp(by, t->exp);
     printf("%s 倒下\n", t->mon ? "怪物" : "主角");
 }
 
@@ -2206,8 +2209,9 @@ static void shop_buy(int i) {
     story_set_int(shop_npc, "Money", story_get_int(shop_npc, "Money") + p);
     inv[b] = *it;
     inv[b].pos = b;
+    inv[b].sh = shop_slot[i];
     free(it);
-    story_take(shop_slot[i]);
+    story_hold(shop_slot[i]);
     shop_sel = -1;
     shop_list();
 }
@@ -2219,7 +2223,8 @@ static void shop_sell(int p) {
     hero_money += trade_price(&inv[p], 0);
     *it = inv[p];
     it->pos = -1;
-    story_put(shop_npc, it);
+    if (it->sh) { story_move(it->sh, shop_npc); story_set_item(it->sh, it); }
+    else it->sh = story_put(shop_npc, it);
     inv[p].name[0] = 0;
     item_sel = -1;
     shop_list();
@@ -2275,29 +2280,52 @@ static void shop_button(const char *name) {
     else if (!strcmp(name, "m_pCClose")) shop_close();
 }
 
-// 劇情的道具物件 = 引擎的 Item（item_new）
-static void *story_item_new(int type, int level, int col, const char *alias) {
+// 劇情的道具物件 = 引擎的 Item（item_new）；原版 item_new 也把物件的別名設成道具表的別名
+static void *story_item_new(int h, int type, int level, int col, const char *alias) {
     Item *it = malloc(sizeof *it);
     if (it && !item_new(it, type, level, col, alias)) { free(it); it = NULL; }
+    if (it) { it->sh = h; story_set_alias(h, it->alias); }
     return it;
 }
 
-// 劇情和引擎共用主角的錢、身上的東西：叫劇情前把錢給它，叫完拿回來；劇情放到主角身上的道具（add_item、give_object）
-// 收進 inv：有 UI_Pos 且那格空著就放那格（開場的扶苏武器 32、布衣 31），否則背包空格，滿了掉在腳下；劇情叫出買賣介面就打開
-// shortcut: 劇情找主角身上的東西（find_item）還看不到 inv，交任務物品要等這部分接上
-static void story_begin(void) { story_set_int(story_player(), "Money", hero_money); }
+// 劇情給經驗（0x1003d270：主角和隊友各加）、系統訊息（0x1004dd00 → 介面訊息 0x5ea）
+static void story_exp(int h, int exp) { if (h == story_player()) hero_gain_exp(&actors[0], exp); }
+static void story_log(int h, int kind, const char *text) { (void)kind; if (h == story_player()) hud_say(text); }
+
+// 劇情和引擎共用主角的錢、身上的東西。叫劇情前：錢給它，inv 的每件道具放回主角的物件身上（find_item 找得到、
+// move_object 拿得走）；叫完：拿回錢，劇情新放到主角身上的道具（add_item、give_object、move_object）收進 inv：
+// 有 UI_Pos 且那格空著就放那格（開場的扶苏武器 32、布衣 31），否則背包空格，滿了掉在腳下；被劇情拿走的從 inv 移除。
+// 劇情叫出買賣介面就打開
+static void story_begin(void) {
+    int pl = story_player();
+    story_set_int(pl, "Money", hero_money);
+    story_unhold(pl);
+    for (int p = 0; p < INV_N; p++) {
+        if (!inv[p].name[0]) continue;
+        if (!inv[p].sh) { inv[p].sh = story_put(pl, NULL); story_set_alias(inv[p].sh, inv[p].alias); story_hold(inv[p].sh); }
+        story_move(inv[p].sh, pl);
+        story_set_int(inv[p].sh, "UI_Pos", p);
+    }
+}
 static void story_end(void) {
     int pl = story_player(), equip = 0;
     hero_money = story_get_int(pl, "Money");
+    for (int p = 0; p < INV_N; p++) {
+        if (!inv[p].name[0] || !inv[p].sh || story_parent(inv[p].sh) == pl) continue;
+        Item *it = malloc(sizeof *it);  // 給了別人：道具跟著物件走
+        if (it) { *it = inv[p]; it->pos = -1; story_set_item(inv[p].sh, it); }
+        inv[p].name[0] = 0;
+        equip |= p >= INV_BAG;
+    }
     for (int h = story_next(pl, 0); h; h = story_next(pl, h)) {
         Item *it = story_item(h);
         if (!it) continue;
         int p = story_get_int(h, "UI_Pos");
         if (p <= 0 || p >= INV_N || inv[p].name[0]) p = bag_free();
-        if (p < 0) ground_drop(it, actors[0].x, actors[0].y);
-        else { inv[p] = *it; inv[p].pos = p; equip |= p >= INV_BAG; }
+        it->sh = h;
+        if (p < 0) { ground_drop(it, actors[0].x, actors[0].y); story_take(h); }
+        else { inv[p] = *it; inv[p].pos = p; equip |= p >= INV_BAG; story_hold(h); }
         free(it);
-        story_take(h);
     }
     if (equip) hero_refresh(&actors[0]);
     if (story_dialog.shop) { shop_open(story_dialog.shop); story_dialog.shop = 0; }
@@ -2915,6 +2943,8 @@ int main(int argc, char **argv) {
     srand((unsigned)time(NULL));
 #ifdef STORY
     story_item_make = story_item_new;
+    story_on_exp = story_exp;
+    story_on_log = story_log;
     story_end();  // 開場裝備照劇情的主角（扶苏武器、布衣）
     hero_look();
 #else

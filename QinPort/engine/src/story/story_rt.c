@@ -50,10 +50,11 @@ typedef struct { char key[32]; intptr_t val; } KV;
 typedef struct {
     const Class *cls;
     char path[128], name[64], alias[64];
-    KV *ints, *flags;
-    int nints, nflags;
+    KV *ints, *flags, *strs;  // strs 的 val = strdup 的字串
+    int nints, nflags, nstrs;
     int parent;  // 在誰身上或哪個房間
     void *item;  // 道具物件在引擎這邊的 Item（story_item_make 產生）
+    int held;    // 道具在引擎的 inv 裡（item 交給引擎了）
 } Obj;
 static int refreshing, spawn_max = -1, spawn_count = -1;  // 原版 0x10478d3c、0x1039f548、0x1039f544
 static Obj *objs;  // objs[0] 不用：代號 0 = 沒有
@@ -112,7 +113,9 @@ int story_player(void) {
 
 const char *story_name(int h) { return O(h) ? O(h)->name : ""; }
 
-void *(*story_item_make)(int type, int level, int col, const char *alias);
+void (*story_on_exp)(int h, int exp);
+void (*story_on_log)(int h, int kind, const char *text);
+void *(*story_item_make)(int h, int type, int level, int col, const char *alias);
 
 int story_next(int owner, int after) {
     for (int i = after + 1; i < obj_count; i++)
@@ -120,7 +123,16 @@ int story_next(int owner, int after) {
     return 0;
 }
 void *story_item(int h) { return O(h) ? O(h)->item : NULL; }
-void story_take(int h) { if (O(h)) { O(h)->parent = -1; O(h)->item = NULL; } }
+void story_take(int h) { if (O(h)) { O(h)->parent = -1; O(h)->item = NULL; O(h)->held = 0; } }
+void story_hold(int h) { if (O(h)) { O(h)->item = NULL; O(h)->held = 1; } }
+void story_set_item(int h, void *item) { if (O(h)) { O(h)->item = item; O(h)->held = 0; } }
+int story_parent(int h) { return O(h) ? O(h)->parent : -1; }
+void story_move(int h, int parent) { if (O(h)) O(h)->parent = parent; }
+void story_unhold(int owner) {
+    for (int i = 1; i < obj_count; i++)
+        if (objs[i].parent == owner && objs[i].held) objs[i].parent = -1;
+}
+void story_set_alias(int h, const char *s) { if (O(h)) snprintf(O(h)->alias, sizeof O(h)->alias, "%s", s); }
 int story_put(int owner, void *item) {
     int h = obj_add(owner);
     objs[h].item = item;
@@ -248,7 +260,11 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
     case 0x10023c40: if (o) snprintf(o->alias, sizeof o->alias, "%s", S(a[1])); return 0;  // set_alias
     case 0x1005d390: case 0x1005cd60: case 0x1005cab0: case 0x1005d4a0: case 0x100f94c0: case 0x100f95b0: case 0x1005cd40:
         return 0;  // 各種基底初始化。shortcut: 基底的預設屬性還沒照原版設
-    case 0x10054ed0:                                                         // find_item(物件, 別名)：身上有這個別名的東西
+    // find_item(物件, 別名)：身上有這個別名的東西（原版再找隊友身上）；find_in_bag 只找身上，"#N" = 物件編號
+    case 0x1003fab0:
+        if (S(a[1])[0] == '#') return O(atoi(S(a[1]) + 1)) ? atoi(S(a[1]) + 1) : 0;
+        // fallthrough
+    case 0x10054ed0:
         for (int i = 1; i < obj_count; i++)
             if (objs[i].parent == a[0] && !strcmp(objs[i].alias, S(a[1]))) return i;
         return 0;
@@ -263,9 +279,18 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
             if (e->val < 0 || e->val > 499999999) e->val = 0;
         }
         return 0;
+    case 0x1003d270: if (story_on_exp) story_on_exp((int)a[0], (int)a[1]); return 0;  // add_exp(主角, 值)：shortcut: 隊友（Friend 2）還沒有
+    case 0x1004dd00:                                                         // quest_log(誰, 種類, 顏色, 文字)
+        if (story_on_log) story_on_log((int)a[0], (int)a[1], S(a[3]));
+        else printf("【訊息 %d】%s\n", (int)a[1], S(a[3]));
+        return 0;
+    case 0x10023410: case 0x10023d20:                                        // new_str、set_str（原版 set 不存在時報錯，這裡直接建）
+        if (o) { e = kv_add(&o->strs, &o->nstrs, S(a[1])); free((void *)e->val); e->val = (intptr_t)strdup(a[2] ? S(a[2]) : ""); }
+        return 0;
+    case 0x1005f3c0: return 0;  // 設 NPC 升級參數 Upgrade_<鍵>。shortcut: 劇情 NPC 還沒有自己的數值（戰鬥用怪物表）
     case 0x1004dcc0: printf("【日誌】%s\n", S(a[2])); return 0;                 // journal
     case 0x10070360:                                                         // item_new(道具, 類型, 等級, SLevel 欄, 別名)
-        if (o && story_item_make) o->item = story_item_make(a[1], a[2], a[3], S(a[4]));
+        if (o && story_item_make) o->item = story_item_make(a[0], a[1], a[2], a[3], S(a[4]));
         return 0;
     case 0x100521f0: {                                                       // drop_items(誰, 類型, 件數, PosY, 等級, 欄)：newitemex 放到身上
         int n = (int)a[2];
@@ -278,11 +303,17 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
             if (spawn_count == 0 || (spawn_max > 0 && all >= spawn_max)) return 0;
         }
         for (int i = 0; i < n; i++) {
-            void *it = story_item_make ? story_item_make(a[1], a[4], a[5], NULL) : NULL;
-            if (it) story_put(a[0], it);
+            int h = obj_add(a[0]);
+            if (!(objs[h].item = story_item_make ? story_item_make(h, a[1], a[4], a[5], NULL) : NULL)) story_take(h);
         }
         return 0;
     }
+    // move_object(給誰, 物件, UI_Pos)：交出、拿到道具。shortcut: 原版的交易中（Trading）、類型 61 的特例還沒做
+    case 0x1004bcf0:
+        if (!O(a[1]) || O(a[1])->parent == a[0]) return 0;
+        O(a[1])->parent = (int)a[0];
+        kv_add(&O(a[1])->ints, &O(a[1])->nints, "UI_Pos")->val = a[2];
+        return 1;
     case 0x1003da30:                                                         // 清掉身上的東西（商人進貨前）
         for (int i = 1; i < obj_count; i++)
             if (objs[i].parent == a[0] && objs[i].item) { free(objs[i].item); story_take(i); }

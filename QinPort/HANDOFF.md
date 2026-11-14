@@ -347,5 +347,6 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - NPC 修理 = ValueUn×損耗×2/上限（UIS_Repair）、鑑定 = ValueUn（UIS_Identify）；按鈕依商人的 UIS_* 顯示。原版 m_pBuy/m_pSell 是游標模式（7、8），手機改成點選再點一次。
   - Ghidra 把 drop_items 0x100521f0 的參數猜成 4 個，實際 6 個（誰, 類型, 件數, PosY, 等級, 欄）：tools/ghidra/SetSigs.java 在反編譯前設簽名（`analyzeHeadless /tmp/ghproj qin -process EasyRPG.dll -noanalysis -preScript SetSigs.java -postScript DumpC.java <out>`，再跑 decomp_strings.py）。
   - 主角的錢、身上道具跟劇情同步（story_begin/story_end）；開場裝備改由劇情的扶苏（UI_Pos 32、31）給。
-- **還沒做（各自另一個系統）**：打造（m_pMake）、镶嵌、成套裝備、寄存（JM73）、存檔、劇情 find_item 看得到 inv（交任務物品）。待查：原版說明文字（0x100279b0）、can_eat 設在哪、拖放規則、地上道具畫法、超重效果、箭的消耗、系統訊息字串表。
+- **劇情看得到 inv（2026-11-14）**：Item.sh = 劇情那邊的道具物件。story_begin 把 inv 每件放回主角物件身上（held：物件留著給 find_item／find_in_bag 找別名、move_object 0x1004bcf0 拿走），story_end 把被拿走的從 inv 移除（道具跟著物件走）、新給的收進 inv。item_new 照原版把物件別名設成道具表別名（劇情再 set_alias 會蓋掉；所以萍儿找 "fachai" 找不到改名成 fachaiyaoshi 的发钗，原版就是這樣）。add_exp 0x1003d270 → hero_gain_exp，quest_log 0x1004dd00 → hud_say。storytest 可帶 `give=物件路徑`、`flag=旗標=值`。
+- **還沒做（各自另一個系統）**：打造（m_pMake）、镶嵌、成套裝備、寄存（JM73）、存檔。待查：原版說明文字（0x100279b0）、can_eat 設在哪、拖放規則、地上道具畫法、超重效果、箭的消耗、系統訊息字串表。
 

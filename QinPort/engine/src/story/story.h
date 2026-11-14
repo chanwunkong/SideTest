@@ -29,10 +29,20 @@ void story_choose(int i);    // 選第 i 個回答
 
 // 道具：原版劇情的道具物件在引擎這邊是一個 Item（res.h）。引擎設 story_item_make 照 item_new 產生（malloc 的 Item）；
 // 沒設（storytest）就只有物件、沒有道具
-extern void *(*story_item_make)(int type, int level, int col, const char *alias);
+extern void *(*story_item_make)(int h, int type, int level, int col, const char *alias);  // h = 道具物件（設別名用）
 int story_next(int owner, int after);       // owner 身上 after 之後的下一個物件（after = 0 從頭），沒有回 0
 void *story_item(int h);                    // 物件的道具（不是道具回 NULL）
 void story_take(int h);                     // 從原本的持有者身上拿走（之後由引擎管，道具不會被釋放）
 int story_put(int owner, void *item);       // 把引擎的道具（malloc 的）放到 owner 身上
+// 引擎接的事件：加經驗（0x1003d270）、系統訊息（0x1004dd00，kind 7 得到、8 失去、13 經驗…）
+extern void (*story_on_exp)(int h, int exp);
+extern void (*story_on_log)(int h, int kind, const char *text);
+// 主角身上的道具在引擎的 inv：物件留著（別名、屬性給劇情找），item 交給引擎（held）
+void story_hold(int h);
+void story_set_item(int h, void *item);     // 道具回到物件身上（不再 held）
+void story_unhold(int owner);               // owner 身上 held 的物件先拿下來（引擎再依 inv 放回）
+int story_parent(int h);
+void story_move(int h, int parent);
+void story_set_alias(int h, const char *s);
 int story_get_int(int h, const char *key);
 void story_set_int(int h, const char *key, int v);
