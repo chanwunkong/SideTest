@@ -22,6 +22,29 @@ static const Class *class_find(const char *path) {
     return NULL;
 }
 
+// ---- 共用的劇情函式（依原位址）----
+typedef struct { uint32_t addr; intptr_t (*fn)(intptr_t *a); } Fn;
+static Fn *fns;
+static int fn_count, fn_cap;
+
+void story_fn_add(uint32_t addr, intptr_t (*fn)(intptr_t *a)) {
+    if (fn_count == fn_cap) fns = realloc(fns, (fn_cap = fn_cap ? fn_cap * 2 : 1024) * sizeof *fns);
+    fns[fn_count++] = (Fn){addr, fn};
+}
+
+static Fn *fn_find(uint32_t addr) {
+    for (int i = 0; i < fn_count; i++)
+        if (fns[i].addr == addr) return &fns[i];
+    return NULL;
+}
+
+intptr_t story_call_addr(uint32_t addr, intptr_t *a) {
+    Fn *f = fn_find(addr);
+    if (f) return f->fn(a);
+    fprintf(stderr, "劇情：沒有共用函式 0x%08x\n", addr);
+    return 0;
+}
+
 // ---- 物件：具名整數屬性（CERObject::SetInt/NewInt）、旗標（CERPerson::NewFlag，最多 256 個）、裝的東西 ----
 typedef struct { char key[32]; intptr_t val; } KV;
 typedef struct {
@@ -30,7 +53,9 @@ typedef struct {
     KV *ints, *flags;
     int nints, nflags;
     int parent;  // 在誰身上或哪個房間
+    void *item;  // 道具物件在引擎這邊的 Item（story_item_make 產生）
 } Obj;
+static int refreshing, spawn_max = -1, spawn_count = -1;  // 原版 0x10478d3c、0x1039f548、0x1039f544
 static Obj *objs;  // objs[0] 不用：代號 0 = 沒有
 static int obj_count = 1, obj_cap;
 static int the_player;
@@ -61,14 +86,19 @@ static intptr_t slot_call(intptr_t h, int slot, intptr_t arg) {
     return 0;
 }
 
-// 產生一個物件：照原版先呼叫第 1 格（設定路徑、名稱、別名、屬性）
-int story_new(const char *path, int parent) {
+static int obj_add(int parent) {
     if (obj_count >= obj_cap) objs = realloc(objs, (obj_cap = obj_cap ? obj_cap * 2 : 1024) * sizeof *objs);
     int h = obj_count++;
+    memset(&objs[h], 0, sizeof objs[h]);
+    objs[h].parent = parent;
+    return h;
+}
+
+// 產生一個物件：照原版先呼叫第 1 格（設定路徑、名稱、別名、屬性）
+int story_new(const char *path, int parent) {
+    int h = obj_add(parent);
     Obj *o = &objs[h];
-    memset(o, 0, sizeof *o);
     o->cls = class_find(path);
-    o->parent = parent;
     snprintf(o->path, sizeof o->path, "%s", path);
     if (!o->cls) fprintf(stderr, "劇情：找不到物件 %s\n", path);
     slot_call(h, 1, 0);
@@ -82,6 +112,26 @@ int story_player(void) {
 
 const char *story_name(int h) { return O(h) ? O(h)->name : ""; }
 
+void *(*story_item_make)(int type, int level, int col, const char *alias);
+
+int story_next(int owner, int after) {
+    for (int i = after + 1; i < obj_count; i++)
+        if (objs[i].parent == owner) return i;
+    return 0;
+}
+void *story_item(int h) { return O(h) ? O(h)->item : NULL; }
+void story_take(int h) { if (O(h)) { O(h)->parent = -1; O(h)->item = NULL; } }
+int story_put(int owner, void *item) {
+    int h = obj_add(owner);
+    objs[h].item = item;
+    return h;
+}
+int story_get_int(int h, const char *key) {
+    KV *e = O(h) ? kv_find(O(h)->ints, O(h)->nints, key) : NULL;
+    return e ? (int)e->val : 0;
+}
+void story_set_int(int h, const char *key, int v) { if (O(h)) kv_add(&O(h)->ints, &O(h)->nints, key)->val = v; }
+
 // 進房間（依別名，= 場景檔名，例如 xy_hs2）：每個房間只產生一次（原版房間一直存在，NPC 和旗標跟著留著）；
 // 第 1 格會用 add_npc 放進 NPC。找不到回 0
 int story_room(const char *alias) {
@@ -90,6 +140,21 @@ int story_room(const char *alias) {
     for (int i = 0; i < class_count; i++)
         if (classes[i].kind == 0 && !strcmp(classes[i].alias, alias)) return story_new(classes[i].path, 0);
     return 0;
+}
+
+// 房間刷新（原版 0x10052e40 每隔一段時間輪流對沒有玩家的房間呼叫第 6 格）：房間裡的物件有第 6 格的就呼叫（商店進貨等）。
+// shortcut: 原版的週期沒算，改成每次進房間刷新一次（離開期間＝沒有玩家）
+void story_refresh(int room) {
+    for (int h = story_next(room, 0); h; h = story_next(room, h)) {
+        const Class *c = objs[h].cls;
+        for (int i = 0; c && i < c->n; i++)
+            if (c->slots[i].slot == 6) {
+                refreshing = 1;
+                c->slots[i].fn((intptr_t[8]){h});
+                refreshing = 0;
+                break;
+            }
+    }
 }
 
 // 新遊戲的開場房間別名（登記時第 4 個參數 = 1 的房間）
@@ -129,6 +194,7 @@ void story_choose(int i) {
     story_dialog.text[0] = 0;
     story_dialog.option_count = 0;
     if (op.fn) op.fn((intptr_t[8]){story_dialog.npc});
+    else if (fn_find(op.addr)) story_call_addr(op.addr, (intptr_t[8]){story_dialog.npc});
     else fprintf(stderr, "劇情：選項 %s 指到原版基底 0x%08x，還沒翻\n", op.key, op.addr);
 }
 
@@ -198,7 +264,38 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
         }
         return 0;
     case 0x1004dcc0: printf("【日誌】%s\n", S(a[2])); return 0;                 // journal
+    case 0x10070360:                                                         // item_new(道具, 類型, 等級, SLevel 欄, 別名)
+        if (o && story_item_make) o->item = story_item_make(a[1], a[2], a[3], S(a[4]));
+        return 0;
+    case 0x100521f0: {                                                       // drop_items(誰, 類型, 件數, PosY, 等級, 欄)：newitemex 放到身上
+        int n = (int)a[2];
+        // 進貨時有上限（0x10478d3c）：身上總件數到 spawn_max 就不放。原版另外數名字叫 item_<類型> 的物件（0x1004acb0）跟
+        // spawn_count 比，但產生的道具名字是道具表的別名，數到的都是 0，只有 spawn_count = 0 時才擋
+        if (refreshing) {
+            if (spawn_count < 0 && spawn_max < 0) return 0;
+            int all = 0;
+            for (int h = story_next(a[0], 0); h; h = story_next(a[0], h)) all++;
+            if (spawn_count == 0 || (spawn_max > 0 && all >= spawn_max)) return 0;
+        }
+        for (int i = 0; i < n; i++) {
+            void *it = story_item_make ? story_item_make(a[1], a[4], a[5], NULL) : NULL;
+            if (it) story_put(a[0], it);
+        }
+        return 0;
     }
+    case 0x1003da30:                                                         // 清掉身上的東西（商人進貨前）
+        for (int i = 1; i < obj_count; i++)
+            if (objs[i].parent == a[0] && objs[i].item) { free(objs[i].item); story_take(i); }
+        return 0;
+    // 進貨上限（0x1004c550 總件數、0x1004c5a0 同類型件數）；第 2、3 個參數 ≠ 0 時依隊伍人數 k 放大成 (k+3)/4 倍，一個人 = 原值
+    case 0x1004c550: spawn_max = (int)a[0]; return 0;
+    case 0x1004c5a0: spawn_count = (int)a[0]; return 0;
+    case 0x1004b0d0: return o && kv_find(o->ints, o->nints, "Amount") ? story_get_int(a[0], "Amount") : story_get_int(a[0], "Money");  // get_amount
+    case 0x10052a00: return a[0] > 1 ? rand() % a[0] : 0;                   // rand_n
+    case 0x10055990: story_dialog.shop = (int)a[1]; return 0;                 // 打開買賣介面(主角, 商人)
+    }
+    Fn *f = fn_find(addr);  // 劇情呼叫別的類別的方法（例如衍生類別先跑基底的第 1 格）
+    if (f) return f->fn(a);
     static uint32_t seen[4096];
     static int nseen;
     for (int i = 0; i < nseen; i++)

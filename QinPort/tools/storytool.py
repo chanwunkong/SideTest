@@ -63,6 +63,51 @@ API = {
 }
 
 
+STORY_BASE, STORY_END = 0x10100000, 0x101e0000  # 劇情物件的方法在這段（之前是引擎、基底的預設和 API，之後是 C 執行庫）
+
+
+def _fix(body, own, table, prefix, names, stub_slot):
+    body = re.sub(r'^\s*(?:/\*.*?\*/\s*)+', '', body, flags=re.S)  # 簽名前的 Ghidra 警告註解
+    body = re.sub(r',unaff_\w+\)', ')', body)
+    body = re.sub(r'(?<=[\s=(,])_"', '"', body)  # _DAT_x（複製字串內容）被換成字串時多出的底線  # Ghidra 把 say 的可變參數多猜一個
+    def slot_ref(mm):  # 跳板 → 同物件那一格；那格不是自己的（基底預設）就用原函式
+        n = stub_slot(mm.group(1))
+        if n is None:
+            return mm.group(0)
+        return f'{prefix}_s{n}' if n in own else f'FUN_{table[n]}' if n in table else mm.group(0)
+    body = re.sub(r'&?LAB_([0-9a-f]{8})', slot_ref, body)
+    def call(mm):  # 自己的方法直接呼叫；引擎函式一律經 engine_call（WebAssembly 不容許參數不符的呼叫）
+        fn, is_call = mm.group(2), mm.group(3)
+        if fn in names:
+            return names[fn] + ('(' if is_call else '_w')
+        if fn in API:
+            return API[fn] + '(' if is_call else f'(intptr_t)0x{fn}'
+        return f'ENGINE(0x{fn}' + (', ' if is_call else '') if is_call else f'(intptr_t)0x{fn}'
+    body = re.sub(r'\b(thunk_)?FUN_([0-9a-f]{8})\b(\()?', call, body)
+    body = re.sub(r'ENGINE\((0x[0-9a-f]{8}), \)', r'ENGINE(\1)', body)
+    for fn, nm in names.items():  # 自己的方法被當值傳（選項處理）→ 用統一參數的包裝
+        body = re.sub(r'\b' + nm + r'\b(?!\s*\()', nm + '_w', body)
+    return body
+
+def _wrapper(nm, b):  # intptr_t nm_w(intptr_t *a)：a[0] = this，其餘依原參數轉型
+    sig = re.sub(r'\s+', ' ', b.split('{', 1)[0]).strip()
+    ret = sig.split(nm + '(')[0].replace('__thiscall', '').replace('__fastcall', '').replace('__cdecl', '').replace('static', '').strip()
+    params = sig.split(nm + '(', 1)[1].rsplit(')', 1)[0].strip()
+    args = []
+    if params and params != 'void':
+        for i, p_ in enumerate(params.split(',')):
+            ty = re.sub(r'\w+$', '', p_.strip()).strip()
+            args.append(f'({ty})a[{i}]')
+    callx = f'{nm}({", ".join(args)})'
+    body_ = f'{callx}; return 0;' if ret == 'void' else f'return (intptr_t){callx};'
+    return f'static intptr_t {nm}_w(intptr_t *a) {{ (void)a; {body_} }}'
+
+
+
+def _fix_shared(body, names, stub_slot):
+    return _fix(body, {}, {}, None, names, stub_slot)
+
+
 def pe_reader(path):
     d = open(path, 'rb').read()
     pe = struct.unpack_from('<I', d, 0x3c)[0]
@@ -104,6 +149,7 @@ def main(game, decomp, out):
         return stub_cache[lab]
 
     index = []
+    objs = []
     # 第 4 個參數 1 = 新遊戲的開場房間（原版 0x1003f7d0 找的就是它；只有秦殇/赵村/ROOM/赵村）
     for fac, path, kind, start in re.findall(r'FUN_1007f970\(FUN_([0-9a-f]{8}),"([^"]*)",(\d),(\d)\)', src):
         m = re.search(r'= ([\w:]+)::vftable;', funcs.get(fac, ''))
@@ -117,44 +163,31 @@ def main(game, decomp, out):
         if init:
             am = re.search(r'FUN_10023c40\((?:[^,"]*,)?"([^"]+)"\)', funcs[init])
             alias = am.group(1) if am else None
+        objs.append((path, kind, start, cls, table, own, alias))
+
+    # 共用的劇情函式：很多類別共用、從基底繼承來的格子（例如 15 家店的進貨 0x101db580），或劇情呼叫別的類別的方法
+    # （衍生類別的第 1 格先呼叫基底的第 1 格）。位址在 STORY_BASE 之後的才是劇情；之前是引擎和基底的預設
+    def story_fn(fn):
+        return STORY_BASE <= int(fn, 16) < STORY_END and fn in funcs and fn not in API
+    def refs(fn):
+        return {r for r in re.findall(r'\b(?:thunk_)?FUN_([0-9a-f]{8})\b', funcs[fn]) if story_fn(r) and r != fn}
+    common = set()
+    for path, kind, start, cls, table, own, alias in objs:
+        common |= {fn for s, fn in table.items() if s and s not in own and story_fn(fn)}
+        for fn in own.values():
+            common |= refs(fn) - set(own.values())
+    todo = list(common)
+    while todo:
+        for r in refs(todo.pop()) - common:
+            common.add(r)
+            todo.append(r)
+
+    for path, kind, start, cls, table, own, alias in objs:
         prefix = re.sub(r'\W', '_', alias) if alias else 'obj'
         names = {fn: f'{prefix}_s{s}' for s, fn in own.items()}
 
-        def fix(body):
-            body = re.sub(r'^\s*(?:/\*.*?\*/\s*)+', '', body, flags=re.S)  # 簽名前的 Ghidra 警告註解
-            body = re.sub(r',unaff_\w+\)', ')', body)
-            body = re.sub(r'(?<=[\s=(,])_"', '"', body)  # _DAT_x（複製字串內容）被換成字串時多出的底線  # Ghidra 把 say 的可變參數多猜一個
-            def slot_ref(mm):  # 跳板 → 同物件那一格；那格不是自己的（基底預設）就用原函式
-                n = stub_slot(mm.group(1))
-                if n is None:
-                    return mm.group(0)
-                return f'{prefix}_s{n}' if n in own else f'FUN_{table[n]}' if n in table else mm.group(0)
-            body = re.sub(r'&?LAB_([0-9a-f]{8})', slot_ref, body)
-            def call(mm):  # 自己的方法直接呼叫；引擎函式一律經 engine_call（WebAssembly 不容許參數不符的呼叫）
-                fn, is_call = mm.group(2), mm.group(3)
-                if fn in names:
-                    return names[fn] + ('(' if is_call else '_w')
-                if fn in API:
-                    return API[fn] + '(' if is_call else f'(intptr_t)0x{fn}'
-                return f'ENGINE(0x{fn}' + (', ' if is_call else '') if is_call else f'(intptr_t)0x{fn}'
-            body = re.sub(r'\b(thunk_)?FUN_([0-9a-f]{8})\b(\()?', call, body)
-            body = re.sub(r'ENGINE\((0x[0-9a-f]{8}), \)', r'ENGINE(\1)', body)
-            for fn, nm in names.items():  # 自己的方法被當值傳（選項處理）→ 用統一參數的包裝
-                body = re.sub(r'\b' + nm + r'\b(?!\s*\()', nm + '_w', body)
-            return body
-
-        def wrapper(nm, b):  # intptr_t nm_w(intptr_t *a)：a[0] = this，其餘依原參數轉型
-            sig = re.sub(r'\s+', ' ', b.split('{', 1)[0]).strip()
-            ret = sig.split(nm + '(')[0].replace('__thiscall', '').replace('__fastcall', '').replace('__cdecl', '').replace('static', '').strip()
-            params = sig.split(nm + '(', 1)[1].rsplit(')', 1)[0].strip()
-            args = []
-            if params and params != 'void':
-                for i, p_ in enumerate(params.split(',')):
-                    ty = re.sub(r'\w+$', '', p_.strip()).strip()
-                    args.append(f'({ty})a[{i}]')
-            callx = f'{nm}({", ".join(args)})'
-            body_ = f'{callx}; return 0;' if ret == 'void' else f'return (intptr_t){callx};'
-            return f'static intptr_t {nm}_w(intptr_t *a) {{ (void)a; {body_} }}'
+        fix = lambda body: _fix(body, own, table, prefix, names, stub_slot)
+        wrapper = _wrapper
 
         kname = KINDS.get(int(kind), f'kind{kind}')
         rel = os.path.join(kname, *[re.sub(r'[\\/:*?"<>|]', '_', p) for p in path.split('/')[1:]]) + '.c'
@@ -174,15 +207,33 @@ def main(game, decomp, out):
             w.write('\n'.join(decl) + '\n\n')
             for s, b in bodies.items():
                 w.write(f'// ---- 第 {s} 格（原 {own[s]}）\n' + b + '\n' + wrapper(names[own[s]], b) + '\n\n')
-            slots = ', '.join(f'{{{s}, {names[own[s]]}_w}}' for s in bodies)
+            inherit = {s: fn for s, fn in table.items() if s and s not in own and fn in common}
+            for sl, fn in inherit.items():  # 繼承來的格子：到共用函式表找原位址
+                w.write(f'static intptr_t {prefix}_i{sl}(intptr_t *a) {{ return story_call_addr(0x{fn}u, a); }}\n')
+            slots = ', '.join([f'{{{s}, {names[own[s]]}_w}}' for s in bodies] + [f'{{{sl}, {prefix}_i{sl}}}' for sl in inherit])
             w.write(f'void {reg}(void) {{\n    static const StorySlot slots[] = {{{slots}}};\n'
-                    f'    story_register("{path}", "{alias or ""}", {kind}, {start}, "{cls}", slots, {len(bodies)});\n}}\n')
+                    f'    story_register("{path}", "{alias or ""}", {kind}, {start}, "{cls}", slots, {len(bodies) + len(inherit)});\n}}\n')
         index.append(f'{path}\t{kname}\t{cls}\t{rel}\t{len(own)}')
+    # 共用函式全部放 _shared.c，依原位址登記（story_fn_add），engine_call 找不到的位址會來這裡找
+    names = {fn: f'shared_{fn}' for fn in common}
+    fix = lambda body: _fix_shared(body, names, stub_slot)
+    bodies = {fn: 'static ' + fix(funcs[fn]) for fn in sorted(common)}
+    text = '\n'.join(bodies.values())
+    with open(os.path.join(out, '_shared.c'), 'w', encoding='utf-8') as w:
+        w.write('// 很多劇情類別共用的方法（基底類別的格子、被別的類別呼叫的方法）；由 tools/storytool.py 產生\n#include "qinstory.h"\n\n')
+        for fn, b in bodies.items():
+            w.write(re.sub(r'\s+', ' ', b.split('{', 1)[0]).strip() + ';\n')
+        for v in sorted(set(re.findall(r'\b_?(?:DAT|UNK|LAB)_[0-9a-f]{8}\b|\bextraout_\w+\b', text))):
+            w.write(f'static intptr_t {v};\n')
+        for fn, b in bodies.items():
+            w.write(f'\n// ---- 原 {fn}\n' + b + '\n' + _wrapper(names[fn], b) + '\n')
+        w.write('void story_reg_shared(void) {\n' + ''.join(f'    story_fn_add(0x{fn}u, {names[fn]}_w);\n' for fn in bodies) + '}\n')
+    print('共用函式', len(common))
     with open(os.path.join(out, 'index.txt'), 'w', encoding='utf-8') as w:
         w.write('\n'.join(index) + '\n')
     with open(os.path.join(out, '_all.c'), 'w', encoding='utf-8') as w:  # 一次登記全部物件
         w.write('#include "qinstory.h"\n' + ''.join(f'void story_reg_{i}(void);\n' for i in range(len(index))))
-        w.write('void story_register_all(void) {\n' + ''.join(f'    story_reg_{i}();\n' for i in range(len(index))) + '}\n')
+        w.write('void story_reg_shared(void);\nvoid story_register_all(void) {\n    story_reg_shared();\n' + ''.join(f'    story_reg_{i}();\n' for i in range(len(index))) + '}\n')
     print('物件', len(index), '→', out)
 
 

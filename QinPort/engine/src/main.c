@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <strings.h>
 #include <time.h>
@@ -1814,6 +1815,17 @@ static char toast[128];    // 系統訊息（原版 0x1004e560 秀在畫面上�
 static Uint32 toast_until;
 // shortcut: 原版訊息的字串表（0x10060280 的編號）還沒對，先用自訂的中文
 static void hud_say(const char *t) { snprintf(toast, sizeof toast, "%s", t); toast_until = SDL_GetTicks() + 2500; }
+// 原版系統訊息：EasyRPG_C.dlg 第 id 筆（GBK 格式字串）照參數排好再秀
+static void hud_msg(int id, ...) {
+    char f[256], g[256];
+    if (!res_dlg("EasyRPG_C.dlg", id, f, sizeof f)) return;
+    va_list ap;
+    va_start(ap, id);
+    vsnprintf(g, sizeof g, f, ap);
+    va_end(ap);
+    gbk_utf8(g, toast, sizeof toast);
+    toast_until = SDL_GetTicks() + 2500;
+}
 
 static int bag_free(void) {
     for (int i = 0; i < 24; i++)
@@ -1950,7 +1962,7 @@ static void item_repair(int p) {
     if (it->hp_max <= 0 || it->hp >= it->hp_max) { hud_say("不需要修理"); return; }
     if (it->level > lv * 3) { hud_say(lv ? "修缮之术等級不夠" : "需要修缮之术"); return; }
     int price = it->value_un * (it->hp_max - it->hp) * 4 / it->hp_max;
-    if (hero_money < price) { hud_say("金錢不足"); return; }
+    if (hero_money < price) { hud_msg(3020); return; }
     hero_money -= price;
     it->hp = it->hp_max;
     it->hit = 0;
@@ -2088,6 +2100,9 @@ static void ground_walk(Actor *h, const Scene *s, Uint32 tick) {
 
 // 道具視窗（JM54）的格子和按鈕。點道具 = 選取，再點一次 = 使用／裝備；選了以後點空格 = 移過去
 // shortcut: 原版用滑鼠拖放、右鍵使用，手機改成點選；打造（m_pMake）、镶嵌（m_pEnchase）、查看（m_LookOver）另外的系統，還沒做
+#ifdef STORY
+static int shop_bag_act(int p);
+#endif
 static void bag_use(int p) {
     if (inv[p].part > 0) item_equip(&actors[0], p);
     else if (!item_eat(&actors[0], p)) hud_say("不能使用");
@@ -2096,6 +2111,9 @@ static void bag_button(const char *name) {
     int p = !strncmp(name, "m_pItem[", 8) ? atoi(name + 8) : !strncmp(name, "m_pShortcutItem[", 16) ? 24 + atoi(name + 16) : -1;
     int sel = item_sel >= 0 && inv[item_sel].name[0] ? item_sel : -1;
     if (p >= 0) {
+#ifdef STORY
+        if (p == sel && shop_bag_act(p)) return;
+#endif
         if (p == sel) bag_use(p);
         else if (inv[p].name[0]) item_sel = p;
         else if (sel >= 0) { inv_swap(sel, p); item_sel = p; }
@@ -2110,6 +2128,181 @@ static void bag_button(const char *name) {
         item_sel = -1;
     } else ui_command(name);
 }
+
+#ifdef STORY
+// ---- 買賣（原版交易介面 JM63，Poq.exe CTradeDialog；買賣規則在 EasyRPG.dll）----
+// 劇情選項叫 0x10055990(主角, 商人) → 左邊開 JM63、右邊開道具 JM54；商人的貨 = 劇情物件身上的道具（add_item、drop_items）。
+// 頁籤（0x368）：m_pWeapons 3、m_pShield 2、m_pLeechdom 1、m_pOther 0，開的時候是 3（0x55aed0）。
+// 每頁列商人身上該類的前 20 件（EasyRPG 0x1003aef0）：類型 0~6、49、50、52 → 0；51 → 1；25~34 → 2；7~24 → 3
+#define JM63 "JM63_\xbd\xbb\xd2\xd7\xbd\xe7\xc3\xe6"  // JM63_交易界面
+static int shop_npc, shop_tab = 3, shop_sel = -1, shop_slot[20], shop_n;
+// 游標模式（原版 m_pBuy 0x558ac0 → 7、m_pSell 0x558b20 → 8，修理、鑑定同樣是游標）：在這個模式下點道具 = 做這件事
+enum { SHOP_NONE, SHOP_BUY = 7, SHOP_SELL, SHOP_REPAIR, SHOP_IDENTIFY };
+static int shop_mode;
+
+static int shop_kind(int t) {
+    return (t >= 0 && t <= 6) || t == 49 || t == 50 || t == 52 ? 0 : t == 51 ? 1 : t >= 25 && t <= 34 ? 2 : t >= 7 && t <= 24 ? 3 : -1;
+}
+
+static void shop_list(void) {
+    shop_n = 0;
+    for (int h = story_next(shop_npc, 0); h && shop_n < 20; h = story_next(shop_npc, h)) {
+        const Item *it = story_item(h);
+        if (it && shop_kind(it->type) == shop_tab) shop_slot[shop_n++] = h;
+    }
+    if (shop_sel >= shop_n) shop_sel = -1;
+}
+
+static void ui_show(UiDialog *d, const char *name, int on) {
+    UiCtrl *c = ui_find(d, name);
+    if (c) c->flags = on ? c->flags | 9 : c->flags & ~9;
+}
+
+// 買賣價（EasyRPG 0x10029400）：沒鑑定的用 ValueUn。c = 主角魅力、m = 隊伍平均魅力（只算 Friend > 1 的隊友，現在只有主角）。
+// 賣 = 價 × (c+20) × (m+20) / (c+50) / (m+50)；買 = 價 × (c+50) × (m+50) / (c+20) / (m+20)，沒鑑定的買價再 ×10；上限 99999999
+static int trade_price(const Item *it, int buy) {
+    float c = (float)(hero_attr[CHARM] + actors[0].ex[33]), m = c, v = (float)(it->identify ? it->value : it->value_un);
+    int p = buy ? (int)((c + 50) * v * (m + 50) / (c + 20) / (m + 20)) : (int)((c + 20) * v * (m + 20) / (c + 50) / (m + 50));
+    if (buy && !it->identify) p *= 10;
+    return p < 0 || p > 99999999 ? 99999999 : p;
+}
+// 找 NPC 修理（0x100587c0 第 2 種）= ValueUn × 損耗 × 2 / 耐久上限；鑑定（0x100586e0 第 2 種）= ValueUn
+static int npc_repair_price(const Item *it) { return it->hp_max > 0 ? it->value_un * (it->hp_max - it->hp) * 2 / it->hp_max : 0; }
+
+static void shop_open(int npc) {
+    shop_npc = npc;
+    shop_tab = 3;
+    shop_sel = item_sel = -1;
+    shop_mode = SHOP_NONE;
+    win_left.open = ui_load(JM63, &win_left.d) > 0;
+    if (!(win_right.open && !strcmp(win_right.d.name, JM54))) win_toggle(&win_right, JM54);
+    // 商人的 UIS_Repair、UIS_Identify、UIS_Produce 決定修理、鑑定、打造／镶嵌能不能用（0x10055990 → 0x55adb0）。
+    // shortcut: 寄存（m_pKeep、m_pPop、m_pCheck）是另一個介面 JM73，先藏起來；按鈕的確切顯示規則（0x558990）沒照翻
+    int produce = story_get_int(npc, "UIS_Produce") > 0;
+    ui_show(&win_left.d, "m_pRepair", story_get_int(npc, "UIS_Repair") > 0);
+    ui_show(&win_left.d, "m_pIdentify", !produce && story_get_int(npc, "UIS_Identify") > 0);
+    ui_show(&win_left.d, "m_pMake", produce);
+    ui_show(&win_left.d, "m_pEnchase", produce);
+    ui_show(&win_left.d, "m_pKeep", 0);
+    ui_show(&win_left.d, "m_pPop", 0);
+    ui_show(&win_left.d, "m_pCheck", 0);
+    shop_list();
+}
+
+static void shop_close(void) {
+    shop_npc = 0;
+    shop_mode = SHOP_NONE;
+    if (win_left.open && !strcmp(win_left.d.name, JM63)) win_left.open = 0;
+}
+
+// 買（EasyRPG buy 0x10012ef0）：錢不夠秀 1185；錢付給商人，道具放進背包空格
+static void shop_buy(int i) {
+    if (i < 0 || i >= shop_n) return;
+    Item *it = story_item(shop_slot[i]);
+    int p = trade_price(it, 1), b = bag_free();
+    if (hero_money < p) { hud_msg(1185, p, hero_money); return; }
+    if (b < 0) { hud_say("背包已滿"); return; }
+    hero_money -= p;
+    story_set_int(shop_npc, "Money", story_get_int(shop_npc, "Money") + p);
+    inv[b] = *it;
+    inv[b].pos = b;
+    free(it);
+    story_take(shop_slot[i]);
+    shop_sel = -1;
+    shop_list();
+}
+
+// 賣（EasyRPG sell 0x1001cfa0）：價格加到主角的錢，道具給商人（之後可以照買價買回來）
+static void shop_sell(int p) {
+    Item *it = malloc(sizeof *it);
+    if (!it) return;
+    hero_money += trade_price(&inv[p], 0);
+    *it = inv[p];
+    it->pos = -1;
+    story_put(shop_npc, it);
+    inv[p].name[0] = 0;
+    item_sel = -1;
+    shop_list();
+}
+
+static void shop_repair(int p) {
+    Item *it = &inv[p];
+    int price = npc_repair_price(it);
+    if (it->type == 13 || it->type == 14 || it->hp_max <= 0 || it->hp >= it->hp_max) { hud_say("不需要修理"); return; }
+    if (hero_money < price) { hud_msg(3020); return; }
+    hero_money -= price;
+    it->hp = it->hp_max;
+    it->hit = 0;
+}
+
+static void shop_identify(int p) {
+    Item *it = &inv[p];
+    if (it->identify) { hud_say("不需要鑑定"); return; }
+    if (hero_money < it->value_un) { hud_msg(3018); return; }
+    hero_money -= it->value_un;
+    it->identify = 1;
+}
+
+// 在游標模式下對背包的道具做事；回 1 = 做了
+static int shop_bag_act(int p) {
+    if (!shop_npc || p < 0 || p >= INV_BAG || !inv[p].name[0]) return 0;
+    if (shop_mode == SHOP_SELL) shop_sell(p);
+    else if (shop_mode == SHOP_REPAIR) shop_repair(p);
+    else if (shop_mode == SHOP_IDENTIFY) shop_identify(p);
+    else return 0;
+    return 1;
+}
+
+// JM63 的按鈕。shortcut: 原版游標模式點一下就做；手機改成點第一下選取、看價格，再點一下（或按該模式的按鈕）才做
+static void shop_button(const char *name) {
+    static const struct { const char *n; int tab; } tabs[] = {{"m_pWeapons", 3}, {"m_pShield", 2}, {"m_pLeechdom", 1}, {"m_pOther", 0}};
+    for (int i = 0; i < 4; i++)
+        if (!strcmp(name, tabs[i].n)) { shop_tab = tabs[i].tab; shop_sel = -1; shop_list(); return; }
+    int sel = item_sel >= 0 && item_sel < INV_BAG && inv[item_sel].name[0] ? item_sel : -1;
+    if (!strncmp(name, "m_pItem[", 8)) {
+        int i = atoi(name + 8);
+        if (i < shop_n && (i == shop_sel || shop_mode == SHOP_BUY)) shop_buy(i);
+        else shop_sel = i < shop_n ? i : -1;
+    } else if (!strcmp(name, "m_pBuy")) {
+        if (shop_sel >= 0) shop_buy(shop_sel);
+        else { shop_mode = SHOP_BUY; hud_say("買：點商品"); }
+    } else if (!strcmp(name, "m_pSell") || !strcmp(name, "m_pRepair") || !strcmp(name, "m_pIdentify")) {
+        shop_mode = name[3] == 'S' ? SHOP_SELL : name[3] == 'R' ? SHOP_REPAIR : SHOP_IDENTIFY;
+        shop_sel = -1;
+        if (sel >= 0) shop_bag_act(sel);
+        else hud_say(shop_mode == SHOP_SELL ? "賣：點背包的道具" : shop_mode == SHOP_REPAIR ? "修理：點背包的道具" : "鑑定：點背包的道具");
+    } else if (!strcmp(name, "m_pMake") || !strcmp(name, "m_pEnchase")) hud_say("打造、镶嵌還沒做");
+    else if (!strcmp(name, "m_pCClose")) shop_close();
+}
+
+// 劇情的道具物件 = 引擎的 Item（item_new）
+static void *story_item_new(int type, int level, int col, const char *alias) {
+    Item *it = malloc(sizeof *it);
+    if (it && !item_new(it, type, level, col, alias)) { free(it); it = NULL; }
+    return it;
+}
+
+// 劇情和引擎共用主角的錢、身上的東西：叫劇情前把錢給它，叫完拿回來；劇情放到主角身上的道具（add_item、give_object）
+// 收進 inv：有 UI_Pos 且那格空著就放那格（開場的扶苏武器 32、布衣 31），否則背包空格，滿了掉在腳下；劇情叫出買賣介面就打開
+// shortcut: 劇情找主角身上的東西（find_item）還看不到 inv，交任務物品要等這部分接上
+static void story_begin(void) { story_set_int(story_player(), "Money", hero_money); }
+static void story_end(void) {
+    int pl = story_player(), equip = 0;
+    hero_money = story_get_int(pl, "Money");
+    for (int h = story_next(pl, 0); h; h = story_next(pl, h)) {
+        Item *it = story_item(h);
+        if (!it) continue;
+        int p = story_get_int(h, "UI_Pos");
+        if (p <= 0 || p >= INV_N || inv[p].name[0]) p = bag_free();
+        if (p < 0) ground_drop(it, actors[0].x, actors[0].y);
+        else { inv[p] = *it; inv[p].pos = p; equip |= p >= INV_BAG; }
+        free(it);
+        story_take(h);
+    }
+    if (equip) hero_refresh(&actors[0]);
+    if (story_dialog.shop) { shop_open(story_dialog.shop); story_dialog.shop = 0; }
+}
+#endif
 
 // 多行文字框（種類 3）的捲軸：ini 第 10~13 欄是軌道、上箭頭、下箭頭、滑塊的圖。字超過框高才有捲軸。
 // shortcut: 捲軸位置照常見做法（框內右緣、箭頭在上下兩端），還沒對原版 UIWndEx.dll；只有箭頭能點，拖滑塊還沒做
@@ -2153,6 +2346,9 @@ static int hud_tap(int x, int y) {
         }
         const UiCtrl *c = ui_button_at(&w->d, ox, oy, x, y);
         int role = !strcmp(w->d.name, JM52);
+#ifdef STORY
+        if (c && !strcmp(w->d.name, JM63)) { shop_button(c->name); return 1; }
+#endif
         if (c && !strcmp(c->name, "m_pCClose")) w->open = 0;
         else if (c && role && !strncmp(c->name, "m_pOK[", 6)) role_add_point(atoi(c->name + 6));
         else if (c && !strcmp(w->d.name, JM53) && !strncmp(c->name, "m_pAdd[", 7)) skill_add(atoi(c->name + 7));
@@ -2266,6 +2462,9 @@ static void bag_draw(UiDialog *d, int wx, int wy) {
         UiCtrl *h = ui_find(d, key);
         if (h) draw(ui_image(h->img, 0), wx + h->x, wy + h->y);
         item_describe(&inv[item_sel], t, sizeof t);
+#ifdef STORY
+        if (shop_npc) goto burden;  // 買賣中說明畫在交易介面的 m_pItemInfo
+#endif
         int bw = 180, bh = draw_text(0, 0, t, bw - 12, 0, 0) + 12, bx = wx - bw - 4 < 0 ? 0 : wx - bw - 4, by = wy + 20;
         SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(ren, 0, 0, 0, 200);
@@ -2273,12 +2472,59 @@ static void bag_draw(UiDialog *d, int wx, int wy) {
         SDL_RenderFillRect(ren, &r);
         draw_text(bx + 6, by + 6, t, bw - 12, 0xBECDCE, 1);
     }
+#ifdef STORY
+burden:;
+#endif
     UiCtrl *b = ui_find(d, "m_pBurden");
     if (b) {
         snprintf(t, sizeof t, "%d/%d", hero_burden(), hero_burden_max(&actors[0]));
         draw_text(wx + b->x + (b->w - text_width(t)) / 2, wy + b->y, t, b->w + 40, 0xBECDCE, 1);
     }
 }
+
+#ifdef STORY
+// 交易介面：商品圖示、選取框（m_pHItem，4533）、目前頁籤畫成按下（第 2 幀）；m_pItemIcon、m_pItemInfo 畫選中的道具和價格：
+// 商品 = 買價（UI_C 2128「价格: %d」）；賣、修理、鑑定模式下選中的背包道具 = 賣價（2199）或修理、鑑定的錢
+// shortcut: m_pItemInfo 的捲軸沒做，超過框高的字截掉
+static void shop_draw(UiDialog *d, int wx, int wy) {
+    static const char *tabs[4] = {"m_pOther", "m_pLeechdom", "m_pShield", "m_pWeapons"};
+    char key[24], t[1100], l[64];
+    UiCtrl *c = ui_find(d, tabs[shop_tab]);
+    if (c) draw(ui_image(c->img, 2), wx + c->x, wy + c->y);
+    for (int i = 0; i < shop_n; i++) {
+        snprintf(key, sizeof key, "m_pItem[%d]", i);
+        item_icon(d, key, wx, wy, story_item(shop_slot[i]));
+    }
+    const Item *it = NULL;
+    int price = 0;
+    if (shop_sel >= 0) {
+        snprintf(key, sizeof key, "m_pHItem[%d]", shop_sel);
+        if ((c = ui_find(d, key))) draw(ui_image(c->img, 0), wx + c->x, wy + c->y);
+        it = story_item(shop_slot[shop_sel]);
+        price = trade_price(it, 1);
+        ui_text(2128, l, sizeof l);
+    } else if (shop_mode >= SHOP_SELL && item_sel >= 0 && item_sel < INV_BAG && inv[item_sel].name[0]) {
+        it = &inv[item_sel];
+        price = shop_mode == SHOP_SELL ? trade_price(it, 0) : shop_mode == SHOP_REPAIR ? npc_repair_price(it) : it->value_un;
+        ui_text(2199, l, sizeof l);
+    }
+    if (!it) return;
+    if ((c = ui_find(d, "m_pItemIcon"))) {
+        const Sprite *bg = ui_image(c->img, 0), *s = it->icon ? ui_image(it->icon, 0) : NULL;
+        if (s) draw(s, wx + c->x + ((bg ? bg->w : s->w) - s->w) / 2, wy + c->y + ((bg ? bg->h : s->h) - s->h) / 2);
+    }
+    if (!(c = ui_find(d, "m_pItemInfo"))) return;
+    item_describe(it, t, sizeof t);
+    size_t k = strlen(t);
+    char pl[96];
+    snprintf(pl, sizeof pl, l, price);
+    snprintf(t + k, sizeof t - k, "\n%s", pl);
+    SDL_Rect clip = {wx + c->x, wy + c->y, c->w, c->h};
+    SDL_RenderSetClipRect(ren, &clip);
+    draw_text(wx + c->x + 2, wy + c->y + 2, t, c->w - 4, 0xBECDCE, 1);
+    SDL_RenderSetClipRect(ren, NULL);
+}
+#endif
 
 // 人物屬性視窗的 m_pDescribe（Poq.exe 0x554600）：名字、职业、性别、年龄、等级
 static void hero_describe(const Actor *h, char *out, size_t cap) {
@@ -2378,6 +2624,9 @@ static void hud_draw(const Actor *hero) {
     if (win_left.open) {
         int wx = win_x(&win_left), wy = win_y(&win_left);
         ui_draw(&win_left.d, wx, wy);
+#ifdef STORY
+        if (!strcmp(win_left.d.name, JM63)) shop_draw(&win_left.d, wx, wy);
+#endif
         UiCtrl *info = ui_find(&win_left.d, "m_pInfo");
         if (info && info->flags & 9) {
             char t[2048];
@@ -2548,11 +2797,13 @@ static void prefetch_scene(Scene *s, const Actor *hero) {
 }
 
 // 開局裝備：劇情（扶苏）item_new(8, 1, −1, "qingtongwandao1") 放 UI_Pos 32 右手、item_new(26, 1, −1, "buyi1") 放 31 盔甲
+#ifndef STORY
 static void hero_equip(void) {
     if (item_new(&inv[32], 8, 1, -1, "qingtongwandao1")) inv[32].pos = 32;
     if (item_new(&inv[31], 26, 1, -1, "buyi1")) inv[31].pos = 31;
     hero_look();
 }
+#endif
 
 // 載入場景（別名 = 場景檔名），主角站到入口 entry_id；失敗時保留原場景
 static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_id) {
@@ -2562,6 +2813,10 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     if (!scene_load(&next, file)) { fprintf(stderr, "載入場景失敗：%s\n", file); return 0; }
     if (scene->cells) scene_free(scene);
     *scene = next;
+#ifdef STORY
+    shop_close();
+    story_refresh(story_room(alias));  // 商店進貨等
+#endif
     cache_clear();
     res_cache_clear();
     // 外觀快取跟著場景換：先留主角的，再重建 NPC
@@ -2658,7 +2913,13 @@ int main(int argc, char **argv) {
     if (dot && !strcasecmp(dot, ".Scn")) *dot = 0;
     if (!roledefs_load()) { fprintf(stderr, "讀不到角色表 ObjMdl/RoleMdl.txt\n"); return 1; }
     srand((unsigned)time(NULL));
+#ifdef STORY
+    story_item_make = story_item_new;
+    story_end();  // 開場裝備照劇情的主角（扶苏武器、布衣）
+    hero_look();
+#else
     hero_equip();
+#endif
     Scene scene = {0};
     Actor *hero = &actors[0];
     hero->dir = 4;
@@ -2717,7 +2978,7 @@ int main(int argc, char **argv) {
                 px = e.button.x;
                 py = e.button.y;
 #ifdef STORY
-                if (dialog_open) { dialog_tap(py); continue; }  // 對話中不走路
+                if (dialog_open) { story_begin(); dialog_tap(py); story_end(); continue; }  // 對話中不走路
 #endif
                 if (hud_tap(px, py)) continue;
                 // 手機沒有右鍵：點主角自己 = 右鍵放左手技能（左手技能多是對自己的增益）
@@ -2729,7 +2990,7 @@ int main(int argc, char **argv) {
 #ifdef STORY
                 else if ((m = npc_at(px, py, ox, oy, &scene))) {
                     int npc = story_find(story_room(alias), m->spec->event);
-                    if (npc) { story_talk(npc); dialog_open = 1; }
+                    if (npc) { story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
                     else printf("劇情裡找不到 NPC %s\n", m->spec->event);
                 }
 #endif
