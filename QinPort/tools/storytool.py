@@ -63,7 +63,7 @@ API = {
 }
 
 
-STORY_BASE, STORY_END = 0x10100000, 0x101e0000  # 劇情物件的方法在這段（之前是引擎、基底的預設和 API，之後是 C 執行庫）
+STORY_BASE, STORY_END = 0x100f9000, 0x101e0000  # 劇情物件的方法在這段（之前是引擎、基底的預設和 API，之後是 C 執行庫）
 
 
 def _fix(body, own, table, prefix, names, stub_slot):

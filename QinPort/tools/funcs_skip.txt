@@ -1,0 +1,23 @@
+# 不移植的原版函數：每行「位址或類別名（正規式）  原因」；functool.py 讀這個檔
+# 連線版（多人網路）—— 手機網頁版只做單機
+CServerSocket   連線版：伺服器 socket
+CClientSocket   連線版：客戶端 socket
+CMultiPlayerDialog  連線版：多人遊戲選單
+CCreateNetGameDialog  連線版：建立網路遊戲
+CConfraternityDialog  連線版：幫會
+CCreateConfraternityDialog  連線版：建立幫會
+1010c250 連線版房間（秦殇/NET/…，劇情沒登記）
+1010c270 連線版房間
+1010c3f0 連線版房間
+101135b0 連線版房間
+101135d0 連線版房間
+10113a60 連線版房間
+10119c30 連線版房間
+10119c50 連線版房間
+1011b4c0 連線版房間
+1011dd10 連線版房間
+1011dd60 連線版房間
+1011df40 連線版房間
+10127220 連線版房間
+10127240 連線版房間
+10127350 連線版房間
