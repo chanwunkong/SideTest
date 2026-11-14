@@ -614,7 +614,7 @@ const Anim *anim_get(uint32_t gid) {
         a->seqs[s].count = f;
         a->seqs[s].frames = malloc(f * sizeof(Frame) + 1);
         for (uint32_t j = 0; j < f; j++, p += 28)
-            a->seqs[s].frames[j] = (Frame){u32(d + p + 8), (int)u32(d + p + 4), (int32_t)u32(d + p + 20), (int32_t)u32(d + p + 24)};
+            a->seqs[s].frames[j] = (Frame){u32(d + p + 8), (int)u32(d + p + 4), (int32_t)u32(d + p + 20), (int32_t)u32(d + p + 24), (int32_t)u32(d + p + 12), (int32_t)u32(d + p + 16)};
     }
     free(d);
     return a->count ? a : NULL;
@@ -1320,6 +1320,10 @@ const Method *method_find(int auto_id) {
             else if (!strcmp(k, "wSprIndex")) m->seq = v;
             else if (!strcmp(k, "wManualID")) m->manual = v;
             else if (!strcmp(k, "Reserve3")) m->ai = v;
+            else if (!strcmp(k, "wEffect")) m->effect = v;
+            else if (!strcmp(k, "wQuality")) m->quality = v;
+            else if (!strcmp(k, "Reserve1")) m->r1 = v;
+            else if (!strcmp(k, "Reserve2")) m->r2 = v;
             else if (!strcmp(k, "\xd7\xee\xb4\xf3\xb9\xa5\xbb\xf7\xbe\xe0\xc0\xeb")) m->range_max = v;  // 最大攻击距离
             else if (!strcmp(k, "\xd7\xee\xd0\xa1\xb9\xa5\xbb\xf7\xbe\xe0\xc0\xeb")) m->range_min = v;  // 最小攻击距离
             else if (!strcmp(k, "iFlag")) {
@@ -1366,9 +1370,8 @@ const Unit *unit_find(int auto_id) {
             } else if (!u) continue;
             else if (!strcmp(k, "wAutoID")) u->id = v;
             else if (!strcmp(k, "wManualID")) u->manual = v;
-            else if (!strcmp(k, "dData0")) u->anim = (uint32_t)v;
-            else if (!strcmp(k, "dData2")) u->kind = v;
-            else if (!strcmp(k, "bData3")) u->speed = v;
+            else if (!strncmp(k, "dData", 5) && k[5] >= '0' && k[5] <= '4' && !k[6]) u->d[k[5] - '0'] = v;
+            else if (!strncmp(k, "bData", 5) && k[5] >= '0' && k[5] <= '5' && !k[6]) u->b[k[5] - '0'] = v;
             else if (!strcmp(k, "iFlag")) {
                 t = u->trig_count < MAX_TRIG ? &u->trig[u->trig_count++] : NULL;
                 if (t) t->flag = v;
@@ -1379,6 +1382,11 @@ const Unit *unit_find(int auto_id) {
             else if (t && !strcmp(k, "iTriPos")) t->pos = v;
         }
         free(d);
+        for (int i = 0; i < unit_count; i++) {
+            units[i].anim = (uint32_t)units[i].d[0];
+            units[i].kind = units[i].d[2];
+            units[i].speed = units[i].b[3];
+        }
     }
     for (int i = 0; i < unit_count; i++)
         if (units[i].id == auto_id) return &units[i];

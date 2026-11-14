@@ -21,3 +21,30 @@ CCreateConfraternityDialog  連線版：建立幫會
 10127220 連線版房間
 10127240 連線版房間
 10127350 連線版房間
+# 平台層：Windows 記憶體堆積、MFC 對話框與按鈕、臨界區 —— 換成 SDL／瀏覽器，不翻
+004341d0 平台層：CWin32Heap 配置
+004341f0 平台層：CWin32Heap 釋放
+00434210 平台層：CWin32Heap 重新配置
+00434260 平台層：CWin32Heap 大小
+00434280 平台層：CWin32Heap 解構
+004342d0 平台層：CAtlStringMgr 配置
+00434360 平台層：CAtlStringMgr
+00434370 平台層：CAtlStringMgr 重新配置
+004343f0 平台層：參考計數
+00434400 平台層：空函式
+00434410 平台層：解構
+00434460 平台層：CAppGlobal 解構（全域收尾）
+004344f0 平台層：CAppGlobal 解構
+00434b20 平台層：臨界區
+00434b70 平台層：空函式
+CBitmapButton  平台層：MFC 點陣圖按鈕（啟動錯誤訊息框用）
+CMsgDlg  平台層：MFC 訊息框（啟動時的錯誤提示）
+00435450 平台層：GDI 畫訊息框文字
+004351a0 平台層：MFC 虛擬函式預設
+00435200 平台層：MFC 虛擬函式預設
+004355d0 平台層：MFC 虛擬函式預設
+00434d60 平台層：CGdiObject 刪除
+00434ce0 平台層：CBitmap 解構
+00434cf0 平台層：CBitmapButton 解構
+00437bf0 平台層：sprintf 的區域設定
+00437c00 平台層：sprintf（除錯訊息）

@@ -278,6 +278,11 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   已完成的大多還沒補位址註記，所以 done 偏低；補註記是工作的一部分。
 - 總表第一次跑就抓到漏洞：storytool 的劇情區段起點設成 0x10100000，寶箱／水缸等 94 個類別繼承的第 6 格（隨機產生寶物 0x100f9670 等 0x100f9000～0x100fffff 的共用格子）被當成引擎略過沒翻。已改成 0x100f9000 重新產生。
 
+- 另外兩個表：`tools/funcs_done.txt`（原版函數 → 我們對應的程式，用在建構／解構／畫圖這類不方便逐一註記的）、`init` 狀態 = Poq.exe 0x410000～0x433dc0 的全域初值建構（隨用到的函數一起帶入）。Poq.exe 0x401000～0x410000 是跳板表，算執行庫。
+- 進度（11-15）：Poq.exe 0x433dc0～0x43f300 —— 平台層（記憶體堆積、MFC 訊息框）列 skip；**招式單位整段照原版重寫成 engine/src/unit.c**（MethodBase 的計時／幀／打中／撞牆／結束觸發、沿路命中、依 iTriID 的命中範圍 0x438a00/0x439fb0、放出點 0x43bf50、扇形放單位；CNormalEffect、CFlyEffect 拋物線、CARROW、CFlyEffectNormal 落地爆炸、CGhostMan、CFlyCycleObj、CFireDeadMan、CSurFireArrow），取代原本簡化的特效與飛行物。順便修正：角色出手的命中 6～10 是以出手的人為中心（之前寫成目標）。
+  還沒做（在這段的 todo）：0x433dc0 啟動（游標動畫、record.rec 的片頭影片 PlayIntro／Rec 錄影）、0x434850 游標動畫、MethodMain（0x43aba0～0x43b6a0，角色出手目前在 main.c action_tick）、wEffect 1 把打中的人帶著走的名單、CPhantasmObj（0x43dd90～，type 16 的 0x14/0x16）、CFootStep、CGale 天氣。unit.c 的 shortcut 註解列了細節缺口（混色、透明度、格子地形種類）。
+  發現原版有片頭影片 game/movie/logo1.avi、Start.avi、End.avi，要轉成網頁能播的格式。
+
 下面 A～K 是 11-14 憑盤點寫的清單，保留當說明；之後以 FUNCS.tsv 為準。
 
 ## 全部待辦清單（2026-11-14 盤點；由上往下照順序做，做完打勾，不跳著做）

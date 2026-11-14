@@ -7,8 +7,9 @@
   story  劇情物件的格子函數（storytool 自動翻成 story/）
   game   遊戲本身的邏輯 —— 要移植的就是這些
 狀態：
-  done   我們的程式碼（engine/src 或 story/）有註記這個原版位址
+  done   我們的程式碼（engine/src 或 story/）有註記這個原版位址，或 tools/funcs_done.txt 列出對應
   skip   tools/funcs_skip.txt 列出不做的（附原因，例如網路連線版）
+  init   全域變數初值（編譯器產生的建構），隨使用它的函數一起移植
   todo   其餘
 順序：依位址（= 原版原始碼檔案順序，同一類別的函數相連），一段一段做；depth 是從入口沿呼叫圖
 （含虛擬函式表）走的深度，參考用。class 前面有 ~ 的是從呼叫者或相鄰函數推出來的。
@@ -29,6 +30,11 @@ LIB_CLASS = re.compile(r'^(std::|ATL::|Concurrency::|C(Wnd|Dialog|Object|String|
                        r'ProcessLocalObject|ToolTipCtrl|Rgn|Palette|Menu|ImageList)\b|type_info|bad_|exception)')
 # 靜態連結的執行庫從這個位址起（看反編譯檔：之後全是 CRT / MFC 轉接 / 例外處理片段）
 LIB_FROM = {'Poq.exe': '005a4cf0', 'EasyRPG.dll': '1020f61a', 'UIWndEx.dll': '10003c2d'}
+# Poq.exe 開頭是增量連結的跳板表；Ghidra 在裡面拆出的片段是別的函數的尾巴，不是獨立函數
+THUNK_TABLE = {'Poq.exe': ('00401000', '00410000')}
+# 編譯器把各檔的全域物件建構集中在這段（沒有呼叫者，由執行庫的初始化表呼叫）：
+# 內容是全域變數的初值，移植用到那些變數的函數時一起帶入，不單獨做
+INITS = {'Poq.exe': ('00410000', '00433dc0')}
 STORY_REF = re.compile(r'\bCER\w*?\d{3,}::vftable')
 STORY_CLASS = re.compile(r'^CER(Person|Room|Item|Skill|Plot|Player|Building|Map)\d+$|^CER\w*\d{3,}$')
 
@@ -76,6 +82,19 @@ def ported_addrs():
                 for m in pat.finditer(open(os.path.join(d, fn), encoding='utf-8', errors='replace').read()):
                     got.setdefault(m.group(1).lower().zfill(8), tag)
     return got
+
+
+def done_map():
+    """tools/funcs_done.txt：位址 → 我們對應的程式（原版函數被我們用不同結構實作、不方便在程式裡註記時用）。"""
+    out = {}
+    p = os.path.join(ROOT, 'tools', 'funcs_done.txt')
+    if os.path.exists(p):
+        for line in open(p, encoding='utf-8'):
+            line = line.split('#', 1)[0].strip()
+            if line:
+                a, _, why = line.partition(' ')
+                out[a.lower().zfill(8)] = why.strip()
+    return out
 
 
 def skips():
@@ -127,7 +146,9 @@ def analyse(b):
         cs = cls_of.get(a, [])
         c = cs[0] if cs else ''
         f['cls'] = '|'.join(cs[:3]) + ('|+%d' % (len(cs) - 3) if len(cs) > 3 else '')
-        if a in thunk or 'Could not recover jumptable' in ''.join(f['body']):
+        lo, hi = THUNK_TABLE.get(b, ('', ''))
+        if a in thunk or lo <= a < hi or 'Could not recover jumptable' in ''.join(f['body']) or \
+                re.search(r'__thiscall\s+(ATL|std)::', ''.join(f['body'][:6])):
             cat[a] = 'lib'  # 跳板、DLL 匯入轉接
         elif (cs and all(STORY_CLASS.match(x) for x in cs)) or STORY_REF.search(''.join(f['body'])):
             cat[a] = 'story'
@@ -185,6 +206,7 @@ def analyse(b):
 
 def main():
     done = ported_addrs()
+    dmap = done_map()
     sk = skips()
     rows, stats = [], collections.Counter()
     for b in BINS:
@@ -193,8 +215,13 @@ def main():
             c = cat[a]
             st, why = 'todo', ''
             body = ''.join(f['body'])
+            lo, hi = INITS.get(b, ('', ''))
             if a in done:
                 st = 'done'
+            elif a in dmap:
+                st, why = 'done', dmap[a]
+            elif c == 'game' and lo <= a < hi and not callers[a]:
+                st, why = 'init', '全域初值：移植用到這些變數的函數時一起帶入'
             elif c == 'story' and (re.search(r'::vftable;\s*ExceptionList = local_10;\s*return', body) or
                                    re.search(r'\(param_1 & 1\) != 0', body)):
                 st = 'done'  # 劇情類別的建構／解構：story_register 取代
@@ -221,7 +248,7 @@ def main():
     for b in BINS:
         print(b)
         for c in ('game', 'story', 'lib'):
-            n = {s: stats[(b, c, s)] for s in ('done', 'skip', 'todo', '-') if stats[(b, c, s)]}
+            n = {s: stats[(b, c, s)] for s in ('done', 'init', 'skip', 'todo', '-') if stats[(b, c, s)]}
             print('  %-6s %s' % (c, n))
 
 

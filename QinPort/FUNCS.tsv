@@ -1,41 +1,25 @@
 bin	depth	addr	name	class	cat	status	lines	callers	note
-Poq.exe	0	00401a00	RemoveAt		game	todo	27	0	
-Poq.exe	0	004024b4	SFrame		game	todo	12	4	
-Poq.exe	99	00404174	FUN_00404174		game	todo	69	6	
-Poq.exe	99	004041b5	FUN_004041b5	~CServerSocket	game	skip	21	5	連線版：伺服器 socket
-Poq.exe	99	00404c0a	FUN_00404c0a		game	todo	35	6	
-Poq.exe	99	00405259	FUN_00405259		game	todo	40	10	
-Poq.exe	99	004052db	FUN_004052db		game	todo	144	9	
-Poq.exe	99	00405862	FUN_00405862		game	todo	44	10	
-Poq.exe	99	00406136	FUN_00406136		game	todo	29	27	
-Poq.exe	99	004065ff	FUN_004065ff		game	todo	19	8	
-Poq.exe	0	00406b4a	RemoveAll		game	todo	16	0	
-Poq.exe	99	00406c03	FUN_00406c03		game	todo	29	6	
-Poq.exe	0	0040847c	RemoveAll		game	todo	16	0	
-Poq.exe	99	00408814	FUN_00408814		game	todo	175	3	
-Poq.exe	99	00408a30	FUN_00408a30		game	todo	120	86	
-Poq.exe	0	00408cce	Init		game	todo	19	0	
-Poq.exe	99	0041a260	FUN_0041a260		game	todo	39	0	
-Poq.exe	99	0041ae80	FUN_0041ae80		game	todo	53	0	
-Poq.exe	99	0041bd90	FUN_0041bd90		game	todo	26	0	
-Poq.exe	99	0041c780	FUN_0041c780		game	todo	10	0	
-Poq.exe	99	0041c7a0	FUN_0041c7a0		game	todo	10	0	
-Poq.exe	99	0041c8f0	FUN_0041c8f0		game	todo	44	0	
-Poq.exe	99	004213f0	FUN_004213f0		game	todo	82	0	
-Poq.exe	99	00421bf0	FUN_00421bf0		game	todo	24	0	
-Poq.exe	99	00421e30	FUN_00421e30		game	todo	83	0	
-Poq.exe	99	004258c0	FUN_004258c0		game	todo	38	0	
-Poq.exe	99	00425e00	FUN_00425e00		game	todo	38	0	
-Poq.exe	99	004260e0	FUN_004260e0		game	todo	38	0	
-Poq.exe	99	004269c0	FUN_004269c0		game	todo	24	0	
-Poq.exe	99	004272c0	FUN_004272c0		game	todo	38	0	
-Poq.exe	99	00427370	FUN_00427370		game	todo	24	0	
-Poq.exe	99	00429770	FUN_00429770		game	todo	24	0	
-Poq.exe	99	004297f0	FUN_004297f0		game	todo	38	0	
-Poq.exe	99	0042b5d0	FUN_0042b5d0		game	todo	381	0	
+Poq.exe	99	0041a260	FUN_0041a260		game	init	39	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	0041ae80	FUN_0041ae80		game	init	53	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	0041bd90	FUN_0041bd90		game	init	26	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	0041c780	FUN_0041c780		game	init	10	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	0041c7a0	FUN_0041c7a0		game	init	10	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	0041c8f0	FUN_0041c8f0		game	init	44	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	004213f0	FUN_004213f0		game	init	82	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	00421bf0	FUN_00421bf0		game	init	24	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	00421e30	FUN_00421e30		game	init	83	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	004258c0	FUN_004258c0		game	init	38	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	00425e00	FUN_00425e00		game	init	38	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	004260e0	FUN_004260e0		game	init	38	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	004269c0	FUN_004269c0		game	init	24	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	004272c0	FUN_004272c0		game	init	38	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	00427370	FUN_00427370		game	init	24	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	00429770	FUN_00429770		game	init	24	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	004297f0	FUN_004297f0		game	init	38	0	全域初值：移植用到這些變數的函數時一起帶入
+Poq.exe	99	0042b5d0	FUN_0042b5d0		game	init	381	0	全域初值：移植用到這些變數的函數時一起帶入
 Poq.exe	99	00433dc0	FUN_00433dc0	~CGameApp	game	todo	102	2	
-Poq.exe	99	00434460	FUN_00434460		game	todo	21	0	
-Poq.exe	99	004344f0	FUN_004344f0	CAppGlobal	game	todo	24	4	
+Poq.exe	99	00434460	FUN_00434460		game	skip	21	0	平台層：CAppGlobal 解構（全域收尾）
+Poq.exe	99	004344f0	FUN_004344f0	CAppGlobal	game	skip	24	4	平台層：CAppGlobal 解構
 Poq.exe	99	004345a0	FUN_004345a0	~CGameApp	game	todo	28	2	
 Poq.exe	99	004346b0	FUN_004346b0	~CGameApp	game	todo	8	5	
 Poq.exe	99	004346c0	FUN_004346c0	~CGameApp	game	todo	8	5	
@@ -45,95 +29,95 @@ Poq.exe	99	004346f0	FUN_004346f0		game	todo	52	0
 Poq.exe	99	00434850	FUN_00434850	~CScnClient	game	todo	32	4	
 Poq.exe	99	00434990	FUN_00434990	~CGameApp	game	todo	50	2	
 Poq.exe	99	00434ac0	FUN_00434ac0	~CViewPort	game	todo	17	2	
-Poq.exe	99	00434b20	FUN_00434b20		game	todo	9	0	
-Poq.exe	99	00434b70	FUN_00434b70		game	todo	8	22	
+Poq.exe	99	00434b20	FUN_00434b20		game	skip	9	0	平台層：臨界區
+Poq.exe	99	00434b70	FUN_00434b70		game	skip	8	22	平台層：空函式
 Poq.exe	99	00434b80	FUN_00434b80		game	todo	18	2	
 Poq.exe	99	00434c10	FUN_00434c10		game	todo	33	2	
-Poq.exe	99	00434d60	FUN_00434d60		game	todo	22	16	
-Poq.exe	99	00434f10	FUN_00434f10	CBitmapButton	game	todo	24	2	
-Poq.exe	99	00435060	FUN_00435060	CMsgDlg	game	todo	39	2	
-Poq.exe	99	004351a0	FUN_004351a0	CGdiObject|CBitmap|CButton|+8	game	todo	8	48	
-Poq.exe	99	004351b0	FUN_004351b0	CButton|CBitmapButton|CMsgDlg|+1	game	todo	9	6	
-Poq.exe	99	004351c0	FUN_004351c0	CMsgDlg	game	todo	9	2	
-Poq.exe	99	004351e0	FUN_004351e0	CMsgDlg	game	todo	8	2	
-Poq.exe	99	004351f0	FUN_004351f0	CButton|CBitmapButton|CEdit	game	todo	8	4	
-Poq.exe	99	00435200	FUN_00435200	CGdiObject|CBitmap|CButton|+8	game	todo	8	48	
-Poq.exe	99	00435210	FUN_00435210	CButton|CBitmapButton|CMsgDlg|+1	game	todo	9	6	
-Poq.exe	99	00435220	FUN_00435220	CMsgDlg	game	todo	8	2	
-Poq.exe	99	00435250	FUN_00435250	~CMsgDlg	game	todo	11	0	
-Poq.exe	99	00435280	FUN_00435280	CMsgDlg	game	todo	56	2	
-Poq.exe	99	00435450	FUN_00435450		game	todo	44	0	
-Poq.exe	99	004355d0	FUN_004355d0	CGdiObject|CBitmap|CButton|+6	game	todo	8	39	
-Poq.exe	99	004355e0	FUN_004355e0		game	todo	11	4	
-Poq.exe	99	0043562a	FUN_0043562a	CARROW	game	todo	9	4	
-Poq.exe	99	00435640	FUN_00435640	CARROW	game	todo	14	6	
-Poq.exe	99	004356a0	FUN_004356a0	CARROW	game	todo	24	4	
-Poq.exe	99	00435720	FUN_00435720	CARROW	game	todo	42	4	
-Poq.exe	99	004357a0	FUN_004357a0	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	todo	8	50	
-Poq.exe	99	004357b0	FUN_004357b0	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	todo	8	50	
-Poq.exe	99	004357d0	FUN_004357d0	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	todo	8	50	
-Poq.exe	99	004357e0	FUN_004357e0	CARROW	game	todo	29	4	
-Poq.exe	99	00435890	FUN_00435890		game	todo	22	4	
-Poq.exe	99	00435910	FUN_00435910		game	todo	25	0	
-Poq.exe	99	00435995	FUN_00435995	CFireDeadMan	game	todo	9	5	
-Poq.exe	99	004359b0	FUN_004359b0	CFireDeadMan	game	todo	28	7	
-Poq.exe	99	00435a60	FUN_00435a60	CFireDeadMan	game	todo	10	5	
-Poq.exe	99	00435a80	FUN_00435a80	CFireDeadMan	game	todo	26	5	
-Poq.exe	99	00435b40	FUN_00435b40	CFireDeadMan	game	todo	26	5	
+Poq.exe	99	00434d60	FUN_00434d60		game	skip	22	16	平台層：CGdiObject 刪除
+Poq.exe	99	00434f10	FUN_00434f10	CBitmapButton	game	skip	24	2	平台層：MFC 點陣圖按鈕（啟動錯誤訊息框用）
+Poq.exe	99	00435060	FUN_00435060	CMsgDlg	game	skip	39	2	平台層：MFC 訊息框（啟動時的錯誤提示）
+Poq.exe	99	004351a0	FUN_004351a0	CGdiObject|CBitmap|CButton|+8	game	skip	8	48	平台層：MFC 虛擬函式預設
+Poq.exe	99	004351b0	FUN_004351b0	CButton|CBitmapButton|CMsgDlg|+1	game	skip	9	6	平台層：MFC 點陣圖按鈕（啟動錯誤訊息框用）
+Poq.exe	99	004351c0	FUN_004351c0	CMsgDlg	game	skip	9	2	平台層：MFC 訊息框（啟動時的錯誤提示）
+Poq.exe	99	004351e0	FUN_004351e0	CMsgDlg	game	skip	8	2	平台層：MFC 訊息框（啟動時的錯誤提示）
+Poq.exe	99	004351f0	FUN_004351f0	CButton|CBitmapButton|CEdit	game	skip	8	4	平台層：MFC 點陣圖按鈕（啟動錯誤訊息框用）
+Poq.exe	99	00435200	FUN_00435200	CGdiObject|CBitmap|CButton|+8	game	skip	8	48	平台層：MFC 虛擬函式預設
+Poq.exe	99	00435210	FUN_00435210	CButton|CBitmapButton|CMsgDlg|+1	game	skip	9	6	平台層：MFC 點陣圖按鈕（啟動錯誤訊息框用）
+Poq.exe	99	00435220	FUN_00435220	CMsgDlg	game	skip	8	2	平台層：MFC 訊息框（啟動時的錯誤提示）
+Poq.exe	99	00435250	FUN_00435250	~CMsgDlg	game	skip	11	0	平台層：MFC 訊息框（啟動時的錯誤提示）
+Poq.exe	99	00435280	FUN_00435280	CMsgDlg	game	skip	56	2	平台層：MFC 訊息框（啟動時的錯誤提示）
+Poq.exe	99	00435450	FUN_00435450		game	skip	44	0	平台層：GDI 畫訊息框文字
+Poq.exe	99	004355d0	FUN_004355d0	CGdiObject|CBitmap|CButton|+6	game	skip	8	39	平台層：MFC 虛擬函式預設
+Poq.exe	99	004355e0	FUN_004355e0		game	done	11	4	unit_new（CARROW 建構）
+Poq.exe	99	0043562a	FUN_0043562a	CARROW	game	done	9	4	unit.c（CARROW 解構）
+Poq.exe	99	00435640	FUN_00435640	CARROW	game	done	14	6	unit.c（CARROW 解構）
+Poq.exe	99	004356a0	FUN_004356a0	CARROW	game	done	24	4	
+Poq.exe	99	00435720	FUN_00435720	CARROW	game	done	42	4	
+Poq.exe	99	004357a0	FUN_004357a0	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	done	8	50	
+Poq.exe	99	004357b0	FUN_004357b0	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	done	8	50	spr_frame（目前幀）
+Poq.exe	99	004357d0	FUN_004357d0	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	done	8	50	unit.c（取動畫群組）
+Poq.exe	99	004357e0	FUN_004357e0	CARROW	game	done	29	4	units_draw（CARROW 畫面範圍）
+Poq.exe	99	00435890	FUN_00435890		game	done	22	4	unit_new（CFireDeadMan 建構）
+Poq.exe	99	00435910	FUN_00435910		game	done	25	0	unit.c（CFireDeadMan 解構）
+Poq.exe	99	00435995	FUN_00435995	CFireDeadMan	game	done	9	5	unit.c（CFireDeadMan 解構）
+Poq.exe	99	004359b0	FUN_004359b0	CFireDeadMan	game	done	28	7	unit.c（CFireDeadMan 解構）
+Poq.exe	99	00435a60	FUN_00435a60	CFireDeadMan	game	done	10	5	unit.c（CFireDeadMan 釋放動畫）
+Poq.exe	99	00435a80	FUN_00435a80	CFireDeadMan	game	done	26	5	
+Poq.exe	99	00435b40	FUN_00435b40	CFireDeadMan	game	done	26	5	units_draw（CFireDeadMan）
 Poq.exe	99	00435c00	FUN_00435c00	~CFireDeadMan	game	done	44	31	
-Poq.exe	99	00435ca0	FUN_00435ca0	CFireDeadMan	game	todo	112	5	
-Poq.exe	99	00436050	FUN_00436050	CFireDeadMan	game	todo	45	5	
-Poq.exe	99	00436160	FUN_00436160		game	todo	13	4	
-Poq.exe	99	004361b0	FUN_004361b0		game	todo	12	0	
-Poq.exe	99	004361e0	FUN_004361e0	CFlyCycleObj	game	todo	9	5	
-Poq.exe	99	004361f0	FUN_004361f0	CFlyCycleObj	game	todo	15	7	
-Poq.exe	99	00436250	FUN_00436250	CFlyCycleObj	game	todo	50	5	
-Poq.exe	99	00436390	FUN_00436390	CFlyCycleObj	game	todo	89	5	
-Poq.exe	99	00436680	FUN_00436680		game	todo	26	5	
-Poq.exe	99	00436730	FUN_00436730		game	todo	26	6	
-Poq.exe	99	004367c4	FUN_004367c4	CFlyEffect	game	todo	9	6	
-Poq.exe	99	004367e0	FUN_004367e0	CFlyEffect	game	todo	29	8	
-Poq.exe	99	004368a0	FUN_004368a0	CARROW|CFlyEffect|CFlyEffectGhost|+1	game	todo	10	17	
+Poq.exe	99	00435ca0	FUN_00435ca0	CFireDeadMan	game	done	112	5	
+Poq.exe	99	00436050	FUN_00436050	CFireDeadMan	game	done	45	5	units_draw（CFireDeadMan 畫面範圍）
+Poq.exe	99	00436160	FUN_00436160		game	done	13	4	unit_new（CFlyCycleObj 建構）
+Poq.exe	99	004361b0	FUN_004361b0		game	done	12	0	unit.c（CFlyCycleObj 解構）
+Poq.exe	99	004361e0	FUN_004361e0	CFlyCycleObj	game	done	9	5	unit.c（CFlyCycleObj 解構）
+Poq.exe	99	004361f0	FUN_004361f0	CFlyCycleObj	game	done	15	7	unit.c（CFlyCycleObj 解構）
+Poq.exe	99	00436250	FUN_00436250	CFlyCycleObj	game	done	50	5	
+Poq.exe	99	00436390	FUN_00436390	CFlyCycleObj	game	done	89	5	
+Poq.exe	99	00436680	FUN_00436680		game	done	26	5	unit_new（CFlyEffect 建構）
+Poq.exe	99	00436730	FUN_00436730		game	done	26	6	unit.c（CFlyEffect 解構）
+Poq.exe	99	004367c4	FUN_004367c4	CFlyEffect	game	done	9	6	unit.c（CFlyEffect 解構）
+Poq.exe	99	004367e0	FUN_004367e0	CFlyEffect	game	done	29	8	unit.c（CFlyEffect 解構）
+Poq.exe	99	004368a0	FUN_004368a0	CARROW|CFlyEffect|CFlyEffectGhost|+1	game	done	10	17	unit.c（CFlyEffect 釋放動畫）
 Poq.exe	99	004368c0	FUN_004368c0	CARROW|CFlyEffect	game	done	123	10	
-Poq.exe	99	00436ca0	FUN_00436ca0	CFlyEffect	game	todo	16	10	
-Poq.exe	99	00436cf0	FUN_00436cf0	CFlyEffect|CFlyEffectGhost|CFlyEffectNormal	game	todo	19	15	
+Poq.exe	99	00436ca0	FUN_00436ca0	CFlyEffect	game	done	16	10	
+Poq.exe	99	00436cf0	FUN_00436cf0	CFlyEffect|CFlyEffectGhost|CFlyEffectNormal	game	done	19	15	
 Poq.exe	99	00436d60	FUN_00436d60	CARROW|CFlyEffect	game	done	131	12	
-Poq.exe	99	00437190	FUN_00437190	CFlyEffect|CFlyEffectGhost|CFlyEffectNormal	game	todo	10	15	
-Poq.exe	99	004371b0	FUN_004371b0		game	todo	11	0	
-Poq.exe	99	004371fa	FUN_004371fa	CFlyEffectGhost	game	todo	9	3	
-Poq.exe	99	00437210	FUN_00437210	CFlyEffectGhost	game	todo	14	5	
-Poq.exe	99	00437270	FUN_00437270	CFlyEffectGhost	game	todo	9	3	
-Poq.exe	99	00437280	FUN_00437280	CFlyEffectGhost	game	todo	8	3	
-Poq.exe	99	00437290	FUN_00437290	CFlyEffectGhost	game	todo	8	3	
-Poq.exe	99	004372a0	FUN_004372a0		game	todo	12	4	
-Poq.exe	99	004372fa	FUN_004372fa	CFlyEffectNormal	game	todo	9	4	
-Poq.exe	99	00437310	FUN_00437310	CFlyEffectNormal	game	todo	14	6	
-Poq.exe	99	00437370	FUN_00437370	CFlyEffectNormal	game	todo	10	4	
-Poq.exe	99	00437390	FUN_00437390	CFlyEffectNormal	game	todo	26	4	
+Poq.exe	99	00437190	FUN_00437190	CFlyEffect|CFlyEffectGhost|CFlyEffectNormal	game	done	10	15	units_draw（飛行物畫面 y 減高度）
+Poq.exe	99	004371b0	FUN_004371b0		game	done	11	0	unit.c（CFlyEffectGhost 建構；工廠 0x450700 不會產生這類）
+Poq.exe	99	004371fa	FUN_004371fa	CFlyEffectGhost	game	done	9	3	unit.c（CFlyEffectGhost 解構）
+Poq.exe	99	00437210	FUN_00437210	CFlyEffectGhost	game	done	14	5	unit.c（CFlyEffectGhost 解構）
+Poq.exe	99	00437270	FUN_00437270	CFlyEffectGhost	game	done	9	3	unit.c（CFlyEffectGhost 畫）
+Poq.exe	99	00437280	FUN_00437280	CFlyEffectGhost	game	done	8	3	unit.c（CFlyEffectGhost 每拍：什麼都不做）
+Poq.exe	99	00437290	FUN_00437290	CFlyEffectGhost	game	done	8	3	unit.c（CFlyEffectGhost）
+Poq.exe	99	004372a0	FUN_004372a0		game	done	12	4	unit_new（CFlyEffectNormal 建構）
+Poq.exe	99	004372fa	FUN_004372fa	CFlyEffectNormal	game	done	9	4	unit.c（CFlyEffectNormal 解構）
+Poq.exe	99	00437310	FUN_00437310	CFlyEffectNormal	game	done	14	6	unit.c（CFlyEffectNormal 解構）
+Poq.exe	99	00437370	FUN_00437370	CFlyEffectNormal	game	done	10	4	fly_init（CFlyEffectNormal 初始化）
+Poq.exe	99	00437390	FUN_00437390	CFlyEffectNormal	game	done	26	4	units_draw（CFlyEffectNormal）
 Poq.exe	99	00437430	FUN_00437430	~CFlyEffectNormal	game	todo	18	0	
 Poq.exe	99	00437480	FUN_00437480	~CFlyEffectNormal	game	todo	11	0	
 Poq.exe	99	004374b0	FUN_004374b0	~CFlyEffectNormal	game	todo	17	0	
 Poq.exe	99	004374f0	FUN_004374f0	~CFlyEffectNormal	game	todo	12	0	
-Poq.exe	99	00437540	FUN_00437540	CFlyEffectNormal	game	todo	160	4	
+Poq.exe	99	00437540	FUN_00437540	CFlyEffectNormal	game	done	160	4	
 Poq.exe	99	004379d0	FUN_004379d0	~CFlyEffectNormal	game	todo	14	0	
 Poq.exe	99	00437a20	FUN_00437a20	~CFlyEffectNormal	game	todo	53	7	
-Poq.exe	99	00437b80	FUN_00437b80	CFlyEffectNormal	game	todo	20	4	
-Poq.exe	99	00437bf0	FUN_00437bf0		game	todo	8	16	
-Poq.exe	99	00437c00	FUN_00437c00		game	todo	16	237	
-Poq.exe	99	00437c40	FUN_00437c40		game	todo	12	4	
-Poq.exe	99	00437c9a	FUN_00437c9a	CGhostMan	game	todo	9	4	
-Poq.exe	99	00437cb0	FUN_00437cb0	CGhostMan	game	todo	14	6	
-Poq.exe	99	00437d00	FUN_00437d00	CGhostMan	game	todo	49	4	
-Poq.exe	99	00437e30	FUN_00437e30	CGhostMan	game	todo	127	4	
+Poq.exe	99	00437b80	FUN_00437b80	CFlyEffectNormal	game	done	20	4	
+Poq.exe	99	00437bf0	FUN_00437bf0		game	skip	8	16	平台層：sprintf 的區域設定
+Poq.exe	99	00437c00	FUN_00437c00		game	skip	16	237	平台層：sprintf（除錯訊息）
+Poq.exe	99	00437c40	FUN_00437c40		game	done	12	4	unit_new（CGhostMan 建構）
+Poq.exe	99	00437c9a	FUN_00437c9a	CGhostMan	game	done	9	4	unit.c（CGhostMan 解構）
+Poq.exe	99	00437cb0	FUN_00437cb0	CGhostMan	game	done	14	6	unit.c（CGhostMan 解構）
+Poq.exe	99	00437d00	FUN_00437d00	CGhostMan	game	done	49	4	
+Poq.exe	99	00437e30	FUN_00437e30	CGhostMan	game	done	127	4	
 Poq.exe	99	00438140	FUN_00438140		game	todo	10	0	
 Poq.exe	99	00438160	FUN_00438160		game	todo	12	0	
-Poq.exe	99	004381a0	FUN_004381a0		game	todo	65	8	
+Poq.exe	99	004381a0	FUN_004381a0		game	done	65	8	
 Poq.exe	99	00438460	FUN_00438460		game	todo	17	15	
 Poq.exe	99	004384e0	FUN_004384e0	MethodBase	game	todo	12	4	
 Poq.exe	99	00438510	FUN_00438510		game	todo	14	0	
-Poq.exe	99	00438560	FUN_00438560		game	todo	40	2	
+Poq.exe	99	00438560	FUN_00438560		game	done	40	2	
 Poq.exe	99	00438660	FUN_00438660		game	todo	9	0	
-Poq.exe	99	00438680	FUN_00438680		game	todo	74	9	
+Poq.exe	99	00438680	FUN_00438680		game	done	74	9	
 Poq.exe	99	00438860	FUN_00438860	CContainer<int,50>	game	todo	10	8	
 Poq.exe	99	00438880	FUN_00438880	CContainer<int,50>	game	todo	21	8	
 Poq.exe	99	004388d0	FUN_004388d0	CStaticLinkList<int,50>	game	todo	23	7	
@@ -141,7 +125,7 @@ Poq.exe	99	00438930	FUN_00438930	CStaticLinkList<int,50>	game	todo	31	7
 Poq.exe	99	004389c0	FUN_004389c0	MethodBase	game	todo	16	6	
 Poq.exe	99	00438a00	FUN_00438a00	~MethodBase	game	done	288	6	
 Poq.exe	99	00439340	FUN_00439340	~MethodBase	game	todo	45	3	
-Poq.exe	99	004393c0	FUN_004393c0	~MethodBase	game	todo	89	4	
+Poq.exe	99	004393c0	FUN_004393c0	~MethodBase	game	done	89	4	
 Poq.exe	99	004395d0	FUN_004395d0	~MethodBase	game	todo	9	10	
 Poq.exe	99	004395f0	FUN_004395f0	~MethodBase	game	done	14	2	
 Poq.exe	99	00439630	FUN_00439630	MethodBase	game	todo	8	4	
@@ -150,21 +134,21 @@ Poq.exe	99	00439650	FUN_00439650	MethodBase	game	todo	8	4
 Poq.exe	99	00439660	FUN_00439660		game	todo	17	18	
 Poq.exe	99	004396a0	FUN_004396a0		game	todo	14	0	
 Poq.exe	99	004396d0	FUN_004396d0		game	todo	17	4	
-Poq.exe	99	00439710	FUN_00439710		game	todo	24	4	
+Poq.exe	99	00439710	FUN_00439710		game	done	24	4	
 Poq.exe	99	00439760	FUN_00439760		game	todo	22	0	
 Poq.exe	99	004397b0	FUN_004397b0		game	todo	77	5	
 Poq.exe	99	004399a0	FUN_004399a0		game	todo	53	0	
 Poq.exe	99	00439b20	FUN_00439b20		game	todo	14	8	
 Poq.exe	99	00439b60	FUN_00439b60		game	todo	8	0	
-Poq.exe	99	00439b80	FUN_00439b80		game	todo	98	4	
+Poq.exe	99	00439b80	FUN_00439b80		game	done	98	4	
 Poq.exe	99	00439dc0	FUN_00439dc0		game	todo	15	3	
 Poq.exe	99	00439e70	FUN_00439e70	~CARROW	game	todo	39	2	
 Poq.exe	99	00439f40	FUN_00439f40	~CARROW	game	todo	15	0	
 Poq.exe	99	00439fb0	FUN_00439fb0	~CARROW	game	done	228	2	
 Poq.exe	99	0043a610	FUN_0043a610	~CARROW	game	todo	20	8	
-Poq.exe	99	0043a660	FUN_0043a660	~CARROW	game	todo	38	6	
+Poq.exe	99	0043a660	FUN_0043a660	~CARROW	game	done	38	6	
 Poq.exe	99	0043a760	FUN_0043a760	CARROW|CFireDeadMan|CFlyCycleObj|+6	game	done	133	46	
-Poq.exe	99	0043ab20	FUN_0043ab20		game	todo	12	12	
+Poq.exe	99	0043ab20	FUN_0043ab20		game	done	12	12	unit.c（座標 >> 6 = 格子）
 Poq.exe	99	0043ab70	FUN_0043ab70		game	todo	10	2	
 Poq.exe	99	0043aba0	FUN_0043aba0		game	todo	14	3	
 Poq.exe	99	0043ac30	FUN_0043ac30	CMethodMng	game	todo	13	6	
@@ -172,40 +156,40 @@ Poq.exe	99	0043ac70	FUN_0043ac70	MethodMain	game	todo	13	11
 Poq.exe	99	0043acb0	FUN_0043acb0		game	done	79	6	
 Poq.exe	99	0043aee0	FUN_0043aee0		game	todo	18	0	
 Poq.exe	99	0043af30	FUN_0043af30		game	todo	16	0	
-Poq.exe	99	0043af50	FUN_0043af50		game	todo	192	5	
+Poq.exe	99	0043af50	FUN_0043af50		game	done	192	5	
 Poq.exe	99	0043b470	FUN_0043b470	CMethodMng	game	todo	35	6	
 Poq.exe	99	0043b510	FUN_0043b510		game	todo	54	0	
 Poq.exe	99	0043b650	FUN_0043b650		game	todo	13	0	
 Poq.exe	99	0043b690	FUN_0043b690		game	todo	9	2	
 Poq.exe	99	0043b6a0	FUN_0043b6a0		game	todo	66	4	
-Poq.exe	99	0043b8c0	FUN_0043b8c0		game	todo	189	3	
-Poq.exe	99	0043bee0	FUN_0043bee0		game	todo	31	18	
-Poq.exe	99	0043bf50	FUN_0043bf50		game	todo	198	4	
-Poq.exe	99	0043c3c0	FUN_0043c3c0		game	todo	38	33	
+Poq.exe	99	0043b8c0	FUN_0043b8c0		game	done	189	3	
+Poq.exe	99	0043bee0	FUN_0043bee0		game	done	31	18	
+Poq.exe	99	0043bf50	FUN_0043bf50		game	done	198	4	
+Poq.exe	99	0043c3c0	FUN_0043c3c0		game	done	38	33	unit.c（取格子資料）
 Poq.exe	99	0043c4f0	FUN_0043c4f0		game	done	409	13	
-Poq.exe	99	0043cf80	FUN_0043cf80		game	todo	30	14	
-Poq.exe	99	0043d060	FUN_0043d060		game	todo	12	22	
-Poq.exe	99	0043d08a	FUN_0043d08a	CMethodUnit	game	todo	9	6	
-Poq.exe	99	0043d0a0	FUN_0043d0a0	CMethodUnit	game	todo	15	8	
-Poq.exe	99	0043d0f0	FUN_0043d0f0	CSprGroupillusion	game	todo	12	9	
-Poq.exe	99	0043d120	FUN_0043d120	CFlyCycleObj|CGhostMan|CMethodUnit|+2	game	todo	10	39	
-Poq.exe	99	0043d140	FUN_0043d140	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	todo	8	50	
-Poq.exe	99	0043d150	FUN_0043d150		game	todo	118	2	
-Poq.exe	99	0043d4f0	FUN_0043d4f0	CFlyEffectGhost|CMethodUnit|CPhantasmObj	game	todo	8	14	
-Poq.exe	99	0043d500	FUN_0043d500	CFlyCycleObj|CGhostMan|CMethodUnit|+1	game	todo	87	23	
-Poq.exe	99	0043d700	FUN_0043d700	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	todo	8	50	
+Poq.exe	99	0043cf80	FUN_0043cf80		game	done	30	14	unit_new（CMethodUnit 建構）
+Poq.exe	99	0043d060	FUN_0043d060		game	done	12	22	unit.c（CMethodUnit 解構）
+Poq.exe	99	0043d08a	FUN_0043d08a	CMethodUnit	game	done	9	6	unit.c（CMethodUnit 解構）
+Poq.exe	99	0043d0a0	FUN_0043d0a0	CMethodUnit	game	done	15	8	unit.c（CMethodUnit 解構）
+Poq.exe	99	0043d0f0	FUN_0043d0f0	CSprGroupillusion	game	done	12	9	unit.c（CSprGroupillusion 解構）
+Poq.exe	99	0043d120	FUN_0043d120	CFlyCycleObj|CGhostMan|CMethodUnit|+2	game	done	10	39	unit.c（釋放動畫）
+Poq.exe	99	0043d140	FUN_0043d140	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	done	8	50	unit.c（預設回傳 1）
+Poq.exe	99	0043d150	FUN_0043d150		game	done	118	2	
+Poq.exe	99	0043d4f0	FUN_0043d4f0	CFlyEffectGhost|CMethodUnit|CPhantasmObj	game	done	8	14	unit.c（預設初始化：空）
+Poq.exe	99	0043d500	FUN_0043d500	CFlyCycleObj|CGhostMan|CMethodUnit|+1	game	done	87	23	
+Poq.exe	99	0043d700	FUN_0043d700	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	done	8	50	unit.c（預設回傳 1）
 Poq.exe	99	0043d710	FUN_0043d710		game	todo	18	4	
-Poq.exe	99	0043d750	FUN_0043d750	CMethodUnit	game	todo	20	20	
+Poq.exe	99	0043d750	FUN_0043d750	CMethodUnit	game	done	20	20	
 Poq.exe	99	0043d7a0	FUN_0043d7a0		game	todo	10	2	
-Poq.exe	99	0043d7d0	FUN_0043d7d0	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	todo	8	50	
-Poq.exe	99	0043d7e0	FUN_0043d7e0	CFlyCycleObj|CGhostMan|CMethodUnit|+2	game	todo	28	25	
+Poq.exe	99	0043d7d0	FUN_0043d7d0	CARROW|CFireDeadMan|CFlyCycleObj|+8	game	done	8	50	unit.c（預設回傳 1）
+Poq.exe	99	0043d7e0	FUN_0043d7e0	CFlyCycleObj|CGhostMan|CMethodUnit|+2	game	done	28	25	units_draw（畫面範圍）
 Poq.exe	99	0043d880	FUN_0043d880		game	todo	12	2	
-Poq.exe	99	0043d8b0	FUN_0043d8b0		game	todo	13	4	
-Poq.exe	99	0043d91a	FUN_0043d91a	CNormalEffect	game	todo	9	4	
-Poq.exe	99	0043d930	FUN_0043d930	CNormalEffect	game	todo	14	6	
-Poq.exe	99	0043d980	FUN_0043d980	CNormalEffect	game	todo	44	4	
-Poq.exe	99	0043da80	FUN_0043da80	~CNormalEffect	game	todo	64	2	
-Poq.exe	99	0043dc30	FUN_0043dc30	CNormalEffect	game	todo	40	4	
+Poq.exe	99	0043d8b0	FUN_0043d8b0		game	done	13	4	unit_new（CNormalEffect 建構）
+Poq.exe	99	0043d91a	FUN_0043d91a	CNormalEffect	game	done	9	4	unit.c（CNormalEffect 解構）
+Poq.exe	99	0043d930	FUN_0043d930	CNormalEffect	game	done	14	6	unit.c（CNormalEffect 解構）
+Poq.exe	99	0043d980	FUN_0043d980	CNormalEffect	game	done	44	4	
+Poq.exe	99	0043da80	FUN_0043da80	~CNormalEffect	game	done	64	2	
+Poq.exe	99	0043dc30	FUN_0043dc30	CNormalEffect	game	done	40	4	
 Poq.exe	99	0043dd10	FUN_0043dd10		game	todo	13	0	
 Poq.exe	99	0043dd50	FUN_0043dd50		game	todo	12	0	
 Poq.exe	99	0043dd90	FUN_0043dd90		game	todo	29	4	
@@ -226,14 +210,14 @@ Poq.exe	99	0043ee70	FUN_0043ee70	CPhantasmObj	game	todo	24	5
 Poq.exe	99	0043eef0	FUN_0043eef0	~CPhantasmObj	game	todo	12	2	
 Poq.exe	99	0043ef20	FUN_0043ef20	~CPhantasmObj	game	todo	19	2	
 Poq.exe	99	0043ef50	FUN_0043ef50	CPhantasmObj	game	todo	9	5	
-Poq.exe	99	0043ef70	FUN_0043ef70		game	todo	11	4	
-Poq.exe	99	0043efba	FUN_0043efba	CSurFireArrow	game	todo	9	4	
-Poq.exe	99	0043efd0	FUN_0043efd0	CSurFireArrow	game	todo	14	6	
-Poq.exe	99	0043f020	FUN_0043f020	CSurFireArrow	game	todo	41	4	
-Poq.exe	99	0043f160	FUN_0043f160	CSurFireArrow	game	todo	13	4	
-Poq.exe	99	0043f1b0	FUN_0043f1b0	CSurFireArrow	game	todo	41	4	
+Poq.exe	99	0043ef70	FUN_0043ef70		game	done	11	4	unit_new（CSurFireArrow 建構）
+Poq.exe	99	0043efba	FUN_0043efba	CSurFireArrow	game	done	9	4	unit.c（CSurFireArrow 解構）
+Poq.exe	99	0043efd0	FUN_0043efd0	CSurFireArrow	game	done	14	6	unit.c（CSurFireArrow 解構）
+Poq.exe	99	0043f020	FUN_0043f020	CSurFireArrow	game	done	41	4	
+Poq.exe	99	0043f160	FUN_0043f160	CSurFireArrow	game	done	13	4	units_draw（CSurFireArrow）
+Poq.exe	99	0043f1b0	FUN_0043f1b0	CSurFireArrow	game	done	41	4	
 Poq.exe	99	0043f2d0	FUN_0043f2d0		game	todo	12	6	
-Poq.exe	99	0043f300	FUN_0043f300	~CCharactor	game	todo	11	2	
+Poq.exe	99	0043f300	FUN_0043f300	~CCharactor	game	done	11	2	
 Poq.exe	99	0043f346	FUN_0043f346	CFootStep	game	todo	9	4	
 Poq.exe	99	0043f350	FUN_0043f350	CFootStep	game	todo	14	6	
 Poq.exe	99	0043f390	FUN_0043f390	CFootStep	game	todo	12	4	
@@ -299,7 +283,7 @@ Poq.exe	99	00441e90	FUN_00441e90		game	todo	22	2
 Poq.exe	99	00441ef0	FUN_00441ef0	CLightMng	game	todo	25	6	
 Poq.exe	99	00441f80	FUN_00441f80	MYCHAINITEM	game	todo	12	0	
 Poq.exe	99	00441fb0	FUN_00441fb0	SLightUnit	game	todo	15	4	
-Poq.exe	99	00442000	FUN_00442000		game	todo	40	6	
+Poq.exe	99	00442000	FUN_00442000		game	done	40	6	
 Poq.exe	99	00442110	FUN_00442110		game	todo	9	2	
 Poq.exe	99	00442120	FUN_00442120	MYCHAINITEM|SLightUnit|ScreenObj|+4	game	todo	8	26	
 Poq.exe	99	00442130	FUN_00442130		game	todo	24	2	
@@ -1353,7 +1337,7 @@ Poq.exe	99	0048eab0	FUN_0048eab0	~CCharactor	game	todo	24	12
 Poq.exe	99	0048eb70	FUN_0048eb70	~CCharactor	game	todo	9	0	
 Poq.exe	99	0048eb90	FUN_0048eb90	~CCharactor	game	todo	9	0	
 Poq.exe	99	0048ebd0	FUN_0048ebd0	~CCharactor	game	done	25	6	
-Poq.exe	99	0048ec60	FUN_0048ec60	~CCharactor	game	todo	49	15	
+Poq.exe	99	0048ec60	FUN_0048ec60	~CCharactor	game	done	49	15	
 Poq.exe	99	0048eda0	FUN_0048eda0	~CCharactor	game	todo	61	25	
 Poq.exe	99	0048ef40	FUN_0048ef40	CCharactor|CNpc|CProtagonist	game	todo	52	17	
 Poq.exe	99	0048f0a0	FUN_0048f0a0	~CCharactor	game	todo	27	4	
@@ -1515,7 +1499,7 @@ Poq.exe	99	00498b70	FUN_00498b70	CDeadObj	game	todo	8	8
 Poq.exe	99	00498b80	FUN_00498b80		game	todo	9	2	
 Poq.exe	99	00498ba0	FUN_00498ba0		game	todo	15	6	
 Poq.exe	99	00498c00	FUN_00498c00		game	todo	13	4	
-Poq.exe	99	00498c40	FUN_00498c40		game	todo	27	8	
+Poq.exe	99	00498c40	FUN_00498c40		game	done	27	8	
 Poq.exe	99	00498cf0	FUN_00498cf0	~CFootStep	game	todo	12	2	
 Poq.exe	99	00498d16	FUN_00498d16	CNormalSurobj	game	todo	9	6	
 Poq.exe	99	00498d20	FUN_00498d20	CNormalSurobj	game	todo	15	8	
@@ -1610,19 +1594,19 @@ Poq.exe	99	0049cb30	FUN_0049cb30		game	todo	29	21
 Poq.exe	99	0049cbe0	FUN_0049cbe0		game	todo	29	21	
 Poq.exe	99	0049cc90	FUN_0049cc90		game	todo	14	3	
 Poq.exe	99	0049ccc0	FUN_0049ccc0	~CGameApp	game	todo	18	4	
-Poq.exe	99	0049cd00	FUN_0049cd00		game	todo	16	2	
+Poq.exe	99	0049cd00	FUN_0049cd00		game	done	16	2	
 Poq.exe	99	0049cd50	FUN_0049cd50		game	todo	12	0	
 Poq.exe	99	0049cd80	FUN_0049cd80		game	todo	10	2	
 Poq.exe	99	0049cdd0	FUN_0049cdd0		game	todo	27	10	
 Poq.exe	99	0049ce60	FUN_0049ce60		game	todo	20	0	
 Poq.exe	99	0049cea0	FUN_0049cea0	SPT_FRAME	game	todo	34	4	
 Poq.exe	99	0049cf70	FUN_0049cf70		game	todo	41	0	
-Poq.exe	99	0049d060	FUN_0049d060		game	todo	22	2	
+Poq.exe	99	0049d060	FUN_0049d060		game	done	22	2	
 Poq.exe	99	0049d0b0	FUN_0049d0b0		game	todo	18	0	
 Poq.exe	99	0049d120	FUN_0049d120		game	todo	103	2	
 Poq.exe	99	0049d3b0	FUN_0049d3b0		game	todo	67	0	
 Poq.exe	99	0049d520	FUN_0049d520		game	todo	88	6	
-Poq.exe	99	0049d6a0	FUN_0049d6a0		game	todo	8	65	
+Poq.exe	99	0049d6a0	FUN_0049d6a0		game	done	8	65	
 Poq.exe	99	0049d6c0	FUN_0049d6c0		game	todo	34	2	
 Poq.exe	99	0049d740	FUN_0049d740		game	todo	24	26	
 Poq.exe	99	0049d7f0	FUN_0049d7f0		game	todo	19	23	
@@ -1636,12 +1620,12 @@ Poq.exe	99	0049db50	FUN_0049db50		game	todo	23	2
 Poq.exe	99	0049dbd0	FUN_0049dbd0		game	todo	18	0	
 Poq.exe	99	0049dc40	FUN_0049dc40		game	todo	21	0	
 Poq.exe	99	0049dcb0	FUN_0049dcb0		game	todo	11	4	
-Poq.exe	99	0049dcd0	FUN_0049dcd0		game	todo	21	34	
+Poq.exe	99	0049dcd0	FUN_0049dcd0		game	done	21	34	
 Poq.exe	99	0049dd10	FUN_0049dd10		game	todo	21	0	
 Poq.exe	99	0049dd70	FUN_0049dd70		game	todo	27	4	
 Poq.exe	99	0049de30	FUN_0049de30	~PartSpr	game	todo	72	3	
-Poq.exe	99	0049dfc0	FUN_0049dfc0		game	todo	64	16	
-Poq.exe	99	0049e150	FUN_0049e150		game	todo	45	38	
+Poq.exe	99	0049dfc0	FUN_0049dfc0		game	done	64	16	
+Poq.exe	99	0049e150	FUN_0049e150		game	done	45	38	
 Poq.exe	99	0049e200	FUN_0049e200	~CSprSerialPicture	game	todo	20	2	
 Poq.exe	99	0049e270	FUN_0049e270	~CSprSerialPicture	game	todo	19	2	
 Poq.exe	99	0049e2e0	FUN_0049e2e0		game	todo	23	22	
@@ -1651,12 +1635,12 @@ Poq.exe	99	0049e420	FUN_0049e420		game	todo	21	10
 Poq.exe	99	0049e490	FUN_0049e490	~CPortraitPanel	game	todo	45	2	
 Poq.exe	99	0049e540	FUN_0049e540		game	todo	44	0	
 Poq.exe	99	0049e5f0	FUN_0049e5f0	~CCharactor	game	todo	45	2	
-Poq.exe	99	0049e6a0	FUN_0049e6a0		game	todo	28	88	
+Poq.exe	99	0049e6a0	FUN_0049e6a0		game	done	28	88	
 Poq.exe	99	0049e700	FUN_0049e700		game	todo	11	0	
-Poq.exe	99	0049e720	FUN_0049e720		game	todo	13	40	
+Poq.exe	99	0049e720	FUN_0049e720		game	done	13	40	
 Poq.exe	99	0049e750	FUN_0049e750		game	todo	35	53	
 Poq.exe	99	0049e800	FUN_0049e800	CSprGroup	game	todo	38	6	
-Poq.exe	99	0049e8d0	FUN_0049e8d0		game	todo	40	51	
+Poq.exe	99	0049e8d0	FUN_0049e8d0		game	done	40	51	
 Poq.exe	99	0049e9e0	FUN_0049e9e0	~CFlyPartDeadObj	game	todo	20	2	
 Poq.exe	99	0049ea10	FUN_0049ea10		game	todo	24	24	
 Poq.exe	99	0049eaa0	FUN_0049eaa0		game	todo	24	40	
@@ -1825,7 +1809,6 @@ Poq.exe	99	004a8460	FUN_004a8460	~CGameApp	game	todo	46	18
 Poq.exe	99	004a8520	FUN_004a8520	~CGameApp	game	todo	34	11	
 Poq.exe	99	004a88a0	FUN_004a88a0	~CGameApp	game	todo	74	8	
 Poq.exe	99	004a8c80	FUN_004a8c80	~CGameApp	game	todo	111	2	
-Poq.exe	0	004a91c0	underflow	~CGameApp	game	todo	28	0	
 Poq.exe	99	004a9440	FUN_004a9440	~CGameApp	game	todo	25	2	
 Poq.exe	99	004a94e0	FUN_004a94e0	~CGameApp	game	todo	57	2	
 Poq.exe	99	004a9600	FUN_004a9600	~CGameApp	game	todo	42	6	

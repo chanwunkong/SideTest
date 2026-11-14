@@ -1,0 +1,68 @@
+# 原版函數 → 我們對應的地方（結構不同、沒辦法在程式裡逐一註記時用）。functool.py 讀這個檔。
+# 招式單位（engine/src/unit.c）：C 結構不需要建構／解構，產生 = unit_new、移除 = units_tick 壓縮陣列
+004355e0 unit_new（CARROW 建構）
+0043562a unit.c（CARROW 解構）
+00435640 unit.c（CARROW 解構）
+004356a0 units_draw（CARROW 畫影子＋本體）
+004357a0 unit.c（虛擬函式 0x24 = 單位自己，hit 以單位為中心）
+004357b0 spr_frame（目前幀）
+004357d0 unit.c（取動畫群組）
+004357e0 units_draw（CARROW 畫面範圍）
+00435890 unit_new（CFireDeadMan 建構）
+00435910 unit.c（CFireDeadMan 解構）
+00435995 unit.c（CFireDeadMan 解構）
+004359b0 unit.c（CFireDeadMan 解構）
+00435a60 unit.c（CFireDeadMan 釋放動畫）
+00435b40 units_draw（CFireDeadMan）
+00436050 units_draw（CFireDeadMan 畫面範圍）
+00436160 unit_new（CFlyCycleObj 建構）
+004361b0 unit.c（CFlyCycleObj 解構）
+004361e0 unit.c（CFlyCycleObj 解構）
+004361f0 unit.c（CFlyCycleObj 解構）
+00436680 unit_new（CFlyEffect 建構）
+00436730 unit.c（CFlyEffect 解構）
+004367c4 unit.c（CFlyEffect 解構）
+004367e0 unit.c（CFlyEffect 解構）
+004368a0 unit.c（CFlyEffect 釋放動畫）
+00437190 units_draw（飛行物畫面 y 減高度）
+004371b0 unit.c（CFlyEffectGhost 建構；工廠 0x450700 不會產生這類）
+004371fa unit.c（CFlyEffectGhost 解構）
+00437210 unit.c（CFlyEffectGhost 解構）
+00437270 unit.c（CFlyEffectGhost 畫）
+00437280 unit.c（CFlyEffectGhost 每拍：什麼都不做）
+00437290 unit.c（CFlyEffectGhost）
+004372a0 unit_new（CFlyEffectNormal 建構）
+004372fa unit.c（CFlyEffectNormal 解構）
+00437310 unit.c（CFlyEffectNormal 解構）
+00437370 fly_init（CFlyEffectNormal 初始化）
+00437390 units_draw（CFlyEffectNormal）
+00437c40 unit_new（CGhostMan 建構）
+00437c9a unit.c（CGhostMan 解構）
+00437cb0 unit.c（CGhostMan 解構）
+0043cf80 unit_new（CMethodUnit 建構）
+0043d060 unit.c（CMethodUnit 解構）
+0043d08a unit.c（CMethodUnit 解構）
+0043d0a0 unit.c（CMethodUnit 解構）
+0043d0f0 unit.c（CSprGroupillusion 解構）
+0043d120 unit.c（釋放動畫）
+0043d140 unit.c（預設回傳 1）
+0043d4f0 unit.c（預設初始化：空）
+0043d700 unit.c（預設回傳 1）
+0043d7d0 unit.c（預設回傳 1）
+0043d7e0 units_draw（畫面範圍）
+0043d8b0 unit_new（CNormalEffect 建構）
+0043d91a unit.c（CNormalEffect 解構）
+0043d930 unit.c（CNormalEffect 解構）
+0043ef70 unit_new（CSurFireArrow 建構）
+0043efba unit.c（CSurFireArrow 解構）
+0043efd0 unit.c（CSurFireArrow 解構）
+0043f160 units_draw（CSurFireArrow）
+0049e6a0 spr_set
+0049e150 spr_next
+0049dfc0 spr_step
+0049dcd0 spr_done
+0049d6a0 spr_frame
+0049e8d0 spr_load
+0043ab20 unit.c（座標 >> 6 = 格子）
+0043bee0 dist_of
+0043c3c0 unit.c（取格子資料）

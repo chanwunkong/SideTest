@@ -77,13 +77,13 @@ int main(void) {
     for (int i = 0; i < wolf.mod_n; i++) if (wolf.mod[i].id == 273) wolf.mod[i].init = 1, wolf.mod[i].incr = 0;
     skill_hit(&actors[0], NULL, &wolf, 0);
     assert(!actors[1].role && !actors[2].role && actor_count == 4 && actors[3].role);
-    // 範圍打擊：type 0 ID 7 = 目標周圍 2 格內全部；ID 0 = 只打目標
+    // 範圍打擊：type 0 ID 7 = 自己（招式物件位置 = 出手的人）周圍 2 格內全部；ID 0 = 只打目標
     actor_count = 4;
     for (int i = 0; i < 4; i++) mk(&actors[i]);
     actors[0].mon = NULL;
     actors[0].side = 0;
     actors[0].hr = 100000;
-    actors[1].x = 5; actors[2].x = 6.5f; actors[3].x = 12;
+    actors[0].x = 4; actors[1].x = 5; actors[2].x = 6; actors[3].x = 12;
     actors[0].foe = &actors[1];
     int h1 = actors[1].hp, h2 = actors[2].hp, h3 = actors[3].hp;
     for (int i = 0; i < 20 && (actors[1].hp == h1 || actors[2].hp == h2); i++) method_hits(&actors[0], &(Trig){.type = 0, .id = 7}, 0);
@@ -91,17 +91,31 @@ int main(void) {
     h2 = actors[2].hp;
     method_hits(&actors[0], &(Trig){.type = 0, .id = 0}, 0);
     assert(actors[2].hp == h2);
-    // 箭（普通弓箭1，bData3 = 30）：5 格 = 320 像素 → 第 10 拍才打中
-    mk(&a); mk(&t);
-    t.x = 5;
-    a.foe = &t;
-    a.hr = 100000;
-    hp = t.hp;
-    missile_launch(&a, unit_find(0), 0);
-    for (int i = 0; i < 9; i++) missile_tick(0);
-    assert(t.hp == hp && missile_count == 1);
-    missile_tick(0);
-    assert(t.hp < hp && missile_count == 0);
+    // 箭（普通弓箭1，bData3 = 30）：沿路每 64 掃一次（命中方式 5），經過目標時打中、消失
+    actor_count = 2;
+    mk(&actors[0]); mk(&actors[1]);
+    actors[0].mon = NULL;
+    actors[0].side = 0;
+    actors[0].hr = 100000;
+    actors[0].x = actors[0].y = actors[1].y = 0.5f;
+    actors[1].x = 5.5f;
+    actors[0].foe = &actors[1];
+    hp = actors[1].hp;
+    static const Scene empty;
+    unit_scene = &empty;
+    unit_n = 0;
+    MUnit src = {.cls = -1, .owner = &actors[0], .target = &actors[1], .x = 32, .y = 32, .tx = 5 * 64 + 32, .ty = 32, .range = 5, .persist = 1};
+    int ticks = 0, hit_at = -1;
+    for (int tries = 0; hit_at < 0 && tries < 10; tries++) {  // 命中率上限 90%，射到中為止
+        assert(unit_new(0, src.x, src.y, &src, 0) && unit_n == 1 && units[0].cls == U_ARROW);
+        for (ticks = 0; unit_n && ticks < 100;) {
+            units_tick(ticks++);
+            if (hit_at < 0 && actors[1].hp < hp) hit_at = ticks;
+        }
+    }
+    const Unit *ad = unit_find(0);
+    printf("arrow b0..5 %d %d %d %d %d %d: hit at %d, gone at %d\n", ad->b[0], ad->b[1], ad->b[2], ad->b[3], ad->b[4], ad->b[5], hit_at, ticks);
+    assert(hit_at > 0 && hit_at <= 11 && unit_n == 0);
     const Anim *arrow = anim_get(unit_find(0)->anim);
     printf("arrow seqs %d\n", arrow ? arrow->count : -1);
     // 怪物選招：老虎（抓、扑、冲）三招都會被選到
