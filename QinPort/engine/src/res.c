@@ -1225,6 +1225,31 @@ const MonDef *mondef_pick(const char *prefix) {
     return NULL;
 }
 
+int recipes_load(const Recipe **out) {
+    static Recipe r[64];
+    static int n = -1;
+    if (n < 0) {
+        n = 0;
+        size_t len;
+        uint8_t *d = res_file("ObjMdl", "MakeMdl.txt", &len);
+        if (d) {
+            res_unxor(d, len);
+            for (char *line = strtok((char *)d, "\r\n"); line && n < 64; line = strtok(NULL, "\r\n")) {
+                char *col[11] = {0}, *p = line;
+                for (int c = 0; c < 11 && p; c++) { col[c] = p; p = strchr(p, '\t'); if (p) *p++ = 0; }
+                if (!col[10] || atoi(col[1]) <= 0) continue;  // 欄名列、右邊的說明
+                Recipe *e = &r[n++];
+                e->id = atoi(col[1]), e->cat = atoi(col[2]), e->type = atoi(col[3]);
+                for (int i = 0; i < 5; i++) e->need[i] = atoi(col[4 + i]);
+                e->main = atoi(col[9]), e->text = atoi(col[10]);
+            }
+            free(d);
+        }
+    }
+    *out = r;
+    return n;
+}
+
 // ---- 角色狀態表 ObjMdl/RoleEffectMdl.txt（Poq.exe 0x48b2f0 依狀態序號查）----
 const StatusDef *status_def(int id) {
     static StatusDef defs[128];
@@ -1557,7 +1582,7 @@ int item_type_pick(int type) {
 }
 
 static void fx_add(Item *it, int id, int pct, int on, int kind, float v) {
-    if (it->fx_n < 32) it->fx[it->fx_n++] = (ItemFx){id, pct, on, kind, v};
+    if (it->fx_n < 32) it->fx[it->fx_n++] = (ItemFx){id, pct, on, kind, v, 0};
 }
 
 // 一個特性名（attribT 第 0 欄）加到道具上（0x1006e4c0；相生特性 0x1006e880 同式但效果先不生效、種類 2）。

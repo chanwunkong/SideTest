@@ -159,7 +159,7 @@ const MonDef *mondef_find(const char *name);
 // ---- 道具（EasyRPG.dll 0x10070360 依道具表 Data/item_<類型>.txt 產生一件）----
 // 道具身上的效果（原版 0x10037490 加的一筆，戴上時照抄到人身上 0x1002fe20）：屬性代號、是否百分比、作用中、
 // 種類（0 一般、1 五行、2 相生、3 金色）、值
-typedef struct { int id, pct, on, kind; float v; } ItemFx;
+typedef struct { int id, pct, on, kind; float v; int gem; } ItemFx;  // gem = 第幾顆鑲嵌的寶石帶來的（1 起，0 = 道具本身）
 typedef struct {
     int type, level, part, value, value_un, weight, lv_req, str_req, dex_req, con_req;
     int hp, hp_max, hit;  // 耐久、耐久上限、磨損計數（HitPoint，滿 40 扣 1 點耐久）
@@ -168,12 +168,17 @@ typedef struct {
     int fx_n;
     ItemFx fx[32];
     int sh;  // 劇情那邊對應的道具物件（0 = 還沒有；網頁版劇情用）
+    int gem_n, gem_icon[3], gem_value[3];  // 鑲嵌的寶石（0x10037690）：圖示、價值（拆掉時扣回）
 } Item;
 // 產生一件：type = 道具表類型（或掉寶類型，經 item_type_pick），level < 0 時依 col（SLevel_i 的欄）隨機等級，
 // alias 非空時找别名開頭相符的列。失敗回 0
 int item_new(Item *it, int type, int level, int col, const char *alias);
 int item_type_pick(int type);  // 掉寶類型 → 道具表類型（0x1007a2f0）；不認得回 −1
-int item_tables_load(void);    // 道具表、attribT、SLevel_i/t 一次讀齊（網頁版一次批次）
+int item_tables_load(void);
+// 打造配方 ObjMdl/MakeMdl.txt：所属类别（打造介面的按鈕 0 刀剑…7 杂项）、物品類型、木材 矿材 骨头 皮毛 筋 各要幾個、
+// 主材（1~5 = 道具類型 1~5）、文字ID（UI_C.dlg 的名稱）
+typedef struct { int id, cat, type, need[5], main, text; } Recipe;
+int recipes_load(const Recipe **out);    // 道具表、attribT、SLevel_i/t 一次讀齊（網頁版一次批次）
 // 裝備串（例如 "RH_010_001" 或 "CA_009*TK_009"）覆蓋角色表「屬性」裡對應部件的款式；styles 依 PLI 部件順序、用 * 分隔
 void styles_equip(char *styles, size_t n, const char *graphic, int pli_no, const char *equip);
 

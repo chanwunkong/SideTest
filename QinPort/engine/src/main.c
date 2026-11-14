@@ -2137,6 +2137,7 @@ static void bag_button(const char *name) {
 // 劇情選項叫 0x10055990(主角, 商人) → 左邊開 JM63、右邊開道具 JM54；商人的貨 = 劇情物件身上的道具（add_item、drop_items）。
 // 頁籤（0x368）：m_pWeapons 3、m_pShield 2、m_pLeechdom 1、m_pOther 0，開的時候是 3（0x55aed0）。
 // 每頁列商人身上該類的前 20 件（EasyRPG 0x1003aef0）：類型 0~6、49、50、52 → 0；51 → 1；25~34 → 2；7~24 → 3
+#define JM56 "JM56_\xb4\xf2\xd4\xec\xbd\xe7\xc3\xe6"  // JM56_打造界面
 #define JM63 "JM63_\xbd\xbb\xd2\xd7\xbd\xe7\xc3\xe6"  // JM63_交易界面
 static int shop_npc, shop_tab = 3, shop_sel = -1, shop_slot[20], shop_n;
 // 游標模式（原版 m_pBuy 0x558ac0 → 7、m_pSell 0x558b20 → 8，修理、鑑定同樣是游標）：在這個模式下點道具 = 做這件事
@@ -2195,7 +2196,7 @@ static void shop_open(int npc) {
 static void shop_close(void) {
     shop_npc = 0;
     shop_mode = SHOP_NONE;
-    if (win_left.open && !strcmp(win_left.d.name, JM63)) win_left.open = 0;
+    if (win_left.open && (!strcmp(win_left.d.name, JM63) || !strcmp(win_left.d.name, JM56))) win_left.open = 0;
 }
 
 // 買（EasyRPG buy 0x10012ef0）：錢不夠秀 1185；錢付給商人，道具放進背包空格
@@ -2249,7 +2250,13 @@ static void shop_identify(int p) {
 }
 
 // 在游標模式下對背包的道具做事；回 1 = 做了
+static int make_on(void);
+static int make_bag_act(int p);
+static void make_open(int mode);
+static void ui_text(int id, char *out, size_t cap);
+static void item_icon(UiDialog *d, const char *key, int wx, int wy, const Item *it);
 static int shop_bag_act(int p) {
+    if (shop_npc && p >= 0 && p < INV_BAG && inv[p].name[0] && make_on()) return make_bag_act(p);
     if (!shop_npc || p < 0 || p >= INV_BAG || !inv[p].name[0]) return 0;
     if (shop_mode == SHOP_SELL) shop_sell(p);
     else if (shop_mode == SHOP_REPAIR) shop_repair(p);
@@ -2276,8 +2283,227 @@ static void shop_button(const char *name) {
         shop_sel = -1;
         if (sel >= 0) shop_bag_act(sel);
         else hud_say(shop_mode == SHOP_SELL ? "賣：點背包的道具" : shop_mode == SHOP_REPAIR ? "修理：點背包的道具" : "鑑定：點背包的道具");
-    } else if (!strcmp(name, "m_pMake") || !strcmp(name, "m_pEnchase")) hud_say("打造、镶嵌還沒做");
+    } else if (!strcmp(name, "m_pMake") || !strcmp(name, "m_pEnchase")) make_open(name[3] == 'M' ? -1 : 1);
     else if (!strcmp(name, "m_pCClose")) shop_close();
+}
+
+// ---- 打造、镶嵌（原版 JM56_打造界面，Poq.exe CMakePropDialog 0x540230；規則在 EasyRPG.dll）----
+// 交易介面的 m_pMake（0x558f40，模式 −1 = 打造）、m_pEnchase（0x559390，模式 1 = 镶嵌）打開，取代左邊的交易介面，關掉回交易。
+// 打造：配方 ObjMdl/MakeMdl.txt；按鈕 m_pMakeType1~8 選類別、m_pTypeList 選配方；材料格 m_pMaterial[15] 是 5 欄 × 3 列，
+// 第 c 欄 = 道具類型 c+1（木材、矿石、兽骨、兽皮、兽筋，m_pMaterialType 的圖），每欄要配方的件數。打造（0x205 → produce 0x10051530）：
+// 找 NPC 打造 = 等級是商人的 UIS_Produce、錢 = 材料 ValueUn 總和（不夠 3025）；產品 = item_new(類型, 等級)；
+// 主材（第一件）的類型 = 配方主材就用它的五行；材料的特性合併（同屬性相加，金色特性只取主材類型的材料）後加到產品上，
+// 等級需求取最大、價格／重量／力敏體需求相加，單機價格再 ×1.2（0x1023991c）；雜項（類型 ≥ 1000）只產生、不合併。
+// 镶嵌（addgem 0x10011a20 → 0x10037690）：m_pProduct 放武器或防具（類型 7~34，13、14 箭矢除外，1215），寶石（類型 0，否則 1298）
+// 放上去；鑲滿 SlotMax 顆（1299）。寶石的特性依道具種類過濾（0x10026fc0：武器去掉防禦類、防具去掉攻擊類）後加上，價格 + 寶石價 ×1.5。
+// m_pBackout 拆除寶石（removegem 0x10053a40）：寶石毀掉，特性拿掉，價格扣回寶石價 ×1.5（不低於 0）。
+// shortcut: 自己用技能打造（扣精氣 (等級+10)×5）、五行屬性換算（0x10058900）、打造中的進度動畫 m_pProductFinish 還沒做；
+// 類別按鈕對配方類別是照按鈕名稱對的（刀剑 0、斧锤 4、棍杖 2、抢矛 3、弓箭 1、盾甲 5、配饰 6、其它 7）
+static const int MAKE_CAT[8] = {0, 4, 2, 3, 1, 5, 6, 7};
+static int make_mode, make_cat, make_rec = -1, make_mat[15], make_item = -1, make_gem = -1;
+
+static int make_on(void) { return win_left.open && !strcmp(win_left.d.name, JM56); }
+
+static int make_rows(int *rows) {
+    const Recipe *r;
+    int n = recipes_load(&r), k = 0;
+    for (int i = 0; i < n && k < 16; i++)
+        if (r[i].cat == make_cat) rows[k++] = i;
+    return k;
+}
+static const Recipe *make_recipe(void) {
+    const Recipe *r;
+    return make_rec >= 0 && make_rec < recipes_load(&r) ? &r[make_rec] : NULL;
+}
+
+static void make_open(int mode) {
+    make_mode = mode;
+    make_rec = make_item = make_gem = -1;
+    make_cat = 0;
+    for (int i = 0; i < 15; i++) make_mat[i] = -1;
+    if (!(win_left.open = ui_load(JM56, &win_left.d) > 0)) return;
+    ui_show(&win_left.d, "m_pMakerInfo", 0);  // shortcut: 原版在這裡寫打造者的說明（和配方列表重疊），還沒查它何時顯示
+    // 兩種模式各自顯示的元件（0x543120）
+    static const char *mk[] = {"m_pMakeType", "m_pMakeBK", "m_pMake", "m_pClear", "m_pTypeList", "m_pMaterial[", "m_pMaterialType"};
+    static const char *gm[] = {"m_pProductBK", "m_pProductBox", "m_pProduct", "m_pPropName", "m_pGem[", "m_pBackout"};
+    for (int i = 0; i < win_left.d.count; i++) {
+        UiCtrl *c = &win_left.d.c[i];
+        for (size_t j = 0; j < sizeof mk / sizeof *mk; j++)
+            if (!strncmp(c->name, mk[j], strlen(mk[j]))) c->flags = mode < 0 ? c->flags | 9 : c->flags & ~9;
+        for (size_t j = 0; j < sizeof gm / sizeof *gm; j++)
+            if (!strncmp(c->name, gm[j], strlen(gm[j]))) c->flags = mode > 0 ? c->flags | 9 : c->flags & ~9;
+    }
+}
+
+static int make_used(int p) {
+    for (int i = 0; i < 15; i++)
+        if (make_mat[i] == p) return 1;
+    return 0;
+}
+
+// 合併一件材料的特性（0x10051530：同屬性、同種類、同百分比的相加）
+static void fx_merge(ItemFx *list, int *n, const ItemFx *f) {
+    for (int i = 0; i < *n; i++)
+        if (list[i].id == f->id && list[i].kind == f->kind && list[i].pct == f->pct) { list[i].v += f->v; return; }
+    if (*n < 32) list[(*n)++] = *f;
+}
+
+static void make_produce(void) {
+    const Recipe *r = make_recipe();
+    if (!r) return;
+    int cost = 0, first = -1;
+    for (int c = 0; c < 5; c++)
+        for (int k = 0; k < r->need[c]; k++) {
+            int p = make_mat[k * 5 + c];
+            if (p < 0 || !inv[p].name[0]) return;  // 材料還沒放齊（原版打造鈕是灰的）
+            cost += inv[p].value_un;
+        }
+    if (r->main >= 1 && r->main <= 5) first = make_mat[r->main - 1];
+    if (hero_money < cost) { hud_msg(3025); return; }
+    Item out;
+    int level = story_get_int(shop_npc, "UIS_Produce");
+    if (!item_new(&out, r->type, level > 0 ? level : 1, -1, NULL)) { hud_msg(3014, r->type); return; }
+    hero_money -= cost;
+    if (out.type >= 7 && out.type <= 34) {
+        if (first >= 0 && inv[first].type == r->main) out.fe = inv[first].fe;
+        ItemFx add[32];
+        int n = 0;
+        for (int i = 0; i < 15; i++) {
+            const Item *m = make_mat[i] >= 0 ? &inv[make_mat[i]] : NULL;
+            if (!m) continue;
+            for (int j = 0; j < m->fx_n; j++)
+                if (m->fx[j].kind != 3 || m->type == r->main) fx_merge(add, &n, &m->fx[j]);
+            if (m->lv_req > out.lv_req) out.lv_req = m->lv_req;
+            out.value += m->value > 0 ? m->value : 0;
+            out.weight += m->weight > 0 ? m->weight : 0;
+            out.str_req += m->str_req > 0 ? m->str_req : 0;
+            out.con_req += m->con_req > 0 ? m->con_req : 0;
+            out.dex_req += m->dex_req > 0 ? m->dex_req : 0;
+        }
+        for (int i = 0; i < n && out.fx_n < 32; i++) out.fx[out.fx_n++] = add[i];
+        out.value = (int)(out.value * 1.2f);
+    }
+    for (int i = 0; i < 15; i++)
+        if (make_mat[i] >= 0) { inv[make_mat[i]].name[0] = 0; make_mat[i] = -1; }
+    item_sel = -1;
+    int b = bag_free();
+    if (b < 0) ground_drop(&out, actors[0].x, actors[0].y);
+    else { inv[b] = out; inv[b].pos = b; }
+    hud_msg(1214, out.name);
+}
+
+static void gem_add(int g) {
+    Item *w = &inv[make_item];
+    int max = w->slot_max < 3 ? w->slot_max : 3;
+    if (w->gem_n >= max) { hud_msg(1299); return; }
+    const Item *gem = &inv[g];
+    int weapon = w->type >= 7 && w->type <= 24;
+    for (int i = 0; i < gem->fx_n && w->fx_n < 32; i++) {
+        int id = gem->fx[i].id;
+        int def = (id >= 53 && id <= 58) || (id >= 62 && id <= 64) || id == 66 || (id >= 75 && id <= 77) || (id >= 92 && id <= 98);
+        int atk = (id >= 41 && id <= 52) || id == 65 || (id >= 67 && id <= 74) || (id >= 80 && id <= 91);
+        if (weapon ? def : atk) continue;
+        w->fx[w->fx_n] = gem->fx[i];
+        w->fx[w->fx_n++].gem = w->gem_n + 1;
+    }
+    w->gem_icon[w->gem_n] = gem->icon;
+    w->gem_value[w->gem_n++] = gem->value;
+    w->value += (int)(gem->value * 1.5f);
+    inv[g].name[0] = 0;
+    item_sel = -1;
+}
+
+static void gem_remove(int k) {
+    Item *w = &inv[make_item];
+    if (k < 0 || k >= w->gem_n) return;
+    int n = 0, v = (int)(w->gem_value[k] * 1.5f);
+    for (int i = 0; i < w->fx_n; i++) {
+        if (w->fx[i].gem == k + 1) continue;
+        w->fx[n] = w->fx[i];
+        if (w->fx[n].gem > k + 1) w->fx[n].gem--;
+        n++;
+    }
+    w->fx_n = n;
+    w->value -= v < w->value ? v : w->value;
+    for (int i = k; i + 1 < w->gem_n; i++) { w->gem_icon[i] = w->gem_icon[i + 1]; w->gem_value[i] = w->gem_value[i + 1]; }
+    w->gem_n--;
+    make_gem = -1;
+}
+
+// 打造介面開著時，在背包點兩下道具：打造模式 = 放進它那一欄的材料格；镶嵌模式 = 放上武器、或鑲上寶石
+static int make_bag_act(int p) {
+    int t = inv[p].type;
+    if (make_mode < 0) {
+        const Recipe *r = make_recipe();
+        if (!r || t < 1 || t > 5 || make_used(p)) return 1;
+        for (int k = 0; k < r->need[t - 1]; k++)
+            if (make_mat[k * 5 + t - 1] < 0) { make_mat[k * 5 + t - 1] = p; return 1; }
+        return 1;
+    }
+    if (t == 0 && make_item >= 0) gem_add(p);
+    else if (t >= 7 && t <= 34 && t != 13 && t != 14) { make_item = p; make_gem = -1; }
+    else if (make_item < 0) hud_msg(1215, inv[p].name, t);
+    else hud_msg(1298, inv[p].name, t);
+    return 1;
+}
+
+static void make_button(const char *name) {
+    if (!strncmp(name, "m_pMakeType", 11)) { make_cat = MAKE_CAT[(atoi(name + 11) + 7) % 8]; make_rec = -1; }
+    else if (!strncmp(name, "m_pMaterial[", 12)) make_mat[atoi(name + 12)] = -1;
+    else if (!strcmp(name, "m_pClear")) { for (int i = 0; i < 15; i++) make_mat[i] = -1; }
+    else if (!strcmp(name, "m_pMake")) make_produce();
+    else if (!strcmp(name, "m_pProduct")) make_item = make_gem = -1;
+    else if (!strncmp(name, "m_pGem[", 7)) make_gem = atoi(name + 7);
+    else if (!strcmp(name, "m_pBackout")) {
+        if (make_item >= 0) gem_remove(make_gem >= 0 ? make_gem : inv[make_item].gem_n - 1);
+    } else if (!strcmp(name, "m_pCClose")) shop_open(shop_npc);
+}
+
+// 配方列表一行 16 點
+static int make_list_tap(int x, int y, int wx, int wy) {
+    UiCtrl *c = ui_find(&win_left.d, "m_pTypeList");
+    if (!c || make_mode >= 0 || x < wx + c->x || x >= wx + c->x + c->w || y < wy + c->y || y >= wy + c->y + c->h) return 0;
+    int rows[16], n = make_rows(rows), i = (y - wy - c->y - 2) / 16;
+    if (i >= 0 && i < n && rows[i] != make_rec) { make_rec = rows[i]; for (int k = 0; k < 15; k++) make_mat[k] = -1; }
+    return 1;
+}
+
+static void make_draw(UiDialog *d, int wx, int wy) {
+    char key[24], t[256];
+    UiCtrl *c;
+    if (make_mode < 0) {
+        const Recipe *r;
+        recipes_load(&r);
+        int rows[16], n = make_rows(rows);
+        if ((c = ui_find(d, "m_pTypeList")))
+            for (int i = 0; i < n && 2 + i * 16 + 16 <= c->h; i++) {
+                ui_text(r[rows[i]].text, t, sizeof t);
+                draw_text(wx + c->x + 4, wy + c->y + 2 + i * 16, t, c->w - 8, rows[i] == make_rec ? 0xFFE080 : 0xBECDCE, 1);
+            }
+        const Recipe *rec = make_recipe();
+        for (int i = 0; i < 15; i++) {
+            snprintf(key, sizeof key, "m_pMaterial[%d]", i);
+            if ((c = ui_find(d, key)) && !(rec && i / 5 < rec->need[i % 5])) {
+                const Sprite *s = ui_image(c->img, 0);  // 這格不用放：蓋上暗色
+                if (s) { SDL_SetRenderDrawColor(ren, 0, 0, 0, 160); SDL_RenderFillRect(ren, &(SDL_Rect){wx + c->x, wy + c->y, s->w, s->h}); }
+            }
+            if (make_mat[i] >= 0) item_icon(d, key, wx, wy, &inv[make_mat[i]]);
+        }
+        return;
+    }
+    if (make_item < 0 || !inv[make_item].name[0]) { make_item = -1; return; }
+    const Item *w = &inv[make_item];
+    item_icon(d, "m_pProduct", wx, wy, w);
+    for (int i = 0; i < w->gem_n; i++) {
+        snprintf(key, sizeof key, "m_pGem[%d]", i);
+        item_icon(d, key, wx, wy, &(Item){.name = "g", .icon = w->gem_icon[i], .identify = 1});
+        snprintf(key, sizeof key, "m_pGemBox[%d]", i);
+        if (i == make_gem && (c = ui_find(d, key))) draw(ui_image(c->img, 0), wx + c->x, wy + c->y);
+    }
+    if ((c = ui_find(d, "m_pPropName"))) {
+        gbk_utf8(w->name, t, sizeof t);
+        draw_text(wx + c->x, wy + c->y, t, c->w, 0xBECDCE, 1);
+    }
 }
 
 // 劇情的道具物件 = 引擎的 Item（item_new）；原版 item_new 也把物件的別名設成道具表的別名
@@ -2376,6 +2602,7 @@ static int hud_tap(int x, int y) {
         int role = !strcmp(w->d.name, JM52);
 #ifdef STORY
         if (c && !strcmp(w->d.name, JM63)) { shop_button(c->name); return 1; }
+        if (!strcmp(w->d.name, JM56)) { if (c) make_button(c->name); else make_list_tap(x, y, ox, oy); return 1; }
 #endif
         if (c && !strcmp(c->name, "m_pCClose")) w->open = 0;
         else if (c && role && !strncmp(c->name, "m_pOK[", 6)) role_add_point(atoi(c->name + 6));
@@ -2654,6 +2881,7 @@ static void hud_draw(const Actor *hero) {
         ui_draw(&win_left.d, wx, wy);
 #ifdef STORY
         if (!strcmp(win_left.d.name, JM63)) shop_draw(&win_left.d, wx, wy);
+        if (!strcmp(win_left.d.name, JM56)) make_draw(&win_left.d, wx, wy);
 #endif
         UiCtrl *info = ui_find(&win_left.d, "m_pInfo");
         if (info && info->flags & 9) {
@@ -2914,13 +3142,16 @@ static int load_world(World *world, int *tried, const char *alias) {
 
 int main(int argc, char **argv) {
     const char *game = "game", *scn = "xianyang", *shot = NULL;
-    int pos = 0, warp = -1, at_x = -1, at_y = -1, level = 1;
+    int pos = 0, warp = -1, at_x = -1, at_y = -1, level = 1, gives = 0, money = -1;
+    const char *give[8];
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
         else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--money") && i + 1 < argc) money = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--item") && i + 1 < argc && gives < 8) give[gives++] = argv[++i];
         else if (!strcmp(argv[i], "--prof") && i + 1 < argc) hero_prof = atoi(argv[++i]) < 1 || atoi(argv[i]) > 5 ? 1 : atoi(argv[i]);
         else if (pos++ == 0) game = argv[i];
         else scn = argv[i];
@@ -2950,6 +3181,12 @@ int main(int argc, char **argv) {
 #else
     hero_equip();
 #endif
+    for (int i = 0; i < gives; i++) {  // 測試用：--item 類型,等級 放一件到背包
+        int t = 0, lv = 1, b = bag_free();
+        sscanf(give[i], "%d,%d", &t, &lv);
+        if (b >= 0 && item_new(&inv[b], t, lv, -1, NULL)) inv[b].pos = b;
+    }
+    if (money >= 0) hero_money = money;  // 測試用 --money
     Scene scene = {0};
     Actor *hero = &actors[0];
     hero->dir = 4;
