@@ -1,0 +1,11 @@
+# 原版類別欄位：類別	偏移	意思	我們的欄位（engine/src）。讀到新偏移就補一列，之後不再重推。
+MethodBase	+0x9f	打中名單 CStaticLinkList<int,50>	MUnit.hit/hit_n
+MethodBase	+0x233	打中名單數量	MUnit.hit_n
+MethodBase	+0x58	已死亡	MUnit.dead
+MethodBase	+0x434	彈跳剩餘次數（MethodMain init 從 Reserve1 +0x30）	MUnit.bounce
+MethodMain	+0x444	模式：1 一般、2/3 跟著出手者移動	MUnit.mode
+MethodMain	+0x44c	沒有動畫：一次觸發全部幀觸發	-
+MethodMdl	+0x2c	wEffect：1 打中帶著走、2/3 繞圈	Method.effect
+MethodMdl	+0x2e	wQuality：3 = 打完彈到下一個	Method.quality
+MethodMdl	+0x30	Reserve1：彈跳次數	Method.reserve1
+CCharactor	+0x559	B_C_DJHF 抵抗（旋飛）	Actor.ex[75]

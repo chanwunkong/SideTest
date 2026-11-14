@@ -1,0 +1,15 @@
+# 原版函數一句話用途：位址	用途。分析過就補，functool.py 寫進 FUNCS.tsv 的 role 欄。
+00438560	MethodBase 加入打中名單：觸發打中事件；wEffect 1～3 擲抗性，失敗給狀態 110 旋飛
+00439e70	MethodBase 放開打中名單：wEffect 1～3 移除狀態 110，清空
+004393c0	MethodBase 每幀：清掉不存在的；wEffect 2/3 讓名單上的人繞單位轉（ClockEllipsePathMove）；路徑掃描、幀觸發
+00437540	CFlyEffectNormal 落地後：wEffect 1 單位往名單上的人推 4
+0043a760	MethodBase 死亡：wQuality 3 彈到範圍內下一個敵人，否則放開名單、觸發結束事件
+0043aba0	MethodMain 建構
+0043af50	MethodMain 初始化：目標、目標點、方向、範圍、彈跳次數
+0043b510	MethodMain 每幀：跟著出手者動畫跑幀觸發，動畫換掉就死
+0043b6a0	MethodMain 模式 2/3：出手者動作 6/10 移動或跳到目標點
+0043aee0	MethodMain 取出手者動畫位置
+0043b470	CMethodMng 每幀迴圈
+00439b20	物件種類 0x80～0x100 且不是 0x96：可破壞物件
+00439660	出手者轉成角色（種類 0x1e～0x64）
+004396a0	出手者是否還有效

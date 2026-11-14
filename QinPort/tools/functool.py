@@ -5,12 +5,15 @@
 分類：
   lib    編譯器執行庫 / MFC / ATL / STL / OpenAL（平台層換掉，不翻）
   story  劇情物件的格子函數（storytool 自動翻成 story/）
+  base   原版引擎的通用工具（容器、記憶體池…）：tools/base_map.tsv 寫我們用什麼代替，不讀不翻
   game   遊戲本身的邏輯 —— 要移植的就是這些
 狀態：
   done   我們的程式碼（engine/src 或 story/）有註記這個原版位址，或 tools/funcs_done.txt 列出對應
   skip   tools/funcs_skip.txt 列出不做的（附原因，例如網路連線版）
   init   全域變數初值（編譯器產生的建構），隨使用它的函數一起移植
   todo   其餘
+欄位 callees = 呼叫的遊戲函數中還沒完成的（移植時只要讀這些）；role = tools/roles.tsv 的一句話用途。
+欄位偏移的意思記在 tools/fields.tsv；讀原版本體用 tools/fn.py ADDR。
 順序：依位址（= 原版原始碼檔案順序，同一類別的函數相連），一段一段做；depth 是從入口沿呼叫圖
 （含虛擬函式表）走的深度，參考用。class 前面有 ~ 的是從呼叫者或相鄰函數推出來的。
 """
@@ -97,6 +100,35 @@ def done_map():
     return out
 
 
+def base_map():
+    """tools/base_map.tsv：(位址集合, 類別正規式清單)。"""
+    addrs, pats = {}, []
+    p = os.path.join(ROOT, 'tools', 'base_map.tsv')
+    for line in open(p, encoding='utf-8') if os.path.exists(p) else ():
+        if line.startswith('#') or not line.strip():
+            continue
+        k, _, why = line.rstrip('\n').partition('\t')
+        if re.fullmatch(r'[0-9a-f]{8}', k):
+            addrs[k] = why
+        else:
+            pats.append((re.compile(k), why))
+    return addrs, pats
+
+
+def roles():
+    out = {}
+    p = os.path.join(ROOT, 'tools', 'roles.tsv')
+    for line in open(p, encoding='utf-8') if os.path.exists(p) else ():
+        if not line.startswith('#') and '\t' in line:
+            a, _, r = line.rstrip('\n').partition('\t')
+            out[a.lower().zfill(8)] = r
+    return out
+
+
+# 容器樣板的除錯字串（"CStaticLinkList::RemoveAt() : ..."）直接表明是基底
+BASE_STR = re.compile(r'"(CStaticLinkList|CContainer|CStack|CMemPool|CChain)\w*::')
+
+
 def skips():
     out = []
     p = os.path.join(ROOT, 'tools', 'funcs_skip.txt')
@@ -142,8 +174,14 @@ def analyse(b):
             callers[x].add(a)
 
     cat = {}
+    baddr, bpats = base_map()
     for a, f in funcs.items():
         cs = cls_of.get(a, [])
+        f['cls'] = '|'.join(cs[:3]) + ('|+%d' % (len(cs) - 3) if len(cs) > 3 else '')
+        if a in baddr or (cs and all(any(p.fullmatch(x) for p, _ in bpats) for x in cs)) or \
+                BASE_STR.search(''.join(f['body'])):
+            cat[a] = 'base'
+            continue
         c = cs[0] if cs else ''
         f['cls'] = '|'.join(cs[:3]) + ('|+%d' % (len(cs) - 3) if len(cs) > 3 else '')
         lo, hi = THUNK_TABLE.get(b, ('', ''))
@@ -162,7 +200,7 @@ def analyse(b):
             if a in cat or not callers[a]:
                 continue
             cs = {cat.get(x) for x in callers[a]}
-            if len(cs) == 1 and cs <= {'lib', 'story'}:
+            if len(cs) == 1 and cs <= {'lib', 'story', 'base'}:
                 cat[a] = cs.pop()
                 changed = True
     for a in funcs:
@@ -198,7 +236,7 @@ def analyse(b):
     while q:
         a = q.popleft()
         for x in edges[a]:
-            if x not in depth and cat[x] != 'lib':
+            if x not in depth and cat[x] not in ('lib', 'base'):
                 depth[x] = depth[a] + 1
                 q.append(x)
     return funcs, cat, depth, edges, callers
@@ -208,6 +246,7 @@ def main():
     done = ported_addrs()
     dmap = done_map()
     sk = skips()
+    rl = roles()
     rows, stats = [], collections.Counter()
     for b in BINS:
         funcs, cat, depth, edges, callers = analyse(b)
@@ -232,22 +271,26 @@ def main():
                                    re.fullmatch(k, f['name']))):
                         st, why = 'skip', w
                         break
-            if c == 'lib':
+            if c in ('lib', 'base'):
                 st = '-'
             elif c == 'story' and st == 'todo':
                 st = 'todo'
             d = depth.get(a, 99)
-            rows.append((b, d, a, f['name'], f['cls'], c, st, f['lines'], len(callers[a]), why))
+            rows.append([b, d, a, f['name'], f['cls'], c, st, f['lines'], len(callers[a]), why, rl.get(a, ''), edges[a]])
             stats[(b, c, st)] += 1
+        status = {r[2]: r[6] for r in rows if r[0] == b}
+        for r in rows:
+            if r[0] == b:
+                r[11] = ' '.join(sorted(x for x in r[11] if status.get(x) in ('todo', 'init')))
     rows = [r for r in rows if r[5] == 'game' or (r[5] == 'story' and r[6] != 'done')]
     rows.sort(key=lambda r: (BINS.index(r[0]), r[2]))
     with open(os.path.join(ROOT, 'FUNCS.tsv'), 'w', encoding='utf-8') as w:
-        w.write('bin\tdepth\taddr\tname\tclass\tcat\tstatus\tlines\tcallers\tnote\n')
+        w.write('bin\tdepth\taddr\tname\tclass\tcat\tstatus\tlines\tcallers\tnote\trole\tcallees\n')
         for r in rows:
             w.write('\t'.join(map(str, r)) + '\n')
     for b in BINS:
         print(b)
-        for c in ('game', 'story', 'lib'):
+        for c in ('game', 'story', 'base', 'lib'):
             n = {s: stats[(b, c, s)] for s in ('done', 'init', 'skip', 'todo', '-') if stats[(b, c, s)]}
             print('  %-6s %s' % (c, n))
 

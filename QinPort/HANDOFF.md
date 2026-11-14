@@ -283,6 +283,18 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   還沒做（在這段的 todo）：0x433dc0 啟動（游標動畫、record.rec 的片頭影片 PlayIntro／Rec 錄影）、0x434850 游標動畫、MethodMain（0x43aba0～0x43b6a0，角色出手目前在 main.c action_tick）、wEffect 1 把打中的人帶著走的名單、CPhantasmObj（0x43dd90～，type 16 的 0x14/0x16）、CFootStep、CGale 天氣。unit.c 的 shortcut 註解列了細節缺口（混色、透明度、格子地形種類）。
   發現原版有片頭影片 game/movie/logo1.avi、Start.avi、End.avi，要轉成網頁能播的格式。
 
+### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
+
+先建索引，之後只查索引、只讀要翻的那一個函數本體：
+1. **索引一次建好**（`tools/functool.py` 產生，不進 git 的 decomp/ 之外都提交）：
+   - `FUNCS.tsv` 的 `callees` 欄 = 它呼叫的遊戲函數中還沒完成的（只需要讀這些）；`role` 欄 = `tools/roles.tsv` 的一句話用途（分析過就補）。
+   - 基底自動認：base_map.tsv 的位址／類別，加上本體有 `"CStaticLinkList::…"` 這類容器除錯字串的、只被基底呼叫的。第一次跑認出 Poq.exe 229、EasyRPG.dll 32 個。
+   - 分類多一種 `base`：引擎自己的基底工具（CStaticLinkList／CContainer 名單、OmUtil 數學、字串、記憶體池等），**每種只認一次**，在 `tools/base_map.tsv` 寫「原版位址 → 我們用什麼代替」（例：名單操作 → 一般陣列），之後遇到直接當已處理，不讀本體。
+   - `tools/fields.tsv`：類別 + 偏移 → 欄位意思 → 我們的欄位名（例：MethodBase +0x233 = 名單數量 → `hit_n`）。讀到一個新偏移就補一列，之後不再重推。
+   - `tools/fn.py ADDR…`：用預先建好的位址索引直接印出那幾個函數本體（不掃整個檔）。
+2. **每次移植一段**：照 FUNCS.tsv 順序取下一個類別／位址段 → 看索引的 class、role、callees → callees 是 `base`／`lib`／已 done 的不讀 → 只用 fn.py 讀還沒做的本體 → 欄位查 fields.tsv → 翻譯、寫位址註解、補 fields.tsv／role → 重跑 functool.py → 建置測試 → 提交。
+3. 不能為了「找完整來龍去脈」去翻別的段落；缺的資訊先查索引，索引沒有才讀那一個函數，讀完寫進索引。
+
 下面 A～K 是 11-14 憑盤點寫的清單，保留當說明；之後以 FUNCS.tsv 為準。
 
 ## 全部待辦清單（2026-11-14 盤點；由上往下照順序做，做完打勾，不跳著做）
