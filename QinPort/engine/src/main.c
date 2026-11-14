@@ -86,6 +86,18 @@ static const Sprite *image(uint32_t ref) {
     return upload_or_wait(s, res_image(ref, &s->w, &s->h));
 }
 
+// 地上道具圖（ResUI 28×28 不透明、黑底）：黑色當透明。shortcut: 原版地上道具怎麼畫還沒查，看到原版畫法再改
+static const Sprite *ground_image(uint32_t ref) {
+    Sprite *s = slot_find(0xFE000000u | ref);
+    if (s->tex) return s;
+    if (s->w < 0) return NULL;
+    res_waiting = 0;
+    uint32_t *px = res_image(ref, &s->w, &s->h);
+    for (int i = 0; px && i < s->w * s->h; i++)
+        if (!(px[i] & 0xFFFFFF)) px[i] = 0;
+    return upload_or_wait(s, px);
+}
+
 static const Sprite *tile(Lib *tiles, uint16_t i) {
     Sprite *s = slot_find(0xFF000000u | i);
     if (s->tex) return s;
@@ -1597,6 +1609,8 @@ static int ui_load(const char *section, UiDialog *out) {
         UiCtrl *c = &out->c[out->count++];
         snprintf(c->name, sizeof c->name, "%s", l);
         c->type = f[0]; c->x = f[1]; c->y = f[2]; c->w = f[3]; c->h = f[4]; c->flags = f[5]; c->img = f[8];
+        // 0x400000 沒有 0x8 的按鈕一開始隱藏（換隊友的向前／向后、修理全部、战斗／跑步切換的战斗等）。shortcut: 從各介面的旗標歸納，原版建立控制項那段沒查
+        if (c->type == 2 && c->flags & 0x400000 && !(c->flags & 8)) c->flags &= ~9;
         for (int j = 0; j < 4; j++) c->sb[j] = f[9 + j];
     }
     snprintf(out->name, sizeof out->name, "%s", section);
@@ -2856,7 +2870,7 @@ int main(int argc, char **argv) {
             }
         // 地上的道具：地面圖示（G_PicID，ResUI 28×28 黑底小圖）置中在格子中央。shortcut: 原版的畫法（位置、名字標示）還沒查
         for (int i = 0; i < ground_n; i++) {
-            const Sprite *g = ui_image(ground[i].it.ground, 0);
+            const Sprite *g = ground_image(ground[i].it.ground);
             if (g) draw(g, (int)((ground[i].x - ground[i].y + scene.h - 1) * TILE_W / 2) - ox - g->w / 2, (int)((ground[i].x + ground[i].y) * TILE_H / 2) - oy - g->h / 2);
         }
         // 物件已依深度(x+y)排序；角色也依深度排好，經過自己的深度時插進去畫

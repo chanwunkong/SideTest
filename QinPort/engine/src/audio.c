@@ -1,9 +1,10 @@
-// 音樂與音效。音樂是很大的 WAV（最大 45MB），邊讀檔邊播並即時轉成裝置格式；音效（sound/NNN.wav）載入後快取。
+// 音樂與音效。音樂是很大的 WAV（最大 45MB），邊讀檔邊播並即時轉成裝置格式；音效從 snd.lib（Mfx 音效庫）讀，載入後快取。
 #include "audio.h"
 #include "res.h"
 #include <SDL.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -24,7 +25,8 @@ static int fetching;
 #endif
 
 #define VOICES 16
-#define MAX_SFX 1024
+#define MAX_SFX 2000   // snd.lib 的音效數（檔頭 0x104）
+#define MAX_FILE 3000  // snd.lib 的 WAV 數（檔頭 0x108）
 
 typedef struct { Uint8 *buf; Uint32 len; } Sfx;
 typedef struct { const Sfx *sfx; Uint32 pos; } Voice;
@@ -36,7 +38,10 @@ static int music_vol = 128, sfx_vol = 128;  // SDL_MixAudioFormat 的音量 0..1
 static FILE *music_file;
 static long music_data, music_end;  // 資料區在檔案裡的範圍（循環播放用）
 static SDL_AudioStream *music_stream;
-static Sfx sfx_cache[MAX_SFX];
+static Sfx file_cache[MAX_FILE];
+static struct { int n, file[5]; } sfx_def[MAX_SFX];  // n：0 = 還沒讀、−1 = 沒有
+static uint8_t *snd_tab;     // WAV 表：3000 筆 × 0x10c（檔名 260、大小、位移）
+static uint32_t snd_rec, snd_data, snd_files;
 static Voice voices[VOICES];
 
 static Uint32 rd32(const Uint8 *p) { return p[0] | p[1] << 8 | p[2] << 16 | (Uint32)p[3] << 24; }
@@ -163,30 +168,64 @@ void audio_update(int network_idle) {
 #endif
 }
 
+// snd.lib：檔頭 0x104 音效數、0x108 WAV 數；0x20c 起每個音效 0x598 bytes（變化數、名稱 128、5 個檔名各 260），
+// 接著 WAV 表（每筆 0x10c：檔名 260、大小、從資料區起算的位移），再來是資料區。一個音效有幾個檔時隨機挑一個。
+// shortcut: 原版挑變化的方法（Mfx_SND_Play）沒查，先隨機
+static int sfx_files(int id) {
+    if (sfx_def[id].n) return sfx_def[id].n;
+    sfx_def[id].n = -1;
+    if (!snd_tab) {
+        uint8_t *h = res_span("snd.lib", 0, 0x10c);
+        if (!h) return -1;
+        uint32_t nrec = rd32(h + 0x104);
+        snd_files = rd32(h + 0x108);
+        free(h);
+        if (nrec > MAX_SFX || snd_files > MAX_FILE) return -1;
+        snd_rec = 0x20c;
+        snd_data = snd_rec + nrec * 0x598 + snd_files * 0x10c;
+        if (!(snd_tab = res_span("snd.lib", snd_rec + nrec * 0x598, snd_files * 0x10c))) return -1;
+    }
+    uint8_t *r = res_span("snd.lib", snd_rec + (uint32_t)id * 0x598, 0x598);
+    if (!r) return -1;
+    int want = (int)rd32(r) < 5 ? (int)rd32(r) : 5, n = 0;
+    for (int v = 0; v < want; v++) {
+        const char *nm = (const char *)r + 0x84 + v * 0x104;
+        for (uint32_t k = 0; nm[0] && k < snd_files; k++)
+            if (!strcasecmp((const char *)snd_tab + k * 0x10c, nm)) { sfx_def[id].file[n++] = (int)k; break; }
+    }
+    free(r);
+    return sfx_def[id].n = n ? n : -1;
+}
+
+static const Sfx *sfx_load(int k) {
+    Sfx *s = &file_cache[k];
+    if (s->buf) return s;
+    const uint8_t *e = snd_tab + k * 0x10c;
+    uint32_t size = rd32(e + 0x104);
+    uint8_t *data = res_span("snd.lib", snd_data + rd32(e + 0x108), size);
+    if (!data) return NULL;
+    SDL_AudioSpec spec;
+    Uint8 *buf;
+    Uint32 len;
+    if (!SDL_LoadWAV_RW(SDL_RWFromConstMem(data, (int)size), 1, &spec, &buf, &len)) { free(data); return NULL; }
+    free(data);
+    SDL_AudioCVT cvt;
+    SDL_BuildAudioCVT(&cvt, spec.format, spec.channels, spec.freq, have.format, have.channels, have.freq);
+    cvt.len = len;
+    cvt.buf = SDL_malloc(len * (cvt.len_mult > 0 ? cvt.len_mult : 1));
+    memcpy(cvt.buf, buf, len);
+    SDL_FreeWAV(buf);
+    if (cvt.needed) SDL_ConvertAudio(&cvt);
+    s->buf = cvt.buf;
+    s->len = cvt.needed ? cvt.len_cvt : len;
+    return s;
+}
+
 void audio_sfx(int id) {
     if (!dev || id < 0 || id >= MAX_SFX) return;
-    Sfx *s = &sfx_cache[id];
-    if (!s->buf) {
-        char file[16];
-        snprintf(file, sizeof file, "%03d.wav", id);
-        size_t size;
-        uint8_t *data = res_file("sound", file, &size);
-        SDL_AudioSpec spec;
-        Uint8 *buf;
-        Uint32 len;
-        if (!data) return;
-        if (!SDL_LoadWAV_RW(SDL_RWFromConstMem(data, (int)size), 1, &spec, &buf, &len)) { free(data); return; }
-        free(data);
-        SDL_AudioCVT cvt;
-        SDL_BuildAudioCVT(&cvt, spec.format, spec.channels, spec.freq, have.format, have.channels, have.freq);
-        cvt.len = len;
-        cvt.buf = SDL_malloc(len * (cvt.len_mult > 0 ? cvt.len_mult : 1));
-        memcpy(cvt.buf, buf, len);
-        SDL_FreeWAV(buf);
-        if (cvt.needed) SDL_ConvertAudio(&cvt);
-        s->buf = cvt.buf;
-        s->len = cvt.needed ? cvt.len_cvt : len;
-    }
+    int n = sfx_files(id);
+    const Sfx *s = n > 0 ? sfx_load(sfx_def[id].file[rand() % n]) : NULL;
+    if (!s) return;
     SDL_LockAudioDevice(dev);
     for (int i = 0; i < VOICES; i++)
         if (!voices[i].sfx) { voices[i] = (Voice){s, 0}; break; }
@@ -197,5 +236,5 @@ void audio_quit(void) {
     if (dev) SDL_CloseAudioDevice(dev);
     if (music_stream) SDL_FreeAudioStream(music_stream);
     if (music_file) fclose(music_file);
-    for (int i = 0; i < MAX_SFX; i++) SDL_free(sfx_cache[i].buf);
+    for (int i = 0; i < MAX_FILE; i++) SDL_free(file_cache[i].buf);
 }

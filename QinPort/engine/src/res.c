@@ -409,6 +409,23 @@ uint8_t *res_file(const char *sub, const char *name, size_t *size) {
     return read_all(dir, name, size);
 }
 
+uint8_t *res_span(const char *name, uint32_t off, uint32_t len) {
+#ifdef __EMSCRIPTEN__
+    Span sp = {name, off, len, -1};
+    uint32_t got = 0;
+    uint8_t **d = fetch_spans(&sp, 1, &got), *out = d[0];
+    free(d);
+    if (out && got != len) { free(out); out = NULL; }
+    return out;
+#else
+    FILE *f = open_ci(game_dir, name);
+    uint8_t *out = f ? malloc(len) : NULL;
+    if (out && (fseek(f, off, SEEK_SET) || fread(out, 1, len, f) != len)) { free(out); out = NULL; }
+    if (f) fclose(f);
+    return out;
+#endif
+}
+
 void res_preload(const char *sub, const char *const *names, int n) {
 #ifdef __EMSCRIPTEN__
     Span *sp = calloc(n ? n : 1, sizeof *sp);
@@ -505,11 +522,28 @@ uint32_t *xbm_decode(const uint8_t *x, uint32_t size, int *w, int *h) {
     if (*w <= 0 || *h <= 0 || *w > 4096 || *h > 4096) return NULL;
     uint32_t base = 0x40;
     const uint8_t *alpha = NULL;
-    if (u32(x + 0x24) == 1 && u32(x + 0x28) >= (uint32_t)*w * *h && u32(x + 0x28) < size) {
+    uint8_t *unpacked = NULL;
+    uint32_t flag = u32(x + 0x24), alen = u32(x + 0x28);
+    if (flag == 1 && alen >= (uint32_t)*w * *h && alen < size) {
         alpha = x + 0x40;
-        base += u32(x + 0x28);
+        base += alen;
+    } else if (flag == 0x01000001 && 0x40 + alen < size && alen >= (uint32_t)*h * 4) {
+        // 0x27 = 1：alpha 也是逐列壓縮（列位移表 + 交替 u16 跳過 / 有值的 bytes 數 + 值），跳過的是 0
+        const uint8_t *a = x + 0x40;
+        alpha = unpacked = calloc((size_t)*w * *h, 1);
+        for (int y = 0; y < *h; y++) {
+            uint32_t p = u32(a + y * 4);
+            for (int col = 0, on = 0; col < *w && p + 2 <= alen; on ^= 1) {
+                int n = u16(a + p);
+                p += 2;
+                for (int i = 0; on && i < n && col + i < *w && p + i < alen; i++) unpacked[y * *w + col + i] = a[p + i];
+                if (on) p += n;
+                col += n;
+            }
+        }
+        base += alen;
     }
-    if (base + (uint32_t)*h * 4 > size) return NULL;
+    if (base + (uint32_t)*h * 4 > size) { free(unpacked); return NULL; }
     uint32_t *px = calloc((size_t)*w * *h, 4);
     for (int y = 0; y < *h; y++) {
         uint32_t p = base + u32(x + base + y * 4);
@@ -530,6 +564,7 @@ uint32_t *xbm_decode(const uint8_t *x, uint32_t size, int *w, int *h) {
             opaque = !opaque;
         }
     }
+    free(unpacked);
     return px;
 }
 
