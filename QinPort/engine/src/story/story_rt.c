@@ -338,3 +338,80 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
 }
 
 void *ExceptionList;
+
+// ---- 存檔：所有物件照順序寫出（代號不變，引擎 inv 的 sh 照樣對得上）；道具是 item_size 大小的整塊（Item 沒有指標）----
+static void put_str(FILE *f, const char *s) { int n = (int)strlen(s); fwrite(&n, 4, 1, f); fwrite(s, 1, n, f); }
+static int get_str(FILE *f, char *out, int cap) {
+    int n = 0;
+    if (fread(&n, 4, 1, f) != 1 || n < 0 || n >= cap || fread(out, 1, n, f) != (size_t)n) return 0;
+    out[n] = 0;
+    return 1;
+}
+static void put_kv(FILE *f, const KV *v, int n, int str) {
+    fwrite(&n, 4, 1, f);
+    for (int i = 0; i < n; i++) {
+        put_str(f, v[i].key);
+        if (str) put_str(f, S(v[i].val));
+        else { int x = (int)v[i].val; fwrite(&x, 4, 1, f); }
+    }
+}
+static int get_kv(FILE *f, KV **v, int *n, int str) {
+    int m = 0;
+    if (fread(&m, 4, 1, f) != 1 || m < 0) return 0;
+    *v = calloc(m ? m : 1, sizeof **v);
+    *n = m;
+    for (int i = 0; i < m; i++) {
+        char s[4096];
+        if (!get_str(f, (*v)[i].key, sizeof (*v)[i].key)) return 0;
+        if (str) { if (!get_str(f, s, sizeof s)) return 0; (*v)[i].val = (intptr_t)strdup(s); }
+        else { int x; if (fread(&x, 4, 1, f) != 1) return 0; (*v)[i].val = x; }
+    }
+    return 1;
+}
+
+void story_save(FILE *f, size_t item_size) {
+    fwrite(&obj_count, 4, 1, f);
+    fwrite(&the_player, 4, 1, f);
+    for (int h = 1; h < obj_count; h++) {
+        Obj *o = &objs[h];
+        put_str(f, o->cls ? o->cls->path : "");
+        put_str(f, o->path); put_str(f, o->name); put_str(f, o->alias);
+        int hdr[3] = {o->parent, o->held, o->item != NULL};
+        fwrite(hdr, 4, 3, f);
+        put_kv(f, o->ints, o->nints, 0);
+        put_kv(f, o->flags, o->nflags, 0);
+        put_kv(f, o->strs, o->nstrs, 1);
+        if (o->item) fwrite(o->item, item_size, 1, f);
+    }
+}
+
+static void objs_free(void) {
+    for (int h = 1; h < obj_count; h++) {
+        for (int i = 0; i < objs[h].nstrs; i++) free((void *)objs[h].strs[i].val);
+        free(objs[h].ints); free(objs[h].flags); free(objs[h].strs); free(objs[h].item);
+    }
+    obj_count = 1;
+}
+
+// 讀回 story_save 寫的；壞檔回 0（物件已清掉，呼叫的人要當新遊戲處理）
+int story_load(FILE *f, size_t item_size) {
+    int n = 0, pl = 0;
+    if (fread(&n, 4, 1, f) != 1 || fread(&pl, 4, 1, f) != 1 || n < 1) return 0;
+    objs_free();
+    memset(&story_dialog, 0, sizeof story_dialog);
+    for (int h = 1; h < n; h++) {
+        obj_add(0);
+        Obj *o = &objs[h];
+        char cls[128];
+        int hdr[3];
+        if (!get_str(f, cls, sizeof cls) || !get_str(f, o->path, sizeof o->path) || !get_str(f, o->name, sizeof o->name) ||
+            !get_str(f, o->alias, sizeof o->alias) || fread(hdr, 4, 3, f) != 3 || !get_kv(f, &o->ints, &o->nints, 0) ||
+            !get_kv(f, &o->flags, &o->nflags, 0) || !get_kv(f, &o->strs, &o->nstrs, 1)) { objs_free(); return 0; }
+        o->cls = cls[0] ? class_find(cls) : NULL;
+        o->parent = hdr[0];
+        o->held = hdr[1];
+        if (hdr[2] && (!(o->item = malloc(item_size)) || fread(o->item, item_size, 1, f) != 1)) { objs_free(); return 0; }
+    }
+    the_player = pl;
+    return 1;
+}

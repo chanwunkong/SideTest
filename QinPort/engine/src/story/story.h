@@ -1,6 +1,7 @@
 // 劇情執行環境給引擎用的介面（實作在 story_rt.c；劇情檔用的是 qinstory.h）
 #pragma once
 #include "qinstory.h"
+#include <stdio.h>
 
 #define STORY_MAX_OPTIONS 12
 typedef struct {
@@ -47,3 +48,6 @@ void story_move(int h, int parent);
 void story_set_alias(int h, const char *s);
 int story_get_int(int h, const char *key);
 void story_set_int(int h, const char *key, int v);
+// 存檔：整個劇情世界（物件、屬性、旗標、道具）寫進 f／讀回；item_size = 引擎的 sizeof(Item)
+void story_save(FILE *f, size_t item_size);
+int story_load(FILE *f, size_t item_size);

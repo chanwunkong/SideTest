@@ -2071,13 +2071,16 @@ static void ground_pick(int g) {
 }
 
 // 按鈕名稱 → 開的視窗（主列和人物屬性視窗裡的 m_pRole／m_pSkill／m_pProp 同名同作用）
+static void sys_toggle(void);
+static void ui_text(int id, char *out, size_t cap);
 static void ui_command(const char *name) {
     if (!strcmp(name, "m_pRole")) win_toggle(&win_left, JM52);
     else if (!strcmp(name, "m_pSkill")) { skill_mode = 1; win_toggle(&win_right, JM53); }
     else if (!strcmp(name, "m_pProp")) win_toggle(&win_right, JM54);
     else if (!strncmp(name, "m_pPage[", 8)) skill_page = atoi(name + 8) - 1;  // 技能頁籤：m_pPage[1]~[5] = 第 0~4 頁（[6] 藏著）
     else if (!strncmp(name, "m_pSkill[", 9)) pick_open(name[9] == '1');  // 主列 m_pSkill[0] 右手、[1] 左手
-    else if (!strcmp(name, "m_pEquip")) win_toggle(&win_left, JM55);  // 道具視窗的装备：原版開在中線左邊（Poq.exe 0x54ad87）
+    else if (!strcmp(name, "m_pEquip")) win_toggle(&win_left, JM55);
+    else if (!strcmp(name, "m_pSystem")) sys_toggle();  // 道具視窗的装备：原版開在中線左邊（Poq.exe 0x54ad87）
 }
 
 // 畫面上點到哪件地上的道具（圖示置中在格子中央）
@@ -2616,6 +2619,341 @@ static void story_end(void) {
 }
 #endif
 
+// ---- 存檔（原版 JM50_内部主界面 的保存、读取 → JM62_存取盘界面，Poq.exe CSystemDialog 0x5354a0、CLoadDialog 0x56c400）----
+// 一頁 6 格、最多 16 頁；第 0 頁前兩格是自动存盘（穿梭大場景時存）、快速存盘（F9），UI_C.dlg 2130、2131。
+// 每格秀場景縮圖、場景名、時間。存檔格式是自己的（原版是整個 EasyRPG 世界的序列化）：主角、背包、寄存、劇情物件
+// shortcut: 每格的隊伍頭像（ResID1~5）還沒做，只有空框；原版 m_pDelete（刪除）是隱藏的，沒做
+#define JM50 "JM50_\xc4\xda\xb2\xbf\xd6\xf7\xbd\xe7\xc3\xe6"                      // JM50_内部主界面
+#define JM62 "JM62_\xb4\xe6\xc8\xa1\xc5\xcc\xbd\xe7\xc3\xe6"                      // JM62_存取盘界面
+#define JM67 "JM67_\xb9\xab\xd3\xc3\xb6\xd4\xbb\xb0\xbf\xf2"                      // JM67_公用对话框
+#define JM102 "JM102_\xcd\xcb\xb3\xf6\xd3\xce\xcf\xb7\xbd\xe7\xc3\xe6"            // JM102_退出游戏界面
+#define SAVE_SLOTS 96
+#define THUMB_W 128
+#define THUMB_H 96
+typedef struct { char magic[4]; int ver; long long time; char alias[64], name[64]; int level; uint32_t thumb[THUMB_W * THUMB_H]; } SaveHead;
+typedef struct {
+    float x, y;
+    int dir, level, exp, hp, mp, attr[6], extra_exp, extra_skill, money, prof, cur_skill[2], skill_lv[20];
+} SaveHero;
+static UiDialog sys_d, sav_d, ask_d, quit_d;
+static int sys_open, sav_mode, sav_page, sav_sel = -1, ask_open, quit_open;  // sav_mode：1 保存、2 读取
+static SaveHead *sav_head[SAVE_SLOTS];   // 開視窗時讀的各格檔頭，NULL = 空格
+static SDL_Texture *sav_tex[6];          // 這一頁的縮圖
+static uint32_t snap[THUMB_W * THUMB_H]; // 開系統選單前的畫面（原版也是先截圖，0x535ec0）
+static int snap_due, save_due = -1, load_due = -1, quit_due;
+static char save_alias[64], save_name[64];  // 目前場景的別名、房間名（GBK）
+
+#ifdef __EMSCRIPTEN__
+// 網頁版存在瀏覽器的 IndexedDB：開場掛上、讀進來；每次存完寫回去
+EM_ASYNC_JS(void, save_mount, (), {
+    try { FS.mkdir('/save'); } catch (e) {}
+    FS.mount(IDBFS, {}, '/save');
+    await new Promise(r => FS.syncfs(true, r));
+});
+EM_JS(void, save_flush, (), { FS.syncfs(false, e => { if (e) console.log('存檔寫入失敗', e); }); });
+EM_JS(void, page_reload, (), { location.reload(); });
+#define SAVE_DIR "/save"
+#else
+#include <sys/stat.h>
+static void save_mount(void) { mkdir("save", 0755); }
+static void save_flush(void) {}
+#define SAVE_DIR "save"
+#endif
+
+static void save_path(int slot, char *out, size_t cap) { snprintf(out, cap, SAVE_DIR "/qin%02d.sav", slot); }
+
+// 畫面縮成縮圖（開系統選單、自動存檔、快速存檔前在畫介面之前截）
+static void snap_take(SDL_Texture *canvas) {
+    uint32_t *px = malloc((size_t)vw * vh * 4);
+    if (!px) return;
+    SDL_SetRenderTarget(ren, canvas);
+    if (!SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGBA32, px, vw * 4))
+        for (int y = 0; y < THUMB_H; y++)
+            for (int x = 0; x < THUMB_W; x++) snap[y * THUMB_W + x] = px[(y * vh / THUMB_H) * vw + x * vw / THUMB_W];
+    free(px);
+}
+
+static int save_write(int slot) {
+    char p[64];
+    save_path(slot, p, sizeof p);
+    FILE *f = fopen(p, "wb");
+    if (!f) return 0;
+    static SaveHead h;
+    memset(&h, 0, sizeof h);
+    memcpy(h.magic, "QSAV", 4);
+    h.ver = 1;
+    h.time = (long long)time(NULL);
+    snprintf(h.alias, sizeof h.alias, "%s", save_alias);
+    snprintf(h.name, sizeof h.name, "%s", save_name);
+    const Actor *a = &actors[0];
+    h.level = a->level;
+    memcpy(h.thumb, snap, sizeof snap);
+    SaveHero s = {a->x, a->y, a->dir, a->level, a->exp, a->hp, a->mp, {0}, hero_extra_exp, hero_extra_skill, hero_money, hero_prof,
+                  {cur_skill[0], cur_skill[1]}, {0}};
+    memcpy(s.attr, hero_attr, sizeof s.attr);
+    for (int i = 0; i < hero_skill_n && i < 20; i++) s.skill_lv[i] = hero_skill[i].level;
+    fwrite(&h, sizeof h, 1, f);
+    fwrite(&s, sizeof s, 1, f);
+    fwrite(inv, sizeof inv, 1, f);
+#ifdef STORY
+    fwrite(store, sizeof store, 1, f);
+    story_save(f, sizeof(Item));
+#endif
+    int ok = !ferror(f);
+    if (fclose(f) || !ok) { remove(p); return 0; }
+    save_flush();
+    return 1;
+}
+
+// 讀檔：先把主角、背包、劇情換掉，場景由呼叫的人進（要房間表）。回傳 0 = 檔案不對、什麼都沒動
+static int save_read(int slot, SaveHead *h) {
+    char p[64];
+    save_path(slot, p, sizeof p);
+    FILE *f = fopen(p, "rb");
+    SaveHero s;
+    static Item tmp[INV_N];
+    if (!f) return 0;
+    if (fread(h, sizeof *h, 1, f) != 1 || memcmp(h->magic, "QSAV", 4) || h->ver != 1 || fread(&s, sizeof s, 1, f) != 1 ||
+        fread(tmp, sizeof tmp, 1, f) != 1) { fclose(f); return 0; }
+#ifdef STORY
+    static Item st[STORE_N];
+    if (fread(st, sizeof st, 1, f) != 1 || !story_load(f, sizeof(Item))) { fclose(f); return 0; }  // shortcut: 劇情讀到一半壞掉時世界已清空，沒有退回
+    memcpy(store, st, sizeof store);
+    shop_close();
+    dialog_open = 0;
+#endif
+    fclose(f);
+    memcpy(inv, tmp, sizeof inv);
+    memcpy(hero_attr, s.attr, sizeof hero_attr);
+    hero_extra_exp = s.extra_exp;
+    hero_extra_skill = s.extra_skill;
+    hero_money = s.money;
+    hero_prof = s.prof;
+    hero_skill_n = -1;
+    skills_load();
+    for (int i = 0; i < hero_skill_n && i < 20; i++) hero_skill[i].level = s.skill_lv[i];
+    cur_skill[0] = s.cur_skill[0];
+    cur_skill[1] = s.cur_skill[1];
+    hero_look();
+    win_left.open = win_right.open = 0;
+    pick_hand = item_sel = -1;
+    Actor *a = &actors[0];
+    a->x = s.x; a->y = s.y; a->dir = s.dir; a->level = s.level; a->exp = s.exp; a->hp = s.hp; a->mp = s.mp;  // 位置等進場景後再放回
+    return 1;
+}
+
+static void sav_refresh(void) {
+    for (int i = 0; i < 6; i++) {
+        if (sav_tex[i]) SDL_DestroyTexture(sav_tex[i]);
+        sav_tex[i] = NULL;
+        const SaveHead *h = sav_head[sav_page * 6 + i];
+        if (!h) continue;
+        sav_tex[i] = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, THUMB_W, THUMB_H);
+        SDL_UpdateTexture(sav_tex[i], NULL, h->thumb, THUMB_W * 4);
+    }
+}
+
+// 頁數（0x56cce0）：保存時多留一頁空的、读取時只到最後一個用過的，最多 16 頁
+static int sav_pages(void) {
+    int last = -1;
+    for (int i = 0; i < SAVE_SLOTS; i++)
+        if (sav_head[i]) last = i;
+    int n = sav_mode == 1 ? (last + 7) / 6 : last / 6 + 1;
+    return n < 1 ? 1 : n > 16 ? 16 : n;
+}
+
+static void sav_open(int mode) {
+    if (!ui_load(JM62, &sav_d)) return;
+    for (int i = 0; i < SAVE_SLOTS; i++) {
+        free(sav_head[i]);
+        sav_head[i] = NULL;
+        char p[64];
+        save_path(i, p, sizeof p);
+        FILE *f = fopen(p, "rb");
+        SaveHead *h = malloc(sizeof *h);
+        if (f && h && fread(h, sizeof *h, 1, f) == 1 && !memcmp(h->magic, "QSAV", 4) && h->ver == 1) { sav_head[i] = h; h = NULL; }
+        free(h);
+        if (f) fclose(f);
+    }
+    sav_mode = mode;
+    sav_page = 0;
+    sav_sel = -1;
+    sav_refresh();
+}
+
+static void sav_close(void) { sav_mode = 0; ask_open = 0; }
+
+// 確定：保存 → 有檔就先問要不要覆蓋（UI_C 1535）；读取 → 空格不動
+static void sav_ok(int confirmed) {
+    if (sav_sel < 0) return;
+    if (sav_mode == 2) {
+        if (!sav_head[sav_sel]) return;
+        load_due = sav_sel;
+        sav_close();
+        sys_open = 0;
+        return;
+    }
+    if (sav_head[sav_sel] && !confirmed) { ask_open = 1; ui_load(JM67, &ask_d); return; }
+    save_due = sav_sel;  // 縮圖用開選單前截的那張
+    sav_close();
+    sys_open = 0;
+}
+
+static void ui_say(int id) { char t[256]; ui_text(id, t, sizeof t); hud_say(t); }
+
+static void sys_button(const char *name) {
+    if (!strcmp(name, "m_pSave")) {
+        if (actors[0].fight > 0) { ui_say(1507); return; }  // 战斗时不能够保存进度
+#ifdef STORY
+        if (win_left.open && !strcmp(win_left.d.name, JM56)) { ui_say(1533); return; }  // 镶嵌打造时不能存盘
+#endif
+        sav_open(1);
+    } else if (!strcmp(name, "m_pLoad")) sav_open(2);
+    else if (!strcmp(name, "m_pResume") || !strcmp(name, "m_pClose")) sys_open = 0;
+    else if (!strcmp(name, "m_pQuit")) quit_open = ui_load(JM102, &quit_d) > 0;
+    // shortcut: 设置、帮助（JM31、JM36）還沒做
+}
+
+static void sys_toggle(void) {
+    if (sys_open) { sys_open = 0; sav_close(); quit_open = 0; return; }
+    if (!ui_load(JM50, &sys_d)) return;
+    UiCtrl *q = ui_find(&sys_d, "m_pQuit");
+    if (q) q->flags |= 9;  // 單機版顯示「退出」（保存并退出 是網路版的）
+    sys_open = 1;
+    snap_due = 1;
+}
+
+// 公用對話框（JM67 只有底圖）：文字 + 是／否。shortcut: 按鈕借 JM102 的圖，位置是自訂的
+static void ask_pos(int *x, int *y) { *x = (vw - ask_d.w) / 2; *y = (vh - ask_d.h) / 2; }
+static int ask_button(int x, int y) {  // 1 是、2 否、0 沒點到
+    int ox, oy;
+    ask_pos(&ox, &oy);
+    for (int b = 0; b < 2; b++) {
+        const Sprite *s = ui_image(b ? 1522 : 1526, 0);
+        int bx = ox + (b ? ask_d.w * 3 / 4 : ask_d.w / 4) - (s ? s->w / 2 : 0), by = oy + ask_d.h - 44;
+        if (s && x >= bx && x < bx + s->w && y >= by && y < by + s->h) return b + 1;
+    }
+    return 0;
+}
+
+// 系統選單、存取盘、確認框是蓋在畫面上的（點哪裡都吃掉）
+static int sys_tap(int x, int y) {
+    if (quit_open) {
+        const UiCtrl *c = ui_button_at(&quit_d, (vw - quit_d.w) / 2, (vh - quit_d.h) / 2, x, y);
+        if (c && !strcmp(c->name, "m_Yes")) quit_due = 1;
+        if (c) quit_open = 0;
+        return 1;
+    }
+    if (ask_open) {
+        int b = ask_button(x, y);
+        if (b == 1 && ask_open == 2) {  // 刪除（UI_C 1534 存盘将被删除，确定吗？）
+            char p[64];
+            save_path(sav_sel, p, sizeof p);
+            remove(p);
+            save_flush();
+            free(sav_head[sav_sel]);
+            sav_head[sav_sel] = NULL;
+            sav_refresh();
+        } else if (b == 1) sav_ok(1);
+        if (b) ask_open = 0;
+        return 1;
+    }
+    if (sav_mode) {
+        int ox = (vw - sav_d.w) / 2, oy = (vh - sav_d.h) / 2;
+        const UiCtrl *c = ui_button_at(&sav_d, ox, oy, x, y);
+        if (!c) return 1;
+        if (!strncmp(c->name, "m_pBox", 6)) {
+            int k = sav_page * 6 + atoi(c->name + 6) - 1;
+            if (sav_mode == 1 && k < 2) return 1;  // shortcut: 自动、快速存盘的格子不能手動存，原版是否如此沒查
+            sav_sel = k;
+        } else if (!strcmp(c->name, "m_Ok")) sav_ok(0);
+        else if (!strcmp(c->name, "m_Cancel")) sav_close();
+        else if (!strcmp(c->name, "m_pDelete") && sav_sel >= 0 && sav_head[sav_sel]) { ask_open = 2; ui_load(JM67, &ask_d); }
+        else if (!strcmp(c->name, "m_pUp") || !strcmp(c->name, "m_pDown")) {
+            int n = sav_pages(), p = sav_page + (c->name[3] == 'D' ? 1 : -1);
+            if (p >= 0 && p < n) { sav_page = p; sav_refresh(); }
+        }
+        return 1;
+    }
+    if (sys_open) {
+        const UiCtrl *c = ui_button_at(&sys_d, (vw - sys_d.w) / 2, (vh - sys_d.h) / 2, x, y);
+        if (c) sys_button(c->name);
+        return 1;
+    }
+    return 0;
+}
+
+static void sys_draw(void) {
+    if (sys_open && !sav_mode) ui_draw(&sys_d, (vw - sys_d.w) / 2, (vh - sys_d.h) / 2);
+    if (sav_mode) {
+        int ox = (vw - sav_d.w) / 2, oy = (vh - sav_d.h) / 2;
+        UiCtrl *title = ui_find(&sav_d, "m_pTitle");
+        if (title) title->flags &= ~9;
+        UiCtrl *bg = ui_find(&sav_d, "m_pBackGround");
+        if (bg) draw(ui_image(bg->img, 0), ox + bg->x, oy + bg->y);  // 底圖旗標是 0，ui_draw 不畫
+        ui_draw(&sav_d, ox, oy);
+        if (title) { draw(ui_image(title->img, sav_mode == 2), ox + title->x, oy + title->y); title->flags |= 9; }  // 標題：第 0 幀保存、第 1 幀读取（0x56cb90）
+        for (int i = 0; i < 6; i++) {
+            int k = sav_page * 6 + i;
+            char key[24], t[96];
+            snprintf(key, sizeof key, "m_pScene%d", i + 1);
+            UiCtrl *sc = ui_find(&sav_d, key);
+            const Sprite *fr = sc ? ui_image(sc->img, 0) : NULL;
+            if (sc && fr && sav_tex[i]) {  // m_pScene 的圖是空格的「秦殇」，有存檔就換成縮圖
+                SDL_Rect r = {ox + sc->x, oy + sc->y, fr->w, fr->h};
+                SDL_RenderCopy(ren, sav_tex[i], NULL, &r);
+            }
+            snprintf(key, sizeof key, "m_pBox%d", i + 1);
+            UiCtrl *bx = ui_find(&sav_d, key);
+            const Sprite *bs = bx ? ui_image(bx->img, 2) : NULL;
+            if (bs && k == sav_sel) {  // 選中：按下的那幀。shortcut: 那幀跟平常幾乎一樣，另外描一圈金框
+                draw(bs, ox + bx->x, oy + bx->y);
+                SDL_Rect r = {ox + bx->x, oy + bx->y, bs->w, bs->h};
+                SDL_SetRenderDrawColor(ren, 0xE0, 0xC0, 0x60, 255);
+                SDL_RenderDrawRect(ren, &r);
+            }
+            snprintf(key, sizeof key, "m_pSceneName%d", i + 1);
+            UiCtrl *nm = ui_find(&sav_d, key);
+            const SaveHead *h = sav_head[k];
+            t[0] = 0;
+            if (k < 2) ui_text(2130 + k, t, sizeof t);
+            if (h) {
+                char u[96];
+                gbk_utf8(h->name[0] ? h->name : h->alias, u, sizeof u);
+                snprintf(t + strlen(t), sizeof t - strlen(t), "%s%s", t[0] ? " " : "", u);
+            }
+            if (nm && t[0]) draw_text(ox + nm->x, oy + nm->y + 5, t, nm->w, 0xBECDCE, 1);
+            snprintf(key, sizeof key, "m_pTime%d", i + 1);
+            UiCtrl *tm = ui_find(&sav_d, key);
+            if (tm && h) {
+                time_t tt = (time_t)h->time;
+                struct tm *lt = localtime(&tt);
+                strftime(t, sizeof t, "%Y-%m-%d %H:%M", lt);
+                draw_text(ox + tm->x, oy + tm->y + 5, t, tm->w, 0xBECDCE, 1);
+            }
+        }
+        UiCtrl *pg = ui_find(&sav_d, "m_pPageNum");
+        if (pg) {
+            char t[32];
+            snprintf(t, sizeof t, "%d / %d", sav_page + 1, sav_pages());
+            draw_text(ox + pg->x + (pg->w - text_width(t)) / 2, oy + pg->y + 5, t, pg->w, 0xBECDCE, 1);
+        }
+    }
+    if (ask_open) {
+        int ox, oy;
+        ask_pos(&ox, &oy);
+        ui_draw(&ask_d, ox, oy);
+        char t[128];
+        ui_text(ask_open == 2 ? 1534 : 1535, t, sizeof t);  // 存盘将被删除／覆盖，确定吗？
+        draw_text(ox + (ask_d.w - text_width(t)) / 2, oy + 36, t, ask_d.w, 0xBECDCE, 1);
+        for (int b = 0; b < 2; b++) {
+            const Sprite *s = ui_image(b ? 1522 : 1526, 0);
+            if (s) draw(s, ox + (b ? ask_d.w * 3 / 4 : ask_d.w / 4) - s->w / 2, oy + ask_d.h - 44);
+        }
+    }
+    if (quit_open) ui_draw(&quit_d, (vw - quit_d.w) / 2, (vh - quit_d.h) / 2);
+}
+
 // 多行文字框（種類 3）的捲軸：ini 第 10~13 欄是軌道、上箭頭、下箭頭、滑塊的圖。字超過框高才有捲軸。
 // shortcut: 捲軸位置照常見做法（框內右緣、箭頭在上下兩端），還沒對原版 UIWndEx.dll；只有箭頭能點，拖滑塊還沒做
 static int info_top;  // 人物屬性 m_pInfo 捲到第幾行
@@ -2632,6 +2970,7 @@ static int in_rect(const SDL_Rect *r, int x, int y) { return x >= r->x && x < r-
 
 // 介面吃掉的點擊回 1（不再拿去走路、打怪）。shortcut: 主列只有按鈕吃點擊，主列底圖空白處還是會走路
 static int hud_tap(int x, int y) {
+    if (sys_tap(x, y)) return 1;
     if (pick_hand >= 0) {  // 快捷技能視窗開著：點格子換技能；點哪裡都收起來
         int px, py;
         pick_pos(&px, &py);
@@ -3016,6 +3355,7 @@ static void hud_draw(const Actor *hero) {
         SDL_RenderFillRect(ren, &r);
         draw_text((vw - tw) / 2, 59, toast, tw + 1, 0xFFE080, 1);
     }
+    sys_draw();
     if (pick_hand >= 0) {
         int px, py;
         pick_pos(&px, &py);
@@ -3217,6 +3557,7 @@ int main(int argc, char **argv) {
         else scn = argv[i];
     }
     res_init(game);
+    save_mount();
 #ifdef STORY
     story_register_all();
     if (pos < 2 && story_start_room()) scn = story_start_room();  // 沒指定場景 = 新遊戲，從原版的開場房間開始
@@ -3297,7 +3638,11 @@ int main(int argc, char **argv) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) running = 0;
-            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) running = 0;
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) sys_toggle();  // 原版 Esc 開系統選單
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F9) {  // F9 快速存盘（UI_C 2620）
+                if (hero->fight > 0) ui_say(1507);
+                else { snap_due = 1; save_due = 1; }
+            }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_f)
                 SDL_SetWindowFullscreen(win, SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
             // 滑鼠與觸控（SDL 預設會把觸控也送成滑鼠事件）：按住就一直往指的地方走
@@ -3341,6 +3686,35 @@ int main(int argc, char **argv) {
         }
         if (pad && SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_BACK) && SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_START))
             running = 0;
+        if (quit_due) {  // shortcut: 還沒有標題畫面，退出 = 網頁重新整理（新遊戲）、電腦版關掉
+#ifdef __EMSCRIPTEN__
+            page_reload();
+#endif
+            running = 0;
+        }
+        if (load_due >= 0) {
+            static SaveHead h;
+            if (save_read(load_due, &h)) {
+                float x = hero->x, y = hero->y;
+                int dir = hero->dir, lv = hero->level, exp = hero->exp, hp = hero->hp, mp = hero->mp;
+                js_status(-1);
+                if (enter_scene(&scene, hero, h.alias, -1)) snprintf(alias, sizeof alias, "%s", h.alias);
+                hero->x = x; hero->y = y; hero->dir = dir;
+                hero->foe = NULL; hero->want = NULL; hero->cast = NULL; hero->casting = 0; hero->act = ACT_NONE;
+                hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->stun = hero->dash = hero->z = 0;
+                hero_stats(hero, lv);
+                hero->exp = exp; hero->hp = hp; hero->mp = mp;
+                hero_skill_apply(hero);
+                room = world_tried ? world_find(&world, alias) : -1;
+                monsters_due = 1;
+                armed = 0;
+                pointer_down = 0;
+                scene_music(alias, music, sizeof music);
+                audio_music(music);
+                hud_say("\xe6\xb8\xb8\xe6\x88\x8f\xe8\xbf\x9b\xe5\xba\xa6\xe8\xaf\xbb\xe5\x8f\x96\xe6\x88\x90\xe5\x8a\x9f");  // 游戏进度读取成功（EasyRPG_C 7054，拿掉顏色標記）
+            } else hud_say("\xe8\xaf\xbb\xe5\x8f\x96\xe5\xa4\xb1\xe8\xb4\xa5");  // shortcut: 自訂「读取失败」
+            load_due = -1;
+        }
 
         Uint64 now = SDL_GetPerformanceCounter();
 
@@ -3413,6 +3787,8 @@ int main(int argc, char **argv) {
                         scene_music(world.rooms[room].alias, music, sizeof music);
                         audio_music(music);
                         printf("進入 %s\n", world.rooms[room].alias);
+                        snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）。shortcut: 原版只在「大場景」之間存，這裡每個出口都存
+                        save_due = 0;
                     }
                     armed = 0;
                     break;
@@ -3493,6 +3869,14 @@ int main(int argc, char **argv) {
             if (a && a->count)
                 draw_frame(a, a->count >= 16 ? missile[i].dir % 16 : 0, frame_at(&a->seqs[a->count >= 16 ? missile[i].dir % 16 : 0], tick - missile[i].start),
                            (int)((missile[i].x - missile[i].y + scene.h - 1) * TILE_W / 2) - ox, (int)((missile[i].x + missile[i].y) * TILE_H / 2) - oy, 0);
+        }
+        if (snap_due) { snap_take(canvas); snap_due = 0; }
+        if (save_due >= 0) {
+            snprintf(save_alias, sizeof save_alias, "%s", alias);
+            snprintf(save_name, sizeof save_name, "%s", room >= 0 ? world.rooms[room].name : "");
+            int ok = save_write(save_due);
+            if (save_due) hud_say(ok ? "\xe6\xb8\xb8\xe6\x88\x8f\xe8\xbf\x9b\xe5\xba\xa6\xe5\xb7\xb2\xe4\xbf\x9d\xe5\xad\x98" : "\xe4\xbf\x9d\xe5\xad\x98\xe5\xa4\xb1\xe8\xb4\xa5");  // shortcut: 原版存好的提示沒找到，自訂「游戏进度已保存」「保存失败」
+            save_due = -1;
         }
         hud_draw(hero);
 #ifdef STORY

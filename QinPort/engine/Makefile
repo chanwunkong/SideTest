@@ -35,7 +35,7 @@ storytest: src/story/storytest.c src/story/story_rt.c src/story/story.h build/st
 # 有 ../story（tools/storytool.py 產生）就把原版劇情編進去（-DSTORY）；劇情只在 32 位元下才對，所以只有網頁版有
 WEB_STORY = $(if $(wildcard ../story/index.txt),-DSTORY -Isrc/story src/story/story_rt.c build/story-wasm.a)
 web: src/main.c src/res.c src/res.h src/audio.c src/audio.h ../web/shell.html $(if $(WEB_STORY),build/story-wasm.a src/story/story_rt.c)
-	emcc -O2 -sUSE_SDL=2 -sASYNCIFY -sALLOW_MEMORY_GROWTH -sFORCE_FILESYSTEM -sEXPORTED_RUNTIME_METHODS=FS \
+	emcc -O2 -sUSE_SDL=2 -sASYNCIFY -sALLOW_MEMORY_GROWTH -sFORCE_FILESYSTEM -sEXPORTED_RUNTIME_METHODS=FS -lidbfs.js \
 		-sEXPORTED_FUNCTIONS=_main,_malloc,_free \
 		--shell-file ../web/shell.html -o ../web/index.html src/main.c src/res.c src/audio.c $(WEB_STORY)
 

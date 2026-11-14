@@ -350,5 +350,14 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - **劇情看得到 inv（2026-11-14）**：Item.sh = 劇情那邊的道具物件。story_begin 把 inv 每件放回主角物件身上（held：物件留著給 find_item／find_in_bag 找別名、move_object 0x1004bcf0 拿走），story_end 把被拿走的從 inv 移除（道具跟著物件走）、新給的收進 inv。item_new 照原版把物件別名設成道具表別名（劇情再 set_alias 會蓋掉；所以萍儿找 "fachai" 找不到改名成 fachaiyaoshi 的发钗，原版就是這樣）。add_exp 0x1003d270 → hero_gain_exp，quest_log 0x1004dd00 → hud_say。storytest 可帶 `give=物件路徑`、`flag=旗標=值`。
 - **打造、镶嵌（2026-11-14）**：交易介面的 m_pMake／m_pEnchase 開 JM56_打造界面（Poq CMakePropDialog 0x540230，模式 −1 打造、1 镶嵌）。配方 = `ObjMdl/MakeMdl.txt`（XOR）：类别、物品類型、木矿骨皮筋件數、主材、文字ID（UI_C.dlg）。打造規則 EasyRPG produce 0x10051530（NPC：等級 = UIS_Produce、錢 = 材料 ValueUn 總和；材料特性合併後加到 item_new 的產品上，價格 ×1.2）；镶嵌 addgem 0x10037690（武器去防禦類、防具去攻擊類特性，價格 + 寶石價 ×1.5，SlotMax 上限）、拆除 removegem 0x10053a40（寶石毀掉）。Item 多了 gem_n/gem_icon/gem_value，ItemFx.gem 記是哪顆寶石的。測試網址可加 `item=類型,等級`（可多個）、`money=N`。沒做：自己用技能打造、五行換算 0x10058900、m_pMakerInfo。
 - **寄存（2026-11-14）**：商人選項叫 0x1004ec80 → 0x61b → JM73_寄存界面（40 格）在左、道具在右。全國共用一個寄存箱（main.c `store[40]`）。原版寄存道具存在哪還沒查。
-- **還沒做**：成套武装（JM55 的 m_pCombo「weaponset #主角 null 各件」、m_Asunder「weaponset #主角 #套裝」；EasyRPG 0x1001eaa0 把身上的裝備移進一件「秦殇/道具/成套武装」，套裝放 UI_Pos 40 = 第 11 個裝備欄，裡面的道具保留原本的 UI_Pos。穿脫套裝 0x1004cc5c 那段把 30~40 都當裝備欄，套裝內的道具怎麼算數值還沒查）、存檔（寄存箱也要存）。待查：原版說明文字（0x100279b0）、can_eat 設在哪、拖放規則、地上道具畫法、超重效果、箭的消耗、系統訊息字串表。
+- **還沒做**：成套武装（JM55 的 m_pCombo「weaponset #主角 null 各件」、m_Asunder「weaponset #主角 #套裝」；EasyRPG 0x1001eaa0 把身上的裝備移進一件「秦殇/道具/成套武装」，套裝放 UI_Pos 40 = 第 11 個裝備欄，裡面的道具保留原本的 UI_Pos。穿脫套裝 0x1004cc5c 那段把 30~40 都當裝備欄，套裝內的道具怎麼算數值還沒查）。待查：原版說明文字（0x100279b0）、can_eat 設在哪、拖放規則、地上道具畫法、超重效果、箭的消耗、系統訊息字串表。
 
+
+## 存檔（原版 JM50_内部主界面 → JM62_存取盘界面）
+
+- 主列 m_pSystem 或 Esc 開系統選單（JM50）：保存、读取 → JM62；返回游戏、关闭；退出 → JM102 確認（還沒有標題畫面：網頁重新整理、電腦版關掉）。设置、帮助還沒做。
+- JM62（Poq.exe CLoadDialog 0x56c400，畫 0x56ce20，換頁 0x56cce0）：一頁 6 格、最多 16 頁，m_pTitle 第 0 幀保存、第 1 幀读取，m_pScene 的「秦殇」圖是空格、有檔換成縮圖（開系統選單時截圖，原版 0x535ec0 也是先截）。第 0 頁前兩格 = 自动存盘（每次走出口存，原版只在大場景之間）、快速存盘（F9）。覆蓋問 UI_C 1535、刪除問 1534（JM67 底圖 + 借 JM102 是／否）；战斗中不能存 1507、打造視窗開著不能存 1533。
+- 檔案是自己的格式（原版是整個 EasyRPG 世界序列化）：SaveHead（場景別名、房間名、時間、等級、128×96 縮圖）+ SaveHero（位置、等級、經驗、HP/MP、六屬性、點數、錢、職業、兩手技能、技能等級）+ inv + store + story_save（所有劇情物件依代號順序：類別路徑、名稱、別名、parent、held、ints/flags/strs、道具整塊）。網頁版放 IndexedDB（IDBFS 掛 /save，存完 syncfs），電腦版 ./save/。
+- 讀檔在主迴圈做（load_due）：換掉主角、背包、劇情 → 進存檔的場景 → 放回位置、數值 → 重找房間、重放怪物。
+- 沒存的：地上的道具、狀態（buff）、各場景怪物的狀態、每格的隊伍頭像（ResID1~5）。
+- 已測（網頁）：保存、重新整理後清單還在、讀回位置、錢、背包；快速存盘。沒測：刪除、覆蓋確認、自动存盘、劇情任務進度讀回後的對話。
