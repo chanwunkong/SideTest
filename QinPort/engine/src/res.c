@@ -1160,6 +1160,11 @@ int mondefs_load(void) {
             m->djhf = COL(10); m->jswl = COL(11); m->jsmf = COL(12);
             for (int k = 0; k < 7; k++) m->immu[k] = COL(13 + k);
             m->istrap = COL(20); m->regen = COL(21);
+            // 第 39、40 欄最小／最大道具随机数，41 起五組（类型、概率）；空白 = −1（原版空格子都當 −1）
+#define F(i) ((i) < c && *col[i] ? (float)atof(col[i]) : -1.f)
+            m->drop_min = F(39); m->drop_max = F(40);
+            for (int k = 0; k < 5; k++) { m->drop[k][0] = F(41 + 2 * k); m->drop[k][1] = F(42 + 2 * k); }
+#undef F
 #undef COL
 #undef STAT
         }
@@ -1399,39 +1404,283 @@ int skill_rows_file(const char *name, SkillRow *out, int max) {
     return k;
 }
 
-// ---- 道具表 ----
-int item_find(int type, int row, Item *out) {
-    char name[32];
+// ---- 道具（EasyRPG.dll 0x10070360）----
+// 原版 Excel 表（0x10078170 等）：每列切成字串，空格子是同一個空字串（&DAT_104ba410），數字讀成 −1
+typedef struct { int rows, cols; char **cell; uint8_t *text; } Tab;
+
+static int tab_load(Tab *t, const char *name, int skip) {
     size_t n;
-    snprintf(name, sizeof name, "item_%d.txt", type);
     uint8_t *d = res_file("Data", name, &n);
+    memset(t, 0, sizeof *t);
     if (!d) return 0;
-    res_unxor(d, n);
-    int found = 0, line_no = 0;
-    for (char *line = strtok((char *)d, "\r\n"); line && !found; line = strtok(NULL, "\r\n"), line_no++) {
-        if (line_no < 2) continue;  // 分類列、欄名列
-        char *col[38] = {0};
-        int c = 0;
-        for (char *p = line; c < 38; c++) {
-            col[c] = p;
-            char *t = strchr(p, '\t');
-            if (!t) { c++; break; }
-            *t = 0;
-            p = t + 1;
+    n = res_unxor(d, n);
+    d[n] = 0;
+    t->text = d;
+    int cap = 0, line_no = 0;
+    for (char *line = (char *)d, *next; line && *line; line = next, line_no++) {
+        next = strpbrk(line, "\r\n");
+        if (next) { *next++ = 0; while (*next == '\r' || *next == '\n') next++; }
+        if (line_no < skip) continue;
+        int c = 1;
+        for (char *p = line; (p = strchr(p, '\t')); p++) c++;
+        if (c > t->cols) t->cols = c;
+        if (t->rows == cap) t->cell = realloc(t->cell, (cap = cap ? cap * 2 : 64) * 96 * sizeof(char *));
+        char **row = &t->cell[t->rows++ * 96];
+        for (int k = 0; k < 96; k++) row[k] = "";
+        for (int k = 0; k < 96 && line; k++) {
+            row[k] = line;
+            line = strchr(line, '\t');
+            if (line) *line++ = 0;
         }
-        if (c < 17 || atoi(col[0]) != row) continue;
-        memset(out, 0, sizeof *out);
-        snprintf(out->name, sizeof out->name, "%s", col[1]);
-        out->ap = atoi(col[13]);
-        out->ap_max = atoi(col[14]);
-        out->dp_min = atoi(col[15]);
-        out->dp_max = atoi(col[16]);
-        out->icon = c > 31 && *col[31] && atoi(col[31]) >= 0 ? atoi(col[31]) : 0xfeb;
-        for (int k = 0; k < 5 && 33 + k < c; k++) snprintf(out->equip[k], sizeof out->equip[k], "%s", col[33 + k]);
-        found = 1;
     }
-    free(d);
-    return found;
+    return 1;
+}
+static const char *tab_s(const Tab *t, int r, int c) { return r >= 0 && r < t->rows && c >= 0 && c < 96 ? t->cell[r * 96 + c] : ""; }
+static int tab_i(const Tab *t, int r, int c) { const char *v = tab_s(t, r, c); return *v ? atoi(v) : -1; }
+static float tab_f(const Tab *t, int r, int c) { const char *v = tab_s(t, r, c); return *v ? (float)atof(v) : -1.f; }
+static int rnd(int n) { return n < 2 ? 0 : rand() % n; }  // 0x10052a00
+
+// 道具表的類型（.data 0x103a0ae0，41 個）；表格內 0 级别、1 名称、2 别名、3 道具类型、4 文字介绍ID、5 基准价格、6 重量、7 速度、8 唯一、
+// 9~12 等级/力量/敏捷/体质限制、13/14 攻击力小大、15/16 防御力小大、17/18 耐久度小大、19/20 最小/最大特性数、21~30 固定抽取特性与概率、
+// 31 道具栏图片ID、32 地面图片ID、33~37 各職業裝備串、38 名称ID、39 五行属性、40/41 五行攻击、42/43 五行防御、44 相生特性、
+// 45 镶嵌宝石数量、46/47 五行出現機率（第一次中 = 連相生特性一起）
+static const int ITEM_TYPES[41] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                   21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 49, 50, 51, 52, 60, 61};
+static Tab item_tab[41], attr_tab, slevel_i, slevel_t;
+static int items_loaded;
+
+int item_tables_load(void) {
+    if (items_loaded) return 1;
+    char names[44][24];
+    const char *list[44];
+    for (int i = 0; i < 41; i++) snprintf(names[i], sizeof names[i], "item_%d.txt", ITEM_TYPES[i]);
+    snprintf(names[41], 24, "attribT.txt");
+    snprintf(names[42], 24, "SLevel_i.txt");
+    snprintf(names[43], 24, "SLevel_t.txt");
+    for (int i = 0; i < 44; i++) list[i] = names[i];
+    res_preload("Data", list, 44);
+    for (int i = 0; i < 41; i++) tab_load(&item_tab[i], names[i], 2);  // 分類列、欄名列
+    tab_load(&attr_tab, names[41], 1);
+    tab_load(&slevel_i, names[42], 0);  // 第 0 列是「ratio% 1 2 …」，第 1~9 列 = 等級
+    tab_load(&slevel_t, names[43], 0);
+    return items_loaded = 1;
+}
+
+// 依機率表（SLevel 的某一欄，第 1~9 列是百分比，×10 成千分之）抽等級（0x1006e3f0、0x10070360 開頭）；都沒中回 none
+static int slevel_pick(const Tab *t, int col, int none) {
+    float sum = 0;
+    int r = rnd(1000);
+    for (int lv = 1; lv < 10; lv++) {
+        sum += tab_f(t, lv, col) * 10;
+        if (r < sum) return lv;
+    }
+    return none;
+}
+
+// 掉寶類型的權重（.data 0x103a0d58，依道具表類型）
+static const int TYPE_WEIGHT[62] = {3, 1, 2, 0, 0, 0, 0, 4, 5, 4, 5, 5, 3, 8, 4, 5, 7, 7, 3, 3, 3, 4, 3, 4, 4, 9, 12, 5, 5, 4, 6,
+                                    5, 5, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 15, 0};
+static int pick_weighted(const int *list, int n) {  // 0x1007a930
+    int sum = 0;
+    for (int i = 0; i < n; i++) sum += TYPE_WEIGHT[list[i]];
+    if (!sum) return list[rnd(n)];
+    int r = rnd(sum);
+    for (int i = 0; i < n; i++) {
+        if (r < TYPE_WEIGHT[list[i]]) return list[i];
+        r -= TYPE_WEIGHT[list[i]];
+    }
+    return -1;
+}
+
+int item_type_pick(int type) {
+    static const int any[46] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+                                17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 49, 50, 51, 52, 60};
+    static const int g100[7] = {0, 1, 2, 3, 4, 5, 6}, g101[28] = {7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                                                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34};
+    static const int g103[4] = {3, 4, 5, 6}, g201[4] = {7, 8, 9, 10}, g202[4] = {11, 12, 13, 14}, g203[3] = {15, 16, 17},
+                     g204[3] = {18, 19, 20}, g205[4] = {21, 22, 23, 24}, g206[5] = {25, 26, 27, 33, 34}, g207[5] = {28, 29, 30, 31, 32};
+    if (type >= 0 && type < 100) return type;
+    switch (type) {
+    case 100: return pick_weighted(g100, 7);
+    case 101: return pick_weighted(g101, 28);
+    case 103: return pick_weighted(g103, 4);
+    case 201: return pick_weighted(g201, 4);
+    case 202: return pick_weighted(g202, 4);
+    case 203: return pick_weighted(g203, 3);
+    case 204: return pick_weighted(g204, 3);
+    case 205: return pick_weighted(g205, 4);
+    case 206: return pick_weighted(g206, 5);
+    case 207: return pick_weighted(g207, 5);
+    case 999: return pick_weighted(any, 46);
+    }
+    if (type >= 1001 && type <= 1009) return 3;  // 獸骨、皮、筋、肉
+    if (type >= 1010 && type <= 1018) return 4;
+    if (type >= 1019 && type <= 1027) return 5;
+    if (type >= 1028 && type <= 1036) return 6;
+    if (type >= 1101 && type <= 1119) return 52;
+    return -1;
+}
+
+static void fx_add(Item *it, int id, int pct, int on, int kind, float v) {
+    if (it->fx_n < 32) it->fx[it->fx_n++] = (ItemFx){id, pct, on, kind, v};
+}
+
+// 一個特性名（attribT 第 0 欄）加到道具上（0x1006e4c0；相生特性 0x1006e880 同式但效果先不生效、種類 2）。
+// T 開頭 = 單一屬性，U 開頭 = 組合（子属性1~5 各用 SLevel_t 再抽一次等級）。lv = 這次的等級，col = SLevel 欄
+static void attr_apply(Item *it, const char *name, int lv, int col, int kind, int *req, int *price) {
+    int r = -1;
+    for (int i = 0; i < attr_tab.rows; i++)
+        if (!strcmp(tab_s(&attr_tab, i, 0), name)) { r = i; break; }
+    if (r < 0) { fprintf(stderr, "Attributes not found <%s>\n", name); return; }
+    int vl = lv < 11 ? lv : 9, L = tab_i(&attr_tab, r, 1);
+    if (L <= lv) L = lv;
+    if (tab_i(&attr_tab, r, 3) > 0 && L * 4 - 3 > *req) *req = L * 4 - 3;  // 是否影响等级限制
+    else L = 1;
+    if (tab_i(&attr_tab, r, 51) > 0) *price += tab_i(&attr_tab, r, 51) * L;  // 价格修正率
+    if (vl > 10) vl = 9;
+    int id = tab_i(&attr_tab, r, 31), pct = tab_i(&attr_tab, r, 32);
+    int lo = tab_i(&attr_tab, r, 31 + 2 * vl), hi = tab_i(&attr_tab, r, 32 + 2 * vl), v = rnd(hi - lo + 1) + lo;
+    int k = kind;
+    if (kind != 2 && tab_i(&attr_tab, r, 65) > 0) { k = 3; it->identify = 0; }  // 是否为金色属性：要鑑定
+    if (name[0] == 'T') {
+        if (id == 40) it->amount = v;          // 金錢數量
+        else if (id == 294) it->arrows = v;    // 箭數
+        else if (id >= 0) fx_add(it, id, pct, kind != 2, k, (float)v);
+    } else if (name[0] == 'U') {
+        int sub = slevel_pick(&slevel_t, col, 10);
+        for (int s = 0; s < 5; s++)
+            if (*tab_s(&attr_tab, r, 52 + s)) attr_apply(it, tab_s(&attr_tab, r, 52 + s), sub, col, kind, req, price);
+    }
+}
+
+// 道具部位（0x10070360 的 Part 表，依道具表序號）：1 头盔、2 盔甲、3 單手武器、4 盾、5 护腕、6 靴子、7 戒指、8 项链、10 雙手、11 腰带
+static const int ITEM_PART[41] = {-1, -1, -1, -1, -1, -1, -1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 10, 10, 10, 10, 10,
+                                  3, 3, 3, 3, 1, 2, 4, 6, 8, 7, 5, 11, 1, 2, -1, -1, -1, -1, -1, -1};
+
+int item_new(Item *it, int type, int level, int col, const char *alias) {
+    item_tables_load();
+    memset(it, 0, sizeof *it);
+    it->pos = -1;
+    it->identify = 1;
+    if (level < 0) level = slevel_pick(&slevel_i, col, col);  // 隨機等級：SLevel_i 第 col 欄
+    else if (col < 0) col = level;
+    if (level > 10) level = 9;
+    if (col > 10) col = 9;
+    int lv_col = col >= 0 ? col : level;  // 抽特性用的 SLevel 欄（原版 local_98c）
+    int t = item_type_pick(type), ti = -1;
+    for (int i = 0; i < 41; i++)
+        if (ITEM_TYPES[i] == t) ti = i;
+    if (ti < 0) return 0;
+    const Tab *tb = &item_tab[ti];
+    int cand[64], n = 0;
+    for (int i = 0; alias && *alias && i < tb->rows && n < 64; i++)  // 别名開頭相符（0x100777c0）
+        if (*tab_s(tb, i, 2) && strstr(tab_s(tb, i, 2), alias) == tab_s(tb, i, 2)) cand[n++] = i;
+    while (!n) {
+        if (type >= 1000)
+            for (int i = 0; i < tb->rows && n < 64; i++) { if (tab_i(tb, i, 3) == type) cand[n++] = i; }
+        else
+            for (int L = level; L > 0 && !n; L--)
+                for (int i = 0; i < tb->rows && n < 64; i++)
+                    if (tab_i(tb, i, 0) == L) cand[n++] = i;
+        int keep = 0;  // 唯一（Y）的不隨機掉
+        for (int i = 0; i < n; i++)
+            if (tab_s(tb, cand[i], 8)[0] != 'Y' && tab_s(tb, cand[i], 8)[0] != 'y') cand[keep++] = cand[i];
+        n = keep;
+        if (!n) {
+            if (level < 2 || type >= 1000) { fprintf(stderr, "Item attributes not found <%d:%d>\n", type, level); return 0; }
+            level--;
+        }
+    }
+    int r = cand[rnd(n)];
+    it->type = t;
+    it->level = tab_i(tb, r, 0);
+    char nm[64] = "";
+    if (!res_dlg("name_C.dlg", tab_i(tb, r, 38), nm, sizeof nm)) snprintf(nm, sizeof nm, "%s", tab_s(tb, r, 1));
+    snprintf(it->name, sizeof it->name, "%s", nm);
+    snprintf(it->alias, sizeof it->alias, "%s", tab_s(tb, r, 2));
+    int ty = tab_i(tb, r, 3);
+    it->type = ty < 0 ? -1 : ty > 1000 ? t : ty == 6 ? 51 : ty;  // 狗肉等（類型 6）當食物 51
+    it->info = tab_i(tb, r, 4);
+#define NN(c) (tab_i(tb, r, c) > 0 ? tab_i(tb, r, c) : 0)
+    it->value = NN(5);
+    it->weight = NN(6);
+    it->lv_req = NN(9);
+    it->str_req = NN(10);
+    it->dex_req = NN(11);
+    it->con_req = NN(12);
+    float lo = tab_f(tb, r, 13), hi = tab_f(tb, r, 14);
+    if (lo >= 0 && hi >= 0) {  // 攻擊力：小在下半段、大在上半段
+        int span = (int)((hi - lo) * 0.5f + 1);
+        fx_add(it, 41, 0, 1, 0, (float)rnd(span) + lo);
+        fx_add(it, 42, 0, 1, 0, hi - (float)rnd(span));
+    }
+    lo = tab_f(tb, r, 15), hi = tab_f(tb, r, 16);
+    if (lo >= 0 && hi >= 0) fx_add(it, 53, 0, 1, 0, (float)rnd((int)(hi - lo + 1)) + lo);
+    lo = tab_f(tb, r, 17), hi = tab_f(tb, r, 18);
+    it->hp = it->hp_max = (int)((float)rnd((int)(hi - lo + 1)) + lo);
+    it->icon = tab_i(tb, r, 31) >= 0 ? tab_i(tb, r, 31) : 0xfeb;
+    it->ground = tab_i(tb, r, 32) >= 0 ? tab_i(tb, r, 32) : 0x897;
+    for (int k = 0; k < 5; k++) snprintf(it->equip[k], sizeof it->equip[k], "%s", tab_s(tb, r, 33 + k));
+    it->part = ITEM_PART[ti];
+    // 五行：第一次機率中 = 五行 + 相生特性，第二次中 = 只有五行
+    int xs = 0, five = rnd(100) < tab_i(tb, r, 46) ? (xs = 1) : rnd(100) < tab_i(tb, r, 47);
+    if (five) {
+        it->fe = tab_i(tb, r, 39);
+        lo = tab_f(tb, r, 40), hi = tab_f(tb, r, 41);
+        if (lo >= 0 && hi >= 0 && it->fe >= 1 && it->fe <= 5) {
+            int span = (int)((hi - lo) * 0.5f + 1);
+            fx_add(it, 41 + 2 * it->fe, 0, 1, 1, (float)rnd(span) + lo);
+            fx_add(it, 42 + 2 * it->fe, 0, 1, 1, hi - (float)rnd(span));
+        }
+        lo = tab_f(tb, r, 42), hi = tab_f(tb, r, 43);
+        if (lo >= 0 && hi >= 0 && it->fe >= 1 && it->fe <= 5) fx_add(it, 53 + it->fe, 0, 1, 1, (float)rnd((int)(hi - lo + 1)) + lo);
+    }
+    // 固定抽取特性：從第 1 種（沒中相生的從第 2 種）起累加機率×100，萬分之一擲一次
+    char names[24][40];
+    int nn = 0;
+    float sum = 0;
+    int roll = rnd(10000);
+    for (int u = !xs; u < 5; u++) {
+        sum += tab_f(tb, r, 22 + 2 * u) * 100;
+        if (roll < sum) {
+            if (*tab_s(tb, r, 21 + 2 * u)) snprintf(names[nn++], 40, "%s", tab_s(tb, r, 21 + 2 * u));
+            break;
+        }
+    }
+    int req = it->lv_req, price = 0;
+    for (int i = 0; i < nn; i++) attr_apply(it, names[i], slevel_pick(&slevel_t, lv_col, 10), lv_col, 0, &req, &price);
+    // 隨機特性（裝備類）：次數在最小～最大特性数之間，每次三分之一機會依抽取几率挑一個（attribT 該類型欄 > 0、属性等级 ≤ 欄），不重複
+    nn = 0;
+    if (ti < 35) {
+        int cnt = rnd(tab_i(tb, r, 20) - tab_i(tb, r, 19) + 1) + tab_i(tb, r, 19);
+        int acol = ti <= 3 ? 57 + ti : ti == 4 ? 61 : ti == 5 ? 62 : ti == 6 ? -1 : ti <= 32 ? ti - 2 : ti == 33 ? 63 : 64;
+        int pool[512], w[512], pn = 0, total = 0;
+        for (int i = 0; acol >= 0 && i < attr_tab.rows && pn < 512; i++)
+            if (tab_i(&attr_tab, i, acol) > 0 && tab_i(&attr_tab, i, 1) <= lv_col) {
+                pool[pn] = i;
+                total += w[pn++] = tab_i(&attr_tab, i, 2);
+            }
+        for (int k = 0; k < cnt && nn < 24; k++) {
+            if (rnd(3)) continue;
+            int x = rnd(total), acc = 0, pick = -1;
+            for (int i = 0; i < pn; i++)
+                if (x < (acc += w[i])) { pick = pool[i]; break; }
+            if (pick < 0) continue;
+            int dup = 0;
+            for (int i = 0; i < nn; i++) dup |= !strcmp(names[i], tab_s(&attr_tab, pick, 0));
+            if (!dup) snprintf(names[nn++], 40, "%s", tab_s(&attr_tab, pick, 0));
+        }
+    }
+    if (nn > 2) it->identify = 0;  // 三個以上的特性要鑑定
+    for (int i = 0; i < nn; i++) attr_apply(it, names[i], slevel_pick(&slevel_t, lv_col, 10), lv_col, 0, &req, &price);
+    if (xs && *tab_s(tb, r, 44)) attr_apply(it, tab_s(tb, r, 44), lv_col, lv_col, 2, &req, &price);
+    it->slot_max = NN(45);
+    fx_add(it, 65, 0, 1, 0, (float)(tab_i(tb, r, 7) != -1 ? tab_i(tb, r, 7) : 0));  // 速度 → B_C_FIGHT_SPEED
+#undef NN
+    if (it->lv_req < req) it->lv_req = req;
+    it->value_un = it->value;
+    it->value = (price + 100) * it->value / 100;
+    return 1;
 }
 
 void styles_equip(char *styles, size_t n, const char *graphic, int pli_no, const char *equip) {

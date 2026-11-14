@@ -230,6 +230,55 @@ int main(void) {
     h0 = t.hp;
     for (int i = 0; i < 20 && t.hp == h0; i++) strike(&a, &t, NULL, 0);
     assert(h0 - t.hp == 10);
+    // 道具：開局的青銅彎刀（item_8、別名 qingtongwandao1）是單手武器，攻擊力小 ≤ 大
+    Item it;
+    assert(item_new(&it, 8, 1, -1, "qingtongwandao1") && it.type == 8 && it.part == 3 && it.identify);
+    float lo = -1, hi = -1;
+    for (int i = 0; i < it.fx_n; i++) { if (it.fx[i].id == 41) lo = it.fx[i].v; if (it.fx[i].id == 42) hi = it.fx[i].v; }
+    assert(lo > 0 && lo <= hi);
+    // 隨機掉寶不會失敗到怪類型，等級在 1~9
+    for (int i = 0; i < 300; i++) {
+        Item r;
+        if (item_new(&r, 999, -1, 1 + i % 9, NULL)) assert(r.level >= 1 && r.level <= 10 && r.name[0]);
+    }
+    // 穿上：AP 來自武器 × 力量倍率；脫下回 0
+    Actor h;
+    memset(&h, 0, sizeof h);
+    h.level = 1;
+    inv[3] = it;
+    inv[3].pos = 3;
+    item_equip(&h, 3);
+    assert(inv[32].name[0] && !inv[3].name[0]);
+    assert(h.ap == (int)lo * (hero_attr[STR] + 150) / 150);
+    assert(item_unequip(&h, 32) && h.ap == 0 && inv[0].name[0]);
+    // 耐久：每 40 次 HitPoint 扣 1
+    item_equip(&h, 0);
+    int dur = inv[32].hp;
+    for (int i = 0; i < 40; i++) item_wear(&h, 32);
+    assert(inv[32].hp == dur - 1 && inv[32].hit == 0);
+    // 等級不夠穿不上
+    Item big;
+    assert(item_new(&big, 26, 9, -1, NULL));
+    if (big.lv_req > 1) { inv[5] = big; item_equip(&h, 5); assert(inv[5].name[0]); inv[5].name[0] = 0; }
+    // 吃麦饼回生命，吃完道具消失
+    Item food;
+    assert(item_new(&food, 51, 1, -1, "maibing") && food.type == 51);
+    inv[6] = food;
+    h.hp = 1;
+    assert(item_eat(&h, 6) && !inv[6].name[0]);
+    // 怪物掉寶：必掉 3 件金錢（類型 60）
+    MonDef dm = md;
+    dm.drop_min = dm.drop_max = 3;
+    dm.drop[0][0] = 60; dm.drop[0][1] = 100;
+    Actor m;
+    mk(&m);
+    m.mon = &dm;
+    ground_n = 0;
+    mon_loot(&m);
+    assert(ground_n == 3 && ground[0].it.type == 60);
+    int money = hero_money;
+    ground_pick(0);
+    assert(hero_money > money && ground_n == 2);
     puts("skilltest ok");
     return 0;
 }

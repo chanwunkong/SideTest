@@ -543,16 +543,19 @@ static void start_act(Actor *a, int act, int seq) {
 // → HP_MAX = 120 + 28×等級、MP_MAX（精氣）= 140 + 4×等級
 // 職業倍率（0x1002d510，遊俠 K = 150）：AP、AP_MAX = 基礎 × (Str+K)/K；DP = 基礎 × (Con+K)/K；
 // HR（閃避）= (基礎 + 3×Dex) × (Dex+K)/K；SR（命中）= (基礎 + 4×Dex) × (Dex+K)/K
-// 基礎 AP 來自武器、DP 來自護甲（模板給的扶苏武器 = item_8 第 1 列青銅彎刀、布衣 = item_26 第 1 列）；HR/SR 基礎 0
-// shortcut: 道具的隨機特性、升級加點、其他部位的裝備還沒做
-static Item hero_weapon, hero_armor;
-static int hero_armor_dp;  // 護甲防禦在「防御力小～大」之間，道具產生時決定
+// 基礎 AP、DP、HR、SR 都是 0，全靠身上裝備的特性（劇情開場給扶苏 青銅彎刀 qingtongwandao1、布衣 buyi1）
+// 主角身上的道具，依 UI_Pos：0~23 背包 m_pItem[0..23]、24~29 快捷欄 m_pShortcutItem[0..5]、30~40 裝備欄 JM55 m_pItem[UI_Pos − 30]
+// （頭盔、盔甲、右手、左手、護腕、靴子、右戒、左戒、項鍊、腰帶、成套）。name[0] == 0 = 空格
+// shortcut: 背包、快捷欄的 UI_Pos 是照控制項順序推的，原版 Poq.exe 的格子對應還沒查
+#define INV_N 41
+#define INV_BAG 30
+static Item inv[INV_N];
 
 // 六項屬性，順序 = 人物屬性加點面板 m_pAttrib[0..5] = 力量、体质、敏捷、悟性、魅力、智慧（Poq.exe 0x554d66 起）。開局值照遊俠扶苏模板
 enum { STR, CON, DEX, SAVVY, CHARM, WISDOM };
 static int hero_attr[6] = {30, 25, 25, 30, 40, 20};
 static int hero_extra_exp, hero_extra_skill;  // 剩餘屬性點、技能點：每升一級 +10、+1（EasyRPG.dll 0x10026d30）
-static const int hero_money = 100;  // 同一模板的 Money。shortcut: 還沒有撿錢、買賣，錢不會變
+static int hero_money = 100;  // 同一模板的 Money
 static const int hero_gender = 0, hero_age = 29;  // 同一模板的 Gender、Age
 static int hero_prof = 1;  // 職業序號（0x94c2fb，2131 + 序號 = 1 游侠、2 力士、3 刺客…）；測試用 --prof 換
 // shortcut: 開新遊戲選職業的畫面還沒做
@@ -564,16 +567,29 @@ static float skill_value(float init, float incr, int level) { return (level - 1)
 // 原版鍵名 HR = 閃避、SR = 命中，這裡 hr = 命中、sr = 閃避。百分比 = 加上目前值 × v / 100
 // 參數「是否对敌」的套在對方身上（0x1002fe20），其他的套在放技能的人身上
 // shortcut: 力量等六項屬性的加值沒有回算到攻防（遊俠技能表沒有用到）
+static int *stat_ptr(Actor *h, int id) {
+    return id == 23 ? &h->hp_max : id == 24 ? &h->mp_max : id == 41 ? &h->ap : id == 42 ? &h->ap_max : id == 53 ? &h->dp :
+           id == 60 ? &h->sr : id == 61 ? &h->hr : id == 62 ? &h->hp_speed : id == 63 ? &h->mp_speed :
+           id >= 20 && id < 100 ? &h->ex[id] : NULL;
+}
 static void actor_mods(Actor *h, int pct) {
     for (int b = 0; b < h->buff_n; b++)
         for (int i = 0; h->buff[b].skill && i < h->buff[b].skill->mod_n; i++) {
             const SkillMod *m = &h->buff[b].skill->mod[i];
             if ((m->enemy > 0) != h->buff[b].side || m->pct != pct) continue;
-            int *f = m->id == 23 ? &h->hp_max : m->id == 24 ? &h->mp_max : m->id == 41 ? &h->ap : m->id == 42 ? &h->ap_max : m->id == 53 ? &h->dp :
-                     m->id == 60 ? &h->sr : m->id == 61 ? &h->hr : m->id == 62 ? &h->hp_speed : m->id == 63 ? &h->mp_speed :
-                     m->id >= 20 && m->id < 100 ? &h->ex[m->id] : NULL;
+            int *f = stat_ptr(h, m->id);
             float v = skill_value(m->init, m->incr, h->buff[b].level);
             if (f) *f += (int)(pct ? *f * v / 100 : v);
+        }
+}
+
+// 身上裝備的特性（穿上時 0x1002fe20 複製到人身上，重算 0x100300f0 只算生效的）：固定值、百分比分兩輪，跟技能參數同一套屬性
+static void item_mods(Actor *h, int pct) {
+    for (int s = INV_BAG; s < INV_N; s++)
+        for (int i = 0; inv[s].name[0] && i < inv[s].fx_n; i++) {
+            const ItemFx *f = &inv[s].fx[i];
+            int *p = f->on && (f->pct > 0) == pct ? stat_ptr(h, f->id) : NULL;
+            if (p) *p += (int)(pct ? *p * f->v / 100 : f->v);
         }
 }
 
@@ -587,15 +603,15 @@ static void status_patch(Actor *a) {
 
 // 重算數值（0x1002d8d0）：基礎值 → 固定加值 → 回復速度（0x1002fa90）→ 職業倍率（0x1002d510）→ 百分比。加點、升級、狀態變化後呼叫，不回血
 static void hero_derive(Actor *h) {
-    const int K = 150, str = hero_attr[STR], con = hero_attr[CON], dex = hero_attr[DEX], wis = hero_attr[WISDOM], lv = h->level;
+    const int K = 150, lv = h->level;
     h->hp_max = 120 + 28 * lv;
     h->mp_max = 140 + 4 * lv;
-    h->ap = hero_weapon.ap;
-    h->ap_max = hero_weapon.ap_max;
-    h->dp = hero_armor_dp;
-    h->hr = h->sr = h->hp_speed = h->mp_speed = 0;
-    memset(h->ex, 0, sizeof h->ex);  // shortcut: 道具的法術攻擊、法術防禦等還沒做，主角這些都從 0 起
+    h->ap = h->ap_max = h->dp = h->hr = h->sr = h->hp_speed = h->mp_speed = 0;
+    memset(h->ex, 0, sizeof h->ex);
+    item_mods(h, 0);
     actor_mods(h, 0);
+    // 裝備、技能加的力量 27、体质 28、敏捷 29、智慧 32 也算進倍率和回復
+    const int str = hero_attr[STR] + h->ex[27], con = hero_attr[CON] + h->ex[28], dex = hero_attr[DEX] + h->ex[29], wis = hero_attr[WISDOM] + h->ex[32];
     // 回復速度依職業：HP_SPEED = (Con − a) × HP_MAX × b / 100 / 分母，MP 同理用 Wisdom；分母 0 當 1
     static const int R[6][8] = {{0}, {25, 50, 25, 4, 20, 50, 10, 2}, {30, 60, 15, 2, 10, 40, 5, 2}, {20, 50, 10, 2, 20, 50, 10, 2},
                                 {25, 40, 25, 4, 35, 60, 35, 4}, {20, 40, 10, 2, 40, 60, 20, 2}};
@@ -609,6 +625,7 @@ static void hero_derive(Actor *h) {
     // 原版鍵名 SR = 命中率、HR = 闪避率（UI_C.dlg 2116/2115 對 Poq.exe 0x54f820 的顯示順序）；這裡 hr = 命中、sr = 閃避（跟怪物表一樣）
     h->hr = (h->hr + 4 * dex) * (dex + K) / K;
     h->sr = (h->sr + 3 * dex) * (dex + K) / K;
+    item_mods(h, 1);
     actor_mods(h, 1);
     status_patch(h);
     if (h->hp > h->hp_max) h->hp = h->hp_max;
@@ -661,6 +678,8 @@ static void hero_stats(Actor *h, int level) {
 }
 
 static void actor_kill(Actor *t, Actor *by);
+static void mon_loot(const Actor *m);
+static void hit_wear(Actor *a, Actor *t, const SkillRow *sk);
 
 // 系統心跳（Poq.exe 註冊的 refresh 指令「每秒一次」→ USER_Refresh）：狀態計時（0x10055e90），再回 HP、MP（0x10054450）
 static void actor_second(Actor *h) {
@@ -947,6 +966,7 @@ static void actor_kill(Actor *t, Actor *by) {
     t->hp = 0;
     start_act(t, ACT_DEAD, t->def->death);
     if (t->def->snd_death) audio_sfx(t->def->snd_death);
+    if (t->mon) mon_loot(t);
     if (by && !by->mon && t->mon) {
         by->exp += t->exp;
         while (by->level < exp_levels && by->exp >= exp_table[by->level]) {
@@ -1068,6 +1088,7 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     int loss = phys - jswl * phys / 100 + magic - jsmf * magic / 100;
     if (loss <= 0) loss = 3;  // 總損血不到 1 才補成 3（原版 -1 < 損 → -3）
     t->hp -= loss;
+    hit_wear(a, t, sk);
     // 反彈（對方 B_FJXS% 的損血打回來）、自損（Attack方式 10：HP_MAX × 287 參數%）、吸血（B_XQSM + 222，補到滿為止）、吸精氣（B_XQMF + 223）
     if (t->ex[68] > 0) a->hp -= t->ex[68] * loss / 100;
     if (sk && sk->attack == 10 && add[87] > 0) a->hp -= a->hp_max * (int)add[87] / 100;
@@ -1772,6 +1793,254 @@ static void skill_icon(const UiCtrl *c, int ox, int oy, int k) {
     if (dim) SDL_SetTextureColorMod(ic->tex, 255, 255, 255);
 }
 
+// ---- 道具：背包、穿脫、外觀、掉寶、撿取、使用、修理、鑑定、耐久 ----
+static RoleDef hero_def;  // 主角的角色表列，外觀加上身上裝備（道具表該職業的裝備串）
+static int item_sel = -1;  // 背包選中的格子（UI_Pos）
+static char toast[128];    // 系統訊息（原版 0x1004e560 秀在畫面上）
+static Uint32 toast_until;
+// shortcut: 原版訊息的字串表（0x10060280 的編號）還沒對，先用自訂的中文
+static void hud_say(const char *t) { snprintf(toast, sizeof toast, "%s", t); toast_until = SDL_GetTicks() + 2500; }
+
+static int bag_free(void) {
+    for (int i = 0; i < 24; i++)
+        if (!inv[i].name[0]) return i;
+    return -1;
+}
+
+// 負重：身上道具重量合計，上限 BD_MAX = Str × 1.5 + 30。shortcut: 超重的效果還沒查
+static int hero_burden(void) {
+    int w = 0;
+    for (int i = 0; i < INV_N; i++) w += inv[i].name[0] ? inv[i].weight : 0;
+    return w;
+}
+static int hero_burden_max(const Actor *h) { return (int)((hero_attr[STR] + h->ex[27]) * 1.5f + 30); }
+
+// 外觀：角色表的款式蓋上身上每件裝備的「該職業裝備串」（道具表 33~37 欄），重新載入主角的部件
+static void hero_look(void) {
+    const RoleDef *d = roledef_by_graphic(HERO_GRAPHIC);
+    if (!d) return;
+    hero_def = *d;
+    for (int s = INV_BAG; s < INV_N; s++)
+        if (inv[s].name[0] && inv[s].equip[hero_prof - 1][0])
+            styles_equip(hero_def.styles, sizeof hero_def.styles, d->graphic, d->pli, inv[s].equip[hero_prof - 1]);
+}
+static void hero_refresh(Actor *h) {
+    hero_derive(h);
+    if (!h->role) return;  // 還沒進場景（開場）
+    hero_look();
+    uint32_t g[MAX_ROLE_PARTS * 2];
+    res_fetch_now(g, role_anim_ids(hero_def.graphic, hero_def.pli, hero_def.styles, g, MAX_ROLE_PARTS * 2));
+    for (int i = 0; i < role_count; i++) {  // 原地換掉快取裡的主角外觀（Role 位址不變）
+        Role r;
+        if (roles[i].tmpl == hero_def.id && role_load(&r, hero_def.graphic, hero_def.pli, hero_def.styles)) {
+            role_free(&roles[i].role);
+            roles[i].role = r;
+        }
+    }
+}
+
+// 能不能穿（0x1004c0e0）：等級、力量、體質、敏捷夠，耐久不是 0，已鑑定
+static int item_can_equip(const Actor *h, const Item *it) {
+    return it->part > 0 && h->level >= it->lv_req && hero_attr[STR] + h->ex[27] >= it->str_req && hero_attr[CON] + h->ex[28] >= it->con_req &&
+           hero_attr[DEX] + h->ex[29] >= it->dex_req && it->hp != 0 && it->identify;
+}
+
+// 部位 → 裝備欄：1 頭盔、2 盔甲、3 單手（箭 13、14 放左手）、4 盾 = 左手、5 護腕、6 靴子、7 戒指（右手空著放右手）、8 項鍊、10 雙手 = 右手、11 腰帶
+static int equip_slot(const Item *it) {
+    switch (it->part) {
+    case 1: return 30;
+    case 2: return 31;
+    case 3: return it->type == 13 || it->type == 14 ? 33 : 32;
+    case 4: return 33;
+    case 5: return 34;
+    case 6: return 35;
+    case 7: return inv[36].name[0] && !inv[37].name[0] ? 37 : 36;
+    case 8: return 38;
+    case 10: return 32;
+    case 11: return 39;
+    }
+    return -1;
+}
+
+static void inv_swap(int a, int b) {
+    Item t = inv[a];
+    inv[a] = inv[b];
+    inv[b] = t;
+    inv[a].pos = a;
+    inv[b].pos = b;
+}
+
+// 脫下 UI_Pos s 的裝備放進背包空格；背包滿了不脫
+static int item_unequip(Actor *h, int s) {
+    int b = bag_free();
+    if (!inv[s].name[0]) return 0;
+    if (b < 0) { hud_say("背包已滿"); return 0; }
+    inv_swap(s, b);
+    hero_refresh(h);
+    return 1;
+}
+
+// 穿上背包 p 的道具，原來那格的換回背包。雙手武器要空出左手（箭除外），左手放東西時右手不能是雙手武器
+// shortcut: 原版 Poq.exe 拖放裝備的檢查（哪些部位能互放、弓配箭）還沒拆，照部位表推的
+static void item_equip(Actor *h, int p) {
+    Item *it = &inv[p];
+    int s = equip_slot(it);
+    if (s < 0) return;
+    if (!item_can_equip(h, it)) { hud_say(!it->identify ? "需要先鑑定" : it->hp == 0 ? "已經損壞，需要修理" : "條件不足，不能裝備"); return; }
+    if (s == 32 && it->part == 10 && inv[33].name[0] && inv[33].type != 13 && inv[33].type != 14 && !item_unequip(h, 33)) return;
+    if (s == 33 && inv[32].name[0] && inv[32].part == 10 && !(it->type == 13 || it->type == 14) && !item_unequip(h, 32)) return;
+    inv_swap(p, s);
+    item_sel = -1;
+    hero_refresh(h);
+}
+
+// 吃（0x10016be0）：要已鑑定；把特性套到身上後道具消失。食物 21 = 生命、292 = 生命%、22 = 精氣、293 = 精氣%；
+// 書 27~33 = 永久加力量、体质、敏捷、（30 不用）悟性、智慧、魅力
+// shortcut: can_eat 在原版是物件模板設的，沒找到設的地方，先當食物（51）和書（49）能吃
+static int item_eat(Actor *h, int p) {
+    Item *it = &inv[p];
+    if (it->type != 51 && it->type != 49) return 0;
+    if (!it->identify) { hud_say("需要先鑑定"); return 1; }
+    for (int i = 0; i < it->fx_n; i++) {
+        const ItemFx *f = &it->fx[i];
+        int v = (int)f->v;
+        if (f->id == 21) h->hp += v;
+        else if (f->id == 292) h->hp += h->hp_max * v / 100;
+        else if (f->id == 22) h->mp += v;
+        else if (f->id == 293) h->mp += h->mp_max * v / 100;
+        else if (f->id >= 27 && f->id <= 33) {
+            static const int A[7] = {STR, CON, DEX, -1, SAVVY, WISDOM, CHARM};
+            if (A[f->id - 27] >= 0) hero_attr[A[f->id - 27]] += v;
+        }
+    }
+    if (h->hp > h->hp_max) h->hp = h->hp_max;
+    if (h->mp > h->mp_max) h->mp = h->mp_max;
+    inv[p].name[0] = 0;
+    item_sel = -1;
+    hero_derive(h);
+    return 1;
+}
+
+static int hero_skill_level(const char *name) {
+    for (int i = 0; i < hero_skill_n; i++)
+        if (strstr(hero_skill[i].key, name)) return hero_skill[i].level;
+    return 0;
+}
+
+// 修理（0x10054090）：自己的修缮之术，道具等級 ≤ 技能等級 × 3；價錢 = 原價 × 損耗 × 4 / 耐久上限（找 NPC 修 ×2）。
+// 箭 13、14，29、30 和 7~34 以外的不能修。shortcut: NPC 修理要商店介面，還沒做
+static void item_repair(int p) {
+    Item *it = &inv[p];
+    int lv = hero_skill_level("\xd0\xde\xc9\xc6\xd6\xae\xca\xf5");  // 修缮之术（GBK）
+    if (it->type < 7 || it->type > 34 || it->type == 13 || it->type == 14 || it->type == 29 || it->type == 30) { hud_say("這個不能修理"); return; }
+    if (it->hp_max <= 0 || it->hp >= it->hp_max) { hud_say("不需要修理"); return; }
+    if (it->level > lv * 3) { hud_say(lv ? "修缮之术等級不夠" : "需要修缮之术"); return; }
+    int price = it->value_un * (it->hp_max - it->hp) * 4 / it->hp_max;
+    if (hero_money < price) { hud_say("金錢不足"); return; }
+    hero_money -= price;
+    it->hp = it->hp_max;
+    it->hit = 0;
+    hud_say("修理完成");
+}
+
+// 鑑定（0x1004be60）：自己的慧眼识金，道具等級 ≤ 技能等級 × 3，花 (等級 + 4) × 10 精氣。shortcut: NPC 鑑定（花原價的錢）要商店介面，還沒做
+static void item_identify(Actor *h, int p) {
+    Item *it = &inv[p];
+    int lv = hero_skill_level("\xbb\xdb\xd1\xdb\xca\xb6\xbd\xf0"), mp = (it->level + 4) * 10;  // 慧眼识金（GBK）
+    if (it->identify) { hud_say("不需要鑑定"); return; }
+    if (it->level > lv * 3) { hud_say(lv ? "慧眼识金等級不夠" : "需要慧眼识金"); return; }
+    if (h->mp < mp) { hud_say("精氣不足"); return; }
+    h->mp -= mp;
+    it->identify = 1;
+    hud_say("鑑定完成");
+}
+
+// 整理：道具往前排，空格移到後面
+static void bag_neaten(void) {
+    int k = 0;
+    for (int i = 0; i < 24; i++)
+        if (inv[i].name[0]) { if (i != k) inv_swap(i, k); k++; }
+    item_sel = -1;
+}
+
+// 耐久（0x1003c110 → 0x10056730）：每 40 次 HitPoint 扣 1 點耐久，剩 HP_MAX/8 + 1 時提醒，0 就脫下來
+static void item_wear(Actor *h, int s) {
+    Item *it = &inv[s];
+    if (!it->name[0] || it->hp_max <= 0 || ++it->hit < 40) return;
+    it->hit = 0;
+    if (--it->hp == it->hp_max / 8 + 1) hud_say("裝備快要損壞了");
+    if (it->hp <= 0) { it->hp = 0; hud_say("裝備損壞了"); item_unequip(h, s); }
+}
+// 物理攻擊（Attack方式 1、10）打中後：攻擊方隨機一件武器（類型 7~24，箭除外）磨損；
+// 防守方千分比 200/500/700/800/900/1000 → 盔甲 25、26（33、34 同類）、27、28、31、32 那件磨損
+static void hit_wear(Actor *a, Actor *t, const SkillRow *sk) {
+    if (sk && sk->attack != 1 && sk->attack != 10) return;
+    if (a == &actors[0]) {
+        int w[2], n = 0;
+        for (int s = 32; s <= 33; s++)
+            if (inv[s].name[0] && inv[s].type >= 7 && inv[s].type <= 24 && inv[s].type != 13 && inv[s].type != 14) w[n++] = s;
+        if (n) item_wear(a, w[rnd(n)]);
+    }
+    if (t == &actors[0]) {
+        static const int C[6] = {200, 500, 700, 800, 900, 1000}, T[6] = {25, 26, 27, 28, 31, 32};
+        int r = rnd(1000), k = 0;
+        while (r >= C[k]) k++;
+        for (int s = INV_BAG; s < INV_N; s++) {
+            int ty = inv[s].type == 33 ? 25 : inv[s].type == 34 ? 26 : inv[s].type;
+            if (inv[s].name[0] && ty == T[k]) { item_wear(t, s); break; }
+        }
+    }
+}
+
+// ---- 地上的道具 ----
+#define MAX_GROUND 128
+static struct { Item it; float x, y; } ground[MAX_GROUND];
+static int ground_n, ground_want = -1;  // ground_want：主角正走過去撿的
+
+static void ground_drop(const Item *it, float x, float y) {
+    if (ground_n == MAX_GROUND || !it->name[0]) return;
+    ground[ground_n].it = *it;
+    ground[ground_n].it.pos = -1;
+    // shortcut: 原版掉落的位置怎麼散開還沒查，先落在周圍一格內
+    ground[ground_n].x = (int)x + rnd(3) - 1 + 0.5f;
+    ground[ground_n++].y = (int)y + rnd(3) - 1 + 0.5f;
+}
+
+// 怪物掉寶（0x1006fa50）：掉 最小～最大 件，每件擲千分比依序對五組（類型、機率×10）累加，中的那組產生一件，
+// 隨機等級用 SLevel_i 第「怪物等級 / 5 + 1」欄（最多 9）。原版出生時就產生、倒下時丟出來；這裡倒下時才產生，機率一樣
+static void mon_loot(const Actor *m) {
+    const MonDef *d = m->mon;
+    int n = d->drop_max > d->drop_min ? rnd((int)(d->drop_max - d->drop_min) + 1) + (int)d->drop_min : (int)d->drop_min;
+    int col = m->level / 5 + 1 > 9 ? 9 : m->level / 5 + 1;
+    for (int k = 0; k < n; k++) {
+        int r = rnd(1000);
+        float sum = 0;
+        for (int j = 0; j < 5; j++) {
+            if (d->drop[j][1] <= 0) continue;
+            sum += d->drop[j][1] * 10;
+            if (r >= sum) continue;
+            Item it;
+            if (!item_new(&it, (int)d->drop[j][0], -1, col, NULL)) break;
+            ground_drop(&it, m->x, m->y);
+            printf("掉落 類型 %d 等級 %d\n", it.type, it.level);
+            break;
+        }
+    }
+}
+
+// 撿起來：錢直接加到金錢（金钱 = 類型 60，數量在 Amount），其他放進背包空格
+static void ground_pick(int g) {
+    Item *it = &ground[g].it;
+    if (it->type == 60) hero_money += it->amount;
+    else {
+        int b = bag_free();
+        if (b < 0) { hud_say("背包已滿"); return; }
+        inv[b] = *it;
+        inv[b].pos = b;
+    }
+    ground[g] = ground[--ground_n];
+}
+
 // 按鈕名稱 → 開的視窗（主列和人物屬性視窗裡的 m_pRole／m_pSkill／m_pProp 同名同作用）
 static void ui_command(const char *name) {
     if (!strcmp(name, "m_pRole")) win_toggle(&win_left, JM52);
@@ -1780,6 +2049,52 @@ static void ui_command(const char *name) {
     else if (!strncmp(name, "m_pPage[", 8)) skill_page = atoi(name + 8) - 1;  // 技能頁籤：m_pPage[1]~[5] = 第 0~4 頁（[6] 藏著）
     else if (!strncmp(name, "m_pSkill[", 9)) pick_open(name[9] == '1');  // 主列 m_pSkill[0] 右手、[1] 左手
     else if (!strcmp(name, "m_pEquip")) win_toggle(&win_left, JM55);  // 道具視窗的装备：原版開在中線左邊（Poq.exe 0x54ad87）
+}
+
+// 畫面上點到哪件地上的道具（圖示置中在格子中央）
+static int ground_at(int px, int py, int ox, int oy, const Scene *s) {
+    for (int i = ground_n - 1; i >= 0; i--) {
+        int fx = (int)((ground[i].x - ground[i].y + s->h - 1) * TILE_W / 2) - ox, fy = (int)((ground[i].x + ground[i].y) * TILE_H / 2) - oy;
+        if (abs(px - fx) <= 24 && abs(py - fy) <= 20) return i;
+    }
+    return -1;
+}
+
+// 走過去撿：到了（一格內）就撿起來
+static void ground_walk(Actor *h, const Scene *s, Uint32 tick) {
+    float gx = ground[ground_want].x - h->x, gy = ground[ground_want].y - h->y;
+    if (gx * gx + gy * gy < 1.0f) {
+        h->moving = 0;
+        ground_pick(ground_want);
+        ground_want = -1;
+        return;
+    }
+    actor_tick(h, s, (gx - gy) * 32, (gx + gy) * 16, tick);
+}
+
+// 道具視窗（JM54）的格子和按鈕。點道具 = 選取，再點一次 = 使用／裝備；選了以後點空格 = 移過去
+// shortcut: 原版用滑鼠拖放、右鍵使用，手機改成點選；打造（m_pMake）、镶嵌（m_pEnchase）、查看（m_LookOver）另外的系統，還沒做
+static void bag_use(int p) {
+    if (inv[p].part > 0) item_equip(&actors[0], p);
+    else if (!item_eat(&actors[0], p)) hud_say("不能使用");
+}
+static void bag_button(const char *name) {
+    int p = !strncmp(name, "m_pItem[", 8) ? atoi(name + 8) : !strncmp(name, "m_pShortcutItem[", 16) ? 24 + atoi(name + 16) : -1;
+    int sel = item_sel >= 0 && inv[item_sel].name[0] ? item_sel : -1;
+    if (p >= 0) {
+        if (p == sel) bag_use(p);
+        else if (inv[p].name[0]) item_sel = p;
+        else if (sel >= 0) { inv_swap(sel, p); item_sel = p; }
+    } else if (!strcmp(name, "m_pNeaten")) bag_neaten();
+    else if (sel < 0) { if (!strcmp(name, "m_pEquip")) ui_command(name); }
+    else if (!strcmp(name, "m_pUse")) bag_use(sel);
+    else if (!strcmp(name, "m_pRepair")) item_repair(sel);
+    else if (!strcmp(name, "m_pIdentify")) item_identify(&actors[0], sel);
+    else if (!strcmp(name, "m_pReject")) {  // 丢弃：放到主角腳下
+        ground_drop(&inv[sel], actors[0].x, actors[0].y);
+        inv[sel].name[0] = 0;
+        item_sel = -1;
+    } else ui_command(name);
 }
 
 // 多行文字框（種類 3）的捲軸：ini 第 10~13 欄是軌道、上箭頭、下箭頭、滑塊的圖。字超過框高才有捲軸。
@@ -1831,7 +2146,9 @@ static int hud_tap(int x, int y) {
             role_set_mode(0);
             skill_mode = 0;
             if (!win_right.open || strcmp(win_right.d.name, JM53)) win_toggle(&win_right, JM53);
-        } else if (c) ui_command(c->name);
+        } else if (c && !strcmp(w->d.name, JM54)) bag_button(c->name);
+        else if (c && !strcmp(w->d.name, JM55) && !strncmp(c->name, "m_pItem[", 8)) item_unequip(&actors[0], INV_BAG + atoi(c->name + 8));
+        else if (c) ui_command(c->name);
         return 1;
     }
     const UiCtrl *c = bar.count ? ui_button_at(&bar, (vw - bar.w) / 2, vh - bar.h, x, y) : NULL;
@@ -1874,6 +2191,78 @@ static void hero_info(const Actor *h, char *out, size_t cap) {
         ui_text(label[i], t, sizeof t);
         k += pair >> i & 1 ? snprintf(out + k, cap - k, "%s%d/%d\n", t, v[i][0], v[i][1])
                            : snprintf(out + k, cap - k, "%s%d\n", t, v[i][0]);
+    }
+}
+
+// 道具圖示置中畫在格子上；壞掉的（耐久 0）畫成紅的、沒鑑定的畫暗一點。shortcut: 原版怎麼標示這兩種還沒查
+static void item_icon(UiDialog *d, const char *key, int wx, int wy, const Item *it) {
+    UiCtrl *c = ui_find(d, key);
+    const Sprite *bg = c ? ui_image(c->img, 0) : NULL, *s = c && it->name[0] && it->icon ? ui_image(it->icon, 0) : NULL;
+    if (!s) return;
+    int broken = it->hp == 0 && it->hp_max > 0;
+    if (broken || !it->identify) SDL_SetTextureColorMod(s->tex, 255, broken ? 90 : 160, broken ? 90 : 160);
+    draw(s, wx + c->x + ((bg ? bg->w : s->w) - s->w) / 2, wy + c->y + ((bg ? bg->h : s->h) - s->h) / 2);
+    SDL_SetTextureColorMod(s->tex, 255, 255, 255);
+}
+
+// 道具說明：名稱、等級、攻防、耐久、需求、重量、價格、特性。
+// shortcut: 原版的說明文字（0x100279b0，619 行、UI_C.dlg 的格式字串）還沒翻，特性名稱先用屬性表的中文
+static void item_describe(const Item *it, char *out, size_t cap) {
+    char nm[96];
+    gbk_utf8(it->name, nm, sizeof nm);
+    size_t k = snprintf(out, cap, "%s\n等級 %d\n", nm, it->level);
+    float ap = 0, ap_max = 0;
+    for (int i = 0; i < it->fx_n; i++) {
+        if (it->fx[i].id == 41 && !it->fx[i].pct) ap += it->fx[i].v;
+        if (it->fx[i].id == 42 && !it->fx[i].pct) ap_max += it->fx[i].v;
+    }
+    if (ap_max > 0) k += snprintf(out + k, cap - k, "攻擊 %d-%d\n", (int)ap, (int)ap_max);
+    if (it->hp_max > 0 && k < cap) k += snprintf(out + k, cap - k, "耐久 %d/%d\n", it->hp, it->hp_max);
+    static const struct { int id; const char *n; } L[] = {
+        {53, "防禦"}, {21, "生命"}, {22, "精氣"}, {292, "生命%"}, {293, "精氣%"}, {23, "生命上限"}, {24, "精氣上限"}, {27, "力量"}, {28, "體質"},
+        {29, "敏捷"}, {31, "悟性"}, {32, "智慧"}, {33, "魅力"}, {43, "金攻"}, {44, "金攻上限"}, {45, "木攻"}, {46, "木攻上限"}, {47, "水攻"},
+        {48, "水攻上限"}, {49, "火攻"}, {50, "火攻上限"}, {51, "土攻"}, {52, "土攻上限"}, {54, "金防"}, {55, "木防"}, {56, "水防"}, {57, "火防"},
+        {58, "土防"}, {60, "閃避"}, {61, "命中"}, {62, "生命回復"}, {63, "精氣回復"}, {64, "移動速度"}, {65, "攻擊速度"}};
+    for (int i = 0; i < it->fx_n && k < cap; i++) {
+        const ItemFx *f = &it->fx[i];
+        if (f->id == 41 || f->id == 42 || (f->id == 65 && !f->v) || (f->kind == 3 && !it->identify)) continue;
+        const char *n = NULL;
+        for (size_t j = 0; j < sizeof L / sizeof *L; j++)
+            if (L[j].id == f->id) n = L[j].n;
+        char lab[24];
+        if (!n) snprintf(lab, sizeof lab, "特性%d", f->id), n = lab;
+        k += snprintf(out + k, cap - k, "%s %+d%s%s\n", n, (int)f->v, f->pct > 0 ? "%" : "", f->on ? "" : "（相生）");
+    }
+    if (it->amount > 0 && k < cap) k += snprintf(out + k, cap - k, "數量 %d\n", it->amount);
+    if (!it->identify && k < cap) k += snprintf(out + k, cap - k, "未鑑定\n");
+    if ((it->lv_req > 1 || it->str_req > 0 || it->dex_req > 0 || it->con_req > 0) && k < cap)
+        k += snprintf(out + k, cap - k, "需要 等級%d 力%d 敏%d 體%d\n", it->lv_req, it->str_req, it->dex_req, it->con_req);
+    if (k < cap) snprintf(out + k, cap - k, "重量 %d  價格 %d", it->weight, it->value);
+}
+
+// 道具視窗：背包、快捷欄的圖示、選取框（m_pHItem，4412）、負重，選中的道具說明畫在視窗左邊
+static void bag_draw(UiDialog *d, int wx, int wy) {
+    char key[24], t[1024];
+    for (int i = 0; i < INV_BAG; i++) {
+        snprintf(key, sizeof key, i < 24 ? "m_pItem[%d]" : "m_pShortcutItem[%d]", i < 24 ? i : i - 24);
+        item_icon(d, key, wx, wy, &inv[i]);
+    }
+    if (item_sel >= 0 && inv[item_sel].name[0]) {
+        snprintf(key, sizeof key, item_sel < 24 ? "m_pHItem[%d]" : "m_pHShortcutItem[%d]", item_sel < 24 ? item_sel : item_sel - 24);
+        UiCtrl *h = ui_find(d, key);
+        if (h) draw(ui_image(h->img, 0), wx + h->x, wy + h->y);
+        item_describe(&inv[item_sel], t, sizeof t);
+        int bw = 180, bh = draw_text(0, 0, t, bw - 12, 0, 0) + 12, bx = wx - bw - 4 < 0 ? 0 : wx - bw - 4, by = wy + 20;
+        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, 200);
+        SDL_Rect r = {bx, by, bw, bh};
+        SDL_RenderFillRect(ren, &r);
+        draw_text(bx + 6, by + 6, t, bw - 12, 0xBECDCE, 1);
+    }
+    UiCtrl *b = ui_find(d, "m_pBurden");
+    if (b) {
+        snprintf(t, sizeof t, "%d/%d", hero_burden(), hero_burden_max(&actors[0]));
+        draw_text(wx + b->x + (b->w - text_width(t)) / 2, wy + b->y, t, b->w + 40, 0xBECDCE, 1);
     }
 }
 
@@ -1997,14 +2386,11 @@ static void hud_draw(const Actor *hero) {
             }
             SDL_RenderSetClipRect(ren, NULL);
         }
-        // 裝備：主角開局的武器、布衣，圖示畫在 m_pItem[UI_Pos − 30]（劇情檔 UI_Pos：武器 32 右手、布衣 31 盔甲）
-        const struct { const Item *it; int slot; } eq[] = {{&hero_weapon, 2}, {&hero_armor, 1}};
-        for (int i = 0; !strcmp(win_left.d.name, JM55) && i < 2; i++) {
+        // 裝備：圖示畫在 m_pItem[UI_Pos − 30]
+        for (int i = INV_BAG; !strcmp(win_left.d.name, JM55) && i < INV_N; i++) {
             char slot[16];
-            snprintf(slot, sizeof slot, "m_pItem[%d]", eq[i].slot);
-            UiCtrl *c = ui_find(&win_left.d, slot);
-            const Sprite *bg = c ? ui_image(c->img, 0) : NULL, *s = eq[i].it->icon ? ui_image(eq[i].it->icon, 0) : NULL;
-            if (c && s) draw(s, wx + c->x + ((bg ? bg->w : s->w) - s->w) / 2, wy + c->y + ((bg ? bg->h : s->h) - s->h) / 2);
+            snprintf(slot, sizeof slot, "m_pItem[%d]", i - INV_BAG);
+            item_icon(&win_left.d, slot, wx, wy, &inv[i]);
         }
         if (!strcmp(win_left.d.name, JM52) && role_mode == 0) {  // 加點面板：m_pAttrib[i] =「%s[2%d]」標籤 + 數值（Poq.exe 0x554d66 起）
             static const int label[6] = {2110, 2111, 2112, 2117, 2118, 2119};
@@ -2035,12 +2421,21 @@ static void hud_draw(const Actor *hero) {
         int wx = win_x(&win_right), wy = win_y(&win_right);
         ui_draw(&win_right.d, wx, wy);
         if (!strcmp(win_right.d.name, JM53)) skill_draw(&win_right.d, wx, wy);
+        if (!strcmp(win_right.d.name, JM54)) bag_draw(&win_right.d, wx, wy);
         UiCtrl *money = ui_find(&win_right.d, "m_pMoney");  // 道具：原版把錢數交給 m_pMoney 顯示（Poq.exe 0x54db42），「金钱：%d」是提示文字
         if (money) {
             char t[16];
             snprintf(t, sizeof t, "%d", hero_money);
             draw_text(wx + money->x + (money->w - text_width(t)) / 2, wy + money->y + (money->h - 16) / 2, t, money->w, 0xBECDCE, 1);
         }
+    }
+    if (SDL_GetTicks() < toast_until) {
+        int tw = text_width(toast);
+        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, 160);
+        SDL_Rect r = {(vw - tw) / 2 - 8, 56, tw + 16, 22};
+        SDL_RenderFillRect(ren, &r);
+        draw_text((vw - tw) / 2, 59, toast, tw + 1, 0xFFE080, 1);
     }
     if (pick_hand >= 0) {
         int px, py;
@@ -2138,20 +2533,11 @@ static void prefetch_scene(Scene *s, const Actor *hero) {
     free(v);
 }
 
-// 主角的角色表列，外觀加上身上裝備（道具表的遊俠裝備串）
-static RoleDef hero_def;
-
+// 開局裝備：劇情（扶苏）item_new(8, 1, −1, "qingtongwandao1") 放 UI_Pos 32 右手、item_new(26, 1, −1, "buyi1") 放 31 盔甲
 static void hero_equip(void) {
-    const RoleDef *d = roledef_by_graphic(HERO_GRAPHIC);
-    if (!d) return;
-    hero_def = *d;
-    static const char *const items[] = {"item_8.txt", "item_26.txt"};
-    res_preload("Data", items, 2);
-    if (item_find(8, 1, &hero_weapon)) styles_equip(hero_def.styles, sizeof hero_def.styles, d->graphic, d->pli, hero_weapon.equip[0]);
-    if (item_find(26, 1, &hero_armor)) {
-        styles_equip(hero_def.styles, sizeof hero_def.styles, d->graphic, d->pli, hero_armor.equip[0]);
-        hero_armor_dp = hero_armor.dp_min + rand() % (hero_armor.dp_max - hero_armor.dp_min + 1);
-    }
+    if (item_new(&inv[32], 8, 1, -1, "qingtongwandao1")) inv[32].pos = 32;
+    if (item_new(&inv[31], 26, 1, -1, "buyi1")) inv[31].pos = 31;
+    hero_look();
 }
 
 // 載入場景（別名 = 場景檔名），主角站到入口 entry_id；失敗時保留原場景
@@ -2170,6 +2556,8 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     preload_roles(scene, hd);
     if (hd) actor_setup(hero, hd);
     spawn_npcs(scene);
+    ground_n = 0;  // 地上的道具不跟著換場景
+    ground_want = -1;
     fx_count = missile_count = 0;
     const Entry *en = scene_entry(scene, entry_id);
     if (en) {
@@ -2321,7 +2709,9 @@ int main(int argc, char **argv) {
                 // 手機沒有右鍵：點主角自己 = 右鍵放左手技能（左手技能多是對自己的增益）
                 if (abs(px - vw / 2) <= 36 && py - (vh / 2 - 30) >= -70 && py - (vh / 2 - 30) <= 40) { hero_cast(hero); continue; }
                 Actor *m = monster_at(px, py, ox, oy, &scene);  // 點怪物 = 攻擊它；點 NPC = 說話；點其他地方 = 按住走路
-                if (m) { hero->foe = m; hero->want = NULL; }
+                int g = m ? -1 : ground_at(px, py, ox, oy, &scene);
+                if (m) { hero->foe = m; hero->want = NULL; ground_want = -1; }
+                else if (g >= 0) { ground_want = g; hero->foe = NULL; hero->want = NULL; }
 #ifdef STORY
                 else if ((m = npc_at(px, py, ox, oy, &scene))) {
                     int npc = story_find(story_room(alias), m->spec->event);
@@ -2387,7 +2777,8 @@ int main(int argc, char **argv) {
                 action_tick(hero, &scene, tick);
             } else if (hero->act) action_tick(hero, &scene, tick);
             else if (held) hero->moving = 0;
-            else if (mx * mx + my * my > 0.01f) { hero->foe = NULL; hero->want = NULL; actor_tick(hero, &scene, mx, my, tick); }  // 自己走 = 放棄目標
+            else if (mx * mx + my * my > 0.01f) { hero->foe = NULL; hero->want = NULL; ground_want = -1; actor_tick(hero, &scene, mx, my, tick); }  // 自己走 = 放棄目標
+            else if (ground_want >= 0 && !hero->foe) ground_walk(hero, &scene, tick);
             else if (!pursue(hero, &scene, tick)) actor_tick(hero, &scene, 0, 0, tick);
             // 腳步聲：每 max((15 - A) * 2, 10) 拍一次（Poq.exe 0x48704f），80 號音效
             int sp = hero->speed < 0 ? 0 : hero->speed > 59 ? 59 : hero->speed, step = (15 - SPEED_A[sp]) * 2;
@@ -2463,6 +2854,11 @@ int main(int argc, char **argv) {
                 if (c->ground != 0xFFFF) draw(tile(&scene.tiles, c->ground), sx, sy);
                 if (c->over != 0xFFFF) draw(tile(&scene.tiles, c->over), sx, sy);
             }
+        // 地上的道具：地面圖示（G_PicID，ResUI 28×28 黑底小圖）置中在格子中央。shortcut: 原版的畫法（位置、名字標示）還沒查
+        for (int i = 0; i < ground_n; i++) {
+            const Sprite *g = ui_image(ground[i].it.ground, 0);
+            if (g) draw(g, (int)((ground[i].x - ground[i].y + scene.h - 1) * TILE_W / 2) - ox - g->w / 2, (int)((ground[i].x + ground[i].y) * TILE_H / 2) - oy - g->h / 2);
+        }
         // 物件已依深度(x+y)排序；角色也依深度排好，經過自己的深度時插進去畫
         Actor *order[MAX_ACTORS];
         for (int i = 0; i < actor_count; i++) order[i] = &actors[i];

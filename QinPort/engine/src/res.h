@@ -149,15 +149,29 @@ typedef struct {
     Stat map, map_max, mdp[5];
     int mspeed, mfight;  // 移动速度、攻击频率 → B_C_MOVE_SPEED、B_C_FIGHT_SPEED（0x10073e30）
     int djhf, jswl, jsmf, immu[7], istrap, regen;  // 打击恢复率、减少物理／魔法伤害、眩晕~其他免疫、是否陷阱、生命恢复率
+    float drop_min, drop_max, drop[5][2];  // 最小／最大道具随机数、随机道具类型 1~5 與概率（0x1006fa50）
 } MonDef;
 int mondefs_load(void);
 // 名稱前綴相符的列隨機挑一列（原版 0x10077670 收集相符列再隨機取）；找不到回 NULL
 const MonDef *mondef_pick(const char *prefix);
 const MonDef *mondef_find(const char *name);
-// ---- 道具表 Data/item_<類型>.txt（XOR、tab，第 2 列是欄名）：依「级别」欄找列 ----
-// 欄位：0 级别、1 名称、9 等级限制、13/14 攻击力小/大、15/16 防御力小/大、31 道具栏图片ID（原版 G_PicID2，空的用 0xfeb）、33~37 各職業裝備串（遊俠、力士、刺客、術士、巫師）
-typedef struct { char name[32]; int ap, ap_max, dp_min, dp_max, icon; char equip[5][96]; } Item;
-int item_find(int type, int row, Item *out);  // 找不到回 0
+// ---- 道具（EasyRPG.dll 0x10070360 依道具表 Data/item_<類型>.txt 產生一件）----
+// 道具身上的效果（原版 0x10037490 加的一筆，戴上時照抄到人身上 0x1002fe20）：屬性代號、是否百分比、作用中、
+// 種類（0 一般、1 五行、2 相生、3 金色）、值
+typedef struct { int id, pct, on, kind; float v; } ItemFx;
+typedef struct {
+    int type, level, part, value, value_un, weight, lv_req, str_req, dex_req, con_req;
+    int hp, hp_max, hit;  // 耐久、耐久上限、磨損計數（HitPoint，滿 40 扣 1 點耐久）
+    int icon, ground, info, fe, slot_max, identify, amount, arrows, pos;  // G_PicID2 道具栏图、G_PicID 地面图、G_InfoID、五行、
+    char name[32], alias[40], equip[5][96];                              // 鑲嵌數、已鑑定、金錢數、箭數、UI_Pos（−1 = 不在身上）
+    int fx_n;
+    ItemFx fx[32];
+} Item;
+// 產生一件：type = 道具表類型（或掉寶類型，經 item_type_pick），level < 0 時依 col（SLevel_i 的欄）隨機等級，
+// alias 非空時找别名開頭相符的列。失敗回 0
+int item_new(Item *it, int type, int level, int col, const char *alias);
+int item_type_pick(int type);  // 掉寶類型 → 道具表類型（0x1007a2f0）；不認得回 −1
+int item_tables_load(void);    // 道具表、attribT、SLevel_i/t 一次讀齊（網頁版一次批次）
 // 裝備串（例如 "RH_010_001" 或 "CA_009*TK_009"）覆蓋角色表「屬性」裡對應部件的款式；styles 依 PLI 部件順序、用 * 分隔
 void styles_equip(char *styles, size_t n, const char *graphic, int pli_no, const char *equip);
 
