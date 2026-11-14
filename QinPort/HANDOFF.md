@@ -266,6 +266,162 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 怪物拉開距離（0x4911b0）：每 61 拍、招式 Reserve3 ≠ 1、目標在 (範圍−2) 方框內、n = 範圍 − 距離 − 2 ≥ 2 → 往反方向 8 方向走 n 格（OmUtil.dll GetFleePos，用 objdump 看的）。
 - 測試網址可加 `prof=2`（力士）、`prof=3`（刺客）。
 
+## 全部待辦清單（2026-11-14 盤點；由上往下照順序做，做完打勾，不跳著做）
+
+清單是機械式列出的：劇情檔裡還沒翻的引擎呼叫、BNT 觸發區的種類、原版指令表、DialogInfo.ini 的介面、各節「還沒做」。
+重新產生引擎函式清單：`grep -rhoE "(FUN_|ENGINE\(0x)[0-9a-f]{8}" story/room story/npc story/item story/skill story/plot story/_shared.c | sort | uniq -c | sort -rn`，扣掉 story_rt.c 已有的 case 和 _shared.c 的共用函式。
+
+### A. 劇情引擎函式（85 個，括號是劇情檔裡出現幾處）
+房間、出口、怪物群改由劇情世界自己產生（現在 res.c 的 world_load 是另外掃 DLL 的捷徑，翻完 add_exit／spawn 後換掉）。
+- [ ] 10052550（spawn）
+- [ ] 1005d8b0（add_exit）
+- [ ] 1003c6a0（set_attr）
+- [ ] 10054960（place_npc）
+- [ ] 100558c0（current_room）
+- [ ] 1003fd90（find_alias）
+- [ ] 1004f1a0（start_plot）
+- [ ] 1003cbf0（set_int_alias）
+- [ ] 10052a20（random_exits）
+- [ ] 1003fe30（find_room）
+- [ ] 1003c550（477 處）
+- [ ] 100730c0（362 處）
+- [ ] 10022980（240 處）
+- [ ] 100757a0（203 處）
+- [ ] 1003e5d0（140 處）
+- [ ] 1004ea10（109 處）
+- [ ] 1003f300（105 處）
+- [ ] 100226d0（105 處）
+- [ ] 100528d0（82 處）
+- [ ] 1004c4f0（57 處）
+- [ ] 1004abd0（56 處）
+- [ ] 1004e4c0（54 處）
+- [ ] 100406a0（54 處）
+- [ ] 1004b020（51 處）
+- [ ] 1005f2e0（48 處）
+- [ ] 1004c6d0（48 處）
+- [ ] 1003fc80（47 處）
+- [ ] 10054630（46 處）
+- [ ] 1004db90（46 處）
+- [ ] 10037850（46 處）
+- [ ] 10054f90（42 處）
+- [ ] 1004e1b0（39 處）
+- [ ] 1004e0d0（39 處）
+- [ ] 1003e920（35 處）
+- [ ] 1003ca70（34 處）
+- [ ] 1004aac0（28 處）
+- [ ] 1003d200（27 處）
+- [ ] 1003d0b0（22 處）
+- [ ] 1004e200（17 處）
+- [ ] 1003cd10（16 處）
+- [ ] 1003ee60（14 處）
+- [ ] 1003c9f0（14 處）
+- [ ] 1004e640（13 處）
+- [ ] 10055ae0（10 處）
+- [ ] 1004d180（9 處）
+- [ ] 10021cd0（9 處）
+- [ ] 100fa310（8 處）
+- [ ] 10056640（8 處）
+- [ ] 1003a880（8 處）
+- [ ] 1003daf0（7 處）
+- [ ] 10021c60（7 處）
+- [ ] 1005f390（6 處）
+- [ ] 10055670（6 處）
+- [ ] 10053b40（6 處）
+- [ ] 1004a940（6 處）
+- [ ] 1003e160（6 處）
+- [ ] 100f9630（5 處）
+- [ ] 1004b6c0（5 處）
+- [ ] 1004ad90（5 處）
+- [ ] 1003aea0（5 處）
+- [ ] 100f95f0（4 處）
+- [ ] 10048790（4 處）
+- [ ] 1003ce20（4 處）
+- [ ] 100222f0（4 處）
+- [ ] 10054810（3 處）
+- [ ] 1003f2c0（3 處）
+- [ ] 10022ac0（3 處）
+- [ ] 10022490（3 處）
+- [ ] 1020f761（2 處）
+- [ ] 1020f731（2 處）
+- [ ] 100fa200（2 處）
+- [ ] 100f9570（2 處）
+- [ ] 10058d30（2 處）
+- [ ] 10053e10（2 處）
+- [ ] 1003ff70（2 處）
+- [ ] 1003ed10（2 處）
+- [ ] 1003c510（2 處）
+- [ ] 10039b60（2 處）
+- [ ] 10038f90（2 處）
+- [ ] 1005e490（1 處）
+- [ ] 1005d790（1 處）
+- [ ] 100549d0（1 處）
+- [ ] 1004d500（1 處）
+- [ ] 10040760（1 處）
+- [ ] 1003d380（1 處）
+
+### B. 原版指令表（EasyRPG 0x1006b2e0 登記，ER_Explain 0x1005fa30 分派；單機會用到的）
+- [ ] go（出口；現在是 main.c 自己做的，翻完 add_exit 後改走原版 0x10017e30）
+- [ ] open、openall（寶箱、門；建築物件 isbuilding 1/2/5/6，0x1004ea10、0x10041d10、0x10040970、0x1004e680）
+- [ ] use、abandon、eat（eat 已做）、weaponset（成套武装）
+- [ ] s_pctstart、s_pctend（劇情事件）
+- [ ] s_savepos、s_saveequip、s_fightstatus、s_delscene、s_scenecmd、s_deltrap、s_testgo、s_testdir、s_quitok、s_testopen、s_time、s_findtrap、s_savetrap、s_needsceneinit、s_sceneinitend
+- [ ] c_talkend、c_equipstr、c_changeint、c_fightstatus、c_attributes、c_init_attr、c_itempos、c_itempos2、c_itemreplace、c_skillpos、c_equippos、c_extrause、c_extrause2、c_arrow、c_wname、c_uibuy、c_buychange、c_aigroup、c_priceprod、c_priceiden、c_pricerepa、c_choose、c_tradebegin、c_tradeend、c_ItemInfo、c_readestr、c_log、c_making
+- [ ] askquit、asksave、saveexit、chapter
+- 連線版、除錯用的（help、look、register、team…、robot_*、kill、summon、goto、clone…）不做
+
+### C. 觸發區（BNT 類型 4，事件文字）
+- [x] go <出口>（2729 格）
+- [ ] s_pctstart <劇情路徑>（157 格；Poq 0x484a80，格子旗標 0x88、主角在範圍內才送）
+- [ ] 建築物件：事件文字 = 房間裡劇情物件的別名（suijiwupinbaoxiang、netsuijiwupinbaoxiang、keysuijiwupinbaoxiang、suijikuangshi、netsuijikuangshi、random_tree、netrandom_tree、boxa_xnyd、box_a~d、kuangshi_a/b、shumu_a/b、iron_ore、各種 guizi/xiangzi/waguan/door…，共約 1900 格）
+- [ ] openall <別名>、bingyongzu*（兵俑）
+- [ ] c_aigroup <組> <值>
+- [ ] 空事件（932 格）：查原版用途
+
+### D. 劇情事件和過場
+- [ ] start_plot 0x1004f1a0：第 17 格檢查、0x52e 送客戶端播 Rec/User/<別名>.rec、結束 0x1004f2a0 跑第 18 格
+- [ ] .rec 播放器：'@' 00~0c 全部、'#' 0x01~0x12 全部（格式見「劇情事件」一節）、對話框 PTalk_C.dlg、跳過
+
+### E. 介面（DialogInfo.ini；已做：JM50、51、514、515、52~56、62、63、67、73、102）
+- [ ] JM011 扉页、JM01 外部主界面、JM02 单人游戏、JM09 创建新主角、JM21 难度选择、JM012 读盘
+- [ ] JM31 游戏设置、JM30 功能环境、JM36 游戏帮助、JM105 在线帮助、JM33 制作群、JM35 动画
+- [ ] JM108 对话选择（取代現在自己畫的對話框）、JM000 字幕、JM66 场景名、JM69 章节、JM71 结局、JM72 演示
+- [ ] JM57 道具介绍、JM58 人物介绍、JM59 技能说明、JM60 地图、JM61 日志、JM65 消息、JM70 地面道具
+- [ ] JM103 任务失败、JM104 任务完成、JM513 死亡、JM68 暂停、JM109 扔钱、JM79 学习技能
+- [ ] JM100 框架、JM511、JM512（查原版有沒有用到）
+- 連線版不做：JM04、05、06、64、74、75、76、77、78、80、101、106、122、JM510（除錯）
+
+### F. 戰鬥、角色
+- [ ] 盾牌格擋（Poq 0x48c4e3）
+- [ ] 位移（招式 type 7）、混色 bData3、其他 iTriPos（2、3、7、8、11）、iFlag 3 的其他觸發
+- [ ] 名字是圖形 ID 的 5 種怪物（蝙蝠、骷髏、蜘蛛…）
+- [ ] `颜色` 變色、傷害數字、死亡（主角死亡 JM513、怪物屍體時間照原版）
+- [ ] 左手技能施放、精氣消耗、按住加點加速
+- [ ] 怪物 AI 照原版（閒逛半徑、跟隨類型 15、閒逛停留時間）
+- [ ] 隊友（Friend 2、隊伍面板其他格、經驗分配）
+- [ ] 狀態（buff）
+- [ ] 速度比調整動畫延遲（加速／減速）
+
+### G. 道具
+- [ ] 成套武装（weaponset 0x1001eaa0、JM55 m_pCombo／m_Asunder、UI_Pos 40）
+- [ ] 自己用技能打造、五行換算 0x10058900、m_pMakerInfo
+- [ ] 原版說明文字 0x100279b0、can_eat、拖放規則、超重、箭的消耗、相生特性、地上道具畫法、系統訊息字串表
+- [ ] 寄存道具原版存在哪
+
+### H. 存檔
+- [ ] 每格的隊伍頭像（ResID1~5）
+- [ ] 地上道具、狀態、各場景怪物的狀態
+- [ ] 測：刪除、覆蓋確認、自动存盘、讀回後的劇情對話
+
+### I. 畫面、聲音
+- [ ] 遮擋排序（大型建築）、透明效果設定（Gfx3D 旗標 0x80）
+- [ ] 鏡頭停在地圖邊緣（對照原版）
+- [ ] 按鈕指著／按下的幀、旗標 0x20000、物品和技能圖示補齊、頭像
+- [ ] snd.lib 介面和技能音效
+- [ ] Gfx3D.dll（2022 Steam 版 3D 效果）
+
+### J. 最後
+- [ ] 手機操作重新設計（使用者說等整個遊戲做完）
+
 ## 引擎現況
 
 - 場景：地面、疊加層、建築和樹（Res01）、動畫部件（Res00 第 0 序列）都正確，抽驗了 4 張地圖。
