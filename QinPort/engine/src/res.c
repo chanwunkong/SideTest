@@ -1177,11 +1177,19 @@ int mondefs_load(void) {
             if (c < 35 || !col[0][0] || !atoi(col[34])) continue;
             if (mondef_count == cap) mondefs = realloc(mondefs, (cap = cap ? cap * 2 : 512) * sizeof(MonDef));
             MonDef *m = &mondefs[mondef_count++];
+            memset(m, 0, sizeof *m);
             snprintf(m->name, sizeof m->name, "%s", col[0]);
             snprintf(m->title, sizeof m->title, "%s", col[1]);
+            snprintf(m->alias, sizeof m->alias, "%s", col[2]);
             m->role = atoi(col[34]);
+            for (int k = 34; k < 39 && k < c; k++)
+                if (atoi(col[k]) > 0) m->roles[m->nroles++] = atoi(col[k]);
+            // 技能1~8 之後：名称ID、视野范围（原版 +0xc6c、+0xc70，依欄名對）
+            m->name_id = skill_col >= 0 && skill_col + 8 < c && *col[skill_col + 8] ? atoi(col[skill_col + 8]) : -1;
+            m->vrange = skill_col >= 0 && skill_col + 9 < c && atoi(col[skill_col + 9]) > 0 ? atoi(col[skill_col + 9]) : 0;
             for (int k = 0; k < 8; k++) snprintf(m->skill[k], sizeof m->skill[k], "%s", skill_col >= 0 && skill_col + k < c ? col[skill_col + k] : "");
-#define STAT(i) ((Stat){(float)atof(col[i]), (float)atof(col[(i) + 1])})
+#define FV(i) ((i) < c && *col[i] ? (float)atof(col[i]) : -1.f)  // 原版空格子當 −1
+#define STAT(i) ((Stat){FV(i), FV((i) + 1)})
             m->hp = STAT(5); m->ap = STAT(7); m->ap_max = STAT(9); m->dp = STAT(16);
             m->hit = STAT(28); m->dodge = STAT(30); m->exp = STAT(32);
             // 魔法攻击属性 1~5 → 魔法攻击（第 12、13 欄）、魔法攻击大（14、15）放到 MAP<属性>、MAP<属性>_MAX（EasyRPG 0x1006xxxx 讀表）
@@ -1202,6 +1210,7 @@ int mondefs_load(void) {
 #undef F
 #undef COL
 #undef STAT
+#undef FV
         }
         free(d);
     }

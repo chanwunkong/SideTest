@@ -89,15 +89,18 @@ def _fix(body, own, table, prefix, names, stub_slot):
         body = re.sub(r'\b' + nm + r'\b(?!\s*\()', nm + '_w', body)
     return body
 
-def _wrapper(nm, b):  # intptr_t nm_w(intptr_t *a)：a[0] = this，其餘依原參數轉型
+def _wrapper(nm, b, slot=False):  # intptr_t nm_w(intptr_t *a)：其餘依原參數轉型
+    # 共用函式（slot=False）：a = Ghidra 的參數表（劇情用 ENGINE(位址, 參數…) 呼叫）。
+    # 虛擬函式格（slot=True）：a[0] = this（ECX）、a[1..] = 堆疊參數；Ghidra 認成 cdecl 的格子不用 this，參數從 a[1] 起
     sig = re.sub(r'\s+', ' ', b.split('{', 1)[0]).strip()
     ret = sig.split(nm + '(')[0].replace('__thiscall', '').replace('__fastcall', '').replace('__cdecl', '').replace('static', '').strip()
     params = sig.split(nm + '(', 1)[1].rsplit(')', 1)[0].strip()
+    skip = 1 if slot and '__thiscall' not in sig and '__fastcall' not in sig else 0
     args = []
     if params and params != 'void':
         for i, p_ in enumerate(params.split(',')):
             ty = re.sub(r'\w+$', '', p_.strip()).strip()
-            args.append(f'({ty})a[{i}]')
+            args.append(f'({ty})a[{i + skip}]')
     callx = f'{nm}({", ".join(args)})'
     body_ = f'{callx}; return 0;' if ret == 'void' else f'return (intptr_t){callx};'
     return f'static intptr_t {nm}_w(intptr_t *a) {{ (void)a; {body_} }}'
@@ -206,10 +209,12 @@ def main(game, decomp, out):
             w.write(f'// {path}（{kname}，類別 {cls}，原版 EasyRPG.dll）\n// 由 tools/storytool.py 從反編譯產生；s<N> = 虛擬函式表第 N 格\n')
             w.write('\n'.join(decl) + '\n\n')
             for s, b in bodies.items():
-                w.write(f'// ---- 第 {s} 格（原 {own[s]}）\n' + b + '\n' + wrapper(names[own[s]], b) + '\n\n')
+                w.write(f'// ---- 第 {s} 格（原 {own[s]}）\n' + b + '\n' + wrapper(names[own[s]], b, True) + '\n\n')
             inherit = {s: fn for s, fn in table.items() if s and s not in own and fn in common}
-            for sl, fn in inherit.items():  # 繼承來的格子：到共用函式表找原位址
-                w.write(f'static intptr_t {prefix}_i{sl}(intptr_t *a) {{ return story_call_addr(0x{fn}u, a); }}\n')
+            for sl, fn in inherit.items():  # 繼承來的格子：到共用函式表找原位址（cdecl 的共用函式不帶 this）
+                sig = funcs[fn].split('{', 1)[0]
+                arg = 'a' if '__thiscall' in sig or '__fastcall' in sig else 'a + 1'
+                w.write(f'static intptr_t {prefix}_i{sl}(intptr_t *a) {{ return story_call_addr(0x{fn}u, {arg}); }}\n')
             slots = ', '.join([f'{{{s}, {names[own[s]]}_w}}' for s in bodies] + [f'{{{sl}, {prefix}_i{sl}}}' for sl in inherit])
             w.write(f'void {reg}(void) {{\n    static const StorySlot slots[] = {{{slots}}};\n'
                     f'    story_register("{path}", "{alias or ""}", {kind}, {start}, "{cls}", slots, {len(bodies) + len(inherit)});\n}}\n')

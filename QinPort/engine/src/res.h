@@ -143,8 +143,11 @@ typedef struct { float base, per; } Stat;
 typedef struct {
     char name[32];  // 人物类型，例如「动物山魈A」
     char title[32];  // 人物名称（畫面上顯示的，GBK），例如「狼」
+    char alias[32];  // 第 2 欄：別名（劇情找人用）
     char skill[8][32]; // 技能1~8，例如「狼_抓」→ Data/skill_npc.txt；技能1 是普通攻擊
     int role;       // 图形1 = RoleMdl 角色 ID
+    int roles[5], nroles;  // 图形1~5（> 0 的），出生時隨機挑一個當 G_PicID
+    int name_id, vrange;   // 名称ID（name_C.dlg）、视野范围
     Stat hp, ap, ap_max, dp, hit, dodge, exp;
     int melem;          // 魔法攻击属性 1~5（0 = 沒有）
     Stat map, map_max, mdp[5];
@@ -205,4 +208,12 @@ int skill_rows_file(const char *name, SkillRow *out, int max);  // 例如 skill_
 // 角色狀態表 ObjMdl/RoleEffectMdl.txt：速度變化（%，-1 = 不變）、停止動畫、不能攻擊、頭上／身上／腳下效果（圖形 ID）、聲音
 typedef struct { int speed, stop, noattack, head, body, foot, sound; } StatusDef;
 const StatusDef *status_def(int id);
-static inline int stat_at(Stat s, int level) { return (int)(s.base + s.per * level); }
+// 怪物數值（EasyRPG.dll 0x100730c0，單機）：(L/除數 + 1) × ((L − 1) × 參數 + 基準)；表上空格 = −1。
+// kind 0 經驗（除數 3）、1 生命（10，乘難度）、2 攻擊 AP/MAP（1000，乘難度）、3 防禦 DP/MDP/命中/閃避（50）
+// 難度（0x1039b000）：1 容易 ×2/3、2 普通、3 困難 ×1.5，乘在基準和參數上
+extern int difficulty;
+static inline int mon_stat(Stat s, int level, int kind) {
+    static const float div[4] = {3, 10, 1000, 50};
+    float L = (float)level, m = (kind == 1 || kind == 2) ? (difficulty == 1 ? 2.f / 3 : difficulty == 3 ? 1.5f : 1.f) : 1.f;
+    return (int)((L / div[kind] + 1) * ((L - 1) * s.per * m + s.base * m));
+}

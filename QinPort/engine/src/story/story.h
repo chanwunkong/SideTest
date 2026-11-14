@@ -19,6 +19,11 @@ typedef struct {
 } StoryDialog;
 extern StoryDialog story_dialog;  // 目前畫面上的對話
 
+// 劇情事件（CERPCT）：start_plot 送 0x52e，引擎播 Rec/User/<alias>.rec，播完呼叫 story_plot_end（第 18 格）
+typedef struct { int h; char alias[64]; } StoryPlot;
+extern StoryPlot story_plot;
+void story_plot_end(void);
+
 int story_new(const char *path, int parent);  // 產生物件，回傳代號
 int story_player(void);
 const char *story_name(int h);
@@ -51,3 +56,27 @@ void story_set_int(int h, const char *key, int v);
 // 存檔：整個劇情世界（物件、屬性、旗標、道具）寫進 f／讀回；item_size = 引擎的 sizeof(Item)
 void story_save(FILE *f, size_t item_size);
 int story_load(FILE *f, size_t item_size);
+
+// ---- 世界（房間、出口、人物）----
+const char *story_alias(int h);
+const char *story_path(int h);
+int story_kind(int h);                          // 0 房間 1 人物 2 道具 5 技能 6 劇情事件；−1 不存在
+int story_has_int(int h, const char *key);
+const char *story_get_str(int h, const char *key);
+void story_set_str(int h, const char *key, const char *s);
+void story_set_name(int h, const char *s);
+int story_room_by_path(const char *path);        // 依路徑取房間（還沒產生就產生）
+const char *story_room_alias(int room);          // 房間別名 = 場景檔名
+int story_enter(int room);                       // 主角走進房間（查出入、隊員跟著、第 16 格）；不讓進回 0
+void story_place(int room);                      // 主角直接放進房間（新遊戲、讀檔）
+int story_exit(int room, const char *dir, char *path, int cap, int *entry);  // 出口（開著才回 1）
+int story_exit_on(int room, const char *dir);    // 出口開關；沒有這個出口回 −1
+int story_random_exit(int room, const char *dir, char *path, int cap, int *entry);  // 隨機地下城出口（有換回 1）
+int story_die(int h);                            // 被打倒：第 10 格同意就刪掉，回 1
+void story_delete(int h);
+int story_team_next(int leader, int after);
+// 引擎提供：依怪物表設人物數值（0x100730c0；h 已是人物物件）、依技能表設技能物件（0x100757a0）、
+// 給畫面的訊息（id = 原版訊息編號；原版沒有編號、直接呼叫函式的用該函式位址的低位，例如 0x47870 = 屬性更新）
+extern int (*story_on_person)(int h, const char *name, int level, int tier);
+extern int (*story_on_skill)(int h, const char *key, int level);
+extern void (*story_on_msg)(int id, const intptr_t *v, int n, const char *s);

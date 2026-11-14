@@ -12,6 +12,9 @@
 #include "res.h"
 #include "audio.h"
 #include "gbk.h"
+#ifdef STORY
+#include "story/story.h"
+#endif
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -205,6 +208,7 @@ typedef struct Actor {
     float dash_x, dash_y;          // 招式衝刺／跳躍的目標點（dash = 1 時）
     int dash;
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
+    int sh;                        // 劇情物件（原版 EasyRPG 的人物；0 = 沒有）
 } Actor;
 
 // 角色某序列的節奏：各部件的幀延遲相同，拿第一個有資料的部件
@@ -413,6 +417,12 @@ static void preload_roles(const Scene *s, const RoleDef *hero_def) {
     free(ids.v);
 }
 
+int difficulty = 2;  // 原版 0x1039b000：1 容易、2 普通、3 困難（開新遊戲 JM21 選）
+#ifdef STORY
+static int sroom;    // 目前場景的劇情房間
+static void story_killed(int h);
+#endif
+
 static void spawn_npcs(const Scene *s) {
     actor_count = 1;  // actors[0] 是主角
     for (int i = 0; i < s->npc_count && actor_count < MAX_ACTORS; i++) {
@@ -427,6 +437,9 @@ static void spawn_npcs(const Scene *s) {
             if (DIR_MAP[o] == n->dir) a->dir = o;
         a->spec = n;
         a->act_tick = rand() % 200;  // 錯開動作，不要整排同步
+#ifdef STORY
+        a->sh = n->event[0] ? story_find(sroom, n->event) : 0;
+#endif
         actor_setup(a, d);
     }
 }
@@ -466,7 +479,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->side = 1;
     mon_derive(a);
     a->hp = a->hp_max;
-    a->exp = stat_at(m->exp, a->level);
+    a->exp = mon_stat(m->exp, a->level, 0);
     a->atk = method_find(skill_attack(m->skill[0]));  // 技能表沒有這招時的招式；有的話每次出手前由 mon_pick 選
     actor_setup(a, d);
     return a;
@@ -648,12 +661,12 @@ static void hero_derive(Actor *h) {
 // 怪物數值：表上的基礎值 → 固定加值 → 百分比（同 0x1002d8d0，沒有職業倍率）
 static void mon_derive(Actor *a) {
     const MonDef *m = a->mon;
-    a->hp_max = stat_at(m->hp, a->level);
-    a->ap = stat_at(m->ap, a->level);
-    a->ap_max = stat_at(m->ap_max, a->level);
-    a->dp = stat_at(m->dp, a->level);
-    a->hr = stat_at(m->hit, a->level);
-    a->sr = stat_at(m->dodge, a->level);
+    a->hp_max = mon_stat(m->hp, a->level, 1);
+    a->ap = mon_stat(m->ap, a->level, 2);
+    a->ap_max = mon_stat(m->ap_max, a->level, 2);
+    a->dp = mon_stat(m->dp, a->level, 3);
+    a->hr = mon_stat(m->hit, a->level, 3);
+    a->sr = mon_stat(m->dodge, a->level, 3);
     // 怪物表讀進來時（0x1004xxxx 讀 npc 表）：HP_SPEED = 生命恢复率 × HP_MAX / 10；打击恢复率、減傷、免疫放進對應屬性
     a->hp_speed = m->regen * a->hp_max / 10;
     a->mp_speed = 0;
@@ -665,10 +678,10 @@ static void mon_derive(Actor *a) {
     a->ex[77] = m->jsmf;
     for (int k = 0; k < 7; k++) a->ex[92 + k] = m->immu[k];
     if (m->melem >= 1 && m->melem <= 5) {
-        a->ex[41 + 2 * m->melem] = stat_at(m->map, a->level);
-        a->ex[42 + 2 * m->melem] = stat_at(m->map_max, a->level);
+        a->ex[41 + 2 * m->melem] = mon_stat(m->map, a->level, 2);
+        a->ex[42 + 2 * m->melem] = mon_stat(m->map_max, a->level, 2);
     }
-    for (int k = 0; k < 5; k++) a->ex[54 + k] = stat_at(m->mdp[k], a->level);
+    for (int k = 0; k < 5; k++) a->ex[54 + k] = mon_stat(m->mdp[k], a->level, 3);
     if (a->copied) {
         a->ap = a->copy[0];
         a->ap_max = a->copy[1];
@@ -993,6 +1006,9 @@ static void actor_kill(Actor *t, Actor *by) {
     if (t->mon) mon_loot(t);
     if (by && !by->mon && t->mon) hero_gain_exp(by, t->exp);
     printf("%s 倒下\n", t->mon ? "怪物" : "主角");
+#ifdef STORY
+    if (t->sh) story_killed(t->sh);  // 原版 0x100574e0 最後刪掉人物；Boss 的第 10 格會開劇情
+#endif
 }
 
 // ---- 招式特效（觸發 type 2 → MethodUnit_Mdl.ini 的 Res00 動畫，播一次）----
@@ -1505,6 +1521,23 @@ static void gbk_utf8(const char *in, char *out, size_t n) {
     out[o] = 0;
 }
 
+#ifdef STORY
+// UTF-8 → GBK（劇情檔的字串是 UTF-8，原版資料表是 GBK）；查表找不到的字變 '?'
+static void utf8_gbk(const char *in, char *out, size_t n) {
+    size_t o = 0;
+    for (const char *q = in; *q && o + 3 < n;) {
+        uint32_t c = utf8_next(&q);
+        if (c < 0x80) { out[o++] = (char)c; continue; }
+        int k = 0;
+        while (k < 126 * 191 && gbk_uni[k] != c) k++;
+        if (k == 126 * 191) { out[o++] = '?'; continue; }
+        out[o++] = (char)(0x81 + k / 191);
+        out[o++] = (char)(0x40 + k % 191);
+    }
+    out[o] = 0;
+}
+#endif
+
 // 一行字的寬度（置中用）
 static int text_width(const char *t) {
     int w = 0;
@@ -1533,7 +1566,6 @@ static int draw_text(int x, int y, const char *t, int maxw, Uint32 rgb, int draw
 
 #ifdef STORY
 // ---- 對話（劇情來自原版 EasyRPG.dll，見 story/）：畫面下方的框，說話者、台詞、回答選項 ----
-#include "story/story.h"
 static int dialog_open;
 static int opt_y0[STORY_MAX_OPTIONS], opt_y1[STORY_MAX_OPTIONS];
 
@@ -2582,6 +2614,7 @@ static void story_log(int h, int kind, const char *text) { (void)kind; if (h == 
 // move_object 拿得走）；叫完：拿回錢，劇情新放到主角身上的道具（add_item、give_object、move_object）收進 inv：
 // 有 UI_Pos 且那格空著就放那格（開場的扶苏武器 32、布衣 31），否則背包空格，滿了掉在腳下；被劇情拿走的從 inv 移除。
 // 劇情叫出買賣介面就打開
+static void story_msgs(void);
 static void story_begin(void) {
     int pl = story_player();
     story_set_int(pl, "Money", hero_money);
@@ -2616,6 +2649,173 @@ static void story_end(void) {
     if (equip) hero_refresh(&actors[0]);
     if (story_dialog.shop) { shop_open(story_dialog.shop); story_dialog.shop = 0; }
     if (story_dialog.store) { store_open(); story_dialog.store = 0; }
+    story_msgs();
+}
+
+// ---- 劇情世界（原版 EasyRPG 的房間、人物）和畫面的連接 ----
+// 原版 EasyRPG 用訊息通知畫面（Poq.exe 0x47d4e0、0x5174d0 分派）。這裡先排隊，劇情呼叫完（story_end）再處理，
+// 免得在走訪角色時改動角色表
+typedef struct { int id, n; intptr_t v[8]; char s[256]; } StoryMsg;
+static StoryMsg smsg[256];
+static int smsg_n, actors_dirty;
+
+static void story_msg(int id, const intptr_t *v, int n, const char *s) {
+    if (smsg_n == 256) { fprintf(stderr, "劇情訊息太多，丟掉 0x%x\n", id); return; }
+    StoryMsg *m = &smsg[smsg_n++];
+    m->id = id;
+    m->n = n;
+    memcpy(m->v, v, sizeof m->v);
+    snprintf(m->s, sizeof m->s, "%s", s);
+}
+
+static Actor *actor_of(int h) {
+    for (int i = 0; h && i < actor_count; i++)
+        if (actors[i].sh == h && actors[i].role) return &actors[i];
+    return NULL;
+}
+
+// 0x100730c0：依怪物表設人物數值（單機公式見 mon_stat）。數值放在人物物件上（劇情會讀），引擎的角色也照同一列算
+static int story_person(int h, const char *name, int level, int tier) {
+    if (!mondefs_load()) return 0;
+    if (level < 0) {
+        level = tier * 5 - rand() % 5;
+        if (level > 100) level = 99;
+    } else if (tier < 0 && (tier = level / 5 + 1) > 9) tier = 9;
+    if (level > 99) level = 99;
+    char gname[64];
+    utf8_gbk(name, gname, sizeof gname);
+    const MonDef *m = mondef_pick(gname);
+    if (!m) { fprintf(stderr, "Person attributes not found <%s>!\n", name); return 0; }
+    char g[128], u[128] = "";
+    if (m->name_id >= 0 && res_dlg("name_C.dlg", m->name_id, g, sizeof g)) gbk_utf8(g, u, sizeof u);
+    story_set_name(h, u);
+    gbk_utf8(m->alias, u, sizeof u);
+    story_set_alias(h, u);
+    story_set_int(h, "Level", level);
+    story_set_int(h, "Exp", mon_stat(m->exp, level, 0));
+    story_set_int(h, "HP", mon_stat(m->hp, level, 1));
+    story_set_int(h, "HP_MAX", mon_stat(m->hp, level, 1));
+    story_set_int(h, "AP", mon_stat(m->ap, level, 2));
+    story_set_int(h, "AP_MAX", mon_stat(m->ap_max, level, 2));
+    story_set_int(h, "FE", m->melem ? m->melem : -1);
+    if (m->melem >= 1 && m->melem <= 5) {
+        char k[16];
+        snprintf(k, sizeof k, "MAP%d", m->melem);
+        story_set_int(h, k, mon_stat(m->map, level, 2));
+        snprintf(k, sizeof k, "MAP%d_MAX", m->melem);
+        story_set_int(h, k, mon_stat(m->map_max, level, 2));
+    }
+    story_set_int(h, "DP", mon_stat(m->dp, level, 3));
+    for (int k = 0; k < 5; k++) {
+        char key[8];
+        snprintf(key, sizeof key, "MDP%d", k + 1);
+        story_set_int(h, key, mon_stat(m->mdp[k], level, 3));
+    }
+    story_set_int(h, "SR", mon_stat(m->hit, level, 3));
+    story_set_int(h, "HR", mon_stat(m->dodge, level, 3));
+    if (m->nroles) story_set_int(h, "G_PicID", m->roles[rand() % m->nroles]);
+    story_set_int(h, "B_C_MOVE_SPEED", m->mspeed);
+    story_set_int(h, "B_C_FIGHT_SPEED", m->mfight);
+    story_set_str(h, "Index", name);
+    story_set_str(h, "MonRow", m->name);  // 自己加的：挑到哪一列（引擎的角色依它算數值）
+    story_set_int(h, "B_C_VRANGE", m->vrange);
+    story_set_int(h, "B_C_DJHF", m->djhf);
+    story_set_int(h, "B_JSWL", m->jswl);
+    story_set_int(h, "B_JSMF", m->jsmf);
+    static const char *const IMMU[7] = {"B_XYIMMU", "B_ZDIMMU", "B_BDIMMU", "B_SMIMMU", "B_SHIMMU", "B_KSIMMU", "B_QTIMMU"};
+    for (int k = 0; k < 7; k++) story_set_int(h, IMMU[k], m->immu[k]);
+    story_set_int(h, "istrap", m->istrap);
+    story_set_int(h, "HP_SPEED", m->regen * mon_stat(m->hp, level, 1) / 10);
+    story_set_int(h, "Tier", tier);  // 自己加的：掉寶的等級欄（原版出生時就掉寶，這裡倒下才算）
+    return 1;
+}
+
+// 0x100757a0：依技能表設技能物件（陷阱 NPC 的技能用）。shortcut: 技能的效果（0x10037490）由引擎的技能表直接算，這裡只放屬性
+static int story_skill(int h, const char *key, int level) {
+    static SkillRow rows[512];
+    static int n = -1;
+    if (n < 0) {
+        n = skill_rows_file("skill_npc.txt", rows, 256);
+        for (int p = 1; p <= 5; p++) n += skill_rows(p, rows + n, 512 - n);
+    }
+    for (int i = 0; i < n; i++) {
+        const SkillRow *r = &rows[i];
+        if (strcmp(r->key, key)) continue;
+        char g[128], u[128];
+        if (r->name_id >= 0 && res_dlg("name_C.dlg", r->name_id, g, sizeof g)) { gbk_utf8(g, u, sizeof u); story_set_name(h, u); }
+        story_set_alias(h, key);
+        story_set_int(h, "Level_Req", r->req);
+        story_set_int(h, "Level_Add", r->req_add);
+        story_set_int(h, "Level_Max", r->max_level);
+        story_set_int(h, "W_Type", r->wtype);
+        story_set_int(h, "AttackID", r->attack);
+        story_set_int(h, "G_PicID2", r->icon);
+        if (r->status > 0) story_set_int(h, "Status", r->status);
+        if (r->estatus > 0) story_set_int(h, "EStatus", r->estatus);
+        story_set_int(h, "Level", level < 0 && r->level >= 0 ? r->level : level);
+        return 1;
+    }
+    fprintf(stderr, "Skill attributes not found <%s>!\n", key);
+    return 0;
+}
+
+// 房間裡的人物 → 角色：還沒有角色的加上（原版用 G_PosX = −100 表示「放在入口 G_PosY」），不在房間裡的角色拿掉（倒下的播完）
+static void actors_sync(const Scene *s) {
+    actors_dirty = 0;
+    if (!mondefs_load()) return;
+    for (int i = 1; i < actor_count; i++) {
+        Actor *a = &actors[i];
+        if (a->sh && a->role && a->act != ACT_DEAD && story_parent(a->sh) != sroom) a->role = NULL;
+    }
+    int pl = story_player(), grp = story_get_int(pl, "G_AIGroup");
+    for (int h = story_next(sroom, 0); h && actor_count < MAX_ACTORS; h = story_next(sroom, h)) {
+        if (h == pl || story_kind(h) != 1 || actor_of(h)) continue;
+        const MonDef *m = mondef_find(story_get_str(h, "MonRow"));
+        const RoleDef *d = roledef_find(story_get_int(h, "G_PicID"));
+        if (!m || !d || (!atoi(d->graphic) && !d->anim)) continue;  // shortcut: 圖形 ID 是名字的怪物（蝙蝠、骷髏、蜘蛛）還沒做
+        if (story_get_int(h, "G_PosX") != -100) continue;  // 劇情 NPC（ONT 擺的）由 spawn_npcs 放
+        int n = 0, pick = -1, area = story_get_int(h, "G_PosY");
+        for (int i = 0; i < s->entry_count; i++)
+            if (s->entries[i].id == area && rand() % ++n == 0) pick = i;
+        if (pick < 0) continue;
+        const Entry *en = &s->entries[pick];
+        int x = en->x, y = en->y;
+        for (int t = 0; t < 20; t++) {  // 在入口點附近找一格能站的
+            int tx = en->x + rand() % 7 - 3, ty = en->y + rand() % 7 - 3;
+            if (scene_walkable(s, tx, ty)) { x = tx; y = ty; break; }
+        }
+        Actor *a = mon_make(m, d, x, y, en->x, en->y, story_get_int(h, "Level"));
+        a->sh = h;
+        a->side = story_get_int(h, "G_AIGroup") != grp;  // shortcut: 敵我照 G_AIGroup 是否跟主角同組，原版的 AI 組關係還沒查
+    }
+}
+
+// 怪物倒下：原版 0x100574e0 最後呼叫第 10 格再刪掉（Boss 的第 10 格開劇情）
+static void story_killed(int h) {
+    story_begin();
+    story_die(h);
+    story_end();
+}
+
+// 處理排隊的訊息（編號照原版；Poq.exe 0x47d4e0 等的處理還沒全部翻，沒做的印出來）
+static void story_msgs(void) {
+    for (int i = 0; i < smsg_n; i++) {
+        StoryMsg *m = &smsg[i];
+        Actor *a = actor_of((int)m->v[0]);
+        switch (m->id) {
+        case 0x51d:  // 物件換位置：進出目前房間就重新對角色
+            if (m->v[1] == sroom || (a && a != &actors[0])) actors_dirty = 1;
+            break;
+        case 0x535: if (a) a->ex[20] = (int)m->v[1]; break;                 // Invincible
+        case 0x51c: if (a && a != &actors[0]) a->side = m->v[1] != story_get_int(story_player(), "G_AIGroup"); break;  // G_AIGroup
+        case 0x574e0: if (a && alive(a)) actor_kill(a, NULL); break;        // 劇情讓人物死掉
+        case 0x42aa0: if (a && a != &actors[0]) a->hp = story_get_int(a->sh, "HP"); break;
+        case 0x52e: story_plot_end(); break;  // shortcut: 過場播放器還沒做（清單 D），先直接結束（第 18 格）
+        case 0x47870: case 0x52c: case 0x51b: case 0x519: break;  // 屬性更新、出口開關（走出口時再查）、NPC 頭上標記、轉向
+        default: fprintf(stderr, "劇情訊息 0x%x（%s）還沒做\n", m->id, m->s); break;
+        }
+    }
+    smsg_n = 0;
 }
 #endif
 
@@ -2630,6 +2830,7 @@ static void story_end(void) {
 #define SAVE_SLOTS 96
 #define THUMB_W 128
 #define THUMB_H 96
+#define SAVE_VER 2  // 2：劇情物件多了種類、隊伍、出口
 typedef struct { char magic[4]; int ver; long long time; char alias[64], name[64]; int level; uint32_t thumb[THUMB_W * THUMB_H]; } SaveHead;
 typedef struct {
     float x, y;
@@ -2681,7 +2882,7 @@ static int save_write(int slot) {
     static SaveHead h;
     memset(&h, 0, sizeof h);
     memcpy(h.magic, "QSAV", 4);
-    h.ver = 1;
+    h.ver = SAVE_VER;
     h.time = (long long)time(NULL);
     snprintf(h.alias, sizeof h.alias, "%s", save_alias);
     snprintf(h.name, sizeof h.name, "%s", save_name);
@@ -2713,7 +2914,7 @@ static int save_read(int slot, SaveHead *h) {
     SaveHero s;
     static Item tmp[INV_N];
     if (!f) return 0;
-    if (fread(h, sizeof *h, 1, f) != 1 || memcmp(h->magic, "QSAV", 4) || h->ver != 1 || fread(&s, sizeof s, 1, f) != 1 ||
+    if (fread(h, sizeof *h, 1, f) != 1 || memcmp(h->magic, "QSAV", 4) || h->ver != SAVE_VER || fread(&s, sizeof s, 1, f) != 1 ||
         fread(tmp, sizeof tmp, 1, f) != 1) { fclose(f); return 0; }
 #ifdef STORY
     static Item st[STORE_N];
@@ -2771,7 +2972,7 @@ static void sav_open(int mode) {
         save_path(i, p, sizeof p);
         FILE *f = fopen(p, "rb");
         SaveHead *h = malloc(sizeof *h);
-        if (f && h && fread(h, sizeof *h, 1, f) == 1 && !memcmp(h->magic, "QSAV", 4) && h->ver == 1) { sav_head[i] = h; h = NULL; }
+        if (f && h && fread(h, sizeof *h, 1, f) == 1 && !memcmp(h->magic, "QSAV", 4) && h->ver == SAVE_VER) { sav_head[i] = h; h = NULL; }
         free(h);
         if (f) fclose(f);
     }
@@ -3471,7 +3672,11 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     *scene = next;
 #ifdef STORY
     shop_close();
-    story_refresh(story_room(alias));  // 商店進貨等
+    sroom = story_room(alias);
+    if (story_parent(story_player()) != sroom) story_place(sroom);  // 新遊戲、讀檔、測試直接指定場景
+    story_begin();
+    story_refresh(sroom);  // 重放怪物、商店進貨
+    story_end();
 #endif
     cache_clear();
     res_cache_clear();
@@ -3577,6 +3782,9 @@ int main(int argc, char **argv) {
     story_item_make = story_item_new;
     story_on_exp = story_exp;
     story_on_log = story_log;
+    story_on_person = story_person;
+    story_on_skill = story_skill;
+    story_on_msg = story_msg;
     story_end();  // 開場裝備照劇情的主角（扶苏武器、布衣）
     hero_look();
 #else
@@ -3772,6 +3980,30 @@ int main(int argc, char **argv) {
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = trigger_at(&scene, hero);
             if (!t) armed = 1;
+#ifdef STORY
+            // 原版 go（EasyRPG 0x10017e30）：出口要開著；隨機地下城出口（0x10052af0）；舊房間第 13 格、新房間第 14 格同意才進
+            else if (armed && !strncmp(t->event, "go ", 3)) {
+                char path[128];
+                int entry = 0, to = 0;
+                armed = 0;
+                if (!story_exit(sroom, t->event + 3, path, sizeof path, &entry)) continue;
+                story_begin();
+                story_random_exit(sroom, t->event + 3, path, sizeof path, &entry);
+                to = story_room_by_path(path);
+                int ok = to && story_enter(to);
+                story_end();
+                js_status(-1);
+                if (ok && enter_scene(&scene, hero, story_room_alias(to), entry)) {
+                    monsters_due = 1;
+                    snprintf(alias, sizeof alias, "%s", story_room_alias(to));
+                    scene_music(alias, music, sizeof music);
+                    audio_music(music);
+                    printf("進入 %s\n", alias);
+                    snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）。shortcut: 原版只在「大場景」之間存，這裡每個出口都存
+                    save_due = 0;
+                }
+            }
+#else
             else if (armed && !strncmp(t->event, "go ", 3)) {
                 if (!world_tried) room = load_world(&world, &world_tried, alias);
                 if (room < 0) { armed = 0; continue; }
@@ -3794,11 +4026,18 @@ int main(int argc, char **argv) {
                     break;
                 }
             }
+#endif
         }
 
+#ifdef STORY
+        if (actors_dirty && !monsters_due) actors_sync(&scene);
+        if (monsters_due && !res_loading()) {
+            monsters_due = 0;
+#else
         if (monsters_due && !res_loading() && (world_tried || world_ready())) {
             monsters_due = 0;
             if (!world_tried) room = load_world(&world, &world_tried, alias);
+#endif
             static int fight_loaded;
             if (!fight_loaded) {  // 戰鬥資料也等開場畫面好了才讀（網頁版不拖慢開場）
                 fight_loaded = 1;
@@ -3811,7 +4050,11 @@ int main(int argc, char **argv) {
                     free(d);
                 }
             }
+#ifdef STORY
+            actors_sync(&scene);
+#else
             if (mondefs_load()) spawn_monsters(&scene, &world, room);
+#endif
         }
 
         // 主角腳底的世界像素；鏡頭跟著主角
@@ -3873,7 +4116,11 @@ int main(int argc, char **argv) {
         if (snap_due) { snap_take(canvas); snap_due = 0; }
         if (save_due >= 0) {
             snprintf(save_alias, sizeof save_alias, "%s", alias);
+#ifdef STORY
+            snprintf(save_name, sizeof save_name, "%s", story_name(sroom));
+#else
             snprintf(save_name, sizeof save_name, "%s", room >= 0 ? world.rooms[room].name : "");
+#endif
             int ok = save_write(save_due);
             if (save_due) hud_say(ok ? "\xe6\xb8\xb8\xe6\x88\x8f\xe8\xbf\x9b\xe5\xba\xa6\xe5\xb7\xb2\xe4\xbf\x9d\xe5\xad\x98" : "\xe4\xbf\x9d\xe5\xad\x98\xe5\xa4\xb1\xe8\xb4\xa5");  // shortcut: 原版存好的提示沒找到，自訂「游戏进度已保存」「保存失败」
             save_due = -1;
