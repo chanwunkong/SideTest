@@ -1014,6 +1014,16 @@ static void actor_kill(Actor *t, Actor *by) {
 // ---- 招式單位（觸發 type 2 → MethodUnit_Mdl.ini）：原版的特效與飛行物件，見 unit.c ----
 static int shake_left, shake_total;
 static const Scene *unit_scene;
+// 移掉某個狀態（打中名單放開時拿掉 110）
+static void buff_drop(Actor *a, int st) {
+    int n = a->buff_n;
+    for (int b = 0; b < a->buff_n; b++)
+        if (a->buff[b].status == st) a->buff[b--] = a->buff[--a->buff_n];
+    if (n != a->buff_n) actor_derive(a);
+}
+static int hostile(const Actor *a, const Actor *e);
+struct MUnit;
+static int owner_trig(struct MUnit *u, const Trig *t, Uint32 tick);
 #define scene (*unit_scene)
 #include "unit.c"
 #undef scene
@@ -1067,6 +1077,7 @@ static int react_tick(Actor *a, const Scene *s) {
 }
 
 static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
+    (void)tick;
     if (!alive(t)) return;
     t->fight = FIGHT_TICKS;
     if (t->mon && !t->foe) t->foe = a;  // 被打的怪物會反擊
@@ -1133,13 +1144,6 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     // 潰散 17：成功率直接 = 機率，7 秒
     int ks = (int)((pct[20] + 100) * (a->ex[90] + add[20]) / 100);
     if (ks > 0 && t->ex[97] < 100 && rnd(100) < ks && alive(t)) buff_add(t, NULL, 17, 1, 7, 0);
-    if (a->atk)  // 打中對方時的音效和特效（招式 iFlag = 1）
-        for (int i = 0; i < a->atk->trig_count; i++) {
-            const Trig *g = &a->atk->trig[i];
-            if (g->flag != 1) continue;
-            if (g->type == 1) audio_sfx(g->id);
-            else if (g->type == 2) unit_from_actor(a, g, tick);
-        }
     if (a->hp <= 0 && alive(a)) actor_kill(a, t);
     if (t->hp <= 0) { actor_kill(t, a); return; }
     if (t->def->snd_hit) audio_sfx(t->def->snd_hit);
@@ -1174,8 +1178,11 @@ static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
             uy = (foe->y - a->y) / (len > 0 ? len : 1);
         }
     }
-    if (r < 0) skill_hit(a, a->casting && !skill_needs_foe(a->cast) ? a : foe, sk, tick);
-    else {
+    if (r < 0) {
+        Actor *t1 = a->casting && !skill_needs_foe(a->cast) ? a : foe;
+        skill_hit(a, t1, sk, tick);
+        if (t1 && t1 != a) main_hit(a, t1, tick);
+    } else {
         if (sk && sk->status > 0) skill_hit(a, NULL, sk, tick);  // 自己的狀態只加一次
         for (int i = 0; i < actor_count; i++) {
             Actor *e = &actors[i];
@@ -1183,9 +1190,41 @@ static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
             if (!hostile(a, e)) continue;
             if (ux || uy ? along < 0 || along > r + 0.5f || fabsf(dx * uy - dy * ux) > 1 : sqrtf(dx * dx + dy * dy) > r + 0.5f) continue;
             skill_hit(a, e, sk, tick);
+            main_hit(a, e, tick);
         }
     }
     if (a->casting) a->casting = 2;
+}
+
+// 角色出手的觸發中跟出手的人有關的（0x43c4f0，來源是 MethodMain）：0 命中、15 結算、16 的 0x14/0x16、2 放單位（放出點用出手者動作的熱點）、
+// 13 改幀延遲、8 動作旗標、11 離地、5/7 衝過去；其他（音效、震畫面、結束、16 改目標點）照招式單位的做。回傳 0 = 不是這裡的
+static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
+    Actor *a = u->owner;
+    if (t->type == 0 || t->type == 15 || (t->type == 16 && (t->id == 0x14 || t->id == 0x16))) method_hits(a, t, tick);
+    else if (t->type == 2) {  // 單位自己會打中（有命中觸發或是飛行物）時，左手技能不用在放完時補結算
+        int before = unit_n, ex, ey;
+        actor_hot(a, &ex, &ey);
+        unit_spawn(t->id, t, u, u->x, u->y, ex, ey, tick);
+        for (int k = before; a->casting && k < unit_n; k++)
+            if (units[k].def && unit_can_hit(units[k].def)) a->casting = 2;
+    }
+    else if (t->type == 13) a->adj = t->id - 5;
+    else if (t->type == 8) act_flags(a, t);
+    else if (t->type == 11) {  // 離地：每拍升降 ID、最高 ID2（0x43c4f0 → 0x4961e0）
+        a->vz = t->id;
+        a->zmax = t->id2;
+    }
+    else if (t->type == 5 || t->type == 7) {
+        // 衝過去／跳過去（Poq.exe 0x43c4f0 type 5、7 → 角色動作 10、7 → 移動狀態 0x15、0x16 到招式的目標點）
+        if (alive(a->foe) && cell_dist(a, a->foe) > 1.5f) {
+            float dx = a->foe->x - a->x, dy = a->foe->y - a->y, len = sqrtf(dx * dx + dy * dy);
+            a->dash_x = a->foe->x - dx / len;
+            a->dash_y = a->foe->y - dy / len;
+            a->dash = 1;
+        }
+    }
+    else return 0;
+    return 1;
 }
 
 // 震畫面（觸發 type 14 ID 4 → 0x44ca40 → 0x461180）：還在震就不重來；剩下拍數每 5 拍換一次上下，幅度 = 畫面寬/640×25×剩下/總共（0x45bxxx）
@@ -1196,36 +1235,14 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     int seq = actor_seq(a);
     const Seq *q = role_seq(a->role, seq);
     int f = q || a->act != ACT_ATTACK ? actor_frame(a, seq) : 99;  // 角色沒有這招的動作（陷阱）：觸發一次全放
-    if (a->act == ACT_ATTACK && a->atk)
-        for (int fr = a->last_frame + 1; fr <= f; fr++)
-            for (int i = 0; i < a->atk->trig_count; i++) {
-                const Trig *t = &a->atk->trig[i];
-                if (t->flag || t->frame != fr) continue;
-                if (t->type == 1) audio_sfx(t->id);
-                else if (t->type == 0 || (t->type == 16 && (t->id == 0x14 || t->id == 0x16))) method_hits(a, t, tick);
-                else if (t->type == 2) {  // 放招式單位（0x43b8c0）；單位自己會打中（有命中觸發或是飛行物）時，左手技能不用在放完時補結算
-                    int before = unit_n;
-                    unit_from_actor(a, t, tick);
-                    for (int k = before; a->casting && k < unit_n; k++)
-                        if (unit_can_hit(units[k].def)) a->casting = 2;
-                }
-                else if (t->type == 13) a->adj = t->id - 5;
-                else if (t->type == 15) method_hits(a, t, tick);  // 送 0x13b 帶攻擊位置給 EasyRPG 結算技能（陷阱招式用）
-                else if (t->type == 14 && t->id == 4 && shake_left < 1 && fabsf(a->x - actors[0].x) + fabsf(a->y - actors[0].y) < 20)
-                    shake_left = shake_total = t->id2;  // shortcut: 原版看角色在不在畫面矩形裡，這裡用離主角 20 格內估
-                else if (t->type == 8) act_flags(a, t);
-                else if (t->type == 11) {  // 離地：每拍升降 ID、最高 ID2（0x43c4f0 → 0x4961e0）
-                    a->vz = t->id;
-                    a->zmax = t->id2;
-                }  // 改這個動作的每幀延遲（0x43c4f0 → 序列 +0x14 = ID − 5）
-                else if ((t->type == 5 || t->type == 7) && alive(a->foe) && cell_dist(a, a->foe) > 1.5f) {
-                    // 衝過去／跳過去（Poq.exe 0x43c4f0 type 5、7 → 角色動作 10、7 → 移動狀態 0x15、0x16 到招式的目標點）
-                    float dx = a->foe->x - a->x, dy = a->foe->y - a->y, len = sqrtf(dx * dx + dy * dy);
-                    a->dash_x = a->foe->x - dx / len;
-                    a->dash_y = a->foe->y - dy / len;
-                    a->dash = 1;
-                }
-            }
+    if (a->act == ACT_ATTACK && a->atk) {  // 招式的觸發由角色出手物件（U_MAIN）放
+        if (a->last_frame < 0 && !main_of(a)) main_new(a);
+        MUnit *u = main_of(a);
+        if (u) {
+            u->x = ax64(a), u->y = ay64(a), u->frame = f;
+            unit_base(u, tick);
+        }
+    }
     // shortcut: 衝刺／跳躍用平常走路的速度逐拍移過去；原版跳躍（0x16）另有高度（速度/2 起跳、每拍 +4，0x496550），還沒畫高度
     if (a->dash) {
         float gx = a->dash_x - a->x, gy = a->dash_y - a->y;
@@ -1249,6 +1266,15 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
             if (a->act_frame < q->count - 1) a->act_frame++;
             else a->act_done = 1;
         }
+    }
+    if (a->act == ACT_ATTACK && (!q || a->act_done)) {  // 動作播完：連鎖就重播（0x43a760），否則結束角色出手
+        MUnit *u = main_of(a);
+        if (u && unit_bounce(u)) {
+            a->act_frame = a->frame_tick = a->act_done = 0;
+            a->last_frame = -1;
+            return;
+        }
+        if (u) unit_die(u, tick);
     }
     if (a->act != ACT_DEAD && (!q || a->act_done)) {
         // 攻擊間隔（Poq.exe 0x48d330）：主角 = 間隔 × 100 / (100 + 攻速)，攻速 = B_C_FIGHT_SPEED v > 0 時 v×120/(v+120)；怪物 = 間隔 + 隨機(間隔)
@@ -3772,7 +3798,8 @@ int main(int argc, char **argv) {
 
     Uint64 fps_t = SDL_GetPerformanceCounter();
     Uint32 logic_ms = SDL_GetTicks(), tick = 0;
-    int frames = 0, running = 1, pointer_down = 0, px = 0, py = 0, ox = 0, oy = 0;
+    int frames = 0, running = 1, pointer_down = 0, px = 0, py = 0, ox = 0, oy = 0, mouse_seen = 0;
+    SDL_ShowCursor(SDL_DISABLE);  // 0x433dc0：關掉系統游標，畫原版游標動畫 0x100011
 
     while (running) {
         SDL_Event e;
@@ -3821,7 +3848,7 @@ int main(int argc, char **argv) {
                 hero_cast(hero);
             }
             else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) pointer_down = 0;
-            else if (e.type == SDL_MOUSEMOTION) { px = e.motion.x; py = e.motion.y; }
+            else if (e.type == SDL_MOUSEMOTION) { px = e.motion.x; py = e.motion.y; mouse_seen = e.motion.which != SDL_TOUCH_MOUSEID; }
             else if (e.type == SDL_CONTROLLERDEVICEADDED && !pad) pad = SDL_GameControllerOpen(e.cdevice.which);
         }
         if (pad && SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_BACK) && SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_START))
@@ -4050,6 +4077,10 @@ int main(int argc, char **argv) {
 #ifdef STORY
         dialog_draw();
 #endif
+        if (mouse_seen) {  // 觸控沒有游標
+            const Anim *cur = anim_get(0x100011);
+            if (cur) draw_frame(cur, 0, frame_at(&cur->seqs[0], tick), px, py, 0);
+        }
         if (shot && tick > 3) {
             SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, vw, vh, 32, SDL_PIXELFORMAT_ARGB8888);
             SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, surf->pixels, surf->pitch);

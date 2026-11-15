@@ -116,6 +116,20 @@ int main(void) {
     const Unit *ad = unit_find(0);
     printf("arrow b0..5 %d %d %d %d %d %d: hit at %d, gone at %d\n", ad->b[0], ad->b[1], ad->b[2], ad->b[3], ad->b[4], ad->b[5], hit_at, ticks);
     assert(hit_at > 0 && hit_at <= 11 && unit_n == 0);
+    // 角色出手：wEffect 2 打中加狀態 110 進名單；wQuality 3 連鎖 1 次時放開名單（拿掉 110）重來，第二次結束
+    Method mm = {.effect = 2, .quality = 3, .r1 = 1, .range_max = 3};
+    actors[0].act = ACT_ATTACK;
+    actors[0].atk = &mm;
+    unit_n = 0;
+    main_new(&actors[0]);
+    MUnit *mu = main_of(&actors[0]);
+    assert(mu && mu->bounce == 1);
+    main_hit(&actors[0], &actors[1], 0);
+    assert(mu->hit_n == 1 && has_status(&actors[1], 110));
+    assert(unit_bounce(mu) && mu->hit_n == 0 && !has_status(&actors[1], 110));
+    assert(!unit_bounce(mu));
+    unit_die(mu, 0);
+    actors[0].act = ACT_NONE;
     const Anim *arrow = anim_get(unit_find(0)->anim);
     printf("arrow seqs %d\n", arrow ? arrow->count : -1);
     // 怪物選招：老虎（抓、扑、冲）三招都會被選到

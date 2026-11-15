@@ -80,7 +80,7 @@ static void actor_hot(const Actor *a, int *ex, int *ey) {
 }
 
 // ---- 招式物件共同部分（MethodBase 0x4381a0）：角色出手（MethodMain）和招式單位都有 ----
-enum { U_NORMAL, U_FLY, U_FLYNORMAL, U_ARROW, U_GHOST, U_CYCLE, U_SURFIRE, U_FIREMAN };
+enum { U_NORMAL, U_FLY, U_FLYNORMAL, U_ARROW, U_GHOST, U_CYCLE, U_SURFIRE, U_FIREMAN, U_MAIN };  // U_MAIN = 角色出手（MethodMain）
 typedef struct MUnit {
     int cls, dead;                   // 類別、已結束（+0x58）
     Actor *owner, *target;           // +0x87 放的人、+0x83 目標
@@ -100,6 +100,10 @@ typedef struct MUnit {
     int cx, cy, cells, left;         // 飛行：目前格（+0x127）、經過幾格（+0x129）、剩幾拍（+0x126）
     float fx, fy, vx, vy, kx, ky;    // +0x4a8 浮點位置、+0x4b0 每拍位移、+0x4bc 落地後的減速
     int vh, acc, step, div, landed;  // +0x4c8 升速、+0x4cc、+0x4d0、+0x4d4、+0x4d8
+    const Trig *trig;                // +0x3f3 觸發：單位表的；角色出手是招式表的
+    int trig_n;
+    Actor *hit[50];                  // +0x9f 打中名單（CStaticLinkList<int,50>）
+    int hit_n, bounce, frame;        // +0x233 名單數量、+0x434 連鎖剩幾次、角色出手 = 出手者動作目前幀
 } MUnit;
 
 #define MAX_UNIT 128
@@ -111,8 +115,44 @@ static void unit_die(MUnit *u, Uint32 tick);
 
 // 打中觸發（0x438560 → 0x439710）：flag 1 那組裡 iWhatFrame = 事件（1 打中人、2 撞牆）或 −1 的
 static void unit_event(MUnit *u, int ev, Uint32 tick) {
-    for (int i = 0; u->def && i < u->def->trig_count; i++)
-        if (u->def->trig[i].flag == 1 && (ev < 0 || u->def->trig[i].frame == ev || u->def->trig[i].frame == -1)) unit_trig(u, &u->def->trig[i], tick);
+    for (int i = 0; i < u->trig_n; i++)
+        if (u->trig[i].flag == 1 && (ev < 0 || u->trig[i].frame == ev || u->trig[i].frame == -1)) unit_trig(u, &u->trig[i], tick);
+}
+
+// 加進打中名單（0x438560）：放打中觸發；招式 wEffect 1~3 時對方擲抗性 隨機(200) < B_C_DJHF + 正在放的招的 DJHF（0x488630），
+// 抗住就到此為止，否則加狀態 110（受傷旋飛：不能動、不能攻擊，不會到期）。原版不檢查重複，名單滿 50 個就加不進去
+static void hit_add(MUnit *u, Actor *t, Uint32 tick) {
+    unit_event(u, 1, tick);
+    int e = u->m ? u->m->effect : 0;
+    if (e >= 1 && e <= 3 && alive(t)) {
+        const SkillRow *ts = t->act == ACT_ATTACK ? (t->casting ? t->cast : t->skill) : NULL;
+        if (rand() % 200 < t->ex[75] + (ts ? (int)skill_field(ts, 19, 0) : 0)) return;
+        buff_add(t, NULL, 110, 1, -1, 0);
+    }
+    if (u->hit_n < 50) u->hit[u->hit_n++] = t;
+}
+
+// 放開打中名單（0x439e70）：wEffect 1~3 時移掉名單上每個人的狀態 110，清空
+static void hit_release(MUnit *u) {
+    int e = u->m ? u->m->effect : 0;
+    for (int i = 0; e >= 1 && e <= 3 && i < u->hit_n; i++) buff_drop(u->hit[i], 110);
+    u->hit_n = 0;
+}
+
+// 名單上已經不在的拿掉（0x4393c0、0x437540 開頭：0x4883b0 找不到物件）
+static void hit_prune(MUnit *u) {
+    int n = 0;
+    for (int i = 0; i < u->hit_n; i++)
+        if (alive(u->hit[i])) u->hit[n++] = u->hit[i];
+    u->hit_n = n;
+}
+
+// ClockEllipsePathMove（OmUtil.dll 0x400084a0）：p 繞 c 轉。離 c 比 r 近就往外、遠就往內走 speed/2，再往順時針方向走 speed
+static void ellipse_move(int *px, int *py, int cx, int cy, int r, int speed) {
+    int d = dir_of(cx, cy, *px, *py, 8), dist = dist_of(*px, *py, cx, cy);
+    if (dist < r) move_dir(px, py, d, speed / 2);
+    else if (dist > r) move_dir(px, py, (d - 4) & 7, speed / 2);
+    move_dir(px, py, (d - 2) & 7, speed);
 }
 
 // 找範圍內的人並打（0x439fb0）：pt 周圍 (r+48)/64 格（至少 1）裡、位置在 pt ± (r+64) 方框內的人，近的格子先；
@@ -132,7 +172,7 @@ static int hit_find(MUnit *u, int px, int py, int all, int r, Uint32 tick) {
             int friendly = u->m && (u->m->manual == 1 || u->m->manual == 2);
             if (friendly ? t->side != o->side : t == o || t->side == o->side) continue;
             skill_hit(o, t, u->sk, tick);
-            if (u->cls >= 0) unit_event(u, 1, tick);
+            if (u->cls >= 0) hit_add(u, t, tick);
             hits++;
             if (!all) return hits;
         }
@@ -225,6 +265,7 @@ static MUnit *unit_new(int id, int x, int y, const MUnit *src, Uint32 tick) {
     memset(u, 0, sizeof *u);
     u->cls = cls;
     u->def = d;
+    u->trig = d->trig, u->trig_n = d->trig_count;
     u->persist = 1;
     u->mode = d->kind == 6;
     u->shadow = (uint32_t)d->d[1];
@@ -246,10 +287,9 @@ static MUnit *unit_new(int id, int x, int y, const MUnit *src, Uint32 tick) {
 
 // 計時觸發（0x43a660）：flag 5 在第 iWhatFrame 拍放一次；flag ≥ 6 每 iWhatFrame 拍放一次
 static void unit_timed(MUnit *u, Uint32 tick) {
-    const Unit *d = u->def;
     int k = 0;
-    for (int i = 0; i < d->trig_count && !u->dead; i++) {
-        const Trig *t = &d->trig[i];
+    for (int i = 0; i < u->trig_n && !u->dead; i++) {
+        const Trig *t = &u->trig[i];
         if (t->flag != 5) continue;
         if (k++ < u->t5) continue;
         if (u->ticks < t->frame) break;
@@ -257,19 +297,29 @@ static void unit_timed(MUnit *u, Uint32 tick) {
         u->t5++;
     }
     u->ticks++;
-    for (int i = 0; i < d->trig_count && !u->dead; i++)
-        if (d->trig[i].flag >= 6 && d->trig[i].frame > 0 && u->ticks % d->trig[i].frame == 0) unit_trig(u, &d->trig[i], tick);
+    for (int i = 0; i < u->trig_n && !u->dead; i++)
+        if (u->trig[i].flag >= 6 && u->trig[i].frame > 0 && u->ticks % u->trig[i].frame == 0) unit_trig(u, &u->trig[i], tick);
 }
 
-// 幀觸發（0x4393c0）：flag 0 在自己的動畫播到 iWhatFrame 時放；之前先做沿路命中
+// 幀觸發（0x4393c0）：名單上的人 wEffect 2、3 時繞單位轉（半徑 64、速度 8）；沿路命中；flag 0 在動畫播到 iWhatFrame 時放
+// （角色出手看出手者的動作幀，0x43af30）
 static void unit_frames(MUnit *u, Uint32 tick) {
+    hit_prune(u);
+    int e = u->m ? u->m->effect : 0;
+    for (int i = 0; (e == 2 || e == 3) && i < u->hit_n; i++) {
+        Actor *a = u->hit[i];
+        int x = ax64(a), y = ay64(a);
+        ellipse_move(&x, &y, u->x, u->y, 0x40, 8);
+        a->x = x / 64.0f, a->y = y / 64.0f;  // shortcut: 原版也不看地形，直接搬
+    }
     if (u->path) unit_sweep(u, tick);
+    int cur = u->cls == U_MAIN ? u->frame : u->spr.cur;
     int k = 0;
-    for (int i = 0; i < u->def->trig_count && !u->dead; i++) {
-        const Trig *t = &u->def->trig[i];
+    for (int i = 0; i < u->trig_n && !u->dead; i++) {
+        const Trig *t = &u->trig[i];
         if (t->flag != 0) continue;
         if (k++ < u->t0) continue;
-        if (u->spr.cur < t->frame) break;
+        if (cur < t->frame) break;
         unit_trig(u, t, tick);
         u->t0++;
     }
@@ -280,12 +330,34 @@ static void unit_base(MUnit *u, Uint32 tick) {  // 0x43d750。shortcut: 透明�
     if (!u->dead) unit_frames(u, tick);
 }
 
-// 結束（0x43a760，虛擬函式 0x20）：放 flag 3 的觸發。shortcut: 招式 wQuality 3 的連鎖只有角色出手會用（單位不抄次數），沒做
+// 連鎖（0x43a760 前半）：放的人還在、招式 wQuality 3、還有次數時不結束，重來一次：名單有人就照原方向，
+// 否則找單位周圍 攻擊距離×64 內第一個敵人，放的人轉向它、目標點改到它；都沒有就次數歸 0（放的人回平常 0x496550）。回傳 1 = 重來
+static int unit_bounce(MUnit *u) {
+    Actor *o = u->owner;
+    if (!o || !alive(o) || !u->m || u->m->quality != 3 || u->bounce <= 0) return 0;
+    if (!u->hit_n) {
+        Actor *e = NULL;
+        for (int i = 0; i < actor_count && !e; i++)
+            if (hostile(o, &actors[i]) && dist_of(u->x, u->y, ax64(&actors[i]), ay64(&actors[i])) <= u->range * 64) e = &actors[i];
+        if (!e) { u->bounce = 0; return 0; }
+        face(o, (e->x - o->x - (e->y - o->y)) * 32, (e->x - o->x + e->y - o->y) * 16);
+        o->foe = e;
+        u->tx = ax64(e), u->ty = ay64(e);
+        u->dir = dir_of(u->x, u->y, u->tx, u->ty, 8);
+    }
+    u->bounce--;
+    hit_release(u);
+    u->ticks = u->t5 = u->t0 = 0;
+    return 1;
+}
+
+// 結束（0x43a760，虛擬函式 0x20）：不連鎖就放開打中名單、放 flag 3 的觸發
 static void unit_die(MUnit *u, Uint32 tick) {
     if (u->dead) return;
     u->dead = 1;
-    for (int i = 0; i < u->def->trig_count; i++)
-        if (u->def->trig[i].flag == 3) unit_trig(u, &u->def->trig[i], tick);
+    hit_release(u);
+    for (int i = 0; i < u->trig_n; i++)
+        if (u->trig[i].flag == 3) unit_trig(u, &u->trig[i], tick);
 }
 
 // 放單位（0x43b8c0）：wManualID 2000 = 隨機挑 dData0~4 其中一個；456 = 設定沿路命中（bData0 開關、bData1 命中方式）；
@@ -322,6 +394,7 @@ static void unit_spawn(int id, const Trig *t, MUnit *src, int cx, int cy, int ex
 // 執行一個觸發（0x43c4f0，招式單位當來源）：0 命中、1 音效、2 放單位、10 結束、14 震畫面、16 改目標點（1 往側邊、0x21 隨機方向、0x22 抖動）
 // shortcut: 3/4（地上的痕跡物件 0x498c40）、5/7/8/11/13（對放的人的動作，單位很少用）、12 透明度沒做
 static void unit_trig(MUnit *u, const Trig *t, Uint32 tick) {
+    if (u->cls == U_MAIN && owner_trig(u, t, tick)) return;
     switch (t->type) {
     case 0: unit_hits(u, t->id, tick); break;
     case 1: audio_sfx(t->id); break;
@@ -463,6 +536,9 @@ static void flynormal_tick(MUnit *u, Uint32 tick) {  // CFlyEffectNormal 0x43754
         fly_tick(u, tick);
         return;
     }
+    hit_prune(u);
+    for (int i = 0; u->m && u->m->effect == 1 && i < u->hit_n; i++)  // 落地後往打中的人飄 4
+        move_dir(&u->x, &u->y, dir_of(u->x, u->y, ax64(u->hit[i]) + 4, ay64(u->hit[i]) + 4, 8), 4);
     spr_next(&u->spr);
     if (spr_done(&u->spr)) unit_die(u, tick);
 }
@@ -654,6 +730,7 @@ static void units_tick(Uint32 tick) {
         case U_CYCLE: cycle_tick(u, tick); break;
         case U_FIREMAN: fireman_tick(u, tick); break;
         case U_SURFIRE: surfire_tick(u, tick); break;
+        case U_MAIN: if (!alive(u->owner) || u->owner->act != ACT_ATTACK) unit_die(u, tick); break;  // 動作被打斷；平常由 action_tick 推
         }
     }
     int n = 0;
@@ -685,26 +762,39 @@ static int unit_can_hit(const Unit *d) {
     return 0;
 }
 
-// ---- 角色出手放單位（MethodMain 的觸發 type 2）----
-// 來源的目標點（0x43af50）：目標 = 攻擊對象；招式 Reserve2 ≠ 1 時目標點一律拉到攻擊距離，= 1 時超過才截短
-static void unit_from_actor(Actor *a, const Trig *t, Uint32 tick) {
+// ---- 角色出手（MethodMain）：攻擊動作開始時產生，跟著出手的人，觸發看出手者的動作幀 ----
+static MUnit *main_of(const Actor *a) {
+    for (int i = 0; i < unit_n; i++)
+        if (units[i].cls == U_MAIN && units[i].owner == a && !units[i].dead) return &units[i];
+    return NULL;
+}
+
+// 目標點（0x43af50）：目標 = 攻擊對象；招式 Reserve2 ≠ 1 時目標點一律拉到攻擊距離，= 1 時超過才截短。連鎖次數 = Reserve1
+static void main_new(Actor *a) {
+    if (unit_n == MAX_UNIT) return;
+    MUnit *u = &units[unit_n++];
     const SkillRow *sk = a->casting ? a->cast : a->skill;
-    MUnit src = {.cls = -1, .owner = a, .target = alive(a->foe) ? a->foe : NULL, .m = a->atk, .sk = sk, .x = ax64(a), .y = ay64(a), .persist = 1};
-    src.range = sk ? skill_range_max(sk) : a->atk ? a->atk->range_max : 1;
-    if (src.range < 0) src.range = 0;
-    if (src.target) src.tx = ax64(src.target), src.ty = ay64(src.target);
+    *u = (MUnit){.cls = U_MAIN, .owner = a, .target = alive(a->foe) ? a->foe : NULL, .m = a->atk, .sk = sk, .x = ax64(a), .y = ay64(a), .persist = 1,
+                 .trig = a->atk->trig, .trig_n = a->atk->trig_count, .bounce = a->atk->r1};
+    u->range = sk ? skill_range_max(sk) : a->atk->range_max;
+    if (u->range < 0) u->range = 0;
+    if (u->target) u->tx = ax64(u->target), u->ty = ay64(u->target);
     else {
-        src.tx = src.x, src.ty = src.y;
-        move_dir(&src.tx, &src.ty, DIR_MAP[a->dir & 7], 64);
+        u->tx = u->x, u->ty = u->y;
+        move_dir(&u->tx, &u->ty, DIR_MAP[a->dir & 7], 64);
     }
-    src.dir = dir_of(src.x, src.y, src.tx, src.ty, 8);
-    int dist = dist_of(src.x, src.y, src.tx, src.ty);
-    if (dist > 0 && (!src.m || src.m->r2 != 1 || src.range * 64 < dist)) {
-        float k = (float)(src.range * 64) / dist;
-        src.tx = src.x + (int)((src.tx - src.x) * k);
-        src.ty = src.y + (int)((src.ty - src.y) * k);
+    u->dir = dir_of(u->x, u->y, u->tx, u->ty, 8);
+    int dist = dist_of(u->x, u->y, u->tx, u->ty);
+    if (dist > 0 && (u->m->r2 != 1 || u->range * 64 < dist)) {
+        float k = (float)(u->range * 64) / dist;
+        u->tx = u->x + (int)((u->tx - u->x) * k);
+        u->ty = u->y + (int)((u->ty - u->y) * k);
     }
-    int ex, ey;
-    actor_hot(a, &ex, &ey);
-    unit_spawn(t->id, t, &src, src.x, src.y, ex, ey, tick);
+    u->sx = u->tx, u->sy = u->ty;
+}
+
+// 角色出手打中人（0x439fb0 → 0x438560）：加進它的打中名單
+static void main_hit(Actor *a, Actor *t, Uint32 tick) {
+    MUnit *u = main_of(a);
+    if (u) hit_add(u, t, tick);
 }

@@ -9,3 +9,8 @@ MethodMdl	+0x2c	wEffect：1 打中帶著走、2/3 繞圈	Method.effect
 MethodMdl	+0x2e	wQuality：3 = 打完彈到下一個	Method.quality
 MethodMdl	+0x30	Reserve1：彈跳次數	Method.reserve1
 CCharactor	+0x559	B_C_DJHF 抵抗（旋飛）	Actor.ex[75]
+MethodMain	+0x444	狀態：1 播動作、2 衝刺、3 跳	-
+MethodMain	+0x448	衝刺前存的移動速度	-
+MethodMdl	+0x26	動作序列起點（+ 方向）	Method.seq
+CCharactor	+0x4e7	目前的招式物件	main_of(a)
+CCharactor	+0x73	移動狀態（0x20 衝刺中、0x14~0x1e 跳）	Actor.dash

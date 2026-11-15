@@ -66,3 +66,39 @@
 0043ab20 unit.c（座標 >> 6 = 格子）
 0043bee0 dist_of
 0043c3c0 unit.c（取格子資料）
+# 啟動（Poq.exe 0x433dc0～0x434ac0）
+004345a0 （不需要）釋放全域游標圖片／動畫控制代碼
+00434850 （不需要）結束時釋放全域動畫控制代碼
+004346b0 main.c vw/2（畫面中心 x）
+004346c0 main.c vh/2（畫面中心 y）
+004346d0 main.c 畫面矩形（0, 0, vw, vh）
+004346e0 （不需要）固定回 1
+00434ac0 main.c vw/vh（設定畫面矩形；網頁版依螢幕大小）
+00438460 unit.c MethodBase 解構（清觸發清單、打中名單）
+004384e0 unit.c MethodBase 解構包裝
+004395d0 unit.c ~MethodBase：放的人不在就清 +0x87
+00439630 （不需要）MethodBase 虛擬函式固定回 0
+00439640 （不需要）MethodBase 虛擬函式固定回 0
+00439650 （不需要）MethodBase 虛擬函式固定回 0
+00439660 unit.c 放的人是角色（種類 0x1e~0x64）才回傳 → u->owner
+004396a0 unit.c 放的人（不在就清掉）→ u->owner
+004396d0 unit.c 一次放清單裡全部觸發（沒有動畫時；Actor 沒招式動作 → f = 99）
+00439760 unit.c flag ≥ 6 每 N 拍放（unit_timed 後半）
+00439dc0 unit.c 清 7 組觸發清單（memset）
+0043a610 unit.c 設沿路命中（unit_spawn 456）
+0043ab70 （不需要）CMethodMng 建構
+0043ac30 （不需要）CMethodMng 解構
+0043ac70 （不需要）MethodMain 解構
+0043aba0 unit.c MethodMain 建構（main_new：種類 7、狀態 1）
+0043aee0 unit.c 放的人目前序列×32 + 幀 → u->frame
+0043af30 unit.c 放的人的動畫播放器 → u->frame
+0043b470 main.c CMethodMng 每拍：活的推一拍，死了且是放的人目前的招式就冷卻（0x48d330）、回站立 → action_tick 結束段
+0043b510 main.c MethodMain 每拍（action_tick → unit_base；動作換了或播完 → unit_bounce／unit_die）
+0043b650 unit.c 依單位表讀觸發（unit_new 的 trig）
+0043b690 （基底）CHAIN 包裝
+0043b6a0 main.c MethodMain 狀態：1 播招式動作、2 衝刺（移動狀態 6）、3 跳（10）→ owner_trig 5/7（shortcut 速度）
+0043d710 unit.c 附在誰身上（stick，位置 +1）
+0043d7a0 unit.c 依單位表讀觸發
+0043d880 （shortcut）透明度漸變沒做
+0043dd10 unit.c 建構清零
+0043dd50 unit.c 建構清零

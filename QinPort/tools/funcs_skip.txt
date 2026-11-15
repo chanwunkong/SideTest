@@ -48,3 +48,8 @@ CMsgDlg  平台層：MFC 訊息框（啟動時的錯誤提示）
 00434cf0 平台層：CBitmapButton 解構
 00437bf0 平台層：sprintf 的區域設定
 00437c00 平台層：sprintf（除錯訊息）
+004346f0 讀 POQ.ini 的 RecordType（開發用輸入錄影／回放 record.rec）與 PlayIntro；使用者的 POQ.ini 兩者都是 0
+00434990 寫回 POQ.ini（RecordType=0、PlayIntro）：我們不改原版設定檔
+00472030 輸入錄影／回放 record.rec（開發用，RecordType=0 時不做事）
+00434b80 MFC CBitmapButton 建構（平台層）
+00434c10 MFC CMsgDlg 建構（平台層）

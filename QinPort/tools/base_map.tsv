@@ -27,3 +27,17 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 00439b60	陣列名單
 00439f40	陣列名單
 004389c0	陣列名單：清空
+# 資源控制代碼（圖片／動畫依 ID 載入、引用計數、釋放）→ res.c 的 image()／anim_get() 快取，不用釋放
+0049ca70	image()：依 ID 載入圖片
+0049ccc0	（不需要）釋放圖片
+0049e8d0	anim_get()：依 ID 載入動畫
+0049eaa0	（不需要）釋放動畫
+0049e150	（不需要）釋放動畫
+# ini 檔類別（開檔、讀寫 key）→ res_file＋ini_int
+004ba190	ini_int：ini 物件建構
+004ba200	（不需要）ini 物件解構
+004ba2e0	（不需要）ini 關檔
+004bb100	res_file：開 ini 讀
+004bb270	（不需要）開 ini 寫
+004bb6e0	ini_int：讀整數
+004bc2b0	（不需要）寫整數
