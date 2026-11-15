@@ -290,6 +290,15 @@ static void face(Actor *a, float sdx, float sdy) {
     a->dir = (oct + 8) % 8;
 }
 
+// 對話開始：主角和 NPC 停下來面對面（0x44caf0）。
+// shortcut: 原版是 EasyRPG 經回呼表叫的（哪個劇情指令還沒查），這裡先在點 NPC 說話時做；只有一個方向的模型（+0x118 = 1）原版不轉，沒分
+static void talk_face(Actor *h, Actor *n) {
+    float dx = n->x - h->x, dy = n->y - h->y;
+    h->moving = n->moving = 0;
+    face(h, dx - dy, (dx + dy) / 2);
+    face(n, dy - dx, -(dx + dy) / 2);
+}
+
 // 往畫面方向 (sdx, sdy) 走 px 個畫面像素。畫面上各方向等速（格子寬 64 高 32，若照格子等速，上下會只有左右一半快）
 static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px) {
     float len = sqrtf(sdx * sdx + sdy * sdy);
@@ -1035,6 +1044,22 @@ static void actor_kill(Actor *t, Actor *by) {
 
 // ---- 招式單位（觸發 type 2 → MethodUnit_Mdl.ini）：原版的特效與飛行物件，見 unit.c ----
 static int shake_left, shake_total;
+// ---- 畫面縮放（CGameApp +0x234 現在值、+0x238 目標、+0x23c 記住的值）：0 = 原尺寸，最大 0.24（中間 52% 放大到整個畫面）----
+// 原版 PageUp／滾輪往上 +0.04、PageDown／滾輪往下 −0.04；招式觸發 12（來源是角色）ID 非 0 = +0.24、0 = 回記住的值。
+// 照原版保留：記住的是「現在值」而不是目標；用浮點數比相等，目標不是 0.04 的倍數（劇情指令）時會在兩個值之間來回跳。
+static float zoom, zoom_to, zoom_keep;
+static void zoom_set(float f) { zoom_to = f; }        // 0x4493f0（劇情指令 0x4725c0 case 2，還沒接）
+static void zoom_back(void) { zoom_to = zoom_keep; }  // 0x44ae10
+static float zoom_clamp(float f) { return f < 0 ? 0 : f > 0.24f ? 0.24f : f; }
+static void zoom_now(float d) { zoom = zoom_clamp(zoom + d); }  // 0x44aed0
+static void zoom_add(float d) { zoom_keep = zoom; zoom_to = zoom_clamp(zoom_to + d); }  // 0x44af30
+static void zoom_tick(void) { if (zoom != zoom_to) zoom_now(zoom_to <= zoom ? -0.04f : 0.04f); }  // 0x44bf40 → 0x44bf99：每拍往目標走 0.04
+// 畫面上的點 → 縮放前的點（0x44c970）
+static void zoom_point(int *x, int *y) {
+    if (zoom == 0) return;
+    *x = (int)(vw * zoom) - (int)((zoom + zoom - 1.0f) * *x);
+    *y = (int)(vh * zoom) - (int)((zoom + zoom - 1.0f) * *y);
+}
 static const Scene *unit_scene;
 // 移掉某個狀態（打中名單放開時拿掉 110）
 static void buff_drop(Actor *a, int st) {
@@ -1239,6 +1264,7 @@ static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
             if (units[k].def && unit_can_hit(units[k].def)) a->casting = 2;
     }
     else if (t->type == 13) a->adj = t->id - 5;
+    else if (t->type == 12) { if (t->id) zoom_add(0.24f); else zoom_back(); }  // 鏡頭拉近／放回（招式單位的 12 是透明度）
     else if (t->type == 8) act_flags(a, t);
     else if (t->type == 11) {  // 離地：每拍升降 ID、最高 ID2（0x43c4f0 → 0x4961e0）
         a->vz = t->id;
@@ -3843,6 +3869,7 @@ int main(int argc, char **argv) {
     SDL_RenderSetLogicalSize(ren, vw, vh);  // 視窗多大都等比例縮放，畫面內容固定 vw x vh
     // 先以 1:1 畫在畫布上再整張放大；直接放大每塊磁磚會在接縫透出細線
     SDL_Texture *canvas = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
+    SDL_Texture *zoom_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);  // 縮放時的暫存
     // 音量與開關照原版 ini/Config.ini（[音频] 音效、音乐、音效音量、音乐音量）
     size_t cfg_size;
     uint8_t *cfg = res_file("ini", "Config.ini", &cfg_size);
@@ -3872,6 +3899,10 @@ int main(int argc, char **argv) {
                 if (hero->fight > 0) ui_say(1507);
                 else { snap_due = 1; save_due = 1; }
             }
+            // 縮放：原版 PageUp／PageDown、滑鼠滾輪。shortcut: 原版鍵盤是每拍查按鍵狀態，這裡用按鍵事件（含長按重複）
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_PAGEUP) zoom_add(0.04f);
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_PAGEDOWN) zoom_add(-0.04f);
+            else if (e.type == SDL_MOUSEWHEEL) zoom_add(e.wheel.y < 1 ? -0.04f : 0.04f);
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_f)
                 SDL_SetWindowFullscreen(win, SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
             // 滑鼠與觸控（SDL 預設會把觸控也送成滑鼠事件）：按住就一直往指的地方走
@@ -3882,16 +3913,18 @@ int main(int argc, char **argv) {
                 if (dialog_open) { story_begin(); dialog_tap(py); story_end(); continue; }  // 對話中不走路
 #endif
                 if (hud_tap(px, py)) continue;
+                int zx = px, zy = py;
+                zoom_point(&zx, &zy);  // 介面不縮放，場景裡的點要換回縮放前
                 // 手機沒有右鍵：點主角自己 = 右鍵放左手技能（左手技能多是對自己的增益）
-                if (abs(px - vw / 2) <= 36 && py - (vh / 2 - 30) >= -70 && py - (vh / 2 - 30) <= 40) { hero_cast(hero); continue; }
-                Actor *m = monster_at(px, py, ox, oy, &scene);  // 點怪物 = 攻擊它；點 NPC = 說話；點其他地方 = 按住走路
-                int g = m ? -1 : ground_at(px, py, ox, oy, &scene);
+                if (abs(zx - vw / 2) <= 36 && zy - (vh / 2 - 30) >= -70 && zy - (vh / 2 - 30) <= 40) { hero_cast(hero); continue; }
+                Actor *m = monster_at(zx, zy, ox, oy, &scene);  // 點怪物 = 攻擊它；點 NPC = 說話；點其他地方 = 按住走路
+                int g = m ? -1 : ground_at(zx, zy, ox, oy, &scene);
                 if (m) { hero->foe = m; hero->want = NULL; ground_want = -1; }
                 else if (g >= 0) { ground_want = g; hero->foe = NULL; hero->want = NULL; }
 #ifdef STORY
-                else if ((m = npc_at(px, py, ox, oy, &scene))) {
+                else if ((m = npc_at(zx, zy, ox, oy, &scene))) {
                     int npc = story_find(story_room(alias), m->spec->event);
-                    if (npc) { story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
+                    if (npc) { talk_face(hero, m); story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
                     else printf("劇情裡找不到 NPC %s\n", m->spec->event);
                 }
 #endif
@@ -3958,8 +3991,10 @@ int main(int argc, char **argv) {
             if (ax * ax + ay * ay > 0.1f) { mx += ax; my += ay; }
         }
         if (pointer_down) {  // 主角腳底在畫面中央，指向身體中段附近；太靠近就不動
-            mx = px - vw / 2;
-            my = py - (vh / 2 - 40);
+            int zx = px, zy = py;
+            zoom_point(&zx, &zy);
+            mx = zx - vw / 2;
+            my = zy - (vh / 2 - 40);
             if (mx * mx + my * my < 64) mx = my = 0;
         }
 
@@ -4000,6 +4035,7 @@ int main(int argc, char **argv) {
             light_tick(&scene);
             clock_tick();
             weather_tick();
+            zoom_tick();
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = trigger_at(&scene, hero);
             if (!t) armed = 1;
@@ -4138,6 +4174,13 @@ int main(int argc, char **argv) {
             int ok = save_write(save_due);
             if (save_due) hud_say(ok ? "\xe6\xb8\xb8\xe6\x88\x8f\xe8\xbf\x9b\xe5\xba\xa6\xe5\xb7\xb2\xe4\xbf\x9d\xe5\xad\x98" : "\xe4\xbf\x9d\xe5\xad\x98\xe5\xa4\xb1\xe8\xb4\xa5");  // shortcut: 原版存好的提示沒找到，自訂「游戏进度已保存」「保存失败」
             save_due = -1;
+        }
+        if (zoom != 0) {  // 0x449f50：場景畫完，把中間那塊放大到整個畫面；介面在這之後畫，不放大
+            SDL_Rect in = { (int)(vw * zoom), (int)(vh * zoom), vw - 2 * (int)(vw * zoom), vh - 2 * (int)(vh * zoom) };
+            SDL_SetRenderTarget(ren, zoom_tex);
+            SDL_RenderCopy(ren, canvas, &in, NULL);
+            SDL_SetRenderTarget(ren, canvas);
+            SDL_RenderCopy(ren, zoom_tex, NULL, NULL);
         }
         hud_draw(hero);
 #ifdef STORY

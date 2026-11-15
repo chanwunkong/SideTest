@@ -22,7 +22,7 @@ static struct {
     int mw, mh;
     SDL_Texture *tex[2];       // 乘法、加亮
 } lt = {.day = 15, .mode = -1};
-static struct { int year, month, day, hour, tick, half; } clk;  // 0x662884：年、月、日、時、拍數、半小時（0/1）
+static struct { int year, month, day, hour, tick, half; } clk = { .hour = 23 };  // 開局 23 點（0x44e6e0）。0x662884：年、月、日、時、拍數、半小時（0/1）
 static int light_lock;        // 小雨時亮度不變（CRAIN +0x18，原版 +0x158 = 天氣不是小雨）
 
 typedef struct {

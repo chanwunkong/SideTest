@@ -61,3 +61,14 @@ CTrapBase	+0x9b	放的時候記的隊伍組	（用 owner->side）
 CTrapBase	+0xab	放的人（物件編號）	Actor.owner
 CTrapBase	+0x9f	還有效	-
 CScene	+0x18	上次取的格子指標（+0xa8、+0xac 是它的 x、y，相鄰時只加減）	-
+CGameApp	+0x0	CDD 顯示物件	-
+CGameApp	+0x4	顯示模式（0~8）	-
+CGameApp	+0xc	程式狀態（1 啟動、2 主選單、3 遊戲、5 載入、0xd 連線等待）	-
+CGameApp	+0x10	下一個狀態	-
+CGameApp	+0x228	畫面寬	vw
+CGameApp	+0x22c	畫面高	vh
+CGameApp	+0x234	畫面縮放現在值（0~0.24）	zoom
+CGameApp	+0x238	畫面縮放目標	zoom_to
+CGameApp	+0x23c	畫面縮放記住的值	zoom_keep
+CGameApp	+0x264	上次是不是大地圖	-
+CGameApp	+0x27c	除錯文字開關	-

@@ -476,6 +476,26 @@ int main(void) {
     game_speed_set(0); assert(game_speed_ms == 31);
     game_speed_set(5); assert(game_speed_ms == 16);
     game_speed_set(2); assert(game_speed_ms == 25);
+    // 畫面縮放 0x44af30／0x44bf99／0x44c970：每拍 0.04，夾在 0~0.24；中心點不動
+    vw = 640, vh = 480;
+    zoom_add(0.04f); zoom_add(0.04f);
+    zoom_tick(); assert(zoom == 0.04f);
+    zoom_tick(); zoom_tick(); assert(zoom == zoom_to && zoom_keep == 0);
+    for (int k = 0; k < 9; k++) zoom_add(0.04f);
+    for (int k = 0; k < 9; k++) zoom_tick();
+    assert(zoom == 0.24f);
+    { int x = 320, y = 240; zoom_point(&x, &y); assert(abs(x - 320) <= 1 && abs(y - 240) <= 1);
+      x = 0, y = 0; zoom_point(&x, &y); assert(x == 153 && y == 115); }
+    zoom_back();
+    for (int k = 0; k < 9; k++) zoom_tick();
+    assert(zoom == zoom_keep);
+    zoom_set(0); for (int k = 0; k < 9; k++) zoom_tick();
+    assert(zoom == 0);
+    // 對話面對面 0x44caf0
+    actors[0].x = 5, actors[0].y = 5, actors[1].x = 7, actors[1].y = 5;
+    actors[0].moving = 1;
+    talk_face(&actors[0], &actors[1]);
+    assert(!actors[0].moving && (actors[0].dir + 4) % 8 == actors[1].dir);
     puts("skilltest ok");
     return 0;
 }
