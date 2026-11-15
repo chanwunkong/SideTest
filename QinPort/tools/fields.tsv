@@ -72,3 +72,7 @@ CGameApp	+0x238	畫面縮放目標	zoom_to
 CGameApp	+0x23c	畫面縮放記住的值	zoom_keep
 CGameApp	+0x264	上次是不是大地圖	-
 CGameApp	+0x27c	除錯文字開關	-
+SInitCha	+0x4	種類，建構預設 0xb	-
+SInitCha	+0x8	word 預設 2（+0x8 整個 dword 先設 0xffff0000）	-
+SInitCha	+0x24	GRECT	-
+SInitCha	+0x38	0x40 bytes 清 0	-

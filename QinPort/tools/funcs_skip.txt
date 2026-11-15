@@ -181,3 +181,21 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 0044d160 只讀／寫一個全域值（見 roles.tsv，用到時直接讀）
 0044d330 只讀／寫一個全域值（見 roles.tsv，用到時直接讀）
 0044ca30 只讀／寫一個全域值（見 roles.tsv，用到時直接讀）
+# Poq.exe 0x44eb10～0x44f270：CPlayerGroupAI 段
+0044ee50 CPlayerGroupAI 建構：原版沒有任何呼叫（跳板 0x401e0b 無人引用），整個類別是死碼
+0044f020 CPlayerGroupAI 成員 CStaticLinkList<int,200> 解構（死碼類別）
+0044f270 CPlayerGroupAI 解構（死碼類別）
+0044eb10 容器樣板建構 CContainer<int,200>
+0044eb30 容器樣板建構 CContainer<CBuilding*,1000>
+0044eb50 容器樣板建構 CContainer<CObj*,1000>
+0044ebb0 容器樣板建構 CStaticLinkList<int,200>
+0044ebf0 容器樣板建構 CStaticLinkList<CBuilding*,1000>
+0044ec30 容器樣板建構 CStaticLinkList<CObj*,1000>
+0044ec70 CScnClient 建構（0x46c3aa 呼叫）：只建空串列、+0x48 new 0x1a0c 的 0x4cd810；場景是 engine 自己的結構
+0044eec0 SInitCha 建構：預設值見 fields.tsv；生角色的參數 engine 直接給
+0044efd0 單向串列清空（count、head、tail，每節 0xc）：容器
+0044f2e0 SInitBase 解構
+0044f320 SInitCha 解構
+0044f370 容器：CStaticLinkList<int,200> 指定格放入
+0044f3c0 容器：CStaticLinkList<*,1000> 指定格放入
+0044f410 容器：CStaticLinkList<*,1000> 指定格放入
