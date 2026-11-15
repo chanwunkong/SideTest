@@ -1036,6 +1036,7 @@ static void buff_drop(Actor *a, int st) {
 static int hostile(const Actor *a, const Actor *e);
 struct MUnit;
 static int owner_trig(struct MUnit *u, const Trig *t, Uint32 tick);
+#include "light.c"
 #define scene (*unit_scene)
 #include "unit.c"
 #undef scene
@@ -3678,8 +3679,14 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
         int pct[9];
         for (int i = 0; i < 9; i++) pct[i] = (signed char)story_get_int(sroom, K[i]);
         weather_table(pct);
+        light_table((signed char)story_get_int(sroom, "G_Day"), (signed char)story_get_int(sroom, "G_Night"),
+                    (signed char)story_get_int(sroom, "G_Type"), wx.idx);  // 0x516 的 Night/Day/Type → 0x44e5d0
     }
+#else
+    light_table(15, 0, 10, 0);  // 房間預設（EasyRPG 0x1005d390）
 #endif
+    light_clear();
+    light_buildings(scene);
     cache_clear();
     res_cache_clear();
     // 外觀快取跟著場景換：先留主角的，再重建 NPC
@@ -3979,6 +3986,8 @@ int main(int argc, char **argv) {
             for (int i = 0; i < actor_count; i++) walk_fx(&actors[i], &scene, tick);
             unit_scene = &scene;
             units_tick(tick);
+            light_tick(&scene);
+            clock_tick();
             weather_tick();
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = trigger_at(&scene, hero);
@@ -4105,6 +4114,7 @@ int main(int argc, char **argv) {
             }
         }
         units_draw(ox, oy, scene.h, 0);
+        light_draw(ox, oy);
         weather_draw(ox, oy);
         if (snap_due) { snap_take(canvas); snap_due = 0; }
         if (save_due >= 0) {

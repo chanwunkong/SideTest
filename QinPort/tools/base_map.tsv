@@ -46,3 +46,8 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 0043ece0	CDMList<GPOINT> 新節點 → 不需要
 0043ed60	CDMList<GPOINT> 清空 → pq_n = 0
 0043edc0	CDMList<GPOINT> 取出頭 → memmove
+00440010	std::string（C 字串）
+00440a20	std::string（C 字串）
+00440bd0	std::string（C 字串）
+004409a0	std::string（C 字串）
+004409b0	std::string（C 字串）

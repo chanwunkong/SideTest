@@ -173,6 +173,51 @@ int main(void) {
     assert(wx.p[0].life >= 499 && wx.p[0].dx <= -2 && wx.p[wx.n - 1].life > 0);
     wx.total = 0;
     weather_set(0, 1000);
+    // 光影：亮度表 14 格由夜到日、12 格白天、14 格由日到夜、8 格夜晚
+    light_table(15, 0, 10, 0);
+    assert(lt.table[0] == 0 && lt.table[7] == 7 && lt.table[14] == 15 && lt.table[25] == 15 && lt.table[33] == 8 && lt.table[40] == 0);
+    // 時鐘：0~6 點每拍 120（10 拍半小時），7 點起每拍 1
+    clk.hour = clk.tick = clk.half = 0;
+    for (int k = 0; k < 10; k++) clock_tick();
+    assert(clk.half == 1 && clk.tick == 0);
+    clk.hour = 7, clk.half = 0;
+    for (int k = 0; k < 1199; k++) clock_tick();
+    assert(clk.half == 0 && clk.tick == 1199);
+    clk.hour = 10, clk.tick = 0;
+    light_table(15, 0, 10, 0);
+    assert(lt.bright == 15);
+    clk.tick = 1;  // 不在整點（整點會重設要回到的亮度）
+    // 大雨：每 30 拍暗一級，暗到 < 7 才下；閃電亮度 16，閃完回去
+    weather_set(1, 5000);
+    for (int k = 0; k < 400; k++) weather_tick();
+    printf("big rain: bright %d phase %d\n", lt.bright, wx.phase);
+    assert(lt.bright == 6 && wx.phase >= 1 && lt.mode == 0);
+    for (int k = 0; k < 2000 && wx.flash < 1; k++) weather_tick();
+    assert(wx.flash > 0 && lt.bright == 16);
+    while (wx.flash > 0) weather_tick();
+    assert(lt.bright == 6);
+    weather_set(3, 5000);
+    assert(lt.mode == 2);
+    weather_set(0, 1000);
+    // 光圈：中間一半是滿的，外圈降到 0
+    lt.mw = lt.mh = 100;
+    lt.map = calloc(100 * 100, 1);
+    light_stamp(400, 15, 200, 200);
+    assert(lt.map[50 * 100 + 50] == 15 && lt.map[50 * 100 + 60] == 15 && lt.map[50 * 100 + 90] < 15 && lt.map[50 * 100 + 99] == 0 && lt.map[0] == 0);
+    free(lt.map), lt.map = NULL;
+    // 人死了光圈每拍縮 10，縮到 60 以下拿掉
+    Actor la;
+    mk(&la);
+    light_clear();
+    light_add(&la, 0, 0, 1, 200, 0xffffff, -1);
+    assert(light_of(&la) && light_of(&la)->cur == 15);
+    la.act = ACT_DEAD;
+    Scene ls = {.h = 1};
+    light_tick(&ls);
+    assert(light_of(&la)->dying);
+    for (int k = 0; k < 20; k++) light_tick(&ls);
+    assert(!light_of(&la));
+    light_clear();
     unit_n = 0;
     const Anim *arrow = anim_get(unit_find(0)->anim);
     printf("arrow seqs %d\n", arrow ? arrow->count : -1);

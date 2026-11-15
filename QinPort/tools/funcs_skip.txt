@@ -53,3 +53,26 @@ CMsgDlg  平台層：MFC 訊息框（啟動時的錯誤提示）
 00472030 輸入錄影／回放 record.rec（開發用，RecordType=0 時不做事）
 00434b80 MFC CBitmapButton 建構（平台層）
 00434c10 MFC CMsgDlg 建構（平台層）
+# 劇情沒用到（HANDOFF「劇情沒用到」有記，DLC 可用）
+CGroup  劇情沒用到：隊伍群組（單機沒建立）
+CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
+00440e70 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00440e90 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00440ed0 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00440f70 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00441060 劇情沒用到：CGroup／CUserGroup 隊伍群組
+004410b0 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00441370 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00441580 劇情沒用到：CGroup／CUserGroup 隊伍群組
+004415d0 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00441600 劇情沒用到：CGroup／CUserGroup 隊伍群組
+004419d0 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00441ac0 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00441b20 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00441ba0 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00441bf0 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00441dc0 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00441e00 劇情沒用到：CGroup／CUserGroup 隊伍群組
+00440070 平台層：MFC 視窗／訊息（SDL 代替）
+00440610 平台層：MFC 視窗／訊息（SDL 代替）
+00440d00 平台層：MFC 視窗／訊息（SDL 代替）

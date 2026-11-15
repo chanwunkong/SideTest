@@ -31,3 +31,19 @@ RoleMdl	+0x138	战斗声音（欄 33）	RoleDef.snd_fight
 CCharactor	+0x3c5	這次踩哪隻腳	Actor.foot
 CCharactor	+0x3c9	上一個腳印的位置	Actor.print_x/print_y
 SceneCell	+7	地面種類（3 = 雪地，留腳印、腳步聲 0x51）	Cell.kind
+CGodClient	+0x10	G_Night 夜晚亮度	lt.night
+CGodClient	+0x14	G_Day 白天亮度	lt.day
+CGodClient	+0x1c	G_Type 場景種類（12 = 室內，時鐘不走）	lt.type
+CGodClient	+0x68	亮度表已建	-
+CGodClient	+0x6c	閃電亮度 16	-
+CGodClient	+0x70	G_Day / 2（下雨中只有比這暗的整點亮度才套）	lt.day / 2
+CGodClient	+0x74	每半小時亮度表 [48]	lt.table
+CGodClient	+0x134	目前亮度	lt.bright
+CGodClient	+0x138	要回到的亮度（閃電、收雨）	lt.target
+CGodClient	+0x13c	這次天氣共幾拍	wx.dur0
+CRAIN	+0x18	天氣不是小雨（0 = 亮度鎖住）	!light_lock
+RoleMdl	+0xb8	有无光影（第 15 欄）	RoleDef.light
+RoleMdl	+0xbc	光影闪烁（第 16 欄）	RoleDef.flicker
+BldMdl	+0xa9	光源種類 1~4（小灯、小白灯、大灯、大白灯）	Model.light
+BldMdl	+0x53	原點格（與 +0x63 的差 = 光源格）	Model.lx/ly
+BldMdl	+0x63	光源格	Model.lx/ly

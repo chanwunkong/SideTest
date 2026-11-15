@@ -56,7 +56,7 @@ const Anim *anim_get(uint32_t gid);  // 快取，不用釋放；失敗回 NULL
 // ---- 場景 ----
 #define MAX_PARTS 8
 typedef struct { uint8_t anim; uint32_t gid; int dx, dy; } Part;
-typedef struct { int id, part_count; size_t start; Part parts[MAX_PARTS]; } Model;
+typedef struct { int id, part_count; size_t start; Part parts[MAX_PARTS]; int light, lx, ly; } Model;  // light = 光源種類 1~4（BldMdl +0xa9）；lx, ly = 光源格相對擺放格（+0x63 − +0x53、+0x67 − +0x57）
 typedef struct { uint16_t ground, over; uint8_t walk, kind; } Cell;  // kind = 地面種類（記錄第 7 byte；3 = 會留腳印的軟地）
 typedef struct { int model, x, y; const Model *m; } Object;  // m 在載入時查好，可能為 NULL
 
@@ -117,6 +117,7 @@ typedef struct {
     int fight_idle, fight_walk, hit, death, fight_speed;  // 戰鬥休息/走路、挨打、死亡的動作起點（0 = 沒有）、戰鬥速度
     int seek, chase, atk_delay, snd_death, snd_hit;       // 索敌/追击范围（格）、攻击延时（拍）、死亡/挨打聲音
     int size, legs, snd_idle, snd_fight;                  // 角色大小、脚数、平时/战斗声音（0 = 沒有）
+    int light, flicker;                                   // 有无光影、光影闪烁（欄 15、16，RoleMdl +0xb8、+0xbc）
     char graphic[16], styles[96];
     uint32_t anim;  // BeastieMdl.txt 的小動物、陷阱：只有一個動畫（图素ID），graphic 空白
 } RoleDef;

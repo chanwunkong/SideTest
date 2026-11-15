@@ -364,7 +364,8 @@ static void unit_die(MUnit *u, Uint32 tick) {
 
 // 放單位（0x43b8c0）：wManualID 2000 = 隨機挑 dData0~4 其中一個；456 = 設定沿路命中（bData0 開關、bData1 命中方式）；
 // 招式 wQuality 6、7 時扇形放 Reserve1 − 1 個（6 = 60°、7 = 一圈），目標點離放出點至少 64
-// shortcut: 400（召喚類 0x442000）、455（目標身上的效果 0x48ec60）、依武器換箭（+0x52d）沒做
+// 400 = 放的人身上加光源（0x442000）：半徑 dData0、顏色 bData0~2。
+// shortcut: 455（目標身上的效果 0x48ec60）、依武器換箭（+0x52d）沒做
 static void unit_spawn(int id, const Trig *t, MUnit *src, int cx, int cy, int ex, int ey, Uint32 tick) {
     const Unit *d = unit_find(id);
     if (!d || d->manual == 1) return;
@@ -373,6 +374,10 @@ static void unit_spawn(int id, const Trig *t, MUnit *src, int cx, int cy, int ex
         src->path = d->b[0];
         src->path_mode = d->b[1];
         if (src->path) src->px = src->py = -100;
+        return;
+    }
+    if (d->manual == 400) {
+        if (src->owner) light_add(src->owner, actor_wx(src->owner, scene.h), actor_wy(src->owner), 1, d->d[0], (Uint32)(d->b[0] | d->b[1] << 8 | d->b[2] << 16), -1);
         return;
     }
     if (t->pos == 3 && !(src->target && alive(src->target))) return;

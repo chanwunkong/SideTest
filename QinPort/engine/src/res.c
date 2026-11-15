@@ -645,6 +645,13 @@ static void parse_models(Scene *s, const uint8_t *d, size_t n) {
         memset(m, 0, sizeof *m);
         m->id = u16(d + a + 36);
         m->start = a + 2;
+        // 0x4cdaf0 讀檔順序：+0x4f 寬、+0x51 高（u16），+0xa3 起 寬×高 個 u16 占地，再 u16、光源 u8（+0xa9）
+        size_t o = a + 0xa3 + 2 * (size_t)u16(d + a + 0x4f) * u16(d + a + 0x51);
+        if (o + 2 < n && d[o + 2] >= 1 && d[o + 2] <= 4) {
+            m->light = d[o + 2];
+            m->lx = (int32_t)u32(d + a + 0x63) - (int32_t)u32(d + a + 0x53);
+            m->ly = (int32_t)u32(d + a + 0x67) - (int32_t)u32(d + a + 0x57);
+        }
     }
     // 部件："部件\0" + 3 bytes + 動畫旗標 u8 + 圖號 u16 + 封包 u16（合起來就是全域編號）+ dx, dy
     for (int i = 0; i < s->model_count; i++) {
@@ -1097,6 +1104,7 @@ int roledefs_load(void) {
         r->fight_idle = COL(9); r->fight_walk = COL(10); r->hit = COL(11); r->death = COL(14); r->fight_speed = COL(21);
         r->seek = COL(24); r->chase = COL(25); r->snd_death = COL(31); r->snd_hit = COL(34); r->atk_delay = COL(39);
         r->size = COL(18); r->legs = COL(19); r->snd_idle = COL(32); r->snd_fight = COL(33);
+        r->light = COL(15); r->flicker = COL(16);
 #undef COL
     }
     free(d);

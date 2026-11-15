@@ -2,8 +2,7 @@
 // 粒子 CRAIN 0x444c60～0x445810、CSnow 0x445a10～0x446160、CGale 0x43f650～0x43fe50）。
 // main.c 直接 #include（要用 ren、vw、vh、units）。粒子都在畫面座標。
 // 天氣編號：0 晴、1 大雨、2 小雨、3 紅雨、4 大雪、5 小雪、6 冰雹、7 紅天、8 粉天、9 白天（6~9 原版沒有畫面效果）、10 疾風
-// shortcut: 光影（亮度 +0x134/+0x138、日夜表、下雨前變暗、閃電變亮、紅雨的紅色調 0x4a5880）還沒做，粒子顏色都用最亮（16）；
-// 閃電只用白色半透明蓋一層；依場景種類（G_Type）的環境音（0x468c10 後半）還沒做
+// 亮度、閃電、色調在 light.c（lt.bright），粒子顏色跟著亮度。shortcut: 依場景種類（G_Type）的環境音（0x468c10 後半）還沒做
 
 #define W_MAX 512                          // 粒子上限（原版 256 × 200%）
 static const Uint8 W_TONE[17] = {60, 63, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 155, 160, 160};  // 0x5ecf54 = 0x5ecc00
@@ -15,7 +14,7 @@ static struct {
     int cum[10], total;                    // CGodServer +0x24 累加機率（[0] = 晴）、+0x20 總和
     int srv_idx, srv_cd;                   // 伺服器端目前天氣、倒數
     int idx, left;                         // 客戶端 +4 天氣、+0xc 剩幾拍
-    int phase, vol, flash, thunder, big;   // +8 雨的階段、雨聲衰減（百分之一分貝，0x627d40）、+0x1c4 閃電、+0x1c0 打雷、+0x158
+    int phase, vol, flash, thunder, dur0; // +8 雨的階段、雨聲衰減（百分之一分貝，0x627d40）、+0x1c4 閃電、+0x1c0 打雷、+0x13c 這次天氣共幾拍
     Particle p[W_MAX];
     int n;                                 // 粒子數（+4）
     int rain_live, rain_amt, rain_grow, rain_red, splash;  // CRAIN +0x28 活著幾個、+0x30 雨量、+0x2c 漸大、+0x38 紅雨、0x65ea84
@@ -191,26 +190,27 @@ static void weather_set(int idx, int dur) {
     if (old > 0 && old < 4) audio_loop(0, 0);   // 停雨聲（0x480740(0)）
     else if (old == 10) audio_loop(1, 0);        // 停風聲
     wx.idx = idx;
-    wx.left = dur;
+    wx.left = wx.dur0 = dur;
     if (old == idx) return;
+    light_lock = idx == 2;  // 小雨亮度不動（CRAIN +0x18）。shortcut: 原版只在開始下雨時設，雨停後沒看到清掉，這裡換天氣就清
+    light_mode(idx == 3 ? 2 : idx >= 11 && idx <= 16 ? idx - 9 : 0);  // 色調：紅雨紅；11~16 單機版沒用到
     wx.n = weather_count();
     memset(wx.p, 0, sizeof wx.p);
     if (idx >= 1 && idx <= 3) {
         wx.phase = 0;
         wx.flash = wx.thunder = 0;
         rain_reset();
-        wx.big = idx != 2;
-        weather_tex(idx == 3 ? 3 : 1, 16);
+        weather_tex(idx == 3 ? 3 : 1, lt.target);
     }
     else if (idx == 4 || idx == 5) {
         wx.snow_big = idx != 5;
         wx.snow_on = 0;
         wx.wind_mode = 1, wx.wind = 0;
-        weather_tex(4, 16);
+        weather_tex(4, lt.target);
     }
     else if (idx == 10) {
         audio_loop(1, 100);  // 風聲（0x480350(1, 1)）
-        weather_tex(10, 16);
+        weather_tex(10, lt.target);
     }
 }
 
@@ -228,9 +228,12 @@ static void weather_tick(void) {
     if (wx.left-- < 1) weather_set(0, 1000);
     switch (wx.idx) {
     case 1: case 2: case 3:
-        if (wx.phase == 0) wx.phase = 1;  // shortcut: 原版等畫面暗到亮度 < 7（每 30 拍暗一級）才開始
+        if (wx.phase == 0) {  // 每 30 拍暗一級，暗到 < 7 才開始（小雨亮度鎖住，只有本來就暗才會下）
+            if (lt.bright < 7) wx.phase = 1;
+            else if ((wx.dur0 - wx.left) % 30 == 10) light_set(lt.bright - 1);
+        }
         else if (wx.phase == 1) {
-            if (rand() % 400 == 3 || !wx.big) {  // 小雨馬上下，大雨、紅雨隨機等一下
+            if (rand() % 400 == 3 || light_lock) {  // 小雨馬上下，大雨、紅雨隨機等一下
                 wx.rain_red = wx.idx == 3, wx.rain_grow = 1, wx.rain_amt = 2;  // 0x4453f0
                 wx.phase = 2;
                 wx.vol = 0x14;
@@ -241,18 +244,29 @@ static void weather_tick(void) {
             if (wx.left % 0x14 == 1 && wx.vol >= 140) wx.vol -= 140, audio_loop(0, rain_pct());
             if (wx.left < 0x191) wx.phase = 3, wx.rain_grow = 0;  // 0x445470：剩 400 拍開始收
         }
-        else if (wx.left % 0x14 == 1 && wx.vol < 1400) wx.vol += 140, audio_loop(0, rain_pct());
+        else {
+            if (wx.left % 0x14 == 1 && wx.vol < 1400) wx.vol += 140, audio_loop(0, rain_pct());
+            if (wx.flash < 1 && lt.bright < lt.target && rand() % 20 == 1) light_set(lt.bright + 1);  // 收雨時慢慢亮回來
+        }
         if (wx.idx != 3 && (wx.phase == 1 ? rand() % 100 == 2 : wx.phase == 2 && rand() % 300 == 2) && wx.flash < 1) {  // 閃電 0x469700
+            lt.target = lt.bright;
             wx.flash = rand() % 4 + 3;
+            light_set(16);
             if (rand() % 3 == 1) wx.thunder = rand() % 0x28 + 0x1e;
         }
-        if (wx.flash > 0) wx.flash--;
+        if (wx.flash > 0 && --wx.flash < 1) light_set(lt.target);
         if (wx.thunder > 0 && --wx.thunder == 0) audio_sfx(6);
         if (wx.phase) rain_tick();
         break;
     case 4: case 5: snow_tick(wx.left); break;
     case 10: gale_tick(); break;
     }
+    if (clk.tick == 0) light_hour(wx.idx);  // 每半小時（0x4695f0）
+}
+
+// 亮度變了粒子跟著換色（CParticleMng 虛擬函式 +8）
+static void weather_retone(int b) {
+    if (wx.idx && wx.tex_kind) weather_tex(wx.tex_kind, b < 0 ? 0 : b > 16 ? 16 : b);
 }
 
 // 畫（雨 0x445700、雪 0x4460b0、疾風 0x43fda0）：雪、疾風整個在畫面外的重生
@@ -270,12 +284,6 @@ static void weather_draw(int ox, int oy) {
         if (!t || p->w <= 0 || p->h <= 0) continue;
         SDL_Rect src = {p->sx, p->sy, p->w, p->h}, dst = {p->x, p->y, p->w, p->h};
         SDL_RenderCopy(ren, t, &src, &dst);
-    }
-    if (rain && wx.flash > 0) {
-        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_ADD);
-        SDL_SetRenderDrawColor(ren, 60, 60, 60, 255);
-        SDL_RenderFillRect(ren, NULL);
-        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
     }
 }
 

@@ -764,8 +764,17 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
         return 0;
     case 0x1005e490: if (o) story_set_int(a[0], "__4b4", (int)a[1]); return 0;  // 人物 +0x4b4（shortcut: 用途還沒查）
     case 0x1005d790: return 0;                                               // 房間的解構（基底第 2 格），不用做
-    case 0x1005d390: case 0x1005cd60: case 0x1005cab0: case 0x1005d4a0: case 0x100f94c0: case 0x100f95b0: case 0x1005cd40:
-        return 0;  // 各種基底初始化。shortcut: 基底的預設屬性還沒照原版設
+    case 0x1005d390:                                                         // room_init：房間的預設屬性（白天亮度 15、夜晚 0…）
+        if (o) {
+            static const char *const K[] = {"Level", "G_Type", "G_Day", "G_Night", "G_WEA_BigRain", "G_WEA_SmallRain", "G_WEA_RedRain",
+                                            "G_WEA_BigSnow", "G_WEA_SmallSnow", "G_WEA_Hail", "G_WEA_RedSky", "G_WEA_PinkSky",
+                                            "G_WEA_WhiteSky", "G_WEA_Gale", "G_Ufo", "G_Created", "RandomExitCount"};
+            static const int V[] = {1, 10, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0};
+            for (int k = 0; k < (int)(sizeof V / sizeof *V); k++) story_set_int(a[0], K[k], V[k]);
+        }
+        return 0;
+    case 0x1005cd60: case 0x1005cab0: case 0x1005d4a0: case 0x100f94c0: case 0x100f95b0: case 0x1005cd40:
+        return 0;  // 其他基底初始化。shortcut: 基底的預設屬性還沒照原版設
     // find_item(物件, 別名)：身上有這個別名的東西（原版再找隊友身上）；find_in_bag 只找身上，"#N" = 物件編號
     case 0x1003fab0: return find_in((int)a[0], S(a[1]));
     case 0x10054ed0:
