@@ -307,59 +307,59 @@ Poq.exe	99	00445d80	FUN_00445d80	CSnow	game	done	59	6		雪每拍：風向每 200
 Poq.exe	99	00445e70	FUN_00445e70	~CSnow	game	done	106	2		雪花重生／移動：大雪（+0x18）大小 rand%9 且吃風，小雪 5~7；左右擺 ±0~3 每 5~19 拍換向，落速 1~(9−大小)	
 Poq.exe	99	004460b0	FUN_004460b0	CSnow	game	done	34	6			
 Poq.exe	99	00446160	FUN_00446160	CSnow	game	done	76	6		雪花圖：3×3 每點隨機灰 150~199，中心白	
-Poq.exe	99	00446390	FUN_00446390		game	todo	10	0			
-Poq.exe	99	004463b0	FUN_004463b0		game	todo	12	0			
-Poq.exe	99	004463f0	FUN_004463f0		game	todo	25	0			
-Poq.exe	99	00446470	FUN_00446470		game	todo	12	0			00446760
-Poq.exe	99	004464b0	FUN_004464b0		game	todo	24	0			
-Poq.exe	99	00446570	FUN_00446570		game	todo	25	0			
-Poq.exe	99	00446600	FUN_00446600		game	todo	19	0			00446760
-Poq.exe	99	00446680	FUN_00446680		game	todo	34	0			
-Poq.exe	99	00446760	FUN_00446760	CZhenMng	game	todo	24	4			00446760
-Poq.exe	99	004467f0	FUN_004467f0		game	todo	14	0			
-Poq.exe	99	00446840	FUN_00446840		game	todo	9	0			
-Poq.exe	99	00446860	FUN_00446860		game	todo	9	0			
-Poq.exe	99	004469f0	FUN_004469f0		game	todo	122	0			004a1250
-Poq.exe	99	00446cd0	FUN_00446cd0		game	todo	105	1			004a1250
-Poq.exe	99	00446f80	FUN_00446f80		game	todo	28	0			00446cd0
-Poq.exe	99	00446fe0	FUN_00446fe0		game	todo	18	0			
-Poq.exe	99	004470b0	FUN_004470b0		game	todo	11	0			
-Poq.exe	99	004470f0	FUN_004470f0		game	todo	17	0			
-Poq.exe	99	00447130	FUN_00447130		game	todo	12	0			
-Poq.exe	99	00447180	FUN_00447180		game	todo	9	0			
-Poq.exe	99	004471a0	FUN_004471a0		game	todo	43	0			
-Poq.exe	99	00447690	FUN_00447690		game	todo	8	0			
-Poq.exe	99	004476c0	FUN_004476c0		game	todo	145	0			
-Poq.exe	99	00447970	FUN_00447970		game	todo	33	0			
-Poq.exe	99	00447a10	FUN_00447a10		game	todo	14	0			
-Poq.exe	99	00447d90	FUN_00447d90		game	todo	9	0			
-Poq.exe	99	00447da0	FUN_00447da0		game	todo	14	2			0044bb90
-Poq.exe	99	00447dd0	FUN_00447dd0		game	todo	36	10			
-Poq.exe	99	00447e50	FUN_00447e50		game	todo	99	2			00447dd0 004484b0 00448560 0044bd10
-Poq.exe	99	00448110	FUN_00448110		game	todo	102	2			00447da0 0044bc30 0044bca0
-Poq.exe	99	004482c0	FUN_004482c0		game	todo	103	2			00448110
-Poq.exe	99	004484b0	FUN_004484b0		game	todo	42	2			00447dd0
-Poq.exe	99	00448560	FUN_00448560		game	todo	42	23			
-Poq.exe	99	00448610	FUN_00448610		game	todo	46	0			
-Poq.exe	99	00448790	FUN_00448790		game	todo	40	2			0044bbe0
-Poq.exe	99	00448860	FUN_00448860		game	todo	30	6			00447dd0
-Poq.exe	99	004489b0	FUN_004489b0		game	todo	35	4			
-Poq.exe	99	00448a70	FUN_00448a70		game	todo	14	4			
+Poq.exe	99	00446390	FUN_00446390		game	skip	10	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	004463b0	FUN_004463b0		game	skip	12	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	004463f0	FUN_004463f0		game	skip	25	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00446470	FUN_00446470		game	skip	12	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	004464b0	FUN_004464b0		game	skip	24	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00446570	FUN_00446570		game	skip	25	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00446600	FUN_00446600		game	skip	19	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00446680	FUN_00446680		game	skip	34	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00446760	FUN_00446760	CZhenMng	game	skip	24	4	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	004467f0	FUN_004467f0		game	skip	14	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00446840	FUN_00446840		game	skip	9	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00446860	FUN_00446860		game	skip	9	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	004469f0	FUN_004469f0		game	skip	122	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		004a1250
+Poq.exe	99	00446cd0	FUN_00446cd0		game	skip	105	1	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		004a1250
+Poq.exe	99	00446f80	FUN_00446f80		game	skip	28	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00446fe0	FUN_00446fe0		game	skip	18	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	004470b0	FUN_004470b0		game	skip	11	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	004470f0	FUN_004470f0		game	skip	17	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00447130	FUN_00447130		game	skip	12	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00447180	FUN_00447180		game	skip	9	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	004471a0	FUN_004471a0		game	skip	43	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00447690	FUN_00447690		game	skip	8	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	004476c0	FUN_004476c0		game	skip	145	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00447970	FUN_00447970		game	skip	33	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00447a10	FUN_00447a10		game	skip	14	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00447d90	FUN_00447d90		game	skip	9	0	CZhenMng 陣法管理：建構 0x446470 沒有任何呼叫者（整個類別是死碼），見 HANDOFF「劇情沒用到」		
+Poq.exe	99	00447da0	FUN_00447da0		game	skip	14	2	std::map 節點配置		0044bb90
+Poq.exe	99	00447dd0	FUN_00447dd0		game	skip	36	10	std::vector<std::string + 13 bytes>（一筆 0x25）解構一段		
+Poq.exe	99	00447e50	FUN_00447e50		game	skip	99	2	std::vector 插入重新配置		0044bd10
+Poq.exe	99	00448110	FUN_00448110		game	skip	102	2	std::map 插入（紅黑樹調整）		0044bc30 0044bca0
+Poq.exe	99	004482c0	FUN_004482c0		game	skip	103	2	std::map 找位置插入		
+Poq.exe	99	004484b0	FUN_004484b0		game	skip	42	2	std::vector 搬移一段		
+Poq.exe	99	00448560	FUN_00448560		game	skip	42	23	std::string 複製建構		
+Poq.exe	99	00448610	FUN_00448610		game	skip	46	0	沒有任何呼叫者（跳板 0x4083f5 沒人用）：某個 0x290 大小物件的建構		
+Poq.exe	99	00448790	FUN_00448790		game	skip	40	2	std::map 解構		0044bbe0
+Poq.exe	99	00448860	FUN_00448860		game	skip	30	6	std::vector 解構		
+Poq.exe	99	004489b0	FUN_004489b0		game	skip	35	4	平台：輸入法視窗位置（ImmSetCompositionWindow）		
+Poq.exe	99	00448a70	FUN_00448a70		game	done	14	4			
 Poq.exe	99	00448ab0	FUN_00448ab0	~CGameApp	game	todo	82	2			00449b90 0044bde0 0044be10 0044d340 0044d380 0044d3d0 0044d440 0044d450 0044d470 00465450 004656e0 004a81c0 004b0a30 004f8230
-Poq.exe	99	00448d20	FUN_00448d20	~CGameApp	game	todo	211	10			00448860 004489b0 004494e0 0044bdb0 0044c060 0044cfc0 0044d070
+Poq.exe	99	00448d20	FUN_00448d20	~CGameApp	game	todo	211	10			004494e0 0044bdb0 0044c060 0044cfc0 0044d070
 Poq.exe	99	004493a0	FUN_004493a0	~CGameApp	game	todo	12	4			00448d20
 Poq.exe	99	004493d0	FUN_004493d0	~CGameApp	game	todo	11	2			
 Poq.exe	99	004493f0	FUN_004493f0	~CGameApp	game	todo	11	2			
 Poq.exe	99	00449420	FUN_00449420	~CGameApp	game	todo	29	2			0044cee0 0046bc30 0046d290 004b09a0 004b7ba0 004c8e40 004ca100 004ca7e0 00578dd0 0057a5a0
-Poq.exe	99	004494e0	FUN_004494e0	~CGameApp	game	todo	212	4			00447dd0 00447e50 004482c0 00448560 00448790 0044bb70 0044bd70
+Poq.exe	99	004494e0	FUN_004494e0	~CGameApp	game	todo	212	4			0044bb70 0044bd70
 Poq.exe	99	00449b90	FUN_00449b90	~CGameApp	game	todo	12	6			
 Poq.exe	99	00449bd0	FUN_00449bd0	~CMapDialog	game	todo	13	2			
 Poq.exe	99	00449bf0	FUN_00449bf0		game	todo	18	2			0046af30
 Poq.exe	99	00449c80	FUN_00449c80		game	todo	8	2			
-Poq.exe	99	00449c90	FUN_00449c90	~CGameApp	game	todo	97	2			00448ab0 00448d20 00449420 0044aff0 0044d600 00465450 00465510 00502190 0057a8d0
+Poq.exe	99	00449c90	FUN_00449c90	~CGameApp	game	done	97	2			00448ab0 00448d20 00449420 0044aff0 0044d600 00465450 00465510 00502190 0057a8d0
 Poq.exe	99	00449f50	FUN_00449f50	~CGameApp	game	done	178	2			00448d20 0044bf00 0044bf40 0044c090 0044c2e0 0044d580 0044d590 0044d7a0 0044dc20 004641c0 00472e60 004a05e0 004a6720
 Poq.exe	99	0044a550	FUN_0044a550		game	todo	96	0			0046c220
-Poq.exe	99	0044a7a0	FUN_0044a7a0	~CUIServer	game	todo	194	2			00448860 004489b0 004494e0 0044bdb0 0044c060 0044cfc0 0044d070
+Poq.exe	99	0044a7a0	FUN_0044a7a0	~CUIServer	game	todo	194	2			004494e0 0044bdb0 0044c060 0044cfc0 0044d070
 Poq.exe	99	0044adb0	FUN_0044adb0	~CScrMng	game	todo	21	2			0045b900
 Poq.exe	99	0044ae10	FUN_0044ae10		game	todo	11	4			
 Poq.exe	99	0044ae40	FUN_0044ae40		game	todo	12	2			004719a0
@@ -582,7 +582,7 @@ Poq.exe	99	00455870	FUN_00455870	~CGameDialog	game	todo	49	2			00458550 004a1250
 Poq.exe	99	004559d0	FUN_004559d0	~CGameDialog	game	todo	8	2			
 Poq.exe	99	004559e0	FUN_004559e0	~CGameDialog	game	todo	58	0			0047f280 00482db0 004831c0 004bcae0
 Poq.exe	99	00455b80	FUN_00455b80	~CGameDialog	game	todo	55	2			00458550 0047f280 00488360 00497b20 004fead0
-Poq.exe	99	00455d60	FUN_00455d60	~CGameApp	game	todo	832	2			00448a70 0044af30 00454e20 00457360 00458550 004585c0 004587a0 004589b0 00459050 00459ce0 0045b900 0045bc50 00460ad0 004618a0 0046bc10 0046c260 00471c20 00471d50 00472e60 00473760 004831c0 0048d6a0 00494f50 004a8070 004b0a30 004bcae0 004c7d80 004c8630 0057f2b0
+Poq.exe	99	00455d60	FUN_00455d60	~CGameApp	game	todo	832	2			0044af30 00454e20 00457360 00458550 004585c0 004587a0 004589b0 00459050 00459ce0 0045b900 0045bc50 00460ad0 004618a0 0046bc10 0046c260 00471c20 00471d50 00472e60 00473760 004831c0 0048d6a0 00494f50 004a8070 004b0a30 004bcae0 004c7d80 004c8630 0057f2b0
 Poq.exe	99	00457360	FUN_00457360	~CGameApp	game	todo	65	4			0047f280 00482db0 004831c0 004bcae0
 Poq.exe	99	00457670	FUN_00457670	~CGameApp	game	todo	11	0			
 Poq.exe	99	004576a0	FUN_004576a0	~CGameApp	game	todo	18	0			
@@ -697,7 +697,7 @@ Poq.exe	99	00462f40	FUN_00462f40	~CGameApp	game	todo	103	0
 Poq.exe	99	004631b0	FUN_004631b0	~CGameApp	game	todo	24	0			004bcae0 004bd270
 Poq.exe	99	00463260	FUN_00463260	CGameApp	game	todo	8	1			
 Poq.exe	99	00463270	FUN_00463270	CGameApp	game	todo	8	1			
-Poq.exe	99	00463280	FUN_00463280	CGameApp	game	todo	44	1			00449c90
+Poq.exe	99	00463280	FUN_00463280	CGameApp	game	todo	44	1			
 Poq.exe	99	00463390	FUN_00463390	~CGameApp	game	todo	142	2			00461960
 Poq.exe	99	00463760	FUN_00463760	CGameApp	game	todo	8	1			
 Poq.exe	99	00463770	FUN_00463770	CGameApp	game	todo	8	1			
@@ -1685,16 +1685,16 @@ Poq.exe	99	004a8460	FUN_004a8460	~CGameApp	game	todo	46	18			0049cdd0
 Poq.exe	99	004a8520	FUN_004a8520	~CGameApp	game	todo	34	11			004a8240
 Poq.exe	99	004a88a0	FUN_004a88a0	~CGameApp	game	todo	74	8			
 Poq.exe	99	004a8c80	FUN_004a8c80	~CGameApp	game	todo	111	2			004a8330
-Poq.exe	99	004a9440	FUN_004a9440	~CGameApp	game	todo	25	2			00448560
+Poq.exe	99	004a9440	FUN_004a9440	~CGameApp	game	todo	25	2			
 Poq.exe	99	004a94e0	FUN_004a94e0	~CGameApp	game	todo	57	2			004a9900 004b1910
 Poq.exe	99	004a9600	FUN_004a9600	~CGameApp	game	todo	42	6			004b5000
-Poq.exe	99	004a9790	FUN_004a9790	~CGameApp	game	todo	24	2			00448560 004aee90 004b1930
-Poq.exe	99	004a9850	FUN_004a9850	~CGameApp	game	todo	24	2			00448560 004af010 004b1930
+Poq.exe	99	004a9790	FUN_004a9790	~CGameApp	game	todo	24	2			004aee90 004b1930
+Poq.exe	99	004a9850	FUN_004a9850	~CGameApp	game	todo	24	2			004af010 004b1930
 Poq.exe	99	004a9900	FUN_004a9900	~CGameApp	game	todo	35	3			004a9790 004a9900
 Poq.exe	99	004a99f0	FUN_004a99f0	~CGameApp	game	todo	51	2			004ab810 004af010 004b19e0 004b2660 004b2720
 Poq.exe	99	004a9b70	FUN_004a9b70	~CGameApp	game	todo	54	2			004ab810 004b19e0 004b2660 004b2720
 Poq.exe	99	004a9cc0	FUN_004a9cc0	~CGameApp	game	todo	79	2			004b1b40 004b25c0 004b2690 004b2820
-Poq.exe	99	004a9e20	FUN_004a9e20	~CGameApp	game	todo	58	2			00448560 004ab810 004b19e0 004b2660 004b2720
+Poq.exe	99	004a9e20	FUN_004a9e20	~CGameApp	game	todo	58	2			004ab810 004b19e0 004b2660 004b2720
 Poq.exe	99	004aa020	FUN_004aa020	~CGameApp	game	todo	52	2			004ab810 004b19e0 004b2660 004b2720
 Poq.exe	99	004aa170	FUN_004aa170	~CGameApp	game	todo	52	2			004ab810 004b19e0 004b2660 004b2720
 Poq.exe	99	004aa2c0	FUN_004aa2c0	~CGameApp	game	todo	53	2			004ab810 004b19e0 004b2660 004b2720
@@ -1710,14 +1710,14 @@ Poq.exe	99	004ab060	FUN_004ab060	~CGameApp	game	todo	100	2			004aaea0 004ab340 0
 Poq.exe	99	004ab340	FUN_004ab340	~CGameApp	game	todo	101	2			004aaea0 004afd40 004b0460
 Poq.exe	99	004ab540	FUN_004ab540	~CGameApp	game	todo	96	2			004b2640
 Poq.exe	99	004ab810	FUN_004ab810	~CGameApp	game	todo	21	16			
-Poq.exe	99	004ab880	FUN_004ab880	~CGameApp	game	todo	25	2			00448560
+Poq.exe	99	004ab880	FUN_004ab880	~CGameApp	game	todo	25	2			
 Poq.exe	99	004ab920	FUN_004ab920	~CGameApp	game	todo	31	6			
 Poq.exe	99	004ab990	FUN_004ab990	~CGameApp	game	todo	143	2			004ab920 004af940 004afd40 004b1cd0 004b2ca0 004b3af0 004b3ee0 004b7a70
 Poq.exe	99	004abcb0	FUN_004abcb0	~CGameApp	game	todo	52	0			004b3af0 004b7a70
 Poq.exe	99	004abd90	FUN_004abd90	~CGameApp	game	todo	81	0			004b3af0 004b7a70
 Poq.exe	99	004abef0	FUN_004abef0	~CGameApp	game	todo	106	2			004aee50 004af010 004af940 004b0210 004b2a50 004b61d0 004b6270
 Poq.exe	99	004ac110	FUN_004ac110	~CGameApp	game	todo	104	2			004aee50 004af940 004b0210 004b2a50 004b61d0 004b6270
-Poq.exe	99	004ac340	FUN_004ac340	~CGameApp	game	todo	118	2			00448560 004aee50 004af940 004b0210 004b2a50 004b61d0 004b6270
+Poq.exe	99	004ac340	FUN_004ac340	~CGameApp	game	todo	118	2			004aee50 004af940 004b0210 004b2a50 004b61d0 004b6270
 Poq.exe	99	004ac5a0	FUN_004ac5a0	~CGameApp	game	todo	108	2			004aee50 004af940 004b0210 004b2a50 004b61d0 004b6270
 Poq.exe	99	004ac7d0	FUN_004ac7d0	~CGameApp	game	todo	108	2			004aee50 004af940 004b0210 004b2a50 004b61d0 004b6270
 Poq.exe	99	004aca00	FUN_004aca00	~CGameApp	game	todo	108	2			004aee50 004af940 004b0210 004b2a50 004b61d0 004b6270
@@ -1726,7 +1726,7 @@ Poq.exe	99	004ace60	FUN_004ace60	~CGameApp	game	todo	39	2			004aacc0 004af010 00
 Poq.exe	99	004acfa0	FUN_004acfa0	~CGameApp	game	todo	450	2			004abef0 004ac110 004ac340 004ac5a0 004ac7d0 004aca00 004b2010 004b2a50 004b3140 004b3390 004b3fe0 004b40e0 004b4530 004b4d60 004b5000 004b5260 004b5fd0 004b61d0 004b6440 004b7590 004b7740
 Poq.exe	99	004add10	FUN_004add10	~CGameApp	game	todo	623	2			004a9440 004a99f0 004a9b70 004a9e20 004aa020 004aa170 004aa8f0 004ab880 004ace60 004af010 004af940 004affd0 004b0210 004b0340 004b2010 004b2a50 004b2b90 004b3140 004b3390 004b4530 004b4d60 004b5000 004b60d0 004b61d0 004b6440
 Poq.exe	99	004aed20	FUN_004aed20	~CGameApp	game	todo	11	0			
-Poq.exe	99	004aed50	FUN_004aed50	~CGameApp	game	todo	24	0			00448560
+Poq.exe	99	004aed50	FUN_004aed50	~CGameApp	game	todo	24	0			
 Poq.exe	99	004aede0	FUN_004aede0	~CGameApp	game	todo	11	0			
 Poq.exe	99	004aee00	FUN_004aee00	~CGameApp	game	todo	11	0			
 Poq.exe	99	004aee20	FUN_004aee20	~CGameApp	game	todo	15	0			
@@ -1739,7 +1739,7 @@ Poq.exe	99	004af4d0	FUN_004af4d0	~CGameApp	game	todo	12	0			004b0680
 Poq.exe	99	004af510	FUN_004af510	~CGameApp	game	todo	10	2			004a6fa0 004b06c0
 Poq.exe	99	004af540	FUN_004af540	~CGameApp	game	todo	17	0			004b0700 004b7af0
 Poq.exe	99	004af5c0	FUN_004af5c0	~CGameApp	game	todo	18	4			004b0700 004b0810 004b7af0
-Poq.exe	99	004af640	FUN_004af640	~CGameApp	game	todo	22	2			00448560
+Poq.exe	99	004af640	FUN_004af640	~CGameApp	game	todo	22	2			
 Poq.exe	99	004af6c0	FUN_004af6c0	~CGameApp	game	todo	18	4			004b0700 004b0860 004b7af0
 Poq.exe	99	004af740	FUN_004af740	~CGameApp	game	todo	18	4			004b0700 004b08b0 004b7af0
 Poq.exe	99	004af7c0	FUN_004af7c0	~CGameApp	game	todo	19	4			004b0700 004b0900 004b7af0
@@ -1833,7 +1833,7 @@ Poq.exe	99	004b4bd0	FUN_004b4bd0	~CGameApp	game	todo	34	6			004aa520
 Poq.exe	99	004b4c50	FUN_004b4c50	~CGameApp	game	todo	67	2			004aa520
 Poq.exe	99	004b4d60	FUN_004b4d60	~CGameApp	game	todo	136	8			004b7b40
 Poq.exe	99	004b5000	FUN_004b5000	~CGameApp	game	todo	97	12			00463870
-Poq.exe	99	004b5260	FUN_004b5260	~CGameApp	game	todo	75	2			00448560 004aee90 004af940 004b0340 004b2010
+Poq.exe	99	004b5260	FUN_004b5260	~CGameApp	game	todo	75	2			004aee90 004af940 004b0340 004b2010
 Poq.exe	99	004b5420	FUN_004b5420	~CGameApp	game	todo	42	4			
 Poq.exe	99	004b5490	FUN_004b5490	~CGameApp	game	todo	26	4			
 Poq.exe	99	004b5500	FUN_004b5500	~CGameApp	game	todo	147	10			00461960 004a9600
@@ -2855,7 +2855,7 @@ Poq.exe	99	004fc850	FUN_004fc850		game	todo	18	0			004fc6f0
 Poq.exe	99	004fc8b0	FUN_004fc8b0		game	todo	46	0			
 Poq.exe	99	004fc980	FUN_004fc980		game	todo	8	1			
 Poq.exe	99	004fc990	FUN_004fc990		game	todo	26	5			004f6a80 004f6ab0
-Poq.exe	99	004fca00	FUN_004fca00		game	todo	90	1			00458010 00458e50 004bcae0 004f89c0 004fc0a0 004fcf50 004fd130 004fd270 004ff7d0 005212f0 005663a0 00566920 005814b0 00583e40 00588b70
+Poq.exe	99	004fca00	FUN_004fca00		game	todo	90	1			00458010 00458e50 004bcae0 004f89c0 004fc0a0 004fcf50 004fd130 004fd270 004ff7d0 005212f0 005663a0 005814b0 00583e40 00588b70
 Poq.exe	99	004fcd30	FUN_004fcd30		game	todo	67	27			00458010 00458e50 004a0aa0 004f6ab0 005078d0 0053c960 00543f30 0054f6c0 00556560 005565a0
 Poq.exe	99	004fcf30	FUN_004fcf30		game	todo	11	2			0053a270
 Poq.exe	99	004fcf50	FUN_004fcf50		game	todo	45	45			004f6a80 004f6ab0 005212f0 0053c6b0 00564f60 00565b90 00583e40
@@ -2902,7 +2902,7 @@ Poq.exe	99	004ffd90	FUN_004ffd90	~CGameApp	game	todo	11	6
 Poq.exe	99	004ffdc0	FUN_004ffdc0	~CGameApp	game	todo	11	2			0053b040
 Poq.exe	99	004ffde0	FUN_004ffde0	~CGameApp	game	todo	11	2			0053b0b0
 Poq.exe	99	004ffe10	FUN_004ffe10	~CGameApp	game	todo	11	6			
-Poq.exe	99	004ffe40	FUN_004ffe40	~CGameApp	game	todo	58	2			005210b0 00521200 005663a0 00566920 005814b0 00583e40 00588990 00588b70
+Poq.exe	99	004ffe40	FUN_004ffe40	~CGameApp	game	todo	58	2			005210b0 00521200 005663a0 005814b0 00583e40 00588990 00588b70
 Poq.exe	99	004fffd0	FUN_004fffd0	~CGameApp	game	todo	57	2			005210b0 00521200 005212f0 00568130 005814b0 00588990 00588b70
 Poq.exe	99	00500160	FUN_00500160	~CGameApp	game	todo	65	1			005210b0 00521200 005212f0 0056ba70 005814b0 00588b70
 Poq.exe	99	00500330	FUN_00500330	~CGameApp	game	todo	11	2			00580df0
@@ -3279,7 +3279,7 @@ Poq.exe	99	005325f0	FUN_005325f0	~CMapDialog	game	todo	12	2			004589b0 00459840
 Poq.exe	99	00532630	FUN_00532630		game	todo	9	4			0044ae40
 Poq.exe	99	00532650	FUN_00532650		game	todo	11	38			
 Poq.exe	99	00532660	FUN_00532660		game	todo	11	6			00457360
-Poq.exe	99	00532680	FUN_00532680		game	todo	9	4			00448a70
+Poq.exe	99	00532680	FUN_00532680		game	todo	9	4			
 Poq.exe	99	005326a0	FUN_005326a0	~CChapterDialog	game	todo	17	2			004493a0
 Poq.exe	99	005326e0	FUN_005326e0		game	todo	11	2			00459ce0
 Poq.exe	99	00532700	FUN_00532700		game	todo	9	5			0044ae60
@@ -4041,12 +4041,12 @@ Poq.exe	99	005664d0	FUN_005664d0	CChapterDialog	game	todo	8	2
 Poq.exe	99	005664e0	FUN_005664e0	CChapterDialog	game	todo	8	2			
 Poq.exe	99	005664f0	FUN_005664f0	CChapterDialog	game	todo	19	2			0057a780 00580df0 00589a00
 Poq.exe	99	00566550	FUN_00566550	CChapterDialog	game	todo	13	2			00520ff0 00580df0 00593510
-Poq.exe	99	00566590	FUN_00566590	CChapterDialog	game	todo	17	2			00532650 00566920
+Poq.exe	99	00566590	FUN_00566590	CChapterDialog	game	todo	17	2			00532650
 Poq.exe	99	005665f0	FUN_005665f0	CChapterDialog	game	todo	12	2			005326a0 00589d00
 Poq.exe	99	00566630	FUN_00566630	CChapterDialog	game	todo	48	2			004fb080 00502cb0
-Poq.exe	99	00566740	FUN_00566740	CChapterDialog	game	todo	57	2			004fb080 00532650 00566920 00581000 00581590
+Poq.exe	99	00566740	FUN_00566740	CChapterDialog	game	todo	57	2			004fb080 00532650 00581000 00581590
 Poq.exe	99	00566860	FUN_00566860		game	todo	44	0			0057a6b0 0057a780
-Poq.exe	99	00566920	FUN_00566920		game	todo	186	8			00502190 00502cb0 00532650 0057a6b0 0057a780 00581000 00581590 005859b0 005933c0 005933f0
+Poq.exe	99	00566920	FUN_00566920		game	done	186	8			00502190 00502cb0 00532650 0057a6b0 0057a780 00581000 00581590 005859b0 005933c0 005933f0
 Poq.exe	99	00566ec0	FUN_00566ec0		game	todo	10	1			005022f0 00502340 00502350 00502360 00502420 00502430 00502440 005025a0 005025c0 005025d0 005025e0 005025f0 00502600 00502610 00502620 00502630 00502640 00502650 00502660 00502670 00502680 005026a0 005026b0 005026c0 00502710 00502720 00502780 00502a10 00502a60 00520e90 00520f60 00521020 00566ef0 00566f20 00566f30 00566f40 00566f50 00566f70 00581330 00581540 00581c50 00581cc0 005820f0 00582180 00582290 00582360 00582d00 00583db0 005848e0 00588a70 00588f80 00589830 005898d0 00589b60 00589d00 00589dc0 00589e10 00589f00
 Poq.exe	99	00566ef0	FUN_00566ef0	CDiffcultyDialog	game	todo	12	2			00580260
 Poq.exe	99	00566f20	FUN_00566f20	CDiffcultyDialog	game	todo	8	2			
@@ -4433,7 +4433,7 @@ Poq.exe	99	0057c030	FUN_0057c030	~CGameApp	game	todo	30	2			004bc7a0
 Poq.exe	99	0057c0b0	FUN_0057c0b0	~CGameApp	game	todo	9	4			
 Poq.exe	99	0057c0c0	FUN_0057c0c0	~CGameApp	game	todo	112	2			0057c2a5
 Poq.exe	99	0057c2a5	FUN_0057c2a5	~CGameApp	game	todo	30	2			
-Poq.exe	99	0057c3a0	FUN_0057c3a0	~CGameApp	game	todo	23	2			00448560 0057ce50
+Poq.exe	99	0057c3a0	FUN_0057c3a0	~CGameApp	game	todo	23	2			0057ce50
 Poq.exe	99	0057c450	FUN_0057c450	~CGameApp	game	todo	100	4			0057ce80 0057cfd0 0057d040
 Poq.exe	99	0057c610	FUN_0057c610	~CGameApp	game	todo	100	2			004b0580 0057c450 0057c8f0 0057cd80
 Poq.exe	99	0057c8f0	FUN_0057c8f0	~CGameApp	game	todo	100	2			0057c450 0057cd80 0057ce80

@@ -471,6 +471,11 @@ int main(void) {
         actors[1].flags = 0;
         assert(monster_at(l + w / 2, tp + h / 2, 0, 0, &test_scene) == &actors[1]);
     }
+    // 遊戲速度 0x448a70：0~5 → 31~16
+    assert(game_speed_ms == 21);
+    game_speed_set(0); assert(game_speed_ms == 31);
+    game_speed_set(5); assert(game_speed_ms == 16);
+    game_speed_set(2); assert(game_speed_ms == 25);
     puts("skilltest ok");
     return 0;
 }
