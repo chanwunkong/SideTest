@@ -66,6 +66,7 @@ static int dist_of(int ax, int ay, int bx, int by) { return (int)sqrtf((float)(a
 
 static int ax64(const Actor *a) { return (int)(a->x * 64); }
 static int ay64(const Actor *a) { return (int)(a->y * 64); }
+#include "near.c"
 
 // 角色目前這幀的出手點（執行期幀 +0xe、+0x10）
 static void actor_hot(const Actor *a, int *ex, int *ey) {
@@ -157,20 +158,20 @@ static void ellipse_move(int *px, int *py, int cx, int cy, int r, int speed) {
     move_dir(px, py, (d - 2) & 7, speed);
 }
 
-// 找範圍內的人並打（0x439fb0）：pt 周圍 (r+48)/64 格（至少 1）裡、位置在 pt ± (r+64) 方框內的人，近的格子先；
+// 找範圍內的人並打（0x439fb0）：從 pt 的格子螺旋走 (r+48)/64 圈（至少 1，0x442730/0x442a80），格子上的人位置在 pt ± (r+64) 方框內的；
 // all = 0 只打第一個。招式 wManualID 1、2 打同隊（加血之類），其他打不同隊。回傳打中幾個
-// shortcut: 原版還能打可破壞物件（+0x5c = 0x80）、連線版的建築；人是否「接受」這次打擊（虛擬函式 0x68）這裡都當接受
+// shortcut: 原版還能打可破壞物件（obj_breakable，+0x5c）、連線版的建築；人是否「接受」這次打擊（虛擬函式 0x68）這裡都當接受
 static int hit_find(MUnit *u, int px, int py, int all, int r, Uint32 tick) {
     Actor *o = u->owner;
     if (!o) return 0;
     int n = (r + 48) / 64, box = r + 64, hits = 0;
-    if (n < 1) n = 1;
-    for (int ring = 0; ring <= n; ring++)
-        for (int i = 0; i < actor_count; i++) {
-            Actor *t = &actors[i];
-            if (!alive(t)) continue;
-            int cx = (int)t->x - (px >> 6), cy = (int)t->y - (py >> 6), d = abs(cx) > abs(cy) ? abs(cx) : abs(cy);
-            if (d != ring || abs(ax64(t) - px) > box || abs(ay64(t) - py) > box) continue;
+    Spiral sp;
+    spiral_init(&sp, px / 64, py / 64, n < 1 ? 1 : n);
+    while (spiral_next(&sp)) {
+        int i = 0;
+        for (Actor *t; (t = cell_actor(sp.x, sp.y, &i)); i++) {
+            int x = ax64(t), y = ay64(t);
+            if (x < px - box || y < py - box || x >= px + box || y >= py + box) continue;
             int friendly = u->m && (u->m->manual == 1 || u->m->manual == 2);
             if (friendly ? t->side != o->side : t == o || t->side == o->side) continue;
             skill_hit(o, t, u->sk, tick);
@@ -178,6 +179,7 @@ static int hit_find(MUnit *u, int px, int py, int all, int r, Uint32 tick) {
             hits++;
             if (!all) return hits;
         }
+    }
     return hits;
 }
 
@@ -333,14 +335,13 @@ static void unit_base(MUnit *u, Uint32 tick) {  // 0x43d750。shortcut: 透明�
 }
 
 // 連鎖（0x43a760 前半）：放的人還在、招式 wQuality 3、還有次數時不結束，重來一次：名單有人就照原方向，
-// 否則找單位周圍 攻擊距離×64 內第一個敵人，放的人轉向它、目標點改到它；都沒有就次數歸 0（放的人回平常 0x496550）。回傳 1 = 重來
+// 否則從單位的格子螺旋找 攻擊距離×64 內第一個敵人，放的人轉向它、目標點改到它；都沒有就次數歸 0（放的人回平常 0x496550）。回傳 1 = 重來
 static int unit_bounce(MUnit *u) {
     Actor *o = u->owner;
     if (!o || !alive(o) || !u->m || u->m->quality != 3 || u->bounce <= 0) return 0;
     if (!u->hit_n) {
-        Actor *e = NULL;
-        for (int i = 0; i < actor_count && !e; i++)
-            if (hostile(o, &actors[i]) && dist_of(u->x, u->y, ax64(&actors[i]), ay64(&actors[i])) <= u->range * 64) e = &actors[i];
+        Actor *e = near_first(u->x, u->y, u->range * 64);  // 0x442810/0x443a00 螺旋找、0x443560 敵對
+        while (e && !is_foe(o, e)) e = near_next();
         if (!e) { u->bounce = 0; return 0; }
         face(o, (e->x - o->x - (e->y - o->y)) * 32, (e->x - o->x + e->y - o->y) * 16);
         o->foe = e;

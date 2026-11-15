@@ -945,6 +945,7 @@ static void tame(Actor *a, Actor *t, const SkillRow *r) {
 
 // 陷阱（Attack方式 8，0x10034cb0）：參數 286 選 1 猎杀陷阱、2 引蜂术、3 捆仙之索、4 陷地毒签、5 无情箭阱；自己的陷阱超過 7 個不放。
 // 攻擊力、法術攻擊照抄放的人，不給經驗
+static int trap_cell(int *x, int *y, int n);  // near.c
 static void trap(Actor *a, const SkillRow *r) {
     static const char *N[6] = {"", "\xc1\xd4\xc9\xb1\xcf\xdd\xda\xe5", "\xd2\xfd\xb7\xe4\xca\xf5", "\xc0\xa6\xcf\xc9\xd6\xae\xcb\xf7", "\xcf\xdd\xb5\xd8\xb6\xbe\xc7\xa9", "\xce\xde\xc7\xe9\xbc\xfd\xda\xe5"};
     int k = skill_param(r, 286), n = 0;
@@ -952,6 +953,9 @@ static void trap(Actor *a, const SkillRow *r) {
     if (k < 1 || k > 5 || n > 7) return;
     Actor *s = make_beside(a, N[k]);
     if (!s) return;
+    int x = (int)a->x, y = (int)a->y;
+    if (!trap_cell(&x, &y, 10)) { s->role = NULL; return; }  // CTrapBase 放進場景（0x49be40）：周圍 10 圈第一個能放的格子
+    s->x = x + 0.5f, s->y = y + 0.5f;
     s->copied = 1;
     s->copy[0] = a->ap;
     s->copy[1] = a->ap_max;
@@ -1036,6 +1040,10 @@ static void buff_drop(Actor *a, int st) {
 static int hostile(const Actor *a, const Actor *e);
 struct MUnit;
 static int owner_trig(struct MUnit *u, const Trig *t, Uint32 tick);
+// 地上的道具
+#define MAX_GROUND 128
+static struct { Item it; float x, y; } ground[MAX_GROUND];
+static int ground_n, ground_want = -1;  // ground_want：主角正走過去撿的
 #include "light.c"
 #define scene (*unit_scene)
 #include "unit.c"
@@ -1449,19 +1457,18 @@ static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
     if (!pursue(a, s, tick)) npc_think(a, s, tick);
 }
 
-// 畫面上點到哪隻活著的怪物（腳底附近、往上約一個身高）
+// 畫面上點到哪隻活著的怪物：0x442b10（點的格子周圍 5×5 格、點在方框裡、離方框中心最近）
+// shortcut: 原版方框是角色這幀圖的範圍（物件 +0x3c）；這裡用腳底往左右 36、往上 70 到往下 40 的固定方框
+static int pick_ox, pick_oy;
+static const Scene *pick_s;
+static void pick_box(const Actor *a, int *l, int *t, int *w, int *h) {
+    int fx = (int)((a->x - a->y + pick_s->h - 1) * TILE_W / 2) - pick_ox, fy = (int)((a->x + a->y) * TILE_H / 2) - pick_oy;
+    *l = fx - 36, *t = fy - 100, *w = 73, *h = 111;
+}
 static Actor *monster_at(int px, int py, int ox, int oy, const Scene *s) {
-    Actor *best = NULL;
-    int best_d = 1 << 30;
-    for (int i = 1; i < actor_count; i++) {
-        Actor *a = &actors[i];
-        if (a->side != 1 || !alive(a)) continue;
-        int fx = (int)((a->x - a->y + s->h - 1) * TILE_W / 2) - ox, fy = (int)((a->x + a->y) * TILE_H / 2) - oy;
-        int dx = px - fx, dy = py - (fy - 30);
-        if (abs(dx) > 36 || dy < -70 || dy > 40) continue;
-        if (dx * dx + dy * dy < best_d) { best_d = dx * dx + dy * dy; best = a; }
-    }
-    return best;
+    pick_ox = ox, pick_oy = oy, pick_s = s;
+    float a = (float)(px + ox) * 2 / TILE_W - (s->h - 1), b = (float)(py + oy) * 2 / TILE_H;  // 畫面 → 格子
+    return pick_at(px, py, (int)floorf((a + b) / 2), (int)floorf((b - a) / 2), 1, 1, pick_box);
 }
 
 // ---- 文字：原版字型 font/16Point.fnt：0xB4 起依 Unicode 每字 32 bytes（16 列 × 16 位元，0 = 筆畫）----
@@ -2049,18 +2056,16 @@ static void hit_wear(Actor *a, Actor *t, const SkillRow *sk) {
     }
 }
 
-// ---- 地上的道具 ----
-#define MAX_GROUND 128
-static struct { Item it; float x, y; } ground[MAX_GROUND];
-static int ground_n, ground_want = -1;  // ground_want：主角正走過去撿的
+// ---- 地上的道具（宣告在 unit.c 之前，near.c 要看格子上有沒有道具）----
 
 static void ground_drop(const Item *it, float x, float y) {
     if (ground_n == MAX_GROUND || !it->name[0]) return;
     ground[ground_n].it = *it;
     ground[ground_n].it.pos = -1;
-    // shortcut: 原版掉落的位置怎麼散開還沒查，先落在周圍一格內
-    ground[ground_n].x = (int)x + rnd(3) - 1 + 0.5f;
-    ground[ground_n++].y = (int)y + rnd(3) - 1 + 0.5f;
+    int cx = (int)x, cy = (int)y;
+    if (!free_cell(&cx, &cy, 10)) return;  // CPropObj 放進場景（0x49a350）：周圍 10 圈第一個空格，沒有就不放
+    ground[ground_n].x = cx + 0.5f;
+    ground[ground_n++].y = cy + 0.5f;
 }
 
 // 怪物掉寶（0x1006fa50）：掉 最小～最大 件，每件擲千分比依序對五組（類型、機率×10）累加，中的那組產生一件，

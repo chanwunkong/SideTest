@@ -57,7 +57,7 @@ const Anim *anim_get(uint32_t gid);  // 快取，不用釋放；失敗回 NULL
 #define MAX_PARTS 8
 typedef struct { uint8_t anim; uint32_t gid; int dx, dy; } Part;
 typedef struct { int id, part_count; size_t start; Part parts[MAX_PARTS]; int light, lx, ly; } Model;  // light = 光源種類 1~4（BldMdl +0xa9）；lx, ly = 光源格相對擺放格（+0x63 − +0x53、+0x67 − +0x57）
-typedef struct { uint16_t ground, over; uint8_t walk, kind; } Cell;  // kind = 地面種類（記錄第 7 byte；3 = 會留腳印的軟地）
+typedef struct { uint16_t ground, over; uint8_t walk, kind, layer; } Cell;  // kind = 地面種類（記錄第 7 byte；3 = 會留腳印的軟地）；layer = 第 6 byte（原版格子 +6，0x435c00）
 typedef struct { int model, x, y; const Model *m; } Object;  // m 在載入時查好，可能為 NULL
 
 typedef struct { int id, x, y, dir; } Entry;          // .Scn 入口點：從入口 id 進來時站的位置與方向

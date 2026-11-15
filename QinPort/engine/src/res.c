@@ -733,7 +733,7 @@ int scene_load(Scene *s, const char *scn_name) {
     s->cells = malloc((size_t)s->w * s->h * sizeof(Cell));
     for (int i = 0; i < s->w * s->h; i++) {
         const uint8_t *c = map + grid + i * 10;
-        s->cells[i] = (Cell){u16(c), u16(c + 2), c[4], c[7]};
+        s->cells[i] = (Cell){u16(c), u16(c + 2), c[4], c[7], c[6]};
     }
     snprintf(name, sizeof name, "%s", (const char *)map + 0x90);
     free(map);

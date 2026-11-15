@@ -47,3 +47,17 @@ RoleMdl	+0xbc	光影闪烁（第 16 欄）	RoleDef.flicker
 BldMdl	+0xa9	光源種類 1~4（小灯、小白灯、大灯、大白灯）	Model.light
 BldMdl	+0x53	原點格（與 +0x63 的差 = 光源格）	Model.lx/ly
 BldMdl	+0x63	光源格	Model.lx/ly
+SceneCell	+4	能走（地圖記錄第 4 byte）	Cell.walk
+SceneCell	+6	層（地圖第 6 byte：0、1、2 牆、3、12、14、16）	Cell.layer
+SceneCell	+0xc	站在上面的角色（物件編號，-1 = 沒有）	cell_actor()
+SceneCell	+0xe	建築（物件編號）	cell_bld()（還沒有）
+SceneCell	+0x10	道具或陷阱（物件編號）	cell_prop()
+SceneCell	+0x12	旗標（0x88 = 建築本體）	-
+CCharactor	+0x339	隊伍組（0~99 玩家、10000~60000 NPC 組）	Actor.side
+CCharactor	+0x34	位置（1/64 格）GPOINT	ax64/ay64
+CCharactor	+0x3c	畫面方框 GRECT	pick_box()
+CCharactor	+0x67	物件種類（0x1e~0x64 角色、0xc 建築、0x18 陷阱）	-
+CTrapBase	+0x9b	放的時候記的隊伍組	（用 owner->side）
+CTrapBase	+0xab	放的人（物件編號）	Actor.owner
+CTrapBase	+0x9f	還有效	-
+CScene	+0x18	上次取的格子指標（+0xa8、+0xac 是它的 x、y，相鄰時只加減）	-

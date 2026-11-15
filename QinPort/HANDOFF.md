@@ -282,6 +282,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 進度（11-15）：Poq.exe 0x433dc0～0x43f300 —— 平台層（記憶體堆積、MFC 訊息框）列 skip；**招式單位整段照原版重寫成 engine/src/unit.c**（MethodBase 的計時／幀／打中／撞牆／結束觸發、沿路命中、依 iTriID 的命中範圍 0x438a00/0x439fb0、放出點 0x43bf50、扇形放單位；CNormalEffect、CFlyEffect 拋物線、CARROW、CFlyEffectNormal 落地爆炸、CGhostMan、CFlyCycleObj、CFireDeadMan、CSurFireArrow），取代原本簡化的特效與飛行物。順便修正：角色出手的命中 6～10 是以出手的人為中心（之前寫成目標）。
   還沒做（在這段的 todo）：0x433dc0 啟動（游標動畫、record.rec 的片頭影片 PlayIntro／Rec 錄影）、0x434850 游標動畫、MethodMain（0x43aba0～0x43b6a0，角色出手目前在 main.c action_tick）、wEffect 1 把打中的人帶著走的名單、CPhantasmObj（0x43dd90～，type 16 的 0x14/0x16）、CFootStep、CGale 天氣。unit.c 的 shortcut 註解列了細節缺口（混色、透明度、格子地形種類）。
   發現原版有片頭影片 game/movie/logo1.avi、Start.avi、End.avi，要轉成網頁能播的格式。
+- 進度（11-15）：Poq.exe 0x439b20～0x444740 **場景格子查詢**整段移植成 engine/src/near.c（unit.c 引入）：螺旋走格（0x442730/0x442a80，n 圈剛好 (2n+1)² 格）、
+  從一點找角色（0x442810/0x443a00，方框照原版是 x−r 起邊長 3r）、點選角色（0x442b10 → monster_at）、直線走到擋住（0x442eb0）、直線通不通（0x443790）、
+  8 方向最遠（0x443230）、敵對（0x443560，先用 side）、空格放掉落道具（0x444430 → ground_drop，周圍 10 圈）、陷阱格（0x444740 → trap，10 圈）、找陷阱／建築、格子層 0x435c00（Cell.layer = 地圖第 6 byte）。
+  hit_find（0x439fb0）和連鎖找下一個敵人（0x43a760）改成照原版螺旋順序。
+  shortcut：原版一格只記一個角色，我們同格幾個都算；建築還不是物件（cell_bld 一律沒有）；組關係表 0x452460/0x453210 沒做；格子 +0x13、陷阱 +0x9f 沒對應。
+  skip：0x440830 播 AVI（片頭影片之後用網頁播放另做）、0x4406b0／0x442660 沒呼叫者、0x4426b0、0x4426a0 空函數。
+  **下一步：0x446390（CZhenMng 陣法）起**，用 `python3 tools/functool.py next`。
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
 

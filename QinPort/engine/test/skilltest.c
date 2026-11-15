@@ -101,8 +101,10 @@ int main(void) {
     actors[1].x = 5.5f;
     actors[0].foe = &actors[1];
     hp = actors[1].hp;
-    static const Scene empty;
-    unit_scene = &empty;
+    static Cell cells32[32 * 32];  // 32×32 全部能走的測試場景
+    static Scene test_scene = {.w = 32, .h = 32, .cells = cells32};
+    for (int i = 0; i < 32 * 32; i++) cells32[i].walk = 1;
+    unit_scene = &test_scene;
     unit_n = 0;
     MUnit src = {.cls = -1, .owner = &actors[0], .target = &actors[1], .x = 32, .y = 32, .tx = 5 * 64 + 32, .ty = 32, .range = 5, .persist = 1};
     int ticks = 0, hit_at = -1;
@@ -396,6 +398,79 @@ int main(void) {
     int money = hero_money;
     ground_pick(0);
     assert(hero_money > money && ground_n == 2);
+    // ---- 場景格子查詢（near.c，Poq.exe 0x442660～0x444740）----
+    {
+        // 螺旋：中心、上、左、下下、右右、上上；n = 1 剛好 3×3（邊長 3 那邊走到底那步回 0）
+        Spiral sp;
+        spiral_init(&sp, 10, 10, 1);
+        static const int want[][2] = {{10,10},{10,9},{9,9},{9,10},{9,11},{10,11},{11,11},{11,10},{11,9}};
+        int k = 0;
+        while (spiral_next(&sp)) { assert(k < 9 && sp.x == want[k][0] && sp.y == want[k][1]); k++; }
+        assert(k == 9);
+        // 格子層：一般層 1 看能不能走；層 11 過 12 不過 14；層 15 只在 12/14/16；其他要同層；層 16 格子 13 不過
+        Cell c = {.walk = 1, .layer = 12};
+        assert(cell_pass(&c, 1) && cell_pass(&c, 11) && cell_pass(&c, 15) && !cell_pass(&c, 3));
+        c.layer = 14; assert(!cell_pass(&c, 11) && cell_pass(&c, 13));
+        c.layer = 16; assert(!cell_pass(&c, 13) && cell_pass(&c, 16));
+        assert(obj_breakable(0x80) && obj_breakable(0x100) && !obj_breakable(0x96) && !obj_breakable(0x101));
+        // 找角色：方框是 (x−r, y−r) 起邊長 3r（怪現象），所以右下 1.5r 的找得到、左上 1.5r 的找不到
+        mk(&actors[0]); mk(&actors[1]); actor_count = 2;
+        actors[0].side = 0; actors[1].side = 1;
+        actors[0].x = actors[0].y = 10.5f;
+        actors[1].x = actors[1].y = 11.9f;   // 761：超過 672 + 64（2r 的方框），在 672 + 128 之內
+        assert(near_first(672, 672, 64) == &actors[0] && near_next() == &actors[1] && !near_next());
+        actors[1].x = actors[1].y = 9.0f;    // 576 < 672 − 64
+        assert(near_first(672, 672, 64) == &actors[0] && !near_next());
+        assert(!near_other(672, 672, 64, 0));
+        actors[1].x = actors[1].y = 11.2f;
+        assert(near_other(672, 672, 64, 0) == &actors[1] && is_foe(&actors[0], &actors[1]) && !is_foe(&actors[0], &actors[0]));
+        // 直線：往右 6 格，第 14 格不能走 → 停在 13；mode 0 有角色的格子不算但不擋（mode 0 會擋）
+        cells32[10 * 32 + 14].walk = 0;
+        int x, y;
+        line_end(&x, &y, 10, 10, 20, 10, 6, 0, 1, 1);
+        assert(x == 13 && y == 10);
+        assert(!line_clear(10, 10, 16, 10, 10, 1) && line_clear(10, 10, 13, 10, 10, 1) && line_clear(5, 5, 5, 5, 1, 0));
+        actors[1].x = 12.5f, actors[1].y = 10.5f;
+        line_end(&x, &y, 10, 10, 20, 10, 6, 0, 0, 1);
+        assert(x == 11 && y == 10);   // mode 0：12 有人就停
+        line_end(&x, &y, 10, 10, 20, 10, 6, 0, 1, 1);
+        assert(x == 13);               // mode 1：12 有人不擋，但不當成終點
+        line_end(&x, &y, 10, 10, 20, 10, 2, 1, 1, 1);
+        assert(x == 11);               // 步數 2：走到 12（有人）不算
+        // 八方向：四周都是牆只剩右邊（方向 7 = x+1）能走 → 選右邊、停在牆前
+        for (int i = 0; i < 32 * 32; i++) cells32[i].walk = 0, cells32[i].layer = 2;
+        for (int i = 3; i <= 8; i++) cells32[3 * 32 + i].walk = 1;
+        open_dir(&x, &y, 3, 3, 10);
+        assert(x == 8 && y == 3);
+        cells32[3 * 32 + 4].walk = 0;
+        open_dir(&x, &y, 3, 3, 10);
+        assert(x == -1 && y == -1);
+        for (int i = 0; i < 32 * 32; i++) cells32[i].walk = 1, cells32[i].layer = 0;
+        // 掉落空格：中心有人 → 螺旋下一格（上）；那格有道具 → 再下一格（左）
+        actors[0].x = actors[0].y = 5.5f; actors[1].x = actors[1].y = 20.5f;
+        x = y = 5;
+        assert(free_cell(&x, &y, 10) && x == 5 && y == 4);
+        ground_n = 1; ground[0].x = 5.5f, ground[0].y = 4.5f;
+        x = y = 5;
+        assert(free_cell(&x, &y, 10) && x == 4 && y == 4);
+        x = y = 5;
+        assert(trap_cell(&x, &y, 10) && x == 5 && y == 5);   // 陷阱不管有沒有人
+        ground_n = 0;
+        spread_dir = 7; x = y = 0;
+        spread_pt(&x, &y, 2);
+        assert(spread_dir == 0 && x == 2 && y == -2);
+        // 點選：兩個人都在方框裡，取離方框中心近的；side 只看那一邊
+        actors[0].x = actors[0].y = 5.5f; actors[1].x = 6.5f; actors[1].y = 5.5f;
+        pick_s = &test_scene; pick_ox = pick_oy = 0;
+        int l, tp, w, h;
+        pick_box(&actors[1], &l, &tp, &w, &h);
+        assert(pick_at(l + w / 2, tp + h / 2, 6, 5, 1, -1, pick_box) == &actors[1]);
+        assert(pick_at(l + w / 2, tp + h / 2, 6, 5, 1, 0, pick_box) != &actors[1]);
+        actors[1].flags = 0x80;
+        assert(pick_at(l + w / 2, tp + h / 2, 6, 5, 0, 1, pick_box) == NULL);
+        actors[1].flags = 0;
+        assert(monster_at(l + w / 2, tp + h / 2, 0, 0, &test_scene) == &actors[1]);
+    }
     puts("skilltest ok");
     return 0;
 }
