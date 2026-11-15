@@ -87,3 +87,20 @@ CObjMng	+0x7e4c	單位串列（頭 +0x7e68、游標 +0x7e6c；種類 19000～220
 CObjMng	+0xc4	玩家名單 CStaticLinkList<*,1000>（數量 +0x2004、頭 +0x2014、下一個 +0x2fb8）	actors（side 玩家）
 CScnObj	+0x58	已死（串列走訪跳過）	alive()
 全域	0x663ee8	冷卻 0x60（0x48a0xx 設、0x4545e0 每拍減 1）	（等 0x48a0xx）
+CUserInput	+0x4	游標種類（同全域 0x663f54：0 平常、1 道具、2 對話、3 箱子、4／7 物件、5 不能走、6 攻擊）	input_cursor()
+CUserInput	+0x8	停用輸入（介面開著）	hud_tap
+CUserInput	+0xc	游標在介面上	-
+CUserInput	+0x10	這拍游標已決定	-
+CUserInput	+0x18	游標畫面座標（+0x20 格子、+0x28 世界座標）	px, py
+CUserInput	+0x30	游標那格（SceneCell*）	input_char 的 cx, cy
+CUserInput	+0x34	目前操控的角色（0x4582d0）	hero
+CUserInput	+0x38	游標下的角色（0x442b10）	input_char()
+CUserInput	+0x3c	游標那格的陷阱（種類 0x18）	-
+CUserInput	+0x40	游標下的物件／道具（0x4848c0 或格子 +0xe）	ground_at()
+CUserInput	+0x44	游標那格的格子物件（+0x10）	-
+CCharactor	+0x341	旗標陣列：第 n 個 = 身上有狀態 n	has_status()
+全域	0x663f54	游標種類（0x663f58 < 2 才能改）	input_cursor()
+全域	0x6628f4	左鍵按著（按下位置 0x662928／0x66292c）	click_down
+全域	0x6628f8	雙擊過，吃掉下一次放開	-
+全域	0x625e98	遊戲速度值 16～31（= 31 − 3×速度）	game_speed_ms
+全域	0x626d00	右鍵剛按下	-

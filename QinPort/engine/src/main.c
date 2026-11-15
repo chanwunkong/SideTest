@@ -1079,6 +1079,7 @@ static int owner_trig(struct MUnit *u, const Trig *t, Uint32 tick);
 #define MAX_GROUND 128
 static struct { Item it; float x, y; } ground[MAX_GROUND];
 static int ground_n, ground_want = -1;  // ground_want：主角正走過去撿的
+static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = 沒有）
 #include "light.c"
 #define scene (*unit_scene)
 #include "unit.c"
@@ -1645,19 +1646,6 @@ static void dialog_tap(int py) {
 }
 #endif
 
-#ifdef STORY
-// 點到的 NPC（有事件 ID 的，才能對話）
-static Actor *npc_at(int px, int py, int ox, int oy, const Scene *s) {
-    for (int i = 1; i < actor_count; i++) {
-        Actor *a = &actors[i];
-        if (a->mon || !a->spec || !a->spec->event[0]) continue;
-        int fx = (int)((a->x - a->y + s->h - 1) * TILE_W / 2) - ox, fy = (int)((a->x + a->y) * TILE_H / 2) - oy;
-        int dx = px - fx, dy = py - (fy - 30);
-        if (abs(dx) <= 36 && dy >= -70 && dy <= 40) return a;
-    }
-    return NULL;
-}
-#endif
 
 // ---- 原版介面：ini/DialogInfo.ini 每個 [介面] 一段；每個元件「名稱=種類,x,y,寬,高,旗標,ID,提示,圖,…」----
 // 種類：1 背景、2 按鈕（圖的各幀 = 平常、指著、按下）、6 進度條、9 靜態圖。圖是 ResUI 的編號：
@@ -3746,7 +3734,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     if (hd) actor_setup(hero, hd);
     spawn_npcs(scene);
     ground_n = 0;  // 地上的道具不跟著換場景
-    ground_want = -1;
+    ground_want = walk_cx = -1;
     unit_n = 0;
     const Entry *en = scene_entry(scene, entry_id);
     if (en) {
@@ -3785,6 +3773,63 @@ static void scene_music(const char *alias, char *out, size_t n) {
         break;
     }
     free(d);
+}
+
+// ---- 滑鼠（CUserInput，Poq.exe 0x454790～0x457360）----
+// 游標種類（0x455d60 每拍算、0x457360 設，全域 0x663f54）= 游標動畫 0x100011 的第幾個序列（它正好 8 個）：
+// 0 平常、1 指著地上道具（0x8c）、2 對話、3 箱子（0x85）、4／7 物件（0x81、0x17）、5 不能走、6 攻擊
+// shortcut: 種類對到序列是用序列數推的，畫游標的那段（介面伺服器）沒查到
+enum { CUR_NORMAL, CUR_ITEM, CUR_TALK, CUR_CHEST, CUR_OBJ, CUR_BLOCK, CUR_ATTACK, CUR_USE };
+enum { CMD_NONE, CMD_MOVE, CMD_ATTACK, CMD_TALK, CMD_PICK };
+
+// 游標下的角色（0x454a90 → 0x442b10，all = 1、不分邊），(cx, cy) 回游標那格
+static Actor *input_char(int zx, int zy, int ox, int oy, const Scene *s, int *cx, int *cy) {
+    pick_ox = ox, pick_oy = oy, pick_s = s;
+    float a = (float)(zx + ox) * 2 / TILE_W - (s->h - 1), b = (float)(zy + oy) * 2 / TILE_H;
+    *cx = (int)floorf((a + b) / 2), *cy = (int)floorf((b - a) / 2);
+    return pick_at(zx, zy, *cx, *cy, 1, -1, pick_box);
+}
+
+// 原版旗標 +0x341 第 n 個 = 身上有狀態 n；狀態 0 战斗状态 = 我們的 fight 計時
+static int in_fight(const Actor *h) { return h->fight > 0; }
+
+// 0x455d60 算游標那段：c = 游標下的角色、item = 指著的地上道具、(cx, cy) = 游標那格。
+// 角色是自己（原版看自己這邊的名單）就往下看道具和格子；沒指著角色、格子主角那層不能過（0x435c00）或有角色站 → 5
+// shortcut: 原版只在格子 +0x13 ≠ 0 時才看能不能走（+0x13 意義沒查），這裡都看；主角的層當 1（一般地面）；
+// 箱子、可破壞、門還不是物件，沒有 3、4、7；拖拉選人框時是 0；游標 1 時原版秀道具名字（訊息 0x143／0x145）沒做；游標在介面上時原版是 0
+static int input_cursor(const Actor *h, const Actor *c, int item, int cx, int cy) {
+    if (c && c != h) {
+        if (in_fight(h) || is_foe(c, h)) return CUR_ATTACK;
+        return has_status(h, 103) ? CUR_NORMAL : CUR_TALK;  // 103 无对话
+    }
+    if (item >= 0) return CUR_ITEM;
+    const Cell *cl = cell_at(cx, cy);
+    if (!c && cl && (!cell_pass(cl, 1) || cell_actor0(cx, cy))) return CUR_BLOCK;
+    return CUR_NORMAL;
+}
+
+// 左鍵放開（0x454f00）要給主角的指令（原版包成 0xf023 訊息送給主角和選到的隊友）。
+// 溃散（17）、盅惑人心（14）不收指令；战斗状态點誰都打（9），平常點敵人打、點其他人對話（0xf）；再來是撿道具（0x12），其他 = 走過去（1）
+// shortcut: 拖拉選人框、Ctrl 對地點出手（8）、物件（0x80 打、0x85 開、0x96 門 0x10、0x17 → 0x11）還沒做
+static int click_cmd(const Actor *h, const Actor *c, int item) {
+    if (has_status(h, 17) || has_status(h, 14)) return CMD_NONE;
+    if (c && c != h) return in_fight(h) || is_foe(c, h) ? CMD_ATTACK : CMD_TALK;
+    return item >= 0 ? CMD_PICK : CMD_MOVE;
+}
+
+// 遊戲速度鍵（0x455d60，連線客戶端不改）：數字鍵盤 + 或 = 加快（值 −3，最小 16）、數字鍵盤 − 或 - 減慢（值 +3，最大 31），
+// 再換回速度 5 − (值 − 16) / 3 設定（0x448a70）。怪現象（照原版）：開局 21 按一次加快 → 18 → 速度 5 → 16（最快）
+static void game_speed_key(int faster) {
+    int v = game_speed_ms;
+    v = faster ? (v < 17 ? 16 : v - 3) : (v < 31 ? v + 3 : 31);
+    game_speed_set(5 - (v - 16) / 3);
+}
+
+// 點地面後走過去（指令 1）：直線走到格子中央。shortcut: 原版指令 1 的走法（尋路）在 CCharactor，還沒做
+static void point_walk(Actor *h, const Scene *s, Uint32 tick) {
+    float gx = walk_cx + 0.5f - h->x, gy = walk_cy + 0.5f - h->y;
+    if (gx * gx + gy * gy < 0.25f) { h->moving = 0; walk_cx = -1; return; }
+    actor_tick(h, s, (gx - gy) * 32, (gx + gy) * 16, tick);
 }
 
 // 主角是否站在觸發區上（以觸發區所在格為中心 3×3 格）。shortcut: 觸發區實際形狀在 MDL 的佔地格，還沒解析
@@ -3900,7 +3945,7 @@ int main(int argc, char **argv) {
 
     Uint64 fps_t = SDL_GetPerformanceCounter();
     Uint32 logic_ms = SDL_GetTicks(), tick = 0;
-    int frames = 0, running = 1, pointer_down = 0, px = 0, py = 0, ox = 0, oy = 0, mouse_seen = 0;
+    int frames = 0, running = 1, pointer_down = 0, click_down = 0, px = 0, py = 0, ox = 0, oy = 0, mouse_seen = 0;
     SDL_ShowCursor(SDL_DISABLE);  // 0x433dc0：關掉系統游標，畫原版游標動畫 0x100011
 
     while (running) {
@@ -3930,19 +3975,36 @@ int main(int argc, char **argv) {
                 zoom_point(&zx, &zy);  // 介面不縮放，場景裡的點要換回縮放前
                 // 手機沒有右鍵：點主角自己 = 右鍵放左手技能（左手技能多是對自己的增益）
                 if (abs(zx - vw / 2) <= 36 && zy - (vh / 2 - 30) >= -70 && zy - (vh / 2 - 30) <= 40) { hero_cast(hero); continue; }
-                Actor *m = monster_at(zx, zy, ox, oy, &scene);  // 點怪物 = 攻擊它；點 NPC = 說話；點其他地方 = 按住走路
-                int g = m ? -1 : ground_at(zx, zy, ox, oy, &scene);
-                if (m) { hero->foe = m; hero->want = NULL; ground_want = -1; }
-                else if (g >= 0) { ground_want = g; hero->foe = NULL; hero->want = NULL; }
-#ifdef STORY
-                else if ((m = npc_at(zx, zy, ox, oy, &scene))) {
-                    int npc = story_find(story_room(alias), m->spec->event);
-                    if (npc) { talk_face(hero, m); story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
-                    else printf("劇情裡找不到 NPC %s\n", m->spec->event);
-                }
-#endif
-                else pointer_down = 1;
+                // 原版按下只記位置（0x454eb0），放開才下指令（0x454f00）。shortcut: 按住空地會一直往那邊走（手機要用；原版按住拖拉是選人框）
+                int cx, cy;
+                click_down = 1;
+                pointer_down = !input_char(zx, zy, ox, oy, &scene, &cx, &cy) && ground_at(zx, zy, ox, oy, &scene) < 0;
             }
+            else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT && click_down) {
+                click_down = pointer_down = 0;
+                if (SDL_GetModState() & KMOD_ALT) continue;  // 0x454f00：Alt 按著不下指令
+                int zx = e.button.x, zy = e.button.y, cx, cy;
+                zoom_point(&zx, &zy);
+                Actor *m = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
+                int g = ground_at(zx, zy, ox, oy, &scene);
+                switch (click_cmd(hero, m, g)) {
+                case CMD_ATTACK: hero->foe = m; hero->want = NULL; ground_want = walk_cx = -1; break;
+                case CMD_PICK: ground_want = g; hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
+                case CMD_MOVE: mark_new(cx, cy); walk_cx = cx; walk_cy = cy; hero->foe = NULL; hero->want = NULL; ground_want = -1; break;
+                case CMD_TALK:  // shortcut: 原版指令 0xf 是走過去再說；這裡馬上說，而且只有 ONT 擺的（有事件 ID）的 NPC 能說
+#ifdef STORY
+                    if (!m->mon && m->spec && m->spec->event[0]) {
+                        int npc = story_find(story_room(alias), m->spec->event);
+                        if (npc) { talk_face(hero, m); story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
+                        else printf("劇情裡找不到 NPC %s\n", m->spec->event);
+                    }
+#endif
+                    break;
+                }
+            }
+            // 遊戲速度：數字鍵盤 +／= 加快、數字鍵盤 −／- 減慢（0x455d60）
+            else if (e.type == SDL_KEYDOWN && (e.key.keysym.sym == SDLK_KP_PLUS || e.key.keysym.sym == SDLK_EQUALS)) game_speed_key(1);
+            else if (e.type == SDL_KEYDOWN && (e.key.keysym.sym == SDLK_KP_MINUS || e.key.keysym.sym == SDLK_MINUS)) game_speed_key(0);
             // 空白鍵／手把 A：打最近的怪物
             else if ((e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE) ||
                      (e.type == SDL_CONTROLLERBUTTONDOWN && e.cbutton.button == SDL_CONTROLLER_BUTTON_A)) {
@@ -3984,6 +4046,7 @@ int main(int argc, char **argv) {
                 monsters_due = 1;
                 armed = 0;
                 pointer_down = 0;
+                walk_cx = -1;
                 scene_music(alias, music, sizeof music);
                 audio_music(music);
                 hud_say("\xe6\xb8\xb8\xe6\x88\x8f\xe8\xbf\x9b\xe5\xba\xa6\xe8\xaf\xbb\xe5\x8f\x96\xe6\x88\x90\xe5\x8a\x9f");  // 游戏进度读取成功（EasyRPG_C 7054，拿掉顏色標記）
@@ -4030,8 +4093,9 @@ int main(int argc, char **argv) {
                 action_tick(hero, &scene, tick);
             } else if (hero->act) action_tick(hero, &scene, tick);
             else if (held) hero->moving = 0;
-            else if (mx * mx + my * my > 0.01f) { hero->foe = NULL; hero->want = NULL; ground_want = -1; actor_tick(hero, &scene, mx, my, tick); }  // 自己走 = 放棄目標
+            else if (mx * mx + my * my > 0.01f) { hero->foe = NULL; hero->want = NULL; ground_want = walk_cx = -1; actor_tick(hero, &scene, mx, my, tick); }  // 自己走 = 放棄目標
             else if (ground_want >= 0 && !hero->foe) ground_walk(hero, &scene, tick);
+            else if (walk_cx >= 0 && !hero->foe) point_walk(hero, &scene, tick);
             else if (!pursue(hero, &scene, tick)) actor_tick(hero, &scene, 0, 0, tick);
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
@@ -4201,7 +4265,11 @@ int main(int argc, char **argv) {
 #endif
         if (mouse_seen) {  // 觸控沒有游標
             const Anim *cur = anim_get(0x100011);
-            if (cur) draw_frame(cur, 0, frame_at(&cur->seqs[0], tick), px, py, 0);
+            int zx = px, zy = py, cx, cy;
+            zoom_point(&zx, &zy);
+            Actor *c = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
+            int k = input_cursor(hero, c, ground_at(zx, zy, ox, oy, &scene), cx, cy);
+            if (cur && k < cur->count) draw_frame(cur, k, frame_at(&cur->seqs[k], tick), px, py, 0);
         }
         if (shot && tick > 3) {
             SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, vw, vh, 32, SDL_PIXELFORMAT_ARGB8888);

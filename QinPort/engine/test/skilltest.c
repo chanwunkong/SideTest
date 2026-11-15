@@ -509,6 +509,30 @@ int main(void) {
     actors[0].moving = 1;
     talk_face(&actors[0], &actors[1]);
     assert(!actors[0].moving && (actors[0].dir + 4) % 8 == actors[1].dir);
+    // 滑鼠 CUserInput：點擊指令 0x454f00、游標 0x455d60、速度鍵、地面痕跡 0x459840
+    {
+        Actor h, c;
+        mk(&h); mk(&c);
+        h.grp = 0, c.grp = 10000;  // 玩家組對 NPC 組 = 敵對
+        assert(click_cmd(&h, &c, -1) == CMD_ATTACK && input_cursor(&h, &c, -1, -1, -1) == CUR_ATTACK);
+        c.grp = 0;  // 同組：對話；无对话（103）時游標是平常的
+        assert(click_cmd(&h, &c, -1) == CMD_TALK && input_cursor(&h, &c, -1, -1, -1) == CUR_TALK);
+        h.fight = 1;  // 战斗状态點誰都打
+        assert(click_cmd(&h, &c, -1) == CMD_ATTACK && input_cursor(&h, &c, -1, -1, -1) == CUR_ATTACK);
+        h.fight = 0;
+        assert(buff_add(&h, NULL, 103, 1, 5, 0) && input_cursor(&h, &c, -1, -1, -1) == CUR_NORMAL);
+        assert(click_cmd(&h, &h, 3) == CMD_PICK && input_cursor(&h, &h, 3, -1, -1) == CUR_ITEM);  // 點自己 = 看底下的道具
+        assert(click_cmd(&h, NULL, -1) == CMD_MOVE);
+        assert(buff_add(&h, NULL, 17, 1, 5, 0) && click_cmd(&h, &c, -1) == CMD_NONE);  // 溃散不收指令
+        game_speed_ms = 21;
+        game_speed_key(1); assert(game_speed_ms == 16);  // 怪現象：開局按一次就最快
+        game_speed_key(0); assert(game_speed_ms == 19);
+        game_speed_ms = 31; game_speed_key(0); assert(game_speed_ms == 31);
+        unit_n = 0;
+        mark_new(3, 4); mark_new(5, 6);
+        assert(units[1].x == 5 * 64 + 32 && units[1].spr.a && units[0].dead && !units[1].dead);
+        unit_n = 0;
+    }
     puts("skilltest ok");
     return 0;
 }

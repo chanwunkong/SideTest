@@ -244,3 +244,8 @@
 004536c0 main.c 主迴圈（CObjMng 每拍：角色、陷阱、道具 +0x14 跳過已死的，再玩家名單）
 004545e0 main.c 主迴圈（CObjMng 每拍：活著的角色 +0x24 = 0x48c050；全域 0x663ee8 減 1，見 fields.tsv）
 004525e0 main.c 主迴圈（+0x68 串列每個呼叫 0x483400）
+# CUserInput（Poq.exe 0x454790～0x457360）
+00454a80 main.c input_cursor（游標種類 0x663f54 的讀取）
+00454e50 main.c 主迴圈：介面先吃掉點擊（hud_tap）；+8 停用輸入時游標回 0
+00455870 main.c 右鍵（按下只設 0x626d00 = 1，下一拍 0x4556b0 出手；其他算的值沒用到）
+004559e0 main.c input_cursor（設游標種類；1 時秀道具名字沒做）

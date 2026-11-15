@@ -906,6 +906,18 @@ static void foot_new(int x, int y, int seq) {
     spr_set(&u->spr, seq, 0);
 }
 
+// 點地面的痕跡（0x459840）：拿掉上一個，在格子中央放動畫 0x1001bd（地上痕跡物件 0x9b，0x450da0）
+// shortcut: 0x9b 的類別沒查，+0x97 = 1 當成播一次就消失（走腳印淡掉那段）
+static void mark_new(int cx, int cy) {
+    const Anim *a = anim_get(0x1001bd);
+    for (int i = 0; i < unit_n; i++)
+        if (a && units[i].cls == U_FOOT && units[i].spr.a == a) unit_die(&units[i], 0);
+    if (unit_n == MAX_UNIT) return;
+    MUnit *u = &units[unit_n++];
+    *u = (MUnit){.cls = U_FOOT, .x = cx * 64 + 32, .y = cy * 64 + 32, .mode = 1};
+    spr_load(&u->spr, 0x1001bd);
+}
+
 static void foot_tick(MUnit *u, Uint32 tick) {  // 0x43f5e0
     if (!u->mode) {
         if (u->ticks++ > u->life) u->mode = 1, spr_set(&u->spr, u->spr.seq + 8, 0);  // 0x43f3e0
