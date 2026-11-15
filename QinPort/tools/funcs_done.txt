@@ -124,3 +124,63 @@
 0043f5d0 unit.c 轉型：不需要
 0043f5e0 unit.c foot_tick
 00486ed0 main.c walk_fx
+0043f650 weather.c CGale 建構：wx 清零
+0043f690 weather.c 粒子建構：Particle
+0043f6d0 weather.c 解構：沒有要放的
+0043f720 weather.c 解構：沒有要放的
+0043f7f0 weather.c CDD 解構：SDL_DestroyTexture
+0043f820 weather.c 解構：沒有要放的
+0043f860 weather.c 解構：沒有要放的
+0043f8a0 weather.c 解構：沒有要放的
+0043f8d0 weather.c weather_set 疾風 + weather_tex
+0043fa20 weather.c gale_tick
+0043fda0 weather.c weather_draw
+0043fe50 weather.c weather_tex 疾風
+00444a10 weather.c 粒子管理建構
+00444a50 weather.c 解構：沒有要放的
+00444ac0 weather.c 解構：沒有要放的
+00444b40 weather.c 解構：沒有要放的
+00444ba0 weather.c 空函數
+00444bb0 weather.c 空函數
+00444bc0 weather.c weather_count
+00444c50 weather.c 空函數
+00444c60 weather.c CRAIN 建構
+00444cd0 weather.c 粒子建構
+00444d10 weather.c 解構：沒有要放的
+00444d40 weather.c 解構：沒有要放的
+00444e10 weather.c 解構：沒有要放的
+00444e50 weather.c rain_drop
+00445180 weather.c splash_new
+004453f0 weather.c 雨開始（weather_tick 階段 1）
+00445420 weather.c 解構：沒有要放的
+00445470 weather.c 雨收尾 rain_grow = 0
+00445480 weather.c weather_set 雨 + weather_tex
+00445600 weather.c rain_tick
+00445700 weather.c weather_draw
+004457a0 weather.c rain_reset
+00445810 weather.c weather_tex 雨
+00445a10 weather.c CSnow 建構
+00445a60 weather.c 粒子建構
+00445aa0 weather.c 解構：沒有要放的
+00445ad0 weather.c 解構：沒有要放的
+00445ba0 weather.c 解構：沒有要放的
+00445be0 weather.c snow_on = 0（開始）
+00445c10 weather.c 解構：沒有要放的
+00445c40 weather.c weather_set 雪 + weather_tex
+00445d80 weather.c snow_tick
+00445e70 weather.c flake_tick
+004460b0 weather.c weather_draw
+00446160 weather.c weather_tex 雪
+0044e570 weather.c 解構：沒有要放的
+0044e5a0 weather.c 解構：沒有要放的
+0044e5d0 weather.c weather_table
+0044e6c0 weather.c 空函數
+0044e6d0 weather.c 空函數
+0044e8d0 weather.c weather_tick 客戶端倒數
+0044e8f0 weather.c weather_tick 擲表
+0044ea50 weather.c 一開始晴
+0044ea60 weather.c weather_set
+0044eaa0 weather.c weather_tick 換天氣
+004697b0 weather.c weather_set
+00468c10 weather.c weather_tick（光影、環境音那段見 shortcut）
+00469700 weather.c weather_tick 閃電（變亮那段見 shortcut）

@@ -43,6 +43,8 @@ static struct { int n, file[5]; } sfx_def[MAX_SFX];  // n：0 = 還沒讀、−1
 static uint8_t *snd_tab;     // WAV 表：3000 筆 × 0x10c（檔名 260、大小、位移）
 static uint32_t snd_rec, snd_data, snd_files;
 static Voice voices[VOICES];
+static Voice loop_v;   // 環境音（雨聲、風聲）循環播放
+static int loop_id = -1, loop_pct;
 
 static Uint32 rd32(const Uint8 *p) { return p[0] | p[1] << 8 | p[2] << 16 | (Uint32)p[3] << 24; }
 
@@ -100,6 +102,12 @@ static void mix(void *userdata, Uint8 *out, int len) {
         SDL_MixAudioFormat(out, v->sfx->buf + v->pos, have.format, n, sfx_vol);
         v->pos += n;
         if (v->pos >= v->sfx->len) v->sfx = NULL;
+    }
+    for (int done = 0; loop_v.sfx && loop_v.sfx->len && done < len;) {
+        Uint32 n = loop_v.sfx->len - loop_v.pos < (Uint32)(len - done) ? loop_v.sfx->len - loop_v.pos : (Uint32)(len - done);
+        SDL_MixAudioFormat(out + done, loop_v.sfx->buf + loop_v.pos, have.format, n, sfx_vol * loop_pct / 100);
+        done += n;
+        loop_v.pos = (loop_v.pos + n) % loop_v.sfx->len;
     }
 }
 
@@ -229,6 +237,21 @@ void audio_sfx(int id) {
     SDL_LockAudioDevice(dev);
     for (int i = 0; i < VOICES; i++)
         if (!voices[i].sfx) { voices[i] = (Voice){s, 0}; break; }
+    SDL_UnlockAudioDevice(dev);
+}
+
+// 環境音（原版 0x480350 第二個參數 1 = 循環）：同時只有一個；pct = 音量百分比，0 = 停
+void audio_loop(int id, int pct) {
+    if (!dev) return;
+    const Sfx *s = NULL;
+    if (pct > 0 && id != loop_id && id >= 0 && id < MAX_SFX) {
+        int n = sfx_files(id);
+        s = n > 0 ? sfx_load(sfx_def[id].file[0]) : NULL;
+    }
+    SDL_LockAudioDevice(dev);
+    if (pct <= 0) loop_v.sfx = NULL, loop_id = -1;
+    else if (id != loop_id) loop_v = (Voice){s, 0}, loop_id = s ? id : -1;
+    loop_pct = pct;
     SDL_UnlockAudioDevice(dev);
 }
 

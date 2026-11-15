@@ -80,7 +80,7 @@ static void actor_hot(const Actor *a, int *ex, int *ey) {
 }
 
 // ---- 招式物件共同部分（MethodBase 0x4381a0）：角色出手（MethodMain）和招式單位都有 ----
-enum { U_NORMAL, U_FLY, U_FLYNORMAL, U_ARROW, U_GHOST, U_CYCLE, U_SURFIRE, U_FIREMAN, U_MAIN, U_PHANTOM, U_FOOT };  // U_MAIN = 角色出手（MethodMain）、U_PHANTOM = 分身（CPhantasmObj）
+enum { U_NORMAL, U_FLY, U_FLYNORMAL, U_ARROW, U_GHOST, U_CYCLE, U_SURFIRE, U_FIREMAN, U_MAIN, U_PHANTOM, U_FOOT, U_SPLASH };  // U_MAIN = 角色出手（MethodMain）、U_PHANTOM = 分身（CPhantasmObj）
 typedef struct MUnit {
     int cls, dead;                   // 類別、已結束（+0x58）
     Actor *owner, *target;           // +0x87 放的人、+0x83 目標
@@ -737,6 +737,7 @@ static void units_tick(Uint32 tick) {
         case U_MAIN: if (!alive(u->owner) || u->owner->act != ACT_ATTACK) unit_die(u, tick); break;  // 動作被打斷；平常由 action_tick 推
         case U_PHANTOM: phantom_tick(u, tick); break;
         case U_FOOT: foot_tick(u, tick); break;
+        case U_SPLASH: if (spr_done(&u->spr)) unit_die(u, tick); else spr_step(&u->spr); break;  // 下雨濺水：播一次
         }
     }
     int n = 0;
@@ -750,7 +751,7 @@ static void units_tick(Uint32 tick) {
 static void units_draw(int ox, int oy, int map_h, int ground) {
     for (int i = 0; i < unit_n; i++) {
         const MUnit *u = &units[i];
-        if ((u->cls == U_FOOT) != ground) continue;
+        if ((u->cls == U_FOOT || u->cls == U_SPLASH) != ground) continue;
         int sx = (int)(((u->x - u->y) / 64.0f + map_h - 1) * TILE_W / 2) - ox, sy = (int)((u->x + u->y) / 64.0f * TILE_H / 2) - oy;
         int fly = u->cls == U_FLYNORMAL || u->cls == U_ARROW;
         if (fly && u->shadow && u->shadow != 0x100000) {

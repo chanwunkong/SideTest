@@ -1039,6 +1039,7 @@ static int owner_trig(struct MUnit *u, const Trig *t, Uint32 tick);
 #define scene (*unit_scene)
 #include "unit.c"
 #undef scene
+#include "weather.c"
 
 // 往 a 的反方向推 cells 格（擋住就停），面向 a（Poq.exe 狀態 0x1f：0x4942d0 方向反過來當面向、0x493cb0 每次走一格）
 static void knock_back(Actor *t, const Actor *a, int cells) {
@@ -3671,6 +3672,13 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     story_begin();
     story_refresh(sroom);  // 重放怪物、商店進貨
     story_end();
+    {   // 天氣機率表（EasyRPG 0x10042420 送 0x516）：房間的 G_WEA_*
+        static const char *const K[9] = {"G_WEA_BigRain", "G_WEA_SmallRain", "G_WEA_RedRain", "G_WEA_BigSnow", "G_WEA_SmallSnow",
+                                         "G_WEA_Hail", "G_WEA_RedSky", "G_WEA_PinkSky", "G_WEA_WhiteSky"};
+        int pct[9];
+        for (int i = 0; i < 9; i++) pct[i] = (signed char)story_get_int(sroom, K[i]);
+        weather_table(pct);
+    }
 #endif
     cache_clear();
     res_cache_clear();
@@ -3971,6 +3979,7 @@ int main(int argc, char **argv) {
             for (int i = 0; i < actor_count; i++) walk_fx(&actors[i], &scene, tick);
             unit_scene = &scene;
             units_tick(tick);
+            weather_tick();
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = trigger_at(&scene, hero);
             if (!t) armed = 1;
@@ -4096,6 +4105,7 @@ int main(int argc, char **argv) {
             }
         }
         units_draw(ox, oy, scene.h, 0);
+        weather_draw(ox, oy);
         if (snap_due) { snap_take(canvas); snap_due = 0; }
         if (save_due >= 0) {
             snprintf(save_alias, sizeof save_alias, "%s", alias);

@@ -159,6 +159,21 @@ int main(void) {
     assert(unit_n == 1 && units[0].mode == 1 && units[0].spr.seq == 0x1b && units[0].spr.cur == 0);
     for (int k = 0; k < 1000 && unit_n; k++) units_tick(k);
     assert(unit_n == 0);
+    // 天氣：表上全是小雨 → 擲到 2，馬上開始下（小雨不等），雨量漸大；換大雪片數逐拍加；疾風粒子全部重生
+    for (int i = 0; i < 10; i++) wx.cum[i] = i < 2 ? -1 : 100;
+    wx.total = 100;
+    for (int k = 0; k < 600; k++) weather_tick();
+    printf("rain: idx %d phase %d amount %d drops %d\n", wx.idx, wx.phase, wx.rain_amt, wx.rain_live);
+    assert(wx.idx == 2 && wx.phase == 2 && wx.rain_amt >= 2 && wx.rain_live > 0 && wx.left > 4000);
+    weather_set(4, 2000);
+    for (int k = 0; k < 100; k++) weather_tick();
+    assert(wx.idx == 4 && wx.snow_on == 100 && wx.p[0].life > 0);
+    weather_set(10, 1000);
+    weather_tick();
+    assert(wx.p[0].life >= 499 && wx.p[0].dx <= -2 && wx.p[wx.n - 1].life > 0);
+    wx.total = 0;
+    weather_set(0, 1000);
+    unit_n = 0;
     const Anim *arrow = anim_get(unit_find(0)->anim);
     printf("arrow seqs %d\n", arrow ? arrow->count : -1);
     // 怪物選招：老虎（抓、扑、冲）三招都會被選到
