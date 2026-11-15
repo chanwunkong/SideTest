@@ -23,3 +23,11 @@ CPhantasmObj	+0x4ea	淡出級數（8 起）	MUnit.fade
 CPhantasmObj	+0x4ee	淡出中	MUnit.fading
 CPhantasmObj	+0x4f2	出手者走過的位移 CDMList<GPOINT>	MUnit.pq/pq_n
 CPhantasmObj	+0x478	放出它的招式物件編號	（比 MUnit.m）
+RoleMdl	+0xcc	角色大小（欄 18）	RoleDef.size
+RoleMdl	+0xd0	脚数（欄 19）	RoleDef.legs
+RoleMdl	+0x114	程序标识第一個值（欄 27）	（還沒用）
+RoleMdl	+0x134	平时声音（欄 32）	RoleDef.snd_idle
+RoleMdl	+0x138	战斗声音（欄 33）	RoleDef.snd_fight
+CCharactor	+0x3c5	這次踩哪隻腳	Actor.foot
+CCharactor	+0x3c9	上一個腳印的位置	Actor.print_x/print_y
+SceneCell	+7	地面種類（3 = 雪地，留腳印、腳步聲 0x51）	Cell.kind

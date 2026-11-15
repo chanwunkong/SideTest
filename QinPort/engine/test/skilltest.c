@@ -150,6 +150,15 @@ int main(void) {
     assert(unit_n == 0);
     actors[0].x -= 1;
     actors[0].role = NULL;
+    // 腳印：300 拍停在第一幀，之後換序列 +8 播完消失
+    const Anim *fa = anim_get(0x100309);
+    printf("footstep seqs %d\n", fa ? fa->count : -1);
+    assert(fa && fa->count >= 0x20);
+    foot_new(32, 32, 0x13);
+    for (int k = 0; k <= 301; k++) units_tick(k);
+    assert(unit_n == 1 && units[0].mode == 1 && units[0].spr.seq == 0x1b && units[0].spr.cur == 0);
+    for (int k = 0; k < 1000 && unit_n; k++) units_tick(k);
+    assert(unit_n == 0);
     const Anim *arrow = anim_get(unit_find(0)->anim);
     printf("arrow seqs %d\n", arrow ? arrow->count : -1);
     // 怪物選招：老虎（抓、扑、冲）三招都會被選到

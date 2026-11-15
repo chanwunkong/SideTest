@@ -115,3 +115,12 @@
 0043ef20 unit.c 方向 ±n 繞 8 = (dir + n) & 7
 0043ef50 unit.c 分身結束 = fading
 0043df4e unit.c 解構轉呼叫：沒有要放的
+0043f2d0 unit.c spr_seq（換序列）
+0043f300 unit.c foot_new（CFootStep 建構）
+0043f346 unit.c 解構轉呼叫：沒有要放的
+0043f350 unit.c 解構：沒有要放的
+0043f390 unit.c foot_new：動畫、序列、300 拍
+0043f3e0 unit.c foot_tick 換序列 +8；改地面層那段不需要（我們每幀重畫）
+0043f5d0 unit.c 轉型：不需要
+0043f5e0 unit.c foot_tick
+00486ed0 main.c walk_fx

@@ -80,7 +80,7 @@ static void actor_hot(const Actor *a, int *ex, int *ey) {
 }
 
 // ---- 招式物件共同部分（MethodBase 0x4381a0）：角色出手（MethodMain）和招式單位都有 ----
-enum { U_NORMAL, U_FLY, U_FLYNORMAL, U_ARROW, U_GHOST, U_CYCLE, U_SURFIRE, U_FIREMAN, U_MAIN, U_PHANTOM };  // U_MAIN = 角色出手（MethodMain）、U_PHANTOM = 分身（CPhantasmObj）
+enum { U_NORMAL, U_FLY, U_FLYNORMAL, U_ARROW, U_GHOST, U_CYCLE, U_SURFIRE, U_FIREMAN, U_MAIN, U_PHANTOM, U_FOOT };  // U_MAIN = 角色出手（MethodMain）、U_PHANTOM = 分身（CPhantasmObj）
 typedef struct MUnit {
     int cls, dead;                   // 類別、已結束（+0x58）
     Actor *owner, *target;           // +0x87 放的人、+0x83 目標
@@ -108,7 +108,7 @@ typedef struct MUnit {
     int pq[32][2], pq_n;             // 分身 +0x4f2 出手者走過的位移（CDMList<GPOINT>）
 } MUnit;
 
-#define MAX_UNIT 128
+#define MAX_UNIT 512  // 腳印也算在內
 static MUnit units[MAX_UNIT];
 static int unit_n;
 
@@ -721,6 +721,7 @@ static void unit_init(MUnit *u) {  // 虛擬函式 0x30
 }
 
 static void phantom_tick(MUnit *u, Uint32 tick);
+static void foot_tick(MUnit *u, Uint32 tick);
 static void units_tick(Uint32 tick) {
     for (int i = 0; i < unit_n; i++) {
         MUnit *u = &units[i];
@@ -735,6 +736,7 @@ static void units_tick(Uint32 tick) {
         case U_SURFIRE: surfire_tick(u, tick); break;
         case U_MAIN: if (!alive(u->owner) || u->owner->act != ACT_ATTACK) unit_die(u, tick); break;  // 動作被打斷；平常由 action_tick 推
         case U_PHANTOM: phantom_tick(u, tick); break;
+        case U_FOOT: foot_tick(u, tick); break;
         }
     }
     int n = 0;
@@ -745,9 +747,10 @@ static void units_tick(Uint32 tick) {
 
 // 畫（0x43d500、飛行物 0x436ca0 畫面 y 減高度；箭 0x4356a0 先畫影子動畫 dData1）
 // shortcut: bData0 的混色方式（加亮、半透明…）、光影（0x626398）還沒做，都用一般貼圖；單位畫在最上層，原版跟場景物件一起排深度
-static void units_draw(int ox, int oy, int map_h) {
+static void units_draw(int ox, int oy, int map_h, int ground) {
     for (int i = 0; i < unit_n; i++) {
         const MUnit *u = &units[i];
+        if ((u->cls == U_FOOT) != ground) continue;
         int sx = (int)(((u->x - u->y) / 64.0f + map_h - 1) * TILE_W / 2) - ox, sy = (int)((u->x + u->y) / 64.0f * TILE_H / 2) - oy;
         int fly = u->cls == U_FLYNORMAL || u->cls == U_ARROW;
         if (fly && u->shadow && u->shadow != 0x100000) {
@@ -883,4 +886,23 @@ static void phantom_tick(MUnit *u, Uint32 tick) {
         }
         unit_sweep(u, tick);
     }
+}
+
+// ---- 腳印（CFootStep 0x43f300～0x43f5e0，地面物件 CNormalSurobj）：動畫 0x100309，序列 = 方向（另一隻腳 +0x10）----
+// 前 300 拍停在第一幀（原版畫進地面層），之後換序列 +8 播一次淡掉，播完消失
+static void foot_new(int x, int y, int seq) {
+    if (unit_n == MAX_UNIT) return;
+    MUnit *u = &units[unit_n++];
+    *u = (MUnit){.cls = U_FOOT, .x = x, .y = y, .life = 300};
+    spr_load(&u->spr, 0x100309);
+    spr_set(&u->spr, seq, 0);
+}
+
+static void foot_tick(MUnit *u, Uint32 tick) {  // 0x43f5e0
+    if (!u->mode) {
+        if (u->ticks++ > u->life) u->mode = 1, spr_set(&u->spr, u->spr.seq + 8, 0);  // 0x43f3e0
+        return;
+    }
+    if (spr_done(&u->spr)) unit_die(u, tick);
+    else spr_step(&u->spr);
 }

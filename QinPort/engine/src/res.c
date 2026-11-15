@@ -726,7 +726,7 @@ int scene_load(Scene *s, const char *scn_name) {
     s->cells = malloc((size_t)s->w * s->h * sizeof(Cell));
     for (int i = 0; i < s->w * s->h; i++) {
         const uint8_t *c = map + grid + i * 10;
-        s->cells[i] = (Cell){u16(c), u16(c + 2), c[4]};
+        s->cells[i] = (Cell){u16(c), u16(c + 2), c[4], c[7]};
     }
     snprintf(name, sizeof name, "%s", (const char *)map + 0x90);
     free(map);
@@ -1096,6 +1096,7 @@ int roledefs_load(void) {
 #define COL(i) (c > (i) ? atoi(col[i]) : 0)
         r->fight_idle = COL(9); r->fight_walk = COL(10); r->hit = COL(11); r->death = COL(14); r->fight_speed = COL(21);
         r->seek = COL(24); r->chase = COL(25); r->snd_death = COL(31); r->snd_hit = COL(34); r->atk_delay = COL(39);
+        r->size = COL(18); r->legs = COL(19); r->snd_idle = COL(32); r->snd_fight = COL(33);
 #undef COL
     }
     free(d);

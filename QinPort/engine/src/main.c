@@ -208,6 +208,7 @@ typedef struct Actor {
     int copied, copy[12];
     float knock_x, knock_y;        // 被擊退要滑到的點（knock = 1 時）
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
+    int print_x, print_y, foot;    // 上一個腳印的位置（+0x3c9）、這次踩哪隻腳（+0x3c5）
     int ai_tick, flee;             // 怪物 AI 計數（+0xbb，起始隨機 0~99）、正在拉開距離（走向 tx, ty）          // 陷阱：放的人的 AP、AP_MAX、MAP1~5、MAP1~5_MAX（0x10034cb0 照抄）
     float dash_x, dash_y;          // 招式衝刺／跳躍的目標點（dash = 1 時）
     int dash;
@@ -1238,6 +1239,28 @@ static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
     }
     else return 0;
     return 1;
+}
+
+// 角色每拍的聲音和腳印（Poq.exe 0x486ed0）：千分之一播平時／戰鬥聲音；走路時每 max((15 − A)×2, 10) 拍腳步聲，
+// 腳數 6 用 0x218、軟地（地面種類 3）0x51、其他 0x50；角色大小 1、兩隻腳在軟地上離上個腳印 x 或 y 超過 32 就踩一個，左右腳輪流
+// shortcut: 音效原版依位置算音量（0x4804a0），這裡只播主角附近 12 格內的；程序标识 ≠ 50 的依場景表隨機放單位 0x17（0x663ed8）、
+// 每 20 拍揭開地圖（0x489380）、騎乘（0x443760）時不出聲都還沒做
+static void walk_fx(Actor *a, const Scene *s, Uint32 tick) {
+    const RoleDef *d = a->def;
+    if (!d || !a->role || !alive(a)) return;
+    int near = fabsf(a->x - actors[0].x) < 12 && fabsf(a->y - actors[0].y) < 12;
+    int snd = a->fight ? d->snd_fight : d->snd_idle;
+    if (snd && snd != 0xffff && rand() % 1000 == 100 && near) audio_sfx(snd);
+    if (!a->moving || a->act) return;
+    int cx = (int)a->x, cy = (int)a->y;
+    const Cell *c = cx >= 0 && cy >= 0 && cx < s->w && cy < s->h ? &s->cells[cy * s->w + cx] : NULL;
+    int soft = c && c->kind == 3, sp = a->speed < 0 ? 0 : a->speed > 59 ? 59 : a->speed, step = (15 - SPEED_A[sp]) * 2;
+    if (tick % (step < 10 ? 10 : step) == 0 && near) audio_sfx(d->legs == 6 ? 0x218 : soft ? 0x51 : 0x50);
+    if (d->size == 1 && d->legs == 2 && soft && (abs(ax64(a) - a->print_x) >= 0x20 || abs(ay64(a) - a->print_y) >= 0x20)) {
+        foot_new(ax64(a), ay64(a), DIR_MAP[a->dir] + (a->foot ? 0 : 0x10));
+        a->foot = !a->foot;
+        a->print_x = ax64(a), a->print_y = ay64(a);
+    }
 }
 
 // 震畫面（觸發 type 14 ID 4 → 0x44ca40 → 0x461180）：還在震就不重來；剩下拍數每 5 拍換一次上下，幅度 = 畫面寬/640×25×剩下/總共（0x45bxxx）
@@ -3936,9 +3959,6 @@ int main(int argc, char **argv) {
             else if (mx * mx + my * my > 0.01f) { hero->foe = NULL; hero->want = NULL; ground_want = -1; actor_tick(hero, &scene, mx, my, tick); }  // 自己走 = 放棄目標
             else if (ground_want >= 0 && !hero->foe) ground_walk(hero, &scene, tick);
             else if (!pursue(hero, &scene, tick)) actor_tick(hero, &scene, 0, 0, tick);
-            // 腳步聲：每 max((15 - A) * 2, 10) 拍一次（Poq.exe 0x48704f），80 號音效
-            int sp = hero->speed < 0 ? 0 : hero->speed > 59 ? 59 : hero->speed, step = (15 - SPEED_A[sp]) * 2;
-            if (hero->moving && tick % (step < 10 ? 10 : step) == 0) audio_sfx(80);  // shortcut: 原版某些地面改用 81 號，地面類型還沒對應
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
                 if (!a->mon) npc_think(a, &scene, tick);
@@ -3948,6 +3968,7 @@ int main(int argc, char **argv) {
                 else if (a->act) action_tick(a, &scene, tick);
                 else monster_think(a, hero, &scene, tick);
             }
+            for (int i = 0; i < actor_count; i++) walk_fx(&actors[i], &scene, tick);
             unit_scene = &scene;
             units_tick(tick);
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
@@ -4053,6 +4074,7 @@ int main(int argc, char **argv) {
             const Sprite *g = ground_image(ground[i].it.ground);
             if (g) draw(g, (int)((ground[i].x - ground[i].y + scene.h - 1) * TILE_W / 2) - ox - g->w / 2, (int)((ground[i].x + ground[i].y) * TILE_H / 2) - oy - g->h / 2);
         }
+        units_draw(ox, oy, scene.h, 1);  // 地面上的（腳印）
         // 物件已依深度(x+y)排序；角色也依深度排好，經過自己的深度時插進去畫
         Actor *order[MAX_ACTORS];
         for (int i = 0; i < actor_count; i++) order[i] = &actors[i];
@@ -4073,7 +4095,7 @@ int main(int argc, char **argv) {
                 else draw(image(pt->gid), sx + pt->dx, sy + pt->dy);
             }
         }
-        units_draw(ox, oy, scene.h);
+        units_draw(ox, oy, scene.h, 0);
         if (snap_due) { snap_take(canvas); snap_due = 0; }
         if (save_due >= 0) {
             snprintf(save_alias, sizeof save_alias, "%s", alias);
