@@ -292,7 +292,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
    - 分類多一種 `base`：引擎自己的基底工具（CStaticLinkList／CContainer 名單、OmUtil 數學、字串、記憶體池等），**每種只認一次**，在 `tools/base_map.tsv` 寫「原版位址 → 我們用什麼代替」（例：名單操作 → 一般陣列），之後遇到直接當已處理，不讀本體。
    - `tools/fields.tsv`：類別 + 偏移 → 欄位意思 → 我們的欄位名（例：MethodBase +0x233 = 名單數量 → `hit_n`）。讀到一個新偏移就補一列，之後不再重推。
    - `tools/fn.py ADDR…`：用預先建好的位址索引直接印出那幾個函數本體（不掃整個檔）。
-2. **每次移植一段**：照 FUNCS.tsv 順序取下一個類別／位址段 → 看索引的 class、role、callees → callees 是 `base`／`lib`／已 done 的不讀 → 只用 fn.py 讀還沒做的本體 → 欄位查 fields.tsv → 翻譯、寫位址註解、補 fields.tsv／role → 重跑 functool.py → 建置測試 → 提交。
+     **讀本體一律加 `--brief`**：刪掉 security cookie、區域變數宣告、GPOINT 解構，CString／std::string 等樣板名縮短，去掉 `thunk_`，
+     funcs_done.txt／base_map.tsv 有的函數換成 `⟨我們的名字⟩`，fields.tsv 有的偏移換成 `param_1->⟨欄位⟩`
+     （只在 FUNCS.tsv 的 class 確定（沒有 `~`）、函數是 __thiscall/__fastcall、且那個偏移只有一種意思時；fields.tsv 裡同類別同偏移寫了兩種意思的保留原樣）。
+     0x442660～0x442b10 這批試用：8,982 → 7,692 字元；Poq.exe 全部 todo 本體 617 萬 → 448 萬字元（−27%）。
+   - `tools/functool.py next [ADDR] [N]`：從 FUNCS.tsv 第一個 todo（或 ADDR）起列出下一批（同類別或連續位址，最多 N 個）：
+     行數、標記（`解構`、`std::string`、`轉接` = 只呼叫另一個函數、`空`、`CRT:…`）、role，和這批還沒移植的被呼叫函數（行數、類別），最後印出讀本體的指令。
+2. **每次移植一段**：`functool.py next` 取下一批 → 標了 解構／空／轉接／std::string 的先判斷是否只要記進 funcs_done.txt 或 base_map.tsv → callees 是 `base`／`lib`／已 done 的不讀 → 用它印出的 `fn.py --brief …` 讀還沒做的本體 → 欄位查 fields.tsv → 翻譯、寫位址註解、補 fields.tsv／role → 重跑 functool.py → 建置測試 → 提交。
 3. 不能為了「找完整來龍去脈」去翻別的段落；缺的資訊先查索引，索引沒有才讀那一個函數，讀完寫進索引。
 
 下面 A～K 是 11-14 憑盤點寫的清單，保留當說明；之後以 FUNCS.tsv 為準。

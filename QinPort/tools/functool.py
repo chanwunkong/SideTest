@@ -2,6 +2,8 @@
 """原版函數總表：列出 Poq.exe / EasyRPG.dll / UIWndEx.dll 每個函數，分類並標記移植狀態。
 
 用法：python3 tools/functool.py        → 寫 FUNCS.tsv（遊戲與未完成的劇情函數，每函數一行）並印出統計
+      python3 tools/functool.py next [ADDR] [N] → 從 FUNCS.tsv 第一個 todo（或 ADDR）起，列出下一批
+          （同類別或連續位址，最多 N 個，預設 12）的大小與標記，和這批還沒移植的被呼叫函數
 分類：
   lib    編譯器執行庫 / MFC / ATL / STL / OpenAL（平台層換掉，不翻）
   story  劇情物件的格子函數（storytool 自動翻成 story/）
@@ -13,7 +15,7 @@
   init   全域變數初值（編譯器產生的建構），隨使用它的函數一起移植
   todo   其餘
 欄位 callees = 呼叫的遊戲函數中還沒完成的（移植時只要讀這些）；role = tools/roles.tsv 的一句話用途。
-欄位偏移的意思記在 tools/fields.tsv；讀原版本體用 tools/fn.py ADDR。
+欄位偏移的意思記在 tools/fields.tsv；讀原版本體用 tools/fn.py --brief ADDR。
 順序：依位址（= 原版原始碼檔案順序，同一類別的函數相連），一段一段做；depth 是從入口沿呼叫圖
 （含虛擬函式表）走的深度，參考用。class 前面有 ~ 的是從呼叫者或相鄰函數推出來的。
 """
@@ -295,5 +297,60 @@ def main():
             print('  %-6s %s' % (c, n))
 
 
+CRT = re.compile(r'\b(_?_?(?:malloc|free|realloc|calloc|mem(?:cpy|set|move|cmp)|str\w*cpy|strlen|strcmp|stricmp|'
+                 r'str\w*cat|sprintf|_snprintf|atoi|atol|atof|rand|srand|time|fopen|fread|fwrite|fclose|fseek|'
+                 r'operator_new|operator_delete|ftol2?\w*|libm_sse2_\w+|CxxThrowException\w*))\s*\(')
+
+
+def marks(body, basemap):
+    """一眼看出不用細讀的：解構子、std::string、轉接（只呼叫另一個函數）、CRT。"""
+    out = []
+    if '~' in body[:body.find('{')] or re.search(r'\(param_[12] & 1\) != 0', body):
+        out.append('解構')
+    if 'basic_string' in body or any('std::string' in basemap.get(x, '')
+                                     for x in re.findall(r'FUN_([0-9a-f]{8})', body)):
+        out.append('std::string')
+    stmts = [l for l in body[body.find('{') + 1:body.rfind('}')].split('\n') if l.strip()]
+    if [l.strip() for l in stmts] == ['return;']:
+        out.append('空')
+    elif len(stmts) == 1 and re.search(r'\w\(', stmts[0]):
+        out.append('轉接')
+    crt = sorted(set(m.group(1) for m in CRT.finditer(body)))
+    if crt:
+        out.append('CRT:' + ','.join(crt))
+    return ' '.join(out)
+
+
+def next_batch(args):
+    import fn
+    start = next((a.lower().removeprefix('0x').zfill(8) for a in args if not a.isdigit()), None)
+    n = next((int(a) for a in args if a.isdigit()), 12)
+    rows = [l.rstrip('\n').split('\t') for l in open(os.path.join(ROOT, 'FUNCS.tsv'), encoding='utf-8')][1:]
+    i = next(k for k, r in enumerate(rows) if (r[2] >= start if start else r[6] == 'todo'))
+    b = rows[i][0]
+    cls = rows[i][4].lstrip('~')
+    batch = []
+    for r in rows[i:]:
+        if r[0] != b or len(batch) >= n:
+            break
+        c = r[4].lstrip('~')
+        if cls and c and c != cls and batch:  # 類別換了就停
+            break
+        cls = cls or c
+        if r[6] == 'todo':
+            batch.append(r)
+    idx = fn.index()[b]
+    basemap = base_map()[0]
+    status = {r[2]: r for r in rows if r[0] == b}
+    mine = {r[2] for r in batch}
+    print('%s 下一批（%s）：' % (b, cls or '連續位址'))
+    for r in batch:
+        print('  %s %-14s %4s 行  %s  %s' % (r[2], r[4][:14], r[7], marks(fn.body(b, idx[r[2]]), basemap), r[10]))
+    need = sorted({x for r in batch for x in r[11].split()} - mine)
+    print('還沒移植的被呼叫函數：' + (' '.join('%s(%s 行 %s)' % (x, status[x][7], status[x][4] or '-')
+                                       if x in status else x for x in need) or '無'))
+    print('讀本體：python3 tools/fn.py --brief ' + ' '.join(r[2] for r in batch))
+
+
 if __name__ == '__main__':
-    main()
+    next_batch(sys.argv[2:]) if sys.argv[1:2] == ['next'] else main()
