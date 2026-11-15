@@ -301,8 +301,16 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 這段還是 todo 的 33 個（roles.tsv 都寫了作用），要等後面的系統一起做：程式狀態機 0x448ab0 和進各狀態（0x44d340～0x44d470，等主選單 0x4f5xxx）、載入畫面（0x44dbd0/0x44dc20/0x44dda0，等 0x5022e0）、小地圖探索格存讀（0x44c0d0/0x44c830，格子 +0x13）、存檔縮圖 0x449bf0、鏡頭移到角色（0x44e2a0/0x44e380，等 0x461680）、暫停計數 0x44d9e0、大地圖自動存檔 0x44ce00、頭頂座標 0x44cfe0、劇情模式放開左鍵跳過 0x44b840、劇情指令設縮放（0x4725c0 case 2 → `zoom_set`，還沒接）、淡入淡出 0x44bf00 → 0x4a6770。
   - 手機還沒有縮放手勢（手機操控最後做）。
   ~~下一步：0x44eb10（CPlayerGroupAI）起~~
-- 進度（11-15）：Poq.exe 0x44eb10～0x44f410 —— **CPlayerGroupAI 是死碼**（建構 0x44ee50 的跳板 0x401e0b 沒人呼叫，類別只有解構和一個清串列的虛擬函式），記在「劇情沒用到」。其餘是容器樣板建構／放入、SInitBase／SInitCha 建構解構（SInitCha 預設值記進 fields.tsv）、CScnClient 建構 0x44ec70，全部列 skip，沒有移植的程式。
-  **下一步：0x44f460（CScnClient 場景物件：加入名單、建角色 0x44f4c0／0x44f580、依種類分串列 0x44f610）起**，用 `python3 tools/functool.py next 0044f460`。
+- 進度（11-15）：Poq.exe 0x44eb10～0x44f410 —— CPlayerGroupAI 的建構 0x44ee50 沒人呼叫（**更正：類別不是死碼**，0x450bc0 直接內嵌建它，當 AI 組的敵人名單，見下一段）。其餘是容器樣板建構／放入、SInitBase／SInitCha 建構解構（SInitCha 預設值記進 fields.tsv）、CScnClient 建構 0x44ec70，全部列 skip，沒有移植的程式。
+  ~~下一步：0x44f460（CScnClient 場景物件）起~~
+- 進度（11-15）：Poq.exe 0x44f460～0x451120 **CObjMng 建物件**。我們沒有統一的物件管理，原版的工廠（AddObj 0x450960、建角色 0x44f580、AddProp 0x450cc0／0x450f00）對到 mon_make／ground_drop／trap（funcs_done.txt），串列操作（CDMList、分串列 0x44f610、名單放入移除）記 base_map.tsv。移植的：
+  - **AI 組關係表**（near.c `grps`、`grp_enemy_add` 0x450bc0／0x44f460、`grp_find` 0x452460、`grp_is_enemy` 0x453210）；Actor 加 `grp`（+0x339），敵對 `is_foe` 改照 0x443560（取代原本用 side 的 shortcut）。角色把 NPC 組的人設成目標時，那組記下它的組為敵人（`foe_grp`，CCharactor 設目標的一段）。劇情 G_AIGroup（actors_sync、訊息 0x51c）設 grp；沒有劇情時怪物都是組 10000（shortcut）。
+  - 劇情建角色（0x44fd20 種類 0）：入口點隨機挑（0x4cc9c0，跟我們原本一樣）、角色面向入口方向（新加）。
+  - 照原版保留：敵對是單向的，A 是 NPC 組時只查 A 那組的名單。
+  - skip：0x451120 預先載入角色動畫（平台層）。
+  - 這段還是 todo 的（roles.tsv 寫了作用），等對應系統：0x44f4c0 建築物件（等建築變成物件，near.c cell_bld）、0x44f6d0 倒下留下的東西／碎屍 CPartDeadObj（等 CCharactor 倒下 0x486910）、0x450b30 CBirdFast（等 0x453800）、0x450da0 地上痕跡（等 0x459840）、0x450f70 陷阱設主人（等 CTrapBase）。0x44fd20 的道具／建築／陷阱／隨機建築分支也還沒接。
+  - 發現：註解裡提到位址就算 done，所以 0x498c40（unit.c 的 shortcut 註解）其實還沒移植；之前 0x452460／0x453210 也是這樣（這次真的做了）。之後寫 shortcut 註解提到未移植的函數不要寫位址。
+  **下一步：0x451820（SInitBase/SInitCha 起，0x451830、0x451890、0x451900…）**，用 `python3 tools/functool.py next 0x451820`（位址要加 0x，不然會被當成數量）。
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
 
@@ -513,7 +521,6 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - CZhenMng（0x446390～0x447d90，名字是「陣」但內容是一群光點）：10 組，每組一串「從來源物件飛向目標物件」的光點群。初始化 0x4471a0（來源、目標、點數；範圍 60），
   每拍 0x4476c0：來源點朝目標每拍走 10 像素（距離 > 4 時，一半機率範圍 +1）；每個光點沿路線前後擺動（速度 1～4，超出範圍就反向）、左右上下各在 ±7 內抖動；
   畫 0x446cd0：光點離目標不到 10 像素就消失（範圍 −1），用 DAT_00662d38+400 那張圖畫。原版沒有建構它，要用得整段新寫。
-- CPlayerGroupAI（0x44ee50 建構，0xcb0 bytes，+0x18 一個 CStaticLinkList<int,200>）：名字像「玩家隊伍 AI」，但原版沒有建構它，只剩解構和清名單（0x451810）。沒有任何行為可移植；DLC 要隊友 AI 得自己設計。
 - CGroup／CUserGroup 隊伍群組（0x440e70～0x441e00）：單機沒有建立，列在 tools/funcs_skip.txt。
 
 ## 引擎現況

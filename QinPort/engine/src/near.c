@@ -75,9 +75,56 @@ static int cell_bld(int x, int y) { (void)x, (void)y; return -1; }
 // 物件種類 0x80～0x100 且不是 0x96（0x439b20：可被打壞的物件）
 LATER static int obj_breakable(int kind) { return (unsigned)(kind - 0x80) < 0x81 && kind != 0x96; }
 
-// 敵對（0x443560）：兩邊都在、不同組，任一邊是玩家組（0～99）就是；都是 NPC 組（10000～60000）時查組的敵人名單（0x453210）
-// shortcut: 原版的 AI 組關係表（0x452460）還沒移植，用我們的 side 代替組：不同邊就敵對
-static int is_foe(const Actor *a, const Actor *b) { return a && b && a != b && a->side != b->side; }
+// ---- AI 組關係表（CScnClient +0x7df0 串列：每個 NPC 組一個 CPlayerGroupAI，+0x14 組號、+0x1c 敵人組名單最多 200 個）----
+// shortcut: 原版串列不限組數，這裡最多 64 組；原版跟著 CScnClient，這裡整個遊戲共用一張（換場景沒清）
+#define GRP_MAX 64
+static struct { int id, n, foe[200]; } grps[GRP_MAX];
+static int grp_n;
+
+// 找組（0x452460）
+static int grp_find(int id) {
+    for (int i = 0; i < grp_n; i++)
+        if (grps[i].id == id) return i;
+    return -1;
+}
+
+// 組 g 把組 e 當敵人（0x450bc0：沒有這組就建一個；0x44f460：已在名單裡不再加，滿 200 個不加）
+static void grp_enemy_add(int g, int e) {
+    int i = grp_find(g);
+    if (i < 0) {
+        if (grp_n == GRP_MAX) return;
+        i = grp_n++;
+        grps[i].id = g, grps[i].n = 0;
+    }
+    for (int k = 0; k < grps[i].n; k++)
+        if (grps[i].foe[k] == e) return;
+    if (grps[i].n < 200) grps[i].foe[grps[i].n++] = e;
+}
+
+// 組 g 的敵人名單裡有沒有 e（0x453210）
+static int grp_is_enemy(int g, int e) {
+    int i = grp_find(g);
+    for (int k = 0; i >= 0 && k < grps[i].n; k++)
+        if (grps[i].foe[k] == e) return 1;
+    return 0;
+}
+
+static int grp_npc(int g) { return (unsigned)(g - 10000) < 50001; }  // NPC 組 10000～60000
+
+// 敵對（0x443560）：不同組，任一邊是玩家組（0～99）就是；否則查 NPC 組那邊的敵人名單。
+// 怪現象（照原版）：a 是 NPC 組就只查 a 那組的名單，所以 B 記了 A 為敵人時 is_foe(B, A) 成立、is_foe(A, B) 不一定
+static int is_foe(const Actor *a, const Actor *b) {
+    if (!a || !b || a->grp == b->grp) return 0;
+    if ((unsigned)a->grp < 100 || (unsigned)b->grp < 100) return 1;
+    if (grp_npc(a->grp)) return grp_is_enemy(a->grp, b->grp);
+    return grp_npc(b->grp) && grp_is_enemy(b->grp, a->grp);
+}
+
+// self 把 t 設成目標時（CCharactor 設目標裡的一段）：t 是 NPC 組、self 不是玩家組也不是 9000～9999 組，t 的組就記 self 的組為敵人
+// shortcut: 原版還排除 self 有狀態 0x66 或旗標 0x4000 的，沒做
+static void foe_grp(const Actor *self, const Actor *t) {
+    if (t && grp_npc(t->grp) && self->grp > 99 && (unsigned)(self->grp - 9000) > 999) grp_enemy_add(t->grp, self->grp);
+}
 
 // ---- 從一點往外找角色（全域狀態 DAT_0065ea50～0x65ea78）----
 static struct { Spiral s; int l, t, size, i; } nr;

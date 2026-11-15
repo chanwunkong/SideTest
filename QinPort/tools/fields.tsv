@@ -76,3 +76,6 @@ SInitCha	+0x4	種類，建構預設 0xb	-
 SInitCha	+0x8	word 預設 2（+0x8 整個 dword 先設 0xffff0000）	-
 SInitCha	+0x24	GRECT	-
 SInitCha	+0x38	0x40 bytes 清 0	-
+CCharactor	+0x339	AI 組（0～99 玩家、10000～60000 NPC）	Actor.grp
+CPlayerGroupAI	+0x14	組號	grps[].id
+CPlayerGroupAI	+0x1c	敵人組名單 CStaticLinkList<int,200>（數量 +0x65c）	grps[].foe/n

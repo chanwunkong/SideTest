@@ -235,3 +235,7 @@
 0044e410 weather.c wx 初值（CGodBase 建構：晴、1000）
 0044e4a0 weather.c wx 初值（CGodServer 建構）
 0044e730 light.c clk.hour
+0044f580 main.c mon_make（依 SInitCha 的圖形、位置建角色物件；建好送 0x10000 訊息）
+00450960 main.c mon_make／ground_drop／trap（CObjMng::AddObj 依物件表種類 2 角色、1 道具／建築、6 陷阱建類別；我們各自直接建）
+00450cc0 main.c ground_drop（AddProp：依 PicID 在格子建道具物件）
+00450f00 main.c ground_drop（建道具物件並設 +0xab）

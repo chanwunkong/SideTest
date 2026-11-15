@@ -211,6 +211,7 @@ typedef struct Actor {
     struct Actor *foe;             // 攻擊目標
     struct Actor *owner;           // 召喚出來的：召喚者
     int side;                      // 隊伍：0 = 主角這邊（主角、他的召喚兽、馴服的、陷阱、分身），1 = 怪物
+    int grp;                       // AI 組（+0x339）：0～99 玩家組、10000～60000 NPC 組；敵對看它（near.c is_foe）
     int copied, copy[12];
     float knock_x, knock_y;        // 被擊退要滑到的點（knock = 1 時）
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
@@ -504,6 +505,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->mon = m;
     a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
     a->side = 1;
+    a->grp = 10000;  // shortcut: 沒有劇情時怪物都算同一個 NPC 組；有劇情時 actors_sync 換成 G_AIGroup
     mon_derive(a);
     a->hp = a->hp_max;
     a->exp = mon_stat(m->exp, a->level, 0);
@@ -914,6 +916,7 @@ static void summon(Actor *a, const SkillRow *r) {
     Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, (int)a->x, (int)a->y, a->level);
     s->owner = a;
     s->side = a->side;
+    s->grp = a->grp;
     s->foe = a->foe;
     printf("召喚 %s\n", m->name);
 }
@@ -928,6 +931,7 @@ static int skill_param(const SkillRow *r, int id) {
 // 加入 a 的隊伍：同隊打它的都停手
 static void join(Actor *t, Actor *a) {
     t->side = a->side;
+    t->grp = a->grp;
     t->owner = a;
     t->foe = NULL;
     for (int i = 0; i < actor_count; i++)
@@ -1133,7 +1137,7 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     (void)tick;
     if (!alive(t)) return;
     t->fight = FIGHT_TICKS;
-    if (t->mon && !t->foe) t->foe = a;  // 被打的怪物會反擊
+    if (t->mon && !t->foe) { t->foe = a; foe_grp(t, a); }  // 被打的怪物會反擊
     // 命中（Poq.exe 0x48c600，CCharactor 虛擬函式第 104 格）：千分比 = HR×1000 / (SR + HR)，夾在 100~900；HR 0 當 1
     // shortcut: 之前還有一段盾牌格擋（0x48c4e3，看防守方 +0x4e7 的裝備和攻擊方向），沒有盾的主角用不到，還沒做
     int hr = a->hr ? a->hr : 1, chance = hr * 1000 / (t->sr + hr);
@@ -1484,7 +1488,7 @@ static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
         Actor *e = &actors[i];
         if (hostile(a, e) && !(e->flags & 0x20010) && cell_dist(a, e) <= seek && (!near || cell_dist(a, e) < cell_dist(a, near))) near = e;
     }
-    if (near) a->foe = near;
+    if (near) { a->foe = near; foe_grp(a, near); }
     a->speed = a->foe ? a->def->fight_speed : a->def->speed;
     if (!pursue(a, s, tick)) npc_think(a, s, tick);
 }
@@ -2801,12 +2805,15 @@ static void actors_sync(const Scene *s) {
         if (a->sh && a->role && a->act != ACT_DEAD && story_parent(a->sh) != sroom) a->role = NULL;
     }
     int pl = story_player(), grp = story_get_int(pl, "G_AIGroup");
+    actors[0].grp = grp;
     for (int h = story_next(sroom, 0); h && actor_count < MAX_ACTORS; h = story_next(sroom, h)) {
         if (h == pl || story_kind(h) != 1 || actor_of(h)) continue;
         const MonDef *m = mondef_find(story_get_str(h, "MonRow"));
         const RoleDef *d = roledef_find(story_get_int(h, "G_PicID"));
         if (!m || !d || (!atoi(d->graphic) && !d->anim)) continue;  // shortcut: 圖形 ID 是名字的怪物（蝙蝠、骷髏、蜘蛛）還沒做
         if (story_get_int(h, "G_PosX") != -100) continue;  // 劇情 NPC（ONT 擺的）由 spawn_npcs 放
+        // 劇情建角色（0x44fd20 種類 0、G_PosX −100）：同名入口點隨機挑一個（0x4cc9c0，第 n 個以 1/n 換掉），面向入口方向
+        // shortcut: 原版放在入口那一格；這裡在附近 7×7 找能站的（同格只放一個角色的規則還沒查）
         int n = 0, pick = -1, area = story_get_int(h, "G_PosY");
         for (int i = 0; i < s->entry_count; i++)
             if (s->entries[i].id == area && rand() % ++n == 0) pick = i;
@@ -2819,7 +2826,10 @@ static void actors_sync(const Scene *s) {
         }
         Actor *a = mon_make(m, d, x, y, en->x, en->y, story_get_int(h, "Level"));
         a->sh = h;
-        a->side = story_get_int(h, "G_AIGroup") != grp;  // shortcut: 敵我照 G_AIGroup 是否跟主角同組，原版的 AI 組關係還沒查
+        for (int k = 0; k < 8; k++)
+            if (DIR_MAP[k] == en->dir) a->dir = k;
+        a->grp = story_get_int(h, "G_AIGroup");
+        a->side = a->grp != grp;  // side 是我們自己的「主角這邊」，敵對另看 grp
     }
 }
 
@@ -2840,7 +2850,10 @@ static void story_msgs(void) {
             if (m->v[1] == sroom || (a && a != &actors[0])) actors_dirty = 1;
             break;
         case 0x535: if (a) a->ex[20] = (int)m->v[1]; break;                 // Invincible
-        case 0x51c: if (a && a != &actors[0]) a->side = m->v[1] != story_get_int(story_player(), "G_AIGroup"); break;  // G_AIGroup
+        case 0x51c:  // G_AIGroup
+            if (a) a->grp = (int)m->v[1];
+            if (a && a != &actors[0]) a->side = m->v[1] != story_get_int(story_player(), "G_AIGroup");
+            break;
         case 0x574e0: if (a && alive(a)) actor_kill(a, NULL); break;        // 劇情讓人物死掉
         case 0x42aa0: if (a && a != &actors[0]) a->hp = story_get_int(a->sh, "HP"); break;
         case 0x52e: story_plot_end(); break;  // shortcut: 過場播放器還沒做（清單 D），先直接結束（第 18 格）

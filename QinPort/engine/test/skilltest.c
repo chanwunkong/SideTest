@@ -415,7 +415,7 @@ int main(void) {
         assert(obj_breakable(0x80) && obj_breakable(0x100) && !obj_breakable(0x96) && !obj_breakable(0x101));
         // 找角色：方框是 (x−r, y−r) 起邊長 3r（怪現象），所以右下 1.5r 的找得到、左上 1.5r 的找不到
         mk(&actors[0]); mk(&actors[1]); actor_count = 2;
-        actors[0].side = 0; actors[1].side = 1;
+        actors[0].side = 0; actors[1].side = 1; actors[1].grp = 10000;
         actors[0].x = actors[0].y = 10.5f;
         actors[1].x = actors[1].y = 11.9f;   // 761：超過 672 + 64（2r 的方框），在 672 + 128 之內
         assert(near_first(672, 672, 64) == &actors[0] && near_next() == &actors[1] && !near_next());
@@ -424,6 +424,19 @@ int main(void) {
         assert(!near_other(672, 672, 64, 0));
         actors[1].x = actors[1].y = 11.2f;
         assert(near_other(672, 672, 64, 0) == &actors[1] && is_foe(&actors[0], &actors[1]) && !is_foe(&actors[0], &actors[0]));
+        // AI 組 0x443560／0x450bc0／0x453210：玩家組對別組都敵對；兩個 NPC 組要在敵人名單裡；同組不敵對
+        {
+            Actor p = {.grp = 3}, x = {.grp = 10001}, y = {.grp = 20000}, z = {.grp = 9500};
+            assert(is_foe(&p, &x) && is_foe(&y, &p) && !is_foe(&x, &y) && !is_foe(&z, &x));
+            foe_grp(&x, &y);  // 10001 打 20000：20000 記 10001 為敵人
+            assert(is_foe(&y, &x) && !is_foe(&x, &y) && !is_foe(&y, &(Actor){.grp = 30000}));  // 怪現象：只查 a 那組的名單，單向
+            foe_grp(&z, &x); foe_grp(&p, &x);  // 9000～9999 組、玩家組不記
+            assert(!grp_is_enemy(10001, 9500) && !grp_is_enemy(10001, 3));
+            for (int k = 0; k < 205; k++) grp_enemy_add(40000, 100 + k);
+            assert(grps[grp_find(40000)].n == 200);
+            grp_enemy_add(40000, 100); assert(grps[grp_find(40000)].n == 200);
+            x.grp = y.grp; assert(!is_foe(&x, &y));
+        }
         // 直線：往右 6 格，第 14 格不能走 → 停在 13；mode 0 有角色的格子不算但不擋（mode 0 會擋）
         cells32[10 * 32 + 14].walk = 0;
         int x, y;

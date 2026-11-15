@@ -51,3 +51,13 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 00440bd0	std::string（C 字串）
 004409a0	std::string（C 字串）
 004409b0	std::string（C 字串）
+0044f610	CScnClient 依物件種類 +0x67 分串列（0x15～0x1d、0x1e～0x64 角色、4、10～20、6）→ 我們各類一個陣列（actors、ground、units）
+0044fc90	CDMList 放尾端 → 一般陣列
+00450e10	CDMList 放尾端 → 一般陣列
+00450fb0	CDMList 依值排序插入 → 一般陣列
+00450ea0	CStaticLinkList 放入（轉接）→ 一般陣列
+00450ec0	CStaticLinkList 放入（轉接）→ 一般陣列
+00450ee0	CStaticLinkList 移除（轉接）→ 一般陣列
+00451070	CScnClient 角色名單放入（最多 999）→ actors
+004510b0	CScnClient 角色名單依物件移除 → actors
+00451100	CStaticLinkList 清空並設組號 → near.c grps

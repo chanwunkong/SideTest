@@ -345,6 +345,7 @@ static int unit_bounce(MUnit *u) {
         if (!e) { u->bounce = 0; return 0; }
         face(o, (e->x - o->x - (e->y - o->y)) * 32, (e->x - o->x + e->y - o->y) * 16);
         o->foe = e;
+        foe_grp(o, e);
         u->tx = ax64(e), u->ty = ay64(e);
         u->dir = dir_of(u->x, u->y, u->tx, u->ty, 8);
     }

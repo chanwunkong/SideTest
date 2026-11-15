@@ -182,9 +182,9 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 0044d330 只讀／寫一個全域值（見 roles.tsv，用到時直接讀）
 0044ca30 只讀／寫一個全域值（見 roles.tsv，用到時直接讀）
 # Poq.exe 0x44eb10～0x44f270：CPlayerGroupAI 段
-0044ee50 CPlayerGroupAI 建構：原版沒有任何呼叫（跳板 0x401e0b 無人引用），整個類別是死碼
-0044f020 CPlayerGroupAI 成員 CStaticLinkList<int,200> 解構（死碼類別）
-0044f270 CPlayerGroupAI 解構（死碼類別）
+0044ee50 CPlayerGroupAI 建構：原版沒有呼叫這個建構（0x450bc0 內嵌建構，已移植成 near.c grps）
+0044f020 CPlayerGroupAI 成員 CStaticLinkList<int,200> 解構（我們用靜態陣列）
+0044f270 CPlayerGroupAI 解構（我們用靜態陣列）
 0044eb10 容器樣板建構 CContainer<int,200>
 0044eb30 容器樣板建構 CContainer<CBuilding*,1000>
 0044eb50 容器樣板建構 CContainer<CObj*,1000>
@@ -199,3 +199,4 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 0044f370 容器：CStaticLinkList<int,200> 指定格放入
 0044f3c0 容器：CStaticLinkList<*,1000> 指定格放入
 0044f410 容器：CStaticLinkList<*,1000> 指定格放入
+00451120 平台層：建角色時預先載入它的各組動畫（"RoleBegin"/"FightRole" 記錄、0x488d90 批次讀圖、載入畫面推進），我們用到時才讀
