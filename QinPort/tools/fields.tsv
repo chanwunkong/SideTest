@@ -104,3 +104,13 @@ CCharactor	+0x341	旗標陣列：第 n 個 = 身上有狀態 n	has_status()
 全域	0x6628f8	雙擊過，吃掉下一次放開	-
 全域	0x625e98	遊戲速度值 16～31（= 31 − 3×速度）	game_speed_ms
 全域	0x626d00	右鍵剛按下	-
+CCharactor	+0x4ff	右手技能編號（0x48e7a0 設，同時 +0x4df = 攻擊用的技能項）	cur_skill[0]
+CCharactor	+0x503	左手技能編號（0x48eab0 設；右鍵出手 0x457be0 用它）	cur_skill[1]
+CCharactor	+0x507	名字（敵人狀態框 0x4fa4c0）	actor_title
+CCharactor	+0x589	敵人狀態框的血條值（0x488840）	Actor.hp/hp_max
+CUserInput	+0x0	滑鼠指著的物件代號（0x459ce0）	hover_actor
+CUserInput	+0xc	操控的角色編號（0 = 隊伍第一個）	hero
+CUserInput	+0x10	隊伍面板選中的人（0x459b30）	
+CUserInput	+0x14	選到的隊友名單 CStaticLinkList<int,60>（頭 +0x1f0、數量 +0x1e4）	
+CUserInput	+0x1c	自己這邊名單 CStaticLinkList<int,60>（頭 +0x208）	
+CUserInput	+0x3f0	選到的名單變了，下一拍同步到全域 0x93f9d4	

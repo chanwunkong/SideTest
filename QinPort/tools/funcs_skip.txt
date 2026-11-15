@@ -246,3 +246,24 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00454e20 除錯指令回應（0x502ae0，GetSpeed 的 Test_OK）
 004556a0 空函數
 004559d0 空函數
+00457670 CDMList 建構
+004576a0 RoleData 設定節點建構（CString）
+00457740 CUserInput 建構（名單容器；重設內容同 0x4590f0）
+004578b0 CString 設定表清除
+00457970 CDMList 清空
+004579c0 CUserInput 解構（容器）
+00457ad0 CDMList 放入
+00457f20 CString 設定表依名字找
+00457fa0 CStaticLinkList<int,60> 找索引
+00457ff0 CDMList 刪節點
+00458010 CString 設定表取得／新增（RoleData）
+004581e0 CDMList 取值
+00458220 CDMList 迭代
+00458240 CStaticLinkList 迭代
+00458290 CStaticLinkList 反向迭代
+004583d0 轉接：0x4a28b0 依代號找 +0 的物件
+00458940 CDMList NewNode
+00458e50 CString 設定表清除
+00458ee0 CDMList 清空
+00459090 CDMList 取出
+00459970 CString 指派

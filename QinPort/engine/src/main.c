@@ -3212,7 +3212,7 @@ static int hud_tap(int x, int y) {
         const UiCtrl *c = ui_button_at(&pick, px, py, x, y);
         int i = c && !strncmp(c->name, "m_pItem[", 8) ? atoi(c->name + 8) : -1;
         if (i >= 0 && i < pick_n) {
-            cur_skill[pick_hand] = pick_skill[i];
+            cur_skill[pick_hand] = pick_skill[i];  // 0x4599e0 右手（+0x4ff）／0x459a90 左手（+0x503），包成指令 4 給角色
             if (pick_hand == 0) hero_skill_apply(&actors[0]);
         }
         pick_hand = -1;
@@ -3464,6 +3464,29 @@ static void skill_draw(UiDialog *d, int wx, int wy) {
     }
 }
 
+// 敵人狀態框顯示誰（0x459ce0；0x455d60 每拍拿游標下的物件呼叫它，0x459fa0 是先依編號找角色）：
+// 指著角色（種類 0x1e～0x64：怪物、NPC、自己都算）就開框、填名字（+0x507）和血（+0x589），沒指著角色就關框。
+// 照原版：血條只在對象沒有狀態 102 時「打開」（0x583e40 傳 0 = 不變），這裡也沒有地方關它，所以有狀態 102 一樣看得到血。
+// shortcut: 原版還給指著的角色加旗標 0x100（隊友名單裡的不拿掉）、指著物件（種類 0x17、0x18、10～20）另外標示，都沒做；
+// 手機沒有指著，先用攻擊目標；死掉的不顯示（原版只看種類）
+static const Actor *hover_actor;
+static int hover_mouse;
+
+static const Actor *status_target(const Actor *h, const Actor *hover, int mouse) {
+    const Actor *t = mouse ? hover : h->foe;
+    return t && t->act != ACT_DEAD ? t : NULL;
+}
+
+// 角色名字（UTF-8）：怪物用人物名称；劇情人物用劇情名字；主角先寫扶苏（同人物描述）
+static void actor_title(const Actor *t, char *u, size_t n) {
+    if (t->mon) { gbk_utf8(t->mon->title, u, n); return; }
+    const char *s = t == &actors[0] ? "扶苏" : "";
+#ifdef STORY
+    if (t->sh && *story_name(t->sh)) s = story_name(t->sh);
+#endif
+    snprintf(u, n, "%s", s);
+}
+
 static void hud_draw(const Actor *hero) {
     static int tried;
     if (!tried) {
@@ -3472,14 +3495,14 @@ static void hud_draw(const Actor *hero) {
         ui_load("JM51_\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6_\xd6\xf7\xbf\xd8", &party);    // JM51_状态界面_主控
         ui_load("JM515_\xb5\xd0\xc8\xcb\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6", &enemy);    // JM515_敌人状态界面
     }
-    // 敵人狀態：上方置中、距頂 20（原版位置）；顯示目前打的怪物名字和血。shortcut: 原版是滑鼠指著的對象，手機沒有指著，先用攻擊目標
-    const Actor *t = hero->foe;
-    if (enemy.count && t && t->mon && t->act != ACT_DEAD) {
+    // 敵人狀態：上方置中、距頂 20（原版位置）
+    const Actor *t = status_target(hero, hover_actor, hover_mouse);
+    if (enemy.count && t) {
         int ex = (vw - enemy.w) / 2, ey = 20;
         UiCtrl *nm = ui_find(&enemy, "m_pName"), *bl = ui_find(&enemy, "m_pBlood");
         if (nm) {
             char u[96];
-            gbk_utf8(t->mon->title, u, sizeof u);
+            actor_title(t, u, sizeof u);
             draw_text(ex + nm->x + (nm->w - text_width(u)) / 2, ey + nm->y + 3, u, nm->w, 0xBECDCE, 1);
         }
         if (bl) ui_bar(bl, ex, ey, t->hp, t->hp_max);
@@ -4263,11 +4286,13 @@ int main(int argc, char **argv) {
 #ifdef STORY
         dialog_draw();
 #endif
+        hover_mouse = mouse_seen;
         if (mouse_seen) {  // 觸控沒有游標
             const Anim *cur = anim_get(0x100011);
             int zx = px, zy = py, cx, cy;
             zoom_point(&zx, &zy);
             Actor *c = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
+            hover_actor = c;  // 0x455d60 → 0x459ce0
             int k = input_cursor(hero, c, ground_at(zx, zy, ox, oy, &scene), cx, cy);
             if (cur && k < cur->count) draw_frame(cur, k, frame_at(&cur->seqs[k], tick), px, py, 0);
         }

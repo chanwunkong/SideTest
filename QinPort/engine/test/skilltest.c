@@ -524,6 +524,10 @@ int main(void) {
         assert(click_cmd(&h, &h, 3) == CMD_PICK && input_cursor(&h, &h, 3, -1, -1) == CUR_ITEM);  // 點自己 = 看底下的道具
         assert(click_cmd(&h, NULL, -1) == CMD_MOVE);
         assert(buff_add(&h, NULL, 17, 1, 5, 0) && click_cmd(&h, &c, -1) == CMD_NONE);  // 溃散不收指令
+        // 敵人狀態框 0x459ce0：有滑鼠時是指著的（自己也算），沒指著就關；觸控用攻擊目標
+        h.foe = &c;
+        assert(status_target(&h, &h, 1) == &h && !status_target(&h, NULL, 1) && status_target(&h, NULL, 0) == &c);
+        c.act = ACT_DEAD; assert(!status_target(&h, &c, 1));
         game_speed_ms = 21;
         game_speed_key(1); assert(game_speed_ms == 16);  // 怪現象：開局按一次就最快
         game_speed_key(0); assert(game_speed_ms == 19);
