@@ -61,3 +61,8 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 00451070	CScnClient 角色名單放入（最多 999）→ actors
 004510b0	CScnClient 角色名單依物件移除 → actors
 00451100	CStaticLinkList 清空並設組號 → near.c grps
+00451a20	CStaticLinkList 未滿 999 就放入（CDeadObj 建構用）→ 一般陣列
+00451d20	CObjMng 依名字（0x488360）找角色 → story 的 w_find_alias
+00451dd0	CObjMng 依 +0x28 找角色 → actors 走訪
+00451e80	CObjMng 依編號 +0x18 找活著的物件（玩家名單、角色、陷阱）→ actors／story handle
+00451f70	CObjMng 依編號 +0x18 找物件（含已死）→ actors／story handle

@@ -200,3 +200,38 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 0044f3c0 容器：CStaticLinkList<*,1000> 指定格放入
 0044f410 容器：CStaticLinkList<*,1000> 指定格放入
 00451120 平台層：建角色時預先載入它的各組動畫（"RoleBegin"/"FightRole" 記錄、0x488d90 批次讀圖、載入畫面推進），我們用到時才讀
+00451820 空函數
+00451830 沒有呼叫者（CObjMng 清掉角色以外的串列）
+00451bf0 沒有呼叫者（容器 CStaticLinkList<int,200> 找值的格號）
+00451c40 沒有呼叫者（容器 CStaticLinkList<*,1000> 找值的格號）
+00451c90 沒有呼叫者（容器 CStaticLinkList<*,1000> 找值的格號）
+00451ce0 容器：CDMList 從某節點往後找值
+00451e30 容器：CStaticLinkList<*,1000> 第 n 個的格號
+00452050 沒有呼叫者（CObjMng 依物件種類範圍選串列，找種類 +0x5c 相同的，-2 = 隨機起點）
+004522e0 容器：CDMList 刪節點
+00452300 容器：CStaticLinkList 第 n 格取值
+00452340 容器：節點取資料位址
+00452350 容器：CStaticLinkList<*,200> 第 n 格位址
+00452380 容器：CStaticLinkList<*,1000> 第 n 格位址
+00452400 容器：CDMList 取下一個
+00452420 容器：CStaticLinkList<*,1000> 走訪下一格
+004524b0 容器：CStaticLinkList<*,200> 走訪下一格
+004524f0 容器：CStaticLinkList<*,1000> 走訪上一格
+00452530 容器：CStaticLinkList<*,200> 第 n 格位址（有就回 1）
+00452570 容器：CStaticLinkList<*,1000> 第 n 格位址（有就回 1）
+00452c20 容器：CDMList 插在節點後
+00453290 容器：CStaticLinkList<*,200> 第 n 格有沒有用
+004532b0 容器：CStaticLinkList<*,1000> 第 n 格有沒有用
+004532d0 容器：CStaticLinkList<*,1000> 第 n 格有沒有用
+004532f0 容器：CDMList 新節點
+00453360 平台層：預先載入招式單位的圖並建一次再刪（讓資源先進記憶體），我們用到時才讀
+00453ab0 沒有呼叫者（把角色編號寫回格子 +0xc）
+00453b70 容器：CStaticLinkList<*,200> 移除第 n 格
+00453bc0 容器：CStaticLinkList<*,1000> 移除第 n 格
+00453c10 容器：CStaticLinkList<*,1000> 移除第 n 格
+00453c60 容器：CDMList 清空
+00453e30 沒有呼叫者（CStaticLinkList 全部移除）
+004545b0 沒有呼叫者（組存在就從組名單移除）
+00454640 容器：SInitBase 複製（指定運算子）
+00454680 容器：SInitCha 複製（指定運算子）
+00454720 沒有呼叫者（所有角色／道具 +0x6b 設同一值）

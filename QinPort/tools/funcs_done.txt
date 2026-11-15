@@ -239,3 +239,8 @@
 00450960 main.c mon_make／ground_drop／trap（CObjMng::AddObj 依物件表種類 2 角色、1 道具／建築、6 陷阱建類別；我們各自直接建）
 00450cc0 main.c ground_drop（AddProp：依 PicID 在格子建道具物件）
 00450f00 main.c ground_drop（建道具物件並設 +0xab）
+00451890 main.c 換場景清空（CObjMng 清空全部串列：角色、道具、建築、陷阱、單位、組）
+00451900 main.c 主迴圈（CObjMng 每拍：角色 +0x70 = 0x488dd0、介面、單位 +0x14 跳過已死的，非地圖種類 10 時 0x453800 放鳥）
+004536c0 main.c 主迴圈（CObjMng 每拍：角色、陷阱、道具 +0x14 跳過已死的，再玩家名單）
+004545e0 main.c 主迴圈（CObjMng 每拍：活著的角色 +0x24 = 0x48c050；全域 0x663ee8 減 1，見 fields.tsv）
+004525e0 main.c 主迴圈（+0x68 串列每個呼叫 0x483400）

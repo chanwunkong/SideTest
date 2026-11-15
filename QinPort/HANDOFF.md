@@ -310,7 +310,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - skip：0x451120 預先載入角色動畫（平台層）。
   - 這段還是 todo 的（roles.tsv 寫了作用），等對應系統：0x44f4c0 建築物件（等建築變成物件，near.c cell_bld）、0x44f6d0 倒下留下的東西／碎屍 CPartDeadObj（等 CCharactor 倒下 0x486910）、0x450b30 CBirdFast（等 0x453800）、0x450da0 地上痕跡（等 0x459840）、0x450f70 陷阱設主人（等 CTrapBase）。0x44fd20 的道具／建築／陷阱／隨機建築分支也還沒接。
   - 發現：註解裡提到位址就算 done，所以 0x498c40（unit.c 的 shortcut 註解）其實還沒移植；之前 0x452460／0x453210 也是這樣（這次真的做了）。之後寫 shortcut 註解提到未移植的函數不要寫位址。
-  **下一步：0x451820（SInitBase/SInitCha 起，0x451830、0x451890、0x451900…）**，用 `python3 tools/functool.py next 0x451820`（位址要加 0x，不然會被當成數量）。
+  ~~下一步：0x451820（SInitBase/SInitCha 起，0x451830、0x451890、0x451900…）~~ 用 `python3 tools/functool.py next 0x451820`（位址要加 0x，不然會被當成數量）。~~
+- 進度（11-15）：Poq.exe 0x451820～0x454720 **CObjMng 剩下的部分**，沒有要移植的遊戲邏輯：
+  - 每拍分派 0x451900／0x4536c0／0x4545e0／0x4525e0（角色 +0x70 = 0x488dd0、+0x14、+0x24 = 0x48c050）、清空 0x451890 → funcs_done.txt 對到 main.c 主迴圈／換場景。
+  - 依編號／名字找物件 0x451e80／0x451f70／0x451d20／0x451dd0 → base_map.tsv。CObjMng 各串列的偏移與種類範圍記進 fields.tsv。
+  - 容器樣板、沒有呼叫者的（0x452050 依種類找、0x453ab0 角色寫回格子、0x454720…）、預先載入單位圖 0x453360 → skip。
+  - 還是 todo：0x453800 每拍在畫面外隨機放鳥 CBirdFast，等 CBirdFast 類別（0x4808b0～0x481ab0）一起做。全域冷卻 0x663ee8 的每拍遞減在 0x4545e0，等 0x48a0xx 移植時一起帶入（fields.tsv）。
+  **下一步：0x454790（CUserInput 起，0x454850、0x4548c0、0x454900…）**，用 `python3 tools/functool.py next 0x454790`。
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
 

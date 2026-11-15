@@ -79,3 +79,11 @@ SInitCha	+0x38	0x40 bytes 清 0	-
 CCharactor	+0x339	AI 組（0～99 玩家、10000～60000 NPC）	Actor.grp
 CPlayerGroupAI	+0x14	組號	grps[].id
 CPlayerGroupAI	+0x1c	敵人組名單 CStaticLinkList<int,200>（數量 +0x65c）	grps[].foe/n
+CObjMng	+0x1c	角色串列 CDMList（游標 +0x20）	actors
+CObjMng	+0x24	道具串列（頭 +0x40、游標 +0x44；種類 23000～25000）	ground
+CObjMng	+0x4c	建築串列（種類 <7000）	cell_bld（還不是物件）
+CObjMng	+0x7e28	陷阱串列（頭 +0x7e44、游標 +0x7e48；種類 14000～18000）	traps
+CObjMng	+0x7e4c	單位串列（頭 +0x7e68、游標 +0x7e6c；種類 19000～22000）	units
+CObjMng	+0xc4	玩家名單 CStaticLinkList<*,1000>（數量 +0x2004、頭 +0x2014、下一個 +0x2fb8）	actors（side 玩家）
+CScnObj	+0x58	已死（串列走訪跳過）	alive()
+全域	0x663ee8	冷卻 0x60（0x48a0xx 設、0x4545e0 每拍減 1）	（等 0x48a0xx）
