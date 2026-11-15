@@ -41,3 +41,8 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 004bb270	（不需要）開 ini 寫
 004bb6e0	ini_int：讀整數
 004bc2b0	（不需要）寫整數
+0043e050	CDMList<GPOINT> 加到尾端 → MUnit.pq[]/pq_n
+0043e7d0	CDMList<GPOINT> 刪節點 → memmove
+0043ece0	CDMList<GPOINT> 新節點 → 不需要
+0043ed60	CDMList<GPOINT> 清空 → pq_n = 0
+0043edc0	CDMList<GPOINT> 取出頭 → memmove

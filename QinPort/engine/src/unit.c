@@ -80,7 +80,7 @@ static void actor_hot(const Actor *a, int *ex, int *ey) {
 }
 
 // ---- 招式物件共同部分（MethodBase 0x4381a0）：角色出手（MethodMain）和招式單位都有 ----
-enum { U_NORMAL, U_FLY, U_FLYNORMAL, U_ARROW, U_GHOST, U_CYCLE, U_SURFIRE, U_FIREMAN, U_MAIN };  // U_MAIN = 角色出手（MethodMain）
+enum { U_NORMAL, U_FLY, U_FLYNORMAL, U_ARROW, U_GHOST, U_CYCLE, U_SURFIRE, U_FIREMAN, U_MAIN, U_PHANTOM };  // U_MAIN = 角色出手（MethodMain）、U_PHANTOM = 分身（CPhantasmObj）
 typedef struct MUnit {
     int cls, dead;                   // 類別、已結束（+0x58）
     Actor *owner, *target;           // +0x87 放的人、+0x83 目標
@@ -104,6 +104,8 @@ typedef struct MUnit {
     int trig_n;
     Actor *hit[50];                  // +0x9f 打中名單（CStaticLinkList<int,50>）
     int hit_n, bounce, frame;        // +0x233 名單數量、+0x434 連鎖剩幾次、角色出手 = 出手者動作目前幀
+    int seq, fade, fading, ftick;    // 分身：畫出手者的哪個序列、+0x4ea 淡出剩幾級、+0x4ee 淡出中、換幀計時
+    int pq[32][2], pq_n;             // 分身 +0x4f2 出手者走過的位移（CDMList<GPOINT>）
 } MUnit;
 
 #define MAX_UNIT 128
@@ -718,6 +720,7 @@ static void unit_init(MUnit *u) {  // 虛擬函式 0x30
     }
 }
 
+static void phantom_tick(MUnit *u, Uint32 tick);
 static void units_tick(Uint32 tick) {
     for (int i = 0; i < unit_n; i++) {
         MUnit *u = &units[i];
@@ -731,6 +734,7 @@ static void units_tick(Uint32 tick) {
         case U_FIREMAN: fireman_tick(u, tick); break;
         case U_SURFIRE: surfire_tick(u, tick); break;
         case U_MAIN: if (!alive(u->owner) || u->owner->act != ACT_ATTACK) unit_die(u, tick); break;  // 動作被打斷；平常由 action_tick 推
+        case U_PHANTOM: phantom_tick(u, tick); break;
         }
     }
     int n = 0;
@@ -751,6 +755,12 @@ static void units_draw(int ox, int oy, int map_h) {
             if (sa) draw_frame(sa, u->spr.seq < sa->count ? u->spr.seq : 0, 0, sx, sy, 1);
         }
         if (u->spr.a) draw_frame(u->spr.a, u->spr.seq, u->spr.cur, sx, sy - (fly ? u->h : 0), 0);
+        // 分身（0x43e740）：光影開著時混色 0x1d、透明度 = 淡出級數；shortcut: 0x1d 當半透明，級數 8 = 一半
+        if (u->cls == U_PHANTOM && u->owner) {
+            draw_alpha = (Uint8)(u->fade * 16);
+            role_draw(u->owner->role, u->seq, u->frame, sx, sy - u->h);
+            draw_alpha = 255;
+        }
     }
 }
 
@@ -797,4 +807,80 @@ static void main_new(Actor *a) {
 static void main_hit(Actor *a, Actor *t, Uint32 tick) {
     MUnit *u = main_of(a);
     if (u) hit_add(u, t, tick);
+}
+
+// ---- 分身（CPhantasmObj 0x43dd90～0x43ef50）：畫出手者的紙娃娃，半透明 ----
+// 產生（0x43e100）：src = 角色出手。模式 1 = 殘影：用出手者目前的動作和幀，idx/2（單數取負）往側邊滑 |idx/2|×16、之後照出手者走過的路延遲跟著；
+// 模式 3 = 環繞：動作 0x30+方向（主角 1201 用 0x50），隨機起始幀、換幀快 5 拍，角度 = 方向角 + 90° + idx 的偏移，
+// 半徑 8 起每拍 +2 往外，活 攻擊距離×32 拍，沿路用範圍 6 打。模式 4（受傷閃避時 0x48c3a0 放）見 shortcut
+static void phantom_new(MUnit *src, int mode, int idx) {
+    static const float OFF[8] = {0, 4, 2, 6, 1, 5, 3, 7};  // ×π/4（0x43e100 的 idx 0~7）
+    Actor *o = src->owner;
+    if (!o || !o->role || unit_n == MAX_UNIT) return;
+    MUnit *u = &units[unit_n++];
+    *u = (MUnit){.cls = U_PHANTOM, .owner = o, .target = src->target, .m = src->m, .sk = src->sk, .range = src->range,
+                 .x = ax64(o), .y = ay64(o), .tx = src->tx, .ty = src->ty, .dir = DIR_MAP[o->dir & 7], .h = (int)o->z,
+                 .mode = mode, .life2 = idx, .seq = actor_seq(o), .fade = 8, .persist = 1};
+    u->sx = u->x, u->sy = u->y;
+    if (mode == 1) {
+        u->life2 = idx & 1 ? -(idx / 2) : idx / 2;
+        u->life = abs(u->life2 * 64) / 4;
+        u->frame = actor_frame(o, u->seq);
+    }
+    else if (mode == 3) {
+        u->seq = (o->def && !strcmp(o->def->graphic, HERO_GRAPHIC) ? 0x50 : 0x30) + u->dir;
+        u->life = u->range << 5;
+        u->step = 8;
+        const Seq *q = role_seq(o->role, u->seq);
+        u->frame = q && q->count ? rand() % q->count : 0;
+        u->path_mode = 6, u->px = u->py = -100;
+        // 方向角（0x442780）：方向 d → (d+1)×45°；原版 MoveForAngle 的 y 跟這裡的 move_angle 相反，所以取負
+        u->ang = -((float)M_PI / 4 * ((u->dir + 1) % 8) + (float)M_PI / 2 + (idx < 8 ? OFF[idx] * (float)M_PI / 4 : 0));
+    }
+}
+
+// 每拍（0x43e830）。結束（虛擬函式 0x20 = 0x43ef50）只是開始淡出：每 3 拍降一級，降完消失
+static void phantom_tick(MUnit *u, Uint32 tick) {
+    u->ticks++;
+    hit_prune(u);
+    if (u->fading) {
+        if (u->ticks % 3 == 1) u->fade--;
+        if (u->fade < 1) { unit_die(u, tick); return; }
+    }
+    Actor *o = alive(u->owner) ? u->owner : NULL;
+    MUnit *mm = o ? main_of(o) : NULL;
+    if (!o) { u->fading = 1; return; }
+    if (u->mode == 1) {
+        int pop = 1;
+        u->frame = actor_frame(o, u->seq);
+        if (u->life > 0) {
+            move_dir(&u->x, &u->y, (u->dir + (u->life2 < 1 ? -2 : 2)) & 7, 1);
+            u->life--;
+            if (u->life2) pop = u->pq_n / abs(u->life2) > 2;
+        }
+        int ox = ax64(o), oy = ay64(o);
+        if ((ox != u->sx || oy != u->sy) && u->pq_n < 32) {  // shortcut: 原版名單不限長度，這裡最多記 32 步
+            u->pq[u->pq_n][0] = ox - u->sx, u->pq[u->pq_n][1] = oy - u->sy;
+            u->pq_n++;
+            u->sx = ox, u->sy = oy;
+        }
+        if (!mm) u->fading = 1;
+        if (pop && u->pq_n > 0) {
+            u->x += u->pq[0][0], u->y += u->pq[0][1];
+            memmove(u->pq, u->pq + 1, sizeof u->pq[0] * --u->pq_n);
+        }
+    }
+    else if (u->mode == 3) {
+        if (u->life > 0 && --u->life < 1) u->fading = 1;
+        // 出手者沒在出手，或還是放出它的那一招才繼續轉。shortcut: 原版比招式物件編號，這裡比招式
+        if (mm && mm->m != u->m) { u->fading = 1; return; }
+        u->step += 2;
+        move_angle(&u->x, &u->y, ax64(o), ay64(o), u->ang, (float)u->step);
+        const Seq *q = role_seq(o->role, u->seq);
+        if (q && q->count && ++u->ftick >= (q->frames[u->frame % q->count].delay - 5 > 1 ? q->frames[u->frame % q->count].delay - 5 : 1)) {
+            u->ftick = 0;
+            u->frame = (u->frame + 1) % q->count;
+        }
+        unit_sweep(u, tick);
+    }
 }

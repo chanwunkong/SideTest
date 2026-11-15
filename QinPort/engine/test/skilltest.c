@@ -129,7 +129,27 @@ int main(void) {
     assert(unit_bounce(mu) && mu->hit_n == 0 && !has_status(&actors[1], 110));
     assert(!unit_bounce(mu));
     unit_die(mu, 0);
+    // 分身：殘影 idx 3 往側邊滑 16 後跟著出手者走；環繞每拍半徑 +2；出手結束後殘影淡出、環繞活滿 攻擊距離×32 拍再淡出
+    static Role dummy;
+    actors[0].role = &dummy;
+    unit_n = 0;
+    main_new(&actors[0]);
+    phantom_new(main_of(&actors[0]), 1, 3);
+    phantom_new(main_of(&actors[0]), 3, 0);
+    MUnit *ph = &units[1], *pc = &units[2];
+    assert(unit_n == 3 && ph->cls == U_PHANTOM && ph->life2 == -1 && ph->life == 16 && pc->life == mu->range * 32);
+    for (int k = 0; k < 16; k++) units_tick(k);
+    int px = ph->x, py = ph->y;
+    assert(abs(px - 32) == 16 || abs(py - 32) == 16);
+    assert(dist_of(pc->x, pc->y, 32, 32) >= 40 - 1 && dist_of(pc->x, pc->y, 32, 32) <= 40);
+    actors[0].x += 1;
+    units_tick(16);
+    assert(ph->x == px + 64 && ph->y == py);
     actors[0].act = ACT_NONE;
+    for (int k = 0; k < 200 && unit_n; k++) units_tick(17 + k);
+    assert(unit_n == 0);
+    actors[0].x -= 1;
+    actors[0].role = NULL;
     const Anim *arrow = anim_get(unit_find(0)->anim);
     printf("arrow seqs %d\n", arrow ? arrow->count : -1);
     // 怪物選招：老虎（抓、扑、冲）三招都會被選到

@@ -102,3 +102,16 @@
 0043d880 （shortcut）透明度漸變沒做
 0043dd10 unit.c 建構清零
 0043dd50 unit.c 建構清零
+0043dd90 unit.c phantom_new（CPhantasmObj 建構）
+0043de90 unit.c 解構：沒有要放的
+0043df60 unit.c 解構：沒有要放的
+0043e100 unit.c phantom_new
+0043e710 unit.c 解構：沒有要放的
+0043e740 unit.c units_draw 分身半透明
+0043e830 unit.c phantom_tick
+0043ee20 unit.c 換序列 = MUnit.seq
+0043ee70 unit.c units_draw 世界 → 畫面
+0043eef0 unit.c 目前動畫項目 = MUnit.seq/frame
+0043ef20 unit.c 方向 ±n 繞 8 = (dir + n) & 7
+0043ef50 unit.c 分身結束 = fading
+0043df4e unit.c 解構轉呼叫：沒有要放的

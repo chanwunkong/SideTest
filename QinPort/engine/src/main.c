@@ -126,10 +126,14 @@ EM_JS(void, js_status, (int n), {
 static void js_status(int n) { (void)n; }
 #endif
 
+static Uint8 draw_alpha = 255;  // 不是 255 時半透明（分身）
+
 static void draw(const Sprite *s, int x, int y) {
     if (!s || x >= vw || y >= vh || x + s->w <= 0 || y + s->h <= 0) return;
     SDL_Rect r = {x, y, s->w, s->h};
+    if (draw_alpha != 255) SDL_SetTextureAlphaMod(s->tex, draw_alpha);
     SDL_RenderCopy(ren, s->tex, NULL, &r);
+    if (draw_alpha != 255) SDL_SetTextureAlphaMod(s->tex, 255);
 }
 
 static void draw_shadow(const Sprite *s, int x, int y) {
@@ -252,6 +256,15 @@ static void status_fx_draw(const Actor *a, int sx, int sy, Uint32 tick, int foot
     }
 }
 
+// 紙娃娃的一幀：各部件照這幀的疊圖順序畫
+static void role_draw(const Role *r, int seq, int frame, int sx, int sy) {
+    if (!r || seq >= r->seq_count || !r->frames[seq]) return;
+    frame %= r->frames[seq];
+    const uint8_t *order = r->order[seq] + frame * r->part_count;
+    for (int i = 0; i < r->part_count; i++)
+        if (order[i] < r->part_count) draw_frame(r->body[order[i]], seq, frame, sx, sy, 0);
+}
+
 static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
     const Role *r = a->role;
     if (!r) return;
@@ -260,9 +273,7 @@ static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
     int frame = actor_frame(a, seq) % r->frames[seq];
     for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy, tick, 1);
-    const uint8_t *order = r->order[seq] + frame * r->part_count;
-    for (int i = 0; i < r->part_count; i++)
-        if (order[i] < r->part_count) draw_frame(r->body[order[i]], seq, frame, sx, sy - a->z, 0);  // 影子留在地上
+    role_draw(r, seq, frame, sx, sy - a->z);  // 影子留在地上
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy - a->z, tick, 0);
 }
 
@@ -1196,11 +1207,13 @@ static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
     if (a->casting) a->casting = 2;
 }
 
-// 角色出手的觸發中跟出手的人有關的（0x43c4f0，來源是 MethodMain）：0 命中、15 結算、16 的 0x14/0x16、2 放單位（放出點用出手者動作的熱點）、
+// 角色出手的觸發中跟出手的人有關的（0x43c4f0，來源是 MethodMain）：0 命中、15 結算、16 的 0x14/0x16 放分身、2 放單位（放出點用出手者動作的熱點）、
 // 13 改幀延遲、8 動作旗標、11 離地、5/7 衝過去；其他（音效、震畫面、結束、16 改目標點）照招式單位的做。回傳 0 = 不是這裡的
 static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
     Actor *a = u->owner;
-    if (t->type == 0 || t->type == 15 || (t->type == 16 && (t->id == 0x14 || t->id == 0x16))) method_hits(a, t, tick);
+    if (t->type == 0 || t->type == 15) method_hits(a, t, tick);
+    else if (t->type == 16 && (t->id == 0x14 || t->id == 0x16))  // 分身 ID2 個：0x14 殘影（idx 從 2 起）、0x16 環繞（idx 從 0 起）
+        for (int k = 0; k < t->id2; k++) phantom_new(u, t->id == 0x14 ? 1 : 3, t->id == 0x14 ? k + 2 : k);
     else if (t->type == 2) {  // 單位自己會打中（有命中觸發或是飛行物）時，左手技能不用在放完時補結算
         int before = unit_n, ex, ey;
         actor_hot(a, &ex, &ey);

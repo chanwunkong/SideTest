@@ -14,3 +14,12 @@ MethodMain	+0x448	衝刺前存的移動速度	-
 MethodMdl	+0x26	動作序列起點（+ 方向）	Method.seq
 CCharactor	+0x4e7	目前的招式物件	main_of(a)
 CCharactor	+0x73	移動狀態（0x20 衝刺中、0x14~0x1e 跳）	Actor.dash
+CPhantasmObj	+0x4d2	殘影側滑剩幾拍／環繞剩幾拍	MUnit.life
+CPhantasmObj	+0x4d6	環繞角度	MUnit.ang
+CPhantasmObj	+0x4da	環繞半徑	MUnit.step
+CPhantasmObj	+0x4de	模式（1 殘影、3 環繞、4 受傷閃避）	MUnit.mode
+CPhantasmObj	+0x4e2	idx（模式 1 換成 ±idx/2）	MUnit.life2
+CPhantasmObj	+0x4ea	淡出級數（8 起）	MUnit.fade
+CPhantasmObj	+0x4ee	淡出中	MUnit.fading
+CPhantasmObj	+0x4f2	出手者走過的位移 CDMList<GPOINT>	MUnit.pq/pq_n
+CPhantasmObj	+0x478	放出它的招式物件編號	（比 MUnit.m）
