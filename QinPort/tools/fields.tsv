@@ -515,3 +515,26 @@ CScnGC	+0x60	0x123場景參數封包讀取的byte，業務意義待確認	連線
 CScnGC	+0x64	0x123場景參數封包讀取的byte，業務意義待確認	連線同步略過
 CScnGC	+0x68	0x123場景參數封包讀取的byte，業務意義待確認	連線同步略過
 CScnGC	+0x6c	0x123場景參數封包讀取的16位值，業務意義待確認	連線同步略過
+MFX_CONFIG@00954b10	+0x0	全域00954b10的MFX配置起點，初始化為0	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x4	初始化參數2，傳給Mfx_Build；具體MFX欄位語意未確認	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0xc	初始化為100	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x11c	初始化為0	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x120	初始化為2	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x124	初始化為0x5622	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x128	初始化為0x10	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x130	初始化為100	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x134	初始化為100	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x138	初始化為-40	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x13c	初始化參數1的NUL結尾字串，複製不檢查容量	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x240	預設silence.wav字串	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x344	初始化為100	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x348	初始化為100	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x354	初始化為-40	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x358	初始化為0	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x35c	初始化為0x10	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x360	初始化為100	平台skip；SDL audio_init取代
+MFX_CONFIG@00954b10	+0x364	初始化為100	平台skip；SDL audio_init取代
+MFX全域	00954b20	初始化為0	平台skip；不複製MFX ABI
+MFX全域	00954b24	初始化為0	平台skip；不複製MFX ABI
+MFX全域	00954978	初始化參數3，CGameApp入口固定0x140；具體MFX語意未確認	平台skip；不複製MFX ABI
+MFX全域	0095497c	初始化參數4，CGameApp入口固定0x578；具體MFX語意未確認	平台skip；不複製MFX ABI

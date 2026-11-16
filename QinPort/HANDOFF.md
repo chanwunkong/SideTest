@@ -505,7 +505,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - todo 5已在roles.tsv分別記錄：文字命令分派等SceneResources初始化／切換與CCharactor、CDynamicObj、CTriBld業務；兩個客戶端移除入口等CScnClient離場及CClientScreen生命週期；依物件種類移除等CCharactor／CDynamicObj；共用命令區建立物件等SceneResources與三種物件建立後處理。這些同段入口已一起核對，等待的是其他類別；沒有把整個命令分派器當成純連線版略過。
   - skip包含無呼叫者、清場生命週期、連線同步與封包工具；fields.tsv補固定槽移除、封包解碼及出口索引布局，合併更新CClientScreen既有偏移。原版怪現象：跨場景角色查找迴圈未用索引而重查同一編號；槽移除接受任意非零占用；封包參數解碼超過要求數量不截斷、只在不足時補-1；字串解碼先清緩衝但複製至NUL時不檢查容量。這些工具未複製成無人呼叫的C函數。
   - `cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；另以`-DSTORY`做main.c語法檢查通過；FUNCS.tsv已重產。
-  **下一步：0x47ff20（CGameApp 介面工具）起**。
+  ~~下一步：0x47ff20（CGameApp 介面工具）起~~。
+- 進度（11-16）：Poq.exe **0x47ff20 CGameApp 音效平台初始化入口**及其直接依賴 **0x57b4a0 MFX配置工具**已核對；本段入口只有一個，下一入口0x47ff60已轉為CGodClient，依規則停在類別邊界。**done 0、skip 2（其中1個工具同列base_map）、todo 0**。
+  - 原版入口僅將兩參數加固定0x140／0x578傳給MFX工具；工具設定全域配置、複製路徑與silence.wav後呼叫Windows Mfx_Build，以回傳值非負為成功。現有`engine/src/audio.c audio_init`已接主程式，透過SDL開音訊裝置及載入snd.lib，平台層按規則略過，不新增包裝函數或完成位址註解。
+  - 原版怪現象：路徑複製至NUL且不檢查容量；此為平台工具，未搬入SDL引擎。fields.tsv記錄新配置偏移和全域參數，未知MFX欄位語意明列未確認；roles.tsv記錄兩入口用途。無新遊戲邏輯、shortcut、跨系統todo或劇情不用功能，故無新增測試。
+  - `cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；FUNCS.tsv已重產。
+  **下一步：0x47ff60（CGodClient 音效管理段）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

@@ -584,3 +584,5 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 0047fb90  解碼稱號字串，0x0e還原空白，再更新顯示及廣播；無呼叫者
 0047fe80  封包參數解碼：全數複製byte數量個32位值，少於要求才補-1，超過不截斷；無呼叫者，工具
 0047fed0  封包尾字串解碼：先清輸出再複製至NUL，不限制複製長度；無呼叫者，工具
+0047ff20  CGameApp音效平台初始化轉接：傳入0x140／0x578給MFX設定工具；SDL audio_init取代Windows Mfx_Build
+0057b4a0  Windows MFX設定與Mfx_Build平台初始化工具；SDL音訊裝置與snd.lib載入取代，不複製MFX ABI

@@ -368,7 +368,7 @@ Poq.exe	99	0044aeb0	FUN_0044aeb0		game	todo	11	4		0x661d1c = 遊戲速度值 + n
 Poq.exe	99	0044aed0	FUN_0044aed0	~CGameApp	game	done	19	1		縮放現在值加減，夾在 0~0.24（zoom_now）	
 Poq.exe	99	0044af30	FUN_0044af30	~CGameApp	game	done	20	6		縮放目標加減並記住現在值（zoom_add）；PageUp／PageDown（0x455d60）、滾輪（0x4638f0）、招式觸發 12（0x43c4f0）	
 Poq.exe	99	0044afa0	FUN_0044afa0	~CGameApp	game	skip	14	0	平台：PrintScreen 存畫面（BMP_CopyScreen）		
-Poq.exe	99	0044aff0	FUN_0044aff0	~CGameApp	game	done	342	2	main()（啟動：平台初始化＋載入 MethodMdl／MethodUnit_Mdl／RoleMdl／BeastieMdl／PropMdl／RoleEffectMdl／TriBldMdl、Dlg\Chat.Dlg；指令列 -nosound、-skipmovie）		0046cbe0 0047ff20 0049fa90 004b0d60 004b7ba0 004b7d20 004bcae0 004bd270 004c5090 004c88b0 004c9100 004ca270 00578cb0 0057a5d0 0057b620
+Poq.exe	99	0044aff0	FUN_0044aff0	~CGameApp	game	done	342	2	main()（啟動：平台初始化＋載入 MethodMdl／MethodUnit_Mdl／RoleMdl／BeastieMdl／PropMdl／RoleEffectMdl／TriBldMdl、Dlg\Chat.Dlg；指令列 -nosound、-skipmovie）		0046cbe0 0049fa90 004b0d60 004b7ba0 004b7d20 004bcae0 004bd270 004c5090 004c88b0 004c9100 004ca270 00578cb0 0057a5d0 0057b620
 Poq.exe	99	0044b840	FUN_0044b840	~CGameApp	game	todo	17	2		劇情模式 1／2 時放開滑鼠左鍵 = 跳過（0x473760）	
 Poq.exe	99	0044b890	FUN_0044b890	~CGameApp	game	skip	105	2	伺服器模式（0x662978 = 2）的文字紀錄視窗		004f6990
 Poq.exe	99	0044bb70	FUN_0044bb70	~CGameApp	game	skip	15	2	std::map 節點		
@@ -907,7 +907,7 @@ Poq.exe	99	0047f7a0	FUN_0047f7a0		game	skip	22	0	解碼角色箱子互動，條�
 Poq.exe	99	0047f840	FUN_0047f840		game	skip	35	0	依客戶端參數設連線時鐘並回傳0xb23；無呼叫者，連線層	依客戶端參數設連線時鐘並回傳0xb23；無呼叫者，連線層	
 Poq.exe	99	0047f960	FUN_0047f960		game	skip	22	0	解碼名稱和值後更新角色屬性；無呼叫者	解碼名稱和值後更新角色屬性；無呼叫者	004bcae0
 Poq.exe	99	0047fb90	FUN_0047fb90		game	skip	77	0	解碼稱號字串，0x0e還原空白，再更新顯示及廣播；無呼叫者	解碼稱號字串，0x0e還原空白，再更新顯示及廣播；無呼叫者	004887a0 00497bb0 004bcae0
-Poq.exe	99	0047ff20	FUN_0047ff20	~CGameApp	game	todo	9	2			0057b4a0
+Poq.exe	99	0047ff20	FUN_0047ff20	~CGameApp	game	skip	9	2	CGameApp音效平台初始化轉接：傳入0x140／0x578給MFX設定工具；SDL audio_init取代Windows Mfx_Build	CGameApp音效平台初始化轉接：將兩參數及固定0x140、0x578交給MFX初始化工具；平台skip，SDL audio_init取代	
 Poq.exe	99	0047ff60	FUN_0047ff60	~CGodClient	game	todo	11	2			
 Poq.exe	99	0047ff90	FUN_0047ff90	~CGodClient	game	todo	49	2			0057b830
 Poq.exe	99	004800a0	FUN_004800a0	~CGodClient	game	todo	102	0			0057b830
@@ -4283,8 +4283,7 @@ Poq.exe	99	0057b210	FUN_0057b210		game	todo	30	2			004bc7a0
 Poq.exe	99	0057b2a0	FUN_0057b2a0		game	todo	11	0			
 Poq.exe	99	0057b350	FUN_0057b350		game	todo	25	4			
 Poq.exe	99	0057b440	FUN_0057b440		game	todo	17	0			004bd390
-Poq.exe	99	0057b4a0	FUN_0057b4a0	~CGameApp	game	todo	54	2			
-Poq.exe	99	0057b600	FUN_0057b600	~CGameApp	game	todo	11	2			
+Poq.exe	99	0057b600	FUN_0057b600		game	todo	11	2			
 Poq.exe	99	0057b620	FUN_0057b620	~CGameApp	game	todo	51	2			004bd390 0057bb60 0057bfa0
 Poq.exe	99	0057b7e0	FUN_0057b7e0	~CGameApp	game	todo	9	6			0057a720
 Poq.exe	99	0057b830	FUN_0057b830	~CGameApp	game	todo	54	3			0057b350
