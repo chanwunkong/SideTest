@@ -591,3 +591,7 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 004800a0  世界座標轉畫面後依畫面中心調整音效句柄；索引無呼叫者，略過未使用入口
 00480460  Mfx_SND_PlayEx平台轉接，回傳值非負為成功；SDL音訊播放取代Windows MFX
 0057b830  MFX位置音量／聲像計算並呼叫Mfx_SND_Adjust的平台工具；SDL不複製MFX音效句柄ABI
+00480780  CAirObj建構：初始化精靈基底、+0x83清零、種類設4、設定-1；建構按規則skip
+00480830  CAirObj解構：釋放精靈群與物件基底；解構按規則skip
+00480856  CAirObj解構轉接至刪除解構；按規則skip
+00480860  CAirObj刪除解構：釋放精靈群／物件基底，flags bit0時釋放0x8b bytes；按規則skip
