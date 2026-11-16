@@ -633,8 +633,8 @@ Poq.exe	99	0045b720	FUN_0045b720	~CViewPort	game	todo	21	2		檢查矩形是否�
 Poq.exe	99	0045b780	FUN_0045b780	~CViewPort	game	done	39	8		鏡頭邊界先上界減1再下界、最後向零取偶數；main.c viewport_clamp	
 Poq.exe	99	0045b830	FUN_0045b830	~CViewPort	game	todo	37	2		以 +0x34/+0x38 除64查格，格子旗標允許才重建排序；等格子可見旗標與物件排序系統，留 todo	0045aad0 004c7da0
 Poq.exe	99	0045b900	FUN_0045b900		game	todo	117	8		方向捲動、限制邊界並更新格座標與像素餘量；等世界限制矩形初始化及座標轉換/快取系統，留 todo	0045e460 004a11f0 004a1250 004ced00
-Poq.exe	99	0045bc50	FUN_0045bc50	~CGameApp	game	todo	247	2			0045ac40 0045e460 00472e60 004a11f0 004a1250 004ced00
-Poq.exe	99	0045c390	FUN_0045c390	~CGameApp	game	todo	709	2			0045e460 004a11f0 004a1250 004ced00
+Poq.exe	99	0045bc50	FUN_0045bc50	~CGameApp	game	todo	247	2		鏡頭定時平移、每5 tick交替震動與自動跟隨入口；等鏡頭設位、世界限制矩形、格座標快取及跟隨模式查詢，留 todo（this 欄位屬 CViewPort，索引類別為相鄰推定）	0045ac40 0045e460 00472e60 004a11f0 004a1250 004ced00
+Poq.exe	99	0045c390	FUN_0045c390	~CGameApp	game	todo	709	2		鏡頭跟隨角色：靜止時超死區補2像素，移動時依方向與速度3/4追趕；等世界限制矩形、世界轉螢幕座標、格座標快取，留 todo（this 欄位屬 CViewPort）	0045e460 004a11f0 004a1250 004ced00
 Poq.exe	99	0045dc00	FUN_0045dc00	~CViewPort	game	todo	148	2			0049caf0 004a1030 004a1090 004ceab0
 Poq.exe	99	0045e020	FUN_0045e020	~CViewPort	game	todo	146	2			
 Poq.exe	99	0045e460	FUN_0045e460		game	todo	31	7			

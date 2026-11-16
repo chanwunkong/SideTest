@@ -138,3 +138,13 @@ CViewPort	+0x154	鏡頭格座標快取 X	viewport_center_grid 的 base.x
 CViewPort	+0x158	鏡頭格座標快取 Y	viewport_center_grid 的 base.y
 CViewPort	+0x15c	鏡頭像素 X 對格座標餘量	待座標快取
 CViewPort	+0x160	鏡頭像素 Y 對格座標餘量	待座標快取
+CViewPort	+0xa0	鏡頭自動跟隨開關	待鏡頭平移／跟隨系統
+CViewPort	+0xa4	跟隨參考螢幕 X	待鏡頭平移／跟隨系統
+CViewPort	+0xa8	跟隨參考螢幕 Y	待鏡頭平移／跟隨系統
+CViewPort	+0xac	跟隨 X 死區	待鏡頭平移／跟隨系統
+CViewPort	+0xb0	跟隨 Y 死區	待鏡頭平移／跟隨系統
+CViewPort	+0xbc	震動剩餘 tick（每5 tick位移）	待鏡頭平移／跟隨系統
+CViewPort	+0xc0	震動總 tick（振幅分母）	待鏡頭平移／跟隨系統
+CViewPort	+0x140	定時平移目標 X	待鏡頭平移／跟隨系統
+CViewPort	+0x144	定時平移目標 Y	待鏡頭平移／跟隨系統
+CViewPort	+0x148	定時平移步長（0表示停止）	待鏡頭平移／跟隨系統
