@@ -743,3 +743,9 @@ MethodMdl	+0x42	最小距離轉回格數，模板重建SkillUnit的min	Method.ra
 RoleMdl	+0x148	移動技思想（RoleMdl.txt欄37），等於1才嘗試manual3移動施法	RoleDef.move_cast
 RoleMdl	+0x150	戰鬥狀態技四個候選ID（RoleMdl.txt欄38以星號分隔），ffff不覆寫角色欄位	RoleDef.candidate[0..3] → Actor.candidate[0..3]
 RoleMdl	+0xd4	平時速度（RoleMdl.txt欄20）；0時遠距技能不受當前速度0限制	RoleDef.speed
+CCharactor	+0x4f3	第二候選技能ID；模板ffff時保留舊值	Actor.candidate[1]
+CCharactor	+0x4f7	第三候選技能ID；模板ffff時保留舊值	Actor.candidate[2]
+CCharactor	+0x4fb	第四候選技能ID；模板ffff時保留舊值	Actor.candidate[3]
+RoleMdl	+0x154	第二候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[1]
+RoleMdl	+0x158	第三候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[2]
+RoleMdl	+0x15c	第四候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[3]

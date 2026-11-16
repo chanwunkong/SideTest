@@ -321,6 +321,31 @@ static void character_names_owner_test(void) {
     assert(!strcmp(actor_init_name(&a), "dynamic"));
 }
 
+static void character_template_candidates_test(void) {
+    // 假模型快取讓測試走真實actor_setup，不需建立SDL視窗或載入紙娃娃。
+    RoleSlot saved = roles[0];
+    int saved_count = role_count;
+    RoleDef d = {.id = 1234567, .candidate = {65535, 65535, 65535, 65535}};
+    roles[0] = (RoleSlot){.tmpl = d.id};
+    role_count = 1;
+    Actor fresh = {0};
+    actor_setup(&fresh, &d);
+    for (int i = 0; i < 4; i++) assert(fresh.candidate[i] == -1);
+    Actor a = {.def = &d, .candidate = {276, 277, 278, 279}};
+    actor_setup(&a, &d);
+    for (int i = 0; i < 4; i++) assert(a.candidate[i] == 276 + i);
+    d.candidate[1] = 0; d.candidate[2] = -1; d.candidate[3] = 280;
+    actor_setup(&a, &d);
+    assert(a.candidate[0] == 276 && a.candidate[1] == 0);
+    assert(a.candidate[2] == -1 && a.candidate[3] == 280);
+    d.candidate[1] = d.candidate[2] = d.candidate[3] = 65535;
+    actor_setup(&a, &d);
+    assert(a.candidate[0] == 276 && a.candidate[1] == 0);
+    assert(a.candidate[2] == -1 && a.candidate[3] == 280);
+    roles[0] = saved;
+    role_count = saved_count;
+}
+
 static void character_skill_runtime_test(void) {
     RoleDef d = {.speed = 5, .skill_count = 3, .skill_ids = {65535, 1, 1}};
     Actor a = {.def = &d, .speed = 5, .right_id = 77, .left_id = 88,
@@ -758,6 +783,7 @@ int main(void) {
     character_core_test();
     character_skills_test();
     character_skill_runtime_test();
+    character_template_candidates_test();
     character_names_owner_test();
     scene_client_test();
     viewport_test();

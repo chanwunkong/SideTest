@@ -552,6 +552,8 @@ static inline int scene_client_group(const SceneClient *c, int group) {
 static void actor_skills_init(Actor *a);
 
 static void actor_setup(Actor *a, const RoleDef *d) {
+    // 新角色的候選初值屬於建構；重套模板不可先清掉既有候選。
+    if (!a->def) for (int i = 0; i < 4; i++) a->candidate[i] = -1;
     actor_cancel_command(a);
     actor_name_set(a, a->spec ? a->spec->event : "");
     a->display_name[0] = 0;
@@ -563,7 +565,10 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     a->fidle = d->fight_idle;
     a->fwalk = d->fight_walk ? d->fight_walk : d->walk;
     a->speed = d->speed;
-    for (int i = 0; i < 4; i++) a->candidate[i] = d->candidate[i] == 65535 ? -1 : d->candidate[i];
+    // 模板的ffff表示不覆寫，並非清除；-1及0則照值寫入。
+    // shortcut: 模板入口的狀態103、層重定位及縮放尚未接齊，此段不代表完整模板初始化。
+    for (int i = 0; i < 4; i++)
+        if (d->candidate[i] != 65535) a->candidate[i] = d->candidate[i];
     actor_skills_init(a);
 }
 
