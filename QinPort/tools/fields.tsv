@@ -425,3 +425,25 @@ CScnClientRecord	+0x1fe4	回放對話發言角色句柄	Rec專用，不建立
 CScnClientRecord	+0x1fe8	回放鏡頭跟隨角色句柄；0不跟隨	Rec專用，不建立
 CScnClientRecord	+0x1fec	回放對話等待倒數；結束設-1，文字等待最少40拍	Rec專用，不建立
 CScnClientRecord	+0x1ff0	回放語音啟用旗標；優先以音效播放狀態判定等待	Rec專用，不建立
+CScnGC	+0x0	虛擬函式表	C無vtable
+CScnGC	+0x4	配置0x25602 bytes的場景物件指標；解構釋放並清零	待完整伺服端場景
+CScnGC	+0x28	建構清零的32位欄位；語意未確認	未建立
+CScnGC	+0x2c	內嵌CHAINHEADER	現有C陣列
+CScnGC	+0x48	解構迴圈每次重讀的鏈表頭	現有C陣列
+CScnGC	+0x4c	目前鏈表節點游標	現有C陣列
+CScnGC	+0xbc	內嵌CHAINHEADER，解構時清空	現有C陣列
+CScnGC	+0xe0	內嵌CHAINHEADER，解構時清空	現有C陣列
+CScnGC	+0x104	內嵌CHAINHEADER，解構時清空	現有C陣列
+CScnGC鏈表節點	+0x30	解構迴圈傳給刪除入口的物件指標	現有C陣列
+SceneContainerOwner（RTTI未確認）	+0x0	100槽場景靜態鏈表	C陣列／字串；不複製容器生命週期
+SceneContainerOwner（RTTI未確認）	+0x658	20槽角色靜態鏈表	C陣列／字串；不複製容器生命週期
+SceneContainerOwner（RTTI未確認）	+0x7b4	CString	C陣列／字串；不複製容器生命週期
+SceneContainerOwner（RTTI未確認）	+0x7b8	建構設-1的32位哨兵	C陣列／字串；不複製容器生命週期
+SceneContainerOwner（RTTI未確認）	+0x7c0	CString	C陣列／字串；不複製容器生命週期
+SceneContainerOwner（RTTI未確認）	+0x7c4	CString	C陣列／字串；不複製容器生命週期
+Packet0b23	+0x0	16位封包類型0x0b23	傳輸層略過
+Packet0b23	+0x2	第一個16位參數	傳輸層略過
+Packet0b23	+0x4	第一個byte參數	傳輸層略過
+Packet0b23	+0x5	第二個byte參數	傳輸層略過
+Packet0b23	+0x6	第三個byte參數	傳輸層略過
+Packet0b23	+0x7	最後16位參數；未對齊	傳輸層略過

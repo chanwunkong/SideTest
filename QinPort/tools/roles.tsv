@@ -461,3 +461,16 @@
 004735c0	工具：設CScnClient +0x60標記，再寫0x540六byte錄影包
 00473660	Rec鏡頭跟隨：存角色句柄、呼叫CViewPort跟隨入口，再寫0x740六byte錄影包
 004725c0	Rec控制包分派：tick／鏡頭／縮放／對話語音／標記／等待／跟隨／場景模式／霧／光影；先前zoom_set註解誤標done，未移植
+00473740	工具：寫入兩個全域32位值 DAT_00663708／0066370c；無呼叫者，語意未確認
+00473760	CScnClientRecord 設回放對話等待值；僅設0時停語音並清語音旗標，非零（含-1）不停止
+00473800	CContainer<CScnGC*,100> 建構／初始化
+00473820	CStaticLinkList<CCharactor*,20> 建構：清20槽並初始化鏈結與計數
+00473890	CStaticLinkList<CScnGC*,100> 建構／初始化
+004738d0	CScnGC 建構：初始化四個CHAINHEADER及天氣，配置0x25602-byte場景物件
+004739e0	場景管理容器物件建構（RTTI未確認）：100場景槽、20角色槽、三個CString及-1哨兵
+00473ad0	0x0b23九byte封包建構：16位參數、三個byte、未對齊16位參數；傳輸包裝略過
+00473b10	CContainer<CCharactor*,20> 解構／重置：清20槽，計數與尾狀態歸零
+00473b80	CStaticLinkList<CCharactor*,20> 解構，依序清鏈結及基底槽
+00473ba0	CStaticLinkList<CScnGC*,100> 解構，依序清鏈結及基底容器
+00473bd0	CScnGC 解構：從鏈表頭逐一刪物件、清三組鏈表、釋放場景與天氣／基底
+00473d00	場景管理容器物件解構（RTTI未確認）：先解構三個CString，再清角色及場景容器

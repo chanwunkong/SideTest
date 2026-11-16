@@ -369,7 +369,7 @@ Poq.exe	99	0044aed0	FUN_0044aed0	~CGameApp	game	done	19	1		縮放現在值加減
 Poq.exe	99	0044af30	FUN_0044af30	~CGameApp	game	done	20	6		縮放目標加減並記住現在值（zoom_add）；PageUp／PageDown（0x455d60）、滾輪（0x4638f0）、招式觸發 12（0x43c4f0）	
 Poq.exe	99	0044afa0	FUN_0044afa0	~CGameApp	game	skip	14	0	平台：PrintScreen 存畫面（BMP_CopyScreen）		
 Poq.exe	99	0044aff0	FUN_0044aff0	~CGameApp	game	done	342	2	main()（啟動：平台初始化＋載入 MethodMdl／MethodUnit_Mdl／RoleMdl／BeastieMdl／PropMdl／RoleEffectMdl／TriBldMdl、Dlg\Chat.Dlg；指令列 -nosound、-skipmovie）		0046cbe0 0047ff20 0049fa90 004b0d60 004b7ba0 004b7d20 004bcae0 004bd270 004c5090 004c88b0 004c9100 004ca270 00578cb0 0057a5d0 0057b620
-Poq.exe	99	0044b840	FUN_0044b840	~CGameApp	game	todo	17	2		劇情模式 1／2 時放開滑鼠左鍵 = 跳過（0x473760）	00473760
+Poq.exe	99	0044b840	FUN_0044b840	~CGameApp	game	todo	17	2		劇情模式 1／2 時放開滑鼠左鍵 = 跳過（0x473760）	
 Poq.exe	99	0044b890	FUN_0044b890	~CGameApp	game	skip	105	2	伺服器模式（0x662978 = 2）的文字紀錄視窗		004f6990
 Poq.exe	99	0044bb70	FUN_0044bb70	~CGameApp	game	skip	15	2	std::map 節點		
 Poq.exe	99	0044bb90	FUN_0044bb90	~CGameApp	game	skip	14	2	std::map 節點		
@@ -557,7 +557,7 @@ Poq.exe	99	00454a90	FUN_00454a90		game	done	130	0			00475870 004848c0 00484a60 0
 Poq.exe	99	00454e20	FUN_00454e20	~CGameApp	game	skip	10	2	除錯指令回應（0x502ae0，GetSpeed 的 Test_OK）		00502ae0
 Poq.exe	99	00454e50	FUN_00454e50	~CGameDialog	game	done	16	2	main.c 主迴圈：介面先吃掉點擊（hud_tap）；+8 停用輸入時游標回 0		
 Poq.exe	99	00454eb0	FUN_00454eb0	~CGameDialog	game	done	13	2			
-Poq.exe	99	00454f00	FUN_00454f00	~CGameDialog	game	done	217	2			00458550 004585c0 00459260 00473760 00482db0 00482dd0 00494f50 004bcae0 0057f2b0
+Poq.exe	99	00454f00	FUN_00454f00	~CGameDialog	game	done	217	2			00458550 004585c0 00459260 00482db0 00482dd0 00494f50 004bcae0 0057f2b0
 Poq.exe	99	00455580	FUN_00455580	~CGameDialog	game	todo	27	2		雙擊（Alt 沒按、沒有隊友在战斗状态）：鏡頭移到點的格子（0x461530），並吃掉這次放開；等鏡頭系統	004584c0 0057f2b0
 Poq.exe	99	00455630	FUN_00455630	~CGameDialog	game	todo	9	2		滑鼠回到場景（+0xc = 0）；等介面的「指著」判斷	
 Poq.exe	99	00455640	FUN_00455640	~CGameDialog	game	todo	17	2		滑鼠移到介面上（+0xc = 1）游標回 0；等介面的「指著」判斷	
@@ -567,7 +567,7 @@ Poq.exe	99	00455870	FUN_00455870	~CGameDialog	game	done	49	2	main.c 右鍵（按
 Poq.exe	99	004559d0	FUN_004559d0	~CGameDialog	game	skip	8	2	空函數		
 Poq.exe	99	004559e0	FUN_004559e0	~CGameDialog	game	done	58	0	main.c input_cursor（設游標種類；1 時秀道具名字沒做）		0047f280 00482db0 004831c0 004bcae0
 Poq.exe	99	00455b80	FUN_00455b80	~CGameDialog	game	skip	55	2	連線版：0x218 目標頭像、0x4fead0 名字		00458550 0047f280 00488360 00497b20 004fead0
-Poq.exe	99	00455d60	FUN_00455d60	~CGameApp	game	done	832	2			00458550 004585c0 004587a0 00459050 00460ad0 0046bc10 0046c260 00473760 004831c0 0048d6a0 00494f50 004a8070 004b0a30 004bcae0 004c8630 0057f2b0
+Poq.exe	99	00455d60	FUN_00455d60	~CGameApp	game	done	832	2			00458550 004585c0 004587a0 00459050 00460ad0 0046bc10 0046c260 004831c0 0048d6a0 00494f50 004a8070 004b0a30 004bcae0 004c8630 0057f2b0
 Poq.exe	99	00457360	FUN_00457360	~CGameApp	game	done	65	4			0047f280 00482db0 004831c0 004bcae0
 Poq.exe	99	00457670	FUN_00457670	~CGameApp	game	skip	11	0	CDMList 建構		
 Poq.exe	99	004576a0	FUN_004576a0	~CGameApp	game	skip	18	0	RoleData 設定節點建構（CString）		
@@ -773,10 +773,10 @@ Poq.exe	99	0046baf0	FUN_0046baf0	~CGameApp	game	done	50	2		light.c clock_tick：
 Poq.exe	99	0046bb10	FUN_0046bb10		game	skip	14	0	無呼叫者：備份目前兩組場景、停天氣4000並清空現場景；略過	無呼叫者：備份目前兩組場景、停天氣4000並清空現場景	
 Poq.exe	99	0046bb60	FUN_0046bb60	~CScrMng	game	skip	28	2	平台顯示裝置通知轉送目前與備份介面並還原／釋放備份天氣資源；SDL裝置生命週期取代；略過	平台顯示裝置通知轉送目前與備份介面並還原／釋放備份天氣資源；SDL裝置生命週期取代	
 Poq.exe	99	0046bc10	FUN_0046bc10		game	todo	12	8		記錄錄影模式與檔名字串；todo 等不同類別 CScnClientRecord 的輸入錄影／回放	
-Poq.exe	99	0046bc30	FUN_0046bc30	~CGameApp	game	todo	34	6		清理目前與備份兩組場景並解除暫停；todo 等不同類別 CScnClient／伺服端場景生命週期	0046c260 00473d00 004b1880
+Poq.exe	99	0046bc30	FUN_0046bc30	~CGameApp	game	todo	34	6		清理目前與備份兩組場景並解除暫停；todo 等不同類別 CScnClient／伺服端場景生命週期	0046c260 004b1880
 Poq.exe	99	0046bcf0	FUN_0046bcf0	~CGameApp	game	todo	14	2		釋放目前客戶端並清理場景資源、解除暫停；todo 等不同類別 CScnClient 場景生命週期	0046c260 004b1880
 Poq.exe	99	0046bd80	FUN_0046bd80	~CGameApp	game	todo	93	4		切換錄影模式，必要時備份／還原場景並重新配置；todo 等不同類別 CScnClientRecord 錄影／回放及場景備份	0046aea0 0046b8c0 0046bfa0
-Poq.exe	99	0046bfa0	FUN_0046bfa0	~CGameApp	game	todo	32	4		配置伺服端場景容器並套用天氣設定；todo 等不同類別伺服端場景初始化	004739e0
+Poq.exe	99	0046bfa0	FUN_0046bfa0	~CGameApp	game	todo	32	4		配置伺服端場景容器並套用天氣設定；todo 等不同類別伺服端場景初始化	
 Poq.exe	99	0046c030	FUN_0046c030	~CGameApp	game	skip	13	0	無呼叫者：鎖定場景服務後直接分派連線封包再解鎖；略過	無呼叫者：鎖定場景服務後直接分派連線封包再解鎖	00476fb0 00476fc0 004774d0
 Poq.exe	99	0046c080	FUN_0046c080	~CGameApp	game	skip	65	2	連線平台層：鎖定deque逐包取出並分派，分派回0停止；略過	連線平台層：鎖定deque逐包取出並分派，分派回0停止	004774d0
 Poq.exe	99	0046c240	FUN_0046c240	~CGameApp	game	skip	12	0	無呼叫者：設定音訊旗標，零時呼叫 Mfx_AF_Stop；略過	無呼叫者：設定音訊旗標，零時呼叫 Mfx_AF_Stop	
@@ -837,26 +837,18 @@ Poq.exe	99	00473240	FUN_00473240	CScnClientRecord	game	skip	12	5	錄影／同步
 Poq.exe	99	00473280	FUN_00473280	~CGameApp	game	skip	41	2	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	Rec更新：錄影時記縮放變更，回放時讀包，每次遞增tick	0045f100
 Poq.exe	99	00473500	FUN_00473500	CScnClientRecord	game	skip	36	5	錄影／同步傳輸包裝，單機直接使用業務物件，不建立封包副本	Rec命令封裝：先送佇列字串，再送命令，最後清佇列；單機直接執行業務	004cf430
 Poq.exe	99	00473660	FUN_00473660	~CGameApp	game	skip	28	6	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	Rec鏡頭跟隨：存角色句柄、呼叫CViewPort跟隨入口，再寫0x740六byte錄影包	
-Poq.exe	99	00473740	FUN_00473740	~CGameApp	game	todo	12	0			
-Poq.exe	99	00473760	FUN_00473760	~CGameApp	game	todo	13	6			
-Poq.exe	99	00473800	FUN_00473800	~CGameApp	game	todo	10	0			
-Poq.exe	99	00473820	FUN_00473820	~CGameApp	game	todo	24	0			
-Poq.exe	99	00473890	FUN_00473890	~CGameApp	game	todo	12	0			
-Poq.exe	99	004738d0	FUN_004738d0	~CGameApp	game	todo	42	2			0047c870
-Poq.exe	99	004739e0	FUN_004739e0	~CGameApp	game	todo	40	2			
-Poq.exe	99	00473ad0	FUN_00473ad0	~CGameApp	game	todo	16	2			
-Poq.exe	99	00473b10	FUN_00473b10	~CGameApp	game	todo	22	3			
-Poq.exe	99	00473b80	FUN_00473b80	~CGameApp	game	todo	11	0			00473b10
-Poq.exe	99	00473ba0	FUN_00473ba0	~CGameApp	game	todo	12	0			
-Poq.exe	99	00473bd0	FUN_00473bd0	~CGameApp	game	todo	43	3			0047b900 0047c870 004a2b20
-Poq.exe	99	00473d00	FUN_00473d00	~CGameApp	game	todo	34	2			00473b10 0047b4d0
+Poq.exe	99	00473760	FUN_00473760	~CGameApp	game	skip	13	6	可選Rec錄影／回放專用對話等待控制；單機RecordType=0不啟用，片頭沿用網頁影片工作	CScnClientRecord 設回放對話等待值；僅設0時停語音並清語音旗標，非零（含-1）不停止	
+Poq.exe	99	004738d0	FUN_004738d0	~CGameApp	game	skip	42	2	CScnGC建構／配置；依規則略過生命週期入口，未代表場景業務已完成	CScnGC 建構：初始化四個CHAINHEADER及天氣，配置0x25602-byte場景物件	0047c870
+Poq.exe	99	004739e0	FUN_004739e0	~CGameApp	game	skip	40	2	場景管理容器物件建構；依規則略過建構／CString初始化	場景管理容器物件建構（RTTI未確認）：100場景槽、20角色槽、三個CString及-1哨兵	
+Poq.exe	99	00473bd0	FUN_00473bd0	~CGameApp	game	skip	43	3	CScnGC解構／資源釋放；依規則略過生命週期入口	CScnGC 解構：從鏈表頭逐一刪物件、清三組鏈表、釋放場景與天氣／基底	0047b900 0047c870 004a2b20
+Poq.exe	99	00473d00	FUN_00473d00	~CGameApp	game	skip	34	2	場景管理容器物件解構；依規則略過CString／容器清理	場景管理容器物件解構（RTTI未確認）：先解構三個CString，再清角色及場景容器	0047b4d0
 Poq.exe	99	00473dc0	FUN_00473dc0	SKillPlayer	game	todo	12	2			
 Poq.exe	99	00473df0	FUN_00473df0	SLingpai	game	todo	12	2			
 Poq.exe	99	00473e20	FUN_00473e20	SLingpaiPlayer	game	todo	12	2			
 Poq.exe	99	00473e50	FUN_00473e50		game	todo	14	0			
 Poq.exe	99	00473e90	FUN_00473e90		game	todo	14	0			
 Poq.exe	99	00473ee0	FUN_00473ee0		game	todo	55	0			004a3340 004cc800
-Poq.exe	99	00474030	FUN_00474030		game	todo	87	5			0046c9e0 0046ce90 004738d0 00475ca0 004a3340 004cc800
+Poq.exe	99	00474030	FUN_00474030		game	todo	87	5			0046c9e0 0046ce90 00475ca0 004a3340 004cc800
 Poq.exe	99	00474270	FUN_00474270		game	todo	118	4			0045a030 00465cf0 00475830 0047bf50 0047c430 0047f120 00484ee0 0048e6c0 00494ec0 004963e0 00497d00 004dee00
 Poq.exe	99	00474700	FUN_00474700		game	todo	9	0			
 Poq.exe	99	00474720	FUN_00474720		game	todo	9	0			
@@ -901,7 +893,7 @@ Poq.exe	99	004770a0	FUN_004770a0		game	todo	9	2
 Poq.exe	99	004770c0	FUN_004770c0		game	todo	61	0			0047bf50 0048c150 0048f460 00497bb0 00497d00
 Poq.exe	99	00477270	FUN_00477270		game	todo	63	0			00476ef0 0047bf50 0048c150 0048f460 00497bb0 00497d00
 Poq.exe	99	00477430	FUN_00477430		game	todo	30	0			00467620 00475930 0048e8d0
-Poq.exe	99	004774d0	FUN_004774d0		game	todo	2110	3			0044e380 00450f70 004590f0 00465cf0 00467620 0046bc10 00473ad0 00474270 00474b30 00475270 00475830 00475930 00475ca0 004764c0 00476eb0 00476ef0 00476fd0 0047b4d0 0047bf50 0047c0a0 0047c350 0047c800 0047f120 00482db0 00484ee0 00485f80 00486910 00486e70 00486e80 004887a0 0048af30 0048c150 0048d810 0048d8f0 0048d950 0048e6c0 0048e6e0 0048e8d0 0048f460 0048fae0 0048fb90 0048fc20 0048fd30 00494f50 004963e0 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 004bcae0 004bcbc0 004bd270 004dee00 004deec0 00578790 00579dd0
+Poq.exe	99	004774d0	FUN_004774d0		game	todo	2110	3			0044e380 00450f70 004590f0 00465cf0 00467620 0046bc10 00474270 00474b30 00475270 00475830 00475930 00475ca0 004764c0 00476eb0 00476ef0 00476fd0 0047b4d0 0047bf50 0047c0a0 0047c350 0047c800 0047f120 00482db0 00484ee0 00485f80 00486910 00486e70 00486e80 004887a0 0048af30 0048c150 0048d810 0048d8f0 0048d950 0048e6c0 0048e6e0 0048e8d0 0048f460 0048fae0 0048fb90 0048fc20 0048fd30 00494f50 004963e0 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 004bcae0 004bcbc0 004bd270 004dee00 004deec0 00578790 00579dd0
 Poq.exe	99	0047b2c0	FUN_0047b2c0		game	todo	14	0			
 Poq.exe	99	0047b310	FUN_0047b310		game	todo	14	0			
 Poq.exe	99	0047b4d0	FUN_0047b4d0		game	todo	21	6			
