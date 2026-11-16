@@ -632,3 +632,8 @@ BldMdl	+0x30	上層部件數u16	Model.top
 BldMdl	+0x32	模型分組特殊旗標byte	Model.special
 BldMdl	+0x5b	遮擋平面相對格X	Model.block_x
 BldMdl	+0x5f	遮擋平面相對格Y	Model.block_y
+NormalBuilding	+0x67	CObj種類，建構設11	Object（一般建築由Scene.objects承接）
+NormalBuilding	+0x9c	建構清零的環境音槽／分組狀態，具體編碼待音效系統核對	待CGodClient建築環境音系統
+NormalBuilding	+0x7b	繼承CBuilding的模型部件數	Model.part_count
+NormalBuilding	+0x8b	繼承CBuilding的模型指標	Object.m
+BldMdlPart	+0x0c	NormalBuilding更新時檢查的動畫部件旗標（記錄步長0x19）	Part.anim

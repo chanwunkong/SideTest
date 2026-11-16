@@ -625,3 +625,7 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 004837d0  CBuilding底層以上全部部件裁切繪製；索引無呼叫者
 00483db0  CBuilding上層半透明裁切重畫；索引無呼叫者
 00483f80  CBuilding固定成功虛擬查詢；以有效Object.m／scene_load成功取代無行為包裝
+004843a0  NormalBuilding建構：CBuilding基底、種類11與環境音槽零初值；以scene_load的Object陣列生命週期承接
+004843e0  NormalBuilding解構：環境音移除及部件／基底釋放；C陣列scene_free承接，環境音掛接另記初始化／卸載入口todo
+00484460  NormalBuilding刪除解構：同一般解構加operator delete；以scene_free取代，環境音卸載另記todo
+00484500  NormalBuilding遍歷動畫部件呼叫CBuilding髒區比較；被呼叫本體兩次讀同一幀且無推進，SDL全畫面重畫取代，不臆造獨立動畫計時

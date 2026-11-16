@@ -259,7 +259,8 @@ static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy) {
 }
 
 // 0x481d60 動畫起始幀：同一物件全部部件以同一 rand()%1000 對幀數取餘。
-// shortcut: 延用引擎共享時鐘推進部件；NormalBuilding 更新接入時改用獨立 Spr 拍數。
+// shortcut: 延用引擎共享時鐘推進部件；一般建築更新本體只呼叫髒區比較，
+// 未呈現 Spr 幀推進。待原版精靈計時器更新來源確認後改用獨立拍數。
 static int building_frame(const Object *o, const Seq *q, Uint32 tick) {
     if (!q->count) return 0;
     int first = o->phase % q->count;

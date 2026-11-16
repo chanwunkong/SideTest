@@ -552,7 +552,15 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - shortcut：SDL全重畫取代髒區與暫存表面；RGBA合併原版SBMP表面旗標分流，反白以加亮混色代替色表，待原始表面旗標／逐像素色表接入還原分流順序、光照及反白；部件動畫沿用共享時鐘加隨機初幀，等NormalBuilding更新改成獨立Spr拍數；拾取先用模型矩形，等CObj逐像素命中；固定40部件表超出時改動態陣列。這些近似均已在程式註記，沒有把未移植函數位址放進shortcut。
   - todo 3：建築縮圖等不同類別CScnClient小地圖生成／CMapDialog消費端；格子walk清除／恢復規則已放scene_building_cells參數分支，但尚未有遊戲呼叫端，等不同類別CTriBld狀態切換接入，未以位址註解冒稱done。門點已快取，互動消費端同等CTriBld；沒有新增未被遊戲呼叫的獨立函數。
   - skilltest新增占地低byte／高位／索引／原點、walk過濾及還原、負座標界限、遮擋等號與負偏移優先、反白恢復與底層例外、隨機初幀／停留拍、模型矩形、滑鼠反白取消、半透明實際像素／未知模式不畫／alpha恢復，以及陽周城真實占地與門點快取檢查。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；FUNCS.tsv已重產。
-  **下一步：0x4843a0（NormalBuilding 一般建築）起**。
+  ~~下一步：0x4843a0（NormalBuilding 一般建築）起~~。
+
+
+- 進度（11-16）：Poq.exe **0x4843a0～0x484590 NormalBuilding 一般建築**完整6個入口已核對；0x4845c0本體改設CTriBld虛表，停在類別邊界。**done 0、skip 4、todo 2**。
+  - 三個建構／解構入口以既有scene_load／scene_free的Object陣列生命週期承接。更新入口逐一檢查模型部件動畫旗標，僅呼叫上輪已核對的CBuilding髒區比較；該本體兩次讀同一幀且未呈現推進，不據此自造動畫更新。SDL全畫面重畫承接這項平台行為，修正viewport.c先前「等NormalBuilding獨立拍數」的shortcut說明，仍保留共享時鐘限制。
+  - 載入／卸載的模型、門點、占地及部件生命週期已有對應；兩入口尚需不同類別CGodClient的建築環境音分組／句柄系統，roles.tsv保留todo，並更新先前音效入口的等待原因，避免互相等待。沒有將這兩個未完成入口位址寫入程式註解。
+  - fields.tsv補種類、環境音槽、繼承模型欄位與部件動畫旗標共5列；roles.tsv補6個入口並更新3個環境音用途。無新容器／工具，無base_map增項；無劇情不用的證據，不列DLC。本輪無新增遊戲邏輯，故不加實作鏡像測試。
+  - 本批完整6入口：done 0、skip 4、todo 2（不同類別CGodClient音效系統）；未新增容器／工具，base_map無變動。FUNCS.tsv已重產；`cd engine && make && make skilltest`通過，最後一行`skilltest ok`（建置仍有5個未使用函數警告）。
+  **下一步：0x4845c0（CTriBld 可互動建築）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

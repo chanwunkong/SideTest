@@ -305,9 +305,6 @@
 00467da0	CGodClient deleting destructor：同解構並依旗標釋放0x5fdc bytes
 00468510	500格靜態鏈按有效旗標與指標找索引；通用容器工具，非CGodClient邏輯
 00469a40	CGodClient 進場接續雨雪：雨階段2、音量衰減1、雨量18並預推40拍；雪片數填滿
-00469bb0	CGodClient 加入種類11建築環境音名單，依音效1/2/3分組；等待NormalBuilding場景物件系統
-00469c80	CGodClient 移除建築環境音名單、空組停音；等待NormalBuilding場景物件系統
-00469d70	CGodClient 近處建築環境音最大音量（距離小於1401），沿用最後遍歷建築音效；等待NormalBuilding物件及音效句柄系統
 00467f30	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
 00467f80	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
 00467fa0	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
@@ -647,3 +644,12 @@
 004837d0	CBuilding底層以上全部部件裁切繪製；索引無呼叫者
 00483db0	CBuilding上層半透明裁切重畫；索引無呼叫者
 00483f80	CBuilding固定成功虛擬查詢；以有效Object.m／scene_load成功取代無行為包裝
+004843a0	NormalBuilding建構，種類11、環境音槽0；Object陣列生命週期取代
+004843e0	NormalBuilding解構，移除環境音後釋放部件與基底；scene_free取代，音效卸載另記todo
+00484460	NormalBuilding刪除解構；scene_free取代，環境音卸載另記todo
+00484500	NormalBuilding遍歷模型動畫部件呼叫髒區比較，無可見幀推進；SDL全重畫取代
+00484550	NormalBuilding載入：CBuilding初始化後加入環境音組；模型／占地已在scene_load，等待不同類別CGodClient建築環境音名單與句柄系統
+00484590	NormalBuilding卸載：移除環境音組後釋放部件；資源由scene_free承接，等待不同類別CGodClient建築環境音名單與句柄系統
+00469bb0	CGodClient 加入種類11建築環境音名單，依音效1/2/3分組；NormalBuilding載入已核對，待建築環境音名單與句柄系統
+00469c80	CGodClient 移除建築環境音名單、空組停音；NormalBuilding卸載已核對，待建築環境音名單與句柄系統
+00469d70	CGodClient 近處建築環境音最大音量（距離小於1401），沿用最後遍歷建築音效；待建築環境音名單與句柄系統
