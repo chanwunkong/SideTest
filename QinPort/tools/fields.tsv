@@ -49,10 +49,10 @@ BldMdl	+0x53	原點格（與 +0x63 的差 = 光源格）	Model.lx/ly
 BldMdl	+0x63	光源格	Model.lx/ly
 SceneCell	+4	能走（地圖記錄第 4 byte）	Cell.walk
 SceneCell	+6	層（地圖第 6 byte：0、1、2 牆、3、12、14、16）	Cell.layer
-SceneCell	+0xc	站在上面的角色（物件編號，-1 = 沒有）	cell_actor()
-SceneCell	+0xe	建築（物件編號）	cell_bld()（還沒有）
+SceneCell	+0xc	站在上面的角色（物件編號，-1 = 沒有）	動態物件占格索引（待CObjMng）
+SceneCell	+0xe	建築（物件編號）	Cell.building（CBuilding占格來源待接）
 SceneCell	+0x10	道具或陷阱（物件編號）	cell_prop()
-SceneCell	+0x12	旗標（0x88 = 建築本體）	-
+SceneCell	+0x12	旗標（0x88 = 建築本體）	Cell.flags
 CCharactor	+0x339	隊伍組（0~99 玩家、10000~60000 NPC 組）	Actor.side
 CCharactor	+0x34	位置（1/64 格）GPOINT	ax64/ay64
 CCharactor	+0x3c	畫面方框 GRECT	pick_box()
@@ -114,40 +114,38 @@ CUserInput	+0x10	隊伍面板選中的人（0x459b30）
 CUserInput	+0x14	選到的隊友名單 CStaticLinkList<int,60>（頭 +0x1f0、數量 +0x1e4）	
 CUserInput	+0x1c	自己這邊名單 CStaticLinkList<int,60>（頭 +0x208）	
 CUserInput	+0x3f0	選到的名單變了，下一拍同步到全域 0x93f9d4	
-CViewPort	+0x4	視窗世界 X	ox（待接鏡頭設位）
-CViewPort	+0x8	視窗世界 Y	oy（待接鏡頭設位）
-CViewPort	+0xc	視窗寬	vw
-CViewPort	+0x10	視窗高	vh
-CViewPort	+0x14	視窗面積	-
+CViewPort	+0x4	視窗世界 X	viewport.pos.x
+CViewPort	+0x8	視窗世界 Y	viewport.pos.y
+CViewPort	+0xc	視窗寬	viewport.w / vw
+CViewPort	+0x10	視窗高	viewport.h / vh
+CViewPort	+0x14	視窗面積	viewport.area
 CViewPort	+0x40	去連續重複繪圖名單表頭	-
 CViewPort	+0x44	去連續重複繪圖名單數量	-
-CViewPort	+0x48	分層繪圖名單表頭	-
+CViewPort	+0x48	分層繪圖名單表頭	view_buildings
 CViewPort	+0x58	髒矩形集合（容量30）	SDL 全畫面重畫
 CViewPort	+0x7c	第二髒矩形集合（容量50）	-
 CViewPort	+0xc4	全畫面更新時清零的快取旗標	-
-CViewPort	+0xf0	世界限制矩形 X	待鏡頭邊界
-CViewPort	+0xf4	世界限制矩形 Y	待鏡頭邊界
-CViewPort	+0xf8	世界限制矩形寬	待鏡頭邊界
-CViewPort	+0xfc	世界限制矩形高	待鏡頭邊界
-CViewPort	+0x28	矩形相交查詢用的可見物件串列表頭	待可見物件名單
-CViewPort	+0x34	觸發可見排序查格的 X（除64）	待格子可見檢查
-CViewPort	+0x38	觸發可見排序查格的 Y（除64）	待格子可見檢查
+CViewPort	+0xf0	世界限制矩形 X	viewport.world.x
+CViewPort	+0xf4	世界限制矩形 Y	viewport.world.y
+CViewPort	+0xf8	世界限制矩形寬	viewport.world.w
+CViewPort	+0xfc	世界限制矩形高	viewport.world.h
+CViewPort	+0x28	矩形相交查詢用的可見物件串列表頭	view_dynamic
 CViewPort	+0x64	髒矩形集合的矩形陣列	SDL 全畫面重畫
-CViewPort	+0xb8	每次方向捲動像素步長	待鏡頭捲動
-CViewPort	+0x154	鏡頭格座標快取 X	viewport_center_grid 的 base.x
-CViewPort	+0x158	鏡頭格座標快取 Y	viewport_center_grid 的 base.y
-CViewPort	+0x15c	鏡頭像素 X 對格座標餘量	待座標快取
-CViewPort	+0x160	鏡頭像素 Y 對格座標餘量	待座標快取
-CViewPort	+0xa0	鏡頭自動跟隨開關	待鏡頭平移／跟隨系統
-CViewPort	+0xa4	跟隨參考螢幕 X	待鏡頭平移／跟隨系統
-CViewPort	+0xa8	跟隨參考螢幕 Y	待鏡頭平移／跟隨系統
-CViewPort	+0xac	跟隨 X 死區	待鏡頭平移／跟隨系統
-CViewPort	+0xb0	跟隨 Y 死區	待鏡頭平移／跟隨系統
-CViewPort	+0xbc	震動剩餘 tick（每5 tick位移）	待鏡頭平移／跟隨系統
-CViewPort	+0xc0	震動總 tick（振幅分母）	待鏡頭平移／跟隨系統
-CViewPort	+0x140	定時平移目標 X	待鏡頭平移／跟隨系統
-CViewPort	+0x144	定時平移目標 Y	待鏡頭平移／跟隨系統
-CViewPort	+0x148	定時平移步長（0表示停止）	待鏡頭平移／跟隨系統
+CViewPort	+0xb8	每次方向捲動像素步長	viewport.step
+CViewPort	+0x154	鏡頭格座標快取 X	viewport.base.x
+CViewPort	+0x158	鏡頭格座標快取 Y	viewport.base.y
+CViewPort	+0x15c	鏡頭像素 X 對格座標餘量	viewport.rem.x
+CViewPort	+0x160	鏡頭像素 Y 對格座標餘量	viewport.rem.y
+CViewPort	+0xa0	鏡頭自動跟隨開關	viewport.follow
+CViewPort	+0xa4	跟隨參考螢幕 X	viewport.ref_x
+CViewPort	+0xa8	跟隨參考螢幕 Y	viewport.ref_y
+CViewPort	+0xac	跟隨 X 死區	viewport.dead_x
+CViewPort	+0xb0	跟隨 Y 死區	viewport.dead_y
+CViewPort	+0xbc	震動剩餘 tick（每5 tick位移）	shake_left
+CViewPort	+0xc0	震動總 tick（振幅分母）	shake_total
+CViewPort	+0x140	定時平移目標 X	viewport.target.x
+CViewPort	+0x144	定時平移目標 Y	viewport.target.y
+CViewPort	+0x148	定時平移步長（0表示停止）	viewport.pan
 CViewPort	+0xc8	背景快取繪圖表面（虛函式 +0xc 搬移內容）	SDL 每幀全畫面重畫
 CViewPort	+0x104	背景快取矩形 X	SDL 每幀全畫面重畫
 CViewPort	+0x108	背景快取矩形 Y	SDL 每幀全畫面重畫
@@ -212,16 +210,16 @@ CViewPort	+0x128	遮擋局部重繪裁切矩形寬	待原版繪圖／小地圖�
 CViewPort	+0x12c	遮擋局部重繪裁切矩形高	待原版繪圖／小地圖／Rec 系統
 CViewPort	+0x130	遮擋局部重繪矩形附加欄位	待原版繪圖／小地圖／Rec 系統
 CViewPort	+0x14c	小地圖全圖探索標記待重建旗標	待原版繪圖／小地圖／Rec 系統
-CScene	+0x4e	世界限制矩形 X（進場複製至 CViewPort +0xf0）	待場景世界矩形初始化
-CScene	+0x52	世界限制矩形 Y（進場複製至 CViewPort +0xf0）	待場景世界矩形初始化
-CScene	+0x56	世界限制矩形寬（進場複製至 CViewPort +0xf0）	待場景世界矩形初始化
-CScene	+0x5a	世界限制矩形高（進場複製至 CViewPort +0xf0）	待場景世界矩形初始化
+CScene	+0x4e	世界限制矩形 X（進場複製至 CViewPort +0xf0）	Scene.view_x (MAP+0x26)
+CScene	+0x52	世界限制矩形 Y（進場複製至 CViewPort +0xf0）	Scene.view_y (MAP+0x2a)
+CScene	+0x56	世界限制矩形寬（進場複製至 CViewPort +0xf0）	Scene.view_w (MAP+0x2e)
+CScene	+0x5a	世界限制矩形高（進場複製至 CViewPort +0xf0）	Scene.view_h (MAP+0x32)
 CScene	+0x5e	世界限制矩形附加欄位（進場複製至 CViewPort +0xf0）	待場景世界矩形初始化
 DAT_00662c4c.object	+0x1fe8	非零禁止寫入 Rec 鏡頭封包（類別未確認）	待 Rec 系統
-CViewPort	+0x38	待可見檢查名單表頭（本批用法；與先前座標推定衝突，保留兩義待查）	待原版繪圖／小地圖系統
-SceneCell	+0xc	動態物件索引，-1 為無	待原版繪圖／小地圖系統
-SceneCell	+0xe	建築／靜態物件索引，-1 為無	待原版繪圖／小地圖系統
-SceneCell	+0x12	遮擋類型旗標：最高位設且低3位為2時查建築	待原版繪圖／小地圖系統
+CViewPort	+0x38	待可見檢查的特殊動態物件名單表頭（不是世界Y）	動態特殊名單（來源待CDynamicObj）
+SceneCell	+0xc	動態物件索引，-1 為無	動態物件占格索引（待CObjMng）
+SceneCell	+0xe	建築／靜態物件索引，-1 為無	Cell.building（CBuilding占格來源待接）
+SceneCell	+0x12	遮擋類型旗標：最高位設且低3位為2時查建築	Cell.flags
 CScene	+0x18	當前21-byte格子快取指標	待原版繪圖／小地圖系統
 FUN_0045ec50.object	+0x34	物件世界 X，與 Y 相加作排序鍵	待原版繪圖／小地圖系統
 FUN_0045ec50.object	+0x38	物件世界 Y，與 X 相加作排序鍵	待原版繪圖／小地圖系統
@@ -231,3 +229,12 @@ FUN_0045f820.character	+0x474	角色動態繪圖狀態：2 局部遮擋或可見
 FUN_0045f820.character	+0x8b	關聯物件指標，其 +0x2c short 為2／3時暫時將 X/Y 各加128	待原版繪圖／小地圖系統
 FUN_0045fec0.character	+0x339	與當前角色比較的組別識別值	待原版繪圖／小地圖系統
 FUN_0045fec0.object	+0x95	小地圖標籤物件識別值，僅 0xb00270 且類型0x17時畫標籤	待原版繪圖／小地圖系統
+SceneCell	+0x13	探索／可見狀態：0未探索、1已探索不可見、>=2可見	Cell.view（CScene探索待接，載入暫設2）
+CBuilding	+0x7f	底層部件數（模型+0x2c）	Model.bottom (MDL+0x2c)
+CBuilding	+0x83	上層部件數（模型+0x30）	Model.top (MDL+0x30)
+CBuilding	+0x87	模型+0x32的繪圖模式	Model.special
+CBuilding	+0x93	遮擋平面世界X（模型+0x5b乘64加擺放X）	Object.x*64+Model.block_x*64
+CBuilding	+0x97	遮擋平面世界Y（模型+0x5f乘64加擺放Y）	Object.y*64+Model.block_y*64
+CBuilding	+0x9b	遮擋平面類型：X偏移<1為1，Y偏移<1為2	viewport_blocks按模型偏移判斷
+CDynamicObj	+0x66	繪圖分類，>9時進特殊延後繪圖名單	待CDynamicObj分類來源
+CRHOMB	+0x14	32列菱形邊界表，前半2..32、後半32..2	viewport_screen_grid edge

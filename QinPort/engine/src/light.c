@@ -128,8 +128,8 @@ static void light_buildings(const Scene *s) {
 }
 static void light_clear(void) { light_n = 0; }
 
-static int actor_wx(const Actor *a, int h) { return (int)((a->x - a->y + h - 1) * TILE_W / 2); }
-static int actor_wy(const Actor *a) { return (int)((a->x + a->y) * TILE_H / 2); }
+static int actor_wx(const Actor *a, const Scene *s) { return scene_px(s, (int)(a->x * 64), (int)(a->y * 64)); }
+static int actor_wy(const Actor *a, const Scene *s) { return scene_py(s, (int)(a->x * 64), (int)(a->y * 64)); }
 
 // 每拍（0x442180）：角色的光跟著走，人死了或不在了就每拍縮 10 像素，縮到 60 以下拿掉；建築的每 6 拍換一次亮度（閃）
 // 角色的光（0x486480，原版角色初始化時加）：有光影的角色半徑 = 角色大小 × 240 + 400，光影闪烁的另一色 0xe1e1e1
@@ -137,7 +137,7 @@ static void light_tick(const Scene *s) {
     for (int i = 0; i < actor_count; i++) {
         const Actor *a = &actors[i];
         if (a->role && a->def && a->def->light && a->act != ACT_DEAD && !light_of(a))
-            light_add(a, actor_wx(a, s->h), actor_wy(a), 1, a->def->size * 0xf0 + 400, 0xffffff, a->def->flicker ? 0xe1e1e1 : 0xffffff);
+            light_add(a, actor_wx(a, s), actor_wy(a, s), 1, a->def->size * 0xf0 + 400, 0xffffff, a->def->flicker ? 0xe1e1e1 : 0xffffff);
     }
     for (int i = 0; i < light_n; i++) {
         Light *L = &lights[i];
@@ -148,7 +148,7 @@ static void light_tick(const Scene *s) {
             if (++L->n % 6 == 1) L->cur = L->cur == L->l_main ? L->l_alt : L->l_main;
         } else if (!L->a->role || L->a->def != L->def) L->dying = 1, L->n = 0;
         else {
-            L->x = actor_wx(L->a, s->h), L->y = actor_wy(L->a);
+            L->x = actor_wx(L->a, s), L->y = actor_wy(L->a, s);
             if (L->a->act == ACT_DEAD) L->dying = 1, L->n = 0;
         }
     }

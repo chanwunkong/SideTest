@@ -30,7 +30,7 @@ static void game_speed_set(int level) { game_speed_ms = 31 - 3 * level; }
 
 // 小地圖格座標換算（Poq.exe 0x45ad80）。map_rows = 原版地圖 +8，
 // origin = 原版全域 DAT_00941288；由小地圖呼叫端提供，不假設它的設定值。
-// shortcut: 換算已翻，等待小地圖視窗狀態接入後使用。
+// 同時供鏡頭投影原點使用。
 static inline SDL_Point viewport_grid_point(int x, int y, int map_rows, int origin) {
     int odd = x % 2;  // 原版是有號餘數，負奇數為 -1
     int half = map_rows / 2;
@@ -40,7 +40,7 @@ static inline SDL_Point viewport_grid_point(int x, int y, int map_rows, int orig
 }
 
 // 小地圖點轉場景格（Poq.exe 0x45e460）：奇數 Y 先加1再除2，差值仍向零截斷。
-// shortcut: 換算已翻，等小地圖與鏡頭格座標快取接入；map_rows 為 NULL 表示沒有場景。
+// 鏡頭捲動用此換算重算快取；map_rows 為 NULL 表示沒有場景。
 static inline SDL_Point viewport_point_grid(SDL_Point p, const int *map_rows, int origin) {
     if (!map_rows) return (SDL_Point){0, 0};
     int half, delta;
@@ -55,13 +55,13 @@ static inline SDL_Point viewport_point_grid(SDL_Point p, const int *map_rows, in
 }
 
 // 鏡頭中心格（Poq.exe 0x45b6b0）：原版刻意用高/32 加 X、寬/64 加 Y。
-// shortcut: 等鏡頭捲動的格座標快取接入後使用，base 是原版快取而非像素原點。
+// base 是鏡頭捲動更新的格座標快取。
 static inline SDL_Point viewport_center_grid(SDL_Point base, int width, int height) {
     return (SDL_Point){base.x + height / 32, base.y + width / 64};
 }
 
 // 鏡頭像素邊界（Poq.exe 0x45b780）：先上界、再下界，最後向零取偶數。
-// shortcut: 等世界限制矩形初始化與鏡頭捲動接入後使用。
+// 設位、方向捲動、跟隨與解析度改變共用。
 static inline SDL_Point viewport_clamp(SDL_Point p, int width, int height, SDL_Rect world) {
     if (p.y + height >= world.y + world.h) p.y = world.y + world.h - 1 - height;
     if (p.y < world.y) p.y = world.y;
@@ -227,6 +227,7 @@ typedef struct { const SkillRow *skill; int level, status, elapsed, time, side, 
 typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
     int dir, moving, speed;
+    int view_link_type; // 關聯模型 +0x2c；type2/3 繪圖時世界 X/Y 暫加128
     int idle, walk, fidle, fwalk;  // 動作起點序列（角色表「平時/戰鬥」的休息與走路）
     Uint32 act_tick;  // 目前動作已經過幾拍（換動作時歸零）
     const Role *role;
@@ -1543,12 +1544,12 @@ static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
 static int pick_ox, pick_oy;
 static const Scene *pick_s;
 static void pick_box(const Actor *a, int *l, int *t, int *w, int *h) {
-    int fx = (int)((a->x - a->y + pick_s->h - 1) * TILE_W / 2) - pick_ox, fy = (int)((a->x + a->y) * TILE_H / 2) - pick_oy;
+    int fx = scene_px(pick_s, (int)(a->x * 64), (int)(a->y * 64)) - pick_ox, fy = scene_py(pick_s, (int)(a->x * 64), (int)(a->y * 64)) - pick_oy;
     *l = fx - 36, *t = fy - 100, *w = 73, *h = 111;
 }
 static Actor *monster_at(int px, int py, int ox, int oy, const Scene *s) {
     pick_ox = ox, pick_oy = oy, pick_s = s;
-    float a = (float)(px + ox) * 2 / TILE_W - (s->h - 1), b = (float)(py + oy) * 2 / TILE_H;  // 畫面 → 格子
+    float a = (float)(px + ox - 32) * 2 / TILE_W - (s->w / 2 + s->h / 2 - 1), b = (float)(py + oy) * 2 / TILE_H - (s->w / 2 - s->h / 2);  // 畫面 → 格子
     return pick_at(px, py, (int)floorf((a + b) / 2), (int)floorf((b - a) / 2), 1, 1, pick_box);
 }
 
@@ -2187,7 +2188,7 @@ static void ui_command(const char *name) {
 // 畫面上點到哪件地上的道具（圖示置中在格子中央）
 static int ground_at(int px, int py, int ox, int oy, const Scene *s) {
     for (int i = ground_n - 1; i >= 0; i--) {
-        int fx = (int)((ground[i].x - ground[i].y + s->h - 1) * TILE_W / 2) - ox, fy = (int)((ground[i].x + ground[i].y) * TILE_H / 2) - oy;
+        int fx = scene_px(s, (int)(ground[i].x * 64), (int)(ground[i].y * 64)) - ox, fy = scene_py(s, (int)(ground[i].x * 64), (int)(ground[i].y * 64)) - oy;
         if (abs(px - fx) <= 24 && abs(py - fy) <= 20) return i;
     }
     return -1;
@@ -3671,11 +3672,7 @@ static void hud_draw(const Actor *hero) {
     }
 }
 
-static int cmp_actor_depth(const void *a, const void *b) {
-    const Actor *x = *(Actor *const *)a, *y = *(Actor *const *)b;
-    float d = (x->x + x->y) - (y->x + y->y);
-    return d < 0 ? -1 : d > 0;
-}
+#include "viewport.c"
 
 // 進場景時一次抓齊會用到的圖（網頁版走批次請求；原生版直接讀硬碟，這裡幾乎不花時間）
 
@@ -3812,6 +3809,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     }
     hero->moving = 0;
     hero->act_tick = 0;
+    viewport_enter(&viewport, scene, hero);
     prefetch_scene(scene, hero);
     return 1;
 }
@@ -3852,8 +3850,8 @@ enum { CMD_NONE, CMD_MOVE, CMD_ATTACK, CMD_TALK, CMD_PICK };
 // 游標下的角色（0x454a90 → 0x442b10，all = 1、不分邊），(cx, cy) 回游標那格
 static Actor *input_char(int zx, int zy, int ox, int oy, const Scene *s, int *cx, int *cy) {
     pick_ox = ox, pick_oy = oy, pick_s = s;
-    float a = (float)(zx + ox) * 2 / TILE_W - (s->h - 1), b = (float)(zy + oy) * 2 / TILE_H;
-    *cx = (int)floorf((a + b) / 2), *cy = (int)floorf((b - a) / 2);
+    SDL_Point grid = viewport_screen_grid(&viewport, zx, zy);
+    *cx = grid.x; *cy = grid.y;
     return pick_at(zx, zy, *cx, *cy, 1, -1, pick_box);
 }
 
@@ -3982,6 +3980,11 @@ int main(int argc, char **argv) {
         hero->y = scene.triggers[warp].y + 0.5f;
         armed = 1;
         printf("站到觸發區 %d：%s\n", warp, scene.triggers[warp].event);
+    }
+
+    if (at_x >= 0 || warp >= 0) {
+        SDL_Point p = viewport_project(&scene, (int)(hero->x * 64), (int)(hero->y * 64));
+        viewport_set(&viewport, &scene, p.x - vw / 2, p.y - vh / 2);
     }
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER)) { fprintf(stderr, "%s\n", SDL_GetError()); return 1; }
@@ -4149,7 +4152,7 @@ int main(int argc, char **argv) {
             ++tick;
             if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000) for (int i = 0; i < actor_count; i++)
                     if (!i || actors[i].mon) actor_second(&actors[i]);
-            if (shake_left > 0) shake_left--;
+            viewport_tick(&viewport, &scene, hero);
             for (int i = 0; i < actor_count; i++) {
                 if (actors[i].cool > 0) actors[i].cool--;
                 if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
@@ -4260,53 +4263,15 @@ int main(int argc, char **argv) {
 #endif
         }
 
-        // 主角腳底的世界像素；鏡頭跟著主角
-        int hx = (int)((hero->x - hero->y + scene.h - 1) * TILE_W / 2), hy = (int)((hero->x + hero->y) * TILE_H / 2);
-        ox = hx - vw / 2;
-        oy = hy - vh / 2;
-        if (shake_left > 0 && shake_left / 5 % 2 == 0) oy -= (int)(vw / 640.0f * 25 * shake_left / shake_total);
+        if (viewport.w != vw || viewport.h != vh) viewport_resize(&viewport, &scene, vw, vh);
+        ox = viewport.pos.x;
+        oy = viewport.pos.y;
 
         // ---- 畫面 ----
         SDL_SetRenderTarget(ren, canvas);
         SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
         SDL_RenderClear(ren);
-        for (int y = 0; y < scene.h; y++)
-            for (int x = 0; x < scene.w; x++) {
-                const Cell *c = &scene.cells[y * scene.w + x];
-                int sx = world_x(&scene, x, y) - ox, sy = world_y(&scene, x, y) - oy;
-                if (sx >= vw || sy >= vh || sx + TILE_W <= 0 || sy + TILE_H <= 0) continue;
-                if (c->ground != 0xFFFF) draw(tile(&scene.tiles, c->ground), sx, sy);
-                if (c->over != 0xFFFF) draw(tile(&scene.tiles, c->over), sx, sy);
-            }
-        // 地上的道具：地面圖示（G_PicID，ResUI 28×28 黑底小圖）置中在格子中央。shortcut: 原版的畫法（位置、名字標示）還沒查
-        for (int i = 0; i < ground_n; i++) {
-            const Sprite *g = ground_image(ground[i].it.ground);
-            if (g) draw(g, (int)((ground[i].x - ground[i].y + scene.h - 1) * TILE_W / 2) - ox - g->w / 2, (int)((ground[i].x + ground[i].y) * TILE_H / 2) - oy - g->h / 2);
-        }
-        units_draw(ox, oy, scene.h, 1);  // 地面上的（腳印）
-        // 物件已依深度(x+y)排序；角色也依深度排好，經過自己的深度時插進去畫
-        Actor *order[MAX_ACTORS];
-        for (int i = 0; i < actor_count; i++) order[i] = &actors[i];
-        qsort(order, actor_count, sizeof *order, cmp_actor_depth);
-        int next_actor = 0;
-        for (int i = 0; i <= scene.object_count; i++) {
-            const Object *o = i < scene.object_count ? &scene.objects[i] : NULL;
-            while (next_actor < actor_count && (!o || o->x + o->y + 1 > order[next_actor]->x + order[next_actor]->y)) {
-                const Actor *a = order[next_actor++];
-                actor_draw(a, (int)((a->x - a->y + scene.h - 1) * TILE_W / 2) - ox, (int)((a->x + a->y) * TILE_H / 2) - oy, tick);
-            }
-            if (!o || !o->m) continue;
-            int sx = world_x(&scene, o->x, o->y) + TILE_W / 2 - ox, sy = world_y(&scene, o->x, o->y) + TILE_H / 2 - oy;
-            for (int p = 0; p < o->m->part_count; p++) {
-                const Part *pt = &o->m->parts[p];
-                const Anim *a = pt->anim ? anim_get(pt->gid) : NULL;
-                if (pt->anim) { if (a) draw_frame(a, 0, frame_at(&a->seqs[0], tick), sx + pt->dx, sy + pt->dy, 0); }  // Res00 動畫，播第一個序列
-                else draw(image(pt->gid), sx + pt->dx, sy + pt->dy);
-            }
-        }
-        units_draw(ox, oy, scene.h, 0);
-        light_draw(ox, oy);
-        weather_draw(ox, oy);
+        viewport_draw(&viewport, &scene, tick);
         if (snap_due) { snap_take(canvas); snap_due = 0; }
         if (save_due >= 0) {
             snprintf(save_alias, sizeof save_alias, "%s", alias);
@@ -4373,6 +4338,9 @@ int main(int argc, char **argv) {
         }
     }
 
+    viewport_grid_clear();
+    free(view_buildings.items); free(view_dynamic.items);
+    view_buildings = (ViewList){0}; view_dynamic = (ViewList){0};
     cache_clear();
     audio_quit();
     world_free(&world);

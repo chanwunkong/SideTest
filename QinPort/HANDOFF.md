@@ -376,7 +376,16 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 後續須保留原版怪現象：遮擋矩形裁切後面積必須小於20001；角色關聯類型2／3時暫時將 X/Y 各加128，繪完還原；小地圖每5次更新僅餘1時畫標籤，比例先向零截斷成整數作開關，全圖標記是 X 外圈、Y 內圈；Rec 鏡頭座標先以640×480中心補正。
   - 新偏移與用途已記 fields.tsv／roles.tsv；+0x38 在本批實為名單表頭，與先前座標推定衝突，保留兩義待後續確認。未新增遊戲邏輯或測試、未加完成位址或 shortcut；沒有新增確認劇情不用的功能。
   - 建置與測試：`cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`。
+  ~~下一步：0x460ad0（CGameApp 地上道具標籤段）起~~（本輪先回補 CViewPort，後續起點不變）。
+- 進度（11-16 回補）：Poq.exe **0x45a470～0x4607c0 CViewPort 鏡頭／可見物件／分層繪圖**整段重新核對；總表本段現為 done 16、skip 6、todo 9（另有 3 個容器已歸 base；todo 含 CMapDialog 2 個）。
+  - 新增 `engine/src/viewport.c`，由 main.c 引入：`viewport_set/window/resize/scroll/cache/follow/tick` 接入進場、每16ms更新與畫面尺寸變更，取代每幀把鏡頭置中的簡化版；原先四個 `viewport_*` 換算函數已由投影／捲動快取真正呼叫。MAP +0x26～+0x32 的世界限制矩形、MDL 底／上層部件數及遮擋平面偏移由 res.c 補讀。
+  - `viewport_collect/insert/intersects/visible_insert`：按原版帶8格邊界的交錯掃格順序收集建築，當幀圖像矩形裁切，X+Y降序、同深度新項在前／反向繪製。`viewport_layers/draw` 取代 main.c 舊的角色 qsort／場景物件合併迴圈；底層→地上物→中層→上層→光照→動態物件，單位改為單件繪圖回呼。`viewport_occlusion_start/occlude` 接上遮擋平面、格子旗標0x82的建築覆寫與小面積局部重畫；SDL每幀重畫代替DirectDraw快取搬移。
+  - 照原版保留：設位Y−16僅用於比較、邊界先減1再取偶數、一般方向捲動入口缺少奇列X+32及負座標base.x−16補正、平移用平方距離直接比步長／距離重複即到目標、震動每5拍才累積交替位移、遮擋裁切面積必須小於20001、CRHOMB邊線相等不修正。**更正前輪跟隨筆記**：`local_28` 只在靜止分支被快取重用，不能據此改寫移動分支的方向；本輪按分支本體翻譯。
+  - 外部依賴才留 todo：探索遮罩等 **CScene 探索資料／CResMng 遮罩圖資**；地表交錯主迴圈已接遊戲，但缺格預設圖／除錯格圖等 **CResMng 預設圖初始化**，不標整個地表函數完成；動態角色／單位／type2/3暫加128已接，但完整狀態分流與關聯來源等 **CCharactor／CDynamicObj**，亦不標整個動態入口完成；Rec封包等 **Rec**；小地圖點選、輸入、標籤、初始化及全圖探索標記等 **CMapDialog**。roles.tsv 已刪除這批「等同類別函數」的舊理由。
+  - shortcut：目前 CScene 載入把格子可見狀態設2（全部可見）；視窗已依該欄位判斷，探索系統接入後換資料來源。建築名單以擺放格索引，完整占地／格子建築索引、關聯模型類型與特殊動態分類來源等各自類別載入；局部遮擋採SDL裁切直接重畫前景，無DirectDraw暫存／尾端去重名單。沒有把這些尚缺的整個原版函數誤標完成；沒有刪除劇情功能，也沒有新增確認劇情不用的功能。
+  - 驗證：skilltest 新增鏡頭狀態／快取／查格邊線、捲動、死區、平方距離平移、交替震動、排序同深度、不可見格、遮擋平面／格子覆寫、軟體renderer分層像素測試；原生建置與 `make skilltest` 通過，最後一行 `skilltest ok`。另以SDL dummy/software實際啟動 xianyang、xy_minjud 並輸出640×480截圖；未驗證人工長時間遊玩。
   **下一步：0x460ad0（CGameApp 地上道具標籤段）起**，用 `python3 tools/functool.py next 0x460ad0`。
+
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
 

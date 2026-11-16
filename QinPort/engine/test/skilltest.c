@@ -18,7 +18,128 @@ static void mk(Actor *a) {
     a->hp = a->hp_max;
 }
 
+static void viewport_test(void) {
+    int old_w = vw, old_h = vh;
+    vw = 640; vh = 480;
+    Cell *cells = calloc(64 * 64, sizeof *cells);
+    for (int i = 0; i < 64 * 64; i++) cells[i].view = 2, cells[i].ground = cells[i].over = 0xffff;
+    Scene sc = {.w = 64, .h = 64, .cells = cells, .view_w = 8192, .view_h = 4096};
+    ViewPort v = {.world = {0, 0, 8192, 4096}};
+    viewport_window(&v, &sc, 100, 200, vw, vh);
+    assert(v.area == 307200 && v.ref_x == 320 && v.ref_y == 240 && v.dead_x == 295 && v.dead_y == 215);
+    SDL_Point gp = viewport_grid_screen(&v, 20, 20);
+    assert(gp.x == world_x(&sc, 20, 20) - 100 && gp.y == world_y(&sc, 20, 20) - 200);
+    gp = viewport_world_screen(&v, 20 * 64 + 3, 20 * 64 + 7);
+    SDL_Point wp = viewport_project(&sc, 20 * 64 + 3, 20 * 64 + 7);
+    assert(gp.x == wp.x - 100 && gp.y == wp.y - 200);
+    // 舊換算函數都由鏡頭狀態更新實際使用。
+    assert(v.center.x == v.base.x + 15 && v.center.y == v.base.y + 10);
+    v.pos = (SDL_Point){100, 210};
+    viewport_scroll(&v, &sc, -1);
+    gp = viewport_grid_screen(&v, 20, 20);
+    viewport_cache(&v, &sc, 1);
+    SDL_Point corrected = viewport_grid_screen(&v, 20, 20);
+    assert(gp.x == corrected.x + 32 && gp.y == corrected.y); // 原捲動入口沒有奇列X補正
+    v.pos = (SDL_Point){0, 0}; viewport_cache(&v, &sc, 1);
+    gp = viewport_screen_grid(&v, 32, 0);
+    assert(gp.x == -32 && gp.y == 31);
+    // CRHOMB 邊線相等留原格；負餘數補正不更改向零商。
+    ViewPort cv = {.base = {0, 0}, .rem = {0, 0}};
+    gp = viewport_screen_grid(&cv, 30, 0); assert(gp.x == 0 && gp.y == 0);
+    gp = viewport_screen_grid(&cv, 29, 0); assert(gp.x == -1 && gp.y == 0);
+    gp = viewport_screen_grid(&cv, -1, -1); assert(gp.x == 1 && gp.y == 0);
+    viewport_set(&v, &sc, 101, 203); assert(v.pos.x == 100 && v.pos.y == 202);
+    v.step = 6;
+    viewport_scroll(&v, &sc, 7); assert(v.pos.x == 106);
+    viewport_scroll(&v, &sc, 3); assert(v.pos.x == 100);
+    viewport_scroll(&v, &sc, 1); assert(v.pos.y == 196);
+    viewport_scroll(&v, &sc, 5); assert(v.pos.y == 202);
+    // 平移用平方距離，走過頭後距離重複即到目標；震動只在5的倍數捲動。
+    Actor a = {.x = 20, .y = 20, .speed = 8};
+    v.follow = 0; v.pan = 20; v.target = (SDL_Point){110, 202}; v.last_distance = -1;
+    viewport_tick(&v, &sc, &a); assert(v.pos.x == 120 && v.pan == 20);
+    viewport_tick(&v, &sc, &a); assert(v.pos.x == 110 && v.pan == 0);
+    shake_left = shake_total = 10; int sy = v.pos.y;
+    viewport_tick(&v, &sc, &a); assert(v.pos.y == sy - 26 && shake_left == 9);
+    sy = v.pos.y; viewport_tick(&v, &sc, &a); assert(v.pos.y == sy && shake_left == 8);
+    shake_left = 5; viewport_tick(&v, &sc, &a); assert(v.pos.y == sy + 12);
+    shake_left = shake_total = 0;
+    // 跟隨有死區，不會每幀重設為主角中心；靜止只修正越界差額+2。
+    wp = viewport_project(&sc, 20 * 64, 20 * 64);
+    v.last_actor = (SDL_Point){20 * 64, 20 * 64};
+    v.pos = (SDL_Point){wp.x - v.ref_x - 100, wp.y - v.ref_y};
+    viewport_cache(&v, &sc, 1);
+    SDL_Point before = v.pos;
+    viewport_follow(&v, &sc, &a); assert(v.pos.x == before.x && v.pos.y == before.y);
+    v.pos.x = wp.x - v.ref_x - 300; viewport_cache(&v, &sc, 1);
+    viewport_follow(&v, &sc, &a); assert(v.step == 7 && v.pos.x == (wp.x - v.ref_x - 300 + 7) / 2 * 2);
+    ViewList l = {0}; SDL_Rect screen = {0, 0, vw, vh};
+    viewport_insert(&l, (ViewItem){.index = 1, .depth = 20, .rect = {10, 10, 20, 20}}, screen);
+    viewport_insert(&l, (ViewItem){.index = 2, .depth = 20, .rect = {10, 10, 20, 20}}, screen);
+    viewport_insert(&l, (ViewItem){.index = 3, .depth = 40, .rect = {10, 10, 20, 20}}, screen);
+    viewport_insert(&l, (ViewItem){.index = 4, .depth = 99, .rect = {640, 0, 20, 20}}, screen);
+    assert(l.n == 3 && l.items[0].index == 3 && l.items[1].index == 2 && l.items[2].index == 1);
+    assert(viewport_intersects(&l, (SDL_Rect){29, 29, 3, 3}));
+    assert(!viewport_intersects(&l, (SDL_Rect){30, 30, 3, 3}));
+    Model wall[2] = {{.block_y = 2}, {0}};
+    Object buildings[2] = {{.x = 0, .y = 0, .m = &wall[0]}, {.x = 1, .y = 1, .m = &wall[1]}};
+    Scene blocked = sc; blocked.objects = buildings; blocked.object_count = 2;
+    ViewItem walls[2] = {{.index = 1, .depth = 128, .rect = {0, 0, 100, 100}},
+                         {.index = 0, .depth = 0, .rect = {0, 0, 100, 100}}};
+    ViewList saved_buildings = view_buildings;
+    view_buildings = (ViewList){walls, 2, 2};
+    ViewItem who = {.depth = 64, .x64 = 32, .y64 = 32, .rect = {0, 0, 100, 100}};
+    assert(viewport_occlusion_start(&view_buildings, &blocked, &who, who.rect) == 0);
+    who.x64 = -1; who.y64 = 20; who.depth = 19;
+    assert(viewport_occlusion_start(&view_buildings, &blocked, &who, who.rect) == 1);
+    who = (ViewItem){.depth = 64, .x64 = 32, .y64 = 32, .rect = {0, 0, 100, 100}};
+    cells[0].flags = 0x82; cells[0].building = 0;
+    assert(viewport_occlusion_start(&view_buildings, &blocked, &who, who.rect) == 1);
+    cells[0].flags = 0; cells[0].building = -1;
+    view_buildings = saved_buildings;
+    cells[0].view = 1;
+    viewport_visible_insert(&l, &sc, (ViewItem){.rect = {0, 0, 10, 10}}, screen);
+    assert(l.n == 3);
+    cells[0].view = 2;
+    viewport_visible_insert(&l, &sc, (ViewItem){.rect = {0, 0, 10, 10}}, screen);
+    assert(l.n == 4);
+    // 軟體 renderer 驗證真實分層：A 的上層要覆過後畫的 B 中層。
+    SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, vw, vh, 32, SDL_PIXELFORMAT_RGBA32);
+    assert(surf); ren = SDL_CreateSoftwareRenderer(surf); assert(ren);
+    const uint32_t keys[3] = {0xeee001, 0xeee002, 0xeee003};
+    const Uint8 colors[3][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}};
+    for (int i = 0; i < 3; i++) {
+        Sprite *sp = slot_find(keys[i]); sp->w = sp->h = 8;
+        uint32_t *px = malloc(64 * sizeof *px);
+        for (int j = 0; j < 64; j++) px[j] = SDL_MapRGBA(surf->format, colors[i][0], colors[i][1], colors[i][2], 255);
+        assert(upload(sp, px));
+    }
+    Model models[2] = {0};
+    models[0].part_count = 2; models[0].bottom = 1; models[0].top = 1;
+    models[0].parts[0].gid = keys[0]; models[0].parts[1].gid = keys[2];
+    models[1].part_count = 1; models[1].parts[0].gid = keys[1];
+    Object objects[2] = {{.x = 0, .y = 0, .m = &models[0]}, {.x = 1, .y = 0, .m = &models[1]}};
+    models[1].parts[0].dx = -32; models[1].parts[0].dy = -16;
+    sc.objects = objects; sc.object_count = 2;
+    v.base = (SDL_Point){0, 0}; v.rem = (SDL_Point){0, 0};
+    view_buildings.n = 0;
+    viewport_insert(&view_buildings, (ViewItem){.index = 0, .depth = 0, .rect = {32, 16, 8, 8}}, screen);
+    viewport_insert(&view_buildings, (ViewItem){.index = 1, .depth = 64, .rect = {32, 16, 8, 8}}, screen);
+    int saved_ground = ground_n, saved_units = unit_n;
+    ground_n = unit_n = 0;
+    viewport_layers(&v, &sc, 0); SDL_RenderPresent(ren);
+    Uint8 r, g, b, alpha;
+    SDL_GetRGBA(((Uint32 *)surf->pixels)[18 * (surf->pitch / 4) + 34], surf->format, &r, &g, &b, &alpha);
+    assert(r == 0 && g == 0 && b == 255);
+    ground_n = saved_ground; unit_n = saved_units;
+    cache_clear(); SDL_DestroyRenderer(ren); ren = NULL; SDL_FreeSurface(surf);
+    free(l.items); free(cells);
+    view_buildings.n = view_dynamic.n = 0;
+    vw = old_w; vh = old_h;
+}
+
 int main(void) {
+    viewport_test();
     // 小地圖換算：正負奇數的有號餘數，以及除法向零截斷。
     SDL_Point gp = viewport_grid_point(3, 2, 10, 1);
     assert(gp.x == 4 && gp.y == 11);

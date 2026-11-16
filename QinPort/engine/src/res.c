@@ -645,6 +645,12 @@ static void parse_models(Scene *s, const uint8_t *d, size_t n) {
         memset(m, 0, sizeof *m);
         m->id = u16(d + a + 36);
         m->start = a + 2;
+        // CBuilding 模型 +0x2c / +0x30 / +0x32；檔案沒有執行期的部件指標。
+        m->bottom = u16(d + a + 0x2c);
+        m->top = u16(d + a + 0x30);
+        m->special = d[a + 0x32];
+        m->block_x = (int32_t)u32(d + a + 0x5b);
+        m->block_y = (int32_t)u32(d + a + 0x5f);
         // 0x4cdaf0 讀檔順序：+0x4f 寬、+0x51 高（u16），+0xa3 起 寬×高 個 u16 占地，再 u16、光源 u8（+0xa9）
         size_t o = a + 0xa3 + 2 * (size_t)u16(d + a + 0x4f) * u16(d + a + 0x51);
         if (o + 2 < n && d[o + 2] >= 1 && d[o + 2] <= 4) {
@@ -696,12 +702,6 @@ static void parse_ont(Scene *s, char *text) {
     }
 }
 
-static int cmp_obj(const void *a, const void *b) {
-    const Object *x = a, *y = b;
-    int d = (x->x + x->y) - (y->x + y->y);
-    return d ? d : x->x - y->x;
-}
-
 int scene_load(Scene *s, const char *scn_name) {
     memset(s, 0, sizeof *s);
     char dir[1100], name[256], map_name[128], bnt_name[128], ont_name[128], v[32];
@@ -729,11 +729,16 @@ int scene_load(Scene *s, const char *scn_name) {
     if (!map || size < 0x200 || memcmp(map, "SoloMap", 7)) { free(map); return 0; }
     s->w = u16(map + 0x22);
     s->h = u16(map + 0x24);
+    s->view_x = (int32_t)u32(map + 0x26);
+    s->view_y = (int32_t)u32(map + 0x2a);
+    s->view_w = (int32_t)u32(map + 0x2e);
+    s->view_h = (int32_t)u32(map + 0x32);
     size_t grid = size - (size_t)s->w * s->h * 10;
+    // shortcut: CScene 探索系統尚未接入；目前全部格子設為可見（原版 +0x13 >= 2）。
     s->cells = malloc((size_t)s->w * s->h * sizeof(Cell));
     for (int i = 0; i < s->w * s->h; i++) {
         const uint8_t *c = map + grid + i * 10;
-        s->cells[i] = (Cell){u16(c), u16(c + 2), c[4], c[7], c[6]};
+        s->cells[i] = (Cell){u16(c), u16(c + 2), c[4], c[7], c[6], 2, 0, -1};
     }
     snprintf(name, sizeof name, "%s", (const char *)map + 0x90);
     free(map);
@@ -763,7 +768,7 @@ int scene_load(Scene *s, const char *scn_name) {
             }
             p += 20 + extra + (kind == 4 ? 128 : 0);
         }
-        qsort(s->objects, s->object_count, sizeof(Object), cmp_obj);
+        // 保留 BNT 插入順序；可見物件由 CViewPort 排序。
         snprintf(dir, sizeof dir, "%s/Mdl", game_dir);
         uint8_t *mdl = read_all(dir, name, &size);
         if (mdl) parse_models(s, mdl, size);

@@ -56,8 +56,8 @@ const Anim *anim_get(uint32_t gid);  // 快取，不用釋放；失敗回 NULL
 // ---- 場景 ----
 #define MAX_PARTS 8
 typedef struct { uint8_t anim; uint32_t gid; int dx, dy; } Part;
-typedef struct { int id, part_count; size_t start; Part parts[MAX_PARTS]; int light, lx, ly; } Model;  // light = 光源種類 1~4（BldMdl +0xa9）；lx, ly = 光源格相對擺放格（+0x63 − +0x53、+0x67 − +0x57）
-typedef struct { uint16_t ground, over; uint8_t walk, kind, layer; } Cell;  // kind = 地面種類（記錄第 7 byte；3 = 會留腳印的軟地）；layer = 第 6 byte（原版格子 +6，0x435c00）
+typedef struct { int id, part_count; size_t start; Part parts[MAX_PARTS]; int light, lx, ly; int bottom, top, special, block_x, block_y; } Model;  // light = 光源種類 1~4（BldMdl +0xa9）；lx, ly = 光源格相對擺放格（+0x63 − +0x53、+0x67 − +0x57）
+typedef struct { uint16_t ground, over; uint8_t walk, kind, layer, view, flags; int building; } Cell;  // kind = 地面種類（記錄第 7 byte；3 = 會留腳印的軟地）；layer = 第 6 byte（原版格子 +6，0x435c00）
 typedef struct { int model, x, y; const Model *m; } Object;  // m 在載入時查好，可能為 NULL
 
 typedef struct { int id, x, y, dir; } Entry;          // .Scn 入口點：從入口 id 進來時站的位置與方向
@@ -74,6 +74,7 @@ typedef struct {
 
 typedef struct {
     int w, h, start_x, start_y;
+    int view_x, view_y, view_w, view_h; // MAP 原始世界限制矩形
     Entry *entries;
     int entry_count;
     Trigger *triggers;
@@ -81,7 +82,7 @@ typedef struct {
     NpcSpec *npcs;
     int npc_count;
     Cell *cells;
-    Object *objects;  // 已依畫面深度排序
+    Object *objects;  // BNT 順序，CViewPort 每幀建可見名單
     int object_count;
     Model *models;
     int model_count;
@@ -94,8 +95,16 @@ void scene_free(Scene *s);
 int scene_walkable(const Scene *s, int x, int y);
 
 // 格子 → 世界像素（菱形磁磚左上角）
-static inline int world_x(const Scene *s, int x, int y) { return (x - y + s->h - 1) * TILE_W / 2; }
-static inline int world_y(const Scene *s, int x, int y) { (void)s; return (x + y) * TILE_H / 2; }
+static inline int world_x(const Scene *s, int x, int y) { return (x - y + s->w / 2 + s->h / 2 - 1) * TILE_W / 2; }
+static inline int world_y(const Scene *s, int x, int y) { return (x + y + s->w / 2 - s->h / 2) * TILE_H / 2; }
+
+// CRHOMB 世界座標（64 = 一格）投影；保留查表的向零除法。
+static inline int scene_px(const Scene *s, int x, int y) {
+    return world_x(s, x / 64, y / 64) + (x % 64 - y % 64) / 2 + 32;
+}
+static inline int scene_py(const Scene *s, int x, int y) {
+    return world_y(s, x / 64, y / 64) + (x % 64 + y % 64) / 4;
+}
 
 // ---- 主角紙娃娃（PLI）----
 #define MAX_ROLE_PARTS 16

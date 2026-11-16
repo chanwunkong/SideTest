@@ -379,7 +379,7 @@ static void unit_spawn(int id, const Trig *t, MUnit *src, int cx, int cy, int ex
         return;
     }
     if (d->manual == 400) {
-        if (src->owner) light_add(src->owner, actor_wx(src->owner, scene.h), actor_wy(src->owner), 1, d->d[0], (Uint32)(d->b[0] | d->b[1] << 8 | d->b[2] << 16), -1);
+        if (src->owner) light_add(src->owner, actor_wx(src->owner, &scene), actor_wy(src->owner, &scene), 1, d->d[0], (Uint32)(d->b[0] | d->b[1] << 8 | d->b[2] << 16), -1);
         return;
     }
     if (t->pos == 3 && !(src->target && alive(src->target))) return;
@@ -754,12 +754,8 @@ static void units_tick(Uint32 tick) {
 }
 
 // 畫（0x43d500、飛行物 0x436ca0 畫面 y 減高度；箭 0x4356a0 先畫影子動畫 dData1）
-// shortcut: bData0 的混色方式（加亮、半透明…）、光影（0x626398）還沒做，都用一般貼圖；單位畫在最上層，原版跟場景物件一起排深度
-static void units_draw(int ox, int oy, int map_h, int ground) {
-    for (int i = 0; i < unit_n; i++) {
-        const MUnit *u = &units[i];
-        if ((u->cls == U_FOOT || u->cls == U_SPLASH) != ground) continue;
-        int sx = (int)(((u->x - u->y) / 64.0f + map_h - 1) * TILE_W / 2) - ox, sy = (int)((u->x + u->y) / 64.0f * TILE_H / 2) - oy;
+// shortcut: bData0 的混色方式（加亮、半透明…）、光影（0x626398）還沒做，都用一般貼圖；分層與遮擋由 viewport.c 的可見名單處理
+static void unit_draw(const MUnit *u, int sx, int sy) {
         int fly = u->cls == U_FLYNORMAL || u->cls == U_ARROW;
         if (fly && u->shadow && u->shadow != 0x100000) {
             const Anim *sa = anim_get(u->shadow);
@@ -772,8 +768,7 @@ static void units_draw(int ox, int oy, int map_h, int ground) {
             role_draw(u->owner->role, u->seq, u->frame, sx, sy - u->h);
             draw_alpha = 255;
         }
-    }
-}
+ }
 
 // 單位自己會打中人：飛行物（沿路命中），或觸發裡有命中（type 0）
 static int unit_can_hit(const Unit *d) {
