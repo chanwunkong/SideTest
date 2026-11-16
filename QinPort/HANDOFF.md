@@ -399,7 +399,10 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 平台略過：CWinApp 建構／解構、MFC 主視窗與 CEdit、COM、單一實例互斥鎖、安裝登錄檔與光碟路徑、MMX、螢幕保護設定、Win32 計時器／訊息迴圈、PE 檔案版本及 BugTrap 崩潰回報。旗標存取／常數回呼只服務這套 MFC 生命週期，不另造無呼叫者的 SDL 包裝。std::string 串接／SSO 縮容、版本字串與登錄檔工具補進 base_map.tsv。
   - 零呼叫者入口依 FUNCS.tsv 的 callers=0 列 skip，未為追查舊啟動路徑擴讀本體；此數字是函數呼叫索引，不宣稱已做整個執行檔的間接引用掃描。新讀到的 CGameApp 平台偏移寫入 fields.tsv；+0xd0 只記建構設1，未猜用途。
   - 本輪沒有遊戲邏輯移植、shortcut 或新增外部依賴 todo，沒有新增確認劇情不用的功能；故不加鏡像實作測試。原生建置與既有 skilltest 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
-  **下一步：0x461cd0（CMainWnd）起**，用 `python3 tools/functool.py next 0x461cd0`。
+  ~~下一步：0x461cd0（CMainWnd）起~~。
+- 進度（11-16）：Poq.exe **0x461cd0～0x461cd0 CMainWnd**，核對 FUNCS.tsv 全部 CMainWnd 項目，本類別只有此 deleting destructor；新增 **skip 1、done 0、todo 0**。原版先 DestroyWindow，再解構內嵌 CEdit／CWnd，最後依旗標釋放單一或陣列記憶體；屬 MFC 平台／解構流程，SDL 視窗生命週期代替，原因與用途補入 funcs_skip.txt／roles.tsv，內嵌 CEdit 偏移補入 fields.tsv。
+  - 本輪沒有遊戲邏輯、需保留的遊戲怪現象、shortcut、外部依賴 todo 或新增確認劇情不用的功能；不新增鏡像實作測試。原生建置與既有 skilltest 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
+  **下一步：0x463810（CScrMng 前置工具／螢幕管理段）起**，用 `python3 tools/functool.py next 0x463810`。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

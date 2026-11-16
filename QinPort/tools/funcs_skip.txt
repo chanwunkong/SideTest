@@ -306,3 +306,6 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00463780 平台：MFC 應用程式 +0xac 旗標遮罩4存取；不保留 MFC 介面
 00463790 平台：MFC 應用程式 +0xac 旗標遮罩1存取；不保留 MFC 介面
 004637a0 std::string：堆積字串縮回 small-string buffer 並釋放；C 字串代替
+
+# CMainWnd（2026-11-16）
+00461cd0 解構／平台：DestroyWindow、內嵌 CEdit／CWnd 解構及條件記憶體釋放；SDL 視窗生命週期代替

@@ -662,8 +662,8 @@ Poq.exe	99	00461680	FUN_00461680		game	done	84	10		CViewPort 物件置中；平�
 Poq.exe	99	004618a0	FUN_004618a0		game	done	21	8		H 鍵：目前角色存在時呼叫物件置中 → viewport_home	
 Poq.exe	99	00461bd0	FUN_00461bd0		game	skip	12	0	建構：CWinApp／CGameApp 初值；SDL 主程式生命週期代替	建構：CWinApp／CGameApp 初值；SDL 主程式生命週期代替	
 Poq.exe	99	00461c80	FUN_00461c80	CGameApp	game	skip	16	1	解構：CWinApp 解構與 operator_delete；SDL 主程式生命週期代替	解構：CWinApp 解構與 operator_delete；SDL 主程式生命週期代替	
-Poq.exe	99	00461cd0	FUN_00461cd0	CMainWnd	game	todo	31	4			00461cd0
-Poq.exe	99	00461d90	FUN_00461d90	~CGameApp	game	skip	87	2	平台：建立 MFC CMainWnd／CEdit、Win32 視窗樣式與圖示；SDL_CreateWindow 代替	平台：建立 MFC CMainWnd／CEdit、Win32 視窗樣式與圖示；SDL_CreateWindow 代替	00461cd0
+Poq.exe	99	00461cd0	FUN_00461cd0	CMainWnd	game	skip	31	4	解構／平台：DestroyWindow、內嵌 CEdit／CWnd 解構及條件記憶體釋放；SDL 視窗生命週期代替	CMainWnd deleting destructor：銷毀 MFC 視窗、解構內嵌 CEdit 與 CWnd，依旗標釋放單一／陣列配置；平台層略過	
+Poq.exe	99	00461d90	FUN_00461d90	~CGameApp	game	skip	87	2	平台：建立 MFC CMainWnd／CEdit、Win32 視窗樣式與圖示；SDL_CreateWindow 代替	平台：建立 MFC CMainWnd／CEdit、Win32 視窗樣式與圖示；SDL_CreateWindow 代替	
 Poq.exe	99	00461fb0	FUN_00461fb0	~CGameApp	game	skip	209	0	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊啟動路徑	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊啟動路徑	00463810 00463880 004bb3d0 004bbd30
 Poq.exe	99	00462570	FUN_00462570	~CGameApp	game	skip	79	0	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊平台路徑	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊平台路徑	
 Poq.exe	99	00462750	FUN_00462750	CGameApp	game	skip	16	1	平台：COM 結束、Win32 事件、視窗銷毀與螢幕保護恢復；SDL 結束流程代替	平台：COM 結束、Win32 事件、視窗銷毀與螢幕保護恢復；SDL 結束流程代替	

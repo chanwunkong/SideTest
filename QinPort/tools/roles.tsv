@@ -235,3 +235,4 @@
 00463780	平台：MFC 應用程式 +0xac 旗標遮罩4存取；不保留 MFC 介面
 00463790	平台：MFC 應用程式 +0xac 旗標遮罩1存取；不保留 MFC 介面
 004637a0	std::string：堆積字串縮回 small-string buffer 並釋放；C 字串代替
+00461cd0	CMainWnd deleting destructor：銷毀 MFC 視窗、解構內嵌 CEdit 與 CWnd，依旗標釋放單一／陣列配置；平台層略過
