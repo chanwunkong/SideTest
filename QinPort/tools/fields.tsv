@@ -380,3 +380,16 @@ SceneResources（類別名待確認）	+0x18a0	內嵌管理器；綁至DAT_00662
 SceneResources（類別名待確認）	+0xd5a8	0x3fff個6-byte槽起點；前2 bytes及後4 bytes建構時清零；綁至DAT_00662c90	待原版場景物件索引
 SceneResources（類別名待確認）	+0x255b2	內嵌管理器；綁至DAT_00662c94	待原版場景管理器生命週期
 SceneResources（類別名待確認）	+0x255da	內嵌管理器；綁至DAT_00662c98	待原版場景管理器生命週期
+CScnBase	+0x4	建構時清零的狀態值	同步基底，單機無副本
+CScnBase	+0xc	待輸出的文字描述 CStringList	一般字串陣列替代
+CScnBase	+0x18	CStringList 元素數量	一般字串陣列計數替代
+CScnBase	+0x28	角色同步時選擇兩種狀態輸出的模式值	同步封包層略過
+CDynamicObj	+0x18	建立封包攜帶的32位物件資料	待完整場景物件
+CDynamicObj	+0x5e	可見物件同步旗標：建立設1、移除清0	單機共用物件不另建同步旗標
+CDynamicObj	+0x62	移除時非零才送0x223的條件欄位	同步封包層略過
+SceneSyncBuilding	+0x9c	種類12建築0x723封包的一位元組欄位	待建築物件
+SceneSyncGroundItem	+0x85	種類23道具資料指標；+0x24種類、+0x2a數值	待道具資料物件
+SceneSyncGroundItem	+0x7b	種類23建立封包的16位欄位	待道具資料物件
+SceneSyncObject24	+0xab	種類24建立封包的16位欄位	待完整場景物件
+CCharactor	+0x403	0x123角色建立封包的32位欄位	待完整角色同步狀態
+CCharactor	+0x66	0x323屬性0x35的一位元組值	待完整角色同步狀態

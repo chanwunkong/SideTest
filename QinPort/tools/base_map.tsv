@@ -130,3 +130,11 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 0046c740	場景入口表單列解構：釋放名稱字串及入口ID陣列；略過
 0046d290	場景入口對照表清空容器：Reset CIDTable後釋放各列／字串／ID陣列；C陣列與數量取代
 0046d420	場景子管理器全域指標綁定工具：將五個內嵌管理器設為當前實例；引擎直接傳Scene及使用單機管理器取代，不另建全域別名
+0046da10	容器：CScnBase 字串佇列尾端加入；使用一般字串陣列代替 CStringList
+0046da20	容器：CScnBase 字串佇列清空；使用一般字串陣列代替 CStringList
+0046da30	容器：CScnBase 字串佇列數量；使用一般字串陣列計數代替
+0046da40	容器：CScnBase 按索引取字串；index>=count回NULL，負值交FindIndex拋例外；使用一般字串陣列代替
+0046da80	容器：CScnBase 字串佇列是否空；使用一般字串陣列計數代替
+0046da90	工具：字串封裝成0x23、0x0a、NUL結尾內容，配置長度strlen+3；單機直接傳字串，不建傳輸封包
+0046db00	解構／容器：CContainer<int,500> 重設虛擬表並清理；一般C陣列代替
+0046db20	解構／容器：CContainer<int,500> 清理後轉基底 CStaticLinkList<int,500> 清理；一般C陣列代替

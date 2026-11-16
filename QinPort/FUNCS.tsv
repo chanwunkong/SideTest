@@ -699,12 +699,12 @@ Poq.exe	99	004656e0	FUN_004656e0	~CGameApp	game	skip	9	2	平台：libvlc_media_p
 Poq.exe	99	00465710	FUN_00465710		game	skip	46	3	建構／解構：CClientScreen 建構：兩個60人句柄名單、三條同步物件鏈與初值；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	CClientScreen 建構：兩個60人句柄名單、三條同步物件鏈與初值	
 Poq.exe	99	004658b0	FUN_004658b0		game	skip	48	0	建構／解構：CClientScreen 解構同步鏈與角色名單；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	CClientScreen 解構同步鏈與角色名單	004a2b20
 Poq.exe	99	00465a40	FUN_00465a40	CClientScreen	game	skip	51	5	建構／解構：CClientScreen deleting destructor；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	CClientScreen deleting destructor	004a2b20
-Poq.exe	99	00465c60	FUN_00465c60		game	skip	22	4	客戶端同步層：加入客戶端可見角色鏈並發送角色建立訊息；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	加入客戶端可見角色鏈並發送角色建立訊息	0046d580 004a3340
+Poq.exe	99	00465c60	FUN_00465c60		game	skip	22	4	客戶端同步層：加入客戶端可見角色鏈並發送角色建立訊息；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	加入客戶端可見角色鏈並發送角色建立訊息	004a3340
 Poq.exe	99	00465cf0	FUN_00465cf0		game	todo	20	9		加入第一個角色名單；首人啟動250拍狀態102，等待角色狀態系統（設定／移除狀態）	00467620 0048d950
-Poq.exe	99	00465d60	FUN_00465d60		game	skip	51	2	客戶端同步層：按句柄同步種類12建築的狀態，已有節點狀態變為1時不送更新；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	按句柄同步種類12建築的狀態，已有節點狀態變為1時不送更新	0046d510 004a2bb0 004a3340
-Poq.exe	99	00465e90	FUN_00465e90		game	skip	51	4	客戶端同步層：按物件指標同步種類12建築狀態（同句柄版）；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	按物件指標同步種類12建築狀態（同句柄版）	0046d510 004a2bb0 004a3340
+Poq.exe	99	00465d60	FUN_00465d60		game	skip	51	2	客戶端同步層：按句柄同步種類12建築的狀態，已有節點狀態變為1時不送更新；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	按句柄同步種類12建築的狀態，已有節點狀態變為1時不送更新	004a2bb0 004a3340
+Poq.exe	99	00465e90	FUN_00465e90		game	skip	51	4	客戶端同步層：按物件指標同步種類12建築狀態（同句柄版）；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	按物件指標同步種類12建築狀態（同句柄版）	004a2bb0 004a3340
 Poq.exe	99	00465fb0	FUN_00465fb0		game	skip	93	8	客戶端同步層：依陣營、旗標與第二名單視野同步角色；離開視野保留100拍；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	依陣營、旗標與第二名單視野同步角色；離開視野保留100拍	0048f560
-Poq.exe	99	00466260	FUN_00466260		game	skip	44	8	客戶端同步層：增刪其他可見物件並送建立／移除訊息；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	增刪其他可見物件並送建立／移除訊息	0046d820 0046d9a0 004a2bb0 004a3340
+Poq.exe	99	00466260	FUN_00466260		game	skip	44	8	客戶端同步層：增刪其他可見物件並送建立／移除訊息；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	增刪其他可見物件並送建立／移除訊息	004a2bb0 004a3340
 Poq.exe	99	00466410	FUN_00466410		game	skip	15	3	客戶端同步層：設定客戶端訊息目的地、場景參數與入口位置；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	設定客戶端訊息目的地、場景參數與入口位置	
 Poq.exe	99	004665b0	FUN_004665b0		game	skip	57	0	無呼叫者：第二角色名單全員距離檢查；callers=0；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	第二角色名單全員距離檢查；callers=0	
 Poq.exe	99	004666d0	FUN_004666d0		game	skip	35	0	無呼叫者：第二角色名單格子查詢；callers=0；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	第二角色名單格子查詢；callers=0	00488750
@@ -712,7 +712,7 @@ Poq.exe	99	004667a0	FUN_004667a0		game	skip	94	0	無呼叫者：第二角色名�
 Poq.exe	99	00466a00	FUN_00466a00		game	skip	57	0	無呼叫者：第一角色名單全員距離檢查；callers=0；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	第一角色名單全員距離檢查；callers=0	
 Poq.exe	99	00466b20	FUN_00466b20		game	skip	35	0	無呼叫者：第一角色名單格子查詢；callers=0；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	第一角色名單格子查詢；callers=0	
 Poq.exe	99	00466bd0	FUN_00466bd0		game	skip	94	0	無呼叫者：第一角色名單距離或鄰格物件檢查；callers=0；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	第一角色名單距離或鄰格物件檢查；callers=0	
-Poq.exe	99	00466e30	FUN_00466e30	~CGameApp	game	todo	41	2		客戶端同步每拍：重掃視野、遞減100拍延遲移除及狀態倒數；狀態倒數解除等待角色狀態系統	00467620 0046d9a0 004a2bb0
+Poq.exe	99	00466e30	FUN_00466e30	~CGameApp	game	todo	41	2		客戶端同步每拍：重掃視野、遞減100拍延遲移除及狀態倒數；狀態倒數解除等待角色狀態系統	00467620 004a2bb0
 Poq.exe	99	00466f30	FUN_00466f30	~CGameApp	game	skip	205	2	客戶端同步層：依角色與第二名單視野聯集重掃場景格，建立客戶端可見物件；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	依角色與第二名單視野聯集重掃場景格，建立客戶端可見物件	
 Poq.exe	99	00467560	FUN_00467560	~CGameApp	game	skip	16	2	客戶端同步層：啟用同步、設定追蹤角色，視野尺寸固定2048×1536；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	啟用同步、設定追蹤角色，視野尺寸固定2048×1536	
 Poq.exe	99	004675b0	FUN_004675b0	~CGameApp	game	skip	25	3	客戶端同步層：卸載時遞減可見角色的客戶端引用計數；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	卸載時遞減可見角色的客戶端引用計數	
@@ -790,24 +790,16 @@ Poq.exe	99	0046cab0	FUN_0046cab0	~CGameApp	game	todo	82	2		todo：按場景名�
 Poq.exe	99	0046cbe0	FUN_0046cbe0	~CGameApp	game	todo	84	2		todo：載場景入口文字表，略標頭列，以第0欄作場景名、後續欄成對讀入口名與ID並加入CIDTable；配置欄數為總欄數減1，但填入對數為(總欄數減1)/2減1；等不同類別文字表讀取器（0049fa90等），不以劇情房間入口表冒充	0049ebd0 0049ec10 0049fa90 0049fdd0 0049fe70 004a3340
 Poq.exe	99	0046ce90	FUN_0046ce90		game	todo	149	4		todo：載場景描述、清舊物件、綁定五管理器、清未用資源、載地圖與建築初始化並通知完成；等不同類別場景描述讀取（004cce40）、CScene地圖載入（004c7fe0）及建築初始化（004cef30），同段清理／綁定均已核對	0044dbd0 0044dda0 0046d1d0 004a29c0 004b18b0 004c5760 004c7fe0 004c8630 004cce40 004cef30
 Poq.exe	99	0046d1d0	FUN_0046d1d0		game	todo	21	4		todo：清理門檻0的資源鏈後暫綁五管理器，清空CObjMng及CHAIN再將全域別名歸零；等不同類別資源串列（00579a40）與CObjMng完整場景生命週期；目前enter_scene僅清部分分類陣列，不冒充完成	00579a40
-Poq.exe	99	0046d470	FUN_0046d470		game	todo	11	4			0046da00
-Poq.exe	99	0046d4b0	FUN_0046d4b0		game	todo	20	8			0046da00
-Poq.exe	99	0046d510	FUN_0046d510		game	todo	23	6			
-Poq.exe	99	0046d580	FUN_0046d580		game	todo	132	4			00488360 004887a0 0048bca0 0048bdd0 00494bf0 00497b20 00578790
-Poq.exe	99	0046d820	FUN_0046d820		game	todo	70	4			00497b20
-Poq.exe	99	0046d9a0	FUN_0046d9a0		game	todo	17	4			
-Poq.exe	99	0046da00	FUN_0046da00	CScnBase|CScnClient	game	todo	8	10			
-Poq.exe	99	0046da10	FUN_0046da10		game	todo	9	11			
-Poq.exe	99	0046da20	FUN_0046da20		game	todo	9	20			
-Poq.exe	99	0046da30	FUN_0046da30		game	todo	8	11			
-Poq.exe	99	0046da40	FUN_0046da40		game	todo	18	13			
-Poq.exe	99	0046da80	FUN_0046da80		game	todo	8	11			
-Poq.exe	99	0046da90	FUN_0046da90		game	todo	29	15			004a3340
-Poq.exe	99	0046db00	FUN_0046db00		game	todo	10	0			
-Poq.exe	99	0046db20	FUN_0046db20		game	todo	12	0			
-Poq.exe	99	0046db60	FUN_0046db60	~CGameApp	game	todo	99	2			0046c260 0046d470 0046da00 0046e010 0046f100 00470300
-Poq.exe	99	0046de80	FUN_0046de80		game	todo	64	4			0046d4b0 0046da00 0046e010 0046f100 00470300
-Poq.exe	99	0046e010	FUN_0046e010	CScnClient	game	todo	67	6			0046d4b0 0046da00 0046e010 0046f100 00470300
+Poq.exe	99	0046d470	FUN_0046d470		game	skip	11	4	建構：CScnBase 設虛擬表、初始化 CStringList 並清零 +4	建構：CScnBase 設虛擬表、初始化 CStringList 並清零 +4	
+Poq.exe	99	0046d4b0	FUN_0046d4b0		game	skip	20	8	解構：CScnBase 清空並解構 CStringList	解構：CScnBase 清空並解構 CStringList	
+Poq.exe	99	0046d510	FUN_0046d510		game	skip	23	6	客戶端同步：種類12建築設同步旗標1，送0x723（ID、+0x9c、+0x18）；原版可見物件封包複製層，單機共用物件不另建同步副本	客戶端同步：種類12建築設同步旗標1，送0x723（ID、+0x9c、+0x18）；原版可見物件封包複製層，單機共用物件不另建同步副本	
+Poq.exe	99	0046d580	FUN_0046d580		game	skip	132	4	客戶端同步：角色設同步旗標1、文字描述入列，送0x123建立及0x323屬性0x67／0x35／可選0x36，依+0x28選狀態輸出；原版可見物件封包複製層，單機共用物件不另建同步副本	客戶端同步：角色設同步旗標1、文字描述入列，送0x123建立及0x323屬性0x67／0x35／可選0x36，依+0x28選狀態輸出；原版可見物件封包複製層，單機共用物件不另建同步副本	00488360 004887a0 0048bca0 0048bdd0 00494bf0 00497b20 00578790
+Poq.exe	99	0046d820	FUN_0046d820		game	skip	70	4	客戶端同步：種類23道具描述入列並依數值是否大於65535送0x1223或0x623；種類24送0x623；原版可見物件封包複製層，單機共用物件不另建同步副本	客戶端同步：種類23道具描述入列並依數值是否大於65535送0x1223或0x623；種類24送0x623；原版可見物件封包複製層，單機共用物件不另建同步副本	00497b20
+Poq.exe	99	0046d9a0	FUN_0046d9a0		game	skip	17	4	客戶端同步：存在時清同步旗標；僅不存在或+0x62非零才送0x223移除；原版可見物件封包複製層，單機共用物件不另建同步副本	客戶端同步：存在時清同步旗標；僅不存在或+0x62非零才送0x223移除；原版可見物件封包複製層，單機共用物件不另建同步副本	
+Poq.exe	99	0046da00	FUN_0046da00	CScnBase|CScnClient	game	skip	8	10	空虛擬入口：CScnBase／CScnClient 共用預設不處理封包	空虛擬入口：CScnBase／CScnClient 共用預設不處理封包	
+Poq.exe	99	0046db60	FUN_0046db60	~CGameApp	game	todo	99	2			0046c260 0046e010 0046f100 00470300
+Poq.exe	99	0046de80	FUN_0046de80		game	todo	64	4			0046e010 0046f100 00470300
+Poq.exe	99	0046e010	FUN_0046e010	CScnClient	game	todo	67	6			0046e010 0046f100 00470300
 Poq.exe	99	0046e1b0	FUN_0046e1b0	SkillUnit	game	todo	12	10			
 Poq.exe	99	0046e1e0	FUN_0046e1e0		game	todo	9	0			
 Poq.exe	99	0046e360	FUN_0046e360		game	todo	120	5			0044c0d0 0044dda0 00460570 0046edc0 0046f180 004cede0
@@ -825,7 +817,7 @@ Poq.exe	99	0046eea0	FUN_0046eea0		game	todo	85	0			0046edc0
 Poq.exe	99	0046f100	FUN_0046f100	CScnClient|CScnClientRecord	game	todo	19	11			004c7790 004f94c0
 Poq.exe	99	0046f180	FUN_0046f180		game	todo	446	2			0044dda0 0046cab0 00482db0 00482eb0 004831c0 0049c910 0049c930 0049caf0 0049cb30 0049cbe0 004c7db0 004ceab0
 Poq.exe	99	00470270	FUN_00470270	~CGameApp	game	todo	18	2			0045a030 0045a3a0 00460570 004cede0
-Poq.exe	99	00470300	FUN_00470300	CScnClient	game	todo	746	8			0046b250 0046da10 0046da20 0046da40 0046e1b0 0046e360 0046eb40 0046ec80 00471890 00471dd0 00474760 00475c60 00484ee0 00485e10 00486910 004887a0 0048c150 0048d2c0 0048d740 0048d810 0048e6e0 0048e820 0048e8f0 0048eab0 00494ec0 00496260 00497b20 00497bb0 0049a7e0 0049c2e0 0049c3a0 0049f1b0 004b8410 004c8630 004cf6e0 00578790 00579df0
+Poq.exe	99	00470300	FUN_00470300	CScnClient	game	todo	746	8			0046b250 0046e1b0 0046e360 0046eb40 0046ec80 00471890 00471dd0 00474760 00475c60 00484ee0 00485e10 00486910 004887a0 0048c150 0048d2c0 0048d740 0048d810 0048e6e0 0048e820 0048e8f0 0048eab0 00494ec0 00496260 00497b20 00497bb0 0049a7e0 0049c2e0 0049c3a0 0049f1b0 004b8410 004c8630 004cf6e0 00578790 00579df0
 Poq.exe	99	00471830	FUN_00471830		game	todo	12	0			
 Poq.exe	99	00471860	FUN_00471860	~CGameDialog	game	todo	13	2			
 Poq.exe	99	00471890	FUN_00471890	~CScnClient	game	todo	47	2			0044db40 004590f0
@@ -841,9 +833,9 @@ Poq.exe	99	00471fd0	FUN_00471fd0	CScnClientRecord	game	todo	17	5			0046de80 0046
 Poq.exe	99	00472030	FUN_00472030		game	skip	113	5	輸入錄影／回放 record.rec（開發用，RecordType=0 時不做事）	輸入錄影／回放（RecordType 1 錄、2 放）	0046b250 0046c260 004c5090 004cf740 004cfa30 004f5c70 004f6680 00511a80
 Poq.exe	99	004722f0	FUN_004722f0	~CGameApp	game	todo	27	2			0045a000
 Poq.exe	99	00472380	FUN_00472380	~CGameApp	game	todo	33	4			0046b250 0046c260 004f6680 00511a80
-Poq.exe	99	00472470	FUN_00472470	~CGameApp	game	todo	54	2			0046da90 00473470 004cf430
+Poq.exe	99	00472470	FUN_00472470	~CGameApp	game	todo	54	2			00473470 004cf430
 Poq.exe	99	004725c0	FUN_004725c0	~CGameApp	game	done	160	3			004735c0 00473660 004b80d0 004c8630 0057a6b0
-Poq.exe	99	00472a80	FUN_00472a80	~CGameApp	game	todo	147	2			0045f100 0046d510 0046d580 0046d820 0046da90 00473470 004735c0 00473660 004cf430
+Poq.exe	99	00472a80	FUN_00472a80	~CGameApp	game	todo	147	2			0045f100 00473470 004735c0 00473660 004cf430
 Poq.exe	99	00472e60	FUN_00472e60	~CGameApp	game	todo	8	44			
 Poq.exe	99	00472e70	FUN_00472e70	~CGameApp	game	todo	29	2			
 Poq.exe	99	00472f00	FUN_00472f00	~CGameApp	game	todo	17	0			0057a6b0
@@ -853,7 +845,7 @@ Poq.exe	99	00473240	FUN_00473240	CScnClientRecord	game	todo	12	5			00470300 0047
 Poq.exe	99	00473280	FUN_00473280	~CGameApp	game	todo	41	2			0045f100 00472f50 00473470
 Poq.exe	99	00473390	FUN_00473390		game	todo	33	0			0045f100 00473470
 Poq.exe	99	00473470	FUN_00473470		game	todo	23	16		Rec 錄影寫入：模式1時先同步 tick（0x40/6 bytes），再寫長度與封包；僅分析依賴，等 Rec 系統，留 todo	00473470
-Poq.exe	99	00473500	FUN_00473500	CScnClientRecord	game	todo	36	5			0046da20 0046da30 0046da40 0046da80 0046da90 004cf430
+Poq.exe	99	00473500	FUN_00473500	CScnClientRecord	game	todo	36	5			004cf430
 Poq.exe	99	004735c0	FUN_004735c0		game	todo	27	6			00473470
 Poq.exe	99	00473660	FUN_00473660		game	todo	28	6			00473470
 Poq.exe	99	00473740	FUN_00473740		game	todo	12	0			
@@ -861,13 +853,13 @@ Poq.exe	99	00473760	FUN_00473760		game	todo	13	6
 Poq.exe	99	00473800	FUN_00473800		game	todo	10	0			
 Poq.exe	99	00473820	FUN_00473820		game	todo	24	0			
 Poq.exe	99	00473890	FUN_00473890		game	todo	12	0			
-Poq.exe	99	004738d0	FUN_004738d0		game	todo	42	2			0046d470 0047c870
+Poq.exe	99	004738d0	FUN_004738d0		game	todo	42	2			0047c870
 Poq.exe	99	004739e0	FUN_004739e0	~CGameApp	game	todo	40	2			
 Poq.exe	99	00473ad0	FUN_00473ad0	~CGameApp	game	todo	16	2			
 Poq.exe	99	00473b10	FUN_00473b10	~CGameApp	game	todo	22	3			
 Poq.exe	99	00473b80	FUN_00473b80	~CGameApp	game	todo	11	0			00473b10
 Poq.exe	99	00473ba0	FUN_00473ba0	~CGameApp	game	todo	12	0			
-Poq.exe	99	00473bd0	FUN_00473bd0	~CGameApp	game	todo	43	3			0046d4b0 0047b900 0047c870 004a2b20
+Poq.exe	99	00473bd0	FUN_00473bd0	~CGameApp	game	todo	43	3			0047b900 0047c870 004a2b20
 Poq.exe	99	00473d00	FUN_00473d00	~CGameApp	game	todo	34	2			00473b10 0047b4d0
 Poq.exe	99	00473dc0	FUN_00473dc0	SKillPlayer	game	todo	12	2			
 Poq.exe	99	00473df0	FUN_00473df0	SLingpai	game	todo	12	2			
@@ -886,8 +878,8 @@ Poq.exe	99	004747f0	FUN_004747f0		game	todo	21	2
 Poq.exe	99	00474840	FUN_00474840		game	todo	21	2			
 Poq.exe	99	00474880	FUN_00474880		game	todo	21	4			
 Poq.exe	99	004748d0	FUN_004748d0		game	todo	81	0			00475ca0 00486910 00495340 004a2930
-Poq.exe	99	00474a80	FUN_00474a80		game	todo	49	3			0046da20 0047c350
-Poq.exe	99	00474b30	FUN_00474b30		game	todo	61	7			0046c260 0046da10 0046da20 0047c350 00579de0
+Poq.exe	99	00474a80	FUN_00474a80		game	todo	49	3			0047c350
+Poq.exe	99	00474b30	FUN_00474b30		game	todo	61	7			0046c260 0047c350 00579de0
 Poq.exe	99	004750e0	FUN_004750e0		game	todo	96	0			0046c260 00474030 00475ca0 00476ef0 0047b900 0047f120
 Poq.exe	99	00475270	FUN_00475270		game	todo	142	2			0046c260 00474030 00474b30 00475ca0 00476ef0 0047b900 00486910 00495340 004a2930
 Poq.exe	99	00475830	FUN_00475830		game	todo	24	15			
@@ -920,7 +912,7 @@ Poq.exe	99	004770a0	FUN_004770a0		game	todo	9	2
 Poq.exe	99	004770c0	FUN_004770c0		game	todo	61	0			0047bf50 0048c150 0048f460 00497bb0 00497d00
 Poq.exe	99	00477270	FUN_00477270		game	todo	63	0			00476ef0 0047bf50 0048c150 0048f460 00497bb0 00497d00
 Poq.exe	99	00477430	FUN_00477430		game	todo	30	0			00467620 00475930 0048e8d0
-Poq.exe	99	004774d0	FUN_004774d0		game	todo	2110	3			0044e380 00450f70 004590f0 00465cf0 00467620 0046bc10 0046da10 0046da20 00473ad0 00474270 00474b30 00475270 00475830 00475930 00475ca0 004764c0 00476eb0 00476ef0 00476fd0 0047b4d0 0047bf50 0047c0a0 0047c350 0047c800 0047f120 00482db0 00484ee0 00485f80 00486910 00486e70 00486e80 004887a0 0048af30 0048c150 0048d810 0048d8f0 0048d950 0048e6c0 0048e6e0 0048e8d0 0048f460 0048fae0 0048fb90 0048fc20 0048fd30 00494f50 004963e0 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 004bcae0 004bcbc0 004bd270 004dee00 004deec0 00578790 00579dd0
+Poq.exe	99	004774d0	FUN_004774d0		game	todo	2110	3			0044e380 00450f70 004590f0 00465cf0 00467620 0046bc10 00473ad0 00474270 00474b30 00475270 00475830 00475930 00475ca0 004764c0 00476eb0 00476ef0 00476fd0 0047b4d0 0047bf50 0047c0a0 0047c350 0047c800 0047f120 00482db0 00484ee0 00485f80 00486910 00486e70 00486e80 004887a0 0048af30 0048c150 0048d810 0048d8f0 0048d950 0048e6c0 0048e6e0 0048e8d0 0048f460 0048fae0 0048fb90 0048fc20 0048fd30 00494f50 004963e0 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 004bcae0 004bcbc0 004bd270 004dee00 004deec0 00578790 00579dd0
 Poq.exe	99	0047b2c0	FUN_0047b2c0		game	todo	14	0			
 Poq.exe	99	0047b310	FUN_0047b310		game	todo	14	0			
 Poq.exe	99	0047b4d0	FUN_0047b4d0		game	todo	21	6			
@@ -933,17 +925,17 @@ Poq.exe	99	0047bf50	FUN_0047bf50		game	todo	71	8			0047f120
 Poq.exe	99	0047c0a0	FUN_0047c0a0		game	todo	38	7			0047f120
 Poq.exe	99	0047c180	FUN_0047c180		game	todo	13	3			0047f120
 Poq.exe	99	0047c1c0	FUN_0047c1c0		game	todo	29	0			
-Poq.exe	99	0047c250	FUN_0047c250	~CGodServer	game	todo	46	2			0046da20 0046da30 0046da40 0046da80 0046da90 004cf430 004dee00
-Poq.exe	99	0047c350	FUN_0047c350		game	todo	35	10			0046da30 0046da40 0046da80 0046da90 004cf430 004dee00
+Poq.exe	99	0047c250	FUN_0047c250	~CGodServer	game	todo	46	2			004cf430 004dee00
+Poq.exe	99	0047c350	FUN_0047c350		game	todo	35	10			004cf430 004dee00
 Poq.exe	99	0047c400	FUN_0047c400		game	todo	12	7			004deec0
 Poq.exe	99	0047c430	FUN_0047c430		game	todo	24	2			0047f120
 Poq.exe	99	0047c4d0	FUN_0047c4d0		game	todo	17	0			0047f120
-Poq.exe	99	0047c550	FUN_0047c550		game	todo	17	2			0046da10 0047c800
-Poq.exe	99	0047c5a0	FUN_0047c5a0		game	todo	47	8			0046da20 0046da30 0046da40 0046da80 0046da90 004cf430 004dee00
-Poq.exe	99	0047c6b0	FUN_0047c6b0		game	todo	52	4			0046da20 0046da30 0046da40 0046da80 0046da90 004cf430 004dee00
-Poq.exe	99	0047c800	FUN_0047c800		game	todo	25	32			0046da20 0047c350
-Poq.exe	99	0047c870	FUN_0047c870	CScnGC	game	todo	10	4			0046da20 0047c350
-Poq.exe	99	0047c8a0	FUN_0047c8a0		game	todo	33	0			0046da30 0046da40 0046da80 0046da90 004dee00
+Poq.exe	99	0047c550	FUN_0047c550		game	todo	17	2			0047c800
+Poq.exe	99	0047c5a0	FUN_0047c5a0		game	todo	47	8			004cf430 004dee00
+Poq.exe	99	0047c6b0	FUN_0047c6b0		game	todo	52	4			004cf430 004dee00
+Poq.exe	99	0047c800	FUN_0047c800		game	todo	25	32			0047c350
+Poq.exe	99	0047c870	FUN_0047c870	CScnGC	game	todo	10	4			0047c350
+Poq.exe	99	0047c8a0	FUN_0047c8a0		game	todo	33	0			004dee00
 Poq.exe	99	0047c940	FUN_0047c940		game	todo	21	0			
 Poq.exe	99	0047c980	FUN_0047c980		game	todo	11	0			
 Poq.exe	99	0047ca00	FUN_0047ca00		game	todo	90	2			00474270 00475ca0 004bcae0 004bd270
@@ -955,7 +947,7 @@ Poq.exe	99	0047d020	FUN_0047d020		game	todo	23	0			00474b30 004bcae0
 Poq.exe	99	0047d100	FUN_0047d100		game	todo	33	0			00474a80
 Poq.exe	99	0047d1e0	FUN_0047d1e0		game	todo	72	0			00475ca0 00482db0 004bcae0
 Poq.exe	99	0047d380	FUN_0047d380		game	todo	43	0			00475ca0 00476fd0 0047f120 0048d810 004bcae0 00578790
-Poq.exe	99	0047d4e0	FUN_0047d4e0		game	done	570	2			0044e380 004590f0 00465cf0 0046bc10 0046da10 00474740 004747b0 00474a80 00474b30 00475830 00475930 00475ca0 004764c0 00476fd0 004770a0 0047b9d0 0047bb70 0047c0a0 0047c180 0047c400 0047c800 0047ca00 0047f120 00482db0 00484ee0 00485f80 00486e70 00486e80 004887a0 0048af30 0048d810 0048d8f0 0048d950 0048e6c0 0048e6e0 0048e820 0048fae0 0048fb90 0048fc20 0048fd30 004963e0 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 004bcae0 00578790
+Poq.exe	99	0047d4e0	FUN_0047d4e0		game	done	570	2			0044e380 004590f0 00465cf0 0046bc10 00474740 004747b0 00474a80 00474b30 00475830 00475930 00475ca0 004764c0 00476fd0 004770a0 0047b9d0 0047bb70 0047c0a0 0047c180 0047c400 0047c800 0047ca00 0047f120 00482db0 00484ee0 00485f80 00486e70 00486e80 004887a0 0048af30 0048d810 0048d8f0 0048d950 0048e6c0 0048e6e0 0048e820 0048fae0 0048fb90 0048fc20 0048fd30 004963e0 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 004bcae0 00578790
 Poq.exe	99	0047ece0	FUN_0047ece0		game	todo	27	0			00475ca0 00476fd0 00486e70 00486e80 004963e0 00496e30
 Poq.exe	99	0047eec0	FUN_0047eec0		game	todo	22	0			00475ca0 00476fd0 004bcae0
 Poq.exe	99	0047f120	FUN_0047f120		game	todo	66	24			0047c400
@@ -965,7 +957,7 @@ Poq.exe	99	0047f580	FUN_0047f580		game	todo	39	0			00475ca0
 Poq.exe	99	0047f7a0	FUN_0047f7a0		game	todo	22	0			00475ca0 00476fd0 00484ee0 004bcae0
 Poq.exe	99	0047f840	FUN_0047f840		game	todo	35	0			00475830 00475ca0
 Poq.exe	99	0047f960	FUN_0047f960		game	todo	22	0			00475ca0 00476fd0 004bcae0
-Poq.exe	99	0047fb90	FUN_0047fb90		game	todo	77	0			0046da10 00475ca0 00476fd0 0047c800 004887a0 00497bb0 004bcae0
+Poq.exe	99	0047fb90	FUN_0047fb90		game	todo	77	0			00475ca0 00476fd0 0047c800 004887a0 00497bb0 004bcae0
 Poq.exe	99	0047fe80	FUN_0047fe80		game	todo	27	0			
 Poq.exe	99	0047fed0	FUN_0047fed0		game	todo	19	0			
 Poq.exe	99	0047ff20	FUN_0047ff20	~CGameApp	game	todo	9	2			0057b4a0
