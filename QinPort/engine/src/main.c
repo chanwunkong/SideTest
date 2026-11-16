@@ -4291,6 +4291,10 @@ int main(int argc, char **argv) {
             SDL_SetRenderTarget(ren, canvas);
             SDL_RenderCopy(ren, zoom_tex, NULL, NULL);
         }
+        // shortcut: 標籤阻擋先用左右視窗開關，等介面系統接回原版兩個全域阻擋狀態。
+        viewport_ground_labels(&viewport, &scene, !!(SDL_GetModState() & KMOD_ALT),
+                               !win_left.open && !win_right.open);
+        viewport_ground_labels_draw();
         hud_draw(hero);
 #ifdef STORY
         dialog_draw();

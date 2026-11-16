@@ -69,3 +69,5 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 0045a470	繪圖名單節點用 C 陣列代替
 0045abc0	繪圖名單尾端連續去重 → viewport.c SDL裁切區直接重畫，無重複暫存名單
 00460470	CViewPort 四組串列清空 → viewport.c 每幀重建 ViewList、換場景清 ViewGrid
+
+004a28b0	帶世代檢查的物件句柄容器查找（高2位世代、低14位槽；ffff無效）；目前分類陣列，完整句柄等CScene物件索引

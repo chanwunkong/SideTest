@@ -238,3 +238,12 @@ CBuilding	+0x97	遮擋平面世界Y（模型+0x5f乘64加擺放Y）	Object.y*64+
 CBuilding	+0x9b	遮擋平面類型：X偏移<1為1，Y偏移<1為2	viewport_blocks按模型偏移判斷
 CDynamicObj	+0x66	繪圖分類，>9時進特殊延後繪圖名單	待CDynamicObj分類來源
 CRHOMB	+0x14	32列菱形邊界表，前半2..32、後半32..2	viewport_screen_grid edge
+
+CViewPort	+0x150	地上道具標籤上次開關狀態	ground_labels.on
+CDynamicObj	+0x67	物件類型（0x17 地上道具）	ground 陣列隱含類型
+CDynamicObj	+0x50	畫面位置 X（標籤僅收畫面內原點）	viewport_world_screen().x
+CDynamicObj	+0x54	畫面位置 Y	viewport_world_screen().y
+CDynamicObj	+0x14	物件 ID（傳入 GroundData 的 ID）	待 CScene 物件索引
+CDynamicObj	+0x95	地面資源 ID（傳入 GroundData 的 ResID）	ground[].it.ground
+CSceneCell	+0x13	可見狀態，小於2不能顯示道具標籤	Cell.view
+CSceneCell	+0x10	動態物件短整數索引，-1為無	待 CScene 物件索引

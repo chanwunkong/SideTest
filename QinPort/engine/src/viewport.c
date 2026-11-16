@@ -280,6 +280,35 @@ static SDL_Point viewport_grid_screen(const ViewPort *v, int x, int y) {
     return (SDL_Point){(x - y) * 32 - v->rem.x, (x + y) * 16 - v->rem.y};
 }
 
+// 地上道具名單：僅 Alt 狀態改變時取快照，不隨鏡頭／掉落每幀刷新。
+// shortcut: JM70 GroundData 的互動與排版等獨立介面系統，目前用文字名單顯示。
+// shortcut: 原版格子只存一個動態物件；目前同格取 ground 陣列第一件，等 CScene 物件索引。
+static struct { int on, n; Item items[MAX_GROUND]; } ground_labels;
+static void viewport_ground_labels(const ViewPort *v, const Scene *s, int on, int allowed) {
+    if (!allowed || ground_labels.on == on) return;
+    ground_labels.on = on;
+    ground_labels.n = 0;
+    if (!on || !s->cells) return;
+    for (int row = -8; row < v->h / 32 + 8; row++)
+        for (int odd = 0; odd < 2; odd++)
+            for (int col = -8; col < v->w / 64 + 8; col++) {
+                int x = v->base.x + col + odd + row, y = v->base.y - col + row;
+                if (x < 0 || y < 0 || x >= s->w || y >= s->h || s->cells[y * s->w + x].view < 2) continue;
+                for (int i = 0; i < ground_n; i++) {
+                    if ((int)ground[i].x != x || (int)ground[i].y != y) continue;
+                    SDL_Point p = viewport_world_screen(v, (int)(ground[i].x * 64), (int)(ground[i].y * 64));
+                    if (p.x >= 0 && p.x < v->w && p.y >= 0 && p.y < v->h && ground_labels.n < MAX_GROUND)
+                        ground_labels.items[ground_labels.n++] = ground[i].it;
+                    break;
+                }
+            }
+}
+static void viewport_ground_labels_draw(void) {
+    if (!ground_labels.on) return;
+    for (int i = 0; i < ground_labels.n; i++)
+        draw_text(8, 8 + i * 18, ground_labels.items[i].name, vw - 16, 0xBECDCE, 1);
+}
+
 // 地表主迴圈：視窗起格 X-1，兩列交錯，各列寬/64+3，高/32+3。
 // shortcut: 缺格預設圖與除錯格圖等 CResMng 預設圖資初始化，現在保留清屏底色。
 static void viewport_terrain(const ViewPort *v, Scene *s) {

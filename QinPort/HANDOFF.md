@@ -384,7 +384,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 外部依賴才留 todo：探索遮罩等 **CScene 探索資料／CResMng 遮罩圖資**；地表交錯主迴圈已接遊戲，但缺格預設圖／除錯格圖等 **CResMng 預設圖初始化**，不標整個地表函數完成；動態角色／單位／type2/3暫加128已接，但完整狀態分流與關聯來源等 **CCharactor／CDynamicObj**，亦不標整個動態入口完成；Rec封包等 **Rec**；小地圖點選、輸入、標籤、初始化及全圖探索標記等 **CMapDialog**。roles.tsv 已刪除這批「等同類別函數」的舊理由。
   - shortcut：目前 CScene 載入把格子可見狀態設2（全部可見）；視窗已依該欄位判斷，探索系統接入後換資料來源。建築名單以擺放格索引，完整占地／格子建築索引、關聯模型類型與特殊動態分類來源等各自類別載入；局部遮擋採SDL裁切直接重畫前景，無DirectDraw暫存／尾端去重名單。沒有把這些尚缺的整個原版函數誤標完成；沒有刪除劇情功能，也沒有新增確認劇情不用的功能。
   - 驗證：skilltest 新增鏡頭狀態／快取／查格邊線、捲動、死區、平方距離平移、交替震動、排序同深度、不可見格、遮擋平面／格子覆寫、軟體renderer分層像素測試；原生建置與 `make skilltest` 通過，最後一行 `skilltest ok`。另以SDL dummy/software實際啟動 xianyang、xy_minjud 並輸出640×480截圖；未驗證人工長時間遊玩。
-  **下一步：0x460ad0（CGameApp 地上道具標籤段）起**，用 `python3 tools/functool.py next 0x460ad0`。
+  ~~下一步：0x460ad0（CGameApp 地上道具標籤段）起~~。
+- 進度（11-16）：Poq.exe **0x460ad0 地上道具標籤段**（總表 ~CGameApp 為推測誤判；寬高與 +0x154/+0x158 實為 CViewPort 欄位）。`engine/src/viewport.c` 的 `viewport_ground_labels`／`viewport_ground_labels_draw` 已接進 main.c 畫面迴圈，新增 Alt 切換時的交錯掃格、8格外圈、可見狀態>=2、畫面內原點裁切與道具名單快照；原先沒有地上道具文字簡化版可刪。
+  - 照原版保留：僅開關狀態改變才重建，按住時走動／新掉落不刷新；阻擋時連放開也不更新；裁切右／下邊界不包含相等點。新偏移補入 fields.tsv，物件句柄查找工具記入 base_map.tsv。
+  - shortcut：同格先取 ground 陣列第一件；以左右視窗作介面阻擋；暫以文字名單顯示。**仍為 todo 1、skip 0**：完整 GroundData 的 ID／ResID、JM70 排版與點選等不同類別介面系統（地面道具介面入口），格子唯一動態物件與世代句柄等 CScene 物件索引。未把整個原版函數標 done，部分實作註解不寫原版位址；沒有新增確認劇情不用的功能。
+  - 驗證：skilltest 新增阻擋切換、不可見格、右邊界、交錯順序、同格第一件與按住快照測試；`cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`。
+  **下一步：0x460d80（CScnClient 場景探索段）起**，用 `python3 tools/functool.py next 0x460d80`。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

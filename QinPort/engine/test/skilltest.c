@@ -138,8 +138,43 @@ static void viewport_test(void) {
     vw = old_w; vh = old_h;
 }
 
+static void ground_labels_test(void) {
+    Cell cells[32 * 32] = {0};
+    Scene s = {.w = 32, .h = 32, .cells = cells};
+    ViewPort v = {.w = 96, .h = 64, .base = {10, 10}};
+    ground_n = 3;
+    ground[0].x = 10.5f; ground[0].y = 10.5f;
+    ground[1].x = 11.5f; ground[1].y = 9.5f;
+    ground[2].x = 10.5f; ground[2].y = 10.5f;
+    strcpy(ground[0].it.name, "first");
+    strcpy(ground[1].it.name, "edge");
+    strcpy(ground[2].it.name, "same cell");
+    cells[10 * 32 + 10].view = 1;
+    cells[9 * 32 + 11].view = 2;
+    memset(&ground_labels, 0, sizeof ground_labels);
+    viewport_ground_labels(&v, &s, 1, 0);
+    assert(!ground_labels.on);
+    viewport_ground_labels(&v, &s, 1, 1);
+    assert(ground_labels.on && !ground_labels.n); // 未探索與右邊界相等皆排除
+    viewport_ground_labels(&v, &s, 0, 1);
+    cells[10 * 32 + 10].view = 2;
+    v.w = 97;
+    viewport_ground_labels(&v, &s, 1, 1);
+    assert(ground_labels.n == 2);
+    assert(!strcmp(ground_labels.items[0].name, "first"));
+    assert(!strcmp(ground_labels.items[1].name, "edge"));
+    ground_n = 0;
+    viewport_ground_labels(&v, &s, 1, 1);
+    assert(ground_labels.n == 2); // 按住時保留快照
+    viewport_ground_labels(&v, &s, 0, 0);
+    assert(ground_labels.on); // 介面阻擋時連放開都不處理
+    viewport_ground_labels(&v, &s, 0, 1);
+    assert(!ground_labels.on && !ground_labels.n);
+}
+
 int main(void) {
     viewport_test();
+    ground_labels_test();
     // 小地圖換算：正負奇數的有號餘數，以及除法向零截斷。
     SDL_Point gp = viewport_grid_point(3, 2, 10, 1);
     assert(gp.x == 4 && gp.y == 11);
