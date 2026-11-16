@@ -793,8 +793,13 @@ static void main_new(Actor *a) {
     *u = (MUnit){.cls = U_MAIN, .owner = a, .target = alive(a->foe) ? a->foe : NULL, .m = a->atk, .sk = sk, .x = ax64(a), .y = ay64(a), .persist = 1,
                  .trig = a->atk->trig, .trig_n = a->atk->trig_count, .bounce = a->atk->r1};
     u->range = sk ? actor_row_range(a, sk) : a->atk->range_max;
+    if (a->aim_valid) {
+        u->target = a->aim_actor;
+        u->range = a->aim_range;
+    }
     if (u->range < 0) u->range = 0;
-    if (u->target) u->tx = ax64(u->target), u->ty = ay64(u->target);
+    if (a->aim_valid) u->tx = a->aim_x, u->ty = a->aim_y;
+    else if (u->target) u->tx = ax64(u->target), u->ty = ay64(u->target);
     else {
         u->tx = u->x, u->ty = u->y;
         move_dir(&u->tx, &u->ty, DIR_MAP[a->dir & 7], 64);

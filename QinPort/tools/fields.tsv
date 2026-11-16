@@ -684,7 +684,7 @@ CCharactor	+0x4db	SkillUnit技能鏈遍歷游標	ActorSkill遍歷索引，無共
 CCharactor	+0x4df	目前選取的右手SkillUnit指標	Actor.selected（-1無選取）
 CCharactor	+0x4e7	目前MethodMain招式物件	main_of(a)
 CCharactor	+0x4eb	反擊技能ID，-1無、0複製來襲技能的特定分支	待反擊
-CCharactor	+0x4ef	四個候選技能ID的第一項，後續+0x4f3/+0x4f7/+0x4fb	待候選技能施放
+CCharactor	+0x4ef	四個候選技能ID的第一項，後續+0x4f3/+0x4f7/+0x4fb	Actor.candidate[0..3]／actor_candidate_cast
 CCharactor	+0x4ff	右手技能ID	Actor.right_id
 CCharactor	+0x503	左手技能ID	Actor.left_id
 CCharactor	+0x507	生命百分比，初值100，少於20／50設第3修正3／1	Actor.hp/hp_max；完整分段副作用待移植
@@ -740,3 +740,6 @@ RoleMdl	+0x176	有序模板技能ID陣列（ushort），精確查找失敗後的
 MethodMdl	+0x46	載入時掃全部觸發，任一iFlag=4設1；招式允許中斷	Method.interruptible
 MethodMdl	+0x3e	最大距離轉回格數，模板重建SkillUnit的max	Method.range_max → ActorSkill.max
 MethodMdl	+0x42	最小距離轉回格數，模板重建SkillUnit的min	Method.range_min → ActorSkill.min
+RoleMdl	+0x148	移動技思想（RoleMdl.txt欄37），等於1才嘗試manual3移動施法	RoleDef.move_cast
+RoleMdl	+0x150	戰鬥狀態技四個候選ID（RoleMdl.txt欄38以星號分隔），ffff不覆寫角色欄位	RoleDef.candidate[0..3] → Actor.candidate[0..3]
+RoleMdl	+0xd4	平時速度（RoleMdl.txt欄20）；0時遠距技能不受當前速度0限制	RoleDef.speed

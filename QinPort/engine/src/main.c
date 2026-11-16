@@ -276,6 +276,9 @@ typedef struct Actor {
     ActorSkill skills[MAX_ACTOR_SKILLS];
     int skill_n, selected, right_id, left_id, range_adjust;
     int template_skill[MAX_ACTOR_SKILLS], template_skill_n;
+    int candidate[4];
+    int aim_valid, aim_x, aim_y, aim_range;
+    struct Actor *aim_actor; // 本次施法的明確對象；地點施法不能沿用上一次foe
     unsigned char layer;           // +0x66；目前角色建立入口使用地面層1
 } Actor;
 
@@ -536,6 +539,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     a->fidle = d->fight_idle;
     a->fwalk = d->fight_walk ? d->fight_walk : d->walk;
     a->speed = d->speed;
+    for (int i = 0; i < 4; i++) a->candidate[i] = d->candidate[i] == 65535 ? -1 : d->candidate[i];
     actor_skills_init(a);
 }
 
@@ -717,6 +721,7 @@ static void act_end(Actor *a) {
 
 static void start_act(Actor *a, int act, int seq) {
     act_end(a);
+    a->aim_valid = 0;
     a->act = act;
     a->act_seq = seq;
     a->act_tick = a->act_frame = a->frame_tick = a->act_done = a->adj = a->extra = 0;
@@ -1064,7 +1069,7 @@ static int skill_manual(const SkillRow *r) {
 }
 
 // 技能要不要對著敵人放：會造成傷害（Attack方式 ≠ 0）、有敌方状态、或有對敵的屬性參數
-// shortcut: 原版目標是滑鼠點到的角色或地點（0x48ffe0 帶進 0x43acb0）；對同隊的（2）這裡都對自己放，對地點（3）也放在自己身上
+// 對同隊／地點的技能由hero_cast_point傳遞點選對象與地點，不要求敵人。
 static int skill_needs_foe(const SkillRow *r) {
     int man = skill_manual(r);
     if (man == 2 || man == 3 || man == 4) return 0;
@@ -1390,6 +1395,8 @@ static int actor_can_use_id(const Actor *a, int id) {
     return actor_can_use_skill(a, i >= 0 ? &a->skills[i] : NULL);
 }
 
+static void actor_enter_fight(Actor *a);
+
 // 往 a 的反方向推 cells 格（擋住就停），面向 a（Poq.exe 狀態 0x1f：0x4942d0 方向反過來當面向、0x493cb0 每次走一格）
 static void knock_back(Actor *t, const Actor *a, int cells) {
     float dx = t->x - a->x, dy = t->y - a->y, len = sqrtf(dx * dx + dy * dy);
@@ -1441,8 +1448,8 @@ static int react_tick(Actor *a, const Scene *s) {
 static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     (void)tick;
     if (!alive(t)) return;
-    t->fight = FIGHT_TICKS;
     if (t->mon && !t->foe) { t->foe = a; foe_grp(t, a); }  // 被打的怪物會反擊
+    actor_enter_fight(t);
     // 命中（Poq.exe 0x48c600，CCharactor 虛擬函式第 104 格）：千分比 = HR×1000 / (SR + HR)，夾在 100~900；HR 0 當 1
     // shortcut: 之前還有一段盾牌格擋（0x48c4e3，看防守方 +0x4e7 的裝備和攻擊方向），沒有盾的主角用不到，還沒做
     int hr = a->hr ? a->hr : 1, chance = hr * 1000 / (t->sr + hr);
@@ -1720,7 +1727,8 @@ static void cast_start(Actor *h, const SkillRow *r);
 static int pursue(Actor *a, const Scene *s, Uint32 tick) {
     if (!alive(a->foe)) { a->foe = NULL; return 0; }
     Actor *t = a->foe;
-    a->fight = FIGHT_TICKS;
+    actor_enter_fight(a);
+    if (main_of(a)) return 1;
     float gx = t->x - a->x, gy = t->y - a->y;
     float sdx = (gx - gy) * 32, sdy = (gx + gy) * 16;  // 格子方向 → 畫面方向
     // 技能的作用範圍最大（RangeMax，原版送給 Poq.exe 的 0x524 訊息）決定走多近；怪物用招式的攻擊距離
@@ -1806,11 +1814,6 @@ static const Scene *pick_s;
 static void pick_box(const Actor *a, int *l, int *t, int *w, int *h) {
     int fx = scene_px(pick_s, (int)(a->x * 64), (int)(a->y * 64)) - pick_ox, fy = scene_py(pick_s, (int)(a->x * 64), (int)(a->y * 64)) - pick_oy;
     *l = fx - 36, *t = fy - 100, *w = 73, *h = 111;
-}
-static Actor *monster_at(int px, int py, int ox, int oy, const Scene *s) {
-    pick_ox = ox, pick_oy = oy, pick_s = s;
-    float a = (float)(px + ox - 32) * 2 / TILE_W - (s->w / 2 + s->h / 2 - 1), b = (float)(py + oy) * 2 / TILE_H - (s->w / 2 - s->h / 2);  // 畫面 → 格子
-    return pick_at(px, py, (int)floorf((a + b) / 2), (int)floorf((b - a) / 2), 1, 1, pick_box);
 }
 
 // ---- 文字：原版字型 font/16Point.fnt：0xB4 起依 Unicode 每字 32 bytes（16 列 × 16 位元，0 = 筆畫）----
@@ -2142,15 +2145,99 @@ static void cast_start(Actor *h, const SkillRow *r) {
     start_act(h, ACT_ATTACK, m->seq);
 }
 
-static void hero_cast(Actor *h) {
+// 共用現有技能結算與動畫，明確傳遞世界座標及對象至MethodMain。
+// shortcut: 原版施法入口還有記住命令清除／同步及戰鬥狀態副作用；待主命令完整接入後補齊。
+// shortcut: 沒有EasyRPG技能列的模板招式仍可播放與觸發，沒有額外技能數值結算。
+static int actor_cast_at(Actor *a, int id, int x, int y, Actor *target) {
+    int i = actor_skill_find(a, id);
+    if (i < 0) return 0;
+    ActorSkill *s = &a->skills[i];
+    const Method *m = method_find(s->id);
+    if (!m || !s->enabled || (a->def->speed && a->speed <= 0 && s->max >= 3)) return 0;
+    if (!target) target = cell_actor0(x / 64, y / 64);
+    if (m->manual == 2) {
+        if (!target || a->grp != target->grp) return 0;
+    }
+    if (unit_n == MAX_UNIT) return 0;
+    const SkillRow *r = s->row;
+    if (!r && a == &actors[0])
+        for (int k = 0; k < hero_skill_n; k++)
+            if (skill_attack_id(&hero_skill[k]) == s->id) { r = &hero_skill[k]; break; }
+    if (r && !a->mon && !skill_usable(a, r)) return 0;
+    MUnit *old = main_of(a);
+    const Method *right = a->casting ? a->atk_rh : a->atk;
+    if (old) unit_die(old, SDL_GetTicks());
+    else act_end(a);
+    if (r && !a->mon) a->mp -= skill_mpu(r);
+    a->act = ACT_NONE; a->atk = m;
+    a->cast = r; a->casting = 1;
+    start_act(a, ACT_ATTACK, m->seq);
+    a->atk_rh = right;
+    a->aim_valid = 1; a->aim_x = x; a->aim_y = y;
+    a->aim_actor = target; a->aim_range = actor_skill_range(a, s);
+    if (target) a->foe = target;
+    main_new(a);
+    return 1;
+}
+
+// Poq.exe 0x4861e0：第一個正ID且查得到SkillUnit的候選即停止，施法失敗也不試後面的。
+static void actor_candidate_cast(Actor *a) {
+    for (int i = 0; i < 4; i++) {
+        int id = a->candidate[i];
+        if (id <= 0 || actor_skill_find(a, id) < 0) continue;
+        Actor *t = a->foe;
+        actor_cast_at(a, id, ax64(t ? t : a), ay64(t ? t : a), t);
+        return;
+    }
+}
+
+// shortcut: 現有fight計時橋接戰鬥狀態0的0→1入口；完整狀態byte分派接入後由該入口呼叫。
+static void actor_enter_fight(Actor *a) {
+    int entered = a->fight == 0;
+    a->fight = FIGHT_TICKS;
+    if (entered) actor_candidate_cast(a);
+}
+
+// Poq.exe 0x485b80：玩家組且模板思想1，沿鏈找manual3技能；目的地含六圈找空格。
+// 原版怪現象：整數距離>2即回成功，即使技能可用性失敗或施法入口拒絕也不再走路。
+static int actor_move_cast(Actor *a, unsigned short cx, unsigned short cy) {
+    if ((unsigned)(a->grp - 10000u) <= 50000u || a->def->move_cast != 1) return 0;
+    for (int i = 0; i < a->skill_n; i++) {
+        ActorSkill *s = &a->skills[i];
+        if (a->def->speed && a->speed <= 0 && s->max >= 3) continue;
+        const Method *m = s->enabled ? method_find(s->id) : NULL;
+        if (!m || m->manual != 3) continue;
+        int x = cx, y = cy;
+        if (!vacant_cell(&x, &y, a->layer, 6)) continue;
+        int dx = (int)a->x - x, dy = (int)a->y - y;
+        if ((int)sqrt((double)dx * dx + (double)dy * dy) <= 2) continue;
+        int slot = actor_skill_find(a, s->id);
+        if (actor_can_use_skill(a, slot >= 0 ? &a->skills[slot] : NULL)) {
+            a->moving = a->has_target = 0;
+            actor_cast_at(a, s->id, x * 64 + 32, y * 64 + 32, NULL);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+static void hero_cast_point(Actor *h, int x, int y, Actor *target) {
     int k = cur_skill[1];
     if (k < 0 || k >= hero_skill_n || h->act || h->casting) return;
     const SkillRow *r = &hero_skill[k];
+    int manual = skill_manual(r);
+    if (manual == 2 || manual == 3) {
+        if (actor_can_use_id(h, skill_attack_id(r)) && skill_usable(h, r))
+            actor_cast_at(h, skill_attack_id(r), x, y, target);
+        return;
+    }
     if (!skill_needs_foe(r)) { cast_start(h, r); return; }
     if (!alive(h->foe) || !skill_usable(h, r)) return;
     if (cell_dist(h, h->foe) <= actor_row_range(h, r) + 0.5f) cast_start(h, r);
     else h->want = r;
 }
+
+static void hero_cast(Actor *h) { hero_cast_point(h, ax64(h), ay64(h), h); }
 
 // 快捷技能視窗（Poq.exe 0x504d90 開 JM514 = 右手、0x504b40 開 JM515 = 左手；0x564360 填格子）：
 // 依序放進左右鍵位等於這隻手或 2（兩手都行）、等級 > 0 的技能，第 n 個放 m_pItem[n]。
@@ -4065,6 +4152,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     scene_client.ready = 0;
     if (scene->cells) scene_free(scene);
     *scene = next;
+    unit_scene = scene;
     scene_client.scene = scene;
     scene_client.controlled = (int)(hero - actors);
 #ifdef STORY
@@ -4390,7 +4478,11 @@ int main(int argc, char **argv) {
                 switch (click_cmd(hero, m, g)) {
                 case CMD_ATTACK: hero->foe = m; hero->want = NULL; ground_want = walk_cx = -1; break;
                 case CMD_PICK: ground_want = g; hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
-                case CMD_MOVE: mark_new(cx, cy); walk_cx = cx; walk_cy = cy; hero->foe = NULL; hero->want = NULL; ground_want = -1; break;
+                case CMD_MOVE:
+                    mark_new(cx, cy); hero->foe = NULL; hero->want = NULL; ground_want = -1;
+                    walk_cx = hero->fight && actor_move_cast(hero, (unsigned short)cx, (unsigned short)cy) ? -1 : cx;
+                    walk_cy = cy;
+                    break;
                 case CMD_TALK:  // shortcut: 原版指令 0xf 是走過去再說；這裡馬上說，而且只有 ONT 擺的（有事件 ID）的 NPC 能說
 #ifdef STORY
                     if (!m->mon && m->spec && m->spec->event[0]) {
@@ -4413,9 +4505,12 @@ int main(int argc, char **argv) {
                     if (hostile(hero, &actors[i]) && cell_dist(hero, &actors[i]) <= best) { best = cell_dist(hero, &actors[i]); hero->foe = &actors[i]; }
             }
             else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_RIGHT) {  // 右鍵：對點到的怪物放左手技能
-                Actor *m = monster_at(e.button.x, e.button.y, ox, oy, &scene);
+                int zx = e.button.x, zy = e.button.y, cx, cy;
+                zoom_point(&zx, &zy);
+                Actor *m = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
                 if (m) hero->foe = m;
-                hero_cast(hero);
+                // shortcut: 點選地點取格子中心；像素級地點施法待世界座標逆投影接入。
+                hero_cast_point(hero, cx * 64 + 32, cy * 64 + 32, m);
             }
             else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) pointer_down = 0;
             else if (e.type == SDL_MOUSEMOTION) { px = e.motion.x; py = e.motion.y; mouse_seen = e.motion.which != SDL_TOUCH_MOUSEID; }

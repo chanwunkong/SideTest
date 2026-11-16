@@ -60,6 +60,32 @@ static Actor *cell_actor(int x, int y, int *i) {
 }
 static Actor *cell_actor0(int x, int y) { int i = 0; return cell_actor(x, y, &i); }
 
+// Poq.exe 0x4c74b0：含中心及第n圈，依上、下、左、右邊掃描。
+// 邊界先夾進地圖；只排除角色占位，道具及建築不額外排除。
+static int vacant_cell(int *x, int *y, int layer, int n) {
+    if (!scene.cells || scene.w < 1 || scene.h < 1) return 0;
+    int cx = *x, cy = *y;
+    for (int r = 0; ; r++) {
+        int l = cx - r, t = cy - r, right = cx + r, b = cy + r;
+        l = l < 0 ? 0 : l >= scene.w ? scene.w - 1 : l;
+        right = right < 0 ? 0 : right >= scene.w ? scene.w - 1 : right;
+        t = t < 0 ? 0 : t >= scene.h ? scene.h - 1 : t;
+        b = b < 0 ? 0 : b >= scene.h ? scene.h - 1 : b;
+        for (int edge = 0; edge < 4; edge++) {
+            int from = edge < 2 ? l : t, to = edge < 2 ? right : b;
+            for (int k = from; k <= to; k++) {
+                int px = edge < 2 ? k : edge == 2 ? l : right;
+                int py = edge < 2 ? (edge == 0 ? t : b) : k;
+                if (cell_pass(cell_at(px, py), layer) && !cell_actor0(px, py)) {
+                    *x = px; *y = py;
+                    return 1;
+                }
+            }
+        }
+        if (r >= n) return 0;
+    }
+}
+
 // 格子上的道具或陷阱（原版 +0x10）：地上的道具、陷阱
 static int cell_prop(int x, int y) {
     for (int g = 0; g < ground_n; g++)

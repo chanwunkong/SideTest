@@ -172,6 +172,113 @@ static void character_skills_test(void) {
     for (int i = -1; i <= 1; i++) { a.cool = i; assert(actor_cooling(&a) == (i > 0)); }
 }
 
+static void character_move_cast_test(void) {
+    const Scene *saved_scene = unit_scene;
+    int saved_count = actor_count, saved_units = unit_n;
+    Actor saved[2] = {actors[0], actors[1]};
+    MUnit old_units[3] = {units[0], units[1], units[2]};
+    Cell cells[20 * 20] = {0};
+    Scene sc = {.w = 20, .h = 20, .cells = cells};
+    unit_scene = &sc; actor_count = unit_n = 0;
+    // 空格搜尋的四邊順序、層、占位與六圈的最後一圈。
+    int x = 4, y = 4;
+    cells[3 * 20 + 3].walk = cells[5 * 20 + 3].walk = 1;
+    assert(vacant_cell(&x, &y, 1, 1) && x == 3 && y == 3);
+    cells[3 * 20 + 3].walk = 0; x = y = 4;
+    assert(vacant_cell(&x, &y, 1, 1) && x == 3 && y == 5);
+    memset(cells, 0, sizeof cells); x = y = 4;
+    cells[4 * 20 + 4] = (Cell){.layer = 16};
+    assert(vacant_cell(&x, &y, 15, 0) && x == 4 && y == 4);
+    assert(!vacant_cell(&x, &y, 1, 0));
+    cells[4 * 20 + 4].walk = 1;
+    actors[0] = (Actor){.role = (const Role *)1, .x = 4.5f, .y = 4.5f}; actor_count = 1;
+    assert(!vacant_cell(&x, &y, 1, 0));
+    actor_count = 0; cells[4 * 20 + 4].walk = 0;
+    cells[10 * 20 + 4].walk = 1;
+    assert(!vacant_cell(&x, &y, 1, 5) && x == 4 && y == 4);
+    assert(vacant_cell(&x, &y, 1, 6) && x == 4 && y == 10);
+    memset(cells, 0, sizeof cells); cells[0].walk = 1; x = y = -2;
+    assert(vacant_cell(&x, &y, 1, 0) && x == 0 && y == 0);
+    // 真實模板欄：移動技及戰鬥狀態技（星號多值）。
+    assert(roledef_find(346)->move_cast == 1);
+    assert(roledef_find(82)->candidate[0] == 276 && roledef_find(82)->candidate[1] == 277);
+    assert(roledef_find(82)->candidate[2] == -1);
+    int id = -1;
+    for (int k = 1; k < 65535; k++) {
+        const Method *m = method_find(k);
+        if (m && m->manual == 3) { id = k; break; }
+    }
+    assert(id > 0);
+    Role role = {0};
+    RoleDef d = {.speed = 5, .move_cast = 1};
+    Actor a = {.def = &d, .role = &role, .x = 1.5f, .y = 1.5f, .grp = 0, .speed = 5,
+        .layer = 1, .skill_n = 1, .skills = {{.id = id, .enabled = 1, .max = 7}},
+        .atk = method_find(1)};
+    memset(cells, 0, sizeof cells); cells[4 * 20 + 8].walk = 1;
+    assert(actor_move_cast(&a, 8, 4) && unit_n == 1 && a.act == ACT_ATTACK);
+    assert(a.aim_x == 8 * 64 + 32 && a.aim_y == 4 * 64 + 32);
+    assert(units[0].target == NULL && units[0].range == 7);
+    // 地點施法不受舊索敵對象影響，MethodMain必須朝新地點。
+    Actor stale = {.role = &role, .x = 1.5f, .y = 12.5f};
+    unit_n = 0; a.act = 0; a.casting = 0; a.foe = &stale;
+    assert(actor_move_cast(&a, 8, 4) && units[0].target == NULL);
+    assert(units[0].tx > units[0].x && a.aim_x == 8 * 64 + 32);
+    // NPC組邊界含60000，60001及9999可使用；思想不是1不使用。
+    unit_n = 0; a.act = 0; a.casting = 0;
+    a.grp = 10000; assert(!actor_move_cast(&a, 8, 4));
+    a.grp = 60000; assert(!actor_move_cast(&a, 8, 4));
+    a.grp = 60001; a.flags = 0x800;
+    assert(actor_move_cast(&a, 8, 4) && unit_n == 0); // 有技能但不可出手仍吞命令。
+    a.grp = 9999; assert(actor_move_cast(&a, 8, 4));
+    d.move_cast = 2; assert(!actor_move_cast(&a, 8, 4)); d.move_cast = 1;
+    a.flags = 0; a.speed = 0; assert(!actor_move_cast(&a, 8, 4)); a.speed = 5;
+    a.skills[0].enabled = 0; assert(!actor_move_cast(&a, 8, 4)); a.skills[0].enabled = 1;
+    // 距離取整：sqrt(8)=2，不施放；sqrt(10)=3，施放。
+    memset(cells, 0, sizeof cells); cells[3 * 20 + 3].walk = 1;
+    assert(!actor_move_cast(&a, 3, 3));
+    cells[3 * 20 + 3].walk = 0; cells[2 * 20 + 4].walk = 1;
+    assert(actor_move_cast(&a, 4, 2) && unit_n == 1);
+    // 候選命中停用節點即停止，不改試後面的；不因冷卻而拒絕觸發。
+    unit_n = 0; a.act = 0; a.casting = 0; a.cool = 99;
+    a.skill_n = 2; a.skills[0] = (ActorSkill){.id = id, .enabled = 0, .max = 7};
+    a.skills[1] = (ActorSkill){.id = 1, .enabled = 1, .max = 1};
+    a.candidate[0] = 0; a.candidate[1] = id; a.candidate[2] = 1; a.candidate[3] = -1;
+    actor_candidate_cast(&a); assert(unit_n == 0);
+    a.skills[0].enabled = 1;
+    Actor target = {.role = &role, .x = 7.5f, .y = 8.5f}; a.foe = &target;
+    actor_enter_fight(&a);
+    assert(unit_n == 1 && units[0].target == &target && a.aim_x == ax64(&target));
+    actor_enter_fight(&a); assert(unit_n == 1); // 同一次入戰只觸發一次。
+    unit_n = 0; a.act = 0; a.casting = 0; a.foe = NULL;
+    actor_candidate_cast(&a);
+    assert(unit_n == 1 && a.aim_x == ax64(&a) && a.aim_y == ay64(&a));
+    // 右鍵共用地點施法；同隊技不接受敵對組，也不能把點到的友軍改成自己。
+    SkillRow old_skill = hero_skill[0]; int old_n = hero_skill_n, old_left = cur_skill[1];
+    hero_skill_n = 1; cur_skill[1] = 0;
+    hero_skill[0] = (SkillRow){.level = 1, .wtype = -1, .mod_n = 1, .mod = {{.id = 10, .init = id}}};
+    a.act = a.casting = 0; unit_n = 0;
+    a.skills[0].row = &hero_skill[0];
+    hero_cast_point(&a, 10 * 64 + 32, 2 * 64 + 32, NULL);
+    assert(unit_n == 1 && !units[0].target && a.aim_x == 10 * 64 + 32);
+    hero_skill[0] = old_skill; hero_skill_n = old_n; cur_skill[1] = old_left;
+    int ally_id = -1;
+    for (int k = 1; k < 65535; k++) {
+        const Method *m = method_find(k);
+        if (m && m->manual == 2) { ally_id = k; break; }
+    }
+    assert(ally_id > 0);
+    unit_n = 0; a.act = a.casting = 0;
+    a.skills[0] = (ActorSkill){.id = ally_id, .enabled = 1, .max = 7};
+    target.grp = a.grp + 1;
+    assert(!actor_cast_at(&a, ally_id, ax64(&target), ay64(&target), &target));
+    target.grp = a.grp;
+    assert(actor_cast_at(&a, ally_id, ax64(&target), ay64(&target), &target));
+    assert(units[0].target == &target);
+    units[0] = old_units[0]; units[1] = old_units[1]; units[2] = old_units[2];
+    actors[0] = saved[0]; actors[1] = saved[1];
+    unit_scene = saved_scene; actor_count = saved_count; unit_n = saved_units;
+}
+
 static void character_skill_runtime_test(void) {
     RoleDef d = {.speed = 5, .skill_count = 3, .skill_ids = {65535, 1, 1}};
     Actor a = {.def = &d, .speed = 5, .right_id = 77, .left_id = 88,
@@ -698,6 +805,7 @@ int main(void) {
     assert(t.act == ACT_DEAD);
     // 召喚：匈奴法师_召唤（273 = 10 → 朱厌，最多 2 隻）
     roledefs_load();
+    character_move_cast_test();
     assert(roledef_find(204) && !roledef_find(204)->beast && !roledef_find(204)->air);
     // RoleMdl.rmd的分組與角色ID無關，第一列ID29必須取得第一組57招。
     const RoleDef *template = roledef_find(29);
@@ -1172,7 +1280,6 @@ int main(void) {
         actors[1].flags = 0x80;
         assert(pick_at(l + w / 2, tp + h / 2, 6, 5, 0, 1, pick_box) == NULL);
         actors[1].flags = 0;
-        assert(monster_at(l + w / 2, tp + h / 2, 0, 0, &test_scene) == &actors[1]);
     }
     // 遊戲速度 0x448a70：0~5 → 31~16
     assert(game_speed_ms == 21);
