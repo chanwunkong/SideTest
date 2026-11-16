@@ -457,7 +457,14 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - shortcut：操控角色暫用 actors 索引，等不同類別 CScene 世代句柄容器再升級；單機直接傳場景，無全域管理器別名切換。框選工具只記SDL_Rect替代方案，沒有新增選人／手機操控，完整框選仍缺不同類別CUserInput名單。
   - todo 9：ClientCreate／小地圖生成等不同類別 CMapDialog 探索位元表與 CBuilding 縮圖／出口圖示；繪圖、就緒切換、進場收尾與場景還原等 CUserInput 名單及游標狀態；每拍入口等 CScene 格子探索衰減及 CMapDialog；角色文字等 CCharactor 頭頂文字生命週期；新場景配置等 SceneResources／CInitObjMng／CBuilding 載入。同類別相互依賴均已核對，不以等待本類別入口作為todo理由。索引將格子探索衰減入口推成CScnClient，但本體的寬度、格子指標及21-byte步進屬地圖資料，不拿推測類別當成已完成。無新確認的劇情不用功能。
   - roles.tsv／fields.tsv 已補用途及27個欄位（含修正原有 +0x2c／+0x30／+0x5c）。skilltest 新增場景／就緒／無效索引／缺角色／死亡仍可查／組別比較測試；`cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
-  **下一步：0x471ed0（CScnClientRecord 錄影／回放場景客戶端）起**。
+  ~~下一步：0x471ed0（CScnClientRecord 錄影／回放場景客戶端）起~~。
+- 進度（11-16）：Poq.exe **0x471ed0～0x473660 CScnClientRecord 全段**核對，含首批外的錄製、讀包、對話／語音、跟隨及tick入口；到後續場景管理段前停止。新增 **done 0、skip 20（其中 base 6）、todo 0**，另保留既有輸入錄影入口skip 1。
+  - 建構／解構、無呼叫者、CRT錄影檔案及同步封包包裝列skip；可選RecordType錄製／回放不屬單機劇情規則，不新增無呼叫的新函數。片頭PlayIntro另有回放用途，沿用既定網頁影片播放工作，不能將片頭說成劇情沒用到。
+  - 修正 `main.c::zoom_set` 的未接入Rec分派器註解：移除其位址，避免總表誤算整個分派器done；保留zoom_set自身已移植的正確位址。沒有以縮放單一分支冒充整個回放系統完成。
+  - 原版細節已記錄但不實作：同tick只補一次六byte時間包；檔案每包以前置四byte長度儲存；回放只分派首byte為#或@的包；語音等待優先於倒數，歸零後停聲並回-1；無語音文字等待為參數乘3、至少40拍；失效發言者沿用舊對話座標。
+  - 用途及8個新偏移寫入roles.tsv／fields.tsv；工具寫base_map.tsv。無新增遊戲邏輯或shortcut，不加鏡像測試。本輪無todo；先前其他類別等待Rec的項目仍保留各自狀態，本輪未冒稱其場景生命週期已完成。
+  - `cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
+  **下一步：0x473740（場景管理入口／後續類別待核對）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
@@ -671,6 +678,7 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   畫 0x446cd0：光點離目標不到 10 像素就消失（範圍 −1），用 DAT_00662d38+400 那張圖畫。原版沒有建構它，要用得整段新寫。
 - CGroup／CUserGroup 隊伍群組（0x440e70～0x441e00）：單機沒有建立，列在 tools/funcs_skip.txt。
 - 連線版目標頭像（CUserInput 0x4548c0、0x454900～0x454a00、0x455b80）：DAT_00942f28 == 2 時，游標指著 NPC 組（10000～60000）的角色、地圖種類 0x12／0x13，送 0x218 給介面秀它的頭像和名字。
+- 可選輸入錄影／回放 CScnClientRecord（0x471ed0～0x473660）：RecordType=0 的單機劇情不啟用record.rec錄製／回放、錄影專用對話及鏡頭控制。日後可供DLC重播使用；PlayIntro片頭另有用途，仍待既定網頁影片播放工作，未列為劇情無用。
 - 除錯指令 SetFog（設霧 0x4c8630）、GetSpeed（0x455d60 讀 DAT_00662924，DAT_0094c1b8 == 1 時）。
 
 ## 引擎現況

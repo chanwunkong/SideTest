@@ -1121,7 +1121,7 @@ static int shake_left, shake_total;
 // 原版 PageUp／滾輪往上 +0.04、PageDown／滾輪往下 −0.04；招式觸發 12（來源是角色）ID 非 0 = +0.24、0 = 回記住的值。
 // 照原版保留：記住的是「現在值」而不是目標；用浮點數比相等，目標不是 0.04 的倍數（劇情指令）時會在兩個值之間來回跳。
 static float zoom, zoom_to, zoom_keep;
-static void zoom_set(float f) { zoom_to = f; }        // 0x4493f0（劇情指令 0x4725c0 case 2，還沒接）
+static void zoom_set(float f) { zoom_to = f; }        // 0x4493f0（Rec 控制包的縮放分支尚未接入）
 static void zoom_back(void) { zoom_to = zoom_keep; }  // 0x44ae10
 static float zoom_clamp(float f) { return f < 0 ? 0 : f > 0.24f ? 0.24f : f; }
 static void zoom_now(float d) { zoom = zoom_clamp(zoom + d); }  // 0x44aed0
