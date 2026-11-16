@@ -695,6 +695,15 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 頭頂文字的8槽配置、繪圖時倒數、首尾8次淡入淡出、中段上飄每畫面扣兩次已核對並記入fields／roles；普通文字覆寫槽0，上飄先找第一空槽，全滿才換第一個上飄槽。原版全滿且無上飄槽可能索引-1；尚未實作，不自行把猜測標done。
   - 實際接線核對：一般頭頂文字來自訊息佇列form-feed加二進位物件ID，不能用strlen承接；NPC隨機台詞則由模板第40欄四個值與Chat.Dlg提供。本輪整合驗證未在ID1..1999找到有效平時台詞區間，已撤掉臨時NPC接線與文字實作／測試，避免留下無遊戲呼叫者或錯用全域tick的shortcut。這項證據不足以斷定全部劇情不用，沒有新增DLC分類；文字兩入口仍todo，未標done。
   - 新偏移與用途已記錄，FUNCS.tsv已重產；引擎與skilltest程式維持本輪開始版本。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；本輪沒有新增遊戲邏輯，因此沒有留下新邏輯測試。
+  ~~下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起~~。
+
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，續補快捷索引選取；本輪仍未完成整類別，未進CNpc**。新增done 1（0x48d6a0）、skip 2（0x48d2c0、0x48d740）、base 0；主範圍合計 **done 49、skip 33、todo 36**。
+  - `main.c`新增actor_skill_select_index，使用既有Actor.skills有序陣列與actor_layer_diff，接SDL數字鍵及hero_selected_skill_apply實際攻擊資料；抽出hero_skill_apply內原有重複綁定段。按鍵五組依原版為無修飾0、Ctrl 9、Shift 18、Shift+Alt 27、Ctrl+Alt 36，加數字鍵1..9的零起始索引；Alt單按沿用0，Ctrl+Shift沿用18，三鍵同按用36。
+  - 保留怪現象：空鏈不改舊選取；鏈內停用項照樣能選；越界清空；跨層且最大距離<3、或目標高出兩級以上才拒選；不改左右手ID。選取經既有目標getter，0x10隱藏目標不參與層限制，失效目標由getter清除。空選取不再以ID -1誤配EasyRPG技能列。
+  - shortcut：Actor.atk同時承接播放中的招式與下次攻擊資料，按鍵在動作／施法中改選取時只排待綁定，等動作結束才換資料，避免覆寫目前MethodMain；完整角色技能使用入口接入後拆出播放快照。既有技能鏈來源仍有先前記錄的模板／玩家外部識別shortcut，沒有新增手機操控。
+  - 兩個skip均核對總表唯一呼叫者為已略過的客戶端同步分派：一個解碼狀態封包byte、一個接收組合旗標整值。只略過同步副本入口，沒有把完整服務端狀態、禁攻中斷或第12修正標done。其餘36個todo仍多為本類別依賴，不能列為等待外部系統；未新增DLC分類。
+  - fields／roles已更新並重產FUNCS.tsv。skilltest新增45格與8種修飾組合、停用項、空鏈、負／過大索引、跨層距離臨界、隱藏／失效目標、左右手ID保留、實際攻擊綁定與動作／施法期間延後套用；`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，建置仍為原有5個未使用函數警告。
   **下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起**。
 
 

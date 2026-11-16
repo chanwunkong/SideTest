@@ -1035,6 +1035,70 @@ static void bird_test(void) {
     bird_clear(); bird_countdown = -1;
 }
 
+static void character_skill_index_test(void) {
+    Actor saved[2] = {actors[0], actors[1]};
+    int saved_count = actor_count;
+    actor_count = 2;
+    Actor *a = &actors[0], *target = &actors[1];
+    *a = (Actor){.selected = 7, .right_id = 321, .left_id = 654, .layer = 1};
+    *target = (Actor){.layer = 11, .role = (const Role *)1};
+    actor_skill_select_index(a, 0);
+    assert(a->selected == 7); // 空鏈保留舊選取，連越界也不清。
+    a->skill_n = 45;
+    for (int i = 0; i < a->skill_n; i++)
+        a->skills[i] = (ActorSkill){.id = 100 + i, .max = 3, .enabled = 0};
+    for (int mod = 0; mod < 8; mod++) {
+        static const int offsets[8] = {0, 9, 18, 18, 0, 36, 27, 36};
+        SDL_Keymod m = (SDL_Keymod)((mod & 1 ? KMOD_CTRL : 0) |
+            (mod & 2 ? KMOD_SHIFT : 0) | (mod & 4 ? KMOD_ALT : 0));
+        for (SDL_Keycode key = SDLK_1; key <= SDLK_9; key++) {
+            int index = skill_key_index(key, m);
+            assert(index == offsets[mod] + key - SDLK_1);
+            actor_skill_select_index(a, index);
+            assert(a->selected == index); // 停用項仍可選，不呼叫Enable檢查。
+        }
+    }
+    assert(skill_key_index(SDLK_0, KMOD_NONE) == -1);
+    assert(skill_key_index(SDLK_KP_1, KMOD_NONE) == -1);
+    actor_skill_select_index(a, -1); assert(a->selected == -1);
+    actor_skill_select_index(a, 45); assert(a->selected == -1);
+    a->foe = target;
+    a->skills[0].max = 2;
+    actor_skill_select_index(a, 0); assert(a->selected == -1);
+    a->skills[0].max = 3;
+    actor_skill_select_index(a, 0); assert(a->selected == 0); // 高一級可遠攻。
+    target->layer = 13;
+    actor_skill_select_index(a, 0); assert(a->selected == -1); // 高兩級不可。
+    target->flags = 0x10;
+    actor_skill_select_index(a, 0); assert(a->selected == 0); // 隱藏目標getter回空。
+    assert(a->foe == target && a->right_id == 321 && a->left_id == 654);
+    target->flags = 0;
+    actor_count = 1;
+    actor_skill_select_index(a, 0);
+    assert(a->selected == 0 && !a->foe); // 失效目標由getter清掉。
+    // 鍵盤消費端用選中項更新攻擊資料，不能重建鏈後選回右手ID。
+    skills_load();
+    assert(hero_skill_n > 0);
+    a->skills[0].id = skill_attack_id(&hero_skill[0]);
+    hero_selected_skill_apply(a);
+    assert(a->skill == &hero_skill[0] && a->atk == method_find(a->skills[0].id));
+    assert(a->skill_n == 45 && a->right_id == 321 && a->left_id == 654);
+    const Method *playing = a->atk;
+    const SkillRow *playing_skill = a->skill;
+    a->act = ACT_ATTACK;
+    a->selected = -1;
+    hero_selected_skill_apply(a);
+    assert(a->selection_pending && a->atk == playing && a->skill == playing_skill);
+    a->act = ACT_NONE; a->casting = 1;
+    hero_selected_skill_apply(a);
+    assert(a->selection_pending && a->atk == playing && a->skill == playing_skill);
+    a->casting = 0;
+    hero_selected_skill_apply(a);
+    assert(!a->selection_pending);
+    assert(!a->skill && !a->atk);
+    actors[0] = saved[0]; actors[1] = saved[1]; actor_count = saved_count;
+}
+
 int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
@@ -1044,6 +1108,7 @@ int main(void) {
     character_core_test();
     character_skills_test();
     character_skill_runtime_test();
+    character_skill_index_test();
     character_template_candidates_test();
     character_movement_speed_test();
     character_speed_memory_test();

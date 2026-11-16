@@ -567,7 +567,7 @@ Poq.exe	99	00455870	FUN_00455870	~CGameDialog	game	done	49	2	main.c 右鍵（按
 Poq.exe	99	004559d0	FUN_004559d0	~CGameDialog	game	skip	8	2	空函數		
 Poq.exe	99	004559e0	FUN_004559e0	~CGameDialog	game	done	58	0	main.c input_cursor（設游標種類；1 時秀道具名字沒做）		
 Poq.exe	99	00455b80	FUN_00455b80	~CGameDialog	game	skip	55	2	連線版：0x218 目標頭像、0x4fead0 名字		00458550 00497b20 004fead0
-Poq.exe	99	00455d60	FUN_00455d60	~CGameApp	game	done	832	2			00458550 004585c0 004587a0 00459050 00460ad0 0046bc10 0046c260 0048d6a0 00494f50 004a8070 004b0a30 004c8630 0057f2b0
+Poq.exe	99	00455d60	FUN_00455d60	~CGameApp	game	done	832	2			00458550 004585c0 004587a0 00459050 00460ad0 0046bc10 0046c260 00494f50 004a8070 004b0a30 004c8630 0057f2b0
 Poq.exe	99	00457360	FUN_00457360	~CGameApp	game	done	65	4			
 Poq.exe	99	00457670	FUN_00457670	~CGameApp	game	skip	11	0	CDMList 建構		
 Poq.exe	99	004576a0	FUN_004576a0	~CGameApp	game	skip	18	0	RoleData 設定節點建構（CString）		
@@ -814,7 +814,7 @@ Poq.exe	99	0046eea0	FUN_0046eea0		game	skip	85	0	無呼叫者：只在場景狀�
 Poq.exe	99	0046f100	FUN_0046f100	CScnClient|CScnClientRecord	game	todo	19	11		每拍更新天氣／物件／格子探索衰減／光影；非錄影模式無操作超過90000拍走斷線處理；todo 等不同類別CScene格子+0x13探索衰減與CMapDialog，現有主迴圈只覆蓋部分	004c7790 004f94c0
 Poq.exe	99	0046f180	FUN_0046f180		game	todo	446	2		生成小地圖：8×4地磚、建築縮圖、縮放／裁中、出口圖示、寫rdr且複製scn修改時間；todo 等不同類別CBuilding縮圖／通道識別與地圖圖示資源，非等待同類別ClientCreate	0044dda0 0046cab0 00482eb0 0049c910 0049c930 0049caf0 0049cb30 0049cbe0 004c7db0 004ceab0
 Poq.exe	99	00470270	FUN_00470270	~CGameApp	game	todo	18	2		還原場景的全域管理器、輸入／天氣、地圖原點、鏡頭及光影；todo 等不同類別CUserInput名單與CMapDialog完整重綁	0045a030 0045a3a0 00460570 004cede0
-Poq.exe	99	00470300	FUN_00470300	CScnClient	game	skip	746	8	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	0046b250 0046e360 0046ec80 00471890 00471dd0 00486910 0048d2c0 0048d740 0048d810 0048e8f0 00494ec0 00496260 00497b20 00497bb0 0049a7e0 0049c2e0 0049c3a0 0049f1b0 004b8410 004c8630 004cf6e0 00578790 00579df0
+Poq.exe	99	00470300	FUN_00470300	CScnClient	game	skip	746	8	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	0046b250 0046e360 0046ec80 00471890 00471dd0 00486910 0048d810 0048e8f0 00494ec0 00496260 00497b20 00497bb0 0049a7e0 0049c2e0 0049c3a0 0049f1b0 004b8410 004c8630 004cf6e0 00578790 00579df0
 Poq.exe	99	00471830	FUN_00471830	~CScnClient	game	skip	12	0	無呼叫者／解構：釋放CViewPort並清指標	無呼叫者／解構：釋放CViewPort並清指標	
 Poq.exe	99	00471890	FUN_00471890	~CScnClient	game	todo	47	2		進場景收尾：清框選、設就緒、重建選人名單／探索顯示；todo 等不同類別CUserInput名單及CMapDialog探索顯示	0044db40 004590f0
 Poq.exe	99	004719a0	FUN_004719a0		game	todo	29	2		按+0x18編號找種類30～100角色並顯示文字；todo 等不同類別CCharactor頭頂文字顯示／生命週期	0048b6c0
@@ -1073,12 +1073,12 @@ Poq.exe	99	0048c050	FUN_0048c050	CCharactor	game	todo	37	8		角色每拍動態�
 Poq.exe	99	0048c150	FUN_0048c150	~CCharactor	game	done	20	8		actor_name_set：僅SInit種類10..16可複製事件ID，不更新顯示名稱；actor_setup接ONT來源，原始容量64 bytes	
 Poq.exe	99	0048c190	FUN_0048c190	CCharactor|CNpc|CProtagonist	game	done	78	17		main.c actor_animation_select／actor_animation_target：指定序列與帶符號方向餘數、擊退／挨打、跑步門檻與旗標、戰鬥20..30保留目標；接actor_tick/action_tick及繪製／矩形查詢，狀態來源以現有fight/Buff/knock橋接	00494f50
 Poq.exe	99	0048c3a0	FUN_0048c3a0	CCharactor|CNpc|CProtagonist	game	done	416	17			0048d950 0048eda0 0048f0a0 00494f50 00495420 00497c10 00497c90 00497cd0 004a3340 004c7d60 00579dd0
-Poq.exe	99	0048d2c0	FUN_0048d2c0	~CScnClient	game	todo	9	2		封包byte低7位為狀態ID、高位為啟用值，轉狀態設置；未完成	0048d950
+Poq.exe	99	0048d2c0	FUN_0048d2c0	~CScnClient	game	skip	9	2	客戶端狀態封包byte解碼轉接：唯一呼叫者00470300已略過；單機直接使用狀態業務入口，不建立低7位ID／高位啟用值的同步副本；完整狀態設置仍todo	客戶端狀態byte解碼：低7位ID、高位啟用值；唯一呼叫者為已略過同步分派，單機略過封包轉接；完整狀態設置仍todo	0048d950
 Poq.exe	99	0048d2f0	FUN_0048d2f0	~CCharactor	game	todo	14	2		保存待執行命令代號與三參數；尚未接同類別命令分派，不標done	
 Poq.exe	99	0048d330	FUN_0048d330		game	done	96	4			00494c70 0049d6c0 00575cb0
 Poq.exe	99	0048d630	FUN_0048d630	~CNpc	game	done	19	6		依呼叫者與目標層差篩選SkillUnit，跨層近距離或目標高兩級以上清選取；actor_skill_select接右手選招	
-Poq.exe	99	0048d6a0	FUN_0048d6a0	~CGameApp	game	todo	23	2		數字鍵 1～9（配 Ctrl／Shift／Alt 共 45 格）選快捷技能（+0x4bb 鏈結 → +0x4df）	
-Poq.exe	99	0048d740	FUN_0048d740	~CScnClient	game	todo	30	2		組合旗標整值改變後取消不可攻擊的MethodMain並調第12修正；未完成	
+Poq.exe	99	0048d6a0	FUN_0048d6a0	~CGameApp	game	done	23	2		actor_skill_select_index：空鏈不改、依SkillUnit鏈順序選取，越界清空；目標跨層且max<3或高出兩級拒選，忽略Enable、不改左右手ID；接數字鍵五組索引及實際下次攻擊資料	
+Poq.exe	99	0048d740	FUN_0048d740	~CScnClient	game	skip	30	2	客戶端組合旗標整值同步：唯一呼叫者00470300已略過；單機共用Actor.flags，不另接收整值副本；取消MethodMain及第12修正的服務端狀態業務仍須由完整狀態系統移植，不據此宣稱完成	客戶端整值旗標接收後中斷禁攻MethodMain並調第12修正；唯一呼叫者為已略過同步分派，skip同步副本入口，服務端狀態業務仍todo	
 Poq.exe	99	0048d810	FUN_0048d810		game	todo	31	7		覆寫外觀並盡量保留原動畫序列與幀，更新模型矩形；未完成	00494bf0 00494ec0 00496380 00496de0 00578930
 Poq.exe	99	0048d8d0	FUN_0048d8d0		game	skip	10	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	0048d8f0	FUN_0048d8f0		game	todo	9	4		寫入+0x3ff模式欄位；未完成	

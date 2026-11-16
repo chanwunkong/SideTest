@@ -282,7 +282,7 @@ typedef struct Actor {
     char init_name[64], display_name[256]; // SInit事件ID為原始bytes；顯示名稱為UTF-8
     int display_number;           // 顯示名稱附加編號；不屬於SInit事件ID
     ActorSkill skills[MAX_ACTOR_SKILLS];
-    int skill_n, selected, right_id, left_id, range_adjust;
+    int skill_n, selected, right_id, left_id, range_adjust, selection_pending;
     int template_skill[MAX_ACTOR_SKILLS], template_skill_n;
     int candidate[4];
     int aim_valid, aim_x, aim_y, aim_range;
@@ -1119,6 +1119,19 @@ static int actor_layer_diff(const Actor *a, const Actor *target) {
 static void actor_skill_select(Actor *a, int i) {
     if (i >= 0 && i < a->skill_n && a->foe) {
         int diff = actor_layer_diff(a, a->foe);
+        if (diff && (a->skills[i].max < 3 || diff < -1)) i = -1;
+    }
+    a->selected = i;
+}
+
+// Poq.exe 0x48d6a0：按SkillUnit鏈的零起始順序選取；空鏈不改舊選取。
+// MoveTo越界回空，且不檢查Enable、不改左右手ID。
+static void actor_skill_select_index(Actor *a, int index) {
+    if (a->skill_n <= 0) return;
+    Actor *target = actor_target(a);
+    int i = index >= 0 && index < a->skill_n ? index : -1;
+    if (target && i >= 0) {
+        int diff = actor_layer_diff(a, target);
         if (diff && (a->skills[i].max < 3 || diff < -1)) i = -1;
     }
     a->selected = i;
@@ -2297,6 +2310,30 @@ static void skills_load(void) {
 // shortcut: 開局兩手都是斩棘披荆（第 0 個，左右鍵位 2）是猜的，原版開新遊戲怎麼設還沒找到
 static int cur_skill[2];
 
+// 原版鍵盤分派的五組索引：Alt單獨按不換組；Ctrl+Alt優先於Shift。
+static int skill_key_index(SDL_Keycode key, SDL_Keymod mod) {
+    if (key < SDLK_1 || key > SDLK_9) return -1;
+    int base = (mod & KMOD_CTRL) && (mod & KMOD_ALT) ? 36 :
+        (mod & KMOD_SHIFT) && (mod & KMOD_ALT) ? 27 :
+        mod & KMOD_SHIFT ? 18 : mod & KMOD_CTRL ? 9 : 0;
+    return base + (int)(key - SDLK_1);
+}
+
+static void hero_selected_skill_apply(Actor *h) {
+    // shortcut: Actor.atk兼作正在播放的招式；完整角色施法入口接入時拆出播放快照。
+    // 原版只改SkillUnit選取，當前MethodMain繼續原招；單機等動作結束再綁下一招。
+    if (h->act || h->casting) { h->selection_pending = 1; return; }
+    h->selection_pending = 0;
+    h->skill = NULL;
+    h->atk = NULL;
+    if (h->selected < 0 || h->selected >= h->skill_n) return;
+    int id = h->skills[h->selected].id;
+    // 原模板項沒有EasyRPG技能列；按招式ID接結算資料。
+    for (int i = 0; i < hero_skill_n; i++)
+        if (skill_attack_id(&hero_skill[i]) == id) { h->skill = &hero_skill[i]; break; }
+    h->atk = method_find(id);
+}
+
 // 點敵人用右手技能的招式（技能表 Attack ID）。shortcut: 手機點一下對應哪一手是自訂的
 static void hero_skill_apply(Actor *h) {
     skills_load();
@@ -2307,12 +2344,7 @@ static void hero_skill_apply(Actor *h) {
     actor_right_skill(h, k >= 0 && k < hero_skill_n ? skill_attack_id(&hero_skill[k]) : -1);
     int left = cur_skill[1];
     actor_left_skill(h, left >= 0 && left < hero_skill_n ? skill_attack_id(&hero_skill[left]) : -1);
-    h->skill = NULL;
-    int id = h->selected >= 0 ? h->skills[h->selected].id : -1;
-    // 原模板項沒有EasyRPG技能列；按招式ID接結算資料，不能把選中的模板項當成空手。
-    for (int i = 0; i < hero_skill_n; i++)
-        if (skill_attack_id(&hero_skill[i]) == id) { h->skill = &hero_skill[i]; break; }
-    h->atk = method_find(id);
+    hero_selected_skill_apply(h);
 }
 
 // 放左手技能（原版右鍵 → Poq.exe 0x48ffe0 手 = 1）：技能等級 > 0、精气夠、武器合、沒有「攻击不能」的狀態，招式開始才扣精气。
@@ -4700,6 +4732,15 @@ int main(int argc, char **argv) {
                 }
                 }
             }
+            else if (e.type == SDL_KEYDOWN && !e.key.repeat && !sys_open &&
+#ifdef STORY
+                     !dialog_open &&
+#endif
+                     skill_key_index(e.key.keysym.sym, (SDL_Keymod)e.key.keysym.mod) >= 0) {
+                actor_skill_select_index(hero, skill_key_index(e.key.keysym.sym, (SDL_Keymod)e.key.keysym.mod));
+                // 選取改變後重綁實際攻擊資料，不重建技能鏈或覆寫左右手ID。
+                hero_selected_skill_apply(hero);
+            }
             // 遊戲速度：數字鍵盤 +／= 加快、數字鍵盤 −／- 減慢（0x455d60）
             else if (e.type == SDL_KEYDOWN && (e.key.keysym.sym == SDLK_KP_PLUS || e.key.keysym.sym == SDLK_EQUALS)) game_speed_key(1);
             else if (e.type == SDL_KEYDOWN && (e.key.keysym.sym == SDLK_KP_MINUS || e.key.keysym.sym == SDLK_MINUS)) game_speed_key(0);
@@ -4755,6 +4796,7 @@ int main(int argc, char **argv) {
             load_due = -1;
         }
 
+        if (hero->selection_pending && !hero->act && !hero->casting) hero_selected_skill_apply(hero);
         Uint64 now = SDL_GetPerformanceCounter();
 
         // ---- 指令：所有輸入都變成「往畫面某方向走」----
