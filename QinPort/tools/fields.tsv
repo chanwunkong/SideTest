@@ -285,3 +285,36 @@ VLCPlayerWrapper	+0x80	2個8-byte shared_ptr 槽（用途未明）	平台／基�
 VLCMediaWrapper	+0x0	media shared_ptr（包裝類別名依用途命名）	平台／基底略過
 VLCMediaWrapper	+0x8	4個8-byte shared_ptr 回呼槽（僅確認數量，未推測事件）	平台／基底略過
 VLCMediaWrapper	+0x28	尾端 shared_ptr 資源槽（用途未明）	平台／基底略過
+CClientScreen	+0x14	同步視野矩形左上X	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x18	同步視野矩形左上Y	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x1c	同步視野寬（啟用設2048）	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x20	同步視野高（啟用設1536）	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x28	全場景同步旗標	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x2c	同步已啟用	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x30	訊息目的地／客戶端識別參數	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x34	追蹤角色句柄（初值-1）	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x38	場景參數（用途未定）	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x3c	入口X	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x40	入口Y	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x44	入口參數	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x48	待重掃視野旗標	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x4c	狀態102倒數	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x50	第一個60人句柄名單	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x428	第二個60人句柄名單	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x800	可見角色同步鏈	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x824	建築狀態同步鏈	同步層略過；狀態倒數等角色狀態系統
+CClientScreen	+0x848	其他物件同步鏈	同步層略過；狀態倒數等角色狀態系統
+ScreenObj	+0x14	角色延遲移除倒數／建築狀態快取（依鏈而異）	同步層略過
+ScreenObj	+0x18	物件句柄	同步層略過
+CClientScreen	+0x234	第一名單數量	同步層／名單基底略過
+CClientScreen	+0x240	第一名單移除游標	同步層／名單基底略過
+CClientScreen	+0x244	第一名單遍歷起點	同步層／名單基底略過
+CClientScreen	+0x60c	第二名單數量	同步層／名單基底略過
+CClientScreen	+0x618	第二名單移除／遍歷游標	同步層／名單基底略過
+CClientScreen	+0x61c	第二名單遍歷起點	同步層／名單基底略過
+CClientScreen	+0x81c	角色鏈首	同步層／名單基底略過
+CClientScreen	+0x820	角色鏈游標	同步層／名單基底略過
+CClientScreen	+0x840	建築鏈首	同步層／名單基底略過
+CClientScreen	+0x844	建築鏈游標	同步層／名單基底略過
+CClientScreen	+0x864	其他物件鏈首	同步層／名單基底略過
+CClientScreen	+0x868	其他物件鏈游標	同步層／名單基底略過

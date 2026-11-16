@@ -410,7 +410,11 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 進度（11-16）：Poq.exe **0x464370～0x4656e0 libVLC 播放器包裝與前置基底工具**，首批12個後補齊單例、可播放查詢、播放與停止入口，共 **skip 16、base 11、done 0、新增 todo 0**（16個均記 funcs_skip.txt，基底另記 base_map.tsv）。本體確認 `~CGameApp` 是推測誤判；實際為 shared_ptr 自訂 deleter、CRT 例外與 Windows/libVLC 影片生命週期。下一個建構入口已出現 CClientScreen vftable，故停在類別邊界。
   - 播放入口從路徑建媒體、綁 HWND 再播放；查詢用 will_play，未誤當 is_playing。失敗時原版拋 runtime_error。記錄播放器／媒體 shared_ptr 配置與控制塊偏移；回呼槽只記數量，不猜事件用途。沿用先前影片改網頁播放的工作，不宣稱已移植播放功能，也不列為劇情沒用到。
   - 本輪沒有新增遊戲邏輯、遊戲怪現象、shortcut 或外部依賴 todo；不新增鏡像實作測試。原生建置與既有 skilltest 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
-  **下一步：0x465710（CClientScreen／ScreenObj）起**，用 `python3 tools/functool.py next 0x465710`。
+  ~~下一步：0x465710（CClientScreen／ScreenObj）起~~。
+- 進度（11-16）：Poq.exe **0x465710～0x467880 CClientScreen／ScreenObj**，補齊首批以外的視野重掃、延遲移除、全場同步與名單入口，共 **skip 30（其中 base 11）、done 0、todo 3**。這是伺服端維護每個客戶端可見副本的同步層，非 CViewPort；建立／更新／移除經訊息包發送。單機直接使用場景物件，不另建同步副本；本機進場也會建本類別，未宣稱整類只有多人呼叫。用途與新偏移已記索引。
+  - 原版細節：視野2048×1536、離開視野100拍後移除；建築已有節點狀態變成1時不送更新。這些記為同步協定行為，沒有冒充已移植的遊戲邏輯。無呼叫者的六個距離／格子查詢及鏈查詢按索引略過。
+  - todo：第一名單加入、每拍倒數與倒數設定會對角色套用／解除狀態102；等待不同類別的角色狀態系統與 CGodClient 模式18/19規則，未將這三個單機可能需要的行為當連線功能略過。無新增 shortcut 或確認劇情不用的功能。沒有新增遊戲邏輯，故不加鏡像測試。原生建置與既有 skilltest 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
+  **下一步：0x467a10（CGodClient 前置容器／場景管理）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
