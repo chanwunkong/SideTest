@@ -108,3 +108,13 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 00467a10	CBuilding* 容器解構外殼；一般C陣列取代
 00467a30	CBuilding* 靜態鏈容器解構外殼；一般C陣列取代
 00468510	500格靜態鏈按有效旗標與指標找索引；通用容器工具，非CGodClient邏輯
+004ca880	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
+004ca9b0	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
+004cb390	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
+004cb3c0	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
+004cb3e0	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
+004cbd40	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
+004cbdc0	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
+004cbe30	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
+004cbed0	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
+004cbf70	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立

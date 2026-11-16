@@ -325,3 +325,8 @@ CGodClient	+0x1c8	建構清零，語意未定	-
 CGodClient	+0x1cc	建構清零，語意未定	-
 CGodClient	+0x1d0	建構清零，語意未定	-
 CGodClient	+0x8	雨階段，接續天氣時設2	wx.phase
+CInitObjMng	+0x4	建築模板檔名 CString	未移植：CInitObjMng INI載入
+CInitObjMng	+0x8	初始化來源檔名 CString	未移植：CInitObjMng INI載入
+CInitObjMng	+0xc	四組記錄總數	未移植
+CInitObjMng	+0x10	四組16-byte描述子起點；每組+0容量/+4數量/+8指標陣列/+0xc已建立旗標陣列	C陣列／數量；資料載入待移植
+SInitBase	+0xa	模板ID ushort；CInitMngMain排除1500～2000（含端點），以ushort差值比較	未移植：初始化記錄

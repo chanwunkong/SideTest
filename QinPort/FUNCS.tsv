@@ -478,7 +478,7 @@ Poq.exe	99	0044eb50	FUN_0044eb50		game	skip	10	0	容器樣板建構 CContainer<C
 Poq.exe	99	0044ebb0	FUN_0044ebb0		game	skip	12	0	容器樣板建構 CStaticLinkList<int,200>		
 Poq.exe	99	0044ebf0	FUN_0044ebf0		game	skip	12	0	容器樣板建構 CStaticLinkList<CBuilding*,1000>		
 Poq.exe	99	0044ec30	FUN_0044ec30		game	skip	12	0	容器樣板建構 CStaticLinkList<CObj*,1000>		
-Poq.exe	99	0044ec70	FUN_0044ec70		game	skip	59	2	CScnClient 建構（0x46c3aa 呼叫）：只建空串列、+0x48 new 0x1a0c 的 0x4cd810；場景是 engine 自己的結構		0046a0c0 004cd810
+Poq.exe	99	0044ec70	FUN_0044ec70		game	skip	59	2	CScnClient 建構（0x46c3aa 呼叫）：只建空串列、+0x48 new 0x1a0c 的 0x4cd810；場景是 engine 自己的結構		004cd810
 Poq.exe	99	0044ee50	FUN_0044ee50		game	skip	17	0	CPlayerGroupAI 建構：原版沒有呼叫這個建構（0x450bc0 內嵌建構，已移植成 near.c grps）		
 Poq.exe	99	0044eec0	FUN_0044eec0		game	skip	30	12	SInitCha 建構：預設值見 fields.tsv；生角色的參數 engine 直接給		
 Poq.exe	99	0044efd0	FUN_0044efd0		game	skip	23	14	單向串列清空（count、head、tail，每節 0xc）：容器		
@@ -743,14 +743,14 @@ Poq.exe	99	00469a40	FUN_00469a40	~CScnClient	game	done	52	2		CGodClient 進場�
 Poq.exe	99	00469bb0	FUN_00469bb0	~NormalBuilding	game	todo	28	2		CGodClient 加入種類11建築環境音名單，依音效1/2/3分組；等待NormalBuilding場景物件系統	
 Poq.exe	99	00469c80	FUN_00469c80		game	todo	38	5		CGodClient 移除建築環境音名單、空組停音；等待NormalBuilding場景物件系統	
 Poq.exe	99	00469d70	FUN_00469d70	~CGodClient	game	todo	126	2		CGodClient 近處建築環境音最大音量（距離小於1401），沿用最後遍歷建築音效；等待NormalBuilding物件及音效句柄系統	0047ff60 00480460
-Poq.exe	99	0046a0c0	FUN_0046a0c0		game	todo	10	2			0046a100 0046a140 004ca880 004cbf70
-Poq.exe	99	0046a100	FUN_0046a100	CInitMngMain	game	todo	13	6			0046a100 0046a140 004ca9b0 004cbf70
-Poq.exe	99	0046a140	FUN_0046a140	CInitMngMain	game	todo	36	6			004caf80 004cb390 004cb3c0
+Poq.exe	99	0046a0c0	FUN_0046a0c0		game	skip	10	2	CInitMngMain 建構：呼叫 CInitObjMng 建構並換 vtable；略過建構流程；建構解構／通用容器或無呼叫者，依規則略過	CInitMngMain 建構：呼叫 CInitObjMng 建構並換 vtable；略過建構流程	0046a140
+Poq.exe	99	0046a100	FUN_0046a100	CInitMngMain	game	skip	13	6	CInitMngMain deleting destructor：基底解構後依旗標釋放0x50 bytes；略過；建構解構／通用容器或無呼叫者，依規則略過	CInitMngMain deleting destructor：基底解構後依旗標釋放0x50 bytes；略過	0046a140
+Poq.exe	99	0046a140	FUN_0046a140	CInitMngMain	game	todo	36	6		todo：初始化後掃第3組 SInit；模板ID在1500～2000以外才複製、標記並加入場景；等不同類別 CInitObjMng 的 INI/SInit 載入（004cb440/004cb640）與 SInit 虛擬複製還原系統，不能以劇情 spawn 冒充	004caf80
 Poq.exe	99	0046a250	FUN_0046a250	CInitObjMng	game	todo	8	6			
-Poq.exe	99	0046a260	FUN_0046a260	~CNpc	game	todo	24	2			004cb3c0
-Poq.exe	99	0046a2c0	FUN_0046a2c0		game	todo	53	2			004cb3c0
-Poq.exe	99	0046a370	FUN_0046a370		game	todo	21	2			004caf80 004cb3c0
-Poq.exe	99	0046a3f0	FUN_0046a3f0		game	todo	14	8			004cb3c0
+Poq.exe	99	0046a260	FUN_0046a260	~CNpc	game	todo	24	2			
+Poq.exe	99	0046a2c0	FUN_0046a2c0		game	todo	53	2			
+Poq.exe	99	0046a370	FUN_0046a370		game	todo	21	2			004caf80
+Poq.exe	99	0046a3f0	FUN_0046a3f0		game	todo	14	8			
 Poq.exe	99	0046a420	FUN_0046a420		game	todo	34	4			0046a910
 Poq.exe	99	0046a530	FUN_0046a530	~CClientSocket	game	skip	49	2	連線版：客戶端 socket		0046a420
 Poq.exe	99	0046a660	FUN_0046a660		game	todo	10	0			
@@ -2122,11 +2122,9 @@ Poq.exe	99	004ca1b0	FUN_004ca1b0	~CGameApp	game	todo	9	0
 Poq.exe	99	004ca220	FUN_004ca220	~CGameApp	game	todo	12	0			
 Poq.exe	99	004ca270	FUN_004ca270	~CGameApp	game	todo	162	2			004bb3d0 004bb650 004bb770
 Poq.exe	99	004ca7e0	FUN_004ca7e0	~CGameApp	game	todo	33	2			
-Poq.exe	99	004ca880	FUN_004ca880		game	todo	28	2			0046a250 004cab40 004cbf70
 Poq.exe	99	004ca930	FUN_004ca930		game	todo	17	2			004cabd0 004cb330 004cc050
-Poq.exe	99	004ca9b0	FUN_004ca9b0	~CInitMngMain	game	todo	27	4			0046a250 004cab40 004cbf70
 Poq.exe	99	004caab0	FUN_004caab0		game	todo	28	0			004cad60 004cb360 004cc1e0
-Poq.exe	99	004cab40	FUN_004cab40	CInitObjMng	game	todo	30	6			0046a250 004cab40 004cbf70
+Poq.exe	99	004cab40	FUN_004cab40	CInitObjMng	game	todo	30	6			0046a250 004cab40
 Poq.exe	99	004cabd0	FUN_004cabd0	InitBld	game	todo	18	13			004cabd0 004cb330 004cc050
 Poq.exe	99	004cac30	FUN_004cac30	InitBldTrigger	game	todo	18	7			004cabd0 004cb330 004cc050
 Poq.exe	99	004caca0	FUN_004caca0	SInitChaFollow	game	todo	17	7			004caca0 004cc130
@@ -2135,20 +2133,12 @@ Poq.exe	99	004cad60	FUN_004cad60	SInitChaPathMove	game	todo	31	7			004cad60 004c
 Poq.exe	99	004cae20	FUN_004cae20	SInitChaRandMove	game	todo	16	4			
 Poq.exe	99	004cae80	FUN_004cae80		game	todo	14	0			
 Poq.exe	99	004caeb0	FUN_004caeb0		game	todo	10	0			
-Poq.exe	99	004caed0	FUN_004caed0		game	todo	35	0			004a3340 004cbed0
-Poq.exe	99	004caf80	FUN_004caf80		game	todo	95	4			004a3340 004ca930 004cac30 004caca0 004cad10 004cad60 004cae20 004cb330 004cb360 004cc0b0 004cc130 004cc1a0 004cc1e0 004cc280
+Poq.exe	99	004caed0	FUN_004caed0		game	todo	35	0			004a3340
+Poq.exe	99	004caf80	FUN_004caf80		game	todo	95	4		SInit 工廠：依種類11～15、101、102配置並建構；供 CInitMngMain 複製記錄，非複製本身	004a3340 004ca930 004cac30 004caca0 004cad10 004cad60 004cae20 004cb330 004cb360 004cc0b0 004cc130 004cc1a0 004cc1e0 004cc280
 Poq.exe	99	004cb330	FUN_004cb330	InitBld|InitBldTrigger	game	todo	12	15			
 Poq.exe	99	004cb360	FUN_004cb360	SInitChaPathMove	game	todo	12	7			
-Poq.exe	99	004cb390	FUN_004cb390	~CInitMngMain	game	todo	12	2			
-Poq.exe	99	004cb3c0	FUN_004cb3c0	~CInitMngMain	game	todo	8	10			
-Poq.exe	99	004cb3e0	FUN_004cb3e0	~CInitMngMain	game	todo	23	0			004a3340 004cbed0
-Poq.exe	99	004cb440	FUN_004cb440	~CInitMngMain	game	todo	56	2			004bb3d0 004cb640
-Poq.exe	99	004cb640	FUN_004cb640	~CInitMngMain	game	todo	183	2			004a3340 004bb3d0 004bb650 004cabd0 004cac30 004caca0 004cad10 004cad60 004cae20 004cb330 004cb360 004cc050 004cc0b0 004cc130 004cc1a0 004cc1e0 004cc280
-Poq.exe	99	004cbd40	FUN_004cbd40	~CInitMngMain	game	todo	40	0			
-Poq.exe	99	004cbdc0	FUN_004cbdc0	~CInitMngMain	game	todo	36	0			
-Poq.exe	99	004cbe30	FUN_004cbe30	~CInitMngMain	game	todo	40	0			
-Poq.exe	99	004cbed0	FUN_004cbed0	~CInitMngMain	game	todo	32	6			
-Poq.exe	99	004cbf70	FUN_004cbf70	CInitMngMain|CInitObjMng	game	todo	36	12			004a3340 004cbed0
+Poq.exe	99	004cb440	FUN_004cb440		game	todo	56	2		CInitObjMng INI載入（非 CInitMngMain 專屬）：清空、BldMdl、依 CHANUM/BeastieNUM/PROPNUM 讀第1/3/2組，再呼叫衍生初始化；待該類別移植	004bb3d0 004cb640
+Poq.exe	99	004cb640	FUN_004cb640		game	todo	183	2		CInitObjMng INI記錄載入（非 CInitMngMain 專屬）：依iType建立SInit角色／建築，讀模板、座標、AI與路徑；待該類別及SInit還原系統移植	004a3340 004bb3d0 004bb650 004cabd0 004cac30 004caca0 004cad10 004cad60 004cae20 004cb330 004cb360 004cc050 004cc0b0 004cc130 004cc1a0 004cc1e0 004cc280
 Poq.exe	99	004cc050	FUN_004cc050	InitBld	game	todo	28	13			
 Poq.exe	99	004cc0b0	FUN_004cc0b0	InitBldTrigger	game	todo	35	7			
 Poq.exe	99	004cc130	FUN_004cc130	SInitChaFollow	game	todo	15	7			

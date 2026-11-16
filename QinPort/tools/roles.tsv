@@ -318,3 +318,19 @@
 00468660	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
 00468aa0	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
 00469400	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
+0046a0c0	CInitMngMain 建構：呼叫 CInitObjMng 建構並換 vtable；略過建構流程
+0046a100	CInitMngMain deleting destructor：基底解構後依旗標釋放0x50 bytes；略過
+0046a140	todo：初始化後掃第3組 SInit；模板ID在1500～2000以外才複製、標記並加入場景；等不同類別 CInitObjMng 的 INI/SInit 載入（004cb440/004cb640）與 SInit 虛擬複製還原系統，不能以劇情 spawn 冒充
+004ca880	CInitObjMng 建構（不是 CInitMngMain 業務）：兩個 CString、四組空名單及總數
+004ca9b0	CInitObjMng 基底解構（推測類別誤標為 CInitMngMain）：清理名單與字串
+004cb390	CInitObjMng 共用工具：按組別與索引取 SInit，越界回0
+004cb3c0	CInitObjMng 共用工具：回傳第n組名單描述子，this+(n+1)*16
+004cb3e0	無呼叫者：共用名單配置容量與指標／已建立旗標陣列
+004cb440	CInitObjMng INI載入（非 CInitMngMain 專屬）：清空、BldMdl、依 CHANUM/BeastieNUM/PROPNUM 讀第1/3/2組，再呼叫衍生初始化；待該類別移植
+004cb640	CInitObjMng INI記錄載入（非 CInitMngMain 專屬）：依iType建立SInit角色／建築，讀模板、座標、AI與路徑；待該類別及SInit還原系統移植
+004cbd40	無呼叫者：CInitObjMng 共用名單按指標移除；即使找不到也減總數
+004cbdc0	無呼叫者：共用名單按指標移除並前移
+004cbe30	無呼叫者：CInitObjMng 四組名單釋放
+004cbed0	共用SInit名單清理：逐項虛擬解構、釋放指標與旗標陣列
+004cbf70	CInitObjMng 共用重設：清字串與總數，按全域四組容量配置指標及旗標陣列
+004caf80	SInit 工廠：依種類11～15、101、102配置並建構；供 CInitMngMain 複製記錄，非複製本身
