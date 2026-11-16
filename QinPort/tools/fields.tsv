@@ -164,3 +164,23 @@ CScene	+0xac	上次取格 Y	待格子查詢快取
 SceneCell	+0x0	底圖索引（-1 用預設圖）	Cell.ground
 SceneCell	+0x2	覆圖索引（-1 不畫）	Cell.over
 SceneCell	+0x4	除錯疊圖檢查的 byte（0 時畫標記）	Cell.walk
+CMapDialog	+0x4	縮放後扣除的 X 偏移；亦複製到 +0x104	待小地圖座標系統
+CMapDialog	+0x8	縮放後扣除的 Y 偏移；亦複製到 +0x108	待小地圖座標系統
+CMapDialog	+0xc	點圖設鏡頭後複製到 +0x10c 的視窗狀態，語意待定	待小地圖座標系統
+CMapDialog	+0x10	點圖設鏡頭後複製到 +0x110 的視窗狀態，語意待定	待小地圖座標系統
+CMapDialog	+0x14	點圖設鏡頭後複製到 +0x114 的視窗狀態，語意待定	待小地圖座標系統
+CMapDialog	+0xc4	點圖設鏡頭及更新後清零的狀態，語意待定	待小地圖座標系統
+CMapDialog	+0xe0	點圖設鏡頭的非零允許條件	待小地圖座標系統
+CMapDialog	+0xe4	輸入座標縮放比例（float）	待小地圖座標系統
+CMapDialog	+0xe8	縮放前加到輸入 X 的偏移	待小地圖座標系統
+CMapDialog	+0xec	縮放前加到輸入 Y 的偏移	待小地圖座標系統
+CMapDialog	+0x104	點圖設鏡頭後的 +0x4 快照	待小地圖座標系統
+CMapDialog	+0x108	點圖設鏡頭後的 +0x8 快照	待小地圖座標系統
+CMapDialog	+0x10c	點圖設鏡頭後的 +0xc 快照	待小地圖座標系統
+CMapDialog	+0x110	點圖設鏡頭後的 +0x10 快照	待小地圖座標系統
+CMapDialog	+0x114	點圖設鏡頭後的 +0x14 快照	待小地圖座標系統
+FUN_004a1090.this	+0x4	像素轉格基準格 X（類別未定）	待小地圖座標系統
+FUN_004a1090.this	+0x8	像素轉格基準格 Y（類別未定）	待小地圖座標系統
+FUN_004a1090.this	+0xc	輸入像素 X 的加算餘量（類別未定）	待小地圖座標系統
+FUN_004a1090.this	+0x10	輸入像素 Y 的加算餘量（類別未定）	待小地圖座標系統
+FUN_004a1090.this	+0x14	32 列菱形邊界 int 表，依補正後 Y 餘數索引（類別未定）	待小地圖座標系統
