@@ -13,7 +13,9 @@
    - **整個類別一起做**：依賴同一個類別（或同一段位址）裡其他函數的，不算「等別的系統」，一起翻。
    - 翻好的函數要**接進遊戲**：引擎裡已有簡化版的（例如鏡頭、小地圖、繪圖順序），用原版的取代它，
      舊的簡化程式刪掉。不要留沒人呼叫的新函數。
-   - 只有依賴**別的、還沒做的系統**（不同類別、位址在很後面）才留 todo，在 tools/roles.tsv 寫一句用途和等哪個系統。
+   - 依賴的是**引擎基礎**（CObj 物件生命週期、CSprGroup 精靈、資源、場景物件名單、格子資料等）時不要等：
+     用引擎現有的對應（Actor、Anim/Sprite、Scene、Cell…，grep engine/src 找），沒有就補最小的一份，然後照翻。
+   - 只有依賴**別的、還沒做的遊戲系統**（例如隊伍、任務、商店介面）（不同類別、位址在很後面）才留 todo，在 tools/roles.tsv 寫一句用途和等哪個系統。
    - 劇情沒用到的功能不做，記到 HANDOFF.md「劇情沒用到（以後 DLC 可用）」。
 4. 讀到的新偏移寫進 tools/fields.tsv，函數用途寫進 tools/roles.tsv。
 5. 新的遊戲邏輯在 engine/test/skilltest.c 加測試。`cd engine && make && make skilltest 2>&1 | tail -3` 要過（印 "skilltest ok"）。
