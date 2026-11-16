@@ -293,6 +293,8 @@ typedef struct Actor {
 } Actor;
 
 static uint32_t actor_relation_anim(const Actor *a);
+// Poq.exe 0x48d8f0：只保存32位關聯識別，不查找目標、不修改目前命令。
+static inline void actor_search_link_set(Actor *a, int link) { a->search_link = link; }
 static Actor *hover_actor;
 static int hover_mouse;
 
@@ -3575,7 +3577,14 @@ static void story_msgs(void) {
         case 0x47870:
             if (a && m->s[0] == '@') actor_attribute_changed(a, m->s + 1, story_get_int(a->sh, m->s + 1));
             break;
-        case 0x52c: case 0x51b: case 0x519: break;  // 出口開關（走出口時再查）、NPC 頭上標記、轉向
+        case 0x51b:
+            a = character_of((int)m->v[0]);
+            // 原版僅第三參數>0時寫第二參數；0及負數只改狀態103。
+            // shortcut: 狀態103的設定／解除仍待完整角色狀態入口，
+            // 接入後補齊本分支；目前只接原版獨立的關聯識別setter。
+            if (a && m->v[2] > 0) actor_search_link_set(a, (int)m->v[1]);
+            break;
+        case 0x52c: case 0x519: break;  // 出口開關（走出口時再查）、轉向
         default: fprintf(stderr, "劇情訊息 0x%x（%s）還沒做\n", m->id, m->s); break;
         }
     }

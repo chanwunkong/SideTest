@@ -652,7 +652,7 @@ CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減�
 CCharactor	+0x339	AI組（0..99玩家、10000..60000 NPC組）	Actor.grp
 CCharactor	+0x33d	蠱惑前原AI組	待狀態14
 CCharactor	+0x341	128個狀態byte：值非0代表啟用，不限布林值	Buff／has_status；完整byte設置待移植
-CCharactor	+0x3ff	獨立模式整數，遍歷模式2與候選物件識別比較；設定入口待接	Actor.search_link
+CCharactor	+0x3ff	32位關聯識別，遍歷模式2與候選物件識別比較；G_NPCActive第三參數>0時寫第二參數	Actor.search_link／actor_search_link_set
 CCharactor	+0x403	角色組合旗標32位值	Actor.flags／actor_flags／actor_set_flags
 CCharactor	+0x407	20項修正值，每項相隔8bytes，初值0	待完整修正表
 CCharactor	+0x40b	20項修正的期限，每項相隔8bytes，-1永久；每10拍扣10	待完整修正表

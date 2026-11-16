@@ -728,6 +728,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - actor_hover_set接畫面繪製前的既有滑鼠拾取，更新0x100並保留操控角色的圈，同一畫面供腳圈與狀態框消費。shortcut：引擎目前選人名單僅操控角色，隊伍多選與非角色物件標示等對應介面接入；沒有將完整狀態框分派標done。腳圈沿用共享遊戲tick播放器；角色完整縮放、覆色及合成矩形仍未完成，未把整個角色繪製或位置更新標done。
   - roles／fields已更新；其餘33個todo主要仍為同類別狀態、命令、更新與精靈基礎，不能當成等待外部系統。未新增DLC分類；下一步保留第一個尚未完成入口，不跳CNpc。
   - skilltest新增八種圖選取、size邊界、敵人名單非對稱、死亡／無操控角色、hover切換與旗標保留；軟體renderer逐一載入八種真實資源，檢查actor_draw實際產生像素及可見矩形，取消0x100後矩形不含圈。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，仍為原有5個未使用函數警告。FUNCS.tsv已重產。
+  ~~下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起~~。
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，續補關聯識別setter；本輪未完成整類別，未達成整類別完成要求，未進CNpc**。新增done 1（0x48d8f0）、skip 0、base 0；主範圍合計 **done 53、skip 33、todo 32**。
+  - `main.c`新增actor_search_link_set，原樣寫入32位Actor.search_link；已接story_msgs的G_NPCActive／0x51b第三參數>0分支，交給既有actor_near_begin模式2索敵消費。核對原版訊息分派後修正舊註解：此訊息不是NPC頭上標記。
+  - 保留原版：setter不驗證識別、不修改foe或排隊命令；通知第三參數0／負數不覆寫關聯識別。shortcut：通知的三種分支另有狀態103啟閉，仍待同類別完整狀態入口；只完成獨立setter，沒有將完整訊息分派或狀態入口標done。共用物件識別仍以現有Actor.sh承接，完整句柄基礎接入後升級。
+  - 核對移動入口、第6修正與殘影建立／繪製／釋放的依賴，以及生命百分比、第3修正和狀態17連動；未用簡化Buff或空殘影冒充移植。其餘32個todo仍主要依賴同類別狀態、命令、更新及精靈基礎，不能稱為等待別的系統，下一步不前移；本輪無新增DLC分類。
+  - fields／roles已更新。skilltest以setter接模式2查找，測試32位識別、未知負值／零及目前目標／命令保持不變；`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`。-DSTORY語法檢查通過，原有5個警告；FUNCS.tsv已重產。
   **下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起**。
 
 

@@ -509,7 +509,19 @@ static void character_near_test(void) {
     first->x = first->y = closer->x = closer->y = 10.5f;
     first->grp = a->grp; first->sh = 71;
     assert(actor_near_begin(a, 1, 2) == first);
-    a->search_link = 71; assert(actor_near_begin(a, 2, 2) == first);
+    actor_search_link_set(a, 71); assert(actor_near_begin(a, 2, 2) == first);
+    // setter不預先驗證識別；模式2查找才決定是否有相符角色。
+    // 不能截成byte或short，亦不能改目前目標／排隊命令。
+    first->sh = 0x12345678;
+    a->foe = closer; a->command[0] = 9; a->command[1] = 71;
+    actor_search_link_set(a, 0x12345678);
+    assert(actor_near_begin(a, 2, 2) == first);
+    assert(a->foe == closer && a->command[0] == 9 && a->command[1] == 71);
+    actor_search_link_set(a, -1); assert(!actor_near_begin(a, 2, 2));
+    actor_search_link_set(a, 0); assert(actor_near_begin(a, 2, 2) == closer);
+    first->sh = 71;
+    actor_search_link_set(a, 71);
+    a->foe = NULL;
     assert(actor_near_begin(a, 3, 2) == closer);
     closer->grp = 60001; assert(!actor_near_begin(a, 3, 2));
     closer->grp = 60000; assert(actor_near_begin(a, 3, 2) == closer);
