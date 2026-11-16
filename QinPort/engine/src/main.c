@@ -224,6 +224,12 @@ enum { ACT_NONE, ACT_ATTACK, ACT_HIT, ACT_DEAD };  // 單次動作：播一次�
 typedef struct { const SkillRow *skill; int level, status, elapsed, time, side, patch; } Buff;  // side 1 = 別人放在身上的（套「是否对敌」的參數）；
 // 打中觸發的狀態沒有技能參數（skill = NULL）；patch = 中毒每秒扣的量（Patch_62）
 
+typedef struct {
+    int key, id, min, max, p6, p7, enabled, p8, p9;
+    const SkillRow *row;
+} ActorSkill;
+#define MAX_ACTOR_SKILLS 64
+
 typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
     int dir, moving, speed;
@@ -267,6 +273,8 @@ typedef struct Actor {
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
     int sh;                        // 劇情物件（原版 EasyRPG 的人物；0 = 沒有）
     int command[4];                // 待執行命令，第一格 -1 表示沒有（原版 +0x5b6）
+    ActorSkill skills[MAX_ACTOR_SKILLS];
+    int skill_n, selected, right_id, left_id, range_adjust;
     unsigned char layer;           // +0x66；目前角色建立入口使用地面層1
 } Actor;
 
@@ -290,6 +298,9 @@ static unsigned actor_flags(const Actor *a, unsigned mask) { return (unsigned)a-
 static void actor_set_flags(Actor *a, unsigned mask, int on) {
     a->flags = (int)(on ? (unsigned)a->flags | mask : (unsigned)a->flags & ~mask);
 }
+
+// Poq.exe 0x48b160：交虛擬旗標設置入口清除，不把參數當整值覆寫。
+static void actor_clear_flags(Actor *a, unsigned mask) { actor_set_flags(a, mask, 0); }
 
 // Poq.exe 0x488800 / 0x488820：層號大於10時，索敵及追擊範圍各加8。
 // shortcut: 現有角色建立入口僅載入地面層1；多層角色建立接入時寫入原版層號。
@@ -401,11 +412,13 @@ static int actor_speed(const Actor *a) {
     return v < 0 ? 0 : v > 59 ? 59 : v;
 }
 
+static int actor_can_move(const Actor *a);
+
 // 一拍的角色更新：往畫面方向 (mx, my) 走；原版每 B 拍移動 A + C/10 像素（速度對照表）
 static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick) {
     int was_moving = a->moving;
     a->moving = 0;
-    if (mx * mx + my * my > 0.01f) {
+    if (mx * mx + my * my > 0.01f && actor_can_move(a)) {
         int sp = actor_speed(a);
         float px = tick % SPEED_B[sp] ? 0 : SPEED_A[sp] + SPEED_C[sp] / 10.0f;
         actor_step(a, s, mx, my, px);
@@ -510,6 +523,8 @@ static inline int scene_client_group(const SceneClient *c, int group) {
     return scene_client_actor(c)->grp == group;
 }
 
+static void actor_skills_init(Actor *a);
+
 static void actor_setup(Actor *a, const RoleDef *d) {
     actor_cancel_command(a);
     a->layer = 1;
@@ -520,6 +535,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     a->fidle = d->fight_idle;
     a->fwalk = d->fight_walk ? d->fight_walk : d->walk;
     a->speed = d->speed;
+    actor_skills_init(a);
 }
 
 // 編號清單（預抓用）
@@ -687,7 +703,8 @@ static void attack_speed(Actor *a) {
 
 // 招式觸發 type 8：ID2 非 0 設旗標、0 清掉（角色虛擬函式 +0x48）
 static void act_flags(Actor *a, const Trig *t) {
-    actor_set_flags(a, (unsigned)t->id, t->id2);
+    if (t->id2) actor_set_flags(a, (unsigned)t->id, t->id2);
+    else actor_clear_flags(a, (unsigned)t->id);
 }
 
 // 動作結束（播完或被換掉）：招式 iFlag 3 的旗標觸發（多半是把動作中設的旗標清掉）
@@ -885,6 +902,125 @@ static int skill_mpu(const SkillRow *r) { return (int)skill_field(r, 15, (int)sk
 static int skill_time(const SkillRow *r) { return (int)skill_field(r, 14, r->time < 0 ? 5 : (int)skill_value(r->time, r->time_inc, r->level)); }
 static int skill_range_max(const SkillRow *r) { return (int)skill_field(r, 13, r->range < 0 ? 1 : (int)skill_value(r->range, r->range_inc, r->level)); }
 static int skill_attack_id(const SkillRow *r) { return (int)skill_field(r, 10, skill_attack(r->key)); }
+
+// SkillUnit 以定長有序陣列承接鏈；指標選取改用索引，場景清理不留堆積節點。
+// shortcut: 目前模板候選來自已載入的NPC／玩家技能列；RoleMdl執行期技能表接入後改用其順序。
+static int actor_skill_find(const Actor *a, int id) {
+    for (int i = 0; i < a->skill_n; i++) if (a->skills[i].id == id) return i;
+    // shortcut: 原版fallback比較使用反編譯未定義暫存；先取模板順序第一個啟用項，取得組語證據後校準。
+    for (int i = 0; i < a->skill_n; i++) if (a->skills[i].enabled) return i;
+    return -1;
+}
+
+// Poq.exe 0x497ab0：以呼叫者層號減目標層號的分組值；保留255歸入最高組。
+static int actor_layer_group(unsigned char layer) {
+    return layer < 11 ? 0 : layer < 13 ? 1 : layer < 15 ? 2 : 3;
+}
+static int actor_layer_diff(const Actor *a, const Actor *target) {
+    return actor_layer_group(a->layer) - actor_layer_group(target->layer);
+}
+
+// Poq.exe 0x48d630：跨層且近距離，或目標高出兩級以上，清選取。
+static void actor_skill_select(Actor *a, int i) {
+    if (i >= 0 && i < a->skill_n && a->foe) {
+        int diff = actor_layer_diff(a, a->foe);
+        if (diff && (a->skills[i].max < 3 || diff < -1)) i = -1;
+    }
+    a->selected = i;
+}
+
+// Poq.exe 0x48e7a0：先寫右手ID，查找後依目標層篩選。
+static void actor_right_skill(Actor *a, int id) {
+    a->right_id = id;
+    actor_skill_select(a, actor_skill_find(a, id));
+}
+
+// Poq.exe 0x48eab0：左手只寫ID，不改右手選取。
+// shortcut: 單機共享Actor省略指定客戶端同步，連線支援時補傳輸。
+static void actor_left_skill(Actor *a, int id) { a->left_id = id; }
+
+// Poq.exe 0x488970：原距離大於3才修正，不能在修正後重新判斷。
+static int actor_skill_range(const Actor *a, const ActorSkill *s) {
+    int range = s->max;
+    if (range > 3) {
+        range += a->range_adjust;
+        if (a->layer > 10) range += a->layer == 14 ? 3 : a->layer == 16 ? 4 : 2;
+    }
+    return range;
+}
+
+// Poq.exe 0x488d50：回傳Enable原值；遠程技能在可移動模板速度為0時不可用。
+static int actor_skill_enabled(const Actor *a, const ActorSkill *s) {
+    if (!a->def->speed || a->speed > 0 || s->max < 3) return s->enabled;
+    return 0;
+}
+
+// Poq.exe 0x488ba0：冷卻查詢只判正數，不把負數視為冷卻中。
+static int actor_cooling(const Actor *a) { return a->cool > 0; }
+
+static int actor_row_slot(const Actor *a, const SkillRow *r) {
+    for (int i = 0; i < a->skill_n; i++) if (a->skills[i].row == r) return i;
+    return -1;
+}
+static int actor_row_range(const Actor *a, const SkillRow *r) {
+    int i = actor_row_slot(a, r);
+    // shortcut: 未進入角色鏈的臨時技能仍讀技能列，劇情技能同步接入後移除此分支。
+    ActorSkill temporary = {.max = skill_range_max(r)};
+    return actor_skill_range(a, i < 0 ? &temporary : &a->skills[i]);
+}
+static int actor_row_enabled(const Actor *a, const SkillRow *r) {
+    int i = actor_row_slot(a, r);
+    ActorSkill temporary = {.max = skill_range_max(r), .enabled = 1};
+    return actor_skill_enabled(a, i < 0 ? &temporary : &a->skills[i]);
+}
+
+// Poq.exe 0x48af30：按外部識別刪第一個；選中的節點清空，後面索引跟隨搬移。
+static void actor_skill_remove(Actor *a, int key) {
+    for (int i = 0; i < a->skill_n; i++) if (a->skills[i].key == key) {
+        if (a->selected == i) a->selected = -1;
+        else if (a->selected > i) a->selected--;
+        memmove(a->skills + i, a->skills + i + 1, (a->skill_n - i - 1) * sizeof *a->skills);
+        a->skill_n--;
+        return;
+    }
+}
+
+// Poq.exe 0x48fb90：先改Enable，然後按低兩位切手；只改第一個識別相符項。
+static void actor_skill_enable(Actor *a, int key, int enabled, unsigned hand) {
+    for (int i = 0; i < a->skill_n; i++) if (a->skills[i].key == key) {
+        ActorSkill *s = &a->skills[i];
+        s->enabled = enabled;
+        if (hand & 1) actor_right_skill(a, s->id);
+        if (hand & 2) actor_left_skill(a, s->id);
+        return;
+    }
+}
+
+// Poq.exe 0x48fc20：重選左右手在寫新ID之前；保留因此可能選到舊節點的順序。
+// shortcut: 單機共用資料省略技能替換通知，連線支援時補傳輸。
+static void actor_skill_update(Actor *a, int key, int id, int min, int max, int p6, int p7) {
+    for (int i = 0; i < a->skill_n; i++) if (a->skills[i].key == key) {
+        ActorSkill *s = &a->skills[i];
+        if (a->right_id == s->id) actor_right_skill(a, id);
+        if (a->left_id == s->id) actor_left_skill(a, id);
+        s->id = id; s->min = min; s->max = max; s->p6 = p6; s->p7 = p7;
+        return;
+    }
+}
+
+// 陣列建立橋接：保留外部識別與技能ID兩個不同欄位，重建時先取消選取。
+static void actor_skill_append(Actor *a, const SkillRow *r, int key) {
+    if (!r) return;
+    if (a->skill_n == MAX_ACTOR_SKILLS) { fprintf(stderr, "角色技能槽已滿\n"); return; }
+    a->skills[a->skill_n++] = (ActorSkill){.key = key, .id = skill_attack_id(r),
+        .min = (int)skill_field(r, 12, skill_value(r->range_min, r->range_min_inc, r->level)),
+        .max = skill_range_max(r), .p8 = 1, .p9 = 1, .enabled = 1, .row = r};
+}
+static void actor_skills_init(Actor *a) {
+    while (a->skill_n) actor_skill_remove(a, a->skills[0].key);
+    a->selected = a->right_id = a->left_id = -1;
+    if (a->mon) for (int i = 0; i < 8; i++) actor_skill_append(a, npc_skill(a->mon->skill[i]), 0);
+}
 
 // 招式的 wManualID：2 = 對同隊的（0x43acb0 要同一隊 +0x339，反刺猬甲、妙手回春），3 = 對地點（凌空虚渡），4 = 放東西（召喚、分身），5 = 對陷阱（巧手除障）
 static int skill_manual(const SkillRow *r) {
@@ -1199,6 +1335,9 @@ static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = �
 #undef scene
 #include "weather.c"
 
+// Poq.exe 0x488d20：速度只比較是否為0；有MethodMain時不能移動。
+static int actor_can_move(const Actor *a) { return a->speed != 0 && !main_of(a); }
+
 // 往 a 的反方向推 cells 格（擋住就停），面向 a（Poq.exe 狀態 0x1f：0x4942d0 方向反過來當面向、0x493cb0 每次走一格）
 static void knock_back(Actor *t, const Actor *a, int cells) {
     float dx = t->x - a->x, dy = t->y - a->y, len = sqrtf(dx * dx + dy * dy);
@@ -1498,17 +1637,17 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
 // wManualID 0、3 且 Reserve3 = 1（遠程招）：一半機率考慮，RangeMax < 3 時目標在範圍內就用、否則距離（格，|dx|+|dy|）≥ RangeMax 且不是上一招就用；
 // wManualID 1、4，或 0、3 而 Reserve3 ≠ 1：Reserve3 = 0 的招數 n 從 1 起累加，已選過時 1/n 機率才再看；
 // 再看 Reserve3：0 = 選、2 = 一半機率、3 = 1/3 機率（都要不是上一招）、5 = 血少於 40% 才選、4 和其他 = 不選。其他 wManualID 不選
-// shortcut: 原版還看技能能不能用（SkillUnit Enable）；怪物不扣精气，這裡都當能用。+0x507 當成血量百分比（初值 100），沒有完全確認
+// 怪物依角色技能鏈的Enable與移動速度限制排除不可用招式；精气仍由技能結算層處理。
 static const SkillRow *mon_pick(const Actor *a) {
     const SkillRow *pick = NULL;
     int n = 1;
     for (int i = 0; i < 8; i++) {
         const SkillRow *r = npc_skill(a->mon->skill[i]);
         const Method *m = r ? method_find(skill_attack_id(r)) : NULL;
-        if (!m) continue;
+        if (!m || !actor_row_enabled(a, r)) continue;
         if ((m->manual == 0 || m->manual == 3) && m->ai == 1) {
             if (rand() % 2 && alive(a->foe)) {
-                int range = skill_range_max(r), d = (int)(fabsf(a->x - a->foe->x) + fabsf(a->y - a->foe->y));
+                int range = actor_row_range(a, r), d = (int)(fabsf(a->x - a->foe->x) + fabsf(a->y - a->foe->y));
                 if (range < 3 ? cell_dist(a, a->foe) <= range + 0.5f : d >= range && r != a->last_skill) return r;
             }
             continue;
@@ -1542,7 +1681,7 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
         a->atk = method_find(skill_attack_id(a->skill));
     }
     const SkillRow *use = a->want ? a->want : a->skill;
-    int range = use ? skill_range_max(use) : a->atk && a->atk->range_max > 0 ? a->atk->range_max : 1;
+    int range = use ? actor_row_range(a, use) : a->atk && a->atk->range_max > 0 ? a->atk->range_max : 1;
     // 拉開距離（0x4911b0）：每 61 拍一次，這招 Reserve3 ≠ 1、目標在 範圍−2 的方框內、n = 範圍 − 距離 − 2 ≥ 2 時，
     // 往遠離目標的 8 方向走 n 格（OmUtil GetFleePos = WhatDir8 + MoveDirForSpeed）
     if (a->mon && a->skill && ++a->ai_tick % 61 == 2 && a->atk && a->atk->ai != 1) {
@@ -1572,7 +1711,7 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
             const SkillRow *w = a->want;
             a->want = NULL;
             cast_start(a, w);
-        } else if (a->cool <= 0 && !status_noattack(a) && (!a->skill || a->mon || skill_usable(a, a->skill))) {
+        } else if (!actor_cooling(a) && !status_noattack(a) && (!a->skill || a->mon || skill_usable(a, a->skill))) {
             if (a->skill && !a->mon) a->mp -= skill_mpu(a->skill);  // shortcut: 怪物沒有精气，技能不扣也不檢查
             start_act(a, ACT_ATTACK, a->atk ? a->atk->seq : a->fidle);
         }
@@ -1904,6 +2043,11 @@ static void skill_add(int i) {
     int k = skill_page * 4 + i;
     if (skill_mode || i < 0 || i > 3 || k >= hero_skill_n || !skill_can_up(&hero_skill[k])) return;
     hero_skill[k].level++;
+    SkillRow *r = &hero_skill[k];
+    actor_skill_update(&actors[0], k, skill_attack_id(r),
+        (int)skill_field(r, 12, skill_value(r->range_min, r->range_min_inc, r->level)),
+        skill_range_max(r), 0, 0);
+    actor_skill_enable(&actors[0], k, r->level > 0, 0);
     hero_extra_skill--;
 }
 
@@ -1919,7 +2063,13 @@ static int cur_skill[2];
 static void hero_skill_apply(Actor *h) {
     skills_load();
     int k = cur_skill[0];
-    h->skill = k >= 0 && k < hero_skill_n ? &hero_skill[k] : NULL;
+    while (h->skill_n) actor_skill_remove(h, h->skills[0].key);
+    h->selected = -1;
+    for (int i = 0; i < hero_skill_n; i++) actor_skill_append(h, &hero_skill[i], i);
+    actor_right_skill(h, k >= 0 && k < hero_skill_n ? skill_attack_id(&hero_skill[k]) : -1);
+    int left = cur_skill[1];
+    actor_left_skill(h, left >= 0 && left < hero_skill_n ? skill_attack_id(&hero_skill[left]) : -1);
+    h->skill = h->selected >= 0 ? h->skills[h->selected].row : NULL;
     h->atk = h->skill ? method_find(skill_attack_id(h->skill)) : NULL;
 }
 
@@ -1927,7 +2077,7 @@ static void hero_skill_apply(Actor *h) {
 // 要對著敵人的技能要有目標；不在作用範圍最大內就先走過去（pursue），到了再放
 static void cast_start(Actor *h, const SkillRow *r) {
     const Method *m = method_find(skill_attack_id(r));
-    if (h->act || h->casting || !m || !skill_usable(h, r) || status_noattack(h)) return;
+    if (h->act || h->casting || !m || !actor_row_enabled(h, r) || !skill_usable(h, r) || status_noattack(h)) return;
     h->mp -= skill_mpu(r);
     h->cast = r;
     h->casting = 1;
@@ -1942,7 +2092,7 @@ static void hero_cast(Actor *h) {
     const SkillRow *r = &hero_skill[k];
     if (!skill_needs_foe(r)) { cast_start(h, r); return; }
     if (!alive(h->foe) || !skill_usable(h, r)) return;
-    if (cell_dist(h, h->foe) <= skill_range_max(r) + 0.5f) cast_start(h, r);
+    if (cell_dist(h, h->foe) <= actor_row_range(h, r) + 0.5f) cast_start(h, r);
     else h->want = r;
 }
 
@@ -3322,7 +3472,7 @@ static int hud_tap(int x, int y) {
         int i = c && !strncmp(c->name, "m_pItem[", 8) ? atoi(c->name + 8) : -1;
         if (i >= 0 && i < pick_n) {
             cur_skill[pick_hand] = pick_skill[i];  // 0x4599e0 右手（+0x4ff）／0x459a90 左手（+0x503），包成指令 4 給角色
-            if (pick_hand == 0) hero_skill_apply(&actors[0]);
+            hero_skill_apply(&actors[0]);
         }
         pick_hand = -1;
         return 1;

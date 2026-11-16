@@ -792,7 +792,7 @@ static void main_new(Actor *a) {
     const SkillRow *sk = a->casting ? a->cast : a->skill;
     *u = (MUnit){.cls = U_MAIN, .owner = a, .target = alive(a->foe) ? a->foe : NULL, .m = a->atk, .sk = sk, .x = ax64(a), .y = ay64(a), .persist = 1,
                  .trig = a->atk->trig, .trig_n = a->atk->trig_count, .bounce = a->atk->r1};
-    u->range = sk ? skill_range_max(sk) : a->atk->range_max;
+    u->range = sk ? actor_row_range(a, sk) : a->atk->range_max;
     if (u->range < 0) u->range = 0;
     if (u->target) u->tx = ax64(u->target), u->ty = ay64(u->target);
     else {

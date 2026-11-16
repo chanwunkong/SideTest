@@ -205,3 +205,5 @@ OmUtil::GetFleePos	air_run使用既有dir_of與move_dir；核對OmUtil.dll匯出
 
 004858a0	四個32位命令欄位逐一相等比較；C結構逐欄比較，非std::string
 00488bc0	兩整數點分軸abs差均嚴格小於n；C整數abs及比較，不改成圓形距離或小於等於
+004a2b20	CHAINHEADER清鏈；Actor.skills有序陣列與skill_n，移除時不配置堆積節點
+004a2bb0	CHAINHEADER刪目前節點；actor_skill_remove以索引選取及memmove承接

@@ -80,7 +80,7 @@ static void character_core_test(void) {
     assert(actor_flags(&a, 0x4000) == 0x4000); // 遮罩值，不是1。
     actor_set_flags(&a, 0x80000200u, 7);
     assert(actor_flags(&a, 0x80000200u) == 0x80000200u);
-    actor_set_flags(&a, 0x201u, 0);
+    actor_clear_flags(&a, 0x201u);
     assert(actor_flags(&a, 0x80004210u) == 0x80004010u);
     assert(actor_seek(&a) == 7 && actor_chase(&a) == 15);
     a.layer = 11;
@@ -90,6 +90,67 @@ static void character_core_test(void) {
     assert(actor_seek(&a) == 0 && actor_chase(&a) == 8); // 原版不夾成正數。
     a.layer = 0;
     assert(actor_seek(&a) == -8 && actor_chase(&a) == 0);
+}
+
+static void character_skills_test(void) {
+    RoleDef d = {.speed = 5};
+    Actor target = {.layer = 1};
+    Actor a = {.def = &d, .speed = 5, .layer = 1, .selected = -1,
+        .skill_n = 3, .skills = {{.key = 7, .id = 10, .max = 2, .enabled = 1},
+            {.key = 7, .id = 20, .max = 3, .enabled = 7},
+            {.key = 9, .id = 30, .max = 4, .enabled = 0}}};
+    assert(actor_skill_find(&a, 30) == 2); // 精確命中不過濾Enable。
+    assert(actor_skill_find(&a, -1) == 0);
+    a.range_adjust = -10; a.layer = 14;
+    assert(actor_skill_range(&a, &a.skills[1]) == 3);
+    assert(actor_skill_range(&a, &a.skills[2]) == -3); // 不夾範圍，按原始4先加修正再加層。
+    a.range_adjust = 2;
+    assert(actor_skill_range(&a, &a.skills[2]) == 9);
+    a.layer = 16; assert(actor_skill_range(&a, &a.skills[2]) == 10);
+    a.layer = 255; assert(actor_skill_range(&a, &a.skills[2]) == 8);
+    a.speed = 0;
+    assert(actor_skill_enabled(&a, &a.skills[0]) == 1);
+    assert(actor_skill_enabled(&a, &a.skills[1]) == 0); // 3是Enable速度限制邊界。
+    d.speed = 0;
+    assert(actor_skill_enabled(&a, &a.skills[1]) == 7); // 非布林Enable。
+    d.speed = 5; a.speed = 1;
+    assert(actor_skill_enabled(&a, &a.skills[1]) == 7);
+    a.foe = &target; a.layer = 11;
+    actor_right_skill(&a, 10);
+    assert(a.right_id == 10 && a.selected == -1);
+    actor_right_skill(&a, 20); assert(a.selected == 1);
+    a.layer = 1; target.layer = 15;
+    actor_right_skill(&a, 20); assert(a.selected == -1);
+    target.layer = 11;
+    actor_right_skill(&a, 20); assert(a.selected == 1); // 高一級的遠程可以。
+    actor_left_skill(&a, 30); assert(a.left_id == 30 && a.selected == 1);
+    actor_skill_enable(&a, 7, 5, 3);
+    assert(a.skills[0].enabled == 5 && a.skills[1].enabled == 7);
+    assert(a.right_id == 10 && a.left_id == 10 && a.selected == -1);
+    a.foe = NULL;
+    actor_right_skill(&a, 20);
+    actor_left_skill(&a, 20);
+    actor_skill_update(&a, 7, 40, 8, 9, 6, 7); // 第一個key=7，其ID10未選中。
+    assert(a.right_id == 20 && a.left_id == 20);
+    assert(a.skills[0].id == 40 && a.skills[0].min == 8 && a.skills[0].p7 == 7);
+    actor_skill_remove(&a, 7);
+    assert(a.skill_n == 2 && a.skills[0].id == 20 && a.selected == 0);
+    a.foe = &target;
+    actor_skill_remove(&a, 7);
+    assert(a.skill_n == 1 && a.selected == -1 && a.foe == &target);
+    assert(a.right_id == 20); // 刪除不改保存的手ID。
+    actor_skill_remove(&a, 999); assert(a.skill_n == 1);
+    a.skills[0].enabled = 0;
+    assert(actor_skill_find(&a, -1) == -1);
+    int saved_n = unit_n;
+    MUnit saved_u = units[0];
+    unit_n = 0; a.speed = 0; assert(!actor_can_move(&a));
+    a.speed = -1; assert(actor_can_move(&a));
+    units[0] = (MUnit){.cls = U_MAIN, .owner = &a}; unit_n = 1;
+    assert(!actor_can_move(&a));
+    units[0].dead = 1; assert(actor_can_move(&a));
+    units[0] = saved_u; unit_n = saved_n;
+    for (int i = -1; i <= 1; i++) { a.cool = i; assert(actor_cooling(&a) == (i > 0)); }
 }
 
 static void viewport_test(void) {
@@ -471,6 +532,7 @@ int main(void) {
     bird_test();
     character_lookup_test();
     character_core_test();
+    character_skills_test();
     scene_client_test();
     viewport_test();
     building_test();

@@ -578,7 +578,17 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - shortcut：角色建立仍僅地面層1，多層建立接入時寫原版byte；指標取代物件句柄；單機共用Actor不另送組別同步副本。頭頂文字、獨立附加精靈、技能鏈／選招、完整狀態byte副作用／20項修正／方向更新、主命令及建築互動仍未完成；這些同類別依賴不能寫成等其他系統。前輪CTriBld的3個todo亦尚未解除。沒有新增未被遊戲呼叫的完整功能入口。
   - skip 28：21個索引無呼叫者、5個建構／解構／卸載及2個純狀態封包傳輸；base 2為四欄命令相等與分軸嚴格距離比較。沒有因DAT_00663804非零條件把角色命令主分派誤判連線版。roles.tsv記錄102個入口用途或未完成情況；fields.tsv新增／校正85項CCharactor與9項SkillUnit偏移，修正舊表+0x507與+0x589反寫：前者生命百分比、後者顯示名稱。未有整類別劇情不用的證據，不列DLC。
   - skilltest新增換組／同組、取消目標及命令的獨立效果、保留命令參數、32位高位旗標與非布林遮罩、層0／10／11／255及負範圍邊界。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；另以-DSTORY檢查main.c語法通過，原有5個未使用函數警告；FUNCS.tsv已重產。
-  **下一步：0x485b80（CCharactor 同類別未完成，先補技能鏈／選招並完成整類別）起**。
+  ~~下一步：0x485b80（CCharactor 同類別未完成，先補技能鏈／選招並完成整類別）起~~。
+
+- 進度（11-16）：Poq.exe **0x485b80～0x490220 CCharactor 角色續補，本輪仍未完成整類別**；沒有進入0x490240的CNpc。新增 **done 11、skip 2**，另完成依賴層差工具1、容器base 2；本類別合計 **done 34、skip 30、base 2、todo 54**。未達成本輪要求的整類別完成，這54個含同類別待翻業務，不能描述成全在等別的系統。
+  - `main.c`新增ActorSkill有序陣列、獨立外部識別／技能ID、左右手ID、選取索引與射程修正；actor_skill_select／actor_right_skill／actor_left_skill接hero_skill_apply與兩手快捷選單。actor_skill_remove接場景模板與玩家技能重建；actor_skill_enable／actor_skill_update接技能加點，當拍更新最大／最小距離，不只修改UI列。actor_skill_enabled接mon_pick及cast_start，移除怪物一律可用的shortcut。
+  - actor_skill_range取代怪物選招、pursue、hero_cast與`unit.c` main_new直接讀技能列射程的路徑；actor_cooling接追打冷卻判斷，actor_can_move接actor_tick統一移動入口，actor_clear_flags接type8觸發。依賴的actor_layer_diff照原版四層分組相減，並未將同類別技能查找標成完成。
+  - 原版怪現象：最大距離等於3不加修正，但速度為0時的Enable限制從3開始；距離修正可以變負；層255仍歸最高組；Enable回原整數而非布林；精確ID命中不檢查Enable；跨層近距離或目標高兩級以上清選取，但右手ID照寫；左手不動右手選取。相同外部識別只改／刪第一個；刪除不清目標、不改手ID；更新先重選手ID才寫新ID／距離，保留其順序。
+  - shortcut：技能候選暫由現有NPC／玩家技能列建立，尚非RoleMdl執行期模板表；每角色限64項，超限印診斷；未入鏈臨時技能仍用技能列作橋接。fallback的比較暫存反編譯未定義，暫取候選順序第一個啟用項，取得原組語與模板表後校準。單機手選取／修改省略傳輸。上述未完成的建立／查找／重建入口均未加完成位址註解。
+  - skip 2為紙娃娃兩套精靈預讀／卸載轉接，交role_load／preload_roles、動畫快取與roles_clear；base_map補清鏈與刪游標節點的陣列對應。fields新增鏈數量偏移並更新16個技能欄位的實際對應，roles更新本批用途；沒有整類別劇情不用的證據，不列DLC。
+  - todo 54：移動施法、完整新增技能及模板重建、候選技能觸發、主命令、狀態byte副作用／20修正、角色更新／動畫／繪製／浮字／外觀、死亡與場景占位等仍須續翻同類別；不是等其他系統。前輪CTriBld三項仍等角色建築命令／破壞呼叫端，未解除。
+  - skilltest補Enable非布林及速度／距離邊界、層差篩選、負射程、精確ID命中停用技能、兩手互不干擾、重複識別只改第一項、刪除選取與索引搬移、保留目標／手ID、負冷卻及MethodMain存活時禁止移動。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，原有5個未使用函數警告；FUNCS.tsv已重產。
+  **下一步：0x485b80（CCharactor 尚未完成，續補移動施法／完整技能鏈、命令與狀態；不可跳CNpc）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
