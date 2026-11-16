@@ -233,6 +233,7 @@ typedef struct {
 typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
     int dir, moving, speed;
+    int fight_speed, speed_override, speed_threshold, dynamic_state;
     int view_link_type; // 關聯模型 +0x2c；type2/3 繪圖時世界 X/Y 暫加128
     int idle, walk, fidle, fwalk;  // 動作起點序列（角色表「平時/戰鬥」的休息與走路）
     Uint32 act_tick;  // 目前動作已經過幾拍（換動作時歸零）
@@ -272,6 +273,7 @@ typedef struct Actor {
     int dash;
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
     int sh;                        // 劇情物件（原版 EasyRPG 的人物；0 = 沒有）
+    int remembered[4], remember_delay; // 原版記住命令與取消後延遲
     int command[4];                // 待執行命令，第一格 -1 表示沒有（原版 +0x5b6）
     char init_name[64], display_name[256]; // SInit事件ID為原始bytes；顯示名稱為UTF-8
     ActorSkill skills[MAX_ACTOR_SKILLS];
@@ -288,6 +290,13 @@ static void actor_clear_target(Actor *a) { a->foe = NULL; }
 
 // Poq.exe 0x486e70：取消排隊命令，保留其餘三個參數。
 static void actor_cancel_command(Actor *a) { a->command[0] = -1; }
+
+// Poq.exe 0x486e80：只清代號，保留三參數；再次清除會把延遲改回0。
+static void actor_forget_command(Actor *a) {
+    a->remember_delay = a->remembered[0] == 1 || a->remembered[0] == 2 ? 50 : 0;
+    a->remembered[0] = -1;
+}
+
 
 // Poq.exe 0x488360：只有SInit種類10..16有角色名稱，不能拿其他種類當字串。
 static const char *actor_init_name(const Actor *a) {
@@ -428,14 +437,17 @@ static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px)
 
 static int status_speed(const Actor *a);
 
-// 實際速度（Poq.exe 0x488540）：速度 × 狀態速度變化% / 100（原本不是 0 就至少 1），
-// 再 × (100 + 加速) / 100，加速 = B_C_MOVE_SPEED v > 0 時 v×150/(v+150)（0x48f7a0）
-// shortcut: 原版還有一個欄位（+0x2e3 < 101）時再減半，意思沒查出來
+// Poq.exe 0x488540：第1修正非0時以值減1覆蓋；跑步優先於戰鬥速度。
+// 門檻>=101才減半，最後不夾限；速度表的範圍在移動消費端處理。
+// shortcut: 戰鬥狀態仍由現有fight計時承接，完整狀態表接入後改讀狀態0。
 static int actor_speed(const Actor *a) {
-    int s = a->speed, st = status_speed(a), v = s * st / 100, m = a->ex[64];
+    int s = a->speed_override ? a->speed_override - 1 :
+        (a->flags & 0x10000) && a->dynamic_state == 11 ? a->speed * 3 / 2 :
+        a->fight ? a->fight_speed : a->speed;
+    int st = status_speed(a), v = s * st / 100, m = a->ex[64];
     if (s && st && v < 1) v = 1;
     v = ((m > 0 ? m * 150 / (m + 150) : m) + 100) * v / 100;
-    return v < 0 ? 0 : v > 59 ? 59 : v;
+    return a->speed_threshold < 101 ? v : v / 2;
 }
 
 static int actor_can_move(const Actor *a);
@@ -444,8 +456,11 @@ static int actor_can_move(const Actor *a);
 static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick) {
     int was_moving = a->moving;
     a->moving = 0;
+    // shortcut: 現有移動迴圈承接平常／移動狀態，跳躍等完整動態狀態仍待移植。
+    a->dynamic_state = mx * mx + my * my > 0.01f ? 11 : 1;
     if (mx * mx + my * my > 0.01f && actor_can_move(a)) {
         int sp = actor_speed(a);
+        sp = sp < 0 ? 0 : sp > 59 ? 59 : sp;
         float px = tick % SPEED_B[sp] ? 0 : SPEED_A[sp] + SPEED_C[sp] / 10.0f;
         actor_step(a, s, mx, my, px);
     }
@@ -553,7 +568,11 @@ static void actor_skills_init(Actor *a);
 
 static void actor_setup(Actor *a, const RoleDef *d) {
     // 新角色的候選初值屬於建構；重套模板不可先清掉既有候選。
-    if (!a->def) for (int i = 0; i < 4; i++) a->candidate[i] = -1;
+    if (!a->def) {
+        for (int i = 0; i < 4; i++) a->candidate[i] = -1;
+        a->remembered[0] = -1;
+        a->dynamic_state = 1;
+    }
     actor_cancel_command(a);
     actor_name_set(a, a->spec ? a->spec->event : "");
     a->display_name[0] = 0;
@@ -565,6 +584,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     a->fidle = d->fight_idle;
     a->fwalk = d->fight_walk ? d->fight_walk : d->walk;
     a->speed = d->speed;
+    a->fight_speed = d->fight_speed;
     // 模板的ffff表示不覆寫，並非清除；-1及0則照值寫入。
     // shortcut: 模板入口的狀態103、層重定位及縮放尚未接齊，此段不代表完整模板初始化。
     for (int i = 0; i < 4; i++)
@@ -1834,7 +1854,6 @@ static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
         if (hostile(a, e) && !(e->flags & 0x20010) && cell_dist(a, e) <= seek && (!near || cell_dist(a, e) < cell_dist(a, near))) near = e;
     }
     if (near) { a->foe = near; foe_grp(a, near); }
-    a->speed = a->foe ? a->def->fight_speed : a->def->speed;
     if (!pursue(a, s, tick)) npc_think(a, s, tick);
 }
 
@@ -2177,9 +2196,9 @@ static void cast_start(Actor *h, const SkillRow *r) {
 }
 
 // 共用現有技能結算與動畫，明確傳遞世界座標及對象至MethodMain。
-// shortcut: 原版施法入口還有記住命令清除／同步及戰鬥狀態副作用；待主命令完整接入後補齊。
+// shortcut: 原版施法入口的同步及完整戰鬥狀態副作用仍待主命令接齊。
 // shortcut: 沒有EasyRPG技能列的模板招式仍可播放與觸發，沒有額外技能數值結算。
-static int actor_cast_at(Actor *a, int id, int x, int y, Actor *target) {
+static int actor_cast_try(Actor *a, int id, int x, int y, Actor *target) {
     int i = actor_skill_find(a, id);
     if (i < 0) return 0;
     ActorSkill *s = &a->skills[i];
@@ -2209,6 +2228,16 @@ static int actor_cast_at(Actor *a, int id, int x, int y, Actor *target) {
     if (target) a->foe = target;
     main_new(a);
     return 1;
+}
+
+// 施法入口的記住命令收尾：失敗也執行；不同技能且仍有敵對角色目標時保留。
+// shortcut: 單機模式2；完整服務端入口接入時補非模式2的無條件清除分支。
+static int actor_cast_at(Actor *a, int id, int x, int y, Actor *target) {
+    int result = actor_cast_try(a, id, x, y, target);
+    if ((a->remembered[0] == 8 || a->remembered[0] == 9) &&
+        (a->remembered[1] == id || !a->foe || !is_foe(a, a->foe)))
+        actor_forget_command(a);
+    return result;
 }
 
 // Poq.exe 0x4861e0：第一個正ID且查得到SkillUnit的候選即停止，施法失敗也不試後面的。
@@ -2258,6 +2287,9 @@ static void hero_cast_point(Actor *h, int x, int y, Actor *target) {
     const SkillRow *r = &hero_skill[k];
     int manual = skill_manual(r);
     if (manual == 2 || manual == 3) {
+        // shortcut: 技能命令8的世界座標由既有右鍵入口橋接；完整分派接入後共用命令入口。
+        h->remembered[0] = 8; h->remembered[1] = skill_attack_id(r);
+        h->remembered[2] = x; h->remembered[3] = y;
         if (actor_can_use_id(h, skill_attack_id(r)) && skill_usable(h, r))
             actor_cast_at(h, skill_attack_id(r), x, y, target);
         return;
@@ -4514,11 +4546,15 @@ int main(int argc, char **argv) {
                 case CMD_ATTACK: hero->foe = m; hero->want = NULL; ground_want = walk_cx = -1; break;
                 case CMD_PICK: ground_want = g; hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
                 case CMD_MOVE:
+                    // shortcut: 目前輸入橋接記住命令1；完整主分派接入後移到共用入口。
+                    hero->remembered[0] = 1;
+                    hero->remembered[1] = cx; hero->remembered[2] = cy; hero->remembered[3] = 0;
                     mark_new(cx, cy); hero->foe = NULL; hero->want = NULL; ground_want = -1;
                     walk_cx = hero->fight && actor_move_cast(hero, (unsigned short)cx, (unsigned short)cy) ? -1 : cx;
                     walk_cy = cy;
                     break;
                 case CMD_TALK: {  // shortcut: 原版指令 0xf 是走過去再說；這裡馬上說，而且只有 ONT 擺的（有事件 ID）的 NPC 能說
+                    actor_forget_command(hero);
 #ifdef STORY
                     const char *event = actor_init_name(m);
                     if (!m->mon && event && *event) {

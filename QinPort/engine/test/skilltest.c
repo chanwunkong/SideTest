@@ -321,6 +321,43 @@ static void character_names_owner_test(void) {
     assert(!strcmp(actor_init_name(&a), "dynamic"));
 }
 
+static void character_speed_memory_test(void) {
+    Actor a = {.speed = 7, .fight_speed = 11, .dynamic_state = 1};
+    assert(actor_speed(&a) == 7);
+    a.fight = 1; assert(actor_speed(&a) == 11);
+    a.flags = 0x10000; assert(actor_speed(&a) == 11); // 跑步只在移動狀態生效。
+    a.dynamic_state = 11; assert(actor_speed(&a) == 10); // 7*3/2，先截斷。
+    a.speed_override = 1; assert(actor_speed(&a) == 0);
+    a.speed_override = 10; assert(actor_speed(&a) == 9);
+    a.speed_threshold = 100; assert(actor_speed(&a) == 9);
+    a.speed_threshold = 101; assert(actor_speed(&a) == 4);
+    a.speed_threshold = 102; assert(actor_speed(&a) == 4);
+    a.speed_threshold = 0; a.speed_override = 101;
+    assert(actor_speed(&a) == 100); // getter不夾到59。
+    a.ex[64] = -101; assert(actor_speed(&a) == -1); // 加速後不再夾到0。
+    a.ex[64] = 150; assert(actor_speed(&a) == 175);
+    for (int cmd = -1; cmd <= 9; cmd++) {
+        a.remembered[0] = cmd; a.remembered[1] = 12;
+        a.remembered[2] = 34; a.remembered[3] = 56;
+        a.remember_delay = 99;
+        actor_forget_command(&a);
+        assert(a.remembered[0] == -1);
+        assert(a.remember_delay == (cmd == 1 || cmd == 2 ? 50 : 0));
+        assert(a.remembered[1] == 12 && a.remembered[2] == 34 && a.remembered[3] == 56);
+        actor_forget_command(&a); assert(a.remember_delay == 0);
+    }
+    // 失敗施法仍做收尾；記住不同技能且有敵對目標時保留。
+    RoleDef d = {0}; Actor enemy = {.grp = 10000};
+    a = (Actor){.def = &d, .grp = 0, .foe = &enemy, .remembered = {8, 123, 34, 56}};
+    assert(!actor_cast_at(&a, 999, 0, 0, NULL) && a.remembered[0] == 8);
+    assert(!actor_cast_at(&a, 123, 0, 0, NULL) && a.remembered[0] == -1);
+    assert(a.remembered[1] == 123 && a.remembered[2] == 34 && a.remembered[3] == 56);
+    a.remembered[0] = 9; a.foe = NULL;
+    assert(!actor_cast_at(&a, 999, 0, 0, NULL) && a.remembered[0] == -1);
+    a.remembered[0] = 9; a.foe = &enemy; enemy.grp = 0;
+    assert(!actor_cast_at(&a, 999, 0, 0, NULL) && a.remembered[0] == -1);
+}
+
 static void character_template_candidates_test(void) {
     // 假模型快取讓測試走真實actor_setup，不需建立SDL視窗或載入紙娃娃。
     RoleSlot saved = roles[0];
@@ -784,6 +821,7 @@ int main(void) {
     character_skills_test();
     character_skill_runtime_test();
     character_template_candidates_test();
+    character_speed_memory_test();
     character_names_owner_test();
     scene_client_test();
     viewport_test();

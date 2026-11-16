@@ -493,9 +493,9 @@ SceneResources（類別名待確認）	+0x38a4	出口物件占用槽數量	待�
 SceneResources（類別名待確認）	+0x38b4	出口物件占用鏈首索引	待完整出口物件管理
 SceneResources（類別名待確認）	+0x4858	出口物件下一占用索引陣列	待完整出口物件管理
 ExitObject（0047d1e0）	+0xa8	名稱相符時由命令第一個32位參數寫入；用途待確認	待完整出口物件管理
-CCharactor	+0x3fb	ObjSpeed診斷讀取的32位速度欄位之一；格式參數順序未確認	待完整角色速度
-CCharactor	+0x6f	ObjSpeed診斷讀取的32位速度欄位之一；格式參數順序未確認	待完整角色速度
-CCharactor	+0x541	ObjSpeed診斷讀取的32位速度欄位之一；格式參數順序未確認	待完整角色速度
+CCharactor	+0x3fb	戰鬥狀態使用的模板速度	Actor.fight_speed
+CCharactor	+0x6f	普通移動速度；移動狀態11且跑步旗標時乘3除2	Actor.speed
+CCharactor	+0x541	角色加速百分比；正值經v*150/(v+150)換算	Actor.ex[64]換算後
 CScnGC	+0x54	0x123場景參數封包讀取的byte，業務意義待確認	連線同步略過
 CScnGC	+0x5c	0x123場景參數封包讀取的16位值，業務意義待確認	連線同步略過
 CScnGC	+0x60	0x123場景參數封包讀取的byte，業務意義待確認	連線同步略過
@@ -648,7 +648,7 @@ CCharactor	+0xa3	目前目標物件句柄，0無目標	Actor.foe（指標取代�
 CCharactor	+0xa7	方向0..7	Actor.dir／DIR_MAP
 CCharactor	+0xaf	當前移速的A參數；0時不能使用距離大於等於3的技能	Actor.speed及SPEED_A；完整速度套用待移植
 CCharactor	+0x2cf	角色模板指標	Actor.def
-CCharactor	+0x2e3	動作與移速減半判斷用整數門檻，值小於101時部分分支不同	待完整角色狀態
+CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減半	Actor.speed_threshold
 CCharactor	+0x339	AI組（0..99玩家、10000..60000 NPC組）	Actor.grp
 CCharactor	+0x33d	蠱惑前原AI組	待狀態14
 CCharactor	+0x341	128個狀態byte：值非0代表啟用，不限布林值	Buff／has_status；完整byte設置待移植
@@ -693,10 +693,10 @@ CCharactor	+0x51c	模式，值2觸發移動第6修正	待角色行為模式
 CCharactor	+0x524	目前縮放量，逐拍往第4修正值移1	待角色縮放
 CCharactor	+0x528	死亡模式byte	待角色移除
 CCharactor	+0x529	活動旗標，角色更新時0轉1	待角色更新
-CCharactor	+0x531	記住的命令代號，-1無，1/2清除時給延遲50	待記住命令
-CCharactor	+0x535	記住命令參數1	待記住命令
-CCharactor	+0x539	記住命令參數2	待記住命令
-CCharactor	+0x53d	記住命令參數3	待記住命令
+CCharactor	+0x531	記住的命令代號，-1無，1/2清除時給延遲50	Actor.remembered[0]
+CCharactor	+0x535	記住命令參數1，清除時保留	Actor.remembered[1]
+CCharactor	+0x539	記住命令參數2，清除時保留	Actor.remembered[2]
+CCharactor	+0x53d	記住命令參數3，清除時保留	Actor.remembered[3]
 CCharactor	+0x549	技能最大距離修正，只作用原距離大於3的技能	Actor.range_adjust／actor_skill_range
 CCharactor	+0x55d	基礎索敵範圍，層大於10時加8	Actor.def->seek／actor_seek
 CCharactor	+0x561	基礎追擊範圍，層大於10時加8	Actor.def->chase／actor_chase
@@ -716,7 +716,7 @@ CCharactor	+0x595	光環作用範圍，預設8或取SkillUnit最大距離	待光
 CCharactor	+0x599	光環來源SkillUnit指標	待光環
 CCharactor	+0x59d	修正目的格X快取	待角色位置修正
 CCharactor	+0x5a1	修正目的格Y快取	待角色位置修正
-CCharactor	+0x5a5	清記住命令後的延遲，原命令1/2為50否則0	待記住命令
+CCharactor	+0x5a5	清記住命令後的延遲，原命令1/2為50否則0；重送及扣減尚待主分派	Actor.remember_delay
 CCharactor	+0x5a9	角色活動啟用byte	待角色更新
 CCharactor	+0x5aa	8個7bytes頭頂／上飄文字槽的陣列指標	待頭頂文字
 CCharactor	+0x5ae	上次位置同步X，初值-100	單機不另建同步副本
@@ -749,3 +749,4 @@ CCharactor	+0x4fb	第四候選技能ID；模板ffff時保留舊值	Actor.candida
 RoleMdl	+0x154	第二候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[1]
 RoleMdl	+0x158	第三候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[2]
 RoleMdl	+0x15c	第四候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[3]
+CCharactor	+0x40f	第1修正速度覆寫，0不覆寫，非0以值減1作基礎速度	Actor.speed_override；完整20修正表仍待接齊
