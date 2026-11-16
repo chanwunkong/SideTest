@@ -321,6 +321,72 @@ static void character_names_owner_test(void) {
     assert(!strcmp(actor_init_name(&a), "dynamic"));
 }
 
+static void character_near_test(void) {
+    RoleDef d = {.seek = 2};
+    for (int i = 0; i < 4; i++) {
+        mk(&actors[i]); actors[i].def = &d;
+        actors[i].x = actors[i].y = 10.5f;
+        actors[i].grp = i ? 10000 : 0;
+    }
+    actor_count = 3;
+    Actor *a = &actors[0], *first = &actors[1], *closer = &actors[2];
+    first->y = 9.1f; closer->x = 11.1f;
+    // 螺旋先上方再右方，選第一個，不選距離較近者。
+    assert(actor_near_begin(a, 0, -1) == first);
+    assert(actor_near_next(a) == closer && !actor_near_next(a));
+    first->flags = 0x10;
+    assert(actor_near_begin(a, 0, -1) == closer);
+    closer->flags = 0x20000;
+    assert(!actor_near_begin(a, 0, -1));
+    first->flags = closer->flags = 0;
+    first->display_override = 50;
+    assert(actor_near_begin(a, 0, -1) == closer);
+    first->display_override = 0;
+    a->flags = 0x4000; assert(!actor_near_begin(a, 0, -1));
+    a->flags = 0; a->buff_n = 1; a->buff[0].status = 102;
+    assert(!actor_near_begin(a, 0, -1)); a->buff_n = 0;
+    // 只有-1用預設範圍；零及其他負值都失敗，而且不重設底層游標。
+    assert(actor_near_begin(a, 0, 2) == first);
+    assert(!actor_near_begin(a, 0, 0));
+    assert(actor_near_next(a) == closer);
+    assert(!actor_near_begin(a, 0, -2));
+    first->y = 5.5f; closer->x = 15.5f;
+    assert(!actor_near_begin(a, 0, -1));
+    a->layer = 11;
+    assert(actor_near_begin(a, 0, -1));
+    assert(!actor_near_begin(a, 0, 2)); a->layer = 1;
+    first->x = first->y = closer->x = closer->y = 10.5f;
+    first->grp = a->grp; first->sh = 71;
+    assert(actor_near_begin(a, 1, 2) == first);
+    a->search_link = 71; assert(actor_near_begin(a, 2, 2) == first);
+    assert(actor_near_begin(a, 3, 2) == closer);
+    closer->grp = 60001; assert(!actor_near_begin(a, 3, 2));
+    closer->grp = 60000; assert(actor_near_begin(a, 3, 2) == closer);
+    // 同組戰鬥角色可轉交其目標；以整數格歐氏距離嚴格小於索敵範圍。
+    actor_count = 4; Actor *foe = &actors[3];
+    foe->x = 11.5f; foe->y = 10.5f; foe->grp = 10000;
+    first->fight = 1; first->foe = foe;
+    assert(actor_near_begin(a, 0, 2) == foe);
+    foe->x = 12.5f;
+    assert(actor_near_begin(a, 0, 2) == closer);
+    first->fight = 0;
+    assert(actor_near_begin(a, 0, 2) == closer);
+    // 程序40可在不同格協助；一般程序只在整數格距離0時協助。
+    first->fight = 1; first->y = 9.5f; foe->x = 11.5f;
+    closer->flags = foe->flags = 0x10;
+    assert(!actor_near_begin(a, 0, 2));
+    d.program = 40;
+    assert(actor_near_begin(a, 0, 2) == foe);
+    d.program = 0; closer->flags = foe->flags = 0;
+    a->flags = 0x4000;
+    assert(actor_near_begin(a, 1, 2) == first); // 自身禁止攻擊不阻擋模式1。
+    a->flags = 0;
+    assert(actor_near_begin(a, 0, 2) == closer);
+    assert(!actor_near_begin(a, 1, 0)); // 半徑失敗仍先更新模式。
+    assert(actor_near_next(a) == first);
+    actor_count = 0;
+}
+
 static void character_speed_memory_test(void) {
     Actor a = {.speed = 7, .fight_speed = 11, .dynamic_state = 1};
     assert(actor_speed(&a) == 7);
@@ -822,6 +888,7 @@ int main(void) {
     character_skill_runtime_test();
     character_template_candidates_test();
     character_speed_memory_test();
+    character_near_test();
     character_names_owner_test();
     scene_client_test();
     viewport_test();

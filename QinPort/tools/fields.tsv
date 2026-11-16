@@ -23,7 +23,7 @@ CPhantasmObj	+0x4f2	出手者走過的位移 CDMList<GPOINT>	MUnit.pq/pq_n
 CPhantasmObj	+0x478	放出它的招式物件編號	（比 MUnit.m）
 RoleMdl	+0xcc	角色大小（欄 18）	RoleDef.size
 RoleMdl	+0xd0	脚数（欄 19）	RoleDef.legs
-RoleMdl	+0x114	程序标识第一個值（欄 27）	（還沒用）
+RoleMdl	+0x114	程序标识第一個值（欄 27），40允許同組遠距協助索敵	RoleDef.program
 RoleMdl	+0x134	平时声音（欄 32）	RoleDef.snd_idle
 RoleMdl	+0x138	战斗声音（欄 33）	RoleDef.snd_fight
 CCharactor	+0x3c5	這次踩哪隻腳	Actor.foot
@@ -652,7 +652,7 @@ CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減�
 CCharactor	+0x339	AI組（0..99玩家、10000..60000 NPC組）	Actor.grp
 CCharactor	+0x33d	蠱惑前原AI組	待狀態14
 CCharactor	+0x341	128個狀態byte：值非0代表啟用，不限布林值	Buff／has_status；完整byte設置待移植
-CCharactor	+0x3ff	獨立模式整數，由角色設定入口寫入	待角色模式
+CCharactor	+0x3ff	獨立模式整數，遍歷模式2與候選物件識別比較；設定入口待接	Actor.search_link
 CCharactor	+0x403	角色組合旗標32位值	Actor.flags／actor_flags／actor_set_flags
 CCharactor	+0x407	20項修正值，每項相隔8bytes，初值0	待完整修正表
 CCharactor	+0x40b	20項修正的期限，每項相隔8bytes，-1永久；每10拍扣10	待完整修正表
@@ -666,7 +666,7 @@ CCharactor	+0x43b	第6修正期限，移動入口-1／更新入口20	待完整�
 CCharactor	+0x43f	第7修正值，互動命令設為操作者句柄	待角色互動
 CCharactor	+0x443	第7修正期限，互動命令最多設100	待角色互動
 CCharactor	+0x44f	第9修正值，角色頭上標記ID	待頭上標記
-CCharactor	+0x457	第10修正值，非0覆蓋模板顯示方式	待角色顯示方式
+CCharactor	+0x457	第10修正值，非0覆蓋模板顯示方式；50不可作遍歷目標	Actor.display_override（狀態表寫入待接）
 CCharactor	+0x45b	第10修正期限	待完整修正表
 CCharactor	+0x45f	第11修正值，套身體／武器顏色	待覆色
 CCharactor	+0x467	第12修正值，套另一部件顏色	待覆色
@@ -750,3 +750,5 @@ RoleMdl	+0x154	第二候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef
 RoleMdl	+0x158	第三候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[2]
 RoleMdl	+0x15c	第四候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[3]
 CCharactor	+0x40f	第1修正速度覆寫，0不覆寫，非0以值減1作基礎速度	Actor.speed_override；完整20修正表仍待接齊
+RoleMdl	+0x128	模板顯示方式，第10修正為0時使用；50排除角色遍歷	待模板載入與actor_near_next接入
+CObj	+0x24	物件識別，角色遍歷模式2與發起者+0x3ff比較	Actor.sh僅劇情物件橋接；共用識別待接

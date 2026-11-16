@@ -263,6 +263,7 @@ typedef struct Actor {
     struct Actor *foe;             // 攻擊目標
     struct Actor *owner;           // 召喚出來的：召喚者
     int side;                      // 隊伍：0 = 主角這邊（主角、他的召喚兽、馴服的、陷阱、分身），1 = 怪物
+    int search_link, display_override; // 關聯識別與第10修正（索敵篩選）
     int grp;                       // AI 組（+0x339）：0～99 玩家組、10000～60000 NPC 組；敵對看它（near.c is_foe）
     int copied, copy[12];
     float knock_x, knock_y;        // 被擊退要滑到的點（knock = 1 時）
@@ -1841,18 +1842,12 @@ static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
     }
     if (a->foe && (!alive(a->foe) || fabsf(a->x - a->spec->rx - MON_WANDER) + fabsf(a->y - a->spec->ry - MON_WANDER) > actor_chase(a)))
         a->foe = NULL;
-    // 目標有 0x10（0x488a10）或 0x4000（0x489730）就放掉；找目標（0x48ba50）跳過 0x10、0x20000，自己有 0x4000 不找
+    // 目標旗標取消沿用角色入口；新目標按格子遍歷順序選取。
     if (a->foe && actor_flags(a->foe, 0x4010)) actor_clear_target(a);
-    // 找索敌范围內最近的別隊（主角、怪物、雙方的召喚兽）
-    Actor *near = NULL;
-    // shortcut: 陷阱（小動物表）沒有索敌范围，原版怎麼觸發（Poq 物件種類 3）還沒拆，先用它技能的作用範圍
+    // shortcut: 陷阱的觸發系統尚未移植，仍以技能範圍作明確半徑；完成陷阱系統時移除。
     const SkillRow *ts = a->mon && a->mon->istrap == 1 ? npc_skill(a->mon->skill[0]) : NULL;
-    int seek = actor_seek(a);
-    if (!seek && ts) seek = skill_range_max(ts);
-    for (int i = 0; !a->foe && !(a->flags & 0x4000) && i < actor_count; i++) {
-        Actor *e = &actors[i];
-        if (hostile(a, e) && !(e->flags & 0x20010) && cell_dist(a, e) <= seek && (!near || cell_dist(a, e) < cell_dist(a, near))) near = e;
-    }
+    int radius = !actor_seek(a) && ts ? skill_range_max(ts) : -1;
+    Actor *near = a->foe ? NULL : actor_near_begin(a, 0, radius);
     if (near) { a->foe = near; foe_grp(a, near); }
     if (!pursue(a, s, tick)) npc_think(a, s, tick);
 }

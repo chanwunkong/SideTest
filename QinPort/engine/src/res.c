@@ -1255,6 +1255,7 @@ int roledefs_load(void) {
         r->seek = COL(24); r->chase = COL(25); r->snd_death = COL(31); r->snd_hit = COL(34); r->atk_delay = COL(39);
         r->size = COL(18); r->legs = COL(19); r->snd_idle = COL(32); r->snd_fight = COL(33);
         r->light = COL(15); r->flicker = COL(16);
+        r->program = COL(27);
         r->move_cast = COL(37);
         for (int i = 0; i < 4; i++) r->candidate[i] = -1;
         if (c > 38 && *col[38]) {
