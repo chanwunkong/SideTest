@@ -504,3 +504,5 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00473dc0  SKillPlayer刪除式解構：CHAINITEM解構後依旗標釋放0x24 byte；依規則略過鏈結節點生命週期
 00473df0  SLingpai刪除式解構：CHAINITEM解構後依旗標bit0釋放0x1c byte；依規則略過鏈結節點生命週期
 00473e20  SLingpaiPlayer刪除式解構：CHAINITEM解構後依旗標bit0釋放0x1c byte；依規則略過鏈結節點生命週期
+00473e50  固定20槽表插入工具；無呼叫者，以C陣列／占用旗標／數量代替
+00473e90  固定100槽表插入工具；無呼叫者，以C陣列／占用旗標／數量代替

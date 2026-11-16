@@ -845,8 +845,6 @@ Poq.exe	99	00473d00	FUN_00473d00	~CGameApp	game	skip	34	2	場景管理容器物�
 Poq.exe	99	00473dc0	FUN_00473dc0	SKillPlayer	game	skip	12	2	SKillPlayer刪除式解構：CHAINITEM解構後依旗標釋放0x24 byte；依規則略過鏈結節點生命週期	SKillPlayer刪除式解構：解構CHAINITEM，旗標bit0決定是否釋放0x24 byte節點	
 Poq.exe	99	00473df0	FUN_00473df0	SLingpai	game	skip	12	2	SLingpai刪除式解構：CHAINITEM解構後依旗標bit0釋放0x1c byte；依規則略過鏈結節點生命週期	SLingpai刪除式解構：解構CHAINITEM，旗標bit0決定是否釋放0x1c byte節點	
 Poq.exe	99	00473e20	FUN_00473e20	SLingpaiPlayer	game	skip	12	2	SLingpaiPlayer刪除式解構：CHAINITEM解構後依旗標bit0釋放0x1c byte；依規則略過鏈結節點生命週期	SLingpaiPlayer刪除式解構：先清CHAINITEM，依旗標bit0釋放0x1c byte節點（生命週期skip）	
-Poq.exe	99	00473e50	FUN_00473e50		game	todo	14	0			
-Poq.exe	99	00473e90	FUN_00473e90		game	todo	14	0			
 Poq.exe	99	00473ee0	FUN_00473ee0		game	todo	55	0			004a3340 004cc800
 Poq.exe	99	00474030	FUN_00474030		game	todo	87	5			0046c9e0 0046ce90 00475ca0 004a3340 004cc800
 Poq.exe	99	00474270	FUN_00474270		game	todo	118	4			0045a030 00465cf0 00475830 0047bf50 0047c430 0047f120 00484ee0 0048e6c0 00494ec0 004963e0 00497d00 004dee00
