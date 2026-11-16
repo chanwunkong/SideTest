@@ -245,13 +245,17 @@ static void character_move_cast_test(void) {
     a.candidate[0] = 0; a.candidate[1] = id; a.candidate[2] = 1; a.candidate[3] = -1;
     actor_candidate_cast(&a); assert(unit_n == 0);
     a.skills[0].enabled = 1;
-    Actor target = {.role = &role, .x = 7.5f, .y = 8.5f}; a.foe = &target;
+    Actor target = {.role = &role, .x = 7.5f, .y = 8.5f};
+    Actor saved_candidate_target = actors[0]; int saved_candidate_count = actor_count;
+    actors[0] = target; actor_count = 1;
+    a.foe = &actors[0];
     actor_enter_fight(&a);
-    assert(unit_n == 1 && units[0].target == &target && a.aim_x == ax64(&target));
+    assert(unit_n == 1 && units[0].target == &actors[0] && a.aim_x == ax64(&actors[0]));
     actor_enter_fight(&a); assert(unit_n == 1); // 同一次入戰只觸發一次。
     unit_n = 0; a.act = 0; a.casting = 0; a.foe = NULL;
     actor_candidate_cast(&a);
     assert(unit_n == 1 && a.aim_x == ax64(&a) && a.aim_y == ay64(&a));
+    actors[0] = saved_candidate_target; actor_count = saved_candidate_count;
     // 右鍵共用地點施法；同隊技不接受敵對組，也不能把點到的友軍改成自己。
     SkillRow old_skill = hero_skill[0]; int old_n = hero_skill_n, old_left = cur_skill[1];
     hero_skill_n = 1; cur_skill[1] = 0;
@@ -342,6 +346,13 @@ static void character_near_test(void) {
     first->display_override = 50;
     assert(actor_near_begin(a, 0, -1) == closer);
     first->display_override = 0;
+    RoleDef hidden = d;
+    hidden.display = 50;
+    first->def = &hidden;
+    assert(actor_near_begin(a, 0, -1) == closer);
+    first->display_override = -1; // 非零覆寫，不能把負值當成未設定。
+    assert(actor_near_begin(a, 0, -1) == first);
+    first->display_override = 0; first->def = &d;
     a->flags = 0x4000; assert(!actor_near_begin(a, 0, -1));
     a->flags = 0; a->buff_n = 1; a->buff[0].status = 102;
     assert(!actor_near_begin(a, 0, -1)); a->buff_n = 0;
@@ -376,6 +387,9 @@ static void character_near_test(void) {
     closer->flags = foe->flags = 0x10;
     assert(!actor_near_begin(a, 0, 2));
     d.program = 40;
+    assert(!actor_near_begin(a, 0, 2)); // 目標getter的0x10也會阻止同組轉交。
+    assert(first->foe == foe); // 僅隱藏查詢，不丟失識別。
+    foe->flags = 0x20000; // 轉交目標不重套候選篩選；getter只排除0x10。
     assert(actor_near_begin(a, 0, 2) == foe);
     d.program = 0; closer->flags = foe->flags = 0;
     a->flags = 0x4000;
@@ -385,6 +399,38 @@ static void character_near_test(void) {
     assert(!actor_near_begin(a, 1, 0)); // 半徑失敗仍先更新模式。
     assert(actor_near_next(a) == first);
     actor_count = 0;
+}
+
+static void character_target_display_test(void) {
+    Actor saved = actors[0];
+    int saved_count = actor_count;
+    RoleDef d = {.display = 50};
+    Actor a = {.def = &d};
+    assert(actor_display(&a) == 50);
+    a.display_override = 1; assert(actor_display(&a) == 1);
+    a.display_override = -1; assert(actor_display(&a) == -1);
+    a.display_override = 0; d.display = 0; assert(actor_display(&a) == 0);
+    actor_size_set(&a, -3); assert(a.body_size == -3);
+    actor_count = 1;
+    actors[0] = (Actor){.role = (const Role *)1, .act = ACT_DEAD};
+    a.foe = &actors[0];
+    assert(actor_target(&a) == &actors[0]); // 死亡仍存在。
+    actors[0].flags = 0x10;
+    assert(!actor_target(&a) && a.foe == &actors[0]);
+    Scene sc = {0};
+    assert(!pursue(&a, &sc, 0) && a.foe == &actors[0]);
+    actors[0].flags = 0;
+    assert(actor_target(&a) == &actors[0]); // 移除旗標即可重現，不需重設目標。
+    MonDef trap = {.istrap = 1};
+    actors[0].mon = &trap; actors[0].flags = 0x10;
+    assert(actor_target(&a) == &actors[0]); // 陷阱不是種類30..100，不套角色旗標檢查。
+    actors[0].role = NULL;
+    assert(!actor_target(&a) && !a.foe);
+    a.foe = &saved;
+    assert(!actor_target(&a) && !a.foe); // 陣列外的失效識別。
+    a.foe = &actors[0]; actors[0].role = (const Role *)1; actor_count = 0;
+    assert(!actor_target(&a) && !a.foe);
+    actors[0] = saved; actor_count = saved_count;
 }
 
 static void character_speed_memory_test(void) {
@@ -433,6 +479,7 @@ static void character_template_candidates_test(void) {
     role_count = 1;
     Actor fresh = {0};
     actor_setup(&fresh, &d);
+    assert(fresh.body_size == 1);
     for (int i = 0; i < 4; i++) assert(fresh.candidate[i] == -1);
     Actor a = {.def = &d, .candidate = {276, 277, 278, 279}};
     actor_setup(&a, &d);
@@ -441,6 +488,9 @@ static void character_template_candidates_test(void) {
     actor_setup(&a, &d);
     assert(a.candidate[0] == 276 && a.candidate[1] == 0);
     assert(a.candidate[2] == -1 && a.candidate[3] == 280);
+    d.size = 6; actor_setup(&a, &d); assert(a.body_size == 1);
+    d.size = 7; actor_setup(&a, &d); assert(a.body_size == 2);
+    d.size = 100; actor_setup(&a, &d); assert(a.body_size == 95);
     d.candidate[1] = d.candidate[2] = d.candidate[3] = 65535;
     actor_setup(&a, &d);
     assert(a.candidate[0] == 276 && a.candidate[1] == 0);
@@ -889,6 +939,7 @@ int main(void) {
     character_template_candidates_test();
     character_speed_memory_test();
     character_near_test();
+    character_target_display_test();
     character_names_owner_test();
     scene_client_test();
     viewport_test();
@@ -1305,9 +1356,13 @@ int main(void) {
     Method fm2 = {.ai = 0};
     mk(&a); mk(&t);
     a.x = 20.5f; a.y = 20.5f; t.x = 21.5f; t.y = 20.5f;
-    a.foe = &t; a.skill = &far; a.ai_tick = 0; a.cool = 100000;  // 不出手（測試角色沒有動畫）
+    // 目標須在場景物件名單裡，走正式的查找而非未登記的區域指標。
+    Actor saved_target = actors[0]; int saved_actor_count = actor_count;
+    actors[0] = t; actor_count = 1;
+    a.foe = &actors[0]; a.skill = &far; a.ai_tick = 0; a.cool = 100000;  // 不出手（測試角色沒有動畫）
     for (int i = 0; i < 61 && !a.flee; i++) { a.atk = &fm2; a.skill = &far; pursue(&a, &sc, 0); }
     assert(a.flee && (int)a.tx == 15 && (int)a.ty == 20);
+    actors[0] = saved_target; actor_count = saved_actor_count;
     // 致命一击 100%：物理損加倍（AP 10、DP 0 → 10 → 20）；会心一击 100%：不算 DP
     mk(&a); mk(&t);
     a.hr = 100000; a.ap = a.ap_max = 10; t.dp = 0;
@@ -1496,8 +1551,10 @@ int main(void) {
         assert(click_cmd(&h, NULL, -1) == CMD_MOVE);
         assert(buff_add(&h, NULL, 17, 1, 5, 0) && click_cmd(&h, &c, -1) == CMD_NONE);  // 溃散不收指令
         // 敵人狀態框 0x459ce0：有滑鼠時是指著的（自己也算），沒指著就關；觸控用攻擊目標
-        h.foe = &c;
-        assert(status_target(&h, &h, 1) == &h && !status_target(&h, NULL, 1) && status_target(&h, NULL, 0) == &c);
+        Actor saved_hover_target = actors[0]; int saved_hover_count = actor_count;
+        actors[0] = c; actor_count = 1; h.foe = &actors[0];
+        assert(status_target(&h, &h, 1) == &h && !status_target(&h, NULL, 1) && status_target(&h, NULL, 0) == &actors[0]);
+        actors[0] = saved_hover_target; actor_count = saved_hover_count;
         c.act = ACT_DEAD; assert(!status_target(&h, &c, 1));
         game_speed_ms = 21;
         game_speed_key(1); assert(game_speed_ms == 16);  // 怪現象：開局按一次就最快

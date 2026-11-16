@@ -264,6 +264,7 @@ typedef struct Actor {
     struct Actor *owner;           // 召喚出來的：召喚者
     int side;                      // 隊伍：0 = 主角這邊（主角、他的召喚兽、馴服的、陷阱、分身），1 = 怪物
     int search_link, display_override; // 關聯識別與第10修正（索敵篩選）
+    int body_size;                 // 動態物件占位大小（模板大小<7取1，否則減5）
     int grp;                       // AI 組（+0x339）：0～99 玩家組、10000～60000 NPC 組；敵對看它（near.c is_foe）
     int copied, copy[12];
     float knock_x, knock_y;        // 被擊退要滑到的點（knock = 1 時）
@@ -315,6 +316,14 @@ static void actor_name_set(Actor *a, const char *name) {
 
 // Poq.exe 0x488840：回傳顯示副本，不能直接回傳SInit名稱。
 static const char *actor_name(const Actor *a) { return a->display_name; }
+
+// Poq.exe 0x4887b0：任何非零修正均優先，包括負數。
+static int actor_display(const Actor *a) {
+    return a->display_override ? a->display_override : a->def ? a->def->display : 0;
+}
+
+// Poq.exe 0x496530：只保存大小，不改位置或重建模型。
+static void actor_size_set(Actor *a, int size) { a->body_size = size; }
 
 // Poq.exe 0x48e6c0 / 0x488750：只寫／讀主人識別；引擎以Actor指標承接物件識別。
 static void actor_owner_set(Actor *a, Actor *owner) { a->owner = owner; }
@@ -526,6 +535,20 @@ static void roles_clear(void) {
 static Actor actors[MAX_ACTORS];
 static int actor_count;
 
+// Poq.exe 0x488a10：失效才清識別；角色旗標0x10只隱藏本次查詢，死亡不等於失效。
+// shortcut: CObj句柄查找沿用Actor陣列和指標；目前場景整批重建，
+// 若開始在同場景重用Actor槽，須改帶世代的識別以排除舊指標。
+static Actor *actor_target(Actor *a) {
+    Actor *t = a->foe;
+    for (int i = 0; t && i < actor_count; i++) {
+        if (t != &actors[i] || !t->role) continue;
+        if (!(t->mon && t->mon->istrap == 1) && (t->flags & 0x10)) return NULL;
+        return t;
+    }
+    a->foe = NULL;
+    return NULL;
+}
+
 // Poq.exe 0x4770a0：依物件編號查找，包含已死物件。
 // shortcut: 目前用劇情 handle 對 actors；完整 CScene 物件索引接入時改用原版編號。
 static inline Actor *actor_of(int h) {
@@ -580,6 +603,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     a->layer = 1;
     a->role = role_for(d);
     a->def = d;
+    actor_size_set(a, d->size < 7 ? 1 : d->size - 5);
     a->idle = d->idle;
     a->walk = d->walk;
     a->fidle = d->fight_idle;
@@ -1172,7 +1196,8 @@ static int status_blocked(const Actor *a, int st) {
     return 0;
 }
 
-// 狀態表（RoleEffectMdl.txt）的效果：速度變化（0 = 不能動；幾個狀態都有時用序號最小的，Poq.exe 0x48b2f0 從 127 往下設）、攻击不能
+// shortcut: 狀態表目前只套速度及攻擊不能；完整狀態重算尚缺旗標、光環、縮放與覆色。
+// 多個速度狀態取序號最小值；補齊完整狀態重算時替換。
 static int status_speed(const Actor *a) {
     int v = 100, id = 1 << 30;
     for (int b = 0; b < a->buff_n; b++) {
@@ -1776,8 +1801,9 @@ static void cast_start(Actor *h, const SkillRow *r);
 
 // 追打目標：在招式距離內就面向它出手，否則往它走。回傳 0 = 沒有目標
 static int pursue(Actor *a, const Scene *s, Uint32 tick) {
-    if (!alive(a->foe)) { a->foe = NULL; return 0; }
-    Actor *t = a->foe;
+    Actor *t = actor_target(a);
+    if (!t) return 0;
+    if (!alive(t)) { actor_clear_target(a); return 0; }
     actor_enter_fight(a);
     if (main_of(a)) return 1;
     float gx = t->x - a->x, gy = t->y - a->y;
@@ -1842,12 +1868,13 @@ static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
     }
     if (a->foe && (!alive(a->foe) || fabsf(a->x - a->spec->rx - MON_WANDER) + fabsf(a->y - a->spec->ry - MON_WANDER) > actor_chase(a)))
         a->foe = NULL;
-    // 目標旗標取消沿用角色入口；新目標按格子遍歷順序選取。
-    if (a->foe && actor_flags(a->foe, 0x4010)) actor_clear_target(a);
+    // 暫時不可選取的目標只讓getter回空，不清掉其識別。
+    Actor *target = actor_target(a);
+    if (target && actor_flags(target, 0x4000)) actor_clear_target(a);
     // shortcut: 陷阱的觸發系統尚未移植，仍以技能範圍作明確半徑；完成陷阱系統時移除。
     const SkillRow *ts = a->mon && a->mon->istrap == 1 ? npc_skill(a->mon->skill[0]) : NULL;
     int radius = !actor_seek(a) && ts ? skill_range_max(ts) : -1;
-    Actor *near = a->foe ? NULL : actor_near_begin(a, 0, radius);
+    Actor *near = actor_target(a) ? NULL : actor_near_begin(a, 0, radius);
     if (near) { a->foe = near; foe_grp(a, near); }
     if (!pursue(a, s, tick)) npc_think(a, s, tick);
 }
@@ -2240,7 +2267,7 @@ static void actor_candidate_cast(Actor *a) {
     for (int i = 0; i < 4; i++) {
         int id = a->candidate[i];
         if (id <= 0 || actor_skill_find(a, id) < 0) continue;
-        Actor *t = a->foe;
+        Actor *t = actor_target(a);
         actor_cast_at(a, id, ax64(t ? t : a), ay64(t ? t : a), t);
         return;
     }
@@ -3933,7 +3960,7 @@ static Actor *hover_actor;
 static int hover_mouse;
 
 static Actor *status_target(Actor *h, Actor *hover, int mouse) {
-    Actor *t = mouse ? hover : h->foe;
+    Actor *t = mouse ? hover : actor_target(h);
     return t && t->act != ACT_DEAD ? t : NULL;
 }
 

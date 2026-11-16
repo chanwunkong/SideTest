@@ -186,16 +186,15 @@ static Actor *near_first(int px, int py, int r) { near_begin(px, py, r); return 
 // 角色遍歷共用模式；與底層near游標一樣，巢狀開始會覆蓋前次遍歷。
 static int actor_near_mode;
 
-// shortcut: 模板顯示方式尚未載入，暫僅用第10修正排除50；模板入口補齊時接RoleMdl欄位。
 // shortcut: Actor名單皆為角色，以存活角色承接原版種類30..100檢查；物件種類接入時改精確篩選。
 // shortcut: 戰鬥狀態0沿用fight，初始化記錄座標以目前整數格承接；完整狀態／SInit接入後替換。
 // 此處尚非完整角色遍歷入口，不以原版位址標記完成。
 static Actor *actor_near_next(const Actor *a) {
     for (Actor *t; (t = near_next());) {
-        if (actor_flags(t, 0x20010) || t->display_override == 50) continue;
+        if (actor_flags(t, 0x20010) || actor_display(t) == 50) continue;
         if (actor_near_mode == 0 && !has_status(a, 102) && !actor_flags(a, 0x4000)) {
             if (is_foe(a, t)) return t;
-            Actor *foe = t->foe;
+            Actor *foe = actor_target(t);
             if (t != a && t->grp == a->grp && t->fight && alive(foe) && foe->grp != a->grp) {
                 int d = dist_of((int)a->x, (int)a->y, (int)foe->x, (int)foe->y);
                 int td = dist_of((int)a->x, (int)a->y, (int)t->x, (int)t->y);

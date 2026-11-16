@@ -750,5 +750,6 @@ RoleMdl	+0x154	第二候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef
 RoleMdl	+0x158	第三候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[2]
 RoleMdl	+0x15c	第四候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[3]
 CCharactor	+0x40f	第1修正速度覆寫，0不覆寫，非0以值減1作基礎速度	Actor.speed_override；完整20修正表仍待接齊
-RoleMdl	+0x128	模板顯示方式，第10修正為0時使用；50排除角色遍歷	待模板載入與actor_near_next接入
+RoleMdl	+0x128	模板顯示方式（RoleMdl第29欄），第10修正為0時使用；50排除角色遍歷	RoleDef.display／actor_display／actor_near_next
 CObj	+0x24	物件識別，角色遍歷模式2與發起者+0x3ff比較	Actor.sh僅劇情物件橋接；共用識別待接
+CCharactor	+0x3c1	動態物件大小；模板size小於7取1，否則減5；setter只寫值	Actor.body_size／actor_size_set

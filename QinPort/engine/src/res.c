@@ -1256,6 +1256,7 @@ int roledefs_load(void) {
         r->size = COL(18); r->legs = COL(19); r->snd_idle = COL(32); r->snd_fight = COL(33);
         r->light = COL(15); r->flicker = COL(16);
         r->program = COL(27);
+        r->display = COL(29); // RoleMdl +0x128；原讀表器第29欄。
         r->move_cast = COL(37);
         for (int i = 0; i < 4; i++) r->candidate[i] = -1;
         if (c > 38 && *col[38]) {
@@ -1457,7 +1458,7 @@ int recipes_load(const Recipe **out) {
     return n;
 }
 
-// ---- 角色狀態表 ObjMdl/RoleEffectMdl.txt（Poq.exe 0x48b2f0 依狀態序號查）----
+// ---- 角色狀態表 ObjMdl/RoleEffectMdl.txt ----
 const StatusDef *status_def(int id) {
     static StatusDef defs[128];
     static int loaded;
