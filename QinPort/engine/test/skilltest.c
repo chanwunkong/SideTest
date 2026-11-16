@@ -415,6 +415,23 @@ int main(void) {
     clk.hour = 7, clk.half = 0;
     for (int k = 0; k < 1199; k++) clock_tick();
     assert(clk.half == 0 && clk.tick == 1199);
+    // 場景時計：加速區間含端點；跨年固定每月31日、每年11個月，室內完全不走。
+    const int clock_hours[] = {6, 7, 13, 14, 20, 21};
+    const int clock_steps[] = {120, 1, 1, 120, 120, 1};
+    for (int i = 0; i < 6; i++) {
+        clk.hour = clock_hours[i], clk.tick = 0, clk.half = 0;
+        clock_tick();
+        assert(clk.tick == clock_steps[i] && clk.half == 0);
+    }
+    clk.year = 9, clk.month = 11, clk.day = 31;
+    clk.hour = 23, clk.half = 1, clk.tick = 1199;
+    clock_tick();
+    assert(clk.year == 10 && clk.month == 1 && clk.day == 1);
+    assert(clk.hour == 0 && clk.half == 0 && clk.tick == 0);
+    lt.type = 12;
+    clock_tick();
+    assert(clk.tick == 0 && clk.hour == 0 && clk.day == 1);
+    lt.type = 10;
     clk.hour = 10, clk.tick = 0;
     light_table(15, 0, 10, 0);
     assert(lt.bright == 15);

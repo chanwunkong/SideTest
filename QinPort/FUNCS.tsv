@@ -358,7 +358,7 @@ Poq.exe	99	00449bf0	FUN_00449bf0		game	todo	18	2		把場景畫成一張 w×h 小
 Poq.exe	99	00449c80	FUN_00449c80		game	skip	8	2	只讀／寫一個全域值（見 roles.tsv，用到時直接讀）	有沒有場景客戶端（0x662c48）	
 Poq.exe	99	00449c90	FUN_00449c90	~CGameApp	game	done	97	2			00448ab0 00502190 0057a8d0
 Poq.exe	99	00449f50	FUN_00449f50	~CGameApp	game	done	178	2			0044bf00 0044c090 0044d590 0044dc20 00472e60 004a05e0 004a6720
-Poq.exe	99	0044a550	FUN_0044a550		game	skip	96	0	除錯：視窗標題顯示每拍耗時		0046c220
+Poq.exe	99	0044a550	FUN_0044a550		game	skip	96	0	除錯：視窗標題顯示每拍耗時		
 Poq.exe	99	0044a7a0	FUN_0044a7a0	~CUIServer	game	skip	194	2	平台：依 +4 的模式重建顯示（同 0x448d20）		
 Poq.exe	99	0044adb0	FUN_0044adb0	~CScrMng	game	skip	21	2	平台：DirectDraw 表面遺失時還原		
 Poq.exe	99	0044ae10	FUN_0044ae10		game	done	11	4		縮放目標回到記住的值（zoom_back）	
@@ -690,7 +690,7 @@ Poq.exe	99	00464108	FUN_00464108	CScrMng	game	skip	9	4	解構：CScrMng 解構�
 Poq.exe	99	00464120	FUN_00464120	~CScrMng	game	skip	15	3	解構：CScrMng 訊息掛鉤與矩形解構、依旗標釋放；SDL 平台生命週期代替	解構：CScrMng 訊息掛鉤與矩形解構、依旗標釋放；SDL 平台生命週期代替	
 Poq.exe	99	00464170	FUN_00464170	CScrMng	game	skip	20	6	平台：CScrMng 初始化螢幕矩形、像素數與 DirectDraw 指標並啟用掛鉤；SDL 視窗／renderer 代替	平台：CScrMng 初始化螢幕矩形、像素數與 DirectDraw 指標並啟用掛鉤；SDL 視窗／renderer 代替	
 Poq.exe	99	004641c0	FUN_004641c0	~CScrMng	game	skip	29	6	平台：CScrMng 視窗模式表面拷貝／全螢幕 Flip，失敗時檢查並還原表面後重試；SDL_RenderPresent 代替	平台：CScrMng 視窗模式表面拷貝／全螢幕 Flip，失敗時檢查並還原表面後重試；SDL_RenderPresent 代替	
-Poq.exe	99	00464260	FUN_00464260	CScrMng	game	skip	29	4	平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替	平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替	0044e200 0046bb60
+Poq.exe	99	00464260	FUN_00464260	CScrMng	game	skip	29	4	平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替	平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替	0044e200
 Poq.exe	99	004646b0	FUN_004646b0	~CGameApp	game	skip	240	2	建構／平台：libVLC 播放器包裝初始化 instance、player 與回呼 shared_ptr；失敗拋 runtime_error；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作	建構／平台：libVLC 播放器包裝初始化 instance、player 與回呼 shared_ptr；失敗拋 runtime_error	
 Poq.exe	99	00465450	FUN_00465450	~CGameApp	game	skip	26	6	平台：執行緒安全 libVLC 播放器單例初始化與 atexit 解構登記；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作	平台：執行緒安全 libVLC 播放器單例初始化與 atexit 解構登記	
 Poq.exe	99	00465510	FUN_00465510	~CGameApp	game	skip	11	2	平台：libvlc_media_player_will_play 查詢（非播放中狀態）；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作	平台：libvlc_media_player_will_play 查詢（非播放中狀態）	
@@ -754,34 +754,33 @@ Poq.exe	99	0046a530	FUN_0046a530	~CClientSocket	game	skip	49	2	連線版：客�
 Poq.exe	99	0046a660	FUN_0046a660		game	skip	10	0	無呼叫者：全域封包佇列平台同步包裝，兩次呼叫同一匯入轉接；略過	無呼叫者：全域封包佇列平台同步包裝，兩次呼叫同一匯入轉接；略過	
 Poq.exe	99	0046a680	FUN_0046a680		game	skip	8	0	無呼叫者：取得全域封包狀態 DAT_00662b98；略過	無呼叫者：取得全域封包狀態 DAT_00662b98；略過	
 Poq.exe	99	0046a690	FUN_0046a690		game	skip	10	0	無呼叫者：全域封包佇列平台同步包裝，兩次呼叫同一匯入轉接；略過	無呼叫者：全域封包佇列平台同步包裝，兩次呼叫同一匯入轉接；略過	
-Poq.exe	99	0046a6b0	FUN_0046a6b0	~CGameApp	game	todo	32	2			0046baf0 0046c080 0046d420 004769c0 00476fb0 00476fc0
+Poq.exe	99	0046a6b0	FUN_0046a6b0	~CGameApp	game	todo	32	2		場景服務拍：時計、收包、同步後更新輸入；todo 等不同類別 CScnClient／CGodClient 同步處理及角色狀態系統	0046d420 004769c0 00476fb0 00476fc0
 Poq.exe	99	0046a7d0	FUN_0046a7d0	~CGameApp	game	skip	49	2	連線版封包入列：鎖mutex、deque新增、寫種類與長度、複製資料及補零後解鎖；略過	連線版封包入列：鎖mutex、deque新增、寫種類與長度、複製資料及補零後解鎖；略過	
 Poq.exe	99	0046a900	FUN_0046a900	~CGameApp	game	skip	9	0	無呼叫者：設定全域封包狀態 DAT_00662b98；略過	無呼叫者：設定全域封包狀態 DAT_00662b98；略過	
-Poq.exe	99	0046abe0	FUN_0046abe0	~CGameApp	game	todo	43	0			0046c260 00472e60
-Poq.exe	99	0046acc0	FUN_0046acc0	~CGameApp	game	todo	26	0			
-Poq.exe	99	0046ad40	FUN_0046ad40	~CGameApp	game	todo	63	2			0046aea0 0046bfa0 0046e730 00471ed0 00472e60
-Poq.exe	99	0046aea0	FUN_0046aea0	~CGameApp	game	todo	32	4			0046e730 00471ed0
-Poq.exe	99	0046af30	FUN_0046af30	~CGameApp	game	todo	12	4			0046e8b0
-Poq.exe	99	0046af60	FUN_0046af60	~CGameApp	game	todo	98	0			
-Poq.exe	99	0046b190	FUN_0046b190	~CGameApp	game	todo	26	0			00458620 0046c260 00472e60
-Poq.exe	99	0046b230	FUN_0046b230	~CGameApp	game	todo	11	2			
-Poq.exe	99	0046b250	FUN_0046b250	~CGameApp	game	todo	42	6			
-Poq.exe	99	0046b2c0	FUN_0046b2c0	~CGameApp	game	todo	20	0			00475930
-Poq.exe	99	0046b320	FUN_0046b320	~CGameApp	game	todo	185	2			00458620 0046b230 0046bd80 0046c260 0046d420 004722f0 00472e60 00472e70 00473280 004de7f0 004deb10 004deb40
-Poq.exe	99	0046b8c0	FUN_0046b8c0	~CGameApp	game	todo	83	2			0046c260 00470270 00486e80 00494bf0 00494ec0 00495420 004963e0 00497c90 004b1880
-Poq.exe	99	0046baf0	FUN_0046baf0	~CGameApp	game	todo	50	2			00472e60 0057a010 0057a380
-Poq.exe	99	0046bb10	FUN_0046bb10		game	todo	14	0			
-Poq.exe	99	0046bb60	FUN_0046bb60	~CScrMng	game	todo	28	2		應用程式轉送顯示裝置事件給兩組介面並恢復／釋放天氣資源；~CScrMng 為推測誤判，待介面與天氣裝置通知系統	
-Poq.exe	99	0046bc10	FUN_0046bc10		game	todo	12	8			
-Poq.exe	99	0046bc30	FUN_0046bc30	~CGameApp	game	todo	34	6			0046c260 00473d00 004b1880
-Poq.exe	99	0046bcf0	FUN_0046bcf0	~CGameApp	game	todo	14	2			0046c260 004b1880
-Poq.exe	99	0046bd80	FUN_0046bd80	~CGameApp	game	todo	93	4			0046aea0 0046b8c0 0046bfa0 0046e730 00471ed0 00472470 00472a80 00472e60
-Poq.exe	99	0046bfa0	FUN_0046bfa0	~CGameApp	game	todo	32	4			004739e0
-Poq.exe	99	0046c030	FUN_0046c030	~CGameApp	game	todo	13	0			00476fb0 00476fc0 004774d0
-Poq.exe	99	0046c080	FUN_0046c080	~CGameApp	game	todo	65	2			004774d0
-Poq.exe	99	0046c220	FUN_0046c220	~CGameApp	game	todo	9	1			
-Poq.exe	99	0046c240	FUN_0046c240	~CGameApp	game	todo	12	0			
-Poq.exe	99	0046c260	FUN_0046c260	~CGameApp	game	todo	31	34			00472e60
+Poq.exe	99	0046abe0	FUN_0046abe0	~CGameApp	game	skip	43	0	場景管理物件建構，配置 CUserInput 並清空兩組場景／暫停／錄影狀態；推測 CGameApp 標記不可靠；略過	場景管理物件建構，配置 CUserInput 並清空兩組場景／暫停／錄影狀態；推測 CGameApp 標記不可靠	0046c260 00472e60
+Poq.exe	99	0046acc0	FUN_0046acc0	~CGameApp	game	skip	26	0	場景管理物件解構，釋放輸入並清理封包同步資源；略過	場景管理物件解構，釋放輸入並清理封包同步資源	
+Poq.exe	99	0046ad40	FUN_0046ad40	~CGameApp	game	todo	63	2		依錄影模式與遊戲類型配置場景客戶端或伺服端；todo 等不同類別 CScnClientRecord／伺服端場景載入	0046aea0 0046bfa0 0046e730 00471ed0 00472e60
+Poq.exe	99	0046aea0	FUN_0046aea0	~CGameApp	game	todo	32	4		配置場景客戶端並設定初始化旗標；todo 等不同類別 CScnClientRecord 場景載入	0046e730 00471ed0
+Poq.exe	99	0046af30	FUN_0046af30	~CGameApp	game	todo	12	4		有客戶端才進行場景進入收尾；todo 等不同類別 CScnClient 進場景通知	0046e8b0
+Poq.exe	99	0046af60	FUN_0046af60	~CGameApp	game	skip	98	0	連線封包：按首包批號取出同批封包，呼叫客戶端虛擬格3；略過	連線封包：按首包批號取出同批封包，呼叫客戶端虛擬格3	
+Poq.exe	99	0046b190	FUN_0046b190	~CGameApp	game	skip	26	0	無呼叫者的戰鬥邊緣偵測自動暫停入口；略過	無呼叫者的戰鬥邊緣偵測自動暫停入口	00458620 0046c260 00472e60
+Poq.exe	99	0046b230	FUN_0046b230	~CGameApp	game	todo	11	2		就緒場景才返回輸入物件；todo 等不同類別 CScnClient 的就緒生命週期	
+Poq.exe	99	0046b250	FUN_0046b250	~CGameApp	game	todo	42	6		比較目前與備份場景名稱，逐byte區分大小寫；todo 等不同類別 CScnClientRecord 場景備份／回放	
+Poq.exe	99	0046b2c0	FUN_0046b2c0	~CGameApp	game	skip	20	0	無呼叫者：目前伺服端與全域場景相符才查角色可見同步鏈；略過	無呼叫者：目前伺服端與全域場景相符才查角色可見同步鏈	00475930
+Poq.exe	99	0046b320	FUN_0046b320	~CGameApp	game	todo	185	2		場景管理主拍，依暫停／錄影模式更新、畫圖與戰鬥自動暫停；todo 等不同類別 CScnClient 更新／角色戰鬥狀態及日期介面，未以目前主迴圈冒充完成	00458620 0046b230 0046bd80 0046c260 0046d420 004722f0 00472e60 00472e70 00473280 004de7f0 004deb10 004deb40
+Poq.exe	99	0046b8c0	FUN_0046b8c0	~CGameApp	game	todo	83	2		還原備份場景並重設角色位置／朝向，釋放現場景；todo 等不同類別 CScnClientRecord 備份及 CDynamicObj 狀態還原	0046c260 00470270 00486e80 00494bf0 00494ec0 00495420 004963e0 00497c90 004b1880
+Poq.exe	99	0046baf0	FUN_0046baf0	~CGameApp	game	done	50	2		light.c clock_tick：場景時計，室內與回放不走；固定31日／11個月（月份遞增後>11跨年），半小時切換；回放及日期介面通知見 shortcut	00472e60 0057a010 0057a380
+Poq.exe	99	0046bb10	FUN_0046bb10		game	skip	14	0	無呼叫者：備份目前兩組場景、停天氣4000並清空現場景；略過	無呼叫者：備份目前兩組場景、停天氣4000並清空現場景	
+Poq.exe	99	0046bb60	FUN_0046bb60	~CScrMng	game	skip	28	2	平台顯示裝置通知轉送目前與備份介面並還原／釋放備份天氣資源；SDL裝置生命週期取代；略過	平台顯示裝置通知轉送目前與備份介面並還原／釋放備份天氣資源；SDL裝置生命週期取代	
+Poq.exe	99	0046bc10	FUN_0046bc10		game	todo	12	8		記錄錄影模式與檔名字串；todo 等不同類別 CScnClientRecord 的輸入錄影／回放	
+Poq.exe	99	0046bc30	FUN_0046bc30	~CGameApp	game	todo	34	6		清理目前與備份兩組場景並解除暫停；todo 等不同類別 CScnClient／伺服端場景生命週期	0046c260 00473d00 004b1880
+Poq.exe	99	0046bcf0	FUN_0046bcf0	~CGameApp	game	todo	14	2		釋放目前客戶端並清理場景資源、解除暫停；todo 等不同類別 CScnClient 場景生命週期	0046c260 004b1880
+Poq.exe	99	0046bd80	FUN_0046bd80	~CGameApp	game	todo	93	4		切換錄影模式，必要時備份／還原場景並重新配置；todo 等不同類別 CScnClientRecord 錄影／回放及場景備份	0046aea0 0046b8c0 0046bfa0 0046e730 00471ed0 00472470 00472a80 00472e60
+Poq.exe	99	0046bfa0	FUN_0046bfa0	~CGameApp	game	todo	32	4		配置伺服端場景容器並套用天氣設定；todo 等不同類別伺服端場景初始化	004739e0
+Poq.exe	99	0046c030	FUN_0046c030	~CGameApp	game	skip	13	0	無呼叫者：鎖定場景服務後直接分派連線封包再解鎖；略過	無呼叫者：鎖定場景服務後直接分派連線封包再解鎖	00476fb0 00476fc0 004774d0
+Poq.exe	99	0046c080	FUN_0046c080	~CGameApp	game	skip	65	2	連線平台層：鎖定deque逐包取出並分派，分派回0停止；略過	連線平台層：鎖定deque逐包取出並分派，分派回0停止	004774d0
+Poq.exe	99	0046c240	FUN_0046c240	~CGameApp	game	skip	12	0	無呼叫者：設定音訊旗標，零時呼叫 Mfx_AF_Stop；略過	無呼叫者：設定音訊旗標，零時呼叫 Mfx_AF_Stop	
+Poq.exe	99	0046c260	FUN_0046c260	~CGameApp	game	todo	31	34		設定暫停並通知介面，回放／無場景／未就緒強制解除；暫停時記住介面座標；todo 等不同類別 CScnClient 就緒狀態及介面暫停通知	00472e60
 Poq.exe	99	0046c340	FUN_0046c340	~CGameApp	game	todo	9	0			
 Poq.exe	99	0046c360	FUN_0046c360	~CGameApp	game	todo	37	4			004a2840 004c6a90 004cc340
 Poq.exe	99	0046c450	FUN_0046c450	~CGameApp	game	todo	27	0			004a3340

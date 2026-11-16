@@ -85,7 +85,9 @@ static void light_table(int day, int night, int type, int weather) {
     light_hour(weather);
 }
 
-// 時鐘（0x44e750）：主迴圈每拍一次；室內（G_Type 12）不走。shortcut: 原版狀態 0x663714 = 2 時也不走（還沒對）
+// 時鐘（0x44e750、0x46baf0）：主迴圈每拍一次；室內（G_Type 12）不走。
+// shortcut: 未建立 Rec 回放狀態，啟用回放時補上狀態2的時計阻擋。
+// shortcut: 半週期／半小時的日期介面通知未接，日期介面系統移植時補上；天光由 weather_tick 更新。
 static void clock_tick(void) {
     if (lt.type == 12) return;
     clk.tick += (clk.hour >= 0 && clk.hour <= 6) || (clk.hour >= 14 && clk.hour <= 20) ? 1200 / 10 : 1;
@@ -97,7 +99,7 @@ static void clock_tick(void) {
     clk.hour = 0;
     if (++clk.day < 32) return;
     clk.day = 1;
-    if (++clk.month < 13) return;
+    if (++clk.month < 12) return;  // 原版 > 0xb 即跨年：月份只有1～11
     clk.month = 1, clk.year++;
 }
 
