@@ -732,7 +732,7 @@
 0048bf60	索引無呼叫者；依本輪規則略過，不臆測用途
 0048c050	角色每拍動態狀態／虛擬更新、位置改變同步及活動旗標；未完成
 0048c150	actor_name_set：僅SInit種類10..16可複製事件ID，不更新顯示名稱；actor_setup接ONT來源，原始容量64 bytes
-0048c190	決定目標動畫序列：指定值、擊退、挨打、戰鬥、停止及動作分支；未完成
+0048c190	main.c actor_animation_select／actor_animation_target：指定序列與帶符號方向餘數、擊退／挨打、跑步門檻與旗標、戰鬥20..30保留目標；接actor_tick/action_tick及繪製／矩形查詢，狀態來源以現有fight/Buff/knock橋接
 0048d2c0	封包byte低7位為狀態ID、高位為啟用值，轉狀態設置；未完成
 0048d2f0	保存待執行命令代號與三參數；尚未接同類別命令分派，不標done
 0048d630	依呼叫者與目標層差篩選SkillUnit，跨層近距離或目標高兩級以上清選取；actor_skill_select接右手選招

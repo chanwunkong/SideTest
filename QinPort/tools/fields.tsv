@@ -643,9 +643,9 @@ CSprGroup	+0x14	序列總數	Anim.count
 CCharactor	+0x66	角色層號byte；大於10時索敵／追擊範圍各加8	Actor.layer；現有建立入口固定地面層1
 CCharactor	+0x73	動態物件行為狀態：1平常、11移動、20..30跳躍等，非dash布林值	Actor.dash僅舊近似，完整動態狀態待移植
 CCharactor	+0x87	上次套用的目標動畫序列	待CCharactor動畫同步
-CCharactor	+0x8b	目標動畫序列（方向佔低3位）	待CCharactor動畫同步
+CCharactor	+0x8b	目標動畫序列（方向為帶符號餘數）	Actor.animation_target／actor_animation_select
 CCharactor	+0xa3	目前目標物件句柄，0無目標	Actor.foe（指標取代句柄）
-CCharactor	+0xa7	方向0..7	Actor.dir／DIR_MAP
+CCharactor	+0xa7	原版動畫方向，指定序列時取帶符號餘數	Actor.animation_dir；現有面向以Actor.dir／DIR_MAP橋接
 CCharactor	+0xaf	當前移速的A參數；0時不能使用距離大於等於3的技能	Actor.speed及SPEED_A；完整速度套用待移植
 CCharactor	+0x2cf	角色模板指標	Actor.def
 CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減半	Actor.speed_threshold
@@ -753,3 +753,8 @@ CCharactor	+0x40f	第1修正速度覆寫，0不覆寫，非0以值減1作基礎�
 RoleMdl	+0x128	模板顯示方式（RoleMdl第29欄），第10修正為0時使用；50排除角色遍歷	RoleDef.display／actor_display／actor_near_next
 CObj	+0x24	物件識別，角色遍歷模式2與發起者+0x3ff比較	Actor.sh僅劇情物件橋接；共用識別待接
 CCharactor	+0x3c1	動態物件大小；模板size小於7取1，否則減5；setter只寫值	Actor.body_size／actor_size_set
+RoleMdl	+0x60	戰鬥走路序列，第10欄第一個整數	RoleDef.fight_walk
+RoleMdl	+0x64	跑步序列，第10欄第二個整數，缺項65535	RoleDef.run_seq
+RoleMdl	+0x68	戰鬥休息序列，第9欄	RoleDef.fight_idle
+RoleMdl	+0x6c	挨打序列，第11欄，缺項65535	RoleDef.hit
+RoleMdl	+0xa4	死亡／擊退序列，第14欄，缺項65535；擊退超出模型序列數時用戰鬥休息	RoleDef.death

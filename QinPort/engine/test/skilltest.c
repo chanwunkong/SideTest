@@ -433,6 +433,49 @@ static void character_target_display_test(void) {
     actors[0] = saved; actor_count = saved_count;
 }
 
+static void character_animation_select_test(void) {
+    RoleDef d = {.idle = 8, .walk = 16, .fight_idle = 24, .fight_walk = 32,
+        .run_seq = 40, .hit = 48, .death = 56};
+    Role r = {.seq_count = 64};
+    Actor a = {.def = &d, .role = &r, .animation_dir = 3, .dynamic_state = 1};
+    actor_animation_select(&a, -1); assert(a.animation_target == 11);
+    a.fight = 1; actor_animation_select(&a, -1); assert(a.animation_target == 27);
+    a.dynamic_state = 11; actor_animation_select(&a, -1); assert(a.animation_target == 35);
+    for (int state = 20; state <= 30; state++) {
+        a.dynamic_state = state; a.animation_target = 77;
+        actor_animation_select(&a, -1); assert(a.animation_target == 77);
+    }
+    a.dynamic_state = 19; actor_animation_select(&a, -1); assert(a.animation_target == 35);
+    a.dynamic_state = 31; actor_animation_select(&a, -1); assert(a.animation_target == 35);
+    a.flags = 0x10000; actor_animation_select(&a, -1); assert(a.animation_target == 43);
+    a.speed_threshold = 100; actor_animation_select(&a, -1); assert(a.animation_target == 43);
+    a.speed_threshold = 101; actor_animation_select(&a, -1); assert(a.animation_target == 19);
+    a.speed_threshold = 0;
+    for (int bit = 0x20000; bit <= 0x80000; bit *= 4) {
+        a.flags = 0x10000 | bit; actor_animation_select(&a, -1); assert(a.animation_target == 19);
+    }
+    a.flags = 0x10000; d.run_seq = 65535;
+    actor_animation_select(&a, -1); assert(a.animation_target == 35);
+    a.dynamic_state = 1; d.run_seq = 40;
+    actor_animation_select(&a, -1); assert(a.animation_target == 27);
+    a.buff_n = 1; a.buff[0].status = 101;
+    actor_animation_select(&a, -1); assert(a.animation_target == 51);
+    d.hit = 65535; a.animation_target = 78;
+    actor_animation_select(&a, -1); assert(a.animation_target == 78);
+    a.knock = 1; actor_animation_select(&a, -1); assert(a.animation_target == 59);
+    r.seq_count = 59; actor_animation_select(&a, -1); assert(a.animation_target == 27);
+    d.death = 65535; a.animation_target = 79;
+    actor_animation_select(&a, -1); assert(a.animation_target == 79);
+    actor_animation_select(&a, 83); assert(a.animation_target == 83 && a.animation_dir == 3);
+    actor_animation_select(&a, -2); assert(a.animation_target == -2 && a.animation_dir == -2);
+    // 正式選擇路徑供繪製及畫面矩形使用；讀取不改目標／方向。
+    a = (Actor){.def = &d, .role = &r, .dynamic_state = 1, .animation_target = 99, .animation_dir = 6};
+    assert(actor_seq(&a) == d.idle + DIR_MAP[0]);
+    assert(a.animation_target == 99 && a.animation_dir == 6);
+    a.act = ACT_ATTACK; a.act_seq = 64;
+    assert(actor_seq(&a) == 64 + DIR_MAP[0]);
+}
+
 static void character_speed_memory_test(void) {
     Actor a = {.speed = 7, .fight_speed = 11, .dynamic_state = 1};
     assert(actor_speed(&a) == 7);
@@ -938,6 +981,7 @@ int main(void) {
     character_skill_runtime_test();
     character_template_candidates_test();
     character_speed_memory_test();
+    character_animation_select_test();
     character_near_test();
     character_target_display_test();
     character_names_owner_test();

@@ -207,3 +207,6 @@ OmUtil::GetFleePos	air_run使用既有dir_of與move_dir；核對OmUtil.dll匯出
 00488bc0	兩整數點分軸abs差均嚴格小於n；C整數abs及比較，不改成圓形距離或小於等於
 004a2b20	CHAINHEADER清鏈；Actor.skills有序陣列與skill_n，移除時不配置堆積節點
 004a2bb0	CHAINHEADER刪目前節點；actor_skill_remove以索引選取及memmove承接
+0049f950	表格欄位以*切分整數陣列，缺項65535；以res.c直接解析欄位取代CStringList暫存
+004a19d0	30槽鏈結容器重設索引與計數；以C陣列及數量初始化取代
+004a23e0	30槽鏈結容器RemoveAt；以C陣列刪除／數量取代

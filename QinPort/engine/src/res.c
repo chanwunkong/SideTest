@@ -1252,6 +1252,11 @@ int roledefs_load(void) {
         r->speed = atoi(col[20]);
 #define COL(i) (c > (i) ? atoi(col[i]) : 0)
         r->fight_idle = COL(9); r->fight_walk = COL(10); r->hit = COL(11); r->death = COL(14); r->fight_speed = COL(21);
+        // 第10欄的兩個整數分別是戰鬥走路與跑步（原版以*分割，缺項填65535）。
+        const char *run = c > 10 ? strchr(col[10], '*') : NULL;
+        r->run_seq = run && run[1] ? atoi(run + 1) : 65535;
+        r->hit = c > 11 && *col[11] ? atoi(col[11]) : 65535;
+        r->death = c > 14 && *col[14] ? atoi(col[14]) : 65535;
         r->seek = COL(24); r->chase = COL(25); r->snd_death = COL(31); r->snd_hit = COL(34); r->atk_delay = COL(39);
         r->size = COL(18); r->legs = COL(19); r->snd_idle = COL(32); r->snd_fight = COL(33);
         r->light = COL(15); r->flicker = COL(16);

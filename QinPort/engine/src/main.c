@@ -234,6 +234,7 @@ typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
     int dir, moving, speed;
     int fight_speed, speed_override, speed_threshold, dynamic_state;
+    int animation_target, animation_dir;
     int view_link_type; // 關聯模型 +0x2c；type2/3 繪圖時世界 X/Y 暫加128
     int idle, walk, fidle, fwalk;  // 動作起點序列（角色表「平時/戰鬥」的休息與走路）
     Uint32 act_tick;  // 目前動作已經過幾拍（換動作時歸零）
@@ -354,6 +355,7 @@ static int actor_chase(const Actor *a) { return a->def->chase + (a->layer > 10 ?
 
 // 角色某序列的節奏：各部件的幀延遲相同，拿第一個有資料的部件
 static const Seq *role_seq(const Role *r, int seq) {
+    if (seq < 0) return NULL;
     for (int i = 0; r && i < r->part_count; i++)
         if (r->body[i] && seq < r->body[i]->count && r->body[i]->seqs[seq].count) return &r->body[i]->seqs[seq];
     return NULL;
@@ -365,10 +367,43 @@ static Uint32 seq_ticks(const Seq *q) {
     return t;
 }
 
+static int has_status(const Actor *a, int st);
+
+// 選擇運算與寫入分開，繪製矩形查詢不可改角色的方向或目標序列。
+static int actor_animation_target(const Actor *a, int dir) {
+    const RoleDef *d = a->def;
+    if (!d) return a->animation_target;
+    if (a->knock == 1) {
+        if (d->death == 65535) return a->animation_target;
+        int seq = d->death + dir;
+        return !a->role || seq >= a->role->seq_count ? d->fight_idle + dir : seq;
+    }
+    if (has_status(a, 101)) return d->hit == 65535 ? a->animation_target : d->hit + dir;
+    if (!(a->flags & 0x10000) || a->dynamic_state == 1 || d->run_seq == 65535) {
+        if (a->fight) {
+            if (a->dynamic_state == 1) return d->fight_idle + dir;
+            if ((unsigned)(a->dynamic_state - 20) < 11u) return a->animation_target;
+            return d->fight_walk + dir;
+        }
+        if (a->dynamic_state == 1) return d->idle + dir;
+    } else if (a->speed_threshold < 101 && !(a->flags & (0x20000 | 0x80000))) {
+        return d->run_seq + dir;
+    }
+    return d->walk + dir;
+}
+
+// Poq.exe 0x48c190：選目標序列；未指定的擊退／挨打分支保留舊值。
+// shortcut: 狀態0/101與第5修正由fight/Buff/knock橋接；完整狀態表接入後替換資料來源。
+static void actor_animation_select(Actor *a, int seq) {
+    if (seq != -1) {
+        a->animation_target = seq;
+        a->animation_dir = seq % 8; // 原版帶符號餘數，負數也不能改成0..7。
+    } else a->animation_target = actor_animation_target(a, a->animation_dir);
+}
+
 static int actor_seq(const Actor *a) {
-    if (a->def && a->def->anim) return 0;  // shortcut: 小動物、陷阱的動畫有 3 個序列，各序列什麼時候用還沒查，都畫第一個
-    int base = a->act ? a->act_seq : a->moving ? (a->fight ? a->fwalk : a->walk) : (a->fight ? a->fidle : a->idle);
-    return base + DIR_MAP[a->dir];
+    if (a->def && a->def->anim) return 0;  // shortcut: 小動物專用三序列的狀態切換待還原。
+    return a->act ? a->act_seq + DIR_MAP[a->dir] : actor_animation_target(a, DIR_MAP[a->dir]);
 }
 
 // 目前該畫第幾幀：平常循環播放，單次動作播完停在最後一幀
@@ -406,7 +441,7 @@ static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
     const Role *r = a->role;
     if (!r) return;
     int seq = actor_seq(a);
-    if (seq >= r->seq_count || !r->frames[seq]) return;
+    if (seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
     int frame = actor_frame(a, seq) % r->frames[seq];
     for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy, tick, 1);
@@ -474,6 +509,8 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
         float px = tick % SPEED_B[sp] ? 0 : SPEED_A[sp] + SPEED_C[sp] / 10.0f;
         actor_step(a, s, mx, my, px);
     }
+    a->animation_dir = DIR_MAP[a->dir];
+    actor_animation_select(a, -1);
     a->act_tick = a->moving == was_moving ? a->act_tick + 1 : 0;
 }
 
@@ -1506,7 +1543,7 @@ static void hit_react(Actor *a, Actor *t, const SkillRow *sk) {
     }
     if (jdr > 0 && rand() % 1000 < (int)((200.0f - djhf) * jdr / 200 * 10))
         knock_back(t, a, (int)((float)(rand() % jdr / 80) + jdr / 80.0f + 2));
-    if (rand() % 1000 < (int)((200.0f - djhf) * 1000 / (djhf + 200.0f)) && t->def->hit && t->act != ACT_ATTACK) start_act(t, ACT_HIT, t->def->hit);
+    if (rand() % 1000 < (int)((200.0f - djhf) * 1000 / (djhf + 200.0f)) && t->def->hit != 65535 && t->act != ACT_ATTACK) start_act(t, ACT_HIT, t->def->hit);
 }
 
 // 擊退、硬直：每拍滑一點、硬直倒數。回傳 1 = 這拍不能自己動
@@ -1702,6 +1739,7 @@ static void walk_fx(Actor *a, const Scene *s, Uint32 tick) {
 // 單次動作的進度：攻擊依招式各幀觸發音效與命中；播完回到平常（死亡除外）
 // shortcut: type 6（只對物件種類 7）、type 10（招式物件虛擬函式 0x20 = 0x43a760）還沒做
 static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
+    actor_animation_select(a, a->act_seq + DIR_MAP[a->dir]);
     int seq = actor_seq(a);
     const Seq *q = role_seq(a->role, seq);
     int f = q || a->act != ACT_ATTACK ? actor_frame(a, seq) : 99;  // 角色沒有這招的動作（陷阱）：觸發一次全放
