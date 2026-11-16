@@ -470,7 +470,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 原版細節：等待值只有等於0才停語音及清旗標，設-1不會停；封包最後16位欄位位於未對齊的+7；CScnGC 解構每刪一物件重新讀鏈表頭；場景配置失敗回傳物件但場景指標為空。這些是略過層的行為記錄，未加假的完成位址。
   - roles.tsv／fields.tsv 補用途及22個新偏移，base_map.tsv 記替代方案。無新增遊戲邏輯、shortcut或todo，不加鏡像測試。
   - `cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
-  **下一步：0x473dc0（SKillPlayer／後續技能與令牌資料類別）起**。
+  ~~下一步：0x473dc0（SKillPlayer／後續技能與令牌資料類別）起~~。
+- 進度（11-16）：Poq.exe **0x473dc0 SKillPlayer 全類別**核對，只有刪除式解構；到下一類別 SLingpai 前停止。本輪 **done 0、skip 1、todo 0**。
+  - 解構先清 CHAINITEM，再依旗標 bit0 釋放0x24 byte節點，依生命週期規則列skip；不是容器工具類，不加base_map。無新增遊戲邏輯或shortcut，無需新增測試。
+  - 為確認類別邊界，核對索引中引用它的建立／倒數入口：兩者操作持有者的鏈表及技能命令，屬後續管理類別業務，不冒稱完成；roles.tsv記錄用途，fields.tsv記錄SKillPlayer四個資料欄位。
+  - 後續管理類別須保留的原版現象：建立節點後立即遞減；原始值100先設-100，但立即變-101，所以仍發到期命令（只有恰為-100才免發）。本輪不提前實作或改正這個行為。既有管理類別todo留待該類別及技能命令系統處理，不屬本輪SKillPlayer解構的阻塞。
+  - `cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
+  **下一步：0x473df0（SLingpai）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

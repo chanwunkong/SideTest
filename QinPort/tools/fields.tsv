@@ -447,3 +447,7 @@ Packet0b23	+0x4	第一個byte參數	傳輸層略過
 Packet0b23	+0x5	第二個byte參數	傳輸層略過
 Packet0b23	+0x6	第三個byte參數	傳輸層略過
 Packet0b23	+0x7	最後16位參數；未對齊	傳輸層略過
+SKillPlayer	+0x14	技能命令目標識別值（建立者param_2；與持有者名單節點+0x30比較）	待管理類別移植
+SKillPlayer	+0x18	到期0x147命令的四byte資料（建立者param_3）	待管理類別移植
+SKillPlayer	+0x1c	倒數：param_4為0設0、100設-100，其餘設150；建立後立即遞減	待管理類別移植
+SKillPlayer	+0x20	建立者param_4原始值	待管理類別移植
