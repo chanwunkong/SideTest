@@ -402,7 +402,11 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   ~~下一步：0x461cd0（CMainWnd）起~~。
 - 進度（11-16）：Poq.exe **0x461cd0～0x461cd0 CMainWnd**，核對 FUNCS.tsv 全部 CMainWnd 項目，本類別只有此 deleting destructor；新增 **skip 1、done 0、todo 0**。原版先 DestroyWindow，再解構內嵌 CEdit／CWnd，最後依旗標釋放單一或陣列記憶體；屬 MFC 平台／解構流程，SDL 視窗生命週期代替，原因與用途補入 funcs_skip.txt／roles.tsv，內嵌 CEdit 偏移補入 fields.tsv。
   - 本輪沒有遊戲邏輯、需保留的遊戲怪現象、shortcut、外部依賴 todo 或新增確認劇情不用的功能；不新增鏡像實作測試。原生建置與既有 skilltest 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
-  **下一步：0x463810（CScrMng 前置工具／螢幕管理段）起**，用 `python3 tools/functool.py next 0x463810`。
+  ~~下一步：0x463810（CScrMng 前置工具／螢幕管理段）起~~。
+- 進度（11-16）：Poq.exe **0x463810～0x464260 CScrMng 與前置平台／字串工具**，首批12個後補齊同類別裝置事件入口，共 **skip 10、base 3、done 0、新增 todo 0**（13個均記 funcs_skip.txt，字串工具另記 base_map.tsv）。CScrMng 建構／解構、顯示矩形初始化、視窗拷貝／全螢幕 Flip 與表面遺失重試均屬 DirectDraw 平台流程，由 `engine/src/main.c` 既有 SDL 視窗／renderer／SDL_RenderPresent 代替；前置 Win32 測試視窗、計時器、MFC 訊息入口與字串 SSO 工具略過，補用途與欄位索引。
+  - 完整核對 FUNCS.tsv 的 CScrMng（含推測）項目：表面還原已 skip；另外兩個 `~CScrMng` 實際操作應用程式介面／天氣通知，並非本類別，保留既有 todo：介面管理器重建與雙介面／天氣裝置事件，等對應系統，已在 roles.tsv 註明推測誤判；未把它們誤列平台 skip。
+  - 本輪沒有新增遊戲邏輯、遊戲怪現象、shortcut 或確認劇情不用的功能，故不加鏡像實作測試。原生建置與既有 skilltest 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
+  **下一步：0x464370（CGameApp 顯示設定段）起**，用 `python3 tools/functool.py next 0x464370`。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

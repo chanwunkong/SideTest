@@ -264,3 +264,10 @@ CGameApp	+0xcc	Win32 單一實例互斥鎖 HANDLE	平台層略過（不配置對
 CGameApp	+0xd0	建構時設1的應用程式欄位；本段未見其他用途	平台層略過（不配置對應欄位）
 CGameApp	+0xd4	安裝類型非指定光碟類型時為1	平台層略過（不配置對應欄位）
 CMainWnd	+0x80	內嵌 CEdit（主視窗解構時先解構此成員）	平台層略過（SDL 視窗生命週期代替）
+CScrMng	+0x20	螢幕矩形 left（初始化0）	平台層略過（SDL renderer 代替）
+CScrMng	+0x24	螢幕矩形 top（初始化0）	平台層略過（SDL renderer 代替）
+CScrMng	+0x28	螢幕矩形 right（顯示寬）	平台層略過（SDL renderer 代替）
+CScrMng	+0x2c	螢幕矩形 bottom（顯示高）	平台層略過（SDL renderer 代替）
+CScrMng	+0x30	螢幕像素數（寬乘高）	平台層略過（SDL renderer 代替）
+CScrMng	+0x34	CDD／DirectDraw 畫面物件指標（裝置停用設0）	平台層略過（SDL renderer 代替）
+CMainWnd	+0x100	從 cursor.ani 載入的 HCURSOR（WM_CREATE 設定、WM_CLOSE 釋放）	平台層略過（SDL 游標代替）

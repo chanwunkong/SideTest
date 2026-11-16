@@ -80,3 +80,6 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 004637a0	std::string SSO 縮容 → C 字串
 004627d0	Win32 PE 版本字串工具 → 不需要
 00462930	Win32 登錄檔查詢工具 → 啟動參數／資源根目錄
+00463810	std::string 解構／清空：釋放長字串（含大塊配置檢查），重設 SSO 容量15；C 字串生命週期代替
+00463870	std::string 越界例外 invalid string position；C 字串邊界檢查代替
+00463880	std::string 子字串建構：檢查起點、截短長度後複製；C 字串切片代替

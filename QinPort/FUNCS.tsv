@@ -1,7 +1,7 @@
 bin	depth	addr	name	class	cat	status	lines	callers	note	role	callees
 Poq.exe	99	0041a260	FUN_0041a260		game	init	39	0	全域初值：移植用到這些變數的函數時一起帶入		
 Poq.exe	99	0041ae80	FUN_0041ae80		game	init	53	0	全域初值：移植用到這些變數的函數時一起帶入		
-Poq.exe	99	0041bd90	FUN_0041bd90		game	init	26	0	全域初值：移植用到這些變數的函數時一起帶入		00464108 00464170 00464260
+Poq.exe	99	0041bd90	FUN_0041bd90		game	init	26	0	全域初值：移植用到這些變數的函數時一起帶入		
 Poq.exe	99	0041c780	FUN_0041c780		game	init	10	0	全域初值：移植用到這些變數的函數時一起帶入		
 Poq.exe	99	0041c7a0	FUN_0041c7a0		game	init	10	0	全域初值：移植用到這些變數的函數時一起帶入		
 Poq.exe	99	0041c8f0	FUN_0041c8f0		game	init	44	0	全域初值：移植用到這些變數的函數時一起帶入		0046c260 00472e60
@@ -357,7 +357,7 @@ Poq.exe	99	00449bd0	FUN_00449bd0	~CMapDialog	game	todo	13	2		取場景 +0x3c
 Poq.exe	99	00449bf0	FUN_00449bf0		game	todo	18	2		把場景畫成一張 w×h 小圖（存檔縮圖用）	0046af30
 Poq.exe	99	00449c80	FUN_00449c80		game	skip	8	2	只讀／寫一個全域值（見 roles.tsv，用到時直接讀）	有沒有場景客戶端（0x662c48）	
 Poq.exe	99	00449c90	FUN_00449c90	~CGameApp	game	done	97	2			00448ab0 00465450 00465510 00502190 0057a8d0
-Poq.exe	99	00449f50	FUN_00449f50	~CGameApp	game	done	178	2			0044bf00 0044c090 0044d590 0044dc20 004641c0 00472e60 004a05e0 004a6720
+Poq.exe	99	00449f50	FUN_00449f50	~CGameApp	game	done	178	2			0044bf00 0044c090 0044d590 0044dc20 00472e60 004a05e0 004a6720
 Poq.exe	99	0044a550	FUN_0044a550		game	skip	96	0	除錯：視窗標題顯示每拍耗時		0046c220
 Poq.exe	99	0044a7a0	FUN_0044a7a0	~CUIServer	game	skip	194	2	平台：依 +4 的模式重建顯示（同 0x448d20）		
 Poq.exe	99	0044adb0	FUN_0044adb0	~CScrMng	game	skip	21	2	平台：DirectDraw 表面遺失時還原		
@@ -368,7 +368,7 @@ Poq.exe	99	0044aeb0	FUN_0044aeb0		game	todo	11	4		0x661d1c = 遊戲速度值 + n
 Poq.exe	99	0044aed0	FUN_0044aed0	~CGameApp	game	done	19	1		縮放現在值加減，夾在 0~0.24（zoom_now）	
 Poq.exe	99	0044af30	FUN_0044af30	~CGameApp	game	done	20	6		縮放目標加減並記住現在值（zoom_add）；PageUp／PageDown（0x455d60）、滾輪（0x4638f0）、招式觸發 12（0x43c4f0）	
 Poq.exe	99	0044afa0	FUN_0044afa0	~CGameApp	game	skip	14	0	平台：PrintScreen 存畫面（BMP_CopyScreen）		
-Poq.exe	99	0044aff0	FUN_0044aff0	~CGameApp	game	done	342	2	main()（啟動：平台初始化＋載入 MethodMdl／MethodUnit_Mdl／RoleMdl／BeastieMdl／PropMdl／RoleEffectMdl／TriBldMdl、Dlg\Chat.Dlg；指令列 -nosound、-skipmovie）		00464170 0046cbe0 0047ff20 0049fa90 004b0d60 004b7ba0 004b7d20 004bcae0 004bd270 004c5090 004c88b0 004c9100 004ca270 00578cb0 0057a5d0 0057b620
+Poq.exe	99	0044aff0	FUN_0044aff0	~CGameApp	game	done	342	2	main()（啟動：平台初始化＋載入 MethodMdl／MethodUnit_Mdl／RoleMdl／BeastieMdl／PropMdl／RoleEffectMdl／TriBldMdl、Dlg\Chat.Dlg；指令列 -nosound、-skipmovie）		0046cbe0 0047ff20 0049fa90 004b0d60 004b7ba0 004b7d20 004bcae0 004bd270 004c5090 004c88b0 004c9100 004ca270 00578cb0 0057a5d0 0057b620
 Poq.exe	99	0044b840	FUN_0044b840	~CGameApp	game	todo	17	2		劇情模式 1／2 時放開滑鼠左鍵 = 跳過（0x473760）	00472e60 00473760
 Poq.exe	99	0044b890	FUN_0044b890	~CGameApp	game	skip	105	2	伺服器模式（0x662978 = 2）的文字紀錄視窗		004f6990
 Poq.exe	99	0044bb70	FUN_0044bb70	~CGameApp	game	skip	15	2	std::map 節點		
@@ -432,8 +432,8 @@ Poq.exe	99	0044db00	FUN_0044db00		game	skip	9	6	轉接到 0x4fcf30（移植那�
 Poq.exe	99	0044db40	FUN_0044db40		game	todo	15	4		rand()%20 == 1 時呼叫 0x626674 的函數指標，再 0x404174	
 Poq.exe	99	0044dba0	FUN_0044dba0		game	skip	10	2	轉接到 0x4f6790+0x4f7790（移植那邊時直接接）		004f6790 004f7790
 Poq.exe	99	0044dbd0	FUN_0044dbd0		game	todo	14	2		開始載入畫面（速度 +100、0x4f58f0、0x502760(0, 27)）	0044aeb0 004f58f0 00502760
-Poq.exe	99	0044dc20	FUN_0044dc20	~CGameApp	game	todo	54	2		載入畫面每拍：進度 > 25 就結束（游標移到畫面中央），否則畫 2 格進度（0x5027e0）	0044aeb0 004641c0 004f5c70 004f6680 004fdad0 005022e0 005027e0 0057f2b0
-Poq.exe	99	0044dda0	FUN_0044dda0		game	todo	26	8		載入畫面推進 n 格	004641c0 004fdad0 005027e0
+Poq.exe	99	0044dc20	FUN_0044dc20	~CGameApp	game	todo	54	2		載入畫面每拍：進度 > 25 就結束（游標移到畫面中央），否則畫 2 格進度（0x5027e0）	0044aeb0 004f5c70 004f6680 004fdad0 005022e0 005027e0 0057f2b0
+Poq.exe	99	0044dda0	FUN_0044dda0		game	todo	26	8		載入畫面推進 n 格	004fdad0 005027e0
 Poq.exe	99	0044de20	FUN_0044de20		game	skip	88	14	除錯：載入耗時紀錄（BeginLoading）		004b7ba0 004b7e90
 Poq.exe	99	0044e060	FUN_0044e060		game	skip	9	2	轉接到 0x4fe8a0（移植那邊時直接接）		004fe8a0
 Poq.exe	99	0044e090	FUN_0044e090		game	skip	9	0	轉接到 0x4f8860（移植那邊時直接接）		004f8860
@@ -446,7 +446,7 @@ Poq.exe	99	0044e170	FUN_0044e170		game	skip	9	2	轉接到 0x4ffdc0（移植那�
 Poq.exe	99	0044e190	FUN_0044e190		game	skip	9	2	轉接到 0x4ffde0（移植那邊時直接接）		004ffde0
 Poq.exe	99	0044e1c0	FUN_0044e1c0		game	skip	9	0	轉接到 0x500160（移植那邊時直接接）		00500160
 Poq.exe	99	0044e1e0	FUN_0044e1e0		game	skip	9	2	轉接到 0x500330（移植那邊時直接接）		00500330
-Poq.exe	99	0044e200	FUN_0044e200	~CScrMng	game	todo	14	2			00585430
+Poq.exe	99	0044e200	FUN_0044e200	~CScrMng	game	todo	14	2		應用程式介面管理器重新初始化並傳入 +0x228/+0x22c；~CScrMng 為推測誤判，待介面管理器系統	00585430
 Poq.exe	99	0044e250	FUN_0044e250		game	skip	9	6	轉接到 0x4fa780（移植那邊時直接接）		004fa780
 Poq.exe	99	0044e280	FUN_0044e280		game	skip	9	4	轉接到 0x500d90（移植那邊時直接接）		00500d90
 Poq.exe	99	0044e2a0	FUN_0044e2a0		game	todo	29	1			
@@ -664,7 +664,7 @@ Poq.exe	99	00461bd0	FUN_00461bd0		game	skip	12	0	建構：CWinApp／CGameApp 初
 Poq.exe	99	00461c80	FUN_00461c80	CGameApp	game	skip	16	1	解構：CWinApp 解構與 operator_delete；SDL 主程式生命週期代替	解構：CWinApp 解構與 operator_delete；SDL 主程式生命週期代替	
 Poq.exe	99	00461cd0	FUN_00461cd0	CMainWnd	game	skip	31	4	解構／平台：DestroyWindow、內嵌 CEdit／CWnd 解構及條件記憶體釋放；SDL 視窗生命週期代替	CMainWnd deleting destructor：銷毀 MFC 視窗、解構內嵌 CEdit 與 CWnd，依旗標釋放單一／陣列配置；平台層略過	
 Poq.exe	99	00461d90	FUN_00461d90	~CGameApp	game	skip	87	2	平台：建立 MFC CMainWnd／CEdit、Win32 視窗樣式與圖示；SDL_CreateWindow 代替	平台：建立 MFC CMainWnd／CEdit、Win32 視窗樣式與圖示；SDL_CreateWindow 代替	
-Poq.exe	99	00461fb0	FUN_00461fb0	~CGameApp	game	skip	209	0	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊啟動路徑	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊啟動路徑	00463810 00463880 004bb3d0 004bbd30
+Poq.exe	99	00461fb0	FUN_00461fb0	~CGameApp	game	skip	209	0	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊啟動路徑	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊啟動路徑	004bb3d0 004bbd30
 Poq.exe	99	00462570	FUN_00462570	~CGameApp	game	skip	79	0	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊平台路徑	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊平台路徑	
 Poq.exe	99	00462750	FUN_00462750	CGameApp	game	skip	16	1	平台：COM 結束、Win32 事件、視窗銷毀與螢幕保護恢復；SDL 結束流程代替	平台：COM 結束、Win32 事件、視窗銷毀與螢幕保護恢復；SDL 結束流程代替	
 Poq.exe	99	004627a0	FUN_004627a0	CGameApp	game	skip	8	1	平台：CWinApp 虛擬常數回呼（回傳0）；不保留 MFC 介面	平台：CWinApp 虛擬常數回呼（回傳0）；不保留 MFC 介面	
@@ -681,19 +681,16 @@ Poq.exe	99	00463760	FUN_00463760	CGameApp	game	skip	8	1	平台：MFC 應用程�
 Poq.exe	99	00463770	FUN_00463770	CGameApp	game	skip	8	1	平台：MFC 應用程式 +0xac 旗標遮罩8存取；不保留 MFC 介面	平台：MFC 應用程式 +0xac 旗標遮罩8存取；不保留 MFC 介面	
 Poq.exe	99	00463780	FUN_00463780	CGameApp	game	skip	8	1	平台：MFC 應用程式 +0xac 旗標遮罩4存取；不保留 MFC 介面	平台：MFC 應用程式 +0xac 旗標遮罩4存取；不保留 MFC 介面	
 Poq.exe	99	00463790	FUN_00463790	CGameApp	game	skip	8	1	平台：MFC 應用程式 +0xac 旗標遮罩1存取；不保留 MFC 介面	平台：MFC 應用程式 +0xac 旗標遮罩1存取；不保留 MFC 介面	
-Poq.exe	99	00463810	FUN_00463810		game	todo	31	1			
-Poq.exe	99	00463870	FUN_00463870		game	todo	9	4			
-Poq.exe	99	00463880	FUN_00463880		game	todo	26	1			00463870
-Poq.exe	99	004638f0	FUN_004638f0		game	todo	122	0			0044b840
-Poq.exe	99	00463c90	FUN_00463c90		game	todo	37	0			
-Poq.exe	99	00463de0	FUN_00463de0		game	todo	53	0			
-Poq.exe	99	00463f90	FUN_00463f90		game	todo	33	0			
-Poq.exe	99	00464060	FUN_00464060		game	todo	23	0			00464108 00464170 00464260
-Poq.exe	99	00464108	FUN_00464108	CScrMng	game	todo	9	4			00464120
-Poq.exe	99	00464120	FUN_00464120	~CScrMng	game	todo	15	3			00464108 00464170 00464260
-Poq.exe	99	00464170	FUN_00464170	CScrMng	game	todo	20	6			
-Poq.exe	99	004641c0	FUN_004641c0	~CScrMng	game	todo	29	6			
-Poq.exe	99	00464260	FUN_00464260	CScrMng	game	todo	29	4			0044e200 0046bb60
+Poq.exe	99	004638f0	FUN_004638f0		game	skip	122	0	平台：CMainWnd Win32 訊息處理、動畫游標、影片按鍵／滑鼠與測試 CEdit；callers=0，不移植此舊訊息入口	平台：CMainWnd Win32 訊息處理、動畫游標、影片按鍵／滑鼠與測試 CEdit；callers=0，不移植此舊訊息入口	0044b840
+Poq.exe	99	00463c90	FUN_00463c90		game	skip	37	0	平台：註冊 MyTestWClass 並建立測試 Win32 視窗；沒有呼叫者	平台：註冊 MyTestWClass 並建立測試 Win32 視窗；沒有呼叫者	
+Poq.exe	99	00463de0	FUN_00463de0		game	skip	53	0	平台：測試 Win32 視窗執行緒、1秒計時器與 CSingleLock；沒有呼叫者	平台：測試 Win32 視窗執行緒、1秒計時器與 CSingleLock；沒有呼叫者	
+Poq.exe	99	00463f90	FUN_00463f90		game	skip	33	0	平台：測試視窗 WM_TIMER 更新標題及 DefWindowProc；沒有呼叫者	平台：測試視窗 WM_TIMER 更新標題及 DefWindowProc；沒有呼叫者	
+Poq.exe	99	00464060	FUN_00464060		game	skip	23	0	建構：CScrMng 訊息掛鉤／矩形／DirectDraw 指標初始化；SDL 平台生命週期代替，沒有呼叫者	建構：CScrMng 訊息掛鉤／矩形／DirectDraw 指標初始化；SDL 平台生命週期代替，沒有呼叫者	
+Poq.exe	99	00464108	FUN_00464108	CScrMng	game	skip	9	4	解構：CScrMng 解構轉接入口；SDL 平台生命週期代替	解構：CScrMng 解構轉接入口；SDL 平台生命週期代替	
+Poq.exe	99	00464120	FUN_00464120	~CScrMng	game	skip	15	3	解構：CScrMng 訊息掛鉤與矩形解構、依旗標釋放；SDL 平台生命週期代替	解構：CScrMng 訊息掛鉤與矩形解構、依旗標釋放；SDL 平台生命週期代替	
+Poq.exe	99	00464170	FUN_00464170	CScrMng	game	skip	20	6	平台：CScrMng 初始化螢幕矩形、像素數與 DirectDraw 指標並啟用掛鉤；SDL 視窗／renderer 代替	平台：CScrMng 初始化螢幕矩形、像素數與 DirectDraw 指標並啟用掛鉤；SDL 視窗／renderer 代替	
+Poq.exe	99	004641c0	FUN_004641c0	~CScrMng	game	skip	29	6	平台：CScrMng 視窗模式表面拷貝／全螢幕 Flip，失敗時檢查並還原表面後重試；SDL_RenderPresent 代替	平台：CScrMng 視窗模式表面拷貝／全螢幕 Flip，失敗時檢查並還原表面後重試；SDL_RenderPresent 代替	
+Poq.exe	99	00464260	FUN_00464260	CScrMng	game	skip	29	4	平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替	平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替	0044e200 0046bb60
 Poq.exe	99	00464370	FUN_00464370	~CGameApp	game	todo	31	2			
 Poq.exe	99	00464430	FUN_00464430	~CGameApp	game	todo	32	2			
 Poq.exe	99	004644f0	FUN_004644f0	~CGameApp	game	todo	33	2			
@@ -804,7 +801,7 @@ Poq.exe	99	0046b320	FUN_0046b320	~CGameApp	game	todo	185	2			00458620 0046b230 0
 Poq.exe	99	0046b8c0	FUN_0046b8c0	~CGameApp	game	todo	83	2			0046c260 00470270 00486e80 00494bf0 00494ec0 00495420 004963e0 00497c90 004b1880
 Poq.exe	99	0046baf0	FUN_0046baf0	~CGameApp	game	todo	50	2			00472e60 0057a010 0057a380
 Poq.exe	99	0046bb10	FUN_0046bb10		game	todo	14	0			
-Poq.exe	99	0046bb60	FUN_0046bb60	~CScrMng	game	todo	28	2			
+Poq.exe	99	0046bb60	FUN_0046bb60	~CScrMng	game	todo	28	2		應用程式轉送顯示裝置事件給兩組介面並恢復／釋放天氣資源；~CScrMng 為推測誤判，待介面與天氣裝置通知系統	
 Poq.exe	99	0046bc10	FUN_0046bc10		game	todo	12	8			
 Poq.exe	99	0046bc30	FUN_0046bc30	~CGameApp	game	todo	34	6			0046c260 00473d00 004b1880
 Poq.exe	99	0046bcf0	FUN_0046bcf0	~CGameApp	game	todo	14	2			0046c260 004b1880
@@ -1808,7 +1805,7 @@ Poq.exe	99	004b4530	FUN_004b4530	~CGameApp	game	todo	294	6			004a9600 004b4d60 0
 Poq.exe	99	004b4bd0	FUN_004b4bd0	~CGameApp	game	todo	34	6			004aa520
 Poq.exe	99	004b4c50	FUN_004b4c50	~CGameApp	game	todo	67	2			004aa520
 Poq.exe	99	004b4d60	FUN_004b4d60	~CGameApp	game	todo	136	8			004b7b40
-Poq.exe	99	004b5000	FUN_004b5000	~CGameApp	game	todo	97	12			00463870
+Poq.exe	99	004b5000	FUN_004b5000	~CGameApp	game	todo	97	12			
 Poq.exe	99	004b5260	FUN_004b5260	~CGameApp	game	todo	75	2			004aee90 004af940 004b0340 004b2010
 Poq.exe	99	004b5420	FUN_004b5420	~CGameApp	game	todo	42	4			
 Poq.exe	99	004b5490	FUN_004b5490	~CGameApp	game	todo	26	4			

@@ -236,3 +236,18 @@
 00463790	平台：MFC 應用程式 +0xac 旗標遮罩1存取；不保留 MFC 介面
 004637a0	std::string：堆積字串縮回 small-string buffer 並釋放；C 字串代替
 00461cd0	CMainWnd deleting destructor：銷毀 MFC 視窗、解構內嵌 CEdit 與 CWnd，依旗標釋放單一／陣列配置；平台層略過
+00463810	std::string 解構／清空：釋放長字串（含大塊配置檢查），重設 SSO 容量15；C 字串生命週期代替
+00463870	std::string 越界例外 invalid string position；C 字串邊界檢查代替
+00463880	std::string 子字串建構：檢查起點、截短長度後複製；C 字串切片代替
+004638f0	平台：CMainWnd Win32 訊息處理、動畫游標、影片按鍵／滑鼠與測試 CEdit；callers=0，不移植此舊訊息入口
+00463c90	平台：註冊 MyTestWClass 並建立測試 Win32 視窗；沒有呼叫者
+00463de0	平台：測試 Win32 視窗執行緒、1秒計時器與 CSingleLock；沒有呼叫者
+00463f90	平台：測試視窗 WM_TIMER 更新標題及 DefWindowProc；沒有呼叫者
+00464060	建構：CScrMng 訊息掛鉤／矩形／DirectDraw 指標初始化；SDL 平台生命週期代替，沒有呼叫者
+00464108	解構：CScrMng 解構轉接入口；SDL 平台生命週期代替
+00464120	解構：CScrMng 訊息掛鉤與矩形解構、依旗標釋放；SDL 平台生命週期代替
+00464170	平台：CScrMng 初始化螢幕矩形、像素數與 DirectDraw 指標並啟用掛鉤；SDL 視窗／renderer 代替
+004641c0	平台：CScrMng 視窗模式表面拷貝／全螢幕 Flip，失敗時檢查並還原表面後重試；SDL_RenderPresent 代替
+00464260	平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替
+0044e200	應用程式介面管理器重新初始化並傳入 +0x228/+0x22c；~CScrMng 為推測誤判，待介面管理器系統
+0046bb60	應用程式轉送顯示裝置事件給兩組介面並恢復／釋放天氣資源；~CScrMng 為推測誤判，待介面與天氣裝置通知系統
