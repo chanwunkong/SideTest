@@ -3787,6 +3787,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
 #else
     light_table(15, 0, 10, 0);  // 房間預設（EasyRPG 0x1005d390）
 #endif
+    weather_resume();
     light_clear();
     light_buildings(scene);
     cache_clear();

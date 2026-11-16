@@ -214,6 +214,22 @@ static void weather_set(int idx, int dur) {
     }
 }
 
+// 0x469a40：進場接續既有天氣；雨直接進穩定期，粒子先推40拍。
+static void weather_resume(void) {
+    if (wx.idx >= 1 && wx.idx <= 3) {
+        wx.phase = 2;
+        wx.vol = 1;
+        audio_loop(0, 100);
+        wx.rain_red = wx.idx == 3;
+        rain_reset();
+        wx.rain_grow = 1;
+        wx.rain_amt = 0x12;
+        for (int i = 0; i < 40; i++) rain_tick();
+    } else if (wx.idx == 4 || wx.idx == 5) {
+        wx.snow_on = wx.n;
+    }
+}
+
 // 每拍：伺服器端倒數到了擲表（0x44e8f0），客戶端倒數到了回晴（0x44e8d0），再推目前天氣（0x468c10）
 static void weather_tick(void) {
     if (--wx.srv_cd < 1 && wx.total > 0) {

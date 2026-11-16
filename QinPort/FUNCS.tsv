@@ -718,34 +718,31 @@ Poq.exe	99	00467560	FUN_00467560	~CGameApp	game	skip	16	2	客戶端同步層：�
 Poq.exe	99	004675b0	FUN_004675b0	~CGameApp	game	skip	25	3	客戶端同步層：卸載時遞減可見角色的客戶端引用計數；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	卸載時遞減可見角色的客戶端引用計數	
 Poq.exe	99	00467620	FUN_00467620	~CGameApp	game	todo	118	7		設定倒數並對第一名單套用／解除狀態102、清理失效句柄；等待角色狀態系統與CGodClient模式18/19規則	0048d950
 Poq.exe	99	00467880	FUN_00467880	~CGameApp	game	skip	56	1	客戶端同步層：切換全場景同步，啟用時送出所有角色、建築及有效種類23/24物件；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	切換全場景同步，啟用時送出所有角色、建築及有效種類23/24物件	
-Poq.exe	99	00467a10	FUN_00467a10	~CGameApp	game	todo	10	0			
-Poq.exe	99	00467a30	FUN_00467a30	~CGameApp	game	todo	12	0			
-Poq.exe	99	00467a70	FUN_00467a70	~CGameApp	game	todo	45	2			00467da0
-Poq.exe	99	00467c40	FUN_00467c40		game	todo	40	0			00467da0
-Poq.exe	99	00467da0	FUN_00467da0	CGodClient	game	todo	43	5			00467da0
-Poq.exe	99	00467f30	FUN_00467f30	~CGodClient	game	todo	14	0			
-Poq.exe	99	00467f80	FUN_00467f80	~CGodClient	game	todo	9	0			
-Poq.exe	99	00467fa0	FUN_00467fa0	~CGodClient	game	todo	50	0			
+Poq.exe	99	00467a70	FUN_00467a70	~CGameApp	game	skip	45	2	CGodClient 建構：三種天氣粒子、三個建築名單與亮度初值；容器／建構解構流程不另翻	CGodClient 建構：三種天氣粒子、三個建築名單與亮度初值	
+Poq.exe	99	00467c40	FUN_00467c40		game	skip	40	0	CGodClient 解構：停止天氣並清理粒子與建築名單；容器／建構解構流程不另翻	CGodClient 解構：停止天氣並清理粒子與建築名單	
+Poq.exe	99	00467da0	FUN_00467da0	CGodClient	game	skip	43	5	CGodClient deleting destructor：同解構並依旗標釋放0x5fdc bytes；容器／建構解構流程不另翻	CGodClient deleting destructor：同解構並依旗標釋放0x5fdc bytes	
+Poq.exe	99	00467f30	FUN_00467f30	~CGodClient	game	skip	14	0	無呼叫者：CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	
+Poq.exe	99	00467f80	FUN_00467f80	~CGodClient	game	skip	9	0	無呼叫者：CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	
+Poq.exe	99	00467fa0	FUN_00467fa0	~CGodClient	game	skip	50	0	無呼叫者：CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	
 Poq.exe	99	004682e0	FUN_004682e0	CGodClient	game	done	64	5		房間亮度表（G_Day/G_Night 每半小時一格）並套用	
-Poq.exe	99	00468510	FUN_00468510	~CGodClient	game	todo	18	2			
-Poq.exe	99	004685e0	FUN_004685e0	~CGodClient	game	todo	11	0			
-Poq.exe	99	00468620	FUN_00468620	~CGodClient	game	todo	17	0			
-Poq.exe	99	00468660	FUN_00468660	~CGodClient	game	todo	12	0			
+Poq.exe	99	004685e0	FUN_004685e0	~CGodClient	game	skip	11	0	無呼叫者：CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	
+Poq.exe	99	00468620	FUN_00468620	~CGodClient	game	skip	17	0	無呼叫者：CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	
+Poq.exe	99	00468660	FUN_00468660	~CGodClient	game	skip	12	0	無呼叫者：CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	
 Poq.exe	99	004686b0	FUN_004686b0	~CGodClient	game	done	11	4	weather_retone		
-Poq.exe	99	00468aa0	FUN_00468aa0	~CGodClient	game	todo	8	0			
+Poq.exe	99	00468aa0	FUN_00468aa0	~CGodClient	game	skip	8	0	無呼叫者：CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	
 Poq.exe	99	00468ad0	FUN_00468ad0	~CGodClient	game	done	56	0	weather_tick		
 Poq.exe	99	00468c10	FUN_00468c10	CGodClient	game	done	266	5		CGodClient 每拍：雨 4 階段（0 等亮度、1 隨機開始、2 雨聲漸大到 400 拍前、3 收尾）、打雷 0x469700、亮度表 +0x74[時×2+半]、依場景種類 0xb~0xf 播環境音 0x480650	00469d70 00472e60 0047ff90 00480650
-Poq.exe	99	00469400	FUN_00469400	~CGodClient	game	todo	14	0			
+Poq.exe	99	00469400	FUN_00469400	~CGodClient	game	skip	14	0	無呼叫者：CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	
 Poq.exe	99	004695f0	FUN_004695f0	~CGodClient	game	done	16	6		整點換亮度	
 Poq.exe	99	00469630	FUN_00469630	~CGodClient	game	done	9	2	light.c（空）		
 Poq.exe	99	00469650	FUN_00469650	~CGodClient	game	done	21	9		設亮度：+0x158 時才改；改粒子顏色、重畫光影地面層	
 Poq.exe	99	00469700	FUN_00469700	~CGodClient	game	done	26	3		閃電：亮度 16 幾拍，三分之一機率之後打雷	
 Poq.exe	99	00469780	FUN_00469780	~CGodClient	game	done	12	0	weather_tick 閃電打雷		
 Poq.exe	99	004697b0	FUN_004697b0	CGodClient	game	done	102	5		CGodClient 換天氣：先停舊的環境音（0x480740：雨 0、風 1）；1~3 開雨（3 紅雨，+0x158 = 不是小雨）、4/5 開雪（+0x1b0 = 大雪）、10 疾風開風聲；0xb~0x10、3 換畫面色調 0x4a5880	
-Poq.exe	99	00469a40	FUN_00469a40	~CScnClient	game	todo	52	2		CGodClient 接續天氣（進場景時正在下）：雨直接到階段 2 並先推 40 拍、雪片數直接滿	
-Poq.exe	99	00469bb0	FUN_00469bb0	~NormalBuilding	game	todo	28	2			
-Poq.exe	99	00469c80	FUN_00469c80		game	todo	38	5			00468510
-Poq.exe	99	00469d70	FUN_00469d70	~CGodClient	game	todo	126	2			0047ff60 00480460
+Poq.exe	99	00469a40	FUN_00469a40	~CScnClient	game	done	52	2		CGodClient 進場接續雨雪：雨階段2、音量衰減1、雨量18並預推40拍；雪片數填滿	
+Poq.exe	99	00469bb0	FUN_00469bb0	~NormalBuilding	game	todo	28	2		CGodClient 加入種類11建築環境音名單，依音效1/2/3分組；等待NormalBuilding場景物件系統	
+Poq.exe	99	00469c80	FUN_00469c80		game	todo	38	5		CGodClient 移除建築環境音名單、空組停音；等待NormalBuilding場景物件系統	
+Poq.exe	99	00469d70	FUN_00469d70	~CGodClient	game	todo	126	2		CGodClient 近處建築環境音最大音量（距離小於1401），沿用最後遍歷建築音效；等待NormalBuilding物件及音效句柄系統	0047ff60 00480460
 Poq.exe	99	0046a0c0	FUN_0046a0c0		game	todo	10	2			0046a100 0046a140 004ca880 004cbf70
 Poq.exe	99	0046a100	FUN_0046a100	CInitMngMain	game	todo	13	6			0046a100 0046a140 004ca9b0 004cbf70
 Poq.exe	99	0046a140	FUN_0046a140	CInitMngMain	game	todo	36	6			004caf80 004cb390 004cb3c0
@@ -820,7 +817,7 @@ Poq.exe	99	0046da80	FUN_0046da80		game	todo	8	11
 Poq.exe	99	0046da90	FUN_0046da90		game	todo	29	15			004a3340
 Poq.exe	99	0046db00	FUN_0046db00		game	todo	10	0			
 Poq.exe	99	0046db20	FUN_0046db20		game	todo	12	0			
-Poq.exe	99	0046db60	FUN_0046db60	~CGameApp	game	todo	99	2			00467a70 0046c260 0046d470 0046da00 0046e010 0046f100 00470300
+Poq.exe	99	0046db60	FUN_0046db60	~CGameApp	game	todo	99	2			0046c260 0046d470 0046da00 0046e010 0046f100 00470300
 Poq.exe	99	0046de80	FUN_0046de80		game	todo	64	4			0046c6b0 0046d4b0 0046da00 0046e010 0046f100 00470300
 Poq.exe	99	0046e010	FUN_0046e010	CScnClient	game	todo	67	6			0046c6b0 0046d4b0 0046da00 0046e010 0046f100 00470300
 Poq.exe	99	0046e1b0	FUN_0046e1b0	SkillUnit	game	todo	12	10			
@@ -840,7 +837,7 @@ Poq.exe	99	0046eea0	FUN_0046eea0		game	todo	85	0			0046edc0
 Poq.exe	99	0046f100	FUN_0046f100	CScnClient|CScnClientRecord	game	todo	19	11			004c7790 004f94c0
 Poq.exe	99	0046f180	FUN_0046f180		game	todo	446	2			0044dda0 0046cab0 00482db0 00482eb0 004831c0 0049c910 0049c930 0049caf0 0049cb30 0049cbe0 004c7db0 004ceab0
 Poq.exe	99	00470270	FUN_00470270	~CGameApp	game	todo	18	2			0045a030 0045a3a0 00460570 0046d420 004cede0
-Poq.exe	99	00470300	FUN_00470300	CScnClient	game	todo	746	8			00469a40 0046b250 0046da10 0046da20 0046da40 0046e1b0 0046e360 0046eb40 0046ec80 00471890 00471dd0 00474760 00475c60 00484ee0 00485e10 00486910 004887a0 0048c150 0048d2c0 0048d740 0048d810 0048e6e0 0048e820 0048e8f0 0048eab0 00494ec0 00496260 00497b20 00497bb0 0049a7e0 0049c2e0 0049c3a0 0049f1b0 004b8410 004c8630 004cf6e0 00578790 00579df0
+Poq.exe	99	00470300	FUN_00470300	CScnClient	game	todo	746	8			0046b250 0046da10 0046da20 0046da40 0046e1b0 0046e360 0046eb40 0046ec80 00471890 00471dd0 00474760 00475c60 00484ee0 00485e10 00486910 004887a0 0048c150 0048d2c0 0048d740 0048d810 0048e6e0 0048e820 0048e8f0 0048eab0 00494ec0 00496260 00497b20 00497bb0 0049a7e0 0049c2e0 0049c3a0 0049f1b0 004b8410 004c8630 004cf6e0 00578790 00579df0
 Poq.exe	99	00471830	FUN_00471830		game	todo	12	0			
 Poq.exe	99	00471860	FUN_00471860	~CGameDialog	game	todo	13	2			
 Poq.exe	99	00471890	FUN_00471890	~CScnClient	game	todo	47	2			0044db40 004590f0

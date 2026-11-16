@@ -300,3 +300,21 @@
 004675b0	卸載時遞減可見角色的客戶端引用計數
 00467620	設定倒數並對第一名單套用／解除狀態102、清理失效句柄；等待角色狀態系統與CGodClient模式18/19規則
 00467880	切換全場景同步，啟用時送出所有角色、建築及有效種類23/24物件
+00467a10	CBuilding* 容器解構外殼；一般C陣列取代
+00467a30	CBuilding* 靜態鏈容器解構外殼；一般C陣列取代
+00467a70	CGodClient 建構：三種天氣粒子、三個建築名單與亮度初值
+00467c40	CGodClient 解構：停止天氣並清理粒子與建築名單
+00467da0	CGodClient deleting destructor：同解構並依旗標釋放0x5fdc bytes
+00468510	500格靜態鏈按有效旗標與指標找索引；通用容器工具，非CGodClient邏輯
+00469a40	CGodClient 進場接續雨雪：雨階段2、音量衰減1、雨量18並預推40拍；雪片數填滿
+00469bb0	CGodClient 加入種類11建築環境音名單，依音效1/2/3分組；等待NormalBuilding場景物件系統
+00469c80	CGodClient 移除建築環境音名單、空組停音；等待NormalBuilding場景物件系統
+00469d70	CGodClient 近處建築環境音最大音量（距離小於1401），沿用最後遍歷建築音效；等待NormalBuilding物件及音效句柄系統
+00467f30	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
+00467f80	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
+00467fa0	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
+004685e0	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
+00468620	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
+00468660	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
+00468aa0	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體
+00469400	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體

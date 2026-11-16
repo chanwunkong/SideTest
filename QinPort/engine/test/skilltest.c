@@ -391,6 +391,20 @@ int main(void) {
     assert(wx.p[0].life >= 499 && wx.p[0].dx <= -2 && wx.p[wx.n - 1].life > 0);
     wx.total = 0;
     weather_set(0, 1000);
+    // 進場接續：雨不等變暗，保留倒數與亮度，紅雨及雪立刻填滿。
+    for (int kind = 1; kind <= 5; kind++) {
+        weather_set(kind, 2345);
+        int bright = lt.bright;
+        weather_resume();
+        assert(wx.left == 2345 && lt.bright == bright);
+        if (kind <= 3) {
+            assert(wx.phase == 2 && wx.vol == 1 && wx.rain_grow == 1);
+            assert(wx.rain_amt >= 18 && wx.rain_live > 0 && wx.rain_red == (kind == 3));
+        } else assert(wx.snow_on == wx.n);
+    }
+    weather_set(0, 1000);
+    weather_resume();
+    assert(wx.idx == 0 && wx.left == 1000);
     // 光影：亮度表 14 格由夜到日、12 格白天、14 格由日到夜、8 格夜晚
     light_table(15, 0, 10, 0);
     assert(lt.table[0] == 0 && lt.table[7] == 7 && lt.table[14] == 15 && lt.table[25] == 15 && lt.table[33] == 8 && lt.table[40] == 0);

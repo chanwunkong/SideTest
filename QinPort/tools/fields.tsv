@@ -318,3 +318,10 @@ CClientScreen	+0x840	建築鏈首	同步層／名單基底略過
 CClientScreen	+0x844	建築鏈游標	同步層／名單基底略過
 CClientScreen	+0x864	其他物件鏈首	同步層／名單基底略過
 CClientScreen	+0x868	其他物件鏈游標	同步層／名單基底略過
+CGodClient	+0x1d4	第一個CBuilding*靜態鏈名單	待NormalBuilding
+CGodClient	+0x212c	第二個CBuilding*靜態鏈名單	待NormalBuilding
+CGodClient	+0x4084	第三個CBuilding*靜態鏈名單	待NormalBuilding
+CGodClient	+0x1c8	建構清零，語意未定	-
+CGodClient	+0x1cc	建構清零，語意未定	-
+CGodClient	+0x1d0	建構清零，語意未定	-
+CGodClient	+0x8	雨階段，接續天氣時設2	wx.phase
