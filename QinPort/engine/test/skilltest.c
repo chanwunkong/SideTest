@@ -30,6 +30,20 @@ int main(void) {
     assert(gp.x == 2 && gp.y == -4);
     gp = viewport_grid_point(-4, 3, 0, 0);
     assert(gp.x == -2 && gp.y == 1);
+    // 中心格用互換的寬高除數，負數除法向零截斷。
+    gp = viewport_center_grid((SDL_Point){10, 20}, 641, 479);
+    assert(gp.x == 24 && gp.y == 30);
+    gp = viewport_center_grid((SDL_Point){0, 0}, -65, -33);
+    assert(gp.x == -1 && gp.y == -1);
+    SDL_Rect bounds = {0, 0, 1000, 800};
+    gp = viewport_clamp((SDL_Point){800, 600}, 200, 200, bounds);
+    assert(gp.x == 798 && gp.y == 598); // 恰好碰到右下邊也減 1，再取偶數
+    gp = viewport_clamp((SDL_Point){101, 203}, 200, 200, bounds);
+    assert(gp.x == 100 && gp.y == 202);
+    gp = viewport_clamp((SDL_Point){-9, -11}, 10, 10, (SDL_Rect){-5, -7, 100, 100});
+    assert(gp.x == -4 && gp.y == -6); // 取偶數後可超過奇數的下界
+    gp = viewport_clamp((SDL_Point){50, 50}, 200, 200, (SDL_Rect){3, 5, 10, 10});
+    assert(gp.x == 2 && gp.y == 4); // 世界小於視窗：下界優先，最後才取偶數
     res_init("../../game");
     md.hp = (Stat){100000, 0};
     md.ap = md.ap_max = (Stat){10, 0};

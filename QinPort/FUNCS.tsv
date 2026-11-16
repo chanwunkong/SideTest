@@ -252,7 +252,7 @@ Poq.exe	99	00442310	FUN_00442310		game	done	56	0	light_draw（每個光源蓋光
 Poq.exe	99	00442460	FUN_00442460	~CViewPort	game	done	75	2			004a1250 004c7da0
 Poq.exe	99	00442660	FUN_00442660		game	done	10	0			
 Poq.exe	99	004426a0	FUN_004426a0	~CGameApp	game	skip	8	2	空函數（只有 return）		
-Poq.exe	99	004426b0	FUN_004426b0		game	skip	19	4	進場景時設定一個以畫面中心格為起點的狀態（Ghidra 丟了物件，只有 46ec80/471890 換場景用）；我們進場景依距離載圖（lib_want）代替		0045b6b0
+Poq.exe	99	004426b0	FUN_004426b0		game	skip	19	4	進場景時設定一個以畫面中心格為起點的狀態（Ghidra 丟了物件，只有 46ec80/471890 換場景用）；我們進場景依距離載圖（lib_want）代替		
 Poq.exe	99	00442730	FUN_00442730		game	done	15	6		螺旋走格建構：從 (x, y) 走 n 圈（near.c spiral_init）	
 Poq.exe	99	00442780	FUN_00442780		game	done	27	2		方向 → 角度：d → (d+1)×45°（6 = −45°、7 = 0）	
 Poq.exe	99	00442810	FUN_00442810		game	done	53	8		從一點找 r 以內第一個角色（方框 x−r 起邊長 3r）	
@@ -628,19 +628,19 @@ Poq.exe	99	0045ae10	FUN_0045ae10	~CViewPort	game	skip	20	15	平台：標記髒�
 Poq.exe	99	0045ae3b	FUN_0045ae3b	~CViewPort	game	skip	14	0	平台：髒矩形加入的編譯器續接片段，SDL 每幀全畫面重畫代替	平台：髒矩形加入的編譯器續接片段，SDL 每幀全畫面重畫代替	
 Poq.exe	99	0045ae70	FUN_0045ae70	~CViewPort	game	todo	153	2		分層繪圖：名單底層、可見物件、名單中上層、特殊遮擋物件；等物件繪圖虛函式、格子遮擋旗標與分層名單	004827c0 00482930 00482ab0 00497c10 004c7da0
 Poq.exe	99	0045b2b0	FUN_0045b2b0	~CViewPort	game	todo	160	2		小地圖探索遮罩：逐交錯格依探索與可見旗標畫索引14/15或64x32遮罩；等格子探索／可見資料與小地圖遮罩圖資	0049caf0 004a1030 004a1090 004c7a00 004c7d80 004c7da0
-Poq.exe	99	0045b6b0	FUN_0045b6b0	~CViewPort	game	todo	19	2			
-Poq.exe	99	0045b720	FUN_0045b720	~CViewPort	game	todo	21	2			
-Poq.exe	99	0045b780	FUN_0045b780	~CViewPort	game	todo	39	8			
-Poq.exe	99	0045b830	FUN_0045b830	~CViewPort	game	todo	37	2			0045aad0 004c7da0
-Poq.exe	99	0045b900	FUN_0045b900		game	todo	117	8		畫面往方向捲動（方向鍵、游標到畫面邊緣；沒按左鍵、0x6628e8 = 0 時）	0045b780 0045e460 004a11f0 004a1250 004ced00
-Poq.exe	99	0045bc50	FUN_0045bc50	~CGameApp	game	todo	247	2			0045ac40 0045b780 0045e460 00472e60 004a11f0 004a1250 004ced00
-Poq.exe	99	0045c390	FUN_0045c390	~CGameApp	game	todo	709	2			0045b780 0045e460 004a11f0 004a1250 004ced00
+Poq.exe	99	0045b6b0	FUN_0045b6b0	~CViewPort	game	done	19	2		鏡頭中心格：快取 X 加視窗高/32、Y 加寬/64，向零截斷；main.c viewport_center_grid	
+Poq.exe	99	0045b720	FUN_0045b720	~CViewPort	game	todo	21	2		檢查矩形是否交到可見物件 +0x3c 矩形；等統一物件矩形與可見名單系統，留 todo	
+Poq.exe	99	0045b780	FUN_0045b780	~CViewPort	game	done	39	8		鏡頭邊界先上界減1再下界、最後向零取偶數；main.c viewport_clamp	
+Poq.exe	99	0045b830	FUN_0045b830	~CViewPort	game	todo	37	2		以 +0x34/+0x38 除64查格，格子旗標允許才重建排序；等格子可見旗標與物件排序系統，留 todo	0045aad0 004c7da0
+Poq.exe	99	0045b900	FUN_0045b900		game	todo	117	8		方向捲動、限制邊界並更新格座標與像素餘量；等世界限制矩形初始化及座標轉換/快取系統，留 todo	0045e460 004a11f0 004a1250 004ced00
+Poq.exe	99	0045bc50	FUN_0045bc50	~CGameApp	game	todo	247	2			0045ac40 0045e460 00472e60 004a11f0 004a1250 004ced00
+Poq.exe	99	0045c390	FUN_0045c390	~CGameApp	game	todo	709	2			0045e460 004a11f0 004a1250 004ced00
 Poq.exe	99	0045dc00	FUN_0045dc00	~CViewPort	game	todo	148	2			0049caf0 004a1030 004a1090 004ceab0
 Poq.exe	99	0045e020	FUN_0045e020	~CViewPort	game	todo	146	2			
 Poq.exe	99	0045e460	FUN_0045e460		game	todo	31	7			
 Poq.exe	99	0045e4f0	FUN_0045e4f0	~CMapDialog	game	todo	61	2			0045ac40 00460470 004a1090 004cebf0
 Poq.exe	99	0045e710	FUN_0045e710	~CMapDialog	game	todo	32	2			004a1090
-Poq.exe	99	0045e820	FUN_0045e820	~CViewPort	game	todo	144	4			0045b780 00460470
+Poq.exe	99	0045e820	FUN_0045e820	~CViewPort	game	todo	144	4			00460470
 Poq.exe	99	0045ec50	FUN_0045ec50	~CViewPort	game	todo	118	2			004830f0 00483980 00483b80 004a28b0
 Poq.exe	99	0045ef90	FUN_0045ef90	CViewPort	game	todo	69	4			0045b900 0045e820
 Poq.exe	99	0045f100	FUN_0045f100	~CViewPort	game	todo	35	5			00473470

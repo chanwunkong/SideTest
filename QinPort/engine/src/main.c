@@ -39,6 +39,24 @@ static inline SDL_Point viewport_grid_point(int x, int y, int map_rows, int orig
                        y + 2 + half - origin + x};
 }
 
+// 鏡頭中心格（Poq.exe 0x45b6b0）：原版刻意用高/32 加 X、寬/64 加 Y。
+// shortcut: 等鏡頭捲動的格座標快取接入後使用，base 是原版快取而非像素原點。
+static inline SDL_Point viewport_center_grid(SDL_Point base, int width, int height) {
+    return (SDL_Point){base.x + height / 32, base.y + width / 64};
+}
+
+// 鏡頭像素邊界（Poq.exe 0x45b780）：先上界、再下界，最後向零取偶數。
+// shortcut: 等世界限制矩形初始化與鏡頭捲動接入後使用。
+static inline SDL_Point viewport_clamp(SDL_Point p, int width, int height, SDL_Rect world) {
+    if (p.y + height >= world.y + world.h) p.y = world.y + world.h - 1 - height;
+    if (p.y < world.y) p.y = world.y;
+    if (p.x + width >= world.x + world.w) p.x = world.x + world.w - 1 - width;
+    if (p.x < world.x) p.x = world.x;
+    p.x -= p.x % 2;
+    p.y -= p.y % 2;
+    return p;
+}
+
 // 原版速度對照表（Poq.exe 0x5f21d0/0x5f23b0/0x5f22c0）：速度 s → 每 B 拍移動 A + C/10 像素
 static const uint8_t SPEED_A[60] = {0,1,0,1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,6,6,6,7,7,7,8,8,8,9,9,9,10,10,10,11,11,11,12,12,12,13,13,13,14,14,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,19};
 static const uint8_t SPEED_B[60] = {90,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};

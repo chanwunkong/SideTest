@@ -129,3 +129,12 @@ CViewPort	+0xf0	世界限制矩形 X	待鏡頭邊界
 CViewPort	+0xf4	世界限制矩形 Y	待鏡頭邊界
 CViewPort	+0xf8	世界限制矩形寬	待鏡頭邊界
 CViewPort	+0xfc	世界限制矩形高	待鏡頭邊界
+CViewPort	+0x28	矩形相交查詢用的可見物件串列表頭	待可見物件名單
+CViewPort	+0x34	觸發可見排序查格的 X（除64）	待格子可見檢查
+CViewPort	+0x38	觸發可見排序查格的 Y（除64）	待格子可見檢查
+CViewPort	+0x64	髒矩形集合的矩形陣列	SDL 全畫面重畫
+CViewPort	+0xb8	每次方向捲動像素步長	待鏡頭捲動
+CViewPort	+0x154	鏡頭格座標快取 X	viewport_center_grid 的 base.x
+CViewPort	+0x158	鏡頭格座標快取 Y	viewport_center_grid 的 base.y
+CViewPort	+0x15c	鏡頭像素 X 對格座標餘量	待座標快取
+CViewPort	+0x160	鏡頭像素 Y 對格座標餘量	待座標快取

@@ -341,7 +341,14 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - todo 共 5 個（roles.tsv）：0x45aad0 可見物件排序等統一物件矩形與繪圖名單；0x45ac40 鏡頭設位等 0x45b900 捲動與世界限制矩形；0x45ad30 設視窗等 0x45e820 快取；0x45ae70 分層繪圖等物件虛函式／遮擋旗標；0x45b2b0 小地圖探索遮罩等探索可見資料與遮罩圖資。新偏移記入 fields.tsv。
   - 後續必須保留原版怪現象：鏡頭設位用輸入 Y−16 比較邊界，只有越界時改成邊界值，範圍內仍寫原輸入 Y；排序以物件 +0x34 加 +0x38 降序，相等時新物件插在前面。
   - 建置與測試：`cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`。
-  **下一步：0x45b6b0（CViewPort 鏡頭捲動）起**，用 `python3 tools/functool.py next 0x45b6b0`。
+  ~~下一步：0x45b6b0（CViewPort 鏡頭捲動）起~~
+- 進度（11-16）：Poq.exe 0x45b6b0～0x45b900 **CViewPort 鏡頭捲動段（5 個函數）**。
+  - 移植 0x45b6b0 → main.c `viewport_center_grid`、0x45b780 → `viewport_clamp`，skilltest 補中心格、正負座標、邊界及世界小於視窗的測試。
+  - 照原版保留：中心格 X 加視窗高/32、Y 加寬/64；右下恰好碰界也減1；先上界再下界，最後向零取偶數，因此奇數下界可能在取偶數後被越過。
+  - shortcut：兩個換算函數等待鏡頭格座標快取與世界限制矩形初始化後接入，未改目前遊戲鏡頭。
+  - skip 0 個；todo 3 個：0x45b720 等可見物件名單與統一矩形；0x45b830 等格子可見旗標與排序系統；0x45b900 等世界限制矩形初始化與座標轉換/快取系統。用途與新偏移已記 roles.tsv／fields.tsv。
+  - 建置與測試：`cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；有未接入函數的 unused 警告。
+  **下一步：0x45bc50（CGameApp）起**，用 `python3 tools/functool.py next 0x45bc50`。
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
 
