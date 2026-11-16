@@ -72,7 +72,7 @@ CGameApp	+0x27c	除錯文字開關	-
 SInitCha	+0x4	種類，建構預設 0xb	-
 SInitCha	+0x8	word 預設 2（+0x8 整個 dword 先設 0xffff0000）	-
 SInitCha	+0x24	GRECT	-
-SInitCha	+0x38	名稱零結尾bytes，建構清0x40 bytes；查找區分大小寫且僅取未建立記錄	未移植：SInit名稱載入
+SInitCha	+0x38	事件ID零結尾bytes，原版載入事件ID到此處，容量0x40；非HUD顯示名稱	NpcSpec.event[64]／Actor.init_name；actor_init_name／actor_name_set
 CPlayerGroupAI	+0x14	組號	grps[].id
 CPlayerGroupAI	+0x1c	敵人組名單 CStaticLinkList<int,200>（數量 +0x65c）	grps[].foe/n
 CObjMng	+0x1c	角色串列 CDMList（游標 +0x20）	actors
@@ -707,9 +707,9 @@ CCharactor	+0x571	出手冷卻，無MethodMain時每拍減1	Actor.cool（現有�
 CCharactor	+0x575	行為重設時清0的整數，獨立setter無呼叫者	未使用
 CCharactor	+0x579	蠱惑狀態清除及行為重設時清0	待確認用途
 CCharactor	+0x57d	繪圖矩形診斷旗標	待診斷繪圖
-CCharactor	+0x581	主人／關聯識別值	待主人識別
+CCharactor	+0x581	主人／關聯識別值，getter與setter不改組別或目標	Actor.owner；actor_owner／actor_owner_set（Actor指標承接識別）
 CCharactor	+0x585	顯示名稱附加編號，初值-1	待顯示編號
-CCharactor	+0x589	顯示名稱CString，並非生命值	actor_title，尚未移植原版編號後綴
+CCharactor	+0x589	顯示名稱CString，獨立於SInit事件ID，並非生命值	Actor.display_name／actor_name；actor_title橋接來源，編號後綴更新仍todo
 CCharactor	+0x58d	建築互動的關聯指標	待同類別建築互動
 CCharactor	+0x591	光環要施加的狀態ID	待光環
 CCharactor	+0x595	光環作用範圍，預設8或取SkillUnit最大距離	待光環

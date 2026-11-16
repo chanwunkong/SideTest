@@ -279,6 +279,48 @@ static void character_move_cast_test(void) {
     unit_scene = saved_scene; actor_count = saved_count; unit_n = saved_units;
 }
 
+static void character_names_owner_test(void) {
+    NpcSpec spec = {.type = 10};
+    Actor a = {.spec = &spec, .grp = 12345, .selected = 7};
+    Actor owner = {.grp = 456};
+    // SInit的事件ID與顯示字串是兩份資料；改事件ID不能改顯示副本。
+    snprintf(a.display_name, sizeof a.display_name, "%s", "display");
+    for (int type = 9; type <= 17; type++) {
+        spec.type = type;
+        snprintf(a.init_name, sizeof a.init_name, "%s", "old");
+        actor_name_set(&a, "EventID");
+        if (type >= 10 && type <= 16) {
+            assert(!strcmp(actor_init_name(&a), "EventID"));
+        } else {
+            assert(!actor_init_name(&a) && !strcmp(a.init_name, "old"));
+        }
+        assert(!strcmp(actor_name(&a), "display"));
+    }
+    spec.type = -1;
+    assert(!actor_init_name(&a));
+    spec.type = 12;
+    char event[64];
+    memset(event, 'A', sizeof event - 1); event[63] = 0;
+    actor_name_set(&a, event);
+    assert(strlen(actor_init_name(&a)) == 63 && !strcmp(actor_init_name(&a), event));
+    actor_name_set(&a, ""); assert(!*actor_init_name(&a));
+    // 動態建立角色用最小SInitCha（種類10），不需要ONT指標。
+    a.spec = NULL;
+    actor_name_set(&a, "dynamic"); assert(!strcmp(actor_init_name(&a), "dynamic"));
+    actor_owner_set(&a, &owner);
+    assert(actor_owner(&a) == &owner && a.grp == 12345 && a.selected == 7);
+    actor_owner_set(&a, NULL);
+    assert(!actor_owner(&a) && a.grp == 12345 && a.selected == 7);
+    // HUD從顯示來源更新，不得把怪物顯示名稱寫入事件ID。
+    MonDef mon = {0};
+    snprintf(mon.title, sizeof mon.title, "%s", "Monster");
+    a.mon = &mon;
+    char title[256];
+    actor_title(&a, title, sizeof title);
+    assert(!strcmp(title, "Monster") && !strcmp(actor_name(&a), "Monster"));
+    assert(!strcmp(actor_init_name(&a), "dynamic"));
+}
+
 static void character_skill_runtime_test(void) {
     RoleDef d = {.speed = 5, .skill_count = 3, .skill_ids = {65535, 1, 1}};
     Actor a = {.def = &d, .speed = 5, .right_id = 77, .left_id = 88,
@@ -716,6 +758,7 @@ int main(void) {
     character_core_test();
     character_skills_test();
     character_skill_runtime_test();
+    character_names_owner_test();
     scene_client_test();
     viewport_test();
     building_test();

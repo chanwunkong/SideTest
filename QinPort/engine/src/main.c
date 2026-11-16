@@ -273,6 +273,7 @@ typedef struct Actor {
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
     int sh;                        // 劇情物件（原版 EasyRPG 的人物；0 = 沒有）
     int command[4];                // 待執行命令，第一格 -1 表示沒有（原版 +0x5b6）
+    char init_name[64], display_name[256]; // SInit事件ID為原始bytes；顯示名稱為UTF-8
     ActorSkill skills[MAX_ACTOR_SKILLS];
     int skill_n, selected, right_id, left_id, range_adjust;
     int template_skill[MAX_ACTOR_SKILLS], template_skill_n;
@@ -287,6 +288,27 @@ static void actor_clear_target(Actor *a) { a->foe = NULL; }
 
 // Poq.exe 0x486e70：取消排隊命令，保留其餘三個參數。
 static void actor_cancel_command(Actor *a) { a->command[0] = -1; }
+
+// Poq.exe 0x488360：只有SInit種類10..16有角色名稱，不能拿其他種類當字串。
+static const char *actor_init_name(const Actor *a) {
+    // shortcut: 動態角色以最小SInitCha（種類10）承接；完整初始化記錄接入時保留其種類。
+    unsigned type = a->spec ? (unsigned)a->spec->type : 10;
+    return type - 10u < 7u ? a->init_name : NULL;
+}
+
+// Poq.exe 0x48c150：改原始名稱不會順便更新顯示副本。
+// shortcut: 超過SInit原始64-byte容量時截斷，遇到超長事件ID時改動態字串。
+static void actor_name_set(Actor *a, const char *name) {
+    if (actor_init_name(a) && name != a->init_name)
+        snprintf(a->init_name, sizeof a->init_name, "%s", name);
+}
+
+// Poq.exe 0x488840：回傳顯示副本，不能直接回傳SInit名稱。
+static const char *actor_name(const Actor *a) { return a->display_name; }
+
+// Poq.exe 0x48e6c0 / 0x488750：只寫／讀主人識別；引擎以Actor指標承接物件識別。
+static void actor_owner_set(Actor *a, Actor *owner) { a->owner = owner; }
+static Actor *actor_owner(const Actor *a) { return a->owner; }
 
 // Poq.exe 0x48e6e0：同組完全不動；換組先清目標和待執行命令。
 // shortcut: 單機以共用Actor取代角色組別同步封包，連線支援時補傳輸。
@@ -531,6 +553,8 @@ static void actor_skills_init(Actor *a);
 
 static void actor_setup(Actor *a, const RoleDef *d) {
     actor_cancel_command(a);
+    actor_name_set(a, a->spec ? a->spec->event : "");
+    a->display_name[0] = 0;
     a->layer = 1;
     a->role = role_for(d);
     a->def = d;
@@ -600,10 +624,11 @@ static void spawn_npcs(const Scene *s) {
             if (DIR_MAP[o] == n->dir) a->dir = o;
         a->spec = n;
         a->act_tick = rand() % 200;  // 錯開動作，不要整排同步
-#ifdef STORY
-        a->sh = n->event[0] ? story_find(sroom, n->event) : 0;
-#endif
         actor_setup(a, d);
+#ifdef STORY
+        const char *event = actor_init_name(a);
+        a->sh = event && *event ? story_find(sroom, event) : 0;
+#endif
     }
 }
 
@@ -1203,7 +1228,7 @@ static void summon(Actor *a, const SkillRow *r) {
     const RoleDef *d = m ? roledef_find(m->role) : NULL;
     if (!d || actor_count >= MAX_ACTORS) return;
     Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, (int)a->x, (int)a->y, a->level);
-    s->owner = a;
+    actor_owner_set(s, a);
     s->side = a->side;
     actor_group(s, a->grp);
     s->foe = a->foe;
@@ -1221,7 +1246,7 @@ static int skill_param(const SkillRow *r, int id) {
 static void join(Actor *t, Actor *a) {
     t->side = a->side;
     actor_group(t, a->grp);
-    t->owner = a;
+    actor_owner_set(t, a);
     t->foe = NULL;
     for (int i = 0; i < actor_count; i++)
         if (actors[i].foe == t && actors[i].side == t->side) actors[i].foe = NULL;
@@ -1784,9 +1809,10 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
 // 怪物：主角進入索敌范围就追上去打，離出生點超過追击范围就放棄回去閒逛
 static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
     (void)hero;
-    if (a->owner && alive(a->owner)) {  // 主人那邊的：閒逛、追击范围都以主人為中心
-        mon_specs[a - actors].rx = (int)a->owner->x - MON_WANDER;
-        mon_specs[a - actors].ry = (int)a->owner->y - MON_WANDER;
+    Actor *owner = actor_owner(a);
+    if (owner && alive(owner)) {  // 主人那邊的：閒逛、追击范围都以主人為中心
+        mon_specs[a - actors].rx = (int)owner->x - MON_WANDER;
+        mon_specs[a - actors].ry = (int)owner->y - MON_WANDER;
     }
     if (a->foe && (!alive(a->foe) || fabsf(a->x - a->spec->rx - MON_WANDER) + fabsf(a->y - a->spec->ry - MON_WANDER) > actor_chase(a)))
         a->foe = NULL;
@@ -3871,25 +3897,29 @@ static void skill_draw(UiDialog *d, int wx, int wy) {
 // 照原版：血條只在對象沒有狀態 102 時「打開」（0x583e40 傳 0 = 不變），這裡也沒有地方關它，所以有狀態 102 一樣看得到血。
 // shortcut: 原版還給指著的角色加旗標 0x100（隊友名單裡的不拿掉）、指著物件（種類 0x17、0x18、10～20）另外標示，都沒做；
 // 手機沒有指著，先用攻擊目標；死掉的不顯示（原版只看種類）
-static const Actor *hover_actor;
+static Actor *hover_actor;
 static int hover_mouse;
 
-static const Actor *status_target(const Actor *h, const Actor *hover, int mouse) {
-    const Actor *t = mouse ? hover : h->foe;
+static Actor *status_target(Actor *h, Actor *hover, int mouse) {
+    Actor *t = mouse ? hover : h->foe;
     return t && t->act != ACT_DEAD ? t : NULL;
 }
 
-// 角色名字（UTF-8）：怪物用人物名称；劇情人物用劇情名字；主角先寫扶苏（同人物描述）
-static void actor_title(const Actor *t, char *u, size_t n) {
-    if (t->mon) { gbk_utf8(t->mon->title, u, n); return; }
-    const char *s = t == &actors[0] ? "扶苏" : "";
+// 將現有EasyRPG／怪物文字來源交給角色名稱欄位，再由HUD消費顯示副本。
+// shortcut: 顯示名稱仍由現有EasyRPG來源同步，編號後綴入口尚未移植；接完整顯示名稱更新時替換。
+static void actor_title(Actor *t, char *u, size_t n) {
+    char base[256];
+    if (t->mon) gbk_utf8(t->mon->title, base, sizeof base);
+    else snprintf(base, sizeof base, "%s", t == &actors[0] ? "扶苏" : "");
+    const char *s = base;
 #ifdef STORY
-    if (t->sh && *story_name(t->sh)) s = story_name(t->sh);
+    if (!t->mon && t->sh && *story_name(t->sh)) s = story_name(t->sh);
 #endif
-    snprintf(u, n, "%s", s);
+    snprintf(t->display_name, sizeof t->display_name, "%s", s);
+    snprintf(u, n, "%s", actor_name(t));
 }
 
-static void hud_draw(const Actor *hero) {
+static void hud_draw(Actor *hero) {
     static int tried;
     if (!tried) {
         tried = 1;
@@ -3898,7 +3928,7 @@ static void hud_draw(const Actor *hero) {
         ui_load("JM515_\xb5\xd0\xc8\xcb\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6", &enemy);    // JM515_敌人状态界面
     }
     // 敵人狀態：上方置中、距頂 20（原版位置）
-    const Actor *t = status_target(hero, hover_actor, hover_mouse);
+    Actor *t = status_target(hero, hover_actor, hover_mouse);
     if (enemy.count && t) {
         int ex = (vw - enemy.w) / 2, ey = 20;
         UiCtrl *nm = ui_find(&enemy, "m_pName"), *bl = ui_find(&enemy, "m_pBlood");
@@ -4483,15 +4513,17 @@ int main(int argc, char **argv) {
                     walk_cx = hero->fight && actor_move_cast(hero, (unsigned short)cx, (unsigned short)cy) ? -1 : cx;
                     walk_cy = cy;
                     break;
-                case CMD_TALK:  // shortcut: 原版指令 0xf 是走過去再說；這裡馬上說，而且只有 ONT 擺的（有事件 ID）的 NPC 能說
+                case CMD_TALK: {  // shortcut: 原版指令 0xf 是走過去再說；這裡馬上說，而且只有 ONT 擺的（有事件 ID）的 NPC 能說
 #ifdef STORY
-                    if (!m->mon && m->spec && m->spec->event[0]) {
-                        int npc = story_find(story_room(alias), m->spec->event);
+                    const char *event = actor_init_name(m);
+                    if (!m->mon && event && *event) {
+                        int npc = story_find(story_room(alias), event);
                         if (npc) { Actor *controlled = scene_client_actor(&scene_client); if (controlled) talk_face(controlled, m); story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
-                        else printf("劇情裡找不到 NPC %s\n", m->spec->event);
+                        else printf("劇情裡找不到 NPC %s\n", event);
                     }
 #endif
                     break;
+                }
                 }
             }
             // 遊戲速度：數字鍵盤 +／= 加快、數字鍵盤 −／- 減慢（0x455d60）
