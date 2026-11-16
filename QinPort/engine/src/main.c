@@ -3921,6 +3921,19 @@ static Actor *input_char(int zx, int zy, int ox, int oy, const Scene *s, int *cx
     return pick_at(zx, zy, *cx, *cy, 1, -1, pick_box);
 }
 
+// 0x4848c0：原版一圈螺旋順序；格旗標必須同時有0x88，排除門與非0/2狀態。
+static Object *input_building(const Scene *s, int x, int y) {
+    Spiral it; spiral_init(&it, x, y, 1);
+    while (spiral_next(&it)) {
+        if (it.x < 0 || it.y < 0 || it.x >= s->w || it.y >= s->h || !s->cells) continue;
+        const Cell *c = &s->cells[it.y * s->w + it.x];
+        if ((c->flags & 0x88) != 0x88 || c->building < 0 || c->building >= s->object_count) continue;
+        Object *o = &s->objects[c->building];
+        if (o->m && o->m->type >= 0x80 && o->m->type <= 0x100 && o->m->type != 0x96 && building_available(o)) return o;
+    }
+    return NULL;
+}
+
 // 原版旗標 +0x341 第 n 個 = 身上有狀態 n；狀態 0 战斗状态 = 我們的 fight 計時
 static int in_fight(const Actor *h) { return h->fight > 0; }
 
@@ -3934,6 +3947,20 @@ static int input_cursor(const Actor *h, const Actor *c, int item, int cx, int cy
         return has_status(h, 103) ? CUR_NORMAL : CUR_TALK;  // 103 无对话
     }
     if (item >= 0) return CUR_ITEM;
+    Object *b = NULL;
+    const Cell *bc = cell_at(cx, cy);
+    if (!bc && unit_scene) b = input_building(unit_scene, cx, cy);
+    else if (bc && bc->view >= 2 && (bc->flags & 0x88) == 0x88 && bc->building >= 0 &&
+             bc->building < unit_scene->object_count) {
+        Object *o = &unit_scene->objects[bc->building];
+        if (o->m && (!o->tri || building_available(o))) b = o;
+    }
+    if (b) {
+        if (b->m->type == 0x8c) return CUR_ITEM;
+        if (b->m->type == 0x80) return CUR_ATTACK;
+        if (b->m->type == 0x81) return b->state == 2 ? CUR_OBJ : CUR_USE;
+        if (b->m->type == 0x85) return CUR_CHEST;
+    }
     const Cell *cl = cell_at(cx, cy);
     if (!c && cl && (!cell_pass(cl, 1) || cell_actor0(cx, cy))) return CUR_BLOCK;
     return CUR_NORMAL;
@@ -4246,6 +4273,7 @@ int main(int argc, char **argv) {
             for (int i = 0; i < actor_count; i++) walk_fx(&actors[i], &scene, tick);
             unit_scene = &scene;
             units_tick(tick);
+            scene_buildings_tick(&scene);
             light_tick(&scene);
             clock_tick();
             weather_tick();

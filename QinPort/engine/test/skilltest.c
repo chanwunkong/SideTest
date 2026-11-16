@@ -210,6 +210,48 @@ static void viewport_test(void) {
     vw = old_w; vh = old_h;
 }
 
+static void tribuilding_test(void) {
+    Cell cells[9] = {0}; uint16_t footprint[] = {0x81, 0x82};
+    Model m = {.type = 0x80, .part_count = 4, .bottom = 1, .top = 1,
+               .grid_w = 2, .grid_h = 1, .footprint = footprint};
+    Object o = {.m = &m, .x = 1, .y = 1, .tri = 1, .state = -1};
+    Scene s = {.w = 3, .h = 3, .cells = cells, .objects = &o, .object_count = 1};
+    scene_building_cells(&s, 0, -1);
+    cells[5].walk = 7;
+    scene_building_state(&s, 0, 1);
+    assert(o.state == 1 && o.bottom == 4 && cells[4].walk == 1 && cells[5].walk == 7);
+    scene_building_state(&s, 0, 5); // 非門且不是0/2，不准啟動
+    assert(o.state == 1);
+    scene_building_state(&s, 0, 2);
+    assert(building_available(&o) && o.bottom == 1 && o.top == 1 && !cells[4].walk);
+    cells[4].walk = 9; scene_building_state(&s, 0, 2);
+    assert(cells[4].walk == 9); // 同狀態不重寫walk
+    const Scene *saved = unit_scene; unit_scene = &s;
+    cells[4].flags = 0x88;
+    assert(input_building(&s, 1, 1) == &o);
+    assert(input_building(&s, 1, 2) == &o); // 下一格向y-1
+    m.type = 0x96; assert(!input_building(&s, 1, 1));
+    m.type = 0x100; assert(input_building(&s, 1, 1) == &o);
+    m.type = 0x101; assert(!input_building(&s, 1, 1));
+    m.type = 0x81; o.state = 1; assert(!input_building(&s, 1, 1));
+    assert(cell_bld(1, 1) == 0 && cell_bld(-1, 1) == -1);
+    o.state = 0; cells[4].flags = 0x80; assert(!input_building(&s, 1, 1));
+    unit_scene = saved;
+    // 用記憶體動畫測獨立序列選擇與幀號，無需建立鏡像播放器。
+    Frame f[2] = {{.delay = 2}, {.delay = 3}};
+    Seq seq[3] = {{2, f}, {2, f}, {2, f}}; Anim a = {.count = 3, .seqs = seq};
+    o.seq[0] = 2; o.frame[0] = 1;
+    assert(building_sequence(&o, 0, &a) == &seq[2]);
+    assert(building_part_frame(&o, 0, &seq[2], 999) == 1);
+    o.state = 5; o.seq[0] = 1; o.frame[0] = o.elapsed[0] = 0;
+    for (int t = 0; t < 4; t++) assert(!building_part_tick(&o, 0, &a));
+    assert(o.frame[0] == 1 && o.elapsed[0] == 2);
+    assert(building_part_tick(&o, 0, &a)); // 最後一幀最後一拍，不多播一圈
+    o.state = 1;
+    assert(!building_part_tick(&o, 0, &a) && !o.frame[0] && !o.elapsed[0]);
+
+}
+
 static void building_test(void) {
     Cell cells[16] = {0};
     uint16_t footprint[] = {0x81, 0x182, 0x7f, 0x88, 0x89, 0x82};
@@ -396,6 +438,7 @@ int main(void) {
     scene_client_test();
     viewport_test();
     building_test();
+    tribuilding_test();
     ground_labels_test();
     // 小地圖換算：正負奇數的有號餘數，以及除法向零截斷。
     SDL_Point gp = viewport_grid_point(3, 2, 10, 1);
@@ -481,6 +524,7 @@ int main(void) {
     assert(t.act == ACT_DEAD);
     // 召喚：匈奴法师_召唤（273 = 10 → 朱厌，最多 2 隻）
     roledefs_load();
+    assert(roledef_find(204) && !roledef_find(204)->beast && !roledef_find(204)->air);
     const RoleDef *crow = roledef_find(1003);
     assert(crow && crow->beast && crow->air == 1 && crow->reaction == 0 && crow->snd_idle == 26);
     NpcSpec air_specs[2] = {{.tmpl = 1003, .x = 8, .y = 9}, {.tmpl = 1005}};

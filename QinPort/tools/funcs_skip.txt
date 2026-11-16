@@ -629,3 +629,11 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 004843e0  NormalBuilding解構：環境音移除及部件／基底釋放；C陣列scene_free承接，環境音掛接另記初始化／卸載入口todo
 00484460  NormalBuilding刪除解構：同一般解構加operator delete；以scene_free取代，環境音卸載另記todo
 00484500  NormalBuilding遍歷動畫部件呼叫CBuilding髒區比較；被呼叫本體兩次讀同一幀且無推進，SDL全畫面重畫取代，不臆造獨立動畫計時
+
+# CTriBld 可互動建築（2026-11-16）
+004845c0  建構：種類12、狀態-1與旗標初值，場景Object陣列生命週期承接
+00484680  解構：場景名單移除／部件及基底釋放，由scene_free承接
+004846f0  刪除解構：同一般解構加operator delete，由scene_free承接
+00484790  空入口
+004848a0  卸載：移除場景名單並釋放部件，場景Object陣列scene_free承接
+00497e30  字串訊息封包發送：CGodClient空時直接返回，其餘走連線傳輸，單機不複製封包

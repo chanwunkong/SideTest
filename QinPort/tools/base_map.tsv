@@ -200,3 +200,5 @@ OmUtil::GetFleePos	air_run使用既有dir_of與move_dir；核對OmUtil.dll匯出
 004830e0	CBuilding場景綁定轉接工具 → scene_load的Scene.objects與Object.m；不另設CObj虛擬轉接
 00483290	CBuilding基底固定成功查詢工具 → scene_load成功回值；原版CObj本體固定1
 00483f80	CBuilding固定成功工具 → 有效Object.m／scene_load成功，不另建虛擬查詢
+004bcae0	指定分隔字元的第n個非空token拷貝；C strspn/strcspn與長度比較取代，CTriBld載入取空格分詞0
+00497e90	CObj +0x58置1並回成功；以Object.dead旗標取代，消費端等角色破壞命令

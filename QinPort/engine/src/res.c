@@ -1,6 +1,7 @@
 // 讀取秦殤原版資源：Lib 封包、xbm 圖片、動畫、場景(.Scn/.MAP/.BNT/.MDL)、主角(PLI)。
 // 格式說明見 tools/*.py。
 #include "res.h"
+#include "audio.h"
 #include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
@@ -671,6 +672,7 @@ static void parse_models(Scene *s, const uint8_t *d, size_t n) {
             m->footprint = malloc(count * sizeof *m->footprint);
             for (size_t k = 0; k < count; k++) m->footprint[k] = u16(d + a + 0xa3 + k * 2);
             m->display = d[o + 3];
+            m->sound = u16(d + o);
         }
         if (o + 2 < n && d[o + 2] >= 1 && d[o + 2] <= 4) {
             m->light = d[o + 2];
@@ -813,6 +815,23 @@ int scene_load(Scene *s, const char *scn_name) {
                 o->door_y = o->y - o->m->anchor_y + o->m->door_y;
             }
             scene_building_cells(s, i, -1);
+            o->tri = o->m && o->m->type >= 0x80 && o->m->type <= 0x100;
+            if (o->tri) {
+                o->state = -1;
+                // 0x4847a0：只有門以第一個空格分詞與原版字串"go"比較。
+                if (o->m->type == 0x96) {
+                    const char *token = o->name + strspn(o->name, " ");
+                    size_t len = strcspn(token, " ");
+                    o->active = !(len == 2 && !memcmp(token, "go", 2));
+                }
+                o->bottom = o->m->bottom; o->top = o->m->top;
+                for (int p = 0; p < o->m->part_count; p++) {
+                    const Anim *a = o->m->parts[p].anim ? anim_get(o->m->parts[p].gid) : NULL;
+                    if (a && a->count && a->seqs[0].count)
+                        o->frame[p] = o->phase % a->seqs[0].count;
+                }
+                scene_building_state(s, i, 1);
+            }
         }
     }
     free(bnt);
@@ -832,6 +851,7 @@ const Entry *scene_entry(const Scene *s, int id) {
 // 0x483400：只覆寫帶高位的占地；低位非阻擋格也保留建築索引。
 // 僅 (byte & 7)==1 的高位格清除／恢復 walk；等 CTriBld 狀態切換接入。
 // walk=-1 發布占地；0/1 供 CTriBld 開關通道共用，不重建地圖原始 walk。
+// 0x483620 / 0x4841f0：清除／恢復高位且低三位為1的walk，CTriBld狀態切換呼叫。
 void scene_building_cells(Scene *s, int index, int walk) {
     if (index < 0 || index >= s->object_count || !s->cells) return;
     const Object *o = &s->objects[index]; const Model *m = o->m;
@@ -849,6 +869,69 @@ void scene_building_cells(Scene *s, int index, int walk) {
     }
     if (walk < 0 && o->x >= 0 && o->y >= 0 && o->x < s->w && o->y < s->h)
         s->cells[o->y * s->w + o->x].origin = 1;
+}
+
+// 0x484a60：只認狀態 0 / 2，與模型種類無關。
+int building_available(const Object *o) { return o->state == 0 || o->state == 2; }
+
+// 0x484ee0：同狀態直接返回；原版門名檢查沒有可見效果。
+void scene_building_state(Scene *s, int index, int state) {
+    if (index < 0 || index >= s->object_count) return;
+    Object *o = &s->objects[index]; const Model *m = o->m;
+    if (!m || !o->tri || o->state == state) return;
+    if (state == 5 && m->type != 0x96 && !building_available(o)) return;
+    if (state == 5) {
+        int sound = m->sound ? m->sound : m->type == 0x80 ? 0x60 : m->type == 0x81 ? 0x5e : -1;
+        // shortcut: 沿用引擎非位置音效；位置混音接入後傳建築擺放格。
+        if (sound > 0) audio_sfx(sound);
+    }
+    for (int p = 0; p < m->part_count; p++) {
+        if (!m->parts[p].anim) continue;
+        const Anim *a = anim_get(m->parts[p].gid);
+        int seq = o->seq[p];
+        if (state == 0 || state == 2) seq = 0;
+        else if (state == 1 && a && a->count > 2) seq = 2;
+        else if (state == 5 && a && a->count >= 2) seq = 1;
+        if (seq != o->seq[p]) { o->seq[p] = seq; o->frame[p] = o->elapsed[p] = 0; }
+    }
+    if (m->type == 0x80 || m->type == 0x8c) {
+        if (state == 0 || state == 2) {
+            if (m->type == 0x80) { o->bottom = m->bottom; o->top = m->top; }
+            scene_building_cells(s, index, 0);
+        } else if (state == 1 || state == 5) {
+            if (m->type == 0x80) o->bottom = m->part_count;
+            scene_building_cells(s, index, 1);
+        }
+    }
+    o->state = state;
+    // 原版前後各標髒區、非初始狀態廣播同步；SDL全重畫／單機共用Object承接。
+}
+
+// 回傳互動動畫最後一幀的最後一拍；由場景更新切回狀態1。
+int building_part_tick(Object *o, int part, const Anim *a) {
+    if (!a || o->seq[part] < 0 || o->seq[part] >= a->count) return 0;
+    const Seq *q = &a->seqs[o->seq[part]];
+    if (!q->count) return 0;
+    int f = o->frame[part] % q->count;
+    int delay = q->frames[f].delay > 0 ? q->frames[f].delay : 1;
+    if (o->state == 5 && f == q->count - 1 && o->elapsed[part] == delay - 1) return 1;
+    // shortcut: 用遊戲拍推進獨立部件，原版精靈計時器來源確認後校準排程。
+    if (++o->elapsed[part] >= delay) { o->elapsed[part] = 0; o->frame[part] = (f + 1) % q->count; }
+    return 0;
+}
+
+// CTriBld更新的動畫部分；感應區劇情分支等角色命令處理系統，未標整入口完成。
+void scene_buildings_tick(Scene *s) {
+    for (int i = 0; i < s->object_count; i++) {
+        Object *o = &s->objects[i]; const Model *m = o->m;
+        if (!o->tri || o->dead || !m) continue;
+        for (int p = 0; p < m->part_count; p++) {
+            if (!m->parts[p].anim) continue;
+            if (building_part_tick(o, p, anim_get(m->parts[p].gid))) {
+                scene_building_state(s, i, 1); break;
+            }
+        }
+    }
 }
 
 int scene_walkable(const Scene *s, int x, int y) {
@@ -1159,6 +1242,7 @@ int roledefs_load(void) {
         if (c < 21 || !col[1][0]) continue;
         if (roledef_count == cap) roledefs = realloc(roledefs, (cap = cap ? cap * 2 : 256) * sizeof(RoleDef));
         RoleDef *r = &roledefs[roledef_count++];
+        memset(r, 0, sizeof *r); // 一般角色的beast/air等未在RoleMdl賦值，不能讀realloc殘值。
         r->id = atoi(col[1]);
         snprintf(r->graphic, sizeof r->graphic, "%s", col[2]);
         snprintf(r->styles, sizeof r->styles, "%s", col[3]);

@@ -269,6 +269,13 @@ static int building_frame(const Object *o, const Seq *q, Uint32 tick) {
     return frame_at(q, tick + offset);
 }
 // 原版門名檢查入口所有路徑均直接返回，不能據此推造開門效果。
+static const Seq *building_sequence(const Object *o, int part, const Anim *a) {
+    int seq = o->tri ? o->seq[part] : 0;
+    return a && seq >= 0 && seq < a->count ? &a->seqs[seq] : NULL;
+}
+static int building_part_frame(const Object *o, int part, const Seq *q, Uint32 tick) {
+    return o->tri ? (q->count ? o->frame[part] % q->count : 0) : building_frame(o, q, tick);
+}
 // 0x483f90：同值不更新；取消反白恢復模型顯示值，反白只改非底層。
 // SDL 每幀全重畫，無需將部件矩形重新加入髒區。
 static void building_highlight(Object *o, int selected) {
@@ -277,7 +284,7 @@ static void building_highlight(Object *o, int selected) {
 static int building_display(const Object *o) { return o->highlight ? 15 : o->m->display; }
 // 動畫或反白且非底層才走特殊部件路徑（無呼叫者的獨立查詢入口不另設）。
 static int building_special(const Object *o, int part) {
-    return o->m->parts[part].anim || (building_display(o) == 15 && part >= o->m->bottom);
+    return o->m->parts[part].anim || (building_display(o) == 15 && part >= (o->tri ? o->bottom : o->m->bottom));
 }
 
 // 0x484170：投影位置加模型矩形偏移；零尺寸資源保留部件聯集作保護。
@@ -288,7 +295,8 @@ static SDL_Rect viewport_building_rect(const Object *o, int sx, int sy, Uint32 t
     for (int p = 0; o->m && p < o->m->part_count; p++) {
         const Part *pt = &o->m->parts[p];
         const Anim *a = pt->anim ? anim_get(pt->gid) : NULL;
-        if (a && a->count) viewport_union_frame(&r, a, 0, building_frame(o, &a->seqs[0], tick), sx + pt->dx, sy + pt->dy);
+        const Seq *q = building_sequence(o, p, a);
+        if (q && q->count) viewport_union_frame(&r, a, (int)(q - a->seqs), building_part_frame(o, p, q, tick), sx + pt->dx, sy + pt->dy);
         else if (!pt->anim) {
             const Sprite *im = image(pt->gid);
             if (im) {
@@ -307,8 +315,9 @@ static void building_part_draw(const Object *o, int part, int sx, int sy, Uint32
     const Part *pt = &o->m->parts[part];
     const Anim *a = pt->anim ? anim_get(pt->gid) : NULL;
     const Sprite *im = NULL; int x = sx + pt->dx, y = sy + pt->dy;
-    if (a && a->count && a->seqs[0].count) {
-        const Frame *f = &a->seqs[0].frames[building_frame(o, &a->seqs[0], tick)];
+    const Seq *q = building_sequence(o, part, a);
+    if (q && q->count) {
+        const Frame *f = &q->frames[building_part_frame(o, part, q, tick)];
         im = image(f->ref); x -= f->dx; y -= f->dy;
     } else if (!pt->anim) im = image(pt->gid);
     if (!im || !im->tex) return;
@@ -329,8 +338,9 @@ static void building_part_draw(const Object *o, int part, int sx, int sy, Uint32
 static void viewport_building_draw(const Object *o, int sx, int sy, int pass, Uint32 tick) {
     const Model *m = o->m;
     if (!m) return;
-    int start = pass == 0 ? 0 : pass == 1 ? m->bottom : m->part_count - m->top;
-    int end = pass == 0 ? m->bottom : pass == 1 ? m->part_count - m->top : m->part_count;
+    int bottom = o->tri ? o->bottom : m->bottom, top = o->tri ? o->top : m->top;
+    int start = pass == 0 ? 0 : pass == 1 ? bottom : m->part_count - top;
+    int end = pass == 0 ? bottom : pass == 1 ? m->part_count - top : m->part_count;
     for (int p = start; p < end && p < m->part_count; p++)
         if (p >= 0) building_part_draw(o, p, sx, sy, tick, 0);
 }
@@ -339,7 +349,7 @@ static void viewport_building_draw(const Object *o, int sx, int sy, int pass, Ui
 // shortcut: SDL 已保留RGBA透明度，合併原版按 SBMP 表面旗標分流的兩次繪製；
 // 原始表面旗標接入時恢復兩階段順序及逐像素光照。
 static void building_occlude_draw(const Object *o, int sx, int sy, Uint32 tick) {
-    for (int p = o->m->bottom; p < o->m->part_count; p++)
+    for (int p = o->tri ? o->bottom : o->m->bottom; p < o->m->part_count; p++)
         if (p >= 0) building_part_draw(o, p, sx, sy, tick, 0);
 }
 

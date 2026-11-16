@@ -637,3 +637,19 @@ NormalBuilding	+0x9c	建構清零的環境音槽／分組狀態，具體編碼�
 NormalBuilding	+0x7b	繼承CBuilding的模型部件數	Model.part_count
 NormalBuilding	+0x8b	繼承CBuilding的模型指標	Object.m
 BldMdlPart	+0x0c	NormalBuilding更新時檢查的動畫部件旗標（記錄步長0x19）	Part.anim
+CTriBld	+0x5c	模型種類：128..256為可破壞範圍，但排除150門	Object.m->type
+CTriBld	+0x58	死亡／移除旗標，破壞入口設1	Object.dead（命令呼叫端todo）
+CTriBld	+0x67	物件種類12	Object.tri / Scene.objects
+CTriBld	+0x77	各動畫部件SprGroup指標表	Object.seq/frame/elapsed
+CTriBld	+0x7b	全部部件數	Object.m->part_count
+CTriBld	+0x7f	執行期底層部件數，模型128狀態1/5變全部	Object.bottom
+CTriBld	+0x83	執行期頂層部件數，狀態0/2恢復模型值	Object.top
+CTriBld	+0x8b	建築模型指標	Object.m
+CTriBld	+0x9c	狀態：-1未載入、0/2可操作、1初始完成、5播互動動畫	Object.state
+CTriBld	+0xa0	自動感應旗標；門第一個空格分詞不是go才設1	Object.active
+CTriBld	+0xa4	感應倒數：空掃設1、有NPC觸發設1000，正數每次減1	Object.cooldown（劇情命令接收端todo）
+CTriBld	+0xa8	允許互動旗標，建構設1，CUserInput讀	尚未使用（角色互動命令todo）
+CTriBld	+0xac	建構清零，這批未見讀取	未配置
+BldMdl	+0xa7	互動音效u16；零時模型128用96、129用94	Model.sound
+CSprGroup	+0x10	當前序列：0靜止、1互動、2完成	Object.seq[part]
+CSprGroup	+0x14	序列總數	Anim.count

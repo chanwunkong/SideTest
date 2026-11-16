@@ -620,12 +620,12 @@
 00482eb0	CBuilding各部件合成縮圖後ceil尺寸縮放、輸出模型矩形原點/倍率；todo 等不同類別CScnClient小地圖生成與CMapDialog消費端，未新增無呼叫者縮圖函數
 004830f0	CBuilding遮擋平面測試；viewport_blocks，座標和相等／分軸相等皆不遮擋，X偏移<1優先
 00483400	CBuilding高位占地旗標與建築索引寫場景格，另設原點標記；scene_building_cells(-1)在scene_load接入
-00483620	CBuilding清除高位且低3位為1的格子walk；todo 等不同類別CTriBld狀態切換呼叫端；規則已放scene_building_cells(walk=0)，未標done
+00483620	CBuilding清除高位且低3位為1的格子walk；scene_building_cells(walk=0)，已接CTriBld狀態0/2
 00483980	CBuilding透明表面遮擋重畫；building_occlude_draw合併SDL RGBA路徑；原始SBMP旗標分流／色表見shortcut
 00483b80	CBuilding普通表面遮擋重畫；building_occlude_draw；SDL裁切重畫取代髒區及暫存表面，分流限制見shortcut
 00483f90	CBuilding反白設值，同值不更新、取消恢復模型顯示值；building_highlight/building_display接滑鼠命中
 00484170	CBuilding投影擺放格後加模型矩形偏移，寬高取模型；viewport_building_rect接可見名單／拾取
-004841f0	CBuilding恢復高位且低3位為1的格子walk=1；todo 等不同類別CTriBld狀態切換呼叫端；規則已放scene_building_cells(walk=1)，未標done
+004841f0	CBuilding恢復高位且低3位為1的格子walk=1；scene_building_cells(walk=1)，已接CTriBld狀態1/5
 00481b30	CBuilding建構：以Scene.objects值初始化與共用資源快取取代C++生命週期
 00481b90	CBuilding解構：Scene釋放物件／模型占地，SDL共用圖片快取統一釋放
 00481c60	CBuilding刪除解構：C陣列／Scene生命週期取代
@@ -653,3 +653,18 @@
 00469bb0	CGodClient 加入種類11建築環境音名單，依音效1/2/3分組；NormalBuilding載入已核對，待建築環境音名單與句柄系統
 00469c80	CGodClient 移除建築環境音名單、空組停音；NormalBuilding卸載已核對，待建築環境音名單與句柄系統
 00469d70	CGodClient 近處建築環境音最大音量（距離小於1401），沿用最後遍歷建築音效；待建築環境音名單與句柄系統
+004845c0	CTriBld建構：種類12、狀態-1、感應旗標0、倒數0、允許互動1、保留欄位0；scene_load Object生命週期承接
+00484680	CTriBld解構：場景名單移除及部件／基底釋放；scene_free承接
+004846f0	CTriBld刪除解構；scene_free承接
+00484790	CTriBld空入口
+004847a0	CTriBld載入：基底模型／占地後，門名稱token0不等於go時開感應，再設狀態1；scene_load
+004848a0	CTriBld卸載：移除名單及釋放部件；scene_free承接
+004848c0	CTriBld一圈螺旋找旗標0x88且種類128..256非150、狀態0/2的建築；input_building接離地圖游標查找
+00484a60	CTriBld狀態0或2才可操作；building_available接狀態切換及游標
+00484a80	CTriBld更新：動畫5播完回1已接scene_buildings_tick；todo 感應倒數<1掃占地0x88，首個NPC組10000..60000送s_pctstart後的0x13d命令或字串訊息，再倒數1000，空掃設1；等不同類別CCharactor命令0x13d接收端；角色查找／格子／名稱皆已有基礎
+00484e80	CTriBld使用：模型128且狀態0/2發命令0x8e，始終回1；todo 等不同類別CCharactor建築互動命令接收端，不把封包視為已完成互動
+00484ee0	CTriBld狀態切換；scene_building_state接載入／更新，原版0/2恢復序列0並清walk、1換序列2並恢復walk、5只允許門或0/2且換序列1與音效；SDL全重畫／單機共享Object承接髒區與同步
+00485250	CTriBld破壞入口：CObj死亡旗標置1、恢復walk且回1；todo 等不同類別CCharactor攻擊建築／破壞命令呼叫端，不新增僅測試呼叫的函數
+00497e30	字串訊息發送器；CGodClient不存在即返回，否則走連線傳輸；單機skip
+00497e90	CObj死亡旗標+0x58置1且回1；基礎Object.dead承接，等建築破壞呼叫端
+004bcae0	分隔字元token拷貝工具；忽略連續分隔，最多容量-1，成功加NUL回1、空回0；C字串span取代

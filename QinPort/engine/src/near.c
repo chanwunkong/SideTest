@@ -69,8 +69,11 @@ static int cell_prop(int x, int y) {
     return 0;
 }
 
-// shortcut: 原版格子 +0xe 是建築物件（可互動的建築，旗標 +0x12）；我們的建築只是場景圖，還沒有這種物件，一律當沒有
-static int cell_bld(int x, int y) { (void)x, (void)y; return -1; }
+// 格子 +0xe 的建築索引沿用場景占地表，取代原本一律回無建築的簡化版。
+static int cell_bld(int x, int y) {
+    const Cell *c = cell_at(x, y);
+    return c && (c->flags & 128) && c->building >= 0 && c->building < scene.object_count ? c->building : -1;
+}
 
 // 物件種類 0x80～0x100 且不是 0x96（0x439b20：可被打壞的物件）
 LATER static int obj_breakable(int kind) { return (unsigned)(kind - 0x80) < 0x81 && kind != 0x96; }
