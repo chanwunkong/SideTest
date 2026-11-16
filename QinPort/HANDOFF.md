@@ -476,7 +476,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 為確認類別邊界，核對索引中引用它的建立／倒數入口：兩者操作持有者的鏈表及技能命令，屬後續管理類別業務，不冒稱完成；roles.tsv記錄用途，fields.tsv記錄SKillPlayer四個資料欄位。
   - 後續管理類別須保留的原版現象：建立節點後立即遞減；原始值100先設-100，但立即變-101，所以仍發到期命令（只有恰為-100才免發）。本輪不提前實作或改正這個行為。既有管理類別todo留待該類別及技能命令系統處理，不屬本輪SKillPlayer解構的阻塞。
   - `cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
-  **下一步：0x473df0（SLingpai）起**。
+  ~~下一步：0x473df0（SLingpai）起~~。
+- 進度（11-16）：Poq.exe **0x473df0 SLingpai 全類別**核對，只有刪除式解構；到下一類別 SLingpaiPlayer 前停止。本輪 **done 0、skip 1、todo 0**。
+  - 解構先清 CHAINITEM，再依旗標 bit0 釋放0x1c byte節點，依生命週期規則列skip；不是容器工具類，不加base_map。roles.tsv補用途；本體沒有新資料偏移，fields.tsv無需新增。
+  - 無新增遊戲邏輯、shortcut或todo，無需新增測試；未將後續持有者的令牌管理業務標成完成。
+  - `cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
+  **下一步：0x473e20（SLingpaiPlayer）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
