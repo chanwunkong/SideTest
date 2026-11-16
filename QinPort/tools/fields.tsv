@@ -148,3 +148,19 @@ CViewPort	+0xc0	震動總 tick（振幅分母）	待鏡頭平移／跟隨系統
 CViewPort	+0x140	定時平移目標 X	待鏡頭平移／跟隨系統
 CViewPort	+0x144	定時平移目標 Y	待鏡頭平移／跟隨系統
 CViewPort	+0x148	定時平移步長（0表示停止）	待鏡頭平移／跟隨系統
+CViewPort	+0xc8	背景快取繪圖表面（虛函式 +0xc 搬移內容）	SDL 每幀全畫面重畫
+CViewPort	+0x104	背景快取矩形 X	SDL 每幀全畫面重畫
+CViewPort	+0x108	背景快取矩形 Y	SDL 每幀全畫面重畫
+CViewPort	+0x10c	背景快取矩形寬	SDL 每幀全畫面重畫
+CViewPort	+0x110	背景快取矩形高	SDL 每幀全畫面重畫
+CViewPort	+0x114	背景快取矩形附加欄位（隨 GRECT 複製）	SDL 每幀全畫面重畫
+CScene	+0x0	格子範圍起始 X	待原版格子範圍
+CScene	+0x4	格子範圍起始 Y	待原版格子範圍
+CScene	+0x8	格子範圍寬（反向座標換算參數）	viewport_point_grid map_rows（沿用既有參數命名）
+CScene	+0xc	格子範圍高	待原版格子範圍
+CScene	+0x1c	21-byte 格子陣列起點	Scene.cells
+CScene	+0xa8	上次取格 X	待格子查詢快取
+CScene	+0xac	上次取格 Y	待格子查詢快取
+SceneCell	+0x0	底圖索引（-1 用預設圖）	Cell.ground
+SceneCell	+0x2	覆圖索引（-1 不畫）	Cell.over
+SceneCell	+0x4	除錯疊圖檢查的 byte（0 時畫標記）	Cell.walk

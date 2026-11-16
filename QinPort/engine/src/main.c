@@ -39,6 +39,21 @@ static inline SDL_Point viewport_grid_point(int x, int y, int map_rows, int orig
                        y + 2 + half - origin + x};
 }
 
+// 小地圖點轉場景格（Poq.exe 0x45e460）：奇數 Y 先加1再除2，差值仍向零截斷。
+// shortcut: 換算已翻，等小地圖與鏡頭格座標快取接入；map_rows 為 NULL 表示沒有場景。
+static inline SDL_Point viewport_point_grid(SDL_Point p, const int *map_rows, int origin) {
+    if (!map_rows) return (SDL_Point){0, 0};
+    int half, delta;
+    if (p.y % 2 == 0) {
+        half = p.y / 2 - p.x;
+        delta = p.y - *map_rows;
+    } else {
+        half = (p.y + 1) / 2 - p.x;
+        delta = p.y - *map_rows - 1;
+    }
+    return (SDL_Point){delta / 2 + p.x, origin + half - 1};
+}
+
 // 鏡頭中心格（Poq.exe 0x45b6b0）：原版刻意用高/32 加 X、寬/64 加 Y。
 // shortcut: 等鏡頭捲動的格座標快取接入後使用，base 是原版快取而非像素原點。
 static inline SDL_Point viewport_center_grid(SDL_Point base, int width, int height) {

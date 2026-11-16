@@ -632,19 +632,19 @@ Poq.exe	99	0045b6b0	FUN_0045b6b0	~CViewPort	game	done	19	2		鏡頭中心格：�
 Poq.exe	99	0045b720	FUN_0045b720	~CViewPort	game	todo	21	2		檢查矩形是否交到可見物件 +0x3c 矩形；等統一物件矩形與可見名單系統，留 todo	
 Poq.exe	99	0045b780	FUN_0045b780	~CViewPort	game	done	39	8		鏡頭邊界先上界減1再下界、最後向零取偶數；main.c viewport_clamp	
 Poq.exe	99	0045b830	FUN_0045b830	~CViewPort	game	todo	37	2		以 +0x34/+0x38 除64查格，格子旗標允許才重建排序；等格子可見旗標與物件排序系統，留 todo	0045aad0 004c7da0
-Poq.exe	99	0045b900	FUN_0045b900		game	todo	117	8		方向捲動、限制邊界並更新格座標與像素餘量；等世界限制矩形初始化及座標轉換/快取系統，留 todo	0045e460 004a11f0 004a1250 004ced00
-Poq.exe	99	0045bc50	FUN_0045bc50	~CGameApp	game	todo	247	2		鏡頭定時平移、每5 tick交替震動與自動跟隨入口；等鏡頭設位、世界限制矩形、格座標快取及跟隨模式查詢，留 todo（this 欄位屬 CViewPort，索引類別為相鄰推定）	0045ac40 0045e460 00472e60 004a11f0 004a1250 004ced00
-Poq.exe	99	0045c390	FUN_0045c390	~CGameApp	game	todo	709	2		鏡頭跟隨角色：靜止時超死區補2像素，移動時依方向與速度3/4追趕；等世界限制矩形、世界轉螢幕座標、格座標快取，留 todo（this 欄位屬 CViewPort）	0045e460 004a11f0 004a1250 004ced00
-Poq.exe	99	0045dc00	FUN_0045dc00	~CViewPort	game	todo	148	2			0049caf0 004a1030 004a1090 004ceab0
-Poq.exe	99	0045e020	FUN_0045e020	~CViewPort	game	todo	146	2			
-Poq.exe	99	0045e460	FUN_0045e460		game	todo	31	7			
+Poq.exe	99	0045b900	FUN_0045b900		game	todo	117	8		方向捲動、限制邊界並更新格座標與像素餘量；等世界限制矩形初始化及座標轉換/快取系統，留 todo	004a11f0 004a1250 004ced00
+Poq.exe	99	0045bc50	FUN_0045bc50	~CGameApp	game	todo	247	2		鏡頭定時平移、每5 tick交替震動與自動跟隨入口；等鏡頭設位、世界限制矩形、格座標快取及跟隨模式查詢，留 todo（this 欄位屬 CViewPort，索引類別為相鄰推定）	0045ac40 00472e60 004a11f0 004a1250 004ced00
+Poq.exe	99	0045c390	FUN_0045c390	~CGameApp	game	todo	709	2		鏡頭跟隨角色：靜止時超死區補2像素，移動時依方向與速度3/4追趕；等世界限制矩形、世界轉螢幕座標、格座標快取，留 todo（this 欄位屬 CViewPort）	004a11f0 004a1250 004ced00
+Poq.exe	99	0045dc00	FUN_0045dc00	~CViewPort	game	todo	148	2		地表繪圖：交錯掃描視窗格子、先底圖再覆圖，缺格用預設圖，除錯疊格旗標；等世界／格座標轉換、預設圖與圖資虛擬繪圖介面，留 todo	0049caf0 004a1030 004a1090 004ceab0
+Poq.exe	99	0045e020	FUN_0045e020	~CViewPort	game	skip	146	2	平台：背景表面快取搬移與新增露出區域的髒矩形，SDL 每幀全畫面重畫代替	平台：背景快取矩形隨視窗移動並搬移表面，將新露出的水平／垂直條帶加入髒矩形；SDL 每幀全畫面重畫代替	
+Poq.exe	99	0045e460	FUN_0045e460		game	done	31	7		小地圖點轉場景格：依 Y 奇偶與場景 +8 換算，無場景回零；main.c viewport_point_grid，等小地圖與鏡頭格座標快取接入	
 Poq.exe	99	0045e4f0	FUN_0045e4f0	~CMapDialog	game	todo	61	2			0045ac40 00460470 004a1090 004cebf0
 Poq.exe	99	0045e710	FUN_0045e710	~CMapDialog	game	todo	32	2			004a1090
 Poq.exe	99	0045e820	FUN_0045e820	~CViewPort	game	todo	144	4			00460470
 Poq.exe	99	0045ec50	FUN_0045ec50	~CViewPort	game	todo	118	2			004830f0 00483980 00483b80 004a28b0
 Poq.exe	99	0045ef90	FUN_0045ef90	CViewPort	game	todo	69	4			0045b900 0045e820
 Poq.exe	99	0045f100	FUN_0045f100	~CViewPort	game	todo	35	5			00473470
-Poq.exe	99	0045f200	FUN_0045f200	CViewPort	game	todo	220	4			0045aad0 0045ae70 0045b2b0 0045dc00 0045e020 0045f820 0045fec0 00461230 004a28b0 004c7da0
+Poq.exe	99	0045f200	FUN_0045f200	CViewPort	game	todo	220	4			0045aad0 0045ae70 0045b2b0 0045dc00 0045f820 0045fec0 00461230 004a28b0 004c7da0
 Poq.exe	99	0045f820	FUN_0045f820	~CViewPort	game	todo	243	2			0045b720 0045b830 0045ec50 00497c10 004c7da0
 Poq.exe	99	0045fec0	FUN_0045fec0	~CViewPort	game	todo	148	2			004607c0 0046eb40 004887b0 00488840 00497b20 004a1250 004f5e50 004f6b10 004fa3e0 004fa7c0
 Poq.exe	99	00460470	FUN_00460470		game	todo	59	14			
@@ -2227,7 +2227,7 @@ Poq.exe	99	004ceab0	FUN_004ceab0		game	todo	9	4			0049caf0
 Poq.exe	99	004cead0	FUN_004cead0		game	todo	9	0			0049cad0
 Poq.exe	99	004ceaf0	FUN_004ceaf0		game	todo	29	0			
 Poq.exe	99	004cebf0	FUN_004cebf0		game	todo	15	6			
-Poq.exe	99	004cec30	FUN_004cec30		game	todo	33	0			0045e460 004ced00
+Poq.exe	99	004cec30	FUN_004cec30		game	todo	33	0			004ced00
 Poq.exe	99	004ced00	FUN_004ced00		game	todo	54	7			
 Poq.exe	99	004cede0	FUN_004cede0		game	todo	10	4			
 Poq.exe	99	004cee00	FUN_004cee00		game	todo	33	0			004a3340 004cabd0 004cac30 004cb330 004cc050 004cc0b0

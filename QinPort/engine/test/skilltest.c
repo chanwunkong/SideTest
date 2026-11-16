@@ -30,6 +30,19 @@ int main(void) {
     assert(gp.x == 2 && gp.y == -4);
     gp = viewport_grid_point(-4, 3, 0, 0);
     assert(gp.x == -2 && gp.y == 1);
+    // 反向換算保留原版偏移，不假設與正向換算互為反函數。
+    int map_rows = 10;
+    gp = viewport_point_grid((SDL_Point){3, 2}, &map_rows, 1);
+    assert(gp.x == -1 && gp.y == -2);
+    gp = viewport_point_grid((SDL_Point){3, 3}, &map_rows, 1);
+    assert(gp.x == -1 && gp.y == -1);
+    map_rows = 9;
+    gp = viewport_point_grid((SDL_Point){-3, -3}, &map_rows, 0);
+    assert(gp.x == -9 && gp.y == 1); // -13/2 = -6，(-3+1)/2 = -1
+    gp = viewport_point_grid((SDL_Point){-3, -2}, &map_rows, 0);
+    assert(gp.x == -8 && gp.y == 1); // -11/2 = -5
+    gp = viewport_point_grid((SDL_Point){3, 3}, NULL, 99);
+    assert(gp.x == 0 && gp.y == 0);
     // 中心格用互換的寬高除數，負數除法向零截斷。
     gp = viewport_center_grid((SDL_Point){10, 20}, 641, 479);
     assert(gp.x == 24 && gp.y == 30);
