@@ -451,3 +451,5 @@ SKillPlayer	+0x14	技能命令目標識別值（建立者param_2；與持有者�
 SKillPlayer	+0x18	到期0x147命令的四byte資料（建立者param_3）	待管理類別移植
 SKillPlayer	+0x1c	倒數：param_4為0設0、100設-100，其餘設150；建立後立即遞減	待管理類別移植
 SKillPlayer	+0x20	建立者param_4原始值	待管理類別移植
+SLingpaiPlayer	+0x14	持有者令牌玩家名單的第一配對識別值（建立時param2）	待後續管理類別
+SLingpaiPlayer	+0x18	持有者令牌玩家名單的第二配對識別值（建立時param3）	待後續管理類別

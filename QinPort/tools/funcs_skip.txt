@@ -503,3 +503,4 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00473d00  場景管理容器物件解構；依規則略過CString／容器清理
 00473dc0  SKillPlayer刪除式解構：CHAINITEM解構後依旗標釋放0x24 byte；依規則略過鏈結節點生命週期
 00473df0  SLingpai刪除式解構：CHAINITEM解構後依旗標bit0釋放0x1c byte；依規則略過鏈結節點生命週期
+00473e20  SLingpaiPlayer刪除式解構：CHAINITEM解構後依旗標bit0釋放0x1c byte；依規則略過鏈結節點生命週期

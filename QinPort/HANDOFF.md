@@ -481,7 +481,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 解構先清 CHAINITEM，再依旗標 bit0 釋放0x1c byte節點，依生命週期規則列skip；不是容器工具類，不加base_map。roles.tsv補用途；本體沒有新資料偏移，fields.tsv無需新增。
   - 無新增遊戲邏輯、shortcut或todo，無需新增測試；未將後續持有者的令牌管理業務標成完成。
   - `cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
-  **下一步：0x473e20（SLingpaiPlayer）起**。
+  ~~下一步：0x473e20（SLingpaiPlayer）起~~。
+- 進度（11-16）：Poq.exe **0x473e20 SLingpaiPlayer 全類別**核對，只有刪除式解構；到後續固定槽表工具前停止。本輪 **done 0、skip 1、todo 0**。
+  - 解構先清 CHAINITEM，再依旗標 bit0 釋放0x1c byte節點，依生命週期規則列skip；不是容器工具類，不加base_map。roles.tsv補用途；核對持有者入口後，fields.tsv補節點+0x14／+0x18兩個配對識別值，不猜其業務名稱。
+  - 後續持有者的令牌玩家名單入口在param4等於1時新增，其他值會刪除所有兩個識別值都相符的節點；該入口屬後續管理類別，roles.tsv記錄用途，未冒稱本輪完成。
+  - 無新增遊戲邏輯、shortcut或todo，無需新增測試；建構時清零的+4～+0x10為CHAINITEM鏈結資料，不另猜節點業務欄位。
+  - `cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
+  **下一步：0x473e50（固定槽表工具／後續管理段）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

@@ -844,7 +844,7 @@ Poq.exe	99	00473bd0	FUN_00473bd0	~CGameApp	game	skip	43	3	CScnGC解構／資源�
 Poq.exe	99	00473d00	FUN_00473d00	~CGameApp	game	skip	34	2	場景管理容器物件解構；依規則略過CString／容器清理	場景管理容器物件解構（RTTI未確認）：先解構三個CString，再清角色及場景容器	0047b4d0
 Poq.exe	99	00473dc0	FUN_00473dc0	SKillPlayer	game	skip	12	2	SKillPlayer刪除式解構：CHAINITEM解構後依旗標釋放0x24 byte；依規則略過鏈結節點生命週期	SKillPlayer刪除式解構：解構CHAINITEM，旗標bit0決定是否釋放0x24 byte節點	
 Poq.exe	99	00473df0	FUN_00473df0	SLingpai	game	skip	12	2	SLingpai刪除式解構：CHAINITEM解構後依旗標bit0釋放0x1c byte；依規則略過鏈結節點生命週期	SLingpai刪除式解構：解構CHAINITEM，旗標bit0決定是否釋放0x1c byte節點	
-Poq.exe	99	00473e20	FUN_00473e20	SLingpaiPlayer	game	todo	12	2			
+Poq.exe	99	00473e20	FUN_00473e20	SLingpaiPlayer	game	skip	12	2	SLingpaiPlayer刪除式解構：CHAINITEM解構後依旗標bit0釋放0x1c byte；依規則略過鏈結節點生命週期	SLingpaiPlayer刪除式解構：先清CHAINITEM，依旗標bit0釋放0x1c byte節點（生命週期skip）	
 Poq.exe	99	00473e50	FUN_00473e50		game	todo	14	0			
 Poq.exe	99	00473e90	FUN_00473e90		game	todo	14	0			
 Poq.exe	99	00473ee0	FUN_00473ee0		game	todo	55	0			004a3340 004cc800
@@ -881,7 +881,7 @@ Poq.exe	99	004764a0	FUN_004764a0		game	todo	8	0
 Poq.exe	99	004764c0	FUN_004764c0		game	todo	32	4		管理物件建立SKillPlayer節點並立即跑倒數；屬持有者業務，留待後續管理類別整段處理	00476560 004a3340
 Poq.exe	99	00476560	FUN_00476560		game	todo	56	4		管理物件巡覽SKillPlayer倒數：30拍提示，到期發0x147命令並刪節點；留待後續管理類別及技能命令系統	0047f120 004a2bb0
 Poq.exe	99	00476690	FUN_00476690	~CPropObj	game	todo	37	2			004a2bb0 004a3340
-Poq.exe	99	00476770	FUN_00476770		game	todo	37	6			00473e20 004a2bb0 004a3340
+Poq.exe	99	00476770	FUN_00476770		game	todo	37	6		持有者新增或移除SLingpaiPlayer：以兩個識別值配對，param4==1加入+0xe0鏈表，否則刪除全部相符節點；留待後續管理類別整段處理	004a2bb0 004a3340
 Poq.exe	99	004769c0	FUN_004769c0	~CGameApp	game	todo	200	2			00466e30 0046c260 00474030 00475ca0 00476560 00476ef0 0047b900 0047f120
 Poq.exe	99	00476eb0	FUN_00476eb0		game	todo	24	2			
 Poq.exe	99	00476ef0	FUN_00476ef0		game	todo	41	10			
