@@ -602,3 +602,6 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00480bc0  CAirBeastie設狀態；索引無呼叫者，略過未使用入口
 00480d60  CAirBeastie獨立閒逛入口；索引無呼叫者，主更新已有同等閒逛邏輯，略過未使用入口
 00481300  CAirBeastie獨立移動入口；索引無呼叫者，主更新已有移動邏輯，略過未使用入口
+00481930  CBirdFast建構：CAirObj基底與兩個vtable指標；C陣列/Spr初始化取代，依規則skip
+00481976  CBirdFast解構轉接；C陣列生命週期取代，依規則skip
+00481980  CBirdFast刪除解構：基底清理與可選釋放0x97 bytes；C陣列回收取代，依規則skip

@@ -582,3 +582,12 @@ AirInit	+0x78	隨機範圍X／路點數（聯集）	NpcSpec.rx / path_n
 AirInit	+0x7c	隨機範圍Y／路點指標（聯集）	NpcSpec.ry / path
 AirInit	+0x80	隨機範圍寬／路線索引（聯集）	NpcSpec.rw / AirBeastie.path
 AirInit	+0x84	隨機範圍高	NpcSpec.rh
+CBirdFast	+0x34	世界X，初始格×64+32	FastBird.x
+CBirdFast	+0x38	世界Y，初始格×64+32	FastBird.y
+CBirdFast	+0x3c	當前畫面精靈範圍，離屏回收判斷	bird_rect
+CBirdFast	+0x5c	初始化word=0x4a39（共用物件旗標，位元語意待核對）	不複製ABI，場景陣列持有生命週期
+CBirdFast	+0x77	目前動畫序列快取	FastBird.spr.seq
+CBirdFast	+0x87	飛行方向rand()%8	FastBird.dir
+CBirdFast	+0x8b	移動速度，初始16	FastBird.speed
+CBirdFast	+0x8f	連續離屏計數，回到畫面歸零	FastBird.outside
+CBirdFast	+0x93	離屏容忍門檻，初始100，判斷舊值>門檻	FastBird.limit

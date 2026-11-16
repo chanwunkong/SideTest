@@ -278,8 +278,55 @@ static void air_test(void) {
     a.state = 1; air_animate(&a); assert(a.spr.seq == 5 && a.spr.cur == 0);
 }
 
+static void bird_test(void) {
+    FastBird b;
+    bird_init(&b, -2, 3);
+    assert(b.spr.a && b.spr.a->count >= 8); // 真實固定動畫，亦防止資源初始化順序回歸。
+    assert(b.x == -96 && b.y == 224 && b.dir >= 0 && b.dir < 8);
+    assert(b.speed == 16 && b.limit == 100 && b.outside == 0 && b.spr.seq == 0);
+    b.dir = 0;
+    int x = b.x, y = b.y;
+    for (int i = 0; i < 101; i++) assert(bird_tick_one(&b, 0));
+    assert(b.outside == 101 && b.x == x + 101 * 16 && b.y == y - 101 * 16);
+    assert(!bird_tick_one(&b, 0) && b.x == x + 101 * 16);
+    assert(bird_tick_one(&b, 1) && b.outside == 0);
+    Frame f[2] = {{.delay = 1}, {.delay = 1}};
+    Seq seq[8]; for (int i = 0; i < 8; i++) seq[i] = (Seq){2, f};
+    Anim a = {.count = 8, .seqs = seq};
+    b.spr = (Spr){.a = &a}; b.dir = 3;
+    bird_animate(&b); assert(b.spr.seq == 3 && b.spr.cur == 1);
+    bird_animate(&b); assert(b.spr.cur == 0);
+    bird_clear(); bird_spawn(2, 3); bird_spawn(4, 5);
+    assert(bird_n == 2 && birds[1].x == 288);
+    Scene empty = {0};
+    ViewPort v = {.w = 640, .h = 480};
+    // 空幀代表不在畫面內；刪第一隻後仍須更新搬到槽0的第二隻。
+    birds[0].spr.a = birds[1].spr.a = NULL;
+    birds[0].outside = 101; birds[1].dir = 7;
+    bird_tick(&empty, &v);
+    assert(bird_n == 1 && birds[0].outside == 1 && birds[0].x == 304);
+    air_enter(&empty); assert(!bird_n && !birds);
+    Cell cell = {0}; Scene scene = {.cells = &cell, .w = 100};
+    bird_countdown = 2; bird_generate(&scene, &v); assert(bird_countdown == 1 && bird_n == 0);
+    bird_generate(&scene, &v); assert(bird_countdown == 0 && bird_n == 0);
+    // 重擲落在<11時必定追加左側八隻；另一次隨機點可能也在畫面外。
+    int flock_tested = 0;
+    for (int seed = 0; seed < 1000; seed++) {
+        srand(seed); int next = rand() % 200;
+        if (next >= 11) continue;
+        srand(seed); bird_countdown = 0; bird_generate(&scene, &v);
+        assert(bird_countdown == next && bird_n >= 8 && bird_n <= 9);
+        flock_tested = 1; break;
+    }
+    assert(flock_tested);
+    bird_clear(); bird_countdown = -1;
+}
+
 int main(void) {
+    // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
+    res_init("../../game");
     air_test();
+    bird_test();
     character_lookup_test();
     scene_client_test();
     viewport_test();

@@ -496,7 +496,7 @@ Poq.exe	99	0044f6d0	FUN_0044f6d0		game	todo	177	2		角色倒下留下的東西�
 Poq.exe	99	0044fd20	FUN_0044fd20		game	done	382	2		劇情建物件（0x474270 呼叫）：種類 0 角色（G_PosX −100 = 用入口點名稱 0x4cc9c0 隨機挑）、1 道具、2 依名字找建築設狀態、3 陷阱、4 依名字隨機挑一個可打壞的建築	0046a2c0 0046a370 00482db0 00484ee0 0048c150 0048d950 0048e6e0 0048e820 004963e0 00497bb0 0049c2e0 0049c340 0049c3a0 004a3340
 Poq.exe	99	00450700	FUN_00450700		game	done	81	21			004a3340
 Poq.exe	99	00450960	FUN_00450960		game	done	66	10	main.c mon_make／ground_drop／trap（CObjMng::AddObj 依物件表種類 2 角色、1 道具／建築、6 陷阱建類別；我們各自直接建）		00490240 004933a0 00497a40 00499e30 0049a7e0 0049ab20 0049b8d0 004a3340
-Poq.exe	99	00450b30	FUN_00450b30	~CScnClient	game	todo	22	2		建 CBirdFast（0x97，0x453800 呼叫）放在 (x, y)	00481930 004a3340
+Poq.exe	99	00450b30	FUN_00450b30	~CScnClient	game	done	22	2		CBirdFast建立、格中心定位並加入場景陣列 → air.c bird_spawn	004a3340
 Poq.exe	99	00450bc0	FUN_00450bc0	~CScnClient	game	done	43	2		組 g 把組 e 記為敵人（沒有這組就建 CPlayerGroupAI）	004a3340
 Poq.exe	99	00450cc0	FUN_00450cc0	~CScnClient	game	done	37	4	main.c ground_drop（AddProp：依 PicID 在格子建道具物件）		004a3340
 Poq.exe	99	00450da0	FUN_00450da0	~CScnClient	game	done	16	2		建地上痕跡物件（0x9b，0x498c40）放在 (x, y)，0x459840 呼叫	004a3340
@@ -506,7 +506,7 @@ Poq.exe	99	00451120	FUN_00451120		game	skip	110	9	平台層：建角色時預先
 Poq.exe	99	00451820	FUN_00451820	SInitBase|SInitCha|SInitChaInit|+2	game	skip	8	34	空函數		
 Poq.exe	99	00451830	FUN_00451830		game	skip	19	0	沒有呼叫者（CObjMng 清掉角色以外的串列）		004a2b20 004a2bb0
 Poq.exe	99	00451890	FUN_00451890		game	done	16	2	main.c 換場景清空（CObjMng 清空全部串列：角色、道具、建築、陷阱、單位、組）		004a2b20 004ce1a0
-Poq.exe	99	00451900	FUN_00451900	~CScnClient	game	done	48	4	main.c 主迴圈（CObjMng 每拍：角色 +0x70 = 0x488dd0、介面、單位 +0x14 跳過已死的，非地圖種類 10 時 0x453800 放鳥）		00453800 004a2bb0
+Poq.exe	99	00451900	FUN_00451900	~CScnClient	game	done	48	4	main.c 主迴圈（CObjMng 每拍：角色 +0x70 = 0x488dd0、介面、單位 +0x14 跳過已死的，非地圖種類 10 時 0x453800 放鳥）		004a2bb0
 Poq.exe	99	00451bf0	FUN_00451bf0		game	skip	18	0	沒有呼叫者（容器 CStaticLinkList<int,200> 找值的格號）		
 Poq.exe	99	00451c40	FUN_00451c40		game	skip	18	0	沒有呼叫者（容器 CStaticLinkList<*,1000> 找值的格號）		
 Poq.exe	99	00451c90	FUN_00451c90		game	skip	18	0	沒有呼叫者（容器 CStaticLinkList<*,1000> 找值的格號）		
@@ -534,7 +534,7 @@ Poq.exe	99	004532d0	FUN_004532d0		game	skip	8	0	容器：CStaticLinkList<*,1000>
 Poq.exe	99	004532f0	FUN_004532f0		game	skip	20	0	容器：CDMList 新節點		
 Poq.exe	99	00453360	FUN_00453360		game	skip	119	2	平台層：預先載入招式單位的圖並建一次再刪（讓資源先進記憶體），我們用到時才讀		0049caf0 0049d7f0 0049e750 004a3340
 Poq.exe	99	004536c0	FUN_004536c0	~CGameApp	game	done	65	4	main.c 主迴圈（CObjMng 每拍：角色、陷阱、道具 +0x14 跳過已死的，再玩家名單）		004a2bb0
-Poq.exe	99	00453800	FUN_00453800	~CScnClient	game	todo	90	2		每拍隨機在畫面外放 CBirdFast（DAT_006628dc 倒數，<0xb 時左邊再放 8 隻）；等 CBirdFast 0x4808b0～0x481ab0 一起做	00450b30
+Poq.exe	99	00453800	FUN_00453800	~CScnClient	game	done	90	2		每拍倒數、畫面外隨機生成與<11追加左側8隻 → air.c bird_generate；週期200取自執行檔；shortcut設定旗標／場景管理器就緒條件以Scene已載入且寬>96替代，等設定及場景管理器資料接入	
 Poq.exe	99	00453ab0	FUN_00453ab0		game	skip	35	0	沒有呼叫者（把角色編號寫回格子 +0xc）		
 Poq.exe	99	00453b70	FUN_00453b70		game	skip	14	0	容器：CStaticLinkList<*,200> 移除第 n 格		
 Poq.exe	99	00453bc0	FUN_00453bc0		game	skip	14	0	容器：CStaticLinkList<*,1000> 移除第 n 格		
@@ -939,12 +939,12 @@ Poq.exe	99	00480f60	FUN_00480f60	CAirBeastie	game	done	145	5		CAirBeastie主拍�
 Poq.exe	99	00481300	FUN_00481300	~CAirBeastie	game	skip	38	0	CAirBeastie獨立移動入口；索引無呼叫者，主更新已有移動邏輯，略過未使用入口	CAirBeastie獨立移動入口；索引無呼叫者，主更新已有移動邏輯，略過未使用入口	
 Poq.exe	99	00481420	FUN_00481420	~CAirBeastie	game	done	76	5		CAirBeastie設目標格、方向、截斷距離/速度拍數與浮點增量 → air.c air_move；零拍除零保護shortcut	
 Poq.exe	99	00481650	FUN_00481650	~CAirBeastie	game	done	129	2		CAirBeastie高速逃跑／追主角：最遠／最近路點或GetFleePos(5)，1/3聲音 → air.c air_run；呼叫點機碼核對隱藏步長5	
-Poq.exe	99	00481930	FUN_00481930	~CScnClient	game	todo	11	2			004808b0 004808d0 004809d0 00481976 00481980 004819c0 00481a10 00481ab0 004979b0 00497c30 00497e90
-Poq.exe	99	00481976	FUN_00481976	CBirdFast	game	todo	9	4			00481980
-Poq.exe	99	00481980	FUN_00481980	CBirdFast	game	todo	14	6			004808b0 004808d0 004809d0 00481976 00481980 004819c0 00481a10 00481ab0 004979b0 00497c30 00497e90
-Poq.exe	99	004819c0	FUN_004819c0	CBirdFast	game	todo	17	4			00480990
-Poq.exe	99	00481a10	FUN_00481a10	CBirdFast	game	todo	26	4			00497b30
-Poq.exe	99	00481ab0	FUN_00481ab0	CBirdFast	game	todo	28	4			004809a0
+Poq.exe	99	00481930	FUN_00481930	~CScnClient	game	skip	11	2	CBirdFast建構：CAirObj基底與兩個vtable指標；C陣列/Spr初始化取代，依規則skip	CBirdFast建構；skip，陣列/Spr初始化取代	004808b0 004808d0 004809d0 004979b0 00497c30 00497e90
+Poq.exe	99	00481976	FUN_00481976	CBirdFast	game	skip	9	4	CBirdFast解構轉接；C陣列生命週期取代，依規則skip	CBirdFast解構轉接；skip，C生命週期取代	
+Poq.exe	99	00481980	FUN_00481980	CBirdFast	game	skip	14	6	CBirdFast刪除解構：基底清理與可選釋放0x97 bytes；C陣列回收取代，依規則skip	CBirdFast刪除解構；skip，C陣列回收取代	004808b0 004808d0 004809d0 004979b0 00497c30 00497e90
+Poq.exe	99	004819c0	FUN_004819c0	CBirdFast	game	done	17	4		CBirdFast方向動畫切換、前進一拍 → air.c bird_animate	00480990
+Poq.exe	99	00481a10	FUN_00481a10	CBirdFast	game	done	26	4		CBirdFast固定動畫0x100001、隨機方向、速度16與離屏100拍初始化 → air.c bird_init	00497b30
+Poq.exe	99	00481ab0	FUN_00481ab0	CBirdFast	game	done	28	4		CBirdFast舊離屏計數>100移除、按方向移動及更新動畫 → air.c bird_tick_one	004809a0
 Poq.exe	99	00481b30	FUN_00481b30		game	todo	15	4			00481c60 00481d50 00481f90 004821c0 004830e0 00483290 00483f80 00484170 00497650 00497e90 00497ea0
 Poq.exe	99	00481b90	FUN_00481b90		game	todo	48	7			00481c60 00481d50 00481f90 004821c0 004830e0 00483290 00483f80 00484170 00497650 004979c0 00497e90 00497ed0
 Poq.exe	99	00481c60	FUN_00481c60	CBuilding	game	todo	51	6			00481c60 00481d50 00481f90 004821c0 004830e0 00483290 00483f80 00484170 00497650 004979c0 00497e90 00497ed0

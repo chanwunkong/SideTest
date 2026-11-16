@@ -10,6 +10,7 @@ typedef struct {
 } AirBeastie;
 static AirBeastie *air;
 static int air_n;
+static void bird_clear(void);
 
 // 0x480b40：綁模型、方向5、休息態、低速；精靈與一般物件初始化不複製ABI。
 static void air_model(AirBeastie *a, const RoleDef *d) {
@@ -26,6 +27,7 @@ static void air_place(AirBeastie *a, const NpcSpec *n) {
     a->x = n->x * 64 + 32; a->y = n->y * 64 + 32;
 }
 static void air_enter(const Scene *s) {
+    bird_clear();
     free(air);
     air = calloc((size_t)s->npc_count + 1, sizeof *air);
     air_n = 0;
@@ -150,5 +152,74 @@ static void air_draw(const ViewPort *v) {
         draw(s, p.x - f->dx, p.y - f->dy);
         SDL_SetTextureColorMod(s->tex, 255, 255, 255);
         SDL_SetTextureAlphaMod(s->tex, 255);
+    }
+}
+
+// CBirdFast 使用同一個場景陣列／Spr生命週期，不保留原版CObj的ABI。
+typedef struct { Spr spr; int x, y, dir, speed, outside, limit; } FastBird;
+static FastBird *birds;
+static int bird_n, bird_countdown = -1;
+static void bird_clear(void) { free(birds); birds = NULL; bird_n = 0; }
+// 0x481a10：固定動畫、隨機方向、速度16、離屏容忍100拍；初始序列仍是0。
+static void bird_init(FastBird *b, int gx, int gy) {
+    *b = (FastBird){.x = gx * 64 + 32, .y = gy * 64 + 32,
+                    .dir = rand() % 8, .speed = 16, .limit = 100};
+    spr_load(&b->spr, 0x100001);
+    spr_seq(&b->spr, 0);
+}
+// 0x450b30：建立後加入場景空中物件名單。
+static void bird_spawn(int gx, int gy) {
+    FastBird *p = realloc(birds, (size_t)(bird_n + 1) * sizeof *birds);
+    if (!p) return;
+    birds = p; bird_init(&birds[bird_n++], gx, gy);
+}
+// 0x4819c0：方向序列改變才重設，前進一拍；基底動畫更新恆真。
+static void bird_animate(FastBird *b) { spr_seq(&b->spr, b->dir); spr_next(&b->spr); }
+static SDL_Rect bird_rect(const FastBird *b, const ViewPort *v) {
+    SDL_Point p = viewport_world_screen(v, b->x, b->y);
+    const Frame *f = spr_frame(&b->spr);
+    const Sprite *s = f ? image(f->ref) : NULL;
+    return (SDL_Rect){p.x - (f ? f->dx : 0), p.y - (f ? f->dy : 0), s ? s->w : 0, s ? s->h : 0};
+}
+// 0x481ab0：先用舊範圍判斷；舊離屏計數>100才刪，否則先移動再虛擬動畫更新。
+static int bird_tick_one(FastBird *b, int visible) {
+    if (visible) b->outside = 0;
+    else if (b->outside++ > b->limit) return 0;
+    move_dir(&b->x, &b->y, b->dir, b->speed);
+    bird_animate(b);
+    return 1;
+}
+// 0x453800：倒數先判舊值，畫面外隨機點；重擲值<11額外從左側放8隻。
+// shortcut: 原版設定旗標與場景管理器就緒值尚無對應，以已載入Scene且寬>96啟用；
+// 設定／場景管理器資料接入時改回原版兩個條件。週期200已核對Poq.exe資料初值。
+static void bird_generate(const Scene *s, const ViewPort *v) {
+    if (!s->cells || s->w <= 96) return;
+    if (bird_countdown < 0) bird_countdown = rand() % 200;
+    if (bird_countdown-- > 0) return;
+    bird_countdown = rand() % 200;
+    int x = rand() % (v->w + 200) - 100, y = rand() % (v->h + 200) - 100;
+    if (x < 0 || x >= v->w || y < 0 || y >= v->h) {
+        SDL_Point p = viewport_screen_grid(v, x, y); bird_spawn(p.x, p.y);
+    }
+    if (bird_countdown < 11) for (int i = 0; i < 8; i++) {
+        x = rand() % 100 - 100; y = rand() % (v->h + 200) - 100;
+        SDL_Point p = viewport_screen_grid(v, x, y); bird_spawn(p.x, p.y);
+    }
+}
+static void bird_tick(const Scene *s, const ViewPort *v) {
+    bird_generate(s, v);
+    SDL_Rect screen = {0, 0, v->w, v->h};
+    for (int i = 0; i < bird_n;) {
+        SDL_Rect r = bird_rect(&birds[i], v);
+        if (bird_tick_one(&birds[i], SDL_HasIntersection(&r, &screen))) i++;
+        else { memmove(&birds[i], &birds[i + 1], (size_t)(bird_n - i - 1) * sizeof *birds); bird_n--; }
+    }
+}
+static void bird_draw(const ViewPort *v) {
+    // shortcut: 沿用SDL普通繪製，未套原版逐像素色表；精靈色表支援接入時補調色分支。
+    for (int i = 0; i < bird_n; i++) {
+        SDL_Rect r = bird_rect(&birds[i], v);
+        const Frame *f = spr_frame(&birds[i].spr);
+        if (f) draw(image(f->ref), r.x, r.y);
     }
 }

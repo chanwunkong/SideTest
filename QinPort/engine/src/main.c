@@ -3709,7 +3709,7 @@ static void hud_draw(const Actor *hero) {
 static void air_draw_view(void);
 #include "viewport.c"
 #include "air.c"
-static void air_draw_view(void) { air_draw(&viewport); }
+static void air_draw_view(void) { air_draw(&viewport); bird_draw(&viewport); }
 
 // 進場景時一次抓齊會用到的圖（網頁版走批次請求；原生版直接讀硬碟，這裡幾乎不花時間）
 
@@ -3739,6 +3739,7 @@ static float dist_to(const Actor *a, float x, float y) { return fabsf(x - a->x) 
 static void prefetch_scene(Scene *s, const Actor *hero) {
     // 動畫定義是小資料、而且要先有才知道要哪些圖：等它下載完
     IdList anims = {0};
+    id_add(&anims, 0x100001);
     for (int i = 0; i < s->object_count; i++)
         for (int p = 0; s->objects[i].m && p < s->objects[i].m->part_count; p++)
             if (s->objects[i].m->parts[p].anim) id_add(&anims, s->objects[i].m->parts[p].gid);
@@ -3759,6 +3760,12 @@ static void prefetch_scene(Scene *s, const Actor *hero) {
     want_sorted(v, n, &s->tiles);
     n = 0;
     IdList frames = {0};
+    const Anim *bird_anim = anim_get(0x100001);
+    for (int seq = 0; bird_anim && seq < bird_anim->count; seq++) add_seq_frames(&frames, bird_anim, seq);
+    for (int k = 0; k < frames.n; k++) {
+        if (n % 4096 == 0) v = realloc(v, (n + 4096) * sizeof *v);
+        v[n++] = (Near){0, frames.v[k]};
+    }
     for (int i = 0; i < s->object_count; i++) {
         const Object *o = &s->objects[i];
         for (int p = 0; o->m && p < o->m->part_count; p++) {
@@ -4243,6 +4250,7 @@ int main(int argc, char **argv) {
             clock_tick();
             weather_tick();
             air_tick(scene_client_actor(&scene_client));
+            bird_tick(&scene, &viewport);
             zoom_tick();
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = trigger_at(&scene, hero);
@@ -4411,6 +4419,7 @@ int main(int argc, char **argv) {
     world_free(&world);
     SDL_DestroyTexture(canvas);
     roles_clear();
+    bird_clear();
     free(air); air = NULL; air_n = 0;
     scene_free(&scene);
     SDL_Quit();
