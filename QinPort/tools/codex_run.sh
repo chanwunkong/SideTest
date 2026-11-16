@@ -20,7 +20,7 @@ while [ $i -lt "$n" ]; do
     echo "== 停：測試沒過或 HANDOFF 沒更新，留給 Claude 看"; exit 1
   fi
   git -C "$top" add -A ':(icase)qinport' ':(icase,exclude)qinport/tools/decomp_strings.py'
-  msg=$(grep -m1 '本批' "$rep" | sed 's/^[- ]*本批：*//')
+  msg=$(grep -m1 -E '範圍|本批' "$rep" | sed -E 's/^[- ]*(範圍|本批)：*//' | tr -d '`')
   git -C "$top" commit -q -m "chore(qinport): port ${msg:-codex batch}" -m "Ported by Codex from tools/CODEX_TASK.md; reviewed by test run.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" || exit 1
