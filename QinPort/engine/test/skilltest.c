@@ -96,6 +96,7 @@ static void character_skills_test(void) {
     RoleDef d = {.speed = 5};
     Actor target = {.layer = 1};
     Actor a = {.def = &d, .speed = 5, .layer = 1, .selected = -1,
+        .template_skill_n = 3, .template_skill = {10, 20, 30},
         .skill_n = 3, .skills = {{.key = 7, .id = 10, .max = 2, .enabled = 1},
             {.key = 7, .id = 20, .max = 3, .enabled = 7},
             {.key = 9, .id = 30, .max = 4, .enabled = 0}}};
@@ -142,6 +143,24 @@ static void character_skills_test(void) {
     actor_skill_remove(&a, 999); assert(a.skill_n == 1);
     a.skills[0].enabled = 0;
     assert(actor_skill_find(&a, -1) == -1);
+    // 模板順序與鏈順序不同：fallback必須遵守模板優先序。
+    a.skill_n = 2; a.skills[0] = (ActorSkill){.id = 20, .enabled = 2};
+    a.skills[1] = (ActorSkill){.id = 10, .enabled = 3};
+    assert(actor_skill_find(&a, -1) == 1);
+    a.skills[1].enabled = 0; assert(actor_skill_find(&a, -1) == 0);
+    a.template_skill_n = 0; assert(actor_skill_find(&a, -1) == -1);
+    assert(actor_skill_find(&a, 10) == 1); // 不在模板也能精確命中停用項。
+    a.foe = NULL; a.layer = 1;
+    int added = actor_skill_add(&a, (ActorSkill){.key = 42, .id = 99,
+        .min = -2, .max = 7, .p6 = 5, .p7 = 6, .p8 = 7, .p9 = 8, .enabled = 0}, 7);
+    assert(added == 2 && a.skill_n == 3 && a.selected == 2);
+    assert(a.right_id == 99 && a.left_id == 99);
+    assert(a.skills[2].min == -2 && a.skills[2].p6 == 5 && a.skills[2].p9 == 8);
+    // 重複ID允許插入，但選手仍找第一個；高位hand旗標不切手。
+    assert(actor_skill_add(&a, (ActorSkill){.id = 99, .enabled = 1}, 1) == 3);
+    assert(a.selected == 2);
+    actor_skill_add(&a, (ActorSkill){.id = 100}, 4);
+    assert(a.right_id == 99 && a.left_id == 99);
     int saved_n = unit_n;
     MUnit saved_u = units[0];
     unit_n = 0; a.speed = 0; assert(!actor_can_move(&a));

@@ -735,3 +735,5 @@ SkillUnit	+0x30	啟用值	ActorSkill.enabled
 SkillUnit	+0x34	參數8	ActorSkill.p8
 SkillUnit	+0x38	參數9	ActorSkill.p9
 CCharactor	+0x4cf	SkillUnit鏈節點數，快捷選取與服務端技能Enable判斷使用	Actor.skill_n
+RoleMdl	+0x174	模板技能數量（ushort），技能檢查與fallback順位上限	Actor.template_skill_n；來源暫由NPC／玩家候選列橋接
+RoleMdl	+0x176	有序模板技能ID陣列（ushort），精確查找失敗後的選招優先序	Actor.template_skill；RoleMdl原始表載入仍待補

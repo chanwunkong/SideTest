@@ -588,7 +588,16 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - skip 2為紙娃娃兩套精靈預讀／卸載轉接，交role_load／preload_roles、動畫快取與roles_clear；base_map補清鏈與刪游標節點的陣列對應。fields新增鏈數量偏移並更新16個技能欄位的實際對應，roles更新本批用途；沒有整類別劇情不用的證據，不列DLC。
   - todo 54：移動施法、完整新增技能及模板重建、候選技能觸發、主命令、狀態byte副作用／20修正、角色更新／動畫／繪製／浮字／外觀、死亡與場景占位等仍須續翻同類別；不是等其他系統。前輪CTriBld三項仍等角色建築命令／破壞呼叫端，未解除。
   - skilltest補Enable非布林及速度／距離邊界、層差篩選、負射程、精確ID命中停用技能、兩手互不干擾、重複識別只改第一項、刪除選取與索引搬移、保留目標／手ID、負冷卻及MethodMain存活時禁止移動。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，原有5個未使用函數警告；FUNCS.tsv已重產。
-  **下一步：0x485b80（CCharactor 尚未完成，續補移動施法／完整技能鏈、命令與狀態；不可跳CNpc）起**。
+  ~~下一步：0x485b80（CCharactor 尚未完成，續補移動施法／完整技能鏈、命令與狀態；不可跳CNpc）起~~。
+
+
+- 進度（11-16）：Poq.exe **0x485270～0x490220 CCharactor 角色續補，本輪僅新增done 2，整類別仍未完成**；範圍合計 **done 36、skip 30、base 2、todo 52**，未進CNpc。尚未達成使用者「整個類別一起做」要求，不能將剩餘同類別工作改列等待其他系統。
+  - `main.c`的actor_skill_add對應完整SkillUnit新增，接NPC／玩家技能建立，取代actor_skill_append直接寫陣列：全部欄位先插入，再依hand低兩位選左右手，模板檢查最後進行。原版怪現象：重複ID照樣插入；選手仍精確命中第一個同ID節點（即使停用）；不在模板僅診斷而不回滾；hand高位不影響選手。
+  - actor_skill_find精確命中仍不查Enable，fallback改成按獨立模板ID表的優先序選啟用項，不再依技能鏈順序任取第一個；非模板技能不參加fallback。NPC／玩家重建清除並重新建立候選模板表，刪除技能不改模板表。
+  - shortcut：RoleMdl執行期原始技能表仍未載入，模板ID表暫由已載入NPC／玩家技能列橋接；fallback的比較暫存反編譯未定義，按模板索引最小者解讀，取得原組語後校準。維持64項容量並在超限診斷，單機省略技能同步；模板缺項以stderr代替原版模態訊息。未將模板重建入口標done。
+  - 新增skip 0、base 0；fields補RoleMdl的ushort模板數量及ID陣列偏移，roles更新兩入口。todo 52仍含移動施法、簡單技能新增、原模板重建、主命令、狀態副作用／20修正、更新／動畫／繪製／文字、死亡占位等同類別工作；前輪CTriBld三項仍等角色建築命令／破壞呼叫端。未新增DLC分類。
+  - skilltest補模板順序與鏈順序不同、停用／非模板fallback排除、精確命中停用非模板項、完整新增欄位、插入後切手、重複ID與hand高位。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；FUNCS.tsv已重產。
+  **下一步：0x485b80（CCharactor 尚未完成，續補移動施法／模板重建、命令與狀態；不可跳CNpc）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

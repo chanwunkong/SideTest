@@ -275,6 +275,7 @@ typedef struct Actor {
     int command[4];                // 待執行命令，第一格 -1 表示沒有（原版 +0x5b6）
     ActorSkill skills[MAX_ACTOR_SKILLS];
     int skill_n, selected, right_id, left_id, range_adjust;
+    int template_skill[MAX_ACTOR_SKILLS], template_skill_n;
     unsigned char layer;           // +0x66；目前角色建立入口使用地面層1
 } Actor;
 
@@ -903,13 +904,19 @@ static int skill_time(const SkillRow *r) { return (int)skill_field(r, 14, r->tim
 static int skill_range_max(const SkillRow *r) { return (int)skill_field(r, 13, r->range < 0 ? 1 : (int)skill_value(r->range, r->range_inc, r->level)); }
 static int skill_attack_id(const SkillRow *r) { return (int)skill_field(r, 10, skill_attack(r->key)); }
 
-// SkillUnit 以定長有序陣列承接鏈；指標選取改用索引，場景清理不留堆積節點。
-// shortcut: 目前模板候選來自已載入的NPC／玩家技能列；RoleMdl執行期技能表接入後改用其順序。
+// Poq.exe 0x488850：精確ID包含停用項；未命中時按模板優先序挑啟用項。
+// shortcut: fallback的比較暫存反編譯未定義，按模板索引最小者解讀，取得組語後校準。
+// shortcut: 模板ID目前由已載入NPC／玩家候選列提供，RoleMdl執行期表接入後改用其原始順序。
 static int actor_skill_find(const Actor *a, int id) {
     for (int i = 0; i < a->skill_n; i++) if (a->skills[i].id == id) return i;
-    // shortcut: 原版fallback比較使用反編譯未定義暫存；先取模板順序第一個啟用項，取得組語證據後校準。
-    for (int i = 0; i < a->skill_n; i++) if (a->skills[i].enabled) return i;
-    return -1;
+    int best = -1, rank = a->template_skill_n;
+    for (int i = 0; i < a->skill_n; i++) if (a->skills[i].enabled) {
+        for (int j = 0; j < a->template_skill_n; j++) if (a->skills[i].id == a->template_skill[j]) {
+            if (j < rank) { best = i; rank = j; }
+            break;
+        }
+    }
+    return best;
 }
 
 // Poq.exe 0x497ab0：以呼叫者層號減目標層號的分組值；保留255歸入最高組。
@@ -1008,17 +1015,34 @@ static void actor_skill_update(Actor *a, int key, int id, int min, int max, int 
     }
 }
 
-// 陣列建立橋接：保留外部識別與技能ID兩個不同欄位，重建時先取消選取。
+// Poq.exe 0x485f80：先插入完整節點，再按低兩位選手；模板檢查僅診斷，不拒絕新增。
+// shortcut: 有序陣列限64項，達上限印診斷；需要更多技能時改動態配置。
+// shortcut: 單機省略技能同步封包，連線支援時補傳輸。
+static int actor_skill_add(Actor *a, ActorSkill skill, unsigned hand) {
+    if (a->skill_n == MAX_ACTOR_SKILLS) { fprintf(stderr, "角色技能槽已滿\n"); return -1; }
+    int slot = a->skill_n++;
+    a->skills[slot] = skill;
+    if (hand & 1) actor_right_skill(a, skill.id);
+    if (hand & 2) actor_left_skill(a, skill.id);
+    for (int i = 0; i < a->template_skill_n; i++)
+        if (a->template_skill[i] == skill.id) return slot;
+    fprintf(stderr, "角色%d技能%d不在模板中\n", a->def ? a->def->id : -1, skill.id);
+    return slot;
+}
+
+// shortcut: 候選由NPC／玩家技能列橋接，完整RoleMdl模板載入後移除此來源轉換。
 static void actor_skill_append(Actor *a, const SkillRow *r, int key) {
     if (!r) return;
-    if (a->skill_n == MAX_ACTOR_SKILLS) { fprintf(stderr, "角色技能槽已滿\n"); return; }
-    a->skills[a->skill_n++] = (ActorSkill){.key = key, .id = skill_attack_id(r),
+    int id = skill_attack_id(r);
+    if (a->template_skill_n < MAX_ACTOR_SKILLS) a->template_skill[a->template_skill_n++] = id;
+    actor_skill_add(a, (ActorSkill){.key = key, .id = id,
         .min = (int)skill_field(r, 12, skill_value(r->range_min, r->range_min_inc, r->level)),
-        .max = skill_range_max(r), .p8 = 1, .p9 = 1, .enabled = 1, .row = r};
+        .max = skill_range_max(r), .p8 = 1, .p9 = 1, .enabled = 1, .row = r}, 0);
 }
 static void actor_skills_init(Actor *a) {
     while (a->skill_n) actor_skill_remove(a, a->skills[0].key);
     a->selected = a->right_id = a->left_id = -1;
+    a->template_skill_n = 0;
     if (a->mon) for (int i = 0; i < 8; i++) actor_skill_append(a, npc_skill(a->mon->skill[i]), 0);
 }
 
@@ -2064,6 +2088,7 @@ static void hero_skill_apply(Actor *h) {
     skills_load();
     int k = cur_skill[0];
     while (h->skill_n) actor_skill_remove(h, h->skills[0].key);
+    h->template_skill_n = 0;
     h->selected = -1;
     for (int i = 0; i < hero_skill_n; i++) actor_skill_append(h, &hero_skill[i], i);
     actor_right_skill(h, k >= 0 && k < hero_skill_n ? skill_attack_id(&hero_skill[k]) : -1);
