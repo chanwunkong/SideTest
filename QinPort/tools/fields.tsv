@@ -708,8 +708,8 @@ CCharactor	+0x575	行為重設時清0的整數，獨立setter無呼叫者	未使
 CCharactor	+0x579	蠱惑狀態清除及行為重設時清0	待確認用途
 CCharactor	+0x57d	繪圖矩形診斷旗標	待診斷繪圖
 CCharactor	+0x581	主人／關聯識別值，getter與setter不改組別或目標	Actor.owner；actor_owner／actor_owner_set（Actor指標承接識別）
-CCharactor	+0x585	顯示名稱附加編號，初值-1	待顯示編號
-CCharactor	+0x589	顯示名稱CString，獨立於SInit事件ID，並非生命值	Actor.display_name／actor_name；actor_title橋接來源，編號後綴更新仍todo
+CCharactor	+0x585	顯示名稱附加編號，初值-1	Actor.display_number／actor_name_number
+CCharactor	+0x589	顯示名稱CString，獨立於SInit事件ID，並非生命值	Actor.display_name／actor_name／actor_display_name_set；actor_title橋接基底名稱來源
 CCharactor	+0x58d	建築互動的關聯指標	待同類別建築互動
 CCharactor	+0x591	光環要施加的狀態ID	待光環
 CCharactor	+0x595	光環作用範圍，預設8或取SkillUnit最大距離	待光環

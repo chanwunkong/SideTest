@@ -323,6 +323,32 @@ static void character_names_owner_test(void) {
     actor_title(&a, title, sizeof title);
     assert(!strcmp(title, "Monster") && !strcmp(actor_name(&a), "Monster"));
     assert(!strcmp(actor_init_name(&a), "dynamic"));
+    // 編號是獨立欄位；正數只在客戶端加半形括號，0與負數皆保留基底名稱。
+    const int numbers[] = {-1, -123, 0, 1, 255, 2147483647};
+    for (unsigned i = 0; i < sizeof numbers / sizeof *numbers; i++) {
+        int number = numbers[i];
+        actor_display_name_set(&a, "Monster", number, 0);
+        assert(actor_name_number(&a) == number && !strcmp(actor_name(&a), "Monster"));
+        actor_display_name_set(&a, "Monster", number, 1);
+        char expected[256];
+        if (number > 0) snprintf(expected, sizeof expected, "Monster(%d)", number);
+        else snprintf(expected, sizeof expected, "Monster");
+        assert(!strcmp(actor_name(&a), expected));
+        assert(!strcmp(actor_init_name(&a), "dynamic"));
+    }
+    actor_display_name_set(&a, "", 2, 1);
+    assert(!strcmp(actor_name(&a), "(2)"));
+    // HUD持續刷新必須保留編號，不能累加後綴；來源改名仍重新套用同一編號。
+    actor_display_name_set(&a, "old", 7, 1);
+    actor_title(&a, title, sizeof title);
+    actor_title(&a, title, sizeof title);
+    assert(!strcmp(title, "Monster(7)"));
+    snprintf(mon.title, sizeof mon.title, "%s", "Renamed");
+    actor_title(&a, title, sizeof title);
+    assert(!strcmp(title, "Renamed(7)") && actor_name_number(&a) == 7);
+    actor_display_name_set(&a, "Renamed", 0, 1);
+    actor_title(&a, title, sizeof title);
+    assert(!strcmp(title, "Renamed"));
 }
 
 static void character_near_test(void) {

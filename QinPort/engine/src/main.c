@@ -280,6 +280,7 @@ typedef struct Actor {
     int remembered[4], remember_delay; // 原版記住命令與取消後延遲
     int command[4];                // 待執行命令，第一格 -1 表示沒有（原版 +0x5b6）
     char init_name[64], display_name[256]; // SInit事件ID為原始bytes；顯示名稱為UTF-8
+    int display_number;           // 顯示名稱附加編號；不屬於SInit事件ID
     ActorSkill skills[MAX_ACTOR_SKILLS];
     int skill_n, selected, right_id, left_id, range_adjust;
     int template_skill[MAX_ACTOR_SKILLS], template_skill_n;
@@ -318,6 +319,20 @@ static void actor_name_set(Actor *a, const char *name) {
 
 // Poq.exe 0x488840：回傳顯示副本，不能直接回傳SInit名稱。
 static const char *actor_name(const Actor *a) { return a->display_name; }
+
+// Poq.exe 0x4887a0：讀取顯示名稱編號，不從字串反推。
+static int actor_name_number(const Actor *a) { return a->display_number; }
+
+// Poq.exe 0x48e820：先保存編號，只有畫面客戶端且正數才加後綴。
+// 格式字串已核對原版唯讀區：%s(%d)。單機共用Actor，不另送名稱同步封包。
+// shortcut: 原版CString改用固定256-byte UTF-8顯示緩衝區；需要超長名稱時改動態字串。
+static void actor_display_name_set(Actor *a, const char *base, int number, int client) {
+    a->display_number = number;
+    if (client && number > 0)
+        snprintf(a->display_name, sizeof a->display_name, "%s(%d)", base, number);
+    else
+        snprintf(a->display_name, sizeof a->display_name, "%s", base);
+}
 
 // Poq.exe 0x4887b0：任何非零修正均優先，包括負數。
 static int actor_display(const Actor *a) {
@@ -688,6 +703,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
         for (int i = 0; i < 4; i++) a->candidate[i] = -1;
         a->remembered[0] = -1;
         a->dynamic_state = 1;
+        a->display_number = -1;
     }
     actor_cancel_command(a);
     actor_name_set(a, a->spec ? a->spec->event : "");
@@ -4059,8 +4075,8 @@ static Actor *status_target(Actor *h, Actor *hover, int mouse) {
     return t && t->act != ACT_DEAD ? t : NULL;
 }
 
-// 將現有EasyRPG／怪物文字來源交給角色名稱欄位，再由HUD消費顯示副本。
-// shortcut: 顯示名稱仍由現有EasyRPG來源同步，編號後綴入口尚未移植；接完整顯示名稱更新時替換。
+// 將現有EasyRPG／怪物文字來源交給角色名稱更新入口，再由HUD消費顯示副本。
+// shortcut: SInit顯示名稱來源仍以現有EasyRPG／怪物文字橋接；完整SInit載入時改讀原始名稱。
 static void actor_title(Actor *t, char *u, size_t n) {
     char base[256];
     if (t->mon) gbk_utf8(t->mon->title, base, sizeof base);
@@ -4069,7 +4085,7 @@ static void actor_title(Actor *t, char *u, size_t n) {
 #ifdef STORY
     if (!t->mon && t->sh && *story_name(t->sh)) s = story_name(t->sh);
 #endif
-    snprintf(t->display_name, sizeof t->display_name, "%s", s);
+    actor_display_name_set(t, s, actor_name_number(t), 1);
     snprintf(u, n, "%s", actor_name(t));
 }
 

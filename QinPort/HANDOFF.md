@@ -679,6 +679,14 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 已逐項讀Poq.exe唯讀區核對float／double分段常數。保留怪現象：動畫速率只算(A/B)/(普通速度A/B)，完全不含C；比例恰等1才得0，其他分段為7／5／3／1及-1～-5；float的0.7轉double後小於double 0.7，仍得3。普通速度0或2的A為0，NaN／無限大依原版比較次序得到-5，不自行補成1倍。
   - shortcut：完整動態狀態退出虛擬入口仍未接，暫以dynamic_state／moving及腳印欄位承接停止；A倒數已保存，完整動態移動消費尚待補；現有動畫播放器仍將調整後延遲夾到至少1拍，需核對Gfx播放器。底層動態速度函數因舊擊退註解誤標done，已移除位址、在roles恢復todo；沒有把局部套速宣稱完整動態系統。41項主範圍todo與該底層入口仍是本類別／基礎工作，不能列成等其他系統；未新增DLC分類。
   - fields補動態移速A/B/C、A倒數與序列調整；roles／base_map更新並重產FUNCS.tsv。skilltest新增比例全部邊界、float與double比較、NaN／無限大、索引夾限、零速度停止、有效速度接入，以及共用模型兩角色不同動畫速率／不改原幀資料。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，建置僅原有5個未使用函數警告。
+  ~~下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起~~。
+
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，續補顯示名稱編號；本輪未完成整類別，未進CNpc**。新增done 2（0x4887a0、0x48e820）、skip 0、base 0；主範圍合計 **done 48、skip 31、todo 39**。
+  - `main.c`新增actor_name_number／actor_display_name_set，Actor保存獨立display_number；角色建立初值-1，HUD的actor_title改經原版名稱更新入口，刪除直接覆寫display_name的簡化路徑。每次HUD更新從基底名稱重組，不重複累加後綴；SInit事件ID不變。
+  - 已核對原版名稱入口機器碼所引用的唯讀區字串，格式確為`%s(%d)`。保留怪現象：編號不論正負都先保存，只有畫面客戶端且正數才加半形括號；0／負值原樣顯示基底名稱，空基底名稱配正數仍顯示`(n)`；單機省略同步封包。
+  - shortcut：原版CString仍以256-byte UTF-8緩衝區承接，超長名稱才需改動態字串；SInit顯示名稱仍以現有EasyRPG／怪物名稱來源橋接，完整SInit載入後改原始來源。39個todo仍是本類別的移動入口、模板、主命令、狀態及繪圖等工作，不能列為等待其他系統；未新增DLC分類。另核對頭頂文字槽配置／繪製與移動修正入口，尚無完整接線，保留todo，不標done。
+  - fields／roles更新並重產FUNCS.tsv。skilltest補正負／零／最大正整數、客戶端／非客戶端、空名稱、HUD連續更新及基底改名保留編號。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，建置僅原有5個未使用函數警告。
   **下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起**。
 
 
