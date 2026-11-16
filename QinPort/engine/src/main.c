@@ -268,6 +268,7 @@ typedef struct Actor {
     int search_link, display_override; // 關聯識別與第10修正（索敵篩選）
     int body_size;                 // 動態物件占位大小（模板大小<7取1，否則減5）
     int grp;                       // AI 組（+0x339）：0～99 玩家組、10000～60000 NPC 組；敵對看它（near.c is_foe）
+    int seek_adjust, view_range;
     int copied, copy[12];
     float knock_x, knock_y;        // 被擊退要滑到的點（knock = 1 時）
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
@@ -366,8 +367,54 @@ static void actor_clear_flags(Actor *a, unsigned mask) { actor_set_flags(a, mask
 
 // Poq.exe 0x488800 / 0x488820：層號大於10時，索敵及追擊範圍各加8。
 // shortcut: 現有角色建立入口僅載入地面層1；多層角色建立接入時寫入原版層號。
-static int actor_seek(const Actor *a) { return a->def->seek + (a->layer > 10 ? 8 : 0); }
+static int actor_seek(const Actor *a) { return a->def->seek + a->seek_adjust + (a->layer > 10 ? 8 : 0); }
 static int actor_chase(const Actor *a) { return a->def->chase + (a->layer > 10 ? 8 : 0); }
+
+// 原版將兩個速度屬性換算後存入角色；Actor.ex保存EasyRPG原始值，消費端換算。
+static int actor_move_bonus(const Actor *a) {
+    int v = a->ex[64];
+    return v > 0 ? v * 150 / (v + 150) : v;
+}
+
+static float actor_fight_ratio(const Actor *a) {
+    float v = (float)a->ex[65];
+    if (v > 0) v = v * 120.0f / (v + 120.0f);
+    float divisor = v + 100.0f;
+    if (divisor == 0.0f) divisor = 1.0f;
+    return 100.0f / divisor;
+}
+
+// Poq.exe 0x48f7a0：八種名稱逐一精確比對，未知名稱完全不動。
+// +0x541/+0x545採延後換算的等價表示，避免把已換算值再當成EasyRPG原始屬性。
+static void actor_property(Actor *a, const char *name, int value) {
+    static const struct { const char *name; int id; } props[] = {
+        {"B_C_MOVE_SPEED", 64}, {"B_C_FIGHT_SPEED", 65},
+        {"B_C_SRANGE", 67}, {"B_C_VRANGE", 66},
+        {"B_C_ZMYJ", 72}, {"B_C_HXYJ", 73}, {"B_C_JDR", 74}, {"B_C_DJHF", 75}
+    };
+    for (unsigned i = 0; i < sizeof props / sizeof *props; i++) {
+        if (strcmp(name, props[i].name)) continue;
+        a->ex[props[i].id] = value;
+        if (props[i].id == 67) a->range_adjust = value;
+        if (props[i].id == 66) {
+            a->view_range = value + 12;
+            a->seek_adjust = (unsigned)a->grp - 10000u > 50000u ? value : 0;
+        }
+        return;
+    }
+}
+
+// EasyRPG重算完的原始值交回角色屬性入口；裝備、技能、出生共用這條路徑。
+static void actor_properties_update(Actor *a) {
+    actor_property(a, "B_C_MOVE_SPEED", a->ex[64]);
+    actor_property(a, "B_C_FIGHT_SPEED", a->ex[65]);
+    actor_property(a, "B_C_SRANGE", a->ex[67]);
+    actor_property(a, "B_C_VRANGE", a->ex[66]);
+    actor_property(a, "B_C_ZMYJ", a->ex[72]);
+    actor_property(a, "B_C_HXYJ", a->ex[73]);
+    actor_property(a, "B_C_JDR", a->ex[74]);
+    actor_property(a, "B_C_DJHF", a->ex[75]);
+}
 
 // 角色某序列的節奏：各部件的幀延遲相同，拿第一個有資料的部件
 static const Seq *role_seq(const Role *r, int seq) {
@@ -524,9 +571,9 @@ static int actor_speed(const Actor *a) {
     int s = a->speed_override ? a->speed_override - 1 :
         (a->flags & 0x10000) && a->dynamic_state == 11 ? a->speed * 3 / 2 :
         a->fight ? a->fight_speed : a->speed;
-    int st = status_speed(a), v = s * st / 100, m = a->ex[64];
+    int st = status_speed(a), v = s * st / 100;
     if (s && st && v < 1) v = 1;
-    v = ((m > 0 ? m * 150 / (m + 150) : m) + 100) * v / 100;
+    v = (actor_move_bonus(a) + 100) * v / 100;
     return a->speed_threshold < 101 ? v : v / 2;
 }
 
@@ -711,6 +758,8 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     a->layer = 1;
     a->role = role_for(d);
     a->def = d;
+    a->seek_adjust = 0;
+    a->view_range = 12;
     actor_size_set(a, d->size < 7 ? 1 : d->size - 5);
     a->idle = d->idle;
     a->walk = d->walk;
@@ -724,6 +773,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     for (int i = 0; i < 4; i++)
         if (d->candidate[i] != 65535) a->candidate[i] = d->candidate[i];
     actor_skills_init(a);
+    actor_properties_update(a);
 }
 
 // 編號清單（預抓用）
@@ -871,14 +921,13 @@ static float cell_dist(const Actor *a, const Actor *b) {
     return fmaxf(fabsf(a->x - b->x), fabsf(a->y - b->y));
 }
 
-// 攻速（Poq.exe 0x48d330，出手時）：縮短 = 招式總拍數 − 總拍數 × 100 / (100 + 攻速)；每幀延遲調整 = −縮短 / 幀數。
+// 攻速（Poq.exe 0x48d330，出手時）：縮短 = 總拍數 − trunc(float(總拍數)×攻速倍率)；每幀延遲調整 = −縮短 / 幀數。
 // 有餘數時：縮短 > 0 調整再 −1、要補 幀數 − 餘數 拍，否則補 −餘數 拍；調整 < −1 時補的減半。補的（> 0 才算）加到出手間隔
 // shortcut: 原版 +0x345 有值時調整再 +2，那個欄位的意思沒查
 static void attack_speed(Actor *a) {
     const Seq *q = role_seq(a->role, actor_seq(a));
-    int v = a->ex[65], pct = (v > 0 ? v * 120 / (v + 120) : v) + 100;
-    if (!q || !q->count || pct <= 0) return;
-    int total = (int)seq_ticks(q), cut = total - total * 100 / pct, rem = cut % q->count;
+    if (!q || !q->count) return;
+    int total = (int)seq_ticks(q), cut = total - (int)((float)total * actor_fight_ratio(a)), rem = cut % q->count;
     a->adj = -(cut / q->count);
     if (rem) {
         if (cut < 1) a->extra = -rem;
@@ -1003,6 +1052,7 @@ static void hero_derive(Actor *h) {
     item_mods(h, 1);
     actor_mods(h, 1);
     status_patch(h);
+    actor_properties_update(h);
     if (h->hp > h->hp_max) h->hp = h->hp_max;
     if (h->mp > h->mp_max) h->mp = h->mp_max;
 }
@@ -1022,6 +1072,7 @@ static void mon_derive(Actor *a) {
     memset(a->ex, 0, sizeof a->ex);
     a->ex[64] = m->mspeed;
     a->ex[65] = m->mfight;
+    a->ex[66] = m->vrange;
     a->ex[75] = m->djhf;
     a->ex[76] = m->jswl;
     a->ex[77] = m->jsmf;
@@ -1039,6 +1090,7 @@ static void mon_derive(Actor *a) {
     actor_mods(a, 0);
     actor_mods(a, 1);
     status_patch(a);
+    actor_properties_update(a);
     if (a->hp > a->hp_max) a->hp = a->hp_max;
 }
 
@@ -1871,14 +1923,14 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
         if (u) unit_die(u, tick);
     }
     if (a->act != ACT_DEAD && (!q || a->act_done)) {
-        // 攻擊間隔（Poq.exe 0x48d330）：主角 = 間隔 × 100 / (100 + 攻速)，攻速 = B_C_FIGHT_SPEED v > 0 時 v×120/(v+120)；怪物 = 間隔 + 隨機(間隔)
+        // 攻擊間隔（Poq.exe 0x48d330）：NPC組用float攻速倍率，其餘組為間隔+隨機(間隔)。
+        // shortcut: 仍於動作結束才裝冷卻，完整MethodMain狀態接入後改於綁定時裝入；NPC種類60的免間隔分支待物件種類接入。
         if (a->act == ACT_ATTACK && a->mon && a->skill) {  // 怪物打完一招：記成上一招，下次重選（0x4911b0）
             a->last_skill = a->skill;
             a->skill = NULL;
         }
         if (a->act == ACT_ATTACK) {
-            int v = a->ex[65], f = (v > 0 ? v * 120 / (v + 120) : v) + 100;
-            a->cool = (a->mon ? a->def->atk_delay + rnd(a->def->atk_delay) : f ? a->def->atk_delay * 100 / f : a->def->atk_delay) + (a->extra > 0 ? a->extra : 0);
+            a->cool = (grp_npc(a->grp) ? (int)((float)a->def->atk_delay * actor_fight_ratio(a)) : a->def->atk_delay + rnd(a->def->atk_delay)) + (a->extra > 0 ? a->extra : 0);
         }
         if (a->casting) {  // 左手技能放完：招式沒有打中的觸發就在這裡生效，換回右手招式
             if (a->casting == 1) skill_hit(a, skill_needs_foe(a->cast) ? a->foe : a, a->cast, tick);
@@ -3475,7 +3527,10 @@ static void story_msgs(void) {
         case 0x574e0: if (a && alive(a)) actor_kill(a, NULL); break;        // 劇情讓人物死掉
         case 0x42aa0: if (a && a != &actors[0]) a->hp = story_get_int(a->sh, "HP"); break;
         case 0x52e: story_plot_end(); break;  // shortcut: 過場播放器還沒做（清單 D），先直接結束（第 18 格）
-        case 0x47870: case 0x52c: case 0x51b: case 0x519: break;  // 屬性更新、出口開關（走出口時再查）、NPC 頭上標記、轉向
+        case 0x47870:
+            if (a && m->s[0] == '@') actor_property(a, m->s + 1, story_get_int(a->sh, m->s + 1));
+            break;
+        case 0x52c: case 0x51b: case 0x519: break;  // 出口開關（走出口時再查）、NPC 頭上標記、轉向
         default: fprintf(stderr, "劇情訊息 0x%x（%s）還沒做\n", m->id, m->s); break;
         }
     }

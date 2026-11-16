@@ -704,6 +704,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - shortcut：Actor.atk同時承接播放中的招式與下次攻擊資料，按鍵在動作／施法中改選取時只排待綁定，等動作結束才換資料，避免覆寫目前MethodMain；完整角色技能使用入口接入後拆出播放快照。既有技能鏈來源仍有先前記錄的模板／玩家外部識別shortcut，沒有新增手機操控。
   - 兩個skip均核對總表唯一呼叫者為已略過的客戶端同步分派：一個解碼狀態封包byte、一個接收組合旗標整值。只略過同步副本入口，沒有把完整服務端狀態、禁攻中斷或第12修正標done。其餘36個todo仍多為本類別依賴，不能列為等待外部系統；未新增DLC分類。
   - fields／roles已更新並重產FUNCS.tsv。skilltest新增45格與8種修飾組合、停用項、空鏈、負／過大索引、跨層距離臨界、隱藏／失效目標、左右手ID保留、實際攻擊綁定與動作／施法期間延後套用；`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，建置仍為原有5個未使用函數警告。
+  ~~下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起~~。
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，續補完整八鍵屬性分派；本輪仍未完成整類別，未進CNpc**。新增done 1（0x48f7a0）；主範圍合計 **done 50、skip 33、todo 35**。範圍外新增skip 1（0x496ac0索引無呼叫者），base 1（0x495880反向方向純整數工具）。
+  - `main.c`新增actor_property／actor_properties_update，八種鍵名精確比對：MOVE_SPEED、FIGHT_SPEED、SRANGE、VRANGE、ZMYJ、HXYJ、JDR、DJHF；接actor_setup、hero_derive／mon_derive及story_msgs的@屬性訊息，刪除原先忽略該訊息的分支。怪物表vrange也接入原始屬性，技能／裝備改值後同步範圍欄位。索敵以模板值加角色修正表示，避免複製模板基準導致重新載入模板時快取失效。
+  - 原版保留：MOVE_SPEED正值以整數v*150/(v+150)換算；FIGHT_SPEED正值以float v*120/(v+120)換算，再取100/(100+v)，分母0只改成1，負倍率不夾限。Actor.ex保留EasyRPG原始值，actor_move_bonus／actor_fight_ratio於消費端換算，避免重複壓縮；attack_speed移除舊整數百分比近似，action_tick更正為NPC組乘倍率、其他組間隔加隨機，組別判斷不依mon指標。VRANGE始終設值+12，唯NPC組10000..60000不加索敵；SRANGE僅原距離>3套用，未知鍵名完全不動。
+  - shortcut：冷卻仍於動作結束裝入，完整MethodMain綁定時改回原版裝入時機；NPC物件種類60的免間隔分支仍需物件種類基礎接線。未把完整MethodMain／角色狀態宣稱完成。移動入口依賴重新核對：部件群建立／移除的是殘影名單，並非單純修改精靈參數；用途與動態目的地重試／退出等偏移已更新roles／fields，這些基礎與同類別依賴仍須續做，不是等待其他遊戲系統。未新增DLC分類。
+  - skilltest新增八鍵、未知鍵無副作用、NPC組兩端邊界及負值、跨層、長短技能距離、怪物表／技能重算、float攻速與-100／-101極值、實際動畫延遲及冷卻組別分支。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，仍為原有5個未使用函數警告。FUNCS.tsv已重產。
   **下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起**。
 
 

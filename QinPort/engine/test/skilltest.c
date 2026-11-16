@@ -541,6 +541,74 @@ static void character_movement_speed_test(void) {
     fast.walk_delay_adjust = -5; assert(actor_frame(&fast, 1) == 0); // 4 mod 2。
 }
 
+static void character_properties_test(void) {
+    RoleDef d = {.seek = 7, .chase = 12};
+    Actor a = {.def = &d, .speed = 20, .fight_speed = 30, .dynamic_state = 1};
+    actor_property(&a, "B_C_MOVE_SPEED", 150);
+    assert(a.ex[64] == 150 && actor_move_bonus(&a) == 75 && actor_speed(&a) == 35);
+    actor_property(&a, "B_C_MOVE_SPEED", -101);
+    assert(actor_move_bonus(&a) == -101 && actor_speed(&a) == 0);
+    actor_property(&a, "B_C_FIGHT_SPEED", 1);
+    assert(fabsf(actor_fight_ratio(&a) - 100.0f / (100.0f + 120.0f / 121.0f)) < .000001f);
+    actor_property(&a, "B_C_FIGHT_SPEED", -100);
+    assert(actor_fight_ratio(&a) == 100.0f); // 原版零分母改1，不能改成無加速。
+    actor_property(&a, "B_C_FIGHT_SPEED", -101);
+    assert(actor_fight_ratio(&a) == -100.0f); // 原版未夾限負倍率。
+    static const int groups[] = {-1, 0, 99, 100, 9999, 10000, 60000, 60001};
+    for (unsigned i = 0; i < sizeof groups / sizeof *groups; i++) {
+        a.grp = groups[i];
+        actor_property(&a, "B_C_VRANGE", -3);
+        assert(a.view_range == 9 && actor_seek(&a) == (grp_npc(a.grp) ? 7 : 4));
+        a.layer = 11;
+        assert(actor_seek(&a) == (grp_npc(a.grp) ? 15 : 12));
+        assert(actor_chase(&a) == 20); // 視野屬性不改追擊距離。
+        a.layer = 1;
+    }
+    ActorSkill short_skill = {.max = 3}, long_skill = {.max = 4};
+    actor_property(&a, "B_C_SRANGE", -2);
+    assert(actor_skill_range(&a, &short_skill) == 3 && actor_skill_range(&a, &long_skill) == 2);
+    const char *names[] = {"B_C_ZMYJ", "B_C_HXYJ", "B_C_JDR", "B_C_DJHF"};
+    for (int i = 0; i < 4; i++) { actor_property(&a, names[i], -i - 1); assert(a.ex[72+i] == -i-1); }
+    Actor saved = a;
+    actor_property(&a, "b_c_vrange", 999);
+    actor_property(&a, "B_C_SRANGE_SUFFIX", 999);
+    actor_property(&a, "", 999);
+    assert(!memcmp(&a, &saved, sizeof a));
+    // 整合：怪物表、技能加值與重算必須真正到達角色範圍欄位。
+    MonDef mon = {.vrange = 5, .mspeed = 150, .mfight = 1};
+    SkillRow row = {.mod_n = 2, .mod = {{.id = 66, .init = 2}, {.id = 67, .init = 3}}};
+    a = (Actor){.def = &d, .mon = &mon, .level = 1, .buff_n = 1,
+                .buff = {{.skill = &row, .level = 1}}, .grp = 0};
+    mon_derive(&a);
+    assert(a.view_range == 19 && actor_seek(&a) == 14 && a.range_adjust == 3);
+    assert(actor_move_bonus(&a) == 75 && a.ex[65] == 1);
+    a.grp = 10000; a.buff_n = 0; mon_derive(&a);
+    assert(a.view_range == 17 && actor_seek(&a) == 7 && !a.range_adjust);
+    // 動畫消費端保留float比例，不能先把正攻速截為整數百分比。
+    Frame frames[3] = {{.delay = 10}, {.delay = 10}, {.delay = 10}};
+    Seq seq = {.count = 3, .frames = frames};
+    Anim anim = {.count = 1, .seqs = &seq};
+    Role role = {.part_count = 1, .seq_count = 1, .body = {&anim}};
+    a = (Actor){.role = &role, .def = &d, .act = ACT_ATTACK, .dir = 2};
+    actor_property(&a, "B_C_FIGHT_SPEED", 1);
+    attack_speed(&a);
+    assert(a.adj == -1 && a.extra == 2); // cut=30-trunc(30*ratio)=1。
+    actor_property(&a, "B_C_FIGHT_SPEED", -100);
+    a.adj = a.extra = 0; attack_speed(&a);
+    assert(a.adj == 990 && !a.extra); // cut=30-3000=-2970。
+    d.atk_delay = 30;
+    Scene sc = {0};
+    a = (Actor){.role = &role, .def = &d, .dir = 2, .grp = 10000,
+                .act = ACT_ATTACK, .act_done = 1, .extra = 2};
+    actor_property(&a, "B_C_FIGHT_SPEED", 1);
+    action_tick(&a, &sc, 0);
+    assert(a.cool == 31 && !a.act); // trunc(30*ratio)+2=31，與mon指標無關。
+    a.act = ACT_ATTACK; a.act_done = 1; a.extra = 0; a.grp = 0; a.mon = &mon;
+    srand(123); int expected = 30 + rand() % 30;
+    srand(123); action_tick(&a, &sc, 0);
+    assert(a.cool == expected && !a.act);
+}
+
 static void character_speed_memory_test(void) {
     Actor a = {.speed = 7, .fight_speed = 11, .dynamic_state = 1};
     assert(actor_speed(&a) == 7);
@@ -1112,6 +1180,7 @@ int main(void) {
     character_template_candidates_test();
     character_movement_speed_test();
     character_speed_memory_test();
+    character_properties_test();
     character_animation_select_test();
     character_near_test();
     character_target_display_test();
