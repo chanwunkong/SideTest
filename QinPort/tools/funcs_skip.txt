@@ -586,3 +586,8 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 0047fed0  封包尾字串解碼：先清輸出再複製至NUL，不限制複製長度；無呼叫者，工具
 0047ff20  CGameApp音效平台初始化轉接：傳入0x140／0x578給MFX設定工具；SDL audio_init取代Windows Mfx_Build
 0057b4a0  Windows MFX設定與Mfx_Build平台初始化工具；SDL音訊裝置與snd.lib載入取代，不複製MFX ABI
+0047ff60  MFX音效句柄音量／聲像調整平台轉接（flags=3）；SDL audio_loop管理循環音量，不複製MFX句柄ABI
+0047ff90  錄影模式／當前場景別名檢查後轉接MFX位置調音；平台與錄影包裝，SDL直接管理音訊
+004800a0  世界座標轉畫面後依畫面中心調整音效句柄；索引無呼叫者，略過未使用入口
+00480460  Mfx_SND_PlayEx平台轉接，回傳值非負為成功；SDL音訊播放取代Windows MFX
+0057b830  MFX位置音量／聲像計算並呼叫Mfx_SND_Adjust的平台工具；SDL不複製MFX音效句柄ABI

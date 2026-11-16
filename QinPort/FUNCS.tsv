@@ -731,7 +731,7 @@ Poq.exe	99	00468660	FUN_00468660	~CGodClient	game	skip	12	0	無呼叫者：CGodC
 Poq.exe	99	004686b0	FUN_004686b0	~CGodClient	game	done	11	4	weather_retone		
 Poq.exe	99	00468aa0	FUN_00468aa0	~CGodClient	game	skip	8	0	無呼叫者：CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	
 Poq.exe	99	00468ad0	FUN_00468ad0	~CGodClient	game	done	56	0	weather_tick		
-Poq.exe	99	00468c10	FUN_00468c10	CGodClient	game	done	266	5		CGodClient 每拍：雨 4 階段（0 等亮度、1 隨機開始、2 雨聲漸大到 400 拍前、3 收尾）、打雷 0x469700、亮度表 +0x74[時×2+半]、依場景種類 0xb~0xf 播環境音 0x480650	00469d70 0047ff90 00480650
+Poq.exe	99	00468c10	FUN_00468c10	CGodClient	game	done	266	5		CGodClient 每拍：雨 4 階段（0 等亮度、1 隨機開始、2 雨聲漸大到 400 拍前、3 收尾）、打雷 0x469700、亮度表 +0x74[時×2+半]、依場景種類 0xb~0xf 播環境音 0x480650	00469d70 00480650
 Poq.exe	99	00469400	FUN_00469400		game	skip	14	0	無呼叫者：CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	CGodClient相鄰入口：呼叫索引callers=0，依規則略過，未擴讀本體	
 Poq.exe	99	004695f0	FUN_004695f0		game	done	16	6		整點換亮度	
 Poq.exe	99	00469630	FUN_00469630	~CGameApp	game	done	9	2	light.c（空）		
@@ -742,7 +742,7 @@ Poq.exe	99	004697b0	FUN_004697b0	CGodClient	game	done	102	5		CGodClient 換天�
 Poq.exe	99	00469a40	FUN_00469a40	~CScnClient	game	done	52	2		CGodClient 進場接續雨雪：雨階段2、音量衰減1、雨量18並預推40拍；雪片數填滿	
 Poq.exe	99	00469bb0	FUN_00469bb0	~NormalBuilding	game	todo	28	2		CGodClient 加入種類11建築環境音名單，依音效1/2/3分組；等待NormalBuilding場景物件系統	
 Poq.exe	99	00469c80	FUN_00469c80		game	todo	38	5		CGodClient 移除建築環境音名單、空組停音；等待NormalBuilding場景物件系統	
-Poq.exe	99	00469d70	FUN_00469d70	~CGodClient	game	todo	126	2		CGodClient 近處建築環境音最大音量（距離小於1401），沿用最後遍歷建築音效；等待NormalBuilding物件及音效句柄系統	0047ff60 00480460
+Poq.exe	99	00469d70	FUN_00469d70	~CGodClient	game	todo	126	2		CGodClient 近處建築環境音最大音量（距離小於1401），沿用最後遍歷建築音效；等待NormalBuilding物件及音效句柄系統	
 Poq.exe	99	0046a0c0	FUN_0046a0c0		game	skip	10	2	CInitMngMain 建構：呼叫 CInitObjMng 建構並換 vtable；略過建構流程；建構解構／通用容器或無呼叫者，依規則略過	CInitMngMain 建構：呼叫 CInitObjMng 建構並換 vtable；略過建構流程	0046a140
 Poq.exe	99	0046a100	FUN_0046a100	CInitMngMain	game	skip	13	6	CInitMngMain deleting destructor：基底解構後依旗標釋放0x50 bytes；略過；建構解構／通用容器或無呼叫者，依規則略過	CInitMngMain deleting destructor：基底解構後依旗標釋放0x50 bytes；略過	0046a140
 Poq.exe	99	0046a140	FUN_0046a140	CInitMngMain	game	todo	36	6		todo：初始化後掃第3組 SInit；模板ID在1500～2000以外才複製、標記並加入場景；等不同類別 CInitObjMng 的 INI/SInit 載入（004cb440/004cb640）與 SInit 虛擬複製還原系統，不能以劇情 spawn 冒充	004caf80
@@ -908,13 +908,13 @@ Poq.exe	99	0047f840	FUN_0047f840		game	skip	35	0	依客戶端參數設連線時�
 Poq.exe	99	0047f960	FUN_0047f960		game	skip	22	0	解碼名稱和值後更新角色屬性；無呼叫者	解碼名稱和值後更新角色屬性；無呼叫者	004bcae0
 Poq.exe	99	0047fb90	FUN_0047fb90		game	skip	77	0	解碼稱號字串，0x0e還原空白，再更新顯示及廣播；無呼叫者	解碼稱號字串，0x0e還原空白，再更新顯示及廣播；無呼叫者	004887a0 00497bb0 004bcae0
 Poq.exe	99	0047ff20	FUN_0047ff20	~CGameApp	game	skip	9	2	CGameApp音效平台初始化轉接：傳入0x140／0x578給MFX設定工具；SDL audio_init取代Windows Mfx_Build	CGameApp音效平台初始化轉接：將兩參數及固定0x140、0x578交給MFX初始化工具；平台skip，SDL audio_init取代	
-Poq.exe	99	0047ff60	FUN_0047ff60	~CGodClient	game	todo	11	2			
-Poq.exe	99	0047ff90	FUN_0047ff90	~CGodClient	game	todo	49	2			0057b830
-Poq.exe	99	004800a0	FUN_004800a0	~CGodClient	game	todo	102	0			0057b830
+Poq.exe	99	0047ff60	FUN_0047ff60	~CGodClient	game	skip	11	2	MFX音效句柄音量／聲像調整平台轉接（flags=3）；SDL audio_loop管理循環音量，不複製MFX句柄ABI	MFX音效句柄音量／聲像調整平台轉接（flags=3）；SDL audio_loop管理循環音量，不複製MFX句柄ABI	
+Poq.exe	99	0047ff90	FUN_0047ff90	~CGodClient	game	skip	49	2	錄影模式／當前場景別名檢查後轉接MFX位置調音；平台與錄影包裝，SDL直接管理音訊	錄影模式／當前場景別名檢查後轉接MFX位置調音；平台與錄影包裝，SDL直接管理音訊	
+Poq.exe	99	004800a0	FUN_004800a0	~CGodClient	game	skip	102	0	世界座標轉畫面後依畫面中心調整音效句柄；索引無呼叫者，略過未使用入口	世界座標轉畫面後依畫面中心調整音效句柄；索引無呼叫者，略過未使用入口	
 Poq.exe	99	00480350	FUN_00480350	~CGodClient	game	done	49	12			0057b9c0
-Poq.exe	99	00480460	FUN_00480460	~CGodClient	game	todo	11	2			
+Poq.exe	99	00480460	FUN_00480460	~CGodClient	game	skip	11	2	Mfx_SND_PlayEx平台轉接，回傳值非負為成功；SDL音訊播放取代Windows MFX	Mfx_SND_PlayEx平台轉接，回傳值非負為成功；SDL音訊播放取代Windows MFX	
 Poq.exe	99	004804a0	FUN_004804a0	~CGodClient	game	done	59	28		依位置播音效（0x480350 算跟畫面的相對位置）	0057b9c0
-Poq.exe	99	00480650	FUN_00480650	~CGodClient	game	todo	40	2			
+Poq.exe	99	00480650	FUN_00480650	~CGodClient	game	todo	40	2		環境音隨機聲源：模式1的Y為rand()%1400，模式2為rand()%1000+320，其餘(0,0)；todo等SceneResources場景種類與環境音觸發資料接入weather每拍，再接SDL位置播放；不是延遲播放	
 Poq.exe	99	00480740	FUN_00480740		game	done	21	8			
 Poq.exe	99	00480780	FUN_00480780		game	todo	27	4			00480856 00480860 004808b0 004808d0 00480990 004809a0 004809d0 00497660 004979b0 00497a40 00497b30 00497c30 00497e90
 Poq.exe	99	00480830	FUN_00480830		game	todo	12	5			00480856 00480860 004808b0 004808d0 00480990 004809a0 004809d0 00497780 004979b0 00497b30 00497c30 00497e90 004a1630
@@ -4286,8 +4286,7 @@ Poq.exe	99	0057b440	FUN_0057b440		game	todo	17	0			004bd390
 Poq.exe	99	0057b600	FUN_0057b600		game	todo	11	2			
 Poq.exe	99	0057b620	FUN_0057b620	~CGameApp	game	todo	51	2			004bd390 0057bb60 0057bfa0
 Poq.exe	99	0057b7e0	FUN_0057b7e0	~CGameApp	game	todo	9	6			0057a720
-Poq.exe	99	0057b830	FUN_0057b830	~CGameApp	game	todo	54	3			0057b350
-Poq.exe	99	0057b9c0	FUN_0057b9c0	~CGameApp	game	todo	55	26			0057b350
+Poq.exe	99	0057b9c0	FUN_0057b9c0	~CGameApp	game	todo	55	26		MFX位置播放工具：用距離平方做近遠界限及音量查表，水平差做聲像；尚未移植，勿將現有非位置SDL播放當成完成	0057b350
 Poq.exe	99	0057bb60	FUN_0057bb60	~CGameApp	game	todo	166	2			004bc7a0 0057c030 0057c0b0
 Poq.exe	99	0057bfa0	FUN_0057bfa0	~CGameApp	game	todo	29	4			004bcdf0
 Poq.exe	99	0057c030	FUN_0057c030	~CGameApp	game	todo	30	2			004bc7a0
