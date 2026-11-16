@@ -763,3 +763,12 @@ CDynamicObj	+0xaf	當前移速A參數；動畫比例只取A/B，不含C	Actor.mo
 CDynamicObj	+0xb3	當前移速C參數（十分之一像素）	Actor.move_c
 CDynamicObj	+0xb7	移動A倒數，套速度時重設為A	Actor.move_remaining（移動消費仍待完整動態更新）
 SpriteSequence	+0x14	序列幀延遲調整，普通／戰鬥走路八方向按移速比例覆寫	Actor.walk_delay_adjust（不改共用Role資源）
+
+SCharactorText	+0x0	剩餘繪製次數byte；中段上飄額外扣一次	待頭頂文字剩餘次數
+SCharactorText	+0x1	初始次數byte，用於開始8次淡入	待頭頂文字初始次數
+SCharactorText	+0x2	200x100文字表面指標	待頭頂文字表面
+SCharactorText	+0x6	0固定頭頂、1上飄；空槽下次繪圖清0	待頭頂文字模式
+RoleMdl	+0x164	第40欄星號分割第1值，戰鬥隨機台詞起點	待NPC台詞區間[0]
+RoleMdl	+0x168	第40欄第2值，戰鬥隨機台詞終點（不含）	待NPC台詞區間[1]
+RoleMdl	+0x16c	第40欄第3值，平時隨機台詞起點	待NPC台詞區間[2]
+RoleMdl	+0x170	第40欄第4值，平時隨機台詞終點（不含）	待NPC台詞區間[3]

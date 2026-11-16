@@ -422,7 +422,7 @@ Poq.exe	99	0044d580	FUN_0044d580	~CGameApp	game	skip	9	2	轉接到 0x4fdad0（�
 Poq.exe	99	0044d590	FUN_0044d590	~CGameApp	game	todo	11	2		介面每拍（0x4fda30）	004fda30
 Poq.exe	99	0044d5d0	FUN_0044d5d0	~CGameApp	game	todo	15	2		0x662870 = 1；非狀態 2 時 0x47b4d0	
 Poq.exe	99	0044d600	FUN_0044d600	~CGameApp	game	skip	62	4	平台：MFC 對話框（DoModal）		
-Poq.exe	99	0044d7a0	FUN_0044d7a0	~CGameApp	game	skip	79	2	連線版：等伺服器回應（狀態 0xd）		004b8190 004be560 004bec00 004c5090 004d2a50 004deac0 004f94c0 004fe8e0
+Poq.exe	99	0044d7a0	FUN_0044d7a0	~CGameApp	game	skip	79	2	連線版：等伺服器回應（狀態 0xd）		004be560 004bec00 004c5090 004d2a50 004deac0 004f94c0 004fe8e0
 Poq.exe	99	0044d9e0	FUN_0044d9e0		game	todo	22	2		暫停計數（0x662874）：1 = 暫停（已暫停就 +1），0 = 減到 0 才解除（0x46c260）	0046c260
 Poq.exe	99	0044da50	FUN_0044da50	~CMapDialog	game	skip	13	2	轉接到 0x45e4f0（移植那邊時直接接）		0045e4f0
 Poq.exe	99	0044da80	FUN_0044da80		game	todo	16	2			004fc990
@@ -1061,8 +1061,8 @@ Poq.exe	99	0048afc0	FUN_0048afc0	CCharactor	game	todo	51	8		重設行為：清�
 Poq.exe	99	0048b160	FUN_0048b160	~CNpc	game	done	9	2		虛擬旗標設置入口清除指定mask；actor_clear_flags接type8招式觸發	
 Poq.exe	99	0048b2d0	FUN_0048b2d0	CCharactor|CNpc|CProtagonist	game	done	12	17		actor_speed_update：有效速度getter交actor_move_speed，接模板建立、一般移動與衝刺；底層完整動態狀態退出仍獨立todo	00496ae0
 Poq.exe	99	0048b2f0	FUN_0048b2f0	~CCharactor	game	todo	98	2		todo：完整128狀態重算，逆序套表的旗標、光環、縮放及覆色仍缺；現有status_speed僅速度子集，移除舊註解誤判done	0048e120 0048ec60 0049f300 0049fdd0
-Poq.exe	99	0048b6c0	FUN_0048b6c0	~CCharactor	game	todo	16	2		角色頭頂文字：持續拍數=min(strlen(text)*10+16,255)；未完成，同類別文字槽及繪製尚須續做	0048b710
-Poq.exe	99	0048b710	FUN_0048b710	~CCharactor	game	todo	113	5		8槽頭頂／上飄文字配置與200x100文字表面產生；普通文字覆寫槽0，上飄找空或第一個上飄槽；未完成	00585ac0 00585c50 00587260
+Poq.exe	99	0048b6c0	FUN_0048b6c0	~CCharactor	game	todo	16	2		角色頭頂文字：持續拍數=min(strlen(text)*10+16,255)；todo 原版訊息佇列form-feed+二進位物件ID呼叫路徑尚未接入；文字槽／繪製已具備，不新增無呼叫者包裝	0048b710
+Poq.exe	99	0048b710	FUN_0048b710	~CCharactor	game	todo	113	5		8槽頭頂／上飄文字：普通覆寫0，上飄找空或首個上飄；倒數在繪製時扣，中段上飄每畫面扣2；todo 原版二進位聊天訊息及實際單機呼叫端尚未接；現有RoleMdl未找到有效平時台詞區間，不新增無人呼叫函數	00587260
 Poq.exe	99	0048b9e0	FUN_0048b9e0	~CCharactor	game	done	19	24		near.c actor_near_begin：保存模式，僅半徑-1用索敵值及高層+8，半徑<1不重設底層游標；接monster_think取代全陣列最近目標，篩選續入口仍todo	0048ba50
 Poq.exe	99	0048ba50	FUN_0048ba50	~CCharactor	game	todo	69	16		todo：actor_near_next已接模板顯示方式50、目標getter與模式0..3；同組轉交仍受getter的0x10限制，但不重套0x20000候選旗標；完整狀態0／102、SInit座標及共用物件識別仍為同類別／基礎待補	00494f50
 Poq.exe	99	0048bca0	FUN_0048bca0	~CCharactor	game	skip	58	2	純傳輸：逐一將狀態byte編成0x523封包廣播或發給指定接收者；單機共用Actor，不建立同步副本	狀態0x523封包廣播／指定接收者傳輸，單機共用Actor略過副本同步	0049f300 0049fdd0
@@ -1123,9 +1123,9 @@ Poq.exe	99	004906c0	FUN_004906c0	~CNpc	game	done	143	4
 Poq.exe	99	00490960	FUN_00490960	~CNpc	game	todo	16	0			
 Poq.exe	99	004909b0	FUN_004909b0	CNpc|CProtagonist	game	todo	79	11			0048ba50 0048eda0 00491c80 004924b0 00494f50
 Poq.exe	99	00490c20	FUN_00490c20	~CNpc	game	todo	40	0			0048ba50 0048eda0 00494f50
-Poq.exe	99	00490d10	FUN_00490d10	~CNpc	game	todo	48	0			0048b710 00494f50 004b8190
+Poq.exe	99	00490d10	FUN_00490d10	~CNpc	game	todo	48	0		NPC隨機台詞：有目標選戰鬥區間70次，否則平時50次；槽0空且rand%255==100才從[lo,hi)選Chat.Dlg；索引無呼叫者，未實作；角色表未找到有效平時台詞區間	0048b710 00494f50
 Poq.exe	99	00490e30	FUN_00490e30	CNpc|CProtagonist	game	todo	15	11			00494f50 00579dd0
-Poq.exe	99	00490e70	FUN_00490e70	CNpc|CProtagonist	game	todo	51	11			0048b710 00494f50 004b8190
+Poq.exe	99	00490e70	FUN_00490e70	CNpc|CProtagonist	game	todo	51	11		NPC每10拍（角色計數餘1）同隨機台詞；todo 尚未接完整CNpc更新，現有角色表未找到有效平時台詞區間，未實作	0048b710 00494f50
 Poq.exe	99	00490fc0	FUN_00490fc0	~CNpc	game	todo	68	2			0048d950 00494f50 00494f90
 Poq.exe	99	004911b0	FUN_004911b0	~CNpc	game	done	274	2			00488bb0 0048eda0 00490430 00491af0 004924b0 00494f50 00497c10
 Poq.exe	99	00491af0	FUN_00491af0	~CNpc	game	todo	57	2			00488bb0 00579dd0
@@ -1731,7 +1731,6 @@ Poq.exe	99	004b7e90	FUN_004b7e90		game	todo	14	2
 Poq.exe	99	004b7f20	FUN_004b7f20		game	todo	15	0			
 Poq.exe	99	004b7fb0	FUN_004b7fb0		game	todo	44	0			004bc740 004bc750 004c0180
 Poq.exe	99	004b80d0	FUN_004b80d0	~CGameApp	game	todo	32	2			004bc740 004bc750 004c01e0
-Poq.exe	99	004b8190	FUN_004b8190	~CGameApp	game	todo	38	15			004bc740 004bc750 004c0480
 Poq.exe	99	004b8240	FUN_004b8240	~CGameApp	game	todo	22	0			
 Poq.exe	99	004b8300	FUN_004b8300	~CGameApp	game	todo	39	0			
 Poq.exe	99	004b8410	FUN_004b8410	~CGameApp	game	todo	10	4			
@@ -2718,7 +2717,7 @@ Poq.exe	99	004fd320	FUN_004fd320		game	todo	84	5			004fcf50 004fd270 005210b0 00
 Poq.exe	99	004fd570	FUN_004fd570		game	todo	96	4			004fcf50 004fd130 005210b0 00521200 005212f0 00552740 00580ee0 005814b0 005814c0 00588b70
 Poq.exe	99	004fd810	FUN_004fd810		game	todo	75	9			005210b0 00521200 005212f0 00546a50 005814b0 005833e0 00588990 00588b70 00592020
 Poq.exe	99	004fda30	FUN_004fda30	~CGameApp	game	todo	26	2			0057f2b0 00580df0 00585430 005855a0
-Poq.exe	99	004fdad0	FUN_004fdad0	~CGameApp	game	todo	36	6			00585430 005855a0 00585ac0 00585c50
+Poq.exe	99	004fdad0	FUN_004fdad0	~CGameApp	game	todo	36	6			00585430 005855a0
 Poq.exe	99	004fdb70	FUN_004fdb70	~CGameApp	game	todo	18	2			004bcdf0 004bf810 00520ce0 005330a0 00592b00
 Poq.exe	99	004fdbd0	FUN_004fdbd0	~CGameApp	game	todo	87	5			004fcf50 004fd130 005210b0 00521200 005212f0 0055c730 00580ee0 005814b0 005814c0 00588b70
 Poq.exe	99	004fde50	FUN_004fde50	~CGameApp	game	todo	61	0			
@@ -2789,7 +2788,7 @@ Poq.exe	99	00502370	FUN_00502370	CLoadingDialog	game	todo	28	2			005212f0 00589a
 Poq.exe	99	00502420	FUN_00502420	CLoadingDialog|CGameInfoDialog|CTalkDialog|+64	game	todo	8	137			
 Poq.exe	99	00502430	FUN_00502430	CLoadingDialog|CGameInfoDialog|CTalkDialog|+64	game	todo	8	137			
 Poq.exe	99	00502440	FUN_00502440	CLoadingDialog|CGameInfoDialog|CTalkDialog|+66	game	todo	8	141			
-Poq.exe	99	00502450	FUN_00502450	CLoadingDialog	game	todo	53	2			004b8190 004be560 004bec00 004c5090 004fcf50 004fd130 004fd270 00520ff0 005459c0 00580f80
+Poq.exe	99	00502450	FUN_00502450	CLoadingDialog	game	todo	53	2			004be560 004bec00 004c5090 004fcf50 004fd130 004fd270 00520ff0 005459c0 00580f80
 Poq.exe	99	005025a0	FUN_005025a0	CLoadingDialog|CGameInfoDialog|CTalkDialog|+63	game	todo	8	135			
 Poq.exe	99	005025b0	FUN_005025b0	CLoadingDialog	game	todo	8	2			
 Poq.exe	99	005025c0	FUN_005025c0	CLoadingDialog|CGameInfoDialog|CTalkDialog|+64	game	todo	8	137			
@@ -2904,15 +2903,15 @@ Poq.exe	99	00509550	FUN_00509550		game	todo	38	2
 Poq.exe	99	00509600	FUN_00509600		game	todo	99	0			004fc0a0
 Poq.exe	99	00509890	FUN_00509890		game	todo	78	6			00501c60 0050b240
 Poq.exe	99	00509a30	FUN_00509a30		game	todo	33	8			
-Poq.exe	99	00509a90	FUN_00509a90		game	todo	176	10			004b8190 004c5090 00509550
-Poq.exe	99	0050a140	FUN_0050a140		game	todo	57	4			004b8190 004c5090
+Poq.exe	99	00509a90	FUN_00509a90		game	todo	176	10			004c5090 00509550
+Poq.exe	99	0050a140	FUN_0050a140		game	todo	57	4			004c5090
 Poq.exe	99	0050a370	FUN_0050a370		game	todo	11	0			
 Poq.exe	99	0050a390	FUN_0050a390		game	todo	9	4			0050a3c0
 Poq.exe	99	0050a3c0	FUN_0050a3c0		game	todo	218	28			00502190 00509a90
 Poq.exe	99	0050a920	FUN_0050a920		game	todo	11	0			
 Poq.exe	99	0050a940	FUN_0050a940		game	todo	68	2			
 Poq.exe	99	0050aa90	FUN_0050aa90		game	todo	108	0			004fc240 00501c60
-Poq.exe	99	0050acb0	FUN_0050acb0		game	todo	10	4			004b8190 004c5090
+Poq.exe	99	0050acb0	FUN_0050acb0		game	todo	10	4			004c5090
 Poq.exe	99	0050acf0	FUN_0050acf0		game	todo	148	21			
 Poq.exe	99	0050aff0	FUN_0050aff0		game	todo	34	12			0050acf0
 Poq.exe	99	0050b090	FUN_0050b090		game	todo	23	0			
@@ -4513,9 +4512,7 @@ Poq.exe	99	00585930	FUN_00585930		game	todo	10	0			0059f950 005a0770
 Poq.exe	99	00585950	FUN_00585950		game	todo	10	0			
 Poq.exe	99	00585970	FUN_00585970		game	todo	13	0			
 Poq.exe	99	005859b0	FUN_005859b0		game	todo	45	12			00585cc0 00585ee0 00585f60 00585f70 00586c20 00586c80 00586c90 00586ca0 00586d30 005871d0 005871e0 005871f0 00587210 00587260 00587850 00587f80 00588010 00588030 00588040 00588060 00588090 005880c0 00588100 005a0f70
-Poq.exe	99	00585ac0	FUN_00585ac0		game	todo	17	6			00585cc0 00585ee0 00585f60 00585f70 00586c20 00586c80 00586c90 00586ca0 00586d30 005871d0 005871e0 005871f0 00587210 00587260 00587850 00587f80 00588010 00588030 00588040 00588060 00588090 005880c0 00588100 005a0f70
 Poq.exe	99	00585b30	FUN_00585b30		game	todo	38	0			00585cc0 00585ee0 00585f60 00585f70 00586c20 00586c80 00586c90 00586ca0 00586d30 005871d0 005871e0 005871f0 00587210 00587260 00587850 00587f80 00588010 00588030 00588040 00588060 00588090 005880c0 00588100 005a0f70
-Poq.exe	99	00585c50	FUN_00585c50		game	todo	19	6			00585cc0 00585ee0 00585f60 00585f70 00586c20 00586c80 00586c90 00586ca0 00586d30 005871d0 005871e0 005871f0 00587210 00587260 00587850 00587f80 00588010 00588030 00588040 00588060 00588090 005880c0 00588100 005a0fa0
 Poq.exe	99	00585cc0	FUN_00585cc0	CGfxRenderDevice	game	todo	22	9			00585cc0 00585ee0 00585f60 00585f70 00586c20 00586c80 00586c90 00586ca0 00586d30 005871d0 005871e0 005871f0 00587210 00587260 00587850 00587f80 00588010 00588030 00588040 00588060 00588090 005880c0 00588100 005a0fa0
 Poq.exe	99	00585d50	FUN_00585d50	~CGfxRenderDevice	game	todo	14	0			
 Poq.exe	99	00585ee0	FUN_00585ee0	CGfxRenderDevice	game	todo	11	9			
@@ -4555,10 +4552,10 @@ Poq.exe	99	00588990	FUN_00588990		game	todo	32	37			005810e0 005814c0
 Poq.exe	99	00588a50	FUN_00588a50		game	todo	12	1			00580a40
 Poq.exe	99	00588a70	FUN_00588a70	CLoadingDialog|CGameInfoDialog|CTalkDialog|+56	game	todo	43	118			00597bf0
 Poq.exe	99	00588b70	FUN_00588b70		game	todo	58	34			00580a40 005834b0 005888d0 0059f560 0059f620 0059f640 0059f660 0059f950
-Poq.exe	99	00588ce0	FUN_00588ce0		game	todo	102	6			00502cb0 00580ee0 005814b0 00581590 005859b0 00585ac0 0059f950 0059f960
+Poq.exe	99	00588ce0	FUN_00588ce0		game	todo	102	6			00502cb0 00580ee0 005814b0 00581590 005859b0 0059f950 0059f960
 Poq.exe	99	00588f50	FUN_00588f50	~CUIWinManager	game	todo	12	2			
 Poq.exe	99	00588f80	FUN_00588f80	CLoadingDialog|CGameInfoDialog|CTalkDialog|+56	game	todo	8	118			
-Poq.exe	99	00588f90	FUN_00588f90	~CDialogBox	game	todo	289	2			004b8190 005814b0 005834b0 005888d0 0058a250 0058a380 0058a4c0 0058c190 0058ce60 0058d510 00590e70 00592be0 00592cd0 00593100 00593220 005933f0 00593b50 00596db0 00596e50 00596ee0 00597a80 005981c0 005982e0 00598380 005986f0 005988a0 00598990 00598cc0 00599c10 0059b700 0059ba80 0059bb50 0059be50 0059d330 0059d3b0 0059f560 0059f620 0059f640 0059f660 0059f950 005a1200 005a13c0 005a14f0 005a1810
+Poq.exe	99	00588f90	FUN_00588f90	~CDialogBox	game	todo	289	2			005814b0 005834b0 005888d0 0058a250 0058a380 0058a4c0 0058c190 0058ce60 0058d510 00590e70 00592be0 00592cd0 00593100 00593220 005933f0 00593b50 00596db0 00596e50 00596ee0 00597a80 005981c0 005982e0 00598380 005986f0 005988a0 00598990 00598cc0 00599c10 0059b700 0059ba80 0059bb50 0059be50 0059d330 0059d3b0 0059f560 0059f620 0059f640 0059f660 0059f950 005a1200 005a13c0 005a14f0 005a1810
 Poq.exe	99	00589810	FUN_00589810	CDialogBox	game	todo	8	2			
 Poq.exe	99	00589830	FUN_00589830	CLoadingDialog|CGameInfoDialog|CTalkDialog|+56	game	todo	31	118			00580fc0 005814b0 005833e0
 Poq.exe	99	005898d0	FUN_005898d0	CLoadingDialog|CGameInfoDialog|CTalkDialog|+56	game	todo	53	118			00581030 005814b0 005834b0 00585310 00585430 00593670 00593e40 005a09f0
@@ -4929,7 +4926,7 @@ Poq.exe	99	005a0e30	FUN_005a0e30	~CGameBaseDialog	game	todo	34	2
 Poq.exe	99	005a0eb0	FUN_005a0eb0		game	todo	21	3			
 Poq.exe	99	005a0f00	FUN_005a0f00		game	todo	23	0			
 Poq.exe	99	005a0f70	FUN_005a0f70		game	todo	10	5			005887b0 005a0fb0 005a0ff0
-Poq.exe	99	005a0fa0	FUN_005a0fa0		game	todo	10	6			005887c0 005a0fb0 005a0ff0
+Poq.exe	99	005a0fa0	FUN_005a0fa0	~CGfxRenderDevice	game	todo	10	6			005887c0 005a0fb0 005a0ff0
 Poq.exe	99	005a0fb0	FUN_005a0fb0	CRenderDevice	game	todo	13	6			005887c0 005a0fb0 005a0ff0
 Poq.exe	99	005a0ff0	FUN_005a0ff0	CRenderDevice	game	todo	8	6			
 Poq.exe	99	005a1000	FUN_005a1000		game	todo	42	0			004fb080 00580ee0 005832a0 0059b340
