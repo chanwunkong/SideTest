@@ -18,6 +18,30 @@ static void mk(Actor *a) {
     a->hp = a->hp_max;
 }
 
+static void scene_client_test(void) {
+    Actor saved = actors[0];
+    int count = actor_count;
+    Scene sc = {0};
+    SceneClient c = {.scene = &sc, .ready = 1, .controlled = 0};
+    actor_count = 1;
+    actors[0] = (Actor){.role = (const Role *)1, .grp = 12345, .act = ACT_DEAD};
+    // 已死不等於句柄不存在；查詢不以 alive() 過濾。
+    assert(scene_client_actor(&c) == &actors[0]);
+    assert(scene_client_group(&c, 12345));
+    assert(!scene_client_group(&c, 0));
+    c.ready = 0;
+    assert(!scene_client_actor(&c) && !scene_client_group(&c, 12345));
+    c.ready = 1; c.scene = NULL;
+    assert(!scene_client_actor(&c));
+    c.scene = &sc; c.controlled = -1;
+    assert(!scene_client_actor(&c));
+    c.controlled = 1;
+    assert(!scene_client_actor(&c));
+    c.controlled = 0; actors[0].role = NULL;
+    assert(!scene_client_group(&c, 12345));
+    actors[0] = saved; actor_count = count;
+}
+
 static void viewport_test(void) {
     int old_w = vw, old_h = vh;
     vw = 640; vh = 480;
@@ -195,6 +219,7 @@ static void ground_labels_test(void) {
 }
 
 int main(void) {
+    scene_client_test();
     viewport_test();
     ground_labels_test();
     // 小地圖換算：正負奇數的有號餘數，以及除法向零截斷。

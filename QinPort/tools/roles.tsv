@@ -406,3 +406,39 @@
 0046da90	工具：字串封裝成0x23、0x0a、NUL結尾內容，配置長度strlen+3；單機直接傳字串，不建傳輸封包
 0046db00	解構／容器：CContainer<int,500> 重設虛擬表並清理；一般C陣列代替
 0046db20	解構／容器：CContainer<int,500> 清理後轉基底 CStaticLinkList<int,500> 清理；一般C陣列代替
+
+0046db60	建構：CScnClient 配置輸入／天氣／鏡頭、初始化狀態；C靜態狀態與既有初始化取代
+0046de80	解構：釋放輸入／鏡頭／自有場景／天氣／小地圖與容器
+0046e010	解構：CScnClient scalar deleting destructor，依bit0釋放記憶體
+0046e1b0	解構：SkillUnit 的 CHAINITEM scalar deleting destructor
+0046e1e0	無呼叫者：文字訊息轉接至 CGameApp 顯示入口
+0046e220	容器：CContainer<int,500> 清槽與計數，使用一般C陣列
+0046e2d0	容器：CStaticLinkList<int,500> 初始化索引為-1並清槽，使用一般C陣列
+0046e730	工具：設定 +0x2c 場景借用／初始化模式；單機只有一份自有場景，沒有備份場景所有權包裝
+0046e740	無呼叫者：釋放並重建512×256小地圖底圖，僅地圖寬高都大於127時配置
+0046e7f0	無呼叫者：銷毀並依全域視窗尺寸重建 CViewPort
+0046eae0	無呼叫者：按+0x18編號掃描種類30～100的角色
+0046eb90	工具：檢查場景管理器全域別名是否對應當前借用場景（錄影模式2例外）；單機直接傳Scene，不需切換全域別名
+0046edc0	CRT／檔案工具：整檔讀入配置的buffer，使用res.c read_all／res_file；原版接受正長度短讀，不擴散此行為
+0046eea0	無呼叫者：只在場景狀態-2且scn/rdr修改時間一致時重載小地圖快取
+00470300	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態
+00471830	無呼叫者／解構：釋放CViewPort並清指標
+00471860	幾何工具：框選矩形五個整數清零；使用SDL_Rect及獨立旗標，框選呼叫端待不同類別CUserInput選人名單
+00471a10	指令傳輸層：格式化命令、相同命令30拍去重及每1001毫秒節流，透過連線送出或本機封包回送；單機直接執行click_cmd
+00471c20	指令傳輸層：任意文字／二進位命令節流及發送，失敗回送本機封包；單機直接執行業務
+00471d30	無呼叫者：借用另一客戶端場景資源指標並執行ClientCreate
+00471d50	幾何工具：以兩端點最小值及絕對差設定框選矩形，保留第五欄；使用SDL_Rect，框選呼叫端待不同類別CUserInput選人名單
+0046e360	場景建立：綁管理器／地圖原點、讀探索狀態、初始化鏡頭與小地圖快取；同類別小地圖生成已核對，todo 等不同類別CMapDialog探索位元表及CBuilding縮圖／出口圖示
+0046e8b0	繪場景及框選框；狀態+0x60非-1清黑、進場後超過10拍恢復游標；todo 等不同類別CUserInput框選名單及游標狀態，現有viewport_draw只覆蓋場景繪製
+0046ec80	場景就緒狀態轉換：清框選／目標、重設輸入和游標；todo 等不同類別CUserInput選人／目標清理及介面游標狀態
+0046f100	每拍更新天氣／物件／格子探索衰減／光影；非錄影模式無操作超過90000拍走斷線處理；todo 等不同類別CScene格子+0x13探索衰減與CMapDialog，現有主迴圈只覆蓋部分
+0046f180	生成小地圖：8×4地磚、建築縮圖、縮放／裁中、出口圖示、寫rdr且複製scn修改時間；todo 等不同類別CBuilding縮圖／通道識別與地圖圖示資源，非等待同類別ClientCreate
+00470270	還原場景的全域管理器、輸入／天氣、地圖原點、鏡頭及光影；todo 等不同類別CUserInput名單與CMapDialog完整重綁
+00471890	進場景收尾：清框選、設就緒、重建選人名單／探索顯示；todo 等不同類別CUserInput名單及CMapDialog探索顯示
+004719a0	按+0x18編號找種類30～100角色並顯示文字；todo 等不同類別CCharactor頭頂文字顯示／生命週期
+00471dd0	釋放舊場景並依名稱配置／載入新資源再ClientCreate；同類別入口已核對，todo 等不同類別SceneResources完整載入與CInitObjMng／CBuilding初始化
+0046eb40	scene_client_actor：有場景且就緒才查操控角色；shortcut 暫用actors索引取代CScene世代句柄
+0046ebd0	scene_client_group：查操控角色後比+0x339組別，接actors_sync分邊；無角色回假
+004c7790	地圖格子探索衰減（原索引推測CScnClient不可靠）：每拍處理+0x24格，先前進21byte再回繞，+0x13大於1且非200才減1；降至1時通知CMapDialog；todo 等不同類別CMapDialog探索顯示
+004cede0	地圖投影原點工具：保存地圖指標並將origin設為高度/2
+0048b6c0	角色頭頂文字：持續拍數=min(strlen(text)*10+16,255)，交由CCharactor文字生命週期處理

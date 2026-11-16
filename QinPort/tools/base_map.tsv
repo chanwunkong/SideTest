@@ -138,3 +138,11 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 0046da90	工具：字串封裝成0x23、0x0a、NUL結尾內容，配置長度strlen+3；單機直接傳字串，不建傳輸封包
 0046db00	解構／容器：CContainer<int,500> 重設虛擬表並清理；一般C陣列代替
 0046db20	解構／容器：CContainer<int,500> 清理後轉基底 CStaticLinkList<int,500> 清理；一般C陣列代替
+
+0046e220	容器：CContainer<int,500> 清槽與計數，使用一般C陣列
+0046e2d0	容器：CStaticLinkList<int,500> 初始化索引為-1並清槽，使用一般C陣列
+0046e730	工具：設定 +0x2c 場景借用／初始化模式；單機只有一份自有場景，沒有備份場景所有權包裝
+0046eb90	工具：檢查場景管理器全域別名是否對應當前借用場景（錄影模式2例外）；單機直接傳Scene，不需切換全域別名
+0046edc0	CRT／檔案工具：整檔讀入配置的buffer，使用res.c read_all／res_file；原版接受正長度短讀，不擴散此行為
+00471860	幾何工具：框選矩形五個整數清零；使用SDL_Rect及獨立旗標，框選呼叫端待不同類別CUserInput選人名單
+00471d50	幾何工具：以兩端點最小值及絕對差設定框選矩形，保留第五欄；使用SDL_Rect，框選呼叫端待不同類別CUserInput選人名單

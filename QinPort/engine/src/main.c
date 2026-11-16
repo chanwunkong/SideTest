@@ -443,6 +443,30 @@ static void roles_clear(void) {
 static Actor actors[MAX_ACTORS];
 static int actor_count;
 
+// 場景客戶端保留單機需要的查詢狀態。
+typedef struct {
+    const Scene *scene;
+    int ready;
+    int controlled;
+} SceneClient;
+static SceneClient scene_client;
+
+// Poq.exe 0x46eb40：沒有場景或場景未就緒時，不查操控角色。
+// shortcut: 原版以帶世代的物件句柄查找；目前 controlled 是 actors 索引，
+// 待 CScene 完整物件索引接入後改用其句柄，單機不切換全域管理器別名。
+static Actor *scene_client_actor(const SceneClient *c) {
+    if (!c->scene || !c->ready) return NULL;
+    if (c->controlled < 0 || c->controlled >= actor_count) return NULL;
+    return actors[c->controlled].role ? &actors[c->controlled] : NULL;
+}
+
+// Poq.exe 0x46ebd0：比較操控角色的 +0x339 組別；沒有角色時回假。
+// 原版成功查找後再查一次；單機陣列查詢沒有副作用，沿用同樣順序。
+static inline int scene_client_group(const SceneClient *c, int group) {
+    if (!scene_client_actor(c)) return 0;
+    return scene_client_actor(c)->grp == group;
+}
+
 static void actor_setup(Actor *a, const RoleDef *d) {
     a->role = role_for(d);
     a->def = d;
@@ -2862,7 +2886,7 @@ static void actors_sync(const Scene *s) {
         for (int k = 0; k < 8; k++)
             if (DIR_MAP[k] == en->dir) a->dir = k;
         a->grp = story_get_int(h, "G_AIGroup");
-        a->side = a->grp != grp;  // side 是我們自己的「主角這邊」，敵對另看 grp
+        a->side = !scene_client_group(&scene_client, a->grp);  // side 是我們自己的「主角這邊」，敵對另看 grp
     }
 }
 
@@ -3766,8 +3790,11 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     snprintf(file, sizeof file, "%.80s.Scn", alias);
     Scene next;
     if (!scene_load(&next, file)) { fprintf(stderr, "載入場景失敗：%s\n", file); return 0; }
+    scene_client.ready = 0;
     if (scene->cells) scene_free(scene);
     *scene = next;
+    scene_client.scene = scene;
+    scene_client.controlled = (int)(hero - actors);
 #ifdef STORY
     shop_close();
     sroom = story_room(alias);
@@ -3812,6 +3839,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     hero->act_tick = 0;
     viewport_enter(&viewport, scene, hero);
     prefetch_scene(scene, hero);
+    scene_client.ready = 1;
     return 1;
 }
 
@@ -4067,7 +4095,7 @@ int main(int argc, char **argv) {
 #ifdef STORY
                     if (!m->mon && m->spec && m->spec->event[0]) {
                         int npc = story_find(story_room(alias), m->spec->event);
-                        if (npc) { talk_face(hero, m); story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
+                        if (npc) { Actor *controlled = scene_client_actor(&scene_client); if (controlled) talk_face(controlled, m); story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
                         else printf("劇情裡找不到 NPC %s\n", m->spec->event);
                     }
 #endif
