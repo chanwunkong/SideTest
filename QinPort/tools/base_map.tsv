@@ -68,3 +68,4 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 00451f70	CObjMng 依編號 +0x18 找物件（含已死）→ actors／story handle
 0045a470	繪圖名單節點用 C 陣列代替
 0045abc0	繪圖名單尾端去連續重複加入，用 C 陣列代替（等分層繪圖名單）
+00460470	CViewPort 四組串列清空 → C 陣列名單數量歸零

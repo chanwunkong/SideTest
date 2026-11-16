@@ -184,3 +184,50 @@ FUN_004a1090.this	+0x8	像素轉格基準格 Y（類別未定）	待小地圖座
 FUN_004a1090.this	+0xc	輸入像素 X 的加算餘量（類別未定）	待小地圖座標系統
 FUN_004a1090.this	+0x10	輸入像素 Y 的加算餘量（類別未定）	待小地圖座標系統
 FUN_004a1090.this	+0x14	32 列菱形邊界 int 表，依補正後 Y 餘數索引（類別未定）	待小地圖座標系統
+CViewPort	+0x18	第一組繪圖串列表頭	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x1c	第一組繪圖串列數量	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x20	第二組繪圖串列表頭	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x24	第二組繪圖串列數量	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x2c	第三組繪圖串列數量	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x30	第四組繪圖串列表頭	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x3c	待可見檢查名單數量（本批 +0x38 作為串列表頭）	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x4c	分層繪圖名單數量	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x50	額外動態繪圖串列表頭	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x54	額外動態繪圖串列數量	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0xcc	重設尺寸／釋放事件時刪除的繪圖表面	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0xd0	320x200 輔助繪圖表面	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0xd4	場景背景繪圖表面	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0xd8	場景輸出繪圖表面	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0xdc	遮擋重繪選出的背景表面	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0xe0	小地圖比例向零截斷整數，0禁止更新	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0xe4	小地圖座標除數（float）	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0xe8	小地圖座標除比例後扣除的 X 偏移	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0xec	小地圖座標除比例後扣除的 Y 偏移	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x100	世界限制矩形附加欄位（隨 GRECT 複製）	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x118	上次寫入 Rec 的鏡頭 X	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x11c	上次寫入 Rec 的鏡頭 Y	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x120	遮擋局部重繪裁切矩形 X	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x124	遮擋局部重繪裁切矩形 Y	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x128	遮擋局部重繪裁切矩形寬	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x12c	遮擋局部重繪裁切矩形高	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x130	遮擋局部重繪矩形附加欄位	待原版繪圖／小地圖／Rec 系統
+CViewPort	+0x14c	小地圖全圖探索標記待重建旗標	待原版繪圖／小地圖／Rec 系統
+CScene	+0x4e	世界限制矩形 X（進場複製至 CViewPort +0xf0）	待場景世界矩形初始化
+CScene	+0x52	世界限制矩形 Y（進場複製至 CViewPort +0xf0）	待場景世界矩形初始化
+CScene	+0x56	世界限制矩形寬（進場複製至 CViewPort +0xf0）	待場景世界矩形初始化
+CScene	+0x5a	世界限制矩形高（進場複製至 CViewPort +0xf0）	待場景世界矩形初始化
+CScene	+0x5e	世界限制矩形附加欄位（進場複製至 CViewPort +0xf0）	待場景世界矩形初始化
+DAT_00662c4c.object	+0x1fe8	非零禁止寫入 Rec 鏡頭封包（類別未確認）	待 Rec 系統
+CViewPort	+0x38	待可見檢查名單表頭（本批用法；與先前座標推定衝突，保留兩義待查）	待原版繪圖／小地圖系統
+SceneCell	+0xc	動態物件索引，-1 為無	待原版繪圖／小地圖系統
+SceneCell	+0xe	建築／靜態物件索引，-1 為無	待原版繪圖／小地圖系統
+SceneCell	+0x12	遮擋類型旗標：最高位設且低3位為2時查建築	待原版繪圖／小地圖系統
+CScene	+0x18	當前21-byte格子快取指標	待原版繪圖／小地圖系統
+FUN_0045ec50.object	+0x34	物件世界 X，與 Y 相加作排序鍵	待原版繪圖／小地圖系統
+FUN_0045ec50.object	+0x38	物件世界 Y，與 X 相加作排序鍵	待原版繪圖／小地圖系統
+FUN_0045ec50.object	+0x3c	繪圖矩形 X（後接 Y／寬／高／附加欄位至 +0x4c）	待原版繪圖／小地圖系統
+FUN_0045f820.object	+0x73	動態繪圖狀態：2 局部遮擋或加入可見名單，3 重建排序；建築分支亦當更新世代	待原版繪圖／小地圖系統
+FUN_0045f820.character	+0x474	角色動態繪圖狀態：2 局部遮擋或可見名單，3 重建排序	待原版繪圖／小地圖系統
+FUN_0045f820.character	+0x8b	關聯物件指標，其 +0x2c short 為2／3時暫時將 X/Y 各加128	待原版繪圖／小地圖系統
+FUN_0045fec0.character	+0x339	與當前角色比較的組別識別值	待原版繪圖／小地圖系統
+FUN_0045fec0.object	+0x95	小地圖標籤物件識別值，僅 0xb00270 且類型0x17時畫標籤	待原版繪圖／小地圖系統

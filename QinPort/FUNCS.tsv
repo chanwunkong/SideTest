@@ -618,13 +618,13 @@ Poq.exe	99	0045a000	FUN_0045a000	~CGameApp	game	todo	11	4		只選這個人，並
 Poq.exe	99	0045a030	FUN_0045a030	~CGameApp	game	todo	30	10		重建自己這邊名單 +0x1c（從全域 0x93fdac）	
 Poq.exe	99	0045a100	FUN_0045a100	~CGameApp	game	todo	108	6		選到的名單跟全域選人名單 0x93f9d4 同步（多的移除、少的加入）	00457a30 00458fc0
 Poq.exe	99	0045a3a0	FUN_0045a3a0	~CGameApp	game	todo	31	2		全域選人名單 0x93f9d4 從選到的名單重建	004a28b0
-Poq.exe	99	0045a490	FUN_0045a490		game	skip	99	3	CViewPort 建構：八個串列、兩個髒矩形集合與快取初值	CViewPort 建構：八個串列、兩個髒矩形集合與快取初值	0045ad30 0045ef90 0045f200 00461920
+Poq.exe	99	0045a490	FUN_0045a490		game	skip	99	3	CViewPort 建構：八個串列、兩個髒矩形集合與快取初值	CViewPort 建構：八個串列、兩個髒矩形集合與快取初值	0045ad30 0045f200 00461920
 Poq.exe	99	0045aaa0	FUN_0045aaa0	CViewPort	game	skip	12	4	CViewPort 解構與釋放	CViewPort 解構與釋放	
 Poq.exe	99	0045aad0	FUN_0045aad0	~CViewPort	game	todo	47	4		可見物件依 +0x34 加 +0x38 降序插入繪圖名單；等統一物件矩形與視窗繪圖名單	
 Poq.exe	99	0045ac40	FUN_0045ac40	~CViewPort	game	todo	51	12		鏡頭設位並限制於世界矩形，Y 用輸入減16比較但範圍內保留輸入；等 0x45b900 捲動與世界邊界初始化	0045b900
 Poq.exe	99	0045ad30	FUN_0045ad30	CViewPort	game	todo	15	4		設定視窗位置尺寸與面積並重建快取；等 0x45e820 視窗繪圖快取	0045e820
 Poq.exe	99	0045ad80	FUN_0045ad80	~CViewPort	game	done	26	7		小地圖格座標換算，保留有號餘數與向零截斷；viewport_grid_point，等小地圖呼叫端接入	
-Poq.exe	99	0045ae10	FUN_0045ae10	~CViewPort	game	skip	20	15	平台：標記髒矩形／全畫面重畫，SDL 每幀全畫面重畫代替	平台：標記髒矩形／全畫面重畫，SDL 每幀全畫面重畫代替	00460470
+Poq.exe	99	0045ae10	FUN_0045ae10	~CViewPort	game	skip	20	15	平台：標記髒矩形／全畫面重畫，SDL 每幀全畫面重畫代替	平台：標記髒矩形／全畫面重畫，SDL 每幀全畫面重畫代替	
 Poq.exe	99	0045ae3b	FUN_0045ae3b	~CViewPort	game	skip	14	0	平台：髒矩形加入的編譯器續接片段，SDL 每幀全畫面重畫代替	平台：髒矩形加入的編譯器續接片段，SDL 每幀全畫面重畫代替	
 Poq.exe	99	0045ae70	FUN_0045ae70	~CViewPort	game	todo	153	2		分層繪圖：名單底層、可見物件、名單中上層、特殊遮擋物件；等物件繪圖虛函式、格子遮擋旗標與分層名單	004827c0 00482930 00482ab0 00497c10 004c7da0
 Poq.exe	99	0045b2b0	FUN_0045b2b0	~CViewPort	game	todo	160	2		小地圖探索遮罩：逐交錯格依探索與可見旗標畫索引14/15或64x32遮罩；等格子探索／可見資料與小地圖遮罩圖資	0049caf0 004a1030 004a1090 004c7a00 004c7d80 004c7da0
@@ -638,28 +638,27 @@ Poq.exe	99	0045c390	FUN_0045c390	~CGameApp	game	todo	709	2		鏡頭跟隨角色�
 Poq.exe	99	0045dc00	FUN_0045dc00	~CViewPort	game	todo	148	2		地表繪圖：交錯掃描視窗格子、先底圖再覆圖，缺格用預設圖，除錯疊格旗標；等世界／格座標轉換、預設圖與圖資虛擬繪圖介面，留 todo	0049caf0 004a1030 004a1090 004ceab0
 Poq.exe	99	0045e020	FUN_0045e020	~CViewPort	game	skip	146	2	平台：背景表面快取搬移與新增露出區域的髒矩形，SDL 每幀全畫面重畫代替	平台：背景快取矩形隨視窗移動並搬移表面，將新露出的水平／垂直條帶加入髒矩形；SDL 每幀全畫面重畫代替	
 Poq.exe	99	0045e460	FUN_0045e460		game	done	31	7		小地圖點轉場景格：依 Y 奇偶與場景 +8 換算，無場景回零；main.c viewport_point_grid，等小地圖與鏡頭格座標快取接入	
-Poq.exe	99	0045e4f0	FUN_0045e4f0	~CMapDialog	game	todo	61	2		小地圖點選：縮放／偏移後像素轉格，再換世界點並減半個畫面設鏡頭，快照視窗狀態、標記更新並清 +0xc4；等像素轉格查表、鏡頭設位與小地圖更新，留 todo	0045ac40 00460470 004a1090 004cebf0
+Poq.exe	99	0045e4f0	FUN_0045e4f0	~CMapDialog	game	todo	61	2		小地圖點選：縮放／偏移後像素轉格，再換世界點並減半個畫面設鏡頭，快照視窗狀態、標記更新並清 +0xc4；等像素轉格查表、鏡頭設位與小地圖更新，留 todo	0045ac40 004a1090 004cebf0
 Poq.exe	99	0045e710	FUN_0045e710	~CMapDialog	game	todo	32	2		小地圖輸入座標原地轉格：先加 +0xe8/+0xec，乘 float 比例、減 +4/+8，再向零截斷並查像素轉格；等小地圖視窗狀態與像素轉格查表，留 todo	004a1090
-Poq.exe	99	0045e820	FUN_0045e820	~CViewPort	game	todo	144	4			00460470
-Poq.exe	99	0045ec50	FUN_0045ec50	~CViewPort	game	todo	118	2			004830f0 00483980 00483b80 004a28b0
-Poq.exe	99	0045ef90	FUN_0045ef90	CViewPort	game	todo	69	4			0045b900 0045e820
-Poq.exe	99	0045f100	FUN_0045f100	~CViewPort	game	todo	35	5			00473470
-Poq.exe	99	0045f200	FUN_0045f200	CViewPort	game	todo	220	4			0045aad0 0045ae70 0045b2b0 0045dc00 0045f820 0045fec0 00461230 004a28b0 004c7da0
-Poq.exe	99	0045f820	FUN_0045f820	~CViewPort	game	todo	243	2			0045b720 0045b830 0045ec50 00497c10 004c7da0
-Poq.exe	99	0045fec0	FUN_0045fec0	~CViewPort	game	todo	148	2			004607c0 0046eb40 004887b0 00488840 00497b20 004a1250 004f5e50 004f6b10 004fa3e0 004fa7c0
-Poq.exe	99	00460470	FUN_00460470		game	todo	59	14			
-Poq.exe	99	00460570	FUN_00460570		game	todo	68	4			0045ac40 00460470 004c7db0 004fa500
-Poq.exe	99	004607c0	FUN_004607c0		game	todo	77	4			004a1030 004c7d80 004fa560
+Poq.exe	99	0045e820	FUN_0045e820	~CViewPort	game	todo	144	4		重設視窗尺寸、跟隨中心／死區、繪圖表面與光照並快照視窗；等鏡頭格座標快取重算及視窗狀態整合，留 todo（表面配置由 SDL 取代）	
+Poq.exe	99	0045ec50	FUN_0045ec50	~CViewPort	game	todo	118	2		小面積物件的遮擋重繪：裁切畫面後找後方分層物件，重畫背景及重複去除名單；等物件遮擋判斷、建築索引與虛擬繪圖介面，留 todo	004830f0 00483980 00483b80 004a28b0
+Poq.exe	99	0045ef90	FUN_0045ef90	CViewPort	game	skip	69	4	平台：解析度切換與 DirectDraw 表面釋放／重建，SDL 視窗及 renderer 生命週期取代	平台：解析度切換事件，釋放／重建 DirectDraw 表面；SDL 視窗尺寸與 renderer 生命週期取代	0045b900 0045e820
+Poq.exe	99	0045f100	FUN_0045f100	~CViewPort	game	todo	35	5		鏡頭位置改變或強制時寫 10-byte、類型 0x140 錄影封包（640x480 中心補正）；等 Rec 錄影系統，留 todo	00473470
+Poq.exe	99	0045f200	FUN_0045f200	CViewPort	game	todo	220	4		場景每幀繪圖總入口：交錯掃格建立建築／物件名單、刷新背景與探索遮罩、合光照後畫動態物件與小地圖；等分層名單、格子可見旗標及地表繪圖，留 todo	0045aad0 0045ae70 0045b2b0 0045dc00 0045f820 0045fec0 00461230 004a28b0 004c7da0
+Poq.exe	99	0045f820	FUN_0045f820	~CViewPort	game	todo	243	2		遍歷場景動態物件／角色／額外名單，按可見旗標及繪圖狀態分流局部遮擋或重排，最後畫特殊名單；等物件虛擬繪圖與可見／排序系統，留 todo	0045b720 0045b830 0045ec50 00497c10 004c7da0
+Poq.exe	99	0045fec0	FUN_0045fec0	~CViewPort	game	todo	148	2		小地圖更新：需要時全圖探索標記，每5次第1次重畫同組／特殊角色標籤、指定物件標籤與鏡頭框；等小地圖視窗、座標比例及角色組別／標籤介面，留 todo	004607c0 0046eb40 004887b0 00488840 00497b20 004a1250 004f5e50 004f6b10 004fa3e0 004fa7c0
+Poq.exe	99	00460570	FUN_00460570		game	todo	68	4		場景進入時初始化鏡頭限制矩形及小地圖比例／偏移，設鏡頭與背景快照後載入小地圖；等場景世界矩形、比例常數、場景模式查詢與鏡頭設位，留 todo	0045ac40 004c7db0 004fa500
+Poq.exe	99	004607c0	FUN_004607c0		game	todo	77	4		小地圖全圖初始化：X 外圈 Y 內圈逐格換算像素並標記未探索狀態；等格轉像素、小地圖視窗及格子探索旗標，留 todo	004a1030 004c7d80 004fa560
 Poq.exe	99	00460ad0	FUN_00460ad0	~CGameApp	game	todo	94	2		Alt 按著：顯示地上道具名字	00497b20 004a28b0 004c7da0
 Poq.exe	99	00460d80	FUN_00460d80	~CScnClient	game	todo	28	2			00461680
 Poq.exe	99	00460e10	FUN_00460e10		game	todo	115	6			004a1030 004c7d80 004c7da0 004fa560
 Poq.exe	99	00461150	FUN_00461150		game	todo	11	2			
 Poq.exe	99	00461180	FUN_00461180		game	done	12	2			
 Poq.exe	99	004611b0	FUN_004611b0	~CViewPort	game	todo	22	2			
-Poq.exe	99	00461230	FUN_00461230	~CViewPort	game	todo	114	2			00460470
+Poq.exe	99	00461230	FUN_00461230	~CViewPort	game	todo	114	2			
 Poq.exe	99	004614e0	FUN_004614e0		game	todo	11	0			
-Poq.exe	99	00461530	FUN_00461530	~CGameDialog	game	todo	47	2			0045ac40 00460470 004cebf0
-Poq.exe	99	00461680	FUN_00461680		game	todo	84	10			0045ac40 00460470 004a28b0 004cebf0
+Poq.exe	99	00461530	FUN_00461530	~CGameDialog	game	todo	47	2			0045ac40 004cebf0
+Poq.exe	99	00461680	FUN_00461680		game	todo	84	10			0045ac40 004a28b0 004cebf0
 Poq.exe	99	004618a0	FUN_004618a0		game	todo	21	8		H 鍵：鏡頭回到主角	00461680
 Poq.exe	99	00461920	FUN_00461920		game	todo	18	4			
 Poq.exe	99	00461960	FUN_00461960		game	todo	100	5			004637a0
@@ -898,7 +897,7 @@ Poq.exe	99	00473170	FUN_00473170		game	todo	31	0
 Poq.exe	99	00473240	FUN_00473240	CScnClientRecord	game	todo	12	5			00470300 00473470
 Poq.exe	99	00473280	FUN_00473280	~CGameApp	game	todo	41	2			0045f100 00472f50 00473470
 Poq.exe	99	00473390	FUN_00473390		game	todo	33	0			0045f100 00473470
-Poq.exe	99	00473470	FUN_00473470		game	todo	23	16			00473470
+Poq.exe	99	00473470	FUN_00473470		game	todo	23	16		Rec 錄影寫入：模式1時先同步 tick（0x40/6 bytes），再寫長度與封包；僅分析依賴，等 Rec 系統，留 todo	00473470
 Poq.exe	99	00473500	FUN_00473500	CScnClientRecord	game	todo	36	5			0046da20 0046da30 0046da40 0046da80 0046da90 004cf430
 Poq.exe	99	004735c0	FUN_004735c0		game	todo	27	6			00473470
 Poq.exe	99	00473660	FUN_00473660		game	todo	28	6			00461680 00473470
