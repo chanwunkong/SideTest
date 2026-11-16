@@ -248,12 +248,18 @@ static void viewport_union_frame(SDL_Rect *rect, const Anim *a, int seq, int fra
     if (rect->w) SDL_UnionRect(rect, &r, rect); else *rect = r;
 }
 
-static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy) {
+static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy, Uint32 tick) {
     SDL_Rect r = {0};
     int seq = actor_seq(a), frame = actor_frame(a, seq);
     for (int i = 0; a->role && i < a->role->part_count; i++) {
         viewport_union_frame(&r, a->role->body[i], seq, frame, sx, sy - a->z);
         viewport_union_frame(&r, a->role->shadow[i], seq, frame, sx, sy);
+    }
+    if (a->flags & 0x100) {
+        uint32_t id = actor_relation_anim(a);
+        const Anim *ring = id ? anim_get(id) : NULL;
+        if (ring && ring->count)
+            viewport_union_frame(&r, ring, 0, frame_at(&ring->seqs[0], tick), sx, sy);
     }
     return r;
 }
@@ -527,7 +533,7 @@ static void viewport_dynamic(const ViewPort *v, const Scene *s, Uint32 tick) {
         int shift = a->view_link_type == 2 || a->view_link_type == 3 ? 128 : 0;
         int x = (int)(a->x * 64) + shift, y = (int)(a->y * 64) + shift;
         SDL_Point p = viewport_world_screen(v, x, y);
-        SDL_Rect rect = viewport_actor_rect(a, p.x, p.y);
+        SDL_Rect rect = viewport_actor_rect(a, p.x, p.y, tick);
         viewport_visible_insert(&view_dynamic, s, (ViewItem){1, i, x + y, x, y, rect}, screen);
     }
     for (int i = view_dynamic.n - 1; i >= 0; i--) {

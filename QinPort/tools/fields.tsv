@@ -21,7 +21,7 @@ CPhantasmObj	+0x4ea	淡出級數（8 起）	MUnit.fade
 CPhantasmObj	+0x4ee	淡出中	MUnit.fading
 CPhantasmObj	+0x4f2	出手者走過的位移 CDMList<GPOINT>	MUnit.pq/pq_n
 CPhantasmObj	+0x478	放出它的招式物件編號	（比 MUnit.m）
-RoleMdl	+0xcc	角色大小（欄 18）	RoleDef.size
+RoleMdl	+0xcc	角色大小（欄18）；關係腳圈<2選小圖，不能用動態占位大小替代	RoleDef.size
 RoleMdl	+0xd0	脚数（欄 19）	RoleDef.legs
 RoleMdl	+0x114	程序标识第一個值（欄 27），40允許同組遠距協助索敵	RoleDef.program
 RoleMdl	+0x134	平时声音（欄 32）	RoleDef.snd_idle
@@ -785,3 +785,5 @@ CIllusionList（殘影30槽）	+0x1fc	殘影步數=(終值-起值)/步長，整�
 CIllusionList（殘影30槽）	+0x200	每次繪製的混色遞增步長	待殘影基礎
 CIllusionList（殘影30槽）	+0x208	重複旗標；非零時按30槽容量計算採樣間隔	待殘影基礎
 CIllusionList（殘影30槽）	+0x20c	採樣間隔：非重複1，重複30/步數+1；繪圖跳過不足間隔的尾項	待殘影基礎
+腳圈Spr控制器（類別名待確認）	+0xc	圖資槽索引；與目前幀組成索引*32+幀的繪圖handle	共享Anim；八種來源ID由原版啟動載入參數核對
+腳圈Spr控制器（類別名待確認）	+0x14	目前幀，關係腳圈getter不推進動畫	frame_at（共享遊戲tick），選圖本身不改狀態

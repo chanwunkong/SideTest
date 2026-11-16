@@ -292,6 +292,10 @@ typedef struct Actor {
     unsigned char weapon_type;     // +0x513；更新入口只保存byte，不改技能或外觀
 } Actor;
 
+static uint32_t actor_relation_anim(const Actor *a);
+static Actor *hover_actor;
+static int hover_mouse;
+
 // Poq.exe 0x48fd30：保留低8位；不重選招式、不取消動作，也不重載紙娃娃。
 static void actor_weapon_type_set(Actor *a, int value) { a->weapon_type = (unsigned char)value; }
 
@@ -537,6 +541,11 @@ static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
     if (seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
     int frame = actor_frame(a, seq) % r->frames[seq];
     for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
+    if (a->flags & 0x100) {
+        uint32_t id = actor_relation_anim(a);
+        const Anim *ring = id ? anim_get(id) : NULL;
+        if (ring && ring->count) draw_frame(ring, 0, frame_at(&ring->seqs[0], tick), sx, sy, 0);
+    }
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy, tick, 1);
     role_draw(r, seq, frame, sx, sy - a->z);  // 影子留在地上
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy - a->z, tick, 0);
@@ -1635,6 +1644,30 @@ static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = �
 #include "unit.c"
 #undef scene
 #include "weather.c"
+
+// Poq.exe 0x4883e0：敵對優先；不同組的中立角色不會因選取而改用同組選取圖。
+// 原版全域Spr的資源ID由啟動程式的this指標與載入參數逐一核對。
+static uint32_t actor_relation_anim(const Actor *a) {
+    const Actor *controlled = scene_client_actor(&scene_client);
+    if (!controlled) return 0;
+    int small = a->def->size < 2;
+    if (is_foe(a, controlled)) return small ? 0x100013 : 0x100012;
+    if (a->grp != controlled->grp) return small ? 0x100017 : 0x100016;
+    if (a == hover_actor) return small ? 0x100019 : 0x100018;
+    return small ? 0x1002ef : 0x1002f0;
+}
+
+// shortcut: 單機選人名單目前只有操控角色；隊伍多選介面接入後，保留名單內所有角色的腳圈。
+// 其餘角色以游標命中切換0x100，直接供角色繪製與可見矩形消費。
+static void actor_hover_set(Actor *a, int mouse) {
+    Actor *controlled = scene_client_actor(&scene_client);
+    for (int i = 0; i < actor_count; i++) {
+        if (&actors[i] == a || &actors[i] == controlled) actor_set_flags(&actors[i], 0x100, 1);
+        else actor_set_flags(&actors[i], 0x100, 0);
+    }
+    hover_actor = a;
+    hover_mouse = mouse;
+}
 
 // Poq.exe 0x488d20：速度只比較是否為0；有MethodMain時不能移動。
 static int actor_can_move(const Actor *a) { return a->speed != 0 && !main_of(a); }
@@ -4164,10 +4197,8 @@ static void skill_draw(UiDialog *d, int wx, int wy) {
 // 敵人狀態框顯示誰（0x459ce0；0x455d60 每拍拿游標下的物件呼叫它，0x459fa0 是先依編號找角色）：
 // 指著角色（種類 0x1e～0x64：怪物、NPC、自己都算）就開框、填名字（+0x589；舊索引曾與生命百分比+0x507反寫）和血條，沒指著角色就關框。
 // 照原版：血條只在對象沒有狀態 102 時「打開」（0x583e40 傳 0 = 不變），這裡也沒有地方關它，所以有狀態 102 一樣看得到血。
-// shortcut: 原版還給指著的角色加旗標 0x100（隊友名單裡的不拿掉）、指著物件（種類 0x17、0x18、10～20）另外標示，都沒做；
+// shortcut: 隊伍多選名單與指著非角色物件的標示，等對應介面接入；角色腳圈已接繪製。
 // 手機沒有指著，先用攻擊目標；死掉的不顯示（原版只看種類）
-static Actor *hover_actor;
-static int hover_mouse;
 
 static Actor *status_target(Actor *h, Actor *hover, int mouse) {
     Actor *t = mouse ? hover : actor_target(h);
@@ -5017,6 +5048,7 @@ int main(int argc, char **argv) {
         {
             int hx = px, hy = py, cx, cy; zoom_point(&hx, &hy);
             Actor *c = mouse_seen ? input_char(hx, hy, ox, oy, &scene, &cx, &cy) : NULL;
+            actor_hover_set(c, mouse_seen);
             viewport_building_hover(&viewport, &scene, hx, hy, mouse_seen && !c && !win_left.open && !win_right.open, tick);
         }
         viewport_draw(&viewport, &scene, tick);
@@ -5047,13 +5079,11 @@ int main(int argc, char **argv) {
 #ifdef STORY
         dialog_draw();
 #endif
-        hover_mouse = mouse_seen;
         if (mouse_seen) {  // 觸控沒有游標
             const Anim *cur = anim_get(0x100011);
             int zx = px, zy = py, cx, cy;
             zoom_point(&zx, &zy);
             Actor *c = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
-            hover_actor = c;  // 0x455d60 → 0x459ce0
             int k = input_cursor(hero, c, ground_at(zx, zy, ox, oy, &scene), cx, cy);
             if (cur && k < cur->count) draw_frame(cur, k, frame_at(&cur->seqs[k], tick), px, py, 0);
         }

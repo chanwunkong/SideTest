@@ -57,6 +57,95 @@ static void character_lookup_test(void) {
     actors[0] = saved[0]; actors[1] = saved[1]; actor_count = count;
 }
 
+static void character_relation_test(void) {
+    Actor saved[2] = {actors[0], actors[1]};
+    SceneClient saved_client = scene_client;
+    Actor *saved_hover = hover_actor;
+    int saved_mouse = hover_mouse, count = actor_count, groups = grp_n;
+    void *saved_groups = malloc(sizeof grps); assert(saved_groups);
+    memcpy(saved_groups, grps, sizeof grps);
+    grp_n = 0;
+    Scene sc = {0};
+    RoleDef d = {.size = 1, .hit = 65535, .death = 65535};
+    int frames[] = {1};
+    uint8_t *order[] = {NULL};
+    Role role = {.seq_count = 1, .frames = frames, .order = order};
+    actor_count = 2;
+    actors[0] = (Actor){.role = &role, .def = &d, .grp = 20000};
+    actors[1] = (Actor){.role = &role, .def = &d, .grp = 20000, .flags = 0x4000};
+    Actor *a = &actors[1];
+    scene_client = (SceneClient){.scene = &sc, .ready = 1, .controlled = 0};
+    hover_actor = NULL;
+    // 同組普通、同組選取、中立、敵對，各自兩種尺寸。
+    const uint32_t ids[4][2] = {
+        {0x1002ef, 0x1002f0}, {0x100019, 0x100018},
+        {0x100017, 0x100016}, {0x100013, 0x100012}
+    };
+    for (int kind = 0; kind < 4; kind++) {
+        a->grp = kind < 2 ? 20000 : kind == 2 ? 70000 : 0;
+        hover_actor = kind == 0 ? NULL : a;
+        for (int size = 0; size < 2; size++) {
+            d.size = size + 1;
+            assert(actor_relation_anim(a) == ids[kind][size]);
+        }
+    }
+    // 實際使用 a→操控角色方向的敵人名單；不可對調參數或改用side。
+    a->grp = 60000; actors[0].grp = 10000;
+    grp_enemy_add(10000, 60000);
+    assert(actor_relation_anim(a) == 0x100016);
+    grp_enemy_add(60000, 10000);
+    assert(actor_relation_anim(a) == 0x100012);
+    // 小型的分界包含0與負值；死亡角色仍能取圖，沒有操控角色才回0。
+    d.size = -1; a->act = ACT_DEAD;
+    assert(actor_relation_anim(a) == 0x100013);
+    scene_client.ready = 0; assert(!actor_relation_anim(a));
+    scene_client.ready = 1;
+    scene_client.controlled = -1; assert(!actor_relation_anim(a));
+    scene_client.controlled = 0;
+    a->grp = actors[0].grp; a->act = ACT_NONE; a->dir = 2; d.size = 1;
+    actor_hover_set(a, 1);
+    assert(hover_actor == a && hover_mouse);
+    assert((a->flags & 0x4100) == 0x4100 && (actors[0].flags & 0x100));
+    actor_hover_set(NULL, 0);
+    assert(!hover_actor && !hover_mouse);
+    assert(a->flags == 0x4000 && (actors[0].flags & 0x100));
+    // 軟體renderer走真正actor_draw及可見矩形，確保腳圈不是只有測試呼叫的選圖。
+    SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, 256, 256, 32, SDL_PIXELFORMAT_RGBA32);
+    assert(surf); ren = SDL_CreateSoftwareRenderer(surf); assert(ren);
+    for (int kind = 0; kind < 4; kind++) {
+        a->grp = kind < 2 ? actors[0].grp : kind == 2 ? 70000 : 0;
+        hover_actor = kind == 0 ? NULL : a;
+        a->flags |= 0x100;
+        for (int size = 0; size < 2; size++) {
+            d.size = size + 1;
+            const Anim *ring = anim_get(ids[kind][size]);
+            assert(ring && ring->count && ring->seqs[0].count);
+            const Frame *f = &ring->seqs[0].frames[0];
+            const Sprite *sp = image(f->ref); assert(sp);
+            SDL_Rect rect = viewport_actor_rect(a, 128, 128, 0);
+            assert(rect.x == 128-f->dx && rect.y == 128-f->dy);
+            assert(rect.w == sp->w && rect.h == sp->h);
+            SDL_SetRenderDrawColor(ren, 0, 0, 0, 255); SDL_RenderClear(ren);
+            actor_draw(a, 128, 128, 0); SDL_RenderPresent(ren);
+            int ink = 0;
+            for (int y = 0; y < surf->h; y++) for (int x = 0; x < surf->w; x++) {
+                Uint8 r, g, b, alpha;
+                SDL_GetRGBA(((Uint32 *)surf->pixels)[y*(surf->pitch/4)+x], surf->format, &r, &g, &b, &alpha);
+                ink += !!(r || g || b);
+            }
+            assert(ink);
+            a->flags &= ~0x100;
+            rect = viewport_actor_rect(a, 128, 128, 0);
+            assert(!rect.w && !rect.h);
+            a->flags |= 0x100;
+        }
+    }
+    cache_clear(); SDL_DestroyRenderer(ren); ren = NULL; SDL_FreeSurface(surf);
+    actors[0] = saved[0]; actors[1] = saved[1]; actor_count = count;
+    scene_client = saved_client; hover_actor = saved_hover; hover_mouse = saved_mouse; grp_n = groups;
+    memcpy(grps, saved_groups, sizeof grps); free(saved_groups);
+}
+
 static void character_weapon_type_test(void) {
     Actor a = {.flags = 0x10400, .selected = 3, .right_id = 27, .left_id = 42,
                .act = ACT_ATTACK, .act_frame = 7, .weapon_type = 9};
@@ -1200,6 +1289,7 @@ int main(void) {
     character_lookup_test();
     character_core_test();
     character_weapon_type_test();
+    character_relation_test();
     character_skills_test();
     character_skill_runtime_test();
     character_skill_index_test();
