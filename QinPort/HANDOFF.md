@@ -423,7 +423,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 進度（11-16）：Poq.exe **0x46a0c0～0x46a140 CInitMngMain**，連同後段共用工具 **0x4ca880～0x4cbf70** 核對，**done 0、skip 12（其中 base 10）、todo 1**。建構／解構略過；四組初始化名單的取值、描述子、配置與清理記入 base_map.tsv，無呼叫者的四個入口亦略過。後段推測為 ~CInitMngMain 的共用名單與 INI 讀取實際屬基底 CInitObjMng，用途與欄位已補索引，未把 INI 載入當容器略過。
   - 原版細節：初始化後只掃第3組，模板ID以 ushort 差值排除1500～2000（含端點）；其他ID配置同種類 SInit、虛擬複製、設已建立旗標後加入場景。不能拿目前劇情 spawn 代替本批入口，沒有補上假的完成位址。
   - todo 1：0x46a140 等不同類別 CInitObjMng 的 INI 記錄載入（0x4cb440／0x4cb640）及 SInit 虛擬複製還原；兩個載入器仍保留原有 todo，隨基底類別處理。沒有新增遊戲邏輯、shortcut 或確認劇情不用的功能，因此不新增鏡像測試；`cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
-  **下一步：0x46a250（CInitObjMng 空入口／後續場景物件初始化段）起**。
+  ~~下一步：0x46a250（CInitObjMng 空入口／後續場景物件初始化段）起~~。
+- 進度（11-16）：Poq.exe **0x46a250 CInitObjMng 空入口，連同後段 0x4cab40～0x4cb640 同類別入口核對**；前輪已分類的建構、名單與清理工具維持原判定，本輪 **done 0、新增 skip 2、保留 todo 2**。空虛擬入口與 deleting destructor 記入 funcs_skip.txt；未以空殼實作冒充載入完成，未進入下一個 CNpc 類別。新確認的 SInit 座標、AI、初始態、方向、路徑與跟隨參數偏移已寫 fields.tsv，函數用途與依賴已寫 roles.tsv。
+  - 原版細節：開檔失敗不清空舊資料；成功才重設，讀 BldMdl 後依第1／3／2組載入角色／野獸／道具，最後記檔名並呼叫衍生初始化。CIniFile 是從目前游標往後讀取（鍵名忽略大小寫），不能用目前的隨機找鍵代替；初始態同名鍵連讀兩次，路徑按 PathNum 順讀座標。不新增 shortcut，沒有新確認劇情不用的功能。
+  - todo 2：0x4cb440／0x4cb640 一起等待不同類別 CIniFile 的順序／解密讀取（0x4bb3d0、0x4bb650）及 SInitChaInit／RandMove／PathMove／Follow、InitBld／Trigger 記錄還原系統；同類別的空入口、解構與共用名單已全數核對，沒有把同類別依賴推給下一輪。CInitMngMain 的建立入口仍等這組載入與虛擬複製接通。
+  - 沒有新增可接入的遊戲邏輯，因此未加鏡像測試或未呼叫的新函數；`cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
+  **下一步：0x46a260（CNpc／場景物件初始化段）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

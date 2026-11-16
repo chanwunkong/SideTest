@@ -326,11 +326,15 @@
 004cb390	CInitObjMng 共用工具：按組別與索引取 SInit，越界回0
 004cb3c0	CInitObjMng 共用工具：回傳第n組名單描述子，this+(n+1)*16
 004cb3e0	無呼叫者：共用名單配置容量與指標／已建立旗標陣列
-004cb440	CInitObjMng INI載入（非 CInitMngMain 專屬）：清空、BldMdl、依 CHANUM/BeastieNUM/PROPNUM 讀第1/3/2組，再呼叫衍生初始化；待該類別移植
-004cb640	CInitObjMng INI記錄載入（非 CInitMngMain 專屬）：依iType建立SInit角色／建築，讀模板、座標、AI與路徑；待該類別及SInit還原系統移植
+004cb440	todo：CInitObjMng 載入入口；成功開檔才清空，讀BldMdl後依CHANUM/BeastieNUM/PROPNUM載入第1/3/2組、記來源檔名再呼叫衍生初始化；等不同類別CIniFile順序讀取（004bb3d0/004bb650）及SInit各衍生記錄還原系統，與004cb640一起接入
+004cb640	todo：CInitObjMng 記錄載入；iType=11～15/101/102建立SInit角色／建築，讀模板ushort、座標、AI、事件及路徑後追加名單與總數；等不同類別CIniFile順序讀取及SInitChaInit/RandMove/PathMove/Follow、InitBld/Trigger還原系統；初始態同鍵連讀兩次，路徑按PathNum順讀
 004cbd40	無呼叫者：CInitObjMng 共用名單按指標移除；即使找不到也減總數
 004cbdc0	無呼叫者：共用名單按指標移除並前移
 004cbe30	無呼叫者：CInitObjMng 四組名單釋放
 004cbed0	共用SInit名單清理：逐項虛擬解構、釋放指標與旗標陣列
 004cbf70	CInitObjMng 共用重設：清字串與總數，按全域四組容量配置指標及旗標陣列
 004caf80	SInit 工廠：依種類11～15、101、102配置並建構；供 CInitMngMain 複製記錄，非複製本身
+0046a250	CInitObjMng 空虛擬初始化入口：直接返回，skip
+004cab40	CInitObjMng deleting destructor：基底名單清理、CString解構及條件釋放，skip
+004bb3d0	CIniFile 順序讀鍵值行：可解密、鍵名忽略大小寫；從目前游標向前找，空鍵匹配下一項，EOF輸出診斷（非隨機查詢）
+004bb650	CIniFile 順序讀ushort：呼叫ReadLine後atoi截成short；供初始化模板ID載入

@@ -330,3 +330,13 @@ CInitObjMng	+0x8	初始化來源檔名 CString	未移植：CInitObjMng INI載入
 CInitObjMng	+0xc	四組記錄總數	未移植
 CInitObjMng	+0x10	四組16-byte描述子起點；每組+0容量/+4數量/+8指標陣列/+0xc已建立旗標陣列	C陣列／數量；資料載入待移植
 SInitBase	+0xa	模板ID ushort；CInitMngMain排除1500～2000（含端點），以ushort差值比較	未移植：初始化記錄
+SInitBase	+0xc	地圖座標X int	未移植：SInit記錄還原
+SInitBase	+0x10	地圖座標Y int	未移植：SInit記錄還原
+SInitCha	+0x18	平時邏輯種類：0初始態／1隨機／2路徑／3跟隨	未移植：SInit記錄還原
+SInitCha	+0x1c	行走休息 int	未移植：SInit記錄還原
+SInitChaInit	+0x78	初始態ushort；+0x7a另一ushort，原版連續讀兩次同名鍵	未移植：SInit記錄還原
+SInitChaInit	+0x7c	方向 int	未移植：SInit記錄還原
+SInitChaPathMove	+0x78	PathNum int	未移植：SInit記錄還原
+SInitChaPathMove	+0x7c	路徑GPOINT陣列，每點8 bytes，順讀PathMapX/PathMapY	未移植：SInit記錄還原
+SInitChaRandMove	+0x78	活動矩形GRECT，四個int順序載入	未移植：SInit記錄還原
+SInitChaFollow	+0x7c	跟隨參數起點，連讀三個int；+0x88/+0x8c另讀兩個int	未移植：SInit記錄還原

@@ -746,7 +746,7 @@ Poq.exe	99	00469d70	FUN_00469d70	~CGodClient	game	todo	126	2		CGodClient 近處�
 Poq.exe	99	0046a0c0	FUN_0046a0c0		game	skip	10	2	CInitMngMain 建構：呼叫 CInitObjMng 建構並換 vtable；略過建構流程；建構解構／通用容器或無呼叫者，依規則略過	CInitMngMain 建構：呼叫 CInitObjMng 建構並換 vtable；略過建構流程	0046a140
 Poq.exe	99	0046a100	FUN_0046a100	CInitMngMain	game	skip	13	6	CInitMngMain deleting destructor：基底解構後依旗標釋放0x50 bytes；略過；建構解構／通用容器或無呼叫者，依規則略過	CInitMngMain deleting destructor：基底解構後依旗標釋放0x50 bytes；略過	0046a140
 Poq.exe	99	0046a140	FUN_0046a140	CInitMngMain	game	todo	36	6		todo：初始化後掃第3組 SInit；模板ID在1500～2000以外才複製、標記並加入場景；等不同類別 CInitObjMng 的 INI/SInit 載入（004cb440/004cb640）與 SInit 虛擬複製還原系統，不能以劇情 spawn 冒充	004caf80
-Poq.exe	99	0046a250	FUN_0046a250	CInitObjMng	game	todo	8	6			
+Poq.exe	99	0046a250	FUN_0046a250	CInitObjMng	game	skip	8	6	CInitObjMng 空虛擬初始化入口：無狀態變更，衍生類別另行實作	CInitObjMng 空虛擬初始化入口：直接返回，skip	
 Poq.exe	99	0046a260	FUN_0046a260	~CNpc	game	todo	24	2			
 Poq.exe	99	0046a2c0	FUN_0046a2c0		game	todo	53	2			
 Poq.exe	99	0046a370	FUN_0046a370		game	todo	21	2			004caf80
@@ -1878,9 +1878,9 @@ Poq.exe	99	004baf80	FUN_004baf80	~CGameApp	game	todo	43	0			004c5b00
 Poq.exe	99	004bb080	FUN_004bb080	~CGameApp	game	todo	8	2			
 Poq.exe	99	004bb090	FUN_004bb090	~CGameApp	game	todo	20	0			
 Poq.exe	99	004bb380	FUN_004bb380	~CGameApp	game	todo	20	0			004c5b80
-Poq.exe	99	004bb3d0	FUN_004bb3d0	~CGameApp	game	todo	67	31			004c5b00
+Poq.exe	99	004bb3d0	FUN_004bb3d0	~CGameApp	game	todo	67	31		CIniFile 順序讀鍵值行：可解密、鍵名忽略大小寫；從目前游標向前找，空鍵匹配下一項，EOF輸出診斷（非隨機查詢）	004c5b00
 Poq.exe	99	004bb5c0	FUN_004bb5c0	~CGameApp	game	todo	21	0			004bb3d0
-Poq.exe	99	004bb650	FUN_004bb650	~CGameApp	game	todo	21	9			004bb3d0
+Poq.exe	99	004bb650	FUN_004bb650	~CGameApp	game	todo	21	9		CIniFile 順序讀ushort：呼叫ReadLine後atoi截成short；供初始化模板ID載入	004bb3d0
 Poq.exe	99	004bb770	FUN_004bb770	~CGameApp	game	todo	21	2			004bb3d0
 Poq.exe	99	004bb800	FUN_004bb800		game	todo	22	0			004bb3d0
 Poq.exe	99	004bb890	FUN_004bb890		game	todo	22	0			004bb3d0
@@ -2124,7 +2124,7 @@ Poq.exe	99	004ca270	FUN_004ca270	~CGameApp	game	todo	162	2			004bb3d0 004bb650 0
 Poq.exe	99	004ca7e0	FUN_004ca7e0	~CGameApp	game	todo	33	2			
 Poq.exe	99	004ca930	FUN_004ca930		game	todo	17	2			004cabd0 004cb330 004cc050
 Poq.exe	99	004caab0	FUN_004caab0		game	todo	28	0			004cad60 004cb360 004cc1e0
-Poq.exe	99	004cab40	FUN_004cab40	CInitObjMng	game	todo	30	6			0046a250 004cab40
+Poq.exe	99	004cab40	FUN_004cab40	CInitObjMng	game	skip	30	6	CInitObjMng deleting destructor：清理名單、兩個CString及依旗標釋放0x50 bytes，依規則略過	CInitObjMng deleting destructor：基底名單清理、CString解構及條件釋放，skip	
 Poq.exe	99	004cabd0	FUN_004cabd0	InitBld	game	todo	18	13			004cabd0 004cb330 004cc050
 Poq.exe	99	004cac30	FUN_004cac30	InitBldTrigger	game	todo	18	7			004cabd0 004cb330 004cc050
 Poq.exe	99	004caca0	FUN_004caca0	SInitChaFollow	game	todo	17	7			004caca0 004cc130
@@ -2137,8 +2137,8 @@ Poq.exe	99	004caed0	FUN_004caed0		game	todo	35	0			004a3340
 Poq.exe	99	004caf80	FUN_004caf80		game	todo	95	4		SInit 工廠：依種類11～15、101、102配置並建構；供 CInitMngMain 複製記錄，非複製本身	004a3340 004ca930 004cac30 004caca0 004cad10 004cad60 004cae20 004cb330 004cb360 004cc0b0 004cc130 004cc1a0 004cc1e0 004cc280
 Poq.exe	99	004cb330	FUN_004cb330	InitBld|InitBldTrigger	game	todo	12	15			
 Poq.exe	99	004cb360	FUN_004cb360	SInitChaPathMove	game	todo	12	7			
-Poq.exe	99	004cb440	FUN_004cb440		game	todo	56	2		CInitObjMng INI載入（非 CInitMngMain 專屬）：清空、BldMdl、依 CHANUM/BeastieNUM/PROPNUM 讀第1/3/2組，再呼叫衍生初始化；待該類別移植	004bb3d0 004cb640
-Poq.exe	99	004cb640	FUN_004cb640		game	todo	183	2		CInitObjMng INI記錄載入（非 CInitMngMain 專屬）：依iType建立SInit角色／建築，讀模板、座標、AI與路徑；待該類別及SInit還原系統移植	004a3340 004bb3d0 004bb650 004cabd0 004cac30 004caca0 004cad10 004cad60 004cae20 004cb330 004cb360 004cc050 004cc0b0 004cc130 004cc1a0 004cc1e0 004cc280
+Poq.exe	99	004cb440	FUN_004cb440		game	todo	56	2		todo：CInitObjMng 載入入口；成功開檔才清空，讀BldMdl後依CHANUM/BeastieNUM/PROPNUM載入第1/3/2組、記來源檔名再呼叫衍生初始化；等不同類別CIniFile順序讀取（004bb3d0/004bb650）及SInit各衍生記錄還原系統，與004cb640一起接入	004bb3d0 004cb640
+Poq.exe	99	004cb640	FUN_004cb640		game	todo	183	2		todo：CInitObjMng 記錄載入；iType=11～15/101/102建立SInit角色／建築，讀模板ushort、座標、AI、事件及路徑後追加名單與總數；等不同類別CIniFile順序讀取及SInitChaInit/RandMove/PathMove/Follow、InitBld/Trigger還原系統；初始態同鍵連讀兩次，路徑按PathNum順讀	004a3340 004bb3d0 004bb650 004cabd0 004cac30 004caca0 004cad10 004cad60 004cae20 004cb330 004cb360 004cc050 004cc0b0 004cc130 004cc1a0 004cc1e0 004cc280
 Poq.exe	99	004cc050	FUN_004cc050	InitBld	game	todo	28	13			
 Poq.exe	99	004cc0b0	FUN_004cc0b0	InitBldTrigger	game	todo	35	7			
 Poq.exe	99	004cc130	FUN_004cc130	SInitChaFollow	game	todo	15	7			
