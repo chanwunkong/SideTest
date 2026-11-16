@@ -67,6 +67,7 @@ typedef struct { int x, y; char event[48]; } Trigger;  // BNT 類型 4：踩到�
 #define MAX_PATH 32
 typedef struct {
     int type, tmpl, x, y, dir;
+    int logic, rest; // SInitCha +0x18/+0x1c；平时逻辑类型、行走休息
     int rx, ry, rw, rh;           // 類型 13 的閒逛範圍（格）
     int path_n, path[MAX_PATH][2];  // 類型 14 的巡邏路線（格）
     char event[32];               // 事件 ID（對話、劇情用）
@@ -128,6 +129,7 @@ typedef struct {
     int size, legs, snd_idle, snd_fight;                  // 角色大小、脚数、平时/战斗声音（0 = 沒有）
     int light, flicker;                                   // 有无光影、光影闪烁（欄 15、16，RoleMdl +0xb8、+0xbc）
     char graphic[16], styles[96];
+    int beast, air, display, reaction, snd_run; // BeastieMdl：移動屬性、顯示方式、對人反應
     uint32_t anim;  // BeastieMdl.txt 的小動物、陷阱：只有一個動畫（图素ID），graphic 空白
 } RoleDef;
 int roledefs_load(void);

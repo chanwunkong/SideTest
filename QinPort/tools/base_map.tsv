@@ -196,3 +196,4 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 0047fed0	封包尾字串解碼：先清輸出再複製至NUL，不限制複製長度；無呼叫者，工具；以C陣列／索引／直接業務參數取代，不建立無人呼叫的工具或封包
 0057b4a0	MFX平台設定工具 → engine/src/audio.c audio_init（SDL音訊裝置／snd.lib）；不複製Windows MFX設定布局
 0057b830	MFX位置調音平台工具 → SDL audio_loop管理循環音量；不複製Windows MFX句柄ABI
+OmUtil::GetFleePos	air_run使用既有dir_of與move_dir；核對OmUtil.dll匯出本體，Poq呼叫點隱藏步長為5，非自訂距離

@@ -540,7 +540,7 @@ static void spawn_npcs(const Scene *s) {
     for (int i = 0; i < s->npc_count && actor_count < MAX_ACTORS; i++) {
         const NpcSpec *n = &s->npcs[i];
         const RoleDef *d = roledef_find(n->tmpl);
-        if (!d || !atoi(d->graphic)) continue;  // shortcut: 圖形 ID 是名字的（怪物）用另一套格式，之後做戰鬥時處理
+        if (!d || (d->beast && d->air) || !atoi(d->graphic)) continue;  // shortcut: 圖形 ID 是名字的（怪物）用另一套格式，之後做戰鬥時處理
         Actor *a = &actors[actor_count++];
         memset(a, 0, sizeof *a);
         a->x = n->x + 0.5f;
@@ -3706,7 +3706,10 @@ static void hud_draw(const Actor *hero) {
     }
 }
 
+static void air_draw_view(void);
 #include "viewport.c"
+#include "air.c"
+static void air_draw_view(void) { air_draw(&viewport); }
 
 // 進場景時一次抓齊會用到的圖（網頁版走批次請求；原生版直接讀硬碟，這裡幾乎不花時間）
 
@@ -3739,6 +3742,10 @@ static void prefetch_scene(Scene *s, const Actor *hero) {
     for (int i = 0; i < s->object_count; i++)
         for (int p = 0; s->objects[i].m && p < s->objects[i].m->part_count; p++)
             if (s->objects[i].m->parts[p].anim) id_add(&anims, s->objects[i].m->parts[p].gid);
+    for (int i = 0; i < s->npc_count; i++) {
+        const RoleDef *d = roledef_find(s->npcs[i].tmpl);
+        if (d && d->beast && d->air && d->id < 1500) id_add(&anims, d->anim);
+    }
     res_fetch_now(anims.v, anims.n);
     free(anims.v);
     // 圖片都排進背景下載，離主角近的先
@@ -3762,6 +3769,18 @@ static void prefetch_scene(Scene *s, const Actor *hero) {
                 if (n % 4096 == 0) v = realloc(v, (n + 4096) * sizeof *v);
                 v[n++] = (Near){dist_to(hero, o->x + 0.5f, o->y + 0.5f) + 2, frames.v[k]};  // 建築大，稍微讓地面先
             }
+        }
+    }
+    for (int i = 0; i < s->npc_count; i++) {
+        const NpcSpec *sp = &s->npcs[i];
+        const RoleDef *d = roledef_find(sp->tmpl);
+        if (!d || !d->beast || !d->air || d->id >= 1500) continue;
+        frames.n = 0;
+        const Anim *a = anim_get(d->anim);
+        for (int seq = 0; a && seq < a->count; seq++) add_seq_frames(&frames, a, seq);
+        for (int k = 0; k < frames.n; k++) {
+            if (n % 4096 == 0) v = realloc(v, (n + 4096) * sizeof *v);
+            v[n++] = (Near){dist_to(hero, sp->x, sp->y), frames.v[k]};
         }
     }
     // 角色：站立與走路的 8 個方向
@@ -3849,6 +3868,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     hero->act_tick = 0;
     viewport_enter(&viewport, scene, hero);
     prefetch_scene(scene, hero);
+    air_enter(scene);
     scene_client.ready = 1;
     return 1;
 }
@@ -4222,6 +4242,7 @@ int main(int argc, char **argv) {
             light_tick(&scene);
             clock_tick();
             weather_tick();
+            air_tick(scene_client_actor(&scene_client));
             zoom_tick();
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = trigger_at(&scene, hero);
@@ -4390,6 +4411,7 @@ int main(int argc, char **argv) {
     world_free(&world);
     SDL_DestroyTexture(canvas);
     roles_clear();
+    free(air); air = NULL; air_n = 0;
     scene_free(&scene);
     SDL_Quit();
     return 0;

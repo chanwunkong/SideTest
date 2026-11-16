@@ -681,11 +681,12 @@ static void parse_ont(Scene *s, char *text) {
         const char *k = line, *v = eq + 1;
         int iv = atoi(v);
         if (!strcmp(k, "iType")) {
-            if (iv < 12 || iv > 15) { n = NULL; continue; }
+            if (iv < 11 || iv > 15) { n = NULL; continue; }
             if (s->npc_count == cap) s->npcs = realloc(s->npcs, (cap = cap ? cap * 2 : 32) * sizeof(NpcSpec));
             n = &s->npcs[s->npc_count++];
             memset(n, 0, sizeof *n);
             n->type = iv;
+            n->logic = iv == 13 ? 1 : iv == 14 ? 2 : iv == 15 ? 3 : 0;
         } else if (!n) {
             continue;
         } else if (!strcmp(k, "\xc4\xa3\xb0\xe5" "ID")) n->tmpl = iv;                  // 模板ID
@@ -693,10 +694,12 @@ static void parse_ont(Scene *s, char *text) {
         else if (!strcmp(k, "\xb5\xd8\xcd\xbc\xd7\xf8\xb1\xea" "Y")) n->y = iv;      // 地图坐标Y
         else if (!strcmp(k, "\xb7\xbd\xcf\xf2")) n->dir = iv;                           // 方向
         else if (!strcmp(k, "\xca\xc2\xbc\xfe" "ID")) snprintf(n->event, sizeof n->event, "%s", v);  // 事件ID
-        else if (!strcmp(k, "x")) n->rx = iv;
-        else if (!strcmp(k, "y")) n->ry = iv;
-        else if (!strcmp(k, "cx")) n->rw = iv;
-        else if (!strcmp(k, "cy")) n->rh = iv;
+        else if (!strcmp(k, "\xc6\xbd\xca\xb1\xc2\xdf\xbc\xad\xc0\xe0\xd0\xcd")) n->logic = iv; // 平时逻辑类型
+        else if (!strcmp(k, "\xd0\xd0\xd7\xdf\xd0\xdd\xcf\xa2")) n->rest = iv; // 行走休息
+        else if ((!strcmp(k, "x") || !strcmp(k, "A_x"))) n->rx = iv;
+        else if ((!strcmp(k, "y") || !strcmp(k, "A_y"))) n->ry = iv;
+        else if ((!strcmp(k, "cx") || !strcmp(k, "A_cx"))) n->rw = iv;
+        else if ((!strcmp(k, "cy") || !strcmp(k, "A_cy"))) n->rh = iv;
         else if (!strcmp(k, "PathMapX") && n->path_n < MAX_PATH) n->path[n->path_n][0] = iv;
         else if (!strcmp(k, "PathMapY") && n->path_n < MAX_PATH) n->path[n->path_n++][1] = iv;
     }
@@ -1133,6 +1136,12 @@ int roledefs_load(void) {
             RoleDef *r = &roledefs[roledef_count++];
             memset(r, 0, sizeof *r);
             r->id = atoi(col[1]);
+            r->beast = 1;
+            r->air = atoi(col[3]);
+            r->display = atoi(col[4]);
+            r->reaction = c > 13 ? atoi(col[13]) : 0;
+            r->snd_idle = c > 15 && *col[15] ? atoi(col[15]) : 0xffff;
+            r->snd_run = c > 16 && *col[16] ? atoi(col[16]) : 0xffff;
             r->anim = (uint32_t)strtoul(col[2], NULL, 10);
             r->speed = atoi(col[5]);
             r->fight_speed = atoi(col[6]);

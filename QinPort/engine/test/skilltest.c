@@ -233,7 +233,53 @@ static void ground_labels_test(void) {
     assert(!ground_labels.on && !ground_labels.n);
 }
 
+static void air_test(void) {
+    RoleDef d = {.speed = 10, .fight_speed = 20, .snd_idle = 0xffff, .snd_run = 0xffff};
+    NpcSpec n = {.x = -2, .y = -2, .logic = 0};
+    AirBeastie a = {.def = &d, .speed = 10};
+    air_place(&a, &n);
+    assert(a.x == -96 && a.gx == -2);
+    assert(!air_move(&a, -2, -2) && a.state == 0);
+    assert(air_move(&a, 0, -2) && a.steps == 12 && a.state == 1);
+    for (int i = 0; i < 12; i++) air_tick_one(&a, NULL);
+    assert(a.steps == 0 && a.state == 1 && a.gx == 0 && a.gy == -1); // -96/64向零
+    air_tick_one(&a, NULL);
+    assert(a.state == 0 && a.speed == 10); // 多一拍才回休息
+    n = (NpcSpec){.logic = 1, .rest = 4};
+    a = (AirBeastie){.spec = &n, .def = &d};
+    air_tick_one(&a, NULL);
+    assert(a.wait == 10000 && !a.state);
+    air_tick_one(&a, NULL); assert(a.wait == 9999);
+    n = (NpcSpec){.logic = 2, .path_n = 3, .path = {{2, 0}, {4, 0}, {0, 0}}};
+    a = (AirBeastie){.spec = &n, .def = &d, .speed = 10, .x = 32, .y = 32};
+    air_tick_one(&a, NULL);
+    assert(a.path == 1 && a.tx == 2 && a.state == 1);
+    Actor t = {.x = 3, .y = 3};
+    d.reaction = 1;
+    air_run(&a, &t);
+    assert(a.state == 2 && a.tx == 4 && a.speed == 20); // +3後最遠路線點
+    d.reaction = 2;
+    t.x = 7;
+    air_run(&a, &t);
+    assert(a.tx == 4); // +3後最近，不是直接追到角色格
+    n.logic = 1; a.state = 0; a.steps = 19;
+    air_run(&a, &t);
+    assert(a.state == 2 && a.speed == 20 && a.steps == 19); // 不支持仍先改跑態
+    d.reaction = 1; a.gx = a.gy = 0; a.x = a.y = 32; t.x = t.y = -10;
+    air_run(&a, &t);
+    assert(a.tx == 5 && a.ty == 5); // OmUtil呼叫點的5格逃跑
+    // 動畫只由邏輯更新推進；休息+8、走跑共用方向序列，切換從第0幀再前進。
+    Frame f[2] = {{.delay = 1}, {.delay = 1}};
+    Seq q[16]; for (int i = 0; i < 16; i++) q[i] = (Seq){2, f};
+    Anim anim = {.count = 16, .seqs = q};
+    a.spr = (Spr){.a = &anim}; a.state = 0; a.dir = 5;
+    air_animate(&a); assert(a.spr.seq == 13 && a.spr.cur == 1);
+    a.state = 2; air_animate(&a); assert(a.spr.seq == 5 && a.spr.cur == 1);
+    a.state = 1; air_animate(&a); assert(a.spr.seq == 5 && a.spr.cur == 0);
+}
+
 int main(void) {
+    air_test();
     character_lookup_test();
     scene_client_test();
     viewport_test();
@@ -322,6 +368,27 @@ int main(void) {
     assert(t.act == ACT_DEAD);
     // 召喚：匈奴法师_召唤（273 = 10 → 朱厌，最多 2 隻）
     roledefs_load();
+    const RoleDef *crow = roledef_find(1003);
+    assert(crow && crow->beast && crow->air == 1 && crow->reaction == 0 && crow->snd_idle == 26);
+    NpcSpec air_specs[2] = {{.tmpl = 1003, .x = 8, .y = 9}, {.tmpl = 1005}};
+    Scene air_scene = {.npcs = air_specs, .npc_count = 2};
+    air_enter(&air_scene);
+    assert(air_n == 1 && air[0].gx == 8 && air[0].x == 544 && air[0].spr.a && air[0].dir == 5);
+    air_scene.npc_count = 0; air_enter(&air_scene); assert(!air_n);
+    Scene birds = {0};
+    assert(scene_load(&birds, "yangzhou.Scn"));
+    air_enter(&birds);
+    assert(air_n == 12); // 追主角烏鴉1、普通烏鴉/小鳥9、蜜蜂2
+    int crow_i = 0; while (crow_i < air_n && air[crow_i].def->id != 1003) crow_i++;
+    assert(crow_i < air_n);
+    AirBeastie *placed = &air[crow_i];
+    assert(placed->spec->logic == 2 && placed->spec->path_n == 6);
+    assert(placed->gx == 50 && placed->spec->path[0][0] == 48);
+    air_tick(NULL);
+    assert(placed->state == 1 && placed->tx == 48 && placed->ty == 90);
+    Scene empty = {0}; air_enter(&empty); assert(!air_n);
+    scene_free(&birds);
+    free(air); air = NULL;
     mondefs_load();
     const SkillRow *sm = npc_skill("\xd0\xd9\xc5\xab\xb7\xa8\xca\xa6_\xd5\xd9\xbb\xbd");
     assert(sm && sm->attack == 3);

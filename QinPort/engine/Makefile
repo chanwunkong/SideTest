@@ -3,11 +3,11 @@ CC ?= cc
 CFLAGS += -O2 -Wall -Wextra $(shell sdl2-config --cflags)
 LDLIBS += $(shell sdl2-config --libs)
 
-qin: src/main.c src/viewport.c src/unit.c src/near.c src/weather.c src/light.c src/res.c src/res.h src/audio.c src/audio.h
+qin: src/main.c src/viewport.c src/air.c src/unit.c src/near.c src/weather.c src/light.c src/res.c src/res.h src/audio.c src/audio.h
 	$(CC) $(CFLAGS) -o $@ src/main.c src/res.c src/audio.c $(LDLIBS)
 
 # 技能戰鬥規則的自我檢查（要有 ../game）
-skilltest: test/skilltest.c src/main.c src/viewport.c src/unit.c src/near.c src/weather.c src/light.c src/res.c src/res.h src/audio.c src/audio.h
+skilltest: test/skilltest.c src/main.c src/viewport.c src/air.c src/unit.c src/near.c src/weather.c src/light.c src/res.c src/res.h src/audio.c src/audio.h
 	$(CC) $(CFLAGS) -Wno-unused-function -o build/skilltest test/skilltest.c src/res.c src/audio.c $(LDLIBS) && cd test && ../build/skilltest
 
 clean:
@@ -34,7 +34,7 @@ storytest: src/story/storytest.c src/story/story_rt.c src/story/story.h build/st
 # 網頁版（給手機透過 Tailscale 測試）：遊戲檔不打包，執行時跟 tools/webserve.py 要
 # 有 ../story（tools/storytool.py 產生）就把原版劇情編進去（-DSTORY）；劇情只在 32 位元下才對，所以只有網頁版有
 WEB_STORY = $(if $(wildcard ../story/index.txt),-DSTORY -Isrc/story src/story/story_rt.c build/story-wasm.a)
-web: src/main.c src/viewport.c src/unit.c src/near.c src/weather.c src/light.c src/res.c src/res.h src/audio.c src/audio.h ../web/shell.html $(if $(WEB_STORY),build/story-wasm.a src/story/story_rt.c)
+web: src/main.c src/viewport.c src/air.c src/unit.c src/near.c src/weather.c src/light.c src/res.c src/res.h src/audio.c src/audio.h ../web/shell.html $(if $(WEB_STORY),build/story-wasm.a src/story/story_rt.c)
 	emcc $(WEBDBG) -O2 -sUSE_SDL=2 -sASYNCIFY -sALLOW_MEMORY_GROWTH -sFORCE_FILESYSTEM -sEXPORTED_RUNTIME_METHODS=FS -lidbfs.js \
 		-sEXPORTED_FUNCTIONS=_main,_malloc,_free \
 		--shell-file ../web/shell.html -o ../web/index.html src/main.c src/res.c src/audio.c $(WEB_STORY)

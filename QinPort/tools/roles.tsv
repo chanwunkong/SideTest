@@ -590,3 +590,17 @@
 00480990	CAirObj預設虛擬更新恆回傳1；todo等不同類別CObj場景物件更新生命週期接入，屆時接入CAirObj更新判定，不新增無呼叫者常數包裝
 004809a0	CAirObj更新判定：CObj狀態00497c20非零才呼叫虛擬格+0x24，兩者非零回1；todo等後段CObj狀態／更新生命週期接入，同類別00480990已核對
 004809d0	CAirObj更新位置：世界+0x34/+0x38轉畫面+0x50/+0x54，按+0x3c幀資料計算範圍；todo等後段精靈畫面範圍0049d740與CObj空中物件場景生命週期接入
+00480a40	CAirBeastie建構：設定虛擬表並清目標與計數；C陣列零初始化取代，按規則skip
+00480aa0	CAirBeastie解構：重設虛擬表再解構CAirObj；按規則skip
+00480acd	CAirBeastie刪除解構轉接；按規則skip
+00480ae0	CAirBeastie刪除解構：清基底並依flags釋放0xb7 bytes；按規則skip
+00480bc0	CAirBeastie設狀態；索引無呼叫者，略過未使用入口
+00480d60	CAirBeastie獨立閒逛入口；索引無呼叫者，主更新已有同等閒逛邏輯，略過未使用入口
+00481300	CAirBeastie獨立移動入口；索引無呼叫者，主更新已有移動邏輯，略過未使用入口
+00480b40	CAirBeastie綁BeastieMdl／載精靈，設方向5、休息、低速 → air.c air_model
+00480be0	CAirBeastie繪圖：先位置更新，依顯示方式普通／調色／0x80繪製 → air.c air_draw；色表及非位置音效保留shortcut
+00480cf0	CAirBeastie動畫更新：休息方向+8，走跑方向，前進一拍 → air.c air_animate
+00480f40	CAirBeastie綁場景初始化記錄並置格中心 → air.c air_place
+00480f60	CAirBeastie主拍：動畫、隨機閒逛／巡路、浮點移動、80拍對人反應 → air.c air_tick_one
+00481420	CAirBeastie設目標格、方向、截斷距離/速度拍數與浮點增量 → air.c air_move；零拍除零保護shortcut
+00481650	CAirBeastie高速逃跑／追主角：最遠／最近路點或GetFleePos(5)，1/3聲音 → air.c air_run；呼叫點機碼核對隱藏步長5

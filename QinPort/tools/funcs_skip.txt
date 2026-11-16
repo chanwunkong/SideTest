@@ -595,3 +595,10 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00480830  CAirObj解構：釋放精靈群與物件基底；解構按規則skip
 00480856  CAirObj解構轉接至刪除解構；按規則skip
 00480860  CAirObj刪除解構：釋放精靈群／物件基底，flags bit0時釋放0x8b bytes；按規則skip
+00480a40  CAirBeastie建構：設定虛擬表並清目標與計數；C陣列零初始化取代，按規則skip
+00480aa0  CAirBeastie解構：重設虛擬表再解構CAirObj；按規則skip
+00480acd  CAirBeastie刪除解構轉接；按規則skip
+00480ae0  CAirBeastie刪除解構：清基底並依flags釋放0xb7 bytes；按規則skip
+00480bc0  CAirBeastie設狀態；索引無呼叫者，略過未使用入口
+00480d60  CAirBeastie獨立閒逛入口；索引無呼叫者，主更新已有同等閒逛邏輯，略過未使用入口
+00481300  CAirBeastie獨立移動入口；索引無呼叫者，主更新已有移動邏輯，略過未使用入口

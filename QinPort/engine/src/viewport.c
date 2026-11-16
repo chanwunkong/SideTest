@@ -523,5 +523,6 @@ static void viewport_draw(ViewPort *v, Scene *s, Uint32 tick) {
     SDL_Point origin = viewport_grid_screen(v, 0, 0);
     light_draw(world_x(s, 0, 0) - origin.x, world_y(s, 0, 0) - origin.y);
     viewport_dynamic(v, s, tick);
+    air_draw_view();
     weather_draw(v->pos.x, v->pos.y);
 }

@@ -495,7 +495,7 @@ Poq.exe	99	0044f580	FUN_0044f580		game	done	25	8	main.c mon_make（依 SInitCha 
 Poq.exe	99	0044f6d0	FUN_0044f6d0		game	todo	177	2		角色倒下留下的東西（倒下種類 1～10）：3/5/9/10 角色 +0xcc==1 且 +0xd0==2 時放招式單位 10/0x73/0xeb/0xec；4 放痕跡動畫 0x100581（+0xd0==2）或 0x10000b；6/7/8 建 CPartDeadObj 碎屍（6/7 有 CFlyPartDeadObj 飛散的版本）；其他照預設建 CPartDeadObj，先擲 0x48f0a0 留血跡	0048f0a0 00498b80 00498c00 00498ed0 00498f70 00499120 004a3340 00578ac0
 Poq.exe	99	0044fd20	FUN_0044fd20		game	done	382	2		劇情建物件（0x474270 呼叫）：種類 0 角色（G_PosX −100 = 用入口點名稱 0x4cc9c0 隨機挑）、1 道具、2 依名字找建築設狀態、3 陷阱、4 依名字隨機挑一個可打壞的建築	0046a2c0 0046a370 00482db0 00484ee0 0048c150 0048d950 0048e6e0 0048e820 004963e0 00497bb0 0049c2e0 0049c340 0049c3a0 004a3340
 Poq.exe	99	00450700	FUN_00450700		game	done	81	21			004a3340
-Poq.exe	99	00450960	FUN_00450960		game	done	66	10	main.c mon_make／ground_drop／trap（CObjMng::AddObj 依物件表種類 2 角色、1 道具／建築、6 陷阱建類別；我們各自直接建）		00480a40 00490240 004933a0 00497a40 00499e30 0049a7e0 0049ab20 0049b8d0 004a3340
+Poq.exe	99	00450960	FUN_00450960		game	done	66	10	main.c mon_make／ground_drop／trap（CObjMng::AddObj 依物件表種類 2 角色、1 道具／建築、6 陷阱建類別；我們各自直接建）		00490240 004933a0 00497a40 00499e30 0049a7e0 0049ab20 0049b8d0 004a3340
 Poq.exe	99	00450b30	FUN_00450b30	~CScnClient	game	todo	22	2		建 CBirdFast（0x97，0x453800 呼叫）放在 (x, y)	00481930 004a3340
 Poq.exe	99	00450bc0	FUN_00450bc0	~CScnClient	game	done	43	2		組 g 把組 e 記為敵人（沒有這組就建 CPlayerGroupAI）	004a3340
 Poq.exe	99	00450cc0	FUN_00450cc0	~CScnClient	game	done	37	4	main.c ground_drop（AddProp：依 PicID 在格子建道具物件）		004a3340
@@ -925,20 +925,20 @@ Poq.exe	99	004808d0	FUN_004808d0	CAirObj|CBirdFast	game	todo	33	10		CAirObj繪�
 Poq.exe	99	00480990	FUN_00480990	CAirObj	game	todo	8	8		CAirObj預設虛擬更新恆回傳1；todo等不同類別CObj場景物件更新生命週期接入，屆時接入CAirObj更新判定，不新增無呼叫者常數包裝	
 Poq.exe	99	004809a0	FUN_004809a0	CAirObj	game	todo	17	10		CAirObj更新判定：CObj狀態00497c20非零才呼叫虛擬格+0x24，兩者非零回1；todo等後段CObj狀態／更新生命週期接入，同類別00480990已核對	00497c20
 Poq.exe	99	004809d0	FUN_004809d0	CAirObj|CAirBeastie|CBirdFast	game	todo	22	15		CAirObj更新位置：世界+0x34/+0x38轉畫面+0x50/+0x54，按+0x3c幀資料計算範圍；todo等後段精靈畫面範圍0049d740與CObj空中物件場景生命週期接入	0049d740
-Poq.exe	99	00480a40	FUN_00480a40		game	todo	14	2			004808b0 004809d0 00480acd 00480ae0 00480b40 00480be0 00480cf0 00480f40 00480f60 00497c30 00497e90
-Poq.exe	99	00480aa0	FUN_00480aa0		game	todo	12	0			004808b0 004809d0 00480acd 00480ae0 00480b40 00480be0 00480cf0 00480f40 00480f60 00497c30 00497e90
-Poq.exe	99	00480acd	FUN_00480acd	CAirBeastie	game	todo	9	5			00480ae0
-Poq.exe	99	00480ae0	FUN_00480ae0	CAirBeastie	game	todo	15	7			004808b0 004809d0 00480acd 00480ae0 00480b40 00480be0 00480cf0 00480f40 00480f60 00497c30 00497e90
-Poq.exe	99	00480b40	FUN_00480b40	CAirBeastie	game	todo	17	5			004979b0
-Poq.exe	99	00480bc0	FUN_00480bc0	~CAirBeastie	game	todo	11	0			
-Poq.exe	99	00480be0	FUN_00480be0	CAirBeastie	game	todo	46	5			0049caf0
-Poq.exe	99	00480cf0	FUN_00480cf0	CAirBeastie	game	todo	24	5			
-Poq.exe	99	00480d60	FUN_00480d60	~CAirBeastie	game	todo	86	0			00481420
-Poq.exe	99	00480f40	FUN_00480f40	CAirBeastie	game	todo	9	5			00497b30
-Poq.exe	99	00480f60	FUN_00480f60	CAirBeastie	game	todo	145	5			004809a0 00481420 00481650
-Poq.exe	99	00481300	FUN_00481300	~CAirBeastie	game	todo	38	0			
-Poq.exe	99	00481420	FUN_00481420	~CAirBeastie	game	todo	76	5			
-Poq.exe	99	00481650	FUN_00481650	~CAirBeastie	game	todo	129	2			00481420
+Poq.exe	99	00480a40	FUN_00480a40		game	skip	14	2	CAirBeastie建構：設定虛擬表並清目標與計數；C陣列零初始化取代，按規則skip	CAirBeastie建構：設定虛擬表並清目標與計數；C陣列零初始化取代，按規則skip	004808b0 004809d0 00497c30 00497e90
+Poq.exe	99	00480aa0	FUN_00480aa0		game	skip	12	0	CAirBeastie解構：重設虛擬表再解構CAirObj；按規則skip	CAirBeastie解構：重設虛擬表再解構CAirObj；按規則skip	004808b0 004809d0 00497c30 00497e90
+Poq.exe	99	00480acd	FUN_00480acd	CAirBeastie	game	skip	9	5	CAirBeastie刪除解構轉接；按規則skip	CAirBeastie刪除解構轉接；按規則skip	
+Poq.exe	99	00480ae0	FUN_00480ae0	CAirBeastie	game	skip	15	7	CAirBeastie刪除解構：清基底並依flags釋放0xb7 bytes；按規則skip	CAirBeastie刪除解構：清基底並依flags釋放0xb7 bytes；按規則skip	004808b0 004809d0 00497c30 00497e90
+Poq.exe	99	00480b40	FUN_00480b40	CAirBeastie	game	done	17	5		CAirBeastie綁BeastieMdl／載精靈，設方向5、休息、低速 → air.c air_model	004979b0
+Poq.exe	99	00480bc0	FUN_00480bc0	~CAirBeastie	game	skip	11	0	CAirBeastie設狀態；索引無呼叫者，略過未使用入口	CAirBeastie設狀態；索引無呼叫者，略過未使用入口	
+Poq.exe	99	00480be0	FUN_00480be0	CAirBeastie	game	done	46	5		CAirBeastie繪圖：先位置更新，依顯示方式普通／調色／0x80繪製 → air.c air_draw；色表及非位置音效保留shortcut	0049caf0
+Poq.exe	99	00480cf0	FUN_00480cf0	CAirBeastie	game	done	24	5		CAirBeastie動畫更新：休息方向+8，走跑方向，前進一拍 → air.c air_animate	
+Poq.exe	99	00480d60	FUN_00480d60	~CAirBeastie	game	skip	86	0	CAirBeastie獨立閒逛入口；索引無呼叫者，主更新已有同等閒逛邏輯，略過未使用入口	CAirBeastie獨立閒逛入口；索引無呼叫者，主更新已有同等閒逛邏輯，略過未使用入口	
+Poq.exe	99	00480f40	FUN_00480f40	CAirBeastie	game	done	9	5		CAirBeastie綁場景初始化記錄並置格中心 → air.c air_place	00497b30
+Poq.exe	99	00480f60	FUN_00480f60	CAirBeastie	game	done	145	5		CAirBeastie主拍：動畫、隨機閒逛／巡路、浮點移動、80拍對人反應 → air.c air_tick_one	004809a0
+Poq.exe	99	00481300	FUN_00481300	~CAirBeastie	game	skip	38	0	CAirBeastie獨立移動入口；索引無呼叫者，主更新已有移動邏輯，略過未使用入口	CAirBeastie獨立移動入口；索引無呼叫者，主更新已有移動邏輯，略過未使用入口	
+Poq.exe	99	00481420	FUN_00481420	~CAirBeastie	game	done	76	5		CAirBeastie設目標格、方向、截斷距離/速度拍數與浮點增量 → air.c air_move；零拍除零保護shortcut	
+Poq.exe	99	00481650	FUN_00481650	~CAirBeastie	game	done	129	2		CAirBeastie高速逃跑／追主角：最遠／最近路點或GetFleePos(5)，1/3聲音 → air.c air_run；呼叫點機碼核對隱藏步長5	
 Poq.exe	99	00481930	FUN_00481930	~CScnClient	game	todo	11	2			004808b0 004808d0 004809d0 00481976 00481980 004819c0 00481a10 00481ab0 004979b0 00497c30 00497e90
 Poq.exe	99	00481976	FUN_00481976	CBirdFast	game	todo	9	4			00481980
 Poq.exe	99	00481980	FUN_00481980	CBirdFast	game	todo	14	6			004808b0 004808d0 004809d0 00481976 00481980 004819c0 00481a10 00481ab0 004979b0 00497c30 00497e90

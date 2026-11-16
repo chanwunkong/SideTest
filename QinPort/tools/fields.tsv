@@ -548,3 +548,37 @@ CAirObj	+0x54	世界轉畫面所得Y；作範圍計算輸入	todo：空中物件
 CAirObj	+0x67	物件種類，建構設4	todo：空中物件種類
 CAirObj	+0x6b	精靈群子物件虛擬表	C實作不複製vtable
 CAirObj	+0x83	建構清零的32位欄位，語意未確認	todo：未確認
+CAirBeastie	+0x30	場景初始化記錄指標	spec
+CAirBeastie	+0x34	世界X（int截斷浮點）	x
+CAirBeastie	+0x38	世界Y（int截斷浮點）	y
+CAirBeastie	+0x5c	模型+0x22的16位欄位，語意未確認	沿用RoleDef識別，不另複製ABI
+CAirBeastie	+0x77	當前動畫序列	spr.seq
+CAirBeastie	+0x87	8方向，綁模型設5	dir
+CAirBeastie	+0x8b	狀態0休息1走2跑	state
+CAirBeastie	+0x8f	剩餘移動拍數	steps
+CAirBeastie	+0x93	浮點世界X	fx
+CAirBeastie	+0x97	浮點世界Y	fy
+CAirBeastie	+0x9b	每拍X增量	dx
+CAirBeastie	+0x9f	每拍Y增量	dy
+CAirBeastie	+0xa3	目標格X	tx
+CAirBeastie	+0xa7	目標格Y	ty
+CAirBeastie	+0xab	當前速度	speed
+CAirBeastie	+0xaf	反應計數器，舊值mod80==1觸發	pulse
+CAirBeastie	+0xb3	BeastieMdl模型指標	def
+BeastieMdl	+0x26	圖素ID	RoleDef.anim
+BeastieMdl	+0x2a	移動屬性，非零建CAirBeastie	RoleDef.air
+BeastieMdl	+0x2e	顯示方式0普通1調色其他0x80	RoleDef.display
+BeastieMdl	+0x32	低速	RoleDef.speed
+BeastieMdl	+0x36	高速	RoleDef.fight_speed
+BeastieMdl	+0x72	對人反應0無1逃2追主角	RoleDef.reaction
+BeastieMdl	+0x7a	平時聲音，空值0xffff	RoleDef.snd_idle
+BeastieMdl	+0x7e	跑步觸發聲音（表頭死亡聲音），空值0xffff	RoleDef.snd_run
+AirInit	+0xc	當前格X，移動主拍覆寫	AirBeastie.gx
+AirInit	+0x10	當前格Y，移動主拍覆寫	AirBeastie.gy
+AirInit	+0x18	平時邏輯0固定1隨機2路線	NpcSpec.logic
+AirInit	+0x1c	行走休息係數，4設10000拍	NpcSpec.rest
+AirInit	+0x20	休息倒數	AirBeastie.wait
+AirInit	+0x78	隨機範圍X／路點數（聯集）	NpcSpec.rx / path_n
+AirInit	+0x7c	隨機範圍Y／路點指標（聯集）	NpcSpec.ry / path
+AirInit	+0x80	隨機範圍寬／路線索引（聯集）	NpcSpec.rw / AirBeastie.path
+AirInit	+0x84	隨機範圍高	NpcSpec.rh
