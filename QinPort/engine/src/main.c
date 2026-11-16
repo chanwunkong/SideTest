@@ -28,6 +28,17 @@
 static int game_speed_ms = 21;
 static void game_speed_set(int level) { game_speed_ms = 31 - 3 * level; }
 
+// 小地圖格座標換算（Poq.exe 0x45ad80）。map_rows = 原版地圖 +8，
+// origin = 原版全域 DAT_00941288；由小地圖呼叫端提供，不假設它的設定值。
+// shortcut: 換算已翻，等待小地圖視窗狀態接入後使用。
+static inline SDL_Point viewport_grid_point(int x, int y, int map_rows, int origin) {
+    int odd = x % 2;  // 原版是有號餘數，負奇數為 -1
+    int half = map_rows / 2;
+    int px = (half - y + origin + x) / 2;
+    return (SDL_Point){y % 2 == 0 ? px + odd : px - odd + 1,
+                       y + 2 + half - origin + x};
+}
+
 // 原版速度對照表（Poq.exe 0x5f21d0/0x5f23b0/0x5f22c0）：速度 s → 每 B 拍移動 A + C/10 像素
 static const uint8_t SPEED_A[60] = {0,1,0,1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,6,6,6,7,7,7,8,8,8,9,9,9,10,10,10,11,11,11,12,12,12,13,13,13,14,14,14,15,15,15,16,16,16,17,17,17,18,18,18,19,19,19};
 static const uint8_t SPEED_B[60] = {90,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};

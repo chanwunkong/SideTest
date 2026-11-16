@@ -114,3 +114,18 @@ CUserInput	+0x10	隊伍面板選中的人（0x459b30）
 CUserInput	+0x14	選到的隊友名單 CStaticLinkList<int,60>（頭 +0x1f0、數量 +0x1e4）	
 CUserInput	+0x1c	自己這邊名單 CStaticLinkList<int,60>（頭 +0x208）	
 CUserInput	+0x3f0	選到的名單變了，下一拍同步到全域 0x93f9d4	
+CViewPort	+0x4	視窗世界 X	ox（待接鏡頭設位）
+CViewPort	+0x8	視窗世界 Y	oy（待接鏡頭設位）
+CViewPort	+0xc	視窗寬	vw
+CViewPort	+0x10	視窗高	vh
+CViewPort	+0x14	視窗面積	-
+CViewPort	+0x40	去連續重複繪圖名單表頭	-
+CViewPort	+0x44	去連續重複繪圖名單數量	-
+CViewPort	+0x48	分層繪圖名單表頭	-
+CViewPort	+0x58	髒矩形集合（容量30）	SDL 全畫面重畫
+CViewPort	+0x7c	第二髒矩形集合（容量50）	-
+CViewPort	+0xc4	全畫面更新時清零的快取旗標	-
+CViewPort	+0xf0	世界限制矩形 X	待鏡頭邊界
+CViewPort	+0xf4	世界限制矩形 Y	待鏡頭邊界
+CViewPort	+0xf8	世界限制矩形寬	待鏡頭邊界
+CViewPort	+0xfc	世界限制矩形高	待鏡頭邊界

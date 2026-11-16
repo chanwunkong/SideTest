@@ -19,6 +19,17 @@ static void mk(Actor *a) {
 }
 
 int main(void) {
+    // 小地圖換算：正負奇數的有號餘數，以及除法向零截斷。
+    SDL_Point gp = viewport_grid_point(3, 2, 10, 1);
+    assert(gp.x == 4 && gp.y == 11);
+    gp = viewport_grid_point(3, 3, 10, 1);
+    assert(gp.x == 3 && gp.y == 12);
+    gp = viewport_grid_point(-3, 2, 10, 1);
+    assert(gp.x == -1 && gp.y == 5);
+    gp = viewport_grid_point(-3, -3, 0, 0);
+    assert(gp.x == 2 && gp.y == -4);
+    gp = viewport_grid_point(-4, 3, 0, 0);
+    assert(gp.x == -2 && gp.y == 1);
     res_init("../../game");
     md.hp = (Stat){100000, 0};
     md.ap = md.ap_max = (Stat){10, 0};
