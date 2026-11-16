@@ -7,7 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
-    <link rel="manifest" id="dynamic-manifest">
+    <meta name="theme-color" content="#1d4ed8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="FORA">
+    <link rel="apple-touch-icon" href="icons/icon-180.png">
+    <link rel="manifest" href="manifest.json">
     <style>
         @keyframes flashUpdate { 0%{background-color:#bfdbfe;transform:scale(1.02)}100%{background-color:transparent;transform:scale(1)} }
         .flash-active { animation:flashUpdate .5s ease-out; border-radius:1rem; }
@@ -577,13 +581,7 @@ const CONFIG = {
 document.getElementById('location-input').value = CONFIG.DEFAULT_LOCATION;
 
 // ── PWA ──
-(function(){
-    try {
-        const m={name:"FORA 量測系統",short_name:"FORA",display:"standalone",background_color:"#ffffff",theme_color:"#1d4ed8",icons:[{src:"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzFkNGVkOCIvPjwvc3ZnPg==",sizes:"192x192",type:"image/svg+xml"}]};
-        document.getElementById('dynamic-manifest').href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/manifest+json'}));
-        if('serviceWorker' in navigator){const sw=`self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>self.clients.claim());self.addEventListener('fetch',e=>{});`;navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});}
-    }catch(e){}
-})();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(e=>log(`離線功能註冊失敗：${e}`,'error'));
 
 // ── BLE Check ──
 if(!navigator.bluetooth) document.getElementById('ble-banner').classList.remove('hidden');
