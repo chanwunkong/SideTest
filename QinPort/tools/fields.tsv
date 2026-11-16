@@ -364,3 +364,19 @@ CScnClient	+0x34	場景介面指標；暫停記其+4/+8座標	待介面
 CScnClient	+0x38	場景天氣物件指標	wx（目前無備份場景）
 CScnClient	+0x5c	場景就緒旗標	待場景生命週期
 CScnClient	+0x64	同名備份場景角色還原的啟用條件	待場景備份
+SceneEntryTable（類別名待確認）	+0x0	場景列指標陣列	待原版文字表載入
+SceneEntryTable（類別名待確認）	+0x4	場景列數（文字表列數減1）	待原版文字表載入
+SceneEntryTable（類別名待確認）	+0x8	CIDTable，加入列後將回傳ID寫列+0	C陣列取代索引容器
+SceneEntryRow（類別名待確認）	+0x0	CIDTable配置的列ID；初值-1	待入口對照表
+SceneEntryRow（類別名待確認）	+0x4	入口配置容量（文字表欄數減1，非實際成對填入數）	待入口對照表
+SceneEntryRow（類別名待確認）	+0x8	場景名，128-byte緩衝區	待入口對照表
+SceneEntryRow（類別名待確認）	+0x88	入口名稱指標陣列；每個配置128 bytes，首byte為0即停止查找	待入口對照表
+SceneEntryRow（類別名待確認）	+0x8c	入口ID陣列；取出後設0xffff表示已消耗	待入口對照表
+SceneResources（類別名待確認）	+0x104	MapPath下的地圖檔名	Scene地圖來源（完整原版載入待接）
+SceneResources（類別名待確認）	+0x204	ObjinitPath下的建築初始化檔名	待建築初始化載入
+SceneResources（類別名待確認）	+0x304	ObjinitPath下的人物／道具初始化檔名	待CInitObjMng載入
+SceneResources（類別名待確認）	+0x16e4	內嵌管理器；綁至DAT_00662c88	待原版場景管理器生命週期
+SceneResources（類別名待確認）	+0x18a0	內嵌管理器；綁至DAT_00662c8c	待原版場景管理器生命週期
+SceneResources（類別名待確認）	+0xd5a8	0x3fff個6-byte槽起點；前2 bytes及後4 bytes建構時清零；綁至DAT_00662c90	待原版場景物件索引
+SceneResources（類別名待確認）	+0x255b2	內嵌管理器；綁至DAT_00662c94	待原版場景管理器生命週期
+SceneResources（類別名待確認）	+0x255da	內嵌管理器；綁至DAT_00662c98	待原版場景管理器生命週期
