@@ -6,6 +6,7 @@
     <title>FORA 生理量測系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
     <link rel="manifest" id="dynamic-manifest">
     <style>
         @keyframes flashUpdate { 0%{background-color:#bfdbfe;transform:scale(1.02)}100%{background-color:transparent;transform:scale(1)} }
@@ -559,6 +560,18 @@ const CONFIG = {
         photo_output: 'photo_output',
         photo_wound: 'photo_wound',
         photo_wound_part: 'photo_wound_part',
+        // AI 判讀結果（預留接口：醫院 API 規格確定後改右邊的 key 名稱）
+        ai_intake: 'ai_intake',
+        ai_output: 'ai_output',
+        ai_wound: 'ai_wound',
+    },
+    // 拍照 AI 判讀：照片經 MQTT 送到家用電腦／叢集上的 ai_worker.py，結果從 MQTT 傳回。說明見 AI_README.md
+    AI: {
+        MQTT_URL: 'wss://mqtt.example.com',  // 自架 mosquitto 的 WebSocket 位址（網頁是 https 所以要 wss）
+        USERNAME: 'fora-web',
+        PASSWORD: 'change-me',
+        TOPIC: 'fora/ai',                     // 請求送 fora/ai/req/{單號}，結果回 fora/ai/res/{單號}
+        TIMEOUT_MS: 60000,
     },
 };
 document.getElementById('location-input').value = CONFIG.DEFAULT_LOCATION;
@@ -586,6 +599,7 @@ function fmtMP(w,h){if(!w||!h)return'--';const wan=Math.round(w*h/10000);return`
 
 function setMeas(key,val){meas[key]=val;uploadTime=fmtUploadTime(new Date());refreshBar();}
 
+function aiText(t){const r=photoRec(t);return r&&r.ai&&r.ai.status==='done'?r.ai.text:null;}
 function hasAnyPhoto(){return!!(photos.intake||photos.output||photos.wound.dataUrl);}
 function hasAnyMeasure(){return Object.entries(meas).some(([k,v])=>k!=='tempUnit'&&v!==null)||hasAnyPhoto();}
 function refreshBar(){
@@ -690,9 +704,12 @@ document.getElementById('wound-part-input').addEventListener('input',e=>{
 
 // ── Photo Capture (攝入 / 排出 / 傷口) ──
 const PHOTO_TITLES={intake:'拍攝攝入照片',output:'拍攝排出照片',wound:'拍攝傷口照片'};
+function photoRec(target){return target==='wound'?(photos.wound.dataUrl?photos.wound:null):photos[target];}
+// 有新照片就自動送 AI 判讀（一步到位，不另設按鈕）
+function setPhoto(target,rec){if(target==='wound')Object.assign(photos.wound,{dataUrl:null,time:null,width:null,height:null,ai:null},rec);else photos[target]=rec;if(rec&&rec.dataUrl)runAi(target);}
 function renderPhotoFrame(target){
     const el=document.getElementById(`photoframe-${target}`);
-    const rec=target==='wound'?(photos.wound.dataUrl?photos.wound:null):photos[target];
+    const rec=photoRec(target);
     const disabled=target==='wound'&&!photos.wound.part;
     if(rec){
         el.innerHTML=`
@@ -704,7 +721,8 @@ function renderPhotoFrame(target){
                 <button data-photo-action="retake" data-target="${target}" class="flex-1 bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-xl">重新拍攝</button>
                 <button data-photo-action="upload" data-target="${target}" class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm font-semibold py-2.5 rounded-xl">拍照/選照片（原生畫質）</button>
                 <button data-photo-action="delete" data-target="${target}" class="flex-1 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold py-2.5 rounded-xl">刪除</button>
-            </div>`;
+            </div>
+            ${aiBlock(target,rec.ai)}`;
     }else{
         el.innerHTML=`
             <div class="flex flex-col gap-2">
@@ -727,7 +745,7 @@ document.getElementById('tab-photo').addEventListener('click',e=>{
         photoUploadTarget=target;
         document.getElementById('photo-file-input').click();
     }else if(action==='delete'){
-        if(target==='wound'){photos.wound.dataUrl=null;photos.wound.time=null;photos.wound.width=null;photos.wound.height=null;}else{photos[target]=null;}
+        setPhoto(target,target==='wound'?{}:null);
         renderPhotoFrame(target);
         refreshBar();
         showToast('照片已刪除','info');
@@ -745,8 +763,7 @@ document.getElementById('photo-file-input').addEventListener('change',e=>{
         const img=new Image();
         img.onload=()=>{
             const dataUrl=reader.result,time=fmtDisplayTime(new Date()),width=img.naturalWidth,height=img.naturalHeight;
-            if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;photos.wound.width=width;photos.wound.height=height;}
-            else{photos[target]={dataUrl,time,width,height};}
+            setPhoto(target,{dataUrl,time,width,height});
             log(`已取得照片：${target}（${fmtMP(width,height)}）`,'success');
             showToast('照片已取得','success');
             renderPhotoFrame(target);
@@ -800,8 +817,7 @@ document.getElementById('btn-shutter').addEventListener('click',()=>{
     canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
     const dataUrl=canvas.toDataURL('image/jpeg',0.92);
     const time=fmtDisplayTime(new Date()),width=canvas.width,height=canvas.height;
-    if(target==='wound'){photos.wound.dataUrl=dataUrl;photos.wound.time=time;photos.wound.width=width;photos.wound.height=height;}
-    else{photos[target]={dataUrl,time,width,height};}
+    setPhoto(target,{dataUrl,time,width,height});
     log(`已拍攝照片：${target}（${fmtMP(width,height)}）`,'success');
     showToast('拍照成功','success');
     closePhotoCamera();
@@ -810,6 +826,70 @@ document.getElementById('btn-shutter').addEventListener('click',()=>{
 });
 
 ['intake','output','wound'].forEach(renderPhotoFrame);
+
+// ── 拍照 AI 判讀（MQTT） ──
+function aiBlock(target,ai){
+    if(!ai) return '';
+    if(ai.status==='pending') return `<div class="mt-2 rounded-xl bg-indigo-50 text-indigo-700 text-sm px-4 py-3"><span class="spin" style="border-color:rgba(79,70,229,.25);border-top-color:#4f46e5"></span> AI 判讀中…</div>`;
+    const err=ai.status==='error';
+    const esc=v=>{const d=document.createElement('div');d.textContent=v;return d.innerHTML;};  // 模型輸出當純文字顯示
+    return `<div class="mt-2 rounded-xl ${err?'bg-red-50 text-red-700':'bg-indigo-50 text-slate-700'} text-sm px-4 py-3">
+        <p class="text-xs font-semibold ${err?'':'text-indigo-700'} mb-1">${err?'AI 判讀失敗（照片仍可正常上傳）':`AI 判讀結果${ai.model?`（${esc(ai.model)}）`:''}`}</p>
+        <p class="whitespace-pre-wrap">${esc(ai.text)}</p>
+        ${err?'':'<p class="text-xs text-slate-400 mt-2">AI 結果僅供參考，請以專業判斷為準</p>'}
+    </div>`;
+}
+// 縮到長邊 1024px 再送，判讀夠用，MQTT 訊息也小
+function shrinkPhoto(dataUrl,max=1024){
+    return new Promise((ok,fail)=>{
+        const img=new Image();
+        img.onload=()=>{
+            const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+            const c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);
+            c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+            ok(c.toDataURL('image/jpeg',0.85).split(',')[1]);
+        };
+        img.onerror=()=>fail(new Error('照片讀取失敗'));
+        img.src=dataUrl;
+    });
+}
+let aiClient=null;
+function aiConnect(){
+    if(aiClient) return aiClient;
+    const A=CONFIG.AI;
+    aiClient=mqtt.connect(A.MQTT_URL,{username:A.USERNAME,password:A.PASSWORD,reconnectPeriod:5000,connectTimeout:10000});
+    aiClient.on('connect',()=>log('AI 主機連線成功（MQTT）','success'));
+    aiClient.on('error',e=>log(`AI 主機連線錯誤：${e.message}`,'error'));
+    return aiClient;
+}
+async function runAi(target){
+    const rec=photoRec(target);
+    if(!rec||rec.ai?.status==='pending') return;
+    if(typeof mqtt==='undefined'){showToast('MQTT 元件載入失敗，請檢查網路','error');return;}
+    const url=rec.dataUrl;
+    const done=(ai)=>{const cur=photoRec(target);if(!cur||cur.dataUrl!==url)return; cur.ai=ai; renderPhotoFrame(target);};  // 照片已重拍或刪除就丟掉舊結果
+    done({status:'pending'});
+    let image;
+    try{image=await shrinkPhoto(rec.dataUrl);}catch(e){done({status:'error',text:e.message});return;}
+    const A=CONFIG.AI,client=aiConnect();
+    const id=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()).replace(/-/g,'');
+    const resTopic=`${A.TOPIC}/res/${id}`;
+    const finish=(ai)=>{clearTimeout(timer);client.removeListener('message',onMsg);client.unsubscribe(resTopic);done(ai);if(ai.status==='done')refreshBar();};
+    const timer=setTimeout(()=>{log(`AI 判讀逾時：${target}`,'error');finish({status:'error',text:'AI 主機沒有回應（可能離線）'});},A.TIMEOUT_MS);
+    const onMsg=(topic,buf)=>{
+        if(topic!==resTopic) return;
+        let r;try{r=JSON.parse(buf.toString());}catch(e){r={error:'回傳格式錯誤'};}
+        if(r.error){log(`AI 判讀失敗：${r.error}`,'error');finish({status:'error',text:String(r.error)});}
+        else{log(`AI 判讀完成：${target}`,'success');finish({status:'done',text:String(r.text||''),model:r.model||''});}
+    };
+    client.on('message',onMsg);
+    // 不送病歷號，只送隨機單號、照片類型、傷口部位
+    client.subscribe(resTopic,{qos:1},err=>{
+        if(err){finish({status:'error',text:`訂閱失敗：${err.message}`});return;}
+        client.publish(`${A.TOPIC}/req/${id}`,JSON.stringify({id,type:target,part:target==='wound'?photos.wound.part:null,image}),{qos:1});
+        log(`已送出 AI 判讀：${target}（單號 ${id.slice(0,8)}）`,'info');
+    });
+}
 
 // ── Supplemental Toggle ──
 document.getElementById('btn-toggle-supp').addEventListener('click',()=>{
@@ -1156,6 +1236,7 @@ document.getElementById('btn-upload').addEventListener('click',()=>{
     if(photos.intake) photoRows.push('📷 攝入照片');
     if(photos.output) photoRows.push('📷 排出照片');
     if(photos.wound.dataUrl) photoRows.push(`📷 傷口照片 (${photos.wound.part||''})`);
+    ['intake','output','wound'].forEach(t=>{if(aiText(t))photoRows.push(`🤖 ${PHOTO_TITLES[t].slice(2,4)} AI 判讀`);});
     document.getElementById('preview-rows').innerHTML=
         LABELS.filter(([k])=>meas[k]!=null).map(([k,label,fmt])=>`<div class="prev-row"><span class="text-sm text-slate-500">${label}</span><span class="text-sm font-semibold text-slate-800">${fmt(meas[k])}</span></div>`).join('')
         +photoRows.map(label=>`<div class="prev-row"><span class="text-sm text-slate-500">${label}</span><span class="text-sm font-semibold text-slate-800">已附加</span></div>`).join('');
@@ -1192,6 +1273,9 @@ document.getElementById('btn-modal-confirm').addEventListener('click',async()=>{
         [F.photo_output]:photos.output?photos.output.dataUrl:null,
         [F.photo_wound]:photos.wound.dataUrl,
         [F.photo_wound_part]:photos.wound.part,
+        [F.ai_intake]:aiText('intake'),
+        [F.ai_output]:aiText('output'),
+        [F.ai_wound]:aiText('wound'),
     };
     const histMeta={hasPhotoIntake:!!photos.intake,hasPhotoOutput:!!photos.output,hasPhotoWound:!!photos.wound.dataUrl,woundPart:photos.wound.part};
     isUploading=true;
