@@ -646,7 +646,7 @@ CCharactor	+0x87	上次套用的目標動畫序列	待CCharactor動畫同步
 CCharactor	+0x8b	目標動畫序列（方向為帶符號餘數）	Actor.animation_target／actor_animation_select
 CCharactor	+0xa3	目前目標物件句柄，0無目標	Actor.foe（指標取代句柄）
 CCharactor	+0xa7	原版動畫方向，指定序列時取帶符號餘數	Actor.animation_dir；現有面向以Actor.dir／DIR_MAP橋接
-CCharactor	+0xaf	當前移速的A參數；0時不能使用距離大於等於3的技能	Actor.speed及SPEED_A；完整速度套用待移植
+CCharactor	+0xaf	當前移速的A參數；0時不能使用距離大於等於3的技能	Actor.move_a／actor_move_speed；技能速度限制讀取仍待完整動態狀態接齊
 CCharactor	+0x2cf	角色模板指標	Actor.def
 CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減半	Actor.speed_threshold
 CCharactor	+0x339	AI組（0..99玩家、10000..60000 NPC組）	Actor.grp
@@ -758,3 +758,8 @@ RoleMdl	+0x64	跑步序列，第10欄第二個整數，缺項65535	RoleDef.run_s
 RoleMdl	+0x68	戰鬥休息序列，第9欄	RoleDef.fight_idle
 RoleMdl	+0x6c	挨打序列，第11欄，缺項65535	RoleDef.hit
 RoleMdl	+0xa4	死亡／擊退序列，第14欄，缺項65535；擊退超出模型序列數時用戰鬥休息	RoleDef.death
+CDynamicObj	+0xab	當前移速B參數（每B拍移動A及C/10）	Actor.move_b
+CDynamicObj	+0xaf	當前移速A參數；動畫比例只取A/B，不含C	Actor.move_a
+CDynamicObj	+0xb3	當前移速C參數（十分之一像素）	Actor.move_c
+CDynamicObj	+0xb7	移動A倒數，套速度時重設為A	Actor.move_remaining（移動消費仍待完整動態更新）
+SpriteSequence	+0x14	序列幀延遲調整，普通／戰鬥走路八方向按移速比例覆寫	Actor.walk_delay_adjust（不改共用Role資源）

@@ -235,6 +235,7 @@ typedef struct Actor {
     int dir, moving, speed;
     int fight_speed, speed_override, speed_threshold, dynamic_state;
     int animation_target, animation_dir;
+    int move_a, move_b, move_c, move_remaining, walk_delay_adjust;
     int view_link_type; // 關聯模型 +0x2c；type2/3 繪圖時世界 X/Y 暫加128
     int idle, walk, fidle, fwalk;  // 動作起點序列（角色表「平時/戰鬥」的休息與走路）
     Uint32 act_tick;  // 目前動作已經過幾拍（換動作時歸零）
@@ -411,7 +412,26 @@ static int actor_frame(const Actor *a, int seq) {
     const Seq *q = role_seq(a->role, seq);
     if (!q) return 0;
     if (a->act) return a->act_frame < q->count ? a->act_frame : q->count - 1;
-    return frame_at(q, a->act_tick);
+    int adjust = 0;
+    if (a->def && ((a->def->walk != 65535 && seq >= a->def->walk && seq < a->def->walk + 8) ||
+                   (a->def->fight_walk != 65535 && seq >= a->def->fight_walk && seq < a->def->fight_walk + 8)))
+        adjust = a->walk_delay_adjust;
+    if (!adjust) return frame_at(q, a->act_tick);
+    // shortcut: 延遲下限沿用現有播放器的1拍；完整Gfx播放器接入時核對。
+    Uint32 total = 0;
+    for (int i = 0; i < q->count; i++) {
+        int d = q->frames[i].delay + adjust;
+        total += d > 0 ? d : 1;
+    }
+    if (!total) return 0;
+    Uint32 t = a->act_tick % total;
+    for (int i = 0; i < q->count; i++) {
+        int d = q->frames[i].delay + adjust;
+        Uint32 stay = d > 0 ? d : 1;
+        if (t < stay) return i;
+        t -= stay;
+    }
+    return 0;
 }
 
 // 身上狀態的效果動畫（RoleEffectMdl.txt 头上／身上／脚下效果 → Poq.exe 0x48ebd0 的三個位置），循環播
@@ -495,6 +515,42 @@ static int actor_speed(const Actor *a) {
     return a->speed_threshold < 101 ? v : v / 2;
 }
 
+// 只在查表端夾限，不改速度getter的結果；三參數表共用原版資料。
+static int speed_index(int speed) { return speed < 0 ? 0 : speed > 59 ? 59 : speed; }
+
+static int movement_delay_adjust(float ratio) {
+    if (ratio == 1.0f) return 0;
+    if (!(ratio <= 5.0f)) return -5;
+    if (ratio > 4.0f) return -4;
+    if (ratio > 3.0f) return -3;
+    if (ratio > 2.0f) return -2;
+    if (ratio > 1.5f) return -1;
+    if ((double)ratio < 0.3) return 7;
+    if (ratio < 0.5f) return 5;
+    return (double)ratio < 0.7 ? 3 : 1;
+}
+
+// 動態物件移速套用：基準比值只用A/B，不把C的小數移動量算進動畫速率。
+// shortcut: 狀態切換沿用現有dynamic_state／moving；完整狀態轉接接入時補虛擬退出入口。
+// 每個Actor保存調整量，避免修改共用Role資源而讓同模型的其他角色一起加速。
+static void actor_move_speed(Actor *a, int speed) {
+    if (speed < 1 && a->dynamic_state == 11) {
+        a->dynamic_state = 1;
+        a->moving = 0;
+        a->print_x = a->print_y = -100;
+    }
+    int base = speed_index(a->speed), index = speed_index(speed);
+    a->move_a = SPEED_A[index];
+    a->move_b = SPEED_B[index];
+    a->move_c = SPEED_C[index];
+    float ratio = ((float)a->move_a / a->move_b) / ((float)SPEED_A[base] / SPEED_B[base]);
+    a->walk_delay_adjust = movement_delay_adjust(ratio);
+    a->move_remaining = a->move_a;
+}
+
+// Poq.exe 0x48b2d0：角色有效速度getter交給動態物件套用。
+static void actor_speed_update(Actor *a) { actor_move_speed(a, actor_speed(a)); }
+
 static int actor_can_move(const Actor *a);
 
 // 一拍的角色更新：往畫面方向 (mx, my) 走；原版每 B 拍移動 A + C/10 像素（速度對照表）
@@ -503,10 +559,9 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
     a->moving = 0;
     // shortcut: 現有移動迴圈承接平常／移動狀態，跳躍等完整動態狀態仍待移植。
     a->dynamic_state = mx * mx + my * my > 0.01f ? 11 : 1;
+    actor_speed_update(a);
     if (mx * mx + my * my > 0.01f && actor_can_move(a)) {
-        int sp = actor_speed(a);
-        sp = sp < 0 ? 0 : sp > 59 ? 59 : sp;
-        float px = tick % SPEED_B[sp] ? 0 : SPEED_A[sp] + SPEED_C[sp] / 10.0f;
+        float px = tick % a->move_b ? 0 : a->move_a + a->move_c / 10.0f;
         actor_step(a, s, mx, my, px);
     }
     a->animation_dir = DIR_MAP[a->dir];
@@ -647,6 +702,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     a->fwalk = d->fight_walk ? d->fight_walk : d->walk;
     a->speed = d->speed;
     a->fight_speed = d->fight_speed;
+    actor_speed_update(a);
     // 模板的ffff表示不覆寫，並非清除；-1及0則照值寫入。
     // shortcut: 模板入口的狀態103、層重定位及縮放尚未接齊，此段不代表完整模板初始化。
     for (int i = 0; i < 4; i++)
@@ -1551,7 +1607,8 @@ static int react_tick(Actor *a, const Scene *s) {
     if (a->knock) {
         float gx = a->knock_x - a->x, gy = a->knock_y - a->y;
         float x = a->x, y = a->y;
-        if (gx * gx + gy * gy >= 0.04f) actor_step(a, s, (gx - gy) * 32, (gx + gy) * 16, SPEED_A[20] + SPEED_C[20] / 10.0f);  // 0x1f 用速度 20（0x496ae0）
+        actor_move_speed(a, 20);
+        if (gx * gx + gy * gy >= 0.04f) actor_step(a, s, (gx - gy) * 32, (gx + gy) * 16, a->move_a + a->move_c / 10.0f);
         if (a->x == x && a->y == y) a->knock = 0;  // 到了或撞牆
     }
     if (a->stun > 0) a->stun--;
@@ -1754,9 +1811,9 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     // shortcut: 衝刺／跳躍用平常走路的速度逐拍移過去；原版跳躍（0x16）另有高度（速度/2 起跳、每拍 +4，0x496550），還沒畫高度
     if (a->dash) {
         float gx = a->dash_x - a->x, gy = a->dash_y - a->y;
-        int sp = actor_speed(a);
+        actor_speed_update(a);
         if (gx * gx + gy * gy < 0.04f || a->act != ACT_ATTACK) a->dash = 0;
-        else if (tick % SPEED_B[sp] == 0) actor_step(a, s, (gx - gy) * 32, (gx + gy) * 16, SPEED_A[sp] + SPEED_C[sp] / 10.0f);
+        else if (tick % a->move_b == 0) actor_step(a, s, (gx - gy) * 32, (gx + gy) * 16, a->move_a + a->move_c / 10.0f);
     }
     a->last_frame = f;
     a->act_tick++;

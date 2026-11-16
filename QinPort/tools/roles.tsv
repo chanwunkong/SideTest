@@ -722,7 +722,7 @@
 0048af30	依外部識別刪第一個SkillUnit，清目前選取但不清目標／左右手ID；actor_skill_remove接模板與主角技能重建
 0048afc0	重設行為：清關聯／目標／MethodMain／命令／冷卻／位置快取，重設高度、光源及動態狀態；未完成
 0048b160	虛擬旗標設置入口清除指定mask；actor_clear_flags接type8招式觸發
-0048b2d0	重算有效速度並交動態物件套移速及動畫節奏；未完成
+0048b2d0	actor_speed_update：有效速度getter交actor_move_speed，接模板建立、一般移動與衝刺；底層完整動態狀態退出仍獨立todo
 0048b6c0	角色頭頂文字：持續拍數=min(strlen(text)*10+16,255)；未完成，同類別文字槽及繪製尚須續做
 0048b710	8槽頭頂／上飄文字配置與200x100文字表面產生；普通文字覆寫槽0，上飄找空或第一個上飄槽；未完成
 0048b9e0	near.c actor_near_begin：保存模式，僅半徑-1用索敵值及高層+8，半徑<1不重設底層游標；接monster_think取代全陣列最近目標，篩選續入口仍todo
@@ -781,3 +781,5 @@
 00496530	actor_size_set：只保存動態占位大小，接actor_setup按模板size<7取1否則減5；位置重定位仍屬模板入口todo
 0048b2f0	todo：完整128狀態重算，逆序套表的旗標、光環、縮放及覆色仍缺；現有status_speed僅速度子集，移除舊註解誤判done
 0048ec60	todo：完整20項修正值／期限設置及第1/3/5/6修正副作用；現有Buff不等同修正表，移除unit_spawn的shortcut位址造成誤判done
+00496ae0	actor_move_speed已補A/B/C、A倒數初值、原版浮點比例11段及每Actor走路延遲，接移動／衝刺／擊退；完整動態狀態退出虛擬入口仍todo，移除舊擊退註解誤標done
+004c9050	移速工具：速度夾限0..59後輸出A/B與可選C，以C靜態陣列及speed_index承接

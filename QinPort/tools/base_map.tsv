@@ -210,3 +210,4 @@ OmUtil::GetFleePos	air_run使用既有dir_of與move_dir；核對OmUtil.dll匯出
 0049f950	表格欄位以*切分整數陣列，缺項65535；以res.c直接解析欄位取代CStringList暫存
 004a19d0	30槽鏈結容器重設索引與計數；以C陣列及數量初始化取代
 004a23e0	30槽鏈結容器RemoveAt；以C陣列刪除／數量取代
+004c9050	移動速度工具：索引夾限0..59後取A／B及可選C；以speed_index與共用SPEED_A／SPEED_B／SPEED_C陣列取代

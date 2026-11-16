@@ -476,6 +476,45 @@ static void character_animation_select_test(void) {
     assert(actor_seq(&a) == 64 + DIR_MAP[0]);
 }
 
+static void character_movement_speed_test(void) {
+    // 原版浮點常數直接從Poq的唯讀區核對；1.0是唯一回0的比值。
+    static const struct { float ratio; int delay; } cases[] = {
+        {0,7}, {.299f,7}, {.3f,5}, {.499f,5}, {.5f,3}, {.699f,3}, {.7f,3},
+        {.701f,1}, {.999f,1}, {1,0}, {1.001f,1}, {1.5f,1}, {1.501f,-1},
+        {2,-1}, {2.001f,-2}, {3,-2}, {3.001f,-3}, {4,-3}, {4.001f,-4},
+        {5,-4}, {5.001f,-5}, {INFINITY,-5}, {NAN,-5}
+    };
+    for (unsigned i = 0; i < sizeof cases / sizeof *cases; i++)
+        assert(movement_delay_adjust(cases[i].ratio) == cases[i].delay);
+    Actor a = {.speed = 5, .fight_speed = 11, .dynamic_state = 11, .moving = 1};
+    actor_speed_update(&a);
+    assert(a.move_a == 1 && a.move_b == 1 && a.move_c == 7 && a.move_remaining == 1);
+    assert(a.walk_delay_adjust == 0 && a.dynamic_state == 11);
+    a.fight = 1; actor_speed_update(&a);
+    assert(a.move_a == 3 && a.walk_delay_adjust == -2);
+    a.speed_override = 1; actor_speed_update(&a);
+    assert(a.move_a == 0 && a.move_b == 90 && a.walk_delay_adjust == 7);
+    assert(a.dynamic_state == 1 && !a.moving && a.print_x == -100 && a.print_y == -100);
+    // 查表可夾限，getter本身保留範圍外值。
+    a.speed_override = 101; actor_speed_update(&a);
+    assert(actor_speed(&a) == 100 && a.move_a == 19 && a.move_c == 7);
+    actor_move_speed(&a, -10); assert(a.move_a == 0 && a.move_b == 90);
+    a.speed = 0; actor_move_speed(&a, 0); assert(a.walk_delay_adjust == -5); // 0/0的NaN走原版末分支。
+    actor_move_speed(&a, 5); assert(a.walk_delay_adjust == -5); // 基準0，非零/0。
+    a.speed = 2; actor_move_speed(&a, 2); assert(a.walk_delay_adjust == -5); // 小數C不參與比例，仍為0/0。
+    // 同一Role的兩個角色可有不同延遲，不能改共用幀資料。
+    Frame frames[] = {{.delay = 5}, {.delay = 5}};
+    Seq seq[] = {{.count = 2, .frames = frames}, {.count = 2, .frames = frames}};
+    Anim anim = {.count = 2, .seqs = seq};
+    Role role = {.part_count = 1, .seq_count = 2, .body = {&anim}};
+    RoleDef d = {.walk = 1, .fight_walk = 65535};
+    Actor slow = {.role = &role, .def = &d, .act_tick = 4, .walk_delay_adjust = 3};
+    Actor fast = slow; fast.walk_delay_adjust = -2;
+    assert(actor_frame(&slow, 1) == 0 && actor_frame(&fast, 1) == 1);
+    assert(actor_frame(&fast, 0) == 0 && frames[0].delay == 5);
+    fast.walk_delay_adjust = -5; assert(actor_frame(&fast, 1) == 0); // 4 mod 2。
+}
+
 static void character_speed_memory_test(void) {
     Actor a = {.speed = 7, .fight_speed = 11, .dynamic_state = 1};
     assert(actor_speed(&a) == 7);
@@ -980,6 +1019,7 @@ int main(void) {
     character_skills_test();
     character_skill_runtime_test();
     character_template_candidates_test();
+    character_movement_speed_test();
     character_speed_memory_test();
     character_animation_select_test();
     character_near_test();
