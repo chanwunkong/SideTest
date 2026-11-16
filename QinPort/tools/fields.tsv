@@ -688,7 +688,7 @@ CCharactor	+0x4ef	四個候選技能ID的第一項，後續+0x4f3/+0x4f7/+0x4fb	
 CCharactor	+0x4ff	右手技能ID	Actor.right_id
 CCharactor	+0x503	左手技能ID	Actor.left_id
 CCharactor	+0x507	生命百分比，初值100，少於20／50設第3修正3／1	Actor.hp/hp_max；完整分段副作用待移植
-CCharactor	+0x513	屬性byte的獨立寫入入口	待確認語意
+CCharactor	+0x513	#UPDWTYPE／0x52a更新的武器種類byte，僅存低8位	Actor.weapon_type／actor_weapon_type_set
 CCharactor	+0x51c	模式，值2觸發移動第6修正	待角色行為模式
 CCharactor	+0x524	目前縮放量，逐拍往第4修正值移1	待角色縮放
 CCharactor	+0x528	死亡模式byte	待角色移除
@@ -778,3 +778,10 @@ CCharactor	+0x551	B_C_HXYJ會心一擊百分比，不夾限	Actor.ex[73]
 CCharactor	+0x555	B_C_JDR打擊率，不夾限	Actor.ex[74]
 CDynamicObj	+0x3ed	上次動態狀態進入時的全域拍數	todo：動態命令快取
 CDynamicObj	+0x3f1	目的地／尋路嘗試結果；NPC15拍內、其他50拍內可重用	todo：動態命令快取
+
+CSprGroupillusion	+0x18	殘影30槽容器指標；首次建立後不覆寫參數、釋放後清NULL	待殘影基礎
+CIllusionList（殘影30槽）	+0x1f8	繪製第一個殘影的混色起值	待殘影基礎
+CIllusionList（殘影30槽）	+0x1fc	殘影步數=(終值-起值)/步長，整數除法	待殘影基礎
+CIllusionList（殘影30槽）	+0x200	每次繪製的混色遞增步長	待殘影基礎
+CIllusionList（殘影30槽）	+0x208	重複旗標；非零時按30槽容量計算採樣間隔	待殘影基礎
+CIllusionList（殘影30槽）	+0x20c	採樣間隔：非重複1，重複30/步數+1；繪圖跳過不足間隔的尾項	待殘影基礎

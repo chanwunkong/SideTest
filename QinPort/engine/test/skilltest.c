@@ -57,6 +57,31 @@ static void character_lookup_test(void) {
     actors[0] = saved[0]; actors[1] = saved[1]; actor_count = count;
 }
 
+static void character_weapon_type_test(void) {
+    Actor a = {.flags = 0x10400, .selected = 3, .right_id = 27, .left_id = 42,
+               .act = ACT_ATTACK, .act_frame = 7, .weapon_type = 9};
+    a.command[0] = 8;
+    a.remembered[0] = 2;
+    Actor expected = a;
+    const int values[] = {0, 1, 255, 256, 257, -1, -256, -257};
+    for (unsigned i = 0; i < sizeof values / sizeof *values; i++) {
+        actor_weapon_type_set(&a, values[i]);
+        expected.weapon_type = (unsigned char)values[i];
+        assert(!memcmp(&a, &expected, sizeof a));
+    }
+    actor_attribute_changed(&a, "W_Type", 258);
+    expected.weapon_type = 2;
+    assert(!memcmp(&a, &expected, sizeof a));
+    actor_attribute_changed(&a, "W_TYPE", 10);
+    actor_attribute_changed(&a, "W_Type_extra", 10);
+    // 原八鍵入口不擴充；單機通知層才把武器種類交給獨立setter。
+    actor_property(&a, "W_Type", 10);
+    assert(!memcmp(&a, &expected, sizeof a));
+    actor_attribute_changed(&a, "B_C_MOVE_SPEED", 150);
+    expected.ex[64] = 150;
+    assert(!memcmp(&a, &expected, sizeof a));
+}
+
 static void character_core_test(void) {
     RoleDef d = {.seek = 7, .chase = 15};
     Actor target = {0};
@@ -1174,6 +1199,7 @@ int main(void) {
     bird_test();
     character_lookup_test();
     character_core_test();
+    character_weapon_type_test();
     character_skills_test();
     character_skill_runtime_test();
     character_skill_index_test();

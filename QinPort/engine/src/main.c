@@ -289,7 +289,11 @@ typedef struct Actor {
     int aim_valid, aim_x, aim_y, aim_range;
     struct Actor *aim_actor; // 本次施法的明確對象；地點施法不能沿用上一次foe
     unsigned char layer;           // +0x66；目前角色建立入口使用地面層1
+    unsigned char weapon_type;     // +0x513；更新入口只保存byte，不改技能或外觀
 } Actor;
+
+// Poq.exe 0x48fd30：保留低8位；不重選招式、不取消動作，也不重載紙娃娃。
+static void actor_weapon_type_set(Actor *a, int value) { a->weapon_type = (unsigned char)value; }
 
 // Poq.exe 0x48e8d0：只清目標，不能順便取消移動、技能或目前動作。
 static void actor_clear_target(Actor *a) { a->foe = NULL; }
@@ -404,16 +408,23 @@ static void actor_property(Actor *a, const char *name, int value) {
     }
 }
 
+// 單機EasyRPG的@屬性通知交回各個原版入口，八鍵屬性分派仍保持精確比對。
+// shortcut: @W_Type直接交給byte setter；完整場景通知分派接入後改由武器更新訊息送入。
+static inline void actor_attribute_changed(Actor *a, const char *name, int value) {
+    if (!strcmp(name, "W_Type")) actor_weapon_type_set(a, value);
+    else actor_property(a, name, value);
+}
+
 // EasyRPG重算完的原始值交回角色屬性入口；裝備、技能、出生共用這條路徑。
 static void actor_properties_update(Actor *a) {
-    actor_property(a, "B_C_MOVE_SPEED", a->ex[64]);
-    actor_property(a, "B_C_FIGHT_SPEED", a->ex[65]);
-    actor_property(a, "B_C_SRANGE", a->ex[67]);
-    actor_property(a, "B_C_VRANGE", a->ex[66]);
-    actor_property(a, "B_C_ZMYJ", a->ex[72]);
-    actor_property(a, "B_C_HXYJ", a->ex[73]);
-    actor_property(a, "B_C_JDR", a->ex[74]);
-    actor_property(a, "B_C_DJHF", a->ex[75]);
+    actor_attribute_changed(a, "B_C_MOVE_SPEED", a->ex[64]);
+    actor_attribute_changed(a, "B_C_FIGHT_SPEED", a->ex[65]);
+    actor_attribute_changed(a, "B_C_SRANGE", a->ex[67]);
+    actor_attribute_changed(a, "B_C_VRANGE", a->ex[66]);
+    actor_attribute_changed(a, "B_C_ZMYJ", a->ex[72]);
+    actor_attribute_changed(a, "B_C_HXYJ", a->ex[73]);
+    actor_attribute_changed(a, "B_C_JDR", a->ex[74]);
+    actor_attribute_changed(a, "B_C_DJHF", a->ex[75]);
 }
 
 // 角色某序列的節奏：各部件的幀延遲相同，拿第一個有資料的部件
@@ -3519,6 +3530,7 @@ static void story_msgs(void) {
             if (m->v[1] == sroom || (a && a != &actors[0])) actors_dirty = 1;
             break;
         case 0x535: if (a) a->ex[20] = (int)m->v[1]; break;                 // Invincible
+        case 0x52a: if (a) actor_weapon_type_set(a, (int)m->v[1]); break;
         case 0x51c:  // G_AIGroup
             a = character_of((int)m->v[0]);
             if (a) actor_group(a, (int)m->v[1]);
@@ -3528,7 +3540,7 @@ static void story_msgs(void) {
         case 0x42aa0: if (a && a != &actors[0]) a->hp = story_get_int(a->sh, "HP"); break;
         case 0x52e: story_plot_end(); break;  // shortcut: 過場播放器還沒做（清單 D），先直接結束（第 18 格）
         case 0x47870:
-            if (a && m->s[0] == '@') actor_property(a, m->s + 1, story_get_int(a->sh, m->s + 1));
+            if (a && m->s[0] == '@') actor_attribute_changed(a, m->s + 1, story_get_int(a->sh, m->s + 1));
             break;
         case 0x52c: case 0x51b: case 0x519: break;  // 出口開關（走出口時再查）、NPC 頭上標記、轉向
         default: fprintf(stderr, "劇情訊息 0x%x（%s）還沒做\n", m->id, m->s); break;

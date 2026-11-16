@@ -868,7 +868,7 @@ Poq.exe	99	004770a0	FUN_004770a0		game	done	9	2		通用物件編號查找轉接�
 Poq.exe	99	004770c0	FUN_004770c0		game	skip	61	0	依目的地識別值重建操控角色、設Default並綁定客戶端；無呼叫者	依目的地識別值重建操控角色、設Default並綁定客戶端；無呼叫者	00497bb0 00497d00
 Poq.exe	99	00477270	FUN_00477270		game	skip	63	0	跨場景按目的地重建操控角色、設Default並重綁；無呼叫者	跨場景按目的地重建操控角色、設Default並重綁；無呼叫者	00497bb0 00497d00
 Poq.exe	99	00477430	FUN_00477430		game	skip	30	0	接收第二byte為0xf0的角色命令並更新同步；無呼叫者	接收第二byte為0xf0的角色命令並更新同步；無呼叫者	00467620
-Poq.exe	99	004774d0	FUN_004774d0		game	todo	2110	3		todo：#文字命令及$劇情命令分派；等SceneResources初始化／切換、CCharactor屬性技能與動作、CDynamicObj及CTriBld業務；不可整段當純連線略過	0044e380 00450f70 004590f0 00465cf0 00467620 0046bc10 00474270 00474b30 00475270 004764c0 00486910 0048d810 0048d8f0 0048d950 0048ec60 0048fae0 0048fd30 00494f50 004963e0 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 004bcbc0 004bd270 004dee00 004deec0 00578790 00579dd0
+Poq.exe	99	004774d0	FUN_004774d0		game	todo	2110	3		todo：#文字命令及$劇情命令分派；等SceneResources初始化／切換、CCharactor屬性技能與動作、CDynamicObj及CTriBld業務；不可整段當純連線略過	0044e380 00450f70 004590f0 00465cf0 00467620 0046bc10 00474270 00474b30 00475270 004764c0 00486910 0048d810 0048d8f0 0048d950 0048ec60 0048fae0 00494f50 004963e0 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 004bcbc0 004bd270 004dee00 004deec0 00578790 00579dd0
 Poq.exe	99	0047b4d0	FUN_0047b4d0		game	skip	21	6	場景持有者清空生命週期：反覆解構目前場景直到計數為0，清當前全域別名	場景持有者清空生命週期：反覆解構目前場景直到計數為0，清當前全域別名	
 Poq.exe	99	0047b530	FUN_0047b530		game	skip	51	0	清空CScnGC的全部客戶端節點與三條配對鏈；無呼叫者	清空CScnGC的全部客戶端節點與三條配對鏈；無呼叫者	0046ec80
 Poq.exe	99	0047b900	FUN_0047b900		game	todo	40	9		todo：依目的地移除客戶端，視本機控制狀態通知、離開、刪鏈及減全域數量；等CScnClient離場／CClientScreen完整生命週期	0046ec80
@@ -899,7 +899,7 @@ Poq.exe	99	0047d020	FUN_0047d020		game	skip	23	0	共用命令區解碼場景切�
 Poq.exe	99	0047d100	FUN_0047d100		game	skip	33	0	共用命令區解碼場景切換，位置高半字為-100時只設狀態2；無呼叫者	共用命令區解碼場景切換，位置高半字為-100時只設狀態2；無呼叫者	
 Poq.exe	99	0047d1e0	FUN_0047d1e0		game	skip	72	0	依名稱比對場景出口並寫出口物件+0xa8；無呼叫者	依名稱比對場景出口並寫出口物件+0xa8；無呼叫者	
 Poq.exe	99	0047d380	FUN_0047d380		game	skip	43	0	解碼角色換裝字串並送0x138同步；無呼叫者	解碼角色換裝字串並送0x138同步；無呼叫者	0048d810 00578790
-Poq.exe	99	0047d4e0	FUN_0047d4e0		game	done	570	2			0044e380 004590f0 00465cf0 0046bc10 00474740 00474b30 004764c0 0047b9d0 0047bb70 0047ca00 0048d810 0048d8f0 0048d950 0048ec60 0048fae0 0048fd30 004963e0 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 00578790
+Poq.exe	99	0047d4e0	FUN_0047d4e0		game	done	570	2			0044e380 004590f0 00465cf0 0046bc10 00474740 00474b30 004764c0 0047b9d0 0047bb70 0047ca00 0048d810 0048d8f0 0048d950 0048ec60 0048fae0 004963e0 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 00578790
 Poq.exe	99	0047ece0	FUN_0047ece0		game	skip	27	0	解碼角色走路命令或直接重設位置方向；無呼叫者	解碼角色走路命令或直接重設位置方向；無呼叫者	004963e0 00496e30
 Poq.exe	99	0047eec0	FUN_0047eec0		game	skip	22	0	解碼並要求角色屬性文字；無呼叫者	解碼並要求角色屬性文字；無呼叫者	
 Poq.exe	99	0047f580	FUN_0047f580		game	skip	39	0	由共用命令區解碼天氣表，byte有號擴展；無呼叫者，天氣業務已有weather_table	由共用命令區解碼天氣表，byte有號擴展；無呼叫者，天氣業務已有weather_table	
@@ -1110,7 +1110,7 @@ Poq.exe	99	0048f7a0	FUN_0048f7a0	~CCharactor	game	done	220	5		actor_property：�
 Poq.exe	99	0048fae0	FUN_0048fae0	~CCharactor	game	todo	33	4		套生命百分比、模型／動畫門檻及行為參數；未完成	0048e8f0
 Poq.exe	99	0048fb90	FUN_0048fb90	~CCharactor	game	done	31	4		按外部識別修改第一個SkillUnit Enable，再按低2位選左右手；actor_skill_enable接技能升級	
 Poq.exe	99	0048fc20	FUN_0048fc20	~CCharactor	game	done	51	4		按外部識別更新第一個SkillUnit，左右手重選先於ID寫入；actor_skill_update接技能升級	
-Poq.exe	99	0048fd30	FUN_0048fd30	~CCharactor	game	todo	9	4		寫+0x513的byte屬性；未完成	
+Poq.exe	99	0048fd30	FUN_0048fd30	~CCharactor	game	done	9	4		actor_weapon_type_set：保存武器種類低8位，不改技能／動作／外觀；接單機@W_Type及0x52a訊息，完整文字／封包主分派仍todo	
 Poq.exe	99	0048fd50	FUN_0048fd50	~CCharactor	game	skip	31	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	0048fde0	FUN_0048fde0	~CCharactor	game	skip	63	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	0048ffe0	FUN_0048ffe0	~CCharactor	game	done	59	10		actor_cast_at補記住命令8/9收尾，施法失敗也處理；不同技能且仍有敵對目標時保留；主分派／完整戰鬥狀態與目標設置副作用仍未完成	0048eda0 00494f50 00579dd0
@@ -1453,13 +1453,13 @@ Poq.exe	99	004a1630	FUN_004a1630		game	todo	40	11			0049e750 0049ea10 004a1500
 Poq.exe	99	004a1720	FUN_004a1720		game	todo	14	0			
 Poq.exe	99	004a1760	FUN_004a1760		game	todo	9	0			
 Poq.exe	99	004a1780	FUN_004a1780		game	todo	61	2		部件首次建立30槽殘影容器，保存起值／步數=(終值-起值)/步長／步長／重複旗標，重複時容量分組30/步數+1；已有容器不覆寫；todo 殘影基礎	
-Poq.exe	99	004a1a50	FUN_004a1a50		game	todo	42	8			0049ea10 004a1500
-Poq.exe	99	004a1b40	FUN_004a1b40		game	todo	58	4			0049caf0 0049e420
+Poq.exe	99	004a1a50	FUN_004a1a50		game	todo	42	8		清除30槽殘影容器並釋放、清指標，再交原精靈釋放入口；todo 殘影基礎生命週期	0049ea10 004a1500
+Poq.exe	99	004a1b40	FUN_004a1b40		game	todo	58	4		殘影從尾往前按採樣間隔畫，混色從起值逐次加步長、每次夾0..16，世界位置轉畫面後用0x280；todo 殘影基礎	0049caf0 0049e420
 Poq.exe	99	004a1c90	FUN_004a1c90		game	todo	37	2		釋放部件殘影名單及30槽容器後清指標；todo 殘影基礎生命週期	004a1500
 Poq.exe	99	004a1dd0	FUN_004a1dd0		game	todo	11	0			
 Poq.exe	99	004a1e10	FUN_004a1e10		game	todo	17	0			
 Poq.exe	99	004a1e40	FUN_004a1e40		game	todo	12	0			
-Poq.exe	99	004a1e80	FUN_004a1e80		game	todo	20	0			
+Poq.exe	99	004a1e80	FUN_004a1e80		game	todo	20	0		重設殘影參數：步數=(終值-起值)/步長，非重複採樣間隔1、重複30/步數+1；todo 殘影基礎	
 Poq.exe	99	004a2260	FUN_004a2260		game	todo	8	0			
 Poq.exe	99	004a2280	FUN_004a2280		game	todo	46	4			
 Poq.exe	99	004a2350	FUN_004a2350		game	todo	14	0			

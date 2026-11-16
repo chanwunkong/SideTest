@@ -711,6 +711,14 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 原版保留：MOVE_SPEED正值以整數v*150/(v+150)換算；FIGHT_SPEED正值以float v*120/(v+120)換算，再取100/(100+v)，分母0只改成1，負倍率不夾限。Actor.ex保留EasyRPG原始值，actor_move_bonus／actor_fight_ratio於消費端換算，避免重複壓縮；attack_speed移除舊整數百分比近似，action_tick更正為NPC組乘倍率、其他組間隔加隨機，組別判斷不依mon指標。VRANGE始終設值+12，唯NPC組10000..60000不加索敵；SRANGE僅原距離>3套用，未知鍵名完全不動。
   - shortcut：冷卻仍於動作結束裝入，完整MethodMain綁定時改回原版裝入時機；NPC物件種類60的免間隔分支仍需物件種類基礎接線。未把完整MethodMain／角色狀態宣稱完成。移動入口依賴重新核對：部件群建立／移除的是殘影名單，並非單純修改精靈參數；用途與動態目的地重試／退出等偏移已更新roles／fields，這些基礎與同類別依賴仍須續做，不是等待其他遊戲系統。未新增DLC分類。
   - skilltest新增八鍵、未知鍵無副作用、NPC組兩端邊界及負值、跨層、長短技能距離、怪物表／技能重算、float攻速與-100／-101極值、實際動畫延遲及冷卻組別分支。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，仍為原有5個未使用函數警告。FUNCS.tsv已重產。
+  ~~下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起~~。
+
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，續補武器種類byte更新；本輪未完成整類別，未進CNpc**。新增done 1（0x48fd30）、skip 0、base 0；主範圍合計 **done 51、skip 33、todo 34**。
+  - `main.c`新增actor_weapon_type_set，保存Actor.weapon_type低8位；由story_msgs的0x52a及單機@W_Type屬性通知呼叫。actor_attribute_changed將通知交回獨立setter或既有八鍵分派，角色屬性重算共用此入口；既有actor_property對未知鍵的行為不變。
+  - 原版保留：這個setter只寫byte，負數／大於255均截取低8位，不重選技能、不取消命令／動作、不換模型。shortcut：單機@W_Type直接交給setter，完整場景通知分派接入後由武器更新訊息送入；未把完整文字命令／封包主分派標done。武器種類byte也未猜成EasyRPG技能可用性使用的Hand欄位。
+  - 再核對移動入口與狀態鏈，仍缺本類別狀態副作用、20項修正、動態狀態及精靈殘影基礎；這些不能列為等待別的遊戲系統。殘影建立／釋放、採樣間隔及混色欄位已補fields／roles，沒有以空實作或速度替代標done。頭頂文字實際呼叫路徑仍未解決，未新增無呼叫者包裝或DLC分類。
+  - skilltest新增武器種類0、255、256、257、負值截位，以及技能選取／左右手／命令／播放中動作完整不變、通知鍵大小寫與尾綴精確比對、八鍵通知轉接測試。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，仍為原有5個未使用函數警告。FUNCS.tsv已重產。
   **下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起**。
 
 
