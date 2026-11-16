@@ -1,8 +1,0 @@
-# 網頁只能送請求、收結果；worker 反過來
-user fora-web
-topic write fora/ai/req/+
-topic read fora/ai/res/+
-
-user fora-worker
-topic read fora/ai/req/+
-topic write fora/ai/res/+
