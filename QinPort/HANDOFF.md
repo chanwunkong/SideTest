@@ -394,7 +394,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 照原版保留：開啟跟隨請求平滑置中；關閉跟隨不取消平移；立即置中也不清平移；平滑步長是畫面距離截斷後除30再加2，距離小於30保持舊目標；設定平移不清上次平方距離；目標採角色整格交錯投影，負奇列以位元判斷。
   - shortcut：物件世代句柄由已持有的 Actor 指標代替，等 CScene 物件索引；SDL 每幀全畫面重畫代替背景快取矩形失效。todo：探索狀態提升／髒矩形／小地圖回呼等 CScene 探索通知、CMapDialog 表面與外部介面刷新；分層名單的一般分支已有繪圖迴圈，特殊建築分支等 CBuilding 特殊模式與 CScene 建築占地索引，不把整個函數標 done。沒有新增確認劇情不用的功能。
   - 驗證：skilltest 加入平移設定、空角色、跟隨開關、立即置中、29／30像素門檻與負奇列投影；`cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`。FUNCS.tsv 已重產。
-  **下一步：0x461960（CGameApp）起**，用 `python3 tools/functool.py next 0x461960`。
+  ~~下一步：0x461960（CGameApp）起~~。
+- 進度（11-16）：Poq.exe **0x461960～0x4637a0 CGameApp Windows 啟動／事件迴圈段**（中間的 CMainWnd 解構另屬下一類別，未處理）。首批只列三個，本輪沿相鄰啟動區段核對全部 CGameApp 回呼及字串依賴；24 個判定寫入 funcs_skip.txt／roles.tsv，其中總表 **skip 20、base 4、新增 done 0、todo 0**。
+  - 平台略過：CWinApp 建構／解構、MFC 主視窗與 CEdit、COM、單一實例互斥鎖、安裝登錄檔與光碟路徑、MMX、螢幕保護設定、Win32 計時器／訊息迴圈、PE 檔案版本及 BugTrap 崩潰回報。旗標存取／常數回呼只服務這套 MFC 生命週期，不另造無呼叫者的 SDL 包裝。std::string 串接／SSO 縮容、版本字串與登錄檔工具補進 base_map.tsv。
+  - 零呼叫者入口依 FUNCS.tsv 的 callers=0 列 skip，未為追查舊啟動路徑擴讀本體；此數字是函數呼叫索引，不宣稱已做整個執行檔的間接引用掃描。新讀到的 CGameApp 平台偏移寫入 fields.tsv；+0xd0 只記建構設1，未猜用途。
+  - 本輪沒有遊戲邏輯移植、shortcut 或新增外部依賴 todo，沒有新增確認劇情不用的功能；故不加鏡像實作測試。原生建置與既有 skilltest 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
+  **下一步：0x461cd0（CMainWnd）起**，用 `python3 tools/functool.py next 0x461cd0`。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

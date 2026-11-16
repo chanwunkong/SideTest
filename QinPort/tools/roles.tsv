@@ -211,3 +211,27 @@
 00461680	CViewPort 物件置中；平滑以畫面距離/30+2 為步長，小於30保持舊平移 → viewport_center_actor
 004618a0	H 鍵：目前角色存在時呼叫物件置中 → viewport_home
 00461920	雙向串列節點配置工具，C 陣列取代
+00461960	std::string：C 字串前綴與字串串接；C 字串代替
+00461bd0	建構：CWinApp／CGameApp 初值；SDL 主程式生命週期代替
+00461c80	解構：CWinApp 解構與 operator_delete；SDL 主程式生命週期代替
+00461d90	平台：建立 MFC CMainWnd／CEdit、Win32 視窗樣式與圖示；SDL_CreateWindow 代替
+00461fb0	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊啟動路徑
+00462570	沒有呼叫者（FUNCS.tsv callers=0）；不移植此舊平台路徑
+00462750	平台：COM 結束、Win32 事件、視窗銷毀與螢幕保護恢復；SDL 結束流程代替
+004627a0	平台：CWinApp 虛擬常數回呼（回傳0）；不保留 MFC 介面
+004627b0	平台：CWinApp 虛擬常數回呼（回傳5000）；不保留 MFC 介面
+004627c0	平台：CWinApp 虛擬常數回呼（回傳0）；不保留 MFC 介面
+004627d0	平台工具：Win32 檔案版本資訊轉字串，且沒有呼叫者；不讀 PE 版本
+00462930	平台工具：Win32 登錄檔字串查詢，且沒有呼叫者；資源路徑由啟動參數指定
+004629c0	平台：MFC InitInstance（記憶體／COM／命令列啟動模式／互斥鎖／安裝登錄檔／MMX／Win32計時器）；SDL 啟動流程代替
+00462f40	平台：安裝類型與光碟資源路徑登錄檔初始化，且沒有呼叫者；資源路徑由啟動參數指定
+004631b0	沒有呼叫者；舊命令列模式檢查且各分支均直接返回
+00463260	平台：MFC 應用程式 +0xac 旗標遮罩0x10存取；不保留 MFC 介面
+00463270	平台：MFC 應用程式 +0xac 旗標遮罩0x20存取；不保留 MFC 介面
+00463280	平台：PeekMessage/GetMessage/TranslateMessage/DispatchMessage 主迴圈；SDL 事件與遊戲 tick 代替
+00463390	平台：讀 Poq.exe 檔案版本、建立 logs 與安裝 BugTrap SEH 崩潰回報器；不移植 Windows 回報器
+00463760	平台：MFC 應用程式 +0xac 旗標遮罩2存取；不保留 MFC 介面
+00463770	平台：MFC 應用程式 +0xac 旗標遮罩8存取；不保留 MFC 介面
+00463780	平台：MFC 應用程式 +0xac 旗標遮罩4存取；不保留 MFC 介面
+00463790	平台：MFC 應用程式 +0xac 旗標遮罩1存取；不保留 MFC 介面
+004637a0	std::string：堆積字串縮回 small-string buffer 並釋放；C 字串代替

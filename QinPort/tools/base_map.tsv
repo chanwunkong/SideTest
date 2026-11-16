@@ -76,3 +76,7 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 004c7d80	格子探索 byte +0x13 == 0（Cell.view == 0）
 004c7da0	格子探索 byte +0x13 < 2（Cell.view < 2）
 004cebf0	交錯格點轉像素 → viewport_point_pixel
+00461960	std::string 前綴串接 → C 字串
+004637a0	std::string SSO 縮容 → C 字串
+004627d0	Win32 PE 版本字串工具 → 不需要
+00462930	Win32 登錄檔查詢工具 → 啟動參數／資源根目錄

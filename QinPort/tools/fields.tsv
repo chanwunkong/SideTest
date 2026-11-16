@@ -256,3 +256,10 @@ CViewPort	+0x124	背景表面色鍵初始化參數2	SDL renderer 取代
 CViewPort	+0x128	背景表面色鍵初始化參數3	SDL renderer 取代
 CViewPort	+0x12c	背景表面色鍵初始化參數4	SDL renderer 取代
 CBuilding	+0x7b	模型總部件數（底／中／上層總和）	Model.part_count
+CGameApp	+0x20	MFC 主視窗指標	平台層略過（不配置對應欄位）
+CGameApp	+0x48	MFC 命令列字串指標	平台層略過（不配置對應欄位）
+CGameApp	+0x64	MFC 應用程式名稱（互斥鎖名稱）	平台層略過（不配置對應欄位）
+CGameApp	+0xac	MFC 應用程式旗標（遮罩1/2/4/8/0x10/0x20）	平台層略過（不配置對應欄位）
+CGameApp	+0xcc	Win32 單一實例互斥鎖 HANDLE	平台層略過（不配置對應欄位）
+CGameApp	+0xd0	建構時設1的應用程式欄位；本段未見其他用途	平台層略過（不配置對應欄位）
+CGameApp	+0xd4	安裝類型非指定光碟類型時為1	平台層略過（不配置對應欄位）
