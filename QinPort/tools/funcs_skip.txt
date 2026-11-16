@@ -324,3 +324,19 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00464170  平台：CScrMng 初始化螢幕矩形、像素數與 DirectDraw 指標並啟用掛鉤；SDL 視窗／renderer 代替
 004641c0  平台：CScrMng 視窗模式表面拷貝／全螢幕 Flip，失敗時檢查並還原表面後重試；SDL_RenderPresent 代替
 00464260  平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替
+00464370  基底：空 libvlc_media shared_ptr 與自訂 deleter 控制塊建構（~CGameApp 為推測誤判）；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00464430  基底：libvlc_instance shared_ptr 與自訂 deleter 控制塊建構；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+004644f0  基底：libvlc_media_player shared_ptr 與自訂 deleter 控制塊建構；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+004645b0  基底：libvlc_media shared_ptr 與自訂 deleter 控制塊建構；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00464670  基底：包裝指標取值；callers=0，無獨立遊戲用途；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00464680  基底：包裝指標取值；callers=0，無獨立遊戲用途；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+004646b0  建構／平台：libVLC 播放器包裝初始化 instance、player 與回呼 shared_ptr；失敗拋 runtime_error；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00464b80  CRT：std::exception 複製建構；callers=0；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00464bc0  CRT：std::runtime_error 複製建構；callers=0；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00464c00  CRT：由錯誤訊息建構 std::runtime_error；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00464ea0  解構／基底：media 包裝釋放尾端 shared_ptr、4個回呼與主 shared_ptr；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00464f70  解構／基底：player 包裝釋放尾端 shared_ptr、13個回呼與主 shared_ptr；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00465450  平台：執行緒安全 libVLC 播放器單例初始化與 atexit 解構登記；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00465510  平台：libvlc_media_player_will_play 查詢（非播放中狀態）；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+00465530  平台：libVLC 由路徑建立媒體、綁 Win32 HWND 並播放；失敗拋 runtime_error；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作
+004656e0  平台：libvlc_media_player_stop 停止影片；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作

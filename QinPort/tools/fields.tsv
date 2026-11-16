@@ -271,3 +271,17 @@ CScrMng	+0x2c	螢幕矩形 bottom（顯示高）	平台層略過（SDL renderer 
 CScrMng	+0x30	螢幕像素數（寬乘高）	平台層略過（SDL renderer 代替）
 CScrMng	+0x34	CDD／DirectDraw 畫面物件指標（裝置停用設0）	平台層略過（SDL renderer 代替）
 CMainWnd	+0x100	從 cursor.ani 載入的 HCURSOR（WM_CREATE 設定、WM_CLOSE 釋放）	平台層略過（SDL 游標代替）
+VLCSharedPtr	+0x0	資源指標（空 media 建構為0）	平台／基底略過
+VLCSharedPtr	+0x4	自訂 deleter 引用計數控制塊指標	平台／基底略過
+VLCRefCountResource	+0x4	強引用計數（建構為1）	平台／基底略過
+VLCRefCountResource	+0x8	弱引用計數（建構為1）	平台／基底略過
+VLCRefCountResource	+0xc	釋放資源的 deleter	平台／基底略過
+VLCRefCountResource	+0x10	由 deleter 管理的資源	平台／基底略過
+VLCPlayerWrapper	+0x0	media_player shared_ptr（包裝類別名依用途命名）	平台／基底略過
+VLCPlayerWrapper	+0x8	13個8-byte shared_ptr 回呼槽（僅確認數量，未推測事件）	平台／基底略過
+VLCPlayerWrapper	+0x70	尾端 shared_ptr 資源槽（用途未明）	平台／基底略過
+VLCPlayerWrapper	+0x78	libvlc_instance shared_ptr	平台／基底略過
+VLCPlayerWrapper	+0x80	2個8-byte shared_ptr 槽（用途未明）	平台／基底略過
+VLCMediaWrapper	+0x0	media shared_ptr（包裝類別名依用途命名）	平台／基底略過
+VLCMediaWrapper	+0x8	4個8-byte shared_ptr 回呼槽（僅確認數量，未推測事件）	平台／基底略過
+VLCMediaWrapper	+0x28	尾端 shared_ptr 資源槽（用途未明）	平台／基底略過

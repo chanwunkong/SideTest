@@ -406,7 +406,11 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 進度（11-16）：Poq.exe **0x463810～0x464260 CScrMng 與前置平台／字串工具**，首批12個後補齊同類別裝置事件入口，共 **skip 10、base 3、done 0、新增 todo 0**（13個均記 funcs_skip.txt，字串工具另記 base_map.tsv）。CScrMng 建構／解構、顯示矩形初始化、視窗拷貝／全螢幕 Flip 與表面遺失重試均屬 DirectDraw 平台流程，由 `engine/src/main.c` 既有 SDL 視窗／renderer／SDL_RenderPresent 代替；前置 Win32 測試視窗、計時器、MFC 訊息入口與字串 SSO 工具略過，補用途與欄位索引。
   - 完整核對 FUNCS.tsv 的 CScrMng（含推測）項目：表面還原已 skip；另外兩個 `~CScrMng` 實際操作應用程式介面／天氣通知，並非本類別，保留既有 todo：介面管理器重建與雙介面／天氣裝置事件，等對應系統，已在 roles.tsv 註明推測誤判；未把它們誤列平台 skip。
   - 本輪沒有新增遊戲邏輯、遊戲怪現象、shortcut 或確認劇情不用的功能，故不加鏡像實作測試。原生建置與既有 skilltest 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
-  **下一步：0x464370（CGameApp 顯示設定段）起**，用 `python3 tools/functool.py next 0x464370`。
+  ~~下一步：0x464370（CGameApp 顯示設定段）起~~。
+- 進度（11-16）：Poq.exe **0x464370～0x4656e0 libVLC 播放器包裝與前置基底工具**，首批12個後補齊單例、可播放查詢、播放與停止入口，共 **skip 16、base 11、done 0、新增 todo 0**（16個均記 funcs_skip.txt，基底另記 base_map.tsv）。本體確認 `~CGameApp` 是推測誤判；實際為 shared_ptr 自訂 deleter、CRT 例外與 Windows/libVLC 影片生命週期。下一個建構入口已出現 CClientScreen vftable，故停在類別邊界。
+  - 播放入口從路徑建媒體、綁 HWND 再播放；查詢用 will_play，未誤當 is_playing。失敗時原版拋 runtime_error。記錄播放器／媒體 shared_ptr 配置與控制塊偏移；回呼槽只記數量，不猜事件用途。沿用先前影片改網頁播放的工作，不宣稱已移植播放功能，也不列為劇情沒用到。
+  - 本輪沒有新增遊戲邏輯、遊戲怪現象、shortcut 或外部依賴 todo；不新增鏡像實作測試。原生建置與既有 skilltest 通過，最後一行 `skilltest ok`；FUNCS.tsv 已重產。
+  **下一步：0x465710（CClientScreen／ScreenObj）起**，用 `python3 tools/functool.py next 0x465710`。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

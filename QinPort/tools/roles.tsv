@@ -251,3 +251,19 @@
 00464260	平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替
 0044e200	應用程式介面管理器重新初始化並傳入 +0x228/+0x22c；~CScrMng 為推測誤判，待介面管理器系統
 0046bb60	應用程式轉送顯示裝置事件給兩組介面並恢復／釋放天氣資源；~CScrMng 為推測誤判，待介面與天氣裝置通知系統
+00464370	基底：空 libvlc_media shared_ptr 與自訂 deleter 控制塊建構（~CGameApp 為推測誤判）
+00464430	基底：libvlc_instance shared_ptr 與自訂 deleter 控制塊建構
+004644f0	基底：libvlc_media_player shared_ptr 與自訂 deleter 控制塊建構
+004645b0	基底：libvlc_media shared_ptr 與自訂 deleter 控制塊建構
+00464670	基底：包裝指標取值；callers=0，無獨立遊戲用途
+00464680	基底：包裝指標取值；callers=0，無獨立遊戲用途
+004646b0	建構／平台：libVLC 播放器包裝初始化 instance、player 與回呼 shared_ptr；失敗拋 runtime_error
+00464b80	CRT：std::exception 複製建構；callers=0
+00464bc0	CRT：std::runtime_error 複製建構；callers=0
+00464c00	CRT：由錯誤訊息建構 std::runtime_error
+00464ea0	解構／基底：media 包裝釋放尾端 shared_ptr、4個回呼與主 shared_ptr
+00464f70	解構／基底：player 包裝釋放尾端 shared_ptr、13個回呼與主 shared_ptr
+00465450	平台：執行緒安全 libVLC 播放器單例初始化與 atexit 解構登記
+00465510	平台：libvlc_media_player_will_play 查詢（非播放中狀態）
+00465530	平台：libVLC 由路徑建立媒體、綁 Win32 HWND 並播放；失敗拋 runtime_error
+004656e0	平台：libvlc_media_player_stop 停止影片

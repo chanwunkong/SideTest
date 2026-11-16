@@ -83,3 +83,14 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 00463810	std::string 解構／清空：釋放長字串（含大塊配置檢查），重設 SSO 容量15；C 字串生命週期代替
 00463870	std::string 越界例外 invalid string position；C 字串邊界檢查代替
 00463880	std::string 子字串建構：檢查起點、截短長度後複製；C 字串切片代替
+00464370	基底：空 libvlc_media shared_ptr 與自訂 deleter 控制塊建構（~CGameApp 為推測誤判） → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外
+00464430	基底：libvlc_instance shared_ptr 與自訂 deleter 控制塊建構 → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外
+004644f0	基底：libvlc_media_player shared_ptr 與自訂 deleter 控制塊建構 → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外
+004645b0	基底：libvlc_media shared_ptr 與自訂 deleter 控制塊建構 → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外
+00464670	基底：包裝指標取值；callers=0，無獨立遊戲用途 → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外
+00464680	基底：包裝指標取值；callers=0，無獨立遊戲用途 → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外
+00464b80	CRT：std::exception 複製建構；callers=0 → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外
+00464bc0	CRT：std::runtime_error 複製建構；callers=0 → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外
+00464c00	CRT：由錯誤訊息建構 std::runtime_error → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外
+00464ea0	解構／基底：media 包裝釋放尾端 shared_ptr、4個回呼與主 shared_ptr → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外
+00464f70	解構／基底：player 包裝釋放尾端 shared_ptr、13個回呼與主 shared_ptr → C 資源生命週期／錯誤回傳代替；不引入 C++ shared_ptr 或例外

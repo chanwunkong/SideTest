@@ -213,7 +213,7 @@ Poq.exe	99	0043fe50	FUN_0043fe50	CGale	game	done	60	6		疾風粒子顏色：每�
 Poq.exe	99	00440070	FUN_00440070		game	skip	180	1	平台層：MFC 視窗／訊息（SDL 代替）		
 Poq.exe	99	00440610	FUN_00440610		game	skip	34	0	平台層：MFC 視窗／訊息（SDL 代替）		
 Poq.exe	99	004406b0	FUN_004406b0		game	skip	61	0	沒有呼叫者：Movie/End.avi 第一個 byte 當「看過結局」旗標（0x52）的讀寫		
-Poq.exe	99	00440830	FUN_00440830	~CGameApp	game	skip	67	2	平台層：播 movie/ 的 AVI 影片（片頭影片另做網頁播放，見 HANDOFF）		00465450 00465530
+Poq.exe	99	00440830	FUN_00440830	~CGameApp	game	skip	67	2	平台層：播 movie/ 的 AVI 影片（片頭影片另做網頁播放，見 HANDOFF）		
 Poq.exe	99	00440d00	FUN_00440d00		game	skip	41	0	平台層：MFC 視窗／訊息（SDL 代替）		
 Poq.exe	99	00440e70	FUN_00440e70		game	skip	10	0	劇情沒用到：CGroup／CUserGroup 隊伍群組		
 Poq.exe	99	00440e90	FUN_00440e90		game	skip	12	0	劇情沒用到：CGroup／CUserGroup 隊伍群組		
@@ -345,7 +345,7 @@ Poq.exe	99	00448790	FUN_00448790		game	skip	40	2	std::map 解構
 Poq.exe	99	00448860	FUN_00448860		game	skip	30	6	std::vector 解構		
 Poq.exe	99	004489b0	FUN_004489b0		game	skip	35	4	平台：輸入法視窗位置（ImmSetCompositionWindow）		
 Poq.exe	99	00448a70	FUN_00448a70		game	done	14	4			
-Poq.exe	99	00448ab0	FUN_00448ab0	~CGameApp	game	todo	82	2		CGameApp 換狀態（+0xc）：1 啟動（讀指令列、主選單）、2 主選單、3 遊戲中、5 讀檔／載入、7、0xb／0xc 片尾、0xd 連線等待；等主選單 0x4f5xxx 一起做	0044bde0 0044be10 0044d340 0044d380 0044d3d0 0044d450 0044d470 00465450 004656e0 004a81c0 004b0a30 004f8230
+Poq.exe	99	00448ab0	FUN_00448ab0	~CGameApp	game	todo	82	2		CGameApp 換狀態（+0xc）：1 啟動（讀指令列、主選單）、2 主選單、3 遊戲中、5 讀檔／載入、7、0xb／0xc 片尾、0xd 連線等待；等主選單 0x4f5xxx 一起做	0044bde0 0044be10 0044d340 0044d380 0044d3d0 0044d450 0044d470 004a81c0 004b0a30 004f8230
 Poq.exe	99	00448d20	FUN_00448d20	~CGameApp	game	skip	211	10	平台：切換顯示模式（解析度表 0=640x480x8 … 6=1024x768、7=1280x720、8=1920x1080；DirectDraw、視窗大小）		
 Poq.exe	99	004493a0	FUN_004493a0	~CGameApp	game	skip	12	4	平台：記住 +0x220 後重設顯示模式		
 Poq.exe	99	004493d0	FUN_004493d0	~CGameApp	game	todo	11	2		場景 +0x1fcc 歸零	
@@ -356,7 +356,7 @@ Poq.exe	99	00449b90	FUN_00449b90	~CGameApp	game	skip	12	6	平台：DirectDraw �
 Poq.exe	99	00449bd0	FUN_00449bd0	~CMapDialog	game	todo	13	2		取場景 +0x3c	
 Poq.exe	99	00449bf0	FUN_00449bf0		game	todo	18	2		把場景畫成一張 w×h 小圖（存檔縮圖用）	0046af30
 Poq.exe	99	00449c80	FUN_00449c80		game	skip	8	2	只讀／寫一個全域值（見 roles.tsv，用到時直接讀）	有沒有場景客戶端（0x662c48）	
-Poq.exe	99	00449c90	FUN_00449c90	~CGameApp	game	done	97	2			00448ab0 00465450 00465510 00502190 0057a8d0
+Poq.exe	99	00449c90	FUN_00449c90	~CGameApp	game	done	97	2			00448ab0 00502190 0057a8d0
 Poq.exe	99	00449f50	FUN_00449f50	~CGameApp	game	done	178	2			0044bf00 0044c090 0044d590 0044dc20 00472e60 004a05e0 004a6720
 Poq.exe	99	0044a550	FUN_0044a550		game	skip	96	0	除錯：視窗標題顯示每拍耗時		0046c220
 Poq.exe	99	0044a7a0	FUN_0044a7a0	~CUIServer	game	skip	194	2	平台：依 +4 的模式重建顯示（同 0x448d20）		
@@ -691,22 +691,11 @@ Poq.exe	99	00464120	FUN_00464120	~CScrMng	game	skip	15	3	解構：CScrMng 訊息
 Poq.exe	99	00464170	FUN_00464170	CScrMng	game	skip	20	6	平台：CScrMng 初始化螢幕矩形、像素數與 DirectDraw 指標並啟用掛鉤；SDL 視窗／renderer 代替	平台：CScrMng 初始化螢幕矩形、像素數與 DirectDraw 指標並啟用掛鉤；SDL 視窗／renderer 代替	
 Poq.exe	99	004641c0	FUN_004641c0	~CScrMng	game	skip	29	6	平台：CScrMng 視窗模式表面拷貝／全螢幕 Flip，失敗時檢查並還原表面後重試；SDL_RenderPresent 代替	平台：CScrMng 視窗模式表面拷貝／全螢幕 Flip，失敗時檢查並還原表面後重試；SDL_RenderPresent 代替	
 Poq.exe	99	00464260	FUN_00464260	CScrMng	game	skip	29	4	平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替	平台：CScrMng 顯示裝置事件先轉送應用程式；事件0還原表面並重設矩形、事件1停用介面並清空表面指標；SDL 裝置生命週期代替	0044e200 0046bb60
-Poq.exe	99	00464370	FUN_00464370	~CGameApp	game	todo	31	2			
-Poq.exe	99	00464430	FUN_00464430	~CGameApp	game	todo	32	2			
-Poq.exe	99	004644f0	FUN_004644f0	~CGameApp	game	todo	33	2			
-Poq.exe	99	004645b0	FUN_004645b0	~CGameApp	game	todo	31	2			
-Poq.exe	99	00464670	FUN_00464670	~CGameApp	game	todo	8	0			
-Poq.exe	99	00464680	FUN_00464680	~CGameApp	game	todo	8	0			
-Poq.exe	99	004646b0	FUN_004646b0	~CGameApp	game	todo	240	2			00464430 004644f0 00464c00 00464f70
-Poq.exe	99	00464b80	FUN_00464b80	~CGameApp	game	todo	11	0			
-Poq.exe	99	00464bc0	FUN_00464bc0	~CGameApp	game	todo	12	0			
-Poq.exe	99	00464c00	FUN_00464c00	~CGameApp	game	todo	18	4			
-Poq.exe	99	00464ea0	FUN_00464ea0	~CGameApp	game	todo	59	2			
-Poq.exe	99	00464f70	FUN_00464f70	~CGameApp	game	todo	59	4			
-Poq.exe	99	00465450	FUN_00465450	~CGameApp	game	todo	26	6			004646b0
-Poq.exe	99	00465510	FUN_00465510	~CGameApp	game	todo	11	2			
-Poq.exe	99	00465530	FUN_00465530	~CGameApp	game	todo	84	2			00464370 004645b0 00464c00 00464ea0
-Poq.exe	99	004656e0	FUN_004656e0	~CGameApp	game	todo	9	2			
+Poq.exe	99	004646b0	FUN_004646b0	~CGameApp	game	skip	240	2	建構／平台：libVLC 播放器包裝初始化 instance、player 與回呼 shared_ptr；失敗拋 runtime_error；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作	建構／平台：libVLC 播放器包裝初始化 instance、player 與回呼 shared_ptr；失敗拋 runtime_error	
+Poq.exe	99	00465450	FUN_00465450	~CGameApp	game	skip	26	6	平台：執行緒安全 libVLC 播放器單例初始化與 atexit 解構登記；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作	平台：執行緒安全 libVLC 播放器單例初始化與 atexit 解構登記	
+Poq.exe	99	00465510	FUN_00465510	~CGameApp	game	skip	11	2	平台：libvlc_media_player_will_play 查詢（非播放中狀態）；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作	平台：libvlc_media_player_will_play 查詢（非播放中狀態）	
+Poq.exe	99	00465530	FUN_00465530	~CGameApp	game	skip	84	2	平台：libVLC 由路徑建立媒體、綁 Win32 HWND 並播放；失敗拋 runtime_error；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作	平台：libVLC 由路徑建立媒體、綁 Win32 HWND 並播放；失敗拋 runtime_error	
+Poq.exe	99	004656e0	FUN_004656e0	~CGameApp	game	skip	9	2	平台：libvlc_media_player_stop 停止影片；Windows/libVLC 包裝略過，影片沿用既有網頁播放後續工作	平台：libvlc_media_player_stop 停止影片	
 Poq.exe	99	00465710	FUN_00465710		game	todo	46	3			00465a40 00466370
 Poq.exe	99	00465870	FUN_00465870		game	todo	13	4			00465bf0
 Poq.exe	99	004658b0	FUN_004658b0		game	todo	48	0			00465a40 00466370 004a2b20
