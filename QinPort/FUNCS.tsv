@@ -747,21 +747,16 @@ Poq.exe	99	0046a0c0	FUN_0046a0c0		game	skip	10	2	CInitMngMain 建構：呼叫 CI
 Poq.exe	99	0046a100	FUN_0046a100	CInitMngMain	game	skip	13	6	CInitMngMain deleting destructor：基底解構後依旗標釋放0x50 bytes；略過；建構解構／通用容器或無呼叫者，依規則略過	CInitMngMain deleting destructor：基底解構後依旗標釋放0x50 bytes；略過	0046a140
 Poq.exe	99	0046a140	FUN_0046a140	CInitMngMain	game	todo	36	6		todo：初始化後掃第3組 SInit；模板ID在1500～2000以外才複製、標記並加入場景；等不同類別 CInitObjMng 的 INI/SInit 載入（004cb440/004cb640）與 SInit 虛擬複製還原系統，不能以劇情 spawn 冒充	004caf80
 Poq.exe	99	0046a250	FUN_0046a250	CInitObjMng	game	skip	8	6	CInitObjMng 空虛擬初始化入口：無狀態變更，衍生類別另行實作	CInitObjMng 空虛擬初始化入口：直接返回，skip	
-Poq.exe	99	0046a260	FUN_0046a260	~CNpc	game	todo	24	2			
-Poq.exe	99	0046a2c0	FUN_0046a2c0		game	todo	53	2			
-Poq.exe	99	0046a370	FUN_0046a370		game	todo	21	2			004caf80
-Poq.exe	99	0046a3f0	FUN_0046a3f0		game	todo	14	8			
-Poq.exe	99	0046a420	FUN_0046a420		game	todo	34	4			0046a910
-Poq.exe	99	0046a530	FUN_0046a530	~CClientSocket	game	skip	49	2	連線版：客戶端 socket		0046a420
-Poq.exe	99	0046a660	FUN_0046a660		game	todo	10	0			
-Poq.exe	99	0046a680	FUN_0046a680		game	todo	8	0			
-Poq.exe	99	0046a690	FUN_0046a690		game	todo	10	0			
+Poq.exe	99	0046a260	FUN_0046a260	~CNpc	game	todo	24	2		todo：CInitObjMng 第n組按座標找首個種類10～16的SInit，忽略已建立旗標，無匹配回-1；等不同類別 CIniFile 順序讀取與 SInitCha 記錄載入接入場景初始化，非CNpc方法	
+Poq.exe	99	0046a2c0	FUN_0046a2c0		game	todo	53	2		todo：CInitObjMng 第n組按區分大小寫名稱找首個未建立且種類10～16的SInit；等不同類別 CIniFile／SInitCha 名稱記錄載入，供劇情建立角色使用	
+Poq.exe	99	0046a370	FUN_0046a370		game	todo	21	2		todo：CInitObjMng 第n組按有效索引以SInit工廠配置、虛擬格2複製並設已建立=1；等不同類別 SInit 各衍生虛擬複製及 CIniFile 記錄載入，不以劇情spawn替代	004caf80
+Poq.exe	99	0046a530	FUN_0046a530	~CClientSocket	game	skip	49	2	連線版：客戶端 socket		
+Poq.exe	99	0046a660	FUN_0046a660		game	skip	10	0	無呼叫者：全域封包佇列平台同步包裝，兩次呼叫同一匯入轉接；略過	無呼叫者：全域封包佇列平台同步包裝，兩次呼叫同一匯入轉接；略過	
+Poq.exe	99	0046a680	FUN_0046a680		game	skip	8	0	無呼叫者：取得全域封包狀態 DAT_00662b98；略過	無呼叫者：取得全域封包狀態 DAT_00662b98；略過	
+Poq.exe	99	0046a690	FUN_0046a690		game	skip	10	0	無呼叫者：全域封包佇列平台同步包裝，兩次呼叫同一匯入轉接；略過	無呼叫者：全域封包佇列平台同步包裝，兩次呼叫同一匯入轉接；略過	
 Poq.exe	99	0046a6b0	FUN_0046a6b0	~CGameApp	game	todo	32	2			0046baf0 0046c080 0046d420 004769c0 00476fb0 00476fc0
-Poq.exe	99	0046a7d0	FUN_0046a7d0	~CGameApp	game	todo	49	2			0046a420
-Poq.exe	99	0046a900	FUN_0046a900	~CGameApp	game	todo	9	0			
-Poq.exe	99	0046a910	FUN_0046a910	~CGameApp	game	todo	90	2			0046abd0
-Poq.exe	99	0046ab10	FUN_0046ab10	~CGameApp	game	todo	44	0			
-Poq.exe	99	0046abd0	FUN_0046abd0	~CGameApp	game	todo	9	2			
+Poq.exe	99	0046a7d0	FUN_0046a7d0	~CGameApp	game	skip	49	2	連線版封包入列：鎖mutex、deque新增、寫種類與長度、複製資料及補零後解鎖；略過	連線版封包入列：鎖mutex、deque新增、寫種類與長度、複製資料及補零後解鎖；略過	
+Poq.exe	99	0046a900	FUN_0046a900	~CGameApp	game	skip	9	0	無呼叫者：設定全域封包狀態 DAT_00662b98；略過	無呼叫者：設定全域封包狀態 DAT_00662b98；略過	
 Poq.exe	99	0046abe0	FUN_0046abe0	~CGameApp	game	todo	43	0			0046c260 00472e60
 Poq.exe	99	0046acc0	FUN_0046acc0	~CGameApp	game	todo	26	0			
 Poq.exe	99	0046ad40	FUN_0046ad40	~CGameApp	game	todo	63	2			0046aea0 0046bfa0 0046e730 00471ed0 00472e60
@@ -1286,11 +1281,11 @@ Poq.exe	99	004975e0	FUN_004975e0	CMapObj	game	todo	13	6			004975e0 00497620 0049
 Poq.exe	99	00497620	FUN_00497620	CFootStep|CDynamicObj|CMapObj|+7	game	todo	10	59			00497b30
 Poq.exe	99	00497650	FUN_00497650	CFootStep|CBuilding|NormalBuilding|+12	game	todo	10	82			00497c30
 Poq.exe	99	00497660	FUN_00497660		game	todo	43	6			00497880 004979b0 004979c0 00497aa0 00497b30 00497c20 00497c30 00497d30 00497e90
-Poq.exe	99	00497780	FUN_00497780		game	todo	42	12			0046a3f0 00497880 004979b0 004979c0 00497aa0 00497b30 00497c20 00497c30 00497d30 00497e90 004a2930
-Poq.exe	99	00497880	FUN_00497880	CObj	game	todo	45	6			0046a3f0 00497880 004979b0 004979c0 00497aa0 00497b30 00497c20 00497c30 00497d30 00497e90 004a2930
+Poq.exe	99	00497780	FUN_00497780		game	todo	42	12			00497880 004979b0 004979c0 00497aa0 00497b30 00497c20 00497c30 00497d30 00497e90 004a2930
+Poq.exe	99	00497880	FUN_00497880	CObj	game	todo	45	6			00497880 004979b0 004979c0 00497aa0 00497b30 00497c20 00497c30 00497d30 00497e90 004a2930
 Poq.exe	99	004979a0	FUN_004979a0		game	todo	9	5			
 Poq.exe	99	004979b0	FUN_004979b0	CARROW|CFireDeadMan|CFlyCycleObj|+22	game	todo	8	137			
-Poq.exe	99	004979c0	FUN_004979c0	CMapObj|CObj|CStaticObj|+1	game	todo	24	59			0046a3f0 004a2930
+Poq.exe	99	004979c0	FUN_004979c0	CMapObj|CObj|CStaticObj|+1	game	todo	24	59			004a2930
 Poq.exe	99	00497a40	FUN_00497a40		game	todo	23	18			004a2600 004a26d0 004a27a0
 Poq.exe	99	00497aa0	FUN_00497aa0	MethodBase|CDynamicObj|CMapObj|+2	game	todo	8	28			
 Poq.exe	99	00497ab0	FUN_00497ab0		game	todo	27	6			
@@ -1300,7 +1295,7 @@ Poq.exe	99	00497b80	FUN_00497b80	~CARROW	game	todo	10	4
 Poq.exe	99	00497bb0	FUN_00497bb0		game	todo	22	11			
 Poq.exe	99	00497c10	FUN_00497c10		game	todo	8	12			
 Poq.exe	99	00497c20	FUN_00497c20	MethodBase|CMapObj|CObj|+1	game	todo	8	30			
-Poq.exe	99	00497c30	FUN_00497c30	CARROW|CFireDeadMan|CFlyCycleObj|+13	game	todo	14	77			0046a3f0
+Poq.exe	99	00497c30	FUN_00497c30	CARROW|CFireDeadMan|CFlyCycleObj|+13	game	todo	14	77			
 Poq.exe	99	00497c80	FUN_00497c80		game	todo	9	4			
 Poq.exe	99	00497c90	FUN_00497c90		game	todo	15	8			
 Poq.exe	99	00497cd0	FUN_00497cd0		game	todo	22	6			
@@ -2655,7 +2650,7 @@ Poq.exe	99	004f1540	FUN_004f1540		game	todo	9	0
 Poq.exe	99	004f1560	FUN_004f1560		game	todo	25	0			004bcae0 004bd270
 Poq.exe	99	004f1620	FUN_004f1620		game	todo	9	0			
 Poq.exe	99	004f1640	FUN_004f1640		game	todo	25	0			004bcae0 004bd270
-Poq.exe	99	004f1710	FUN_004f1710		game	todo	31	2			0046a7d0 004e94e0
+Poq.exe	99	004f1710	FUN_004f1710		game	todo	31	2			004e94e0
 Poq.exe	99	004f1820	FUN_004f1820		game	todo	68	3			005a2ee0 005a3320
 Poq.exe	99	004f1a00	FUN_004f1a00		game	todo	35	0			
 Poq.exe	99	004f1a70	FUN_004f1a70	~CClientSocket	game	skip	13	2	連線版：客戶端 socket		004e94e0

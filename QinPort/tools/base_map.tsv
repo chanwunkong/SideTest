@@ -118,3 +118,8 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 004cbe30	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
 004cbed0	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
 004cbf70	CInitObjMng 共用名單／生命週期 → C陣列、數量與直接釋放；不替代 INI 載入或初始化物件建立
+0046a3f0	CInitObjMng 共用已建立旗標設值 → C陣列旗標；不替代SInit載入／查找／複製
+0046a420	封包deque容器／生命週期／長度錯誤 → C陣列與數量；連線封包不移植
+0046a910	封包deque容器／生命週期／長度錯誤 → C陣列與數量；連線封包不移植
+0046ab10	封包deque容器／生命週期／長度錯誤 → C陣列與數量；連線封包不移植
+0046abd0	封包deque容器／生命週期／長度錯誤 → C陣列與數量；連線封包不移植

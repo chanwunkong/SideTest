@@ -75,7 +75,7 @@ CGameApp	+0x27c	除錯文字開關	-
 SInitCha	+0x4	種類，建構預設 0xb	-
 SInitCha	+0x8	word 預設 2（+0x8 整個 dword 先設 0xffff0000）	-
 SInitCha	+0x24	GRECT	-
-SInitCha	+0x38	0x40 bytes 清 0	-
+SInitCha	+0x38	名稱零結尾bytes，建構清0x40 bytes；查找區分大小寫且僅取未建立記錄	未移植：SInit名稱載入
 CCharactor	+0x339	AI 組（0～99 玩家、10000～60000 NPC）	Actor.grp
 CPlayerGroupAI	+0x14	組號	grps[].id
 CPlayerGroupAI	+0x1c	敵人組名單 CStaticLinkList<int,200>（數量 +0x65c）	grps[].foe/n
@@ -340,3 +340,12 @@ SInitChaPathMove	+0x78	PathNum int	未移植：SInit記錄還原
 SInitChaPathMove	+0x7c	路徑GPOINT陣列，每點8 bytes，順讀PathMapX/PathMapY	未移植：SInit記錄還原
 SInitChaRandMove	+0x78	活動矩形GRECT，四個int順序載入	未移植：SInit記錄還原
 SInitChaFollow	+0x7c	跟隨參數起點，連讀三個int；+0x88/+0x8c另讀兩個int	未移植：SInit記錄還原
+SInitBase	+0x4	記錄種類int；查找入口以unsigned(kind-10)<7接受10～16，工廠實際支援11～15、101、102	未移植：SInit記錄還原
+PacketDeque	+0x4	元素指標表	通用容器略過
+PacketDeque	+0x8	指標表容量（2次冪）	通用容器略過
+PacketDeque	+0xc	環狀首索引	通用容器略過
+PacketDeque	+0x10	元素數量	通用容器略過
+PacketDequeEntry	+0x0	封包種類，空元素=-1	連線封包略過
+PacketDequeEntry	+0x4	空元素清零欄位	連線封包略過
+PacketDequeEntry	+0x8	資料長度	連線封包略過
+PacketDequeEntry	+0xc	1024-byte封包資料	連線封包略過
