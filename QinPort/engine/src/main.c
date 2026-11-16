@@ -228,7 +228,7 @@ typedef struct {
     int key, id, min, max, p6, p7, enabled, p8, p9;
     const SkillRow *row;
 } ActorSkill;
-#define MAX_ACTOR_SKILLS 64
+#define MAX_ACTOR_SKILLS 128
 
 typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
@@ -906,7 +906,6 @@ static int skill_attack_id(const SkillRow *r) { return (int)skill_field(r, 10, s
 
 // Poq.exe 0x488850：精確ID包含停用項；未命中時按模板優先序挑啟用項。
 // shortcut: fallback的比較暫存反編譯未定義，按模板索引最小者解讀，取得組語後校準。
-// shortcut: 模板ID目前由已載入NPC／玩家候選列提供，RoleMdl執行期表接入後改用其原始順序。
 static int actor_skill_find(const Actor *a, int id) {
     for (int i = 0; i < a->skill_n; i++) if (a->skills[i].id == id) return i;
     int best = -1, rank = a->template_skill_n;
@@ -1016,7 +1015,7 @@ static void actor_skill_update(Actor *a, int key, int id, int min, int max, int 
 }
 
 // Poq.exe 0x485f80：先插入完整節點，再按低兩位選手；模板檢查僅診斷，不拒絕新增。
-// shortcut: 有序陣列限64項，達上限印診斷；需要更多技能時改動態配置。
+// shortcut: 有序陣列限128項，達上限印診斷；需要更多技能時改動態配置。
 // shortcut: 單機省略技能同步封包，連線支援時補傳輸。
 static int actor_skill_add(Actor *a, ActorSkill skill, unsigned hand) {
     if (a->skill_n == MAX_ACTOR_SKILLS) { fprintf(stderr, "角色技能槽已滿\n"); return -1; }
@@ -1030,19 +1029,31 @@ static int actor_skill_add(Actor *a, ActorSkill skill, unsigned hand) {
     return slot;
 }
 
-// shortcut: 候選由NPC／玩家技能列橋接，完整RoleMdl模板載入後移除此來源轉換。
+// 劇情／NPC技能列追加外部識別與等級距離，不再改寫RoleMdl模板表。
 static void actor_skill_append(Actor *a, const SkillRow *r, int key) {
     if (!r) return;
     int id = skill_attack_id(r);
-    if (a->template_skill_n < MAX_ACTOR_SKILLS) a->template_skill[a->template_skill_n++] = id;
     actor_skill_add(a, (ActorSkill){.key = key, .id = id,
         .min = (int)skill_field(r, 12, skill_value(r->range_min, r->range_min_inc, r->level)),
         .max = skill_range_max(r), .p8 = 1, .p9 = 1, .enabled = 1, .row = r}, 0);
 }
-static void actor_skills_init(Actor *a) {
+// Poq.exe 0x48f460：只清鏈，按原模板順序加入存在的招式；不重設左右手ID。
+static void actor_skills_rebuild(Actor *a) {
     while (a->skill_n) actor_skill_remove(a, a->skills[0].key);
-    a->selected = a->right_id = a->left_id = -1;
-    a->template_skill_n = 0;
+    // shortcut: 原版清鏈後的節點指標不能保留為陣列索引；選取清空，呼叫端重選手時恢復。
+    a->selected = -1;
+    a->template_skill_n = a->def->skill_count;
+    for (int i = 0; i < a->template_skill_n; i++) a->template_skill[i] = a->def->skill_ids[i];
+    for (int i = 0; i < a->template_skill_n; i++) {
+        int id = a->template_skill[i];
+        const Method *m = method_find(id);
+        if (m) actor_skill_add(a, (ActorSkill){.id = id, .min = m->range_min,
+            .max = m->range_max, .enabled = 1, .p8 = 1, .p9 = 1}, 0);
+    }
+}
+static void actor_skills_init(Actor *a) {
+    actor_skills_rebuild(a);
+    a->right_id = a->left_id = -1;
     if (a->mon) for (int i = 0; i < 8; i++) actor_skill_append(a, npc_skill(a->mon->skill[i]), 0);
 }
 
@@ -1362,6 +1373,23 @@ static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = �
 // Poq.exe 0x488d20：速度只比較是否為0；有MethodMain時不能移動。
 static int actor_can_move(const Actor *a) { return a->speed != 0 && !main_of(a); }
 
+// Poq.exe 0x488ca0：目前招式有flag4觸發時，即使禁止攻擊也允許中斷。
+// shortcut: 單機同時執行原版服務端的技能Enable分支；拆出網路客戶端時按場景角色分流。
+static int actor_can_use_skill(const Actor *a, const ActorSkill *skill) {
+    MUnit *u = main_of(a);
+    if (!actor_flags(a, 0x800) && !u) {
+        if (!a->skill_n) return 1;
+        if (skill) return actor_skill_enabled(a, skill);
+    } else if (u && u->m && u->m->interruptible) return 1;
+    return 0;
+}
+
+// Poq.exe 0x488c70：包含精確命中停用項及模板fallback，不只查當前手。
+static int actor_can_use_id(const Actor *a, int id) {
+    int i = actor_skill_find(a, id);
+    return actor_can_use_skill(a, i >= 0 ? &a->skills[i] : NULL);
+}
+
 // 往 a 的反方向推 cells 格（擋住就停），面向 a（Poq.exe 狀態 0x1f：0x4942d0 方向反過來當面向、0x493cb0 每次走一格）
 static void knock_back(Actor *t, const Actor *a, int cells) {
     float dx = t->x - a->x, dy = t->y - a->y, len = sqrtf(dx * dx + dy * dy);
@@ -1668,7 +1696,7 @@ static const SkillRow *mon_pick(const Actor *a) {
     for (int i = 0; i < 8; i++) {
         const SkillRow *r = npc_skill(a->mon->skill[i]);
         const Method *m = r ? method_find(skill_attack_id(r)) : NULL;
-        if (!m || !actor_row_enabled(a, r)) continue;
+        if (!m || !actor_row_enabled(a, r) || !actor_can_use_id(a, skill_attack_id(r))) continue;
         if ((m->manual == 0 || m->manual == 3) && m->ai == 1) {
             if (rand() % 2 && alive(a->foe)) {
                 int range = actor_row_range(a, r), d = (int)(fabsf(a->x - a->foe->x) + fabsf(a->y - a->foe->y));
@@ -2068,10 +2096,10 @@ static void skill_add(int i) {
     if (skill_mode || i < 0 || i > 3 || k >= hero_skill_n || !skill_can_up(&hero_skill[k])) return;
     hero_skill[k].level++;
     SkillRow *r = &hero_skill[k];
-    actor_skill_update(&actors[0], k, skill_attack_id(r),
+    actor_skill_update(&actors[0], k + 1, skill_attack_id(r),
         (int)skill_field(r, 12, skill_value(r->range_min, r->range_min_inc, r->level)),
         skill_range_max(r), 0, 0);
-    actor_skill_enable(&actors[0], k, r->level > 0, 0);
+    actor_skill_enable(&actors[0], k + 1, r->level > 0, 0);
     hero_extra_skill--;
 }
 
@@ -2087,22 +2115,25 @@ static int cur_skill[2];
 static void hero_skill_apply(Actor *h) {
     skills_load();
     int k = cur_skill[0];
-    while (h->skill_n) actor_skill_remove(h, h->skills[0].key);
-    h->template_skill_n = 0;
-    h->selected = -1;
-    for (int i = 0; i < hero_skill_n; i++) actor_skill_append(h, &hero_skill[i], i);
+    actor_skills_rebuild(h);
+    // shortcut: 玩家技能列用index+1作外部識別，保留0給原模板；完整技能物件接入後換回句柄。
+    for (int i = 0; i < hero_skill_n; i++) actor_skill_append(h, &hero_skill[i], i + 1);
     actor_right_skill(h, k >= 0 && k < hero_skill_n ? skill_attack_id(&hero_skill[k]) : -1);
     int left = cur_skill[1];
     actor_left_skill(h, left >= 0 && left < hero_skill_n ? skill_attack_id(&hero_skill[left]) : -1);
-    h->skill = h->selected >= 0 ? h->skills[h->selected].row : NULL;
-    h->atk = h->skill ? method_find(skill_attack_id(h->skill)) : NULL;
+    h->skill = NULL;
+    int id = h->selected >= 0 ? h->skills[h->selected].id : -1;
+    // 原模板項沒有EasyRPG技能列；按招式ID接結算資料，不能把選中的模板項當成空手。
+    for (int i = 0; i < hero_skill_n; i++)
+        if (skill_attack_id(&hero_skill[i]) == id) { h->skill = &hero_skill[i]; break; }
+    h->atk = method_find(id);
 }
 
 // 放左手技能（原版右鍵 → Poq.exe 0x48ffe0 手 = 1）：技能等級 > 0、精气夠、武器合、沒有「攻击不能」的狀態，招式開始才扣精气。
 // 要對著敵人的技能要有目標；不在作用範圍最大內就先走過去（pursue），到了再放
 static void cast_start(Actor *h, const SkillRow *r) {
     const Method *m = method_find(skill_attack_id(r));
-    if (h->act || h->casting || !m || !actor_row_enabled(h, r) || !skill_usable(h, r) || status_noattack(h)) return;
+    if (h->act || h->casting || !m || !actor_row_enabled(h, r) || !actor_can_use_id(h, skill_attack_id(r)) || !skill_usable(h, r) || status_noattack(h)) return;
     h->mp -= skill_mpu(r);
     h->cast = r;
     h->casting = 1;

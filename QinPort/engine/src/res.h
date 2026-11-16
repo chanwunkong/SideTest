@@ -142,6 +142,7 @@ typedef struct {
     int size, legs, snd_idle, snd_fight;                  // 角色大小、脚数、平时/战斗声音（0 = 沒有）
     int light, flicker;                                   // 有无光影、光影闪烁（欄 15、16，RoleMdl +0xb8、+0xbc）
     char graphic[16], styles[96];
+    uint16_t skill_ids[100], skill_count; // RoleMdl.rmd：依RoleMdl列序的原始招式表
     int beast, air, display, reaction, snd_run; // BeastieMdl：移動屬性、顯示方式、對人反應
     uint32_t anim;  // BeastieMdl.txt 的小動物、陷阱：只有一個動畫（图素ID），graphic 空白
 } RoleDef;
@@ -217,7 +218,7 @@ typedef struct { int flag, frame, type, id, id2, pos; } Trig;  // pos：特效�
 // manual = wManualID、ai = Reserve3（怪物選招用，Poq.exe 0x4906c0）
 // effect = wEffect（+0x2c：1 路徑上的人跟著繞、7 亂飄）、quality = wQuality（+0x2e：3 連鎖、6/7 扇形放單位、8 自動找目標）、
 // r1 = Reserve1（+0x30：連鎖次數／扇形個數）、r2 = Reserve2（+0x32：1 = 目標點不超過攻擊距離）
-typedef struct { int id, manual, ai, seq, range_min, range_max, effect, quality, r1, r2, trig_count; Trig trig[MAX_TRIG]; } Method;
+typedef struct { int id, manual, ai, seq, range_min, range_max, effect, quality, r1, r2, trig_count, interruptible; Trig trig[MAX_TRIG]; } Method;
 const Method *method_find(int auto_id);  // 依 wAutoID 找；第一次呼叫時載入
 // 招式單位 ObjMdl/MethodUnit_Mdl.ini：wManualID 201 = 飛行物（Poq.exe 0x450700 依 dData2 分類，2 = CARROW），
 // dData0 = Res00 動畫、bData3 = 每拍飛幾像素（0x4368c0）；觸發 flag 1 = 打中時、5 = 放出時

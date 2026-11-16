@@ -678,7 +678,7 @@ CCharactor	+0x4b3	角色頭部高度u16，載模型時計算矩形高度加10	�
 CCharactor	+0x4b5	多個特殊狀態共用倒數，狀態105=9、111/114=8、115=5	待狀態倒數
 CCharactor	+0x4b9	最後修改的狀態ID，狀態重算最後再套此項	待完整狀態表
 CCharactor	+0x4ba	狀態／修正需要重算的byte旗標	待完整狀態表
-CCharactor	+0x4bb	SkillUnit技能鏈表頭	Actor.skills／skill_n（候選來源仍待完整模板）
+CCharactor	+0x4bb	SkillUnit技能鏈表頭	Actor.skills／skill_n（原模板重建後追加NPC／玩家技能列）
 CCharactor	+0x4d7	SkillUnit技能鏈首節點	Actor.skills[0]／skill_n
 CCharactor	+0x4db	SkillUnit技能鏈遍歷游標	ActorSkill遍歷索引，無共用游標
 CCharactor	+0x4df	目前選取的右手SkillUnit指標	Actor.selected（-1無選取）
@@ -735,5 +735,8 @@ SkillUnit	+0x30	啟用值	ActorSkill.enabled
 SkillUnit	+0x34	參數8	ActorSkill.p8
 SkillUnit	+0x38	參數9	ActorSkill.p9
 CCharactor	+0x4cf	SkillUnit鏈節點數，快捷選取與服務端技能Enable判斷使用	Actor.skill_n
-RoleMdl	+0x174	模板技能數量（ushort），技能檢查與fallback順位上限	Actor.template_skill_n；來源暫由NPC／玩家候選列橋接
-RoleMdl	+0x176	有序模板技能ID陣列（ushort），精確查找失敗後的選招優先序	Actor.template_skill；RoleMdl原始表載入仍待補
+RoleMdl	+0x174	模板技能數量（ushort），技能檢查與fallback順位上限	RoleDef.skill_count → Actor.template_skill_n；RoleMdl.rmd依角色表列序載入
+RoleMdl	+0x176	有序模板技能ID陣列（ushort），精確查找失敗後的選招優先序	RoleDef.skill_ids → Actor.template_skill；原RoleMdl.rmd順序與重複均保留
+MethodMdl	+0x46	載入時掃全部觸發，任一iFlag=4設1；招式允許中斷	Method.interruptible
+MethodMdl	+0x3e	最大距離轉回格數，模板重建SkillUnit的max	Method.range_max → ActorSkill.max
+MethodMdl	+0x42	最小距離轉回格數，模板重建SkillUnit的min	Method.range_min → ActorSkill.min

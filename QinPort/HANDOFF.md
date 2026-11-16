@@ -597,7 +597,17 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - shortcut：RoleMdl執行期原始技能表仍未載入，模板ID表暫由已載入NPC／玩家技能列橋接；fallback的比較暫存反編譯未定義，按模板索引最小者解讀，取得原組語後校準。維持64項容量並在超限診斷，單機省略技能同步；模板缺項以stderr代替原版模態訊息。未將模板重建入口標done。
   - 新增skip 0、base 0；fields補RoleMdl的ushort模板數量及ID陣列偏移，roles更新兩入口。todo 52仍含移動施法、簡單技能新增、原模板重建、主命令、狀態副作用／20修正、更新／動畫／繪製／文字、死亡占位等同類別工作；前輪CTriBld三項仍等角色建築命令／破壞呼叫端。未新增DLC分類。
   - skilltest補模板順序與鏈順序不同、停用／非模板fallback排除、精確命中停用非模板項、完整新增欄位、插入後切手、重複ID與hand高位。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；FUNCS.tsv已重產。
-  **下一步：0x485b80（CCharactor 尚未完成，續補移動施法／模板重建、命令與狀態；不可跳CNpc）起**。
+  ~~下一步：0x485b80（CCharactor 尚未完成，續補移動施法／模板重建、命令與狀態；不可跳CNpc）起~~。
+
+
+- 進度（11-16）：Poq.exe **0x485270～0x490220 CCharactor 角色續補原模板重建／技能可用性，本輪新增done 3，整類別仍未完成**；遊戲入口合計 **done 39、skip 30、todo 49**，未進CNpc。未達成「整個類別一起做」要求，49個待辦仍含同類別實作，不能列成等待其他系統。
+  - `main.c`的actor_skills_rebuild照原模板順序清鏈／重建，接actor_skills_init與hero_skill_apply，取代NPC／玩家技能列代建模板的舊路徑。`res.h`新增RoleDef的ushort數量與100項ID表；`res.c`的roledefs_load載入RoleMdl.rmd，按角色表列序而非角色ID分配（第一組是角色29、第二組角色206）。原版怪現象：保留重複ID、無招式記錄的模板項只保留於模板不進技能鏈、全部模板節點外部識別為0、不改左右手ID，新增min/max取招式預設且Enable/p8/p9均1。
+  - actor_can_use_skill／actor_can_use_id接mon_pick與cast_start，還原不能攻擊旗標、MethodMain中斷、空鏈及速度／Enable判斷。`res.c`載入MethodMdl時掃全部iFlag計算interruptible，包括超過現有24項觸發容量的項目；不是拿Reserve4或wType判斷。原版怪現象：目前招式有flag4就可越過不能攻擊與停用；空鏈且無目前招式允許NULL；精確ID命中停用項不轉選其他重複項；Enable保留非布林整數。
+  - 接線回歸：原模板key=0會和玩家第0招相撞，玩家技能列改用index+1識別，技能加點同時更新；選手命中模板項時按招式ID接玩家技能結算列，避免模板沒有row指標使主角變空手。模板預設射程與玩家升級射程各自保留。這是引擎識別／結算橋接，未修改原版查找第一個同ID／同key的順序。
+  - shortcut：有序技能陣列容量由64增128，容納原模板加玩家／NPC技能；超限仍診斷，需更多時改動態配置。清鏈後明確清陣列選取索引以免指向新節點；玩家外部識別暫用index+1，完整技能物件接入後換句柄。單機執行服務端Enable檢查，網路分流仍待連線支援；fallback反編譯未定義暫存的組語校準仍在。原版主命令／地點施法仍todo，沒有以這三個入口宣稱整條命令／施法已完成。
+  - 本類別新增skip 0、base 0；依賴的原版rmd管理物件入口索引無呼叫者，依規則新增skip 1，由引擎最小模板資源讀取承接。fields更新原模板兩偏移、技能鏈來源，補MethodMdl三偏移；roles同步用途。沒有新增DLC分類。49個todo仍含移動施法、簡單技能新增、候選技能觸發、主命令、20修正／狀態副作用、更新／動畫／繪製／文字、外觀、死亡占位等；前輪CTriBld三項仍等角色建築命令／破壞呼叫端。
+  - skilltest新增真實rmd列序／數量／頭尾ID、模板重複與無效ID、清鏈及手ID保留、預設距離、非布林Enable、空鏈、速度限制、禁止攻擊與招式中斷優先序、招式598第30項flag4、模板與玩家第0招共存／升級不改模板等回歸。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；-DSTORY語法檢查通過，原有5個未使用函數警告；FUNCS.tsv已重產。
+  **下一步：0x485b80（CCharactor 尚未完成，續補移動施法／候選技能觸發、命令與狀態；不可跳CNpc）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

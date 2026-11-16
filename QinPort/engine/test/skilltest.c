@@ -172,6 +172,62 @@ static void character_skills_test(void) {
     for (int i = -1; i <= 1; i++) { a.cool = i; assert(actor_cooling(&a) == (i > 0)); }
 }
 
+static void character_skill_runtime_test(void) {
+    RoleDef d = {.speed = 5, .skill_count = 3, .skill_ids = {65535, 1, 1}};
+    Actor a = {.def = &d, .speed = 5, .right_id = 77, .left_id = 88,
+        .skill_n = 1, .selected = 0, .skills = {{.id = 999}}};
+    actor_skills_rebuild(&a);
+    assert(a.template_skill_n == 3 && a.template_skill[0] == 65535);
+    assert(a.skill_n == 2 && a.skills[0].id == 1 && a.skills[1].id == 1);
+    assert(a.skills[0].max == method_find(1)->range_max && a.skills[0].min == method_find(1)->range_min);
+    assert(a.skills[0].enabled == 1 && a.skills[0].p8 == 1 && a.skills[0].p9 == 1);
+    assert(!a.skills[0].key && !a.skills[0].p6 && !a.skills[0].p7);
+    assert(a.right_id == 77 && a.left_id == 88 && a.selected == -1);
+    int saved_n = unit_n;
+    MUnit saved_u = units[0];
+    unit_n = 0;
+    a.skills[0].enabled = 7;
+    assert(actor_can_use_id(&a, 1) == 7);
+    a.skills[0].enabled = 0;
+    assert(!actor_can_use_id(&a, 1)); // 精確命中不會偷偷換成後面的啟用重複項。
+    assert(actor_can_use_id(&a, -1) == 1); // fallback可取第二個啟用項。
+    a.flags = 0x800;
+    assert(!actor_can_use_id(&a, -1));
+    Method m = {.interruptible = 1};
+    units[0] = (MUnit){.cls = U_MAIN, .owner = &a, .m = &m}; unit_n = 1;
+    assert(actor_can_use_id(&a, 1) == 1); // 中斷條件優先，無視禁止攻擊及停用。
+    m.interruptible = 0;
+    assert(!actor_can_use_id(&a, 1));
+    units[0].dead = 1; a.flags = 0;
+    a.skill_n = 0;
+    assert(actor_can_use_id(&a, 65535) == 1); // 空鏈且沒有MethodMain允許NULL。
+    a.skill_n = 1; a.skills[0].max = 3; a.skills[0].enabled = 9; a.speed = 0;
+    assert(!actor_can_use_id(&a, 1));
+    d.speed = 0; assert(actor_can_use_id(&a, 1) == 9);
+    units[0] = saved_u; unit_n = saved_n;
+    // 中斷欄位來自任一iFlag=4，而非wType、Reserve4或觸發種類。
+    assert(method_find(31)->interruptible && method_find(255)->interruptible);
+    assert(!method_find(1)->interruptible);
+    // 招式598的flag4在第24個觸發之後，仍必須判為可中斷。
+    int visible = 0;
+    for (int i = 0; i < method_find(598)->trig_count; i++) visible |= method_find(598)->trig[i].flag == 4;
+    assert(!visible && method_find(598)->interruptible);
+    // 模板項與玩家第0招共存：右手仍能接到技能列，升級不能修改模板的key=0項。
+    SkillRow saved_skill = hero_skill[0];
+    int saved_skill_n = hero_skill_n, saved_right = cur_skill[0], saved_left = cur_skill[1];
+    hero_skill_n = 1; cur_skill[0] = cur_skill[1] = 0;
+    hero_skill[0] = (SkillRow){.level = 1, .mod_n = 1, .mod = {{.id = 10, .init = 1}}};
+    a.def = &d; a.foe = NULL;
+    hero_skill_apply(&a);
+    assert(a.selected == 0 && a.skills[0].key == 0 && a.skills[2].key == 1);
+    assert(a.skill == &hero_skill[0] && a.atk == method_find(1));
+    int raw_range = a.skills[0].max;
+    actor_skill_update(&a, 1, 1, 3, 8, 0, 0);
+    assert(a.skills[0].max == raw_range && a.skills[2].max == 8);
+    hero_skill[0] = saved_skill; hero_skill_n = saved_skill_n;
+    cur_skill[0] = saved_right; cur_skill[1] = saved_left;
+}
+
 static void viewport_test(void) {
     int old_w = vw, old_h = vh;
     vw = 640; vh = 480;
@@ -552,6 +608,7 @@ int main(void) {
     character_lookup_test();
     character_core_test();
     character_skills_test();
+    character_skill_runtime_test();
     scene_client_test();
     viewport_test();
     building_test();
@@ -642,6 +699,10 @@ int main(void) {
     // 召喚：匈奴法师_召唤（273 = 10 → 朱厌，最多 2 隻）
     roledefs_load();
     assert(roledef_find(204) && !roledef_find(204)->beast && !roledef_find(204)->air);
+    // RoleMdl.rmd的分組與角色ID無關，第一列ID29必須取得第一組57招。
+    const RoleDef *template = roledef_find(29);
+    assert(template && template->skill_count == 57 && template->skill_ids[0] == 22 && template->skill_ids[56] == 674);
+    assert(roledef_find(206)->skill_count == 34 && roledef_find(206)->skill_ids[0] == 167);
     const RoleDef *crow = roledef_find(1003);
     assert(crow && crow->beast && crow->air == 1 && crow->reaction == 0 && crow->snd_idle == 26);
     NpcSpec air_specs[2] = {{.tmpl = 1003, .x = 8, .y = 9}, {.tmpl = 1005}};

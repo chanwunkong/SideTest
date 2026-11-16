@@ -1258,6 +1258,27 @@ int roledefs_load(void) {
 #undef COL
     }
     free(d);
+    // 角色模板資源基礎：順序讀招式數／招式，不按角色ID索引，也不去重。
+    d = read_all(dir, "RoleMdl.rmd", &n);
+    if (d) {
+        n = res_unxor(d, n);
+        int row = -1, count = 0, index = 0;
+        for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n")) {
+            char *eq = strchr(line, '=');
+            if (!eq) continue;
+            *eq++ = 0;
+            if (!strcmp(line, "\xd5\xd0\xca\xbd\xca\xfd")) { // 招式数
+                row++; count = (uint16_t)atoi(eq); index = 0;
+                if (row < roledef_count) roledefs[row].skill_count = count > 100 ? 100 : count;
+                if (count > 100) fprintf(stderr, "RoleMdl.rmd row %d exceeds 100 skills\n", row);
+            } else if (!strcmp(line, "\xd5\xd0\xca\xbd") && index < count) { // 招式
+                if (row >= 0 && row < roledef_count && index < 100)
+                    roledefs[row].skill_ids[index] = (uint16_t)atoi(eq);
+                index++;
+            }
+        }
+        free(d);
+    }
     // 小動物表 BeastieMdl.txt（Poq.exe 跟 RoleMdl 一起讀，0x44b2xx）：0 名稱、1 ID、2 图素ID、5 低速、6 高速、12 索敌范围；陷阱的角色在這裡
     d = read_all(dir, "BeastieMdl.txt", &n);
     if (d && n > 1) {
@@ -1494,6 +1515,7 @@ const Method *method_find(int auto_id) {
             else if (!strcmp(k, "iFlag")) {
                 t = m->trig_count < MAX_TRIG ? &m->trig[m->trig_count++] : NULL;
                 if (t) t->flag = v;
+                if (v == 4) m->interruptible = 1; // MethodMdl +0x46，原版載入時計算
             } else if (t && !strcmp(k, "iWhatFrame")) t->frame = v;
             else if (t && !strcmp(k, "iTriType")) t->type = v;
             else if (t && !strcmp(k, "iTriID")) t->id = v;
