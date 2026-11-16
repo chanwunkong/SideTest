@@ -42,6 +42,21 @@ static void scene_client_test(void) {
     actors[0] = saved; actor_count = count;
 }
 
+static void character_lookup_test(void) {
+    Actor saved[2] = {actors[0], actors[1]};
+    int count = actor_count;
+    MonDef trap = {.istrap = 1};
+    actor_count = 2;
+    actors[0] = (Actor){.role = (const Role *)1, .sh = 123, .act = ACT_DEAD};
+    actors[1] = (Actor){.role = (const Role *)1, .sh = 456, .mon = &trap};
+    assert(character_of(123) == &actors[0]); // 死亡不影響查找
+    assert(actor_of(456) == &actors[1] && !character_of(456));
+    assert(!character_of(0) && !character_of(999));
+    actors[0].role = NULL;
+    assert(!character_of(123));
+    actors[0] = saved[0]; actors[1] = saved[1]; actor_count = count;
+}
+
 static void viewport_test(void) {
     int old_w = vw, old_h = vh;
     vw = 640; vh = 480;
@@ -219,6 +234,7 @@ static void ground_labels_test(void) {
 }
 
 int main(void) {
+    character_lookup_test();
     scene_client_test();
     viewport_test();
     ground_labels_test();

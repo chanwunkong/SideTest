@@ -443,6 +443,21 @@ static void roles_clear(void) {
 static Actor actors[MAX_ACTORS];
 static int actor_count;
 
+// Poq.exe 0x4770a0：依物件編號查找，包含已死物件。
+// shortcut: 目前用劇情 handle 對 actors；完整 CScene 物件索引接入時改用原版編號。
+static inline Actor *actor_of(int h) {
+    for (int i = 0; h && i < actor_count; i++)
+        if (actors[i].sh == h && actors[i].role) return &actors[i];
+    return NULL;
+}
+
+// Poq.exe 0x476fd0：查找後只接受種類 30～100，不檢查是否死亡。
+// shortcut: actors 只承載角色及陷阱，以 istrap 排除陷阱；加入其他物件類別時改讀原版種類。
+static inline Actor *character_of(int h) {
+    Actor *a = actor_of(h);
+    return a && !(a->mon && a->mon->istrap == 1) ? a : NULL;
+}
+
 // 場景客戶端保留單機需要的查詢狀態。
 typedef struct {
     const Scene *scene;
@@ -2762,12 +2777,6 @@ static void story_msg(int id, const intptr_t *v, int n, const char *s) {
     snprintf(m->s, sizeof m->s, "%s", s);
 }
 
-static Actor *actor_of(int h) {
-    for (int i = 0; h && i < actor_count; i++)
-        if (actors[i].sh == h && actors[i].role) return &actors[i];
-    return NULL;
-}
-
 // 0x100730c0：依怪物表設人物數值（單機公式見 mon_stat）。數值放在人物物件上（劇情會讀），引擎的角色也照同一列算
 static int story_person(int h, const char *name, int level, int tier) {
     if (!mondefs_load()) return 0;
@@ -2908,6 +2917,7 @@ static void story_msgs(void) {
             break;
         case 0x535: if (a) a->ex[20] = (int)m->v[1]; break;                 // Invincible
         case 0x51c:  // G_AIGroup
+            a = character_of((int)m->v[0]);
             if (a) a->grp = (int)m->v[1];
             if (a && a != &actors[0]) a->side = m->v[1] != story_get_int(story_player(), "G_AIGroup");
             break;
