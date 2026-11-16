@@ -45,12 +45,12 @@ CRAIN	+0x18	天氣不是小雨（0 = 亮度鎖住）	!light_lock
 RoleMdl	+0xb8	有无光影（第 15 欄）	RoleDef.light
 RoleMdl	+0xbc	光影闪烁（第 16 欄）	RoleDef.flicker
 BldMdl	+0xa9	光源種類 1~4（小灯、小白灯、大灯、大白灯）	Model.light
-BldMdl	+0x53	原點格（與 +0x63 的差 = 光源格）	Model.lx/ly
+BldMdl	+0x53	模型原點格X（與 +0x63 的差 = 光源格）	Model.anchor_x／Model.lx
 BldMdl	+0x63	光源格	Model.lx/ly
 SceneCell	+4	能走（地圖記錄第 4 byte）	Cell.walk
 SceneCell	+6	層（地圖第 6 byte：0、1、2 牆、3、12、14、16）	Cell.layer
 SceneCell	+0xc	站在上面的角色（物件編號，-1 = 沒有）	動態物件占格索引（待CObjMng）
-SceneCell	+0xe	建築（物件編號）	Cell.building（CBuilding占格來源待接）
+SceneCell	+0xe	建築（物件編號）	Cell.building（scene_building_cells發布）
 SceneCell	+0x10	道具或陷阱（物件編號）	cell_prop()
 SceneCell	+0x12	旗標（0x88 = 建築本體）	Cell.flags
 CCharactor	+0x339	隊伍組（0~99 玩家、10000~60000 NPC 組）	Actor.side
@@ -218,7 +218,7 @@ CScene	+0x5e	世界限制矩形附加欄位（進場複製至 CViewPort +0xf0）
 DAT_00662c4c.object	+0x1fe8	非零禁止寫入 Rec 鏡頭封包（類別未確認）	待 Rec 系統
 CViewPort	+0x38	待可見檢查的特殊動態物件名單表頭（不是世界Y）	動態特殊名單（來源待CDynamicObj）
 SceneCell	+0xc	動態物件索引，-1 為無	動態物件占格索引（待CObjMng）
-SceneCell	+0xe	建築／靜態物件索引，-1 為無	Cell.building（CBuilding占格來源待接）
+SceneCell	+0xe	建築／靜態物件索引，-1 為無	Cell.building（scene_building_cells發布）
 SceneCell	+0x12	遮擋類型旗標：最高位設且低3位為2時查建築	Cell.flags
 CScene	+0x18	當前21-byte格子快取指標	待原版繪圖／小地圖系統
 FUN_0045ec50.object	+0x34	物件世界 X，與 Y 相加作排序鍵	待原版繪圖／小地圖系統
@@ -591,3 +591,44 @@ CBirdFast	+0x87	飛行方向rand()%8	FastBird.dir
 CBirdFast	+0x8b	移動速度，初始16	FastBird.speed
 CBirdFast	+0x8f	連續離屏計數，回到畫面歸零	FastBird.outside
 CBirdFast	+0x93	離屏容忍門檻，初始100，判斷舊值>門檻	FastBird.limit
+CBuilding	+0x30	SInitBuilding來源資料，類型0x66才可取名稱	Object.name／Object.x/y（BNT建築記錄轉入）
+CBuilding	+0x3c	投影後模型矩形X	viewport_building_rect.x
+CBuilding	+0x40	投影後模型矩形Y	viewport_building_rect.y
+CBuilding	+0x44	模型矩形寬	Model.rect_w
+CBuilding	+0x48	模型矩形高	Model.rect_h
+CBuilding	+0x50	擺放格投影X	viewport_grid_screen.x+32
+CBuilding	+0x54	擺放格投影Y	viewport_grid_screen.y+16
+CBuilding	+0x5c	模型+0x22類型，150為門名檢查入口條件	Model.type
+CBuilding	+0x6b	所屬CScene格子資料	Scene.cells
+CBuilding	+0x6f	反白選取狀態；同值不做事	Object.highlight
+CBuilding	+0x77	部件Spr指標陣列，靜態圖片或動畫	Model.parts／共享Anim及Sprite快取
+CBuilding	+0x8b	BldMdl模型指標	Object.m
+CBuilding	+0x8f	顯示模式，反白為15，取消恢復模型+0xaa	building_display／Model.display
+BldMdl	+0x22	模型類型，不是部件數	Model.type
+BldMdl	+0x26	執行期部件描述陣列，每筆0x19；檔案保留4bytes	Model.parts
+BldMdl	+0x2a	模型部件數u16	Model.part_count
+BldMdl	+0x33	模型繪圖矩形相對X	Model.rect_x
+BldMdl	+0x37	模型繪圖矩形相對Y	Model.rect_y
+BldMdl	+0x3b	模型繪圖矩形寬	Model.rect_w
+BldMdl	+0x3f	模型繪圖矩形高	Model.rect_h
+BldMdl	+0x47	占地格相對X	Model.grid_x
+BldMdl	+0x4b	占地格相對Y	Model.grid_y
+BldMdl	+0x4f	占地格寬u16	Model.grid_w
+BldMdl	+0x51	占地格高u16	Model.grid_h
+BldMdl	+0x57	模型原點格Y	Model.anchor_y
+BldMdl	+0x67	光源格Y	Model.ly（減anchor_y）
+BldMdl	+0x6b	門點相對X；與Y均為零時不改輸入點	Model.door_x
+BldMdl	+0x6f	門點相對Y	Model.door_y
+BldMdl	+0xa3	執行期占地u16陣列指標；只取每格低byte	Model.footprint
+BldMdl	+0xaa	顯示方式byte：0普通、1直畫、5半透明、15反白	Model.display
+BldPart	+0xc	動畫旗標byte	Part.anim
+BldPart	+0xd	圖片或動畫資源編號u32	Part.gid
+BldPart	+0x11	部件繪圖相對X	Part.dx
+BldPart	+0x15	部件繪圖相對Y	Part.dy
+SceneCell	+0x14	建築擺放原點標記，與占地旗標獨立	Cell.origin
+BldMdl	+0x24	模型ID u16	Model.id
+BldMdl	+0x2c	底層部件數u16	Model.bottom
+BldMdl	+0x30	上層部件數u16	Model.top
+BldMdl	+0x32	模型分組特殊旗標byte	Model.special
+BldMdl	+0x5b	遮擋平面相對格X	Model.block_x
+BldMdl	+0x5f	遮擋平面相對格Y	Model.block_y

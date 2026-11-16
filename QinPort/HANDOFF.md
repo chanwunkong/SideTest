@@ -542,7 +542,17 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - skip為3個建構／解構入口，使用C陣列與共用動畫快取生命週期取代。fields.tsv補9個偏移，roles.tsv補本類別6個用途及兩個生成入口；沒有等待其他遊戲系統的todo，也無證據可列「劇情沒用到」。
   - 原版怪現象：初始方向隨機但序列仍為0，更新才切方向；速度16，離屏舊計數>100才移除（連續離屏第102拍），重新可見歸零；生成倒數先判舊值，重擲<11額外嘗試左側8隻，倒數跨場景保留。shortcut：生成設定旗標與場景管理器條件暫以Scene已載入且寬>96承接，待設定與管理器資料接入還原；移動方向沿用既有工具近似。繪圖沿用現有SDL路徑，尚無原版逐像素色表，待精靈色表支援後升級。
   - Abort原因是新增bird_test在res_init前讀動畫，失敗結果被anim_get快取，導致後續烏鴉動畫斷言失敗；將資源初始化移到測試main入口修復，並加真實飛鳥動畫斷言防回歸。測試涵蓋初值、序列切換、離屏門檻／可見歸零、刪除壓縮後續拍、場景清空、生成倒數與8隻鳥群；`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`。FUNCS.tsv已重產。
-  **下一步：0x481b30（CBuilding 建築）起**。
+  ~~下一步：0x481b30（CBuilding 建築）起~~。
+
+- 進度（11-16）：Poq.exe **0x481b30～0x4841f0 CBuilding 建築**完整37個入口已核對，含索引誤標CViewPort／CGameDialog的建築方法；停在NormalBuilding建構邊界。**done 16、skip 15、base 3、todo 3**（funcs_skip另含3個base工具對應，故新增18行）。
+  - `engine/src/res.c`的parse_models／scene_load補模型矩形、類型、占地、顯示方式、門點、名稱及同物件共用動畫隨機起始幀；scene_building_cells在進場發布高位占地旗標、建築索引與獨立原點標記，修正先前Cell.building一直缺少來源的情況。模型部件數原先誤讀+0x22類型，已改讀+0x2a，部件上限由8補至40；scene_free釋放占地陣列。Actor／Scene／Anim／Sprite既有基礎直接承接，沒有等待基底系統。
+  - `engine/src/viewport.c`的viewport_building_rect／viewport_building_draw／building_part_draw／building_occlude_draw對應模型投影矩形、底中上分層及遮擋重畫，取代舊的直接畫部件迴圈；building_highlight／building_display接main.c滑鼠命中與取消反白，原版遮擋平面X偏移<1優先的分支也回補。`light.c`的light_buildings補光源中心原版位址；BNT名稱及門點快取到Object供後續互動沿用。
+  - 原版怪現象：光源格中心乘64加32；同物件所有動畫部件只擲一次rand()%1000再各對幀數取餘；高位占地只看u16低byte，walk開關僅作用低3位==1，原點標記不等於占地；遮擋座標和／分軸相等都不擋，X<1優先（含X負數、Y零）；反白同值不更新且取消恢復模型顯示方式，非動畫底層不反白；門名檢查所有分支最後均直接返回，不憑名稱自造開門效果。
+  - skip：建構／解構及部件釋放、空入口、無呼叫者入口、DirectDraw髒區管理與無效果門名檢查。base_map補場景綁定轉接及兩個固定成功工具；fields.tsv補41列並更新3個舊欄位說明，roles.tsv補37個用途。未發現可證明整類別劇情不用的依據，不列DLC。
+  - shortcut：SDL全重畫取代髒區與暫存表面；RGBA合併原版SBMP表面旗標分流，反白以加亮混色代替色表，待原始表面旗標／逐像素色表接入還原分流順序、光照及反白；部件動畫沿用共享時鐘加隨機初幀，等NormalBuilding更新改成獨立Spr拍數；拾取先用模型矩形，等CObj逐像素命中；固定40部件表超出時改動態陣列。這些近似均已在程式註記，沒有把未移植函數位址放進shortcut。
+  - todo 3：建築縮圖等不同類別CScnClient小地圖生成／CMapDialog消費端；格子walk清除／恢復規則已放scene_building_cells參數分支，但尚未有遊戲呼叫端，等不同類別CTriBld狀態切換接入，未以位址註解冒稱done。門點已快取，互動消費端同等CTriBld；沒有新增未被遊戲呼叫的獨立函數。
+  - skilltest新增占地低byte／高位／索引／原點、walk過濾及還原、負座標界限、遮擋等號與負偏移優先、反白恢復與底層例外、隨機初幀／停留拍、模型矩形、滑鼠反白取消、半透明實際像素／未知模式不畫／alpha恢復，以及陽周城真實占地與門點快取檢查。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；FUNCS.tsv已重產。
+  **下一步：0x4843a0（NormalBuilding 一般建築）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

@@ -610,3 +610,40 @@
 004819c0	CBirdFast方向動畫切換、前進一拍 → air.c bird_animate
 00481a10	CBirdFast固定動畫0x100001、隨機方向、速度16與離屏100拍初始化 → air.c bird_init
 00481ab0	CBirdFast舊離屏計數>100移除、按方向移動及更新動畫 → air.c bird_tick_one
+00481d60	綁模型／部件、一次rand給全部動畫起始幀、顯示模式、遮擋平面及建築光；res.c parse_models/scene_load、viewport.c building_frame、light_buildings
+004821c0	CBuilding一般中層部件繪製；viewport_building_draw；沿用SDL全畫面光照，色表差異見shortcut
+004823d0	CBuilding特殊部件普通／半透明／反白繪圖；building_part_draw；SDL色表及表面旗標近似見shortcut
+004825c0	CBuilding特殊部件裁切繪圖；building_part_draw配合renderer clip；與非裁切共用
+004827c0	CBuilding裁切底層部件繪製；viewport_building_draw pass0
+00482930	CBuilding裁切中層部件繪製；viewport_building_draw pass1
+00482ab0	CBuilding裁切上層部件繪製；viewport_building_draw pass2
+00482db0	SInitBuilding名稱取值；BNT建築名轉Object.name，保留原始GBK，不經CString
+00482dd0	有任一門點偏移才以擺放格扣模型原點加門點，否則保留輸入點；scene_load快取Object.door_x/y；互動消費端等CTriBld
+00482e30	建築光源格中心：擺放格扣模型原點加光源格後乘64加32；light_buildings投影到光照圖
+00482eb0	CBuilding各部件合成縮圖後ceil尺寸縮放、輸出模型矩形原點/倍率；todo 等不同類別CScnClient小地圖生成與CMapDialog消費端，未新增無呼叫者縮圖函數
+004830f0	CBuilding遮擋平面測試；viewport_blocks，座標和相等／分軸相等皆不遮擋，X偏移<1優先
+00483400	CBuilding高位占地旗標與建築索引寫場景格，另設原點標記；scene_building_cells(-1)在scene_load接入
+00483620	CBuilding清除高位且低3位為1的格子walk；todo 等不同類別CTriBld狀態切換呼叫端；規則已放scene_building_cells(walk=0)，未標done
+00483980	CBuilding透明表面遮擋重畫；building_occlude_draw合併SDL RGBA路徑；原始SBMP旗標分流／色表見shortcut
+00483b80	CBuilding普通表面遮擋重畫；building_occlude_draw；SDL裁切重畫取代髒區及暫存表面，分流限制見shortcut
+00483f90	CBuilding反白設值，同值不更新、取消恢復模型顯示值；building_highlight/building_display接滑鼠命中
+00484170	CBuilding投影擺放格後加模型矩形偏移，寬高取模型；viewport_building_rect接可見名單／拾取
+004841f0	CBuilding恢復高位且低3位為1的格子walk=1；todo 等不同類別CTriBld狀態切換呼叫端；規則已放scene_building_cells(walk=1)，未標done
+00481b30	CBuilding建構：以Scene.objects值初始化與共用資源快取取代C++生命週期
+00481b90	CBuilding解構：Scene釋放物件／模型占地，SDL共用圖片快取統一釋放
+00481c60	CBuilding刪除解構：C陣列／Scene生命週期取代
+00481d50	CBuilding空虛擬入口，沒有遊戲邏輯
+00481f90	CBuilding釋放部件與基底資源：Scene與共享Anim／Sprite快取取代
+00482000	CBuilding部件矩形聯集加入DirectDraw髒區；SDL每幀全重畫取代平台髒矩形管理
+00482190	CBuilding髒區通知包裝；無呼叫者，SDL每幀全重畫
+00482750	CBuilding全模型特殊部件繪製；索引無呼叫者，現用分層繪製路徑
+00482c20	CBuilding全部件矩形聯集查詢；索引無呼叫者，不新增獨立入口
+004830e0	CBuilding場景綁定轉接CObj；Scene.objects與Object.m在scene_load綁定，無需虛擬轉接
+00483170	CBuilding查詢部件是否動畫／非底層反白；索引無呼叫者，繪圖直接使用判斷式
+004831c0	CBuilding類型150時比較門名但所有分支均直接返回；保留無效果，不自造開門邏輯
+00483290	CBuilding基底初始化結果工具，CObj被呼叫本體固定返回1；以scene_load成功值取代
+004832a0	CBuilding位置MoveDirForSpeed轉接；索引無呼叫者
+004832d0	CBuilding單部件動畫前後矩形加入DirectDraw髒區；SDL每幀重畫，原反編譯未呈現幀推進呼叫，不將此入口冒稱動畫更新
+004837d0	CBuilding底層以上全部部件裁切繪製；索引無呼叫者
+00483db0	CBuilding上層半透明裁切重畫；索引無呼叫者
+00483f80	CBuilding固定成功虛擬查詢；以有效Object.m／scene_load成功取代無行為包裝

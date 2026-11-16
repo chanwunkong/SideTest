@@ -54,11 +54,15 @@ typedef struct { uint32_t gid; int count; Seq *seqs; } Anim;
 const Anim *anim_get(uint32_t gid);  // 快取，不用釋放；失敗回 NULL
 
 // ---- 場景 ----
-#define MAX_PARTS 8
+#define MAX_PARTS 40
 typedef struct { uint8_t anim; uint32_t gid; int dx, dy; } Part;
-typedef struct { int id, part_count; size_t start; Part parts[MAX_PARTS]; int light, lx, ly; int bottom, top, special, block_x, block_y; } Model;  // light = 光源種類 1~4（BldMdl +0xa9）；lx, ly = 光源格相對擺放格（+0x63 − +0x53、+0x67 − +0x57）
-typedef struct { uint16_t ground, over; uint8_t walk, kind, layer, view, flags; int building; } Cell;  // kind = 地面種類（記錄第 7 byte；3 = 會留腳印的軟地）；layer = 第 6 byte（原版格子 +6，0x435c00）
-typedef struct { int model, x, y; const Model *m; } Object;  // m 在載入時查好，可能為 NULL
+typedef struct { int id, part_count; size_t start; Part parts[MAX_PARTS]; int light, lx, ly; int bottom, top, special, block_x, block_y;
+    int display, type, rect_x, rect_y, rect_w, rect_h;
+    int grid_x, grid_y, grid_w, grid_h, anchor_x, anchor_y, door_x, door_y;
+    uint16_t *footprint;
+} Model;  // light = 光源種類 1~4（BldMdl +0xa9）；lx, ly = 光源格相對擺放格（+0x63 − +0x53、+0x67 − +0x57）
+typedef struct { uint16_t ground, over; uint8_t walk, kind, layer, view, flags; int building; uint8_t origin; } Cell;  // kind = 地面種類（記錄第 7 byte；3 = 會留腳印的軟地）；layer = 第 6 byte（原版格子 +6，0x435c00）
+typedef struct { int model, x, y; const Model *m; unsigned phase; int highlight, door_x, door_y; char name[128]; } Object;  // m 在載入時查好，可能為 NULL
 
 typedef struct { int id, x, y, dir; } Entry;          // .Scn 入口點：從入口 id 進來時站的位置與方向
 typedef struct { int x, y; char event[48]; } Trigger;  // BNT 類型 4：踩到就觸發事件（例如 "go east"）
@@ -93,6 +97,7 @@ typedef struct {
 int scene_load(Scene *s, const char *scn_name);
 const Entry *scene_entry(const Scene *s, int id);  // 找不到就回第一個入口
 void scene_free(Scene *s);
+void scene_building_cells(Scene *s, int index, int walk);
 int scene_walkable(const Scene *s, int x, int y);
 
 // 格子 → 世界像素（菱形磁磚左上角）

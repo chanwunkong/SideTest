@@ -605,3 +605,23 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00481930  CBirdFast建構：CAirObj基底與兩個vtable指標；C陣列/Spr初始化取代，依規則skip
 00481976  CBirdFast解構轉接；C陣列生命週期取代，依規則skip
 00481980  CBirdFast刪除解構：基底清理與可選釋放0x97 bytes；C陣列回收取代，依規則skip
+
+# CBuilding 建築（2026-11-16）
+00481b30  CBuilding建構：以Scene.objects值初始化與共用資源快取取代C++生命週期
+00481b90  CBuilding解構：Scene釋放物件／模型占地，SDL共用圖片快取統一釋放
+00481c60  CBuilding刪除解構：C陣列／Scene生命週期取代
+00481d50  CBuilding空虛擬入口，沒有遊戲邏輯
+00481f90  CBuilding釋放部件與基底資源：Scene與共享Anim／Sprite快取取代
+00482000  CBuilding部件矩形聯集加入DirectDraw髒區；SDL每幀全重畫取代平台髒矩形管理
+00482190  CBuilding髒區通知包裝；無呼叫者，SDL每幀全重畫
+00482750  CBuilding全模型特殊部件繪製；索引無呼叫者，現用分層繪製路徑
+00482c20  CBuilding全部件矩形聯集查詢；索引無呼叫者，不新增獨立入口
+004830e0  CBuilding場景綁定轉接CObj；Scene.objects與Object.m在scene_load綁定，無需虛擬轉接
+00483170  CBuilding查詢部件是否動畫／非底層反白；索引無呼叫者，繪圖直接使用判斷式
+004831c0  CBuilding類型150時比較門名但所有分支均直接返回；保留無效果，不自造開門邏輯
+00483290  CBuilding基底初始化結果工具，CObj被呼叫本體固定返回1；以scene_load成功值取代
+004832a0  CBuilding位置MoveDirForSpeed轉接；索引無呼叫者
+004832d0  CBuilding單部件動畫前後矩形加入DirectDraw髒區；SDL每幀重畫，原反編譯未呈現幀推進呼叫，不將此入口冒稱動畫更新
+004837d0  CBuilding底層以上全部部件裁切繪製；索引無呼叫者
+00483db0  CBuilding上層半透明裁切重畫；索引無呼叫者
+00483f80  CBuilding固定成功虛擬查詢；以有效Object.m／scene_load成功取代無行為包裝

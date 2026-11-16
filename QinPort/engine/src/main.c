@@ -4340,6 +4340,11 @@ int main(int argc, char **argv) {
         SDL_SetRenderTarget(ren, canvas);
         SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
         SDL_RenderClear(ren);
+        {
+            int hx = px, hy = py, cx, cy; zoom_point(&hx, &hy);
+            Actor *c = mouse_seen ? input_char(hx, hy, ox, oy, &scene, &cx, &cy) : NULL;
+            viewport_building_hover(&viewport, &scene, hx, hy, mouse_seen && !c && !win_left.open && !win_right.open, tick);
+        }
         viewport_draw(&viewport, &scene, tick);
         if (snap_due) { snap_take(canvas); snap_due = 0; }
         if (save_due >= 0) {

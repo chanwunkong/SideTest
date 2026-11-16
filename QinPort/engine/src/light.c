@@ -117,6 +117,7 @@ static void light_add(const Actor *a, int x, int y, int vis, int r, Uint32 color
     if ((int)(c & 255) > m2) m2 = c & 255;
     lights[light_n++] = (Light){a, a ? a->def : NULL, x, y, vis, r, m1 / 17, m2 / 17, m1 / 17, 0, 0};
 }
+// 0x482e30：光源格轉64分格中心；投影到 SDL 光照圖。
 // 建築的光源（0x481d60）：1 小灯、2 小白灯、3 大灯、4 大白灯；位置是光源格的中心
 static void light_buildings(const Scene *s) {
     static const int R[5] = {0, 0x140, 0x140, 800, 800};

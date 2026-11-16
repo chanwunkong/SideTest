@@ -192,11 +192,76 @@ static void viewport_test(void) {
     Uint8 r, g, b, alpha;
     SDL_GetRGBA(((Uint32 *)surf->pixels)[18 * (surf->pitch / 4) + 34], surf->format, &r, &g, &b, &alpha);
     assert(r == 0 && g == 0 && b == 255);
+    // CBuilding 半透明只在特殊路徑；未知模式不畫；畫後恢復全域 alpha。
+    Object *test = &objects[0]; models[0].parts[0].anim = 0; models[0].display = 5;
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255); SDL_RenderClear(ren);
+    building_part_draw(test, 0, 32, 16, 0, 1); SDL_RenderPresent(ren);
+    SDL_GetRGBA(((Uint32 *)surf->pixels)[18 * (surf->pitch / 4) + 34], surf->format, &r, &g, &b, &alpha);
+    assert(r >= 127 && r <= 128 && g == 0 && b == 0 && draw_alpha == 255);
+    models[0].display = 3;
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255); SDL_RenderClear(ren);
+    building_part_draw(test, 0, 32, 16, 0, 1); SDL_RenderPresent(ren);
+    SDL_GetRGBA(((Uint32 *)surf->pixels)[18 * (surf->pitch / 4) + 34], surf->format, &r, &g, &b, &alpha);
+    assert(!r && !g && !b);
     ground_n = saved_ground; unit_n = saved_units;
     cache_clear(); SDL_DestroyRenderer(ren); ren = NULL; SDL_FreeSurface(surf);
     free(l.items); free(cells);
     view_buildings.n = view_dynamic.n = 0;
     vw = old_w; vh = old_h;
+}
+
+static void building_test(void) {
+    Cell cells[16] = {0};
+    uint16_t footprint[] = {0x81, 0x182, 0x7f, 0x88, 0x89, 0x82};
+    Model m = {.grid_x = -1, .grid_y = -1, .grid_w = 3, .grid_h = 2,
+               .anchor_x = 1, .anchor_y = 1, .footprint = footprint, .part_count = 3, .bottom = 1};
+    Object o = {.x = 2, .y = 2, .m = &m};
+    Scene s = {.w = 4, .h = 4, .cells = cells, .objects = &o, .object_count = 1};
+    scene_building_cells(&s, 0, -1);
+    assert(cells[0].flags == 0x81 && cells[0].building == 0);
+    assert(cells[1].flags == 0x82 && !cells[2].flags);
+    assert(cells[4].flags == 0x88 && cells[5].flags == 0x89 && cells[6].flags == 0x82);
+    assert(cells[10].origin == 1); // 原點標記和占地分開
+    cells[1].walk = 7; cells[4].walk = 7;
+    scene_building_cells(&s, 0, 1);
+    assert(cells[0].walk == 1 && cells[5].walk == 1 && cells[1].walk == 7 && cells[4].walk == 7);
+    scene_building_cells(&s, 0, 0);
+    assert(!cells[0].walk && !cells[5].walk && cells[1].walk == 7);
+    o.x = o.y = 0; scene_building_cells(&s, 0, -1); // 負占地和越界不存取格子
+    m.block_x = -1; m.block_y = 0;
+    ViewItem who = {.depth = -65, .x64 = -65, .y64 = 0};
+    assert(viewport_blocks(&o, &who)); // 原版先判 X<1，即使 Y=0
+    who.x64 = -64; assert(!viewport_blocks(&o, &who));
+    who.x64 = -65; who.depth = -64; assert(!viewport_blocks(&o, &who)); // 和相等不擋
+    m.display = 5;
+    assert(building_display(&o) == 5 && !building_special(&o, 1));
+    building_highlight(&o, 1);
+    assert(building_display(&o) == 15 && !building_special(&o, 0) && building_special(&o, 1));
+    building_highlight(&o, 0); assert(building_display(&o) == 5);
+    m.parts[0].anim = 1; assert(building_special(&o, 0));
+    Frame frames[3] = {{.delay = 2}, {.delay = 5}, {.delay = 3}};
+    Seq q = {3, frames}; o.phase = 1001 % 1000;
+    assert(building_frame(&o, &q, 0) == 1 && building_frame(&o, &q, 4) == 1);
+    assert(building_frame(&o, &q, 5) == 2 && building_frame(&o, &q, 8) == 0);
+    m.rect_x = -10; m.rect_y = -20; m.rect_w = 100; m.rect_h = 80;
+    SDL_Rect rect = viewport_building_rect(&o, 50, 60, 0);
+    assert(rect.x == 40 && rect.y == 40 && rect.w == 100 && rect.h == 80);
+    ViewPort v = {0}; SDL_Point p = viewport_grid_screen(&v, o.x, o.y);
+    viewport_building_hover(&v, &s, p.x + 32, p.y + 16, 1, 0); assert(o.highlight);
+    viewport_building_hover(&v, &s, p.x + 32, p.y + 16, 0, 0); assert(!o.highlight);
+    Scene real = {0}; assert(scene_load(&real, "yangzhou.Scn"));
+    int marked = 0, large = 0;
+    for (int i = 0; i < real.w * real.h; i++) marked += !!(real.cells[i].flags & 128);
+    for (int i = 0; i < real.model_count; i++) large += real.models[i].part_count > 8;
+    assert(marked > 0 && real.object_count > 0);
+    (void)large; // 實際模型部件不再截斷到8；不同場景不強求有大型模型。
+    for (int i = 0; i < real.object_count; i++) {
+        const Object *o = &real.objects[i]; const Model *model = o->m;
+        if (!model) continue;
+        assert(o->door_x == (model->door_x || model->door_y ? o->x - model->anchor_x + model->door_x : o->x));
+        assert(o->door_y == (model->door_x || model->door_y ? o->y - model->anchor_y + model->door_y : o->y));
+    }
+    scene_free(&real);
 }
 
 static void ground_labels_test(void) {
@@ -330,6 +395,7 @@ int main(void) {
     character_lookup_test();
     scene_client_test();
     viewport_test();
+    building_test();
     ground_labels_test();
     // 小地圖換算：正負奇數的有號餘數，以及除法向零截斷。
     SDL_Point gp = viewport_grid_point(3, 2, 10, 1);

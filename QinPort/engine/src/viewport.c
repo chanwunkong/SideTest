@@ -258,12 +258,36 @@ static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy) {
     return r;
 }
 
+// 0x481d60 動畫起始幀：同一物件全部部件以同一 rand()%1000 對幀數取餘。
+// shortcut: 延用引擎共享時鐘推進部件；NormalBuilding 更新接入時改用獨立 Spr 拍數。
+static int building_frame(const Object *o, const Seq *q, Uint32 tick) {
+    if (!q->count) return 0;
+    int first = o->phase % q->count;
+    Uint32 offset = 0;
+    for (int i = 0; i < first; i++) offset += q->frames[i].delay > 0 ? q->frames[i].delay : 1;
+    return frame_at(q, tick + offset);
+}
+// 原版門名檢查入口所有路徑均直接返回，不能據此推造開門效果。
+// 0x483f90：同值不更新；取消反白恢復模型顯示值，反白只改非底層。
+// SDL 每幀全重畫，無需將部件矩形重新加入髒區。
+static void building_highlight(Object *o, int selected) {
+    if (o->highlight != selected) o->highlight = selected;
+}
+static int building_display(const Object *o) { return o->highlight ? 15 : o->m->display; }
+// 動畫或反白且非底層才走特殊部件路徑（無呼叫者的獨立查詢入口不另設）。
+static int building_special(const Object *o, int part) {
+    return o->m->parts[part].anim || (building_display(o) == 15 && part >= o->m->bottom);
+}
+
+// 0x484170：投影位置加模型矩形偏移；零尺寸資源保留部件聯集作保護。
 static SDL_Rect viewport_building_rect(const Object *o, int sx, int sy, Uint32 tick) {
+    if (o->m && o->m->rect_w > 0 && o->m->rect_h > 0)
+        return (SDL_Rect){sx + o->m->rect_x, sy + o->m->rect_y, o->m->rect_w, o->m->rect_h};
     SDL_Rect r = {0};
     for (int p = 0; o->m && p < o->m->part_count; p++) {
         const Part *pt = &o->m->parts[p];
         const Anim *a = pt->anim ? anim_get(pt->gid) : NULL;
-        if (a && a->count) viewport_union_frame(&r, a, 0, frame_at(&a->seqs[0], tick), sx + pt->dx, sy + pt->dy);
+        if (a && a->count) viewport_union_frame(&r, a, 0, building_frame(o, &a->seqs[0], tick), sx + pt->dx, sy + pt->dy);
         else if (!pt->anim) {
             const Sprite *im = image(pt->gid);
             if (im) {
@@ -275,18 +299,47 @@ static SDL_Rect viewport_building_rect(const Object *o, int sx, int sy, Uint32 t
     return r;
 }
 
+// 0x4823d0 / 0x4825c0：普通／半透明／反白；未知顯示方式不畫。
+// shortcut: SDL RGBA 取代原版色表與 SBMP +0x52 分支；反白以加亮混色，
+// 待逐像素色表及原始表面旗標接入後還原調色／透明表面細節。
+static void building_part_draw(const Object *o, int part, int sx, int sy, Uint32 tick, int force_special) {
+    const Part *pt = &o->m->parts[part];
+    const Anim *a = pt->anim ? anim_get(pt->gid) : NULL;
+    const Sprite *im = NULL; int x = sx + pt->dx, y = sy + pt->dy;
+    if (a && a->count && a->seqs[0].count) {
+        const Frame *f = &a->seqs[0].frames[building_frame(o, &a->seqs[0], tick)];
+        im = image(f->ref); x -= f->dx; y -= f->dy;
+    } else if (!pt->anim) im = image(pt->gid);
+    if (!im || !im->tex) return;
+    int mode = force_special || building_special(o, part) ? building_display(o) : 1;
+    if (mode != 0 && mode != 1 && mode != 5 && mode != 15) return;
+    Uint8 old = draw_alpha;
+    if (mode == 5) draw_alpha = 128;
+    draw(im, x, y);
+    if (mode == 15) {
+        SDL_SetTextureBlendMode(im->tex, SDL_BLENDMODE_ADD);
+        draw_alpha = 128; draw(im, x, y);
+        SDL_SetTextureBlendMode(im->tex, SDL_BLENDMODE_BLEND);
+    }
+    draw_alpha = old;
+}
+// 0x4821c0：一般中段；0x4827c0 / 0x482930 / 0x482ab0：裁切底／中／上層。
+// SDL renderer clip 同時用於一般畫面及遮擋重畫，省去逐部件 IsIntersect。
 static void viewport_building_draw(const Object *o, int sx, int sy, int pass, Uint32 tick) {
     const Model *m = o->m;
     if (!m) return;
     int start = pass == 0 ? 0 : pass == 1 ? m->bottom : m->part_count - m->top;
     int end = pass == 0 ? m->bottom : pass == 1 ? m->part_count - m->top : m->part_count;
-    for (int p = start; p < end && p < m->part_count; p++) {
-        if (p < 0) continue;
-        const Part *pt = &m->parts[p];
-        const Anim *a = pt->anim ? anim_get(pt->gid) : NULL;
-        if (a && a->count) draw_frame(a, 0, frame_at(&a->seqs[0], tick), sx + pt->dx, sy + pt->dy, 0);
-        else if (!pt->anim) draw(image(pt->gid), sx + pt->dx, sy + pt->dy);
-    }
+    for (int p = start; p < end && p < m->part_count; p++)
+        if (p >= 0) building_part_draw(o, p, sx, sy, tick, 0);
+}
+
+// 0x483b80 / 0x483980：遮擋重畫從底層末端到全部部件，含上層。
+// shortcut: SDL 已保留RGBA透明度，合併原版按 SBMP 表面旗標分流的兩次繪製；
+// 原始表面旗標接入時恢復兩階段順序及逐像素光照。
+static void building_occlude_draw(const Object *o, int sx, int sy, Uint32 tick) {
+    for (int p = o->m->bottom; p < o->m->part_count; p++)
+        if (p >= 0) building_part_draw(o, p, sx, sy, tick, 0);
 }
 
 // 0x45b830：只將存在且未被隱藏的格子物件加入可見排序。
@@ -366,11 +419,11 @@ static void viewport_terrain(const ViewPort *v, Scene *s) {
             }
 }
 
-// 建築遮擋平面；物件矩形與位置均是原版的當幀矩形。
+// 0x4830f0：建築遮擋平面；和相等不遮擋，分軸嚴格小於才遮擋。
 static int viewport_blocks(const Object *o, const ViewItem *item) {
     const Model *m = o->m;
     int bx = o->x * 64 + m->block_x * 64, by = o->y * 64 + m->block_y * 64;
-    if (m->block_x < 1 && m->block_y) return item->depth < bx + by && item->x64 < bx;
+    if ((m->block_x || m->block_y) && m->block_x < 1) return item->depth < bx + by && item->x64 < bx;
     if (m->block_y < 1 && m->block_x) return item->depth < bx + by && item->y64 < by;
     return 0;
 }
@@ -411,7 +464,7 @@ static void viewport_occlude(const ViewPort *v, const Scene *s, const ViewItem *
         const ViewItem *b = &view_buildings.items[i];
         const Object *o = &s->objects[b->index];
         SDL_Point p = viewport_grid_screen(v, o->x, o->y);
-        for (int pass = 1; pass < 3; pass++) viewport_building_draw(o, p.x + 32, p.y + 16, pass, tick);
+        building_occlude_draw(o, p.x + 32, p.y + 16, tick);
     }
     SDL_RenderSetClipRect(ren, clipped ? &old_clip : NULL);
 }
@@ -512,6 +565,21 @@ static void viewport_collect(ViewPort *v, const Scene *s, Uint32 tick) {
                     viewport_insert(&view_buildings, (ViewItem){0, i, (o->x + o->y) * 64, o->x * 64, o->y * 64, rect}, screen);
                 }
             }
+}
+
+// CGameApp 的滑鼠命中結果接至 CBuilding 反白，不保留無呼叫者的設值入口。
+// shortcut: 先用模型矩形命中；等 CObj 逐像素拾取接入後取代矩形命中。
+static void viewport_building_hover(const ViewPort *v, Scene *s, int x, int y, int enabled, Uint32 tick) {
+    int hit = -1, depth = -2147483647;
+    SDL_Point mouse = {x, y};
+    for (int i = 0; enabled && i < s->object_count; i++) {
+        Object *o = &s->objects[i]; if (!o->m) continue;
+        SDL_Point p = viewport_grid_screen(v, o->x, o->y);
+        SDL_Rect r = viewport_building_rect(o, p.x + 32, p.y + 16, tick);
+        int d = o->x + o->y;
+        if (SDL_PointInRect(&mouse, &r) && d >= depth) { hit = i; depth = d; }
+    }
+    for (int i = 0; i < s->object_count; i++) building_highlight(&s->objects[i], i == hit);
 }
 
 // 0x45f200：重建當幀可見名單，地表、分層背景、光照、動態物件；小地圖另等 CMapDialog。

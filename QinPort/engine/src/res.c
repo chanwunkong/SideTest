@@ -635,24 +635,43 @@ static void scn_value(const char *text, int line, char *out, size_t n) {
 static void parse_models(Scene *s, const uint8_t *d, size_t n) {
     static const uint8_t part_tag[] = {0xB2, 0xBF, 0xBC, 0xFE, 0};  // GBK「部件\0」
     int cap = 0;
-    // 模型開頭：03 00 + 名稱(非 00/CD)，名稱後第 32 byte 是部件數 1..40
-    for (size_t a = 0; a + 2 + 40 < n; a++) {
+    // 模型開頭：03 00 + 名稱(非 00/CD)；部件數在 +0x2a，+0x22 是類型。
+    // shortcut: 最多40部件的固定表；超出此資源上限時改為動態部件陣列。
+    for (size_t a = 0; a + 0xa3 < n; a++) {
         if (d[a] != 3 || d[a + 1] || d[a + 2] == 0 || d[a + 2] == 0xCD || d[a + 3] == 0 || d[a + 3] == 0xCD) continue;
-        uint16_t count = u16(d + a + 34);
+        uint16_t count = u16(d + a + 0x2a);
         if (count < 1 || count > 40) continue;
         if (s->model_count == cap) s->models = realloc(s->models, (cap = cap ? cap * 2 : 256) * sizeof(Model));
         Model *m = &s->models[s->model_count++];
         memset(m, 0, sizeof *m);
         m->id = u16(d + a + 36);
+        m->type = u16(d + a + 0x22);
         m->start = a + 2;
         // CBuilding 模型 +0x2c / +0x30 / +0x32；檔案沒有執行期的部件指標。
         m->bottom = u16(d + a + 0x2c);
         m->top = u16(d + a + 0x30);
         m->special = d[a + 0x32];
+        m->rect_x = (int32_t)u32(d + a + 0x33);
+        m->rect_y = (int32_t)u32(d + a + 0x37);
+        m->rect_w = (int32_t)u32(d + a + 0x3b);
+        m->rect_h = (int32_t)u32(d + a + 0x3f);
+        m->grid_x = (int32_t)u32(d + a + 0x47);
+        m->grid_y = (int32_t)u32(d + a + 0x4b);
+        m->grid_w = u16(d + a + 0x4f); m->grid_h = u16(d + a + 0x51);
+        m->anchor_x = (int32_t)u32(d + a + 0x53);
+        m->anchor_y = (int32_t)u32(d + a + 0x57);
+        m->door_x = (int32_t)u32(d + a + 0x6b);
+        m->door_y = (int32_t)u32(d + a + 0x6f);
         m->block_x = (int32_t)u32(d + a + 0x5b);
         m->block_y = (int32_t)u32(d + a + 0x5f);
         // 0x4cdaf0 讀檔順序：+0x4f 寬、+0x51 高（u16），+0xa3 起 寬×高 個 u16 占地，再 u16、光源 u8（+0xa9）
         size_t o = a + 0xa3 + 2 * (size_t)u16(d + a + 0x4f) * u16(d + a + 0x51);
+        if (o + 3 < n) {
+            size_t count = (size_t)m->grid_w * m->grid_h;
+            m->footprint = malloc(count * sizeof *m->footprint);
+            for (size_t k = 0; k < count; k++) m->footprint[k] = u16(d + a + 0xa3 + k * 2);
+            m->display = d[o + 3];
+        }
         if (o + 2 < n && d[o + 2] >= 1 && d[o + 2] <= 4) {
             m->light = d[o + 2];
             m->lx = (int32_t)u32(d + a + 0x63) - (int32_t)u32(d + a + 0x53);
@@ -741,7 +760,7 @@ int scene_load(Scene *s, const char *scn_name) {
     s->cells = malloc((size_t)s->w * s->h * sizeof(Cell));
     for (int i = 0; i < s->w * s->h; i++) {
         const uint8_t *c = map + grid + i * 10;
-        s->cells[i] = (Cell){u16(c), u16(c + 2), c[4], c[7], c[6], 2, 0, -1};
+        s->cells[i] = (Cell){u16(c), u16(c + 2), c[4], c[7], c[6], 2, 0, -1, 0};
     }
     snprintf(name, sizeof name, "%s", (const char *)map + 0x90);
     free(map);
@@ -767,7 +786,11 @@ int scene_load(Scene *s, const char *scn_name) {
             }
             if (kind == 3) {
                 s->objects = realloc(s->objects, (s->object_count + 1) * sizeof(Object));
-                s->objects[s->object_count++] = (Object){u16(bnt + p + 2), u32(bnt + p + 4), u32(bnt + p + 8), NULL};
+                Object *o = &s->objects[s->object_count++];
+                *o = (Object){.model = u16(bnt + p + 2), .x = u32(bnt + p + 4), .y = u32(bnt + p + 8)};
+                // 0x482db0：原版 SInitBuilding 名稱，BNT 建築記錄轉成同一份資料。
+                if (p + 20 + extra <= size)
+                    snprintf(o->name, sizeof o->name, "%.*s", (int)(extra < sizeof o->name - 1 ? extra : sizeof o->name - 1), (const char *)bnt + p + 20);
             }
             p += 20 + extra + (kind == 4 ? 128 : 0);
         }
@@ -779,6 +802,18 @@ int scene_load(Scene *s, const char *scn_name) {
         for (int i = 0; i < s->object_count; i++)
             for (int j = 0; j < s->model_count; j++)
                 if (s->models[j].id == s->objects[i].model) { s->objects[i].m = &s->models[j]; break; }
+        // 0x481d60：所有動畫部件共用一次 rand；不是每部件各擲一次。
+        for (int i = 0; i < s->object_count; i++) {
+            s->objects[i].phase = (unsigned)rand() % 1000;
+            Object *o = &s->objects[i];
+            o->door_x = o->x; o->door_y = o->y;
+            // 0x482dd0：兩偏移都為零時不改輸入點；否則扣模型原點再加門點。
+            if (o->m && (o->m->door_x || o->m->door_y)) {
+                o->door_x = o->x - o->m->anchor_x + o->m->door_x;
+                o->door_y = o->y - o->m->anchor_y + o->m->door_y;
+            }
+            scene_building_cells(s, i, -1);
+        }
     }
     free(bnt);
     snprintf(dir, sizeof dir, "%s/scene/Int", game_dir);
@@ -794,6 +829,28 @@ const Entry *scene_entry(const Scene *s, int id) {
     return s->entry_count ? &s->entries[0] : NULL;
 }
 
+// 0x483400：只覆寫帶高位的占地；低位非阻擋格也保留建築索引。
+// 僅 (byte & 7)==1 的高位格清除／恢復 walk；等 CTriBld 狀態切換接入。
+// walk=-1 發布占地；0/1 供 CTriBld 開關通道共用，不重建地圖原始 walk。
+void scene_building_cells(Scene *s, int index, int walk) {
+    if (index < 0 || index >= s->object_count || !s->cells) return;
+    const Object *o = &s->objects[index]; const Model *m = o->m;
+    if (!m || !m->footprint) return;
+    int x0 = o->x - m->anchor_x + m->grid_x;
+    int y0 = o->y - m->anchor_y + m->grid_y;
+    for (int y = 0; y < m->grid_h; y++) for (int x = 0; x < m->grid_w; x++) {
+        int gx = x0 + x, gy = y0 + y;
+        if (gx < 0 || gy < 0 || gx >= s->w || gy >= s->h) continue;
+        unsigned b = m->footprint[y * m->grid_w + x] & 255;
+        if (!(b & 128)) continue;
+        Cell *c = &s->cells[gy * s->w + gx];
+        if (walk < 0) { c->flags = b; c->building = index; }
+        else if ((b & 7) == 1) c->walk = !!walk;
+    }
+    if (walk < 0 && o->x >= 0 && o->y >= 0 && o->x < s->w && o->y < s->h)
+        s->cells[o->y * s->w + o->x].origin = 1;
+}
+
 int scene_walkable(const Scene *s, int x, int y) {
     return x >= 0 && y >= 0 && x < s->w && y < s->h && s->cells[y * s->w + x].walk == 1;
 }
@@ -804,6 +861,7 @@ void scene_free(Scene *s) {
     free(s->triggers);
     free(s->npcs);
     free(s->objects);
+    for (int i = 0; i < s->model_count; i++) free(s->models[i].footprint);
     free(s->models);
     lib_close(&s->tiles);
 }
