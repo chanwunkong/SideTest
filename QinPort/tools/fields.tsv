@@ -12,8 +12,6 @@ CCharactor	+0x559	B_C_DJHF 抵抗（旋飛）	Actor.ex[75]
 MethodMain	+0x444	狀態：1 播動作、2 衝刺、3 跳	-
 MethodMain	+0x448	衝刺前存的移動速度	-
 MethodMdl	+0x26	動作序列起點（+ 方向）	Method.seq
-CCharactor	+0x4e7	目前的招式物件	main_of(a)
-CCharactor	+0x73	移動狀態（0x20 衝刺中、0x14~0x1e 跳）	Actor.dash
 CPhantasmObj	+0x4d2	殘影側滑剩幾拍／環繞剩幾拍	MUnit.life
 CPhantasmObj	+0x4d6	環繞角度	MUnit.ang
 CPhantasmObj	+0x4da	環繞半徑	MUnit.step
@@ -53,7 +51,6 @@ SceneCell	+0xc	站在上面的角色（物件編號，-1 = 沒有）	動態物�
 SceneCell	+0xe	建築（物件編號）	Cell.building（scene_building_cells發布）
 SceneCell	+0x10	道具或陷阱（物件編號）	cell_prop()
 SceneCell	+0x12	旗標（0x88 = 建築本體）	Cell.flags
-CCharactor	+0x339	隊伍組（0~99 玩家、10000~60000 NPC 組）	Actor.side
 CCharactor	+0x34	位置（1/64 格）GPOINT	ax64/ay64
 CCharactor	+0x3c	畫面方框 GRECT	pick_box()
 CCharactor	+0x67	物件種類（0x1e~0x64 角色、0xc 建築、0x18 陷阱）	-
@@ -76,7 +73,6 @@ SInitCha	+0x4	種類，建構預設 0xb	-
 SInitCha	+0x8	word 預設 2（+0x8 整個 dword 先設 0xffff0000）	-
 SInitCha	+0x24	GRECT	-
 SInitCha	+0x38	名稱零結尾bytes，建構清0x40 bytes；查找區分大小寫且僅取未建立記錄	未移植：SInit名稱載入
-CCharactor	+0x339	AI 組（0～99 玩家、10000～60000 NPC）	Actor.grp
 CPlayerGroupAI	+0x14	組號	grps[].id
 CPlayerGroupAI	+0x1c	敵人組名單 CStaticLinkList<int,200>（數量 +0x65c）	grps[].foe/n
 CObjMng	+0x1c	角色串列 CDMList（游標 +0x20）	actors
@@ -98,16 +94,11 @@ CUserInput	+0x38	游標下的角色（0x442b10）	input_char()
 CUserInput	+0x3c	游標那格的陷阱（種類 0x18）	-
 CUserInput	+0x40	游標下的物件／道具（0x4848c0 或格子 +0xe）	ground_at()
 CUserInput	+0x44	游標那格的格子物件（+0x10）	-
-CCharactor	+0x341	旗標陣列：第 n 個 = 身上有狀態 n	has_status()
 全域	0x663f54	游標種類（0x663f58 < 2 才能改）	input_cursor()
 全域	0x6628f4	左鍵按著（按下位置 0x662928／0x66292c）	click_down
 全域	0x6628f8	雙擊過，吃掉下一次放開	-
 全域	0x625e98	遊戲速度值 16～31（= 31 − 3×速度）	game_speed_ms
 全域	0x626d00	右鍵剛按下	-
-CCharactor	+0x4ff	右手技能編號（0x48e7a0 設，同時 +0x4df = 攻擊用的技能項）	cur_skill[0]
-CCharactor	+0x503	左手技能編號（0x48eab0 設；右鍵出手 0x457be0 用它）	cur_skill[1]
-CCharactor	+0x507	名字（敵人狀態框 0x4fa4c0）	actor_title
-CCharactor	+0x589	敵人狀態框的血條值（0x488840）	Actor.hp/hp_max
 CUserInput	+0x0	滑鼠指著的物件代號（0x459ce0）	hover_actor
 CUserInput	+0xc	操控的角色編號（0 = 隊伍第一個）	hero
 CUserInput	+0x10	隊伍面板選中的人（0x459b30）	
@@ -388,8 +379,6 @@ SceneSyncBuilding	+0x9c	種類12建築0x723封包的一位元組欄位	待建築
 SceneSyncGroundItem	+0x85	種類23道具資料指標；+0x24種類、+0x2a數值	待道具資料物件
 SceneSyncGroundItem	+0x7b	種類23建立封包的16位欄位	待道具資料物件
 SceneSyncObject24	+0xab	種類24建立封包的16位欄位	待完整場景物件
-CCharactor	+0x403	0x123角色建立封包的32位欄位	待完整角色同步狀態
-CCharactor	+0x66	0x323屬性0x35的一位元組值	待完整角色同步狀態
 CScnClient	+0x4	場景資源指標	SceneClient.scene
 CScnClient	+0x8	同步封包提供的場景ID，-1無效	同步層略過
 CScnClient	+0x28	建構設1的模式值	待確認用途
@@ -506,9 +495,7 @@ SceneResources（類別名待確認）	+0x4858	出口物件下一占用索引陣
 ExitObject（0047d1e0）	+0xa8	名稱相符時由命令第一個32位參數寫入；用途待確認	待完整出口物件管理
 CCharactor	+0x3fb	ObjSpeed診斷讀取的32位速度欄位之一；格式參數順序未確認	待完整角色速度
 CCharactor	+0x6f	ObjSpeed診斷讀取的32位速度欄位之一；格式參數順序未確認	待完整角色速度
-CCharactor	+0x569	ObjSpeed診斷讀取的32位速度欄位之一；格式參數順序未確認	待完整角色速度
 CCharactor	+0x541	ObjSpeed診斷讀取的32位速度欄位之一；格式參數順序未確認	待完整角色速度
-CCharactor	+0x58d	箱子互動命令要求非零的關聯指標，之後轉呼CTriBld	待CTriBld互動
 CScnGC	+0x54	0x123場景參數封包讀取的byte，業務意義待確認	連線同步略過
 CScnGC	+0x5c	0x123場景參數封包讀取的16位值，業務意義待確認	連線同步略過
 CScnGC	+0x60	0x123場景參數封包讀取的byte，業務意義待確認	連線同步略過
@@ -653,3 +640,97 @@ CTriBld	+0xac	建構清零，這批未見讀取	未配置
 BldMdl	+0xa7	互動音效u16；零時模型128用96、129用94	Model.sound
 CSprGroup	+0x10	當前序列：0靜止、1互動、2完成	Object.seq[part]
 CSprGroup	+0x14	序列總數	Anim.count
+CCharactor	+0x66	角色層號byte；大於10時索敵／追擊範圍各加8	Actor.layer；現有建立入口固定地面層1
+CCharactor	+0x73	動態物件行為狀態：1平常、11移動、20..30跳躍等，非dash布林值	Actor.dash僅舊近似，完整動態狀態待移植
+CCharactor	+0x87	上次套用的目標動畫序列	待CCharactor動畫同步
+CCharactor	+0x8b	目標動畫序列（方向佔低3位）	待CCharactor動畫同步
+CCharactor	+0xa3	目前目標物件句柄，0無目標	Actor.foe（指標取代句柄）
+CCharactor	+0xa7	方向0..7	Actor.dir／DIR_MAP
+CCharactor	+0xaf	當前移速的A參數；0時不能使用距離大於等於3的技能	Actor.speed及SPEED_A；完整速度套用待移植
+CCharactor	+0x2cf	角色模板指標	Actor.def
+CCharactor	+0x2e3	動作與移速減半判斷用整數門檻，值小於101時部分分支不同	待完整角色狀態
+CCharactor	+0x339	AI組（0..99玩家、10000..60000 NPC組）	Actor.grp
+CCharactor	+0x33d	蠱惑前原AI組	待狀態14
+CCharactor	+0x341	128個狀態byte：值非0代表啟用，不限布林值	Buff／has_status；完整byte設置待移植
+CCharactor	+0x3ff	獨立模式整數，由角色設定入口寫入	待角色模式
+CCharactor	+0x403	角色組合旗標32位值	Actor.flags／actor_flags／actor_set_flags
+CCharactor	+0x407	20項修正值，每項相隔8bytes，初值0	待完整修正表
+CCharactor	+0x40b	20項修正的期限，每項相隔8bytes，-1永久；每10拍扣10	待完整修正表
+CCharactor	+0x41f	第3修正值，生命百分比分段設為3／1／0	待生命顯示狀態
+CCharactor	+0x423	第3修正期限，生命百分比更新時設-1	待生命顯示狀態
+CCharactor	+0x427	第4修正值，縮放追逐目標	待角色縮放
+CCharactor	+0x42f	第5修正值，值1時動畫連續step三次	Actor.knock（既有近似）
+CCharactor	+0x433	第5修正期限	Actor.stun（既有近似）
+CCharactor	+0x437	第6修正值，模式2移動時設1	待完整修正表
+CCharactor	+0x43b	第6修正期限，移動入口-1／更新入口20	待完整修正表
+CCharactor	+0x43f	第7修正值，互動命令設為操作者句柄	待角色互動
+CCharactor	+0x443	第7修正期限，互動命令最多設100	待角色互動
+CCharactor	+0x44f	第9修正值，角色頭上標記ID	待頭上標記
+CCharactor	+0x457	第10修正值，非0覆蓋模板顯示方式	待角色顯示方式
+CCharactor	+0x45b	第10修正期限	待完整修正表
+CCharactor	+0x45f	第11修正值，套身體／武器顏色	待覆色
+CCharactor	+0x467	第12修正值，套另一部件顏色	待覆色
+CCharactor	+0x46f	第13修正值，套另一部件顏色	待覆色
+CCharactor	+0x4a7	頭上附加精靈	status_fx_draw；獨立精靈狀態仍待移植
+CCharactor	+0x4ab	身上附加精靈	status_fx_draw；獨立精靈狀態仍待移植
+CCharactor	+0x4af	腳下附加精靈	status_fx_draw；獨立精靈狀態仍待移植
+CCharactor	+0x4b3	角色頭部高度u16，載模型時計算矩形高度加10	待角色模型矩形／頭頂文字
+CCharactor	+0x4b5	多個特殊狀態共用倒數，狀態105=9、111/114=8、115=5	待狀態倒數
+CCharactor	+0x4b9	最後修改的狀態ID，狀態重算最後再套此項	待完整狀態表
+CCharactor	+0x4ba	狀態／修正需要重算的byte旗標	待完整狀態表
+CCharactor	+0x4bb	SkillUnit技能鏈表頭	待同類別技能鏈
+CCharactor	+0x4d7	SkillUnit技能鏈首節點	待同類別技能鏈
+CCharactor	+0x4db	SkillUnit技能鏈遍歷游標	待同類別技能鏈
+CCharactor	+0x4df	目前選取的右手SkillUnit指標	Actor.skill（既有簡化）
+CCharactor	+0x4e7	目前MethodMain招式物件	main_of(a)
+CCharactor	+0x4eb	反擊技能ID，-1無、0複製來襲技能的特定分支	待反擊
+CCharactor	+0x4ef	四個候選技能ID的第一項，後續+0x4f3/+0x4f7/+0x4fb	待候選技能施放
+CCharactor	+0x4ff	右手技能ID	cur_skill[0]目前使用技能列索引，尚非原版ID
+CCharactor	+0x503	左手技能ID	cur_skill[1]目前使用技能列索引，尚非原版ID
+CCharactor	+0x507	生命百分比，初值100，少於20／50設第3修正3／1	Actor.hp/hp_max；完整分段副作用待移植
+CCharactor	+0x513	屬性byte的獨立寫入入口	待確認語意
+CCharactor	+0x51c	模式，值2觸發移動第6修正	待角色行為模式
+CCharactor	+0x524	目前縮放量，逐拍往第4修正值移1	待角色縮放
+CCharactor	+0x528	死亡模式byte	待角色移除
+CCharactor	+0x529	活動旗標，角色更新時0轉1	待角色更新
+CCharactor	+0x531	記住的命令代號，-1無，1/2清除時給延遲50	待記住命令
+CCharactor	+0x535	記住命令參數1	待記住命令
+CCharactor	+0x539	記住命令參數2	待記住命令
+CCharactor	+0x53d	記住命令參數3	待記住命令
+CCharactor	+0x549	技能最大距離修正，只作用原距離大於3的技能	待技能距離修正
+CCharactor	+0x55d	基礎索敵範圍，層大於10時加8	Actor.def->seek／actor_seek
+CCharactor	+0x561	基礎追擊範圍，層大於10時加8	Actor.def->chase／actor_chase
+CCharactor	+0x565	角色模板套用時初值12	待確認用途
+CCharactor	+0x569	狀態移動速度倍率百分比，初值100	status_speed；完整狀態表套用待移植
+CCharactor	+0x56d	行為重設時清0的整數	待確認用途
+CCharactor	+0x571	出手冷卻，無MethodMain時每拍減1	Actor.cool（現有簡化更新時機）
+CCharactor	+0x575	行為重設時清0的整數，獨立setter無呼叫者	未使用
+CCharactor	+0x579	蠱惑狀態清除及行為重設時清0	待確認用途
+CCharactor	+0x57d	繪圖矩形診斷旗標	待診斷繪圖
+CCharactor	+0x581	主人／關聯識別值	待主人識別
+CCharactor	+0x585	顯示名稱附加編號，初值-1	待顯示編號
+CCharactor	+0x589	顯示名稱CString，並非生命值	actor_title，尚未移植原版編號後綴
+CCharactor	+0x58d	建築互動的關聯指標	待同類別建築互動
+CCharactor	+0x591	光環要施加的狀態ID	待光環
+CCharactor	+0x595	光環作用範圍，預設8或取SkillUnit最大距離	待光環
+CCharactor	+0x599	光環來源SkillUnit指標	待光環
+CCharactor	+0x59d	修正目的格X快取	待角色位置修正
+CCharactor	+0x5a1	修正目的格Y快取	待角色位置修正
+CCharactor	+0x5a5	清記住命令後的延遲，原命令1/2為50否則0	待記住命令
+CCharactor	+0x5a9	角色活動啟用byte	待角色更新
+CCharactor	+0x5aa	8個7bytes頭頂／上飄文字槽的陣列指標	待頭頂文字
+CCharactor	+0x5ae	上次位置同步X，初值-100	單機不另建同步副本
+CCharactor	+0x5b2	上次位置同步Y，初值-100	單機不另建同步副本
+CCharactor	+0x5b6	待執行命令代號，-1無	Actor.command[0]；命令分派仍待移植
+CCharactor	+0x5ba	待執行命令參數1，取消時不清	Actor.command[1]
+CCharactor	+0x5be	待執行命令參數2，取消時不清	Actor.command[2]
+CCharactor	+0x5c2	待執行命令參數3，取消時不清	Actor.command[3]
+SkillUnit	+0x14	外部識別值（刪除／修改查找鍵）	待同類別技能鏈
+SkillUnit	+0x18	技能ID	待同類別技能鏈
+SkillUnit	+0x1c	最小距離（現有本體未見消費）	待同類別技能鏈
+SkillUnit	+0x20	最大距離	待同類別技能鏈
+SkillUnit	+0x24	參數6	待同類別技能鏈
+SkillUnit	+0x28	參數7	待同類別技能鏈
+SkillUnit	+0x30	啟用值	待同類別技能鏈
+SkillUnit	+0x34	參數8	待同類別技能鏈
+SkillUnit	+0x38	參數9	待同類別技能鏈

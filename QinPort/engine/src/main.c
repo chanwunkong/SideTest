@@ -266,7 +266,35 @@ typedef struct Actor {
     int dash;
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
     int sh;                        // 劇情物件（原版 EasyRPG 的人物；0 = 沒有）
+    int command[4];                // 待執行命令，第一格 -1 表示沒有（原版 +0x5b6）
+    unsigned char layer;           // +0x66；目前角色建立入口使用地面層1
 } Actor;
+
+// Poq.exe 0x48e8d0：只清目標，不能順便取消移動、技能或目前動作。
+static void actor_clear_target(Actor *a) { a->foe = NULL; }
+
+// Poq.exe 0x486e70：取消排隊命令，保留其餘三個參數。
+static void actor_cancel_command(Actor *a) { a->command[0] = -1; }
+
+// Poq.exe 0x48e6e0：同組完全不動；換組先清目標和待執行命令。
+// shortcut: 單機以共用Actor取代角色組別同步封包，連線支援時補傳輸。
+static void actor_group(Actor *a, int group) {
+    if (a->grp == group) return;
+    actor_clear_target(a);
+    actor_cancel_command(a);
+    a->grp = group;
+}
+
+// Poq.exe 0x488c50 / 0x48d910：旗標讀取回遮罩原值，而非布林值。
+static unsigned actor_flags(const Actor *a, unsigned mask) { return (unsigned)a->flags & mask; }
+static void actor_set_flags(Actor *a, unsigned mask, int on) {
+    a->flags = (int)(on ? (unsigned)a->flags | mask : (unsigned)a->flags & ~mask);
+}
+
+// Poq.exe 0x488800 / 0x488820：層號大於10時，索敵及追擊範圍各加8。
+// shortcut: 現有角色建立入口僅載入地面層1；多層角色建立接入時寫入原版層號。
+static int actor_seek(const Actor *a) { return a->def->seek + (a->layer > 10 ? 8 : 0); }
+static int actor_chase(const Actor *a) { return a->def->chase + (a->layer > 10 ? 8 : 0); }
 
 // 角色某序列的節奏：各部件的幀延遲相同，拿第一個有資料的部件
 static const Seq *role_seq(const Role *r, int seq) {
@@ -483,6 +511,8 @@ static inline int scene_client_group(const SceneClient *c, int group) {
 }
 
 static void actor_setup(Actor *a, const RoleDef *d) {
+    actor_cancel_command(a);
+    a->layer = 1;
     a->role = role_for(d);
     a->def = d;
     a->idle = d->idle;
@@ -589,7 +619,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->mon = m;
     a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
     a->side = 1;
-    a->grp = 10000;  // shortcut: 沒有劇情時怪物都算同一個 NPC 組；有劇情時 actors_sync 換成 G_AIGroup
+    actor_group(a, 10000);  // shortcut: 沒有劇情時怪物都算同一個 NPC 組；有劇情時 actors_sync 換成 G_AIGroup
     mon_derive(a);
     a->hp = a->hp_max;
     a->exp = mon_stat(m->exp, a->level, 0);
@@ -657,8 +687,7 @@ static void attack_speed(Actor *a) {
 
 // 招式觸發 type 8：ID2 非 0 設旗標、0 清掉（角色虛擬函式 +0x48）
 static void act_flags(Actor *a, const Trig *t) {
-    if (t->id2) a->flags |= t->id;
-    else a->flags &= ~t->id;
+    actor_set_flags(a, (unsigned)t->id, t->id2);
 }
 
 // 動作結束（播完或被換掉）：招式 iFlag 3 的旗標觸發（多半是把動作中設的旗標清掉）
@@ -1000,7 +1029,7 @@ static void summon(Actor *a, const SkillRow *r) {
     Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, (int)a->x, (int)a->y, a->level);
     s->owner = a;
     s->side = a->side;
-    s->grp = a->grp;
+    actor_group(s, a->grp);
     s->foe = a->foe;
     printf("召喚 %s\n", m->name);
 }
@@ -1015,7 +1044,7 @@ static int skill_param(const SkillRow *r, int id) {
 // 加入 a 的隊伍：同隊打它的都停手
 static void join(Actor *t, Actor *a) {
     t->side = a->side;
-    t->grp = a->grp;
+    actor_group(t, a->grp);
     t->owner = a;
     t->foe = NULL;
     for (int i = 0; i < actor_count; i++)
@@ -1560,15 +1589,16 @@ static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
         mon_specs[a - actors].rx = (int)a->owner->x - MON_WANDER;
         mon_specs[a - actors].ry = (int)a->owner->y - MON_WANDER;
     }
-    if (a->foe && (!alive(a->foe) || fabsf(a->x - a->spec->rx - MON_WANDER) + fabsf(a->y - a->spec->ry - MON_WANDER) > a->def->chase))
+    if (a->foe && (!alive(a->foe) || fabsf(a->x - a->spec->rx - MON_WANDER) + fabsf(a->y - a->spec->ry - MON_WANDER) > actor_chase(a)))
         a->foe = NULL;
     // 目標有 0x10（0x488a10）或 0x4000（0x489730）就放掉；找目標（0x48ba50）跳過 0x10、0x20000，自己有 0x4000 不找
-    if (a->foe && a->foe->flags & 0x4010) a->foe = NULL;
+    if (a->foe && actor_flags(a->foe, 0x4010)) actor_clear_target(a);
     // 找索敌范围內最近的別隊（主角、怪物、雙方的召喚兽）
     Actor *near = NULL;
     // shortcut: 陷阱（小動物表）沒有索敌范围，原版怎麼觸發（Poq 物件種類 3）還沒拆，先用它技能的作用範圍
     const SkillRow *ts = a->mon && a->mon->istrap == 1 ? npc_skill(a->mon->skill[0]) : NULL;
-    int seek = a->def->seek ? a->def->seek : ts ? skill_range_max(ts) : 0;
+    int seek = actor_seek(a);
+    if (!seek && ts) seek = skill_range_max(ts);
     for (int i = 0; !a->foe && !(a->flags & 0x4000) && i < actor_count; i++) {
         Actor *e = &actors[i];
         if (hostile(a, e) && !(e->flags & 0x20010) && cell_dist(a, e) <= seek && (!near || cell_dist(a, e) < cell_dist(a, near))) near = e;
@@ -2871,7 +2901,7 @@ static void actors_sync(const Scene *s) {
         if (a->sh && a->role && a->act != ACT_DEAD && story_parent(a->sh) != sroom) a->role = NULL;
     }
     int pl = story_player(), grp = story_get_int(pl, "G_AIGroup");
-    actors[0].grp = grp;
+    actor_group(&actors[0], grp);
     for (int h = story_next(sroom, 0); h && actor_count < MAX_ACTORS; h = story_next(sroom, h)) {
         if (h == pl || story_kind(h) != 1 || actor_of(h)) continue;
         const MonDef *m = mondef_find(story_get_str(h, "MonRow"));
@@ -2894,7 +2924,7 @@ static void actors_sync(const Scene *s) {
         a->sh = h;
         for (int k = 0; k < 8; k++)
             if (DIR_MAP[k] == en->dir) a->dir = k;
-        a->grp = story_get_int(h, "G_AIGroup");
+        actor_group(a, story_get_int(h, "G_AIGroup"));
         a->side = !scene_client_group(&scene_client, a->grp);  // side 是我們自己的「主角這邊」，敵對另看 grp
     }
 }
@@ -2918,7 +2948,7 @@ static void story_msgs(void) {
         case 0x535: if (a) a->ex[20] = (int)m->v[1]; break;                 // Invincible
         case 0x51c:  // G_AIGroup
             a = character_of((int)m->v[0]);
-            if (a) a->grp = (int)m->v[1];
+            if (a) actor_group(a, (int)m->v[1]);
             if (a && a != &actors[0]) a->side = m->v[1] != story_get_int(story_player(), "G_AIGroup");
             break;
         case 0x574e0: if (a && alive(a)) actor_kill(a, NULL); break;        // 劇情讓人物死掉
@@ -3544,7 +3574,7 @@ static void skill_draw(UiDialog *d, int wx, int wy) {
 }
 
 // 敵人狀態框顯示誰（0x459ce0；0x455d60 每拍拿游標下的物件呼叫它，0x459fa0 是先依編號找角色）：
-// 指著角色（種類 0x1e～0x64：怪物、NPC、自己都算）就開框、填名字（+0x507）和血（+0x589），沒指著角色就關框。
+// 指著角色（種類 0x1e～0x64：怪物、NPC、自己都算）就開框、填名字（+0x589；舊索引曾與生命百分比+0x507反寫）和血條，沒指著角色就關框。
 // 照原版：血條只在對象沒有狀態 102 時「打開」（0x583e40 傳 0 = 不變），這裡也沒有地方關它，所以有狀態 102 一樣看得到血。
 // shortcut: 原版還給指著的角色加旗標 0x100（隊友名單裡的不拿掉）、指著物件（種類 0x17、0x18、10～20）另外標示，都沒做；
 // 手機沒有指著，先用攻擊目標；死掉的不顯示（原版只看種類）
@@ -4172,7 +4202,7 @@ int main(int argc, char **argv) {
             // 空白鍵／手把 A：打最近的怪物
             else if ((e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE) ||
                      (e.type == SDL_CONTROLLERBUTTONDOWN && e.cbutton.button == SDL_CONTROLLER_BUTTON_A)) {
-                float best = hero->def ? hero->def->seek : 10;
+                float best = hero->def ? actor_seek(hero) : 10;
                 for (int i = 1; i < actor_count; i++)
                     if (hostile(hero, &actors[i]) && cell_dist(hero, &actors[i]) <= best) { best = cell_dist(hero, &actors[i]); hero->foe = &actors[i]; }
             }

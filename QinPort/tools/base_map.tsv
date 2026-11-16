@@ -202,3 +202,6 @@ OmUtil::GetFleePos	air_run使用既有dir_of與move_dir；核對OmUtil.dll匯出
 00483f80	CBuilding固定成功工具 → 有效Object.m／scene_load成功，不另建虛擬查詢
 004bcae0	指定分隔字元的第n個非空token拷貝；C strspn/strcspn與長度比較取代，CTriBld載入取空格分詞0
 00497e90	CObj +0x58置1並回成功；以Object.dead旗標取代，消費端等角色破壞命令
+
+004858a0	四個32位命令欄位逐一相等比較；C結構逐欄比較，非std::string
+00488bc0	兩整數點分軸abs差均嚴格小於n；C整數abs及比較，不改成圓形距離或小於等於

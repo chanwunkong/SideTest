@@ -57,6 +57,41 @@ static void character_lookup_test(void) {
     actors[0] = saved[0]; actors[1] = saved[1]; actor_count = count;
 }
 
+static void character_core_test(void) {
+    RoleDef d = {.seek = 7, .chase = 15};
+    Actor target = {0};
+    Actor a = {.def = &d, .grp = 10000, .foe = &target,
+               .command = {9, 123, 456, 789}, .layer = 10,
+               .act = ACT_ATTACK, .moving = 1, .flags = 0x4010};
+    // 同組不能取消目標或排隊命令；換組只取消命令代號，參數保留。
+    actor_group(&a, 10000);
+    assert(a.foe == &target && a.command[0] == 9);
+    actor_group(&a, 60000);
+    assert(a.grp == 60000 && !a.foe && a.command[0] == -1);
+    assert(a.command[1] == 123 && a.command[2] == 456 && a.command[3] == 789);
+    assert(a.act == ACT_ATTACK && a.moving && a.flags == 0x4010);
+    // 取消目標與取消命令是兩個入口，不能互相擴大效果。
+    a.foe = &target; a.command[0] = 8;
+    actor_clear_target(&a);
+    assert(!a.foe && a.command[0] == 8);
+    a.foe = &target;
+    actor_cancel_command(&a);
+    assert(a.foe == &target && a.command[0] == -1);
+    assert(actor_flags(&a, 0x4000) == 0x4000); // 遮罩值，不是1。
+    actor_set_flags(&a, 0x80000200u, 7);
+    assert(actor_flags(&a, 0x80000200u) == 0x80000200u);
+    actor_set_flags(&a, 0x201u, 0);
+    assert(actor_flags(&a, 0x80004210u) == 0x80004010u);
+    assert(actor_seek(&a) == 7 && actor_chase(&a) == 15);
+    a.layer = 11;
+    assert(actor_seek(&a) == 15 && actor_chase(&a) == 23);
+    a.layer = 255;
+    d.seek = -8; d.chase = 0;
+    assert(actor_seek(&a) == 0 && actor_chase(&a) == 8); // 原版不夾成正數。
+    a.layer = 0;
+    assert(actor_seek(&a) == -8 && actor_chase(&a) == 0);
+}
+
 static void viewport_test(void) {
     int old_w = vw, old_h = vh;
     vw = 640; vh = 480;
@@ -435,6 +470,7 @@ int main(void) {
     air_test();
     bird_test();
     character_lookup_test();
+    character_core_test();
     scene_client_test();
     viewport_test();
     building_test();
