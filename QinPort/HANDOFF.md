@@ -389,7 +389,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 照原版保留：僅開關狀態改變才重建，按住時走動／新掉落不刷新；阻擋時連放開也不更新；裁切右／下邊界不包含相等點。新偏移補入 fields.tsv，物件句柄查找工具記入 base_map.tsv。
   - shortcut：同格先取 ground 陣列第一件；以左右視窗作介面阻擋；暫以文字名單顯示。**仍為 todo 1、skip 0**：完整 GroundData 的 ID／ResID、JM70 排版與點選等不同類別介面系統（地面道具介面入口），格子唯一動態物件與世代句柄等 CScene 物件索引。未把整個原版函數標 done，部分實作註解不寫原版位址；沒有新增確認劇情不用的功能。
   - 驗證：skilltest 新增阻擋切換、不可見格、右邊界、交錯順序、同格第一件與按住快照測試；`cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`。
-  **下一步：0x460d80（CScnClient 場景探索段）起**，用 `python3 tools/functool.py next 0x460d80`。
+  ~~下一步：0x460d80（CScnClient 場景探索段）起~~。
+- 進度（11-16）：Poq.exe **0x460d80～0x461920 CViewPort 跟隨／置中／探索更新段**（原總表的 CScnClient／CGameDialog 為推測誤判）。新增 `engine/src/viewport.c` 的 `viewport_follow_set/pan/center_at/center_actor/home`，接進場、指定位置啟動與 H 鍵；刪除啟動路徑舊的直接投影置中。共新增 done 5（另完成共用交錯格轉像素工具），原有震動入口 done 1，skip 3（兩個 DirectDraw 平台回呼、一個串列節點配置，容器另記 base_map.tsv），todo 2。
+  - 照原版保留：開啟跟隨請求平滑置中；關閉跟隨不取消平移；立即置中也不清平移；平滑步長是畫面距離截斷後除30再加2，距離小於30保持舊目標；設定平移不清上次平方距離；目標採角色整格交錯投影，負奇列以位元判斷。
+  - shortcut：物件世代句柄由已持有的 Actor 指標代替，等 CScene 物件索引；SDL 每幀全畫面重畫代替背景快取矩形失效。todo：探索狀態提升／髒矩形／小地圖回呼等 CScene 探索通知、CMapDialog 表面與外部介面刷新；分層名單的一般分支已有繪圖迴圈，特殊建築分支等 CBuilding 特殊模式與 CScene 建築占地索引，不把整個函數標 done。沒有新增確認劇情不用的功能。
+  - 驗證：skilltest 加入平移設定、空角色、跟隨開關、立即置中、29／30像素門檻與負奇列投影；`cd engine && make && make skilltest 2>&1 | tail -3` 通過，最後一行 `skilltest ok`。FUNCS.tsv 已重產。
+  **下一步：0x461960（CGameApp）起**，用 `python3 tools/functool.py next 0x461960`。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

@@ -3983,8 +3983,7 @@ int main(int argc, char **argv) {
     }
 
     if (at_x >= 0 || warp >= 0) {
-        SDL_Point p = viewport_project(&scene, (int)(hero->x * 64), (int)(hero->y * 64));
-        viewport_set(&viewport, &scene, p.x - vw / 2, p.y - vh / 2);
+        viewport_home(&viewport, &scene, hero, 0);
     }
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER)) { fprintf(stderr, "%s\n", SDL_GetError()); return 1; }
@@ -4028,6 +4027,8 @@ int main(int argc, char **argv) {
                 else { snap_due = 1; save_due = 1; }
             }
             // 縮放：原版 PageUp／PageDown、滑鼠滾輪。shortcut: 原版鍵盤是每拍查按鍵狀態，這裡用按鍵事件（含長按重複）
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_h)
+                viewport_home(&viewport, &scene, hero, 1);
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_PAGEUP) zoom_add(0.04f);
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_PAGEDOWN) zoom_add(-0.04f);
             else if (e.type == SDL_MOUSEWHEEL) zoom_add(e.wheel.y < 1 ? -0.04f : 0.04f);

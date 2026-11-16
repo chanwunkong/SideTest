@@ -200,3 +200,14 @@
 004607c0	todo：全圖探索標記X外圈Y內圈，等CMapDialog標記介面與CScene探索資料；正反座標換算已接鏡頭
 00473470	Rec 錄影寫入：模式1時先同步 tick（0x40/6 bytes），再寫長度與封包；僅分析依賴，等 Rec 系統，留 todo
 004ced00	viewport.c viewport_stagger：像素轉交錯格；鏡頭快取已用
+
+00460d80	CViewPort 自動跟隨開關；開啟時平滑回目前角色 → viewport_follow_set
+00460e10	CViewPort 探索提升（只增不減）、背景髒矩形及小地圖更新；todo 等 CScene 探索通知／CMapDialog 小地圖表面與 CViewPort 外部介面刷新（004fa560）
+00461150	CViewPort 設定平移目標 X/Y 與步長，不清上次距離 → viewport_pan
+004611b0	DirectDraw 快取表面延遲初始化與像素格式色鍵（SDL 取代）
+00461230	CViewPort 按模型底／中／上層數量及特殊模式重建繪圖名單；一般分層已有 viewport_layers，todo 等 CBuilding 特殊模式與 CScene 建築占地索引（不同類別），特殊底層名單不可直接宣告完成
+004614e0	DirectDraw 背景表面搬移回呼，無呼叫者
+00461530	CViewPort 指定世界格置中並使背景快取失效 → viewport_center_at
+00461680	CViewPort 物件置中；平滑以畫面距離/30+2 為步長，小於30保持舊平移 → viewport_center_actor
+004618a0	H 鍵：目前角色存在時呼叫物件置中 → viewport_home
+00461920	雙向串列節點配置工具，C 陣列取代

@@ -71,3 +71,8 @@ ER_CHAINITEM|MYCHAINITEM|SFrame	EasyRPG／Poq 記憶體池的節點（不需要�
 00460470	CViewPort 四組串列清空 → viewport.c 每幀重建 ViewList、換場景清 ViewGrid
 
 004a28b0	帶世代檢查的物件句柄容器查找（高2位世代、低14位槽；ffff無效）；目前分類陣列，完整句柄等CScene物件索引
+
+00461920	雙向串列節點配置改用 C 陣列（ViewList）
+004c7d80	格子探索 byte +0x13 == 0（Cell.view == 0）
+004c7da0	格子探索 byte +0x13 < 2（Cell.view < 2）
+004cebf0	交錯格點轉像素 → viewport_point_pixel

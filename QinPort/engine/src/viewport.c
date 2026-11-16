@@ -91,6 +91,45 @@ static SDL_Point viewport_project(const Scene *s, int x64, int y64) {
 
 static void viewport_grid_clear(void);
 
+// 0x461150：設定平移目標與步長；不重設上一拍的平方距離。
+static void viewport_pan(ViewPort *v, int x, int y, int step) {
+    v->target = (SDL_Point){x, y}; v->pan = step;
+}
+
+// 0x4cebf0：交錯格點轉像素，負奇列也按位元判斷。
+static SDL_Point viewport_point_pixel(SDL_Point p) {
+    return (SDL_Point){p.x * 64 - ((p.y & 1) ? 32 : 0), p.y * 16 - 16};
+}
+
+// 0x461530：指定世界格置中；SDL 全畫面重畫取代快取矩形／串列失效。
+static void viewport_center_at(ViewPort *v, const Scene *s, int x, int y) {
+    SDL_Point p = viewport_point_pixel(viewport_grid_point(x, y, s->w, s->h / 2));
+    viewport_set(v, s, p.x - v->w / 2, p.y - v->h / 2);
+}
+
+// 0x461680：指定物件置中，平滑模式以物件畫面點離參考點的距離決定步長。
+// shortcut: CScene 世代句柄由呼叫端持有的 Actor 指標代替，物件索引移植後換回句柄解析。
+static void viewport_center_actor(ViewPort *v, const Scene *s, const Actor *a, int smooth) {
+    if (!a) return;
+    if (!smooth) { viewport_center_at(v, s, (int)a->x, (int)a->y); return; }
+    SDL_Point p = viewport_point_pixel(viewport_grid_point((int)a->x, (int)a->y, s->w, s->h / 2));
+    SDL_Point screen = viewport_world_screen(v, (int)(a->x * 64), (int)(a->y * 64));
+    int dx = screen.x - v->ref_x, dy = screen.y - v->ref_y;
+    int step = (int)sqrt((double)(dx * dx + dy * dy)) / 30;
+    if (step > 0) viewport_pan(v, p.x - v->w / 2, p.y - v->h / 2, step + 2);
+}
+
+// 0x4618a0：目前操控角色不存在時不做事。
+static void viewport_home(ViewPort *v, const Scene *s, const Actor *hero, int smooth) {
+    viewport_center_actor(v, s, hero, smooth);
+}
+
+// 0x460d80：開啟跟隨也要求一次平滑置中；關閉不取消既有平移。
+static void viewport_follow_set(ViewPort *v, const Scene *s, const Actor *hero, int on) {
+    v->follow = !!on;
+    if (on) viewport_home(v, s, hero, 1);
+}
+
 // 進場的鏡頭部分；小地圖視窗／比例與載入仍由另一類別負責。
 static void viewport_enter(ViewPort *v, const Scene *s, const Actor *hero) {
     viewport_grid_clear();
@@ -102,10 +141,10 @@ static void viewport_enter(ViewPort *v, const Scene *s, const Actor *hero) {
         s->view_w == half * 32 && s->view_h == half * 16) {
         v->world.x += 128; v->world.w -= 224;
     }
-    v->follow = 1; v->last_actor = (SDL_Point){-1, -1}; v->last_distance = -1;
+    v->last_actor = (SDL_Point){-1, -1}; v->last_distance = -1;
     viewport_window(v, s, v->pos.x, v->pos.y, vw, vh);
-    (void)hero;
     viewport_set(v, s, v->world.x + 1400, v->world.y + 500);
+    viewport_follow_set(v, s, hero, 1);
 }
 
 // 0x45c390：靜止超死區補2；移動依原方向及速度的3/4追趕。

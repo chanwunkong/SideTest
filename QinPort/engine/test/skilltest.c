@@ -73,6 +73,28 @@ static void viewport_test(void) {
     viewport_follow(&v, &sc, &a); assert(v.pos.x == before.x && v.pos.y == before.y);
     v.pos.x = wp.x - v.ref_x - 300; viewport_cache(&v, &sc, 1);
     viewport_follow(&v, &sc, &a); assert(v.step == 7 && v.pos.x == (wp.x - v.ref_x - 300 + 7) / 2 * 2);
+    // 置中使用角色整格的交錯投影，平滑步長則用角色當前畫面位置。
+    SDL_Point neg = viewport_point_pixel((SDL_Point){2, -1});
+    assert(neg.x == 96 && neg.y == -32);
+    v.pan = 17; viewport_follow_set(&v, &sc, &a, 0);
+    assert(!v.follow && v.pan == 17); // 關閉跟隨不取消平移
+    v.last_distance = 123;
+    viewport_pan(&v, 200, 300, 7);
+    assert(v.target.x == 200 && v.target.y == 300 && v.pan == 7 && v.last_distance == 123);
+    viewport_home(&v, &sc, NULL, 1); assert(v.pan == 7);
+    a.x = 20.5f; a.y = 20.5f;
+    viewport_home(&v, &sc, &a, 0);
+    SDL_Point center = viewport_point_pixel(viewport_grid_point(20, 20, sc.w, sc.h / 2));
+    ViewPort expected = v;
+    viewport_set(&expected, &sc, center.x - v.w / 2, center.y - v.h / 2);
+    assert(v.pos.x == expected.pos.x && v.pos.y == expected.pos.y && v.pan == 7);
+    SDL_Point actor_screen = viewport_world_screen(&v, 1312, 1312);
+    v.ref_x = actor_screen.x - 29; v.ref_y = actor_screen.y;
+    viewport_follow_set(&v, &sc, &a, 1); assert(v.follow && v.pan == 7);
+    v.ref_x = actor_screen.x - 30;
+    viewport_home(&v, &sc, &a, 1);
+    assert(v.pan == 3 && v.target.x == center.x - v.w / 2 && v.target.y == center.y - v.h / 2);
+    v.ref_x = v.w / 2; v.ref_y = v.h / 2;
     ViewList l = {0}; SDL_Rect screen = {0, 0, vw, vh};
     viewport_insert(&l, (ViewItem){.index = 1, .depth = 20, .rect = {10, 10, 20, 20}}, screen);
     viewport_insert(&l, (ViewItem){.index = 2, .depth = 20, .rect = {10, 10, 20, 20}}, screen);
