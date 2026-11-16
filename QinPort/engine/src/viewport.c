@@ -240,21 +240,17 @@ static int viewport_intersects(const ViewList *l, SDL_Rect r) {
 }
 
 static void viewport_union_frame(SDL_Rect *rect, const Anim *a, int seq, int frame, int x, int y) {
-    if (!a || seq < 0 || seq >= a->count || !a->seqs[seq].count) return;
-    const Frame *f = &a->seqs[seq].frames[frame % a->seqs[seq].count];
-    const Sprite *im = image(f->ref);
-    if (!im) return;
-    SDL_Rect r = {x - f->dx, y - f->dy, im->w, im->h};
-    if (rect->w) SDL_UnionRect(rect, &r, rect); else *rect = r;
+    frame_rect_union(rect, a, seq, frame, x, y);
 }
 
+// Poq.exe 0x48ef40：本體矩形只上移頂緣，接影子後才縮放，腳圈最後加入且不縮放。
 static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy, Uint32 tick) {
-    SDL_Rect r = {0};
     int seq = actor_seq(a), frame = actor_frame(a, seq);
-    for (int i = 0; a->role && i < a->role->part_count; i++) {
-        viewport_union_frame(&r, a->role->body[i], seq, frame, sx, sy - a->z);
-        viewport_union_frame(&r, a->role->shadow[i], seq, frame, sx, sy);
-    }
+    SDL_Rect r = role_rect(a->role, seq, frame, sx, sy, 0);
+    r.y -= a->z;
+    SDL_Rect shadow = role_rect(a->role, seq, frame, sx, sy, 1);
+    if (shadow.w) { if (r.w) SDL_UnionRect(&r, &shadow, &r); else r = shadow; }
+    role_rect_scale(&r, a->scale, 0);
     if (a->flags & 0x100) {
         uint32_t id = actor_relation_anim(a);
         const Anim *ring = id ? anim_get(id) : NULL;
@@ -601,6 +597,7 @@ static void viewport_building_hover(const ViewPort *v, Scene *s, int x, int y, i
 
 // 0x45f200：重建當幀可見名單，地表、分層背景、光照、動態物件；小地圖另等 CMapDialog。
 static void viewport_draw(ViewPort *v, Scene *s, Uint32 tick) {
+    actor_draw_tick = tick;
     if (v->w != vw || v->h != vh) viewport_resize(v, s, vw, vh);
     viewport_collect(v, s, tick);
     viewport_terrain(v, s);

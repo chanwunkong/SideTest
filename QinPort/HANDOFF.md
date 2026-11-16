@@ -735,6 +735,14 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 保留原版：setter不驗證識別、不修改foe或排隊命令；通知第三參數0／負數不覆寫關聯識別。shortcut：通知的三種分支另有狀態103啟閉，仍待同類別完整狀態入口；只完成獨立setter，沒有將完整訊息分派或狀態入口標done。共用物件識別仍以現有Actor.sh承接，完整句柄基礎接入後升級。
   - 核對移動入口、第6修正與殘影建立／繪製／釋放的依賴，以及生命百分比、第3修正和狀態17連動；未用簡化Buff或空殘影冒充移植。其餘32個todo仍主要依賴同類別狀態、命令、更新及精靈基礎，不能稱為等待別的系統，下一步不前移；本輪無新增DLC分類。
   - fields／roles已更新。skilltest以setter接模式2查找，測試32位識別、未知負值／零及目前目標／命令保持不變；`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`。-DSTORY語法檢查通過，原有5個警告；FUNCS.tsv已重產。
+  ~~下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起~~。
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，續補紙娃娃合成縮放與統一命中矩形；本輪仍未完成整類別，未達成整類別完成要求，未進CNpc**。新增done 2（0x48ef40、0x48f200）、skip 0、base 1（矩形數學工具0x497d90）；主範圍合計 **done 55、skip 33、todo 30**。
+  - `main.c`新增role_rect／frame_rect_union與role_rect_scale，actor_scaled_draw依PLI順序把整份紙娃娃合成到可重用SDL暫存表面，之後才縮放；接actor_draw的影子與角色本體兩條路徑。暫存繪製保存並還原renderer target、viewport、clip、scale及draw color，換場景時釋放表面。
+  - `viewport.c`的viewport_actor_rect照原版先取本體矩形、只改y扣離地高度、合影子、縮放，最後才合不縮放的關係腳圈；角色可見名單及main.c的pick_box共用，刪除舊固定73×111點選方框，點選保留type2/3世界座標各加128。保留怪現象：縮放半邊增量先向零截斷再加倍，奇數尺寸不一定精確倍增；可見矩形的本體與影子先合才縮放，實際繪圖則分開縮放，兩者不可自行改成同一算法。
+  - `res.c`讀RoleMdl欄28（+0x124），空欄65535；actor_setup遇65535保留舊比例、0與負數照寫。常數20.0f與0.5f已讀Poq.exe唯讀區核對。actor_scale_tick接固定拍迴圈，只有模板比例65535才每拍追第4修正1步，保留0x200移動中阻擋及0x400例外；完整模板初始化／每拍函數均未標done。
+  - shortcut：SDL透明RGBA取代原版16/32位色鍵暫存表面，光照沿用現有整畫面light_draw；逐像素色表／格子光照基礎接入時升級混色。完整角色繪圖的狀態覆色、殘影、三附加精靈及標記仍todo；其餘30個todo主要仍依賴同類別狀態、命令、更新與基礎，不可列為等外部系統；第4修正的完整設置／期限仍待修正表入口。未新增DLC分類。
+  - fields／roles／base_map已更新，FUNCS.tsv已重產。skilltest新增合成圖的實際放大像素／部件覆蓋順序、奇數與負比例、零尺寸不繪製、renderer狀態還原、比例追逐及阻擋、點選矩形與關聯座標偏移；真實模板測欄28非空與空欄保留／0覆寫，既有pick_at改用真實角色圖測試。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；-DSTORY語法檢查通過，原有5個未使用函數警告。
   **下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起**。
 
 

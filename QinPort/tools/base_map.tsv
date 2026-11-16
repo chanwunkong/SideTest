@@ -216,3 +216,4 @@ OmUtil::GetFleePos	air_run使用既有dir_of與move_dir；核對OmUtil.dll匯出
 00585c50	CGfxRenderDevice解構；SDL renderer生命週期與局部狀態還原取代
 004b8190	Chat.Dlg字串取值及CString暫存；以res_dlg讀取並gbk_utf8轉碼及呼叫者字串緩衝區取代
 00495880	方向反向的純整數工具：0..7用(dir+4)%8，其他值原樣保留；由C整數運算承接，不另建無呼叫者工具函數
+00497d90	矩形縮放數學工具：main.c role_rect_scale，向零截斷半邊增量後加倍，底邊或中心錨點

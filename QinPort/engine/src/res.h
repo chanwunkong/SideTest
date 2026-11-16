@@ -145,6 +145,7 @@ typedef struct {
     char graphic[16], styles[96];
     uint16_t skill_ids[100], skill_count; // RoleMdl.rmd：依RoleMdl列序的原始招式表
     int program; // RoleMdl欄27程序標識第一值（協助同組索敵）
+    int scale; // 欄28比例，空欄65535；每20單位改變一倍尺寸
     int move_cast, candidate[4]; // RoleMdl欄37、38：移動施法思想與入戰候選招式
     int beast, air, display, reaction, snd_run; // BeastieMdl：移動屬性、顯示方式、對人反應
     uint32_t anim;  // BeastieMdl.txt 的小動物、陷阱：只有一個動畫（图素ID），graphic 空白

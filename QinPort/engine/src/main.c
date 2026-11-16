@@ -84,6 +84,8 @@ typedef struct { SDL_Texture *tex; int w, h; } Sprite;
 
 static SDL_Renderer *ren;
 static int vw = 800, vh = 600;
+static SDL_Texture *role_surface;
+static int role_surface_w, role_surface_h;
 
 // ---- 貼圖快取：key → 貼圖（第一次用到才解碼），失敗記成 w = -1 避免每幀重試 ----
 typedef struct { uint32_t key; Sprite s; } Slot;
@@ -109,6 +111,9 @@ static Sprite *slot_find(uint32_t key) {
 
 // 換場景時清空：磁磚 key 只有序號，不同場景的磁磚封包會撞號
 static void cache_clear(void) {
+    SDL_DestroyTexture(role_surface);
+    role_surface = NULL;
+    role_surface_w = role_surface_h = 0;
     for (uint32_t i = 0; i < slot_cap; i++)
         if (slots[i].s.tex) SDL_DestroyTexture(slots[i].s.tex);
     free(slots);
@@ -236,6 +241,7 @@ typedef struct Actor {
     int fight_speed, speed_override, speed_threshold, dynamic_state;
     int animation_target, animation_dir;
     int move_a, move_b, move_c, move_remaining, walk_delay_adjust;
+    int scale, scale_target; // 目前比例與第4修正；模板指定比例時不追逐修正
     int view_link_type; // 關聯模型 +0x2c；type2/3 繪圖時世界 X/Y 暫加128
     int idle, walk, fidle, fwalk;  // 動作起點序列（角色表「平時/戰鬥」的休息與走路）
     Uint32 act_tick;  // 目前動作已經過幾拍（換動作時歸零）
@@ -527,13 +533,103 @@ static void status_fx_draw(const Actor *a, int sx, int sy, Uint32 tick, int foot
     }
 }
 
+// CSprGroup矩形基礎：與繪製共用同一序列／幀；沒載到的圖不加入聯集。
+static void frame_rect_union(SDL_Rect *rect, const Anim *a, int seq, int frame, int x, int y) {
+    if (!a || seq < 0 || seq >= a->count || frame < 0 || !a->seqs[seq].count) return;
+    const Frame *f = &a->seqs[seq].frames[frame % a->seqs[seq].count];
+    const Sprite *im = image(f->ref);
+    if (!im || im->w <= 0 || im->h <= 0) return;
+    SDL_Rect r = {x - f->dx, y - f->dy, im->w, im->h};
+    if (rect->w) SDL_UnionRect(rect, &r, rect); else *rect = r;
+}
+
+static SDL_Rect role_rect(const Role *r, int seq, int frame, int x, int y, int shadow) {
+    SDL_Rect rect = {0};
+    if (!r || seq < 0 || seq >= r->seq_count || !r->frames[seq]) return rect;
+    for (int i = 0; i < r->part_count; i++)
+        frame_rect_union(&rect, shadow ? r->shadow[i] : r->body[i], seq, frame, x, y);
+    return rect;
+}
+
+// Poq.exe 0x497d90：先各自向零截斷半邊增量，再加倍；底邊固定。
+// 常數已核對Poq.exe唯讀區：除數20.0f、半邊係數0.5f。
+static void role_rect_scale(SDL_Rect *r, int scale, int center) {
+    if (!scale) return;
+    float factor = (float)scale / 20.0f;
+    int dx = (int)((float)r->w * factor * 0.5f);
+    int dy = (int)((float)r->h * factor * 0.5f);
+    r->x -= dx;
+    r->y -= center ? dy : dy * 2;
+    r->w += dx * 2;
+    r->h += dy * 2;
+}
+
 // 紙娃娃的一幀：各部件照這幀的疊圖順序畫
 static void role_draw(const Role *r, int seq, int frame, int sx, int sy) {
-    if (!r || seq >= r->seq_count || !r->frames[seq]) return;
+    if (!r || seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
     frame %= r->frames[seq];
     const uint8_t *order = r->order[seq] + frame * r->part_count;
     for (int i = 0; i < r->part_count; i++)
         if (order[i] < r->part_count) draw_frame(r->body[order[i]], seq, frame, sx, sy, 0);
+}
+
+// Poq.exe 0x48f200：整份紙娃娃先合成到暫存表面，再按合成矩形縮放拷貝。
+// shortcut: SDL透明RGBA取代原版16/32位色鍵表面，光照由現有整畫面light_draw承接；
+// 原版逐像素色表／格子光照接入時升級表面混色，不改此處合成後才縮放的順序。
+static void actor_scaled_draw(const Actor *a, int seq, int frame, int sx, int sy, int shadow) {
+    SDL_Rect src = role_rect(a->role, seq, frame, sx, sy, shadow), dst = src;
+    if (src.w <= 0 || src.h <= 0) return;
+    role_rect_scale(&dst, a->scale, 0);
+    if (dst.w <= 0 || dst.h <= 0) return;
+    if (dst.x >= vw || dst.y >= vh || dst.x + dst.w <= 0 || dst.y + dst.h <= 0) return;
+    if (!role_surface || src.w > role_surface_w || src.h > role_surface_h) {
+        int w = src.w > role_surface_w ? src.w : role_surface_w;
+        int h = src.h > role_surface_h ? src.h : role_surface_h;
+        SDL_Texture *surface = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
+        if (!surface) { fprintf(stderr, "role surface: %s\n", SDL_GetError()); return; }
+        SDL_SetTextureBlendMode(surface, SDL_BLENDMODE_BLEND);
+        SDL_DestroyTexture(role_surface);
+        role_surface = surface; role_surface_w = w; role_surface_h = h;
+    }
+    SDL_Texture *target = SDL_GetRenderTarget(ren);
+    SDL_Rect view, clip;
+    SDL_RenderGetViewport(ren, &view);
+    SDL_RenderGetClipRect(ren, &clip);
+    SDL_bool clipped = SDL_RenderIsClipEnabled(ren);
+    Uint8 red, green, blue, alpha;
+    SDL_GetRenderDrawColor(ren, &red, &green, &blue, &alpha);
+    float scale_x, scale_y;
+    SDL_RenderGetScale(ren, &scale_x, &scale_y);
+    if (SDL_SetRenderTarget(ren, role_surface) < 0) return;
+    SDL_RenderSetScale(ren, 1, 1);
+    SDL_RenderSetViewport(ren, NULL);
+    SDL_RenderSetClipRect(ren, NULL);
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 0);
+    SDL_RenderClear(ren);
+    // draw()的畫面裁切改為暫存表面尺寸；場景邊緣不能截掉合成來源。
+    int saved_w = vw, saved_h = vh;
+    Uint8 saved_alpha = draw_alpha;
+    vw = role_surface_w; vh = role_surface_h; draw_alpha = 255;
+    if (shadow) {
+        for (int i = 0; i < a->role->part_count; i++)
+            draw_frame(a->role->shadow[i], seq, frame, sx - src.x, sy - src.y, 1);
+    } else role_draw(a->role, seq, frame, sx - src.x, sy - src.y);
+    vw = saved_w; vh = saved_h; draw_alpha = saved_alpha;
+    SDL_SetRenderTarget(ren, target);
+    SDL_RenderSetScale(ren, scale_x, scale_y);
+    SDL_RenderSetViewport(ren, &view);
+    SDL_RenderSetClipRect(ren, clipped ? &clip : NULL);
+    SDL_SetRenderDrawColor(ren, red, green, blue, alpha);
+    SDL_SetTextureAlphaMod(role_surface, saved_alpha);
+    SDL_Rect source = {0, 0, src.w, src.h};
+    SDL_RenderCopy(ren, role_surface, &source, &dst);
+}
+
+// 角色每拍更新的比例分支；完整角色狀態／命令心跳尚未完成。
+static void actor_scale_tick(Actor *a) {
+    if (!a->role || !a->def || a->def->scale != 65535) return;
+    if (!(a->flags & 0x400) && (a->flags & 0x200) && a->dynamic_state != 1) return;
+    if (a->scale != a->scale_target) a->scale += a->scale_target < a->scale ? -1 : 1;
 }
 
 static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
@@ -542,14 +638,16 @@ static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
     int seq = actor_seq(a);
     if (seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
     int frame = actor_frame(a, seq) % r->frames[seq];
-    for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
+    if (a->scale) actor_scaled_draw(a, seq, frame, sx, sy, 1);
+    else for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
     if (a->flags & 0x100) {
         uint32_t id = actor_relation_anim(a);
         const Anim *ring = id ? anim_get(id) : NULL;
         if (ring && ring->count) draw_frame(ring, 0, frame_at(&ring->seqs[0], tick), sx, sy, 0);
     }
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy, tick, 1);
-    role_draw(r, seq, frame, sx, sy - a->z);  // 影子留在地上
+    if (a->scale) actor_scaled_draw(a, seq, frame, sx, sy - a->z, 0);
+    else role_draw(r, seq, frame, sx, sy - a->z);  // 影子留在地上
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy - a->z, tick, 0);
 }
 
@@ -789,6 +887,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     a->fwalk = d->fight_walk ? d->fight_walk : d->walk;
     a->speed = d->speed;
     a->fight_speed = d->fight_speed;
+    if (d->scale != 65535) a->scale = d->scale;
     actor_speed_update(a);
     // 模板的ffff表示不覆寫，並非清除；-1及0則照值寫入。
     // shortcut: 模板入口的狀態103、層重定位及縮放尚未接齊，此段不代表完整模板初始化。
@@ -2102,12 +2201,17 @@ static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
 }
 
 // 畫面上點到哪隻活著的怪物：0x442b10（點的格子周圍 5×5 格、點在方框裡、離方框中心最近）
-// shortcut: 原版方框是角色這幀圖的範圍（物件 +0x3c）；這裡用腳底往左右 36、往上 70 到往下 40 的固定方框
+// 點選與可見名單共用當幀紙娃娃矩形，包含比例、離地高度、影子及腳圈。
+static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy, Uint32 tick);
+static Uint32 actor_draw_tick;
 static int pick_ox, pick_oy;
 static const Scene *pick_s;
 static void pick_box(const Actor *a, int *l, int *t, int *w, int *h) {
-    int fx = scene_px(pick_s, (int)(a->x * 64), (int)(a->y * 64)) - pick_ox, fy = scene_py(pick_s, (int)(a->x * 64), (int)(a->y * 64)) - pick_oy;
-    *l = fx - 36, *t = fy - 100, *w = 73, *h = 111;
+    int shift = a->view_link_type == 2 || a->view_link_type == 3 ? 128 : 0;
+    int fx = scene_px(pick_s, (int)(a->x * 64) + shift, (int)(a->y * 64) + shift) - pick_ox;
+    int fy = scene_py(pick_s, (int)(a->x * 64) + shift, (int)(a->y * 64) + shift) - pick_oy;
+    SDL_Rect r = viewport_actor_rect(a, fx, fy, actor_draw_tick);
+    *l = r.x; *t = r.y; *w = r.w; *h = r.h;
 }
 
 // ---- 文字：原版字型 font/16Point.fnt：0xB4 起依 Unicode 每字 32 bytes（16 列 × 16 位元，0 = 筆畫）----
@@ -4934,6 +5038,7 @@ int main(int argc, char **argv) {
                     if (!i || actors[i].mon) actor_second(&actors[i]);
             viewport_tick(&viewport, &scene, hero);
             for (int i = 0; i < actor_count; i++) {
+                actor_scale_tick(&actors[i]);
                 if (actors[i].cool > 0) actors[i].cool--;
                 if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
             }

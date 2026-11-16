@@ -146,6 +146,98 @@ static void character_relation_test(void) {
     memcpy(grps, saved_groups, sizeof grps); free(saved_groups);
 }
 
+static void character_scale_test(void) {
+    SDL_Rect r = {10, 20, 7, 9};
+    role_rect_scale(&r, 20, 0);
+    assert(r.x == 7 && r.y == 12 && r.w == 13 && r.h == 17);
+    r = (SDL_Rect){10, 20, 7, 9}; role_rect_scale(&r, -10, 0);
+    assert(r.x == 11 && r.y == 24 && r.w == 5 && r.h == 5);
+    r = (SDL_Rect){10, 20, 7, 9}; role_rect_scale(&r, 20, 1);
+    assert(r.x == 7 && r.y == 16 && r.w == 13 && r.h == 17);
+    r = (SDL_Rect){10, 20, 7, 9}; role_rect_scale(&r, 1, 0);
+    assert(r.x == 10 && r.y == 20 && r.w == 7 && r.h == 9);
+
+    SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, 256, 256, 32, SDL_PIXELFORMAT_RGBA32);
+    assert(surf); ren = SDL_CreateSoftwareRenderer(surf); assert(ren);
+    const uint32_t refs[] = {0xf1000001, 0xf1000002, 0xf1000003};
+    const int widths[] = {6, 4, 10}, heights[] = {8, 6, 2};
+    for (int i = 0; i < 3; i++) {
+        SDL_Surface *pixels = SDL_CreateRGBSurfaceWithFormat(0, widths[i], heights[i], 32, SDL_PIXELFORMAT_RGBA32);
+        assert(pixels);
+        SDL_FillRect(pixels, NULL, SDL_MapRGBA(pixels->format, i == 0 ? 255 : 0, i == 1 ? 255 : 0, 0, 255));
+        Sprite *sp = slot_find(refs[i]);
+        sp->w = widths[i]; sp->h = heights[i];
+        sp->tex = SDL_CreateTextureFromSurface(ren, pixels); assert(sp->tex);
+        SDL_FreeSurface(pixels);
+    }
+    Frame frames[3] = {{.ref = refs[0], .dx = 3, .dy = 8, .delay = 1},
+                       {.ref = refs[1], .dx = 1, .dy = 6, .delay = 1},
+                       {.ref = refs[2], .dx = 5, .dy = 1, .delay = 1}};
+    Seq seqs[3] = {{.count = 1, .frames = frames}, {.count = 1, .frames = frames+1}, {.count = 1, .frames = frames+2}};
+    Anim anim[3] = {{.count = 1, .seqs = seqs}, {.count = 1, .seqs = seqs+1}, {.count = 1, .seqs = seqs+2}};
+    int count[] = {1}; uint8_t parts[] = {0, 1}; uint8_t *order[] = {parts};
+    Role role = {.part_count = 2, .seq_count = 1, .body = {anim, anim+1},
+                 .shadow = {anim+2}, .frames = count, .order = order};
+    RoleDef d = {.scale = 65535, .hit = 65535, .death = 65535};
+    Actor a = {.role = &role, .def = &d, .dir = 2, .scale = 20, .z = 3};
+    r = role_rect(&role, 0, 0, 100, 100, 0);
+    assert(r.x == 97 && r.y == 92 && r.w == 6 && r.h == 8);
+    // 原版只上移角色矩形的y，不增高；加影子後才縮放，與分別縮放兩份不同。
+    r = viewport_actor_rect(&a, 100, 100, 0);
+    assert(r.x == 90 && r.y == 77 && r.w == 20 && r.h == 24);
+    const Scene *saved_pick_s = pick_s;
+    int saved_pick_ox = pick_ox, saved_pick_oy = pick_oy;
+    Scene sc = {.w = 10, .h = 10};
+    pick_s = &sc; pick_ox = 220; pick_oy = -100;
+    int left, top, width, height;
+    pick_box(&a, &left, &top, &width, &height);
+    assert(left == 90 && top == 77 && width == 20 && height == 24);
+    a.view_link_type = 2;
+    pick_box(&a, &left, &top, &width, &height);
+    assert(left == 90 && top == 141 && width == 20 && height == 24);
+    a.view_link_type = 0;
+    pick_s = saved_pick_s; pick_ox = saved_pick_ox; pick_oy = saved_pick_oy;
+    a.flags = 0; a.z = 0;
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255); SDL_RenderClear(ren);
+    actor_draw(&a, 100, 100, 0); SDL_RenderPresent(ren);
+    for (int y = 84; y < 100; y++) for (int x = 94; x < 106; x++) {
+        Uint8 red, green, blue, alpha;
+        SDL_GetRGBA(((Uint32 *)surf->pixels)[y * (surf->pitch / 4) + x], surf->format, &red, &green, &blue, &alpha);
+        int top = x >= 98 && y >= 88; // 第二部件必須覆蓋第一部件。
+        assert(red == (top ? 0 : 255) && green == (top ? 255 : 0) && blue == 0);
+    }
+    // 已縮小至0／負尺寸時不畫；不能把負寬高交給SDL當成整個表面。
+    a.scale = -20;
+    SDL_SetRenderDrawColor(ren, 7, 9, 11, 255); SDL_RenderClear(ren);
+    actor_draw(&a, 100, 100, 0); SDL_RenderPresent(ren);
+    Uint8 red, green, blue, alpha;
+    SDL_GetRGBA(((Uint32 *)surf->pixels)[92 * (surf->pitch / 4) + 97], surf->format, &red, &green, &blue, &alpha);
+    assert(red == 7 && green == 9 && blue == 11);
+    // 合成時不得沿用主畫面clip或scale，也不能污染之後的物件。
+    a.scale = 10;
+    SDL_Rect view = {2, 3, 200, 190}, clip = {4, 5, 170, 160}, actual;
+    SDL_RenderSetScale(ren, 1.25f, 1.25f);
+    SDL_RenderSetViewport(ren, &view); SDL_RenderSetClipRect(ren, &clip);
+    SDL_SetRenderDrawColor(ren, 21, 22, 23, 24);
+    actor_draw(&a, 100, 100, 0);
+    SDL_RenderGetViewport(ren, &actual); assert(!memcmp(&view, &actual, sizeof view));
+    SDL_RenderGetClipRect(ren, &actual); assert(!memcmp(&clip, &actual, sizeof clip));
+    float sx, sy; SDL_RenderGetScale(ren, &sx, &sy); assert(sx == 1.25f && sy == 1.25f);
+    SDL_GetRenderDrawColor(ren, &red, &green, &blue, &alpha);
+    assert(red == 21 && green == 22 && blue == 23 && alpha == 24);
+    assert(SDL_GetRenderTarget(ren) == NULL);
+
+    a.scale = 0; a.scale_target = 2;
+    actor_scale_tick(&a); assert(a.scale == 1);
+    actor_scale_tick(&a); actor_scale_tick(&a); assert(a.scale == 2);
+    a.scale_target = -1; actor_scale_tick(&a); assert(a.scale == 1);
+    d.scale = 0; actor_scale_tick(&a); assert(a.scale == 1); // 模板0也算指定比例。
+    d.scale = 65535; a.flags = 0x200; a.dynamic_state = 11;
+    actor_scale_tick(&a); assert(a.scale == 1);
+    a.flags |= 0x400; actor_scale_tick(&a); assert(a.scale == 0);
+    cache_clear(); SDL_DestroyRenderer(ren); ren = NULL; SDL_FreeSurface(surf);
+}
+
 static void character_weapon_type_test(void) {
     Actor a = {.flags = 0x10400, .selected = 3, .right_id = 27, .left_id = 42,
                .act = ACT_ATTACK, .act_frame = 7, .weapon_type = 9};
@@ -1302,6 +1394,7 @@ int main(void) {
     character_core_test();
     character_weapon_type_test();
     character_relation_test();
+    character_scale_test();
     character_skills_test();
     character_skill_runtime_test();
     character_skill_index_test();
@@ -1402,6 +1495,17 @@ int main(void) {
     assert(t.act == ACT_DEAD);
     // 召喚：匈奴法师_召唤（273 = 10 → 朱厌，最多 2 隻）
     roledefs_load();
+    assert(roledef_find(29)->scale == 65535);
+    assert(roledef_find(327)->scale == 4 && roledef_find(320)->scale == 14);
+    {
+        Actor sized = {0};
+        RoleDef sized_def = *roledef_find(327);
+        actor_setup(&sized, &sized_def); assert(sized.scale == 4);
+        sized_def.scale = 65535;
+        actor_setup(&sized, &sized_def); assert(sized.scale == 4);
+        sized_def.scale = 0;
+        actor_setup(&sized, &sized_def); assert(sized.scale == 0);
+    }
     character_move_cast_test();
     assert(roledef_find(204) && !roledef_find(204)->beast && !roledef_find(204)->air);
     // RoleMdl.rmd的分組與角色ID無關，第一列ID29必須取得第一組57招。
@@ -1873,6 +1977,13 @@ int main(void) {
         assert(spread_dir == 0 && x == 2 && y == -2);
         // 點選：兩個人都在方框裡，取離方框中心近的；side 只看那一邊
         actors[0].x = actors[0].y = 5.5f; actors[1].x = 6.5f; actors[1].y = 5.5f;
+        SDL_Surface *pick_surf = SDL_CreateRGBSurfaceWithFormat(0, 256, 256, 32, SDL_PIXELFORMAT_RGBA32);
+        assert(pick_surf); ren = SDL_CreateSoftwareRenderer(pick_surf); assert(ren);
+        actors[0].def = actors[1].def = roledef_find(29);
+        actors[0].role = actors[1].role = role_for(actors[0].def);
+        assert(actors[0].role);
+        actors[0].dir = actors[1].dir = 2;
+        actors[0].act = actors[1].act = ACT_NONE;
         pick_s = &test_scene; pick_ox = pick_oy = 0;
         int l, tp, w, h;
         pick_box(&actors[1], &l, &tp, &w, &h);
@@ -1881,6 +1992,7 @@ int main(void) {
         actors[1].flags = 0x80;
         assert(pick_at(l + w / 2, tp + h / 2, 6, 5, 0, 1, pick_box) == NULL);
         actors[1].flags = 0;
+        cache_clear(); SDL_DestroyRenderer(ren); ren = NULL; SDL_FreeSurface(pick_surf);
     }
     // 遊戲速度 0x448a70：0~5 → 31~16
     assert(game_speed_ms == 21);

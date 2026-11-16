@@ -52,7 +52,7 @@ SceneCell	+0xe	建築（物件編號）	Cell.building（scene_building_cells發�
 SceneCell	+0x10	道具或陷阱（物件編號）	cell_prop()
 SceneCell	+0x12	旗標（0x88 = 建築本體）	Cell.flags
 CCharactor	+0x34	位置（1/64 格）GPOINT	ax64/ay64
-CCharactor	+0x3c	畫面方框 GRECT	pick_box()
+CCharactor	+0x3c	畫面GRECT：本體移高、合影子後縮放、再合腳圈	viewport_actor_rect／pick_box共用（不再用固定點選方框）
 CCharactor	+0x67	物件種類（0x1e~0x64 角色、0xc 建築、0x18 陷阱）	-
 CTrapBase	+0x9b	放的時候記的隊伍組	（用 owner->side）
 CTrapBase	+0xab	放的人（物件編號）	Actor.owner
@@ -658,7 +658,7 @@ CCharactor	+0x407	20項修正值，每項相隔8bytes，初值0	待完整修正�
 CCharactor	+0x40b	20項修正的期限，每項相隔8bytes，-1永久；每10拍扣10	待完整修正表
 CCharactor	+0x41f	第3修正值，生命百分比分段設為3／1／0	待生命顯示狀態
 CCharactor	+0x423	第3修正期限，生命百分比更新時設-1	待生命顯示狀態
-CCharactor	+0x427	第4修正值，縮放追逐目標	待角色縮放
+CCharactor	+0x427	第4修正值，縮放追逐目標	Actor.scale_target（完整修正表設置仍todo）
 CCharactor	+0x42f	第5修正值，值1時動畫連續step三次	Actor.knock（既有近似）
 CCharactor	+0x433	第5修正期限	Actor.stun（既有近似）
 CCharactor	+0x437	第6修正值，模式2移動時設1	待完整修正表
@@ -690,7 +690,7 @@ CCharactor	+0x503	左手技能ID	Actor.left_id
 CCharactor	+0x507	生命百分比，初值100，少於20／50設第3修正3／1	Actor.hp/hp_max；完整分段副作用待移植
 CCharactor	+0x513	#UPDWTYPE／0x52a更新的武器種類byte，僅存低8位	Actor.weapon_type／actor_weapon_type_set
 CCharactor	+0x51c	模式，值2觸發移動第6修正	待角色行為模式
-CCharactor	+0x524	目前縮放量，逐拍往第4修正值移1	待角色縮放
+CCharactor	+0x524	目前縮放量；模板比例ffff時逐拍往第4修正值移1，每20單位為一倍尺寸	Actor.scale／actor_scale_tick
 CCharactor	+0x528	死亡模式byte	待角色移除
 CCharactor	+0x529	活動旗標，角色更新時0轉1	待角色更新
 CCharactor	+0x531	記住的命令代號，-1無，1/2清除時給延遲50	Actor.remembered[0]
@@ -787,3 +787,5 @@ CIllusionList（殘影30槽）	+0x208	重複旗標；非零時按30槽容量計�
 CIllusionList（殘影30槽）	+0x20c	採樣間隔：非重複1，重複30/步數+1；繪圖跳過不足間隔的尾項	待殘影基礎
 腳圈Spr控制器（類別名待確認）	+0xc	圖資槽索引；與目前幀組成索引*32+幀的繪圖handle	共享Anim；八種來源ID由原版啟動載入參數核對
 腳圈Spr控制器（類別名待確認）	+0x14	目前幀，關係腳圈getter不推進動畫	frame_at（共享遊戲tick），選圖本身不改狀態
+RoleMdl	+0x124	欄28比例；65535不覆寫目前比例，其他值含0／負數照寫	RoleDef.scale／Actor.scale
+CCharactor	+0x50	世界位置投影的畫面點GPOINT，紙娃娃／影子／腳圈共用錨點	viewport投影p.x/p.y；actor_draw及viewport_actor_rect參數
