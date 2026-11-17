@@ -630,6 +630,14 @@ static const Seq *role_seq(const Role *r, int seq) {
     return NULL;
 }
 
+// Poq.exe 0x496d80：指定序列描述取目前部件群首個精靈，不跳過零幀序列。
+// shortcut: 原版無部件群會解參考0x14；缺資源或越界回NULL，資源完整性驗證接齊時升級為載入錯誤。
+static const Seq *actor_sequence(const Actor *a, int seq) {
+    const Role *r = a->role;
+    const Anim *first = r && r->part_count > 0 ? r->body[0] : NULL;
+    return first && seq >= 0 && seq < first->count ? &first->seqs[seq] : NULL;
+}
+
 static Uint32 seq_ticks(const Seq *q) {
     Uint32 t = 0;
     for (int i = 0; i < q->count; i++) t += q->frames[i].delay > 0 ? q->frames[i].delay : 1;
@@ -2766,8 +2774,8 @@ static void actor_direction_tick(Actor *a) {
         return;
     }
     if ((a->flags & 0x200) && a->dynamic_state != 1) return;
-    const Seq *old = role_seq(a->role, a->shown_seq);
-    const Seq *next = role_seq(a->role, target);
+    const Seq *old = actor_sequence(a, a->shown_seq);
+    const Seq *next = actor_sequence(a, target);
     if (target != a->previous_target) {
         if (!old || !next || old->count != next->count || a->shown_seq / 8 != target / 8) {
             a->shown_seq = target / 8 * 8 + a->shown_seq % 8;
@@ -2791,7 +2799,7 @@ static void actor_direction_tick(Actor *a) {
     int frame = a->act_frame;
     a->shown_seq = target / 8 * 8 + from;
     actor_body_select(a);
-    next = role_seq(a->role, a->shown_seq);
+    next = actor_sequence(a, a->shown_seq);
     // 原版只保存幀索引；換方向重新選序列後的幀內拍數為零。
     a->act_frame = next && frame < next->count ? frame : 0;
 }

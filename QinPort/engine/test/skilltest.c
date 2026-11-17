@@ -437,6 +437,31 @@ static void character_modifiers_step(Actor *a) {
     actor_modifiers_tick(a);
 }
 
+static void character_sequence_test(void) {
+    Frame frames[3] = {{.delay=2}, {.delay=2}, {.delay=2}};
+    Seq first[8], second[8];
+    for (int i=0; i<8; ++i) first[i] = second[i] = (Seq){3, frames};
+    first[1] = (Seq){0};
+    Anim head = {.count=8, .seqs=first}, body = {.count=8, .seqs=second};
+    Role role = {.part_count=2, .body={&head, &body}};
+    RoleDef d = {.scale=65535};
+    Actor a = {.role=&role, .def=&d, .dynamic_state=1, .shown_ready=1,
+        .body_ready=1, .body_seq=0, .shown_seq=0, .animation_target=1,
+        .previous_target=1, .direction_clock=4, .act_frame=2};
+    assert(actor_sequence(&a,1)==&first[1]);
+    assert(role_seq(&role,1)==&second[1]); // 繪圖可用部件不等於原版描述查詢。
+    assert(!actor_sequence(&a,-1) && !actor_sequence(&a,8));
+    // 實際方向維護：第二部件有三幀，首部件目標序列卻是零幀，原幀不可保留。
+    actor_direction_tick(&a);
+    assert(a.shown_seq==1 && a.act_frame==0);
+    role.body[0]=NULL;
+    assert(!actor_sequence(&a,0));
+    role.part_count=0;
+    assert(!actor_sequence(&a,0));
+    a.role=NULL;
+    assert(!actor_sequence(&a,0));
+}
+
 static void character_maintenance_test(void) {
     RoleDef d = {.scale=65535};
     Actor a = {.role=&empty_test_role, .def=&d, .dynamic_state=22,
@@ -3515,6 +3540,7 @@ int main(void) {
     character_movement_speed_test();
     character_direction_test();
     character_rotation_cooldown_test();
+    character_sequence_test();
     character_maintenance_test();
     character_animation_test();
     character_walk_destination_test();

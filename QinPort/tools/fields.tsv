@@ -869,3 +869,6 @@ CCharactor	+0x345	非0時MethodMain綁定的每幀延遲在攻速調整後另加
 CDynamicObj	+0x3f5	路徑步進等待byte，每次可處理時先減1並早退；同組移動阻擋時設rand()%30+33	待動態11尋路步進
 CDynamicObj	+0x3f6	同組移動阻擋重試byte，小於3且對方等待為0才加1／設定等待；占格成功清0	待動態11尋路步進
 RoleMdl	+0x104	欄26星號切四個int的第1值，缺項65535；同伴死亡時<1必定潰散、1/2擲rand()%(值+1)、>=3不觸發	RoleDef.death_fear／actor_death_fear
+
+SpritePartGroup	+0x1f	首個精靈指標（00574e10直接getter，語義類別名，原RTTI待核對）	Role.body[0]／actor_sequence
+SpriteResource	+0x14	序列描述表指標（00496d80由首個精靈取，原描述stride32；語義類別名）	Anim.seqs，索引直接取Seq且保留零幀
