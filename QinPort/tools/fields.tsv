@@ -728,8 +728,8 @@ CCharactor	+0x5a1	修正目的格Y快取	Actor.corrected_y（actor_bind_scene）
 CCharactor	+0x5a5	清記住命令後的延遲，原命令1/2為50否則0；重送及扣減尚待主分派	Actor.remember_delay
 CCharactor	+0x5a9	角色活動啟用byte，動態／維護早退門檻；與動態路徑就緒分開	!Actor.activity_disabled（反值保存，零初始化沿用現有角色啟用契約）
 CCharactor	+0x5aa	8個7bytes頭頂／上飄文字槽的陣列指標	Actor.overhead[8]
-CCharactor	+0x5ae	上次位置同步X，初值-100	Actor.command_world_x
-CCharactor	+0x5b2	上次位置同步Y，初值-100	Actor.command_world_y
+CCharactor	+0x5ae	上次位置同步X，初值-100；任一軸差絕對值>127才同步更新兩軸，停用也檢查	Actor.command_world_x
+CCharactor	+0x5b2	上次位置同步Y，初值-100；門檻與X共用，等於127不更新	Actor.command_world_y
 CCharactor	+0x5b6	待執行命令代號，-1無	Actor.command[0]／actor_queue_command
 CCharactor	+0x5ba	待執行命令參數1，取消時不清	Actor.command[1]
 CCharactor	+0x5be	待執行命令參數2，取消時不清	Actor.command[2]

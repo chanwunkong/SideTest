@@ -2429,10 +2429,9 @@ static int actor_walk_destination(Actor *a, int x, int y) {
     return 1;
 }
 
-// 動態進入：共用拍數與速度在各分支之前；角色殘影先於基底進入。
+// 動態基底進入：共用拍數與速度在各分支之前。
 // shortcut: 動態11仍把目的地交既有行走迴圈，完整尋路步進移植後替換此分支。
-static void actor_dynamic_enter(Actor *a) {
-    actor_trail_enter(a);
+static void actor_dynamic_base_enter(Actor *a) {
     a->dynamic_enter_tick = (int)actor_logic_tick;
     if (a->dynamic_state != 1) actor_speed_update(a);
     switch (a->dynamic_state) {
@@ -2470,6 +2469,13 @@ static void actor_dynamic_enter(Actor *a) {
         actor_animation_select(a, a->animation_target / 8 * 8 + a->facing);
         break;
     }
+}
+
+// Poq.exe 0x486270：角色層先啟用移動殘影，再無條件交給動態基底。
+// 基底動態11的路徑限制記在actor_dynamic_base_enter，不省略角色入口任何分支。
+static void actor_dynamic_enter(Actor *a) {
+    actor_trail_enter(a);
+    actor_dynamic_base_enter(a);
 }
 
 // Poq.exe 0x496550：單機也走原版服務端分支；比較狀態、三參數和旗標快照。
@@ -3214,8 +3220,8 @@ static void actor_charge_tick(Actor *a) {
     else actor_interpolation_tick(a);
 }
 
-// 角色固定拍：動態分派後先播放，再由維護前置的動態基底推高度與共用時鐘。
-// shortcut: 動態11仍由命令行走橋接；完整反向路徑接齊後替換，不標主入口完成。
+// Poq.exe 0x48c050：活動時動態分派→虛擬播放更新，再處理位置同步與首次鎖存。
+// 動態分派原版固定回傳1；其動態11路徑限制由基底分派承接。
 static int actor_motion_tick(Actor *a) {
     int enabled = !a->activity_disabled;
     a->animation_sample_pending = 0;
@@ -3235,6 +3241,14 @@ static int actor_motion_tick(Actor *a) {
         a->animation_sample_pending = 1;
         actor_animation_tick(a);
         actor_height_tick(a);
+    }
+    // 單機使用服務端分支。CClientScreen的dirty與視野廣播只同步客戶端副本，
+    // 已列skip；本地共用Actor即時位置，不建立第二份可見物件鏈。
+    // 停用也會處理位移；門檻嚴格大於127，更新兩軸快照。
+    if (llabs((long long)a->command_world_x - ax64(a)) > 127 ||
+        llabs((long long)a->command_world_y - ay64(a)) > 127) {
+        a->command_world_x = ax64(a);
+        a->command_world_y = ay64(a);
     }
     // 原版停用也會鎖存首次更新，但回傳進入時的啟用值；不能當成重新啟用。
     if (!a->activity_latched) a->activity_latched = 1;
@@ -4093,9 +4107,8 @@ static int actor_cast_try(Actor *a, int id, int x, int y, Actor *target) {
     return 1;
 }
 
-// 施法主入口：非強制冷卻直接返回，連記住命令也不清；成功建立招式後才送入戰命令。
-// shortcut: 單機模式2省略招式同步封包；NPC入戰的全域選人提示等CGameApp。
-// 不以局部入口標完成位址，外部選人通知仍列roles。
+// Poq.exe 0x48ffe0：非強制冷卻直接返回；成功建立招式後才送入戰命令。
+// 單機模式2省略同步封包；原版NPC敵對入戰通知為空函數，沒有額外副作用。
 static int actor_cast_at(Actor *a, int id, int x, int y, Actor *target, int forced) {
     if (!forced && actor_cooling(a)) return 0;
     int result = actor_cast_try(a, id, x, y, target);

@@ -727,6 +727,28 @@ static void character_rush_test(void) {
     unit_scene=saved_unit_scene; actor_count=saved_count; actor_logic_tick=saved_tick;
 }
 
+static void character_dynamic_entry_test(void) {
+    Uint32 saved_tick=actor_logic_tick;
+    RoleDef d={0};
+    Actor a={.role=&empty_test_role,.def=&d,.dynamic_state=11,
+        .trail_mode=2,.grp=10000,.speed=5,.dynamic_path_result=0};
+    actor_logic_tick=100;
+    actor_dynamic_enter(&a);
+    // 即使基底拒絕重試，角色層殘影先設好，基底也必須更新進入拍數。
+    assert(a.modifier[6].value==1 && a.modifier[6].time==-1);
+    assert(a.dynamic_enter_tick==100 && !a.dynamic_path_result);
+    actor_logic_tick=101;
+    actor_dynamic_enter(&a);
+    assert(a.dynamic_enter_tick==101 && a.modifier[6].time==-1);
+    a.dynamic_state=1; a.modifier[6].value=0; a.modifier[6].time=0;
+    actor_logic_tick=102; actor_dynamic_enter(&a);
+    assert(a.dynamic_enter_tick==102 && !a.modifier[6].value);
+    a.dynamic_state=11; a.trail_mode=1;
+    actor_dynamic_enter(&a);
+    assert(!a.modifier[6].value); // 只有模式2的移動會開啟此殘影。
+    actor_logic_tick=saved_tick;
+}
+
 static void character_activity_test(void) {
     Actor a = {.activity_disabled=1, .dynamic_state=32,
         .dynamic_reported_state=11, .interpolation_left=3,
@@ -737,6 +759,16 @@ static void character_activity_test(void) {
     assert(a.dynamic_reported_state==11);
     actor_maintenance_tick(&a);
     assert(a.cool==3); // 停用在冷卻之前早退，不能用路徑就緒值代替啟用byte。
+    // 停用仍跑同步快照；127不更新，128更新兩軸，負方向也相同。
+    a.x=127/64.0f; a.y=-127/64.0f;
+    assert(!actor_motion_tick(&a));
+    assert(a.command_world_x==0 && a.command_world_y==0);
+    a.x=128/64.0f;
+    assert(!actor_motion_tick(&a));
+    assert(a.command_world_x==128 && a.command_world_y==-127);
+    a.y=-255/64.0f;
+    assert(!actor_motion_tick(&a));
+    assert(a.command_world_x==128 && a.command_world_y==-255);
     a.activity_disabled=0; a.dynamic_state=1; a.vz=0; a.z=0;
     assert(actor_motion_tick(&a));
     assert(a.direction_clock==10 && a.dynamic_reported_state==1);
@@ -3635,6 +3667,7 @@ int main(void) {
     character_knock_test();
     character_charge_test();
     character_motion_order_test();
+    character_dynamic_entry_test();
     character_activity_test();
     character_height_interpolation_test();
     character_air_status_test();
