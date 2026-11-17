@@ -496,6 +496,76 @@ static void character_maintenance_test(void) {
     assert(a.modifier[4].time==20);
     ++a.direction_clock; actor_maintenance_tick(&a);
     assert(a.modifier[4].time==10 && a.direction_clock==60);
+    // 原版零值剛好減至-1不標dirty；減過-1仍標dirty。
+    a=(Actor){.direction_clock=10};
+    for (int i=0; i<20; i++) a.modifier[i].time=-1;
+    a.modifier[4].time=9; actor_modifiers_tick(&a);
+    assert(a.modifier[4].time==-1 && !a.modifiers_dirty);
+    a.modifier[4].time=8; actor_modifiers_tick(&a);
+    assert(a.modifier[4].time==-1 && a.modifiers_dirty);
+}
+
+static void character_aura_test(void) {
+    Actor saved[5]; memcpy(saved, actors, sizeof saved);
+    int saved_count = actor_count;
+    const Scene *saved_scene = unit_scene; Scene test_scene = {0}; unit_scene = &test_scene;
+    StatusDef *sd = (StatusDef *)status_def(126), saved_status = *sd;
+    for (int i = 0; i < 20; i++) sd->raw[i] = 65535;
+    sd->raw[1] = 126;
+    RoleDef d = {.scale=65535};
+    MonDef mon = {.hp={100,0}};
+    SkillRow row = {.level=1, .time=5, .mod_n=2,
+        .mod={{.id=41, .init=7}, {.id=53, .enemy=1, .init=9}}};
+    actor_count = 5;
+    for (int i=0; i<5; i++) {
+        actors[i] = (Actor){.role=&empty_test_role, .def=&d, .mon=&mon,
+            .hp=100, .hp_max=100, .object_kind=31, .grp=10000,
+            .x=4.5f+i, .y=4.5f, .dynamic_state=1, .scale=0};
+        for (int k=0; k<20; k++) actors[i].modifier[k].time=-1;
+    }
+    Actor *a=&actors[0];
+    a->aura_status=126; a->aura_range=3; a->aura_skill=1;
+    a->skill_n=1; a->skills[0]=(ActorSkill){.key=44, .row=&row};
+    actors[2].grp=10001; // 敵對不受同組光環。
+    actors[3].flags=0x20000; // 隱身由共用near模式排除。
+    a->direction_clock=99; actor_maintenance_tick(a);
+    assert(!actors[1].buff_n);
+    a->direction_clock=100; actor_maintenance_tick(a);
+    assert(!a->buff_n && actors[1].buff_n==1 && has_status(&actors[1],126));
+    assert(!actors[2].buff_n && !actors[3].buff_n && !actors[4].buff_n);
+    assert(actors[1].buff[0].skill==&row && actors[1].buff[0].side==2);
+    assert(actors[1].ap==7 && actors[1].dp==9); // 兩種enemy值都給接收者。
+    actors[1].buff[0].elapsed=4;
+    a->direction_clock=200; actor_maintenance_tick(a);
+    assert(actors[1].buff_n==1 && actors[1].buff[0].elapsed==4); // 原版拒絕同狀態，不刷新。
+    actors[1].buff[0].elapsed=3; a->state[126]=1;
+    a->direction_clock=300; actor_maintenance_tick(a);
+    assert(actors[1].buff[0].elapsed==3); // 檢查來源自身，不檢查對方。
+    a->state[126]=0; a->activity_disabled=1;
+    actor_maintenance_tick(a); assert(actors[1].buff[0].elapsed==3);
+    a->activity_disabled=0; a->flags=0x200; a->dynamic_state=11;
+    actor_maintenance_tick(a); assert(actors[1].buff[0].elapsed==3);
+    a->flags=0; a->skills[0].row=NULL;
+    actor_maintenance_tick(a); assert(actors[1].buff[0].elapsed==3);
+    a->skills[0].row=&row; a->aura_range=0;
+    actor_maintenance_tick(a); assert(actors[1].buff[0].elapsed==3);
+    a->aura_range=3; actors[3].flags=0; actors[3].x=6.5f;
+    actor_maintenance_tick(a);
+    assert(actors[1].buff[0].elapsed==3 && actors[3].buff_n==1);
+    buff_drop(&actors[1],126);
+    assert(!actors[1].buff_n && !has_status(&actors[1],126));
+    a->direction_clock=400; actor_maintenance_tick(a);
+    assert(actors[1].buff_n==1 && !actors[1].buff[0].elapsed);
+    // 刪其他技能時來源索引跟隨；刪來源後不得把下一項誤當來源。
+    a->skill_n=3; a->skills[1]=a->skills[0]; a->skills[1].key=45;
+    a->skills[2]=a->skills[0]; a->skills[2].key=46; a->aura_skill=2;
+    actor_skill_remove(a,44); assert(a->aura_skill==1);
+    actor_skill_remove(a,45); assert(!a->aura_skill);
+    a->aura_skill=1; a->aura_status=0;
+    actor_maintenance_tick(a);
+    assert(actors[1].state[0]==8 && actors[1].buff_n==1);
+    *sd=saved_status; unit_scene=saved_scene;
+    memcpy(actors,saved,sizeof saved); actor_count=saved_count;
 }
 
 static void character_rotation_cooldown_test(void) {
@@ -3682,6 +3752,7 @@ int main(void) {
     character_rotation_cooldown_test();
     character_sequence_test();
     character_maintenance_test();
+    character_aura_test();
     character_animation_test();
     character_walk_destination_test();
     character_animation_order_test();

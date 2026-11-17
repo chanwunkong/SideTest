@@ -232,7 +232,7 @@ static int frame_at(const Seq *q, Uint32 t) {
 // ---- 角色（主角與 NPC 共用）----
 enum { ACT_NONE, ACT_ATTACK, ACT_HIT, ACT_DEAD };  // 單次動作：播一次就回到平常；死亡停在最後一幀
 // 身上的一個狀態（原版 Status_N = "經過秒數 時間 技能"）：帶著施放時的技能等級
-typedef struct { const SkillRow *skill; int level, status, elapsed, time, side, patch; } Buff;  // side 1 = 別人放在身上的（套「是否对敌」的參數）；
+typedef struct { const SkillRow *skill; int level, status, elapsed, time, side, patch; } Buff;  // side 2 = 光環接收者兼參數目標；side 1 = 別人放在身上的（套「是否对敌」的參數）；
 // 打中觸發的狀態沒有技能參數（skill = NULL）；patch = 中毒每秒扣的量（Patch_62）
 
 typedef struct {
@@ -442,14 +442,15 @@ static void actor_trail_exit(Actor *a) {
 
 // 角色每拍中的20項期限分支；與原版共用角色拍數，不因重新設置期限而重置相位。
 // 拍數由動態基底統一推進；空中略過後不補扣，回地面仍沿原相位。
-// 完整每拍入口的活動門檻、光環等分支仍待移植，不標完整入口位址。
+// 活動門檻及後段光環由actor_maintenance_tick統一處理。
 static void actor_modifiers_tick(Actor *a) {
     if (a->direction_clock % 10) return;
     actor_status_countdown(a);
     for (int i = 0; i < 20; i++) {
         if (a->modifier[i].time < 0) continue;
         a->modifier[i].time -= 10;
-        if (a->modifier[i].time < 0) {
+        if (a->modifier[i].time < 0 &&
+            (a->modifier[i].value != 0 || a->modifier[i].time != -1)) {
             a->modifier[i].value = 0;
             a->modifier[i].time = -1;
             // 到期分支只有1/5/6具有副作用；不重新擲第3修正的潰散。
@@ -1559,7 +1560,7 @@ static void actor_mods(Actor *h, int pct) {
     for (int b = 0; b < h->buff_n; b++)
         for (int i = 0; h->buff[b].skill && i < h->buff[b].skill->mod_n; i++) {
             const SkillMod *m = &h->buff[b].skill->mod[i];
-            if ((m->enemy > 0) != h->buff[b].side || m->pct != pct) continue;
+            if ((h->buff[b].side != 2 && (m->enemy > 0) != h->buff[b].side) || m->pct != pct) continue;
             int *f = stat_ptr(h, m->id);
             float v = skill_value(m->init, m->incr, h->buff[b].level);
             if (f) *f += (int)(pct ? *f * v / 100 : v);
@@ -1799,6 +1800,8 @@ static int actor_row_enabled(const Actor *a, const SkillRow *r) {
 // Poq.exe 0x48af30：按外部識別刪第一個；選中的節點清空，後面索引跟隨搬移。
 static void actor_skill_remove(Actor *a, int key) {
     for (int i = 0; i < a->skill_n; i++) if (a->skills[i].key == key) {
+        if (a->aura_skill == i + 1) a->aura_skill = 0;
+        else if (a->aura_skill > i + 1) --a->aura_skill;
         if (a->selected == i) a->selected = -1;
         else if (a->selected > i) a->selected--;
         memmove(a->skills + i, a->skills + i + 1, (a->skill_n - i - 1) * sizeof *a->skills);
@@ -1939,7 +1942,7 @@ static int status_noattack(const Actor *a) { return (a->flags & 0x800) != 0; }
 
 // 加狀態（0x10037f40）：加不上就回 0；先移掉互斥的（0x10054d50：同為第 1、3、4、6 類互斥；3 蓋 4、4 蓋 2/3/5、7 蓋 6、11 蓋 10），
 // 技能參數跟著生效，播狀態表的聲音。r = NULL 是打中觸發的狀態（沒有參數）
-static int buff_add(Actor *a, const SkillRow *r, int status, int side, int time, int patch) {
+static int buff_add_source(Actor *a, const SkillRow *r, int status, int side, int time, int patch, int source) {
     if (status > 0 && status_blocked(a, status)) return 0;
     int c = status_class(status);
     for (int b = 0; c > 0 && b < a->buff_n; b++) {
@@ -1954,9 +1957,13 @@ static int buff_add(Actor *a, const SkillRow *r, int status, int side, int time,
     actor_derive(a);
     // 技能Buff名單負責期限；角色狀態byte與立即表格副作用由通知入口承接。
     // 重算留給固定拍，不能靠重算「最後狀態優先」冒充此次設置。
-    actor_status_notify(a, status, 1, -1);
+    actor_status_notify(a, status, 1, source);
     printf("狀態 %d 生效 %d 秒（%s）\n", status, time, side ? "對方" : "自己");
     return 1;
+}
+
+static int buff_add(Actor *a, const SkillRow *r, int status, int side, int time, int patch) {
+    return buff_add_source(a, r, status, side, time, patch, -1);
 }
 
 // 修正入口的副作用；狀態17／100是原版byte狀態，不能用帶時間的技能Buff取代。
@@ -2247,7 +2254,7 @@ static MUnit *actor_blood(Actor *a, int hit) {
 }
 
 // 角色更新的出手冷卻分支；有MethodMain時保留倒數，零與負數不再遞減。
-// 完整活動／動態更新門檻仍待接齊，不標完整角色更新入口位址。
+// 活動門檻由角色維護入口檢查；動態、播放及高度先由actor_motion_tick推進。
 static void actor_cooldown_tick(Actor *a) {
     if (a->cool > 0 && !main_of(a)) --a->cool;
 }
@@ -2868,8 +2875,27 @@ static void actor_animation_tick(Actor *a) {
     }
 }
 
-// 角色更新中已核對的維護分支：冷卻先扣，空中非靜止且未旋轉時整段略過。
-// shortcut: 動態→播放→高度由固定拍前置入口依序推進；仍缺100拍光環接收端。
+// 光環0x139的五參數業務接收：狀態、非零啟用值8、技能、接收角色。
+// 對照DLL命令分派的光環分支；接收者亦為參數目標，兩種enemy參數都套同一人。
+// shortcut: 技能物件以ActorSkill.row承接；完整劇情技能實例接齊後改用其即時參數。
+static void actor_aura_receive(Actor *target, const ActorSkill *skill, int status) {
+    // 同一封包狀態0走FightStatus分支，8原值必須保留，不建立技能Buff。
+    if (status == 0) { actor_status_notify(target, 0, 8, -1); return; }
+    const SkillRow *r = skill->row;
+    if (!r || status < 0 || status_blocked(target, status)) return;
+    if ((status == 78 || status == 83) &&
+        (!target->mon || (target->mon->istrap != 10 && target->mon->istrap != 20))) return;
+    // 原版狀態阻擋檢查會拒絕同狀態，光環不刷新既有期限。
+    if (!buff_add_source(target, r, status, 2, skill_time(r), 0, skill->key)) return;
+    for (int i = 0; i < r->mod_n; i++) {
+        const SkillMod *m = &r->mod[i];
+        if (m->id == 21 || m->id == 22 || m->id == 292 || m->id == 293)
+            skill_now(target, m, r->level);
+    }
+}
+
+// Poq.exe 0x488dd0：活動→動態／播放／高度由actor_motion_tick前置執行；
+// 本段接續冷卻、轉向、十拍修正、比例、重算，最後一百拍光環。
 static void actor_maintenance_tick(Actor *a) {
     if (a->activity_disabled) return;
     actor_cooldown_tick(a);
@@ -2879,6 +2905,20 @@ static void actor_maintenance_tick(Actor *a) {
     actor_modifiers_tick(a);
     actor_scale_tick(a);
     if (a->modifiers_dirty) actor_effects_recompute(a);
+    if (a->aura_range && a->direction_clock % 100 == 0 &&
+        a->aura_skill > 0 && a->aura_skill <= a->skill_n) {
+        ActorSkill source = a->skills[a->aura_skill - 1];
+        if (!source.row) return; // 對應來源技能CIDTable有效性檢查。
+        for (Actor *t = actor_near_begin(a, 1, a->aura_range); t; t = actor_near_next(a)) {
+            // 原版檢查施加者自己的狀態，而非接收者；不得改成一般Buff去重。
+            if (t != a && !has_status(a, a->aura_status)) {
+                __typeof__(nr) cursor = nr;
+                actor_aura_receive(t, &source, a->aura_status);
+                nr = cursor;
+                actor_near_mode = 1;
+            }
+        }
+    }
 }
 
 // Poq.exe 0x496380：直接切本體序列，與目標序列分開；同序列不重設幀。

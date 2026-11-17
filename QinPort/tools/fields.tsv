@@ -720,9 +720,9 @@ CCharactor	+0x581	主人／關聯識別值，getter與setter不改組別或目�
 CCharactor	+0x585	顯示名稱附加編號，初值-1	Actor.display_number／actor_name_number
 CCharactor	+0x589	顯示名稱CString，獨立於SInit事件ID，並非生命值	Actor.display_name／actor_name／actor_display_name_set；actor_title橋接基底名稱來源
 CCharactor	+0x58d	建築互動的關聯指標；行為重設清NULL	Actor.interaction
-CCharactor	+0x591	光環要施加的狀態ID	待光環
-CCharactor	+0x595	光環作用範圍，預設8或取SkillUnit最大距離	待光環
-CCharactor	+0x599	光環來源SkillUnit指標	待光環
+CCharactor	+0x591	光環要施加的狀態ID；100拍檢查的是施加者自己的該狀態byte	Actor.aura_status
+CCharactor	+0x595	光環作用範圍，預設8或取SkillUnit最大距離；100拍模式1同組掃描	Actor.aura_range
+CCharactor	+0x599	光環來源SkillUnit指標；CIDTable仍有來源識別才觸發	Actor.aura_skill（1-based技能槽，刪除／搬移同步；row承接技能實例）
 CCharactor	+0x59d	修正目的格X快取	Actor.corrected_x（actor_bind_scene）
 CCharactor	+0x5a1	修正目的格Y快取	Actor.corrected_y（actor_bind_scene）
 CCharactor	+0x5a5	清記住命令後的延遲，原命令1/2為50否則0；重送及扣減尚待主分派	Actor.remember_delay
@@ -872,4 +872,4 @@ RoleMdl	+0x104	欄26星號切四個int的第1值，缺項65535；同伴死亡時
 
 SpritePartGroup	+0x1f	首個精靈指標（00574e10直接getter，語義類別名，原RTTI待核對）	Role.body[0]／actor_sequence
 SpriteResource	+0x14	序列描述表指標（00496d80由首個精靈取，原描述stride32；語義類別名）	Anim.seqs，索引直接取Seq且保留零幀
-CGameApp	DAT_00639f6c	單機模式且場景管理存在時讀取的陷阱自動暫停選項；原版預設值尚未核對	trap_auto_pause；shortcut暫由--pause-traps提供，JM31接齊後升級
+Global	0x639f6c	單機模式且場景管理存在時讀取的陷阱自動暫停選項；原版預設值尚未核對	trap_auto_pause；shortcut暫由--pause-traps提供，JM31接齊後升級
