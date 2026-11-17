@@ -1991,7 +1991,8 @@ static void actor_modifier_changed(Actor *a, int index, int value) {
         if (value) actor_illusion_begin(a);
         else { actor_illusion_end(a); a->modifiers_dirty = 1; }
     } else if (index == 5) {
-        actor_status_notify(a, 100, value != 0, -1);
+        if (unit_scene && scene_record_mode != 2)
+            actor_status_notify(a, 100, value != 0, -1);
         // 第5修正的動畫分支原本由knock承接，現在兩者共用入口。
         a->knock = value;
         actor_animation_select(a, -1);
@@ -2653,9 +2654,9 @@ static void actor_effect(Actor *a, int status, int on, int skill) {
     if (on && v[19] != 65535) audio_sfx(v[19]);
 }
 
-// 共用byte通知及套表，供修正17／100與技能Buff使用。
-// 已接本類別的隱身、反擊開關、蠱惑與特殊共用倒數；
-// 已接周遭命令15；外部通知仍todo，不標完整主入口位址。
+// Poq.exe 0x48d950：共用byte通知及完整角色分派，供修正17／100與技能Buff使用。
+// shortcut: 單機共用Actor，狀態廣播與令牌配對容器由本地state／flags承接；
+// 隊伍狀態圖示通知等隊伍介面接入，不能在這裡重造該介面的八槽圖示表。
 static void actor_dynamic_rest(Actor *a);
 static void actor_candidate_cast(Actor *a);
 static int actor_can_use_skill(const Actor *a, const ActorSkill *skill);
@@ -2663,8 +2664,10 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
     if ((unsigned)status >= 128u || a->state[status] == on) return;
     unsigned char previous = a->state[status];
     a->state[status] = (unsigned char)on;
+    int server = unit_scene && scene_record_mode != 2;
     switch (status) {
     case 0:
+        if (!server) break;
         // 原版服務端的戰鬥byte是唯一狀態來源；fight僅保留舊AI的退戰計時。
         a->fight = on ? FIGHT_TICKS : 0;
         if (!grp_npc(a->grp)) {
@@ -2686,6 +2689,7 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
         a->counter_skill = on ? 0 : -1;
         break;
     case 14:
+        if (!server) break;
         if (on) {
             static int group = 99; // 原版共用分配器，99..1循環；不得依角色另起一份。
             a->original_group = a->grp;
@@ -2698,6 +2702,7 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
         }
         break;
     case 15: {
+        if (!server) break;
         // 原版狀態15在設與清時都通知；640世界單位、模式0的敵對／援敵篩選。
         actor_near_mode = 0;
         near_begin(ax64(a), ay64(a), 640);
@@ -2714,6 +2719,10 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
         }
         break;
     }
+    case 100:
+        // 服務場景由狀態表控制；只有客戶端／回放額外切第5修正。
+        if (!server) actor_modifier_set(a, 5, on != 0, -1);
+        break;
     case 101:
         if (!on) break;
         {

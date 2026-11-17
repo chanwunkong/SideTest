@@ -1045,7 +1045,15 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 補RoleMdl欄31的65535哨兵及欄36，模式3／5／9／10在size1且legs2時放原版指定單位，模式4放原版痕跡動畫；程序50特效繼承層。shortcut：不同類別CPartDeadObj／CFlyPartDeadObj的分件飛散仍以既有死亡播放器作最小殘留物，原屍體600拍期限沿用既有限制，該工廠與類別維持todo、沒有掛完成位址；完成其類別後換獨立部件。隊伍多選暫以操控角色承接，完整選項用`--pause-deaths`／`--simple-deaths`暫代，等隊伍選人與JM31介面；空資源／容量滿沿現有單位建立契約略過，不重現空指標寫入。伺服／客戶端共用Actor，省同步封包和令牌配對容器。
   - skilltest增加期限9→-1 dirty、服務場景／回放快照、回放暫停與殘留物分別處理、無cells／無場景仍掃隱身、0..100移除模式、0／100可見性、模式4痕跡、模板強制與程序50順序；既有同組潰散及光環索引測試仍過。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`，原生建置仍6個既有unused-function警告。fields／roles／FUNCS更新，無新增skip／base／DLC，未commit／push。
   - 尚餘主todo：完整繪圖、技能互動主分派與狀態通知；同類別／引擎基礎仍就地補，不能當成等待不同系統。
-  **下一步：0x4872e0（CCharactor 尚餘3個主todo；完成整類別才進CNpc）起**。
+  ~~下一步：0x4872e0（CCharactor 尚餘3個主todo；完成整類別才進CNpc）起~~。
+
+
+- 進度（11-17）：完成 **0x48d950 CCharactor 狀態通知主入口**（240行），並核對0x48ec60第5修正反向通知；主範圍done **83**、skip **33**、todo **3→2**（done +1、skip +0）。依大型類別每輪1～2個完整入口規則，先完成可收尾的狀態入口，沒有前進CNpc。
+  - `main.c actor_status_notify`已接Buff、命令與倒數。補齊狀態0／14／15只有目前服務場景存在且非回放才執行戰鬥副作用／蠱惑換組／周遭命令；無服務場景與回放仍保存狀態byte、標dirty並套表。狀態100則只在客戶端／回放把第5修正設為布林啟用、永久期限。`actor_modifier_changed`第5項也照原版只在服務場景反向通知100，避免客戶端循環回送、改寫byte或延長期限。
+  - 保留怪現象：狀態15解除仍招惹640世界單位內模式0角色，且檢查施加者技能；101沒有挨打序列仍先停MethodMain及擲音效骰，再恢復舊byte並早退，不設dirty／不套表；相同byte完全不重送。既有8／13／105／110／111／114／115／121與套表後last_status次序保留。
+  - shortcut：單機共用Actor，狀態同步封包與令牌配對容器沿既有skip／base由state及flags直接承接，不建立客戶端副本。隊伍八槽狀態圖示通知屬後段介面，roles明列轉送與接收端用途，等待隊伍介面；原版全域選人提示是空函數，無需另等系統。其餘完整繪圖與技能互動兩個主todo仍屬同類別／引擎基礎，繼續就地補，下一步不前移。
+  - skilltest新增無服務場景／回放的0、14、15分支、100非布林byte保留／永久第5修正／同值不刷新／解除，以及服務端100不回寫修正；既有伺服邏輯測試補明確Scene fixture，避免以無場景狀態冒充服務端。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；原生建置仍6個既有unused-function警告。roles／fields／FUNCS更新（本輪無新偏移、無新增skip／base／DLC），未commit／push。
+  **下一步：0x4872e0（CCharactor 尚餘2個主todo；完成整類別才進CNpc）起**。
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
 

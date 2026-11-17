@@ -660,10 +660,10 @@ CCharactor	+0x3b0	狀態111byte；非0設共用倒數8	Actor.state[111]／Actor.
 CCharactor	+0x3b3	狀態114byte；非0設倒數8，剩5設第10修正2及身上精靈，解除清兩者	Actor.state[114]／Actor.status_countdown
 CCharactor	+0x3b4	狀態115byte；非0設共用倒數5	Actor.state[115]／Actor.status_countdown
 CCharactor	+0x3ba	狀態121byte；切換令牌旗標0x80000	Actor.state[121]／actor_status_notify
-CCharactor	+0x341	128個狀態byte：值非0代表啟用，不限布林值	Actor.state[128]／has_status；移除Buff回退，特殊主分派仍todo
+CCharactor	+0x341	128個狀態byte：值非0代表啟用，不限布林值	Actor.state[128]／has_status／actor_status_notify；同byte早退，非布林值保留
 CCharactor	+0x3ff	32位關聯識別，遍歷模式2與候選物件識別比較；G_NPCActive第三參數>0時寫第二參數	Actor.search_link／actor_search_link_set
 CCharactor	+0x403	角色組合旗標32位值	Actor.flags／actor_flags／actor_set_flags
-CCharactor	+0x407	20項修正值，每項相隔8bytes，初值0	Actor.modifier[20].value／actor_modifier_set
+CCharactor	+0x407	20項修正值，每項相隔8bytes，初值0	Actor.modifier[20].value／actor_modifier_set；第5項僅服務場景反向通知狀態100
 CCharactor	+0x40b	20項修正的期限，每項相隔8bytes，-1永久；每10拍扣10	Actor.modifier[20].time／actor_modifiers_tick
 CCharactor	+0x41f	第3修正值，生命百分比分段設為3／1／0	Actor.modifier[3].value／actor_health_percent
 CCharactor	+0x423	第3修正期限，生命百分比更新時設-1	Actor.modifier[3].time

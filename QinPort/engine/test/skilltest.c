@@ -249,6 +249,54 @@ static void character_command_receiver_test(void) {
     units[0]=saved; unit_n=saved_units;
 }
 
+static void character_status_scene_test(void) {
+    const Scene *saved_scene = unit_scene;
+    int saved_mode = scene_record_mode;
+    Scene scene = {0};
+    const int ids[] = {0, 14, 15, 100};
+    StatusDef saved[4];
+    for (int i=0; i<4; ++i) {
+        StatusDef *d = (StatusDef *)status_def(ids[i]); saved[i] = *d;
+        for (int j=0; j<20; ++j) d->raw[j] = 65535;
+        d->raw[1] = ids[i];
+    }
+    RoleDef model = {.speed=10, .fight_speed=10};
+    // 無服務場景和回放均只收byte／套表，不執行服務端戰鬥、換組與周遭命令。
+    for (int replay=0; replay<2; ++replay) {
+        unit_scene = replay ? &scene : NULL; scene_record_mode = replay ? 2 : 0;
+        Actor target = {0};
+        Actor a = {.def=&model, .role=&empty_test_role, .grp=12345,
+            .original_group=42, .foe=&target, .command={9}, .status_aux=7,
+            .dynamic_state=11, .speed=10, .fight_speed=10};
+        actor_status_notify(&a, 0, 8, -1);
+        assert(a.state[0]==8 && !a.fight && a.command[0]==9 && a.dynamic_state==11);
+        actor_status_notify(&a, 0, 0, -1);
+        assert(a.foe==&target && !a.battle_return);
+        actor_status_notify(&a, 14, 1, -1);
+        actor_status_notify(&a, 14, 0, -1);
+        assert(a.grp==12345 && a.original_group==42 && a.status_aux==7);
+        int mode = actor_near_mode; actor_near_mode = 7;
+        actor_status_notify(&a, 15, 1, -1);
+        assert(actor_near_mode==7 && a.last_status==15 && a.modifiers_dirty);
+        actor_near_mode = mode;
+        actor_status_notify(&a, 100, 3, -1);
+        assert(a.state[100]==3 && a.modifier[5].value==1 && a.modifier[5].time==-1 && a.knock==1);
+        // 客戶端第5修正不反向送通知；保存原byte3，同值不重套。
+        a.modifier[5].time=17;
+        actor_status_notify(&a, 100, 3, -1);
+        assert(a.modifier[5].time==17);
+        a.modifier[5].time=-1;
+        actor_status_notify(&a, 100, 0, -1);
+        assert(!a.modifier[5].value && !a.knock && !a.state[100]);
+    }
+    unit_scene=&scene; scene_record_mode=0;
+    Actor a = {.def=&model, .role=&empty_test_role};
+    actor_status_notify(&a, 100, 3, -1);
+    assert(a.state[100]==3 && !a.modifier[5].value); // 服務端不回寫第5修正。
+    for (int i=0; i<4; ++i) *(StatusDef *)status_def(ids[i]) = saved[i];
+    unit_scene=saved_scene; scene_record_mode=saved_mode;
+}
+
 static void character_status15_test(void) {
     const Scene *saved_scene=unit_scene; int count=actor_count, un=unit_n;
     Actor saved[3]={actors[0],actors[1],actors[2]};
@@ -1325,6 +1373,8 @@ static void character_height_interpolation_test(void) {
 }
 
 static void character_air_status_test(void) {
+    const Scene *saved_status_scene = unit_scene;
+    Scene status_scene = {0}; unit_scene = &status_scene;
     Actor a = {.z = 17, .command = {9, 1, 2, 3}};
     for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
     int saved_n = unit_n;
@@ -1353,6 +1403,7 @@ static void character_air_status_test(void) {
     action_tick(&a, NULL, 0);
     assert(a.act == ACT_NONE && a.z == 12 && a.vz == -5);
     units[0] = saved; unit_n = saved_n;
+    unit_scene = saved_status_scene;
 }
 
 static void mk(Actor *a) {
@@ -1367,6 +1418,8 @@ static void mk(Actor *a) {
 }
 
 static void character_status_countdown_test(void) {
+    const Scene *saved_status_scene = unit_scene;
+    Scene status_scene = {0}; unit_scene = &status_scene;
     Actor a = {0};
     for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
     // byte是唯一狀態來源；倒數清除不能被尚未到期的Buff「復活」。
@@ -1443,6 +1496,7 @@ static void character_status_countdown_test(void) {
     assert(buff_add(&a, NULL, 121, 1, 10, 0));
     assert(!a.state[8] && !(a.flags & 0x20000) && (a.flags & 0x80000));
     buff_drop(&a, 121); assert(!a.state[121] && !(a.flags & 0x80000));
+    unit_scene = saved_status_scene;
 }
 
 static void character_detection_test(void) {
@@ -1763,6 +1817,8 @@ static void character_scale_test(void) {
 }
 
 static void character_modifiers_test(void) {
+    const Scene *saved_status_scene = unit_scene;
+    Scene status_scene = {0}; unit_scene = &status_scene;
     RoleDef d = {.speed = 10, .fight_speed = 8, .panic = 0};
     Actor a = {.def = &d, .speed = 10, .fight_speed = 8};
     for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
@@ -1802,6 +1858,7 @@ static void character_modifiers_test(void) {
     assert(a.behavior[0] == 11 && a.behavior[1] == 22 && a.behavior[2] == 44 && a.behavior[3] == 33);
     a.hp = 3; a.hp_max = 10; actor_health_sync(&a);
     assert(a.hp_percent == 30 && a.speed_threshold == 102 && a.behavior[2] == 44);
+    unit_scene = saved_status_scene;
 }
 
 static void character_illusion_test(void) {
@@ -1857,6 +1914,8 @@ static void character_illusion_test(void) {
 }
 
 static void character_target_reaction_test(void) {
+    const Scene *saved_status_scene = unit_scene;
+    Scene status_scene = {0}; unit_scene = &status_scene;
     Actor saved[2] = {actors[0], actors[1]}; int count = actor_count, groups = grp_n;
     void *group_copy = malloc(sizeof grps); memcpy(group_copy, grps, sizeof grps);
     grp_n = 0; actor_count = 2;
@@ -1890,6 +1949,7 @@ static void character_target_reaction_test(void) {
     actor_notice_near(a, t); assert(!a->foe); // NPC組的端點也排除。
     actors[0] = saved[0]; actors[1] = saved[1]; actor_count = count;
     memcpy(grps, group_copy, sizeof grps); free(group_copy); grp_n = groups;
+    unit_scene = saved_status_scene;
 }
 
 static int prison_guard_int(int h, const char *key) {
@@ -1904,6 +1964,8 @@ static int prison_guard_int(int h, const char *key) {
 }
 
 static void prison_guard_initialization_test(void) {
+    const Scene *saved_status_scene = unit_scene;
+    Scene status_scene = {0}; unit_scene = &status_scene;
     Actor saved[2] = {actors[0], actors[1]};
     int count = actor_count, groups = grp_n;
     void *group_copy = malloc(sizeof grps); memcpy(group_copy, grps, sizeof grps);
@@ -1935,9 +1997,12 @@ static void prison_guard_initialization_test(void) {
     assert(is_foe(hero, guard));
     actors[0] = saved[0]; actors[1] = saved[1]; actor_count = count;
     memcpy(grps, group_copy, sizeof grps); free(group_copy); grp_n = groups;
+    unit_scene = saved_status_scene;
 }
 
 static void character_battle_state_test(void) {
+    const Scene *saved_status_scene = unit_scene;
+    Scene status_scene = {0}; unit_scene = &status_scene;
     RoleDef model = {.speed=20, .idle=0, .fight_idle=8, .run_seq=65535};
     Actor target = {0};
     Actor a = {.def=&model, .role=&empty_test_role, .dynamic_state=11, .speed=20, .fight_speed=20,
@@ -1956,6 +2021,7 @@ static void character_battle_state_test(void) {
     a.grp=10000; a.dynamic_state=11; a.command[0]=9;
     actor_enter_fight(&a);
     assert(a.state[0] && a.command[0] == 9 && a.dynamic_state == 11);
+    unit_scene = saved_status_scene;
 }
 
 static void character_effect_test(void) {
@@ -3806,6 +3872,7 @@ int main(void) {
     character_skill_commands_test();
     character_overhead_test();
     character_status15_test();
+    character_status_scene_test();
     character_placement_test();
     air_test();
     bird_test();
