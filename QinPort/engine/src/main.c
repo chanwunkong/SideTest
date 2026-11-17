@@ -297,6 +297,9 @@ typedef struct Actor {
     int dynamic_cache_x, dynamic_cache_y, dynamic_counter;
     int dynamic_destination_x, dynamic_destination_y;
     int dynamic_pending, dynamic_path, dynamic_aux, dynamic_path_result;
+    int dynamic_new_path;           // +0x3d5：新路徑旗標
+    int npc_home_x, npc_home_y, npc_wait, npc_idle; // CNpc +0x5e2／+0x5e6（-1未設、-2停用）、+0x5ea攻擊間隔、+0x5ee閒置拍
+    unsigned char path_buf[500];    // +0xcb：250筆(x,y)反向路徑，[0]=終點、[count-1]=起點
     const Scene *bound_scene;
     int grid_x, grid_y, grid_valid, occupancy_removed, object_dead, object_kind;
     unsigned char removal_mode;
@@ -1282,6 +1285,7 @@ static void actor_skills_init(Actor *a);
 static int actor_light_init(const Actor *a);
 static void actor_appearance_init(Actor *a, const char *override);
 static void actor_behavior_reset(Actor *a);
+static void npc_behavior_reset(Actor *a);
 // 劇情handle為正整數；無劇情物件使用高半區，跨場景不重用，避免關聯命中另一個角色。
 static uint32_t next_actor_object_id = 0x80000000u;
 
@@ -1301,6 +1305,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
         a->hp_percent = 100;
         a->effect_speed = 100;
         a->display_number = -1;
+        a->npc_home_x = a->npc_home_y = -1;
         a->counter_skill = -1;
     }
     actor_cancel_command(a);
@@ -1407,7 +1412,7 @@ static void spawn_npcs(const Scene *s) {
         if (!d || (d->beast && d->air) || !atoi(d->graphic)) continue;  // shortcut: 圖形 ID 是名字的（怪物）用另一套格式，之後做戰鬥時處理
         Actor *a = &actors[actor_count++];
         memset(a, 0, sizeof *a);
-        actor_behavior_reset(a);
+        npc_behavior_reset(a);
         a->x = n->x + 0.5f;
         a->y = n->y + 0.5f;
         a->spec = n;
@@ -1446,7 +1451,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     *sp = (NpcSpec){.type = 13, .logic = 1, .tmpl = d->id, .x = x, .y = y, .rx = cx - MON_WANDER, .ry = cy - MON_WANDER,
                     .rw = MON_WANDER * 2 + 1, .rh = MON_WANDER * 2 + 1};
     memset(a, 0, sizeof *a);
-    actor_behavior_reset(a);
+    npc_behavior_reset(a);
     a->x = x + 0.5f;
     a->y = y + 0.5f;
     a->spec = sp;
@@ -2461,7 +2466,53 @@ static int actor_walk_fallback(const Actor *a, int *x, int *y, int end_x, int en
     }
 }
 
-// 動態11目的地校正；完整入口還缺原版反向路徑生成，不標完成位址。
+// Poq.exe 0x4973b0（CCharactor虛擬格20）：從目前占格到動態目的地(+0xc3,+0xc7)生成反向byte路徑。
+// 原版以自身ID暫蓋目的格占位後交XPS_Control尋路；這裡等價於BFS時把目的格視為空，其他格要層可過且沒人站。
+// shortcut: XPS_Control演算法不在映像內，改8方向BFS（不穿牆角），不可達時走到離目的地最近（切比雪夫）的格；
+// 取得XPS後核對路徑形狀。
+static int actor_path_build(Actor *a) {
+    if (!unit_scene) return 0;
+    int w = unit_scene->w, h = unit_scene->h, dx = a->dynamic_destination_x, dy = a->dynamic_destination_y;
+    int sx = actor_init_x(a), sy = actor_init_y(a);
+    a->dynamic_pending = 0;
+    if (!cell_at(sx, sy) || !cell_at(dx, dy)) return 0;
+    int *from = malloc(sizeof(int) * w * h), *queue = malloc(sizeof(int) * w * h);
+    if (!from || !queue) { free(from); free(queue); return 0; }
+    for (int i = 0; i < w * h; i++) from[i] = -2;
+    int head = 0, tail = 0, best = sy * w + sx, best_d = 1 << 30;
+    from[best] = -1; queue[tail++] = best;
+    while (head < tail && from[dy * w + dx] == -2) {
+        int cur = queue[head++], cx = cur % w, cy = cur / w;
+        int d = abs(cx - dx) > abs(cy - dy) ? abs(cx - dx) : abs(cy - dy);
+        if (d < best_d) { best_d = d; best = cur; }
+        for (int k = 0; k < 8; k++) {
+            static const int DX[8] = {0, 1, 1, 1, 0, -1, -1, -1}, DY[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+            int nx = cx + DX[k], ny = cy + DY[k];
+            const Cell *c = cell_at(nx, ny);
+            if (!c || from[ny * w + nx] != -2 || !cell_pass(c, a->layer)) continue;
+            Actor *o = cell_occupant(nx, ny);
+            if (o && o != a && !(nx == dx && ny == dy)) continue;
+            if (k & 1) {  // 斜走兩側都要可過
+                const Cell *c1 = cell_at(cx + DX[k], cy), *c2 = cell_at(cx, cy + DY[k]);
+                if (!c1 || !c2 || !cell_pass(c1, a->layer) || !cell_pass(c2, a->layer)) continue;
+            }
+            from[ny * w + nx] = cur; queue[tail++] = ny * w + nx;
+        }
+    }
+    if (from[dy * w + dx] != -2) best = dy * w + dx;
+    int n = 0;
+    for (int p = best; p != -1 && n < 250; p = from[p], n++) {
+        a->path_buf[n * 2] = (unsigned char)(p % w);
+        a->path_buf[n * 2 + 1] = (unsigned char)(p / w);
+    }
+    free(from); free(queue);
+    a->dynamic_pending = n;
+    a->dynamic_path = n - 2;
+    return a->dynamic_path >= 0 &&
+        (a->dynamic_path != 0 || dx == a->path_buf[0] || dy == a->path_buf[1]);
+}
+
+// Poq.exe 0x496f20：動態11目的地校正＋反向路徑生成（成功設新路徑旗標）。
 static int actor_walk_destination(Actor *a, int x, int y) {
     int original_x = x, original_y = y;
     a->dynamic_destination_x = x;
@@ -2488,7 +2539,9 @@ static int actor_walk_destination(Actor *a, int x, int y) {
             }
         }
     }
-    return 1;
+    if (actor_path_build(a)) { a->dynamic_new_path = 1; return 1; }
+    a->dynamic_path = 0;
+    return 0;
 }
 
 // 動態基底進入：共用拍數與速度在各分支之前。
@@ -3102,6 +3155,12 @@ static void actor_behavior_reset(Actor *a) {
     actor_height_set(a, -20, 0);
     actor_dynamic_reset(a);
     // 單機令牌配對沿用Actor身分；此處不複製伺服端名單節點。
+}
+
+// Poq.exe 0x492e70（CNpc虛擬重設）：NPC敵對入戰提示呼叫0x579dd0為空函數；清攻擊間隔與閒置拍，再走基底重設。
+static void npc_behavior_reset(Actor *a) {
+    a->npc_wait = a->npc_idle = 0;
+    actor_behavior_reset(a);
 }
 
 // Poq.exe 0x4963e0：面向與目標序列的八方向分組一起更新。
@@ -3779,6 +3838,398 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
     }
     actor_command_walk_tick(a, s, tick);
     return 1;
+}
+
+static void gbk_utf8(const char *in, char *out, size_t n);
+static void actor_overhead(Actor *a, const char *text, unsigned char duration, unsigned char floating);
+// ---- CNpc（Poq.exe 0x490240～0x493320）----
+// 建構／解構0x490240、0x4902c0、0x490360、0x490e30及空函數0x490960、0x579dd0以Actor零初始化與生命週期承接（見funcs_skip）。
+// 想像中的「主人名單」遍歷用 actor_near_begin／actor_near_next（0x48b9e0／0x48ba50）。
+
+// Poq.exe 0x491c80：技能鏈第一個manual==4的技能（IDTable物件+0x34）；共用遍歷游標由呼叫端索引取代。
+LATER static ActorSkill *npc_find_manual4(Actor *a) {
+    for (int i = 0; i < a->skill_n; i++) {
+        const Method *m = method_find(a->skills[i].id);
+        if (m && m->manual == 4) return &a->skills[i];
+    }
+    return NULL;
+}
+
+static int npc_in_fight(const Actor *a) { return has_status(a, 0) != 0; }
+
+// Poq.exe 0x493320：先找索敵圈內的人，沒有就在單機取主角；目標是角色（種類30..100）且組別不同才選為目標並入戰。
+// shortcut: DAT_00662c4c（有操控角色）單機恆真。
+LATER static void npc_aggro_nearest(Actor *a) {
+    Actor *t = actor_near_begin(a, 0, -1);
+    if (!t) t = &actors[0];
+    if ((unsigned)(t->object_kind - 30) < 71u && t->grp != a->grp) {
+        actor_target_set(a, t);
+        actor_command(a, 11, 1, 0, 0, 0, 0);
+    }
+}
+
+// Poq.exe 0x492370：程序0x2a——有目標且能出招時，叫周圍同組以manual4技能的射程為半徑一起打同一目標。
+LATER static void npc_group_2a(Actor *a) {
+    Actor *t = actor_target(a);
+    if (!t || a->def->program != 0x2a || !actor_can_use_id(a, -1)) return;
+    int tx = actor_init_x(t), ty = actor_init_y(t);
+    ActorSkill *sk = npc_find_manual4(a);
+    if (!sk) return;
+    actor_command(a, 8, sk->id, tx + 1, ty, 1, 0);
+    for (Actor *p = actor_near_begin(a, 1, sk->max); p; p = actor_near_next(a))
+        if (actor_can_use_id(p, -1)) {
+            actor_target_set(p, t);
+            actor_command(p, 11, 1, 0, 0, 0, 0);
+        }
+}
+
+// Poq.exe 0x4924b0：程序0——有目標時自己先站到目標右邊，同程序0的同組依序站成包圍陣（技能0xa1）。
+LATER static void npc_formation(Actor *a) {
+    Actor *t = actor_target(a);
+    if (!t || a->def->program != 0 || !actor_can_use_id(a, -1)) return;
+    int tx = actor_init_x(t), ty = actor_init_y(t);
+    actor_command(a, 8, 0xa1, tx + 1, ty, 1, 0);
+    static const int OFF[7][2] = {{-1, 0}, {0, -1}, {0, 1}, {1, -1}, {-1, -1}, {-1, 1}, {1, 1}};
+    int i = 0;
+    for (Actor *p = actor_near_begin(a, 1, -1); p; p = actor_near_next(a)) {
+        if (p->def->program != 0 || !actor_can_use_id(p, -1)) continue;
+        actor_target_set(p, t);
+        actor_command(p, 11, 1, 0, 0, 0, 0);
+        actor_command(p, 8, 0xa1, tx + (i < 7 ? OFF[i][0] : 0), ty + (i < 7 ? OFF[i][1] : 0), 1, 0);
+        i++;
+    }
+}
+
+// Poq.exe 0x490c20：自己的求援除數（欄26第4值）<1時，找同組中除數>=1且不在戰鬥中的人；
+// 每次1/除數的機率重登記目標並入戰。
+// shortcut: 反編譯沒帶出has_status的物件，取被掃到的同伴；0x48eda0以自己為this（命令也是自己）。
+LATER static void npc_assist_call(Actor *a) {
+    Actor *t = actor_target(a);
+    if (!t || a->def->help >= 1 || !actor_can_use_id(a, -1)) return;
+    Actor *p = actor_near_begin(a, 1, -1);
+    while (p && (p->def->help < 1 || npc_in_fight(p))) p = actor_near_next(a);
+    if (p && rand() % p->def->help == 0) {
+        actor_target_set(a, t);
+        actor_command(a, 11, 1, 0, 0, 0, 0);
+    }
+}
+
+// Poq.exe 0x4909b0：依程序分派包圍（0）或群體出手（0x2a），最後做求援。
+LATER static void npc_alert(Actor *a) {
+    if (a->def->program == 0) npc_formation(a);
+    else if (a->def->program == 0x2a) npc_group_2a(a);
+    npc_assist_call(a);
+}
+
+// Poq.exe 0x490d10／0x490e70：NPC隨機台詞。戰鬥用欄40第1、2值（顯示70拍），平時第3、4值（50拍）；
+// 頭頂槽0是空的、rand()%255==100才從[起,終)抽一句；0x490e70先要求累積拍%10==1（回傳恆1）。
+LATER static void npc_chat(Actor *a) {
+    int fight = npc_in_fight(a), lo = a->def->chat[fight ? 0 : 2], hi = a->def->chat[fight ? 1 : 3];
+    if (lo == 65535 || hi == 65535 || hi <= lo || a->overhead[0].left) return;
+    if (rand() % 0xff != 100) return;
+    char g[256], u[256];
+    if (res_dlg("Chat.dlg", rand() % (hi - lo) + lo, g, sizeof g)) {
+        gbk_utf8(g, u, sizeof u);
+        actor_overhead(a, u, fight ? 0x46 : 0x32, 0);
+    }
+}
+LATER static int npc_chat_tick(Actor *a) {
+    if (a->direction_clock % 10 == 1) npc_chat(a);
+    return 1;
+}
+
+// 往foe的反方向逃一步的點（GetFleePos）。shortcut: 原版隱藏步長在呼叫點，npc先用3格；取得組語後核對。
+static void npc_flee_pos(const Actor *a, const Actor *foe, int *x, int *y) {
+    *x = actor_init_x(a); *y = actor_init_y(a);
+    move_dir(x, y, dir_of(actor_init_x(foe), actor_init_y(foe), *x, *y, 8), 3);
+}
+
+// Poq.exe 0x490fc0：狀態0x11（恐懼）逃跑。無敵人時隨機走開並解除，有敵人時往反方向逃；逃不掉有1/15機率解除。
+LATER static int npc_flee(Actor *a) {
+    if (!has_status(a, 0x11)) return 0;
+    if (a->dynamic_state == 1) {
+        Actor *foe = actor_near_begin(a, 0, actor_seek(a) - 2);
+        int x, y;
+        if (!foe) {
+            actor_status_notify(a, 0x11, 0, -1);
+            open_dir(&x, &y, actor_init_x(a), actor_init_y(a), a->seek_adjust / 3 + 1);
+            actor_command(a, 2, x, y, 2, 1, 0);
+        } else {
+            npc_flee_pos(a, foe, &x, &y);
+            if (actor_command(a, 1, x, y, 2, 1, 0) && a->def->panic > 0 && rand() % 15 == 0)
+                actor_status_notify(a, 0x11, 0, -1);
+        }
+        if (!actor_dynamic_retry(a)) actor_status_notify(a, 0x11, 0, -1);
+    }
+    return 1;
+}
+
+// Poq.exe 0x491af0：閒置時往空曠處（無敵人，距離dist）或遠離敵人走一步，成功就清目標；
+// 無敵人那邊還離戰（命令11關）。
+LATER static void npc_move_away(Actor *a, Actor *foe, int dist) {
+    if (!actor_command_idle(a) || a->dynamic_state != 1) return;
+    int x, y;
+    if (!foe) {
+        open_dir(&x, &y, actor_init_x(a), actor_init_y(a), dist);
+        if (actor_command(a, 1, x, y, 0, 0, 0)) {
+            actor_clear_target(a);
+            actor_command(a, 11, 0, 0, 0, 0, 0);
+        }
+    } else {
+        npc_flee_pos(a, foe, &x, &y);
+        if (actor_command(a, 1, x, y, 0, 0, 0)) actor_clear_target(a);
+    }
+}
+
+// Poq.exe 0x493080：程序0x28（守衛）。第一次記出生格，之後有目標時近了回出生格附近，遠一點出技能，太遠追上；
+// 回到出生格3格內就把家記成-2停用。回傳1表示本拍已處理。
+LATER static int npc_guard(Actor *a) {
+    if (a->def->program != 0x28 || a->npc_home_x == -2) return 0;
+    if (a->npc_home_x == -1 || a->npc_home_y == -1) {
+        a->npc_home_x = actor_init_x(a);
+        a->npc_home_y = actor_init_y(a);
+    }
+    Actor *t = actor_target(a);
+    if (!t) {
+        if (a->direction_clock % 100 == 3) npc_aggro_nearest(a);
+        return 0;
+    }
+    if (!actor_command_idle(a) || a->dynamic_state != 1) return 1;
+    if (a->direction_clock % 0x21 == 3) npc_aggro_nearest(a);
+    int tx = actor_init_x(t), ty = actor_init_y(t), sx = actor_init_x(a), sy = actor_init_y(a);
+    int d = dist_of(sx, sy, tx, ty);
+    if (d < 13) {
+        if (d < 9) {
+            int home = dist_of(sx, sy, a->npc_home_x, a->npc_home_y);
+            if (home < 3) { a->npc_home_x = -2; return 1; }
+            actor_command(a, 2, a->npc_home_x, a->npc_home_y, home - 8, 1, 0);
+        } else {
+            ActorSkill *sk;
+            if (!actor_can_use_id(a, -1) || a->direction_clock % 0xaa != 3 || !(sk = npc_find_manual4(a))) return 1;
+            actor_command(a, 8, sk->id, tx, ty, 1, 0);
+        }
+    } else if (a->direction_clock % 0x2d == 3) actor_command(a, 1, tx, ty, 9, 1, 0);
+    return 1;
+}
+
+// Poq.exe 0x490430：NPC選目標。有恐懼／魅惑（狀態0x12）且已有目標就不動；索敵圈內取第一個候選
+// （程序第3值==1時優先取有狀態0x79者）；NPC組只有候選在技能射程（至少4格）內才登記目標；
+// 沒候選且退戰旗標開時清目標，force或累積拍%5==1才離戰。最後一律入戰（狀態0）。
+// shortcut: 場景類型0x12／0x13早退（CScene+0x6c來源是0x123封包）單機沒有；0x79的has_status取候選。
+LATER static void npc_pick_target(Actor *a, int force) {
+    if (has_status(a, 0x12) && actor_target(a)) return;
+    Actor *first = actor_near_begin(a, 0, -1), *pick = first;
+    if (first && a->def->prog_extra[1] == 1) {
+        for (Actor *p = first; p; p = actor_near_next(a))
+            if (has_status(p, 0x79)) { pick = p; break; }
+    }
+    if (!pick) {
+        if (a->battle_return) {
+            actor_clear_target(a);
+            if ((force || a->direction_clock % 5 == 1) && npc_in_fight(a)) actor_command(a, 11, 0, 0, 0, 0, 0);
+        }
+        return;
+    }
+    int near = 1;
+    if ((unsigned)(a->grp - 10000u) <= 50000u) {
+        int radius = 0x100;
+        if (a->selected >= 0 && a->selected < a->skill_n && a->skills[a->selected].max * 0x40 > radius)
+            radius = a->skills[a->selected].max * 0x40;
+        near = (int)sqrt((double)(ax64(a) - ax64(pick)) * (ax64(a) - ax64(pick)) +
+                         (double)(ay64(a) - ay64(pick)) * (ay64(a) - ay64(pick))) < radius;
+    }
+    if (near) actor_target_set(a, pick);
+    if (!npc_in_fight(a)) actor_command(a, 11, 1, 0, 0, 0, 0);
+}
+
+// Poq.exe 0x4906c0後的選取結果：沒選取時先選招（怪物才有招式表），回目前選取的技能或NULL。
+static ActorSkill *npc_selected(Actor *a) {
+    if ((a->selected < 0 || a->selected >= a->skill_n) && a->mon && npc_skill(a->mon->skill[0])) {
+        const SkillRow *r = mon_pick(a);
+        if (r) { a->skill = r; actor_right_skill(a, skill_attack_id(r)); }
+    }
+    return a->selected >= 0 && a->selected < a->skill_n ? &a->skills[a->selected] : NULL;
+}
+
+// 0x491d00與主AI共用：用技能sk出手（命令8）並記住上一招、清選取。
+// 原版manual==0的招式有一半機率不記上一招也不清選取（保留下一拍再出）。
+static void npc_cast_command(Actor *a, ActorSkill *sk, int x, int y) {
+    actor_command(a, 8, sk->id, x, y, 1, 0);
+    const Method *m = method_find(sk->id);
+    if (m && m->manual == 0 && rand() % 2) return;
+    a->last_skill = sk->row;
+    actor_skill_select(a, -1);
+}
+
+// 目標超出直線射程時是否要放棄：任一邊在高層（>9）不檢查，否則要直線過得去（0x443790，模式3）。
+static int npc_line_blocked(const Actor *a, const Actor *t, int range) {
+    return a->layer <= 9 && t->layer <= 9 &&
+        !line_clear(actor_init_x(a), actor_init_y(a), actor_init_x(t), actor_init_y(t), range, 3);
+}
+
+// Poq.exe 0x491d00：+0x579（status_aux）狀態機。>2 = 追著目標打（每150～249拍續一次）；
+// 2 = 找目標、試出手，打不到15～34拍再試；1 = 走回修正目的格（<3格就結束）；<1 = 不處理。回傳1表示本拍已處理。
+LATER static int npc_aux_ai(Actor *a) {
+    int aux = a->status_aux;
+    if (aux < 1) return 0;
+    if (aux > 2) {
+        if (a->direction_clock % 0x1e == 1) npc_pick_target(a, 0);
+        Actor *t = actor_target(a);
+        ActorSkill *sk;
+        if (!t) { a->status_aux--; goto relook; }
+        if (!(sk = npc_selected(a))) { a->status_aux--; actor_clear_target(a); goto relook; }
+        int d = dist_of(actor_init_x(a), actor_init_y(a), actor_init_x(t), actor_init_y(t));
+        if ((sk->max > 1 || sk->max < d) && npc_line_blocked(a, t, sk->max)) {
+            a->status_aux--;
+            actor_clear_target(a);
+            goto relook;
+        }
+        a->status_aux = rand() % 100 + 150;
+        npc_cast_command(a, sk, actor_init_x(t), actor_init_y(t));
+        return 1;
+    relook:;
+        Actor *p = actor_near_begin(a, 0, actor_seek(a) - 2);
+        if (p && (unsigned)(p->object_kind - 30) < 71u && actor_cooling(a)) {
+            a->status_aux = 0;
+            actor_target_set(a, p);
+        }
+        if (a->status_aux == 2) a->status_aux = 1;
+        return 1;
+    }
+    if (aux != 2) {
+        if (actor_command_idle(a) || (a->dynamic_state == 1 && (unsigned)(a->grp - 10000u) > 50000u)) {
+            if (actor_dynamic_retry(a) &&
+                dist_of(a->corrected_x, a->corrected_y, actor_init_x(a), actor_init_y(a)) < 3) a->status_aux = 0;
+            int none = a->corrected_x == -1 && a->corrected_y == -1;
+            if (!none && !(a->corrected_x == actor_init_x(a) && a->corrected_y == actor_init_y(a)))
+                actor_command(a, 1, a->corrected_x, a->corrected_y, 0, 1, 0);
+        }
+        return 1;
+    }
+    Actor *t = actor_target(a);
+    ActorSkill *sk = t ? npc_selected(a) : NULL;
+    if (!t || !sk) {
+        a->status_aux = 1;
+        actor_clear_target(a);
+        actor_cancel_command(a);
+        return 1;
+    }
+    int d = dist_of(actor_init_x(a), actor_init_y(a), actor_init_x(t), actor_init_y(t));
+    if ((sk->max >= 2 || sk->max < d) && npc_line_blocked(a, t, sk->max)) {
+        a->status_aux = rand() % 20 + 15;
+        actor_clear_target(a);
+        actor_cancel_command(a);
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        return 1;
+    }
+    a->status_aux = rand() % 100 + 150;
+    npc_cast_command(a, sk, actor_init_x(t), actor_init_y(t));
+    return 1;
+}
+
+// Poq.exe 0x4911b0：CNpc完整主AI（有技能鏈的戰鬥一拍）。回傳1表示本拍到此為止。
+// 取目標→（NPC組）每20拍／（其他組）30或400拍重選→出生格距離與追擊界限→計攻擊間隔→選招→
+// 太近退一步、到間隔且目標站著才出手（射程內直線過得去用命令9，否則走近到射程-1）。
+// shortcut: 打物件（目標種類21..29）原版要招式旗標0x4才可，旗標來源沒找到，一律視為可打；
+// 連線客戶端（DAT_00942f28==2）分支單機沒有；vtable+0x48(1,1)的清除副作用因此也不做。
+LATER static int npc_main_ai(Actor *a) {
+    Actor *t = actor_target(a);
+    int npc = (unsigned)(a->grp - 10000u) <= 50000u;
+    if (npc) {
+        if (actor_command_idle(a) && a->dynamic_state == 1 && !main_of(a) && !t && a->direction_clock % 0x14 == 1) {
+            npc_pick_target(a, 0);
+            t = actor_target(a);
+        }
+    } else if (!t) {
+        actor_cancel_command(a);
+        if (a->direction_clock % 0x1e == 1) npc_pick_target(a, 0);
+    } else {
+        int m = a->direction_clock % 400;
+        const NpcSpec *sp = a->spec;
+        if (m == 1) npc_pick_target(a, 0);
+        else if (m == 200 && sp && sp->rw != 0 &&
+                 !(actor_init_x(a) >= sp->rx && actor_init_x(a) < sp->rx + sp->rw &&
+                   actor_init_y(a) >= sp->ry && actor_init_y(a) < sp->ry + sp->rh)) {
+            actor_command(a, 1, sp->rw / 2 + sp->rx, sp->rh / 2 + sp->ry, 0, 1, 0);
+            actor_clear_target(a);
+        }
+    }
+    if (a->skill_n == 0) { npc_move_away(a, t, 8); return 0; }
+    a->npc_idle++;
+    if (a->dynamic_active && a->grp - 10000u > 50000u) {
+        if (!actor_command_idle(a) && a->dynamic_state != 1) {
+            if (a->npc_idle % 0x50 == 0) {
+                actor_cancel_command(a);
+                actor_dynamic_command(a, 1, 0, 0, 0);
+            }
+        } else a->npc_idle = 0;
+    }
+    if (!t) return 0;
+    int sx = actor_init_x(a), sy = actor_init_y(a), tx = actor_init_x(t), ty = actor_init_y(t);
+    int manhattan = abs(sy - ty) + abs(sx - tx), giveup = 0;
+    if (a->direction_clock % 300 == 10) {
+        int home = !(a->corrected_x == 0 && a->corrected_y == 0) && !(a->corrected_x == -1 && a->corrected_y == -1);
+        if (!home) {
+            if (actor_seek(a) < manhattan) giveup = 1;
+            else if (manhattan > 6) npc_formation(a);
+        } else if ((unsigned)(a->grp - 10000u) > 50000u &&
+                   actor_chase(a) < abs(sy - a->corrected_y) + abs(sx - a->corrected_x)) {
+            a->status_aux = rand() % 100 + 150;
+            actor_cancel_command(a);
+            actor_clear_target(a);
+            actor_dynamic_command(a, 1, 0, 0, 0);
+            return 1;
+        }
+        if (!giveup && a->def->legs == 4) {
+            Actor *p = actor_near_begin(a, 0, 2);
+            if (p) actor_target_set(a, p);
+        }
+    } else if (a->direction_clock % 0x1e == 10 && (unsigned)(t->object_kind - 30) < 71u &&
+               (t->grp == a->grp || has_status(a, 0x66))) giveup = 1;
+    if (!giveup && has_status(a, 0x21) && dist_of(ax64(t), ay64(t), ax64(a), ay64(a)) > 0x60) giveup = 1;
+    if (giveup) {
+        actor_clear_target(a);
+        actor_cancel_command(a);
+        return 1;
+    }
+    // 攻擊間隔：不能出招或招式還在放時，歸零後重抽；能出招且沒有招式在放才遞減。
+    if (!actor_can_use_id(a, -1) || main_of(a)) {
+        if (a->npc_wait < 0) {
+            int delay = a->def->atk_delay;
+            if (npc) a->npc_wait = (int)((float)delay * actor_fight_ratio(a));
+            else a->npc_wait = delay > 0 ? rand() % delay + delay : 0;
+        }
+    } else if (a->npc_wait >= 0) a->npc_wait--;
+    if (actor_flags(a, 1)) {
+        actor_clear_flags(a, 1);
+        actor_clear_target(a);
+        actor_cancel_command(a);
+        return 0;
+    }
+    if (!actor_command_idle(a) || a->dynamic_state != 1 || !actor_can_use_id(a, -1) || a->skill_n < 1) return 0;
+    ActorSkill *sk = a->selected >= 0 && a->selected < a->skill_n ? &a->skills[a->selected] : NULL;
+    if (!sk) {
+        if (!npc_selected(a)) npc_move_away(a, t, 8);
+        return 0;
+    }
+    const Method *method = method_find(sk->id);
+    int dist = dist_of(sx, sy, tx, ty);
+    if (a->direction_clock % 0x3d == 2 && !(method && method->manual == 1)) {
+        if (sk->max - dist - 2 > 1) {  // 比射程近太多：退一步（IsMaxRange必然成立）
+            int fx, fy;
+            npc_flee_pos(a, t, &fx, &fy);
+            actor_command(a, 1, fx, fy, 0, 0, 0);
+        }
+    } else if (a->npc_wait < 0 || t->dynamic_state != 1) {
+        int range = sk->max;
+        if (range < 2 || dist > range || a->layer > 9 || t->layer > 9 || line_clear(sx, sy, tx, ty, range, 3)) {
+            actor_command(a, 9, sk->id, t->sh ? t->sh : (int)t->object_id, 0, 1, 0);
+            if (method && method->manual == 0 && rand() % 2) return 0;
+            a->last_skill = sk->row;
+            actor_skill_select(a, -1);
+        } else actor_command(a, 1, tx, ty, range - 1, 0, 0);
+    }
+    return 0;
 }
 
 // 怪物：主角進入索敌范围就追上去打，離出生點超過追击范围就放棄回去閒逛
@@ -4630,6 +5081,13 @@ static int actor_command_walk_tick(Actor *a, const Scene *s, Uint32 tick) {
         a->has_target = 0;
         actor_dynamic_command(a, 1, 0, 0, 0);
         return 1;
+    }
+    // 反向路徑步進（原版0x4959d0未移植）：走到目前路徑點的格子就換下一點。
+    if (a->dynamic_pending > 0 && a->dynamic_path >= 0 && a->dynamic_path < a->dynamic_pending) {
+        while (a->dynamic_path > 0 && actor_init_x(a) == a->path_buf[a->dynamic_path * 2] &&
+               actor_init_y(a) == a->path_buf[a->dynamic_path * 2 + 1]) a->dynamic_path--;
+        a->tx = a->path_buf[a->dynamic_path * 2] + .5f;
+        a->ty = a->path_buf[a->dynamic_path * 2 + 1] + .5f;
     }
     float gx = a->tx - a->x, gy = a->ty - a->y;
     actor_tick(a, s, (gx - gy) * 32, (gx + gy) * 16, tick);

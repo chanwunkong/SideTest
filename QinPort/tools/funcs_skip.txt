@@ -684,3 +684,8 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 
 00497c20 空基底活動getter固定回1；高度更新直接承接常數，不複製空包裝
 00579dd0  原版空函數；NPC敵對入戰提示呼叫立即返回，無遊戲副作用
+00490240  CNpc建構：CCharactor建構後設vftable、種類40、+0x2c7=1000、攻擊間隔／閒置拍清0、出生格-1；Actor零初始化與actor_setup（npc_home=-1）承接
+004902c0  CNpc解構：呼叫空函數0x579dd0、卸載與CCharactor解構；Actor陣列生命週期承接
+00490360  CNpc刪除解構：同上加operator delete；Actor陣列生命週期承接
+00490e30  CNpc卸載：空函數0x579dd0加CCharactor卸載0x486d30（已skip）；生命週期承接
+00490960  只呼叫純查詢actor_can_use_id（無副作用）、結果不用，等於空函數；不建立包裝

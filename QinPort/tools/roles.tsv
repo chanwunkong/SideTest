@@ -784,8 +784,8 @@
 00496ae0	actor_move_speed：A/B/C、倒數A、浮點比例11段與每Actor走路動畫延遲；零速移動改走共用actor_dynamic_command(1,0,0,0)，保留角色殘影退出；接所有現有移動／衝刺／擊退
 004c9050	移速工具：速度夾限0..59後輸出A/B與可選C，以C靜態陣列及speed_index承接
 
-00490d10	NPC隨機台詞：有目標選戰鬥區間70次，否則平時50次；槽0空且rand%255==100才從[lo,hi)選Chat.Dlg；索引無呼叫者，未實作；角色表未找到有效平時台詞區間
-00490e70	NPC每10拍（角色計數餘1）同隨機台詞；todo 尚未接完整CNpc更新，現有角色表未找到有效平時台詞區間，未實作
+00490d10	NPC隨機台詞：有戰鬥用欄40前兩值（70拍）、平時用後兩值（50拍），槽0空且rand%255==100才抽Chat.dlg → main.c npc_chat
+00490e70	NPC每10拍同隨機台詞，回傳恆1 → main.c npc_chat_tick；待主AI 0x492730
 004b8190	Chat.Dlg字串取值後保存在管理器暫存；以現有res_dlg及呼叫者緩衝區承接字串資源工具，不複製CString管理器
 0048d330	actor_method_bound／attack_speed：main_new綁定時裝冷卻，unit_die解除時清每幀調整但保留冷卻；刪action_tick結束擲間隔。NPC組按float倍率、其他組rand()%模板間隔（1仍消耗亂數）、單機NPC種類60只用補拍；byte345非0延遲+2；trail_mode1綁定第6修正1/-1，解除時time<21才改1/20；補拍統一Actor.extra不再另存behavior_aux；間隔0明示shortcut避免mod0
 00496ac0	寫動態移動嘗試結果+0x3f1；總表無呼叫者，依規則skip，不新增無遊戲呼叫端setter
@@ -798,7 +798,7 @@
 004a1780	illusion_create：首次建立30筆歷史與起值／步數／步長／重複旗標，間隔重複30/步數+1、非重複1；重開不改參數
 004a1c90	illusion_clear：釋放30筆歷史並清指標，Frame資源由Anim共用快取持有；接各部件及場景生命週期
 00494f90	actor_dynamic_retry：有號32位拍差絕對值，組10000..60000的15拍內／其他50拍內回上次結果，邊界恢復1；供共用動態命令失敗處理
-00496f20	todo：actor_walk_destination已接合法目的格／反向逐格回掃／六圈找空格，以及原格占位等於目前選取目標（含NULL相等）時的range與距離拒絕；失敗清dynamic_path；仍缺同類別XPS反向路徑生成與成功新路徑旗標，不標整入口done
+00496f20	動態11目的地校正＋路徑生成：合法目的格／回掃／六圈找空格／原格占位拒絕，成功呼叫虛擬格20尋路並設+0x3d5新路徑旗標，失敗清+0x2c3 → main.c actor_walk_destination
 00494070	actor_rush_destination：相同占格回0；跳躍先升層，依層與占位用line_end回退落點；速度2／4倍、先移占格後初始化插值，保留占格失敗仍插值的原版順序；接MethodMain觸發5／7
 00495880	方向0..7反向加4取模，其他值不變；同類別基礎工具用途已核對
 004963e0	actor_direction_set：保存原版八方向面向，依目標序列向零除8的分組選新方向；Actor.dir轉為畫面八方向，接外觀初始化
@@ -844,9 +844,9 @@
 00493f80	todo：動態32重設三倍速度、插值至命令目的地、由占格決定面向及動畫；與actor_dynamic_enter的32初始化相同，尚未接獨立重進入呼叫
 004934e0	CDynamicObj建構：250筆byte座標路徑清零、狀態及插值快取-1、方向時鐘rand()%100、身體大小0、路徑活動0；已核對作動態11基礎欄位依據，本輪不推進到此類別
 00493ad0	actor_walk_fallback：動態11目的地回掃第一合法層空格；Chebyshev距離<2直接失敗，抵達自身占格則以原目的地找六圈；已接actor_walk_destination；反編譯遺失Y軸累加器按對稱整數DDA承接，待組語核對
-004973b0	todo：CDynamicObj尋路；暫以自身ID覆寫目的格占位，XPS_Control執行後復原，讀最多250筆反向byte路徑，index=count-2；index0時原版條件為目的X不同或Y相等仍可成功；待同類別動態11尋路與路徑工具接入
+004973b0	CDynamicObj尋路（虛擬格20）：目的格暫蓋自身ID後XPS尋路，讀最多250筆反向byte路徑（[0]=終點、[count-1]=起點），index=count-2；index0要求終點對得上；→ main.c actor_path_build（BFS代XPS）
 00493930	todo：由起點朝終點逐格找第一個合法層且無角色格，抵達終點回0；動態尋路基礎回溯工具，尚未接入
-004911b0	todo：CNpc完整主AI；只保留action_tick出手後記上一招與mon_pick選招，不能因註解引用主AI位址標done；原有61拍／60拍限時退避簡化版已刪，CCharactor共用技能命令依最小射程退避，完整NPC策略待下一類別CNpc
+004911b0	CNpc主AI（有技能鏈的戰鬥一拍）：重選目標、出生格／追擊界限、攻擊間隔、選招、太近退步、到間隔出手 → main.c npc_main_ai；尚未取代monster_think／pursue（等主迴圈0x492ed0接入）
 004959d0	todo：動態11反向byte路徑步進，活動時先更新速度、等待byte先扣早退；新路徑跳過距離／索引重尋檢查；首點同組讓路請求、選方向／可反播與提前占下一格；占格遇同組移動最多3次rand()%30+33等待，size>2失敗停移，其他重尋；插值只在direction_clock%move_b==0推進；屬同類別／引擎基礎未完成
 00574e10	部件群首個精靈指標getter；由Role.body[0]直接取得，actor_sequence接方向維護
 00579dd0	原版空函數：NPC敵對入戰／全域選人提示呼叫無任何副作用，不等待CGameApp
@@ -855,3 +855,16 @@
 
 00497310	actor_client_motion_tick：回放分派接入；靜止先讓路、22中點先下降，所有動態正剩餘拍數累加浮點位置並向零截斷，末拍不退出、不尋路
 00577d60	actor_illusion_enabled：目前群不存在回false，否則僅看首部件殘影容器非NULL；空容器亦true，接actor_draw整群殘影繪圖門檻
+
+00490430	NPC選目標：狀態0x12有目標早退、索敵圈取候選（程序第3值1優先狀態0x79）、NPC組依射程登記目標、無候選清目標離戰、最後入戰 → main.c npc_pick_target
+004909b0	NPC叫人：程序0包圍陣、0x2a群體出手，再求援 → main.c npc_alert
+00490c20	NPC求援：自己除數<1時同組除數>=1且不在戰鬥者以1/除數機率重登記目標入戰 → main.c npc_assist_call
+00490fc0	NPC恐懼（狀態0x11）逃跑 → main.c npc_flee
+00491af0	NPC閒置時往空曠處或遠離敵人走一步 → main.c npc_move_away
+00491c80	技能鏈中第一個manual==4的技能 → main.c npc_find_manual4
+00492370	程序0x2a：群體以manual4技能出手 → main.c npc_group_2a
+004924b0	程序0：包圍陣站位（技能0xa1）→ main.c npc_formation
+00492e70	CNpc虛擬重設：清攻擊間隔與閒置拍再基底重設 → main.c npc_behavior_reset（接新角色建立）
+00493080	程序0x28守衛：記出生格、近了回出生格、中距出技能、遠了追 → main.c npc_guard
+00493320	NPC找最近人或主角當目標並入戰 → main.c npc_aggro_nearest
+00491d00	NPC status_aux(+0x579)狀態機：>2追打（150～249拍續）、2找目標試出手、1走回修正目的格 → main.c npc_aux_ai

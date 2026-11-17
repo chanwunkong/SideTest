@@ -1281,6 +1281,30 @@ int roledefs_load(void) {
             for (int k = 0; k < 2 && p; k++) { p = strchr(p, '*'); if (p) p++; }
             if (p && *p) r->panic = atoi(p);
         }
+        // 欄26第4值（+0x110求援除數）、欄27第2／3值（+0x118／+0x11c）、欄40四值（+0x164..+0x170台詞區間）；缺項65535。
+        r->help = r->prog_extra[0] = r->prog_extra[1] = 65535;
+        for (int k = 0; k < 4; k++) r->chat[k] = 65535;
+        if (c > 26) {
+            const char *p = col[26];
+            for (int k = 0; k < 3 && p; k++) { p = strchr(p, '*'); if (p) p++; }
+            if (p && *p) r->help = atoi(p);
+        }
+        if (c > 27) {
+            const char *p = col[27];
+            for (int k = 0; k < 3 && p; k++) {
+                p = strchr(p, '*');
+                if (!p) break;
+                p++;
+                if (k < 2 && *p && *p != '*') r->prog_extra[k] = atoi(p);
+            }
+        }
+        if (c > 40) {
+            const char *p = col[40];
+            for (int k = 0; k < 4 && p; k++) {
+                if (*p && *p != '*') r->chat[k] = atoi(p);
+                p = strchr(p, '*'); if (p) p++;
+            }
+        }
         r->force_death_mode = c > 36 && *col[36] ? atoi(col[36]) : 65535;
         r->seek = COL(24); r->chase = COL(25); r->snd_death = c > 31 && *col[31] ? atoi(col[31]) : 65535; r->snd_hit = COL(34); r->atk_delay = COL(39);
         r->size = COL(18); r->legs = COL(19); r->snd_idle = COL(32); r->snd_fight = COL(33);

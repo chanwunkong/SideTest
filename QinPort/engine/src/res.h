@@ -143,6 +143,7 @@ typedef struct {
     int run_seq; // 原版跑步序列；65535表示未指定
     int initial_seq[13]; // 欄12五值、欄13九值；第5值被欄13首值覆寫
     int force_death_mode; // RoleMdl欄36，缺項65535
+    int help, prog_extra[2], chat[4]; // 欄26第4值、欄27第2/3值、欄40對話區間
     int death_fear, panic; // 欄26第1值：同伴死亡潰散門檻；第3值：受傷潰散隨機除數
     int seek, chase, atk_delay, snd_death, snd_hit;       // 索敌/追击范围（格）、攻击延时（拍）、死亡/挨打聲音
     int size, legs, snd_idle, snd_fight;                  // 角色大小、脚数、平时/战斗声音（0 = 沒有）

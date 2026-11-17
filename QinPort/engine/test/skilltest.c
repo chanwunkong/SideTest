@@ -1238,9 +1238,12 @@ static void character_walk_destination_test(void) {
     assert(actor_walk_destination(&a, 12, 1) && a.dynamic_destination_x==9 && a.dynamic_destination_y==1);
     // 層判斷沿原版cell_pass，不能把不可走的高層格當空地。
     a.layer=15;
-    cells[16].actor=NULL; cells[16].layer=14;
+    cells[16].actor=NULL; cells[12].actor=NULL;
+    for (int i=11; i<=16; ++i) cells[i].layer=14;  // 15層只走12/14/16格，路徑要連通
     assert(actor_walk_destination(&a, 6, 1) && a.dynamic_destination_x==6);
-    a.layer=1; cells[16].layer=1; cells[16].actor=&target;
+    assert(a.dynamic_new_path && a.dynamic_pending==6 && a.dynamic_path==4 && a.path_buf[0]==6 && a.path_buf[10]==1);
+    for (int i=11; i<=16; ++i) cells[i].layer=1;
+    a.layer=1; cells[16].actor=&target;
     // 原目標格等於選取目標時，校正點不得更遠且超過命令range。
     for (int i=0; i<100; ++i) cells[i].walk=0;
     cells[11].actor=&a; cells[1].walk=1;
@@ -3921,6 +3924,45 @@ static void character_remove_test(void) {
     unit_scene = saved_scene; scene_client = saved_client;
 }
 
+static void npc_ai_test(void) {
+    const Scene *saved_scene = unit_scene; int saved_count = actor_count;
+    unit_scene = NULL; actor_count = 0;
+    RoleDef d = {.program = 0x28, .chat = {65535, 65535, 65535, 65535}, .help = 65535};
+    Actor a = {.def = &d, .grid_valid = 1, .grid_x = 3, .grid_y = 4, .npc_home_x = -1, .npc_home_y = -1,
+        .direction_clock = 5, .dynamic_state = 1, .command = {-1}};
+    // 守衛：第一次記出生格；沒目標回0；家=-2停用；非0x28不處理。
+    assert(!npc_guard(&a) && a.npc_home_x == 3 && a.npc_home_y == 4);
+    a.npc_home_x = -2; a.npc_home_y = 9;
+    assert(!npc_guard(&a) && a.npc_home_y == 9);
+    d.program = 0; a.npc_home_x = -1;
+    assert(!npc_guard(&a) && a.npc_home_x == -1);
+    // 選目標：沒候選、退戰旗標開時清目標；旗標關不動。
+    Actor foe = {.def = &d};
+    a.foe = &foe; a.battle_return = 0;
+    npc_pick_target(&a, 1);
+    assert(a.foe == &foe);
+    a.battle_return = 1;
+    npc_pick_target(&a, 1);
+    assert(!a.foe);
+    // 重設清攻擊間隔與閒置拍。
+    a.npc_wait = 7; a.npc_idle = 9;
+    npc_behavior_reset(&a);
+    assert(!a.npc_wait && !a.npc_idle);
+    // status_aux狀態機：<1不處理；2沒目標退到1；>2沒目標遞減（再被1/2規則壓到1）。
+    a.status_aux = 0; assert(!npc_aux_ai(&a));
+    a.status_aux = 2; assert(npc_aux_ai(&a) && a.status_aux == 1);
+    a.status_aux = 3; assert(npc_aux_ai(&a) && a.status_aux == 1);
+    a.status_aux = 0;
+    // 主AI：沒技能鏈只做閒置移開，回0；有技能但沒目標也回0。
+    assert(!npc_main_ai(&a));
+    a.skill_n = 1; a.skills[0] = (ActorSkill){.id = 1, .max = 4, .enabled = 1};
+    assert(!npc_main_ai(&a) && a.npc_idle == 1);
+    a.skill_n = 0;
+    // 台詞區間缺項不抽。
+    npc_chat(&a);
+    unit_scene = saved_scene; actor_count = saved_count;
+}
+
 int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
@@ -3965,6 +4007,7 @@ int main(void) {
     character_aura_test();
     character_animation_test();
     character_walk_destination_test();
+    npc_ai_test();
     character_animation_order_test();
     character_dynamic_command_test();
     character_yield_test();

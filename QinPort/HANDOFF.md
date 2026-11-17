@@ -1078,7 +1078,16 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 17 撿道具：地上道具新增 `id`，CMD_PICK 改下命令0x11，2格內撿；刪掉舊的 `ground_walk`／`ground_want`。16／18／19（建築、使用物件、開箱）只做到定位與收尾，封包0x142／0x8e／開箱無接收系統。
   - shortcut：物件編號＝Scene.objects 索引；0x405597（推為 0x60=96 單位距離）、0x4017f3、0x406181 來源在映像外，當距離判斷／恆真；單方向模型（+0x118==1）原版不轉向，這裡都轉。
   - skilltest 新增 15（3格內說話與面向、遠處走近、无对话保留、目標不存在）與 17（撿錢、遠處走近）；最後一行 `skilltest ok`。CCharactor 範圍 todo 只剩 0x4973b0（動態11尋路，引擎基礎）。
-  **下一步：0x490240（CNpc）起**（0x4973b0 動態11尋路仍待補）。
+  ~~**下一步：0x490240（CNpc）起**（0x4973b0 動態11尋路仍待補）。~~
+
+- 進度（11-18）：**0x4973b0 動態11尋路**完成＋**CNpc 類別做到只剩 2 個 todo**。
+  - 0x4973b0 → `main.c actor_path_build`：目的地(+0xc3/+0xc7)到目前格的反向byte路徑（`Actor.path_buf[500]`，[0]=終點、[count-1]=起點，最多250筆；count=`dynamic_pending`、index=`dynamic_path`=count-2；index0 要求終點對得上）。同時完成 **0x496f20**（`actor_walk_destination` 尾端：呼叫尋路、成功設 `dynamic_new_path`(+0x3d5)、失敗清 index）。`actor_command_walk_tick`（舊追近橋接）改成沿路徑點走，走到該格換下一點；沒路徑時退回直線。shortcut：XPS_Control 不在映像內，改8方向BFS（斜走兩側都要可過）；不可達時走到離目的地最近的格；0x4959d0（動態11逐格步進）仍 todo，現由橋接代替。
+  - CNpc：skip 5（0x490240／0x4902c0／0x490360／0x490e30 建構解構卸載、0x490960 純查詢空函數）；新增 `main.c`「CNpc」段：`npc_find_manual4`(0x491c80)、`npc_aggro_nearest`(0x493320)、`npc_group_2a`(0x492370)、`npc_formation`(0x4924b0)、`npc_assist_call`(0x490c20)、`npc_alert`(0x4909b0)、`npc_chat`(0x490d10)／`npc_chat_tick`(0x490e70)、`npc_flee`(0x490fc0)、`npc_move_away`(0x491af0)、`npc_guard`(0x493080)、`npc_pick_target`(0x490430)、`npc_aux_ai`(0x491d00)、`npc_main_ai`(0x4911b0)、`npc_behavior_reset`(0x492e70，已接新角色建立)。RoleDef 新增 `help`(欄26第4值 +0x110)、`prog_extra[2]`(欄27第2／3值 +0x118／+0x11c)、`chat[4]`(欄40 +0x164..+0x170，台詞用 Chat.dlg)；Actor 新增 `npc_home_x/y`(+0x5e2/+0x5e6)、`npc_wait`(+0x5ea)、`npc_idle`(+0x5ee)。
+  - **CNpc 還剩 2 個 todo：0x492730（閒置／巡邏／跟隨 AI，251行）、0x492ed0（CNpc 每拍主分派，64行）。** 上面這些 npc_* 目前都標 `LATER`（沒人呼叫）：舊的 `monster_think`／`pursue`／`npc_think` 仍是實際行為。0x492ed0 做好後要用它取代 `monster_think`（順序：0x48c050 → 0x490fc0 → 命令空且動態重試 → 重設延遲 → 0x493080 → 0x491d00 → NPC組>50000 的 vtable 0x10 狀態與遠離重啟 → 有狀態0走 0x4911b0，否則 0x492730），並讓 `pursue`／`mon_pick` 只留 0x4906c0 的選招。0x492730 對應：記錄 +0x18 = `NpcSpec.logic`(0 站著播待機動畫序列、1 矩形閒逛 rx/ry/rw/rh、2 路徑巡邏 path/path_i、3 跟隨 +0x78 的角色、4 停)，+0x1c = `rest`，+0x20 = 計時，+0x88 = 連結的 SInit。
+  - shortcut：0x4911b0 打物件（目標種類21..29）原版要招式旗標0x4（來源沒找到）一律視為可打；0x490430 場景類型0x12／0x13早退（CScene+0x6c，封包來源）單機沒有；GetFleePos 的隱藏步長用3格；0x490c20／0x490430 裡 has_status／0x48eda0 的 this 反編譯沒帶出，取被掃到的同伴／自己。
+  - skilltest 新增 `npc_ai_test`（守衛出生格、選目標清目標、重設、status_aux 狀態機、主AI空技能鏈）與路徑測試（15層連通路徑 6 點、終點在[0]）；最後一行 `skilltest ok`。
+  **下一步：0x492730（CNpc 閒置 AI）起，再 0x492ed0（CNpc 主分派，接進主迴圈取代 monster_think）；做完 CNpc 才進 CProtagonist（0x4933a0 起）。**
+
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
 

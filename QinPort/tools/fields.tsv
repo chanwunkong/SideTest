@@ -841,8 +841,8 @@ CDynamicObj	+0xbf	重設清0；狀態31結束／遇阻時非零先清0，再返�
 CDynamicObj	+0x97	讓路前世界X，-1未偏移；靜止讓路以此位置量距，不以偏移後位置量距	Actor.dynamic_cache_x
 CDynamicObj	+0x9b	讓路前世界Y，與+0x97一起重設-1；清除時不回吸世界位置	Actor.dynamic_cache_y
 CDynamicObj	+0x9f	讓路請求者物件ID；失效或距離>=64時自身ID非0才清；衍生陷阱另作未發現旗標	Actor.dynamic_aux
-CDynamicObj	+0x2bf	反向路徑點數，尋路輸出數量，重設0	Actor.dynamic_pending（尚未承接路徑陣列）
-CDynamicObj	+0x2c3	反向路徑索引=count-2，步進後減1；負值重新尋路，重設0	Actor.dynamic_path（尚未承接路徑陣列）
+CDynamicObj	+0x2bf	反向路徑點數，尋路輸出數量，重設0	Actor.dynamic_pending
+CDynamicObj	+0x2c3	反向路徑索引=count-2，步進後減1；負值重新尋路，重設0	Actor.dynamic_path
 CDynamicObj	+0x3d9	剩餘位置插值拍數，重設-1；21/22末拍減至0仍保留狀態，下拍才退出	Actor.interpolation_left
 CDynamicObj	+0x3f7	上次同步的動態狀態，重設1	Actor.dynamic_reported_state
 MethodBase	+0x66	CObj層號byte；角色留血物件建立後複製角色層	MUnit.layer
@@ -862,7 +862,7 @@ OverheadText	+0x1	起始畫面數byte，用於首8畫面淡入	Actor.overhead[].
 OverheadText	+0x2	200x100文字SBMP指標；原版固定寬200置中	Actor.overhead[].text（SDL字型取代SBMP）
 OverheadText	+0x6	文字模式byte：0普通固定頭頂，1上飄	Actor.overhead[].floating
 CCharactor	+0x2cb	技能命令消費的動態就緒標記；0時不消費，但仍先處理記住命令重送	Actor.dynamic_active
-CDynamicObj	+0xcb	250筆雙byte座標反向路徑，從index=count-2往下消費	待動態11完整尋路
+CDynamicObj	+0xcb	250筆雙byte座標反向路徑，從index=count-2往下消費	Actor.path_buf
 CDynamicObj	+0x2c7	傳入XPS尋路虛擬格4的附加參數，語意未確認	待尋路工具
 CDynamicObj	+0x3d5	新路徑旗標，尋路成功設1，步進前清0且略過距離／負索引檢查	待動態11完整尋路
 CCharactor	+0x345	非0時MethodMain綁定的每幀延遲在攻速調整後另加2，不影響補拍及冷卻；語意名稱未明	Actor.sequence_delay_bias
@@ -885,3 +885,11 @@ Role	+0x28	部件名4字（HD頭、LH左手、RH右手、SD盾…）	Role.name�
 CObj	+0x5c	物件型號代碼（0x80攻擊物件、0x81使用、0x85箱子、0x8c道具建築、0x96門）；命令0x12依它分封包0x8e	Model.type
 CObj	+0x14	物件句柄（點擊命令0xf／0x11～0x13的參數）	Object索引／Actor.object_id／ground[].id
 CCharactor	+0x73	（同上）命令15..19接近時與+0x77/+0x7b/+0x83比較目的格去重	actor_interact_approach
+CDynamicObj	+0x3d5	新路徑旗標（0x496f20成功設1）	Actor.dynamic_new_path
+CNpc	+0x5e2	守衛出生格X，-1未設、-2停用（程序0x28）	Actor.npc_home_x
+CNpc	+0x5e6	守衛出生格Y	Actor.npc_home_y
+CNpc	+0x5ea	攻擊間隔計時，<0重抽（模板攻擊延時×攻速或隨機），>=0有MethodMain時遞減	Actor.npc_wait
+CNpc	+0x5ee	閒置拍（NPC組50000以上，每80拍重新靜止）	Actor.npc_idle
+RoleMdl	+0x110	欄26（性格）第4值，求援除數；缺項65535	RoleDef.help
+RoleMdl	+0x118	欄27（程序）第2值	RoleDef.prog_extra[0]
+RoleMdl	+0x11c	欄27第3值；1時選目標優先取有狀態0x79者	RoleDef.prog_extra[1]
