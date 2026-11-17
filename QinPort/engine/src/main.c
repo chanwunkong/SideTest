@@ -273,7 +273,7 @@ static const Frame *spr_frame(const Spr *s);
 
 typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
-    int dir, moving, speed;
+    int dir, facing, moving, speed; // dir為畫面方向，facing保存原版有號面向值
     int fight_speed, speed_threshold, dynamic_state;
     int dynamic_active, reverse_playback;
     int dynamic_command[3], dynamic_flag_snapshot;
@@ -283,6 +283,8 @@ typedef struct Actor {
     int corrected_x, corrected_y;
     int animation_target, animation_dir;
     int shown_seq, shown_ready, previous_target;
+    uint16_t head_height;
+    int head_height_pending;
     Uint32 direction_clock;
     int move_a, move_b, move_c, move_remaining, walk_delay_adjust;
     int scale; // 目前比例與第4修正；模板指定比例時不追逐修正
@@ -649,6 +651,9 @@ static void actor_animation_select(Actor *a, int seq) {
 
 static int actor_requested_seq(const Actor *a) {
     if (a->def && a->def->anim) return 0;  // shortcut: 小動物專用三序列的狀態切換待還原。
+    // 靜態SInit的初始態是明確選定的目標序列，不能每拍用休息序列覆蓋。
+    if (!a->act && a->spec && !a->spec->logic && a->dynamic_state == 1)
+        return a->animation_target;
     return a->act ? a->act_seq + DIR_MAP[a->dir] : actor_animation_target(a, DIR_MAP[a->dir]);
 }
 
@@ -668,19 +673,12 @@ static int actor_body_delay(const Actor *a, const Seq *q);
 static void actor_body_select(Actor *a) {
     int seq = actor_seq(a);
     if (!a->body_ready || a->body_seq != seq) {
-        // 建立時沿用原有的隨機起始相位；換序列則從首幀開始。
-        Uint32 phase = !a->body_ready && !a->act ? a->act_tick : 0;
         a->body_seq = seq;
         a->body_ready = 1;
         a->act_frame = a->frame_tick = a->act_done = 0;
         const Seq *q = role_seq(a->role, seq);
         a->body_start = 0;
         a->body_end = q && q->count ? q->count - 1 : 0;
-        while (q && q->count && phase >= (Uint32)actor_body_delay(a, q)) {
-            phase -= actor_body_delay(a, q);
-            a->act_frame = (a->act_frame + 1) % q->count;
-        }
-        if (q && q->count) a->frame_tick = (int)phase;
     }
 }
 
@@ -741,10 +739,29 @@ static void frame_rect_union(SDL_Rect *rect, const Anim *a, int seq, int frame, 
 
 static SDL_Rect role_rect(const Role *r, int seq, int frame, int x, int y, int shadow) {
     SDL_Rect rect = {0};
-    if (!r || seq < 0 || seq >= r->seq_count || !r->frames[seq]) return rect;
+    if (!r || seq < 0 || seq >= r->seq_count || !r->frames || !r->frames[seq]) return rect;
     for (int i = 0; i < r->part_count; i++)
         frame_rect_union(&rect, shadow ? r->shadow[i] : r->body[i], seq, frame, x, y);
     return rect;
+}
+
+// shortcut: 網頁圖像非同步下載時暫用已取得部件的高度，資源就緒後在固定拍補齊；
+// 始終讀新模型的序列0／幀0，不能拿角色稍後的動畫幀重新定義頭頂高度。
+static void actor_head_height(Actor *a) {
+    const Role *r = a->role;
+    SDL_Rect rect = {0};
+    a->head_height_pending = 0;
+    for (int i = 0; r && i < r->part_count; i++) {
+        const Anim *an = r->body[i];
+        if (!an || !an->count || !an->seqs[0].count) continue;
+        const Frame *f = &an->seqs[0].frames[0];
+        const Sprite *im = image(f->ref);
+        if (!im) { if (res_waiting) a->head_height_pending = 1; continue; }
+        if (im->w <= 0 || im->h <= 0) continue;
+        SDL_Rect part = {-f->dx, -f->dy, im->w, im->h};
+        if (rect.w) SDL_UnionRect(&rect, &part, &rect); else rect = part;
+    }
+    a->head_height = (uint16_t)(rect.h + 10);
 }
 
 // Poq.exe 0x497d90：先各自向零截斷半邊增量，再加倍；底邊固定。
@@ -852,6 +869,7 @@ static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
 static void face(Actor *a, float sdx, float sdy) {
     int oct = (int)lroundf(atan2f(sdx, -sdy) / (float)(M_PI / 4));
     a->dir = (oct + 8) % 8;
+    a->facing = DIR_MAP[a->dir];
 }
 
 // 對話開始：主角和 NPC 停下來面對面（0x44caf0）。
@@ -943,6 +961,7 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
     a->moving = 0;
     // shortcut: 現有移動迴圈承接平常／移動狀態，跳躍等完整動態狀態仍待移植。
     int state = mx * mx + my * my > 0.01f ? 11 : 1;
+    int changed = state != a->dynamic_state;
     if (state != a->dynamic_state) {
         actor_trail_exit(a);
         a->dynamic_state = state;
@@ -954,7 +973,8 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
         actor_step(a, s, mx, my, px);
     }
     if (!(a->flags & 0x400)) a->animation_dir = DIR_MAP[a->dir];
-    actor_animation_select(a, -1);
+    if (changed || state == 11 || !a->spec || a->spec->logic)
+        actor_animation_select(a, -1);
 }
 
 // NPC 平時邏輯：13 在範圍內隨機走走停停、14 沿路線來回巡邏、其他站著
@@ -1151,6 +1171,7 @@ static void actor_explore(Actor *a) {
 
 static void actor_skills_init(Actor *a);
 static int actor_light_init(const Actor *a);
+static void actor_appearance_init(Actor *a, const char *override);
 // 劇情handle為正整數；無劇情物件使用高半區，跨場景不重用，避免關聯命中另一個角色。
 static uint32_t next_actor_object_id = 0x80000000u;
 
@@ -1176,7 +1197,6 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     actor_status_notify(a, 103, 1, -1);
     a->grp = d->group; // 模板直接賦值，不走換組清目標的副作用。
     a->flags = 0;
-    a->role = role_for(d);
     a->def = d;
     a->model_type = d->model_type;
     actor_light_init(a);
@@ -1201,6 +1221,11 @@ static void actor_setup(Actor *a, const RoleDef *d) {
         if (d->candidate[i] != 65535) a->candidate[i] = d->candidate[i];
     actor_skills_init(a);
     actor_properties_update(a);
+    if (d->anim) {
+        // BeastieMdl／陷阱沿用單一Anim播放器，不走CCharactor的紙娃娃初始化。
+        a->role = role_for(d);
+        a->body_ready = a->shown_ready = 0;
+    } else actor_appearance_init(a, NULL);
 }
 
 // 編號清單（預抓用）
@@ -1272,11 +1297,8 @@ static void spawn_npcs(const Scene *s) {
         memset(a, 0, sizeof *a);
         a->x = n->x + 0.5f;
         a->y = n->y + 0.5f;
-        for (int o = 0; o < 8; o++)
-            if (DIR_MAP[o] == n->dir) a->dir = o;
         a->spec = n;
         a->object_kind = 40;
-        a->act_tick = rand() % 200;  // 錯開動作，不要整排同步
         actor_setup(a, d);
         if (!actor_bind_scene(a, s) || !actor_place(a, (int)a->x, (int)a->y, 1)) a->role = NULL;
 #ifdef STORY
@@ -1308,14 +1330,12 @@ static const SkillRow *npc_skill(const char *key) {
 static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, int cy, int lv) {
     Actor *a = &actors[actor_count];
     NpcSpec *sp = &mon_specs[actor_count++];
-    *sp = (NpcSpec){.type = 13, .tmpl = d->id, .x = x, .y = y, .rx = cx - MON_WANDER, .ry = cy - MON_WANDER,
+    *sp = (NpcSpec){.type = 13, .logic = 1, .tmpl = d->id, .x = x, .y = y, .rx = cx - MON_WANDER, .ry = cy - MON_WANDER,
                     .rw = MON_WANDER * 2 + 1, .rh = MON_WANDER * 2 + 1};
     memset(a, 0, sizeof *a);
     a->x = x + 0.5f;
     a->y = y + 0.5f;
-    a->dir = rand() % 8;
     a->spec = sp;
-    a->act_tick = rand() % 200;
     a->ai_tick = rand() % 100;
     a->mon = m;
     a->object_kind = m->istrap ? 24 : 40;
@@ -2376,6 +2396,7 @@ static void actor_direction_tick(Actor *a) {
 
 // Poq.exe 0x487f30：空中不推本體，但仍清挨打、播放三個附加精靈。
 static void actor_animation_tick(Actor *a) {
+    if (a->head_height_pending) actor_head_height(a);
     a->animation_stepped = 1;
     actor_direction_tick(a);
     actor_body_select(a);
@@ -2435,6 +2456,61 @@ static void actor_dynamic_rest(Actor *a) {
         }
     }
     a->dynamic_flag_snapshot = flag;
+}
+
+// Poq.exe 0x4963e0：面向與目標序列的八方向分組一起更新。
+// Actor.dir使用畫面八方向，facing保留原版方向值（含負值）。
+static void actor_direction_set(Actor *a, int dir) {
+    a->facing = dir;
+    for (int i = 0; i < 8; i++) if (DIR_MAP[i] == dir) a->dir = i;
+    int group = a->animation_target / 8; // 原版帶符號除法，向零截斷。
+    actor_animation_select(a, group * 8 + dir);
+}
+
+// Poq.exe 0x486520：載紙娃娃，初始化方向／序列，長於兩幀才隨機初幀。
+// 單機直接載完整Role；不需要原版模式2的伺服端省略圖資／矩形分支。
+static void actor_appearance_init(Actor *a, const char *override) {
+    const RoleDef *d = a->def;
+    const Role *r = NULL;
+    if (override && *override && strcasecmp(override, "NULL")) {
+        RoleDef look = *d;
+        // 原版星號分詞略過空token：首值是動作方式（PLI），餘值重新以*串接。
+        const char *p = override + strspn(override, "*");
+        size_t n = strcspn(p, "*");
+        look.pli = atoi(p);
+        look.styles[0] = 0;
+        p += n;
+        size_t used = 0;
+        while (*(p += strspn(p, "*"))) {
+            n = strcspn(p, "*");
+            // shortcut: 沿用RoleDef的96-byte款式上限，遇到更長外觀資料時改動態字串。
+            if (used + n + (used != 0) >= sizeof look.styles) { r = NULL; break; }
+            if (used) look.styles[used++] = '*';
+            memcpy(look.styles + used, p, n); used += n;
+            look.styles[used] = 0;
+            p += n;
+        }
+        if (!*p) r = role_variant_for(&look);
+    }
+    if (!r) r = role_for(d); // 覆寫載入失敗仍退回模板紙娃娃。
+    a->role = r;
+    a->body_ready = 0; a->shown_ready = 1; a->shown_seq = 0;
+    a->act_tick = 0;
+    // 新播放器的序列／幀皆0；矩形在挑方向之前求，不能改用最終休息序列。
+    actor_head_height(a);
+    actor_direction_set(a, rand() % 8);
+    actor_dynamic_rest(a);
+    if (a->spec && a->spec->logic == 0) {
+        unsigned state = a->spec->initial_state[0];
+        actor_direction_set(a, a->spec->dir);
+        // shortcut: 原版越界索引會讀模板其他欄位；拒絕損毀的初始態，遇到合法新索引再擴表。
+        int seq = state < 13 ? (uint16_t)d->initial_seq[state] : 65535;
+        actor_animation_select(a, seq + a->spec->dir);
+    } else actor_animation_select(a, -1);
+    actor_speed_update(a);
+    actor_body_apply(a, -1);
+    const Seq *q = role_seq(r, a->body_seq);
+    if (q && q->count > 2) a->act_frame = rand() % q->count;
 }
 
 // Poq.exe 0x48d810：先記本體序列／幀，回平常、換紙娃娃、重選目標，再嘗試復原。

@@ -847,7 +847,16 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - `skilltest.c`補模型組2會互相入戰的重現、套用劇情組100後600次靠近不入戰、初始HP／Invincible、戰鬥byte0通知／重入／NPC組差異、SInit距離邊界、種類29/100/101及非劇情識別／模板重套測試。原版監獄房間與四守衛腳本另以WebAssembly執行，確認主角10001、四守衛100／無敵／存活（人物表hook固定HP供腳本驗證）；實際模型90組2另讀場景資源核對。
   - `cd engine && make && make skilltest`最後一行`skilltest ok`；-DSTORY語法檢查及AddressSanitizer通過（停用既有全域資源快取leak檢查）。fields／roles更新，FUNCS.tsv重產；未commit或push。
   - 其餘16個todo仍包含同類別動態移動、初始外觀／繪製、角色移除、技能與命令主分派、狀態及更新，並非全部能等待外部系統；只有既有CGameApp介面暫停通知等屬不同類別依賴。**本輪尚未達成整個CCharactor完成的要求，不能前移至CNpc。**
-  **下一步：0x486270（CCharactor 尚餘16個todo；完成整類別才進CNpc）起**。
+  ~~下一步：0x486270（CCharactor 尚餘16個todo；完成整類別才進CNpc）起~~。
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，完成外觀初始化並替換出生動畫簡化；整類別仍未完成，未進CNpc**。主範圍新增done 1（0x486520）、skip 0；主範圍done 70、skip 33、todo 15。另完成動態基底面向setter 0x4963e0，字串切分工具0x49f1b0記base 1。
+  - `main.c`的actor_appearance_init接進actor_setup，NPC／玩家／生成角色共用；刪掉出生rand()%200的動畫相位與actor_body_select依拍數推算初幀。照原版先載紙娃娃序列0／幀0矩形，保存高度+10，再隨機方向、動態休息、靜態SInit初始態／方向、速度與目標本體；序列長度>2才隨機選幀，兩幀不消費第二次亂數。BeastieMdl單Anim不誤走角色紙娃娃入口；生成type13補對應logic=1。
+  - 外觀覆寫以星號切非空token，首項是PLI動作方式，其他項重串款式；載入失敗回模板，使用既有不可變RoleVariant，不修改共用RoleDef。actor_direction_set保存原版有號面向，目標序列按向零除8的組別換方向。靜態SInit的初始序列不再被第一拍簡化AI重選成休息序列。
+  - `res.c`補ONT兩個同名「初始态」ushort及RoleMdl初始序列表；照原版欄12五值後再由欄13九值從索引4覆寫，空項65535；保留欄12第五項被覆寫的怪現象。實際監獄模型90的16*24*40及缺項已加入回歸測試。新偏移與用途寫入fields／roles，FUNCS.tsv重產；沒有新增DLC分類。
+  - shortcut：沿用96-byte款式上限，超長資料時升級動態字串；初始態超過13項時拒絕原版越界讀模板其他欄位，遇到合法新索引再擴表。網頁圖像下載未完成時暫用可用部件的頭頂高度，每個固定拍重試序列0／幀0，下載完成後固定；SDL全畫面重繪沿用原有限制。單機載完整圖資，不實作回放／伺服端省略圖資模式。
+  - `skilltest.c`新增初始方向／序列、第一拍保留、隨機初幀／兩幀不擲、頭部矩形、覆寫非空token／回退、不可變快取與負面向測試；更新舊隨機相位測試。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；-DSTORY語法檢查與AddressSanitizer（停用既有全域快取leak檢查）通過。未commit或push。
+  - 尚餘15個todo，含動態移動、移除／繪製、技能／命令主分派、狀態與更新；它們仍主要是同類別與引擎基礎，不能歸為等待外部系統。本輪未達成整類別完成；下一步不前移。既有介面自動暫停通知才等不同類別CGameApp。
+  **下一步：0x486270（CCharactor 尚餘15個todo；完成整類別才進CNpc）起**。
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
 

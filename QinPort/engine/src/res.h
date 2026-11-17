@@ -76,6 +76,7 @@ typedef struct { int x, y; char event[48]; } Trigger;  // BNT 類型 4：踩到�
 typedef struct {
     int type, tmpl, x, y, dir;
     int logic, rest; // SInitCha +0x18/+0x1c；平时逻辑类型、行走休息
+    uint16_t initial_state[2]; // 初始态同名鍵依次讀取，外觀初始化只用第一值
     int rx, ry, rw, rh;           // 類型 13 的閒逛範圍（格）
     int path_n, path[MAX_PATH][2];  // 類型 14 的巡邏路線（格）
     char event[64];               // SInitCha +0x38：事件 ID（對話、劇情用），原始容量0x40
@@ -139,6 +140,7 @@ typedef struct {
     int id, pli, idle, walk, speed;  // pli = 動作方式；idle/walk = 動作起點序列；speed = 平時速度
     int fight_idle, fight_walk, hit, death, fight_speed;  // 戰鬥休息/走路、挨打、死亡的動作起點（0 = 沒有）、戰鬥速度
     int run_seq; // 原版跑步序列；65535表示未指定
+    int initial_seq[13]; // 欄12五值、欄13九值；第5值被欄13首值覆寫
     int panic; // RoleMdl +0x10c，欄26第3值潰散隨機除數，<=0不觸發
     int seek, chase, atk_delay, snd_death, snd_hit;       // 索敌/追击范围（格）、攻击延时（拍）、死亡/挨打聲音
     int size, legs, snd_idle, snd_fight;                  // 角色大小、脚数、平时/战斗声音（0 = 沒有）

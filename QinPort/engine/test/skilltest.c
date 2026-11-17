@@ -232,9 +232,9 @@ static void character_animation_test(void) {
     actor_animation_tick(&a); assert(a.act_frame == 2 && !a.frame_tick);
     a.reverse_playback = 0; a.frame_tick = 1;
     actor_animation_tick(&a); assert(a.act_frame == 1 && !a.frame_tick);
-    // 首次播放保留建立角色時的隨機相位；換序列從首幀起。
+    // 建立／換序列均從首幀起；只有外觀初始化入口另行隨機選幀。
     Actor idle = {.role = &role, .dir = 2, .act_tick = 5};
-    actor_body_select(&idle); assert(idle.act_frame == 2 && idle.frame_tick == 1);
+    actor_body_select(&idle); assert(idle.act_frame == 0 && idle.frame_tick == 0);
     // 遊戲單次動作也消費同一播放器，沒有另一套逐幀推進。
     a = (Actor){.role = &role, .act = ACT_HIT, .dir = 2};
     for (int i = 0; i < 6; i++) action_tick(&a, NULL, i);
@@ -1451,6 +1451,67 @@ static void character_target_display_test(void) {
     actors[0] = saved; actor_count = saved_count;
 }
 
+static void character_appearance_test(void) {
+    int saved_count = role_count;
+    RoleSlot saved_slot = roles[0];
+    RoleVariant *saved_variants = role_variants;
+    Frame frames[5] = {{.delay=10}, {.delay=10}, {.delay=10}, {.delay=10}, {.delay=10}};
+    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, 8, 12, 32, SDL_PIXELFORMAT_RGBA32);
+    SDL_Renderer *renderer = SDL_CreateSoftwareRenderer(surface);
+    assert(surface && renderer);
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+    assert(texture);
+    const uint32_t ref = 0xf345678;
+    Sprite saved_image = *slot_find(ref);
+    *slot_find(ref) = (Sprite){.tex=texture, .w=8, .h=12};
+    frames[0].ref=ref;
+    Seq sequences[32]; int counts[32];
+    for (int i = 0; i < 32; i++) {
+        sequences[i] = (Seq){.count=5, .frames=frames}; counts[i]=5;
+    }
+    Anim anim = {.count=32, .seqs=sequences};
+    Role role = {.part_count=1, .seq_count=32, .body={&anim}, .frames=counts};
+    RoleDef model = {.id=1234567, .idle=8, .walk=16, .run_seq=65535};
+    roles[0] = (RoleSlot){.tmpl=model.id, .role=role}; role_count=1;
+    Actor a = {.def=&model, .dynamic_state=1, .speed=5};
+    srand(121); int direction=rand()%8, frame=rand()%5;
+    srand(121); actor_appearance_init(&a, NULL);
+    assert(a.role == &roles[0].role && a.body_seq == 8+direction);
+    assert(a.animation_dir == direction && DIR_MAP[a.dir] == direction);
+    assert(a.facing == direction);
+    assert(a.act_frame == frame && a.frame_tick == 0 && a.act_tick == 0);
+    assert(a.head_height == 22 && !a.head_height_pending); // 序列0／幀0高度12+10。
+    NpcSpec spec = {.logic=0, .dir=3, .initial_state={2, 11}};
+    model.initial_seq[2]=16;
+    a.spec=&spec;
+    actor_appearance_init(&a, "nUlL");
+    assert(a.animation_target == 19 && a.body_seq == 19 && a.animation_dir == 3);
+    assert(a.act_frame >= 0 && a.act_frame < 5);
+    actor_tick(&a, NULL, 0, 0, 0);
+    actor_animation_tick(&a);
+    assert(a.animation_target == 19 && a.body_seq == 19); // 第一拍不能被簡化AI換成休息動畫。
+    sequences[19].count=2;
+    srand(122); (void)rand(); int next=rand();
+    srand(122); actor_appearance_init(&a, "");
+    assert(a.act_frame == 0 && rand() == next); // 兩幀不消費第二次亂數。
+    spec.logic=1;
+    actor_appearance_init(&a, NULL);
+    assert(a.body_seq >= 8 && a.body_seq < 16); // 不套用靜態初始態。
+    RoleVariant variant = {.pli=987, .graphic="", .styles="001*002", .role=role};
+    role_variants=&variant;
+    actor_appearance_init(&a, "**987**001***002*");
+    assert(a.role == &variant.role && a.def == &model); // 不改共享模板或其他角色。
+    assert(roles[0].role.body[0] == &anim && model.pli == 0 && !model.styles[0]);
+    // 無效PLI覆寫載入失敗必須回模板，不能留下失效播放器。
+    actor_appearance_init(&a, "2147483647*001");
+    assert(a.role == &roles[0].role);
+    a.animation_target=-9; actor_direction_set(&a, -1);
+    assert(a.facing == -1 && a.animation_target == -9 && a.animation_dir == -1);
+    role_variants=saved_variants; roles[0]=saved_slot; role_count=saved_count;
+    *slot_find(ref)=saved_image;
+    SDL_DestroyTexture(texture); SDL_DestroyRenderer(renderer); SDL_FreeSurface(surface);
+}
+
 static void character_look_test(void) {
     RoleVariant *saved_variants = role_variants;
     Frame frames[5] = {{.delay=5}, {.delay=5}, {.delay=5}, {.delay=5}, {.delay=5}};
@@ -2362,6 +2423,7 @@ int main(void) {
     character_speed_memory_test();
     character_properties_test();
     character_animation_select_test();
+    character_appearance_test();
     character_look_test();
     prison_guard_initialization_test();
     character_battle_state_test();
@@ -2457,6 +2519,11 @@ int main(void) {
     assert(t.act == ACT_DEAD);
     // 召喚：匈奴法师_召唤（273 = 10 → 朱厌，最多 2 隻）
     roledefs_load();
+    // 實際監獄守衛模板：欄12缺項及欄13空欄不能被atoi空字串誤讀成0。
+    const RoleDef *guard_pose = roledef_find(90);
+    assert(guard_pose && guard_pose->initial_seq[0] == 16 && guard_pose->initial_seq[1] == 24);
+    assert(guard_pose->initial_seq[2] == 40 && guard_pose->initial_seq[3] == 65535);
+    assert(guard_pose->initial_seq[4] == 65535 && guard_pose->initial_seq[12] == 65535);
     {
         // 真實PLI資源路徑：換裝只切此Actor使用的組合，原模板快取保持可用。
         RoleDef base = *roledef_find(29), dressed = base;

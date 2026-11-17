@@ -694,6 +694,7 @@ static void parse_models(Scene *s, const uint8_t *d, size_t n) {
 // .ONT（GBK 文字）：每個物件以 iType= 開頭，後面是 key=value 行
 static void parse_ont(Scene *s, char *text) {
     int cap = 0;
+    int initial_count = 0;
     NpcSpec *n = NULL;
     for (char *line = strtok(text, "\r\n"); line; line = strtok(NULL, "\r\n")) {
         char *eq = strchr(line, '=');
@@ -706,6 +707,7 @@ static void parse_ont(Scene *s, char *text) {
             if (s->npc_count == cap) s->npcs = realloc(s->npcs, (cap = cap ? cap * 2 : 32) * sizeof(NpcSpec));
             n = &s->npcs[s->npc_count++];
             memset(n, 0, sizeof *n);
+            initial_count = 0;
             n->type = iv;
             n->logic = iv == 13 ? 1 : iv == 14 ? 2 : iv == 15 ? 3 : 0;
         } else if (!n) {
@@ -717,6 +719,8 @@ static void parse_ont(Scene *s, char *text) {
         else if (!strcmp(k, "\xca\xc2\xbc\xfe" "ID")) snprintf(n->event, sizeof n->event, "%s", v);  // 事件ID
         else if (!strcmp(k, "\xc6\xbd\xca\xb1\xc2\xdf\xbc\xad\xc0\xe0\xd0\xcd")) n->logic = iv; // 平时逻辑类型
         else if (!strcmp(k, "\xd0\xd0\xd7\xdf\xd0\xdd\xcf\xa2")) n->rest = iv; // 行走休息
+        else if (!strcmp(k, "\xb3\xf5\xca\xbc\xcc\xac") && initial_count < 2)
+            n->initial_state[initial_count++] = (uint16_t)iv; // 初始态，原版同名鍵連讀兩次
         else if ((!strcmp(k, "x") || !strcmp(k, "A_x"))) n->rx = iv;
         else if ((!strcmp(k, "y") || !strcmp(k, "A_y"))) n->ry = iv;
         else if ((!strcmp(k, "cx") || !strcmp(k, "A_cx"))) n->rw = iv;
@@ -1257,6 +1261,16 @@ int roledefs_load(void) {
         const char *run = c > 10 ? strchr(col[10], '*') : NULL;
         r->run_seq = run && run[1] ? atoi(run + 1) : 65535;
         r->hit = c > 11 && *col[11] ? atoi(col[11]) : 65535;
+        for (int k = 0; k < 13; k++) r->initial_seq[k] = 65535;
+        for (int field = 12; field <= 13; field++) {
+            const char *p = c > field ? col[field] : NULL;
+            int start = field == 12 ? 0 : 4, count = field == 12 ? 5 : 9;
+            for (int k = 0; k < count; k++) {
+                // 欄13缺項仍會覆寫欄12第5值，不能只寫有值的token。
+                r->initial_seq[start + k] = p && *p && *p != '*' ? atoi(p) : 65535;
+                if (p) { p = strchr(p, '*'); if (p) p++; }
+            }
+        }
         r->death = c > 14 && *col[14] ? atoi(col[14]) : 65535;
         // 第26欄是四個*分隔整數；+0x10c是第3值，缺項65535。
         r->panic = 65535;

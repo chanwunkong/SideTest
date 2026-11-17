@@ -325,8 +325,8 @@ SInitBase	+0xc	地圖座標X int	Actor.grid_x（未綁場景fixture沿初始世�
 SInitBase	+0x10	地圖座標Y int	Actor.grid_y（未綁場景fixture沿初始世界格）
 SInitCha	+0x18	平時邏輯種類：0初始態／1隨機／2路徑／3跟隨	未移植：SInit記錄還原
 SInitCha	+0x1c	行走休息 int	未移植：SInit記錄還原
-SInitChaInit	+0x78	初始態ushort；+0x7a另一ushort，原版連續讀兩次同名鍵	未移植：SInit記錄還原
-SInitChaInit	+0x7c	方向 int	未移植：SInit記錄還原
+SInitChaInit	+0x78	初始態兩個ushort，原版連續讀兩次同名鍵；外觀只用首值	NpcSpec.initial_state[2]／parse_ont
+SInitChaInit	+0x7c	初始面向，外觀初始化先隨機再覆寫此值	NpcSpec.dir／actor_appearance_init
 SInitChaPathMove	+0x78	PathNum int	未移植：SInit記錄還原
 SInitChaPathMove	+0x7c	路徑GPOINT陣列，每點8 bytes，順讀PathMapX/PathMapY	未移植：SInit記錄還原
 SInitChaRandMove	+0x78	活動矩形GRECT，四個int順序載入	未移植：SInit記錄還原
@@ -683,7 +683,7 @@ CCharactor	+0x46f	第13修正值，套另一部件顏色	Actor.modifier[13].valu
 CCharactor	+0x4a7	頭上附加精靈	Actor.effect[0]／actor_effect_sprite
 CCharactor	+0x4ab	身上附加精靈	Actor.effect[1]／actor_effect_sprite
 CCharactor	+0x4af	腳下附加精靈	Actor.effect[2]／actor_effect_sprite
-CCharactor	+0x4b3	角色頭部高度u16，載模型時計算矩形高度加10	待角色模型矩形／頭頂文字
+CCharactor	+0x4b3	角色頭部高度u16，新載紙娃娃序列0／幀0本體矩形高加10，選方向之前計算	Actor.head_height／actor_appearance_init
 CCharactor	+0x4b5	多個特殊狀態共用倒數，105=9、111/114=8、115=5；每10拍減1、負數才清，優先105/12/111/115/114	Actor.status_countdown／actor_status_countdown；狀態12偵測已接，介面暫停通知及完整活動門檻仍todo
 CCharactor	+0x4b9	最後修改的狀態ID byte；組語確認重算比較的是狀態值與此ID，末次實際傳-1	Actor.last_status／actor_effects_recompute
 CCharactor	+0x4ba	狀態／修正需要重算的byte旗標	Actor.modifiers_dirty
@@ -833,3 +833,6 @@ CDynamicObj	+0x7f	上次非平常狀態命令參數3；平常命令不覆寫	Act
 CDynamicObj	+0x83	上次動態命令的0x10000旗標遮罩原值，參與命令去重	Actor.dynamic_flag_snapshot
 SpriteSequence	+0xc	精靈群組當前序列編號，與動態物件目標序列+0x8b分開	Actor.body_seq／actor_body_sequence
 CCharactor	+0x520	退戰設1；明確入戰命令可清0的返回旗標	Actor.battle_return
+RoleMdl	+0x70	靜態初始態序列表13個int，取值時只讀低ushort；欄12五值後被欄13九值自索引4覆寫，缺項65535	RoleDef.initial_seq[13]
+RoleMdl	+0x38	紙娃娃動作方式字串；外觀覆寫星號切分的首值取代此值	RoleDef.pli／actor_appearance_init
+CDynamicObj	+0xa7	原版8方向面向；設定時依目前目標動畫的八序列分組重選方向	Actor.facing保存原值／Actor.dir經DIR_MAP轉換／actor_direction_set
