@@ -335,7 +335,8 @@ static void unit_base(MUnit *u, Uint32 tick) {  // 0x43d750。shortcut: 透明�
 }
 
 // 連鎖（0x43a760 前半）：放的人還在、招式 wQuality 3、還有次數時不結束，重來一次：名單有人就照原方向，
-// 否則從單位的格子螺旋找 攻擊距離×64 內第一個敵人，放的人轉向它、目標點改到它；都沒有就次數歸 0（放的人回平常 0x496550）。回傳 1 = 重來
+// 否則從單位的格子螺旋找 攻擊距離×64 內第一個敵人，放的人轉向它、目標點改到它；都沒有就次數歸0。回傳1 = 重來。
+// shortcut: 完整動態狀態切換仍待接入，找不到目標時的回平常分支不能視為已完成原版狀態setter。
 static int unit_bounce(MUnit *u) {
     Actor *o = u->owner;
     if (!o || !alive(o) || !u->m || u->m->quality != 3 || u->bounce <= 0) return 0;

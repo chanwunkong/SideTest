@@ -275,6 +275,7 @@ typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
     int dir, moving, speed;
     int fight_speed, speed_threshold, dynamic_state;
+    int dynamic_active, reverse_playback;
     int animation_target, animation_dir;
     int move_a, move_b, move_c, move_remaining, walk_delay_adjust;
     int scale; // 目前比例與第4修正；模板指定比例時不追逐修正
@@ -323,7 +324,8 @@ typedef struct Actor {
     int seek_adjust, view_range;
     int trap_revealed, trap_group; // 陷阱發現旗標（原版+0x9f的反值）及最後主人組別
     int copied, copy[12];
-    float knock_x, knock_y;        // 被擊退要滑到的點（knock = 1 時）
+    float knock_x, knock_y;
+    int knock_motion;             // 暫用擊退位移；第5修正只選動畫，不能憑它向未設的落點滑行。
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
     int print_x, print_y, foot;    // 上一個腳印的位置（+0x3c9）、這次踩哪隻腳（+0x3c5）
     int ai_tick, flee;             // 怪物 AI 計數（+0xbb，起始隨機 0~99）、正在拉開距離（走向 tx, ty）          // 陷阱：放的人的 AP、AP_MAX、MAP1~5、MAP1~5_MAX（0x10034cb0 照抄）
@@ -366,6 +368,7 @@ static void actor_modifier_changed(Actor *a, int index, int value);
 static void actor_effect(Actor *a, int status, int on, int skill);
 static void actor_status_notify(Actor *a, int status, int on, int skill);
 static void actor_status_countdown(Actor *a);
+static void actor_dynamic_exit(Actor *a);
 // Poq.exe 0x48ec60：期限-1可覆寫任何值；其他期限只接受不短於現有期限。
 // 回傳暫存器原版混合了被呼叫函數結果與輸入索引；遊戲呼叫端均不消費，以void承接。
 static void actor_modifier_set(Actor *a, int index, int value, int time) {
@@ -387,13 +390,15 @@ static void actor_trail_enter(Actor *a) {
     }
 }
 
-// 移動退出的第6修正分支；期限>=21不覆寫，-1也會改成20。
+// Poq.exe 0x488280：角色退出先處理移動殘影，再交動態物件退出。
+// 期限>=21不覆寫，-1也會改成20；退出函數不改寫dynamic_state。
 static void actor_trail_exit(Actor *a) {
     if (a->dynamic_state == 11 && a->trail_mode == 2 && a->modifier[6].time < 21 &&
         (a->modifier[6].value != 1 || a->modifier[6].time != 20)) {
         a->modifier[6].value = 1; a->modifier[6].time = 20;
         actor_illusion_begin(a);
     }
+    actor_dynamic_exit(a);
 }
 
 // 角色每拍中的20項期限分支；與原版共用角色拍數，不因重新設置期限而重置相位。
@@ -1923,6 +1928,7 @@ static void zoom_point(int *x, int *y) {
     *y = (int)(vh * zoom) - (int)((zoom + zoom - 1.0f) * *y);
 }
 static const Scene *unit_scene;
+static Uint32 actor_logic_tick;
 // 移掉某個狀態（打中名單放開時拿掉 110）
 static void buff_drop(Actor *a, int st) {
     int n = a->buff_n;
@@ -1943,6 +1949,55 @@ static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = �
 #include "unit.c"
 #undef scene
 #include "weather.c"
+
+// Poq.exe 0x4c7d60：格子層<10才轉地面1，層10照原值保留。
+static unsigned char actor_ground_layer(const Cell *c) {
+    return c->layer < 10 ? 1 : c->layer;
+}
+
+// Poq.exe 0x494950：退出只標活動並收尾舊狀態，不把21/22直接改成靜止。
+static void actor_dynamic_exit(Actor *a) {
+    a->dynamic_active = 1;
+    switch (a->dynamic_state) {
+    case 11:
+    case 31:
+        a->reverse_playback = 0;
+        break;
+    case 22:
+        a->vz = -5;
+        a->zmax = 0;
+        // fall through
+    case 21: {
+        actor_set_flags(a, 0x200, 0);
+        const Cell *c = unit_scene && unit_scene->cells ? cell_at((int)a->x, (int)a->y) : NULL;
+        if (c && a->layer > 10) a->layer = actor_ground_layer(c);
+        break;
+    }
+    }
+}
+
+// Poq.exe 0x4961e0：高度速度與上限照參數寫入；本函數不重設目前高度。
+static void actor_height_set(Actor *a, int speed, int limit) {
+    a->vz = speed;
+    a->zmax = limit;
+}
+
+// 動態高度更新的非跳躍分支，固定拍呼叫，不依附攻擊動畫。
+// shortcut: 狀態22的高度曲線及靜止下降時往已占格中心的插值仍待動態位置／跳躍狀態接入；不標完整入口位址。
+static void actor_height_tick(Actor *a) {
+    if (a->dynamic_state == 22) return;
+    if (a->z > 0 && !a->vz) a->z = 0;
+    if (a->vz) {
+        a->z += a->vz;
+        if (a->vz > 0) {
+            if (a->z > a->zmax) a->z = a->zmax;
+            return;
+        }
+        if (a->z > 0) return;
+        a->vz = 0;
+    }
+    if (a->z < 0) a->z = 0;
+}
 
 // Poq.exe 0x48ebd0：每槽先刪舊播放器；-1只清除，其他值（包括0）照載入。
 static void actor_effect_sprite(Actor *a, int slot, int graphic) {
@@ -2015,6 +2070,17 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
         break;
     case 105:
         if (on) a->status_countdown = 9;
+        break;
+    case 110:
+        if (on) {
+            MUnit *u = main_of(a);
+            if (u) unit_die(u, actor_logic_tick);
+            actor_cancel_command(a);
+            actor_height_set(a, 2, 100);
+        } else {
+            actor_height_set(a, -10, 0);
+            actor_modifier_set(a, 5, 1, 30);
+        }
         break;
     case 111:
     case 114:
@@ -2164,7 +2230,8 @@ static int actor_can_use_id(const Actor *a, int id) {
 
 static void actor_enter_fight(Actor *a);
 
-// 往 a 的反方向推 cells 格（擋住就停），面向 a（Poq.exe 狀態 0x1f：0x4942d0 方向反過來當面向、0x493cb0 每次走一格）
+// 往 a 的反方向推 cells 格（擋住就停），面向 a。
+// shortcut: 擊退仍沿用連續座標滑行；完整狀態31進入與逐格更新接入時替換，不標原版入口位址。
 static void knock_back(Actor *t, const Actor *a, int cells) {
     float dx = t->x - a->x, dy = t->y - a->y, len = sqrtf(dx * dx + dy * dy);
     if (len < 0.01f || cells < 1) return;
@@ -2173,6 +2240,7 @@ static void knock_back(Actor *t, const Actor *a, int cells) {
     t->knock_x = t->x + dx * cells;
     t->knock_y = t->y + dy * cells;
     t->knock = 1;
+    t->knock_motion = 1;
     face(t, (a->x - t->x - (a->y - t->y)) * 32, (a->x - t->x + a->y - t->y) * 16);
 }
 
@@ -2202,12 +2270,15 @@ static void hit_react(Actor *a, Actor *t, const SkillRow *sk) {
 
 // 擊退、硬直：每拍滑一點、硬直倒數。回傳 1 = 這拍不能自己動
 static int react_tick(Actor *a, const Scene *s) {
-    if (a->knock) {
+    if (a->knock_motion) {
         float gx = a->knock_x - a->x, gy = a->knock_y - a->y;
         float x = a->x, y = a->y;
         actor_move_speed(a, 20);
         if (gx * gx + gy * gy >= 0.04f) actor_step(a, s, (gx - gy) * 32, (gx + gy) * 16, a->move_a + a->move_c / 10.0f);
-        if (a->x == x && a->y == y) a->knock = 0;  // 到了或撞牆
+        if (a->x == x && a->y == y) {
+            a->knock_motion = 0;
+            a->knock = a->modifier[5].value;
+        }
     }
     if (a->stun > 0) a->stun--;
     return a->knock || a->stun > 0;
@@ -2351,8 +2422,7 @@ static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
     else if (t->type == 12) { if (t->id) zoom_add(0.24f); else zoom_back(); }  // 鏡頭拉近／放回（招式單位的 12 是透明度）
     else if (t->type == 8) act_flags(a, t);
     else if (t->type == 11) {  // 離地：每拍升降 ID、最高 ID2（0x43c4f0 → 0x4961e0）
-        a->vz = t->id;
-        a->zmax = t->id2;
+        actor_height_set(a, t->id, t->id2);
     }
     else if (t->type == 5 || t->type == 7) {
         // 衝過去／跳過去（Poq.exe 0x43c4f0 type 5、7 → 角色動作 10、7 → 移動狀態 0x15、0x16 到招式的目標點）
@@ -2423,7 +2493,7 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
             unit_base(u, tick);
         }
     }
-    // shortcut: 衝刺／跳躍用平常走路的速度逐拍移過去；原版跳躍（0x16）另有高度（速度/2 起跳、每拍 +4，0x496550），還沒畫高度
+    // shortcut: 衝刺／跳躍仍用平常走路速度移動；完整跳躍狀態接入時替換落點、速度與高度曲線。
     if (a->dash) {
         float gx = a->dash_x - a->x, gy = a->dash_y - a->y;
         actor_speed_update(a);
@@ -2432,12 +2502,6 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     }
     a->last_frame = f;
     a->act_tick++;
-    // 離地高度（0x495010）：升時到上限為止；降到 0 停住；沒在升降時直接落地。shortcut: 高度當成畫面像素
-    if (a->vz) {
-        a->z += a->vz;
-        if (a->vz > 0 && a->z > a->zmax) a->z = a->zmax;
-        if (a->vz < 0 && a->z <= 0) a->z = a->vz = 0;
-    } else a->z = 0;
     // 逐幀推進：每幀停 延遲 + 調整 拍。shortcut: 調整後不到 1 拍時當 1 拍，原版播放器（Gfx）的下限沒查
     if (q && q->count) {
         int d = (q->frames[a->act_frame].delay > 0 ? q->frames[a->act_frame].delay : 1) + a->adj;
@@ -2474,7 +2538,7 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
         }
         act_end(a);
         a->act = ACT_NONE;
-        a->act_tick = a->z = a->vz = 0;  // shortcut: 原版高度在角色每拍都更新，這裡只在動作中更新，動作結束直接落地
+        a->act_tick = 0;
     }
 }
 
@@ -5407,7 +5471,7 @@ int main(int argc, char **argv) {
                 if (enter_scene(&scene, hero, h.alias, -1)) snprintf(alias, sizeof alias, "%s", h.alias);
                 hero->x = x; hero->y = y; hero->dir = dir;
                 hero->foe = NULL; hero->want = NULL; hero->cast = NULL; hero->casting = 0; hero->act = ACT_NONE;
-                hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->stun = hero->dash = hero->z = 0;
+                hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->knock_motion = hero->stun = hero->dash = hero->z = 0;
                 hero_stats(hero, lv);
                 hero->exp = exp; hero->hp = hp; hero->mp = mp;
                 hero_skill_apply(hero);
@@ -5450,10 +5514,12 @@ int main(int argc, char **argv) {
         while (now_ms - logic_ms >= TICK_MS) {
             logic_ms += TICK_MS;
             ++tick;
+            actor_logic_tick = tick;
             if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000) for (int i = 0; i < actor_count; i++)
                     if (!i || actors[i].mon) actor_second(&actors[i]);
             viewport_tick(&viewport, &scene, hero);
             for (int i = 0; i < actor_count; i++) {
+                if (actors[i].role) actor_height_tick(&actors[i]);
                 actor_modifiers_tick(&actors[i]);
                 actor_health_sync(&actors[i]);
                 actor_effects_tick(&actors[i]);

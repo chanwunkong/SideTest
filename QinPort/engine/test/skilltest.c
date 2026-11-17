@@ -6,10 +6,82 @@
 
 static RoleDef def;
 static MonDef md;
+static const Role empty_test_role;
+
+static void character_dynamic_exit_test(void) {
+    Cell cells[4] = {{.layer = 12}, {.layer = 10}, {.layer = 9}, {.layer = 16}};
+    Scene s = {.w = 2, .h = 2, .cells = cells};
+    const Scene *saved_scene = unit_scene;
+    unit_scene = &s;
+    Actor a = {.x = .5f, .y = .5f, .dynamic_state = 22, .speed = 5,
+        .flags = 0x204, .layer = 13, .z = 53, .vz = 4, .zmax = 100};
+    actor_trail_exit(&a);
+    assert(a.dynamic_active == 1 && a.dynamic_state == 22);
+    assert(a.vz == -5 && a.zmax == 0 && a.z == 53);
+    assert(a.flags == 4 && a.layer == 12);
+    // 真正的遊戲移動切換也走同一入口；高度不被狀態退出清零。
+    a.flags |= 0x200;
+    actor_tick(&a, &s, 0, 0, 0);
+    assert(a.dynamic_state == 1 && a.z == 53 && a.vz == -5 && !(a.flags & 0x200));
+    actor_height_tick(&a); assert(a.z == 48);
+    for (int i = 0; i < 10; i++) actor_height_tick(&a);
+    assert(!a.z && !a.vz);
+
+    a = (Actor){.x = 1.5f, .y = .5f, .dynamic_state = 21,
+        .layer = 11, .z = 37, .vz = 8, .zmax = 90, .flags = 0x280};
+    actor_trail_exit(&a);
+    assert(a.layer == 10 && a.flags == 0x80 && a.z == 37 && a.vz == 8 && a.zmax == 90);
+    a.y = 1.5f; a.x = .5f; a.layer = 11;
+    actor_trail_exit(&a); assert(a.layer == 1);
+    a.x = 1.5f; a.layer = 10;
+    actor_trail_exit(&a); assert(a.layer == 10); // 只有物件層>10才恢復。
+    a.layer = 11; actor_trail_exit(&a); assert(a.layer == 16);
+    a.x = -1; a.layer = 13;
+    actor_trail_exit(&a); assert(a.layer == 13); // 找不到格子保留層。
+
+    a = (Actor){.dynamic_state = 31, .reverse_playback = 1};
+    actor_trail_exit(&a); assert(!a.reverse_playback && a.dynamic_active);
+    a.dynamic_state = 11; a.reverse_playback = 1;
+    actor_trail_exit(&a); assert(!a.reverse_playback);
+    a.dynamic_state = 1; a.reverse_playback = 1;
+    actor_trail_exit(&a); assert(a.reverse_playback); // 平常狀態不改反播欄位。
+    unit_scene = saved_scene;
+}
+
+static void character_air_status_test(void) {
+    Actor a = {.z = 17, .command = {9, 1, 2, 3}};
+    for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
+    int saved_n = unit_n;
+    MUnit saved = units[0];
+    unit_n = 1;
+    units[0] = (MUnit){.cls = U_MAIN, .owner = &a};
+    actor_status_notify(&a, 110, 1, -1);
+    assert(units[0].dead && !main_of(&a) && a.command[0] == -1);
+    assert(a.z == 17 && a.vz == 2 && a.zmax == 100);
+    for (int i = 0; i < 50; i++) actor_height_tick(&a);
+    assert(a.z == 100 && a.vz == 2); // 到上限保留速度。
+    actor_status_notify(&a, 110, 0, -1);
+    assert(a.z == 100 && a.vz == -10 && a.zmax == 0);
+    assert(a.modifier[5].value == 1 && a.modifier[5].time == 30);
+    a.x = 5.5f; a.y = 6.5f;
+    react_tick(&a, NULL); // 旋飛解除的動畫修正不能沿未初始化的擊退落點移到原點。
+    assert(a.x == 5.5f && a.y == 6.5f && !a.knock_motion);
+    for (int i = 0; i < 9; i++) actor_height_tick(&a);
+    assert(a.z == 10 && a.vz == -10);
+    actor_height_tick(&a); assert(!a.z && !a.vz);
+    actor_height_set(&a, 0, 999); a.z = 27;
+    actor_height_tick(&a); assert(!a.z && a.zmax == 999);
+    // 攻擊／挨打動畫結束不能取消尚未落地的下降。
+    Role role = {0}; RoleDef d = {0};
+    a.role = &role; a.def = &d; a.act = ACT_HIT; a.z = 12; a.vz = -5;
+    action_tick(&a, NULL, 0);
+    assert(a.act == ACT_NONE && a.z == 12 && a.vz == -5);
+    units[0] = saved; unit_n = saved_n;
+}
 
 static void mk(Actor *a) {
     memset(a, 0, sizeof *a);
-    a->role = (const Role *)1;  // alive() 只看有沒有角色
+    a->role = &empty_test_role; // 狀態110解除會選動畫，須提供有效的空模型。
     a->def = &def;
     a->mon = &md;
     a->side = 1;
@@ -1790,6 +1862,8 @@ int main(void) {
     character_skill_index_test();
     character_template_candidates_test();
     character_movement_speed_test();
+    character_dynamic_exit_test();
+    character_air_status_test();
     character_speed_memory_test();
     character_properties_test();
     character_animation_select_test();
