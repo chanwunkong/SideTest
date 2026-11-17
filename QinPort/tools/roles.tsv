@@ -431,7 +431,7 @@
 0046f180	生成小地圖：8×4地磚、建築縮圖、縮放／裁中、出口圖示、寫rdr且複製scn修改時間；todo 等不同類別CBuilding縮圖／通道識別與地圖圖示資源，非等待同類別ClientCreate
 00470270	還原場景的全域管理器、輸入／天氣、地圖原點、鏡頭及光影；todo 等不同類別CUserInput名單與CMapDialog完整重綁
 00471890	進場景收尾：清框選、設就緒、重建選人名單／探索顯示；todo 等不同類別CUserInput名單及CMapDialog探索顯示
-004719a0	按+0x18編號找種類30～100角色並顯示文字；todo 等不同類別CCharactor頭頂文字顯示／生命週期
+004719a0	scene_character_say：有場景才按編號掃種類30..100第一筆角色，包含已死；接劇情0x53e單機顯示路徑，省去字串往返同步封包
 00471dd0	釋放舊場景並依名稱配置／載入新資源再ClientCreate；同類別入口已核對，todo 等不同類別SceneResources完整載入與CInitObjMng／CBuilding初始化
 0046eb40	scene_client_actor：有場景且就緒才查操控角色；shortcut 暫用actors索引取代CScene世代句柄
 0046ebd0	scene_client_group：查操控角色後比+0x339組別，接actors_sync分邊；無角色回假
@@ -717,14 +717,14 @@
 00488d90	平台資源預讀：同參數預讀紙娃娃兩套精靈，由role_load／preload_roles及動畫快取承接
 00488dd0	todo：actor_maintenance_tick已接冷卻先扣、無0x400且有0x200且非靜止時略過整段修正／縮放／重算；修正每10拍共用direction_clock，不另起相位或落地補扣；方向漸轉／高度已有對應；仍缺活動啟用門檻、動畫與高度前後順序統一及100拍光環命令接收端，均為同類別／引擎基礎；特殊倒數介面暫停通知才等CGameApp
 00489340	索引無呼叫者；依本輪規則略過，不臆測用途
-0048a700	CCharactor角色命令主分派與排隊／去重；DAT_00663804是場景服務端入口條件，不能僅憑非零判成連線專用，未完成
+0048a700	todo：actor_command已接記住／目標先行副作用、可用性、取消、技能／互動排隊去重、命令1..19及102分派；實際接擊退／衝刺跳躍、受擊、地點施法和玩家點地；仍缺非角色種類24場景物件目標分支（CObj共用索引基礎），8/9完整消費仍由角色技能入口續補，不能標主入口done
 0048af20	紙娃娃兩套精靈資源卸載轉接，由roles_clear／場景生命週期承接
 0048af30	依外部識別刪第一個SkillUnit，清目前選取但不清目標／左右手ID；actor_skill_remove接模板與主角技能重建
 0048afc0	actor_behavior_reset：清互動／目標／MethodMain綁定、取消命令保留參數、記住1/2給50延遲，退戰／光源／高度-20，再動態重設；接新角色與換場景
 0048b160	虛擬旗標設置入口清除指定mask；actor_clear_flags接type8招式觸發
 0048b2d0	actor_speed_update：有效速度getter交actor_move_speed，接模板建立、一般移動與衝刺；底層完整動態狀態退出仍獨立todo
-0048b6c0	角色頭頂文字：持續拍數=min(strlen(text)*10+16,255)；todo 原版訊息佇列form-feed+二進位物件ID呼叫路徑尚未接入；文字槽／繪製僅核對過且已撤回，仍待實作，不新增無呼叫者包裝
-0048b710	8槽頭頂／上飄文字：普通覆寫0，上飄找空或首個上飄；倒數在繪製時扣，中段上飄每畫面扣2；todo 原版二進位聊天訊息及實際單機呼叫端尚未接；現有RoleMdl未找到有效平時台詞區間，不新增無人呼叫函數
+0048b6c0	actor_say：按原版GBK bytes數乘10加16，上限255，交普通槽0；接scene_character_say與劇情0x53e
+0048b710	actor_overhead：普通覆寫0，上飄找第一空槽、滿時第一上飄槽；8槽接actor_draw，繪圖時計時／首尾8畫面淡入淡出、中段上飄每畫面減2；shortcut固定UTF-8緩衝與SDL白字取代SBMP描邊／調色盤
 0048b9e0	near.c actor_near_begin：保存模式，僅半徑-1用索敵值及高層+8，半徑<1不重設底層游標；接monster_think取代全陣列最近目標，篩選續入口仍todo
 0048bca0	狀態0x523封包廣播／指定接收者傳輸，單機共用Actor略過副本同步
 0048bdd0	狀態0x523封包送本機客戶端，單機共用Actor略過副本同步
@@ -734,14 +734,14 @@
 0048c150	actor_name_set：僅SInit種類10..16可複製事件ID，不更新顯示名稱；actor_setup接ONT來源，原始容量64 bytes
 0048c190	main.c actor_animation_select／actor_animation_target：指定序列與帶符號方向餘數、擊退／挨打、跑步門檻與旗標、戰鬥20..30保留目標；接actor_tick/action_tick及繪製／矩形查詢，狀態來源以現有fight/Buff/knock橋接
 0048d2c0	客戶端狀態byte解碼：低7位ID、高位啟用值；唯一呼叫者為已略過同步分派，單機略過封包轉接；完整狀態設置仍todo
-0048d2f0	保存待執行命令代號與三參數；尚未接同類別命令分派，不標done
+0048d2f0	actor_queue_command：四欄逐一保存命令及三參數；接actor_command技能8/9與互動15..19，不清記住命令
 0048d630	依呼叫者與目標層差篩選SkillUnit，跨層近距離或目標高兩級以上清選取；actor_skill_select接右手選招
 0048d740	客戶端整值旗標接收後中斷禁攻MethodMain並調第12修正；唯一呼叫者為已略過同步分派，skip同步副本入口，服務端狀態業務仍todo
 0048d810	actor_look_set：回平常後更換角色專用外觀組合、重選目標序列，合法時復原舊本體序列／幀，最後仍套目標；接hero_refresh換裝，單機不送外觀封包
 0048d8d0	索引無呼叫者；依本輪規則略過，不臆測用途
 0048d8f0	actor_search_link_set：僅保存32位關聯識別，接G_NPCActive／0x51b第三參數>0分支及模式2索敵；狀態103仍為同類別todo，不標完整通知分派done
 0048d910	按非零開關OR或AND-NOT旗標；actor_set_flags接招式type8觸發
-0048d950	todo：已接戰鬥byte0、8/13/14/101/105/110/111/114/115/121；101非零先中止MethodMain，冷卻不足1補rand()%10+10，非ffff音效擲rand()%3，無挨打序列恢復舊byte並不套表；hit_react已接且刪無條件音效；仍缺15周遭命令、完整命令12可用性／技能選取門檻及外部通知，前兩項為同類別待補
+0048d950	todo：actor_status_notify補15的640世界單位模式0篩選；檢查施加者預設技能，讓對方以自身為目標再送命令11，解除15仍執行；受擊接共用命令12門檻；現有0、8/13/14/101/105/110/111/114/115/121已接，外部狀態通知仍等不同類別CGameApp／令牌配對生命週期
 0048e120	actor_effect：依原始20欄65535判未指定；旗標、速度、三獨立精靈、光環資料、殘影模式、四修正及縮放、聲音；接Buff通知與修正17／100 byte；完整狀態主分派及光環每100拍觸發仍屬對應todo
 0048e6c0	actor_owner_set：只寫主人識別，不改組別／目標；接summon及join馴服／分身／放出
 0048e6e0	同組不動；換AI組先清目標及待命令，再寫組並可選同步；actor_group接出生／召喚／馴服／劇情組別切換

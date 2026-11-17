@@ -1,3 +1,4 @@
+#include <limits.h>
 // 秦殤原生引擎（第 2 階段）：讀原版資源，畫出場景與主角，主角可以走動。
 // 用法：qin [遊戲資料夾] [場景別名] [--640] [--shot 檔名.bmp] [--warp N] [--at X,Y]
 // --shot：畫面穩定後存一張圖就結束；--warp：一開始站到第 N 個觸發區（測場景切換用）；--at：站到指定格
@@ -353,6 +354,7 @@ typedef struct Actor {
     int remembered[4], remember_delay; // 原版記住命令與取消後延遲
     int command[4];                // 待執行命令，第一格 -1 表示沒有（原版 +0x5b6）
     char init_name[64], display_name[256]; // SInit事件ID為原始bytes；顯示名稱為UTF-8
+    struct { unsigned char left, total, floating; char text[1024]; } overhead[8];
     int display_number;           // 顯示名稱附加編號；不屬於SInit事件ID
     ActorSkill skills[MAX_ACTOR_SKILLS];
     int skill_n, selected, right_id, left_id, range_adjust, selection_pending;
@@ -393,6 +395,7 @@ static void actor_status_countdown(Actor *a);
 static void actor_dynamic_exit(Actor *a);
 static void actor_dynamic_rest(Actor *a);
 static void actor_dynamic_command(Actor *a, int state, int p0, int p1, int p2);
+static int actor_command(Actor *a, int command, int p0, int p1, int p2, int cancel, int remember);
 static void actor_direction_set(Actor *a, int dir);
 // Poq.exe 0x48ec60：期限-1可覆寫任何值；其他期限只接受不短於現有期限。
 // 回傳暫存器原版混合了被呼叫函數結果與輸入索引；遊戲呼叫端均不消費，以void承接。
@@ -855,7 +858,9 @@ static void actor_scale_tick(Actor *a) {
     if (a->scale != a->modifier[4].value) a->scale += a->modifier[4].value < a->scale ? -1 : 1;
 }
 
-static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
+static void actor_overhead_draw(Actor *a, int sx, int sy);
+
+static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     const Role *r = a->role;
     if (!r) return;
     int seq = actor_seq(a);
@@ -873,6 +878,7 @@ static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
     if (a->scale) actor_scaled_draw(a, seq, frame, sx, sy - a->z, 0);
     else role_draw(r, seq, frame, sx, sy - a->z);  // 影子留在地上
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy - a->z, tick, 0);
+    actor_overhead_draw(a, sx, sy - a->z);
 }
 
 // 面向畫面方向 (sdx, sdy)
@@ -2367,13 +2373,9 @@ static void actor_dynamic_command(Actor *a, int state, int p0, int p1, int p2) {
     a->dynamic_flag_snapshot = flag;
 }
 
-// 命令7/10的可用性門檻；狀態轉接交共用入口。
-// shortcut: 角色技能可用性尚未齊備，完整主分派移植後合併門檻。
+// 命令7/10由共用角色命令入口檢查可用性。
 static int actor_rush_command(Actor *a, int state, int x, int y, int distance) {
-    if (has_status(a, 2) || has_status(a, 10) || has_status(a, 101) || a->knock == 1 ||
-        (a->dynamic_state != 1 && a->dynamic_state != 11)) return 0;
-    actor_dynamic_command(a, state, x, y, distance);
-    return 1;
+    return actor_command(a, state == 22 ? 7 : 10, x, y, distance, 0, 0);
 }
 
 // Poq.exe 0x494a20：最後一拍只插值；下一拍才退出。平常命令(1,1,0,0)強制離開21/22。
@@ -2486,9 +2488,10 @@ static void actor_effect(Actor *a, int status, int on, int skill) {
 
 // 共用byte通知及套表，供修正17／100與技能Buff使用。
 // 已接本類別的隱身、反擊開關、蠱惑與特殊共用倒數；
-// 主分派的周遭命令與外部通知仍todo，不標完整主入口位址。
+// 已接周遭命令15；外部通知仍todo，不標完整主入口位址。
 static void actor_dynamic_rest(Actor *a);
 static void actor_candidate_cast(Actor *a);
+static int actor_can_use_skill(const Actor *a, const ActorSkill *skill);
 static void actor_status_notify(Actor *a, int status, int on, int skill) {
     if ((unsigned)status >= 128u || a->state[status] == on) return;
     unsigned char previous = a->state[status];
@@ -2527,6 +2530,23 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
             a->status_aux = 0;
         }
         break;
+    case 15: {
+        // 原版狀態15在設與清時都通知；640世界單位、模式0的敵對／援敵篩選。
+        actor_near_mode = 0;
+        near_begin(ax64(a), ay64(a), 640);
+        Actor *target;
+        while ((target = actor_near_next(a))) {
+            __typeof__(nr) cursor = nr;
+            int i = actor_skill_find(a, -1); // 原版檢查的是施加者，而不是被掃到的角色。
+            if (actor_can_use_skill(a, i >= 0 ? &a->skills[i] : NULL)) {
+                actor_target_set(target, a);
+                actor_command(target, 11, 1, 0, 0, 0, 0);
+            }
+            nr = cursor;
+            actor_near_mode = 0;
+        }
+        break;
+    }
     case 101:
         if (!on) break;
         {
@@ -2842,7 +2862,7 @@ static void actor_look_set(Actor *a, const RoleDef *look) {
 
 static void actor_enter_fight(Actor *a);
 // Poq.exe 0x48eda0：先寫目標識別，再登記被指向NPC組的敵對關係。
-// 入戰透過actor_enter_fight轉入狀態byte0；完整命令11的選招門檻仍待主命令分派。
+// 入戰經命令11檢查預設選招可用性；原版先互設目標才要求對方入戰。
 static void actor_target_set(Actor *a, Actor *t) {
     if (!t) { actor_clear_target(a); return; }
     a->foe = t;
@@ -2852,7 +2872,7 @@ static void actor_target_set(Actor *a, Actor *t) {
     int dx = (int)a->x - (int)t->x, dy = (int)a->y - (int)t->y;
     if ((int)sqrt((double)dx * dx + (double)dy * dy) <= actor_seek(t) && !t->fight) {
         // 原版先轉入戰鬥，再互設目標；順序可避免重入時再次觸發候選招式。
-        actor_enter_fight(t);
+        actor_command(t, 11, 1, 0, 0, 0, 0);
         actor_target_set(t, a);
     }
 }
@@ -2971,13 +2991,9 @@ static int actor_can_use_id(const Actor *a, int id) {
 
 static void actor_enter_fight(Actor *a);
 
-// 動態進入的31分支：命令方向背離攻方，面向反向，位移沿命令方向。
-// shortcut: 命令5的共同技能可用性仍待角色主分派；目前戰鬥受擊直接接此分支。
+// 命令5沿共用角色門檻接受；動態31的面向與位移方向相反。
 static int actor_knock_command(Actor *a, int direction, int cells, int speed) {
-    if (has_status(a, 2) || has_status(a, 10) || has_status(a, 101) || a->knock == 1 ||
-        (a->dynamic_state != 1 && a->dynamic_state != 11)) return 0;
-    actor_dynamic_command(a, 31, direction, cells, speed);
-    return 1;
+    return actor_command(a, 5, direction, cells, speed, 0, 0);
 }
 
 static void actor_knock_finish(Actor *a) {
@@ -3090,10 +3106,7 @@ static void hit_react(Actor *a, Actor *t, const SkillRow *sk) {
     if (rand() % 1000 < (int)((200.0f - djhf) * 1000 / (djhf + 200.0f)) &&
         t->dynamic_state == 1 && t->knock != 1 && !has_status(t, 101) &&
         !has_status(t, 2) && !has_status(t, 10)) {
-        // shortcut: 命令12的共同可用性／技能選取門檻尚未完整接入，
-        // 完成角色命令主分派時由同一接收端處理；此處保留狀態與招式中止業務。
-        actor_status_notify(t, 101, 1, -1);
-        actor_animation_select(t, -1);
+        actor_command(t, 12, 0, 0, 0, 0, 0);
         if (has_status(t, 101)) start_act(t, ACT_HIT, t->def->hit);
     }
 }
@@ -3312,7 +3325,7 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
         if (a->last_frame < 0 && !main_of(a)) main_new(a);
         MUnit *u = main_of(a);
         if (u) {
-            u->x = ax64(a), u->y = ay64(a), u->frame = f;
+            u->x = ax64(a), u->y = ay64(a), u->frame = u->no_animation ? INT_MAX : f;
             unit_base(u, tick);
         }
     }
@@ -3568,6 +3581,97 @@ static int draw_text(int x, int y, const char *t, int maxw, Uint32 rgb, int draw
         cx += glyph_adv[c];
     }
     return cy + 16;
+}
+
+// Poq.exe 0x48b710：單機模式2；普通文字覆寫槽0，上飄用第一空槽，滿時用第一上飄槽。
+// shortcut: 以UTF-8緩衝和現有字型取代200x100的SBMP，超過1023 bytes截斷；需要超長台詞時改動態字串。
+static void actor_overhead(Actor *a, const char *text, unsigned char duration, unsigned char floating) {
+    if (!text || !*text) return;
+    int slot = 0;
+    if (floating == 1) {
+        int first = -1;
+        for (; slot < 8; slot++) {
+            if (!a->overhead[slot].left) break;
+            if (a->overhead[slot].floating == 1 && first == -1) first = slot;
+        }
+        if (slot == 8) slot = first;
+    }
+    // 正常狀態最多只有槽0是普通文字，故滿槽必有上飄槽；損壞資料不越界寫入。
+    if (slot < 0) return;
+    a->overhead[slot].left = a->overhead[slot].total = duration;
+    a->overhead[slot].floating = floating;
+    size_t n = strlen(text);
+    if (n >= sizeof a->overhead[slot].text) {
+        n = sizeof a->overhead[slot].text - 1;
+        while (n && ((unsigned char)text[n] & 0xc0) == 0x80) --n;
+    }
+    memcpy(a->overhead[slot].text, text, n);
+    a->overhead[slot].text[n] = 0;
+}
+
+// Poq.exe 0x48b6c0：原版lstrlenA以GBK bytes計時；移植後字串是UTF-8，先換算原版長度。
+static void actor_say(Actor *a, const char *text) {
+    if (!text) return;
+    size_t bytes = 0;
+    for (const char *p = text; *p; ) bytes += utf8_next(&p) < 128 ? 1 : 2;
+    actor_overhead(a, text, bytes > 23 ? 255 : (unsigned char)(bytes * 10 + 16), 0);
+}
+
+// Poq.exe 0x4719a0：場景存在才掃編號，種類30..100包含已死角色，第一筆命中即停止。
+static void scene_character_say(int id, const char *text) {
+    if (!unit_scene) return;
+    for (int i=0; i<actor_count; i++) {
+        Actor *a=&actors[i];
+        if (a->sh == id && (unsigned)(a->object_kind - 30) <= 70u) {
+            actor_say(a, text);
+            return;
+        }
+    }
+}
+
+// 劇情訊息的場景名與台詞分詞；空白在台詞中以byte14編碼。
+static void scene_character_say_message(int id, const char *message) {
+    const char *p = message + strcspn(message, " ");
+    p += strspn(p, " ");
+    char text[256];
+    size_t n = strcspn(p, " ");
+    if (n >= sizeof text) n = sizeof text - 1;
+    memcpy(text, p, n); text[n] = 0;
+    for (char *q = text; *q; q++) if (*q == 14) *q = ' ';
+    scene_character_say(id, text);
+}
+
+// 角色繪圖的文字槽分支：先扣倒數；前／後八畫面淡入淡出，中段上飄再扣一次。
+// 不由固定拍更新；畫面未繪到的角色不扣時間。回傳原版0..8透明度供SDL字型承接。
+static int actor_overhead_frame(Actor *a, int slot) {
+    __typeof__(a->overhead[0]) *t = &a->overhead[slot];
+    if (!t->left) { t->total = t->floating = 0; return -1; }
+    unsigned left = --t->left;
+    if ((int)t->total - 8 < (int)left) return t->total - left;
+    if (left < 8) return (int)left;
+    if (t->floating == 1) --t->left;
+    return 8;
+}
+
+static void actor_overhead_draw(Actor *a, int sx, int sy) {
+    for (int i = 0; i < 8; i++) {
+        int alpha = actor_overhead_frame(a, i);
+        if (alpha < 0) continue;
+        __typeof__(a->overhead[0]) *t = &a->overhead[i];
+        if (t->floating > 1) continue;
+        int y = sy - a->head_height + (t->floating ? -80 + t->left : -60);
+        // shortcut: 原版SBMP的描邊／調色盤色號未解；沿用白字，待文字渲染基礎補齊後校色。
+        // draw_text使用共用glyph，逐字設定alpha並在此還原，不污染介面字型。
+        for (const char *p = t->text; *p; ) {
+            SDL_Texture *g = glyph(utf8_next(&p));
+            if (g) SDL_SetTextureAlphaMod(g, (Uint8)(alpha * 255 / 8));
+        }
+        draw_text(sx - 100, y, t->text, 200, 0xffffff, 1);
+        for (const char *p = t->text; *p; ) {
+            SDL_Texture *g = glyph(utf8_next(&p));
+            if (g) SDL_SetTextureAlphaMod(g, 255);
+        }
+    }
 }
 
 #ifdef STORY
@@ -3907,17 +4011,127 @@ static int actor_move_cast(Actor *a, unsigned short cx, unsigned short cy) {
     return 0;
 }
 
+// Poq.exe 0x48d2f0：四欄逐一保存；不清記住命令、不啟動技能。
+static void actor_queue_command(Actor *a, int command, int p0, int p1, int p2) {
+    a->command[0] = command; a->command[1] = p0;
+    a->command[2] = p1; a->command[3] = p2;
+}
+
+static int actor_command_equal(const Actor *a, int command, int p0, int p1, int p2) {
+    return a->command[0] == command && a->command[1] == p0 &&
+        a->command[2] == p1 && a->command[3] == p2;
+}
+
+// 單機同時承接原版場景服務端；記住與目標副作用發生在一般可用性檢查之前。
+// shortcut: 非角色種類24的互動目標目前不在Actor索引；場景物件共用索引接齊時補此分支。
+// 因此完整命令主入口仍不標完成，不能把尚缺的場景基礎說成等待其他遊戲系統。
+static int actor_command(Actor *a, int command, int p0, int p1, int p2, int cancel, int remember) {
+    if (has_status(a, 2) || has_status(a, 10)) return 0;
+    int i = actor_skill_find(a, -1);
+    const ActorSkill *skill = i >= 0 ? &a->skills[i] : NULL;
+    MUnit *u = main_of(a);
+    switch (command) {
+    case 1: case 2:
+        if (remember) {
+            a->remembered[0] = command; a->remembered[1] = p0;
+            a->remembered[2] = p1; a->remembered[3] = p2;
+        }
+        break;
+    case 4:
+        if (p1 & 1) actor_right_skill(a, p0);
+        if (p1 & 2) actor_left_skill(a, p0);
+        break;
+    case 8: case 9:
+        if (remember) {
+            Actor *target = command == 9 ? character_of(p1) : cell_occupant(p1, p2);
+            if (target) actor_target_set(a, target);
+            a->remembered[0] = command; a->remembered[1] = p0;
+            a->remembered[2] = p1; a->remembered[3] = p2;
+        }
+        break;
+    case 11:
+        if (actor_can_use_skill(a, skill)) {
+            if (p0 && remember) a->battle_return = 0;
+            actor_status_notify(a, 0, p0, -1);
+        }
+        break;
+    case 13:
+        if (a->dynamic_state == 1 && (actor_can_move(a) || (u && u->m && u->m->interruptible))) {
+            actor_direction_set(a, p0);
+            return 1;
+        }
+        break;
+    case 14:
+        if (u && u->m && u->m->interruptible) u->no_animation = 1;
+        break;
+    }
+    u = main_of(a);
+    if ((actor_flags(a, 0x10) || actor_flags(a, 0x40000)) && u && u->m && u->m->interruptible)
+        u->no_animation = 1;
+    if (!actor_can_move(a) && !actor_can_use_skill(a, skill) && !u) return 0;
+    if ((a->dynamic_state != 1 && a->dynamic_state != 11) || has_status(a, 101) || a->knock == 1) return 0;
+    if (cancel && command != 3) actor_cancel_command(a);
+    switch (command) {
+    case 1: case 2:
+        if (actor_can_move(a) && (!has_status(a, 0) || !actor_move_cast(a, (unsigned short)p0, (unsigned short)p1))) {
+            if (command == 2) actor_set_flags(a, 0x10000, 1);
+            actor_dynamic_command(a, 11, p0, p1, p2);
+            return 1;
+        }
+        break;
+    case 3:
+        actor_set_flags(a, 0x10000, p0);
+        actor_animation_select(a, -1);
+        return 1;
+    case 5: case 6: case 7: case 10:
+        actor_dynamic_command(a, command == 5 ? 31 : command == 6 ? 32 : command == 7 ? 22 : 21, p0, p1, p2);
+        return 1;
+    case 8: case 9:
+        if (!actor_can_use_skill(a, skill)) return 0;
+        if (actor_command_equal(a, command, p0, p1, p2)) return 0;
+        actor_queue_command(a, command, p0, p1, p2);
+        break;
+    case 12:
+        if (a->dynamic_state == 1) {
+            actor_status_notify(a, 101, 1, -1);
+            actor_animation_select(a, -1);
+            return 1;
+        }
+        break;
+    case 15: case 16: case 17: case 18: case 19:
+        if (remember) actor_forget_command(a);
+        if (actor_command_equal(a, command, p0, p1, p2)) return 0;
+        if (command == 15 && !has_status(a, 103)) {
+            Actor *target = character_of(p0);
+            if (target && target->modifier[7].time < 101 &&
+                (target->modifier[7].value != a->sh || target->modifier[7].time != 100)) {
+                target->modifier[7].value = a->sh; target->modifier[7].time = 100;
+                if (!a->sh) target->modifiers_dirty = 1;
+            }
+        }
+        actor_queue_command(a, command, p0, p1, p2);
+        break;
+    case 102:
+        if (actor_can_move(a)) {
+            actor_dynamic_command(a, 11, a->grid_x + p0, a->grid_y + p1, p2);
+            return 1;
+        }
+    }
+    return 1;
+}
+
 static void hero_cast_point(Actor *h, int x, int y, Actor *target) {
     int k = cur_skill[1];
     if (k < 0 || k >= hero_skill_n || h->act || h->casting) return;
     const SkillRow *r = &hero_skill[k];
     int manual = skill_manual(r);
     if (manual == 2 || manual == 3) {
-        // shortcut: 技能命令8的世界座標由既有右鍵入口橋接；完整分派接入後共用命令入口。
-        h->remembered[0] = 8; h->remembered[1] = skill_attack_id(r);
-        h->remembered[2] = x; h->remembered[3] = y;
-        if (actor_can_use_id(h, skill_attack_id(r)) && skill_usable(h, r))
-            actor_cast_at(h, skill_attack_id(r), x, y, target);
+        // 命令8的參數是格座標；實際施法入口再取格子中心。
+        if (actor_command(h, 8, skill_attack_id(r), x / 64, y / 64, 1, 1) && h->command[0] == 8) {
+            if (actor_can_use_id(h, skill_attack_id(r)) && skill_usable(h, r))
+                actor_cast_at(h, skill_attack_id(r), x, y, target);
+            actor_cancel_command(h);
+        }
         return;
     }
     if (!skill_needs_foe(r)) { cast_start(h, r); return; }
@@ -4919,6 +5133,10 @@ static void story_msgs(void) {
         switch (m->id) {
         case 0x51d:  // 物件換位置：進出目前房間就重新對角色
             if (m->v[1] == sroom || (a && a != &actors[0])) actors_dirty = 1;
+            break;
+        case 0x53e:
+            // 單機共用物件，台詞直接交客戶端顯示，不往返字串同步封包。
+            scene_character_say_message((int)m->v[0], m->s);
             break;
         case 0x535: if (a) a->ex[20] = (int)m->v[1]; break;                 // Invincible
         case 0x52a: if (a) actor_weapon_type_set(a, (int)m->v[1]); break;
@@ -6211,12 +6429,11 @@ int main(int argc, char **argv) {
                 case CMD_ATTACK: actor_target_set(hero, m); hero->want = NULL; ground_want = walk_cx = -1; break;
                 case CMD_PICK: ground_want = g; hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
                 case CMD_MOVE:
-                    // shortcut: 目前輸入橋接記住命令1；完整主分派接入後移到共用入口。
-                    hero->remembered[0] = 1;
-                    hero->remembered[1] = cx; hero->remembered[2] = cy; hero->remembered[3] = 0;
+                    if (!actor_command(hero, 1, cx, cy, 0, 1, 1)) break;
                     mark_new(cx, cy); hero->foe = NULL; hero->want = NULL; ground_want = -1;
-                    walk_cx = hero->fight && actor_move_cast(hero, (unsigned short)cx, (unsigned short)cy) ? -1 : cx;
-                    walk_cy = cy;
+                    // shortcut: 動態11仍由既有point_walk消費；逐格尋路接入後刪此橋接。
+                    walk_cx = hero->dynamic_state == 11 ? hero->dynamic_command[0] : -1;
+                    walk_cy = hero->dynamic_command[1];
                     break;
                 case CMD_TALK: {  // shortcut: 原版指令 0xf 是走過去再說；這裡馬上說，而且只有 ONT 擺的（有事件 ID）的 NPC 能說
                     actor_forget_command(hero);

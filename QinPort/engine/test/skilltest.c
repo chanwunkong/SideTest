@@ -8,6 +8,117 @@ static RoleDef def;
 static MonDef md;
 static const Role empty_test_role;
 
+static void character_command_receiver_test(void) {
+    int saved_units = unit_n; MUnit saved = units[0]; unit_n = 0;
+    RoleDef d = {.speed=10, .hit=65535};
+    Actor a = {.def=&d, .role=&empty_test_role, .dynamic_state=1, .speed=10,
+        .selected=-1, .right_id=-1, .left_id=-1};
+    a.command[0] = a.remembered[0] = -1;
+    // 狀態2／10在記住副作用之前拒絕；101則先保存才拒絕。
+    a.state[2]=1;
+    assert(!actor_command(&a,1,7,8,9,1,1) && a.remembered[0]==-1);
+    a.state[2]=0; a.state[101]=1;
+    actor_queue_command(&a,15,1,2,3);
+    assert(!actor_command(&a,2,7,8,9,1,1));
+    assert(a.remembered[0]==2 && a.remembered[1]==7 && a.command[0]==15);
+    a.state[101]=0;
+    // 先寫手別，再檢查一般可用性；兩個bit可同時更新。
+    a.dynamic_state=31;
+    assert(!actor_command(&a,4,123,3,0,0,0));
+    assert(a.right_id==123 && a.left_id==123);
+    a.dynamic_state=1;
+    assert(actor_command(&a,8,123,4,5,0,1));
+    assert(a.command[0]==8 && a.command[1]==123 && a.command[2]==4 && a.command[3]==5);
+    assert(!actor_command(&a,8,123,4,5,0,1)); // 不重新排同一命令。
+    assert(actor_command(&a,8,123,4,5,1,1)); // cancel先清代號，再比較，所以接受。
+    a.remembered[0]=1; a.remember_delay=0;
+    actor_queue_command(&a,15,42,1,2);
+    assert(!actor_command(&a,15,42,1,2,0,1));
+    assert(a.remembered[0]==-1 && a.remember_delay==50); // 去重失敗前仍忘記。
+    // 命令3不清排隊命令；拒絕移動時仍可改戰鬥姿態旗標。
+    a.speed=0;
+    assert(actor_command(&a,3,1,0,0,1,0));
+    assert((a.flags&0x10000) && a.command[0]==15);
+    // 命令13在101、knock和一般可用性之前處理，但仍需靜止和能移動。
+    a.speed=10; a.state[101]=1; a.knock=1;
+    assert(actor_command(&a,13,6,0,0,1,0) && a.facing==6);
+    assert(a.command[0]==15);
+    a.state[101]=0; a.knock=0;
+    // 狀態101沒有挨打序列會恢復舊byte；命令12仍回成功。
+    assert(actor_command(&a,12,0,0,0,0,0) && !a.state[101]);
+    Method m = {.interruptible=1};
+    units[0]=(MUnit){.cls=U_MAIN,.owner=&a,.m=&m}; unit_n=1;
+    assert(actor_command(&a,14,0,0,0,0,0) && units[0].no_animation);
+    units[0]=saved; unit_n=saved_units;
+}
+
+static void character_status15_test(void) {
+    const Scene *saved_scene=unit_scene; int count=actor_count, un=unit_n;
+    Actor saved[3]={actors[0],actors[1],actors[2]};
+    Cell cells[400]={0}; Scene sc={.w=20,.h=20,.cells=cells};
+    RoleDef d={0}; unit_scene=&sc; actor_count=3; unit_n=0;
+    for(int i=0;i<3;i++) {
+        actors[i]=(Actor){.sh=i+1,.object_kind=31,.role=&empty_test_role,.def=&d,
+            .grp=i==0?1:2,.x=8.5f+i,.y=8.5f,.dynamic_state=1,.speed=10,.layer=1};
+        for(int k=0;k<4;k++) actors[i].candidate[k]=-1;
+    }
+    actors[2].flags=0x20000;
+    actor_status_notify(&actors[0],15,1,-1);
+    assert(actors[1].foe==&actors[0] && actors[1].state[0]);
+    assert(!actors[0].foe && !actors[2].foe); // 自己與隱形者不進模式0名單。
+    actors[1].foe=NULL; actors[0].flags=0x800;
+    actor_status_notify(&actors[0],15,0,-1);
+    assert(!actors[1].foe); // 檢查施加者技能可用性。
+    actors[0].flags=0;
+    actor_status_notify(&actors[0],15,1,-1);
+    assert(actors[1].foe==&actors[0]);
+    actors[1].foe=NULL;
+    actor_status_notify(&actors[0],15,0,-1);
+    assert(actors[1].foe==&actors[0]); // 清除15也會再招惹附近敵人。
+    actor_command(&actors[0],15,2,0,0,0,1);
+    assert(actors[1].modifier[7].value==1 && actors[1].modifier[7].time==100);
+    actors[0]=saved[0];actors[1]=saved[1];actors[2]=saved[2];
+    unit_scene=saved_scene;actor_count=count;unit_n=un;
+}
+
+static void character_overhead_test(void) {
+    Actor a={0};
+    actor_say(&a,"abc");
+    assert(a.overhead[0].left==46 && a.overhead[0].total==46);
+    actor_say(&a,"秦殤"); // UTF-8六bytes，原版GBK四bytes。
+    assert(a.overhead[0].left==56);
+    actor_say(&a,"123456789012345678901234");
+    assert(a.overhead[0].left==255);
+    actor_overhead(&a,"",20,0); assert(a.overhead[0].left==255);
+    for (int i=1; i<8; i++) { actor_overhead(&a,"up",30,1); assert(a.overhead[i].left==30); }
+    actor_overhead(&a,"replace",40,1);
+    assert(a.overhead[1].left==40 && !strcmp(a.overhead[1].text,"replace"));
+    // 普通只覆寫0；繪製前不減時間。
+    actor_say(&a,"abc"); assert(a.overhead[0].left==46 && a.overhead[1].left==40);
+    for(int i=1;i<=7;i++) { assert(actor_overhead_frame(&a,0)==i); assert(a.overhead[0].left==46-i); }
+    assert(actor_overhead_frame(&a,0)==8 && a.overhead[0].left==38);
+    a.overhead[1].left=30; a.overhead[1].total=40;
+    assert(actor_overhead_frame(&a,1)==8 && a.overhead[1].left==28);
+    a.overhead[1].left=8;
+    assert(actor_overhead_frame(&a,1)==7 && a.overhead[1].left==7);
+    a.overhead[1].left=1;
+    assert(actor_overhead_frame(&a,1)==0 && a.overhead[1].left==0 && a.overhead[1].floating==1);
+    assert(actor_overhead_frame(&a,1)==-1 && !a.overhead[1].total && !a.overhead[1].floating);
+    actor_overhead(&a,"one",1,0); assert(actor_overhead_frame(&a,0)==1); // 短於8拍先走淡入。
+    int saved_count=actor_count; Actor saved=actors[0]; const Scene *saved_scene=unit_scene;
+    Scene sc={0}; unit_scene=&sc; actor_count=1;
+    actors[0]=(Actor){.sh=42,.object_kind=31,.object_dead=1};
+    scene_character_say_message(42,"scene hello\x0eworld extra");
+    assert(!strcmp(actors[0].overhead[0].text,"hello world") && actors[0].overhead[0].left==126);
+    actors[0].object_kind=29; scene_character_say(42,"ignored");
+    assert(!strcmp(actors[0].overhead[0].text,"hello world"));
+    actors[0].object_kind=100; scene_character_say(42,"end");
+    assert(!strcmp(actors[0].overhead[0].text,"end"));
+    unit_scene=NULL; scene_character_say(42,"ignored");
+    assert(!strcmp(actors[0].overhead[0].text,"end"));
+    actors[0]=saved; actor_count=saved_count; unit_scene=saved_scene;
+}
+
 static void character_placement_test(void) {
     Actor saved[2] = {actors[0], actors[1]};
     int saved_count = actor_count;
@@ -1646,6 +1757,8 @@ static void character_move_cast_test(void) {
     hero_skill[0] = (SkillRow){.level = 1, .wtype = -1, .mod_n = 1, .mod = {{.id = 10, .init = id}}};
     a.act = a.casting = 0; unit_n = 0;
     a.skills[0].row = &hero_skill[0];
+    a.dynamic_state = 1;
+    a.template_skill_n = 1; a.template_skill[0] = id;
     hero_cast_point(&a, 10 * 64 + 32, 2 * 64 + 32, NULL);
     assert(unit_n == 1 && !units[0].target && a.aim_x == 10 * 64 + 32);
     hero_skill[0] = old_skill; hero_skill_n = old_n; cur_skill[1] = old_left;
@@ -2947,6 +3060,9 @@ int main(void) {
     character_hit_status_test();
     character_blood_test();
     character_behavior_reset_test();
+    character_command_receiver_test();
+    character_overhead_test();
+    character_status15_test();
     character_placement_test();
     air_test();
     bird_test();

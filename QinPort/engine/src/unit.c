@@ -83,6 +83,7 @@ static void actor_hot(const Actor *a, int *ex, int *ey) {
 // ---- 招式物件共同部分（MethodBase 0x4381a0）：角色出手（MethodMain）和招式單位都有 ----
 enum { U_NORMAL, U_FLY, U_FLYNORMAL, U_ARROW, U_GHOST, U_CYCLE, U_SURFIRE, U_FIREMAN, U_MAIN, U_PHANTOM, U_FOOT, U_SPLASH };  // U_MAIN = 角色出手（MethodMain）、U_PHANTOM = 分身（CPhantasmObj）
 typedef struct MUnit {
+    int no_animation; // MethodMain +0x44c：命令14要求一次消費全部幀觸發。
     int main_detached; // Actor清MethodMain指標後，保留物件本身與owner，不再被main_of查到。
     int cls, dead;                   // 類別、已結束（+0x58）
     Actor *owner, *target;           // +0x87 放的人、+0x83 目標

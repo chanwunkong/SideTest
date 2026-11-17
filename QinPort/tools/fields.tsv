@@ -672,8 +672,8 @@ CCharactor	+0x42f	第5修正值，值1時動畫連續step三次	Actor.modifier[5
 CCharactor	+0x433	第5修正期限	Actor.modifier[5].time；舊stun仍待完整狀態更新統一
 CCharactor	+0x437	第6修正值，模式2移動時設1	Actor.modifier[6].value
 CCharactor	+0x43b	第6修正期限，移動入口-1／更新入口20	Actor.modifier[6].time
-CCharactor	+0x43f	第7修正值，互動命令設為操作者句柄	待角色互動
-CCharactor	+0x443	第7修正期限，互動命令最多設100	待角色互動
+CCharactor	+0x43f	第7修正值，互動命令15設為操作者句柄	Actor.modifier[7].value
+CCharactor	+0x443	第7修正期限，命令15只在小於101且識別或期限不同時設100	Actor.modifier[7].time
 CCharactor	+0x44f	第9修正值，角色頭上標記ID	待頭上標記
 CCharactor	+0x457	第10修正值，非0覆蓋模板顯示方式；50不可作遍歷目標	Actor.modifier[10].value／actor_display
 CCharactor	+0x45b	第10修正期限	Actor.modifier[10].time
@@ -727,10 +727,10 @@ CCharactor	+0x59d	修正目的格X快取	Actor.corrected_x（actor_bind_scene）
 CCharactor	+0x5a1	修正目的格Y快取	Actor.corrected_y（actor_bind_scene）
 CCharactor	+0x5a5	清記住命令後的延遲，原命令1/2為50否則0；重送及扣減尚待主分派	Actor.remember_delay
 CCharactor	+0x5a9	角色活動啟用byte	待角色更新
-CCharactor	+0x5aa	8個7bytes頭頂／上飄文字槽的陣列指標	待頭頂文字
+CCharactor	+0x5aa	8個7bytes頭頂／上飄文字槽的陣列指標	Actor.overhead[8]
 CCharactor	+0x5ae	上次位置同步X，初值-100	Actor.command_world_x
 CCharactor	+0x5b2	上次位置同步Y，初值-100	Actor.command_world_y
-CCharactor	+0x5b6	待執行命令代號，-1無	Actor.command[0]；命令分派仍待移植
+CCharactor	+0x5b6	待執行命令代號，-1無	Actor.command[0]／actor_queue_command
 CCharactor	+0x5ba	待執行命令參數1，取消時不清	Actor.command[1]
 CCharactor	+0x5be	待執行命令參數2，取消時不清	Actor.command[2]
 CCharactor	+0x5c2	待執行命令參數3，取消時不清	Actor.command[3]
@@ -857,3 +857,7 @@ CDynamicObj	+0x3e9	水平插值每拍世界Y增量	Actor.interpolation_dy
 CDynamicObj	+0xc3	動態11尋路目的地X；狀態31有counter時返回此目的地，非+0x97位置快取	Actor.dynamic_destination_x
 CDynamicObj	+0xc7	動態11尋路目的地Y；狀態31有counter時返回此目的地，非+0x9b位置快取	Actor.dynamic_destination_y
 CDynamicObj	+0x3d9	動態32大於0才嘗試前移占格；最後一拍扣0仍留32，下一拍才退出，不補末端位置	Actor.interpolation_left
+OverheadText	+0x0	剩餘畫面數byte；只在實際繪圖時先減1，中段上飄再減1	Actor.overhead[].left
+OverheadText	+0x1	起始畫面數byte，用於首8畫面淡入	Actor.overhead[].total
+OverheadText	+0x2	200x100文字SBMP指標；原版固定寬200置中	Actor.overhead[].text（SDL字型取代SBMP）
+OverheadText	+0x6	文字模式byte：0普通固定頭頂，1上飄	Actor.overhead[].floating
