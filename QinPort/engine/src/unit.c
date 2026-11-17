@@ -750,7 +750,7 @@ static void units_tick(Uint32 tick) {
         case U_MAIN: if (!alive(u->owner) || u->owner->act != ACT_ATTACK) unit_die(u, tick); break;  // 動作被打斷；平常由 action_tick 推
         case U_PHANTOM: phantom_tick(u, tick); break;
         case U_FOOT: foot_tick(u, tick); break;
-        case U_SPLASH: if (spr_done(&u->spr)) unit_die(u, tick); else spr_step(&u->spr); break;  // 下雨濺水：播一次
+        case U_SPLASH: if (spr_done(&u->spr)) unit_die(u, tick); else spr_step(&u->spr); break;  // 下雨濺水 CRainSpray 每拍 0x49aad0（播完 → 移除）+ 0x49aa90（步進）：播一次
         }
     }
     int n = 0;

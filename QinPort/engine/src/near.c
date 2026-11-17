@@ -447,7 +447,7 @@ LATER static void open_dir(int *ox, int *oy, int fx, int fy, int max) {
 
 // 0x443c30：每次換下一個方向（全域 DAT_00625b28 0～7 輪流），從 (x, y) 往那方向移 dist
 static int spread_dir;
-LATER static void spread_pt(int *x, int *y, int dist) {
+static void spread_pt(int *x, int *y, int dist) {
     if (++spread_dir > 7) spread_dir = 0;
     move_dir(x, y, spread_dir, dist);
 }

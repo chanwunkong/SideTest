@@ -776,3 +776,24 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 004989c0  CDeadObj查格子屍體編號：引擎沒有格子屍體標記（同 0x498ba0）
 00578710  部件群載入 PLI（CPartDeadObj 0x499120 用）：Actor 共用 Role，不另載
 00578a00  部件群設光照旗標：Role 繪圖不分旗標
+00499e30 CPropObj 建構（欄位初始化；ground[] 欄位照 0x49a350 填）
+00499f10 CPropObj 解構
+00499fb0 CPropObj 刪除解構
+0049a070 CPropObj 初始化：載入道具動畫、隨機起始幀；地上道具圖直接用 ground_image，動畫幀沒用
+0049a140 CPropObj 釋放動畫
+0049a320 CPropObj 動畫下一幀（地上道具圖是靜態）
+0049a7c0 CPropObj 設顯示旗標 +0x89／+0x8d（只有連線版 0x470300 呼叫）
+0049a7e0 CPropObj 強制落地（只有連線版同步呼叫）
+0049a810 CPropObj 重算矩形（畫面矩形由 viewport 直接用 ground 位置算）
+0049a9a0 CRainSpray 建構（虛擬表設定）
+0049a9c6 CRainSpray 解構轉接
+0049a9d0 CRainSpray 刪除解構
+0049aa20 CRainSpray 釋放動畫
+0049aac0 CRainSpray 向上轉型取址
+0049ab20 CSurBeastie 建構（虛擬表、欄位歸零）
+0049abc0 CSurBeastie 解構
+0049abf9 CSurBeastie 解構轉接
+0049ac10 CSurBeastie 刪除解構
+0049ad20 CSurBeastie 釋放動畫
+0049aef0 CSurBeastie 向上轉型取址
+0049b690 CSurBeastie 設目標 + 轉走態（沒有呼叫者；sur_idle 內聯同樣動作）

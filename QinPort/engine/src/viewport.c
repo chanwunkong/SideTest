@@ -511,8 +511,8 @@ static void viewport_layers(const ViewPort *v, const Scene *s, Uint32 tick) {
             for (int i = 0; i < ground_n; i++) {
                 if (!viewport_cell_visible(s, (int)(ground[i].x * 64), (int)(ground[i].y * 64))) continue;
                 const Sprite *g = ground_image(ground[i].it.ground);
-                SDL_Point p = viewport_world_screen(v, (int)(ground[i].x * 64), (int)(ground[i].y * 64));
-                if (g) draw(g, p.x - g->w / 2, p.y - g->h / 2);
+                SDL_Point p = viewport_world_screen(v, (int)ground[i].dx, (int)ground[i].dy);  // 0x49a170：y 再減高度
+                if (g) draw(g, p.x - g->w / 2, p.y - g->h / 2 - ground[i].z);
             }
             viewport_units(v, s, 1, tick);
         }

@@ -304,7 +304,7 @@ static void weather_draw(int ox, int oy) {
 }
 
 // 地上濺水（0x445180）：畫面上隨機一點換成世界座標，紅雨用 0x100010 隨機序列 0~2，否則 0x100023
-// shortcut: 原版物件類別 0x49a910 沒查，這裡當播一次就消失的地面動畫
+// 設圖／起始幀 = CRainSpray 0x49aa40（紅雨隨機幀 0~2）
 static void splash_new(int sx, int sy, int red) {
     if (unit_n == MAX_UNIT || !unit_scene) return;
     float a = (float)(sx + wx.cam_x) / (TILE_W / 2) - (unit_scene->h - 1), b = (float)(sy + wx.cam_y) / (TILE_H / 2);

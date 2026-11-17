@@ -874,3 +874,10 @@
 004997f0	main.c dead_obj_tick：飛散件階段0每4拍沿 facing 反方向退 fly_speed/64 格，計數 > -20
 004998a0	main.c part_blood_set：1/4 血跡掛 HD 矩形頂邊中央，2 掛 CA；3 沒呼叫者沒做
 00499af0	viewport.c viewport_actor_rect（屍體畫面矩形，縮放同角色）
+CPropObj	+0x7d	拋出已飛拍數（滿 30 = 落地）	ground[].t
+CPropObj	+0x81	拋出高度（每拍 +7 到 DAT_00663f24 拍；該全域沒有寫入處 = 0）	ground[].z
+CPropObj	+0x9d	畫的位置 x／y 浮點像素（+0xa1），每拍加 +0xa5／+0xa9 速度 = (落點−起點)/30	ground[].dx/dy/vx/vy
+CSurBeastie	+0x93	狀態：0 休息、1 走、2 逃、3 被踩死（500 拍移除）	SurBeastie.state
+CSurBeastie	+0x97	目標格 x／y（+0x9b）	SurBeastie.tx/ty
+CSurBeastie	+0x9f	目前速度（低速／逃跑高速）	SurBeastie.speed
+CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 500 拍）	SurBeastie.count

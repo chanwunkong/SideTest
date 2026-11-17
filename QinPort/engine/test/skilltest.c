@@ -3933,6 +3933,36 @@ static void character_remove_test(void) {
 }
 
 // CPartDeadObj／CFlyPartDeadObj 分件、飛散與屍體物件階段（0x44f6d0／0x4997f0／0x498a30／0x4986c0）
+// CPropObj 拋出動畫（0x49a550）：走 29 步、落點前 1/30、高度恆 0（DAT_00663f24 = 0）、t 到 30 後不再動
+static void prop_obj_test(void) {
+    int saved_n = ground_n;
+    ground_n = 1;
+    ground[0] = (typeof(ground[0])){.dx = 32, .dy = 32, .vx = 3, .vy = -3};
+    for (int i = 0; i < 40; i++) { ground_tick(); assert(ground[0].z == 0); }
+    assert(ground[0].t >= PROP_TICKS && ground[0].dx == 32 + 29 * 3 && ground[0].dy == 32 - 29 * 3);
+    ground_n = saved_n;
+}
+// CSurBeastie（0x49b160 系列）：休息 → 挑目標 → 走到 → 休息；逃跑速度；被踩死 500 拍後移除
+static void sur_beastie_test(void) {
+    NpcSpec n = {.x = 5, .y = 5, .logic = 1, .rx = 0, .ry = 0, .rw = 20, .rh = 20};
+    RoleDef d = {.beast = 1, .speed = 3, .fight_speed = 9, .snd_idle = 0xffff, .snd_run = 0xffff};
+    Scene *saved_scene = (Scene *)unit_scene; unit_scene = NULL;
+    SurBeastie b;
+    sur_init(&b, &n, &d);
+    assert(b.gx == 5 && b.x == 5 * 64 + 32 && b.dir == 5 && b.speed == 3 && b.state == 0);
+    sur_tick_one(&b);
+    assert(b.state == 1 && b.tx >= 0 && b.tx <= 20);  // 休息倒數 0：立刻挑目標、轉走態
+    for (int i = 0; i < 2000 && b.state == 1; i++) sur_tick_one(&b);
+    assert(b.state == 0 && b.gx == b.tx && b.gy == b.ty);
+    Actor t = {.x = 5, .y = 5};
+    sur_flee(&b, &t);
+    assert(b.state == 2 && b.speed == 9);
+    sur_reset(&b);  // 沒人在旁
+    assert(b.state == 0 && b.speed == 3);
+    b.state = 3; b.count = 500;
+    assert(sur_tick_one(&b) == 0);
+    unit_scene = saved_scene;
+}
 static void part_dead_test(void) {
     const Scene *saved_scene = unit_scene;
     SceneClient saved_client = scene_client;
@@ -4042,6 +4072,8 @@ int main(void) {
     character_draw_branches_test();
     character_remove_test();
     part_dead_test();
+    prop_obj_test();
+    sur_beastie_test();
     character_death_fear_test();
     character_hit_status_test();
     character_blood_test();

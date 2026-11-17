@@ -2266,8 +2266,10 @@ struct MUnit;
 static int owner_trig(struct MUnit *u, const Trig *t, Uint32 tick);
 // 地上的道具
 #define MAX_GROUND 128
-static struct { Item it; float x, y; int id; } ground[MAX_GROUND];  // id：命令0x11用的物件編號（原版CPropObj句柄）
+// x, y = 落點格（邏輯用）；dx, dy = 畫的位置（像素，64/格，0x49a550 拋出動畫每拍累加）；t = 已飛拍數（+0x7d）、z = 高度（+0x81）
+static struct { Item it; float x, y; int id; float dx, dy, vx, vy; int t, z; } ground[MAX_GROUND];  // id：命令0x11用的物件編號（原版CPropObj句柄）
 static int ground_n, ground_next_id = 1;
+enum { PROP_TICKS = 30, PROP_STEP = 7, PROP_SPLIT = 0 };  // DAT_0062a2e8、DAT_0062a2ec、DAT_00663f24
 static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = 沒有）
 #include "light.c"
 #define scene (*unit_scene)
@@ -5566,11 +5568,32 @@ static void ground_drop(const Item *it, float x, float y) {
     if (ground_n == MAX_GROUND || !it->name[0]) return;
     ground[ground_n].it = *it;
     ground[ground_n].it.pos = -1;
-    int cx = (int)x, cy = (int)y;
+    int cx = (int)x, cy = (int)y, sx = cx, sy = cy;
     if (!free_cell(&cx, &cy, 10)) return;  // CPropObj 放進場景（0x49a350）：周圍 10 圈第一個空格，沒有就不放
     ground[ground_n].x = cx + 0.5f;
     ground[ground_n].id = ground_next_id++;
-    ground[ground_n++].y = cy + 0.5f;
+    ground[ground_n].y = cy + 0.5f;
+    // 拋出動畫（0x49a350）：從原格中央 30 拍直線到落點格中央（每拍 1/30）
+    float tx = cx * 64 + 32, ty = cy * 64 + 32;
+    ground[ground_n].dx = sx * 64 + 32, ground[ground_n].dy = sy * 64 + 32;
+    ground[ground_n].t = ground[ground_n].z = 0;
+    float dist = sqrtf((tx - ground[ground_n].dx) * (tx - ground[ground_n].dx) + (ty - ground[ground_n].dy) * (ty - ground[ground_n].dy));
+    ground[ground_n].vx = (int)dist < 1 ? 0 : (tx - ground[ground_n].dx) / PROP_TICKS;
+    ground[ground_n].vy = (int)dist < 1 ? 0 : (ty - ground[ground_n].dy) / PROP_TICKS;
+    ground_n++;
+}
+
+// 每拍（CPropObj 0x49a550）：前 PROP_TICKS-1 拍沿直線飛，高度 +PROP_STEP 到 PROP_SPLIT 拍、之後落回 0；最後一拍高度歸零。
+// 怪現象（照原版）：只飛 29 步，停在落點前 1/30；PROP_SPLIT（DAT_00663f24）沒有任何寫入處 = 0，所以高度一直是 0。
+// shortcut: 起飛／落地音（物件模型 +0x32／+0x2e）、地面動畫幀、地上光照／陰影還沒做，等道具模型表
+static void ground_tick(void) {
+    for (int i = 0; i < ground_n; i++) {
+        if (++ground[i].t >= PROP_TICKS) continue;
+        if (ground[i].t < PROP_SPLIT) ground[i].z += PROP_STEP;
+        else if (ground[i].z > 0) ground[i].z -= PROP_STEP;
+        ground[i].dx += ground[i].vx, ground[i].dy += ground[i].vy;
+        if (ground[i].t == PROP_TICKS - 1) { ground[i].z = 0; ground[i].t = PROP_TICKS; }
+    }
 }
 
 // 怪物掉寶（0x1006fa50）：掉 最小～最大 件，每件擲千分比依序對五組（類型、機率×10）累加，中的那組產生一件，
@@ -5595,7 +5618,7 @@ static void mon_loot(const Actor *m) {
     }
 }
 
-// 撿起來：錢直接加到金錢（金钱 = 類型 60，數量在 Amount），其他放進背包空格
+// 撿起來（同時是 CPropObj 移除 0x49a880：格子道具記號隨 ground[] 一起消失）：錢直接加到金錢（金钱 = 類型 60，數量在 Amount），其他放進背包空格
 static void ground_pick(int g) {
     Item *it = &ground[g].it;
     if (it->type == 60) hero_money += it->amount;
@@ -7215,7 +7238,7 @@ static void prefetch_scene(Scene *s, const Actor *hero) {
             if (s->objects[i].m->parts[p].anim) id_add(&anims, s->objects[i].m->parts[p].gid);
     for (int i = 0; i < s->npc_count; i++) {
         const RoleDef *d = roledef_find(s->npcs[i].tmpl);
-        if (d && d->beast && d->air && d->id < 1500) id_add(&anims, d->anim);
+        if (d && d->beast && d->id < 1500) id_add(&anims, d->anim);
     }
     res_fetch_now(anims.v, anims.n);
     free(anims.v);
@@ -7251,7 +7274,7 @@ static void prefetch_scene(Scene *s, const Actor *hero) {
     for (int i = 0; i < s->npc_count; i++) {
         const NpcSpec *sp = &s->npcs[i];
         const RoleDef *d = roledef_find(sp->tmpl);
-        if (!d || !d->beast || !d->air || d->id >= 1500) continue;
+        if (!d || !d->beast || d->id >= 1500) continue;
         frames.n = 0;
         const Anim *a = anim_get(d->anim);
         for (int seq = 0; a && seq < a->count; seq++) add_seq_frames(&frames, a, seq);
@@ -7357,6 +7380,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     viewport_enter(&viewport, scene, hero);
     prefetch_scene(scene, hero);
     air_enter(scene);
+    sur_enter(scene);
     scene_client.ready = 1;
     for (int i = 0; i < actor_count; i++) if (actors[i].role) actor_explore(&actors[i]);
     return 1;
@@ -7742,6 +7766,7 @@ int main(int argc, char **argv) {
             if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000) for (int i = 0; i < actor_count; i++)
                     if (!i || actors[i].mon) actor_second(&actors[i]);
             viewport_tick(&viewport, &scene, hero);
+            ground_tick();
             for (int i = 0; i < actor_count; i++) {
                 if (actors[i].role) actor_motion_tick(&actors[i]);
                 actor_health_sync(&actors[i]);
@@ -7799,6 +7824,7 @@ int main(int argc, char **argv) {
             clock_tick();
             weather_tick();
             air_tick(scene_client_actor(&scene_client));
+            sur_tick();
             bird_tick(&scene, &viewport);
             zoom_tick();
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
@@ -7974,6 +8000,7 @@ int main(int argc, char **argv) {
     roles_clear();
     bird_clear();
     free(air); air = NULL; air_n = 0;
+    free(sur); sur = NULL; sur_n = 0;
     scene_free(&scene);
     SDL_Quit();
     return 0;
