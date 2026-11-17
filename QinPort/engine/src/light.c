@@ -134,14 +134,23 @@ static void light_clear(void) { light_n = 0; }
 static int actor_wx(const Actor *a, const Scene *s) { return scene_px(s, (int)(a->x * 64), (int)(a->y * 64)); }
 static int actor_wy(const Actor *a, const Scene *s) { return scene_py(s, (int)(a->x * 64), (int)(a->y * 64)); }
 
-// 每拍（0x442180）：角色的光跟著走，人死了或不在了就每拍縮 10 像素，縮到 60 以下拿掉；建築的每 6 拍換一次亮度（閃）
-// 角色的光（0x486480，原版角色初始化時加）：有光影的角色半徑 = 角色大小 × 240 + 400，光影闪烁的另一色 0xe1e1e1
-static void light_tick(const Scene *s) {
-    for (int i = 0; i < actor_count; i++) {
-        const Actor *a = &actors[i];
-        if (a->role && a->def && a->def->light && a->act != ACT_DEAD && !light_of(a))
-            light_add(a, actor_wx(a, s), actor_wy(a, s), 1, a->def->size * 0xf0 + 400, 0xffffff, a->def->flicker ? 0xe1e1e1 : 0xffffff);
+// Poq.exe 0x486480：模板套用時立即加光，已有同一物件的光就回0；
+// 不要求紙娃娃已載入，也不以死亡動畫擋住初始化。
+static int actor_light_init(const Actor *a) {
+    // shortcut: 單機執行路徑不進原版錄影回放模式2；接回放時補其禁止建光條件。
+    if (a->def && a->def->light) {
+        if (light_of(a)) return 0;
+        const Scene *s = a->bound_scene ? a->bound_scene : unit_scene;
+        // shortcut: 未綁場景時先用零投影原點，首次light_tick會按實際場景更新。
+        int x = s ? actor_wx(a, s) : 0, y = s ? actor_wy(a, s) : 0;
+        light_add(a, x, y, 1, a->def->size * 0xf0 + 400,
+                  0xffffff, a->def->flicker ? 0xe1e1e1 : 0xffffff);
     }
+    return 1;
+}
+
+// 每拍（0x442180）：角色的光跟著走，人死了或不在了就每拍縮 10 像素，縮到 60 以下拿掉；建築的每 6 拍換一次亮度（閃）
+static void light_tick(const Scene *s) {
     for (int i = 0; i < light_n; i++) {
         Light *L = &lights[i];
         if (L->dying) {

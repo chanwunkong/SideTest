@@ -1244,6 +1244,7 @@ int roledefs_load(void) {
         RoleDef *r = &roledefs[roledef_count++];
         memset(r, 0, sizeof *r); // 一般角色的beast/air等未在RoleMdl賦值，不能讀realloc殘值。
         r->id = atoi(col[1]);
+        r->model_type = 65535; // 原版角色模板建構+0x22的低16位；讀表不覆寫。
         snprintf(r->graphic, sizeof r->graphic, "%s", col[2]);
         snprintf(r->styles, sizeof r->styles, "%s", col[3]);
         r->pli = atoi(col[5]);

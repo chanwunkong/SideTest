@@ -1574,6 +1574,69 @@ static void character_speed_memory_test(void) {
     assert(!actor_cast_at(&a, 999, 0, 0, NULL) && a.remembered[0] == -1);
 }
 
+static void character_template_environment_test(void) {
+    SceneClient saved_client = scene_client;
+    const Scene *saved_scene = unit_scene;
+    Actor saved_actor = actors[0];
+    int saved_count = actor_count;
+    RoleSlot saved_role = roles[0];
+    int saved_roles = role_count;
+    Cell cells[40 * 40] = {0};
+    Scene fixture = {.w = 40, .h = 40, .cells = cells};
+    RoleDef d = {.id = 1234567, .model_type = 65535, .group = 123,
+                 .size = 1, .light = 1, .flicker = 1};
+    roles[0] = (RoleSlot){.tmpl = d.id}; role_count = 1;
+    actor_count = 1; unit_scene = &fixture;
+    scene_client = (SceneClient){.scene = &fixture, .ready = 1, .controlled = 0};
+    actors[0] = (Actor){.x = 20.5f, .y = 20.5f, .grid_x = 20, .grid_y = 20,
+                        .grid_valid = 1, .bound_scene = &fixture, .role = &roles[0].role};
+    light_clear();
+    actor_setup(&actors[0], &d);
+    Actor *a = &actors[0];
+    assert(a->model_type == 65535 && light_n == 1);
+    Light *l = light_of(a);
+    assert(l && l->r == 640 && l->l_main == 15 && l->l_alt == 13);
+    assert(actor_light_init(a) == 0);
+    RoleDef unlit = {0}; Actor no_light = {.def = &unlit};
+    assert(actor_light_init(&no_light) == 1 && !light_of(&no_light));
+    assert(l->x == actor_wx(a, &fixture) && l->y == actor_wy(a, &fixture));
+    assert(cells[a->grid_y * 40 + a->grid_x].view == 10);
+    // 同一物件重套模板不換光，即使新模板大小／閃爍改變。
+    d.size = 2; d.flicker = 0; actor_setup(a, &d);
+    assert(light_n == 1 && light_of(a)->r == 640 && light_of(a)->l_alt == 13);
+    a->view_range = 6; a->x = a->y = 20; a->grid_x = a->grid_y = 20;
+    a->layer = 1;
+    memset(cells, 0, sizeof cells); actor_explore(a);
+    assert(cells[20 * 40 + 20].view == 10);
+    assert(cells[20 * 40 + 22].view == 1); // 距離正好r*64-256，不是內圈。
+    assert(cells[20 * 40 + 14].view == 1 && cells[20 * 40 + 26].view == 0);
+    Actor occupant = {.object_kind = 30};
+    cells[20 * 40 + 22].actor = &occupant;
+    actor_explore(a); assert(cells[20 * 40 + 22].view == 10);
+    cells[20 * 40 + 22].view = 0; occupant.object_kind = 29;
+    actor_explore(a); assert(cells[20 * 40 + 22].view == 1);
+    cells[20 * 40 + 20].view = 200;
+    actor_explore(a); assert(cells[20 * 40 + 20].view == 200);
+    memset(cells, 0, sizeof cells); a->layer = 14;
+    actor_explore(a); assert(cells[20 * 40 + 30].view == 1);
+    memset(cells, 0, sizeof cells); scene_client.ready = 0;
+    actor_explore(a); assert(!cells[20 * 40 + 20].view);
+    scene_client.ready = 1;
+    Actor other = *a; other.grp++;
+    actor_explore(&other); assert(!cells[20 * 40 + 20].view);
+    // 光淡出／移除後，每拍管理器不偷偷重建；只有模板入口能再建立。
+    a->act = ACT_DEAD; light_tick(&fixture);
+    assert(light_of(a)->dying);
+    for (int i = 0; i < 70; i++) light_tick(&fixture);
+    assert(!light_of(a));
+    a->act = ACT_NONE; light_tick(&fixture); assert(!light_of(a));
+    actor_setup(a, &d); assert(light_of(a));
+    light_clear();
+    actors[0] = saved_actor; actor_count = saved_count;
+    unit_scene = saved_scene; scene_client = saved_client;
+    roles[0] = saved_role; role_count = saved_roles;
+}
+
 static void character_template_candidates_test(void) {
     // 假模型快取讓測試走真實actor_setup，不需建立SDL視窗或載入紙娃娃。
     RoleSlot saved = roles[0];
@@ -2141,6 +2204,7 @@ int main(void) {
     character_skill_runtime_test();
     character_skill_index_test();
     character_template_candidates_test();
+    character_template_environment_test();
     character_movement_speed_test();
     character_direction_test();
     character_rotation_cooldown_test();
@@ -2257,6 +2321,7 @@ int main(void) {
     assert(roledef_find(204) && !roledef_find(204)->beast && !roledef_find(204)->air);
     // RoleMdl.rmd的分組與角色ID無關，第一列ID29必須取得第一組57招。
     const RoleDef *template = roledef_find(29);
+    assert(template && template->model_type == 65535);
     assert(template && template->skill_count == 57 && template->skill_ids[0] == 22 && template->skill_ids[56] == 674);
     assert(roledef_find(206)->skill_count == 34 && roledef_find(206)->skill_ids[0] == 167);
     const RoleDef *crow = roledef_find(1003);

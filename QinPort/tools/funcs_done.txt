@@ -229,7 +229,7 @@
 00469630 light.c（空）
 00469650 light_set
 00469780 weather_tick 閃電打雷
-00486480 light_tick（角色的光）
+00486480 actor_light_init
 004cdaf0 parse_models（光源那格）
 0044aff0 main()（啟動：平台初始化＋載入 MethodMdl／MethodUnit_Mdl／RoleMdl／BeastieMdl／PropMdl／RoleEffectMdl／TriBldMdl、Dlg\Chat.Dlg；指令列 -nosound、-skipmovie）
 0044e410 weather.c wx 初值（CGodBase 建構：晴、1000）

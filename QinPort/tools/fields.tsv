@@ -823,5 +823,7 @@ CCharactor	+0x6b	所屬場景的格子表	Actor.bound_scene->cells
 CCharactor	+0x58	物件死亡／移除旗標，和死亡動畫不同；破壞前先清占位	Actor.object_dead
 CDynamicObj	+0x3c1	方形占位邊長，範圍-(size-1)/2至size/2	Actor.body_size／actor_place／actor_unoccupy
 SceneCell	+0xc	角色占位的16-bit物件識別，ffff無	Cell.actor（NULL無占位；單機Actor指標承接）
-RoleMdl\t+0x12c\t欄30模板組別；模板套用直接寫入、不經換組setter\tRoleDef.group／Actor.grp
-RoleMdl\t+0x140\t欄35反擊技能；65535保留原值，零及負數直接覆寫\tRoleDef.counter_skill／Actor.counter_skill
+RoleMdl	+0x12c	欄30模板組別；模板套用直接寫入、不經換組setter	RoleDef.group／Actor.grp
+RoleMdl	+0x140	欄35反擊技能；65535保留原值，零及負數直接覆寫	RoleDef.counter_skill／Actor.counter_skill
+RoleMdl	+0x22	模板基底類型的低16位；普通RoleMdl建構固定ffff，文字欄4是字串不是此欄	RoleDef.model_type
+CCharactor	+0x5c	模板+0x22低16位，不等於物件種類+0x67	Actor.model_type

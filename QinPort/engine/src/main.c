@@ -278,6 +278,7 @@ typedef struct Actor {
     int dynamic_active, reverse_playback;
     const Scene *bound_scene;
     int grid_x, grid_y, grid_valid, occupancy_removed, object_dead, object_kind;
+    uint16_t model_type;
     int corrected_x, corrected_y;
     int animation_target, animation_dir;
     int shown_seq, shown_ready, previous_target;
@@ -1067,15 +1068,43 @@ static Actor *scene_client_actor(const SceneClient *c) {
     return actors[c->controlled].role ? &actors[c->controlled] : NULL;
 }
 
-// Poq.exe 0x46ebd0：比較操控角色的 +0x339 組別；沒有角色時回假。
+// Poq.exe 0x46ebd0／0x443760：比較操控角色的 +0x339 組別；沒有角色時回假。
 // 原版成功查找後再查一次；單機陣列查詢沒有副作用，沿用同樣順序。
 static inline int scene_client_group(const SceneClient *c, int group) {
     if (!scene_client_actor(c)) return 0;
     return scene_client_actor(c)->grp == group;
 }
 
-static void actor_skills_init(Actor *a);
+// Poq.exe 0x489380：只揭開操控角色同組；上層擴大半徑，迴圈右／下界不含端點。
+static void actor_explore(Actor *a) {
+    const Scene *s = a->bound_scene;
+    if (!scene_client.ready || !scene_client.scene || !s || !s->cells ||
+        s != scene_client.scene || !scene_client_group(&scene_client, a->grp)) return;
+    int r = a->view_range;
+    if (a->layer > 10) r += a->layer == 14 ? 8 : a->layer == 16 ? 12 : 4;
+    int gx = a->grid_valid ? a->grid_x : (int)a->x;
+    int gy = a->grid_valid ? a->grid_y : (int)a->y;
+    int wx = (int)(a->x * 64), wy = (int)(a->y * 64);
+    for (int x = gx - r; x < gx + r; x++) for (int y = gy - r; y < gy + r; y++) {
+        if (x < 0 || y < 0 || x >= s->w || y >= s->h) continue;
+        double dx = (double)x * 64 - wx, dy = (double)y * 64 - wy;
+        int distance = (int)sqrt(dx * dx + dy * dy);
+        if (distance > r * 64) continue;
+        Cell *c = &s->cells[y * s->w + x];
+        int level = 1;
+        if (distance < r * 64 - 256) level = 10;
+        else if (distance < r * 64 - 128 && c->actor &&
+                 c->actor->object_kind >= 30 && c->actor->object_kind <= 100) level = 10;
+        // shortcut: SDL每畫面重畫，直接提高格子探索值；CMapDialog表面／探索通知接齊時補通知，
+        // 不用原版背景髒矩形，也不把尚未移植的小地圖刷新入口標完成。
+        if (c->view < level) c->view = level;
+    }
+}
 
+static void actor_skills_init(Actor *a);
+static int actor_light_init(const Actor *a);
+
+// Poq.exe 0x4862e0：套用角色模板；狀態103先啟用，再寫模型種類、組別、光源、占位與探索。
 static void actor_setup(Actor *a, const RoleDef *d) {
     // 新角色的候選初值屬於建構；重套模板不可先清掉既有候選。
     if (!a->def) {
@@ -1098,11 +1127,14 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     a->flags = 0;
     a->role = role_for(d);
     a->def = d;
+    a->model_type = d->model_type;
+    actor_light_init(a);
     a->seek_adjust = 0;
     a->view_range = 12;
     actor_size_set(a, d->size < 7 ? 1 : d->size - 5);
     if (a->bound_scene == unit_scene && a->grid_valid)
         actor_place(a, a->grid_x, a->grid_y, 1);
+    actor_explore(a);
     a->idle = d->idle;
     a->walk = d->walk;
     a->fidle = d->fight_idle;
@@ -1112,7 +1144,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     if (d->scale != 65535) a->scale = d->scale;
     actor_speed_update(a);
     // 模板的ffff表示不覆寫，並非清除；-1及0則照值寫入。
-    // shortcut: 模板光源仍由每拍light_tick建立，探索刷新及模型類型尚未接齊；完整入口完成時改同步初始化。
+    // shortcut: 探索的外部小地圖通知仍待CMapDialog，角色格子探索已同步更新。
     if (d->counter_skill != 65535) a->counter_skill = d->counter_skill;
     for (int i = 0; i < 4; i++)
         if (d->candidate[i] != 65535) a->candidate[i] = d->candidate[i];
@@ -2122,6 +2154,7 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
     switch (status) {
     case 8:
         actor_set_flags(a, 0x20000, on != 0);
+        if (!on) actor_light_init(a);
         break;
     case 13:
         a->counter_skill = on ? 0 : -1;
@@ -2579,7 +2612,7 @@ static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
 // 角色每拍的聲音和腳印（Poq.exe 0x486ed0）：千分之一播平時／戰鬥聲音；走路時每 max((15 − A)×2, 10) 拍腳步聲，
 // 腳數 6 用 0x218、軟地（地面種類 3）0x51、其他 0x50；角色大小 1、兩隻腳在軟地上離上個腳印 x 或 y 超過 32 就踩一個，左右腳輪流
 // shortcut: 音效原版依位置算音量（0x4804a0），這裡只播主角附近 12 格內的；程序标识 ≠ 50 的依場景表隨機放單位 0x17（0x663ed8）、
-// 每 20 拍揭開地圖（0x489380）、騎乘（0x443760）時不出聲都還沒做
+// 騎乘時不出聲仍待接入；探索已交固定拍更新。
 // Poq.exe 0x575ae0：採樣每個部件當前幀，離地高度以世界X/Y各扣2z承接。
 static void actor_illusion_sample(Actor *a) {
     const Role *r = a->role;
@@ -2600,6 +2633,7 @@ static void walk_fx(Actor *a, const Scene *s, Uint32 tick) {
     const RoleDef *d = a->def;
     if (!d || !a->role || !alive(a)) return;
     actor_illusion_sample(a);
+    if (a->direction_clock % 20 == 1) actor_explore(a);
     int near = fabsf(a->x - actors[0].x) < 12 && fabsf(a->y - actors[0].y) < 12;
     int snd = a->fight ? d->snd_fight : d->snd_idle;
     if (snd && snd != 0xffff && rand() % 1000 == 100 && near) audio_sfx(snd);
@@ -5259,6 +5293,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     prefetch_scene(scene, hero);
     air_enter(scene);
     scene_client.ready = 1;
+    for (int i = 0; i < actor_count; i++) if (actors[i].role) actor_explore(&actors[i]);
     return 1;
 }
 
