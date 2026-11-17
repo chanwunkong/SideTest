@@ -701,7 +701,7 @@ CCharactor	+0x513	#UPDWTYPE／0x52a更新的武器種類byte，僅存低8位	Act
 CCharactor	+0x51c	殘影模式；1隨MethodMain綁定／解除設第6修正，2隨動態11進入／退出設第6修正	Actor.trail_mode／actor_method_bound／actor_trail_enter／actor_trail_exit
 CCharactor	+0x524	目前縮放量；模板比例ffff時逐拍往第4修正值移1，每20單位為一倍尺寸	Actor.scale／actor_scale_tick
 CCharactor	+0x528	死亡模式byte	待角色移除
-CCharactor	+0x529	活動旗標，角色更新時0轉1	待角色更新
+CCharactor	+0x529	首次角色更新鎖存，停用也會0轉1；不會重新啟用角色	Actor.activity_latched
 CCharactor	+0x531	記住的命令代號，-1無，1/2清除時給延遲50	Actor.remembered[0]
 CCharactor	+0x535	記住命令參數1，清除時保留	Actor.remembered[1]
 CCharactor	+0x539	記住命令參數2，清除時保留	Actor.remembered[2]
@@ -726,7 +726,7 @@ CCharactor	+0x599	光環來源SkillUnit指標	待光環
 CCharactor	+0x59d	修正目的格X快取	Actor.corrected_x（actor_bind_scene）
 CCharactor	+0x5a1	修正目的格Y快取	Actor.corrected_y（actor_bind_scene）
 CCharactor	+0x5a5	清記住命令後的延遲，原命令1/2為50否則0；重送及扣減尚待主分派	Actor.remember_delay
-CCharactor	+0x5a9	角色活動啟用byte	待角色更新
+CCharactor	+0x5a9	角色活動啟用byte，動態／維護早退門檻；與動態路徑就緒分開	!Actor.activity_disabled（反值保存，零初始化沿用現有角色啟用契約）
 CCharactor	+0x5aa	8個7bytes頭頂／上飄文字槽的陣列指標	Actor.overhead[8]
 CCharactor	+0x5ae	上次位置同步X，初值-100	Actor.command_world_x
 CCharactor	+0x5b2	上次位置同步Y，初值-100	Actor.command_world_y

@@ -277,6 +277,8 @@ typedef struct Actor {
     int dir, facing, moving, speed; // dir為畫面方向，facing保存原版有號面向值
     int fight_speed, speed_threshold, dynamic_state;
     int dynamic_active, reverse_playback;
+    // shortcut: 啟用byte反值保存使零初始化沿用現有啟用契約；完整建立／移除接齊後核對啟停來源。
+    int activity_disabled, activity_latched; // 首次更新鎖存與路徑就緒分開。
     int dynamic_command[3], dynamic_flag_snapshot;
     int dynamic_enter_tick, interpolation_left, dynamic_reported_state;
     float interpolation_x, interpolation_y, interpolation_dx, interpolation_dy;
@@ -2802,8 +2804,9 @@ static void actor_animation_tick(Actor *a) {
 }
 
 // 角色更新中已核對的維護分支：冷卻先扣，空中非靜止且未旋轉時整段略過。
-// shortcut: 動態基底／動畫仍由固定拍既有入口推進；完整角色更新接齊後合併活動門檻與光環。
+// shortcut: 動態基底／動畫仍由固定拍既有入口推進；完整角色更新接齊後統一次序並補光環。
 static void actor_maintenance_tick(Actor *a) {
+    if (a->activity_disabled) return;
     actor_cooldown_tick(a);
     if (!(a->flags & 0x400) && (a->flags & 0x200) && a->dynamic_state != 1) return;
     // 原版維護階段先轉向再扣修正；播放本體時不能再轉一次。
@@ -3160,14 +3163,21 @@ static void actor_charge_tick(Actor *a) {
 }
 
 // 角色固定拍先跑動態分派，再由動態基底推高度與共用時鐘。
-// shortcut: 此處整合21/22/31/32；11、活動byte與動畫虛擬呼叫
-// 尚未齊備，完整角色更新接齊後合併，不把主入口標成完成。
-static void actor_motion_tick(Actor *a) {
-    if (a->dynamic_state == 1) actor_yield_tick(a);
-    actor_rush_update(a);
-    actor_knock_tick(a);
-    actor_charge_tick(a);
-    actor_height_tick(a);
+// shortcut: 此處整合21/22/31/32；11與動畫虛擬呼叫尚未齊備，
+// 完整角色更新接齊後合併，不把主入口標成完成。
+static int actor_motion_tick(Actor *a) {
+    int enabled = !a->activity_disabled;
+    if (enabled) {
+        if (a->dynamic_state == 1) actor_yield_tick(a);
+        actor_rush_update(a);
+        actor_knock_tick(a);
+        actor_charge_tick(a);
+        a->dynamic_reported_state = a->dynamic_state; // 單機共用物件，不產生狀態同步封包。
+        actor_height_tick(a);
+    }
+    // 原版停用也會鎖存首次更新，但回傳進入時的啟用值；不能當成重新啟用。
+    if (!a->activity_latched) a->activity_latched = 1;
+    return enabled;
 }
 
 // 原版受擊命令5傳WhatDir8(角色, 招式來源)，方向從來源指向角色。

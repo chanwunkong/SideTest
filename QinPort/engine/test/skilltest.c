@@ -702,6 +702,24 @@ static void character_rush_test(void) {
     unit_scene=saved_unit_scene; actor_count=saved_count; actor_logic_tick=saved_tick;
 }
 
+static void character_activity_test(void) {
+    Actor a = {.activity_disabled=1, .dynamic_state=32,
+        .dynamic_reported_state=11, .interpolation_left=3,
+        .z=8, .vz=4, .zmax=20, .direction_clock=9, .cool=3};
+    assert(!actor_motion_tick(&a));
+    assert(a.activity_latched && a.activity_disabled);
+    assert(a.interpolation_left==3 && a.z==8 && a.direction_clock==9);
+    assert(a.dynamic_reported_state==11);
+    actor_maintenance_tick(&a);
+    assert(a.cool==3); // 停用在冷卻之前早退，不能用路徑就緒值代替啟用byte。
+    a.activity_disabled=0; a.dynamic_state=1; a.vz=0; a.z=0;
+    assert(actor_motion_tick(&a));
+    assert(a.direction_clock==10 && a.dynamic_reported_state==1);
+    assert(a.activity_latched && !a.activity_disabled);
+    a.activity_disabled=1;
+    assert(!actor_motion_tick(&a) && a.direction_clock==10);
+}
+
 static void character_motion_order_test(void) {
     const Scene *saved = unit_scene;
     Cell cells[4];
@@ -3397,6 +3415,7 @@ int main(void) {
     character_knock_test();
     character_charge_test();
     character_motion_order_test();
+    character_activity_test();
     character_height_interpolation_test();
     character_air_status_test();
     character_speed_memory_test();

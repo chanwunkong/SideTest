@@ -715,7 +715,7 @@
 00488d20	當前速度非0且沒有MethodMain才能移動；actor_can_move接actor_tick統一移動入口
 00488d50	模板速度0或當前速度>0或最大距離<3時回Enable原值，否則0；actor_skill_enabled接怪物選招與左手施放
 00488d90	平台資源預讀：同參數預讀紙娃娃兩套精靈，由role_load／preload_roles及動畫快取承接
-00488dd0	todo：actor_maintenance_tick已接冷卻先扣、無0x400且有0x200且非靜止時略過整段修正／縮放／重算；修正每10拍共用direction_clock，不另起相位或落地補扣；方向漸轉已移入維護的冷卻／空中門檻之後、修正倒數之前，動畫播放不再轉向；仍缺活動啟用門檻、動畫與高度前後順序統一及100拍光環命令接收端，均為同類別／引擎基礎；特殊倒數介面暫停通知才等CGameApp
+00488dd0	todo：actor_maintenance_tick已接冷卻先扣、無0x400且有0x200且非靜止時略過整段修正／縮放／重算；修正每10拍共用direction_clock，不另起相位或落地補扣；方向漸轉已移入維護的冷卻／空中門檻之後、修正倒數之前，動畫播放不再轉向；已接活動停用在冷卻之前早退；仍缺動畫與高度前後順序統一及100拍光環命令接收端，均為同類別／引擎基礎；特殊倒數介面暫停通知才等CGameApp
 00489340	索引無呼叫者；依本輪規則略過，不臆測用途
 0048a700	main.c actor_command：完整命令接收；記住／目標先行副作用、可用性、取消、四欄去重、命令1..19及102；種類24陷阱直接設目標、不走角色敵對通知；地點／目標技能交固定拍消費，場景無劇情角色按object_id查找
 0048af20	紙娃娃兩套精靈資源卸載轉接，由roles_clear／場景生命週期承接
@@ -730,7 +730,7 @@
 0048bdd0	狀態0x523封包送本機客戶端，單機共用Actor略過副本同步
 0048bed0	索引無呼叫者；依本輪規則略過，不臆測用途
 0048bf60	索引無呼叫者；依本輪規則略過，不臆測用途
-0048c050	角色每拍動態狀態／虛擬更新、位置改變同步及活動旗標；actor_motion_tick已接21/22/31/32先推動態再推高度；32越界工具已按OmUtil匯出本體校正，仍缺完整11、活動byte、動畫虛擬更新與場景活動通知，同類別／引擎基礎todo
+0048c050	角色每拍動態狀態／虛擬更新、位置改變同步及活動旗標；actor_motion_tick已接21/22/31/32先推動態再推高度；32越界工具已按OmUtil匯出本體校正，已接獨立活動byte、停用仍鎖存首次更新及回傳進入時啟用值；仍缺完整11、動畫虛擬更新與場景活動通知，同類別／引擎基礎todo
 0048c150	actor_name_set：僅SInit種類10..16可複製事件ID，不更新顯示名稱；actor_setup接ONT來源，原始容量64 bytes
 0048c190	main.c actor_animation_select／actor_animation_target：指定序列與帶符號方向餘數、擊退／挨打、跑步門檻與旗標、戰鬥20..30保留目標；接actor_tick/action_tick及繪製／矩形查詢，狀態來源以現有fight/Buff/knock橋接
 0048d2c0	客戶端狀態byte解碼：低7位ID、高位啟用值；唯一呼叫者為已略過同步分派，單機略過封包轉接；完整狀態設置仍todo
@@ -835,7 +835,7 @@
 004967d0	actor_interpolate：-1取占格與A+C/10；整數歐氏距離除float速度，剩餘拍截斷但增量除未截斷拍數；接高度下降，單機共用服務端move_remaining門檻，回放模式10方向追趕不實作
 004b7d60	actor_height_fraction：以float算比例、半數向正方向取整、原值減結果，機碼確認EAX回扣除整數；供跳躍上升／下降共用
 00497c20	CDynamicObj基底活動getter固定回1，actor_height_tick直接承接常數，不新增空包裝
-00496110	todo：actor_motion_tick先跑actor_rush_update(21/22)、actor_knock_tick(31)、actor_charge_tick(32)，再由actor_height_tick算高度／共用時鐘；32越界工具已按OmUtil匯出本體校正，已接1讓路消費端；仍缺11尋路步進與完整活動門檻，屬同類別與引擎基礎
+00496110	todo：actor_motion_tick先跑actor_rush_update(21/22)、actor_knock_tick(31)、actor_charge_tick(32)，再由actor_height_tick算高度／共用時鐘；32越界工具已按OmUtil匯出本體校正，已接1讓路消費端；已接外層活動byte及狀態同步快照；仍缺11尋路步進，屬同類別與引擎基礎
 00494a20	actor_rush_tick：有剩餘拍只做插值，末拍不退出；下拍用(1,1,0,0)強制靜止，先角色退出、清腳印而不清舊三參數，21/22不重選動畫；接所有角色固定拍
 00497cd0	actor_raise_layer：層<11轉11、12轉13、14/16轉15，其他不變；接跳躍落點計算
 004945d0	main.c actor_charge_tick：先IsExceedDest再側向地形、逐格占位、最後插值；OmUtil匯出跳表核對為任一行進軸到達即成立且含相等，非法方向回0；保留混合格／世界座標算方向、碰撞不消耗插值及末拍後一拍退出
