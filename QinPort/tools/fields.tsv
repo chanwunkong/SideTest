@@ -856,3 +856,4 @@ CDynamicObj	+0x3e5	水平插值每拍世界X增量；除以未截斷float拍數	
 CDynamicObj	+0x3e9	水平插值每拍世界Y增量	Actor.interpolation_dy
 CDynamicObj	+0xc3	動態11尋路目的地X；狀態31有counter時返回此目的地，非+0x97位置快取	Actor.dynamic_destination_x
 CDynamicObj	+0xc7	動態11尋路目的地Y；狀態31有counter時返回此目的地，非+0x9b位置快取	Actor.dynamic_destination_y
+CDynamicObj	+0x3d9	動態32大於0才嘗試前移占格；最後一拍扣0仍留32，下一拍才退出，不補末端位置	Actor.interpolation_left

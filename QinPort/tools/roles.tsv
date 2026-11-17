@@ -730,7 +730,7 @@
 0048bdd0	狀態0x523封包送本機客戶端，單機共用Actor略過副本同步
 0048bed0	索引無呼叫者；依本輪規則略過，不臆測用途
 0048bf60	索引無呼叫者；依本輪規則略過，不臆測用途
-0048c050	角色每拍動態狀態／虛擬更新、位置改變同步及活動旗標；actor_motion_tick已接21/22/31先推動態再推高度，仍缺完整動態11/32、活動byte、動畫虛擬更新與場景活動通知，同類別／引擎基礎todo
+0048c050	角色每拍動態狀態／虛擬更新、位置改變同步及活動旗標；actor_motion_tick已接21/22/31/32先推動態再推高度；32越界工具有shortcut，仍缺完整11、活動byte、動畫虛擬更新與場景活動通知，同類別／引擎基礎todo
 0048c150	actor_name_set：僅SInit種類10..16可複製事件ID，不更新顯示名稱；actor_setup接ONT來源，原始容量64 bytes
 0048c190	main.c actor_animation_select／actor_animation_target：指定序列與帶符號方向餘數、擊退／挨打、跑步門檻與旗標、戰鬥20..30保留目標；接actor_tick/action_tick及繪製／矩形查詢，狀態來源以現有fight/Buff/knock橋接
 0048d2c0	客戶端狀態byte解碼：低7位ID、高位啟用值；唯一呼叫者為已略過同步分派，單機略過封包轉接；完整狀態設置仍todo
@@ -789,7 +789,7 @@
 004b8190	Chat.Dlg字串取值後保存在管理器暫存；以現有res_dlg及呼叫者緩衝區承接字串資源工具，不複製CString管理器
 0048d330	出手綁定及動畫延遲／間隔：攻速用float比例，零分母改1；NPC組乘倍率、其他組間隔加隨機；既有attack_speed／action_tick已更正比例與組別；shortcut仍於動作結束裝冷卻，NPC種類60免間隔及第6修正／MethodMain完整綁定尚待同類別狀態
 00496ac0	寫動態移動嘗試結果+0x3f1；總表無呼叫者，依規則skip，不新增無遊戲呼叫端setter
-004942d0	todo：actor_dynamic_enter已接共用拍數／有效速度、21/22落點／跳躍、31反向／速度／反播及32三倍速／插值／面向；11仍橋接目的地行走，待同類別完整尋路進入
+004942d0	todo：actor_dynamic_enter已接共用拍數／有效速度、21/22落點／跳躍、31反向／速度／反播及32三倍速／插值／面向；32更新已接但越界工具有shortcut；11仍橋接目的地行走，待同類別完整尋路進入
 00494950	actor_dynamic_exit：標活動；11/31清反播；22設下降-5/上限0再走21清空中旗標、有效格且物件層>10時取回地面層；不改行為狀態與目前高度
 00575cb0	actor_illusion_begin：有效有序列的各本體部件建立獨立殘影容器，參數2/12/2/1；第6修正及移動進入呼叫
 00576b90	actor_illusion_end：逐個有效且有序列部件清殘影容器；第6修正解除／到期及場景釋放接入
@@ -835,7 +835,7 @@
 004967d0	actor_interpolate：-1取占格與A+C/10；整數歐氏距離除float速度，剩餘拍截斷但增量除未截斷拍數；接高度下降，單機共用服務端move_remaining門檻，回放模式10方向追趕不實作
 004b7d60	actor_height_fraction：以float算比例、半數向正方向取整、原值減結果，機碼確認EAX回扣除整數；供跳躍上升／下降共用
 00497c20	CDynamicObj基底活動getter固定回1，actor_height_tick直接承接常數，不新增空包裝
-00496110	todo：actor_motion_tick先跑actor_rush_update(21/22)及actor_knock_tick(31)，再由actor_height_tick算高度／共用時鐘；修正跳躍中點當拍下降及退出當拍落地；仍缺1避讓／11尋路步進／32衝刺與完整活動門檻，屬同類別與引擎基礎
+00496110	todo：actor_motion_tick先跑actor_rush_update(21/22)、actor_knock_tick(31)、actor_charge_tick(32)，再由actor_height_tick算高度／共用時鐘；32越界工具仍近似，仍缺1避讓／11尋路步進與完整活動門檻，屬同類別與引擎基礎
 00494a20	actor_rush_tick：有剩餘拍只做插值，末拍不退出；下拍用(1,1,0,0)強制靜止，先角色退出、清腳印而不清舊三參數，21/22不重選動畫；接所有角色固定拍
 00497cd0	actor_raise_layer：層<11轉11、12轉13、14/16轉15，其他不變；接跳躍落點計算
-004945d0	todo：動態32逐格越過目的地判斷、相鄰方向通行與占格前移、剩餘插值；進入初始化已在actor_dynamic_enter，更新尚未移植，不能稱等別的系統
+004945d0	todo：main.c actor_charge_tick已接固定拍，先越界／側向地形再逐格占位，最後插值，遇阻及末拍後一拍交共用靜止；保留混合格／世界座標算側向方向；IsExceedDest不在現有反編譯索引，以面向投影嚴格越過中心近似，待取得OmUtil本體核對門檻，不標完整入口done

@@ -892,7 +892,7 @@ static void talk_face(Actor *h, Actor *n) {
 
 // 往畫面方向 (sdx, sdy) 走 px 個畫面像素。畫面上各方向等速（格子寬 64 高 32，若照格子等速，上下會只有左右一半快）
 static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px) {
-    if (h->dynamic_state == 21 || h->dynamic_state == 22 || h->dynamic_state == 31) return;
+    if (h->dynamic_state == 21 || h->dynamic_state == 22 || h->dynamic_state == 31 || h->dynamic_state == 32) return;
     float len = sqrtf(sdx * sdx + sdy * sdy);
     if (len < 0.01f) return;
     sdx /= len;
@@ -963,7 +963,7 @@ static int actor_can_move(const Actor *a);
 
 // 一拍的角色更新：往畫面方向 (mx, my) 走；原版每 B 拍移動 A + C/10 像素（速度對照表）
 static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick) {
-    if (a->dynamic_state == 21 || a->dynamic_state == 22 || a->dynamic_state == 31) return;
+    if (a->dynamic_state == 21 || a->dynamic_state == 22 || a->dynamic_state == 31 || a->dynamic_state == 32) return;
     a->moving = 0;
     // shortcut: 現有移動迴圈承接平常／移動狀態，跳躍等完整動態狀態仍待移植。
     int state = mx * mx + my * my > 0.01f ? 11 : 1;
@@ -2298,7 +2298,6 @@ static int actor_dynamic_retry(const Actor *a) {
 
 // 動態進入：共用拍數與速度在各分支之前；角色殘影先於基底進入。
 // shortcut: 動態11仍把目的地交既有行走迴圈，完整尋路步進移植後替換此分支。
-// shortcut: 動態32已初始化速度／插值／方向，逐格碰撞更新仍待同類別分派接齊。
 static void actor_dynamic_enter(Actor *a) {
     actor_trail_enter(a);
     a->dynamic_enter_tick = (int)actor_logic_tick;
@@ -2963,12 +2962,53 @@ static void actor_knock_tick(Actor *a) {
     actor_interpolation_tick(a);
 }
 
+// shortcut: OmUtil 的 IsExceedDest 本體不在現有反編譯索引；以面向的投影嚴格越過
+// 占格中心判斷。取得 OmUtil 本體後核對斜向門檻與相等邊界。
+static int actor_passed_cell_center(const Actor *a) {
+    int d = a->facing & 7;
+    return (ax64(a) - (a->grid_x * 64 + 32)) * GRID_X[d] +
+           (ay64(a) - (a->grid_y * 64 + 32)) * GRID_Y[d] > 0;
+}
+
+// 動態32先檢查越界／相鄰通行，再推占格，最後消費插值。
+// shortcut: 呼叫流程已接入，但越界工具仍為上述近似，不標原版更新入口完成。
+// 保留原版以「格座標、該格世界中心」算側向方向的混合單位，不能改成位置到中心。
+static void actor_charge_tick(Actor *a) {
+    if (a->dynamic_state != 32) return;
+    if (actor_passed_cell_center(a)) {
+        int x = ax64(a) / 64, y = ay64(a) / 64;
+        int side = dir_of(x, y, x * 64 + 32, y * 64 + 32, 8);
+        int next = a->facing + 1 < 8 ? a->facing + 1 : 0;
+        int prev = a->facing - 1 < 0 ? 7 : a->facing - 1;
+        if (side == next || side == prev) {
+            int cx = x, cy = y;
+            move_dir(&cx, &cy, a->facing, 1);
+            const Cell *c = cell_at(cx, cy);
+            // 側向只查地形層；角色占位交後面的actor_place判斷。
+            if (!c || !cell_pass(c, a->layer)) {
+                actor_dynamic_command(a, 1, 0, 0, 0);
+                return;
+            }
+        }
+        if (a->interpolation_left > 0) {
+            move_dir(&x, &y, a->facing, 1);
+            if (!actor_place(a, x, y, 0)) {
+                actor_dynamic_command(a, 1, 0, 0, 0);
+                return;
+            }
+        }
+    }
+    if (a->interpolation_left < 1) actor_dynamic_command(a, 1, 0, 0, 0);
+    else actor_interpolation_tick(a);
+}
+
 // 角色固定拍先跑動態分派，再由動態基底推高度與共用時鐘。
-// shortcut: 此處只整合已完成的21/22/31；11/32、活動byte與動畫虛擬呼叫
+// shortcut: 此處整合21/22/31/32；11、活動byte與動畫虛擬呼叫
 // 尚未齊備，完整角色更新接齊後合併，不把主入口標成完成。
 static void actor_motion_tick(Actor *a) {
     actor_rush_update(a);
     actor_knock_tick(a);
+    actor_charge_tick(a);
     actor_height_tick(a);
 }
 

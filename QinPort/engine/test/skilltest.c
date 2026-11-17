@@ -401,6 +401,53 @@ static void character_motion_order_test(void) {
     unit_scene=saved;
 }
 
+static void character_charge_test(void) {
+    const Scene *saved = unit_scene;
+    Cell cells[100];
+    for (int i=0;i<100;i++) cells[i]=(Cell){.walk=1,.layer=1};
+    Scene scene={.w=10,.h=10,.cells=cells}; unit_scene=&scene;
+    RoleDef d={0};
+    Actor a={.def=&d,.role=&empty_test_role,.speed=20,.fight_speed=20,
+             .dynamic_state=1,.layer=1,.body_size=1};
+    actor_position(&a,3,3); assert(actor_place(&a,3,3,0));
+    actor_dynamic_command(&a,32,7,3,0);
+    int left=a.interpolation_left;
+    actor_motion_tick(&a); // 中心相等不推占格，先消費一拍插值。
+    assert(a.grid_x==3 && a.interpolation_left==left-1 && a.dynamic_state==32);
+    float x=a.x;
+    actor_tick(&a,&scene,1,0,0); // 一般行走不得覆寫32或重算其三倍速。
+    assert(a.dynamic_state==32 && a.x==x && a.interpolation_left==left-1);
+    actor_motion_tick(&a);
+    assert(a.grid_x==4 && a.interpolation_left==left-2);
+    assert(cell_occupant(3,3)==NULL && cell_occupant(4,3)==&a);
+    // 在下一格被擋時不消費插值、不把世界位置吸回格中心。
+    cells[3*10+5].walk=0;
+    a.x=4.75f; a.interpolation_x=304;
+    x=a.x; left=a.interpolation_left;
+    actor_motion_tick(&a);
+    assert(a.dynamic_state==1 && a.x==x && a.grid_x==4 && a.interpolation_left==left);
+    // 地形可通但被角色占住時，由正式占位入口拒絕，舊占格保留。
+    cells[3*10+5].walk=1;
+    Actor blocker={.body_size=1,.layer=1};
+    actor_position(&blocker,5,3); assert(actor_place(&blocker,5,3,0));
+    a.dynamic_state=32;
+    actor_charge_tick(&a);
+    assert(a.dynamic_state==1 && a.grid_x==4 && a.x==x);
+    assert(cell_occupant(5,3)==&blocker && cell_occupant(4,3)==&a);
+    actor_unoccupy(&blocker);
+    actor_unoccupy(&a);
+    a.dynamic_state=32; a.facing=7; a.interpolation_left=1;
+    a.x=3.5f; a.y=3.5f;
+    assert(actor_place(&a,3,3,0));
+    a.interpolation_x=224; a.interpolation_y=224;
+    a.interpolation_dx=1; a.interpolation_dy=0;
+    actor_motion_tick(&a);
+    assert(a.dynamic_state==32 && !a.interpolation_left && ax64(&a)==225);
+    actor_motion_tick(&a);
+    assert(a.dynamic_state==1 && ax64(&a)==225); // 下一拍才退出，不補目的地。
+    actor_unoccupy(&a); unit_scene=saved;
+}
+
 static void character_knock_test(void) {
     const Scene *saved = unit_scene;
     Cell cells[100];
@@ -2871,6 +2918,7 @@ int main(void) {
     character_dynamic_exit_test();
     character_rush_test();
     character_knock_test();
+    character_charge_test();
     character_motion_order_test();
     character_height_interpolation_test();
     character_air_status_test();
