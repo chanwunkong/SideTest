@@ -201,6 +201,27 @@ static void character_skill_commands_test(void) {
     // 種類24的陷阱也能按物件ID選中，且不走角色敵對通知。
     *a=base; t->object_kind=24;
     assert(actor_command(a,9,1,(int)t->object_id,0,0,1) && a->foe==t);
+    // 命令0xf：3格內直接說話請求並收尾；超過3格走向目標格；无对话（103）時命令保留。
+    t->object_kind=31; t->x=6.5f; *a=base; a->command[0]=15; a->command[1]=(int)t->object_id;
+    actor_skill_command_tick(a);
+    assert(talk_from==a && talk_to==t && a->command[0]==-1 && (a->dir+4)%8==t->dir); talk_from=talk_to=NULL;
+    *a=base; t->x=14.5f; actor_queue_command(a,15,(int)t->object_id,0,0); actor_skill_command_tick(a);
+    assert(!talk_to && a->command[0]==15 && a->dynamic_state==11 && a->dynamic_command[0]==14);
+    t->x=6.5f; *a=base; a->command[0]=15; a->command[1]=(int)t->object_id; a->modifier[0].value=0;
+    assert(buff_add(a,NULL,103,1,5,0)); actor_skill_command_tick(a);
+    assert(a->command[0]==15 && !talk_to);
+    // 目標不存在：收尾。命令0x11撿地上道具：2格內撿起來，不在範圍走過去。
+    *a=base; a->command[0]=15; a->command[1]=12345; actor_skill_command_tick(a); assert(a->command[0]==-1);
+    {
+        int sn=ground_n; Item it; assert(item_new(&it,60,-1,1,NULL)); it.amount=7;
+        ground_drop(&it,5.5f,5.5f); int gid=ground[ground_n-1].id; int m0=hero_money;
+        *a=base; a->command[0]=17; a->command[1]=gid; actor_skill_command_tick(a);
+        assert(a->command[0]==-1 && ground_n==sn && hero_money==m0+7);
+        ground_drop(&it,12.5f,5.5f); gid=ground[ground_n-1].id;
+        *a=base; a->command[0]=17; a->command[1]=gid; actor_skill_command_tick(a);
+        assert(a->command[0]==17 && a->dynamic_state==11 && ground_n==sn+1);
+        ground_n=sn;
+    }
     unit_scene=saved_scene; actors[0]=saved0; actors[1]=saved1; actor_count=saved_count;
     units[0]=saved_unit; unit_n=saved_n; actor_logic_tick=saved_tick;
 }
@@ -4585,11 +4606,6 @@ int main(void) {
     assert(zoom == zoom_keep);
     zoom_set(0); for (int k = 0; k < 9; k++) zoom_tick();
     assert(zoom == 0);
-    // 對話面對面 0x44caf0
-    actors[0].x = 5, actors[0].y = 5, actors[1].x = 7, actors[1].y = 5;
-    actors[0].moving = 1;
-    talk_face(&actors[0], &actors[1]);
-    assert(!actors[0].moving && (actors[0].dir + 4) % 8 == actors[1].dir);
     // 滑鼠 CUserInput：點擊指令 0x454f00、游標 0x455d60、速度鍵、地面痕跡 0x459840
     {
         Actor h, c;

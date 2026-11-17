@@ -979,15 +979,6 @@ static void face(Actor *a, float sdx, float sdy) {
     a->facing = DIR_MAP[a->dir];
 }
 
-// 對話開始：主角和 NPC 停下來面對面（0x44caf0）。
-// shortcut: 原版是 EasyRPG 經回呼表叫的（哪個劇情指令還沒查），這裡先在點 NPC 說話時做；只有一個方向的模型（+0x118 = 1）原版不轉，沒分
-static void talk_face(Actor *h, Actor *n) {
-    float dx = n->x - h->x, dy = n->y - h->y;
-    h->moving = n->moving = 0;
-    face(h, dx - dy, (dx + dy) / 2);
-    face(n, dy - dx, -(dx + dy) / 2);
-}
-
 // 往畫面方向 (sdx, sdy) 走 px 個畫面像素。畫面上各方向等速（格子寬 64 高 32，若照格子等速，上下會只有左右一半快）
 static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px) {
     if (h->dynamic_state == 21 || h->dynamic_state == 22 || h->dynamic_state == 31 || h->dynamic_state == 32) return;
@@ -2283,8 +2274,8 @@ struct MUnit;
 static int owner_trig(struct MUnit *u, const Trig *t, Uint32 tick);
 // 地上的道具
 #define MAX_GROUND 128
-static struct { Item it; float x, y; } ground[MAX_GROUND];
-static int ground_n, ground_want = -1;  // ground_want：主角正走過去撿的
+static struct { Item it; float x, y; int id; } ground[MAX_GROUND];  // id：命令0x11用的物件編號（原版CPropObj句柄）
+static int ground_n, ground_next_id = 1;
 static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = 沒有）
 #include "light.c"
 #define scene (*unit_scene)
@@ -4475,9 +4466,81 @@ static int actor_skill_in_range(int dx, int dy, int max, int min) {
     return dx <= max && dy <= max && (dx >= min || dy >= min);
 }
 
-// 技能／命令主分派的記住命令與8/9分支。
-// shortcut: 互動15..19尚未接本入口的接近／執行；接道具、建築及對話後補齊主分派。
-// 不在局部實作寫主入口完成位址。
+// 互動命令15..19的收尾與接近（0x489730 的 0x48a2f9／0x48a352）。
+static void actor_command_finish(Actor *a) { actor_dynamic_command(a, 1, 0, 0, 0); actor_cancel_command(a); }
+static void actor_interact_approach(Actor *a, int x, int y) {
+    if (a->dynamic_state == 11 && (int)actor_flags(a, 0x10000) == a->dynamic_flag_snapshot &&
+        a->dynamic_command[0] == x && a->dynamic_command[1] == y) return;
+    if (!actor_dynamic_retry(a)) { actor_command_finish(a); return; }
+    actor_command(a, 1, x, y, 0, 0, 0);
+}
+
+// 原版封包0x75（說話）／0x68（撿道具）的單機接收端。
+static Actor *talk_from, *talk_to;
+static void ground_pick(int g);
+static int ground_find(int id) {
+    for (int i = 0; i < ground_n; i++) if (ground[i].id == id) return i;
+    return -1;
+}
+
+// Poq.exe 0x489730 命令15..19：15對話、16進建築、17撿地上道具、18使用物件（0x81／0x8c）、19開箱（0x85）。
+// 都是先走到範圍內再送封包；單機把封包換成直接動作（說話請求交給主迴圈）。
+// shortcut: 物件編號 = Scene.objects 索引（原版是帶世代的句柄）；原版呼叫的 0x405597（距離類判斷，推 0x60 = 96 單位內）、
+// 0x4017f3／0x406181（控制權／句柄有效）來源在映像外，分別當距離判斷與恆真；建築名稱載入（封包0x142，CTriBld）與
+// 開箱／使用物件（封包0x8e）尚無接收系統，只做到定位、記 interaction 與收尾。
+static void actor_interact_tick(Actor *a) {
+    int c = a->command[0], sx = ax64(a) >> 6, sy = ay64(a) >> 6;
+    const Scene *sc = unit_scene;
+    if (c == 15) {
+        Actor *t = character_of(a->command[1]);
+        if (!t || is_foe(t, a)) { actor_command_finish(a); return; }
+        int tx = ax64(t) >> 6, ty = ay64(t) >> 6;
+        if (abs(sx - tx) > 3 || abs(sy - ty) > 3 || !line_clear(sx, sy, tx, ty, 3, 3)) { actor_interact_approach(a, tx, ty); return; }
+        Actor *from = a, *to = t;
+        if (a->grp > 60000) { a->search_link = 0; from = t; to = a; }  // 組60001以上：說話者與對象互換
+        else if (has_status(a, 0x67)) return;  // 无对话：等狀態解除，命令保留
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        // shortcut: 原版模板+0x118==1（單方向模型）不轉向，這裡都轉
+        actor_direction_set(t, dir_of(ax64(a), ay64(a), ax64(t), ay64(t), 8));
+        actor_body_apply(t, -1);
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        actor_direction_set(a, dir_of(ax64(t), ay64(t), ax64(a), ay64(a), 8));
+        actor_body_apply(a, -1);
+        talk_from = from; talk_to = to;
+        actor_command_finish(a);
+    } else if (c == 16) {
+        int tx = a->command[1], ty = a->command[2], idx = (unsigned short)a->command[3], near = 0;
+        for (int y = sy - 1; sc && y <= sy + 1; y++)
+            for (int x = sx - 1; x <= sx + 1; x++) {
+                const Cell *cl = cell_at(x, y);
+                if (cl && cl->building == idx && (cl->flags & 0x88) == 0x88) near = 1;
+            }
+        if (near && idx < sc->object_count && sc->objects[idx].m) {
+            a->interaction = (void *)&sc->objects[idx];
+            actor_command_finish(a);
+        } else actor_interact_approach(a, tx, ty);
+    } else if (c == 17) {
+        int g = ground_find(a->command[1]);
+        if (g < 0) { actor_command_finish(a); return; }
+        int tx = (int)ground[g].x, ty = (int)ground[g].y;
+        if (abs(sx - tx) > 2 || abs(sy - ty) > 2) { actor_interact_approach(a, tx, ty); return; }
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        actor_cancel_command(a);
+        ground_pick(g);
+        actor_command_finish(a);
+    } else {
+        int idx = a->command[1];
+        if (!sc || idx < 0 || idx >= sc->object_count || !sc->objects[idx].m) { actor_command_finish(a); return; }
+        const Object *o = &sc->objects[idx];
+        int tx = o->x, ty = o->y;
+        int ok = c == 18 ? abs(ax64(a) - (tx * 64 + 32)) <= 0x60 && abs(ay64(a) - (ty * 64 + 32)) <= 0x60
+                         : abs(sx - tx) <= 4 && abs(sy - ty) <= 4;
+        if (ok) actor_command_finish(a); else actor_interact_approach(a, tx, ty);
+    }
+}
+
+// Poq.exe 0x489730 技能／命令tick：記住命令重送、命令8/9施法追近、15..19互動（actor_interact_tick）。
+// 8/9追近的GetFleePos隱藏步長與NPC入戰全域選人同步的shortcut見內文。
 static void actor_skill_command_tick(Actor *a) {
     if (a->remembered[0] != -1 && memcmp(a->remembered, a->command, sizeof a->command)) {
         int c = a->remembered[0];
@@ -4495,6 +4558,7 @@ static void actor_skill_command_tick(Actor *a) {
     }
     if (actor_command_idle(a) || !a->dynamic_active) return;
     int c = a->command[0];
+    if (c >= 15 && c <= 19) { actor_interact_tick(a); return; }
     if (c != 8 && c != 9) return;
     int id = a->command[1] == -1 ? a->right_id : a->command[1];
     if (c == 8) {
@@ -4544,7 +4608,7 @@ static void actor_skill_command_tick(Actor *a) {
         return;
     }
     if (a->dynamic_state == 11 && a->dynamic_command[0] == x && a->dynamic_command[1] == y) return;
-    if (!actor_dynamic_retry(a)) { actor_cancel_command(a); return; }
+    if (!actor_dynamic_retry(a)) { actor_clear_target(a); actor_cancel_command(a); return; }  // 原版（非回放）一併清目標句柄+0xa3
     if (abs(sx - x) < range && abs(sy - y) < range) {
         // GetFleePos隱藏步長由Poq呼叫點核對，為SkillUnit.min+1。
         int fx = sx, fy = sy;
@@ -4849,6 +4913,7 @@ static void ground_drop(const Item *it, float x, float y) {
     int cx = (int)x, cy = (int)y;
     if (!free_cell(&cx, &cy, 10)) return;  // CPropObj 放進場景（0x49a350）：周圍 10 圈第一個空格，沒有就不放
     ground[ground_n].x = cx + 0.5f;
+    ground[ground_n].id = ground_next_id++;
     ground[ground_n++].y = cy + 0.5f;
 }
 
@@ -4907,18 +4972,6 @@ static int ground_at(int px, int py, int ox, int oy, const Scene *s) {
         if (abs(px - fx) <= 24 && abs(py - fy) <= 20) return i;
     }
     return -1;
-}
-
-// 走過去撿：到了（一格內）就撿起來
-static void ground_walk(Actor *h, const Scene *s, Uint32 tick) {
-    float gx = ground[ground_want].x - h->x, gy = ground[ground_want].y - h->y;
-    if (gx * gx + gy * gy < 1.0f) {
-        h->moving = 0;
-        ground_pick(ground_want);
-        ground_want = -1;
-        return;
-    }
-    actor_tick(h, s, (gx - gy) * 32, (gx + gy) * 16, tick);
 }
 
 // 道具視窗（JM54）的格子和按鈕。點道具 = 選取，再點一次 = 使用／裝備；選了以後點空格 = 移過去
@@ -6589,7 +6642,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
 #endif
     spawn_npcs(scene);
     ground_n = 0;  // 地上的道具不跟著換場景
-    ground_want = walk_cx = -1;
+    walk_cx = -1;
     unit_n = 0;
     const Entry *en = scene_entry(scene, entry_id);
     if (en) {
@@ -6880,26 +6933,18 @@ int main(int argc, char **argv) {
                 Actor *m = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
                 int g = ground_at(zx, zy, ox, oy, &scene);
                 switch (click_cmd(hero, m, g)) {
-                case CMD_ATTACK: actor_target_set(hero, m); hero->want = NULL; ground_want = walk_cx = -1; break;
-                case CMD_PICK: ground_want = g; hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
+                case CMD_ATTACK: actor_target_set(hero, m); hero->want = NULL; walk_cx = -1; break;
+                case CMD_PICK: actor_command(hero, 0x11, ground[g].id, 0, 0, 1, 1); hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
                 case CMD_MOVE:
                     if (!actor_command(hero, 1, cx, cy, 0, 1, 1)) break;
-                    mark_new(cx, cy); hero->foe = NULL; hero->want = NULL; ground_want = -1;
+                    mark_new(cx, cy); hero->foe = NULL; hero->want = NULL;
                     walk_cx = hero->dynamic_state == 11 ? hero->dynamic_destination_x : -1;
                     walk_cy = hero->dynamic_destination_y;
                     break;
-                case CMD_TALK: {  // shortcut: 原版指令 0xf 是走過去再說；這裡馬上說，而且只有 ONT 擺的（有事件 ID）的 NPC 能說
-                    actor_forget_command(hero);
-#ifdef STORY
-                    const char *event = actor_init_name(m);
-                    if (!m->mon && event && *event) {
-                        int npc = story_find(story_room(alias), event);
-                        if (npc) { Actor *controlled = scene_client_actor(&scene_client); if (controlled) talk_face(controlled, m); story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
-                        else printf("劇情裡找不到 NPC %s\n", event);
-                    }
-#endif
+                case CMD_TALK:  // 原版指令0xf：走近到3格內再說話，由actor_interact_tick接手
+                    actor_command(hero, 0xf, m->sh ? m->sh : (int)m->object_id, 0, 0, 1, 1);
+                    hero->foe = NULL; hero->want = NULL; walk_cx = -1;
                     break;
-                }
                 }
             }
             else if (e.type == SDL_KEYDOWN && !e.key.repeat && !sys_open &&
@@ -7006,6 +7051,18 @@ int main(int argc, char **argv) {
                 if (actors[i].fight > 0 && !actors[i].foe && !--actors[i].fight)
                     actor_status_notify(&actors[i], 0, 0, -1);
             }
+#ifdef STORY
+            if (talk_to) {  // 原版封包0x75的接收端：開對話。shortcut: 只有ONT擺的（有事件ID）的NPC能說，且只認主角當說話者
+                Actor *n = talk_to, *from = talk_from;
+                talk_to = talk_from = NULL;
+                const char *event = actor_init_name(n);
+                if (!n->mon && event && *event && from == scene_client_actor(&scene_client)) {
+                    int npc = story_find(story_room(alias), event);
+                    if (npc) { story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
+                    else printf("劇情裡找不到 NPC %s\n", event);
+                }
+            }
+#endif
             int held = hero->act != ACT_DEAD && react_tick(hero, &scene);
             if (hero->act == ACT_DEAD) {  // shortcut: 原版死亡後的處理（回城、掉經驗）還沒做，先 3 秒後原地復活
                 if (++hero->dead_ticks > 180) { hero->act = ACT_NONE; hero->object_dead = 0; hero->dead_ticks = 0; hero->hp = hero->hp_max; hero->mp = hero->mp_max; actor_place(hero, (int)hero->x, (int)hero->y, 1); }
@@ -7014,11 +7071,10 @@ int main(int argc, char **argv) {
             else if (held) hero->moving = 0;
             else if (mx * mx + my * my > 0.01f) {
                 actor_cancel_command(hero); actor_forget_command(hero);
-                hero->foe = NULL; hero->want = NULL; ground_want = walk_cx = -1;
+                hero->foe = NULL; hero->want = NULL; walk_cx = -1;
                 actor_tick(hero, &scene, mx, my, tick);
             }  // 自己走 = 放棄目標與記住的技能命令。
             else if (!actor_command_idle(hero)) actor_command_walk_tick(hero, &scene, tick);
-            else if (ground_want >= 0 && !hero->foe) ground_walk(hero, &scene, tick);
             else if (walk_cx >= 0 && !hero->foe) {
                 actor_command_walk_tick(hero, &scene, tick);
                 if (hero->dynamic_state != 11) walk_cx = -1;

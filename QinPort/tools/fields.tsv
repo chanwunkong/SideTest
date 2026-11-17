@@ -881,4 +881,7 @@ Global	0x663eec	角色移除後無條件設1的場景物件異動旗標	scene_ob
 Global	0x639f5c	場景存在且值0時非零倒下模式正規化為1	death_keep_mode；shortcut預設保留模式，--simple-deaths關閉，設定介面接齊後核對預設
 Global	0x639f70	單機有場景時所選角色移除的自動暫停選項	death_auto_pause；shortcut暫以--pause-deaths啟用，隊伍多選與JM31接齊後升級
 CSprGroupSelection	+0x18	目前部件群索引signed byte；-1代表未選群	Actor.role為NULL表示未選群
-Role	PLI+0x28+i*10	部件名4字（HD頭、LH左手、RH右手、SD盾…）	Role.name／role_part_find
+Role	+0x28	部件名4字（HD頭、LH左手、RH右手、SD盾…）	Role.name／role_part_find
+CObj	+0x5c	物件型號代碼（0x80攻擊物件、0x81使用、0x85箱子、0x8c道具建築、0x96門）；命令0x12依它分封包0x8e	Model.type
+CObj	+0x14	物件句柄（點擊命令0xf／0x11～0x13的參數）	Object索引／Actor.object_id／ground[].id
+CCharactor	+0x73	（同上）命令15..19接近時與+0x77/+0x7b/+0x83比較目的格去重	actor_interact_approach

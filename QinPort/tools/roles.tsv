@@ -777,7 +777,7 @@
 0048f7a0	actor_property：八種精確鍵名MOVE_SPEED／FIGHT_SPEED／SRANGE／VRANGE／ZMYJ／HXYJ／JDR／DJHF；原始速度放Actor.ex由消費端換算，視野+12且只非NPC組加索敵；接模板、裝備／技能重算與劇情@屬性訊息
 0048ba50	actor_near_next：四模式候選、同組援敵讀狀態byte0／SInit格及種類30..100；模式2用劇情識別或非劇情高半區32位物件識別，目標轉交仍不重套候選旗標
 00488a10	actor_target：場景Actor名單查找，失效才清目標；角色旗標0x10只回空不清，死亡仍回物件；接追擊／同組協助／候選施法／無滑鼠HUD；指標取代句柄，槽重用限制見shortcut
-00489730	todo：actor_skill_command_tick接記住命令1/2及8/9重送、動態活動門檻、8地點施法、9目標查找／狀態拒絕／方框最小最大射程／大小與高層修正／追近退避／冷卻及成功清佇列；pursue與hero_cast_point已改用共用入口，刪舊歐氏距離出手及61拍退避簡化版；仍缺同類別15..19互動消費與完整動態11尋路，不標完整主入口done；NPC入戰提示已核對為原版空函數
+00489730	CCharactor技能／命令tick：記住命令1/2/8/9重送；命令8地點施法、9追近施法（射程、大小修正、退避）；15對話（3格內面對面並請求對話）、16進建築（3×3格內記interaction）、17撿地上道具（2格內）、18使用物件（0x81/0x8c）、19開箱（0x85）；封包0x75/0x68為單機直接動作，0x142/0x8e/開箱無接收系統只收尾
 00496530	actor_size_set：只保存動態占位大小，接actor_setup按模板size<7取1否則減5；位置重定位仍屬模板入口todo
 0048b2f0	actor_effects_recompute：127至0逆序查非零狀態byte且值不同於last_status才套表；組語確認末次傳-1（低byte255），不重套最後ID，末尾清dirty；接固定拍及技能Buff byte同步／到期，刪最後狀態優先shortcut
 0048ec60	actor_modifier_set：期限與值門檻後保存，第5修正只有服務場景反向通知狀態100；客戶端／回放僅更新knock與動畫，不覆寫狀態byte；其餘速度／殘影／潰散分支照原版
