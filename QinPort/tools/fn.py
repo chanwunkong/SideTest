@@ -76,7 +76,11 @@ def known():
     for line in tsv('fields.tsv'):
         c, off, mean, ours = (line.split('\t') + ['', '', ''])[:4]
         name = ours if ours and ours != '-' and not ours.startswith('（') else mean.split('（')[0].strip()
-        fields.setdefault((c, int(off.lstrip('+'), 16)), set()).add(name)
+        for o in re.split(r'[／/]', off):
+            try:
+                fields.setdefault((c, int(o.lstrip('+'), 16)), set()).add(name)
+            except ValueError:
+                pass
     cls = {}
     p = os.path.join(ROOT, 'FUNCS.tsv')
     for line in open(p, encoding='utf-8') if os.path.exists(p) else ():

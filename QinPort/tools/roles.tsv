@@ -789,7 +789,6 @@
 004b8190	Chat.Dlg字串取值後保存在管理器暫存；以現有res_dlg及呼叫者緩衝區承接字串資源工具，不複製CString管理器
 0048d330	actor_method_bound／attack_speed：main_new綁定時裝冷卻，unit_die解除時清每幀調整但保留冷卻；刪action_tick結束擲間隔。NPC組按float倍率、其他組rand()%模板間隔（1仍消耗亂數）、單機NPC種類60只用補拍；byte345非0延遲+2；trail_mode1綁定第6修正1/-1，解除時time<21才改1/20；補拍統一Actor.extra不再另存behavior_aux；間隔0明示shortcut避免mod0
 00496ac0	寫動態移動嘗試結果+0x3f1；總表無呼叫者，依規則skip，不新增無遊戲呼叫端setter
-004942d0	todo：actor_dynamic_enter已接共用拍數／有效速度、21/22落點／跳躍、31反向／速度／反播及32三倍速／插值／面向；11接actor_walk_destination校正，點地與技能追近共用actor_command_walk_tick並刪point_walk；仍缺完整反向路徑生成／步進
 00494950	actor_dynamic_exit：標活動；11/31清反播；22設下降-5/上限0再走21清空中旗標、有效格且物件層>10時取回地面層；不改行為狀態與目前高度
 00575cb0	actor_illusion_begin：有效有序列的各本體部件建立獨立殘影容器，參數2/12/2/1；第6修正及移動進入呼叫
 00576b90	actor_illusion_end：逐個有效且有序列部件清殘影容器；第6修正解除／到期及場景釋放接入
@@ -816,7 +815,6 @@
 004961e0	actor_height_set：只設定垂直速度與高度上限，不歸零目前高度；接角色招式離地觸發及狀態110旋飛／解除
 00495010	actor_height_tick：固定回1的基底門檻、共用時鐘、A>8非走路48單位落塵、跳躍上升扣上限並加回傳步高／下降按剩餘拍減高、靜止落地插值回占格中心；固定拍在動態及動畫播放之後、冷卻與轉向維護之前呼叫
 00496550	actor_dynamic_command：單機共用服務端分派，狀態／三參數／0x10000快照去重，先退出再進入，失敗快取後退回1；靜止不寫三參數，p0=0不強制打斷21/22；已接衝刺／跳躍／擊退／換裝及零速；進入回呼的11尋路及32逐格更新另列todo
-00493cb0	todo：actor_knock_tick已接所有角色固定拍，逐格先占位再插值、命令第二參數逐格減1、末拍後一拍標活動／再下拍移下一格、遇阻退出；移除knock_x／knock_y／knock_motion連續滑動；counter返回目的地仍shortcut橋接既有行走，等同類別動態11尋路，未標整入口done
 00496460	actor_jump_phase：啟用清高度，以水平剩餘拍數/2設半程與4倍上限／速度4；解除先按落點回地面層，再半程0／速度-4／上限0；接跳躍進入及固定拍中點
 0049e5f0	本體反向播放器：幀停滿max(delay+調整,1)後首幀跳迴圈末幀、其餘減1，負數繞至序列末幀、超界繞0；main.c actor_body_step反播分支
 00496de0	動態物件目前本體序列指標getter；以role_seq與Actor.body_seq取代C++精靈組索引，不另建包裝
@@ -835,17 +833,14 @@
 004967d0	actor_interpolate：-1取占格與A+C/10；整數歐氏距離除float速度，剩餘拍截斷但增量除未截斷拍數；接高度下降，單機共用服務端move_remaining門檻，回放模式10方向追趕不實作
 004b7d60	actor_height_fraction：以float算比例、半數向正方向取整、原值減結果，機碼確認EAX回扣除整數；供跳躍上升／下降共用
 00497c20	CDynamicObj基底活動getter固定回1，actor_height_tick直接承接常數，不新增空包裝
-00496110	todo：actor_motion_tick先跑1讓路、21/22衝刺跳躍、31擊退、32逐格衝鋒及同步狀態快照；外層接活動byte，再播放本體／附加精靈後才推高度／共用時鐘；仍缺11反向尋路步進，屬同類別／引擎基礎
 00494a20	actor_rush_tick：有剩餘拍只做插值，末拍不退出；下拍用(1,1,0,0)強制靜止，先角色退出、清腳印而不清舊三參數，21/22不重選動畫；接所有角色固定拍
 00497cd0	actor_raise_layer：層<11轉11、12轉13、14/16轉15，其他不變；接跳躍落點計算
 004945d0	main.c actor_charge_tick：先IsExceedDest再側向地形、逐格占位、最後插值；OmUtil匯出跳表核對為任一行進軸到達即成立且含相等，非法方向回0；保留混合格／世界座標算方向、碰撞不消耗插值及末拍後一拍退出
 
 00494cb0	actor_yield_tick：靜止時按請求者到保存世界位置量距；<30且可移動且尚未偏移時保存位置、按請求者方向+2偏移20，不改占格；30..63清已偏移快取，>=64或ID失效清請求；自身ID=0保留請求；接固定拍，請求來源暫用跨格碰撞，完整路徑點掃描仍todo
-00493f80	todo：動態32重設三倍速度、插值至命令目的地、由占格決定面向及動畫；與actor_dynamic_enter的32初始化相同，尚未接獨立重進入呼叫
 004934e0	CDynamicObj建構：250筆byte座標路徑清零、狀態及插值快取-1、方向時鐘rand()%100、身體大小0、路徑活動0；已核對作動態11基礎欄位依據，本輪不推進到此類別
 00493ad0	actor_walk_fallback：動態11目的地回掃第一合法層空格；Chebyshev距離<2直接失敗，抵達自身占格則以原目的地找六圈；已接actor_walk_destination；反編譯遺失Y軸累加器按對稱整數DDA承接，待組語核對
 004973b0	CDynamicObj尋路（虛擬格20）：目的格暫蓋自身ID後XPS尋路，讀最多250筆反向byte路徑（[0]=終點、[count-1]=起點），index=count-2；index0要求終點對得上；→ main.c actor_path_build（BFS代XPS）
-00493930	todo：由起點朝終點逐格找第一個合法層且無角色格，抵達終點回0；動態尋路基礎回溯工具，尚未接入
 004911b0	CNpc主AI（有技能鏈的戰鬥一拍）：重選目標、出生格／追擊界限、攻擊間隔、選招、太近退步、到間隔出手 → main.c npc_main_ai；由npc_dispatch（0x492ed0）呼叫
 004959d0	動態11沿反向byte路徑逐格步進：活動先更新速度、等待byte早退；新路徑略過距離／索引重尋；首點同組占住送讓路請求並跳一點；方向差1且下一點同向可一次占兩格、差4戰鬥中朝目標倒退走；占格遇同組移動最多3次等rand()%30+33，大小>2失敗停移，其他重尋；插值只在direction_clock%move_b==0推進 → main.c actor_walk_step（接actor_motion_tick，取代舊actor_command_walk_tick）
 00574e10	部件群首個精靈指標getter；由Role.body[0]直接取得，actor_sequence接方向維護

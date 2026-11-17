@@ -2399,7 +2399,7 @@ static void actor_jump_phase(Actor *a, int rising) {
     }
 }
 
-// 動態進入的21/22分支；完整狀態主分派仍待補，不標主入口完成。
+// 動態進入的21/22分支（0x4942d0 case 0x15/0x16）。
 static void actor_rush_enter(Actor *a) {
     if (a->move_a < 2 || !actor_rush_destination(a)) {
         a->dynamic_path_result = 0;
@@ -2517,7 +2517,8 @@ static int actor_walk_destination(Actor *a, int x, int y) {
     return 0;
 }
 
-// 動態基底進入：共用拍數與速度在各分支之前。
+// Poq.exe 0x4942d0：動態基底進入。共用拍數與速度在各分支之前；
+// 11失敗寫結果0、21/22落點／跳躍、31反向／速度／反播、32三倍速／插值／面向。
 static void actor_dynamic_base_enter(Actor *a) {
     a->dynamic_enter_tick = (int)actor_logic_tick;
     if (a->dynamic_state != 1) actor_speed_update(a);
@@ -3368,7 +3369,8 @@ static void actor_knock_finish(Actor *a) {
     }
 }
 
-// 動態31逐格更新；原版先移占格再插值，插值結束的下一拍才標記可走下一格。
+// Poq.exe 0x493cb0：動態31逐格更新；原版先移占格再插值，插值結束的下一拍才標記可走下一格。
+// 命令第二參數逐格減1；遇阻或走完回動態1，counter返回動態11目的地（到達範圍0）。
 static void actor_knock_tick(Actor *a) {
     if (a->dynamic_state != 31) return;
     if (a->dynamic_active) {
@@ -3513,6 +3515,18 @@ static int actor_client_motion_tick(Actor *a) {
     return 1;
 }
 
+// Poq.exe 0x496110：動態狀態分派（1讓路、11步進、21/22衝刺跳躍、31擊退、32衝鋒），固定回1。
+// 末尾的狀態同步封包0x323單機不送，只更新已回報狀態。
+static int actor_dynamic_dispatch(Actor *a) {
+    if (a->dynamic_state == 1) actor_yield_tick(a);
+    actor_rush_update(a);
+    actor_knock_tick(a);
+    actor_charge_tick(a);
+    if (a->dynamic_state == 11 && a->path_walk) actor_walk_step(a);
+    a->dynamic_reported_state = a->dynamic_state;
+    return 1;
+}
+
 // Poq.exe 0x48c050：活動時動態分派→虛擬播放更新，再處理位置同步與首次鎖存。
 // 動態分派原版固定回傳1；其動態11路徑限制由基底分派承接。
 static int actor_motion_tick(Actor *a) {
@@ -3521,13 +3535,8 @@ static int actor_motion_tick(Actor *a) {
     if (enabled) {
         if (scene_record_mode == 2) actor_client_motion_tick(a);
         else {
-            if (a->dynamic_state == 1) actor_yield_tick(a);
-            actor_rush_update(a);
-            actor_knock_tick(a);
-            actor_charge_tick(a);
-            if (a->dynamic_state == 11 && a->path_walk) actor_walk_step(a);
+            actor_dynamic_dispatch(a);
         }
-        a->dynamic_reported_state = a->dynamic_state; // 單機共用物件，不產生狀態同步封包。
         // 單次動作稍後才交MethodMain消費；保留播放前的幀及完成值，
         // 延遲只有1拍的首／末幀也必須各消費一次。
         actor_body_select(a);
