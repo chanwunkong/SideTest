@@ -2469,9 +2469,59 @@ static void character_blood_test(void) {
     unit_n=saved_n;
 }
 
+static void character_hit_status_test(void) {
+    int saved_n = unit_n;
+    RoleDef model = {.hit=65535, .snd_hit=65535};
+    Actor a = {.def=&model, .role=&empty_test_role, .dynamic_state=1};
+    StatusDef *effect = (StatusDef *)status_def(101), saved_effect = *effect;
+    for (int i=0; i<20; i++) effect->raw[i]=65535;
+    unit_n=1;
+    units[0]=(MUnit){.cls=U_MAIN, .owner=&a};
+    srand(71); int cooldown=rand()%10+10, next=rand(); srand(71);
+    actor_status_notify(&a,101,1,-1);
+    assert(units[0].dead && a.cool==cooldown && !a.state[101]);
+    assert(!a.modifiers_dirty && rand()==next); // 缺序列仍先中止，卻不套效果。
+    // 原byte不一定是0；不支援序列時恢復原byte，不能清掉原值。
+    a.state[101]=2; a.cool=7; units[0].dead=0;
+    srand(72); next=rand(); srand(72);
+    actor_status_notify(&a,101,3,-1);
+    assert(a.state[101]==2 && a.cool==7 && units[0].dead && rand()==next);
+    // 沒有MethodMain時不新增冷卻；有效序列才套表及設dirty。
+    model.hit=8; a.state[101]=0; a.cool=0;
+    actor_status_notify(&a,101,1,-1);
+    assert(a.state[101]==1 && a.cool==0 && a.modifiers_dirty);
+    a.modifiers_dirty=0;
+    actor_status_notify(&a,101,1,-1);
+    assert(!a.modifiers_dirty); // 相同byte不重做中止、音效或套表。
+    actor_status_notify(&a,101,0,-1);
+    assert(!a.state[101] && a.modifiers_dirty);
+    // 非ffff音效即使ID為0也消耗一次rand()%3。
+    model.hit=65535; model.snd_hit=0;
+    srand(73); (void)rand(); next=rand(); srand(73);
+    actor_status_notify(&a,101,1,-1);
+    assert(!a.state[101] && rand()==next);
+    // 由受擊入口接入，取代只播ACT_HIT的簡化版。
+    Actor attacker={0}; model.hit=8; model.snd_hit=65535;
+    unsigned seed=1;
+    for (;;seed++) { srand(seed); if (rand()%1000<500) break; }
+    a.act=ACT_ATTACK; a.knock=0; a.dynamic_state=1;
+    units[0]=(MUnit){.cls=U_MAIN, .owner=&a};
+    srand(seed); hit_react(&attacker,&a,NULL);
+    assert(a.state[101] && a.act==ACT_HIT && units[0].dead && a.cool>=10 && a.cool<=19);
+    a.flags|=0x200;
+    actor_animation_tick(&a); // 空中沿既有動畫收尾解除101。
+    assert(!a.state[101]);
+    a.flags&=~0x200;
+    a.dynamic_state=11; a.act=ACT_NONE;
+    srand(seed); hit_react(&attacker,&a,NULL);
+    assert(!a.state[101] && a.act==ACT_NONE);
+    *effect=saved_effect; unit_n=saved_n;
+}
+
 int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
+    character_hit_status_test();
     character_blood_test();
     character_behavior_reset_test();
     character_placement_test();

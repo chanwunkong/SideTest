@@ -2261,11 +2261,12 @@ static void actor_effect(Actor *a, int status, int on, int skill) {
 
 // 共用byte通知及套表，供修正17／100與技能Buff使用。
 // 已接本類別的隱身、反擊開關、蠱惑與特殊共用倒數；
-// 主分派的周遭命令、挨打取消及其他通知仍todo，不標完整主入口位址。
+// 主分派的周遭命令與外部通知仍todo，不標完整主入口位址。
 static void actor_dynamic_rest(Actor *a);
 static void actor_candidate_cast(Actor *a);
 static void actor_status_notify(Actor *a, int status, int on, int skill) {
     if ((unsigned)status >= 128u || a->state[status] == on) return;
+    unsigned char previous = a->state[status];
     a->state[status] = (unsigned char)on;
     switch (status) {
     case 0:
@@ -2299,6 +2300,23 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
             actor_group(a, a->original_group);
             // +0x579用途尚未確定，不能猜成casting而中斷當前施法。
             a->status_aux = 0;
+        }
+        break;
+    case 101:
+        if (!on) break;
+        {
+            MUnit *u = main_of(a);
+            if (u) {
+                if (a->cool < 1) a->cool = rand() % 10 + 10;
+                unit_die(u, actor_logic_tick);
+            }
+            // 狀態主分派的挨打分支：沒有挨打序列也先中止招式、擲音效骰。
+            if (a->def && a->def->snd_hit != 65535 && rand() % 3 == 1)
+                audio_sfx(a->def->snd_hit);
+            if (!a->def || a->def->hit == 65535) {
+                a->state[status] = previous;
+                return;
+            }
         }
         break;
     case 105:
@@ -2724,7 +2742,15 @@ static void hit_react(Actor *a, Actor *t, const SkillRow *sk) {
     }
     if (jdr > 0 && rand() % 1000 < (int)((200.0f - djhf) * jdr / 200 * 10))
         knock_back(t, a, (int)((float)(rand() % jdr / 80) + jdr / 80.0f + 2));
-    if (rand() % 1000 < (int)((200.0f - djhf) * 1000 / (djhf + 200.0f)) && t->def->hit != 65535 && t->act != ACT_ATTACK) start_act(t, ACT_HIT, t->def->hit);
+    if (rand() % 1000 < (int)((200.0f - djhf) * 1000 / (djhf + 200.0f)) &&
+        t->dynamic_state == 1 && t->knock != 1 && !has_status(t, 101) &&
+        !has_status(t, 2) && !has_status(t, 10)) {
+        // shortcut: 命令12的共同可用性／技能選取門檻尚未完整接入，
+        // 完成角色命令主分派時由同一接收端處理；此處保留狀態與招式中止業務。
+        actor_status_notify(t, 101, 1, -1);
+        actor_animation_select(t, -1);
+        if (has_status(t, 101)) start_act(t, ACT_HIT, t->def->hit);
+    }
 }
 
 // 擊退、硬直：每拍滑一點、硬直倒數。回傳 1 = 這拍不能自己動
@@ -2815,7 +2841,6 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     if (ks > 0 && t->ex[97] < 100 && rnd(100) < ks && alive(t)) buff_add(t, NULL, 17, 1, 7, 0);
     if (a->hp <= 0 && alive(a)) actor_kill(a, t);
     if (t->hp <= 0) { actor_kill(t, a); return; }
-    if (t->def->snd_hit) audio_sfx(t->def->snd_hit);
     hit_react(a, t, sk);
     if (!sk || sk->attack == 0 || sk->attack == 1 || sk->attack == 2 || sk->attack == 3 || sk->attack == 8)
         actor_blood(t, 1);
