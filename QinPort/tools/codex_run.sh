@@ -8,6 +8,7 @@ cd "$top/QinPort" || exit 1
 i=0
 while [ $i -lt "$n" ]; do
   i=$((i + 1))
+  todo0=$(grep -c "	todo	" FUNCS.tsv)
   log=/tmp/qinport_codex_$i.log rep=/tmp/qinport_codex_report_$i.md
   { [ $i -eq 1 ] && [ -n "$extra" ] && printf "%s\n\n" "$extra"; cat tools/CODEX_TASK.md; } |
     codex exec -C . --sandbox workspace-write -o "$rep" - > "$log" 2>&1
@@ -19,10 +20,14 @@ while [ $i -lt "$n" ]; do
   if [ "$t" != "skilltest ok" ] || git -C "$top" diff --quiet -- QinPort/HANDOFF.md; then
     echo "== 停：測試沒過或 HANDOFF 沒更新，留給 Claude 看"; exit 1
   fi
+  todo1=$(grep -c "	todo	" FUNCS.tsv)
+  echo "== todo: $todo0 -> $todo1"
   git -C "$top" add -A ':(icase)qinport' ':(icase,exclude)qinport/tools/decomp_strings.py'
   msg=$(grep -m1 -E '範圍|本批' "$rep" | sed -E 's/^[- ]*(範圍|本批)：*//' | tr -d '`')
   git -C "$top" commit -q -m "chore(qinport): port ${msg:-codex batch}" -m "Ported by Codex from tools/CODEX_TASK.md; reviewed by test run.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" || exit 1
   for d in 2 4 8 16; do git -C "$top" push -q origin qinport && break; sleep $d; done
+  # 沒完成任何函數就停，不再空轉
+  [ "$todo1" -lt "$todo0" ] || { echo "== 停：todo 沒下降，留給 Claude 看"; exit 1; }
 done
