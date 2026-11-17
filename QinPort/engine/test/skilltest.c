@@ -117,6 +117,12 @@ static void character_placement_test(void) {
     actor_correction_x=saved_cx; actor_correction_y=saved_cy;
 }
 
+// 單獨測方向漸轉時，以呼叫者提供的時鐘起點模擬連續固定拍。
+static void character_direction_step(Actor *a) {
+    actor_direction_tick(a);
+    ++a->direction_clock;
+}
+
 static void character_rotation_cooldown_test(void) {
     Frame frames[3] = {{.delay=2}, {.delay=2}, {.delay=2}};
     Seq seqs[16];
@@ -126,23 +132,23 @@ static void character_rotation_cooldown_test(void) {
     RoleDef model = {.idle=8, .death=40, .run_seq=65535};
     Actor a = {.role=&role, .def=&model, .dir=2, .animation_dir=0,
         .flags=0x600, .dynamic_state=22, .body_size=9};
-    actor_direction_tick(&a);
+    character_direction_step(&a);
     assert(a.animation_dir==7 && a.shown_seq==15 && a.body_seq==15);
     assert(a.dir==2 && !a.previous_target); // 不覆寫面向／普通漸轉目標快取。
     a.act_frame=2; a.frame_tick=1;
-    actor_direction_tick(&a);
+    character_direction_step(&a);
     assert(a.animation_dir==6 && a.shown_seq==14 && !a.act_frame && !a.frame_tick);
-    for (int i=0; i<7; i++) actor_direction_tick(&a);
+    for (int i=0; i<7; i++) character_direction_step(&a);
     assert(a.animation_dir==7 && a.shown_seq==15); // 一整圈，無15拍節流。
     a.flags=0x400;
     Scene s = {0};
     actor_tick(&a, &s, 0, 0, 0);
     assert(a.animation_dir==7); // 移動入口不能把旋轉累積方向改回面向。
-    actor_direction_tick(&a); assert(a.shown_seq==14);
+    character_direction_step(&a); assert(a.shown_seq==14);
     a.flags=0; a.dynamic_state=1; a.direction_clock=15;
-    actor_direction_tick(&a); assert(a.shown_seq==15); // 同組解除後仍按普通漸轉，6→7→0。
+    character_direction_step(&a); assert(a.shown_seq==15); // 同組解除後仍按普通漸轉，6→7→0。
     a.direction_clock=30;
-    actor_direction_tick(&a); assert(a.shown_seq==8);
+    character_direction_step(&a); assert(a.shown_seq==8);
 
     unit_n=0;
     a.cool=3; actor_cooldown_tick(&a); assert(a.cool==2);
@@ -164,31 +170,31 @@ static void character_direction_test(void) {
     Role role = {.part_count=1, .seq_count=16, .body={&anim}};
     RoleDef model = {.idle=0, .walk=0, .run_seq=65535};
     Actor a = {.role=&role, .def=&model, .dir=2, .dynamic_state=1}; // 目標0
-    actor_direction_tick(&a); actor_body_select(&a);
+    character_direction_step(&a); actor_body_select(&a);
     a.dir=6; // 目標4，差四時0先往7轉。
     a.act_frame=2; a.frame_tick=1;
-    for (int i=0; i<3; i++) actor_direction_tick(&a);
+    for (int i=0; i<3; i++) character_direction_step(&a);
     assert(a.shown_seq==0);
-    actor_direction_tick(&a);
+    character_direction_step(&a);
     assert(a.shown_seq==7 && a.act_frame==2 && a.frame_tick==0);
-    for (int i=0; i<4; i++) actor_direction_tick(&a);
+    for (int i=0; i<4; i++) character_direction_step(&a);
     assert(a.shown_seq==6);
     a.dir=1; a.direction_clock=12; // 目標1，6到1走7。
-    actor_direction_tick(&a); assert(a.shown_seq==7);
+    character_direction_step(&a); assert(a.shown_seq==7);
     a.body_size=6; a.direction_clock=14;
-    actor_direction_tick(&a); assert(a.shown_seq==7);
-    actor_direction_tick(&a); assert(a.shown_seq==0);
+    character_direction_step(&a); assert(a.shown_seq==7);
+    character_direction_step(&a); assert(a.shown_seq==0);
     a.flags=0x200; a.dynamic_state=11; a.direction_clock=30;
-    actor_direction_tick(&a); assert(a.shown_seq==0);
+    character_direction_step(&a); assert(a.shown_seq==0);
     a.dynamic_state=1; a.direction_clock=45;
-    actor_direction_tick(&a); assert(a.shown_seq==1);
+    character_direction_step(&a); assert(a.shown_seq==1);
     a.flags=0; a.act=ACT_HIT; a.act_seq=8; a.direction_clock=46;
-    actor_direction_tick(&a); assert(a.shown_seq==9 && a.act_frame==0);
+    character_direction_step(&a); assert(a.shown_seq==9 && a.act_frame==0);
     // 組切換先重設；純方向轉換遇到較短序列，原幀超界才歸零。
     a.act=ACT_NONE; a.direction_clock=60;
-    actor_direction_tick(&a);
+    character_direction_step(&a);
     a.dir=2; a.act_frame=2; a.direction_clock=75; seqs[0].count=1;
-    actor_direction_tick(&a); assert(a.shown_seq==0 && a.act_frame==0);
+    character_direction_step(&a); assert(a.shown_seq==0 && a.act_frame==0);
 }
 
 static void character_animation_test(void) {
@@ -297,6 +303,67 @@ static void character_dynamic_exit_test(void) {
     a.dynamic_state = 1; a.reverse_playback = 1;
     actor_trail_exit(&a); assert(a.reverse_playback); // 平常狀態不改反播欄位。
     unit_scene = saved_scene;
+}
+
+static void character_height_interpolation_test(void) {
+    Actor a = {.x=1.5f, .y=2.5f, .grid_valid=1, .grid_x=2, .grid_y=2,
+        .dynamic_state=1, .move_a=3, .move_c=7, .move_remaining=3};
+    assert(!actor_interpolate(&a,-1,999,-1));
+    assert(a.interpolation_left==17);
+    for (int i=0;i<17;i++) assert(!actor_interpolation_tick(&a));
+    assert(actor_interpolation_tick(&a));
+    assert(ax64(&a)==158 && ay64(&a)==160); // 原版不補末拍：目的地160。
+    assert(a.grid_x==2 && a.grid_y==2);
+    a.x=1.5f; a.interpolation_left=7; a.move_remaining=0;
+    assert(actor_interpolate(&a,2,2,4) && a.interpolation_left==7);
+    a.move_remaining=3;
+    assert(!actor_interpolate(&a,2,2,4) && a.interpolation_left==16);
+    a.x=2.5f;
+    assert(actor_interpolate(&a,2,2,4) && !a.interpolation_left);
+    a.x=-1.5f; a.y=-2.5f;
+    assert(actor_interpolate(&a,-2,-3,4)); // 已在負座標格中心。
+    a.x=-1.25f;
+    assert(!actor_interpolate(&a,-2,-3,3));
+    actor_interpolation_tick(&a);
+    assert(ax64(&a)==-83); // 負座標同樣向零截斷。
+
+    int v=5;
+    assert(actor_height_fraction(&v,4,1)==3 && v==2);
+    v=5; assert(actor_height_fraction(&v,5,0)==1 && v==4);
+    v=-5; assert(actor_height_fraction(&v,5,0)==0 && v==-5);
+    v=9; assert(actor_height_fraction(&v,0,1)==9 && !v);
+    a=(Actor){.dynamic_state=22, .zmax=20, .vz=4, .interpolation_left=10, .jump_half=5};
+    actor_height_tick(&a);
+    assert(a.z==8 && a.zmax==12 && a.direction_clock==1);
+    a.interpolation_left=5;
+    actor_height_tick(&a); assert(a.z==20 && !a.zmax);
+    a.vz=-4; a.interpolation_left=4;
+    actor_height_tick(&a); assert(a.z==17 && a.vz==-4);
+    a.interpolation_left=0;
+    actor_height_tick(&a); assert(!a.z && !a.vz);
+    a.z=7; actor_height_tick(&a); assert(a.z==7); // 跳躍零垂直速度不硬清高度。
+    a.dynamic_state=1; actor_height_tick(&a); assert(!a.z);
+
+    a=(Actor){.dynamic_state=1, .grid_valid=1, .grid_x=3, .grid_y=4,
+        .x=2.5f, .y=4.5f, .z=20, .vz=-5, .move_remaining=5};
+    actor_height_tick(&a);
+    assert(a.z==15 && ax64(&a)==181 && a.interpolation_left==2);
+    for(int i=0;i<3;i++) actor_height_tick(&a);
+    assert(!a.z && !a.vz && a.x==3.5f && a.y==4.5f);
+    a=(Actor){.direction_clock=7, .dynamic_state=1};
+    actor_height_tick(&a); actor_direction_tick(&a);
+    assert(a.direction_clock==8); // 共用時鐘只在基底更新加一次。
+
+    int saved_n=unit_n;
+    a=(Actor){.dynamic_state=32, .move_a=9, .x=47.0f/64, .y=0};
+    actor_height_tick(&a); assert(!a.dust_x && unit_n==saved_n);
+    a.x=48.0f/64;
+    actor_height_tick(&a); assert(a.dust_x==48 && a.dust_y==0);
+    int after=unit_n;
+    actor_height_tick(&a); assert(unit_n==after);
+    a.dynamic_state=11; a.x+=1;
+    actor_height_tick(&a); assert(a.dust_x==48 && unit_n==after);
+    unit_n=saved_n;
 }
 
 static void character_air_status_test(void) {
@@ -2549,6 +2616,7 @@ int main(void) {
     character_rotation_cooldown_test();
     character_animation_test();
     character_dynamic_exit_test();
+    character_height_interpolation_test();
     character_air_status_test();
     character_speed_memory_test();
     character_properties_test();

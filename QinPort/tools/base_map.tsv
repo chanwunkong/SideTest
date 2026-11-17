@@ -220,3 +220,6 @@ OmUtil::GetFleePos	air_run使用既有dir_of與move_dir；核對OmUtil.dll匯出
 00496de0	動態物件當前精靈序列getter；以role_seq(Actor.role, Actor.body_seq)直接存取不可變Seq，播放器狀態由Actor保存
 00494bf0	動態本體序列編號getter；以Actor.body_seq（播放器未初始化時actor_seq）直接讀取，取代精靈群組指標查詢
 0049f1b0	指定分隔字元切非空token的CStringList暫存工具；以C strspn/strcspn及直接串接取代，actor_appearance_init處理PLI／款式
+
+004b7d60	actor_height_fraction：比例四捨五入扣整數，保留EAX結果供高度曲線使用
+OmUtil::IsMinRange	abs(dx)>=range或abs(dy)>=range，核對OmUtil匯出本體；高度更新落塵直接整數比較

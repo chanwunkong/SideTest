@@ -278,6 +278,8 @@ typedef struct Actor {
     int dynamic_active, reverse_playback;
     int dynamic_command[3], dynamic_flag_snapshot;
     int dynamic_enter_tick, interpolation_left, dynamic_reported_state;
+    float interpolation_x, interpolation_y, interpolation_dx, interpolation_dy;
+    int jump_half, dust_x, dust_y;
     int dynamic_cache_x, dynamic_cache_y, dynamic_counter;
     int dynamic_pending, dynamic_path, dynamic_aux;
     const Scene *bound_scene;
@@ -2198,17 +2200,87 @@ static void actor_height_set(Actor *a, int speed, int limit) {
     a->zmax = limit;
 }
 
-// 動態高度更新的非跳躍分支，固定拍呼叫，不依附攻擊動畫。
-// shortcut: 狀態22的高度曲線及靜止下降時往已占格中心的插值仍待動態位置／跳躍狀態接入；不標完整入口位址。
+// Poq.exe 0x4967d0：單機共用服務端的插值初始化；-1取占格／A+C/10。
+// 步數截斷，但增量除以未截斷的float步數，末拍不補齊目的地。
+// 回放模式10的方向追趕修正不適用單機；不複製同步封包。
+// shortcut: 舊初始化角色尚未登記占格時，以目前整數格承接；建立流程統一登記後移除fallback。
+static int actor_interpolate(Actor *a, int cx, int cy, int speed) {
+    if (cx == -1) {
+        cx = a->grid_valid ? a->grid_x : (int)a->x;
+        cy = a->grid_valid ? a->grid_y : (int)a->y;
+    }
+    float amount = speed == -1 ? a->move_a + a->move_c / 10.0f : (float)speed;
+    int gate = speed == -1 ? a->move_a : speed;
+    int x = ax64(a), y = ay64(a), tx = cx * 64 + 32, ty = cy * 64 + 32;
+    int distance = dist_of(x, y, tx, ty);
+    if (distance < 1) { a->interpolation_left = 0; return 1; }
+    if (gate < 1 || !a->move_remaining) return 1;
+    float steps = (float)distance / amount;
+    a->interpolation_left = (int)steps;
+    if (a->interpolation_left < 1) return 1;
+    a->interpolation_x = (float)x;
+    a->interpolation_y = (float)y;
+    a->interpolation_dx = (float)(tx - x) / steps;
+    a->interpolation_dy = (float)(ty - y) / steps;
+    return 0;
+}
+
+// Poq.exe 0x4952d0：浮點累加保留小數，世界位置每拍向零截斷，不改格子占位。
+static int actor_interpolation_tick(Actor *a) {
+    if (a->interpolation_left < 1) return 1;
+    a->interpolation_x += a->interpolation_dx;
+    a->interpolation_y += a->interpolation_dy;
+    a->x = (int)a->interpolation_x / 64.0f;
+    a->y = (int)a->interpolation_y / 64.0f;
+    --a->interpolation_left;
+    return 0;
+}
+
+// Poq.exe 0x4b7d60：扣除四捨五入的比例，EAX仍回傳扣掉的整數。
+// 上升呼叫端同時消費回傳值與被扣過的上限；負半數往正方向取整。
+static int actor_height_fraction(int *value, int steps, int rising) {
+    float part = (float)*value;
+    if (steps > 0) part = rising ? (part + part) / steps : part / steps * 0.5f;
+    float rounded = floorf(part);
+    if (part - rounded >= 0.5f) rounded = ceilf(part);
+    int delta = (int)rounded;
+    *value -= delta;
+    return delta;
+}
+
+// Poq.exe 0x495010：基底活動getter固定回1；共用拍數、落塵、跳躍及靜止落地。
 static void actor_height_tick(Actor *a) {
-    if (a->dynamic_state == 22) return;
-    if (a->z > 0 && !a->vz) a->z = 0;
+    ++a->direction_clock;
+    if (!a->z) {
+        if (a->move_a > 8 && a->dynamic_state != 11 &&
+            (abs(a->dust_x - ax64(a)) >= 48 || abs(a->dust_y - ay64(a)) >= 48)) {
+            MUnit source = {0};
+            unit_new(0x10, ax64(a), ay64(a), &source, actor_logic_tick);
+            a->dust_x = ax64(a); a->dust_y = ay64(a);
+        }
+    } else if (a->z > 0 && !a->vz && a->dynamic_state != 22) a->z = 0;
     if (a->vz) {
-        a->z += a->vz;
-        if (a->vz > 0) {
-            if (a->z > a->zmax) a->z = a->zmax;
+        if (a->dynamic_state != 22) a->z += a->vz;
+        if (a->vz >= 0) {
+            if (a->dynamic_state == 22)
+                a->z += actor_height_fraction(&a->zmax, a->interpolation_left - a->jump_half, 1);
+            else if (a->z > a->zmax) a->z = a->zmax;
             return;
         }
+        if (a->dynamic_state == 1) {
+            int cx = a->grid_valid ? a->grid_x : (int)a->x;
+            int cy = a->grid_valid ? a->grid_y : (int)a->y;
+            if (a->z < 1) {
+                a->x = cx + 0.5f; a->y = cy + 0.5f;
+            } else {
+                int distance = dist_of(ax64(a), ay64(a), cx * 64 + 32, cy * 64 + 32);
+                int steps = abs(a->z / a->vz);
+                if (steps < 1) steps = 1;
+                actor_interpolate(a, cx, cy, distance / steps);
+                actor_interpolation_tick(a);
+            }
+        }
+        if (a->dynamic_state == 22) actor_height_fraction(&a->z, a->interpolation_left, 0);
         if (a->z > 0) return;
         a->vz = 0;
     }
@@ -2389,10 +2461,9 @@ static void actor_status_countdown(Actor *a) {
 }
 
 // 角色更新的方向漸轉分支；完整角色更新入口仍有活動門檻、光環等未接。
-// shortcut: 物件累積拍以direction_clock承接，完整物件生命週期接入時共用其時鐘。
 static void actor_direction_tick(Actor *a) {
     int target = actor_requested_seq(a);
-    Uint32 clock = a->direction_clock++;
+    Uint32 clock = a->direction_clock;
     if (a->flags & 0x400) {
         // 模板+0x4c是休息序列第一值；每拍遞減動畫方向，不改物件面向或目標序列。
         // 此分支優先於空中靜止判定，也不受普通漸轉的4／15拍節流。
