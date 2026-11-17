@@ -374,7 +374,7 @@ typedef struct Actor {
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
     int print_x, print_y, foot;    // 上一個腳印的位置（+0x3c9）、這次踩哪隻腳（+0x3c5）
     int ai_tick;                  // 怪物 AI 計數（+0xbb，起始隨機 0~99）
-    int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
+    int cool, fight, dead_ticks, dead_phase;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍、屍體階段（CDeadObj +0xa3 - 1）
     int sh;                        // 劇情物件（原版 EasyRPG 的人物；0 = 沒有）
     int remembered[4], remember_delay; // 原版記住命令與取消後延遲
     int command[4];                // 待執行命令，第一格 -1 表示沒有（原版 +0x5b6）
@@ -1471,8 +1471,18 @@ static void spawn_monsters(const Scene *s, const World *w, int room) {
 
 // ---- 戰鬥 ----
 #define FIGHT_TICKS 300  // shortcut: 打完多久收起戰鬥姿態是自訂的（約 5 秒）
-#define CORPSE_TICKS 600 // shortcut: 屍體留多久是自訂的（約 10 秒）
 static int exp_table[100], exp_levels;  // Data/experience.txt：第 n 列 = 升到 n+1 級要的經驗
+
+// 屍體物件 CDeadObj 每拍（Poq.exe 0x498a30；建立 0x4987d0 = actor_remove 的殘留物）：
+// 階段 0 播死亡動畫（0x4988f0 播放 = actor_animation_tick），播完 → 階段 1 停 200 拍 → 階段 2（原版畫進地面層 0x498240）
+// 在畫面外超過 0x50 拍才移除。回傳 0 = 移除。設計數 0x498b80 = dead_ticks、換階段 0x498c00 = dead_phase。
+// shortcut: 階段切換時原版把序列換成 +8 的屍體序列（0x4986c0）、並在格子標屍體編號（0x498930），這裡停在死亡動畫末幀，要屍體序列時補。
+static int dead_obj_tick(Actor *a) {
+    if (a->dead_phase == 0) { if (a->act_done) a->dead_phase = 1, a->dead_ticks = 0; return 1; }
+    if (a->dead_phase == 1) { if (++a->dead_ticks > 200) a->dead_phase = 2, a->dead_ticks = 0; return 1; }
+    if (actor_draw_visible(a)) { a->dead_ticks = 0; return 1; }
+    return ++a->dead_ticks <= 0x50;
+}
 
 static int alive(const Actor *a) { return a && a->role && !a->object_dead && a->act != ACT_DEAD; }
 
@@ -2874,7 +2884,7 @@ static void actor_death_remnant(Actor *a, int mode) {
     a->corpse_visible = 1;
 }
 
-// Poq.exe 0x486910：移除→單機選項→模式正規化→殘留物→同組潰散→模式音效。
+// Poq.exe 0x486910（屍體物件建立 CDeadObj 0x4987d0）：移除→單機選項→模式正規化→殘留物→同組潰散→模式音效。
 // shortcut: 共用Actor代替伺服／客戶端副本，略過傳輸和令牌配對容器；
 // 單機無回放入口。完整選項介面接齊時接death_auto_pause／death_keep_mode。
 static void actor_remove(Actor *a, int mode) {
@@ -2898,6 +2908,7 @@ static void actor_remove(Actor *a, int mode) {
     }
     a->removal_mode = (unsigned char)mode;
     a->corpse_visible = 0;
+    a->dead_phase = a->dead_ticks = 0;
     if (mode && has_scene) actor_death_remnant(a, mode);
     start_act(a, ACT_DEAD, a->def->death);
     scene_objects_dirty = 1;
@@ -7675,7 +7686,7 @@ int main(int argc, char **argv) {
                 Actor *a = &actors[i];
                 if (!a->mon) { if (!react_tick(a, &scene)) npc_dispatch(a); }
                 else if (!a->role) continue;
-                else if (a->act == ACT_DEAD) { action_tick(a, &scene, tick); if (++a->dead_ticks > CORPSE_TICKS) a->role = NULL; }
+                else if (a->act == ACT_DEAD) { action_tick(a, &scene, tick); if (!dead_obj_tick(a)) a->role = NULL; }
                 else if (react_tick(a, &scene) && !a->act) a->moving = 0;
                 else if (a->act) action_tick(a, &scene, tick);
                 else if (a->object_kind == 24) trap_think(a);

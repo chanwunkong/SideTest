@@ -482,6 +482,7 @@ static void viewport_occlude(const ViewPort *v, const Scene *s, const ViewItem *
     SDL_RenderSetClipRect(ren, clipped ? &old_clip : NULL);
 }
 
+// 地面物件（CSurfaceObj）畫法 0x497fd0／0x498130（有畫面矩形才畫）、畫面位置 0x498410 = viewport_world_screen。
 static void viewport_units(const ViewPort *v, const Scene *s, int ground_pass, Uint32 tick) {
     for (int i = 0; i < unit_n; i++) {
         const MUnit *u = &units[i];

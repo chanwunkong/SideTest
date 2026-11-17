@@ -905,6 +905,7 @@ static void phantom_tick(MUnit *u, Uint32 tick) {
 
 // ---- 腳印（CFootStep 0x43f300～0x43f5e0，地面物件 CNormalSurobj）：動畫 0x100309，序列 = 方向（另一隻腳 +0x10）----
 // 前 300 拍停在第一幀（原版畫進地面層），之後換序列 +8 播一次淡掉，播完消失
+// 載入動畫＋選序列（CNormalSurobj 0x498d90；序列 -1 = 隨機）
 static void foot_new(int x, int y, int seq) {
     if (unit_n == MAX_UNIT) return;
     MUnit *u = &units[unit_n++];
@@ -925,6 +926,7 @@ static void mark_new(int cx, int cy) {
     spr_load(&u->spr, 0x1001bd);
 }
 
+// 0x43f5e0；播放 CNormalSurobj 0x498e00（+0x97 為 0 走 step，否則 next）、壽命到了消失 0x498e40
 static void foot_tick(MUnit *u, Uint32 tick) {  // 0x43f5e0
     if (!u->mode) {
         if (u->ticks++ > u->life) u->mode = 1, spr_set(&u->spr, u->spr.seq + 8, 0);  // 0x43f3e0

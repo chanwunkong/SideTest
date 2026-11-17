@@ -1098,7 +1098,9 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   0x493cb0（31擊退）、0x4942d0（動態進入）、0x496110（動態分派，新 actor_dynamic_dispatch 取代 actor_motion_tick 內聯呼叫）標 done；
   0x493930（無呼叫者的回溯工具）、0x493f80（重進入，無呼叫者）、0x496260／0x496e30（連線版封包）、虛擬槽空函數／常數與建構解構一律 skip。
   tools/fn.py 修正 fields.tsv 含「／」多偏移行會當掉（拆成多筆）。
-  **下一步：0x497880（CObj／CMapObj 起）；~~下一步：0x4933a0（CProtagonist）起；0x490e70／0x4909b0／0x493320 等 CNpc 虛擬表第27／28格呼叫者尚未接（仍標 LATER）。**
+  ~~下一步：0x497880（CObj／CMapObj 起）~~；~~下一步：0x4933a0（CProtagonist）起；0x490e70／0x4909b0／0x493320 等 CNpc 虛擬表第27／28格呼叫者尚未接（仍標 LATER）。**
+- 進度（11-18c）：0x497880～0x49e750 的 CObj／CMapObj／CStaticObj／CSurfaceObj／CDeadObj／CFootStep／CNormalSurobj 完成：建構解構、索引表、設值／getter 全 skip；地面物件畫法 0x497fd0／0x498130／0x498410 標在 viewport_units；CNormalSurobj 0x498d90／0x498e00／0x498e40 標在 unit.c foot_new／foot_tick；**CDeadObj 屍體物件**（0x498a30／0x4988f0／0x4987d0／0x498b80／0x498c00）新 `dead_obj_tick` 取代 CORPSE_TICKS 計時（死亡動畫播完 → 停 200 拍 → 畫面外 0x50 拍後移除）。shortcut：+8 屍體序列與格子屍體標記未移植。todo：CPartDeadObj／CFlyPartDeadObj 的畫、分件、飛散（0x499270／0x499540／0x4990e0／0x4997f0／0x4998a0／0x499af0，等 Role 分件模型，roles.tsv 有說明）。
+  **下一步：0x4990e0（CPartDeadObj／CFlyPartDeadObj）起。**
 
 
 

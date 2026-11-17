@@ -727,3 +727,50 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 004979c0  CObj解構本體（同0x497780）：Actor陣列生命週期承接
 00497aa0  虛擬槽常數1：無用途
 00497d30  虛擬槽空函數
+00497880  CObj解構（刪除版）：釋放名稱、模型、取消登記；Actor陣列生命週期承接
+004979a0  CObj虛擬槽：游標 +0x20 = +0x1c（串列重置）；串列由C陣列承接
+00497b30  CObj虛擬槽：綁格子並設像素中心 = 格*64+32；Actor.x/y 由場景放置承接
+00497c30  CObj虛擬槽：清 +0x58、設繪圖旗標、建築共用旗標；無獨立狀態，由Scene承接
+004a2930  物件索引表登記移除（id&0x3fff 槽，計數減1）；Actor.object_id 單調分配不需要
+00497b80  CARROW位置位移：像素 x += 2c+a、y += 2c-a（等角投影位移）；箭的位置由Actor.x/y承接
+00497bb0  CObj設名稱／資料：+0x18 = 值、名稱字串去掉0x0e字元；名稱由Actor.name承接
+00497c10  CObj繪圖分類>9（特殊延後繪圖）：getter；分類由Scene承接
+00497c80  CObj虛擬槽：游標 +0x1c = +0x20（串列重置）；串列由C陣列承接
+00497d40  CTriBld設像素位置並換算格 = 像素/64；Actor.x/y 與格子由Scene承接
+00497ea0  CStaticObj建構：CMapObj建構＋vftable；Actor零初始化承接
+00497ed0  CStaticObj解構：Actor陣列生命週期承接
+00497ee0  CStaticObj刪除解構：同上加operator delete；Actor陣列生命週期承接
+00497f20  CSurfaceObj建構：CMapObj建構＋vftable＋預設欄位（類型0x16）；Actor零初始化承接
+00497f80  CSurfaceObj解構：Actor陣列生命週期承接
+00497f90  CSurfaceObj刪除解構：同上加operator delete；Actor陣列生命週期承接
+004981f0  CSurfaceObj虛擬槽常數1：無用途
+00498200  CSurfaceObj虛擬槽常數0：無用途
+00498210  CSurfaceObj虛擬槽：0x497c20（恆1）且0x24槽；無用途
+00498240  CSurfaceObj畫進地面層並標髒矩形（+0x73=1、更新視野格索引）；引擎地面物件每幀重畫，不用髒矩形快取
+00498490  CDeadObj建構：欄位清零、登記；Actor零初始化承接
+00498560  CDeadObj解構：Actor陣列生命週期承接
+00498600  CDeadObj刪除解構：同上加operator delete
+004987a0  CDeadObj釋放：釋放動畫＋CObj解構；Actor承接
+00497a40  CObj配物件編號（依-1／0／其他走三種索引表）；Actor.object_id 單調分配承接
+004986c0  CDeadObj換階段：階段1清格子屍體標記、階段2換+8序列、階段3畫進地面層；格子屍體標記與+8序列未移植（見 dead_obj_tick shortcut）
+00498930  CDeadObj清格子屍體標記（0xffff）；引擎沒有格子屍體標記
+00498b70  空函數
+0049e750  CSprGroup解構：釋放精靈群；Anim/Sprite承接
+00498ba0  CDeadObj寫格子屍體標記；引擎沒有格子屍體標記
+00498cf0  CFootStep解構：Actor／MUnit生命週期承接
+00498d16  CNormalSurobj刪除解構跳板
+00498d20  CNormalSurobj刪除解構：同上加operator delete
+00498d70  CNormalSurobj解構：釋放精靈群＋CObj解構
+00498eb0  CNormalSurobj設 +0x97（播放模式）；MUnit.mode 在建立時直接設
+00498ed0  CFlyPartDeadObj建構：CPartDeadObj建構＋隨機 10~14 拍；隨飛散部件實作一併帶入
+00498f70  CPartDeadObj建構：容器建構；Actor零初始化承接
+00498fe0  CPartDeadObj解構：Actor生命週期承接
+00499010  CPartDeadObj解構（同0x498fe0）
+00499040  CFlyPartDeadObj刪除解構：同上加operator delete
+00499090  CPartDeadObj刪除解構：同上加operator delete
+004991e0  CPartDeadObj釋放：容器解構＋CDeadObj釋放；Actor承接
+00499200  CPartDeadObj建立：轉呼叫0x4987d0（actor_remove 殘留物承接）
+004997c0  部件群取首個精靈：Actor.role／Role.body[0] 直接取得
+004997e0  虛擬槽常數1：無用途
+00578610  部件容器建構：一般C陣列承接
+005786a0  部件容器解構：一般C陣列承接

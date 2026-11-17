@@ -901,3 +901,6 @@ CDynamicObj	+0x3f6	阻擋重試byte	Actor.walk_block
 CProtagonist	+0x71e/+0x722/+0x726	建構／重設寫0／0／-1，全映像沒人讀	不留欄位
 CProtagonist	+0x2c7	建構設5000（CNpc為1000），全映像沒人讀	不留欄位
 CProtagonist	+0x67	物件種類60	Actor.object_kind
+CDeadObj	+0xa3	屍體階段 1 播死亡 / 2 停200拍 / 3 畫進地面層，畫面外0x50拍移除	Actor.dead_phase
+CDeadObj	+0x9f	階段計數	Actor.dead_ticks
+CNormalSurobj	+0x97	播放模式（0 step 並有壽命，否則 next）	MUnit.mode
