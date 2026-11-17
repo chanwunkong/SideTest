@@ -2391,9 +2391,46 @@ static void character_skill_index_test(void) {
     actors[0] = saved[0]; actors[1] = saved[1]; actor_count = saved_count;
 }
 
+static void character_behavior_reset_test(void) {
+    int saved_n = unit_n;
+    MUnit saved = units[0];
+    unit_n = 1;
+    RoleDef d = {.light=0};
+    Scene scene_stub = {0};
+    Actor a = {.def=&d, .bound_scene=&scene_stub, .dynamic_state=11,
+        .interaction=&d, .animation_target=8, .foe=&actors[0], .layer=12,
+        .command={8,11,22,33}, .remembered={2,44,55,66}, .cool=25,
+        .state={[0]=1}, .grp=10000, .hp=7, .z=63, .vz=4, .zmax=100,
+        .dynamic_command={3,4,5}, .corrected_x=9, .corrected_y=8,
+        .status_aux=7, .behavior_aux=6, .behavior_unused=5, .debug_rectangle=1,
+        .previous_target=12, .object_dead=1, .dynamic_pending=2, .dynamic_path=3,
+        .dynamic_counter=4, .dynamic_aux=5, .dynamic_cache_x=6, .dynamic_cache_y=7};
+    units[0] = (MUnit){.cls=U_MAIN, .owner=&a};
+    srand(42); int expected = rand()%100; int next = rand(); srand(42);
+    actor_behavior_reset(&a);
+    assert(rand()==next && a.direction_clock==(unsigned)expected && a.ai_tick==expected);
+    assert(!a.interaction && !a.foe && !main_of(&a));
+    assert(units[0].main_detached && !units[0].dead && units[0].owner==&a);
+    assert(a.command[0]==-1 && a.command[1]==11 && a.command[2]==22 && a.command[3]==33);
+    assert(a.remembered[0]==-1 && a.remembered[1]==44 && a.remember_delay==50);
+    assert(!a.cool && !a.status_aux && !a.behavior_aux && !a.behavior_unused && !a.debug_rectangle);
+    assert(a.command_world_x==-100 && a.command_world_y==-100 && !a.corrected_x && !a.corrected_y);
+    assert(!a.state[0] && !a.bound_scene && !a.object_dead && a.layer==1 && a.hp==7);
+    assert(a.z==63 && a.vz==-20 && !a.zmax && a.dynamic_state==1);
+    assert(a.dynamic_command[0]==3 && a.dynamic_command[1]==4 && a.dynamic_command[2]==5);
+    assert(a.previous_target==-1 && a.interpolation_left==-1 && a.dynamic_enter_tick==-1);
+    assert(a.dynamic_cache_x==-1 && a.dynamic_cache_y==-1 && a.dynamic_reported_state==1);
+    assert(!a.dynamic_pending && !a.dynamic_path && !a.dynamic_counter && !a.dynamic_aux);
+    a.remembered[0]=9; actor_behavior_reset(&a); assert(!a.remember_delay);
+    a.remembered[0]=1; actor_behavior_reset(&a); assert(a.remember_delay==50);
+    actor_behavior_reset(&a); assert(!a.remember_delay);
+    units[0]=saved; unit_n=saved_n;
+}
+
 int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
+    character_behavior_reset_test();
     character_placement_test();
     air_test();
     bird_test();

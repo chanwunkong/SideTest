@@ -720,7 +720,7 @@
 0048a700	CCharactor角色命令主分派與排隊／去重；DAT_00663804是場景服務端入口條件，不能僅憑非零判成連線專用，未完成
 0048af20	紙娃娃兩套精靈資源卸載轉接，由roles_clear／場景生命週期承接
 0048af30	依外部識別刪第一個SkillUnit，清目前選取但不清目標／左右手ID；actor_skill_remove接模板與主角技能重建
-0048afc0	重設行為：清關聯／目標／MethodMain／命令／冷卻／位置快取，重設高度、光源及動態狀態；未完成
+0048afc0	actor_behavior_reset：清互動／目標／MethodMain綁定、取消命令保留參數、記住1/2給50延遲，退戰／光源／高度-20，再動態重設；接新角色與換場景
 0048b160	虛擬旗標設置入口清除指定mask；actor_clear_flags接type8招式觸發
 0048b2d0	actor_speed_update：有效速度getter交actor_move_speed，接模板建立、一般移動與衝刺；底層完整動態狀態退出仍獨立todo
 0048b6c0	角色頭頂文字：持續拍數=min(strlen(text)*10+16,255)；todo 原版訊息佇列form-feed+二進位物件ID呼叫路徑尚未接入；文字槽／繪製已具備，不新增無呼叫者包裝
@@ -830,3 +830,4 @@
 00494bf0	動態本體序列編號getter；以Actor.body_seq（播放器未初始化時actor_seq）直接讀取取代C++精靈群組查詢
 004979b0	空入口：固定回1，載入角色外觀後不產生副作用，略過
 0049f1b0	指定分隔字元切非空token到暫存字串名單；C strspn/strcspn與直接串接承接，外觀初始化首項PLI、餘項款式，不建立CStringList
+00495910	actor_dynamic_reset：rand()%100拍數、狀態1、序列／插值／進入拍數快取-1，清活動輔助並解除場景、死亡旗標0及層1；不改世界位置／高度／命令三參數

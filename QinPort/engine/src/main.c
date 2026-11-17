@@ -277,6 +277,9 @@ typedef struct Actor {
     int fight_speed, speed_threshold, dynamic_state;
     int dynamic_active, reverse_playback;
     int dynamic_command[3], dynamic_flag_snapshot;
+    int dynamic_enter_tick, interpolation_left, dynamic_reported_state;
+    int dynamic_cache_x, dynamic_cache_y, dynamic_counter;
+    int dynamic_pending, dynamic_path, dynamic_aux;
     const Scene *bound_scene;
     int grid_x, grid_y, grid_valid, occupancy_removed, object_dead, object_kind;
     uint16_t model_type;
@@ -292,6 +295,9 @@ typedef struct Actor {
     int modifiers_dirty, modifier_clock, trail_mode;
     unsigned char state[128]; // 原版角色狀態byte；特殊主分派仍待補齊
     int status_countdown, original_group, counter_skill, status_aux;
+    void *interaction;
+    int behavior_aux, behavior_unused, debug_rectangle;
+    int command_world_x, command_world_y;
     int hp_percent, behavior[4];
     int battle_return;
     Spr *effect[3];
@@ -1172,6 +1178,7 @@ static void actor_explore(Actor *a) {
 static void actor_skills_init(Actor *a);
 static int actor_light_init(const Actor *a);
 static void actor_appearance_init(Actor *a, const char *override);
+static void actor_behavior_reset(Actor *a);
 // 劇情handle為正整數；無劇情物件使用高半區，跨場景不重用，避免關聯命中另一個角色。
 static uint32_t next_actor_object_id = 0x80000000u;
 
@@ -1295,6 +1302,7 @@ static void spawn_npcs(const Scene *s) {
         if (!d || (d->beast && d->air) || !atoi(d->graphic)) continue;  // shortcut: 圖形 ID 是名字的（怪物）用另一套格式，之後做戰鬥時處理
         Actor *a = &actors[actor_count++];
         memset(a, 0, sizeof *a);
+        actor_behavior_reset(a);
         a->x = n->x + 0.5f;
         a->y = n->y + 0.5f;
         a->spec = n;
@@ -1333,10 +1341,10 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     *sp = (NpcSpec){.type = 13, .logic = 1, .tmpl = d->id, .x = x, .y = y, .rx = cx - MON_WANDER, .ry = cy - MON_WANDER,
                     .rw = MON_WANDER * 2 + 1, .rh = MON_WANDER * 2 + 1};
     memset(a, 0, sizeof *a);
+    actor_behavior_reset(a);
     a->x = x + 0.5f;
     a->y = y + 0.5f;
     a->spec = sp;
-    a->ai_tick = rand() % 100;
     a->mon = m;
     a->object_kind = m->istrap ? 24 : 40;
     // shortcut: 陷阱沿用mon_make建立，預設未被發現；完整CTrapBase建立入口接入時對照初始旗標。
@@ -2456,6 +2464,46 @@ static void actor_dynamic_rest(Actor *a) {
         }
     }
     a->dynamic_flag_snapshot = flag;
+}
+
+// Poq.exe 0x495910：重設動態物件並解除場景；不改世界位置、命令三參數或高度。
+static void actor_dynamic_reset(Actor *a) {
+    a->dynamic_pending = 0;
+    a->direction_clock = a->ai_tick = rand() % 100;
+    a->dynamic_path = 0;
+    a->dynamic_state = 1;
+    a->previous_target = -1;
+    a->interpolation_left = -1;
+    a->dynamic_enter_tick = -1;
+    a->dynamic_counter = 0;
+    a->dynamic_aux = 0;
+    a->dynamic_cache_x = a->dynamic_cache_y = -1;
+    a->dynamic_reported_state = 1;
+    // CObj解除場景／復原初值；初始化記錄由Actor陣列直接持有，沒有重複建立旗標副本。
+    a->bound_scene = NULL;
+    a->object_dead = 0;
+    a->layer = 1;
+}
+
+// Poq.exe 0x48afc0：先清業務關聯，再退戰／重設光、高度及動態基底。
+static void actor_behavior_reset(Actor *a) {
+    a->interaction = NULL;
+    actor_clear_target(a);
+    // 原版只清MethodMain指標，不呼叫結束觸發，也不刪掉該招式物件。
+    MUnit *u = main_of(a);
+    if (u) u->main_detached = 1;
+    a->animation_target = 0;
+    actor_cancel_command(a);
+    actor_forget_command(a);
+    a->command_world_x = a->command_world_y = -100;
+    a->status_aux = a->behavior_aux = a->cool = a->behavior_unused = a->debug_rectangle = 0;
+    a->corrected_x = a->corrected_y = 0;
+    actor_status_notify(a, 0, 0, -1);
+    actor_light_init(a);
+    actor_dynamic_rest(a);
+    actor_height_set(a, -20, 0);
+    actor_dynamic_reset(a);
+    // 單機令牌配對沿用Actor身分；此處不複製伺服端名單節點。
 }
 
 // Poq.exe 0x4963e0：面向與目標序列的八方向分組一起更新。
@@ -5452,6 +5500,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     Scene next;
     if (!scene_load(&next, file)) { fprintf(stderr, "載入場景失敗：%s\n", file); return 0; }
     scene_client.ready = 0;
+    actor_behavior_reset(hero);
     if (scene->cells) scene_free(scene);
     *scene = next;
     unit_scene = scene;
