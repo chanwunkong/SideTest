@@ -1599,6 +1599,30 @@ static void character_template_candidates_test(void) {
     actor_setup(&a, &d);
     assert(a.candidate[0] == 276 && a.candidate[1] == 0);
     assert(a.candidate[2] == -1 && a.candidate[3] == 280);
+    // 模板組別直接賦值，不清既有目標；ffff反擊保留，0及負值照寫。
+    a.flags = 0x20200; a.layer = 14; a.counter_skill = 77;
+    a.state[103] = 0;
+    d.group = 45678; d.counter_skill = 65535;
+    actor_setup(&a, &d);
+    assert(a.grp == 45678 && a.flags == 0 && a.layer == 14);
+    assert(a.state[103] == 1 && a.counter_skill == 77);
+    d.counter_skill = 0; actor_setup(&a, &d); assert(a.counter_skill == 0);
+    d.counter_skill = -1; actor_setup(&a, &d); assert(a.counter_skill == -1);
+    // 已綁場景的模板重套也走原版占位入口；單格會拒絕自己的格而重定位。
+    const Scene *saved_scene = unit_scene;
+    Cell cells[25];
+    for (int i = 0; i < 25; i++) cells[i] = (Cell){.walk = 1, .layer = 1};
+    Scene scene_fixture = {.w = 5, .h = 5, .cells = cells};
+    unit_scene = &scene_fixture;
+    a.bound_scene = unit_scene; a.layer = 1; a.body_size = 1;
+    a.grid_valid = 1; a.grid_x = a.grid_y = 2;
+    cells[12].actor = &a;
+    d.size = 1;
+    actor_setup(&a, &d);
+    assert(a.grid_x == 1 && a.grid_y == 1 && !cells[12].actor);
+    assert(cells[6].actor == &a);
+    actor_unoccupy(&a);
+    unit_scene = saved_scene;
     roles[0] = saved;
     role_count = saved_count;
 }

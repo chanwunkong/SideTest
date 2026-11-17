@@ -1268,6 +1268,8 @@ int roledefs_load(void) {
         r->size = COL(18); r->legs = COL(19); r->snd_idle = COL(32); r->snd_fight = COL(33);
         r->light = COL(15); r->flicker = COL(16);
         r->program = COL(27);
+        r->group = c > 30 && *col[30] ? atoi(col[30]) : 65535;
+        r->counter_skill = c > 35 && *col[35] ? atoi(col[35]) : 65535;
         r->scale = c > 28 && *col[28] ? atoi(col[28]) : 65535;
         r->display = COL(29); // RoleMdl +0x128；原讀表器第29欄。
         r->move_cast = COL(37);
@@ -1326,6 +1328,7 @@ int roledefs_load(void) {
             memset(r, 0, sizeof *r);
             r->id = atoi(col[1]);
             r->beast = 1;
+            r->counter_skill = 65535;
             r->scale = 65535;
             r->air = atoi(col[3]);
             r->display = atoi(col[4]);

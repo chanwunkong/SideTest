@@ -1082,6 +1082,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
         for (int i = 0; i < 4; i++) a->candidate[i] = -1;
         a->remembered[0] = -1;
         a->dynamic_state = 1;
+        a->layer = 1;
         if (!a->object_kind) a->object_kind = 31;
         for (int i = 0; i < 20; i++) a->modifier[i].time = -1;
         a->hp_percent = 100;
@@ -1092,12 +1093,16 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     actor_cancel_command(a);
     actor_name_set(a, a->spec ? a->spec->event : "");
     a->display_name[0] = 0;
-    a->layer = 1;
+    actor_status_notify(a, 103, 1, -1);
+    a->grp = d->group; // 模板直接賦值，不走換組清目標的副作用。
+    a->flags = 0;
     a->role = role_for(d);
     a->def = d;
     a->seek_adjust = 0;
     a->view_range = 12;
     actor_size_set(a, d->size < 7 ? 1 : d->size - 5);
+    if (a->bound_scene == unit_scene && a->grid_valid)
+        actor_place(a, a->grid_x, a->grid_y, 1);
     a->idle = d->idle;
     a->walk = d->walk;
     a->fidle = d->fight_idle;
@@ -1107,7 +1112,8 @@ static void actor_setup(Actor *a, const RoleDef *d) {
     if (d->scale != 65535) a->scale = d->scale;
     actor_speed_update(a);
     // 模板的ffff表示不覆寫，並非清除；-1及0則照值寫入。
-    // shortcut: 模板入口的狀態103、層重定位及縮放尚未接齊，此段不代表完整模板初始化。
+    // shortcut: 模板光源仍由每拍light_tick建立，探索刷新及模型類型尚未接齊；完整入口完成時改同步初始化。
+    if (d->counter_skill != 65535) a->counter_skill = d->counter_skill;
     for (int i = 0; i < 4; i++)
         if (d->candidate[i] != 65535) a->candidate[i] = d->candidate[i];
     actor_skills_init(a);
@@ -1222,6 +1228,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->exp = mon_stat(m->exp, a->level, 0);
     a->atk = method_find(skill_attack(m->skill[0]));  // 技能表沒有這招時的招式；有的話每次出手前由 mon_pick 選
     actor_setup(a, d);
+    actor_group(a, 10000); // 出生AI組覆寫在模板預設組之後。
     a->trap_group = a->grp;
     if (unit_scene && !m->istrap && (!actor_bind_scene(a, unit_scene) ||
         !actor_place(a, (int)a->x, (int)a->y, 1))) a->role = NULL;
