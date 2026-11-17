@@ -968,6 +968,23 @@ static void character_movement_speed_test(void) {
     a.modifier[1].value = 1; actor_speed_update(&a);
     assert(a.move_a == 0 && a.move_b == 90 && a.walk_delay_adjust == 7);
     assert(a.dynamic_state == 1 && !a.moving && a.print_x == -100 && a.print_y == -100);
+    // 零速退出必須看到舊狀態11；永久移動殘影改成20拍，不能永遠留著。
+    a.dynamic_state = 11; a.moving = 1; a.trail_mode = 2;
+    a.modifier[6].value = 1; a.modifier[6].time = -1;
+    actor_speed_update(&a);
+    assert(a.dynamic_state == 1 && !a.moving);
+    assert(a.modifier[6].value == 1 && a.modifier[6].time == 20);
+    for (int k = 0; k < 20; k++) actor_modifiers_tick(&a);
+    assert(a.modifier[6].time == 0 && a.modifier[6].value == 1);
+    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    assert(a.modifier[6].time == -1 && a.modifier[6].value == 0);
+    // 長期限不能縮短；靜止時重套零速也不能刷新短期限。
+    a.dynamic_state = 11; a.modifier[6].value = 1; a.modifier[6].time = 21;
+    actor_speed_update(&a); assert(a.modifier[6].time == 21);
+    a.modifier[6].time = 7;
+    actor_speed_update(&a); assert(a.modifier[6].time == 7);
+    a.dynamic_state = 11; a.trail_mode = 1;
+    actor_speed_update(&a); assert(a.modifier[6].time == 7);
     // 查表可夾限，getter本身保留範圍外值。
     a.modifier[1].value = 101; actor_speed_update(&a);
     assert(actor_speed(&a) == 100 && a.move_a == 19 && a.move_c == 7);

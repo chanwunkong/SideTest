@@ -851,6 +851,8 @@ static int movement_delay_adjust(float ratio) {
 // 每個Actor保存調整量，避免修改共用Role資源而讓同模型的其他角色一起加速。
 static void actor_move_speed(Actor *a, int speed) {
     if (speed < 1 && a->dynamic_state == 11) {
+        // 零速也走角色退出分支，必須在改寫舊狀態前收尾移動殘影。
+        actor_trail_exit(a);
         a->dynamic_state = 1;
         a->moving = 0;
         a->print_x = a->print_y = -100;

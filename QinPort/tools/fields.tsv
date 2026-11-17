@@ -641,7 +641,7 @@ BldMdl	+0xa7	互動音效u16；零時模型128用96、129用94	Model.sound
 CSprGroup	+0x10	當前序列：0靜止、1互動、2完成	Object.seq[part]
 CSprGroup	+0x14	序列總數	Anim.count
 CCharactor	+0x66	角色層號byte；大於10時索敵／追擊範圍各加8	Actor.layer；現有建立入口固定地面層1
-CCharactor	+0x73	動態物件行為狀態：1平常、11移動、20..30跳躍等，非dash布林值	Actor.dash僅舊近似，完整動態狀態待移植
+CCharactor	+0x73	動態物件行為狀態：1平常、11移動、20..30跳躍等，非dash布林值	Actor.dynamic_state（平常／移動已接，完整動態狀態仍待移植）
 CCharactor	+0x87	上次套用的目標動畫序列	待CCharactor動畫同步
 CCharactor	+0x8b	目標動畫序列（方向為帶符號餘數）	Actor.animation_target／actor_animation_select
 CCharactor	+0xa3	目前目標物件句柄，0無目標	Actor.foe（指標取代句柄）

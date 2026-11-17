@@ -1194,7 +1194,7 @@ Poq.exe	99	00496530	FUN_00496530	~CCharactor	game	done	9	2		actor_size_set：只
 Poq.exe	99	00496550	FUN_00496550	~CCharactor	game	done	86	44			00497cd0
 Poq.exe	99	004967d0	FUN_004967d0	~CCharactor	game	todo	114	13			00494c30
 Poq.exe	99	00496ac0	FUN_00496ac0	~CCharactor	game	skip	9	0	動態移動結果+0x3f1的獨立setter；FUNCS.tsv索引無呼叫者，依規則略過，不新增只供測試的入口	寫動態移動嘗試結果+0x3f1；總表無呼叫者，依規則skip，不新增無遊戲呼叫端setter	
-Poq.exe	99	00496ae0	FUN_00496ae0	~CCharactor	game	todo	102	9		actor_move_speed已補A/B/C、A倒數初值、原版浮點比例11段及每Actor走路延遲，接移動／衝刺／擊退；完整動態狀態退出虛擬入口仍todo，移除舊擊退註解誤標done	00574e10 005770e0
+Poq.exe	99	00496ae0	FUN_00496ae0	~CCharactor	game	todo	102	9		actor_move_speed已補A/B/C、A倒數初值、原版浮點比例11段及每Actor走路延遲，接移動／衝刺／擊退；零速由舊狀態11先接actor_trail_exit再靜止，保留20拍殘影收尾；完整動態狀態退出虛擬入口仍todo	00574e10 005770e0
 Poq.exe	99	00496d80	FUN_00496d80	~CCharactor	game	todo	16	2		取指定序列描述：由當前部件群首個精靈的序列表+index*32；反編譯空指標分支會讀0x14，未自行設計安全替代；todo 動畫基礎	00574e10 005770e0
 Poq.exe	99	00496de0	FUN_00496de0		game	todo	16	21			00574e10 005770e0
 Poq.exe	99	00496e30	FUN_00496e30		game	todo	36	5			00495420

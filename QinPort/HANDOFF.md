@@ -761,6 +761,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 保留原版怪現象：0x48b300～0x48b315比較的是state[id]值與last_status ID，不是迴圈ID；127向0重套且不預先清舊效果。0x48b5c9先將ebx減至-1，0x48b5e8確實push ebx，末次套表傳-1（查低byte255，現有表無此列），不替換為last_status。末尾無條件清dirty，包括重套第4修正0時再次設起的dirty；光環重套維持既有範圍及技能游標。
   - `skilltest.c`新增逆序優先、最後狀態不重套、last_status=1略過值1、ID相同但值2仍套、值2略過、Buff名單不能替代byte、光環範圍／游標保留、套0後清dirty、缺列不套、技能狀態加入／到期的byte與效果同步。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；-DSTORY語法檢查通過；原有6個未使用函數警告。
   - fields／roles已更正，FUNCS.tsv已重產。無新增shortcut／DLC分類。其餘23個todo仍含同類別動態移動、模板、動畫、繪圖、主命令與狀態switch及引擎基礎，不能列為等外部系統；起點不前移。未commit或push。
+  ~~下一步：0x486270（CCharactor 尚餘23個todo；續補完整動態移動／模板、動畫、命令主分派與128狀態更新，完成整類別才進CNpc）起~~。
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，本輪只修正零速退出漏掉移動殘影收尾，未完成整類別，未進CNpc**。新增done 0、skip 0、base 0；主範圍仍為done 62、skip 33、todo 23。
+  - 核對0x486270／0x488280及底層0x4942d0／0x494950／0x496550／0x496ae0：actor_move_speed在速度小於1且舊動態狀態11時，先呼叫actor_trail_exit才改成靜止，修正永久殘影不收尾。未把局部修復標成完整動態入口done；既有動態移動shortcut仍保留。
+  - 保留第6修正永久期限-1改為20、期限21以上不縮短、剩0仍有效至下個10拍的怪現象；skilltest新增零速退出、到期邊界、靜止不刷新、模式1不改期限測試。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`，仍有6個既有未使用函數警告。
+  - fields修正+0x73實際對應Actor.dynamic_state，roles補零速退出路徑，FUNCS.tsv已重產。無新增DLC分類。23個todo仍含同類別及引擎基礎，不能列為等外部系統。未commit或push。
   **下一步：0x486270（CCharactor 尚餘23個todo；續補完整動態移動／模板、動畫、命令主分派與128狀態更新，完成整類別才進CNpc）起**。
 
 
