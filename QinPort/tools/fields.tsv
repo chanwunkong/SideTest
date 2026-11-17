@@ -809,12 +809,12 @@ CDynamicObj	+0x2d7	目前離地高度；退出21/22與高度setter不清此值	A
 CDynamicObj	+0x2db	每拍垂直速度；退出22=-5，旋飛啟用2／解除-10	Actor.vz
 CDynamicObj	+0x2df	垂直高度上限；旋飛啟用100、解除及退出22為0	Actor.zmax
 SpriteSequence	+0x00	序列幀資料陣列，每幀原版22 bytes	Seq.frames（共用不可變Frame資源）
-SpriteSequence	+0x04	目前幀索引；反播在迴圈首幀跳至迴圈末幀	Actor.act_frame／Spr.cur
+SpriteSequence	+0x04	目前幀索引；反播在迴圈首幀跳至迴圈末幀；單次動作保存播放前幀交MethodMain消費	Actor.act_frame／Spr.cur
 SpriteSequence	+0x08	序列總幀數；反播索引負數繞末幀、超界繞0	Seq.count
 SpriteSequence	+0x10	目前幀已停拍數；滿max(幀延遲+調整,1)歸0換幀	Actor.frame_tick／Spr.tick
 SpriteSequence	+0x18	迴圈首幀；反播從此幀跳往迴圈末幀	Actor.body_start／Spr.start
 SpriteSequence	+0x1c	迴圈末幀；正播從此幀跳往首幀，完成判斷為目前幀>=此值且停到最後一拍	Actor.body_end／Spr.end
-CCharactor	+0xbb	物件累積更新拍，方向小於6格每4拍、否則每15拍更新	Actor.direction_clock（由動態基底每拍增加；方向／修正倒數共用，空中略過不補扣）
+CCharactor	+0xbb	物件累積更新拍，方向小於6格每4拍、否則每15拍更新	Actor.direction_clock（動畫播放後由動態基底每拍增加；方向／修正倒數共用，空中略過不補扣）
 RoleMdl	+0x4c	第7欄休息序列第一值；旗標0x400旋轉使用此起點而非死亡序列	RoleDef.idle／actor_direction_tick
 CObj	+0x30	SInit記錄，+0xc/+0x10格子座標；不等同插值中的世界座標	Actor.grid_x/grid_y/grid_valid
 CObj	+0x34	世界X，重設位置為格X*64+32	Actor.x*64（actor_position）
@@ -836,7 +836,7 @@ CCharactor	+0x520	退戰設1；明確入戰命令可清0的返回旗標	Actor.ba
 RoleMdl	+0x70	靜態初始態序列表13個int，取值時只讀低ushort；欄12五值後被欄13九值自索引4覆寫，缺項65535	RoleDef.initial_seq[13]
 RoleMdl	+0x38	紙娃娃動作方式字串；外觀覆寫星號切分的首值取代此值	RoleDef.pli／actor_appearance_init
 CDynamicObj	+0xa7	原版8方向面向；設定時依目前目標動畫的八序列分組重選方向	Actor.facing保存原值／Actor.dir經DIR_MAP轉換／actor_direction_set
-CDynamicObj	+0xbb	更新拍數，基底重設rand()%100	Actor.direction_clock（動態基底每拍增加一次）／Actor.ai_tick
+CDynamicObj	+0xbb	更新拍數，基底重設rand()%100	Actor.direction_clock（動態分派及動畫播放後、維護前每拍增加一次）／Actor.ai_tick
 CDynamicObj	+0xbf	重設清0；狀態31結束／遇阻時非零先清0，再返回+c3/+c7目的地	Actor.dynamic_counter
 CDynamicObj	+0x97	讓路前世界X，-1未偏移；靜止讓路以此位置量距，不以偏移後位置量距	Actor.dynamic_cache_x
 CDynamicObj	+0x9b	讓路前世界Y，與+0x97一起重設-1；清除時不回吸世界位置	Actor.dynamic_cache_y

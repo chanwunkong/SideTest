@@ -744,6 +744,59 @@ static void character_motion_order_test(void) {
     unit_scene=saved;
 }
 
+static void character_animation_order_test(void) {
+    Frame frames[2] = {{.delay=1}, {.delay=1}};
+    Seq seq = {2, frames}; Anim anim = {.count=1, .seqs=&seq};
+    Role role = {.part_count=1, .seq_count=1, .body={&anim}};
+    RoleDef d = {0};
+    const Scene *saved_scene = unit_scene;
+    int saved_n = unit_n; MUnit saved = units[0]; unit_n = 0;
+    Cell cells[4];
+    for (int i=0; i<4; i++) cells[i]=(Cell){.walk=1,.layer=1};
+    Scene scene={.w=2,.h=2,.cells=cells}; unit_scene=&scene;
+    Actor a={.role=&role,.def=&d,.dir=2,.act=ACT_HIT,.dynamic_state=22,
+        .layer=1,.grid_valid=1,.x=.5f,.y=.5f,.z=4,.vz=-4,
+        .interpolation_left=1,.interpolation_x=32,.interpolation_y=32,
+        .flags=0x200,.direction_clock=9};
+    // 最後一段水平／高度在本拍完成，但播放仍看到落地前的空中旗標。
+    actor_motion_tick(&a);
+    assert(!a.z && !a.interpolation_left && !a.act_frame && !a.frame_tick);
+    assert(a.direction_clock==10 && a.animation_sample_pending);
+    actor_maintenance_tick(&a);
+    action_tick(&a,&scene,0);
+    assert(!a.act_frame && !a.frame_tick && !a.animation_sample_pending);
+    // 下一拍先退出跳躍、解除空中，播放器才恢復；action_tick不再多走一幀。
+    actor_motion_tick(&a);
+    assert(a.dynamic_state==1 && !(a.flags&0x200) && a.act_frame==1);
+    action_tick(&a,&scene,1);
+    assert(a.act==ACT_HIT && a.act_frame==1);
+
+    Method m={.trig_count=1,.trig={{.flag=0,.frame=1,.type=8,.id=16,.id2=1}}};
+    a=(Actor){.role=&role,.def=&d,.dir=2,.act=ACT_ATTACK,.dynamic_state=1,
+        .atk=&m,.last_frame=-1};
+    actor_motion_tick(&a);
+    assert(a.act_frame==1 && a.sampled_frame==0);
+    action_tick(&a,&scene,2);
+    assert(a.act==ACT_ATTACK && a.last_frame==0 && !(a.flags&16) && a.act_frame==1);
+    actor_motion_tick(&a); // 播放已繞回首幀，仍須交出剛才的末幀與完成值。
+    assert(!a.act_frame && a.sampled_frame==1 && a.sampled_finished);
+    action_tick(&a,&scene,3);
+    assert(a.act==ACT_NONE && (a.flags&16));
+
+    // 在動態更新之後才開始的新動作不能沿用上一動作的末幀／完成值。
+    a=(Actor){.role=&role,.def=&d,.dir=2,.act=ACT_HIT,.dynamic_state=1};
+    actor_body_select(&a); a.act_frame=1;
+    actor_motion_tick(&a);
+    assert(a.sampled_finished);
+    start_act(&a,ACT_HIT,0);
+    action_tick(&a,&scene,4);
+    assert(a.act==ACT_HIT && !a.act_frame && !a.frame_tick);
+    a.activity_disabled=1;
+    actor_motion_tick(&a); action_tick(&a,&scene,5);
+    assert(a.act==ACT_HIT && !a.act_frame && !a.frame_tick);
+    units[0]=saved; unit_n=saved_n; unit_scene=saved_scene;
+}
+
 static void character_charge_test(void) {
     const Scene *saved = unit_scene;
     Cell cells[100];
@@ -3408,6 +3461,7 @@ int main(void) {
     character_maintenance_test();
     character_animation_test();
     character_walk_destination_test();
+    character_animation_order_test();
     character_dynamic_command_test();
     character_yield_test();
     character_dynamic_exit_test();

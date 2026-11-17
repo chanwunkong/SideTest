@@ -322,7 +322,10 @@ typedef struct Actor {
     const MonDef *mon;  // 怪物的數值表列；NPC 與主角為 NULL
     int level, hp, hp_max, mp, mp_max, ap, ap_max, dp, hr, sr, exp;
     int act, act_seq, last_frame;  // 單次動作與它的序列起點、上一拍的幀（觸發用）
-    int body_seq, body_start, body_end, body_ready, animation_stepped;
+    int body_seq, body_start, body_end, body_ready;
+    // shortcut: MethodMain仍在播放後消費，保存播放前觀測值；完整場景更新次序接齊後核對並移除。
+    unsigned action_serial, sampled_action_serial;
+    int animation_sample_pending, sampled_frame, sampled_finished;
     int act_frame, frame_tick, act_done;  // 單次動作播到第幾幀、這幀停了幾拍、播完了沒
     unsigned char sequence_delay_bias; // 原版byte +0x345，非0時每幀延遲另加2
     int adj, extra;                // 這次動作每幀延遲的調整（序列 +0x14）、攻速多出來要補到間隔的拍數
@@ -1472,6 +1475,7 @@ static void act_end(Actor *a) {
 
 static void start_act(Actor *a, int act, int seq) {
     act_end(a);
+    ++a->action_serial;
     a->aim_valid = 0;
     a->act = act;
     a->act_seq = seq;
@@ -2779,7 +2783,6 @@ static void actor_direction_tick(Actor *a) {
 // Poq.exe 0x487f30：空中不推本體，但仍清挨打、播放三個附加精靈。
 static void actor_animation_tick(Actor *a) {
     if (a->head_height_pending) actor_head_height(a);
-    a->animation_stepped = 1;
     actor_body_select(a);
     const Seq *q = role_seq(a->role, a->body_seq);
     if (!(a->flags & 0x200) && q && q->count) {
@@ -2804,7 +2807,7 @@ static void actor_animation_tick(Actor *a) {
 }
 
 // 角色更新中已核對的維護分支：冷卻先扣，空中非靜止且未旋轉時整段略過。
-// shortcut: 動態基底／動畫仍由固定拍既有入口推進；完整角色更新接齊後統一次序並補光環。
+// shortcut: 動態→播放→高度由固定拍前置入口依序推進；仍缺100拍光環接收端。
 static void actor_maintenance_tick(Actor *a) {
     if (a->activity_disabled) return;
     actor_cooldown_tick(a);
@@ -3162,17 +3165,26 @@ static void actor_charge_tick(Actor *a) {
     else actor_interpolation_tick(a);
 }
 
-// 角色固定拍先跑動態分派，再由動態基底推高度與共用時鐘。
-// shortcut: 此處整合21/22/31/32；11與動畫虛擬呼叫尚未齊備，
-// 完整角色更新接齊後合併，不把主入口標成完成。
+// 角色固定拍：動態分派後先播放，再由維護前置的動態基底推高度與共用時鐘。
+// shortcut: 動態11仍由命令行走橋接；完整反向路徑接齊後替換，不標主入口完成。
 static int actor_motion_tick(Actor *a) {
     int enabled = !a->activity_disabled;
+    a->animation_sample_pending = 0;
     if (enabled) {
         if (a->dynamic_state == 1) actor_yield_tick(a);
         actor_rush_update(a);
         actor_knock_tick(a);
         actor_charge_tick(a);
         a->dynamic_reported_state = a->dynamic_state; // 單機共用物件，不產生狀態同步封包。
+        // 單次動作稍後才交MethodMain消費；保留播放前的幀及完成值，
+        // 延遲只有1拍的首／末幀也必須各消費一次。
+        actor_body_select(a);
+        const Seq *q = role_seq(a->role, a->body_seq);
+        a->sampled_action_serial = a->action_serial;
+        a->sampled_frame = q || a->act != ACT_ATTACK ? actor_frame(a, a->body_seq) : 99;
+        a->sampled_finished = !q || actor_body_done(a, q);
+        a->animation_sample_pending = 1;
+        actor_animation_tick(a);
         actor_height_tick(a);
     }
     // 原版停用也會鎖存首次更新，但回傳進入時的啟用值；不能當成重新啟用。
@@ -3418,12 +3430,19 @@ static void walk_fx(Actor *a, const Scene *s, Uint32 tick) {
 // shortcut: type 6（只對物件種類 7）、type 10（招式物件虛擬函式 0x20 = 0x43a760）還沒做
 static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     (void)s;
+    if (a->activity_disabled) return;
     actor_animation_select(a, a->act_seq + DIR_MAP[a->dir]);
     actor_body_select(a);
     int seq = actor_seq(a);
     const Seq *q = role_seq(a->role, seq);
     int finished = !q || actor_body_done(a, q);
     int f = q || a->act != ACT_ATTACK ? actor_frame(a, seq) : 99;  // 角色沒有這招的動作（陷阱）：觸發一次全放
+    int played = a->animation_sample_pending;
+    if (played && a->sampled_action_serial == a->action_serial) {
+        f = a->sampled_frame;
+        finished = a->sampled_finished;
+    }
+    a->animation_sample_pending = 0;
     if (a->act == ACT_ATTACK && a->atk) {  // 招式的觸發由角色出手物件（U_MAIN）放
         if (a->last_frame < 0 && !main_of(a)) main_new(a);
         MUnit *u = main_of(a);
@@ -3434,7 +3453,7 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     }
     a->last_frame = f;
     // 先讓MethodMain消費末幀，再結束動作；延遲1的末幀也不能漏掉觸發。
-    actor_animation_tick(a);
+    if (!played) actor_animation_tick(a);
     if (a->act == ACT_ATTACK && finished) {  // 動作播完：連鎖就重播（0x43a760），否則結束角色出手
         MUnit *u = main_of(a);
         if (u && unit_bounce(u)) {
@@ -6711,7 +6730,6 @@ int main(int argc, char **argv) {
             for (int i = 0; i < actor_count; i++) {
                 if (actors[i].role) actor_motion_tick(&actors[i]);
                 actor_health_sync(&actors[i]);
-                actors[i].animation_stepped = 0;
                 if (actors[i].role) actor_maintenance_tick(&actors[i]);
                 if (actors[i].role && actors[i].act != ACT_DEAD) actor_skill_command_tick(&actors[i]);
                 if (actors[i].fight > 0 && !actors[i].foe && !--actors[i].fight)
@@ -6748,7 +6766,6 @@ int main(int argc, char **argv) {
                 else monster_think(a, hero, &scene, tick);
             }
             for (int i = 0; i < actor_count; i++) {
-                if (actors[i].role && !actors[i].animation_stepped) actor_animation_tick(&actors[i]);
                 actor_near_reactions(&actors[i]);
                 walk_fx(&actors[i], &scene, tick);
             }
