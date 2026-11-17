@@ -8,6 +8,115 @@ static RoleDef def;
 static MonDef md;
 static const Role empty_test_role;
 
+static void character_placement_test(void) {
+    Actor saved[2] = {actors[0], actors[1]};
+    int saved_count = actor_count;
+    const Scene *saved_scene = unit_scene;
+    int saved_recheck = actor_recheck_layer;
+    int saved_cx = actor_correction_x, saved_cy = actor_correction_y;
+    Cell cells[225];
+    for (int i = 0; i < 225; i++) cells[i] = (Cell){.walk=1, .layer=1};
+    Scene s = {.w=15, .h=15, .cells=cells}, other = s;
+    RoleDef d = {0};
+    unit_scene = &s; actor_count = 2;
+    actors[0] = (Actor){.role=&empty_test_role, .def=&d, .x=7.25f, .y=7.75f,
+        .body_size=1, .layer=1, .object_kind=31};
+    actors[1] = (Actor){.role=&empty_test_role, .def=&d, .x=7.5f, .y=7.5f,
+        .body_size=1, .layer=1};
+    Actor *a = &actors[0], *b = &actors[1];
+    a->occupancy_removed=1; b->bound_scene=&s;
+    assert(actor_place(b,7,7,0));
+    actor_recheck_layer=0; actor_correction_x=-1;
+    assert(actor_bind_scene(a, &s));
+    assert(a->x==6.5f && a->y==6.5f); // 中央被占，第一圈上緣左端優先。
+    assert(a->corrected_x==6 && a->corrected_y==6 && !cell_actor0(6,6));
+    assert(actor_place(a, 6, 6, 0));
+    assert(cell_actor0(6,6)==a && cell_actor0(7,7)==b);
+    assert(!actor_place(a, 6, 6, 0)); // 大小1不可覆蓋自己的舊格。
+    assert(!actor_place(a, 7, 7, 0));
+    assert(a->grid_x==6 && !a->occupancy_removed);
+    assert(actor_place(a, 8, 8, 0));
+    assert(!cell_actor0(6,6) && cell_actor0(8,8)==a);
+    assert(a->x==6.5f && a->y==6.5f); // 只移占位，尚未插值世界位置。
+    actor_position(a, 8, 8);
+    assert(a->x==8.5f && a->y==8.5f);
+    b->bound_scene=&other;
+    assert(!cell_actor0(7,7)); // 其他場景不占本場景。
+    b->bound_scene=&s;
+    actor_unoccupy(a);
+    a->body_size=2;
+    assert(actor_place(a, 8, 8, 0)); // 偶數大小向右、下多一格。
+    assert(cell_actor0(8,8)==a && cell_actor0(9,9)==a && !cell_actor0(7,8));
+    assert(actor_place(a, 9, 8, 0)); // 大小>1允許覆蓋自己的占位。
+    assert(!cell_actor0(8,8) && cell_actor0(10,9)==a);
+    assert(!actor_place(a, 14, 14, 1)); // 大小>1不走找空格分支。
+    assert(a->grid_x==9 && a->grid_y==8 && !a->occupancy_removed);
+    assert(!actor_place(a, 6, 6, 0)); // 方形占地右下角碰到另一角色。
+    cells[8*15+11].walk=0; cells[8*15+11].layer=1;
+    assert(!actor_place(a,11,8,0));
+    cells[8*15+11].layer=10; // 大物件只有格子層1..9檢查通行。
+    assert(actor_place(a,11,8,0));
+    actor_unoccupy(a); a->body_size=1; a->grid_valid=0; a->x=3.25f; a->y=3.75f;
+    cells[3*15+3].layer=10; a->layer=1; actor_recheck_layer=1;
+    actor_correction_x=12; actor_correction_y=13;
+    assert(actor_bind_scene(a,&s));
+    assert(a->layer==10 && !actor_recheck_layer && a->x==3.5f && a->y==3.5f);
+    assert(a->corrected_x==12 && a->corrected_y==13); // 不以修正結果瞬移世界位置。
+    a->object_kind=60; a->layer=1; actor_recheck_layer=1;
+    assert(actor_bind_scene(a,&s));
+    assert(actor_recheck_layer && a->layer==1);
+    actor_recheck_layer=0; actor_correction_x=-1;
+    assert(actor_place(a,3,3,0));
+    assert(actor_destroy(a)==1 && a->object_dead && a->occupancy_removed);
+    assert(!alive(a) && !cell_actor0(3,3) && a->act==ACT_NONE);
+    assert(!actor_place(a,4,4,0));
+    assert(cell_actor0(7,7)==b); // 移除自己不影響別人的占位。
+    // 原版每格只清相符識別；即使占地被別人覆寫，也不能順手刪掉新物件。
+    a->object_dead=0; actor_position(a,5,5); a->bound_scene=&s; a->body_size=2;
+    cells[5*15+5].actor=a; cells[6*15+6].actor=b;
+    actor_unoccupy(a);
+    assert(!cells[5*15+5].actor && cells[6*15+6].actor==b);
+    cells[6*15+6].actor=NULL;
+
+    a->object_dead=0; a->body_size=1; a->grid_valid=0; a->x=0.5f; a->y=0.5f;
+    for(int i=0;i<225;i++) cells[i]=(Cell){.layer=1};
+    cells[10*15+10].walk=1;
+    assert(!actor_place(a,0,0,1)); // 八圈找不到第十圈。
+    assert(actor_bind_scene(a,&s)); // 綁場景找十圈。
+    assert(a->grid_x==10 && a->grid_y==10 && a->corrected_x==10 && a->corrected_y==10);
+    assert(actor_place(a,10,10,0));
+    cells[10*15+11].walk=1;
+    actor_step(a,&s,32,16,32);
+    assert(a->grid_x==11 && a->grid_y==10 && cell_occupant(11,10)==a);
+    assert(!cell_occupant(10,10));
+    actor_unoccupy(b); b->bound_scene=&s; b->grid_valid=0; b->x=10.5f; b->y=10.5f;
+    assert(actor_place(b,10,10,0));
+    float px=a->x, py=a->y;
+    actor_step(a,&s,-32,-16,32);
+    assert(a->x==px && a->y==py && a->grid_x==11 && cell_occupant(10,10)==b);
+    assert(actor_restore_position(a,11.25f,10.75f));
+    assert(a->x==11.25f && a->y==10.75f && cell_occupant(11,10)==a);
+    assert(actor_restore_position(a,10.5f,10.5f)); // 目標被b占，八圈中最近可站格回到11,10。
+    assert(a->grid_x==11 && a->grid_y==10 && a->x==11.5f);
+    cells[10*15+10].walk=0;
+    px=a->x; py=a->y;
+    assert(!actor_restore_position(a,0.5f,0.5f));
+    assert(a->x==px && a->y==py && cell_occupant(11,10)==a);
+    cells[10*15+10].walk=1;
+    actor_kill(a,NULL);
+    assert(a->object_dead && a->act==ACT_DEAD && !cell_occupant(11,10));
+    actor_unoccupy(b);
+    a->object_dead=0; a->act=ACT_NONE;
+    cells[10*15+10].walk=0;
+    a->grid_valid=0; a->x=0.5f; a->y=0.5f;
+    a->corrected_x=99;
+    assert(!actor_bind_scene(a,&s) && a->corrected_x==99);
+    assert(a->x==0.5f && a->occupancy_removed); // 失敗不寫成功快取。
+    actors[0]=saved[0]; actors[1]=saved[1]; actor_count=saved_count;
+    unit_scene=saved_scene; actor_recheck_layer=saved_recheck;
+    actor_correction_x=saved_cx; actor_correction_y=saved_cy;
+}
+
 static void character_rotation_cooldown_test(void) {
     Frame frames[3] = {{.delay=2}, {.delay=2}, {.delay=2}};
     Seq seqs[16];
@@ -1989,6 +2098,7 @@ static void character_skill_index_test(void) {
 int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
+    character_placement_test();
     air_test();
     bird_test();
     character_lookup_test();

@@ -62,7 +62,7 @@ typedef struct { int id, part_count; size_t start; Part parts[MAX_PARTS]; int li
     int grid_x, grid_y, grid_w, grid_h, anchor_x, anchor_y, door_x, door_y;
     uint16_t *footprint;
 } Model;  // light = 光源種類 1~4（BldMdl +0xa9）；lx, ly = 光源格相對擺放格（+0x63 − +0x53、+0x67 − +0x57）
-typedef struct { uint16_t ground, over; uint8_t walk, kind, layer, view, flags; int building; uint8_t origin; } Cell;  // kind = 地面種類（記錄第 7 byte；3 = 會留腳印的軟地）；layer = 第 6 byte（原版格子 +6，0x435c00）
+typedef struct { uint16_t ground, over; uint8_t walk, kind, layer, view, flags; int building; uint8_t origin; struct Actor *actor; } Cell;  // kind = 地面種類（記錄第 7 byte；3 = 會留腳印的軟地）；layer = 第 6 byte（原版格子 +6，0x435c00）
 typedef struct { int model, x, y; const Model *m; unsigned phase; int highlight, door_x, door_y; char name[128];
     int tri, state, active, cooldown, bottom, top, dead;
     int seq[MAX_PARTS], frame[MAX_PARTS], elapsed[MAX_PARTS];

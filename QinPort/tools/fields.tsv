@@ -53,7 +53,7 @@ SceneCell	+0x10	道具或陷阱（物件編號）	cell_prop()
 SceneCell	+0x12	旗標（0x88 = 建築本體）	Cell.flags
 CCharactor	+0x34	位置（1/64 格）GPOINT	ax64/ay64
 CCharactor	+0x3c	畫面GRECT：本體移高、合影子後縮放、再合腳圈	viewport_actor_rect／pick_box共用（不再用固定點選方框）
-CCharactor	+0x67	物件種類（0x1e~0x64 角色、0xc 建築、0x18 陷阱）	-
+CCharactor	+0x67	物件種類；基底建構31、CNpc建構40，60不消費重判層旗標	Actor.object_kind（陷阱24；完整衍生類建立仍待補）
 CTrapBase	+0x9b	主人存在時更新的AI組別快取；主人失效沿用最後組別，含已死主人	Actor.trap_group／trap_owner_group
 CTrapBase	+0xab	放的人（物件編號）	Actor.owner
 CTrapBase	+0x9f	非零為尚未被發現；發現清0，不影響觸發或生命，繪製據此選模式	!Actor.trap_revealed／trap_reveal
@@ -723,8 +723,8 @@ CCharactor	+0x58d	建築互動的關聯指標	待同類別建築互動
 CCharactor	+0x591	光環要施加的狀態ID	待光環
 CCharactor	+0x595	光環作用範圍，預設8或取SkillUnit最大距離	待光環
 CCharactor	+0x599	光環來源SkillUnit指標	待光環
-CCharactor	+0x59d	修正目的格X快取	待角色位置修正
-CCharactor	+0x5a1	修正目的格Y快取	待角色位置修正
+CCharactor	+0x59d	修正目的格X快取	Actor.corrected_x（actor_bind_scene）
+CCharactor	+0x5a1	修正目的格Y快取	Actor.corrected_y（actor_bind_scene）
 CCharactor	+0x5a5	清記住命令後的延遲，原命令1/2為50否則0；重送及扣減尚待主分派	Actor.remember_delay
 CCharactor	+0x5a9	角色活動啟用byte	待角色更新
 CCharactor	+0x5aa	8個7bytes頭頂／上飄文字槽的陣列指標	待頭頂文字
@@ -816,3 +816,10 @@ SpriteSequence	+0x18	迴圈首幀；反播從此幀跳往迴圈末幀	Actor.body
 SpriteSequence	+0x1c	迴圈末幀；正播從此幀跳往首幀，完成判斷為目前幀>=此值且停到最後一拍	Actor.body_end／Spr.end
 CCharactor	+0xbb	物件累積更新拍，方向小於6格每4拍、否則每15拍更新	Actor.direction_clock（暫用動畫固定拍時鐘，完整生命週期接入時統一）
 RoleMdl	+0x4c	第7欄休息序列第一值；旗標0x400旋轉使用此起點而非死亡序列	RoleDef.idle／actor_direction_tick
+CObj	+0x30	SInit記錄，+0xc/+0x10格子座標；不等同插值中的世界座標	Actor.grid_x/grid_y/grid_valid
+CObj	+0x34	世界X，重設位置為格X*64+32	Actor.x*64（actor_position）
+CObj	+0x38	世界Y，重設位置為格Y*64+32	Actor.y*64（actor_position）
+CCharactor	+0x6b	所屬場景的格子表	Actor.bound_scene->cells
+CCharactor	+0x58	物件死亡／移除旗標，和死亡動畫不同；破壞前先清占位	Actor.object_dead
+CDynamicObj	+0x3c1	方形占位邊長，範圍-(size-1)/2至size/2	Actor.body_size／actor_place／actor_unoccupy
+SceneCell	+0xc	角色占位的16-bit物件識別，ffff無	Cell.actor（NULL無占位；單機Actor指標承接）

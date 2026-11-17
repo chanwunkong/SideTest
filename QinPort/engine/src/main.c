@@ -276,6 +276,9 @@ typedef struct Actor {
     int dir, moving, speed;
     int fight_speed, speed_threshold, dynamic_state;
     int dynamic_active, reverse_playback;
+    const Scene *bound_scene;
+    int grid_x, grid_y, grid_valid, occupancy_removed, object_dead, object_kind;
+    int corrected_x, corrected_y;
     int animation_target, animation_dir;
     int shown_seq, shown_ready, previous_target;
     Uint32 direction_clock;
@@ -364,6 +367,11 @@ static void actor_illusion_end(Actor *a) {
     for (int i = 0; r && i < r->part_count; i++)
         if (r->body[i] && r->body[i]->count > 0) illusion_clear(&a->illusion[i]);
 }
+static const Scene *unit_scene;
+static int actor_bind_scene(Actor *a, const Scene *s);
+static int actor_place(Actor *a, int x, int y, int relocate);
+static int actor_destroy(Actor *a);
+static void actor_unoccupy(Actor *a);
 static void actors_illusion_clear(void);
 static void actor_illusion_draw(const Actor *a);
 
@@ -859,10 +867,14 @@ static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px)
     sdy /= len;
     // 畫面位移 → 格子位移：畫面 x = (gx - gy) * 32，畫面 y = (gx + gy) * 16
     float gx = (sdx / 64 + sdy / 32) * px, gy = (-sdx / 64 + sdy / 32) * px;
+    float previous_x = h->x, previous_y = h->y;
     // 能走就走；撞牆時試著只沿一個軸滑動
     if (scene_walkable(s, (int)(h->x + gx), (int)(h->y + gy))) { h->x += gx; h->y += gy; }
     else if (scene_walkable(s, (int)(h->x + gx), (int)h->y)) h->x += gx;
     else if (scene_walkable(s, (int)h->x, (int)(h->y + gy))) h->y += gy;
+    if (h->grid_valid && ((int)h->x != h->grid_x || (int)h->y != h->grid_y) && !actor_place(h, (int)h->x, (int)h->y, 0)) {
+        h->x = previous_x; h->y = previous_y;
+    }
     face(h, sdx, sdy);
     h->moving = 1;
 }
@@ -1070,6 +1082,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
         for (int i = 0; i < 4; i++) a->candidate[i] = -1;
         a->remembered[0] = -1;
         a->dynamic_state = 1;
+        if (!a->object_kind) a->object_kind = 31;
         for (int i = 0; i < 20; i++) a->modifier[i].time = -1;
         a->hp_percent = 100;
         a->effect_speed = 100;
@@ -1157,8 +1170,10 @@ static void spawn_npcs(const Scene *s) {
         for (int o = 0; o < 8; o++)
             if (DIR_MAP[o] == n->dir) a->dir = o;
         a->spec = n;
+        a->object_kind = 40;
         a->act_tick = rand() % 200;  // 錯開動作，不要整排同步
         actor_setup(a, d);
+        if (!actor_bind_scene(a, s) || !actor_place(a, (int)a->x, (int)a->y, 1)) a->role = NULL;
 #ifdef STORY
         const char *event = actor_init_name(a);
         a->sh = event && *event ? story_find(sroom, event) : 0;
@@ -1197,6 +1212,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->act_tick = rand() % 200;
     a->ai_tick = rand() % 100;
     a->mon = m;
+    a->object_kind = m->istrap ? 24 : 40;
     // shortcut: 陷阱沿用mon_make建立，預設未被發現；完整CTrapBase建立入口接入時對照初始旗標。
     a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
     a->side = 1;
@@ -1207,6 +1223,8 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->atk = method_find(skill_attack(m->skill[0]));  // 技能表沒有這招時的招式；有的話每次出手前由 mon_pick 選
     actor_setup(a, d);
     a->trap_group = a->grp;
+    if (unit_scene && !m->istrap && (!actor_bind_scene(a, unit_scene) ||
+        !actor_place(a, (int)a->x, (int)a->y, 1))) a->role = NULL;
     return a;
 }
 
@@ -1225,10 +1243,6 @@ static void spawn_monsters(const Scene *s, const World *w, int room) {
             const RoleDef *d = m ? roledef_find(m->role) : NULL;
             if (!d || (!atoi(d->graphic) && !d->anim)) continue;  // shortcut: 圖形 ID 是名字的（蝙蝠、骷髏、蜘蛛）用另一套格式，還沒做
             int x = en->x, y = en->y;
-            for (int t = 0; t < 20; t++) {  // 在入口點附近找一格能站的
-                int tx = en->x + rand() % 7 - 3, ty = en->y + rand() % 7 - 3;
-                if (scene_walkable(s, tx, ty)) { x = tx; y = ty; break; }
-            }
             int lv = mg->level, tier = mg->tier;
             if (lv < 0) lv = tier * 5 - rand() % 5;
             Actor *a = mon_make(m, d, x, y, en->x, en->y, lv);
@@ -1242,7 +1256,7 @@ static void spawn_monsters(const Scene *s, const World *w, int room) {
 #define CORPSE_TICKS 600 // shortcut: 屍體留多久是自訂的（約 10 秒）
 static int exp_table[100], exp_levels;  // Data/experience.txt：第 n 列 = 升到 n+1 級要的經驗
 
-static int alive(const Actor *a) { return a && a->role && a->act != ACT_DEAD; }
+static int alive(const Actor *a) { return a && a->role && !a->object_dead && a->act != ACT_DEAD; }
 
 static float cell_dist(const Actor *a, const Actor *b) {
     return fmaxf(fabsf(a->x - b->x), fabsf(a->y - b->y));
@@ -1810,7 +1824,9 @@ static void summon(Actor *a, const SkillRow *r) {
     if (n >= max) return;
     for (int i = 0; k < 6 && i < actor_count; i++) {
         Actor *e = &actors[i];
-        if (e->owner == a && alive(e) && strcmp(e->mon->name, N[k]) && !(k == 0 && !strcmp(e->mon->name, N[4]))) e->role = NULL;
+        if (e->owner == a && alive(e) && strcmp(e->mon->name, N[k]) && !(k == 0 && !strcmp(e->mon->name, N[4]))) {
+            actor_unoccupy(e); e->role = NULL;
+        }
     }
     if (k == 0 && rnd(100) % 3 == 0) k = 4;
     const MonDef *m = mondef_pick(N[k]);
@@ -1940,6 +1956,7 @@ static void hero_gain_exp(Actor *h, int exp) {
 // 倒下（0x100574e0）：播死亡動作，被主角打死的怪物給經驗，夠了就升級
 static void actor_kill(Actor *t, Actor *by) {
     t->hp = 0;
+    actor_destroy(t);
     start_act(t, ACT_DEAD, t->def->death);
     if (t->def->snd_death) audio_sfx(t->def->snd_death);
     if (t->mon) mon_loot(t);
@@ -1968,7 +1985,6 @@ static void zoom_point(int *x, int *y) {
     *x = (int)(vw * zoom) - (int)((zoom + zoom - 1.0f) * *x);
     *y = (int)(vh * zoom) - (int)((zoom + zoom - 1.0f) * *y);
 }
-static const Scene *unit_scene;
 static Uint32 actor_logic_tick;
 // 移掉某個狀態（打中名單放開時拿掉 110）
 static void buff_drop(Actor *a, int st) {
@@ -4183,7 +4199,9 @@ static void actors_sync(const Scene *s) {
     if (!mondefs_load()) return;
     for (int i = 1; i < actor_count; i++) {
         Actor *a = &actors[i];
-        if (a->sh && a->role && a->act != ACT_DEAD && story_parent(a->sh) != sroom) a->role = NULL;
+        if (a->sh && a->role && a->act != ACT_DEAD && story_parent(a->sh) != sroom) {
+            actor_unoccupy(a); a->role = NULL;
+        }
     }
     int pl = story_player(), grp = story_get_int(pl, "G_AIGroup");
     actor_group(&actors[0], grp);
@@ -4194,17 +4212,13 @@ static void actors_sync(const Scene *s) {
         if (!m || !d || (!atoi(d->graphic) && !d->anim)) continue;  // shortcut: 圖形 ID 是名字的怪物（蝙蝠、骷髏、蜘蛛）還沒做
         if (story_get_int(h, "G_PosX") != -100) continue;  // 劇情 NPC（ONT 擺的）由 spawn_npcs 放
         // 劇情建角色（0x44fd20 種類 0、G_PosX −100）：同名入口點隨機挑一個（0x4cc9c0，第 n 個以 1/n 換掉），面向入口方向
-        // shortcut: 原版放在入口那一格；這裡在附近 7×7 找能站的（同格只放一個角色的規則還沒查）
+        // 入口格交角色場景綁定／占位，依原版邊圈順序找空格。
         int n = 0, pick = -1, area = story_get_int(h, "G_PosY");
         for (int i = 0; i < s->entry_count; i++)
             if (s->entries[i].id == area && rand() % ++n == 0) pick = i;
         if (pick < 0) continue;
         const Entry *en = &s->entries[pick];
         int x = en->x, y = en->y;
-        for (int t = 0; t < 20; t++) {  // 在入口點附近找一格能站的
-            int tx = en->x + rand() % 7 - 3, ty = en->y + rand() % 7 - 3;
-            if (scene_walkable(s, tx, ty)) { x = tx; y = ty; break; }
-        }
         Actor *a = mon_make(m, d, x, y, en->x, en->y, story_get_int(h, "Level"));
         a->sh = h;
         for (int k = 0; k < 8; k++)
@@ -5185,6 +5199,8 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     if (scene->cells) scene_free(scene);
     *scene = next;
     unit_scene = scene;
+    hero->occupancy_removed = 1;
+    hero->grid_valid = 0;
     scene_client.scene = scene;
     scene_client.controlled = (int)(hero - actors);
 #ifdef STORY
@@ -5222,11 +5238,14 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     unit_n = 0;
     const Entry *en = scene_entry(scene, entry_id);
     if (en) {
+        hero->grid_valid = 0;
         hero->x = en->x + 0.5f;
         hero->y = en->y + 0.5f;
         for (int o = 0; o < 8; o++)
             if (DIR_MAP[o] == en->dir) hero->dir = o;  // shortcut: 假設入口方向跟動畫方向同編號，還沒跟原版對照
     }
+    hero->object_dead = 0;
+    if (!actor_bind_scene(hero, scene) || !actor_place(hero, (int)hero->x, (int)hero->y, 1)) return 0;
     hero->moving = 0;
     hero->act_tick = 0;
     viewport_enter(&viewport, scene, hero);
@@ -5423,10 +5442,9 @@ int main(int argc, char **argv) {
     hero_extra_exp = 10 * (hero->level - 1), hero_extra_skill = hero->level - 1;  // 測試用 --level：當成從 1 級升上來，點數照原版給
     int room = -1, armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
     int monsters_due = 1;      // 進場景後等圖片都下載好，再讀房間表放怪物（網頁版開場不用等 4MB 的 DLL）
-    if (at_x >= 0) { hero->x = at_x + 0.5f; hero->y = at_y + 0.5f; }
+    if (at_x >= 0) actor_restore_position(hero, at_x + 0.5f, at_y + 0.5f);
     if (warp >= 0 && warp < scene.trigger_count) {
-        hero->x = scene.triggers[warp].x + 0.5f;
-        hero->y = scene.triggers[warp].y + 0.5f;
+        actor_restore_position(hero, scene.triggers[warp].x + 0.5f, scene.triggers[warp].y + 0.5f);
         armed = 1;
         printf("站到觸發區 %d：%s\n", warp, scene.triggers[warp].event);
     }
@@ -5578,7 +5596,7 @@ int main(int argc, char **argv) {
                 int dir = hero->dir, lv = hero->level, exp = hero->exp, hp = hero->hp, mp = hero->mp;
                 js_status(-1);
                 if (enter_scene(&scene, hero, h.alias, -1)) snprintf(alias, sizeof alias, "%s", h.alias);
-                hero->x = x; hero->y = y; hero->dir = dir;
+                actor_restore_position(hero, x, y); hero->dir = dir;
                 hero->foe = NULL; hero->want = NULL; hero->cast = NULL; hero->casting = 0; hero->act = ACT_NONE;
                 hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->knock_motion = hero->stun = hero->dash = hero->z = 0;
                 hero_stats(hero, lv);
@@ -5639,7 +5657,7 @@ int main(int argc, char **argv) {
             }
             int held = hero->act != ACT_DEAD && react_tick(hero, &scene);
             if (hero->act == ACT_DEAD) {  // shortcut: 原版死亡後的處理（回城、掉經驗）還沒做，先 3 秒後原地復活
-                if (++hero->dead_ticks > 180) { hero->act = ACT_NONE; hero->dead_ticks = 0; hero->hp = hero->hp_max; hero->mp = hero->mp_max; }
+                if (++hero->dead_ticks > 180) { hero->act = ACT_NONE; hero->object_dead = 0; hero->dead_ticks = 0; hero->hp = hero->hp_max; hero->mp = hero->mp_max; actor_place(hero, (int)hero->x, (int)hero->y, 1); }
                 action_tick(hero, &scene, tick);
             } else if (hero->act) action_tick(hero, &scene, tick);
             else if (held) hero->moving = 0;

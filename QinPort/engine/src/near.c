@@ -1,8 +1,8 @@
 // 場景格子查詢（Poq.exe 0x442660～0x444740）：從一格往外螺旋走、找格子上的角色／道具／陷阱、沿直線走到擋住為止。
 // unit.c 直接 #include 這個檔（要用 Actor、scene、move_dir、ground…）。
 // 原版格子 21 bytes：+4 能走、+6 層（Cell.layer）、+0xc 站在上面的角色、+0xe 建築、+0x10 道具或陷阱、+0x13 旗標。
-// 我們沒有每格的物件編號，改成掃 actors／ground 找位置在那格的。
-// shortcut: 原版一格只記一個角色（後進來的蓋掉）；這裡同一格有幾個都算，依 actors 的順序
+// 格子角色指標取代原版16-bit物件識別；占位與插值中的世界座標分開。
+// shortcut: 尚未綁定場景的舊建立／測試資料沿世界座標查詢；完整物件建立入口接入時移除fallback。
 
 #define LATER __attribute__((unused))  // 呼叫者還沒移植
 
@@ -28,7 +28,7 @@ static int spiral_next(Spiral *s) {
 }
 
 static const Cell *cell_at(int x, int y) {  // 0x4c7xxx 取格子：出界 = NULL
-    return x < 0 || y < 0 || x >= scene.w || y >= scene.h ? NULL : &scene.cells[y * scene.w + x];
+    return !unit_scene || !scene.cells || x < 0 || y < 0 || x >= scene.w || y >= scene.h ? NULL : &scene.cells[y * scene.w + x];
 }
 
 // 格子能不能讓某一層的東西過（0x435c00）：層 1 = 一般地面，只看能不能走；11 過 12 不過 14；13 過 12、14；
@@ -52,13 +52,22 @@ static int is_trap(const Actor *a) { return a->mon && a->mon->istrap == 1; }  //
 
 // 格子上的第 i 個起的角色（原版 +0xc → 0x4c78b0，物件種類 0x1e～0x64）
 static Actor *cell_actor(int x, int y, int *i) {
+    const Cell *c = cell_at(x, y);
     for (; *i < actor_count; (*i)++) {
         Actor *t = &actors[*i];
-        if (alive(t) && !is_trap(t) && (int)t->x == x && (int)t->y == y) return t;
+        if (!alive(t) || is_trap(t)) continue;
+        if (c && c->actor == t && t->bound_scene == &scene) return t;
+        // shortcut: 舊建立／測試fixture未登記場景時沿世界座標查詢；完整建立入口接齊時移除。
+        if (!t->bound_scene && !t->occupancy_removed && (int)t->x == x && (int)t->y == y) return t;
     }
     return NULL;
 }
 static Actor *cell_actor0(int x, int y) { int i = 0; return cell_actor(x, y, &i); }
+// 占位判斷不查存活：死亡旗標與移除占位是兩個獨立步驟。
+static Actor *cell_occupant(int x, int y) {
+    const Cell *c = cell_at(x,y);
+    return c && c->actor ? c->actor : cell_actor0(x,y);
+}
 
 // Poq.exe 0x4c74b0：含中心及第n圈，依上、下、左、右邊掃描。
 // 邊界先夾進地圖；只排除角色占位，道具及建築不額外排除。
@@ -76,7 +85,7 @@ static int vacant_cell(int *x, int *y, int layer, int n) {
             for (int k = from; k <= to; k++) {
                 int px = edge < 2 ? k : edge == 2 ? l : right;
                 int py = edge < 2 ? (edge == 0 ? t : b) : k;
-                if (cell_pass(cell_at(px, py), layer) && !cell_actor0(px, py)) {
+                if (cell_pass(cell_at(px, py), layer) && !cell_occupant(px, py)) {
                     *x = px; *y = py;
                     return 1;
                 }
@@ -84,6 +93,108 @@ static int vacant_cell(int *x, int *y, int layer, int n) {
         }
         if (r >= n) return 0;
     }
+}
+
+// Poq.exe 0x495340：只移除屬於自己的整個占地；不動其他角色或世界座標。
+static void actor_unoccupy(Actor *a) {
+    const Scene *s = a->bound_scene;
+    if (s && s->cells && a->grid_valid) {
+        int size = a->body_size > 0 ? a->body_size : 1;
+        for (int dy = -(size - 1) / 2; dy <= size / 2; dy++)
+            for (int dx = -(size - 1) / 2; dx <= size / 2; dx++) {
+                int x = a->grid_x + dx, y = a->grid_y + dy;
+                if (x < 0 || y < 0 || x >= s->w || y >= s->h) continue;
+                Cell *c = &s->cells[y*s->w+x];
+                if (c->actor == a) c->actor = NULL;
+            }
+    }
+    a->occupancy_removed = 1;
+}
+
+// Poq.exe 0x497c90：初始化格子與世界位置一起更新，世界位置放格子中央。
+static void actor_position(Actor *a, int x, int y) {
+    a->grid_x = x; a->grid_y = y; a->grid_valid = 1;
+    a->x = x + 0.5f; a->y = y + 0.5f;
+}
+
+// Poq.exe 0x495420：大小1可選八圈找空格；大物件先驗證整個占地，成功才移除舊占位。
+// 大物件可覆蓋自己的舊占位，小物件即使目的格是自己也拒絕，保留原版差異。
+// 單機共用Actor，不建立位置同步封包；世界座標不在占位入口改動。
+static int actor_place(Actor *a, int x, int y, int relocate) {
+    if (!unit_scene || a->object_dead) return 0;
+    int size = a->body_size > 0 ? a->body_size : 1;
+    if (size == 1) {
+        const Cell *c = cell_at(x, y);
+        if (relocate && (!c || !cell_pass(c, a->layer) || cell_occupant(x, y))) {
+            if (!vacant_cell(&x, &y, a->layer, 8)) return 0;
+            c = cell_at(x, y);
+        }
+        if (!c || !cell_pass(c, a->layer) || cell_occupant(x, y)) return 0;
+    } else {
+        int lo = -(size - 1) / 2, hi = size / 2;
+        for (int dy = lo; dy <= hi; dy++) for (int dx = lo; dx <= hi; dx++) {
+            const Cell *c = cell_at(x + dx, y + dy);
+            if (!c || ((unsigned)(c->layer - 1) < 9u && !cell_pass(c, a->layer))) return 0;
+            Actor *other = cell_occupant(x + dx, y + dy);
+            if (other && other != a) return 0;
+        }
+    }
+    actor_unoccupy(a);
+    a->grid_x = x; a->grid_y = y; a->grid_valid = 1;
+    a->bound_scene = unit_scene; a->occupancy_removed = 0;
+    for (int dy = -(size - 1) / 2; dy <= size / 2; dy++)
+        for (int dx = -(size - 1) / 2; dx <= size / 2; dx++)
+            scene.cells[(y+dy)*scene.w+x+dx].actor = a;
+    return 1;
+}
+
+// shortcut: 存檔及測試入口仍直接給世界座標，先同步格子占位；完整位置命令接入時改走該入口。
+// 保留存檔的小數位置；若必須找附近空格，才改成該格中央。失敗保留原位置／占位。
+static int actor_restore_position(Actor *a, float x, float y) {
+    int old_x = a->grid_x, old_y = a->grid_y, occupied = !a->occupancy_removed;
+    actor_unoccupy(a);
+    if (!actor_place(a, (int)x, (int)y, 1)) {
+        if (occupied) actor_place(a, old_x, old_y, 0);
+        return 0;
+    }
+    int same = a->grid_x == (int)x && a->grid_y == (int)y;
+    a->x = same ? x : a->grid_x + 0.5f;
+    a->y = same ? y : a->grid_y + 0.5f;
+    return 1;
+}
+
+// 原版共用的重新判層旗標與位置修正結果；-1表示沒有外部修正。
+static int actor_recheck_layer;
+static int actor_correction_x = -1, actor_correction_y;
+
+// Poq.exe 0x488a70：綁場景、可選重判層、十圈找空格、重設世界座標並保存修正目標。
+// CObj的SInit指標以Actor內的grid_x/y承接；場景指標直接傳入，省略全域管理器別名。
+static int actor_bind_scene(Actor *a, const Scene *s) {
+    int x = (int)a->x, y = (int)a->y;
+    if (a->grid_valid) { x = a->grid_x; y = a->grid_y; }
+    a->bound_scene = s;
+    actor_position(a, x, y);
+    if (s != unit_scene || !s || !s->cells) return 0;
+    // 物件種類60不消費重判層旗標；其他角色即使找空格失敗仍已消費。
+    if (actor_recheck_layer && a->object_kind != 60) {
+        const Cell *c = cell_at(x, y);
+        if (!c) return 0; // shortcut: 原版對無效格解參考；拒絕越界初始化資料，資料出現時核對契約。
+        a->layer = c->layer < 10 ? 1 : c->layer;
+        actor_recheck_layer = 0;
+    }
+    if (!vacant_cell(&x, &y, a->layer, 10)) return 0;
+    actor_position(a, x, y);
+    a->corrected_x = actor_correction_x == -1 ? x : actor_correction_x;
+    a->corrected_y = actor_correction_x == -1 ? y : actor_correction_y;
+    return 1;
+}
+
+// Poq.exe 0x490220：先移除格子占位，再設物件死亡旗標，恆回成功。
+// 死亡動畫由現有actor_kill呼叫者保留，不把物件刪除和動畫結束混為一談。
+static int actor_destroy(Actor *a) {
+    actor_unoccupy(a);
+    a->object_dead = 1;
+    return 1;
 }
 
 // 格子上的道具或陷阱（原版 +0x10）：地上的道具、陷阱
