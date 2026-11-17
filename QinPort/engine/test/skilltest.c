@@ -377,6 +377,30 @@ static void character_rush_test(void) {
     unit_scene=saved_unit_scene; actor_count=saved_count; actor_logic_tick=saved_tick;
 }
 
+static void character_motion_order_test(void) {
+    const Scene *saved = unit_scene;
+    Cell cells[4];
+    for (int i=0; i<4; i++) cells[i]=(Cell){.walk=1,.layer=1};
+    Scene scene={.w=2,.h=2,.cells=cells}; unit_scene=&scene;
+    Actor a={.dynamic_state=22,.layer=1,.grid_valid=1,
+        .x=0.5f,.y=0.5f,.z=8,.vz=4,.zmax=16,.jump_half=2,
+        .interpolation_left=2,.interpolation_x=32,.interpolation_y=32,
+        .interpolation_dx=1,.flags=0x200,.direction_clock=9};
+    // 中點先改下降，再消費水平一拍；高度用剩餘1拍計算，當拍8降至4。
+    actor_motion_tick(&a);
+    assert(a.dynamic_state==22 && !a.jump_half && a.vz==-4 && a.z==4);
+    assert(a.interpolation_left==1 && a.direction_clock==10 && a.x==33/64.0f);
+    // 插值末拍不退出；剩餘0拍令高度本拍歸零。
+    actor_motion_tick(&a);
+    assert(a.dynamic_state==22 && !a.interpolation_left && !a.z && !a.vz);
+    assert(a.direction_clock==11);
+    // 下一拍才退出22；同拍基底處理-5落地並吸回占格中心。
+    actor_motion_tick(&a);
+    assert(a.dynamic_state==1 && !(a.flags&0x200) && !a.z && !a.vz);
+    assert(a.x==0.5f && a.y==0.5f && a.direction_clock==12);
+    unit_scene=saved;
+}
+
 static void character_knock_test(void) {
     const Scene *saved = unit_scene;
     Cell cells[100];
@@ -2791,6 +2815,7 @@ int main(void) {
     character_dynamic_exit_test();
     character_rush_test();
     character_knock_test();
+    character_motion_order_test();
     character_height_interpolation_test();
     character_air_status_test();
     character_speed_memory_test();

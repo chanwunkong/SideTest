@@ -849,7 +849,7 @@ MethodBase	+0x66	CObj層號byte；角色留血物件建立後複製角色層	MUn
 RoleMdl	+0x13c	欄34挨打音效；狀態101非零時非65535才擲rand()%3，結果1播放，序列缺失仍先擲	RoleDef.snd_hit／actor_status_notify
 CDynamicObj	+0x8f	非走路快速位移的上次落塵世界X；相差至少48才再建立	Actor.dust_x
 CDynamicObj	+0x93	非走路快速位移的上次落塵世界Y；X或Y達門檻	Actor.dust_y
-CDynamicObj	+0x2d3	跳躍水平插值總拍數的一半；固定拍剩餘數等於此值時先轉下降並清0	Actor.jump_half
+CDynamicObj	+0x2d3	跳躍水平插值總拍數的一半；固定拍先以剩餘數判中點轉下降清0，再扣水平拍數，最後才算高度	Actor.jump_half
 CDynamicObj	+0x3dd	水平插值累積世界X，float；每拍寫入位置時向零截斷	Actor.interpolation_x
 CDynamicObj	+0x3e1	水平插值累積世界Y，float	Actor.interpolation_y
 CDynamicObj	+0x3e5	水平插值每拍世界X增量；除以未截斷float拍數	Actor.interpolation_dx

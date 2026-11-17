@@ -2947,6 +2947,15 @@ static void actor_knock_tick(Actor *a) {
     actor_interpolation_tick(a);
 }
 
+// 角色固定拍先跑動態分派，再由動態基底推高度與共用時鐘。
+// shortcut: 此處只整合已完成的21/22/31；11/32、活動byte與動畫虛擬呼叫
+// 尚未齊備，完整角色更新接齊後合併，不把主入口標成完成。
+static void actor_motion_tick(Actor *a) {
+    actor_rush_update(a);
+    actor_knock_tick(a);
+    actor_height_tick(a);
+}
+
 // 原版受擊命令5傳WhatDir8(角色, 招式來源)，方向從來源指向角色。
 static void knock_back(Actor *t, const Actor *a, int cells) {
     actor_knock_command(t, dir_of(ax64(a), ay64(a), ax64(t), ay64(t), 8), cells, 20);
@@ -6214,7 +6223,7 @@ int main(int argc, char **argv) {
                     if (!i || actors[i].mon) actor_second(&actors[i]);
             viewport_tick(&viewport, &scene, hero);
             for (int i = 0; i < actor_count; i++) {
-                if (actors[i].role) { actor_height_tick(&actors[i]); actor_rush_update(&actors[i]); actor_knock_tick(&actors[i]); }
+                if (actors[i].role) actor_motion_tick(&actors[i]);
                 actor_health_sync(&actors[i]);
                 actors[i].animation_stepped = 0;
                 if (actors[i].role) actor_maintenance_tick(&actors[i]);
