@@ -1116,7 +1116,11 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 進度（11-18h）：0x49c910～0x49cea0 CAutoPaper（資源句柄）／SPT_FRAME 陣列整批 skip（Anim 指標直接用）。
   ~~**下一步：0x49cf70（SPT_FRAME 其餘，精靈圖載入／繪製基礎）起**——先 `python3 tools/functool.py next 0x49cf70`。~~
 - 進度（11-18i）：0x49cf70～0x49da10 SPT_FRAME 播放器：0x49d520 → unit.c spr_adv（spr_next/spr_step 共用，回幀是否變）、0x49d6c0 → seq_ticks、0x49d7f0 → spr_frame 超界回第 0 幀、0x49d740 → main.c frame_rect（viewport 矩形／bird_rect 共用）；載入、畫、無呼叫者的共 13 個 skip。留 todo：0x49d860／0x49d8f0（最大幀寬高）、0x49dcb0（回到起點），等 CSprSerialPicture／CPortraitPanel。shortcut：原版矩形與繪圖還加幀 ex/ey（+0xe/+0x10），引擎 ex/ey 只當出手點，查資料再接。
-  **下一步：0x49de30（PartSpr）起**——先 `python3 tools/functool.py next 0x49de30`。
+  ~~**下一步：0x49de30（PartSpr）起**~~
+- 進度（11-18j）：0x49de30～0x4a3340：0x49de30（名稱是 Ghidra 誤標，實為 CSprGroup 各部件畫面矩形聯集）→ main.c role_rect；0x49fa90／0x4a0060／0x49fe70／0x49fdd0／0x49fd20 文字表 → res.c tab_load／tab_s／tab_i（空格原版 0xffff，這裡 −1，shortcut）。
+  skip：精靈群／單幀帶偏移的畫函式（0x49e200～0x49e420）、CString／檔案／磁碟工具（0x49ebd0～0x49ff60）、XMOUSE 建構／載入／還原底圖、CRHOMB 查表建構（算式取代）、殘影 30 槽容器、物件索引表（0x4a2590～0x4a29c0）、記憶池（0x4a2aa0～0x4a35a0）。
+  todo：0x49e490／0x49dcb0（介面動畫反播，等 0x56e450 元件）、0x4a05e0／0x4a0aa0／0x4a0ac0（XMOUSE 畫游標：序列最大寬高置中、旗標、數量字；現在 main.c 迴圈畫簡化版）、0x4a11f0（畫面→世界，等 Ctrl 對地點出手）、0x4a37b0（SLightMap，等逐像素光照）。
+  **下一步：0x4a66e0（~CGameApp 起，SBMP 淡入淡出等）**——先 `python3 tools/functool.py next 0x4a66e0`。
 
 
 

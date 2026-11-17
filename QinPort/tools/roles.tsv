@@ -893,3 +893,16 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 0049d860	SPT_FRAME 序列內最大幀寬；等 CSprSerialPicture（0x597e70）系統
 0049d8f0	SPT_FRAME 序列內最大幀高；等 CSprSerialPicture（0x597e90）系統
 0049dcb0	播放器回到起點（cur==start 且 tick==0）；等 CPortraitPanel／CSprSerialPicture
+0049de30	CSprGroup 目前幀矩形聯集（各部件 0x49d740 後 GRECT +=）：main.c role_rect
+0049fa90	文字表載入：res.c tab_load
+004a0060	文字表加一列：res.c tab_load 內
+0049fe70	文字表取格字串：res.c tab_s
+0049fdd0	文字表取格整數：res.c tab_i
+0049fd20	文字表取格短整數：res.c tab_i
+0049e490	圖板（CPortraitPanel）反向播放器：回傳幀；等 0x56e450 介面動畫元件系統
+0049dcb0	播放器回到起點判斷：等 0x56e450 介面動畫元件系統
+004a05e0	XMOUSE 畫游標：依序列最大寬高置中、旗標0x100／0x140換色表、數量>1畫數字、第二精靈；目前 main.c 迴圈畫簡化版，等 0x49d860／0x49d8f0（CSprSerialPicture）與圖+0x52旗標
+004a0aa0	XMOUSE 設游標數量（+0x34）：等 0x4a05e0 游標繪製
+004a0ac0	XMOUSE 設游標旗標（+0x30）：等 0x4a05e0 游標繪製
+004a11f0	畫面像素轉世界64分格（CRHOMB 反向）；等 Ctrl 對地點出手／指令地點（0x455d60）接入
+004a37b0	SLightMap 建構：填 100 級光照色表（0x664058 起，每級 x<<16）；等逐像素光照（building_part_draw 的 shortcut）系統

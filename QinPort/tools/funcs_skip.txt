@@ -830,3 +830,85 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 0049dc40 單幀畫（縮放）：engine draw() 承接
 0049dd10 播到倒數第二幀最後一拍：沒有呼叫者
 0049dd70 目前幀畫面矩形（原位版）：= 0x49d740 套目前幀，呼叫者（~CGameApp／PartSpr）還沒做
+0049e200 精靈群畫目前幀（偏移＋色表參數）：engine draw() 套 −dx −dy 承接（同 0x49dae0）
+0049e270 精靈群畫目前幀（偏移，參數少一版）：engine draw() 承接
+0049e2e0 精靈群畫目前幀（偏移＋縮放）：engine draw() 承接（同 0x49db50）
+0049e360 單幀畫（偏移＋色表參數）：engine draw() 承接
+0049e3c0 單幀畫（偏移，參數少一版）：engine draw() 承接
+0049e420 單幀畫（偏移＋縮放）：engine draw() 承接
+0049e540 反向播放器變體（走到起點回固定幀）：沒有呼叫者
+0049e700 設全域幀延遲調整 0x663f2c：沒有呼叫者（spr_delay 當 0）
+0049eb40 精靈群所有幀圖設 +0x3c：沒有呼叫者
+0049ebd0 CStringList 指標陣列建構：C 陣列取代
+0049ebf0 容器建構（指標＋數量歸零）：C 結構取代
+0049ec10 文字表列清空（逐列 delete）：tab_load 一次釋放整份取代
+0049ec70 delete[] 指標包裝：free 取代
+0049ec90 備份存檔到日期資料夾（CopyFile、CreateDirectory）：平台層
+0049efb0 格式化寫 log（CString::Format）：平台層
+0049f020 delete[] 指標包裝：free 取代
+0049f050 逐層建立資料夾（CreateDirectoryA）：平台層
+0049f140 CStringList 以分隔字元串成字串：CString 工具
+0049f250 一行字串依分隔字元拆成 CStringList：CString 工具；tab_load 以 strchr 拆欄承接
+0049f300 文字表依某欄值找列：呼叫者（CAutoPaper／技能表）各自用迴圈比對；沒有共用呼叫
+0049f450 查磁碟剩餘空間（GetDiskFreeSpaceEx）：平台層
+0049f710 CStringList 依名稱前後取鄰項串接：CString 工具，沒有遊戲用途
+0049f860 整檔讀入緩衝（fopen／fread）：platform，res_file 承接
+0049f900 緩衝讀取游標（memcpy 並前進）：C 的 memcpy／指標承接
+0049ff00 文字表清空（逐列 delete）：tab_load 一次釋放整份取代
+0049ff60 文字表存檔（fwrite）：編輯器用，遊戲不寫表
+004a0050 容器設 +4 欄：沒有遊戲用途（單純 setter）
+004a0170 XMOUSE（游標）建構：游標圖／動畫由 0x433dc0 預載（Anim／SDL 游標）承接
+004a03f0 XMOUSE 解構：釋放游標圖與文字裝置，生命週期由 C 承接
+004a04b0 SBMP 刪除包裝：free 取代
+004a04e0 XMOUSE 刪除包裝：free 取代
+004a0510 XMOUSE 載入游標（清空後讀圖）：0x433dc0 預載游標承接
+004a0540 XMOUSE 清空游標欄位並釋放圖：生命週期由 C 承接
+004a09d0 XMOUSE 還原游標底圖（軟體游標雙緩衝）：SDL 每幀重畫，不需要
+004a0a20 XMOUSE 還原游標底圖到指定畫面（軟體游標雙緩衝）：SDL 每幀重畫，不需要
+004a0ae0 XMOUSE 載入第二個游標精靈群（+0x28）：沒有呼叫者
+004a0b90 XMOUSE 換游標精靈群並清旗標：anim_get(0x100011) 承接
+004a0c60 XMOUSE 設游標數字字型：引擎用自己的字型
+004a0c80 CRHOMB 建構：填菱形查表；viewport_screen_grid（0x4a1090）改用算式取代查表
+004a0ea0 CRHOMB 解構：C 結構取代
+004a0f40 CRHOMB 刪除包裝：C 結構取代
+004a1010 CRHOMB 查表邊界比較：viewport_screen_grid 算式取代
+004a1390 殘影 30 槽鏈結容器建構：C 陣列（Illusion.unit[30]）取代
+004a1400 殘影 30 槽鏈結容器建構（含節點）：C 陣列取代
+004a14e0 容器基底（指標＋數量歸零）：C 結構取代
+004a1500 殘影容器重設索引與計數：C 陣列取代
+004a1580 殘影容器解構：free 取代
+004a1630 CSprGroupillusion 解構：illusion_clear 承接
+004a1720 殘影容器 Insert 到指定槽：C 陣列 memmove 取代（illusion_sample）
+004a1760 殘影容器轉呼叫 0x4a2080：沒有呼叫者
+004a1a50 殘影容器清除並釋放：illusion_clear（0x4a1c90）承接
+004a1dd0 殘影容器取槽：C 陣列索引取代
+004a1e10 殘影容器迭代取槽：C 陣列索引取代
+004a1e40 殘影容器取槽指標：C 陣列索引取代
+004a1e80 重設殘影參數：沒有呼叫者（只有 illusion_create 首次設定）
+004a2260 殘影容器槽是否有值：C 陣列取代
+004a2350 殘影容器移除指定槽：C 陣列取代
+004a23a0 殘影容器全部移除：illusion_clear 承接
+004a2590 物件索引表登記（id&0x3fff 槽、世代位）：Actor.object_id 單調分配不需要
+004a2600 物件索引表配動態 id（2000 起循環找空槽）：Actor.object_id 單調分配不需要
+004a26d0 物件索引表配靜態 id（1～1999 循環找空槽）：Actor.object_id 單調分配不需要
+004a27a0 物件索引表依指定 id 登記：Actor.object_id 單調分配不需要
+004a2800 物件索引表依槽登記：Actor.object_id 單調分配不需要
+004a2840 物件索引表清空：Actor 陣列清空承接
+004a28f0 物件索引表移除槽：Actor.object_id 單調分配不需要
+004a29c0 物件索引表動態游標前進：Actor.object_id 單調分配不需要
+004a2aa0 記憶池釋放緩衝（CMemPool）：malloc／free 承接
+004a2af0 記憶池統計節點（NewNode）刪除包裝：C 承接
+004a2c30 記憶池建立單一池：malloc／free 承接
+004a2c80 記憶池陣列配置：malloc／free 承接
+004a2cf0 記憶池釋放緩衝：malloc／free 承接
+004a2d30 記憶池全部釋放：malloc／free 承接
+004a2e30 記憶池配置（找空塊或 malloc＋統計）：malloc 承接
+004a2fd0 記憶池建立單一池：malloc／free 承接
+004a3020 記憶池標記塊為空：malloc／free 承接
+004a3040 記憶池歸還（找池或 free＋統計）：malloc／free 承接
+004a3110 記憶池鏈結節點建立：malloc／free 承接
+004a3150 記憶池統計配置（operator new）：malloc 承接
+004a3340 記憶池 operator new（依大小取空閒鏈）：malloc 承接
+004a33c0 記憶池使用量報表（CString 格式化）：除錯，不移植
+004a35a0 記憶池使用量報表並全部釋放：除錯，不移植
+004a6610 建立空 SBMP：SDL_Surface／Sprite 承接

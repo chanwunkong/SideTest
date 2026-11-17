@@ -801,6 +801,7 @@ static void frame_rect_union(SDL_Rect *rect, const Anim *a, int seq, int frame, 
     if (rect->w) SDL_UnionRect(rect, &r, rect); else *rect = r;
 }
 
+// 0x49de30：精靈群目前幀矩形聯集（逐部件 0x49d740 後 GRECT +=）
 static SDL_Rect role_rect(const Role *r, int seq, int frame, int x, int y, int shadow) {
     SDL_Rect rect = {0};
     if (!r || seq < 0 || seq >= r->seq_count || !r->frames || !r->frames[seq]) return rect;

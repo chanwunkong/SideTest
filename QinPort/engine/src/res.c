@@ -1753,6 +1753,7 @@ int skill_rows_file(const char *name, SkillRow *out, int max) {
 // 原版 Excel 表（0x10078170 等）：每列切成字串，空格子是同一個空字串（&DAT_104ba410），數字讀成 −1
 typedef struct { int rows, cols; char **cell; uint8_t *text; } Tab;
 
+// 文字表 CTxtTable：0x49fa90 載入（首位元 0x80 = 0x4c5b80 解碼，逐行 0x4a0060 去 \r\n 後依 \t 拆欄成一列）；shortcut: 原版不略標頭，這裡由 skip 指定；欄上限 96。
 static int tab_load(Tab *t, const char *name, int skip) {
     size_t n;
     uint8_t *d = res_file("Data", name, &n);
@@ -1780,7 +1781,9 @@ static int tab_load(Tab *t, const char *name, int skip) {
     }
     return 1;
 }
+// 0x49fe70 取格字串（超界給空）
 static const char *tab_s(const Tab *t, int r, int c) { return r >= 0 && r < t->rows && c >= 0 && c < 96 ? t->cell[r * 96 + c] : ""; }
+// 0x49fdd0 / 0x49fd20 取格整數（空格原版 0xffff；shortcut: 這裡回 −1，呼叫者都只比大小，需要 65535 時再改）
 static int tab_i(const Tab *t, int r, int c) { const char *v = tab_s(t, r, c); return *v ? atoi(v) : -1; }
 static float tab_f(const Tab *t, int r, int c) { const char *v = tab_s(t, r, c); return *v ? (float)atof(v) : -1.f; }
 static int rnd(int n) { return n < 2 ? 0 : rand() % n; }  // 0x10052a00
