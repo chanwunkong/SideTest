@@ -8,6 +8,99 @@ static RoleDef def;
 static MonDef md;
 static const Role empty_test_role;
 
+static void character_skill_commands_test(void) {
+    const Scene *saved_scene = unit_scene;
+    Actor saved0 = actors[0], saved1 = actors[1]; int saved_count = actor_count;
+    MUnit saved_unit = units[0]; int saved_n = unit_n;
+    Uint32 saved_tick = actor_logic_tick;
+    Cell cells[20*20];
+    for (int i=0;i<400;i++) cells[i]=(Cell){.walk=1,.layer=1};
+    Scene sc={.w=20,.h=20,.cells=cells}; unit_scene=&sc;
+    RoleDef d={.speed=10,.fight_speed=10,.hit=65535};
+    Actor base={.role=&empty_test_role,.def=&d,.x=5.5f,.y=5.5f,
+        .speed=10,.fight_speed=10,.layer=1,.body_size=1,.object_kind=31,.hp=100,.hp_max=100,
+        .dynamic_state=1,.dynamic_active=1,.dynamic_path_result=1,.dynamic_enter_tick=-1000,
+        .right_id=1,.selected=0,.skill_n=1,.skills={{.id=1,.enabled=1,.max=8,.min=3}},
+        .template_skill_n=1,.template_skill={1}};
+    base.command[0]=base.remembered[0]=-1;
+    base.state[0]=1;
+    actors[0]=base;
+    actors[1]=(Actor){.role=&empty_test_role,.def=&d,.x=6.5f,.y=5.5f,
+        .layer=1,.body_size=1,.object_kind=31,.object_id=0x80000702u,.hp=100,.hp_max=100};
+    Actor *a=&actors[0], *t=&actors[1]; actor_count=2; unit_n=0; actor_logic_tick=1000;
+    assert(actor_command_idle(a) && actor_of((int)t->object_id)==t);
+    // 方框對角、最大／最小相等邊界以及負範圍。
+    assert(actor_skill_in_range(7,7,7,3));
+    assert(!actor_skill_in_range(2,2,7,3) && actor_skill_in_range(3,0,7,3));
+    assert(actor_skill_in_range(3,3,3,3) && !actor_skill_in_range(0,0,-1,0));
+    // 太近按min+1退避；不再有任意61拍／60拍期限。
+    assert(actor_command(a,9,-1,(int)t->object_id,0,0,0));
+    actor_skill_command_tick(a);
+    assert(a->command[0]==9 && a->dynamic_state==11);
+    assert(a->dynamic_command[0]==1 && a->dynamic_command[1]==5 && a->dynamic_command[2]==0);
+    // 太遠追近，最大8先減1；直線7步不能到目標時改距離2，保留技能佇列。
+    *a=base; t->x=14.5f;
+    actor_queue_command(a,9,1,(int)t->object_id,0);
+    actor_skill_command_tick(a);
+    assert(a->command[0]==9 && a->dynamic_command[0]==14 && a->dynamic_command[2]==2);
+    // 直線擋住時追近距離改2，仍以目標格作目的地。
+    *a=base; cells[5*20+7].walk=0;
+    actor_queue_command(a,9,1,(int)t->object_id,0); actor_skill_command_tick(a);
+    assert(a->dynamic_command[2]==2); cells[5*20+7].walk=1;
+    // 目標占位大小的一半加在扣1之後；恰在外框立即出手並清代號。
+    *a=base; t->body_size=4;
+    actor_queue_command(a,9,1,(int)t->object_id,123); actor_skill_command_tick(a);
+    assert(unit_n==1 && units[0].target==t && a->command[0]==-1 && a->command[3]==123);
+    assert(a->aim_range==8 && a->dynamic_state==1); unit_n=0; t->body_size=1;
+    // 找不到目標會清目標及記住的8/9，保留參數；不是直接按alive拒絕。
+    *a=base; a->foe=t;
+    a->remembered[0]=9; a->remembered[1]=1; a->remembered[2]=4321; a->remembered[3]=99;
+    memcpy(a->command,a->remembered,sizeof a->command); actor_skill_command_tick(a);
+    assert(actor_command_idle(a) && !a->foe && a->remembered[0]==-1 && a->command[3]==99);
+    // 狀態102與不可攻擊旗標都先停移動，再標旗標1並取消。
+    for (int k=0;k<2;k++) {
+        *a=base; t->state[102]=!k; t->flags=k?0x4000:0;
+        actor_queue_command(a,9,1,(int)t->object_id,0); actor_skill_command_tick(a);
+        assert(actor_command_idle(a) && (a->flags&1) && a->dynamic_state==1);
+    }
+    t->flags=0; t->state[102]=0;
+    // 9不可用保留命令；8不可用反而設旗標1並清命令。
+    *a=base; a->skills[0].enabled=0;
+    actor_queue_command(a,9,1,(int)t->object_id,0); actor_skill_command_tick(a);
+    assert(a->command[0]==9);
+    actor_queue_command(a,8,1,12,13); actor_skill_command_tick(a);
+    assert(actor_command_idle(a) && (a->flags&1));
+    // 活動標記0只阻止消費，不阻止記住命令的重送。
+    *a=base; a->dynamic_active=0;
+    a->remembered[0]=8; a->remembered[1]=1; a->remembered[2]=12; a->remembered[3]=13;
+    actor_skill_command_tick(a);
+    assert(a->command[0]==8 && !unit_n);
+    a->dynamic_active=1; actor_skill_command_tick(a);
+    assert(unit_n==1 && actor_command_idle(a) && a->aim_x==12*64+32 && a->aim_y==13*64+32);
+    assert(a->remembered[0]==-1); unit_n=0;
+    // 一般追打也只排隊，下一拍才用共用消費端出手；模板招式無SkillRow也可收尾。
+    *a=base; t->x=9.5f; a->foe=t;
+    assert(pursue(a,&sc,1000) && a->command[0]==9 && !unit_n);
+    actor_skill_command_tick(a);
+    assert(unit_n==1 && actor_command_idle(a) && units[0].target==t);
+    action_tick(a,&sc,1000); assert(a->act==ACT_NONE && !a->casting);
+    unit_n=0;
+    // 缺少Method時保留地點命令；不是按下輸入就丟棄。
+    *a=base; a->skills[0].id=65534; a->right_id=65534; a->template_skill[0]=65534;
+    actor_queue_command(a,8,65534,12,13); actor_skill_command_tick(a);
+    assert(a->command[0]==8 && !unit_n);
+    // 記住移動目的格已到達時忘記並延遲50；未知記住命令直接忘記。
+    *a=base; a->remembered[0]=1; a->remembered[1]=5; a->remembered[2]=5;
+    actor_skill_command_tick(a); assert(a->remembered[0]==-1 && a->remember_delay==50);
+    a->remembered[0]=19; actor_skill_command_tick(a);
+    assert(a->remembered[0]==-1 && !a->remember_delay);
+    // 種類24的陷阱也能按物件ID選中，且不走角色敵對通知。
+    *a=base; t->object_kind=24;
+    assert(actor_command(a,9,1,(int)t->object_id,0,0,1) && a->foe==t);
+    unit_scene=saved_scene; actors[0]=saved0; actors[1]=saved1; actor_count=saved_count;
+    units[0]=saved_unit; unit_n=saved_n; actor_logic_tick=saved_tick;
+}
+
 static void character_command_receiver_test(void) {
     int saved_units = unit_n; MUnit saved = units[0]; unit_n = 0;
     RoleDef d = {.speed=10, .hit=65535};
@@ -520,11 +613,19 @@ static void character_charge_test(void) {
     RoleDef d={0};
     Actor a={.def=&d,.role=&empty_test_role,.speed=20,.fight_speed=20,
              .dynamic_state=1,.layer=1,.body_size=1};
+    a.grid_x=a.grid_y=3;
+    a.x=a.y=3.5f;
+    for (int dir=0;dir<8;dir++) { a.facing=dir; assert(actor_passed_cell_center(&a)); }
+    a.x=225/64.0f; a.y=225/64.0f;
+    const int passed[8]={1,0,0,0,1,1,1,1};
+    for (int dir=0;dir<8;dir++) { a.facing=dir; assert(actor_passed_cell_center(&a)==passed[dir]); }
+    a.facing=-1; assert(!actor_passed_cell_center(&a));
+    a.facing=8; assert(!actor_passed_cell_center(&a));
     actor_position(&a,3,3); assert(actor_place(&a,3,3,0));
     actor_dynamic_command(&a,32,7,3,0);
     int left=a.interpolation_left;
-    actor_motion_tick(&a); // 中心相等不推占格，先消費一拍插值。
-    assert(a.grid_x==3 && a.interpolation_left==left-1 && a.dynamic_state==32);
+    actor_motion_tick(&a); // 中心相等即先推占格，再消費插值。
+    assert(a.grid_x==4 && a.interpolation_left==left-1 && a.dynamic_state==32);
     float x=a.x;
     actor_tick(&a,&scene,1,0,0); // 一般行走不得覆寫32或重算其三倍速。
     assert(a.dynamic_state==32 && a.x==x && a.interpolation_left==left-1);
@@ -1759,7 +1860,13 @@ static void character_move_cast_test(void) {
     a.skills[0].row = &hero_skill[0];
     a.dynamic_state = 1;
     a.template_skill_n = 1; a.template_skill[0] = id;
-    hero_cast_point(&a, 10 * 64 + 32, 2 * 64 + 32, NULL);
+    a.dynamic_active = 1;
+    hero_cast_point(&a, 10 * 64 + 32, 2 * 64 + 32);
+    assert(unit_n == 0 && a.command[0] == 8); // 輸入只排隊，固定拍才消費。
+    actor_skill_command_tick(&a);
+    assert(unit_n == 0 && a.command[0] == 8); // 候選觸發可略過冷卻，使用者施法須等待。
+    a.cool = 0;
+    actor_skill_command_tick(&a);
     assert(unit_n == 1 && !units[0].target && a.aim_x == 10 * 64 + 32);
     hero_skill[0] = old_skill; hero_skill_n = old_n; cur_skill[1] = old_left;
     int ally_id = -1;
@@ -3061,6 +3168,7 @@ int main(void) {
     character_blood_test();
     character_behavior_reset_test();
     character_command_receiver_test();
+    character_skill_commands_test();
     character_overhead_test();
     character_status15_test();
     character_placement_test();
@@ -3550,21 +3658,6 @@ int main(void) {
     mk(&a);
     skill_hit(&a, &a, &th1, 0);
     assert(has_status(&a, 42));
-    // 拉開距離：射程 8 的招、目標貼身 → 第 61 拍算出往反方向走 n = 8 − 1 − 2 = 5 格
-    static Cell cells[40 * 40];
-    for (int i = 0; i < 40 * 40; i++) cells[i].walk = 1;
-    Scene sc = {.w = 40, .h = 40, .cells = cells};
-    SkillRow far = {.level = 1, .range = 8};
-    Method fm2 = {.ai = 0};
-    mk(&a); mk(&t);
-    a.x = 20.5f; a.y = 20.5f; t.x = 21.5f; t.y = 20.5f;
-    // 目標須在場景物件名單裡，走正式的查找而非未登記的區域指標。
-    Actor saved_target = actors[0]; int saved_actor_count = actor_count;
-    actors[0] = t; actor_count = 1;
-    a.foe = &actors[0]; a.skill = &far; a.ai_tick = 0; a.cool = 100000;  // 不出手（測試角色沒有動畫）
-    for (int i = 0; i < 61 && !a.flee; i++) { a.atk = &fm2; a.skill = &far; pursue(&a, &sc, 0); }
-    assert(a.flee && (int)a.tx == 15 && (int)a.ty == 20);
-    actors[0] = saved_target; actor_count = saved_actor_count;
     // 致命一击 100%：物理損加倍（AP 10、DP 0 → 10 → 20）；会心一击 100%：不算 DP
     mk(&a); mk(&t);
     a.hr = 100000; a.ap = a.ap_max = 10; t.dp = 0;

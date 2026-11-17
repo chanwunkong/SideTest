@@ -348,7 +348,7 @@ typedef struct Actor {
     int copied, copy[12];
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
     int print_x, print_y, foot;    // 上一個腳印的位置（+0x3c9）、這次踩哪隻腳（+0x3c5）
-    int ai_tick, flee;             // 怪物 AI 計數（+0xbb，起始隨機 0~99）、正在拉開距離（走向 tx, ty）          // 陷阱：放的人的 AP、AP_MAX、MAP1~5、MAP1~5_MAX（0x10034cb0 照抄）
+    int ai_tick;                  // 怪物 AI 計數（+0xbb，起始隨機 0~99）
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
     int sh;                        // 劇情物件（原版 EasyRPG 的人物；0 = 沒有）
     int remembered[4], remember_delay; // 原版記住命令與取消後延遲
@@ -486,6 +486,9 @@ static void actor_target_set(Actor *a, Actor *t);
 
 // Poq.exe 0x486e70：取消排隊命令，保留其餘三個參數。
 static void actor_cancel_command(Actor *a) { a->command[0] = -1; }
+
+// Poq.exe 0x488bb0：只查命令代號，不查動畫、冷卻或記住命令。
+static int actor_command_idle(const Actor *a) { return a->command[0] == -1; }
 
 // Poq.exe 0x486e80：只清代號，保留三參數；再次清除會把延遲改回0。
 static void actor_forget_command(Actor *a) {
@@ -1119,10 +1122,10 @@ static Actor *actor_target(Actor *a) {
 }
 
 // Poq.exe 0x4770a0：依物件編號查找，包含已死物件。
-// shortcut: 目前用劇情 handle 對 actors；完整 CScene 物件索引接入時改用原版編號。
+// shortcut: 劇情handle與無劇情物件object_id共用Actor索引；場景加入非Actor物件時擴充共用索引。
 static inline Actor *actor_of(int h) {
     for (int i = 0; h && i < actor_count; i++)
-        if (actors[i].sh == h && actors[i].role) return &actors[i];
+        if ((actors[i].sh == h || actors[i].object_id == (uint32_t)h) && actors[i].role) return &actors[i];
     return NULL;
 }
 
@@ -1198,6 +1201,8 @@ static void actor_setup(Actor *a, const RoleDef *d) {
         for (int i = 0; i < 4; i++) a->candidate[i] = -1;
         a->remembered[0] = -1;
         a->dynamic_state = 1;
+        // shortcut: 舊建立入口缺初次動態退出，出生先允許命令；生命週期接齊後交退出回呼設置。
+        a->dynamic_active = 1;
         a->layer = 1;
         if (!a->object_kind) a->object_kind = 31;
         for (int i = 0; i < 20; i++) a->modifier[i].time = -1;
@@ -3026,16 +3031,16 @@ static void actor_knock_tick(Actor *a) {
     actor_interpolation_tick(a);
 }
 
-// shortcut: OmUtil 的 IsExceedDest 本體不在現有反編譯索引；以面向的投影嚴格越過
-// 占格中心判斷。取得 OmUtil 本體後核對斜向門檻與相等邊界。
+// OmUtil::IsExceedDest：核對匯出跳表，任一行進軸到達中心即成立（含相等）。
+// 斜向使用OR，不是點積；非法方向回0。
 static int actor_passed_cell_center(const Actor *a) {
-    int d = a->facing & 7;
-    return (ax64(a) - (a->grid_x * 64 + 32)) * GRID_X[d] +
-           (ay64(a) - (a->grid_y * 64 + 32)) * GRID_Y[d] > 0;
+    int d = a->facing;
+    if ((unsigned)d > 7u) return 0;
+    int dx = ax64(a) - (a->grid_x * 64 + 32), dy = ay64(a) - (a->grid_y * 64 + 32);
+    return (GRID_X[d] && dx * GRID_X[d] >= 0) || (GRID_Y[d] && dy * GRID_Y[d] >= 0);
 }
 
-// 動態32先檢查越界／相鄰通行，再推占格，最後消費插值。
-// shortcut: 呼叫流程已接入，但越界工具仍為上述近似，不標原版更新入口完成。
+// Poq.exe 0x4945d0：動態32先檢查越界／相鄰通行，再推占格，最後消費插值。
 // 保留原版以「格座標、該格世界中心」算側向方向的混合單位，不能改成位置到中心。
 static void actor_charge_tick(Actor *a) {
     if (a->dynamic_state != 32) return;
@@ -3224,7 +3229,7 @@ static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
         }
     }
     if (r < 0) {
-        Actor *t1 = a->casting && !skill_needs_foe(a->cast) ? a : foe;
+        Actor *t1 = a->casting && a->cast && !skill_needs_foe(a->cast) ? a : foe;
         skill_hit(a, t1, sk, tick);
         if (t1 && t1 != a) main_hit(a, t1, tick);
     } else {
@@ -3344,7 +3349,7 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     if (a->act != ACT_DEAD && finished) {
         // 攻擊間隔（Poq.exe 0x48d330）：NPC組用float攻速倍率，其餘組為間隔+隨機(間隔)。
         // shortcut: 仍於動作結束才裝冷卻，完整MethodMain狀態接入後改於綁定時裝入；NPC種類60的免間隔分支待物件種類接入。
-        if (a->act == ACT_ATTACK && a->mon && a->skill) {  // 怪物打完一招：記成上一招，下次重選（0x4911b0）
+        if (a->act == ACT_ATTACK && a->mon && a->skill) {  // 怪物打完一招記成上一招；完整NPC主AI仍待CNpc移植。
             a->last_skill = a->skill;
             a->skill = NULL;
         }
@@ -3352,7 +3357,7 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
             a->cool = (grp_npc(a->grp) ? (int)((float)a->def->atk_delay * actor_fight_ratio(a)) : a->def->atk_delay + rnd(a->def->atk_delay)) + (a->extra > 0 ? a->extra : 0);
         }
         if (a->casting) {  // 左手技能放完：招式沒有打中的觸發就在這裡生效，換回右手招式
-            if (a->casting == 1) skill_hit(a, skill_needs_foe(a->cast) ? a->foe : a, a->cast, tick);
+            if (a->casting == 1 && a->cast) skill_hit(a, skill_needs_foe(a->cast) ? a->foe : a, a->cast, tick);
             a->cast = NULL;
             a->atk = a->atk_rh;
             a->casting = 0;
@@ -3394,61 +3399,25 @@ static const SkillRow *mon_pick(const Actor *a) {
 
 static void cast_start(Actor *h, const SkillRow *r);
 
-// 追打目標：在招式距離內就面向它出手，否則往它走。回傳 0 = 沒有目標
+static void actor_skill_command_tick(Actor *a);
+static int actor_command_walk_tick(Actor *a, const Scene *s, Uint32 tick);
+
+// 追打只提交目標技能命令；範圍、追近、退避和施法統一由角色命令消費端處理。
 static int pursue(Actor *a, const Scene *s, Uint32 tick) {
     Actor *t = actor_target(a);
     if (!t) return 0;
     if (!alive(t)) { actor_clear_target(a); return 0; }
-    actor_enter_fight(a);
     if (main_of(a)) return 1;
-    float gx = t->x - a->x, gy = t->y - a->y;
-    float sdx = (gx - gy) * 32, sdy = (gx + gy) * 16;  // 格子方向 → 畫面方向
-    // 技能的作用範圍最大（RangeMax，原版送給 Poq.exe 的 0x524 訊息）決定走多近；怪物用招式的攻擊距離
-    // 作用範圍最小（RangeMin）原版送進 Poq.exe 的 SkillUnit（+0x1c）後沒有讀，太近也照打
     if (a->mon && !a->skill && npc_skill(a->mon->skill[0])) {
-        if (!(a->skill = mon_pick(a))) {  // 這次沒選到招：站著，下一拍再選
-            a->moving = 0;
-            return 1;
-        }
-        a->atk = method_find(skill_attack_id(a->skill));
+        if (!(a->skill = mon_pick(a))) { a->moving = 0; return 1; }
+        actor_right_skill(a, skill_attack_id(a->skill));
     }
-    const SkillRow *use = a->want ? a->want : a->skill;
-    int range = use ? actor_row_range(a, use) : a->atk && a->atk->range_max > 0 ? a->atk->range_max : 1;
-    // 拉開距離（0x4911b0）：每 61 拍一次，這招 Reserve3 ≠ 1、目標在 範圍−2 的方框內、n = 範圍 − 距離 − 2 ≥ 2 時，
-    // 往遠離目標的 8 方向走 n 格（OmUtil GetFleePos = WhatDir8 + MoveDirForSpeed）
-    if (a->mon && a->skill && ++a->ai_tick % 61 == 2 && a->atk && a->atk->ai != 1) {
-        int dx = (int)a->x - (int)t->x, dy = (int)a->y - (int)t->y, n = range - (int)sqrtf((float)(dx * dx + dy * dy)) - 2;
-        if (abs(dx) <= range - 2 && abs(dy) <= range - 2 && n >= 2 && (dx || dy)) {
-            int oct = (int)lroundf(atan2f((float)dy, (float)dx) / (float)(M_PI / 4));
-            static const int OX[8] = {1, 1, 0, -1, -1, -1, 0, 1}, OY[8] = {0, 1, 1, 1, 0, -1, -1, -1};
-            a->tx = (int)a->x + OX[(oct + 8) % 8] * n + 0.5f;
-            a->ty = (int)a->y + OY[(oct + 8) % 8] * n + 0.5f;
-            a->flee = 60;  // shortcut: 原版走到為止（動作 1），這裡最多走 60 拍，免得卡牆一直走
-        }
+    if (actor_command_idle(a)) {
+        int id = a->want ? skill_attack_id(a->want) : a->skill ? skill_attack_id(a->skill) : -1;
+        actor_command(a, 9, id, t->sh ? t->sh : (int)t->object_id, 0, 0, 1);
+        a->want = NULL;
     }
-    if (a->flee > 0) {
-        float fx = a->tx - a->x, fy = a->ty - a->y;
-        if (--a->flee && fx * fx + fy * fy > 0.04f) {
-            actor_tick(a, s, (fx - fy) * 32, (fx + fy) * 16, tick);
-            return 1;
-        }
-        a->flee = 0;
-    }
-    if (cell_dist(a, t) <= range + 0.5f) {
-        face(a, sdx, sdy);
-        a->moving = 0;
-        // 主角技能要夠精气才能用（0x1004c2a0），出手時扣（Poq.exe 0x48ffe0 送 0x13a → EasyRPG 0x1003f370）
-        if (a->want) {  // 走到範圍內了：放等著的左手技能
-            const SkillRow *w = a->want;
-            a->want = NULL;
-            cast_start(a, w);
-        } else if (!actor_cooling(a) && !status_noattack(a) && (!a->skill || a->mon || skill_usable(a, a->skill))) {
-            if (a->skill && !a->mon) a->mp -= skill_mpu(a->skill);  // shortcut: 怪物沒有精气，技能不扣也不檢查
-            start_act(a, ACT_ATTACK, a->atk ? a->atk->seq : a->fidle);
-        }
-        return 1;
-    }
-    actor_tick(a, s, sdx, sdy, tick);
+    actor_command_walk_tick(a, s, tick);
     return 1;
 }
 
@@ -3913,7 +3882,7 @@ static void hero_skill_apply(Actor *h) {
     hero_selected_skill_apply(h);
 }
 
-// 放左手技能（原版右鍵 → Poq.exe 0x48ffe0 手 = 1）：技能等級 > 0、精气夠、武器合、沒有「攻击不能」的狀態，招式開始才扣精气。
+// 放左手技能：技能等級 > 0、精气夠、武器合、沒有「攻击不能」的狀態，招式開始才扣精气。
 // 要對著敵人的技能要有目標；不在作用範圍最大內就先走過去（pursue），到了再放
 static void cast_start(Actor *h, const SkillRow *r) {
     const Method *m = method_find(skill_attack_id(r));
@@ -3956,7 +3925,8 @@ static int actor_cast_try(Actor *a, int id, int x, int y, Actor *target) {
     a->atk_rh = right;
     a->aim_valid = 1; a->aim_x = x; a->aim_y = y;
     a->aim_actor = target; a->aim_range = actor_skill_range(a, s);
-    if (target) actor_target_set(a, target);
+    if (target && !is_trap(target) && (unsigned)(target->object_kind - 30) < 71u)
+        actor_target_set(a, target);
     main_new(a);
     return 1;
 }
@@ -4022,9 +3992,8 @@ static int actor_command_equal(const Actor *a, int command, int p0, int p1, int 
         a->command[2] == p1 && a->command[3] == p2;
 }
 
-// 單機同時承接原版場景服務端；記住與目標副作用發生在一般可用性檢查之前。
-// shortcut: 非角色種類24的互動目標目前不在Actor索引；場景物件共用索引接齊時補此分支。
-// 因此完整命令主入口仍不標完成，不能把尚缺的場景基礎說成等待其他遊戲系統。
+// Poq.exe 0x48a700：單機同時承接原版場景服務端；記住與目標副作用先於一般可用性。
+// 陷阱沿用Actor承接種類24，不經角色選目標的敵對通知。
 static int actor_command(Actor *a, int command, int p0, int p1, int p2, int cancel, int remember) {
     if (has_status(a, 2) || has_status(a, 10)) return 0;
     int i = actor_skill_find(a, -1);
@@ -4043,8 +4012,12 @@ static int actor_command(Actor *a, int command, int p0, int p1, int p2, int canc
         break;
     case 8: case 9:
         if (remember) {
-            Actor *target = command == 9 ? character_of(p1) : cell_occupant(p1, p2);
-            if (target) actor_target_set(a, target);
+            Actor *target = command == 9 ? actor_of(p1) : cell_occupant(p1, p2);
+            if (target) {
+                if (command == 8 || (!is_trap(target) && (unsigned)(target->object_kind - 30) < 71u))
+                    actor_target_set(a, target);
+                else if (target->object_kind == 24 || is_trap(target)) a->foe = target;
+            }
             a->remembered[0] = command; a->remembered[1] = p0;
             a->remembered[2] = p1; a->remembered[3] = p2;
         }
@@ -4120,27 +4093,126 @@ static int actor_command(Actor *a, int command, int p0, int p1, int p2, int canc
     return 1;
 }
 
-static void hero_cast_point(Actor *h, int x, int y, Actor *target) {
+// OmUtil::IsRange：最大方框含邊界，最小方框內部排除；不是歐氏距離。
+// 已核對OmUtil匯出本體；min==max時仍可命中外框。
+static int actor_skill_in_range(int dx, int dy, int max, int min) {
+    dx = abs(dx); dy = abs(dy);
+    return dx <= max && dy <= max && (dx >= min || dy >= min);
+}
+
+// 技能／命令主分派的記住命令與8/9分支。
+// shortcut: 互動15..19尚未接本入口的接近／執行；接道具、建築及對話後補齊主分派。
+// 不在局部實作寫主入口完成位址。
+static void actor_skill_command_tick(Actor *a) {
+    if (a->remembered[0] != -1 && memcmp(a->remembered, a->command, sizeof a->command)) {
+        int c = a->remembered[0];
+        if (c == 1 || c == 2) {
+            if (!actor_dynamic_retry(a) ||
+                (actor_init_x(a) == a->remembered[1] && actor_init_y(a) == a->remembered[2]))
+                actor_forget_command(a);
+            else if (a->dynamic_state == 1)
+                actor_command(a, c, a->remembered[1], a->remembered[2], a->remembered[3], 1, 0);
+        } else if (c == 8 || c == 9) {
+            if (actor_flags(a, 1)) actor_forget_command(a);
+            else if (actor_can_use_id(a, -1))
+                actor_command(a, c, a->remembered[1], a->remembered[2], a->remembered[3], 1, 0);
+        } else actor_forget_command(a);
+    }
+    if (actor_command_idle(a) || !a->dynamic_active) return;
+    int c = a->command[0];
+    if (c != 8 && c != 9) return;
+    int id = a->command[1] == -1 ? a->right_id : a->command[1];
+    if (c == 8) {
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        if (!actor_can_use_id(a, id)) {
+            actor_set_flags(a, 1, 1);
+            actor_cancel_command(a);
+        } else if (!actor_cooling(a) && actor_cast_at(a, id, a->command[2] * 64 + 32, a->command[3] * 64 + 32, NULL))
+            actor_cancel_command(a);
+        return;
+    }
+    int slot = actor_skill_find(a, id);
+    if (slot < 0 || !actor_can_use_skill(a, &a->skills[slot])) return;
+    Actor *t = actor_of(a->command[2]);
+    if (!t) {
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        actor_cancel_command(a);
+        actor_clear_target(a);
+        if (a->remembered[0] == 8 || a->remembered[0] == 9) actor_forget_command(a);
+        return;
+    }
+    int character = !is_trap(t) && (unsigned)(t->object_kind - 30) < 71u;
+    if (character && (has_status(t, 102) || actor_flags(t, 0x4000))) {
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        actor_set_flags(a, 1, 1);
+        actor_cancel_command(a);
+        return;
+    }
+    if ((unsigned)(t->object_kind - 10) < 11u ? t->object_dead :
+        (t->object_kind == 24 || is_trap(t)) && t->object_dead) {
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        actor_clear_target(a);
+        actor_cancel_command(a);
+        return;
+    }
+    ActorSkill *skill = &a->skills[slot];
+    int range = actor_skill_range(a, skill);
+    if (range >= 4) --range;
+    if (character) range += t->body_size / 2;
+    int x = ax64(t) >> 6, y = ay64(t) >> 6;
+    int sx = ax64(a) >> 6, sy = ay64(a) >> 6;
+    if (!has_status(a, 0)) actor_command(a, 11, 1, 0, 0, 0, 0);
+    // 單機省略NPC入戰的全域選人／介面同步，狀態與技能仍由共用接收端執行。
+    if (actor_skill_in_range(sx - x, sy - y, range, skill->min)) {
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        if (!actor_cooling(a) && actor_cast_at(a, id, ax64(t), ay64(t), t)) actor_cancel_command(a);
+        return;
+    }
+    if (a->dynamic_state == 11 && a->dynamic_command[0] == x && a->dynamic_command[1] == y) return;
+    if (!actor_dynamic_retry(a)) { actor_cancel_command(a); return; }
+    if (abs(sx - x) < range && abs(sy - y) < range) {
+        // GetFleePos隱藏步長由Poq呼叫點核對，為SkillUnit.min+1。
+        int fx = sx, fy = sy;
+        move_dir(&fx, &fy, dir_of(x, y, sx, sy, 8), skill->min + 1);
+        actor_command(a, 1, fx, fy, 0, 0, 0);
+    } else {
+        if (range > 1 && !line_clear(sx, sy, x, y, range, 3)) range = 2;
+        actor_command(a, 1, x, y, range, 0, 0);
+    }
+}
+
+// shortcut: 動態11完整尋路尚未移植，技能命令追近先共用既有逐拍行走。
+// 到目的方框才停止，不再由pursue以歐氏距離提早出手；尋路移植時刪除此橋接。
+static int actor_command_walk_tick(Actor *a, const Scene *s, Uint32 tick) {
+    if (a->dynamic_state != 11 || !a->has_target) { a->moving = 0; return 0; }
+    int range = a->dynamic_command[2];
+    int dx = actor_init_x(a) - a->dynamic_command[0], dy = actor_init_y(a) - a->dynamic_command[1];
+    if (abs(dx) <= range && abs(dy) <= range) {
+        a->has_target = 0;
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        return 1;
+    }
+    float gx = a->tx - a->x, gy = a->ty - a->y;
+    actor_tick(a, s, (gx - gy) * 32, (gx + gy) * 16, tick);
+    return 1;
+}
+
+static void hero_cast_point(Actor *h, int x, int y) {
     int k = cur_skill[1];
     if (k < 0 || k >= hero_skill_n || h->act || h->casting) return;
     const SkillRow *r = &hero_skill[k];
     int manual = skill_manual(r);
     if (manual == 2 || manual == 3) {
         // 命令8的參數是格座標；實際施法入口再取格子中心。
-        if (actor_command(h, 8, skill_attack_id(r), x / 64, y / 64, 1, 1) && h->command[0] == 8) {
-            if (actor_can_use_id(h, skill_attack_id(r)) && skill_usable(h, r))
-                actor_cast_at(h, skill_attack_id(r), x, y, target);
-            actor_cancel_command(h);
-        }
+        actor_command(h, 8, skill_attack_id(r), x / 64, y / 64, 1, 1);
         return;
     }
     if (!skill_needs_foe(r)) { cast_start(h, r); return; }
     if (!alive(h->foe) || !skill_usable(h, r)) return;
-    if (cell_dist(h, h->foe) <= actor_row_range(h, r) + 0.5f) cast_start(h, r);
-    else h->want = r;
+    actor_command(h, 9, skill_attack_id(r), h->foe->sh ? h->foe->sh : (int)h->foe->object_id, 0, 1, 1);
 }
 
-static void hero_cast(Actor *h) { hero_cast_point(h, ax64(h), ay64(h), h); }
+static void hero_cast(Actor *h) { hero_cast_point(h, ax64(h), ay64(h)); }
 
 // 快捷技能視窗（Poq.exe 0x504d90 開 JM514 = 右手、0x504b40 開 JM515 = 左手；0x564360 填格子）：
 // 依序放進左右鍵位等於這隻手或 2（兩手都行）、等級 > 0 的技能，第 n 個放 m_pItem[n]。
@@ -6474,7 +6546,7 @@ int main(int argc, char **argv) {
                 Actor *m = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
                 if (m) actor_target_set(hero, m);
                 // shortcut: 點選地點取格子中心；像素級地點施法待世界座標逆投影接入。
-                hero_cast_point(hero, cx * 64 + 32, cy * 64 + 32, m);
+                hero_cast_point(hero, cx * 64 + 32, cy * 64 + 32);
             }
             else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) pointer_down = 0;
             else if (e.type == SDL_MOUSEMOTION) { px = e.motion.x; py = e.motion.y; mouse_seen = e.motion.which != SDL_TOUCH_MOUSEID; }
@@ -6549,6 +6621,7 @@ int main(int argc, char **argv) {
                 actor_health_sync(&actors[i]);
                 actors[i].animation_stepped = 0;
                 if (actors[i].role) actor_maintenance_tick(&actors[i]);
+                if (actors[i].role && actors[i].act != ACT_DEAD) actor_skill_command_tick(&actors[i]);
                 if (actors[i].fight > 0 && !actors[i].foe && !--actors[i].fight)
                     actor_status_notify(&actors[i], 0, 0, -1);
             }
@@ -6558,13 +6631,21 @@ int main(int argc, char **argv) {
                 action_tick(hero, &scene, tick);
             } else if (hero->act) action_tick(hero, &scene, tick);
             else if (held) hero->moving = 0;
-            else if (mx * mx + my * my > 0.01f) { hero->foe = NULL; hero->want = NULL; ground_want = walk_cx = -1; actor_tick(hero, &scene, mx, my, tick); }  // 自己走 = 放棄目標
+            else if (mx * mx + my * my > 0.01f) {
+                actor_cancel_command(hero); actor_forget_command(hero);
+                hero->foe = NULL; hero->want = NULL; ground_want = walk_cx = -1;
+                actor_tick(hero, &scene, mx, my, tick);
+            }  // 自己走 = 放棄目標與記住的技能命令。
+            else if (!actor_command_idle(hero)) actor_command_walk_tick(hero, &scene, tick);
             else if (ground_want >= 0 && !hero->foe) ground_walk(hero, &scene, tick);
             else if (walk_cx >= 0 && !hero->foe) point_walk(hero, &scene, tick);
             else if (!pursue(hero, &scene, tick)) actor_tick(hero, &scene, 0, 0, tick);
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
-                if (!a->mon) { if (!react_tick(a, &scene)) npc_think(a, &scene, tick); }
+                if (!a->mon) { if (!react_tick(a, &scene)) {
+                    if (!actor_command_idle(a)) actor_command_walk_tick(a, &scene, tick);
+                    else npc_think(a, &scene, tick);
+                } }
                 else if (!a->role) continue;
                 else if (a->act == ACT_DEAD) { action_tick(a, &scene, tick); if (++a->dead_ticks > CORPSE_TICKS) a->role = NULL; }
                 else if (react_tick(a, &scene) && !a->act) a->moving = 0;

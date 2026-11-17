@@ -707,7 +707,7 @@
 004889c0	索引無呼叫者；依本輪規則略過，不臆測用途
 00488a70	actor_bind_scene：綁Scene並將格子座標置中；種類非60可消費全域重判層，十圈邊掃找空格，保存外部修正或實際格子；接場景進入與NPC／怪物出生
 00488ba0	出手冷卻>0查詢；actor_cooling接pursue，負值不算冷卻
-00488bb0	排隊命令是否為-1；尚未接同類別命令消費端
+00488bb0	main.c actor_command_idle：只查排隊代號是否-1；接追打、固定拍及命令消費，不依冷卻或動畫判空
 00488c10	索引無呼叫者；依本輪規則略過，不臆測用途
 00488c50	旗標查詢回mask原值；actor_flags接目標旗標篩選
 00488c70	actor_can_use_id：按技能ID精確／模板fallback查鏈，再轉原版可用性檢查；接mon_pick與cast_start
@@ -717,7 +717,7 @@
 00488d90	平台資源預讀：同參數預讀紙娃娃兩套精靈，由role_load／preload_roles及動畫快取承接
 00488dd0	todo：actor_maintenance_tick已接冷卻先扣、無0x400且有0x200且非靜止時略過整段修正／縮放／重算；修正每10拍共用direction_clock，不另起相位或落地補扣；方向漸轉／高度已有對應；仍缺活動啟用門檻、動畫與高度前後順序統一及100拍光環命令接收端，均為同類別／引擎基礎；特殊倒數介面暫停通知才等CGameApp
 00489340	索引無呼叫者；依本輪規則略過，不臆測用途
-0048a700	todo：actor_command已接記住／目標先行副作用、可用性、取消、技能／互動排隊去重、命令1..19及102分派；實際接擊退／衝刺跳躍、受擊、地點施法和玩家點地；仍缺非角色種類24場景物件目標分支（CObj共用索引基礎），8/9完整消費仍由角色技能入口續補，不能標主入口done
+0048a700	main.c actor_command：完整命令接收；記住／目標先行副作用、可用性、取消、四欄去重、命令1..19及102；種類24陷阱直接設目標、不走角色敵對通知；地點／目標技能交固定拍消費，場景無劇情角色按object_id查找
 0048af20	紙娃娃兩套精靈資源卸載轉接，由roles_clear／場景生命週期承接
 0048af30	依外部識別刪第一個SkillUnit，清目前選取但不清目標／左右手ID；actor_skill_remove接模板與主角技能重建
 0048afc0	actor_behavior_reset：清互動／目標／MethodMain綁定、取消命令保留參數、記住1/2給50延遲，退戰／光源／高度-20，再動態重設；接新角色與換場景
@@ -730,7 +730,7 @@
 0048bdd0	狀態0x523封包送本機客戶端，單機共用Actor略過副本同步
 0048bed0	索引無呼叫者；依本輪規則略過，不臆測用途
 0048bf60	索引無呼叫者；依本輪規則略過，不臆測用途
-0048c050	角色每拍動態狀態／虛擬更新、位置改變同步及活動旗標；actor_motion_tick已接21/22/31/32先推動態再推高度；32越界工具有shortcut，仍缺完整11、活動byte、動畫虛擬更新與場景活動通知，同類別／引擎基礎todo
+0048c050	角色每拍動態狀態／虛擬更新、位置改變同步及活動旗標；actor_motion_tick已接21/22/31/32先推動態再推高度；32越界工具已按OmUtil匯出本體校正，仍缺完整11、活動byte、動畫虛擬更新與場景活動通知，同類別／引擎基礎todo
 0048c150	actor_name_set：僅SInit種類10..16可複製事件ID，不更新顯示名稱；actor_setup接ONT來源，原始容量64 bytes
 0048c190	main.c actor_animation_select／actor_animation_target：指定序列與帶符號方向餘數、擊退／挨打、跑步門檻與旗標、戰鬥20..30保留目標；接actor_tick/action_tick及繪製／矩形查詢，狀態來源以現有fight/Buff/knock橋接
 0048d2c0	客戶端狀態byte解碼：低7位ID、高位啟用值；唯一呼叫者為已略過同步分派，單機略過封包轉接；完整狀態設置仍todo
@@ -773,11 +773,11 @@
 004c9f40	索引無呼叫者，原版管理物件入口依規則skip；引擎模板資源基礎在roledefs_load按RoleMdl列序讀RoleMdl.rmd，不移植原版管理物件／INI生命週期
 004c74b0	vacant_cell：含中心至n圈，依上／下／左／右邊逐格查層及角色占位，邊界夾圖；接actor_move_cast，陣列查找取代格子角色句柄
 00488540	main.c actor_speed：第1修正覆蓋、移動跑步3/2優先、戰鬥速度、狀態及加速倍率、門檻>=101減半；getter保留範圍，僅移動速度表消費端夾0..59；fight與動態狀態沿用現有迴圈橋接
-0048ffe0	actor_cast_at補記住命令8/9收尾，施法失敗也處理；不同技能且仍有敵對目標時保留；主分派／完整戰鬥狀態與目標設置副作用仍未完成
+0048ffe0	todo：actor_cast_at接記住命令8/9收尾，失敗也處理；命令消費端已補非強制施法冷卻門檻，候選／移動觸發仍可越過冷卻；actor_cast_try接角色目標及MethodMain；仍缺完整入戰通知與施法狀態順序，不以cast_start註解標完整入口done，同類別待補；全域NPC選人通知才等CGameApp
 0048f7a0	actor_property：八種精確鍵名MOVE_SPEED／FIGHT_SPEED／SRANGE／VRANGE／ZMYJ／HXYJ／JDR／DJHF；原始速度放Actor.ex由消費端換算，視野+12且只非NPC組加索敵；接模板、裝備／技能重算與劇情@屬性訊息
 0048ba50	actor_near_next：四模式候選、同組援敵讀狀態byte0／SInit格及種類30..100；模式2用劇情識別或非劇情高半區32位物件識別，目標轉交仍不重套候選旗標
 00488a10	actor_target：場景Actor名單查找，失效才清目標；角色旗標0x10只回空不清，死亡仍回物件；接追擊／同組協助／候選施法／無滑鼠HUD；指標取代句柄，槽重用限制見shortcut
-00489730	todo：完整角色技能使用入口；舊monster_think僅檢查目標旗標的註解造成誤判done，移除該註解位址，不以局部檢查宣稱整個入口完成
+00489730	todo：actor_skill_command_tick接記住命令1/2及8/9重送、動態活動門檻、8地點施法、9目標查找／狀態拒絕／方框最小最大射程／大小與高層修正／追近退避／冷卻及成功清佇列；pursue與hero_cast_point已改用共用入口，刪舊歐氏距離出手及61拍退避簡化版；仍缺同類別15..19互動消費與完整動態11尋路，不標完整主入口done；NPC入戰全域選人通知待CGameApp
 00496530	actor_size_set：只保存動態占位大小，接actor_setup按模板size<7取1否則減5；位置重定位仍屬模板入口todo
 0048b2f0	actor_effects_recompute：127至0逆序查非零狀態byte且值不同於last_status才套表；組語確認末次傳-1（低byte255），不重套最後ID，末尾清dirty；接固定拍及技能Buff byte同步／到期，刪最後狀態優先shortcut
 0048ec60	actor_modifier_set：20項值／期限共用表；期限-1或不短於現值才覆寫；第1重算速度、第3潰散byte、第5狀態100及選動畫、第6殘影；輸入0即使遭拒仍標重算；接狀態表及固定拍到期
@@ -789,7 +789,7 @@
 004b8190	Chat.Dlg字串取值後保存在管理器暫存；以現有res_dlg及呼叫者緩衝區承接字串資源工具，不複製CString管理器
 0048d330	出手綁定及動畫延遲／間隔：攻速用float比例，零分母改1；NPC組乘倍率、其他組間隔加隨機；既有attack_speed／action_tick已更正比例與組別；shortcut仍於動作結束裝冷卻，NPC種類60免間隔及第6修正／MethodMain完整綁定尚待同類別狀態
 00496ac0	寫動態移動嘗試結果+0x3f1；總表無呼叫者，依規則skip，不新增無遊戲呼叫端setter
-004942d0	todo：actor_dynamic_enter已接共用拍數／有效速度、21/22落點／跳躍、31反向／速度／反播及32三倍速／插值／面向；32更新已接但越界工具有shortcut；11仍橋接目的地行走，待同類別完整尋路進入
+004942d0	todo：actor_dynamic_enter已接共用拍數／有效速度、21/22落點／跳躍、31反向／速度／反播及32三倍速／插值／面向；32更新及越界工具已核對接齊；11仍橋接目的地行走，待同類別完整尋路進入
 00494950	actor_dynamic_exit：標活動；11/31清反播；22設下降-5/上限0再走21清空中旗標、有效格且物件層>10時取回地面層；不改行為狀態與目前高度
 00575cb0	actor_illusion_begin：有效有序列的各本體部件建立獨立殘影容器，參數2/12/2/1；第6修正及移動進入呼叫
 00576b90	actor_illusion_end：逐個有效且有序列部件清殘影容器；第6修正解除／到期及場景釋放接入
@@ -835,9 +835,15 @@
 004967d0	actor_interpolate：-1取占格與A+C/10；整數歐氏距離除float速度，剩餘拍截斷但增量除未截斷拍數；接高度下降，單機共用服務端move_remaining門檻，回放模式10方向追趕不實作
 004b7d60	actor_height_fraction：以float算比例、半數向正方向取整、原值減結果，機碼確認EAX回扣除整數；供跳躍上升／下降共用
 00497c20	CDynamicObj基底活動getter固定回1，actor_height_tick直接承接常數，不新增空包裝
-00496110	todo：actor_motion_tick先跑actor_rush_update(21/22)、actor_knock_tick(31)、actor_charge_tick(32)，再由actor_height_tick算高度／共用時鐘；32越界工具仍近似，已接1讓路消費端；仍缺11尋路步進與完整活動門檻，屬同類別與引擎基礎
+00496110	todo：actor_motion_tick先跑actor_rush_update(21/22)、actor_knock_tick(31)、actor_charge_tick(32)，再由actor_height_tick算高度／共用時鐘；32越界工具已按OmUtil匯出本體校正，已接1讓路消費端；仍缺11尋路步進與完整活動門檻，屬同類別與引擎基礎
 00494a20	actor_rush_tick：有剩餘拍只做插值，末拍不退出；下拍用(1,1,0,0)強制靜止，先角色退出、清腳印而不清舊三參數，21/22不重選動畫；接所有角色固定拍
 00497cd0	actor_raise_layer：層<11轉11、12轉13、14/16轉15，其他不變；接跳躍落點計算
-004945d0	todo：main.c actor_charge_tick已接固定拍，先越界／側向地形再逐格占位，最後插值，遇阻及末拍後一拍交共用靜止；保留混合格／世界座標算側向方向；IsExceedDest不在現有反編譯索引，以面向投影嚴格越過中心近似，待取得OmUtil本體核對門檻，不標完整入口done
+004945d0	main.c actor_charge_tick：先IsExceedDest再側向地形、逐格占位、最後插值；OmUtil匯出跳表核對為任一行進軸到達即成立且含相等，非法方向回0；保留混合格／世界座標算方向、碰撞不消耗插值及末拍後一拍退出
 
 00494cb0	actor_yield_tick：靜止時按請求者到保存世界位置量距；<30且可移動且尚未偏移時保存位置、按請求者方向+2偏移20，不改占格；30..63清已偏移快取，>=64或ID失效清請求；自身ID=0保留請求；接固定拍，請求來源暫用跨格碰撞，完整路徑點掃描仍todo
+00493f80	todo：動態32重設三倍速度、插值至命令目的地、由占格決定面向及動畫；與actor_dynamic_enter的32初始化相同，尚未接獨立重進入呼叫
+004934e0	CDynamicObj建構：250筆byte座標路徑清零、狀態及插值快取-1、方向時鐘rand()%100、身體大小0、路徑活動0；已核對作動態11基礎欄位依據，本輪不推進到此類別
+00493ad0	todo：起終點Chebyshev距離小於2回0；否則逐格找第一可站格，抵達終點仍未找到則vacant_cell六圈；動態尋路基礎回溯工具，尚未接入
+004973b0	todo：CDynamicObj尋路；暫以自身ID覆寫目的格占位，XPS_Control執行後復原，讀最多250筆反向byte路徑，index=count-2；index0時原版條件為目的X不同或Y相等仍可成功；待同類別動態11尋路與路徑工具接入
+00493930	todo：由起點朝終點逐格找第一個合法層且無角色格，抵達終點回0；動態尋路基礎回溯工具，尚未接入
+004911b0	todo：CNpc完整主AI；只保留action_tick出手後記上一招與mon_pick選招，不能因註解引用主AI位址標done；原有61拍／60拍限時退避簡化版已刪，CCharactor共用技能命令依最小射程退避，完整NPC策略待下一類別CNpc

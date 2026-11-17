@@ -223,3 +223,6 @@ OmUtil::GetFleePos	air_run使用既有dir_of與move_dir；核對OmUtil.dll匯出
 
 004b7d60	actor_height_fraction：比例四捨五入扣整數，保留EAX結果供高度曲線使用
 OmUtil::IsMinRange	abs(dx)>=range或abs(dy)>=range，核對OmUtil匯出本體；高度更新落塵直接整數比較
+OmUtil::IsRange	actor_skill_in_range；核對匯出本體：abs(dx/dy)<=max且至少一軸>=min，方框含邊界
+OmUtil::IsExceedDest	actor_passed_cell_center；核對匯出跳表：任一行進軸到達或越過目的即1（含相等），非法方向0；斜向OR而非投影
+OmUtil::IsMaxRange	abs(dx)<=range且abs(dy)<=range；核對匯出本體，角色技能射程共用整數方框

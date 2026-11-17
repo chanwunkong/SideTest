@@ -841,8 +841,8 @@ CDynamicObj	+0xbf	重設清0；狀態31結束／遇阻時非零先清0，再返�
 CDynamicObj	+0x97	讓路前世界X，-1未偏移；靜止讓路以此位置量距，不以偏移後位置量距	Actor.dynamic_cache_x
 CDynamicObj	+0x9b	讓路前世界Y，與+0x97一起重設-1；清除時不回吸世界位置	Actor.dynamic_cache_y
 CDynamicObj	+0x9f	讓路請求者物件ID；失效或距離>=64時自身ID非0才清；衍生陷阱另作未發現旗標	Actor.dynamic_aux
-CDynamicObj	+0x2bf	動態待處理值，重設0	Actor.dynamic_pending
-CDynamicObj	+0x2c3	路徑活動值，重設0	Actor.dynamic_path
+CDynamicObj	+0x2bf	反向路徑點數，尋路輸出數量，重設0	Actor.dynamic_pending（尚未承接路徑陣列）
+CDynamicObj	+0x2c3	反向路徑索引=count-2，步進後減1；負值重新尋路，重設0	Actor.dynamic_path（尚未承接路徑陣列）
 CDynamicObj	+0x3d9	剩餘位置插值拍數，重設-1；21/22末拍減至0仍保留狀態，下拍才退出	Actor.interpolation_left
 CDynamicObj	+0x3f7	上次同步的動態狀態，重設1	Actor.dynamic_reported_state
 MethodBase	+0x66	CObj層號byte；角色留血物件建立後複製角色層	MUnit.layer
@@ -861,3 +861,7 @@ OverheadText	+0x0	剩餘畫面數byte；只在實際繪圖時先減1，中段上
 OverheadText	+0x1	起始畫面數byte，用於首8畫面淡入	Actor.overhead[].total
 OverheadText	+0x2	200x100文字SBMP指標；原版固定寬200置中	Actor.overhead[].text（SDL字型取代SBMP）
 OverheadText	+0x6	文字模式byte：0普通固定頭頂，1上飄	Actor.overhead[].floating
+CCharactor	+0x2cb	技能命令消費的動態就緒標記；0時不消費，但仍先處理記住命令重送	Actor.dynamic_active
+CDynamicObj	+0xcb	250筆雙byte座標反向路徑，從index=count-2往下消費	待動態11完整尋路
+CDynamicObj	+0x2c7	傳入XPS尋路虛擬格4的附加參數，語意未確認	待尋路工具
+CDynamicObj	+0x3d5	新路徑旗標，尋路成功設1，步進前清0且略過距離／負索引檢查	待動態11完整尋路
