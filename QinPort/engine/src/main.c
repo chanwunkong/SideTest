@@ -724,6 +724,7 @@ static void actor_body_step(Actor *a, const Seq *q, int stop) {
 }
 
 static void actor_animation_tick(Actor *a);
+static void actor_yield_request(const Actor *a, int x, int y);
 
 // 三個附加精靈各自一份播放器；替換原先逐個Buff重畫且跟全域拍數循環的簡化版。
 // shortcut: 頭上／身上位置沿用動畫內建偏移，模型高度欄位接入後核對額外錨點偏移。
@@ -905,6 +906,7 @@ static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px)
     else if (scene_walkable(s, (int)(h->x + gx), (int)h->y)) h->x += gx;
     else if (scene_walkable(s, (int)h->x, (int)(h->y + gy))) h->y += gy;
     if (h->grid_valid && ((int)h->x != h->grid_x || (int)h->y != h->grid_y) && !actor_place(h, (int)h->x, (int)h->y, 0)) {
+        actor_yield_request(h, (int)h->x, (int)h->y);
         h->x = previous_x; h->y = previous_y;
     }
     face(h, sdx, sdy);
@@ -2904,6 +2906,52 @@ static void actor_hover_set(Actor *a, int mouse) {
 // Poq.exe 0x488d20：速度只比較是否為0；有MethodMain時不能移動。
 static int actor_can_move(const Actor *a) { return a->speed != 0 && !main_of(a); }
 
+// 動態11的同組讓路請求消費端；只查可通行層及角色占位，不排除死亡旗標。
+// shortcut: 完整路徑掃描尚未接入，暫由跨格碰撞送出請求；移植逐格掃描後移至其首個路徑點。
+static void actor_yield_request(const Actor *a, int x, int y) {
+    const Cell *c = cell_at(x, y);
+    if (!c || !cell_pass(c, a->layer)) return;
+    Actor *other = cell_occupant(x, y);
+    if (other && other->sh != a->sh && other->grp == a->grp &&
+        (unsigned)(other->object_kind - 30) <= 70u)
+        other->dynamic_aux = a->sh;
+}
+
+// Poq.exe 0x494cb0：以保存的位置量距；偏移只改世界座標，不移占格、不回吸保存位置。
+static void actor_yield_tick(Actor *a) {
+    if (!a->dynamic_aux) return;
+    Actor *other = character_of(a->dynamic_aux);
+    if (other) {
+        int x = a->dynamic_cache_x == -1 ? ax64(a) : a->dynamic_cache_x;
+        int y = a->dynamic_cache_x == -1 ? ay64(a) : a->dynamic_cache_y;
+        int distance = dist_of(x, y, ax64(other), ay64(other));
+        if (distance < 64) {
+            if (distance < 30) {
+                if (!actor_can_move(a) || a->dynamic_cache_x != -1) return;
+                a->dynamic_cache_x = ax64(a);
+                a->dynamic_cache_y = ay64(a);
+                int dir = other->facing + 2;
+                if (dir < 0) dir = other->facing + 10;
+                else if (dir > 7) dir = other->facing - 6;
+                x = ax64(a); y = ay64(a);
+                move_dir(&x, &y, dir, 20);
+                a->x = x / 64.0f; a->y = y / 64.0f;
+                return;
+            }
+            if (a->dynamic_cache_x != -1) {
+                if (a->sh) a->dynamic_aux = 0;
+                a->dynamic_cache_x = a->dynamic_cache_y = -1;
+            }
+            return;
+        }
+    }
+    if (a->sh) a->dynamic_aux = 0;
+    if (a->dynamic_cache_x != -1) {
+        if (a->sh) a->dynamic_aux = 0;
+        a->dynamic_cache_x = a->dynamic_cache_y = -1;
+    }
+}
+
 // Poq.exe 0x488ca0：目前招式有flag4觸發時，即使禁止攻擊也允許中斷。
 // shortcut: 單機同時執行原版服務端的技能Enable分支；拆出網路客戶端時按場景角色分流。
 static int actor_can_use_skill(const Actor *a, const ActorSkill *skill) {
@@ -3006,6 +3054,7 @@ static void actor_charge_tick(Actor *a) {
 // shortcut: 此處整合21/22/31/32；11、活動byte與動畫虛擬呼叫
 // 尚未齊備，完整角色更新接齊後合併，不把主入口標成完成。
 static void actor_motion_tick(Actor *a) {
+    if (a->dynamic_state == 1) actor_yield_tick(a);
     actor_rush_update(a);
     actor_knock_tick(a);
     actor_charge_tick(a);

@@ -838,9 +838,9 @@ RoleMdl	+0x38	紙娃娃動作方式字串；外觀覆寫星號切分的首值取
 CDynamicObj	+0xa7	原版8方向面向；設定時依目前目標動畫的八序列分組重選方向	Actor.facing保存原值／Actor.dir經DIR_MAP轉換／actor_direction_set
 CDynamicObj	+0xbb	更新拍數，基底重設rand()%100	Actor.direction_clock（動態基底每拍增加一次）／Actor.ai_tick
 CDynamicObj	+0xbf	重設清0；狀態31結束／遇阻時非零先清0，再返回+c3/+c7目的地	Actor.dynamic_counter
-CDynamicObj	+0x97	動態位置快取X，重設-1	Actor.dynamic_cache_x
-CDynamicObj	+0x9b	動態位置快取Y，重設-1	Actor.dynamic_cache_y
-CDynamicObj	+0x9f	基底輔助值，重設0（衍生陷阱作未發現旗標）	Actor.dynamic_aux
+CDynamicObj	+0x97	讓路前世界X，-1未偏移；靜止讓路以此位置量距，不以偏移後位置量距	Actor.dynamic_cache_x
+CDynamicObj	+0x9b	讓路前世界Y，與+0x97一起重設-1；清除時不回吸世界位置	Actor.dynamic_cache_y
+CDynamicObj	+0x9f	讓路請求者物件ID；失效或距離>=64時自身ID非0才清；衍生陷阱另作未發現旗標	Actor.dynamic_aux
 CDynamicObj	+0x2bf	動態待處理值，重設0	Actor.dynamic_pending
 CDynamicObj	+0x2c3	路徑活動值，重設0	Actor.dynamic_path
 CDynamicObj	+0x3d9	剩餘位置插值拍數，重設-1；21/22末拍減至0仍保留狀態，下拍才退出	Actor.interpolation_left

@@ -1166,7 +1166,7 @@ Poq.exe	99	00494be0	FUN_00494be0	CDynamicObj	game	todo	8	6
 Poq.exe	99	00494c30	FUN_00494c30	~CDynamicObj	game	todo	22	4			
 Poq.exe	99	00494c70	FUN_00494c70	~CDynamicObj	game	todo	17	10			00574e10 005770e0
 Poq.exe	99	00494ca0	FUN_00494ca0	CDynamicObj	game	todo	8	6			
-Poq.exe	99	00494cb0	FUN_00494cb0	~CDynamicObj	game	todo	93	4			
+Poq.exe	99	00494cb0	FUN_00494cb0	~CDynamicObj	game	done	93	4		actor_yield_tick：靜止時按請求者到保存世界位置量距；<30且可移動且尚未偏移時保存位置、按請求者方向+2偏移20，不改占格；30..63清已偏移快取，>=64或ID失效清請求；自身ID=0保留請求；接固定拍，請求來源暫用跨格碰撞，完整路徑點掃描仍todo	
 Poq.exe	99	00494e80	FUN_00494e80	~CDynamicObj	game	todo	12	0			004c90b0
 Poq.exe	99	00494ec0	FUN_00494ec0	~CDynamicObj	game	done	28	20		actor_body_apply：-1取既有目標，其他值先保存目標，再切本體；同序列保留幀內拍數，接外觀更新	00574e10 005770e0
 Poq.exe	99	00494f40	FUN_00494f40	CDynamicObj	game	todo	8	6			
@@ -1180,7 +1180,7 @@ Poq.exe	99	00495420	FUN_00495420	~CDynamicObj	game	done	190	20		near.c actor_pla
 Poq.exe	99	00495910	FUN_00495910	CDynamicObj	game	done	24	8		actor_dynamic_reset：rand()%100拍數、狀態1、序列／插值／進入拍數快取-1，清活動輔助並解除場景、死亡旗標0及層1；不改世界位置／高度／命令三參數	00497650
 Poq.exe	99	004959c0	FUN_004959c0	CDynamicObj	game	todo	8	6			
 Poq.exe	99	004959d0	FUN_004959d0	~CDynamicObj	game	todo	240	2			00494b30 00494c30 004c7f40
-Poq.exe	99	00496110	FUN_00496110	CDynamicObj	game	todo	47	8		todo：actor_motion_tick先跑actor_rush_update(21/22)、actor_knock_tick(31)、actor_charge_tick(32)，再由actor_height_tick算高度／共用時鐘；32越界工具仍近似，仍缺1避讓／11尋路步進與完整活動門檻，屬同類別與引擎基礎	00493cb0 004945d0 00494cb0 004959d0
+Poq.exe	99	00496110	FUN_00496110	CDynamicObj	game	todo	47	8		todo：actor_motion_tick先跑actor_rush_update(21/22)、actor_knock_tick(31)、actor_charge_tick(32)，再由actor_height_tick算高度／共用時鐘；32越界工具仍近似，已接1讓路消費端；仍缺11尋路步進與完整活動門檻，屬同類別與引擎基礎	00493cb0 004945d0 004959d0
 Poq.exe	99	004961e0	FUN_004961e0	~CDynamicObj	game	done	10	6		actor_height_set：只設定垂直速度與高度上限，不歸零目前高度；接角色招式離地觸發及狀態110旋飛／解除	
 Poq.exe	99	00496250	FUN_00496250	CDynamicObj	game	todo	8	6			
 Poq.exe	99	00496260	FUN_00496260	~CScnClient	game	todo	59	2			
@@ -1197,7 +1197,7 @@ Poq.exe	99	00496ae0	FUN_00496ae0	~CCharactor	game	done	102	9		actor_move_speed�
 Poq.exe	99	00496d80	FUN_00496d80	~CCharactor	game	todo	16	2		取指定序列描述：由當前部件群首個精靈的序列表+index*32；反編譯空指標分支會讀0x14，未自行設計安全替代；todo 動畫基礎	00574e10 005770e0
 Poq.exe	99	00496e30	FUN_00496e30		game	todo	36	5			
 Poq.exe	99	00496f20	FUN_00496f20	~CDynamicObj	game	todo	146	2		目的地合法性及逐格回溯、占位／層檢查、目的地偏差與距離門檻，最後嘗試尋路並快取結果；todo 動態移動與占位基礎	
-Poq.exe	99	00497310	FUN_00497310	CCharactor|CNpc|CProtagonist|+1	game	todo	27	25			00494cb0
+Poq.exe	99	00497310	FUN_00497310	CCharactor|CNpc|CProtagonist|+1	game	todo	27	25			
 Poq.exe	99	004973b0	FUN_004973b0	CCharactor|CNpc|CProtagonist|+1	game	todo	79	23			004c8700 004d0890 004d0900 004d09e0 004d0af0 004d0b10
 Poq.exe	99	004975a0	FUN_004975a0		game	todo	11	6			004975e0 00497620 00497650 00497660 004979c0 00497aa0 00497d30
 Poq.exe	99	004975d0	FUN_004975d0		game	todo	10	13			004975e0 00497620 00497650 00497780 004979c0 00497aa0 00497d30

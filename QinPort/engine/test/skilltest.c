@@ -505,6 +505,64 @@ static void character_knock_test(void) {
     actor_unoccupy(&a); unit_scene=saved;
 }
 
+static void character_yield_test(void) {
+    Actor saved[2] = {actors[0], actors[1]};
+    int saved_count = actor_count;
+    const Scene *saved_scene = unit_scene;
+    Cell cells[25];
+    for (int i=0; i<25; i++) cells[i]=(Cell){.walk=1,.layer=1};
+    Scene s={.w=5,.h=5,.cells=cells};
+    unit_scene=&s; actor_count=2;
+    actors[0]=(Actor){.role=&empty_test_role,.sh=11,.object_kind=31,.grp=10000,
+        .x=2.5f,.y=2.5f,.layer=1,.facing=7};
+    actors[1]=(Actor){.role=&empty_test_role,.sh=12,.object_kind=31,.grp=10000,
+        .x=2.5f,.y=2.5f,.layer=1,.speed=20,.dynamic_state=1,
+        .dynamic_cache_x=-1,.dynamic_cache_y=-1,.grid_x=2,.grid_y=2,.grid_valid=1};
+    Actor *a=&actors[0], *b=&actors[1]; cells[12].actor=b;
+    actor_yield_request(a,2,2);
+    assert(b->dynamic_aux==11);
+    actor_yield_tick(b);
+    assert(b->dynamic_cache_x==160 && b->dynamic_cache_y==160);
+    assert(ax64(b)==160 && ay64(b)==140); // 面向7+2回繞到1，向側方20世界單位。
+    assert(b->grid_x==2 && b->grid_y==2 && cells[12].actor==b);
+    actor_yield_tick(b); assert(ay64(b)==140); // 距離仍按保存位置，不重複偏移。
+    a->x=190/64.0f; actor_yield_tick(b); // 距離恰30即清快取，世界座標不復原。
+    assert(b->dynamic_cache_x==-1 && !b->dynamic_aux && ay64(b)==140);
+    b->dynamic_aux=11; b->dynamic_cache_x=160; b->dynamic_cache_y=160;
+    a->x=224/64.0f; actor_yield_tick(b);
+    assert(!b->dynamic_aux && b->dynamic_cache_x==-1); // 恰64走失效清除分支。
+    b->sh=0; b->dynamic_aux=11; b->dynamic_cache_x=160; b->dynamic_cache_y=160;
+    actor_yield_tick(b);
+    assert(b->dynamic_aux==11 && b->dynamic_cache_x==-1 && b->dynamic_cache_y==-1);
+    b->sh=12; b->dynamic_aux=999; actor_yield_tick(b); assert(!b->dynamic_aux);
+    for (int distance=30; distance<=64; distance++) {
+        b->dynamic_aux=11; b->dynamic_cache_x=b->dynamic_cache_y=-1;
+        b->x=b->y=2.5f; a->x=(160+distance)/64.0f;
+        actor_yield_tick(b);
+        assert(b->dynamic_aux==(distance<64 ? 11 : 0));
+        assert(ax64(b)==160 && ay64(b)==160 && b->dynamic_cache_x==-1);
+    }
+    a->x=2.5f; b->speed=0; b->dynamic_aux=11; actor_yield_tick(b);
+    assert(b->dynamic_aux==11 && b->dynamic_cache_x==-1); // 不能移動時連請求也保留。
+    b->dynamic_aux=0; b->grp=20000; actor_yield_request(a,2,2); assert(!b->dynamic_aux);
+    b->grp=a->grp; cells[12].walk=0; actor_yield_request(a,2,2); assert(!b->dynamic_aux);
+    cells[12].walk=1; b->object_kind=29; actor_yield_request(a,2,2); assert(!b->dynamic_aux);
+    // 真正跨格碰撞送請求，下一固定拍消費；碰撞方與讓路方的占格都不改。
+    b->object_kind=31; b->speed=20; b->dynamic_aux=0;
+    b->x=b->y=2.5f;
+    a->x=127/64.0f; a->y=2.5f; a->grid_x=1; a->grid_y=2; a->grid_valid=1;
+    cells[11].actor=a;
+    actor_step(a,&s,32,16,4);
+    assert(ax64(a)==127 && cells[11].actor==a && cells[12].actor==b);
+    assert(b->dynamic_aux==11);
+    a->x=140/64.0f; // 靠近至30單位內，下一固定拍偏移。
+    actor_motion_tick(b);
+    assert(b->dynamic_cache_x==160 && b->dynamic_cache_y==160);
+    assert(ax64(b)!=160 || ay64(b)!=160);
+    assert(cells[12].actor==b && b->grid_x==2 && b->grid_y==2);
+    actors[0]=saved[0]; actors[1]=saved[1]; actor_count=saved_count; unit_scene=saved_scene;
+}
+
 static void character_dynamic_command_test(void) {
     Uint32 saved_tick = actor_logic_tick;
     RoleDef model = {.idle=0, .walk=8, .fight_idle=16, .fight_walk=24,
@@ -2915,6 +2973,7 @@ int main(void) {
     character_maintenance_test();
     character_animation_test();
     character_dynamic_command_test();
+    character_yield_test();
     character_dynamic_exit_test();
     character_rush_test();
     character_knock_test();

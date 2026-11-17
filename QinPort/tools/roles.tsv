@@ -835,7 +835,9 @@
 004967d0	actor_interpolate：-1取占格與A+C/10；整數歐氏距離除float速度，剩餘拍截斷但增量除未截斷拍數；接高度下降，單機共用服務端move_remaining門檻，回放模式10方向追趕不實作
 004b7d60	actor_height_fraction：以float算比例、半數向正方向取整、原值減結果，機碼確認EAX回扣除整數；供跳躍上升／下降共用
 00497c20	CDynamicObj基底活動getter固定回1，actor_height_tick直接承接常數，不新增空包裝
-00496110	todo：actor_motion_tick先跑actor_rush_update(21/22)、actor_knock_tick(31)、actor_charge_tick(32)，再由actor_height_tick算高度／共用時鐘；32越界工具仍近似，仍缺1避讓／11尋路步進與完整活動門檻，屬同類別與引擎基礎
+00496110	todo：actor_motion_tick先跑actor_rush_update(21/22)、actor_knock_tick(31)、actor_charge_tick(32)，再由actor_height_tick算高度／共用時鐘；32越界工具仍近似，已接1讓路消費端；仍缺11尋路步進與完整活動門檻，屬同類別與引擎基礎
 00494a20	actor_rush_tick：有剩餘拍只做插值，末拍不退出；下拍用(1,1,0,0)強制靜止，先角色退出、清腳印而不清舊三參數，21/22不重選動畫；接所有角色固定拍
 00497cd0	actor_raise_layer：層<11轉11、12轉13、14/16轉15，其他不變；接跳躍落點計算
 004945d0	todo：main.c actor_charge_tick已接固定拍，先越界／側向地形再逐格占位，最後插值，遇阻及末拍後一拍交共用靜止；保留混合格／世界座標算側向方向；IsExceedDest不在現有反編譯索引，以面向投影嚴格越過中心近似，待取得OmUtil本體核對門檻，不標完整入口done
+
+00494cb0	actor_yield_tick：靜止時按請求者到保存世界位置量距；<30且可移動且尚未偏移時保存位置、按請求者方向+2偏移20，不改占格；30..63清已偏移快取，>=64或ID失效清請求；自身ID=0保留請求；接固定拍，請求來源暫用跨格碰撞，完整路徑點掃描仍todo
