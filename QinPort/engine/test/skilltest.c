@@ -377,6 +377,63 @@ static void character_rush_test(void) {
     unit_scene=saved_unit_scene; actor_count=saved_count; actor_logic_tick=saved_tick;
 }
 
+static void character_knock_test(void) {
+    const Scene *saved = unit_scene;
+    Cell cells[100];
+    for (int i=0;i<100;i++) cells[i]=(Cell){.walk=1,.layer=1};
+    Scene scene={.w=10,.h=10,.cells=cells}; unit_scene=&scene;
+    RoleDef d={0};
+    Actor a={.def=&d,.role=&empty_test_role,.speed=10,.fight_speed=10,
+        .dynamic_state=1,.layer=1,.body_size=1};
+    actor_position(&a,3,3); assert(actor_place(&a,3,3,0));
+    assert(actor_knock_command(&a,7,2,20));
+    assert(a.dynamic_state==31 && a.facing==3 && a.reverse_playback && a.dynamic_active);
+    assert(a.move_a==SPEED_A[20]);
+    assert(!actor_knock_command(&a,3,8,30)); // 同一擊退中不再接受命令5。
+    actor_knock_tick(&a);
+    assert(a.grid_x==4 && a.grid_y==3 && a.x>3.5f && a.x<4.5f);
+    assert(a.dynamic_command[1]==1 && !a.dynamic_active);
+    assert(!cells[33].actor && cells[34].actor==&a);
+    actor_tick(&a,&scene,-32,16,0); // 一般操控不得中斷31。
+    assert(a.dynamic_state==31 && a.grid_x==4);
+    while (a.interpolation_left>0) actor_knock_tick(&a);
+    assert(!a.dynamic_active && a.dynamic_command[1]==1);
+    actor_knock_tick(&a); // 末拍後空一拍，尚不移下一格。
+    assert(a.dynamic_active && a.grid_x==4);
+    actor_knock_tick(&a); assert(a.grid_x==5 && !a.dynamic_command[1]);
+    while(a.interpolation_left>0) actor_knock_tick(&a);
+    actor_knock_tick(&a); assert(a.dynamic_state==31);
+    actor_knock_tick(&a); assert(a.dynamic_state==1 && !a.reverse_playback);
+    assert(a.dynamic_command[0]==7 && !a.dynamic_command[1]); // 靜止保留三參數。
+    // 目的格被占不沿軸滑動，不誤清占位；立即退出並清反播。
+    Actor blocker={0}; cells[36].actor=&blocker;
+    assert(actor_knock_command(&a,7,2,20));
+    float x=a.x,y=a.y;
+    actor_knock_tick(&a);
+    assert(a.dynamic_state==1 && a.x==x && a.y==y && a.grid_x==5);
+    assert(cells[36].actor==&blocker && !a.reverse_playback);
+    // 零格數不走插值；零速度參數保留有效速度，方向非0..7不反向。
+    assert(actor_knock_command(&a,9,0,0));
+    assert(a.facing==9 && a.move_a==SPEED_A[10]);
+    actor_knock_tick(&a); assert(a.dynamic_state==1);
+    a.state[2]=1; assert(!actor_knock_command(&a,7,2,20)); a.state[2]=0;
+    a.state[101]=1; assert(!actor_knock_command(&a,7,2,20)); a.state[101]=0;
+    a.knock=1; assert(!actor_knock_command(&a,7,2,20)); a.knock=0;
+    // 保留返回目的地的counter分支；沒有counter時不建立新的行走目標。
+    assert(!a.has_target);
+    assert(actor_knock_command(&a,7,0,20));
+    a.dynamic_counter=1; a.dynamic_destination_x=8; a.dynamic_destination_y=7;
+    actor_knock_tick(&a);
+    assert(a.dynamic_state==1 && !a.dynamic_counter && a.has_target);
+    assert(a.tx==8.5f && a.ty==7.5f);
+    // 穿不過不可走的格子，插值／世界位置都留在原處。
+    cells[36].actor=NULL; cells[36].walk=0;
+    assert(actor_knock_command(&a,7,3,20));
+    actor_knock_tick(&a);
+    assert(a.dynamic_state==1 && a.x==x && a.y==y && a.grid_x==5);
+    actor_unoccupy(&a); unit_scene=saved;
+}
+
 static void character_dynamic_exit_test(void) {
     Cell cells[4] = {{.layer = 12}, {.layer = 10}, {.layer = 9}, {.layer = 16}};
     Scene s = {.w = 2, .h = 2, .cells = cells};
@@ -498,7 +555,7 @@ static void character_air_status_test(void) {
     assert(a.modifier[5].value == 1 && a.modifier[5].time == 30);
     a.x = 5.5f; a.y = 6.5f;
     react_tick(&a, NULL); // 旋飛解除的動畫修正不能沿未初始化的擊退落點移到原點。
-    assert(a.x == 5.5f && a.y == 6.5f && !a.knock_motion);
+    assert(a.x == 5.5f && a.y == 6.5f);
     for (int i = 0; i < 9; i++) actor_height_tick(&a);
     assert(a.z == 10 && a.vz == -10);
     actor_height_tick(&a); assert(!a.z && !a.vz);
@@ -2733,6 +2790,7 @@ int main(void) {
     character_animation_test();
     character_dynamic_exit_test();
     character_rush_test();
+    character_knock_test();
     character_height_interpolation_test();
     character_air_status_test();
     character_speed_memory_test();
@@ -3168,9 +3226,9 @@ int main(void) {
     // 打中反應：JDR 200 對 DJHF 0 一定被擊退（② 機率 2000‰），往反方向；JDR −1 不反應；DJHF 200 不會被擊退
     SkillRow kb = {.level = 1, .mod_n = 1, .mod = {{.id = 18, .init = 200}}};
     mk(&a); mk(&t);
-    t.x = 5; t.y = 5; a.x = 4; a.y = 5;
+    t.x = 5; t.y = 5; a.x = 4; a.y = 5; t.dynamic_state = 1;
     hit_react(&a, &t, &kb);
-    assert(t.knock && t.knock_x > 5 + 3.9f && t.stun >= 0);
+    assert(t.dynamic_state == 31 && t.dynamic_command[1] >= 4 && t.stun >= 0);
     mk(&t); t.x = 5; t.y = 5;
     kb.mod[0].init = -1;
     hit_react(&a, &t, &kb);

@@ -281,6 +281,7 @@ typedef struct Actor {
     float interpolation_x, interpolation_y, interpolation_dx, interpolation_dy;
     int jump_half, dust_x, dust_y;
     int dynamic_cache_x, dynamic_cache_y, dynamic_counter;
+    int dynamic_destination_x, dynamic_destination_y;
     int dynamic_pending, dynamic_path, dynamic_aux, dynamic_path_result;
     const Scene *bound_scene;
     int grid_x, grid_y, grid_valid, occupancy_removed, object_dead, object_kind;
@@ -344,8 +345,6 @@ typedef struct Actor {
     int seek_adjust, view_range;
     int trap_revealed, trap_group; // 陷阱發現旗標（原版+0x9f的反值）及最後主人組別
     int copied, copy[12];
-    float knock_x, knock_y;
-    int knock_motion;             // 暫用擊退位移；第5修正只選動畫，不能憑它向未設的落點滑行。
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
     int print_x, print_y, foot;    // 上一個腳印的位置（+0x3c9）、這次踩哪隻腳（+0x3c5）
     int ai_tick, flee;             // 怪物 AI 計數（+0xbb，起始隨機 0~99）、正在拉開距離（走向 tx, ty）          // 陷阱：放的人的 AP、AP_MAX、MAP1~5、MAP1~5_MAX（0x10034cb0 照抄）
@@ -890,7 +889,7 @@ static void talk_face(Actor *h, Actor *n) {
 
 // 往畫面方向 (sdx, sdy) 走 px 個畫面像素。畫面上各方向等速（格子寬 64 高 32，若照格子等速，上下會只有左右一半快）
 static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px) {
-    if (h->dynamic_state == 21 || h->dynamic_state == 22) return;
+    if (h->dynamic_state == 21 || h->dynamic_state == 22 || h->dynamic_state == 31) return;
     float len = sqrtf(sdx * sdx + sdy * sdy);
     if (len < 0.01f) return;
     sdx /= len;
@@ -966,7 +965,7 @@ static int actor_can_move(const Actor *a);
 
 // 一拍的角色更新：往畫面方向 (mx, my) 走；原版每 B 拍移動 A + C/10 像素（速度對照表）
 static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick) {
-    if (a->dynamic_state == 21 || a->dynamic_state == 22) return;
+    if (a->dynamic_state == 21 || a->dynamic_state == 22 || a->dynamic_state == 31) return;
     a->moving = 0;
     // shortcut: 現有移動迴圈承接平常／移動狀態，跳躍等完整動態狀態仍待移植。
     int state = mx * mx + my * my > 0.01f ? 11 : 1;
@@ -2891,25 +2890,73 @@ static int actor_can_use_id(const Actor *a, int id) {
 
 static void actor_enter_fight(Actor *a);
 
-// 往 a 的反方向推 cells 格（擋住就停），面向 a。
-// shortcut: 擊退仍沿用連續座標滑行；完整狀態31進入與逐格更新接入時替換，不標原版入口位址。
+// 動態進入的31分支：命令方向背離攻方，面向反向，位移沿命令方向。
+// shortcut: 命令5的共同技能可用性仍待角色主分派；目前戰鬥受擊直接接此分支。
+static int actor_knock_command(Actor *a, int direction, int cells, int speed) {
+    if (has_status(a, 2) || has_status(a, 10) || has_status(a, 101) || a->knock == 1 ||
+        (a->dynamic_state != 1 && a->dynamic_state != 11)) return 0;
+    int flag = actor_flags(a, 0x10000);
+    if (a->dynamic_state != 31 || a->dynamic_command[0] != direction ||
+        a->dynamic_command[1] != cells || a->dynamic_command[2] != speed ||
+        a->dynamic_flag_snapshot != flag) {
+        actor_trail_exit(a);
+        a->dynamic_path_result = 1;
+        a->dynamic_state = 31;
+        a->dynamic_command[0] = direction;
+        a->dynamic_command[1] = cells;
+        a->dynamic_command[2] = speed;
+        actor_trail_enter(a);
+        a->dynamic_enter_tick = (int)actor_logic_tick;
+        actor_speed_update(a);
+        actor_direction_set(a, direction >= 0 && direction < 8 ? (direction + 4) % 8 : direction);
+        if (speed) actor_move_speed(a, speed);
+        a->reverse_playback = 1;
+        actor_animation_select(a, -1);
+    }
+    a->dynamic_flag_snapshot = flag;
+    return 1;
+}
+
+static void actor_knock_finish(Actor *a) {
+    actor_dynamic_rest(a);
+    if (a->dynamic_counter) {
+        a->dynamic_counter = 0;
+        // shortcut: 原版在這裡送回動態11的快取目的地；完整尋路未齊，
+        // 先用既有目的地行走消費端，完成動態11後改交共用設定入口。
+        a->tx = a->dynamic_destination_x + 0.5f;
+        a->ty = a->dynamic_destination_y + 0.5f;
+        a->has_target = 1;
+        if (a == actors) { walk_cx = a->dynamic_destination_x; walk_cy = a->dynamic_destination_y; }
+    }
+}
+
+// 動態31逐格更新；原版先移占格再插值，插值結束的下一拍才標記可走下一格。
+// shortcut: 返回動態11沿actor_knock_finish的既有行走橋接，完整尋路接齊後移除。
+static void actor_knock_tick(Actor *a) {
+    if (a->dynamic_state != 31) return;
+    if (a->dynamic_active) {
+        if (a->dynamic_command[1] < 1) { actor_knock_finish(a); return; }
+        int x = a->grid_x, y = a->grid_y;
+        move_dir(&x, &y, a->dynamic_command[0], 1);
+        if (!actor_place(a, x, y, 0)) { actor_knock_finish(a); return; }
+        actor_interpolate(a, -1, -1, -1);
+        a->dynamic_active = 0;
+        --a->dynamic_command[1];
+    }
+    if (a->interpolation_left < 1) { a->dynamic_active = 1; return; }
+    actor_interpolation_tick(a);
+}
+
+// 原版受擊命令5傳WhatDir8(角色, 招式來源)，方向從來源指向角色。
 static void knock_back(Actor *t, const Actor *a, int cells) {
-    float dx = t->x - a->x, dy = t->y - a->y, len = sqrtf(dx * dx + dy * dy);
-    if (len < 0.01f || cells < 1) return;
-    dx /= len;
-    dy /= len;
-    t->knock_x = t->x + dx * cells;
-    t->knock_y = t->y + dy * cells;
-    t->knock = 1;
-    t->knock_motion = 1;
-    face(t, (a->x - t->x - (a->y - t->y)) * 32, (a->x - t->x + a->y - t->y) * 16);
+    actor_knock_command(t, dir_of(ax64(a), ay64(a), ax64(t), ay64(t), 8), cells, 20);
 }
 
 // 打中後的反應（Poq.exe 0x48c3a0）：JDR = 攻方 B_C_JDR + 攻方這招的 JDR（技能欄 18），DJHF = 守方 B_C_DJHF（怪物表打击恢复率）+ 守方正在放的招的 DJHF（欄 19）。
 // 這招 JDR 是 −1 的不反應。① JDR > 100 時千分之 (200 − DJHF)(JDR − 100)/500×10 擊退 (隨機(JDR)/80 + JDR/100 + 1) 格、硬直 格數×20 + 30 + 擲值/40 拍；
 // ② JDR > 0 時千分之 (200 − DJHF)×JDR/200×10 擊退 (隨機(JDR)/80 + JDR/80 + 2) 格；③ 千分之 (200 − DJHF)×1000/(DJHF + 200) 挨打（播挨打動作）
 // shortcut: ① 原版還要角色表 +0xa4 < 0x577100 的值（意義沒查），這裡都當成立；主角的 B_C_JDR、B_C_DJHF 原版從模板讀，這裡當 0；
-// 硬直、擊退原版只在平常狀態（+0x73 = 1、0xb）接受，這裡出手中照樣挨打不播動作（跟之前一樣）
+// 擊退已按動態1／11與狀態2／10／101門檻接受；完整命令5可用性仍待共用分派。
 static void hit_react(Actor *a, Actor *t, const SkillRow *sk) {
     const SkillRow *ts = t->act == ACT_ATTACK ? (t->casting ? t->cast : t->skill) : NULL;
     int sj = sk ? (int)skill_field(sk, 18, 0) : 0;
@@ -2937,20 +2984,11 @@ static void hit_react(Actor *a, Actor *t, const SkillRow *sk) {
     }
 }
 
-// 擊退、硬直：每拍滑一點、硬直倒數。回傳 1 = 這拍不能自己動
+// 位移由固定拍的動態31推進；第5修正只控制動畫／命令門檻，不自行產生落點。
 static int react_tick(Actor *a, const Scene *s) {
-    if (a->knock_motion) {
-        float gx = a->knock_x - a->x, gy = a->knock_y - a->y;
-        float x = a->x, y = a->y;
-        actor_move_speed(a, 20);
-        if (gx * gx + gy * gy >= 0.04f) actor_step(a, s, (gx - gy) * 32, (gx + gy) * 16, a->move_a + a->move_c / 10.0f);
-        if (a->x == x && a->y == y) {
-            a->knock_motion = 0;
-            a->knock = a->modifier[5].value;
-        }
-    }
+    (void)s;
     if (a->stun > 0) a->stun--;
-    return a->knock || a->stun > 0;
+    return a->dynamic_state == 31 || a->knock || a->stun > 0;
 }
 
 static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
@@ -6128,7 +6166,7 @@ int main(int argc, char **argv) {
                 if (enter_scene(&scene, hero, h.alias, -1)) snprintf(alias, sizeof alias, "%s", h.alias);
                 actor_restore_position(hero, x, y); hero->dir = dir;
                 hero->foe = NULL; hero->want = NULL; hero->cast = NULL; hero->casting = 0; hero->act = ACT_NONE;
-                hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->knock_motion = hero->stun = hero->z = 0;
+                hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->stun = hero->z = 0;
                 hero_stats(hero, lv);
                 hero->exp = exp; hero->hp = hp; hero->mp = mp;
                 hero_skill_apply(hero);
@@ -6176,7 +6214,7 @@ int main(int argc, char **argv) {
                     if (!i || actors[i].mon) actor_second(&actors[i]);
             viewport_tick(&viewport, &scene, hero);
             for (int i = 0; i < actor_count; i++) {
-                if (actors[i].role) { actor_height_tick(&actors[i]); actor_rush_update(&actors[i]); }
+                if (actors[i].role) { actor_height_tick(&actors[i]); actor_rush_update(&actors[i]); actor_knock_tick(&actors[i]); }
                 actor_health_sync(&actors[i]);
                 actors[i].animation_stepped = 0;
                 if (actors[i].role) actor_maintenance_tick(&actors[i]);
@@ -6195,7 +6233,7 @@ int main(int argc, char **argv) {
             else if (!pursue(hero, &scene, tick)) actor_tick(hero, &scene, 0, 0, tick);
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
-                if (!a->mon) npc_think(a, &scene, tick);
+                if (!a->mon) { if (!react_tick(a, &scene)) npc_think(a, &scene, tick); }
                 else if (!a->role) continue;
                 else if (a->act == ACT_DEAD) { action_tick(a, &scene, tick); if (++a->dead_ticks > CORPSE_TICKS) a->role = NULL; }
                 else if (react_tick(a, &scene) && !a->act) a->moving = 0;
