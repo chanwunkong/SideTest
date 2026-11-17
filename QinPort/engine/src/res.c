@@ -1021,6 +1021,7 @@ int role_load(Role *r, const char *graphic, int pli_no, const char *styles) {
             st = strchr(st, '*');
             st = st ? st + 1 : "";
         }
+        if (pass == 0) snprintf(r->name[i], sizeof r->name[i], "%.4s", part);
         if (!strcmp(style, "000")) continue;  // 沒有這個部件（例如沒拿盾）
         snprintf(key, sizeof key, "SPR_ROLE_%s_%.4s_%s_%03d", graphic, part, style, pli_no);
         uint32_t body = find_define(defs, key);

@@ -349,6 +349,14 @@ static void character_overhead_test(void) {
     a.overhead[1].left=1;
     assert(actor_overhead_frame(&a,1)==0 && a.overhead[1].left==0 && a.overhead[1].floating==1);
     assert(actor_overhead_frame(&a,1)==-1 && !a.overhead[1].total && !a.overhead[1].floating);
+    {   // 0x4872e0：部件覆色只認存在且名字相符的部件；頭上標記索引分三段
+        Role pr = {0}; Anim an = {0};
+        pr.part_count = 3; pr.body[0] = pr.body[1] = &an; strcpy(pr.name[0], "RH"); strcpy(pr.name[1], "SD"); strcpy(pr.name[2], "HD");
+        role_palette_set(&pr, NULL, 0); role_palette_set(&pr, "RH", 7); role_palette_set(&pr, "HD", 9);
+        assert(role_palette.part_color[0] == 7 && role_palette.part_color[1] == 0 && role_palette.part_color[2] == 0);
+        role_palette_set(&pr, NULL, 10); assert(role_palette.part_color[1] == 10 && role_palette.part_color[2] == 0);
+        assert(actor_marker_index(3) == 2 && actor_marker_index(503) == 3 && actor_marker_index(1003) == 3);
+    }
     actor_overhead(&a,"one",1,0); assert(actor_overhead_frame(&a,0)==1); // 短於8拍先走淡入。
     int saved_count=actor_count; Actor saved=actors[0]; const Scene *saved_scene=unit_scene;
     Scene sc={0}; unit_scene=&sc; actor_count=1;

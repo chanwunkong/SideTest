@@ -128,6 +128,7 @@ typedef struct {
     const Anim *body[MAX_ROLE_PARTS], *shadow[MAX_ROLE_PARTS];
     uint8_t **order;  // order[序列] = 該序列所有幀的疊圖順序，每幀 part_count 個部件索引
     int *frames;      // frames[序列] = 幀數
+    char name[MAX_ROLE_PARTS][5]; // PLI部件名（HD/LH/RH/SD…），覆色與部件查找用
 } Role;
 
 // styles：角色表的「屬性」，例如 "009*009*001*000"，依 PLI 部件順序指定款式（000 = 不畫這個部件）；NULL = 用 PLI 預設

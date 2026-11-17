@@ -903,13 +903,36 @@ static int actor_illusion_enabled(const Actor *a) {
     return a->role && a->role->part_count > 0 && a->illusion[0] != NULL;
 }
 
-// 角色繪圖主入口尚缺調色盤覆色／標記資源，不以局部分支標成完成。
+// Poq.exe 0x578000／0x575700／0x577360：部件調色盤選擇。part_color[i] = 該部件的色表編號，
+// 全部件設值（部件名NULL）或只設名字相符且該部件存在者。
+// shortcut: 引擎沒有原版色表（逐像素調色盤），只記下選擇、不改像素；色表資源接入時由draw_frame讀part_color。
+static struct { int part_color[MAX_ROLE_PARTS]; } role_palette;
+static int role_part_find(const Role *r, const char *name) {
+    for (int i = 0; i < r->part_count; i++) if (r->body[i] && !strcmp(r->name[i], name)) return i;
+    return -1;
+}
+static void role_palette_set(const Role *r, const char *name, int color) {
+    if (!name) { for (int i = 0; i < r->part_count; i++) if (r->body[i]) role_palette.part_color[i] = color; return; }
+    int i = role_part_find(r, name);
+    if (i >= 0) role_palette.part_color[i] = color;
+}
+
+// 頭上標記（+0x44f）：<500 取第id-1張、其餘取id-500／id-1000；第二行底圖 = id%3。
+// shortcut: 標記圖表（0x65c954／0x65c99c）在原版映像裡沒有初始化來源、資源位置未知，只算索引不畫；找到資源再補。
+static int actor_marker_index(int id) { return id < 500 ? id - 1 : id < 1000 ? id - 500 : id - 1000; }
+
+static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy, Uint32 tick);
+
+// Poq.exe 0x4872e0 CCharactor繪圖：隱身／顯示50早退、影子、腳圈、腳／身／頭附加精靈、殘影、
+// 部件覆色（+0x45f RH+LH、+0x467 SD、+0x46f HD）、狀態60八副本、頭上標記、8槽浮字、診斷矩形（+0x57d）。
 static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     const Role *r = a->role;
     if (!r || (a->object_dead && !a->corpse_visible) || !actor_draw_visible(a)) return;
     int seq = actor_seq(a);
     if (seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
     int frame = actor_frame(a, seq) % r->frames[seq];
+    // 影子：光照模式單機固定2，大小≤3且全域0x639f38（選項，單機未設）才用色表9；其餘0
+    role_palette_set(r, NULL, 0);
     if (a->scale) actor_scaled_draw(a, seq, frame, sx, sy, 1);
     else for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
     if (a->flags & 0x100) {
@@ -919,6 +942,13 @@ static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     }
     status_fx_draw(a, sx, sy, tick, 1);
     if (actor_illusion_enabled(a)) actor_illusion_draw(a);
+    {   // 本體色表：顯示方式0xffff（模板、無覆蓋）→10，其餘用顯示方式本身
+        int mode = actor_display(a);
+        role_palette_set(r, NULL, mode == 0xffff && !a->modifier[10].value ? 10 : mode);
+        if (a->modifier[11].value) { role_palette_set(r, "RH", a->modifier[11].value); role_palette_set(r, "LH", a->modifier[11].value); }
+        if (a->modifier[12].value) role_palette_set(r, "SD", a->modifier[12].value);
+        if (a->modifier[13].value) role_palette_set(r, "HD", a->modifier[13].value);
+    }
     if (a->scale) actor_scaled_draw(a, seq, frame, sx, sy - a->z, 0);
     else role_draw(r, seq, frame, sx, sy - a->z);  // 影子留在地上
     // 狀態60僅在未縮放且有MethodMain時，以首部件畫八個固定偏移副本。
@@ -933,7 +963,13 @@ static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
         draw_alpha = saved;
     }
     status_fx_draw(a, sx, sy - a->z, tick, 0);
+    if (a->modifier[9].value) (void)actor_marker_index(a->modifier[9].value);
     actor_overhead_draw(a, sx, sy - a->z);
+    if (a->debug_rectangle) {
+        SDL_Rect box = viewport_actor_rect(a, sx, sy, tick);
+        SDL_SetRenderDrawColor(ren, 0, 0, 255, 255);
+        SDL_RenderDrawRect(ren, &box);
+    }
 }
 
 // 面向畫面方向 (sdx, sdy)
