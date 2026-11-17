@@ -265,6 +265,76 @@ static void character_animation_test(void) {
 
 }
 
+static void character_rush_test(void) {
+    const Scene *saved_unit_scene = unit_scene;
+    int saved_count = actor_count;
+    Uint32 saved_tick = actor_logic_tick;
+    Cell cells[144];
+    for (int i=0; i<144; i++) cells[i]=(Cell){.walk=1,.layer=1};
+    Scene s={.w=12,.h=12,.cells=cells}; unit_scene=&s; actor_count=0;
+    RoleDef d={0};
+    Actor a={.def=&d,.role=&empty_test_role,.speed=10,.fight_speed=10,
+        .dynamic_state=1,.layer=1,.body_size=1};
+    actor_position(&a,2,2); assert(actor_place(&a,2,2,0));
+    actor_logic_tick=123;
+    assert(actor_rush_command(&a,21,6,2,8));
+    assert(a.dynamic_state==21 && a.dynamic_enter_tick==123 && a.dynamic_path_result);
+    assert(a.grid_x==6 && a.grid_y==2 && a.x==2.5f && a.y==2.5f);
+    assert(!cells[26].actor && cells[30].actor==&a && (a.flags&0x200));
+    assert(a.move_a==SPEED_A[20] && a.move_b==SPEED_B[20]);
+    int steps=a.interpolation_left; assert(steps>0);
+    for (int i=0; i<steps; i++) actor_rush_update(&a);
+    assert(a.dynamic_state==21 && !a.interpolation_left); // 不在末拍收尾／補齊座標。
+    actor_rush_update(&a); assert(a.dynamic_state==1 && !(a.flags&0x200));
+    assert(a.dynamic_command[0]==6 && a.dynamic_command[1]==2); // 靜止不清舊三參數。
+    // 同一占格的失敗不升層、不改插值；失敗回靜止仍寫命令與快取。
+    assert(actor_rush_command(&a,22,6,2,8));
+    assert(a.dynamic_state==1 && !a.dynamic_path_result && a.layer==1);
+    // 途中被占不阻止地面衝刺；終點被占則回退至最後空格。
+    Actor blocker={0}; cells[32].actor=&blocker; cells[31].actor=&blocker;
+    a.x=6.5f; a.y=2.5f;
+    assert(actor_rush_command(&a,21,8,2,8));
+    assert(a.grid_x==9 && a.dynamic_state==21); // mode1越過兩個占位；尚未找到空格會繼續走過目的地。
+    a.interpolation_left=0; actor_rush_update(&a);
+    actor_unoccupy(&a); assert(actor_place(&a,6,2,0)); a.x=6.5f; a.y=2.5f;
+    cells[31].actor=NULL;
+    assert(actor_rush_command(&a,21,8,2,8));
+    assert(a.grid_x==7 && a.dynamic_state==21); // 落在7，非被占的8。
+    a.interpolation_left=0; actor_rush_update(&a);
+    cells[32].actor=NULL;
+    // 跳躍可越過地面障礙，但只保留最後合法可站格；四倍速度與半程高度。
+    a.x=7.5f; a.y=2.5f;
+    assert(actor_rush_command(&a,22,10,2,8));
+    assert(a.dynamic_state==22 && a.layer==1 && a.move_a==SPEED_A[40]);
+    steps=a.interpolation_left;
+    assert(a.jump_half==steps/2 && a.vz==4 && a.zmax==steps/2*4 && !a.z);
+    int initial_half=a.jump_half;
+    for (int i=0; i<steps-initial_half; i++) { actor_height_tick(&a); actor_rush_update(&a); }
+    assert(a.vz==4 && a.interpolation_left==initial_half);
+    actor_height_tick(&a); actor_rush_update(&a);
+    assert(a.vz==-4 && !a.jump_half && !a.zmax);
+    while (a.interpolation_left>0) { actor_height_tick(&a); actor_rush_update(&a); }
+    assert(a.dynamic_state==22);
+    actor_rush_update(&a); assert(a.dynamic_state==1 && a.vz==-5);
+    // 高層映射與下降地面層：12保留12；小於10回1。
+    a.layer=12; actor_raise_layer(&a); assert(a.layer==13);
+    cells[a.grid_y*s.w+a.grid_x].layer=12;
+    actor_jump_phase(&a,0); assert(a.layer==12 && a.vz==-4);
+    a.layer=16; actor_raise_layer(&a); assert(a.layer==15);
+    a.layer=14; actor_raise_layer(&a); assert(a.layer==15);
+    a.layer=11; actor_raise_layer(&a); assert(a.layer==11);
+    cells[a.grid_y*s.w+a.grid_x].layer=9;
+    actor_jump_phase(&a,0); assert(a.layer==1);
+    // 跳躍前一拍才收到第二命令，拒絕不得破壞已保存的落點。
+    a.dynamic_state=22; a.dynamic_command[0]=77;
+    assert(!actor_rush_command(&a,21,1,1,8) && a.dynamic_command[0]==77);
+    // MethodMain type7即使命令遭拒絕，也照原版寫指定起跳高度。
+    Method m={.range_max=8}; MUnit u={.owner=&a,.m=&m,.tx=64,.ty=64};
+    Trig t={.type=7,.id=17};
+    assert(owner_trig(&u,&t,0) && a.z==17 && a.dynamic_command[0]==77);
+    unit_scene=saved_unit_scene; actor_count=saved_count; actor_logic_tick=saved_tick;
+}
+
 static void character_dynamic_exit_test(void) {
     Cell cells[4] = {{.layer = 12}, {.layer = 10}, {.layer = 9}, {.layer = 16}};
     Scene s = {.w = 2, .h = 2, .cells = cells};
@@ -276,9 +346,12 @@ static void character_dynamic_exit_test(void) {
     assert(a.dynamic_active == 1 && a.dynamic_state == 22);
     assert(a.vz == -5 && a.zmax == 0 && a.z == 53);
     assert(a.flags == 4 && a.layer == 12);
-    // 真正的遊戲移動切換也走同一入口；高度不被狀態退出清零。
+    // 一般操控不打斷跳躍；水平插值結束才走原版的強制靜止收尾。
     a.flags |= 0x200;
     actor_tick(&a, &s, 0, 0, 0);
+    assert(a.dynamic_state == 22);
+    a.interpolation_left = 0;
+    actor_rush_tick(&a);
     assert(a.dynamic_state == 1 && a.z == 53 && a.vz == -5 && !(a.flags & 0x200));
     actor_height_tick(&a); assert(a.z == 48);
     for (int i = 0; i < 10; i++) actor_height_tick(&a);
@@ -2616,6 +2689,7 @@ int main(void) {
     character_rotation_cooldown_test();
     character_animation_test();
     character_dynamic_exit_test();
+    character_rush_test();
     character_height_interpolation_test();
     character_air_status_test();
     character_speed_memory_test();

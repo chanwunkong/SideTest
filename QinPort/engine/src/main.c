@@ -281,7 +281,7 @@ typedef struct Actor {
     float interpolation_x, interpolation_y, interpolation_dx, interpolation_dy;
     int jump_half, dust_x, dust_y;
     int dynamic_cache_x, dynamic_cache_y, dynamic_counter;
-    int dynamic_pending, dynamic_path, dynamic_aux;
+    int dynamic_pending, dynamic_path, dynamic_aux, dynamic_path_result;
     const Scene *bound_scene;
     int grid_x, grid_y, grid_valid, occupancy_removed, object_dead, object_kind;
     uint16_t model_type;
@@ -349,8 +349,6 @@ typedef struct Actor {
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
     int print_x, print_y, foot;    // 上一個腳印的位置（+0x3c9）、這次踩哪隻腳（+0x3c5）
     int ai_tick, flee;             // 怪物 AI 計數（+0xbb，起始隨機 0~99）、正在拉開距離（走向 tx, ty）          // 陷阱：放的人的 AP、AP_MAX、MAP1~5、MAP1~5_MAX（0x10034cb0 照抄）
-    float dash_x, dash_y;          // 招式衝刺／跳躍的目標點（dash = 1 時）
-    int dash;
     int cool, fight, dead_ticks;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍
     int sh;                        // 劇情物件（原版 EasyRPG 的人物；0 = 沒有）
     int remembered[4], remember_delay; // 原版記住命令與取消後延遲
@@ -891,6 +889,7 @@ static void talk_face(Actor *h, Actor *n) {
 
 // 往畫面方向 (sdx, sdy) 走 px 個畫面像素。畫面上各方向等速（格子寬 64 高 32，若照格子等速，上下會只有左右一半快）
 static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px) {
+    if (h->dynamic_state == 21 || h->dynamic_state == 22) return;
     float len = sqrtf(sdx * sdx + sdy * sdy);
     if (len < 0.01f) return;
     sdx /= len;
@@ -966,6 +965,7 @@ static int actor_can_move(const Actor *a);
 
 // 一拍的角色更新：往畫面方向 (mx, my) 走；原版每 B 拍移動 A + C/10 像素（速度對照表）
 static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick) {
+    if (a->dynamic_state == 21 || a->dynamic_state == 22) return;
     a->moving = 0;
     // shortcut: 現有移動迴圈承接平常／移動狀態，跳躍等完整動態狀態仍待移植。
     int state = mx * mx + my * my > 0.01f ? 11 : 1;
@@ -2236,6 +2236,108 @@ static int actor_interpolation_tick(Actor *a) {
     return 0;
 }
 
+// Poq.exe 0x497cd0：由地面層升至對應的可移動高層，不改其他層。
+static void actor_raise_layer(Actor *a) {
+    if (a->layer < 11) a->layer = 11;
+    else if (a->layer == 12) a->layer = 13;
+    else if (a->layer == 14 || a->layer == 16) a->layer = 15;
+}
+
+// Poq.exe 0x494070：目的格相同不做任何事；先轉跳躍層再找落點。
+// 占格先到目的地，世界座標留給逐拍插值；即使占格失敗也照原版初始化插值。
+static int actor_rush_destination(Actor *a) {
+    int x = a->dynamic_command[0], y = a->dynamic_command[1];
+    if (a->grid_x == x && a->grid_y == y) return 0;
+    const Cell *c = cell_at(x, y);
+    int mode = 1;
+    if (a->dynamic_state == 22) {
+        actor_raise_layer(a);
+        if (a->layer == 11 && c && c->layer != 12) a->layer = 1;
+        mode = 4;
+    }
+    if (a->layer < 11 || !c || !cell_pass(c, a->layer) || cell_occupant(x, y))
+        line_end(&x, &y, a->grid_x, a->grid_y, x, y,
+                 a->dynamic_command[2], 1, mode, a->layer);
+    if (x == a->grid_x && y == a->grid_y) return 0;
+    if (a->dynamic_state == 22) actor_move_speed(a, actor_speed(a) * 4);
+    else if (a->dynamic_state == 21) actor_move_speed(a, actor_speed(a) * 2);
+    actor_place(a, x, y, 0);
+    actor_interpolate(a, -1, -1, -1);
+    return 1;
+}
+
+// Poq.exe 0x496460：跳躍半程改下降，或以剩餘水平拍數重新起跳。
+static void actor_jump_phase(Actor *a, int rising) {
+    if (!rising) {
+        const Cell *c = cell_at(a->grid_x, a->grid_y);
+        // shortcut: 原版無效占格會解參照空指標；舊建立資料未登記時保留層號，登記流程統一後移除。
+        if (a->layer > 10 && c) a->layer = actor_ground_layer(c);
+        a->jump_half = 0; a->vz = -4; a->zmax = 0;
+    } else {
+        a->z = 0;
+        a->jump_half = a->interpolation_left / 2;
+        a->vz = 4; a->zmax = a->jump_half * 4;
+    }
+}
+
+// 動態進入的21/22分支；完整狀態主分派仍待補，不標主入口完成。
+static void actor_rush_enter(Actor *a) {
+    a->dynamic_enter_tick = (int)actor_logic_tick;
+    actor_speed_update(a); // 非靜止的虛擬+0x40，角色有效速度。
+    if (a->move_a < 2 || !actor_rush_destination(a)) {
+        a->dynamic_path_result = 0;
+        return;
+    }
+    actor_set_flags(a, 0x200, 1);
+    if (a->dynamic_state == 22) actor_jump_phase(a, 1);
+}
+
+// 命令7/10與動態狀態設定的衝刺／跳躍分支，供MethodMain觸發使用。
+// shortcut: 共用命令分派的技能可用性尚未齊備；僅接已存在MethodMain的內部觸發，完整分派接齊後合併。
+static int actor_rush_command(Actor *a, int state, int x, int y, int distance) {
+    if (has_status(a, 2) || has_status(a, 10) || has_status(a, 101) || a->knock == 1 ||
+        (a->dynamic_state != 1 && a->dynamic_state != 11)) return 0;
+    int flag = actor_flags(a, 0x10000);
+    actor_trail_exit(a);
+    a->dynamic_path_result = 1;
+    a->dynamic_state = state;
+    a->dynamic_command[0] = x; a->dynamic_command[1] = y; a->dynamic_command[2] = distance;
+    actor_trail_enter(a);
+    actor_rush_enter(a);
+    if (!a->dynamic_path_result) {
+        actor_trail_exit(a);
+        a->dynamic_state = 1;
+        a->moving = 0;
+        a->print_x = a->print_y = -100;
+        actor_animation_select(a, -1);
+    }
+    a->dynamic_flag_snapshot = flag;
+    return 1;
+}
+
+// Poq.exe 0x494a20：最後一拍只插值；下一拍才退出。平常命令(1,1,0,0)強制離開21/22。
+static void actor_rush_tick(Actor *a) {
+    if (a->interpolation_left > 0) { actor_interpolation_tick(a); return; }
+    int flag = actor_flags(a, 0x10000);
+    if (a->dynamic_state != 1 || a->dynamic_command[0] != 1 || a->dynamic_command[1] ||
+        a->dynamic_command[2] || a->dynamic_flag_snapshot != flag) {
+        int old = a->dynamic_state;
+        actor_trail_exit(a);
+        a->print_x = a->print_y = -100;
+        a->dynamic_state = 1;
+        a->moving = 0;
+        if (old != 21 && old != 22) actor_animation_select(a, -1);
+    }
+    a->dynamic_flag_snapshot = flag;
+}
+
+// 動態每拍的21/22分支；中點下降先於當拍水平插值，與高度更新分開。
+static void actor_rush_update(Actor *a) {
+    if (a->dynamic_state != 21 && a->dynamic_state != 22) return;
+    if (a->dynamic_state == 22 && a->interpolation_left == a->jump_half) actor_jump_phase(a, 0);
+    actor_rush_tick(a);
+}
+
 // Poq.exe 0x4b7d60：扣除四捨五入的比例，EAX仍回傳扣掉的整數。
 // 上升呼叫端同時消費回傳值與被扣過的上限；負半數往正方向取整。
 static int actor_height_fraction(int *value, int steps, int rising) {
@@ -2984,13 +3086,8 @@ static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
         actor_height_set(a, t->id, t->id2);
     }
     else if (t->type == 5 || t->type == 7) {
-        // 衝過去／跳過去（Poq.exe 0x43c4f0 type 5、7 → 角色動作 10、7 → 移動狀態 0x15、0x16 到招式的目標點）
-        if (alive(a->foe) && cell_dist(a, a->foe) > 1.5f) {
-            float dx = a->foe->x - a->x, dy = a->foe->y - a->y, len = sqrtf(dx * dx + dy * dy);
-            a->dash_x = a->foe->x - dx / len;
-            a->dash_y = a->foe->y - dy / len;
-            a->dash = 1;
-        }
+        actor_rush_command(a, t->type == 5 ? 21 : 22, u->tx / 64, u->ty / 64, u->m->range_max);
+        if (t->type == 7) a->z = t->id; // 原版即使命令拒絕，仍寫觸發指定的高度。
     }
     else return 0;
     return 1;
@@ -3041,6 +3138,7 @@ static void walk_fx(Actor *a, const Scene *s, Uint32 tick) {
 // 單次動作的進度：攻擊依招式各幀觸發音效與命中；播完回到平常（死亡除外）
 // shortcut: type 6（只對物件種類 7）、type 10（招式物件虛擬函式 0x20 = 0x43a760）還沒做
 static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
+    (void)s;
     actor_animation_select(a, a->act_seq + DIR_MAP[a->dir]);
     actor_body_select(a);
     int seq = actor_seq(a);
@@ -3054,13 +3152,6 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
             u->x = ax64(a), u->y = ay64(a), u->frame = f;
             unit_base(u, tick);
         }
-    }
-    // shortcut: 衝刺／跳躍仍用平常走路速度移動；完整跳躍狀態接入時替換落點、速度與高度曲線。
-    if (a->dash) {
-        float gx = a->dash_x - a->x, gy = a->dash_y - a->y;
-        actor_speed_update(a);
-        if (gx * gx + gy * gy < 0.04f || a->act != ACT_ATTACK) a->dash = 0;
-        else if (tick % a->move_b == 0) actor_step(a, s, (gx - gy) * 32, (gx + gy) * 16, a->move_a + a->move_c / 10.0f);
     }
     a->last_frame = f;
     // 先讓MethodMain消費末幀，再結束動作；延遲1的末幀也不能漏掉觸發。
@@ -6026,7 +6117,7 @@ int main(int argc, char **argv) {
                 if (enter_scene(&scene, hero, h.alias, -1)) snprintf(alias, sizeof alias, "%s", h.alias);
                 actor_restore_position(hero, x, y); hero->dir = dir;
                 hero->foe = NULL; hero->want = NULL; hero->cast = NULL; hero->casting = 0; hero->act = ACT_NONE;
-                hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->knock_motion = hero->stun = hero->dash = hero->z = 0;
+                hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->knock_motion = hero->stun = hero->z = 0;
                 hero_stats(hero, lv);
                 hero->exp = exp; hero->hp = hp; hero->mp = mp;
                 hero_skill_apply(hero);
@@ -6074,7 +6165,7 @@ int main(int argc, char **argv) {
                     if (!i || actors[i].mon) actor_second(&actors[i]);
             viewport_tick(&viewport, &scene, hero);
             for (int i = 0; i < actor_count; i++) {
-                if (actors[i].role) actor_height_tick(&actors[i]);
+                if (actors[i].role) { actor_height_tick(&actors[i]); actor_rush_update(&actors[i]); }
                 actor_modifiers_tick(&actors[i]);
                 actor_health_sync(&actors[i]);
                 actors[i].animation_stepped = 0;

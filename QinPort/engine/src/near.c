@@ -370,7 +370,7 @@ static Actor *pick_at(int px, int py, int cx, int cy, int all, int side, void (*
 // 格子讓不讓過（0x442eb0／0x443790 的 mode）：0 = 這層能過且沒有角色；1 = 這層能過；3 = 層 2～9 的要這層能過；4 = 層 3～9 的要這層能過
 static int line_ok(const Cell *c, int mode, int layer, int x, int y) {
     switch (mode) {
-    case 0: return cell_pass(c, layer) && !cell_actor0(x, y);
+    case 0: return cell_pass(c, layer) && !cell_occupant(x, y);
     case 1: return cell_pass(c, layer);
     case 3: return (unsigned)(c->layer - 2) <= 7 ? cell_pass(c, layer) : 1;
     case 4: return (unsigned)(c->layer - 3) <= 6 ? cell_pass(c, layer) : 1;
@@ -390,7 +390,7 @@ LATER static void line_end(int *ox, int *oy, int fx, int fy, int tx, int ty, int
         int cx = (int)x, cy = (int)y;
         const Cell *c = cell_at(cx, cy);
         if (!c || !line_ok(c, mode, layer, cx, cy)) break;
-        if (cell_pass(c, layer) && !cell_actor0(cx, cy)) rx = cx, ry = cy;
+        if (cell_pass(c, layer) && !cell_occupant(cx, cy)) rx = cx, ry = cy;
         if (stop && d <= i && (rx != fx || ry != fy)) break;
     }
     *ox = rx, *oy = ry;
