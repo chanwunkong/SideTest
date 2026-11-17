@@ -854,3 +854,4 @@
 004ffde0	todo：隊伍介面存在時轉送角色識別／狀態／值更新圖示；等待後段隊伍介面，CCharactor狀態邏輯已完成
 
 00497310	actor_client_motion_tick：回放分派接入；靜止先讓路、22中點先下降，所有動態正剩餘拍數累加浮點位置並向零截斷，末拍不退出、不尋路
+00577d60	actor_illusion_enabled：目前群不存在回false，否則僅看首部件殘影容器非NULL；空容器亦true，接actor_draw整群殘影繪圖門檻

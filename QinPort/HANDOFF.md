@@ -1060,6 +1060,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 單機服務端原路徑保留；回放改用完整客戶端入口，刪除該分支原本誤用的服務端動態分派。既有讓路、下降及插值基礎共用，沒有新shortcut／偏移；fields既有CDynamicObj +0x3d9／3dd／3e1／3e5／3e9與+0x2d3已涵蓋。roles與FUNCS已更新。
   - skilltest增加負數向零截斷、各動態共用插值、零／負拍數、末拍不退出、回放跳躍中點先下降及靜止仍插值；`cd engine && make && make skilltest 2>&1 | tail -3`最後一行 `skilltest ok`，仍6個既有unused-function警告。未新增DLC，未碰decomp／story／game／tools/decomp_strings.py，未commit／push。
   - 兩個主todo仍為完整繪圖（部件覆色／標記／診斷矩形）及技能互動；動態11尋路仍是引擎基礎todo，不能算等待其他系統。隊伍圖示／選人與完整設定介面依前輪等不同類別系統；本輪完成一個依賴todo，尚未完成整類別。
+  ~~下一步：0x4872e0（CCharactor 尚餘2個主todo；完成整類別才進CNpc）起~~。
+
+- 進度（11-18）：依大型類別每輪1～2個完整函數規則，完成繪圖依賴 **0x577d60 殘影啟用判斷**（14行）→ `main.c actor_illusion_enabled`，接入 `actor_draw` 取代無條件畫整群；Poq.exe game todo **3789→3788**、done **573→574**，新增skip／base皆0。
+  - 原版怪現象：只看首部件的容器指標，不看採樣數；首部件無容器即使其他部件已有殘影也不繪製。逐部件採樣不受此門檻影響。未選群以現有Actor.role空值承接，無新增shortcut；fields記錄目前群索引及容器對應，roles／FUNCS已更新。
+  - skilltest新增未選群、空容器即啟用、僅其他部件有容器不啟用；`cd engine && make && make skilltest 2>&1 | tail -3`最後一行 `skilltest ok`，仍6個既有unused-function警告。未新增DLC。
+  - 完整繪圖（覆色／頭上標記／診斷矩形）及技能互動兩個主todo仍未完成，動態11尋路仍屬同類別／引擎基礎；隊伍圖示與完整設定介面才等後段不同類別。本輪完成一個完整依賴todo，尚未完成整類別，下一步不前移。
   **下一步：0x4872e0（CCharactor 尚餘2個主todo；完成整類別才進CNpc）起**。
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

@@ -788,7 +788,7 @@ CCharactor	+0x555	B_C_JDR打擊率，不夾限	Actor.ex[74]
 CDynamicObj	+0x3ed	上次動態狀態進入時的全域32位拍數；失敗退回1仍保留，重試比較有號拍差絕對值	Actor.dynamic_enter_tick
 CDynamicObj	+0x3f1	目的地／尋路嘗試結果；組10000..60000在15拍內、其他50拍內可重用；失敗退回1時保留	Actor.dynamic_path_result
 
-CSprGroupillusion	+0x18	殘影30槽容器指標；首次建立後不覆寫參數、釋放後清NULL	待殘影基礎
+CSprGroupillusion	+0x18	殘影30槽容器指標；首次建立後不覆寫參數、釋放後清NULL	Actor.illusion[part]
 CIllusionList（殘影30槽）	+0x1f8	繪製第一個殘影的混色起值	待殘影基礎
 CIllusionList（殘影30槽）	+0x1fc	殘影步數=(終值-起值)/步長，整數除法	待殘影基礎
 CIllusionList（殘影30槽）	+0x200	每次繪製的混色遞增步長	待殘影基礎
@@ -880,3 +880,4 @@ Global	0x663804	目前CScnGC伺服場景指標，建立／切換綁定、清場�
 Global	0x663eec	角色移除後無條件設1的場景物件異動旗標	scene_objects_dirty；viewport_dynamic全重建後清
 Global	0x639f5c	場景存在且值0時非零倒下模式正規化為1	death_keep_mode；shortcut預設保留模式，--simple-deaths關閉，設定介面接齊後核對預設
 Global	0x639f70	單機有場景時所選角色移除的自動暫停選項	death_auto_pause；shortcut暫以--pause-deaths啟用，隊伍多選與JM31接齊後升級
+CSprGroupSelection	+0x18	目前部件群索引signed byte；-1代表未選群	Actor.role為NULL表示未選群

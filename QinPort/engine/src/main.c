@@ -897,6 +897,12 @@ static void actor_overhead_draw(Actor *a, int sx, int sy);
 static int actor_draw_visible(const Actor *a);
 static int actor_has_method(const Actor *a);
 
+// Poq.exe 0x577d60：未選部件群時false，否則只檢查首部件的殘影容器。
+// Role直接保存目前群；容器即使尚無採樣，也算已啟用。
+static int actor_illusion_enabled(const Actor *a) {
+    return a->role && a->role->part_count > 0 && a->illusion[0] != NULL;
+}
+
 // 角色繪圖主入口尚缺調色盤覆色／標記資源，不以局部分支標成完成。
 static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     const Role *r = a->role;
@@ -912,7 +918,7 @@ static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
         if (ring && ring->count) draw_frame(ring, 0, frame_at(&ring->seqs[0], tick), sx, sy, 0);
     }
     status_fx_draw(a, sx, sy, tick, 1);
-    actor_illusion_draw(a);
+    if (actor_illusion_enabled(a)) actor_illusion_draw(a);
     if (a->scale) actor_scaled_draw(a, seq, frame, sx, sy - a->z, 0);
     else role_draw(r, seq, frame, sx, sy - a->z);  // 影子留在地上
     // 狀態60僅在未縮放且有MethodMain時，以首部件畫八個固定偏移副本。

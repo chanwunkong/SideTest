@@ -1016,8 +1016,8 @@ Poq.exe	99	00486910	FUN_00486910	~CCharactor	game	done	133	11		main.c actor_remo
 Poq.exe	99	00486d30	FUN_00486d30	CCharactor	game	skip	48	12	CCharactor卸載清理：清字串、三個附加精靈、技能鏈與浮字陣列；以場景／Actor陣列生命週期承接	CCharactor卸載：清字串、附加精靈、技能鏈與浮字，交現有場景生命週期	004948f0 0049ea10
 Poq.exe	99	00486e70	FUN_00486e70	~CCharactor	game	done	9	9		取消排隊命令：只將命令代號置-1，保留三參數；actor_cancel_command接actor_setup與換組	
 Poq.exe	99	00486e80	FUN_00486e80	~CCharactor	game	done	15	13		main.c actor_forget_command：原命令1/2設延遲50否則0，僅清代號保留三參數；接施法收尾及對話命令，主分派與記住命令重送仍未完成	
-Poq.exe	99	00486ed0	FUN_00486ed0	CCharactor	game	done	138	8			004a3340 00577d60
-Poq.exe	99	004872e0	FUN_004872e0	CCharactor|CNpc|CProtagonist	game	todo	300	17		todo：actor_draw已接隱身0x20000僅操控角色同組可見、修正優先顯示50整段早退；腳特效留地面、身部隨高度、頭部再扣head_height且後畫，死亡不額外禁附加精靈；未縮放且狀態60且main_of存在時首部件畫八固定偏移副本；影子／腳圈／縮放／殘影／8槽浮字沿現有入口；仍缺部件調色盤覆色、頭上標記與診斷矩形，不標主入口done	0049caf0 0049e2e0 00575700 00577360 00577d60 00577dd0 00578000 00578a20
+Poq.exe	99	00486ed0	FUN_00486ed0	CCharactor	game	done	138	8			004a3340
+Poq.exe	99	004872e0	FUN_004872e0	CCharactor|CNpc|CProtagonist	game	todo	300	17		todo：actor_draw已接隱身0x20000僅操控角色同組可見、修正優先顯示50整段早退；腳特效留地面、身部隨高度、頭部再扣head_height且後畫，死亡不額外禁附加精靈；未縮放且狀態60且main_of存在時首部件畫八固定偏移副本；影子／腳圈／縮放／殘影／8槽浮字沿現有入口；仍缺部件調色盤覆色、頭上標記與診斷矩形，不標主入口done	0049caf0 0049e2e0 00575700 00577360 00577dd0 00578000 00578a20
 Poq.exe	99	00487d30	FUN_00487d30	~CCharactor	game	skip	89	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	00487f30	FUN_00487f30	CCharactor|CNpc|CProtagonist	game	done	61	17		角色本體與三附加精靈逐拍更新：0x200凍結本體、修正5值1連做三次停末幀step、反播沿迴圈首尾、完成或空中解除101；actor_animation_tick已移至動態分派之後、高度與維護之前；action_tick僅消費播放前幀／完成快照，不再重播；死亡物件仍沿屍體計時並停末幀	
 Poq.exe	99	00488090	FUN_00488090	~CCharactor	game	done	69	2		actor_status_countdown：完整共用倒數／105→12→111→115→114優先序；114剩5換修正與精靈；12先查5圈陷阱，單機選項開啟時提示1501/16/1000並請求暫停再揭露，續查320世界單位不同組隱身旗標解除8；設定暫由--pause-traps承接，完整JM31介面仍等CGameApp	0046c260
@@ -4195,7 +4195,7 @@ Poq.exe	99	00577390	FUN_00577390	~CCharactor	game	todo	46	11			00574d60 00574e30
 Poq.exe	99	00577440	FUN_00577440	~CCharactor	game	todo	61	0			00574d60 00574e30
 Poq.exe	99	00577540	FUN_00577540	~CCharactor	game	todo	16	0			00574e40 00577390
 Poq.exe	99	00577580	FUN_00577580	~CCharactor	game	todo	333	2			004bd270 00574d20 00574d30 00574d60 00575630 00575670 005756d0 00575900 00575f10 00576a50 00576e70 00577390 00578bd0 005797b0 00579880
-Poq.exe	99	00577d60	FUN_00577d60	~CCharactor	game	todo	14	4			
+Poq.exe	99	00577d60	FUN_00577d60	~CCharactor	game	done	14	4		actor_illusion_enabled：目前群不存在回false，否則僅看首部件殘影容器非NULL；空容器亦true，接actor_draw整群殘影繪圖門檻	
 Poq.exe	99	00577d90	FUN_00577d90	~CPropDialog	game	todo	15	2			0049d520
 Poq.exe	99	00577dd0	FUN_00577dd0		game	todo	31	14			00574e50
 Poq.exe	99	00577ea0	FUN_00577ea0		game	todo	50	2			0049caf0 0049d7f0 00574e30

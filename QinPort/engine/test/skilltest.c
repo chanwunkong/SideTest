@@ -1918,11 +1918,16 @@ static void character_illusion_test(void) {
     for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
     actor_modifier_set(&a, 6, 1, 20);
     assert(a.illusion[0] && a.illusion[1]);
+    assert(actor_illusion_enabled(&a)); // 空容器也啟用，不看樣本數。
+    const Role *saved_role = a.role;
+    a.role = NULL; assert(!actor_illusion_enabled(&a));
+    a.role = saved_role;
     actor_illusion_sample(&a);
     assert(a.illusion[0]->unit[0].frame.ref == 30);
     assert(a.illusion[1]->unit[0].frame.ref == 10); // 越界回0，不能取餘數。
     assert(a.illusion[0]->unit[0].x == ax64(&a)-8 && a.illusion[0]->unit[0].y == ay64(&a)-8);
     illusion_clear(&a.illusion[0]);
+    assert(!actor_illusion_enabled(&a)); // 其他部件有殘影不能開啟整群繪圖。
     actor_illusion_sample(&a);
     assert(a.illusion[1]->count == 2); // 第0槽無殘影不阻擋其他部件。
     a.dynamic_state = 11; a.trail_mode = 2;
