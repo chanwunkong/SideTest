@@ -4821,6 +4821,15 @@ int main(void) {
         assert(units[1].x == 5 * 64 + 32 && units[1].spr.a && units[0].dead && !units[1].dead);
         unit_n = 0;
     }
+    {   // 0x49d520 spr_adv：mode 0 停在最後一幀，mode 1 到 end 回 start；0x49d7f0 超界回第 0 幀
+        Frame fr[3] = {{0, 2}, {0, 1}, {0, 1}};
+        Seq sq = {3, fr}; Anim an = {0, 1, &sq};
+        Spr s = {.a = &an, .seq = 0, .end = 2};
+        assert(!spr_adv(&s, 1) && s.cur == 0 && spr_adv(&s, 1) && s.cur == 1);
+        spr_adv(&s, 1); spr_adv(&s, 1); assert(s.cur == 0);
+        s.cur = 2; s.tick = 0; assert(!spr_adv(&s, 0) && s.cur == 2 && spr_done(&s));
+        s.cur = 7; assert(spr_frame(&s) == &fr[0]);
+    }
     puts("skilltest ok");
     return 0;
 }

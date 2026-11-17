@@ -6,9 +6,10 @@
 // ---- 動畫播放器（CSprGroup 0x49e720：一個序列一個播放器 0x49cd00/0x49d060）----
 struct Spr { const Anim *a; int seq, cur, tick, start, end; };
 
-static const Frame *spr_frame(const Spr *s) {  // 0x49d6a0
+static const Frame *spr_frame(const Spr *s) {  // 0x49d6a0；取幀 0x49d7f0：索引超界回第 0 幀
     if (!s->a || s->seq >= s->a->count || !s->a->seqs[s->seq].count) return NULL;
-    return &s->a->seqs[s->seq].frames[s->cur % s->a->seqs[s->seq].count];
+    const Seq *q = &s->a->seqs[s->seq];
+    return &q->frames[s->cur >= 0 && s->cur < q->count ? s->cur : 0];
 }
 static int spr_delay(const Spr *s) {  // 幀延遲 + 調整（+0x14）+ 全域調整（0x663f2c）；shortcut: 兩個調整都當 0
     const Frame *f = spr_frame(s);
@@ -28,21 +29,20 @@ static void spr_load(Spr *s, uint32_t gid) {  // 0x49e8d0
 }
 static int spr_count(const Spr *s) { return s->a ? s->a->count : 0; }  // 序列數（+0x454）
 static void spr_seq(Spr *s, int seq) { if (s->seq != seq) spr_set(s, seq, 0); }
-// 前進一拍（0x49e150）：這幀停滿就換下一幀，到 end 回 start
-static void spr_next(Spr *s) {
-    if (++s->tick < spr_delay(s)) return;
+// 前進一拍（0x49d520；0x49e150 = mode 1、0x49dfc0 = mode 0）：這幀停滿就換下一幀；回 1 = 幀變了
+// mode 0 停在最後一幀（end）；mode 1 到 end 回 start
+static int spr_adv(Spr *s, int mode) {
+    int old = s->cur;
+    if (mode == 0 && s->cur >= s->end && s->tick == spr_delay(s) - 1) return 0;
+    if (++s->tick < spr_delay(s)) return 0;
     s->tick = 0;
-    s->cur = s->cur == s->end ? s->start : s->cur + 1;
+    if (mode == 0) { if (s->cur != s->end) s->cur++; }
+    else s->cur = s->cur == s->end ? s->start : s->cur + 1;
     if (s->cur > spr_len(s) - 1) s->cur = 0;
+    return s->cur != old;
 }
-// 前進一拍但停在最後一幀（0x49dfc0）
-static void spr_step(Spr *s) {
-    if (s->cur >= s->end && s->tick == spr_delay(s) - 1) return;
-    if (++s->tick < spr_delay(s)) return;
-    s->tick = 0;
-    if (s->cur == s->end) return;
-    if (++s->cur > spr_len(s) - 1) s->cur = 0;
-}
+static void spr_next(Spr *s) { spr_adv(s, 1); }
+static void spr_step(Spr *s) { spr_adv(s, 0); }
 // 播完了（0x49dcd0）：在最後一幀而且停到最後一拍
 static int spr_done(const Spr *s) { return s->cur >= s->end && s->tick == spr_delay(s) - 1; }
 

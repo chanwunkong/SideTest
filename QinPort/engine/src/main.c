@@ -667,7 +667,7 @@ static const Seq *actor_sequence(const Actor *a, int seq) {
     return first && seq >= 0 && seq < first->count ? &first->seqs[seq] : NULL;
 }
 
-static Uint32 seq_ticks(const Seq *q) {
+static Uint32 seq_ticks(const Seq *q) {  // 0x49d6c0：序列總拍數（原版直接加幀延遲；這裡 0 當 1，與 frame_at 一致）
     Uint32 t = 0;
     for (int i = 0; i < q->count; i++) t += q->frames[i].delay > 0 ? q->frames[i].delay : 1;
     return t;
@@ -787,13 +787,17 @@ static void status_fx_draw(const Actor *a, int sx, int sy, Uint32 tick, int foot
     }
 }
 
+// 0x49d740：幀的畫面矩形 = 原點偏移 (−dx, −dy) + 圖寬高；shortcut: 原版還加幀 +0xe/+0x10（ex, ey），這裡 ex, ey 只當出手點（繪圖也沒加），查到資料再接。
+static SDL_Rect frame_rect(const Frame *f, int x, int y) {
+    const Sprite *im = f ? image(f->ref) : NULL;
+    return (SDL_Rect){x - (f ? f->dx : 0), y - (f ? f->dy : 0), im ? im->w : 0, im ? im->h : 0};
+}
 // CSprGroup矩形基礎：與繪製共用同一序列／幀；沒載到的圖不加入聯集。
 static void frame_rect_union(SDL_Rect *rect, const Anim *a, int seq, int frame, int x, int y) {
     if (!a || seq < 0 || seq >= a->count || frame < 0 || !a->seqs[seq].count) return;
     const Frame *f = &a->seqs[seq].frames[frame % a->seqs[seq].count];
-    const Sprite *im = image(f->ref);
-    if (!im || im->w <= 0 || im->h <= 0) return;
-    SDL_Rect r = {x - f->dx, y - f->dy, im->w, im->h};
+    SDL_Rect r = frame_rect(f, x, y);
+    if (r.w <= 0 || r.h <= 0) return;
     if (rect->w) SDL_UnionRect(rect, &r, rect); else *rect = r;
 }
 

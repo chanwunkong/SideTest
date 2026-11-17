@@ -325,9 +325,7 @@ static void bird_spawn(int gx, int gy) {
 static void bird_animate(FastBird *b) { spr_seq(&b->spr, b->dir); spr_next(&b->spr); }
 static SDL_Rect bird_rect(const FastBird *b, const ViewPort *v) {
     SDL_Point p = viewport_world_screen(v, b->x, b->y);
-    const Frame *f = spr_frame(&b->spr);
-    const Sprite *s = f ? image(f->ref) : NULL;
-    return (SDL_Rect){p.x - (f ? f->dx : 0), p.y - (f ? f->dy : 0), s ? s->w : 0, s ? s->h : 0};
+    return frame_rect(spr_frame(&b->spr), p.x, p.y);  // 0x49d740
 }
 // 0x481ab0：先用舊範圍判斷；舊離屏計數>100才刪，否則先移動再虛擬動畫更新。
 static int bird_tick_one(FastBird *b, int visible) {

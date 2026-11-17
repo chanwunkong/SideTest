@@ -1114,7 +1114,9 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 照原版怪現象：放招失敗（沒技能列、位置沒格）時 `trap_fired` 留 1，陷阱卡住不再偵測；偵測旗標留到下個 30 拍整點才重算。
   - shortcut：次數（模型 +0x32）來源沒找到，一律 1 次（放一次就消失，原本是不會用完）；放招範圍用技能範圍（原版模型 +0x3e）；格子上有建築時原版可能不查 30 單位直接放招，沒做；觸發音效 0x3c、待命紅色疊色沒做；0x450f70（劇情建陷阱設主人）等 0x44fd20 種類 3 分支，仍 todo。skilltest `trap_tick_test`。
 - 進度（11-18h）：0x49c910～0x49cea0 CAutoPaper（資源句柄）／SPT_FRAME 陣列整批 skip（Anim 指標直接用）。
-  **下一步：0x49cf70（SPT_FRAME 其餘，精靈圖載入／繪製基礎）起**——先 `python3 tools/functool.py next 0x49cf70`。
+  ~~**下一步：0x49cf70（SPT_FRAME 其餘，精靈圖載入／繪製基礎）起**——先 `python3 tools/functool.py next 0x49cf70`。~~
+- 進度（11-18i）：0x49cf70～0x49da10 SPT_FRAME 播放器：0x49d520 → unit.c spr_adv（spr_next/spr_step 共用，回幀是否變）、0x49d6c0 → seq_ticks、0x49d7f0 → spr_frame 超界回第 0 幀、0x49d740 → main.c frame_rect（viewport 矩形／bird_rect 共用）；載入、畫、無呼叫者的共 13 個 skip。留 todo：0x49d860／0x49d8f0（最大幀寬高）、0x49dcb0（回到起點），等 CSprSerialPicture／CPortraitPanel。shortcut：原版矩形與繪圖還加幀 ex/ey（+0xe/+0x10），引擎 ex/ey 只當出手點，查資料再接。
+  **下一步：0x49de30（PartSpr）起**——先 `python3 tools/functool.py next 0x49de30`。
 
 
 

@@ -817,3 +817,16 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 0049cdd0 SPT_FRAME 釋放陣列
 0049ce60 SPT_FRAME 刪除指標陣列
 0049cea0 SPT_FRAME 解構（含陣列版）
+0049cf70 SPT_FRAME 指標陣列解構（含刪除）：Frame 陣列承接
+0049d0b0 SPT_FRAME 單幀載入（讀圖 + 偏移）：res.c anim_get 已載入
+0049d120 SPT_FRAME 多序列載入：res.c anim_get 已載入
+0049d3b0 SPT_FRAME 單序列載入：沒有呼叫者
+0049d980 SPT_FRAME 最小寬：沒有呼叫者
+0049da10 SPT_FRAME 最小高：沒有呼叫者
+0049daa0 取目前幀出手點：沒有呼叫者（actor_hot 直接讀 Frame.ex/ey）
+0049dae0 精靈群畫目前幀（含色表參數，虛擬畫）：engine draw() 套 −dx −dy 承接
+0049db50 精靈群畫目前幀（縮放）：engine draw() 承接
+0049dbd0 單幀畫（含色表參數）：engine draw() 承接
+0049dc40 單幀畫（縮放）：engine draw() 承接
+0049dd10 播到倒數第二幀最後一拍：沒有呼叫者
+0049dd70 目前幀畫面矩形（原位版）：= 0x49d740 套目前幀，呼叫者（~CGameApp／PartSpr）還沒做

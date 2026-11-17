@@ -890,3 +890,6 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 0049c510	CTrapBase 畫面矩形 → viewport_actor_rect
 0049c580	CTrapBase 放招 → trap_fire（open_dir 挑格子、actor_cast_at、成功進狀態1）
 0049c710	CTrapBase 移除 → trap_tick 次數用完：role=NULL、object_dead
+0049d860	SPT_FRAME 序列內最大幀寬；等 CSprSerialPicture（0x597e70）系統
+0049d8f0	SPT_FRAME 序列內最大幀高；等 CSprSerialPicture（0x597e90）系統
+0049dcb0	播放器回到起點（cur==start 且 tick==0）；等 CPortraitPanel／CSprSerialPicture
