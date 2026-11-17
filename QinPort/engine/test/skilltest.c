@@ -405,6 +405,68 @@ static void character_effect_test(void) {
     for (int k = 0; k < 3; k++) free(a.effect[k]);
 }
 
+// 原版重算的兩個怪現象由Poq.exe組語核對；用可區分優先序的表格測試。
+static void character_effect_recompute_test(void) {
+    const int ids[] = {1, 125, 126};
+    StatusDef *defs[3], saved[3];
+    for (int k = 0; k < 3; k++) {
+        defs[k] = (StatusDef *)status_def(ids[k]); saved[k] = *defs[k];
+        for (int c = 0; c < 20; c++) defs[k]->raw[c] = 65535;
+        defs[k]->raw[1] = ids[k];
+        defs[k]->trail_move = defs[k]->trail_always = 65535;
+        defs[k]->raw[3] = 30 + k * 10;
+        defs[k]->raw[13] = 100 + k;
+    }
+    RoleDef rd = {.speed = 10};
+    Actor a = {.def = &rd, .speed = 10, .last_status = 126};
+    for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
+    a.state[125] = a.state[126] = 1;
+    a.modifiers_dirty = 1;
+    actor_effects_recompute(&a);
+    assert(status_speed(&a) == 40 && a.modifier[10].value == 101);
+    assert(!a.modifiers_dirty); // 126先套、125後套，最後不重套126。
+
+    a.last_status = 1; a.effect_speed = 77; a.modifier[10].value = 99;
+    actor_effects_recompute(&a);
+    assert(status_speed(&a) == 77 && a.modifier[10].value == 99); // 比byte值1，全部略過。
+    a.state[1] = 2;
+    actor_effects_recompute(&a);
+    assert(status_speed(&a) == 30 && a.modifier[10].value == 100); // ID==last仍會套值2。
+    a.last_status = 2;
+    actor_effects_recompute(&a);
+    assert(status_speed(&a) == 40); // 只有值2略過，並非查ID 2。
+
+    // 重算只遍歷byte；Buff名單本身不是第二份狀態來源。
+    memset(a.state, 0, sizeof a.state);
+    a.buff[0].status = 126; a.buff_n = 1; a.effect_speed = 73;
+    a.modifiers_dirty = 1;
+    actor_effects_recompute(&a);
+    assert(status_speed(&a) == 73 && !a.modifiers_dirty);
+    a.buff_n = 0;
+
+    // 光環重算只覆寫種類；範圍與技能鏈游標維持原值。
+    a.state[126] = 1; a.last_status = 0;
+    defs[2]->raw[9] = 42;
+    a.aura_range = 7; a.aura_skill = 3;
+    defs[2]->raw[17] = 0;
+    actor_effects_recompute(&a);
+    assert(a.aura_status == 42 && a.aura_range == 7 && a.aura_skill == 3);
+    assert(a.modifier[4].value == 0 && !a.modifiers_dirty); // 套0會標dirty，末尾仍清除。
+    defs[2]->raw[1] = 65535; a.effect_speed = 74;
+    actor_effects_recompute(&a);
+    assert(status_speed(&a) == 74); // 查不到狀態列，不套其他欄。
+    for (int k = 0; k < 3; k++) *defs[k] = saved[k];
+
+    // 技能加入立即套表、同步byte；到期清byte，再讓其他狀態重算。
+    Actor t; mk(&t);
+    assert(buff_add(&t, NULL, 4, 1, 1, 0));
+    assert(t.state[4] == 1 && t.last_status == 4 && status_speed(&t) == 50);
+    actor_effects_recompute(&t);
+    assert(t.state[4] && status_speed(&t) == 50 && !t.modifiers_dirty);
+    actor_second(&t);
+    assert(!t.state[4] && !has_status(&t, 4) && status_speed(&t) == 100 && !t.modifiers_dirty);
+}
+
 static void character_weapon_type_test(void) {
     Actor a = {.flags = 0x10400, .selected = 3, .right_id = 27, .left_id = 42,
                .act = ACT_ATTACK, .act_frame = 7, .weapon_type = 9};
@@ -1564,6 +1626,7 @@ int main(void) {
     character_illusion_test();
     character_target_reaction_test();
     character_effect_test();
+    character_effect_recompute_test();
     character_relation_test();
     character_scale_test();
     character_skills_test();

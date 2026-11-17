@@ -753,7 +753,15 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - actor_target_set接反擊、索敵、點擊與施法，near.c的foe_grp補102／0x4000排除；保留先寫目標、非NPC來源在NPC索敵圓距離內（整數sqrt、含等號）先入戰再互設目標。actor_notice_near接每拍格子名單，保留嚴格索敵方框及高層+8，不改成圓距離；候選技能重入查詢時保存外層名單游標。戰鬥狀態0仍沿actor_enter_fight橋接，完整主命令及狀態byte分派未標done。
   - 殘影修正兩處：各部件幀索引越界回第0幀，不是取餘數；首槽沒有殘影不阻擋其他部件採樣／繪製。保留重開不改參數、重複30筆及非重複每5拍採樣／保留步數筆。shortcut：殘影混色沿SDL alpha；頭上效果額外高度待模型高度；完整狀態重算的末次呼叫反編譯傳-1，目前最後修改狀態優先為明示shortcut，原始組語未核對所以0x48b2f0仍todo。光環資料寫入已翻，每100拍觸發仍屬完整每拍todo；其餘24個todo多為本類別與引擎基礎，不能稱為等外部系統。無新增DLC分類。
   - skilltest新增修正期限邊界／拒絕值0、低血重入亂數與不占Buff槽、通知參數順序、殘影容量／採樣／跨部件幀數、三槽狀態表指定0／解除／光環查鏈、目標圓距離與靠近嚴格方框／高層／敵對登記排除。`cd engine && make && make skilltest`最後一行`skilltest ok`；-DSTORY語法檢查通過；建置6個未使用函數警告。fields／roles已更新，FUNCS.tsv已重產；未commit或push。
-  **下一步：0x486270（CCharactor 尚餘24個todo；續補完整動態移動／模板、動畫、命令主分派與128狀態更新，完成整類別才進CNpc）起**。
+  ~~下一步：0x486270（CCharactor 尚餘24個todo；續補完整動態移動／模板、動畫、命令主分派與128狀態更新，完成整類別才進CNpc）起。~~
+
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，核對組語並修正狀態重算；本輪仍未完成整類別，未達整類別完成要求，未進CNpc**。新增done 1（0x48b2f0）、skip 0、base 0；主範圍合計 **done 62、skip 33、todo 23**。
+  - `main.c`的actor_effects_recompute完整接固定拍的modifiers_dirty消費端，並保留既有Buff到期／互斥移除的重算呼叫。刪除「最後狀態優先」shortcut，將last_status改為原版byte；buff_add改走共用byte通知，立即套此次狀態，期限仍由Buff名單維護，不能靠重算補首次套表。共用通知仍未涵蓋特殊狀態switch，不宣稱完整狀態主入口done。
+  - 保留原版怪現象：0x48b300～0x48b315比較的是state[id]值與last_status ID，不是迴圈ID；127向0重套且不預先清舊效果。0x48b5c9先將ebx減至-1，0x48b5e8確實push ebx，末次套表傳-1（查低byte255，現有表無此列），不替換為last_status。末尾無條件清dirty，包括重套第4修正0時再次設起的dirty；光環重套維持既有範圍及技能游標。
+  - `skilltest.c`新增逆序優先、最後狀態不重套、last_status=1略過值1、ID相同但值2仍套、值2略過、Buff名單不能替代byte、光環範圍／游標保留、套0後清dirty、缺列不套、技能狀態加入／到期的byte與效果同步。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；-DSTORY語法檢查通過；原有6個未使用函數警告。
+  - fields／roles已更正，FUNCS.tsv已重產。無新增shortcut／DLC分類。其餘23個todo仍含同類別動態移動、模板、動畫、繪圖、主命令與狀態switch及引擎基礎，不能列為等外部系統；起點不前移。未commit或push。
+  **下一步：0x486270（CCharactor 尚餘23個todo；續補完整動態移動／模板、動畫、命令主分派與128狀態更新，完成整類別才進CNpc）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

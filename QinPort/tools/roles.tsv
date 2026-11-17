@@ -779,7 +779,7 @@
 00488a10	actor_target：場景Actor名單查找，失效才清目標；角色旗標0x10只回空不清，死亡仍回物件；接追擊／同組協助／候選施法／無滑鼠HUD；指標取代句柄，槽重用限制見shortcut
 00489730	todo：完整角色技能使用入口；舊monster_think僅檢查目標旗標的註解造成誤判done，移除該註解位址，不以局部檢查宣稱整個入口完成
 00496530	actor_size_set：只保存動態占位大小，接actor_setup按模板size<7取1否則減5；位置重定位仍屬模板入口todo
-0048b2f0	todo：actor_effects_recompute已補128狀態合併查詢與逆序套表；反編譯末次呼叫傳-1與最後狀態ID的關係仍待原始組語核對，當前新狀態最後套用為shortcut，不標done；完整byte主分派仍缺
+0048b2f0	actor_effects_recompute：127至0逆序查非零狀態byte且值不同於last_status才套表；組語確認末次傳-1（低byte255），不重套最後ID，末尾清dirty；接固定拍及技能Buff byte同步／到期，刪最後狀態優先shortcut
 0048ec60	actor_modifier_set：20項值／期限共用表；期限-1或不短於現值才覆寫；第1重算速度、第3潰散byte、第5狀態100及選動畫、第6殘影；輸入0即使遭拒仍標重算；接狀態表及固定拍到期
 00496ae0	actor_move_speed已補A/B/C、A倒數初值、原版浮點比例11段及每Actor走路延遲，接移動／衝刺／擊退；完整動態狀態退出虛擬入口仍todo，移除舊擊退註解誤標done
 004c9050	移速工具：速度夾限0..59後輸出A/B與可選C，以C靜態陣列及speed_index承接

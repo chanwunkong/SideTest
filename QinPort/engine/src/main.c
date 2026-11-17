@@ -283,7 +283,8 @@ typedef struct Actor {
     unsigned char state[128]; // 已接修正副作用的狀態17／100；完整狀態設置副作用仍待移植
     int hp_percent, behavior[4];
     Spr *effect[3];
-    int effect_speed, effect_applied, last_status;
+    int effect_speed, effect_applied;
+    unsigned char last_status; // 最後修改的狀態ID；重算原版卻拿它與狀態值比較
     int aura_status, aura_range, aura_skill;
     Illusion *illusion[MAX_ROLE_PARTS];
     int view_link_type; // 關聯模型 +0x2c；type2/3 繪圖時世界 X/Y 暫加128
@@ -421,13 +422,15 @@ static void actor_trail_effect(Actor *a, const StatusDef *d, int on) {
     }
 }
 
-// 狀態重算的表格部分；完整狀態byte主入口與重算函數仍待核對。
-// shortcut: 有效狀態合併byte與Buff查詢；末次呼叫反編譯傳-1，目前按最後修改項套用，取得原始組語後核對並升級。
+// Poq.exe 0x48b2f0：逆序重套非零byte；不先清除既有表格效果。
+// 原版怪現象（組語已核對）：比較state[id]與last_status而不是id，
+// 末次傳的是迴圈結束的-1（低byte=255），不是最後狀態ID。不能修成最後狀態優先。
 static int has_status(const Actor *a, int st);
 static void actor_effects_recompute(Actor *a) {
     for (int id = 127; id >= 0; id--)
-        if (id != a->last_status && has_status(a, id)) actor_effect(a, id, 1, -1);
-    if (has_status(a, a->last_status)) actor_effect(a, a->last_status, 1, -1);
+        if (a->state[id] && a->state[id] != a->last_status) actor_effect(a, id, 1, -1);
+    if (a->last_status < 128 && a->state[a->last_status]) actor_effect(a, -1, 1, -1);
+    a->modifiers_dirty = 0;
 }
 
 static uint32_t actor_relation_anim(const Actor *a);
@@ -1664,8 +1667,9 @@ static int buff_add(Actor *a, const SkillRow *r, int status, int side, int time,
     if (a->buff_n == 8) return 0;
     a->buff[a->buff_n++] = (Buff){r, r ? r->level : 0, status, 0, time, side, patch};
     actor_derive(a);
-    a->last_status = status;
-    actor_effects_recompute(a);
+    // 技能Buff名單負責期限；角色狀態byte與立即表格副作用由通知入口承接。
+    // 重算留給固定拍，不能靠重算「最後狀態優先」冒充此次設置。
+    actor_status_notify(a, status, 1, -1);
     printf("狀態 %d 生效 %d 秒（%s）\n", status, time, side ? "對方" : "自己");
     return 1;
 }
@@ -1975,10 +1979,10 @@ static void actor_effect(Actor *a, int status, int on, int skill) {
     if (on && v[19] != 65535) audio_sfx(v[19]);
 }
 
-// 狀態17及100沒有額外switch分支，直接更新byte及狀態表。
-// 此入口僅供這兩種修正副作用；完整128狀態主分派仍todo，不標其原版位址。
+// 共用byte通知及套表，供修正17／100與技能Buff使用。
+// 完整主分派的特殊狀態switch仍todo，不標其原版位址。
 static void actor_status_notify(Actor *a, int status, int on, int skill) {
-    if (has_status(a, status) == on) return;
+    if ((unsigned)status >= 128u || a->state[status] == on) return;
     a->state[status] = (unsigned char)on;
     a->modifiers_dirty = 1;
     actor_effect(a, status, on, skill);
@@ -5373,6 +5377,7 @@ int main(int argc, char **argv) {
                 actor_health_sync(&actors[i]);
                 actor_effects_tick(&actors[i]);
                 actor_scale_tick(&actors[i]);
+                if (actors[i].modifiers_dirty) actor_effects_recompute(&actors[i]);
                 if (actors[i].cool > 0) actors[i].cool--;
                 if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
             }

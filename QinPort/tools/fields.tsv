@@ -676,7 +676,7 @@ CCharactor	+0x4ab	身上附加精靈	Actor.effect[1]／actor_effect_sprite
 CCharactor	+0x4af	腳下附加精靈	Actor.effect[2]／actor_effect_sprite
 CCharactor	+0x4b3	角色頭部高度u16，載模型時計算矩形高度加10	待角色模型矩形／頭頂文字
 CCharactor	+0x4b5	多個特殊狀態共用倒數，狀態105=9、111/114=8、115=5	待狀態倒數
-CCharactor	+0x4b9	最後修改的狀態ID，狀態重算最後再套此項	Actor.last_status；完整重算末呼叫仍待核對
+CCharactor	+0x4b9	最後修改的狀態ID byte；組語確認重算比較的是狀態值與此ID，末次實際傳-1	Actor.last_status／actor_effects_recompute
 CCharactor	+0x4ba	狀態／修正需要重算的byte旗標	Actor.modifiers_dirty
 CCharactor	+0x4bb	SkillUnit技能鏈表頭	Actor.skills／skill_n（原模板重建後追加NPC／玩家技能列）
 CCharactor	+0x4d7	SkillUnit技能鏈首節點	Actor.skills[0]／skill_n
