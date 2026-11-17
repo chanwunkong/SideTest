@@ -227,15 +227,182 @@ static void character_scale_test(void) {
     assert(red == 21 && green == 22 && blue == 23 && alpha == 24);
     assert(SDL_GetRenderTarget(ren) == NULL);
 
-    a.scale = 0; a.scale_target = 2;
+    a.scale = 0; a.modifier[4].value = 2;
     actor_scale_tick(&a); assert(a.scale == 1);
     actor_scale_tick(&a); actor_scale_tick(&a); assert(a.scale == 2);
-    a.scale_target = -1; actor_scale_tick(&a); assert(a.scale == 1);
+    a.modifier[4].value = -1; actor_scale_tick(&a); assert(a.scale == 1);
     d.scale = 0; actor_scale_tick(&a); assert(a.scale == 1); // 模板0也算指定比例。
     d.scale = 65535; a.flags = 0x200; a.dynamic_state = 11;
     actor_scale_tick(&a); assert(a.scale == 1);
     a.flags |= 0x400; actor_scale_tick(&a); assert(a.scale == 0);
     cache_clear(); SDL_DestroyRenderer(ren); ren = NULL; SDL_FreeSurface(surf);
+}
+
+static void character_modifiers_test(void) {
+    RoleDef d = {.speed = 10, .fight_speed = 8, .panic = 0};
+    Actor a = {.def = &d, .speed = 10, .fight_speed = 8};
+    for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
+    actor_modifier_set(&a, 1, 4, 20);
+    assert(actor_speed(&a) == 3);
+    actor_modifier_set(&a, 1, 9, 10); // 短期限被拒絕。
+    assert(a.modifier[1].value == 4 && a.modifier[1].time == 20);
+    actor_modifier_set(&a, 1, 0, 10);
+    assert(a.modifiers_dirty && a.modifier[1].value == 4);
+    a.modifiers_dirty = 0;
+    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    assert(a.modifier[1].time == 10 && actor_speed(&a) == 3);
+    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    assert(a.modifier[1].time == 0 && actor_speed(&a) == 3);
+    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    assert(a.modifier[1].time == -1 && actor_speed(&a) == 10 && a.modifiers_dirty);
+    actor_modifier_set(&a, 4, -7, -1);
+    actor_modifier_set(&a, 10, 50, -1);
+    assert(a.modifier[4].value == -7 && actor_display(&a) == 50);
+    actor_modifier_set(&a, 5, 1, 0);
+    assert(a.knock == 1 && has_status(&a, 100));
+    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    assert(!a.knock && !has_status(&a, 100));
+    // 永久期限重新寫相同值不重跑第3修正的隨機數。
+    actor_health_percent(&a, 19);
+    assert(a.hp_percent == 19 && a.modifier[3].value == 3 && a.modifier[3].time == -1);
+    srand(991); int expected = rand(); srand(991);
+    d.panic = 1; actor_health_percent(&a, -10);
+    assert(rand() == expected && !has_status(&a, 17));
+    actor_health_percent(&a, 20); assert(a.modifier[3].value == 1);
+    actor_health_percent(&a, 49); assert(a.modifier[3].value == 1);
+    actor_health_percent(&a, 50); assert(a.modifier[3].value == 0 && a.modifiers_dirty);
+    actor_health_percent(&a, 101); assert(a.hp_percent == 101);
+    // 門檻更新只重選動畫，不截斷原值；末兩個參數的儲存順序反轉。
+    actor_parameters(&a, 42, 102, 11, 22, 33, 44);
+    assert(a.hp_percent == 42 && a.speed_threshold == 102);
+    assert(a.behavior[0] == 11 && a.behavior[1] == 22 && a.behavior[2] == 44 && a.behavior[3] == 33);
+    a.hp = 3; a.hp_max = 10; actor_health_sync(&a);
+    assert(a.hp_percent == 30 && a.speed_threshold == 102 && a.behavior[2] == 44);
+}
+
+static void character_illusion_test(void) {
+    Illusion *v = NULL;
+    illusion_create(&v, 2, 12, 2, 1);
+    assert(v && v->steps == 5 && v->interval == 7);
+    Illusion *keep = v;
+    illusion_create(&v, 0, 30, 1, 0);
+    assert(v == keep && v->start == 2 && v->repeat == 1);
+    for (int i = 0; i < 40; i++) {
+        Frame f = {.ref = (uint32_t)i}; illusion_sample(v, i, -i, &f);
+    }
+    assert(v->count == 30 && v->unit[0].x == 39 && v->unit[29].frame.ref == 10);
+    illusion_clear(&v); assert(!v); illusion_clear(&v);
+    illusion_create(&v, 2, 12, 2, 0);
+    for (int i = 0; i < 4; i++) { Frame f = {0}; illusion_sample(v, i, 0, &f); }
+    assert(v->count == 0);
+    for (int i = 4; i < 40; i++) { Frame f = {.ref = (uint32_t)i}; illusion_sample(v, i, 0, &f); }
+    assert(v->count == 5 && v->unit[0].frame.ref == 39 && v->unit[4].frame.ref == 19);
+    illusion_clear(&v);
+    Frame frames[3] = {{.ref = 10}, {.ref = 20}, {.ref = 30}};
+    Seq seqs[2] = {{.count = 3, .frames = frames}, {.count = 2, .frames = frames}};
+    Anim anims[2] = {{.count = 1, .seqs = &seqs[0]}, {.count = 1, .seqs = &seqs[1]}};
+    Role r = {.part_count = 2, .seq_count = 1, .body = {&anims[0], &anims[1]}};
+    RoleDef d = {0};
+    Actor a = {.def = &d, .role = &r, .act = ACT_ATTACK, .act_frame = 2, .dir = 2, .x = 2, .y = 3, .z = 4};
+    for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
+    actor_modifier_set(&a, 6, 1, 20);
+    assert(a.illusion[0] && a.illusion[1]);
+    actor_illusion_sample(&a);
+    assert(a.illusion[0]->unit[0].frame.ref == 30);
+    assert(a.illusion[1]->unit[0].frame.ref == 10); // 越界回0，不能取餘數。
+    assert(a.illusion[0]->unit[0].x == ax64(&a)-8 && a.illusion[0]->unit[0].y == ay64(&a)-8);
+    illusion_clear(&a.illusion[0]);
+    actor_illusion_sample(&a);
+    assert(a.illusion[1]->count == 2); // 第0槽無殘影不阻擋其他部件。
+    a.dynamic_state = 11; a.trail_mode = 2;
+    actor_trail_enter(&a); assert(a.modifier[6].time == -1 && a.illusion[0]);
+    actor_trail_exit(&a); assert(a.modifier[6].time == 20);
+    a.modifier[6].time = 21; actor_trail_exit(&a); assert(a.modifier[6].time == 21);
+    a.modifier[6].time = 20;
+    for (int k = 0; k < 20; k++) actor_modifiers_tick(&a);
+    assert(a.modifier[6].time == 0 && a.illusion[0]);
+    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    assert(!a.illusion[0] && !a.illusion[1] && a.modifier[6].value == 0);
+    // 欄位是否指定以65535判定，不能把值0誤當空欄；12覆蓋11。
+    StatusDef effect = {.trail_move = 0, .trail_always = 65535};
+    actor_trail_effect(&a, &effect, 1); assert(a.trail_mode == 2);
+    effect.trail_always = 0; actor_trail_effect(&a, &effect, 1); assert(a.trail_mode == 1);
+    actor_modifier_set(&a, 6, 1, -1);
+    actor_trail_effect(&a, &effect, 0);
+    assert(!a.trail_mode && !a.illusion[0] && !a.illusion[1]);
+}
+
+static void character_target_reaction_test(void) {
+    Actor saved[2] = {actors[0], actors[1]}; int count = actor_count, groups = grp_n;
+    void *group_copy = malloc(sizeof grps); memcpy(group_copy, grps, sizeof grps);
+    grp_n = 0; actor_count = 2;
+    Role r = {0}; RoleDef d = {.seek = 5};
+    Actor *a = &actors[0], *t = &actors[1];
+    *a = (Actor){.role = &r, .def = &d, .grp = 0, .layer = 1, .x = 5, .y = 5};
+    *t = (Actor){.role = &r, .def = &d, .grp = 10000, .layer = 1, .x = 8, .y = 9};
+    for (int i = 0; i < 4; i++) a->candidate[i] = t->candidate[i] = -1;
+    actor_target_set(a, t); // 圓距離5，設目標門檻含等號。
+    assert(a->foe == t && t->foe == a && t->fight && !a->fight);
+    t->fight = 0; t->foe = NULL; t->x = 10; t->y = 10;
+    actor_target_set(a, t); assert(a->foe == t && !t->fight && !t->foe);
+    a->grp = 10001; actor_target_set(a, t);
+    assert(grp_is_enemy(10000, 10001));
+    grp_n = 0; a->state[102] = 1; actor_target_set(a, t);
+    assert(!grp_is_enemy(10000, 10001));
+    a->state[102] = 0; a->flags = 0x4000; actor_target_set(a, t);
+    assert(!grp_is_enemy(10000, 10001));
+    a->flags = 0; a->grp = 9000; actor_target_set(a, t);
+    assert(!grp_is_enemy(10000, 9000));
+    a->grp = 0; a->foe = NULL; a->fight = 0; t->flags = 0x20000;
+    actor_notice_near(a, t); assert(!a->foe && !a->fight);
+    t->flags = 0; t->x = 10; t->y = 5;
+    actor_notice_near(a, t); assert(!a->foe); // 靠近檢查是嚴格小於。
+    t->x = 9; t->y = 9;
+    actor_notice_near(a, t); assert(a->foe == t && a->fight); // 方框角落仍觸發。
+    actor_target_set(a, NULL); assert(!a->foe);
+    a->fight = 0; a->layer = 11; t->x = 17; t->y = 5;
+    actor_notice_near(a, t); assert(a->foe == t); // 高層索敵加8。
+    a->grp = 60000; a->foe = NULL;
+    actor_notice_near(a, t); assert(!a->foe); // NPC組的端點也排除。
+    actors[0] = saved[0]; actors[1] = saved[1]; actor_count = count;
+    memcpy(grps, group_copy, sizeof grps); free(group_copy); grp_n = groups;
+}
+
+static void character_effect_test(void) {
+    StatusDef *d = (StatusDef *)status_def(126), saved = *d;
+    for (int i = 0; i < 20; i++) d->raw[i] = 65535;
+    d->raw[1] = 126;
+    d->raw[2] = d->raw[3] = d->raw[4] = d->raw[5] = 0;
+    d->raw[6] = 0x100012;
+    d->raw[9] = 42; d->raw[10] = 0;
+    d->trail_move = d->trail_always = 0;
+    for (int k = 13; k <= 16; k++) d->raw[k] = k;
+    d->raw[17] = -10;
+    RoleDef rd = {.scale = 65535, .speed = 10};
+    Actor a = {.def = &rd, .speed = 10};
+    for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
+    a.skills[0] = (ActorSkill){.key = 44, .max = 7}; a.skill_n = 1;
+    actor_effect(&a, 126, 1, 44);
+    assert((a.flags & 0x4e00) == 0x4e00); // 指定0依然開啟旗標。
+    assert(a.effect_speed == 0 && status_speed(&a) == 0 && status_noattack(&a));
+    assert(a.effect[0] && spr_count(a.effect[0]) && !a.effect[1] && !a.effect[2]);
+    assert(a.aura_status == 42 && a.aura_range == 7 && a.aura_skill == 1);
+    assert(a.trail_mode == 1 && a.modifier[4].value == -10);
+    for (int k = 10; k <= 13; k++) assert(a.modifier[k].value == k + 3);
+    a.effect[0]->tick = 99; actor_effect(&a, 126, 1, -1);
+    assert(a.effect[0]->tick == 0 && a.aura_range == 7);
+    actor_effect(&a, 126, 0, -1);
+    assert(!(a.flags & 0x4e00) && a.effect_speed == 100 && !a.effect[0]);
+    assert(!a.aura_range && !a.aura_skill && !a.trail_mode && a.modifier[4].value == 0);
+    // 未指定的欄位不碰現有旗標或精靈。
+    d->raw[2] = 65535; a.flags = 0x200;
+    actor_effect(&a, 126, 0, -1); assert(a.flags & 0x200);
+    *d = saved;
+    // 低血量修正通知的是角色byte，不會擠占或新增技能Buff槽。
+    rd.panic = 1; actor_health_percent(&a, 19);
+    assert(has_status(&a, 17) && a.buff_n == 0);
+    actor_health_percent(&a, 50); assert(has_status(&a, 17)); // 回血不自行解除潰散。
+    for (int k = 0; k < 3; k++) free(a.effect[k]);
 }
 
 static void character_weapon_type_test(void) {
@@ -575,16 +742,16 @@ static void character_near_test(void) {
     closer->flags = 0x20000;
     assert(!actor_near_begin(a, 0, -1));
     first->flags = closer->flags = 0;
-    first->display_override = 50;
+    first->modifier[10].value = 50;
     assert(actor_near_begin(a, 0, -1) == closer);
-    first->display_override = 0;
+    first->modifier[10].value = 0;
     RoleDef hidden = d;
     hidden.display = 50;
     first->def = &hidden;
     assert(actor_near_begin(a, 0, -1) == closer);
-    first->display_override = -1; // 非零覆寫，不能把負值當成未設定。
+    first->modifier[10].value = -1; // 非零覆寫，不能把負值當成未設定。
     assert(actor_near_begin(a, 0, -1) == first);
-    first->display_override = 0; first->def = &d;
+    first->modifier[10].value = 0; first->def = &d;
     a->flags = 0x4000; assert(!actor_near_begin(a, 0, -1));
     a->flags = 0; a->buff_n = 1; a->buff[0].status = 102;
     assert(!actor_near_begin(a, 0, -1)); a->buff_n = 0;
@@ -651,9 +818,9 @@ static void character_target_display_test(void) {
     RoleDef d = {.display = 50};
     Actor a = {.def = &d};
     assert(actor_display(&a) == 50);
-    a.display_override = 1; assert(actor_display(&a) == 1);
-    a.display_override = -1; assert(actor_display(&a) == -1);
-    a.display_override = 0; d.display = 0; assert(actor_display(&a) == 0);
+    a.modifier[10].value = 1; assert(actor_display(&a) == 1);
+    a.modifier[10].value = -1; assert(actor_display(&a) == -1);
+    a.modifier[10].value = 0; d.display = 0; assert(actor_display(&a) == 0);
     actor_size_set(&a, -3); assert(a.body_size == -3);
     actor_count = 1;
     actors[0] = (Actor){.role = (const Role *)1, .act = ACT_DEAD};
@@ -736,11 +903,11 @@ static void character_movement_speed_test(void) {
     assert(a.walk_delay_adjust == 0 && a.dynamic_state == 11);
     a.fight = 1; actor_speed_update(&a);
     assert(a.move_a == 3 && a.walk_delay_adjust == -2);
-    a.speed_override = 1; actor_speed_update(&a);
+    a.modifier[1].value = 1; actor_speed_update(&a);
     assert(a.move_a == 0 && a.move_b == 90 && a.walk_delay_adjust == 7);
     assert(a.dynamic_state == 1 && !a.moving && a.print_x == -100 && a.print_y == -100);
     // 查表可夾限，getter本身保留範圍外值。
-    a.speed_override = 101; actor_speed_update(&a);
+    a.modifier[1].value = 101; actor_speed_update(&a);
     assert(actor_speed(&a) == 100 && a.move_a == 19 && a.move_c == 7);
     actor_move_speed(&a, -10); assert(a.move_a == 0 && a.move_b == 90);
     a.speed = 0; actor_move_speed(&a, 0); assert(a.walk_delay_adjust == -5); // 0/0的NaN走原版末分支。
@@ -833,12 +1000,12 @@ static void character_speed_memory_test(void) {
     a.fight = 1; assert(actor_speed(&a) == 11);
     a.flags = 0x10000; assert(actor_speed(&a) == 11); // 跑步只在移動狀態生效。
     a.dynamic_state = 11; assert(actor_speed(&a) == 10); // 7*3/2，先截斷。
-    a.speed_override = 1; assert(actor_speed(&a) == 0);
-    a.speed_override = 10; assert(actor_speed(&a) == 9);
+    a.modifier[1].value = 1; assert(actor_speed(&a) == 0);
+    a.modifier[1].value = 10; assert(actor_speed(&a) == 9);
     a.speed_threshold = 100; assert(actor_speed(&a) == 9);
     a.speed_threshold = 101; assert(actor_speed(&a) == 4);
     a.speed_threshold = 102; assert(actor_speed(&a) == 4);
-    a.speed_threshold = 0; a.speed_override = 101;
+    a.speed_threshold = 0; a.modifier[1].value = 101;
     assert(actor_speed(&a) == 100); // getter不夾到59。
     a.ex[64] = -101; assert(actor_speed(&a) == -1); // 加速後不再夾到0。
     a.ex[64] = 150; assert(actor_speed(&a) == 175);
@@ -1393,6 +1560,10 @@ int main(void) {
     character_lookup_test();
     character_core_test();
     character_weapon_type_test();
+    character_modifiers_test();
+    character_illusion_test();
+    character_target_reaction_test();
+    character_effect_test();
     character_relation_test();
     character_scale_test();
     character_skills_test();

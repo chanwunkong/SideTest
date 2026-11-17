@@ -235,13 +235,57 @@ typedef struct {
 } ActorSkill;
 #define MAX_ACTOR_SKILLS 128
 
+// 每個精靈部件各有30筆歷史；位置是世界64分格，Frame保存採樣當時的幀。
+typedef struct { int x, y; Frame frame; } IllusionUnit;
+typedef struct {
+    IllusionUnit unit[30]; // 最新在0，最舊在count-1，取代原版雙向鏈
+    int count, start, steps, delta, ticks, repeat, interval;
+} Illusion;
+
+// Poq.exe 0x4a1780：只在首次建立時設定參數；重複開啟不清歷史或改參數。
+static void illusion_create(Illusion **out, int start, int end, int delta, int repeat) {
+    if (*out) return;
+    // shortcut: 原版除0會崩潰；拒絕無效配置，若遊戲資料出現此配置再核對呼叫契約。
+    if (!delta || (repeat && !(end - start))) return;
+    int steps = (end - start) / delta;
+    if (steps < 1 || steps > 30) return;
+    Illusion *v = calloc(1, sizeof *v);
+    if (!v) return;
+    v->start = start; v->steps = steps; v->delta = delta; v->repeat = repeat;
+    v->interval = repeat ? 30 / steps + 1 : 1;
+    *out = v;
+}
+
+// Poq.exe 0x4a2280：不重複時每5次才採樣，容量為步數；重複時每次採樣、容量30。
+static void illusion_sample(Illusion *v, int x, int y, const Frame *f) {
+    if (!v->repeat && ++v->ticks % 5) return;
+    int limit = v->repeat ? 30 : v->steps;
+    if (v->count < limit) v->count++;
+    memmove(v->unit + 1, v->unit, (size_t)(v->count - 1) * sizeof *v->unit);
+    v->unit[0] = (IllusionUnit){x, y, *f};
+}
+
+// Poq.exe 0x4a1c90：清歷史、釋放容器、清指標；靜態Anim資源仍由共用快取持有。
+static void illusion_clear(Illusion **v) { free(*v); *v = NULL; }
+
+typedef struct Spr Spr;
+static const Frame *spr_frame(const Spr *s);
+
 typedef struct Actor {
     float x, y;       // 格子座標（可有小數）
     int dir, moving, speed;
-    int fight_speed, speed_override, speed_threshold, dynamic_state;
+    int fight_speed, speed_threshold, dynamic_state;
     int animation_target, animation_dir;
     int move_a, move_b, move_c, move_remaining, walk_delay_adjust;
-    int scale, scale_target; // 目前比例與第4修正；模板指定比例時不追逐修正
+    int scale; // 目前比例與第4修正；模板指定比例時不追逐修正
+    struct { int value, time; } modifier[20];
+    int modifiers_dirty, modifier_clock, trail_mode;
+    unsigned char state[128]; // 已接修正副作用的狀態17／100；完整狀態設置副作用仍待移植
+    int hp_percent, behavior[4];
+    Spr *effect[3];
+    int effect_speed, effect_applied, last_status;
+    int aura_status, aura_range, aura_skill;
+    Illusion *illusion[MAX_ROLE_PARTS];
     int view_link_type; // 關聯模型 +0x2c；type2/3 繪圖時世界 X/Y 暫加128
     int idle, walk, fidle, fwalk;  // 動作起點序列（角色表「平時/戰鬥」的休息與走路）
     Uint32 act_tick;  // 目前動作已經過幾拍（換動作時歸零）
@@ -271,7 +315,7 @@ typedef struct Actor {
     struct Actor *foe;             // 攻擊目標
     struct Actor *owner;           // 召喚出來的：召喚者
     int side;                      // 隊伍：0 = 主角這邊（主角、他的召喚兽、馴服的、陷阱、分身），1 = 怪物
-    int search_link, display_override; // 關聯識別與第10修正（索敵篩選）
+    int search_link; // 關聯識別與第10修正（索敵篩選）
     int body_size;                 // 動態物件占位大小（模板大小<7取1，否則減5）
     int grp;                       // AI 組（+0x339）：0～99 玩家組、10000～60000 NPC 組；敵對看它（near.c is_foe）
     int seek_adjust, view_range;
@@ -298,6 +342,94 @@ typedef struct Actor {
     unsigned char weapon_type;     // +0x513；更新入口只保存byte，不改技能或外觀
 } Actor;
 
+// Poq.exe 0x575cb0：有資源且有序列的每個本體部件都各自建立，不含影子。
+static void actor_illusion_begin(Actor *a) {
+    const Role *r = a->role;
+    for (int i = 0; r && i < r->part_count; i++)
+        if (r->body[i] && r->body[i]->count > 0)
+            illusion_create(&a->illusion[i], 2, 12, 2, 1);
+}
+
+// Poq.exe 0x576b90：對有效部件逐一清殘影；場景釋放另清所有槽，避免換外觀後遺留。
+static void actor_illusion_end(Actor *a) {
+    const Role *r = a->role;
+    for (int i = 0; r && i < r->part_count; i++)
+        if (r->body[i] && r->body[i]->count > 0) illusion_clear(&a->illusion[i]);
+}
+static void actors_illusion_clear(void);
+static void actor_illusion_draw(const Actor *a);
+
+static void actor_modifier_changed(Actor *a, int index, int value);
+static void actor_effect(Actor *a, int status, int on, int skill);
+static void actor_status_notify(Actor *a, int status, int on, int skill);
+// Poq.exe 0x48ec60：期限-1可覆寫任何值；其他期限只接受不短於現有期限。
+// 回傳暫存器原版混合了被呼叫函數結果與輸入索引；遊戲呼叫端均不消費，以void承接。
+static void actor_modifier_set(Actor *a, int index, int value, int time) {
+    if ((time == -1 || a->modifier[index].time <= time) &&
+        (a->modifier[index].value != value || a->modifier[index].time != time)) {
+        a->modifier[index].value = value;
+        a->modifier[index].time = time;
+        actor_modifier_changed(a, index, value);
+    }
+    // 原版即使期限拒絕寫入，輸入值0仍標記重算。
+    if (!value) a->modifiers_dirty = 1;
+}
+
+// 移動進入的第6修正分支；底層完整動態進入仍待移植。
+static void actor_trail_enter(Actor *a) {
+    if (a->dynamic_state == 11 && a->trail_mode == 2 && (a->modifier[6].value != 1 || a->modifier[6].time != -1)) {
+        a->modifier[6].value = 1; a->modifier[6].time = -1;
+        actor_illusion_begin(a);
+    }
+}
+
+// 移動退出的第6修正分支；期限>=21不覆寫，-1也會改成20。
+static void actor_trail_exit(Actor *a) {
+    if (a->dynamic_state == 11 && a->trail_mode == 2 && a->modifier[6].time < 21 &&
+        (a->modifier[6].value != 1 || a->modifier[6].time != 20)) {
+        a->modifier[6].value = 1; a->modifier[6].time = 20;
+        actor_illusion_begin(a);
+    }
+}
+
+// 角色每拍中的20項期限分支；與原版共用角色拍數，不因重新設置期限而重置相位。
+// 完整每拍入口的方向漸轉、光環等分支仍待移植，不標完整入口位址。
+static void actor_modifiers_tick(Actor *a) {
+    if (++a->modifier_clock % 10) return;
+    for (int i = 0; i < 20; i++) {
+        if (a->modifier[i].time < 0) continue;
+        a->modifier[i].time -= 10;
+        if (a->modifier[i].time < 0) {
+            a->modifier[i].value = 0;
+            a->modifier[i].time = -1;
+            // 到期分支只有1/5/6具有副作用；不重新擲第3修正的潰散。
+            if (i == 1 || i == 5 || i == 6) actor_modifier_changed(a, i, 0);
+            a->modifiers_dirty = 1;
+        }
+    }
+}
+
+// RoleEffectMdl欄11/12的設置／解除分支；完整狀態表的其他副作用另待移植。
+static void actor_trail_effect(Actor *a, const StatusDef *d, int on) {
+    if (!d || (d->trail_move == 65535 && d->trail_always == 65535)) return;
+    if (on) {
+        if (d->trail_move != 65535) a->trail_mode = 2;
+        if (d->trail_always != 65535) a->trail_mode = 1;
+    } else {
+        a->trail_mode = 0;
+        actor_modifier_set(a, 6, 0, -1);
+    }
+}
+
+// 狀態重算的表格部分；完整狀態byte主入口與重算函數仍待核對。
+// shortcut: 有效狀態合併byte與Buff查詢；末次呼叫反編譯傳-1，目前按最後修改項套用，取得原始組語後核對並升級。
+static int has_status(const Actor *a, int st);
+static void actor_effects_recompute(Actor *a) {
+    for (int id = 127; id >= 0; id--)
+        if (id != a->last_status && has_status(a, id)) actor_effect(a, id, 1, -1);
+    if (has_status(a, a->last_status)) actor_effect(a, a->last_status, 1, -1);
+}
+
 static uint32_t actor_relation_anim(const Actor *a);
 // Poq.exe 0x48d8f0：只保存32位關聯識別，不查找目標、不修改目前命令。
 static inline void actor_search_link_set(Actor *a, int link) { a->search_link = link; }
@@ -309,6 +441,7 @@ static void actor_weapon_type_set(Actor *a, int value) { a->weapon_type = (unsig
 
 // Poq.exe 0x48e8d0：只清目標，不能順便取消移動、技能或目前動作。
 static void actor_clear_target(Actor *a) { a->foe = NULL; }
+static void actor_target_set(Actor *a, Actor *t);
 
 // Poq.exe 0x486e70：取消排隊命令，保留其餘三個參數。
 static void actor_cancel_command(Actor *a) { a->command[0] = -1; }
@@ -353,7 +486,7 @@ static void actor_display_name_set(Actor *a, const char *base, int number, int c
 
 // Poq.exe 0x4887b0：任何非零修正均優先，包括負數。
 static int actor_display(const Actor *a) {
-    return a->display_override ? a->display_override : a->def ? a->def->display : 0;
+    return a->modifier[10].value ? a->modifier[10].value : a->def ? a->def->display : 0;
 }
 
 // Poq.exe 0x496530：只保存大小，不改位置或重建模型。
@@ -519,17 +652,14 @@ static int actor_frame(const Actor *a, int seq) {
     return 0;
 }
 
-// 身上狀態的效果動畫（RoleEffectMdl.txt 头上／身上／脚下效果 → Poq.exe 0x48ebd0 的三個位置），循環播
-// shortcut: 三個位置都畫在角色腳底的錨點（動畫自己帶偏移），原版頭上效果的高度還沒對
+// 三個附加精靈各自一份播放器；替換原先逐個Buff重畫且跟全域拍數循環的簡化版。
+// shortcut: 頭上／身上位置沿用動畫內建偏移，模型高度欄位接入後核對額外錨點偏移。
 static void status_fx_draw(const Actor *a, int sx, int sy, Uint32 tick, int foot) {
-    for (int b = 0; b < a->buff_n; b++) {
-        const StatusDef *d = status_def(a->buff[b].status);
-        if (!d) continue;
-        int g[2] = {foot ? d->foot : d->body, foot ? 0 : d->head};
-        for (int k = 0; k < 2; k++) {
-            const Anim *an = g[k] > 0 ? anim_get((uint32_t)g[k]) : NULL;
-            if (an && an->count) draw_frame(an, 0, frame_at(&an->seqs[0], tick), sx, sy, 0);
-        }
+    (void)tick;
+    for (int k = 0; k < 3; k++) {
+        if ((k == 2) != foot || !a->effect[k]) continue;
+        const Frame *f = spr_frame(a->effect[k]);
+        if (f) draw(image(f->ref), sx - f->dx, sy - f->dy);
     }
 }
 
@@ -629,7 +759,7 @@ static void actor_scaled_draw(const Actor *a, int seq, int frame, int sx, int sy
 static void actor_scale_tick(Actor *a) {
     if (!a->role || !a->def || a->def->scale != 65535) return;
     if (!(a->flags & 0x400) && (a->flags & 0x200) && a->dynamic_state != 1) return;
-    if (a->scale != a->scale_target) a->scale += a->scale_target < a->scale ? -1 : 1;
+    if (a->scale != a->modifier[4].value) a->scale += a->modifier[4].value < a->scale ? -1 : 1;
 }
 
 static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
@@ -646,6 +776,7 @@ static void actor_draw(const Actor *a, int sx, int sy, Uint32 tick) {
         if (ring && ring->count) draw_frame(ring, 0, frame_at(&ring->seqs[0], tick), sx, sy, 0);
     }
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy, tick, 1);
+    actor_illusion_draw(a);
     if (a->scale) actor_scaled_draw(a, seq, frame, sx, sy - a->z, 0);
     else role_draw(r, seq, frame, sx, sy - a->z);  // 影子留在地上
     if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy - a->z, tick, 0);
@@ -688,7 +819,7 @@ static int status_speed(const Actor *a);
 // 門檻>=101才減半，最後不夾限；速度表的範圍在移動消費端處理。
 // shortcut: 戰鬥狀態仍由現有fight計時承接，完整狀態表接入後改讀狀態0。
 static int actor_speed(const Actor *a) {
-    int s = a->speed_override ? a->speed_override - 1 :
+    int s = a->modifier[1].value ? a->modifier[1].value - 1 :
         (a->flags & 0x10000) && a->dynamic_state == 11 ? a->speed * 3 / 2 :
         a->fight ? a->fight_speed : a->speed;
     int st = status_speed(a), v = s * st / 100;
@@ -740,7 +871,12 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
     int was_moving = a->moving;
     a->moving = 0;
     // shortcut: 現有移動迴圈承接平常／移動狀態，跳躍等完整動態狀態仍待移植。
-    a->dynamic_state = mx * mx + my * my > 0.01f ? 11 : 1;
+    int state = mx * mx + my * my > 0.01f ? 11 : 1;
+    if (state != a->dynamic_state) {
+        actor_trail_exit(a);
+        a->dynamic_state = state;
+        actor_trail_enter(a);
+    }
     actor_speed_update(a);
     if (mx * mx + my * my > 0.01f && actor_can_move(a)) {
         float px = tick % a->move_b ? 0 : a->move_a + a->move_c / 10.0f;
@@ -800,6 +936,7 @@ static const Role *role_for(const RoleDef *d) {
 }
 
 static void roles_clear(void) {
+    actors_illusion_clear();
     for (int i = 0; i < role_count; i++) role_free(&roles[i].role);
     role_count = 0;
 }
@@ -808,6 +945,15 @@ static void roles_clear(void) {
 #define MAX_ACTORS 256
 static Actor actors[MAX_ACTORS];
 static int actor_count;
+
+// Actor私有的殘影必須先於Role快取及Actor陣列重建釋放。
+static void actors_illusion_clear(void) {
+    for (int i = 0; i < actor_count; i++)
+        {
+            for (int k = 0; k < MAX_ROLE_PARTS; k++) illusion_clear(&actors[i].illusion[k]);
+            for (int k = 0; k < 3; k++) { free(actors[i].effect[k]); actors[i].effect[k] = NULL; }
+        }
+}
 
 // Poq.exe 0x488a10：失效才清識別；角色旗標0x10只隱藏本次查詢，死亡不等於失效。
 // shortcut: CObj句柄查找沿用Actor陣列和指標；目前場景整批重建，
@@ -870,6 +1016,9 @@ static void actor_setup(Actor *a, const RoleDef *d) {
         for (int i = 0; i < 4; i++) a->candidate[i] = -1;
         a->remembered[0] = -1;
         a->dynamic_state = 1;
+        for (int i = 0; i < 20; i++) a->modifier[i].time = -1;
+        a->hp_percent = 100;
+        a->effect_speed = 100;
         a->display_number = -1;
     }
     actor_cancel_command(a);
@@ -1233,8 +1382,12 @@ static void hit_wear(Actor *a, Actor *t, const SkillRow *sk);
 static void actor_second(Actor *h) {
     int changed = 0;
     for (int b = 0; b < h->buff_n; b++)
-        if (++h->buff[b].elapsed >= h->buff[b].time && h->buff[b].time >= 0) { h->buff[b--] = h->buff[--h->buff_n]; changed = 1; }
-    if (changed) actor_derive(h);
+        if (++h->buff[b].elapsed >= h->buff[b].time && h->buff[b].time >= 0) {
+            if ((unsigned)h->buff[b].status < 128u) h->state[h->buff[b].status] = 0;
+            actor_effect(h, h->buff[b].status, 0, -1);
+            h->buff[b--] = h->buff[--h->buff_n]; changed = 1;
+        }
+    if (changed) { actor_derive(h); actor_effects_recompute(h); }
     if (h->act == ACT_DEAD) return;
     int hs = h->hp_speed, ms = h->mp_speed;
     if (!h->fight) {  // 不在戰鬥（FightStatus 0）回得快三倍
@@ -1474,6 +1627,7 @@ static int status_class(int st) {
 }
 
 static int has_status(const Actor *a, int st) {
+    if ((unsigned)st < 128u && a->state[st]) return a->state[st];
     for (int b = 0; b < a->buff_n; b++)
         if (a->buff[b].status == st) return 1;
     return 0;
@@ -1491,24 +1645,9 @@ static int status_blocked(const Actor *a, int st) {
     return 0;
 }
 
-// shortcut: 狀態表目前只套速度及攻擊不能；完整狀態重算尚缺旗標、光環、縮放與覆色。
-// 多個速度狀態取序號最小值；補齊完整狀態重算時替換。
-static int status_speed(const Actor *a) {
-    int v = 100, id = 1 << 30;
-    for (int b = 0; b < a->buff_n; b++) {
-        const StatusDef *d = status_def(a->buff[b].status);
-        if (d && d->speed >= 0 && a->buff[b].status < id) { v = d->speed; id = a->buff[b].status; }
-    }
-    return v;
-}
-
-static int status_noattack(const Actor *a) {
-    for (int b = 0; b < a->buff_n; b++) {
-        const StatusDef *d = status_def(a->buff[b].status);
-        if (d && d->noattack) return 1;
-    }
-    return 0;
-}
+// 速度與攻擊不能由狀態表入口寫入；刪除舊逐Buff猜優先序的簡化計算。
+static int status_speed(const Actor *a) { return a->effect_applied ? a->effect_speed : 100; }
+static int status_noattack(const Actor *a) { return (a->flags & 0x800) != 0; }
 
 // 加狀態（0x10037f40）：加不上就回 0；先移掉互斥的（0x10054d50：同為第 1、3、4、6 類互斥；3 蓋 4、4 蓋 2/3/5、7 蓋 6、11 蓋 10），
 // 技能參數跟著生效，播狀態表的聲音。r = NULL 是打中觸發的狀態（沒有參數）
@@ -1520,15 +1659,61 @@ static int buff_add(Actor *a, const SkillRow *r, int status, int side, int time,
         if (o < 0) continue;
         if ((o == c && (c == 1 || c == 3 || c == 4 || c == 6)) || (c == 3 && o == 4) || (c == 4 && (o == 2 || o == 3 || o == 5)) ||
             (c == 7 && o == 6) || (c == 11 && o == 10))
-            a->buff[b--] = a->buff[--a->buff_n];
+            { if ((unsigned)a->buff[b].status < 128u) a->state[a->buff[b].status] = 0; actor_effect(a, a->buff[b].status, 0, -1); a->buff[b--] = a->buff[--a->buff_n]; }
     }
     if (a->buff_n == 8) return 0;
     a->buff[a->buff_n++] = (Buff){r, r ? r->level : 0, status, 0, time, side, patch};
     actor_derive(a);
-    const StatusDef *d = status_def(status);
-    if (d && d->sound) audio_sfx(d->sound);
+    a->last_status = status;
+    actor_effects_recompute(a);
     printf("狀態 %d 生效 %d 秒（%s）\n", status, time, side ? "對方" : "自己");
     return 1;
+}
+
+// 修正入口的副作用；狀態17／100是原版byte狀態，不能用帶時間的技能Buff取代。
+static void actor_modifier_changed(Actor *a, int index, int value) {
+    if (index == 1) actor_speed_update(a);
+    else if (index == 6) {
+        if (value) actor_illusion_begin(a);
+        else { actor_illusion_end(a); a->modifiers_dirty = 1; }
+    } else if (index == 5) {
+        actor_status_notify(a, 100, value != 0, -1);
+        // 第5修正的動畫分支原本由knock承接，現在兩者共用入口。
+        a->knock = value;
+        actor_animation_select(a, -1);
+    } else if (index == 3 && value == 3 && a->def && a->def->panic > 0) {
+        if (rand() % a->def->panic == 0) actor_status_notify(a, 17, 1, -1);
+    }
+}
+
+// Poq.exe 0x48e8f0：保存未夾限的生命百分比；只在修正值或永久期限改變時擲潰散。
+static void actor_health_percent(Actor *a, int percent) {
+    a->hp_percent = percent;
+    if (percent < 20) actor_modifier_set(a, 3, 3, -1);
+    else if (percent < 50) actor_modifier_set(a, 3, 1, -1);
+    else {
+        actor_modifier_set(a, 3, 0, -1);
+        a->modifiers_dirty = 1;
+    }
+}
+
+// Poq.exe 0x48fae0：生命百分比及動畫門檻只在變更時處理，行為參數每次照寫。
+// 單機省略0x323客戶端同步封包。
+static void actor_parameters(Actor *a, int hp, int threshold, int p4, int p5, int p6, int p7) {
+    if (a->hp_percent != hp) actor_health_percent(a, hp);
+    if (a->speed_threshold != threshold) {
+        a->speed_threshold = threshold;
+        actor_animation_select(a, -1);
+    }
+    a->behavior[0] = p4; a->behavior[1] = p5;
+    a->behavior[2] = p7; a->behavior[3] = p6;
+}
+
+// EasyRPG人物數值與客戶端角色共用Actor，以固定拍通知代替封包複製。
+static void actor_health_sync(Actor *a) {
+    if (!a->def || a->hp_max <= 0) return;
+    actor_parameters(a, (int)((int64_t)a->hp * 100 / a->hp_max), a->speed_threshold,
+        a->behavior[0], a->behavior[1], a->behavior[3], a->behavior[2]);
 }
 
 static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick);
@@ -1729,8 +1914,8 @@ static const Scene *unit_scene;
 static void buff_drop(Actor *a, int st) {
     int n = a->buff_n;
     for (int b = 0; b < a->buff_n; b++)
-        if (a->buff[b].status == st) a->buff[b--] = a->buff[--a->buff_n];
-    if (n != a->buff_n) actor_derive(a);
+        if (a->buff[b].status == st) { if ((unsigned)st < 128u) a->state[st] = 0; actor_effect(a, st, 0, -1); a->buff[b--] = a->buff[--a->buff_n]; }
+    if (n != a->buff_n) { actor_derive(a); actor_effects_recompute(a); }
 }
 static int hostile(const Actor *a, const Actor *e);
 struct MUnit;
@@ -1745,6 +1930,108 @@ static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = �
 #include "unit.c"
 #undef scene
 #include "weather.c"
+
+// Poq.exe 0x48ebd0：每槽先刪舊播放器；-1只清除，其他值（包括0）照載入。
+static void actor_effect_sprite(Actor *a, int slot, int graphic) {
+    free(a->effect[slot]); a->effect[slot] = NULL;
+    if (graphic == -1) { a->modifiers_dirty = 1; return; }
+    Spr *p = calloc(1, sizeof *p);
+    if (p) { spr_load(p, (uint32_t)graphic); a->effect[slot] = p; }
+}
+
+// Poq.exe 0x48e120：只以65535判斷未指定，指定0也必須觸發對應副作用。
+static void actor_effect(Actor *a, int status, int on, int skill) {
+    const StatusDef *d = status_def(status & 255);
+    if (!d || d->raw[1] == 65535) return;
+    const int *v = d->raw;
+    if (v[2] != 65535) actor_set_flags(a, 0x200, on);
+    if (v[3] != 65535) {
+        a->effect_speed = on ? v[3] : 100;
+        a->effect_applied = 1;
+        actor_speed_update(a);
+    }
+    if (v[4] != 65535) actor_set_flags(a, 0x800, on);
+    if (v[5] != 65535) actor_set_flags(a, 0x4000, on);
+    for (int k = 0; k < 3; k++) if (v[k + 6] != 65535) {
+        if (on) actor_effect_sprite(a, k, v[k + 6]);
+        else if (a->effect[k]) { free(a->effect[k]); a->effect[k] = NULL; a->modifiers_dirty = 1; }
+        else a->modifiers_dirty = 1;
+    }
+    if (v[9] != 65535) {
+        int range = a->aura_range;
+        if (skill != -1) {
+            range = 8; a->aura_skill = 0;
+            for (int i = 0; i < a->skill_n; i++) if (a->skills[i].key == skill) {
+                range = a->skills[i].max; a->aura_skill = i + 1; break;
+            }
+        }
+        if (on) { a->aura_status = v[9]; a->aura_range = range; }
+        else a->aura_status = a->aura_range = a->aura_skill = 0;
+    }
+    if (v[10] != 65535) actor_set_flags(a, 0x400, on);
+    actor_trail_effect(a, d, on);
+    for (int k = 13; k <= 17; k++) if (v[k] != 65535)
+        actor_modifier_set(a, k == 17 ? 4 : k - 3, on ? v[k] : 0, -1);
+    if (on && v[19] != 65535) audio_sfx(v[19]);
+}
+
+// 狀態17及100沒有額外switch分支，直接更新byte及狀態表。
+// 此入口僅供這兩種修正副作用；完整128狀態主分派仍todo，不標其原版位址。
+static void actor_status_notify(Actor *a, int status, int on, int skill) {
+    if (has_status(a, status) == on) return;
+    a->state[status] = (unsigned char)on;
+    a->modifiers_dirty = 1;
+    actor_effect(a, status, on, skill);
+    const StatusDef *d = status_def(status);
+    if (d && d->raw[1] != 65535) a->last_status = status;
+}
+
+static void actor_effects_tick(Actor *a) {
+    for (int k = 0; k < 3; k++) if (a->effect[k]) {
+        spr_next(a->effect[k]);
+        if (spr_count(a->effect[k]) > 1 && spr_done(a->effect[k]) && a->effect[k]->seq)
+            spr_set(a->effect[k], 0, 0);
+    }
+}
+
+static void actor_enter_fight(Actor *a);
+// Poq.exe 0x48eda0：先寫目標識別，再登記被指向NPC組的敵對關係。
+// shortcut: 狀態0轉換仍由actor_enter_fight承接；完整狀態byte主分派接入時改由其命令11入口發送。
+static void actor_target_set(Actor *a, Actor *t) {
+    if (!t) { actor_clear_target(a); return; }
+    a->foe = t;
+    if (!grp_npc(t->grp)) return;
+    foe_grp(a, t);
+    if (grp_npc(a->grp)) return;
+    int dx = (int)a->x - (int)t->x, dy = (int)a->y - (int)t->y;
+    if ((int)sqrt((double)dx * dx + (double)dy * dy) <= actor_seek(t) && !t->fight) {
+        // 原版先轉入戰鬥，再互設目標；順序可避免重入時再次觸發候選招式。
+        actor_enter_fight(t);
+        actor_target_set(t, a);
+    }
+}
+
+// Poq.exe 0x48f560：非NPC組且未選目標，敵對的可見角色進入嚴格方框才反應。
+static void actor_notice_near(Actor *a, Actor *t) {
+    if ((t->flags & 0x20000) || grp_npc(a->grp) || !is_foe(a, t) || actor_target(a)) return;
+    int range = actor_seek(a);
+    if (abs((int)a->x - (int)t->x) >= range || abs((int)a->y - (int)t->y) >= range) return;
+    actor_target_set(a, t);
+    if (!a->fight) actor_enter_fight(a);
+}
+
+// 接回角色每拍的靠近通知，沿用既有場景格子查詢，保留原版方框而非圓形。
+static void actor_near_reactions(Actor *a) {
+    if (!alive(a) || grp_npc(a->grp) || actor_target(a) || actor_seek(a) < 1) return;
+    near_begin(ax64(a), ay64(a), actor_seek(a) * 64);
+    Actor *t;
+    while ((t = near_next())) {
+        __typeof__(nr) cursor = nr;
+        actor_notice_near(a, t);
+        nr = cursor;
+        if (actor_target(a)) break;
+    }
+}
 
 // Poq.exe 0x4883e0：敵對優先；不同組的中立角色不會因選取而改用同組選取圖。
 // 原版全域Spr的資源ID由啟動程式的this指標與載入參數逐一核對。
@@ -1844,7 +2131,7 @@ static int react_tick(Actor *a, const Scene *s) {
 static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     (void)tick;
     if (!alive(t)) return;
-    if (t->mon && !t->foe) { t->foe = a; foe_grp(t, a); }  // 被打的怪物會反擊
+    if (t->mon && !t->foe) actor_target_set(t, a);  // 被打的怪物會反擊
     actor_enter_fight(t);
     // 命中（Poq.exe 0x48c600，CCharactor 虛擬函式第 104 格）：千分比 = HR×1000 / (SR + HR)，夾在 100~900；HR 0 當 1
     // shortcut: 之前還有一段盾牌格擋（0x48c4e3，看防守方 +0x4e7 的裝備和攻擊方向），沒有盾的主角用不到，還沒做
@@ -1999,9 +2286,26 @@ static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
 // 腳數 6 用 0x218、軟地（地面種類 3）0x51、其他 0x50；角色大小 1、兩隻腳在軟地上離上個腳印 x 或 y 超過 32 就踩一個，左右腳輪流
 // shortcut: 音效原版依位置算音量（0x4804a0），這裡只播主角附近 12 格內的；程序标识 ≠ 50 的依場景表隨機放單位 0x17（0x663ed8）、
 // 每 20 拍揭開地圖（0x489380）、騎乘（0x443760）時不出聲都還沒做
+// Poq.exe 0x575ae0：採樣每個部件當前幀，離地高度以世界X/Y各扣2z承接。
+static void actor_illusion_sample(Actor *a) {
+    const Role *r = a->role;
+    // 原版取首個部件的播放幀索引，各部件越界時回第0幀。
+    if (!r || !r->part_count) return;
+    int seq = actor_seq(a);
+    if (seq < 0 || seq >= r->seq_count) return;
+    int frame = actor_frame(a, seq);
+    for (int i = 0; i < r->part_count; i++) {
+        const Anim *an = r->body[i];
+        if (!a->illusion[i] || !an || seq >= an->count || !an->seqs[seq].count) continue;
+        const Frame *f = &an->seqs[seq].frames[frame >= 0 && frame < an->seqs[seq].count ? frame : 0];
+        illusion_sample(a->illusion[i], ax64(a) - a->z * 2, ay64(a) - a->z * 2, f);
+    }
+}
+
 static void walk_fx(Actor *a, const Scene *s, Uint32 tick) {
     const RoleDef *d = a->def;
     if (!d || !a->role || !alive(a)) return;
+    actor_illusion_sample(a);
     int near = fabsf(a->x - actors[0].x) < 12 && fabsf(a->y - actors[0].y) < 12;
     int snd = a->fight ? d->snd_fight : d->snd_idle;
     if (snd && snd != 0xffff && rand() % 1000 == 100 && near) audio_sfx(snd);
@@ -2196,7 +2500,7 @@ static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
     const SkillRow *ts = a->mon && a->mon->istrap == 1 ? npc_skill(a->mon->skill[0]) : NULL;
     int radius = !actor_seek(a) && ts ? skill_range_max(ts) : -1;
     Actor *near = actor_target(a) ? NULL : actor_near_begin(a, 0, radius);
-    if (near) { a->foe = near; foe_grp(a, near); }
+    if (near) actor_target_set(a, near);
     if (!pursue(a, s, tick)) npc_think(a, s, tick);
 }
 
@@ -2592,7 +2896,7 @@ static int actor_cast_try(Actor *a, int id, int x, int y, Actor *target) {
     a->atk_rh = right;
     a->aim_valid = 1; a->aim_x = x; a->aim_y = y;
     a->aim_actor = target; a->aim_range = actor_skill_range(a, s);
-    if (target) a->foe = target;
+    if (target) actor_target_set(a, target);
     main_new(a);
     return 1;
 }
@@ -4474,6 +4778,33 @@ static void hud_draw(Actor *hero) {
 
 static void air_draw_view(void);
 #include "viewport.c"
+
+// Poq.exe 0x4a1b40：由最舊往最新、按原索引餘數採樣，最後不足間隔的項不畫。
+static void illusion_draw(const Illusion *v) {
+    int blend = v->start;
+    for (int i = v->count - 1; i >= v->interval; i--) {
+        if (i % v->interval) continue;
+        const IllusionUnit *u = &v->unit[i];
+        SDL_Point p = viewport_world_screen(&viewport, u->x, u->y);
+        int b = blend < 0 ? 0 : blend > 16 ? 16 : blend;
+        Uint8 saved = draw_alpha;
+        // shortcut: 原版0x280色表混色以SDL alpha承接；格子光照／16位色表接入時升級。
+        draw_alpha = (Uint8)(b * 255 / 16);
+        draw(image(u->frame.ref), p.x - u->frame.dx, p.y - u->frame.dy);
+        draw_alpha = saved;
+        blend += v->delta;
+    }
+}
+
+// Poq.exe 0x575bd0：按部件順序畫殘影，放在腳下效果之後、角色本體之前。
+static void actor_illusion_draw(const Actor *a) {
+    const Role *r = a->role;
+    if (!r || !r->part_count) return;
+    int seq = actor_seq(a);
+    for (int i = 0; i < r->part_count; i++)
+        if (a->illusion[i] && r->body[i] && seq >= 0 && seq < r->body[i]->count)
+            illusion_draw(a->illusion[i]);
+}
 #include "air.c"
 static void air_draw_view(void) { air_draw(&viewport); bird_draw(&viewport); }
 
@@ -4919,7 +5250,7 @@ int main(int argc, char **argv) {
                 Actor *m = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
                 int g = ground_at(zx, zy, ox, oy, &scene);
                 switch (click_cmd(hero, m, g)) {
-                case CMD_ATTACK: hero->foe = m; hero->want = NULL; ground_want = walk_cx = -1; break;
+                case CMD_ATTACK: actor_target_set(hero, m); hero->want = NULL; ground_want = walk_cx = -1; break;
                 case CMD_PICK: ground_want = g; hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
                 case CMD_MOVE:
                     // shortcut: 目前輸入橋接記住命令1；完整主分派接入後移到共用入口。
@@ -4960,13 +5291,13 @@ int main(int argc, char **argv) {
                      (e.type == SDL_CONTROLLERBUTTONDOWN && e.cbutton.button == SDL_CONTROLLER_BUTTON_A)) {
                 float best = hero->def ? actor_seek(hero) : 10;
                 for (int i = 1; i < actor_count; i++)
-                    if (hostile(hero, &actors[i]) && cell_dist(hero, &actors[i]) <= best) { best = cell_dist(hero, &actors[i]); hero->foe = &actors[i]; }
+                    if (hostile(hero, &actors[i]) && cell_dist(hero, &actors[i]) <= best) { best = cell_dist(hero, &actors[i]); actor_target_set(hero, &actors[i]); }
             }
             else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_RIGHT) {  // 右鍵：對點到的怪物放左手技能
                 int zx = e.button.x, zy = e.button.y, cx, cy;
                 zoom_point(&zx, &zy);
                 Actor *m = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
-                if (m) hero->foe = m;
+                if (m) actor_target_set(hero, m);
                 // shortcut: 點選地點取格子中心；像素級地點施法待世界座標逆投影接入。
                 hero_cast_point(hero, cx * 64 + 32, cy * 64 + 32, m);
             }
@@ -5038,6 +5369,9 @@ int main(int argc, char **argv) {
                     if (!i || actors[i].mon) actor_second(&actors[i]);
             viewport_tick(&viewport, &scene, hero);
             for (int i = 0; i < actor_count; i++) {
+                actor_modifiers_tick(&actors[i]);
+                actor_health_sync(&actors[i]);
+                actor_effects_tick(&actors[i]);
                 actor_scale_tick(&actors[i]);
                 if (actors[i].cool > 0) actors[i].cool--;
                 if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
@@ -5061,7 +5395,10 @@ int main(int argc, char **argv) {
                 else if (a->act) action_tick(a, &scene, tick);
                 else monster_think(a, hero, &scene, tick);
             }
-            for (int i = 0; i < actor_count; i++) walk_fx(&actors[i], &scene, tick);
+            for (int i = 0; i < actor_count; i++) {
+                actor_near_reactions(&actors[i]);
+                walk_fx(&actors[i], &scene, tick);
+            }
             unit_scene = &scene;
             units_tick(tick);
             scene_buildings_tick(&scene);

@@ -150,9 +150,9 @@ static int is_foe(const Actor *a, const Actor *b) {
 }
 
 // self 把 t 設成目標時（CCharactor 設目標裡的一段）：t 是 NPC 組、self 不是玩家組也不是 9000～9999 組，t 的組就記 self 的組為敵人
-// shortcut: 原版還排除 self 有狀態 0x66 或旗標 0x4000 的，沒做
+// 來源有狀態102或旗標0x4000時，不登記新的敵對組。
 static void foe_grp(const Actor *self, const Actor *t) {
-    if (t && grp_npc(t->grp) && self->grp > 99 && (unsigned)(self->grp - 9000) > 999) grp_enemy_add(t->grp, self->grp);
+    if (t && grp_npc(t->grp) && (unsigned)self->grp > 99 && (unsigned)(self->grp - 9000) > 999 && !has_status(self, 102) && !(self->flags & 0x4000)) grp_enemy_add(t->grp, self->grp);
 }
 
 // ---- 從一點往外找角色（全域狀態 DAT_0065ea50～0x65ea78）----

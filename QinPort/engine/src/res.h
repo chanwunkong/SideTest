@@ -139,6 +139,7 @@ typedef struct {
     int id, pli, idle, walk, speed;  // pli = 動作方式；idle/walk = 動作起點序列；speed = 平時速度
     int fight_idle, fight_walk, hit, death, fight_speed;  // 戰鬥休息/走路、挨打、死亡的動作起點（0 = 沒有）、戰鬥速度
     int run_seq; // 原版跑步序列；65535表示未指定
+    int panic; // RoleMdl +0x10c，欄26第3值潰散隨機除數，<=0不觸發
     int seek, chase, atk_delay, snd_death, snd_hit;       // 索敌/追击范围（格）、攻击延时（拍）、死亡/挨打聲音
     int size, legs, snd_idle, snd_fight;                  // 角色大小、脚数、平时/战斗声音（0 = 沒有）
     int light, flicker;                                   // 有无光影、光影闪烁（欄 15、16，RoleMdl +0xb8、+0xbc）
@@ -240,7 +241,10 @@ typedef struct { char key[40]; int name_id, req, req_add, max_level, wtype, hand
 int skill_rows(int prof, SkillRow *out, int max);
 int skill_rows_file(const char *name, SkillRow *out, int max);  // 例如 skill_npc.txt（怪物的技能）
 // 角色狀態表 ObjMdl/RoleEffectMdl.txt：速度變化（%，-1 = 不變）、停止動畫、不能攻擊、頭上／身上／腳下效果（圖形 ID）、聲音
-typedef struct { int speed, stop, noattack, head, body, foot, sound; } StatusDef;
+typedef struct { int speed, stop, noattack, head, body, foot, sound;
+    int raw[20]; // 原表原始整數，空欄65535，保留「指定0」與「未指定」
+    int trail_move, trail_always; // 原表欄11/12，65535未指定；0也是指定值
+} StatusDef;
 const StatusDef *status_def(int id);
 // 怪物數值（EasyRPG.dll 0x100730c0，單機）：(L/除數 + 1) × ((L − 1) × 參數 + 基準)；表上空格 = −1。
 // kind 0 經驗（除數 3）、1 生命（10，乘難度）、2 攻擊 AP/MAP（1000，乘難度）、3 防禦 DP/MDP/命中/閃避（50）

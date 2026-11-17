@@ -1257,6 +1257,13 @@ int roledefs_load(void) {
         r->run_seq = run && run[1] ? atoi(run + 1) : 65535;
         r->hit = c > 11 && *col[11] ? atoi(col[11]) : 65535;
         r->death = c > 14 && *col[14] ? atoi(col[14]) : 65535;
+        // 第26欄是四個*分隔整數；+0x10c是第3值，缺項65535。
+        r->panic = 65535;
+        if (c > 26) {
+            const char *p = col[26];
+            for (int k = 0; k < 2 && p; k++) { p = strchr(p, '*'); if (p) p++; }
+            if (p && *p) r->panic = atoi(p);
+        }
         r->seek = COL(24); r->chase = COL(25); r->snd_death = COL(31); r->snd_hit = COL(34); r->atk_delay = COL(39);
         r->size = COL(18); r->legs = COL(19); r->snd_idle = COL(32); r->snd_fight = COL(33);
         r->light = COL(15); r->flicker = COL(16);
@@ -1471,7 +1478,10 @@ const StatusDef *status_def(int id) {
     static int loaded;
     if (!loaded) {
         loaded = 1;
-        for (int i = 0; i < 128; i++) defs[i] = (StatusDef){-1, 0, 0, 0, 0, 0, 0};
+        for (int i = 0; i < 128; i++) {
+            defs[i] = (StatusDef){.speed = -1, .trail_move = 65535, .trail_always = 65535};
+            for (int c = 0; c < 20; c++) defs[i].raw[c] = 65535;
+        }
         size_t n;
         uint8_t *d = res_file("ObjMdl", "RoleEffectMdl.txt", &n);
         if (!d) return NULL;
@@ -1490,7 +1500,13 @@ const StatusDef *status_def(int id) {
             }
             if (c < 20 || !col[1][0] || atoi(col[1]) < 0 || atoi(col[1]) >= 128) continue;
             // 序号、停止动画循环、速度变化（%，空白 = 不變）、攻击不能、无敌、头上／身上／脚下效果、…、声音（第 19 欄）
-            defs[atoi(col[1])] = (StatusDef){col[3][0] ? atoi(col[3]) : -1, atoi(col[2]), atoi(col[4]), atoi(col[6]), atoi(col[7]), atoi(col[8]), atoi(col[19])};
+            StatusDef *e = &defs[atoi(col[1])];
+            *e = (StatusDef){.speed = col[3][0] ? atoi(col[3]) : -1, .stop = atoi(col[2]),
+                .noattack = atoi(col[4]), .head = atoi(col[6]), .body = atoi(col[7]),
+                .foot = atoi(col[8]), .sound = atoi(col[19]),
+                .trail_move = col[11][0] ? atoi(col[11]) : 65535,
+                .trail_always = col[12][0] ? atoi(col[12]) : 65535};
+            for (int j = 0; j < 20; j++) e->raw[j] = col[j][0] ? atoi(col[j]) : 65535;
         }
         free(d);
     }

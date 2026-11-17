@@ -4,7 +4,7 @@
 // 方向：dir8／dir16 = 畫面角度從「右」起逆時針每 45°／22.5° 一格（= 動畫方向編號）。
 
 // ---- 動畫播放器（CSprGroup 0x49e720：一個序列一個播放器 0x49cd00/0x49d060）----
-typedef struct { const Anim *a; int seq, cur, tick, start, end; } Spr;
+struct Spr { const Anim *a; int seq, cur, tick, start, end; };
 
 static const Frame *spr_frame(const Spr *s) {  // 0x49d6a0
     if (!s->a || s->seq >= s->a->count || !s->a->seqs[s->seq].count) return NULL;

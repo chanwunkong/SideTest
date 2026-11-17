@@ -743,7 +743,17 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - `res.c`讀RoleMdl欄28（+0x124），空欄65535；actor_setup遇65535保留舊比例、0與負數照寫。常數20.0f與0.5f已讀Poq.exe唯讀區核對。actor_scale_tick接固定拍迴圈，只有模板比例65535才每拍追第4修正1步，保留0x200移動中阻擋及0x400例外；完整模板初始化／每拍函數均未標done。
   - shortcut：SDL透明RGBA取代原版16/32位色鍵暫存表面，光照沿用現有整畫面light_draw；逐像素色表／格子光照基礎接入時升級混色。完整角色繪圖的狀態覆色、殘影、三附加精靈及標記仍todo；其餘30個todo主要仍依賴同類別狀態、命令、更新與基礎，不可列為等外部系統；第4修正的完整設置／期限仍待修正表入口。未新增DLC分類。
   - fields／roles／base_map已更新，FUNCS.tsv已重產。skilltest新增合成圖的實際放大像素／部件覆蓋順序、奇數與負比例、零尺寸不繪製、renderer狀態還原、比例追逐及阻擋、點選矩形與關聯座標偏移；真實模板測欄28非空與空欄保留／0覆寫，既有pick_at改用真實角色圖測試。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；-DSTORY語法檢查通過，原有5個未使用函數警告。
-  **下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起**。
+  ~~下一步：0x486270（CCharactor 尚未完成，續補移動狀態／模板、主命令、狀態與更新；不可跳CNpc）起。~~
+
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，修復上輪未提交殘影並續補修正表／生命通知／狀態表與目標反應；整類別仍未完成，未進CNpc**。本輪主範圍新增done 6（0x48ec60、0x48e8f0、0x48fae0、0x48eda0、0x48f560、0x48e120），skip 0；合計 **done 61、skip 33、todo 24**。另完成／核對殘影基礎8入口（0x4a1780、0x4a1b40、0x4a1c90、0x4a2280、0x575ae0、0x575bd0、0x575cb0、0x576b90），更新既有附加精靈入口0x48ebd0。
+  - `main.c`的actor_modifier_set使用20項共用值／期限表，取代原speed_override、scale_target、display_override及殘影期限各自存值；接狀態表與固定拍。保留期限拒絕縮短、永久-1強制覆寫、輸入0即使遭拒仍標重算、每10拍減10且恰0不解除；第1更新速度、第3擲狀態17、第5通知狀態100並選動畫、第6建立／釋放殘影。舊擊退／硬直的knock/stun仍待完整動態狀態統一，不能標完整角色更新done。
+  - actor_health_percent／actor_parameters／actor_health_sync接人物生命百分比與四個行為參數；保留<20／<50／其他為第3修正3／1／0，未夾限百分比，低血值或期限改變才擲潰散、回血不自行解除狀態17。原RoleMdl讀表入口核對第26欄四值中第3值為+0x10c（res.c新增RoleDef.panic），不是取第一值；狀態17／100直接通知byte及效果表，不建立技能Buff。
+  - actor_effect依RoleEffectMdl原始20欄的65535空值套旗標、速度、三附加精靈、光環資料、殘影模式、第10～13修正及比例、聲音；指定0仍啟用對應旗標。res.c／res.h保存raw欄位。actor_effect_sprite及status_fx_draw／actor_effects_tick用三份Spr獨立播放，刪除舊逐Buff用全域拍數重畫；Spr型別由unit.c具名供Actor引用，換場景清掉播放器及殘影。
+  - actor_target_set接反擊、索敵、點擊與施法，near.c的foe_grp補102／0x4000排除；保留先寫目標、非NPC來源在NPC索敵圓距離內（整數sqrt、含等號）先入戰再互設目標。actor_notice_near接每拍格子名單，保留嚴格索敵方框及高層+8，不改成圓距離；候選技能重入查詢時保存外層名單游標。戰鬥狀態0仍沿actor_enter_fight橋接，完整主命令及狀態byte分派未標done。
+  - 殘影修正兩處：各部件幀索引越界回第0幀，不是取餘數；首槽沒有殘影不阻擋其他部件採樣／繪製。保留重開不改參數、重複30筆及非重複每5拍採樣／保留步數筆。shortcut：殘影混色沿SDL alpha；頭上效果額外高度待模型高度；完整狀態重算的末次呼叫反編譯傳-1，目前最後修改狀態優先為明示shortcut，原始組語未核對所以0x48b2f0仍todo。光環資料寫入已翻，每100拍觸發仍屬完整每拍todo；其餘24個todo多為本類別與引擎基礎，不能稱為等外部系統。無新增DLC分類。
+  - skilltest新增修正期限邊界／拒絕值0、低血重入亂數與不占Buff槽、通知參數順序、殘影容量／採樣／跨部件幀數、三槽狀態表指定0／解除／光環查鏈、目標圓距離與靠近嚴格方框／高層／敵對登記排除。`cd engine && make && make skilltest`最後一行`skilltest ok`；-DSTORY語法檢查通過；建置6個未使用函數警告。fields／roles已更新，FUNCS.tsv已重產；未commit或push。
+  **下一步：0x486270（CCharactor 尚餘24個todo；續補完整動態移動／模板、動畫、命令主分派與128狀態更新，完成整類別才進CNpc）起**。
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
