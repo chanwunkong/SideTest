@@ -294,7 +294,7 @@ typedef struct Actor {
     int move_a, move_b, move_c, move_remaining, walk_delay_adjust;
     int scale; // 目前比例與第4修正；模板指定比例時不追逐修正
     struct { int value, time; } modifier[20];
-    int modifiers_dirty, modifier_clock, trail_mode;
+    int modifiers_dirty, trail_mode;
     unsigned char state[128]; // 原版角色狀態byte；特殊主分派仍待補齊
     int status_countdown, original_group, counter_skill, status_aux;
     void *interaction;
@@ -425,9 +425,10 @@ static void actor_trail_exit(Actor *a) {
 }
 
 // 角色每拍中的20項期限分支；與原版共用角色拍數，不因重新設置期限而重置相位。
-// 完整每拍入口的方向漸轉、光環等分支仍待移植，不標完整入口位址。
+// 拍數由動態基底統一推進；空中略過後不補扣，回地面仍沿原相位。
+// 完整每拍入口的活動門檻、光環等分支仍待移植，不標完整入口位址。
 static void actor_modifiers_tick(Actor *a) {
-    if (++a->modifier_clock % 10) return;
+    if (a->direction_clock % 10) return;
     actor_status_countdown(a);
     for (int i = 0; i < 20; i++) {
         if (a->modifier[i].time < 0) continue;
@@ -2637,6 +2638,16 @@ static void actor_animation_tick(Actor *a) {
         if (spr_count(a->effect[k]) > 1 && spr_done(a->effect[k]) && a->effect[k]->seq)
             spr_set(a->effect[k], 0, 0);
     }
+}
+
+// 角色更新中已核對的維護分支：冷卻先扣，空中非靜止且未旋轉時整段略過。
+// shortcut: 動態基底／動畫仍由固定拍既有入口推進；完整角色更新接齊後合併活動門檻與光環。
+static void actor_maintenance_tick(Actor *a) {
+    actor_cooldown_tick(a);
+    if (!(a->flags & 0x400) && (a->flags & 0x200) && a->dynamic_state != 1) return;
+    actor_modifiers_tick(a);
+    actor_scale_tick(a);
+    if (a->modifiers_dirty) actor_effects_recompute(a);
 }
 
 // Poq.exe 0x496380：直接切本體序列，與目標序列分開；同序列不重設幀。
@@ -6166,12 +6177,9 @@ int main(int argc, char **argv) {
             viewport_tick(&viewport, &scene, hero);
             for (int i = 0; i < actor_count; i++) {
                 if (actors[i].role) { actor_height_tick(&actors[i]); actor_rush_update(&actors[i]); }
-                actor_modifiers_tick(&actors[i]);
                 actor_health_sync(&actors[i]);
                 actors[i].animation_stepped = 0;
-                actor_scale_tick(&actors[i]);
-                if (actors[i].modifiers_dirty) actor_effects_recompute(&actors[i]);
-                actor_cooldown_tick(&actors[i]);
+                if (actors[i].role) actor_maintenance_tick(&actors[i]);
                 if (actors[i].fight > 0 && !actors[i].foe && !--actors[i].fight)
                     actor_status_notify(&actors[i], 0, 0, -1);
             }

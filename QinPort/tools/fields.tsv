@@ -712,7 +712,7 @@ CCharactor	+0x561	基礎追擊範圍，層大於10時加8	Actor.def->chase／act
 CCharactor	+0x565	B_C_VRANGE值加12；模板入口先設12	Actor.view_range
 CCharactor	+0x569	狀態移動速度倍率百分比，初值100	Actor.effect_speed／status_speed
 CCharactor	+0x56d	行為重設時清0的整數，用途未明	Actor.behavior_aux
-CCharactor	+0x571	出手冷卻，無MethodMain時每拍減1	Actor.cool／actor_cooldown_tick（正數且無存活MethodMain才遞減；活動門檻仍待完整更新）
+CCharactor	+0x571	出手冷卻，無MethodMain時每拍減1	Actor.cool／actor_cooldown_tick（正數且無存活MethodMain才遞減；先於空中維護略過判定，角色啟用門檻仍todo）
 CCharactor	+0x575	行為重設時清0的整數，獨立setter無呼叫者	Actor.behavior_unused
 CCharactor	+0x579	蠱惑狀態清除及行為重設時清0；用途未定，不能當casting	Actor.status_aux；僅保存／清除原始欄位，不推測用途
 CCharactor	+0x57d	繪圖矩形診斷旗標	Actor.debug_rectangle
@@ -814,7 +814,7 @@ SpriteSequence	+0x08	序列總幀數；反播索引負數繞末幀、超界繞0	
 SpriteSequence	+0x10	目前幀已停拍數；滿max(幀延遲+調整,1)歸0換幀	Actor.frame_tick／Spr.tick
 SpriteSequence	+0x18	迴圈首幀；反播從此幀跳往迴圈末幀	Actor.body_start／Spr.start
 SpriteSequence	+0x1c	迴圈末幀；正播從此幀跳往首幀，完成判斷為目前幀>=此值且停到最後一拍	Actor.body_end／Spr.end
-CCharactor	+0xbb	物件累積更新拍，方向小於6格每4拍、否則每15拍更新	Actor.direction_clock（暫用動畫固定拍時鐘，完整生命週期接入時統一）
+CCharactor	+0xbb	物件累積更新拍，方向小於6格每4拍、否則每15拍更新	Actor.direction_clock（由動態基底每拍增加；方向／修正倒數共用，空中略過不補扣）
 RoleMdl	+0x4c	第7欄休息序列第一值；旗標0x400旋轉使用此起點而非死亡序列	RoleDef.idle／actor_direction_tick
 CObj	+0x30	SInit記錄，+0xc/+0x10格子座標；不等同插值中的世界座標	Actor.grid_x/grid_y/grid_valid
 CObj	+0x34	世界X，重設位置為格X*64+32	Actor.x*64（actor_position）

@@ -123,6 +123,48 @@ static void character_direction_step(Actor *a) {
     ++a->direction_clock;
 }
 
+// 單測維護分支時，模擬動態基底先推進共用時鐘。
+static void character_modifiers_step(Actor *a) {
+    ++a->direction_clock;
+    actor_modifiers_tick(a);
+}
+
+static void character_maintenance_test(void) {
+    RoleDef d = {.scale=65535};
+    Actor a = {.role=&empty_test_role, .def=&d, .dynamic_state=22,
+        .flags=0x200, .direction_clock=10, .cool=3, .scale=5,
+        .status_countdown=4, .modifiers_dirty=1};
+    for (int i=0; i<20; i++) a.modifier[i].time=-1;
+    a.modifier[4].value=8;
+    a.modifier[4].time=20;
+    actor_maintenance_tick(&a);
+    assert(a.cool==2 && a.scale==5 && a.modifier[4].time==20);
+    assert(a.status_countdown==4 && a.modifiers_dirty && a.direction_clock==10);
+    a.flags |= 0x400; // 旋轉分支越過空中略過條件。
+    actor_maintenance_tick(&a);
+    assert(a.cool==1 && a.scale==6 && a.modifier[4].time==10);
+    assert(a.status_countdown==3 && !a.modifiers_dirty && a.direction_clock==10);
+    a.flags=0x200; a.dynamic_state=1; // 空中靜止仍維護。
+    a.direction_clock=20;
+    actor_maintenance_tick(&a);
+    assert(!a.cool && a.scale==7 && !a.modifier[4].time && a.status_countdown==2);
+    a.flags=0; a.dynamic_state=11; a.direction_clock=29;
+    actor_maintenance_tick(&a);
+    assert(!a.modifier[4].time && a.status_countdown==2);
+    ++a.direction_clock;
+    actor_maintenance_tick(&a);
+    assert(a.modifier[4].time==-1 && !a.modifier[4].value && a.status_countdown==1);
+    // 暫停維護不另起倒數：恢復後只在共用拍數整十時扣一次。
+    a.modifier[4].time=20; a.flags=0x200;
+    for (int i=0; i<27; i++) { ++a.direction_clock; actor_maintenance_tick(&a); }
+    assert(a.modifier[4].time==20);
+    a.flags=0;
+    for (int i=0; i<2; i++) { ++a.direction_clock; actor_maintenance_tick(&a); }
+    assert(a.modifier[4].time==20);
+    ++a.direction_clock; actor_maintenance_tick(&a);
+    assert(a.modifier[4].time==10 && a.direction_clock==60);
+}
+
 static void character_rotation_cooldown_test(void) {
     Frame frames[3] = {{.delay=2}, {.delay=2}, {.delay=2}};
     Seq seqs[16];
@@ -523,13 +565,13 @@ static void character_status_countdown_test(void) {
     assert(!a.state[114] && !a.modifier[10].value && !a.effect[1]);
 
     // 固定拍每十拍扣一次，恰好0仍有效；新設狀態不重設相位。
-    a.modifier_clock = 8;
+    a.direction_clock = 8;
     actor_status_notify(&a, 115, 1, -1);
-    actor_modifiers_tick(&a); assert(a.status_countdown == 5);
-    actor_modifiers_tick(&a); assert(a.status_countdown == 4);
-    for (int i = 0; i < 40; i++) actor_modifiers_tick(&a);
+    character_modifiers_step(&a); assert(a.status_countdown == 5);
+    character_modifiers_step(&a); assert(a.status_countdown == 4);
+    for (int i = 0; i < 40; i++) character_modifiers_step(&a);
     assert(a.status_countdown == 0 && a.state[115]);
-    for (int i = 0; i < 10; i++) actor_modifiers_tick(&a);
+    for (int i = 0; i < 10; i++) character_modifiers_step(&a);
     assert(!a.state[115]);
 
     a.flags = 0x123;
@@ -849,18 +891,18 @@ static void character_modifiers_test(void) {
     actor_modifier_set(&a, 1, 0, 10);
     assert(a.modifiers_dirty && a.modifier[1].value == 4);
     a.modifiers_dirty = 0;
-    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    for (int k = 0; k < 10; k++) character_modifiers_step(&a);
     assert(a.modifier[1].time == 10 && actor_speed(&a) == 3);
-    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    for (int k = 0; k < 10; k++) character_modifiers_step(&a);
     assert(a.modifier[1].time == 0 && actor_speed(&a) == 3);
-    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    for (int k = 0; k < 10; k++) character_modifiers_step(&a);
     assert(a.modifier[1].time == -1 && actor_speed(&a) == 10 && a.modifiers_dirty);
     actor_modifier_set(&a, 4, -7, -1);
     actor_modifier_set(&a, 10, 50, -1);
     assert(a.modifier[4].value == -7 && actor_display(&a) == 50);
     actor_modifier_set(&a, 5, 1, 0);
     assert(a.knock == 1 && has_status(&a, 100));
-    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    for (int k = 0; k < 10; k++) character_modifiers_step(&a);
     assert(!a.knock && !has_status(&a, 100));
     // 永久期限重新寫相同值不重跑第3修正的隨機數。
     actor_health_percent(&a, 19);
@@ -919,9 +961,9 @@ static void character_illusion_test(void) {
     actor_trail_exit(&a); assert(a.modifier[6].time == 20);
     a.modifier[6].time = 21; actor_trail_exit(&a); assert(a.modifier[6].time == 21);
     a.modifier[6].time = 20;
-    for (int k = 0; k < 20; k++) actor_modifiers_tick(&a);
+    for (int k = 0; k < 20; k++) character_modifiers_step(&a);
     assert(a.modifier[6].time == 0 && a.illusion[0]);
-    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    for (int k = 0; k < 10; k++) character_modifiers_step(&a);
     assert(!a.illusion[0] && !a.illusion[1] && a.modifier[6].value == 0);
     // 欄位是否指定以65535判定，不能把值0誤當空欄；12覆蓋11。
     StatusDef effect = {.trail_move = 0, .trail_always = 65535};
@@ -1777,9 +1819,9 @@ static void character_movement_speed_test(void) {
     actor_speed_update(&a);
     assert(a.dynamic_state == 1 && !a.moving);
     assert(a.modifier[6].value == 1 && a.modifier[6].time == 20);
-    for (int k = 0; k < 20; k++) actor_modifiers_tick(&a);
+    for (int k = 0; k < 20; k++) character_modifiers_step(&a);
     assert(a.modifier[6].time == 0 && a.modifier[6].value == 1);
-    for (int k = 0; k < 10; k++) actor_modifiers_tick(&a);
+    for (int k = 0; k < 10; k++) character_modifiers_step(&a);
     assert(a.modifier[6].time == -1 && a.modifier[6].value == 0);
     // 長期限不能縮短；靜止時重套零速也不能刷新短期限。
     a.dynamic_state = 11; a.modifier[6].value = 1; a.modifier[6].time = 21;
@@ -2687,6 +2729,7 @@ int main(void) {
     character_movement_speed_test();
     character_direction_test();
     character_rotation_cooldown_test();
+    character_maintenance_test();
     character_animation_test();
     character_dynamic_exit_test();
     character_rush_test();
