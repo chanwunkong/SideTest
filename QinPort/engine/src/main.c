@@ -3136,6 +3136,12 @@ static void npc_behavior_reset(Actor *a) {
     actor_behavior_reset(a);
 }
 
+// Poq.exe 0x4933a0（CProtagonist建構）：CNpc建構後物件種類改60（不消費重判層旗標、單機攻擊間隔只用餘拍）。
+// +0x71e/+0x722/+0x726（點、-1）和+0x2c7=5000在整個映像只有建構與重設寫、沒人讀，不留欄位。
+static void protagonist_new(Actor *a) {
+    a->object_kind = 60;
+}
+
 // Poq.exe 0x4963e0：面向與目標序列的八方向分組一起更新。
 // Actor.dir使用畫面八方向，facing保留原版方向值（含負值）。
 static void actor_direction_set(Actor *a, int dir) {
@@ -7175,7 +7181,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     Scene next;
     if (!scene_load(&next, file)) { fprintf(stderr, "載入場景失敗：%s\n", file); return 0; }
     scene_client.ready = 0;
-    actor_behavior_reset(hero);
+    npc_behavior_reset(hero);  // 0x4934b0（CProtagonist虛擬重設）= 寫未讀欄位後走CNpc重設0x492e70
     if (scene->cells) scene_free(scene);
     *scene = next;
     unit_scene = scene;
@@ -7417,6 +7423,7 @@ int main(int argc, char **argv) {
     Scene scene = {0};
     Actor *hero = &actors[0];
     hero->dir = 4;
+    protagonist_new(hero);
     if (!enter_scene(&scene, hero, alias, -1)) return 1;
     if (!hero->role) { fprintf(stderr, "載入主角失敗\n"); return 1; }
     hero_stats(hero, level < 1 ? 1 : level > 99 ? 99 : level);

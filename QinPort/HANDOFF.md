@@ -1093,7 +1093,8 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 0x492730 → `npc_idle_ai`；0x492ed0 → `npc_dispatch`（主迴圈對NPC／怪物直接呼叫，取代 `monster_think`、`npc_think`）。陷阱（種類24，CTrapBase）改走 `trap_think`；`pursue` 只剩主角與陷阱用。Actor 新增 `path_walk walk_wait walk_block npc_timer follow_id npc_rest_stop`。怪物索敵改成原版節奏（每100拍 `npc_pick_target`、受擊／入戰事件），不再每拍掃。
   - shortcut：直線分支失敗後原版（反編譯）回退格落在「下一點」的全域暫存，這裡改占目前路徑點；記錄+0x88（連結SInit）恆當 -1，ONT 跟隨參數沿用矩形鍵 y／cx／cy；跟隨模式命令1的參數反編譯沒帶出，與命令2同；玩家組旗標0x10遠距1/200呼叫招式物件虛擬+0x20 省略；主人消失（0x497d00）改清 owner；`actor_owner` 當 +0x581==1。
   - skilltest：逐格走到(5,1)、knock 返回11、閒置AI巡邏／休息4；最後一行 `skilltest ok`。
-  **下一步：0x4933a0（CProtagonist）起；0x490e70／0x4909b0／0x493320 等 CNpc 虛擬表第27／28格呼叫者尚未接（仍標 LATER）。**
+- 進度（11-18b）：完成 **CProtagonist 類別（0x4933a0～0x4934d0）**：建構 → `protagonist_new`（主角物件種類 60，開局呼叫；60 才不消費重判層旗標），虛擬重設 0x4934b0 → `enter_scene` 的 `npc_behavior_reset(hero)`；+0x71e/+0x722/+0x726/+0x2c7 全映像沒人讀，不留欄位。解構、三個轉接（0x493480／4934a0／4934d0，主角每拍仍走點擊／鍵盤路徑不走 NPC 分派）、連線封包 0x493740、CDynamicObj 建構／解構 0x4934e0／0x493790 皆 skip。
+  **下一步：0x493850（CDynamicObj）起；~~下一步：0x4933a0（CProtagonist）起；0x490e70／0x4909b0／0x493320 等 CNpc 虛擬表第27／28格呼叫者尚未接（仍標 LATER）。**
 
 
 

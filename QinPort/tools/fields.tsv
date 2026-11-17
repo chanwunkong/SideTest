@@ -897,3 +897,6 @@ CNpc	+0x20	SInitCha閒置計時，>0每拍減1；休息值4設10000	Actor.npc_ti
 SInitChaFollow	+0x78	執行期跟隨目標句柄（與矩形X聯集）	Actor.follow_id
 SInitChaFollow	+0x80／+0x84	跟隨模式（0走1跑）／保持距離	NpcSpec.rw／rh（ONT鍵沿用矩形鍵，shortcut）
 CDynamicObj	+0x3f5／+0x3f6	（同上）步進等待byte／阻擋重試byte	Actor.walk_wait／walk_block
+CProtagonist	+0x71e/+0x722/+0x726	建構／重設寫0／0／-1，全映像沒人讀	不留欄位
+CProtagonist	+0x2c7	建構設5000（CNpc為1000），全映像沒人讀	不留欄位
+CProtagonist	+0x67	物件種類60	Actor.object_kind

@@ -871,3 +871,5 @@
 
 00492730	CNpc閒置AI：每100拍選目標、60拍找互動對象、被互動面向對方、邏輯0站著播兩初始態／1矩形閒逛／2路徑巡邏／3跟隨／其他走回修正格、有主人每70拍走回身邊 → main.c npc_idle_ai
 00492ed0	CNpc每拍主分派：恐懼逃跑→命令空且可重試→重設延遲→守衛→status_aux→玩家組旗標0x10→入戰主AI／閒置AI → main.c npc_dispatch（取代舊monster_think／npc_think，主迴圈直接呼叫）
+004933a0	CProtagonist建構：物件種類60（不消費重判層旗標）；未讀欄位+0x71e/+0x722/+0x726/+0x2c7不留 → main.c protagonist_new
+004934b0	CProtagonist虛擬重設：寫未讀欄位+0x726=-1後走CNpc重設0x492e70 → enter_scene的npc_behavior_reset(hero)

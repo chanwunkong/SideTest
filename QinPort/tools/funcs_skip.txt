@@ -689,3 +689,11 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00490360  CNpc刪除解構：同上加operator delete；Actor陣列生命週期承接
 00490e30  CNpc卸載：空函數0x579dd0加CCharactor卸載0x486d30（已skip）；生命週期承接
 00490960  只呼叫純查詢actor_can_use_id（無副作用）、結果不用，等於空函數；不建立包裝
+00493400  CProtagonist解構：設vftable、GPOINT解構、CNpc解構；Actor陣列生命週期承接
+00493430  CProtagonist刪除解構：同上加operator delete；Actor陣列生命週期承接
+00493480  CProtagonist虛擬轉接：直接呼叫actor_appearance_init 0x486520（已done，actor_setup呼叫）
+004934a0  CProtagonist虛擬轉接：直接呼叫actor_bind_scene 0x488a70（已done）
+004934d0  CProtagonist虛擬轉接：直接呼叫npc_dispatch 0x492ed0（已done）；主角每拍由點擊／鍵盤路徑驅動，不走NPC分派
+00493740  連線版：組0x423封包（呼叫者受DAT_00663804連線旗標限制）；單機不做
+004934e0  CDynamicObj建構：路徑清零、狀態-1、方向時鐘rand()%100；Actor零初始化與actor_setup承接
+00493790  CDynamicObj解構：GPOINT／容器釋放；Actor陣列生命週期承接
