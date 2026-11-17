@@ -217,3 +217,4 @@ OmUtil::GetFleePos	air_run使用既有dir_of與move_dir；核對OmUtil.dll匯出
 004b8190	Chat.Dlg字串取值及CString暫存；以res_dlg讀取並gbk_utf8轉碼及呼叫者字串緩衝區取代
 00495880	方向反向的純整數工具：0..7用(dir+4)%8，其他值原樣保留；由C整數運算承接，不另建無呼叫者工具函數
 00497d90	矩形縮放數學工具：main.c role_rect_scale，向零截斷半邊增量後加倍，底邊或中心錨點
+00496de0	動態物件當前精靈序列getter；以role_seq(Actor.role, Actor.body_seq)直接存取不可變Seq，播放器狀態由Actor保存

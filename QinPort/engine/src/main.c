@@ -300,6 +300,7 @@ typedef struct Actor {
     const MonDef *mon;  // 怪物的數值表列；NPC 與主角為 NULL
     int level, hp, hp_max, mp, mp_max, ap, ap_max, dp, hr, sr, exp;
     int act, act_seq, last_frame;  // 單次動作與它的序列起點、上一拍的幀（觸發用）
+    int body_seq, body_start, body_end, body_ready, animation_stepped;
     int act_frame, frame_tick, act_done;  // 單次動作播到第幾幀、這幀停了幾拍、播完了沒
     int adj, extra;                // 這次動作每幀延遲的調整（序列 +0x14）、攻速多出來要補到間隔的拍數
     int flags;                     // 招式設的旗標（type 8）：0x10 = 怪物不選它當目標、0x200 = 在空中、0x4000 = 打它的會停手
@@ -637,32 +638,67 @@ static int actor_seq(const Actor *a) {
     return a->act ? a->act_seq + DIR_MAP[a->dir] : actor_animation_target(a, DIR_MAP[a->dir]);
 }
 
-// 目前該畫第幾幀：平常循環播放，單次動作播完停在最後一幀
+// 本體播放器由固定拍推進；繪製只讀，不能以畫面頻率或總拍數重算。
 static int actor_frame(const Actor *a, int seq) {
     const Seq *q = role_seq(a->role, seq);
-    if (!q) return 0;
-    if (a->act) return a->act_frame < q->count ? a->act_frame : q->count - 1;
-    int adjust = 0;
-    if (a->def && ((a->def->walk != 65535 && seq >= a->def->walk && seq < a->def->walk + 8) ||
-                   (a->def->fight_walk != 65535 && seq >= a->def->fight_walk && seq < a->def->fight_walk + 8)))
-        adjust = a->walk_delay_adjust;
-    if (!adjust) return frame_at(q, a->act_tick);
-    // shortcut: 延遲下限沿用現有播放器的1拍；完整Gfx播放器接入時核對。
-    Uint32 total = 0;
-    for (int i = 0; i < q->count; i++) {
-        int d = q->frames[i].delay + adjust;
-        total += d > 0 ? d : 1;
-    }
-    if (!total) return 0;
-    Uint32 t = a->act_tick % total;
-    for (int i = 0; i < q->count; i++) {
-        int d = q->frames[i].delay + adjust;
-        Uint32 stay = d > 0 ? d : 1;
-        if (t < stay) return i;
-        t -= stay;
-    }
-    return 0;
+    if (!q || !q->count || !a->body_ready || a->body_seq != seq) return 0;
+    return a->act_frame < q->count ? a->act_frame : q->count - 1;
 }
+
+static int actor_body_delay(const Actor *a, const Seq *q);
+
+static void actor_body_select(Actor *a) {
+    int seq = actor_seq(a);
+    if (!a->body_ready || a->body_seq != seq) {
+        // 建立時沿用原有的隨機起始相位；換序列則從首幀開始。
+        Uint32 phase = !a->body_ready && !a->act ? a->act_tick : 0;
+        a->body_seq = seq;
+        a->body_ready = 1;
+        a->act_frame = a->frame_tick = a->act_done = 0;
+        const Seq *q = role_seq(a->role, seq);
+        a->body_start = 0;
+        a->body_end = q && q->count ? q->count - 1 : 0;
+        while (q && q->count && phase >= (Uint32)actor_body_delay(a, q)) {
+            phase -= actor_body_delay(a, q);
+            a->act_frame = (a->act_frame + 1) % q->count;
+        }
+        if (q && q->count) a->frame_tick = (int)phase;
+    }
+}
+
+static int actor_body_delay(const Actor *a, const Seq *q) {
+    int adjust = a->act ? a->adj : 0;
+    int seq = a->body_seq;
+    if (!a->act && a->def &&
+        ((a->def->walk != 65535 && seq >= a->def->walk && seq < a->def->walk + 8) ||
+         (a->def->fight_walk != 65535 && seq >= a->def->fight_walk && seq < a->def->fight_walk + 8)))
+        adjust = a->walk_delay_adjust;
+    int delay = q->frames[a->act_frame].delay + adjust;
+    return delay < 1 ? 1 : delay;
+}
+
+// 本體與附加精靈共用原版播放器的完成判斷：最後幀的最後一拍。
+static int actor_body_done(const Actor *a, const Seq *q) {
+    return q && q->count && a->act_frame >= a->body_end &&
+           a->frame_tick == actor_body_delay(a, q) - 1;
+}
+
+// 反播 Poq.exe 0x49e5f0；正播／停末幀沿用同一份幀與延遲資料。
+// shortcut: 全域播放器延遲調整仍為0；引擎加入該全域選項時統一接入本體與Spr。
+static void actor_body_step(Actor *a, const Seq *q, int stop) {
+    if (stop && actor_body_done(a, q)) return;
+    if (++a->frame_tick < actor_body_delay(a, q)) return;
+    a->frame_tick = 0;
+    if (stop) {
+        if (a->act_frame != a->body_end) ++a->act_frame;
+    } else if (a->reverse_playback) {
+        a->act_frame = a->act_frame == a->body_start ? a->body_end : a->act_frame - 1;
+    } else a->act_frame = a->act_frame == a->body_end ? a->body_start : a->act_frame + 1;
+    if (a->act_frame < 0) a->act_frame = q->count - 1;
+    else if (a->act_frame >= q->count) a->act_frame = 0;
+}
+
+static void actor_animation_tick(Actor *a);
 
 // 三個附加精靈各自一份播放器；替換原先逐個Buff重畫且跟全域拍數循環的簡化版。
 // shortcut: 頭上／身上位置沿用動畫內建偏移，模型高度欄位接入後核對額外錨點偏移。
@@ -882,7 +918,6 @@ static int actor_can_move(const Actor *a);
 
 // 一拍的角色更新：往畫面方向 (mx, my) 走；原版每 B 拍移動 A + C/10 像素（速度對照表）
 static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick) {
-    int was_moving = a->moving;
     a->moving = 0;
     // shortcut: 現有移動迴圈承接平常／移動狀態，跳躍等完整動態狀態仍待移植。
     int state = mx * mx + my * my > 0.01f ? 11 : 1;
@@ -898,7 +933,6 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
     }
     a->animation_dir = DIR_MAP[a->dir];
     actor_animation_select(a, -1);
-    a->act_tick = a->moving == was_moving ? a->act_tick + 1 : 0;
 }
 
 // NPC 平時邏輯：13 在範圍內隨機走走停停、14 沿路線來回巡邏、其他站著
@@ -1246,6 +1280,7 @@ static void start_act(Actor *a, int act, int seq) {
     a->act_seq = seq;
     a->act_tick = a->act_frame = a->frame_tick = a->act_done = a->adj = a->extra = 0;
     a->last_frame = -1;
+    a->body_ready = 0;
     a->moving = 0;
     if (act == ACT_ATTACK) attack_speed(a);
 }
@@ -2137,7 +2172,25 @@ static void actor_status_countdown(Actor *a) {
         actor_status_notify(a, status, 0, -1);
 }
 
-static void actor_effects_tick(Actor *a) {
+// Poq.exe 0x487f30：空中不推本體，但仍清挨打、播放三個附加精靈。
+static void actor_animation_tick(Actor *a) {
+    a->animation_stepped = 1;
+    actor_body_select(a);
+    const Seq *q = role_seq(a->role, a->body_seq);
+    if (!(a->flags & 0x200) && q && q->count) {
+        if (a->knock == 1) {
+            for (int i = 0; i < 3; i++) actor_body_step(a, q, 1);
+        } else {
+            // shortcut: 死亡仍由Actor屍體計時承接，保留停末幀；原版死亡物件移交接入時移除此橋接。
+            actor_body_step(a, q, a->act == ACT_DEAD);
+        }
+        ++a->act_tick;
+    }
+    a->act_done = actor_body_done(a, q);
+    if (((a->flags & 0x200) || a->act_done) && has_status(a, 101)) {
+        actor_status_notify(a, 101, 0, -1);
+        actor_animation_select(a, -1);
+    }
     for (int k = 0; k < 3; k++) if (a->effect[k]) {
         spr_next(a->effect[k]);
         if (spr_count(a->effect[k]) > 1 && spr_done(a->effect[k]) && a->effect[k]->seq)
@@ -2482,8 +2535,10 @@ static void walk_fx(Actor *a, const Scene *s, Uint32 tick) {
 // shortcut: type 6（只對物件種類 7）、type 10（招式物件虛擬函式 0x20 = 0x43a760）還沒做
 static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
     actor_animation_select(a, a->act_seq + DIR_MAP[a->dir]);
+    actor_body_select(a);
     int seq = actor_seq(a);
     const Seq *q = role_seq(a->role, seq);
+    int finished = !q || actor_body_done(a, q);
     int f = q || a->act != ACT_ATTACK ? actor_frame(a, seq) : 99;  // 角色沒有這招的動作（陷阱）：觸發一次全放
     if (a->act == ACT_ATTACK && a->atk) {  // 招式的觸發由角色出手物件（U_MAIN）放
         if (a->last_frame < 0 && !main_of(a)) main_new(a);
@@ -2501,17 +2556,9 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
         else if (tick % a->move_b == 0) actor_step(a, s, (gx - gy) * 32, (gx + gy) * 16, a->move_a + a->move_c / 10.0f);
     }
     a->last_frame = f;
-    a->act_tick++;
-    // 逐幀推進：每幀停 延遲 + 調整 拍。shortcut: 調整後不到 1 拍時當 1 拍，原版播放器（Gfx）的下限沒查
-    if (q && q->count) {
-        int d = (q->frames[a->act_frame].delay > 0 ? q->frames[a->act_frame].delay : 1) + a->adj;
-        if (++a->frame_tick >= (d < 1 ? 1 : d)) {
-            a->frame_tick = 0;
-            if (a->act_frame < q->count - 1) a->act_frame++;
-            else a->act_done = 1;
-        }
-    }
-    if (a->act == ACT_ATTACK && (!q || a->act_done)) {  // 動作播完：連鎖就重播（0x43a760），否則結束角色出手
+    // 先讓MethodMain消費末幀，再結束動作；延遲1的末幀也不能漏掉觸發。
+    actor_animation_tick(a);
+    if (a->act == ACT_ATTACK && finished) {  // 動作播完：連鎖就重播（0x43a760），否則結束角色出手
         MUnit *u = main_of(a);
         if (u && unit_bounce(u)) {
             a->act_frame = a->frame_tick = a->act_done = 0;
@@ -2520,7 +2567,7 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
         }
         if (u) unit_die(u, tick);
     }
-    if (a->act != ACT_DEAD && (!q || a->act_done)) {
+    if (a->act != ACT_DEAD && finished) {
         // 攻擊間隔（Poq.exe 0x48d330）：NPC組用float攻速倍率，其餘組為間隔+隨機(間隔)。
         // shortcut: 仍於動作結束才裝冷卻，完整MethodMain狀態接入後改於綁定時裝入；NPC種類60的免間隔分支待物件種類接入。
         if (a->act == ACT_ATTACK && a->mon && a->skill) {  // 怪物打完一招：記成上一招，下次重選（0x4911b0）
@@ -2616,7 +2663,6 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
     if (cell_dist(a, t) <= range + 0.5f) {
         face(a, sdx, sdy);
         a->moving = 0;
-        a->act_tick++;
         // 主角技能要夠精气才能用（0x1004c2a0），出手時扣（Poq.exe 0x48ffe0 送 0x13a → EasyRPG 0x1003f370）
         if (a->want) {  // 走到範圍內了：放等著的左手技能
             const SkillRow *w = a->want;
@@ -5522,7 +5568,7 @@ int main(int argc, char **argv) {
                 if (actors[i].role) actor_height_tick(&actors[i]);
                 actor_modifiers_tick(&actors[i]);
                 actor_health_sync(&actors[i]);
-                actor_effects_tick(&actors[i]);
+                actors[i].animation_stepped = 0;
                 actor_scale_tick(&actors[i]);
                 if (actors[i].modifiers_dirty) actor_effects_recompute(&actors[i]);
                 if (actors[i].cool > 0) actors[i].cool--;
@@ -5548,6 +5594,7 @@ int main(int argc, char **argv) {
                 else monster_think(a, hero, &scene, tick);
             }
             for (int i = 0; i < actor_count; i++) {
+                if (actors[i].role && !actors[i].animation_stepped) actor_animation_tick(&actors[i]);
                 actor_near_reactions(&actors[i]);
                 walk_fx(&actors[i], &scene, tick);
             }

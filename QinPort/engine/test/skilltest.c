@@ -8,6 +8,74 @@ static RoleDef def;
 static MonDef md;
 static const Role empty_test_role;
 
+static void character_animation_test(void) {
+    Frame frames[4] = {{.delay = 2}, {.delay = 2}, {.delay = 2}, {.delay = 2}};
+    Seq seqs[2] = {{4, frames}, {4, frames}};
+    Anim anim = {.count = 2, .seqs = seqs};
+    Role role = {.part_count = 1, .seq_count = 2, .body = {&anim}};
+    Actor a = {.role = &role, .dir = 2};
+    actor_animation_tick(&a); assert(a.act_frame == 0 && a.frame_tick == 1);
+    actor_animation_tick(&a); assert(a.act_frame == 1 && !a.frame_tick);
+    a.reverse_playback = 1;
+    actor_animation_tick(&a); actor_animation_tick(&a);
+    assert(a.act_frame == 0 && !a.frame_tick);
+    actor_animation_tick(&a); actor_animation_tick(&a);
+    assert(a.act_frame == 3 && !a.frame_tick); // 反播從首幀繞回末幀。
+    actor_animation_tick(&a); assert(a.act_done);
+    actor_animation_tick(&a); assert(a.act_frame == 2 && !a.act_done);
+    a.knock = 1; a.reverse_playback = 0; a.act_frame = a.frame_tick = 0;
+    actor_animation_tick(&a); assert(a.act_frame == 1 && a.frame_tick == 1);
+    actor_animation_tick(&a); assert(a.act_frame == 3 && !a.frame_tick);
+    actor_animation_tick(&a); assert(a.act_frame == 3 && a.frame_tick == 1 && a.act_done);
+    actor_animation_tick(&a); assert(a.act_frame == 3 && a.frame_tick == 1); // 三次step仍停末幀。
+    a.knock = 0; a.flags = 0x200; a.state[101] = 1;
+    a.act_frame = a.frame_tick = 0;
+    Spr effect = {.a = &anim, .seq = 1, .end = 3};
+    a.effect[0] = &effect;
+    actor_animation_tick(&a);
+    assert(!a.state[101] && a.act_frame == 0 && !a.frame_tick);
+    assert(effect.cur == 0 && effect.tick == 1); // 空中仍播放附加精靈。
+    effect.cur = 3; effect.tick = 0;
+    actor_animation_tick(&a);
+    assert(effect.seq == 0 && !effect.cur && !effect.tick);
+    a.effect[0] = NULL; a.flags = 0;
+    a.act = ACT_HIT; a.act_seq = 1;
+    actor_animation_tick(&a); assert(a.body_seq == 1 && !a.act_frame && a.frame_tick == 1);
+    // 原版到最後幀最後一拍便解除101，不必等下一幀繞回。
+    a.state[101] = 1; a.act_frame = 3; a.frame_tick = 0;
+    actor_animation_tick(&a); assert(!a.state[101] && a.act_done);
+    a.state[101] = 0; a.reverse_playback = 1;
+    a.body_start = 1; a.body_end = 2; a.act_frame = 1; a.frame_tick = 1;
+    actor_animation_tick(&a); assert(a.act_frame == 2 && !a.frame_tick);
+    a.reverse_playback = 0; a.frame_tick = 1;
+    actor_animation_tick(&a); assert(a.act_frame == 1 && !a.frame_tick);
+    // 首次播放保留建立角色時的隨機相位；換序列從首幀起。
+    Actor idle = {.role = &role, .dir = 2, .act_tick = 5};
+    actor_body_select(&idle); assert(idle.act_frame == 2 && idle.frame_tick == 1);
+    // 遊戲單次動作也消費同一播放器，沒有另一套逐幀推進。
+    a = (Actor){.role = &role, .act = ACT_HIT, .dir = 2};
+    for (int i = 0; i < 6; i++) action_tick(&a, NULL, i);
+    assert(a.act == ACT_HIT && a.act_frame == 3 && !a.frame_tick);
+    action_tick(&a, NULL, 6); assert(a.act == ACT_HIT && a.act_done);
+    action_tick(&a, NULL, 7); assert(a.act == ACT_NONE);
+    start_act(&a, ACT_DEAD, 0);
+    for (int i = 0; i < 20; i++) action_tick(&a, NULL, i);
+    assert(a.act == ACT_DEAD && a.act_frame == 3 && a.frame_tick == 1);
+    // 末幀僅1拍也必須交給MethodMain，不能在到達該幀時便跳過它收招。
+    int saved_n = unit_n; MUnit saved = units[0]; unit_n = 0;
+    Frame short_frames[2] = {{.delay = 1}, {.delay = 1}};
+    Seq short_seq = {2, short_frames}; Anim short_anim = {.count = 1, .seqs = &short_seq};
+    Role short_role = {.part_count = 1, .seq_count = 1, .body = {&short_anim}};
+    RoleDef d = {0};
+    Method m = {.trig_count = 1, .trig = {{.flag = 0, .frame = 1, .type = 8, .id = 16, .id2 = 1}}};
+    a = (Actor){.role = &short_role, .def = &d, .act = ACT_ATTACK, .dir = 2, .atk = &m, .last_frame = -1};
+    action_tick(&a, NULL, 0); assert(a.act == ACT_ATTACK && !(a.flags & 16));
+    action_tick(&a, NULL, 1); assert(a.act == ACT_NONE && (a.flags & 16));
+    units[0] = saved; unit_n = saved_n;
+
+
+}
+
 static void character_dynamic_exit_test(void) {
     Cell cells[4] = {{.layer = 12}, {.layer = 10}, {.layer = 9}, {.layer = 16}};
     Scene s = {.w = 2, .h = 2, .cells = cells};
@@ -512,7 +580,7 @@ static void character_illusion_test(void) {
     Anim anims[2] = {{.count = 1, .seqs = &seqs[0]}, {.count = 1, .seqs = &seqs[1]}};
     Role r = {.part_count = 2, .seq_count = 1, .body = {&anims[0], &anims[1]}};
     RoleDef d = {0};
-    Actor a = {.def = &d, .role = &r, .act = ACT_ATTACK, .act_frame = 2, .dir = 2, .x = 2, .y = 3, .z = 4};
+    Actor a = {.def = &d, .role = &r, .act = ACT_ATTACK, .body_ready = 1, .body_seq = 0, .body_end = 2, .act_frame = 2, .dir = 2, .x = 2, .y = 3, .z = 4};
     for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
     actor_modifier_set(&a, 6, 1, 20);
     assert(a.illusion[0] && a.illusion[1]);
@@ -1207,11 +1275,15 @@ static void character_movement_speed_test(void) {
     Anim anim = {.count = 2, .seqs = seq};
     Role role = {.part_count = 1, .seq_count = 2, .body = {&anim}};
     RoleDef d = {.walk = 1, .fight_walk = 65535};
-    Actor slow = {.role = &role, .def = &d, .act_tick = 4, .walk_delay_adjust = 3};
+    Actor slow = {.role = &role, .def = &d, .dir = 2, .dynamic_state = 11, .walk_delay_adjust = 3};
     Actor fast = slow; fast.walk_delay_adjust = -2;
+    for (int i = 0; i < 4; i++) { actor_animation_tick(&slow); actor_animation_tick(&fast); }
     assert(actor_frame(&slow, 1) == 0 && actor_frame(&fast, 1) == 1);
     assert(actor_frame(&fast, 0) == 0 && frames[0].delay == 5);
-    fast.walk_delay_adjust = -5; assert(actor_frame(&fast, 1) == 0); // 4 mod 2。
+    fast.frame_tick = fast.act_frame = 0; fast.walk_delay_adjust = -5;
+    for (int i = 0; i < 4; i++) actor_animation_tick(&fast);
+    assert(actor_frame(&fast, 1) == 0); // 4 mod 2；每幀最少1拍。
+
 }
 
 static void character_properties_test(void) {
@@ -1272,11 +1344,11 @@ static void character_properties_test(void) {
     d.atk_delay = 30;
     Scene sc = {0};
     a = (Actor){.role = &role, .def = &d, .dir = 2, .grp = 10000,
-                .act = ACT_ATTACK, .act_done = 1, .extra = 2};
+                .act = ACT_ATTACK, .body_ready = 1, .body_seq = 0, .body_end = 2, .act_frame = 2, .frame_tick = 9, .extra = 2};
     actor_property(&a, "B_C_FIGHT_SPEED", 1);
     action_tick(&a, &sc, 0);
     assert(a.cool == 31 && !a.act); // trunc(30*ratio)+2=31，與mon指標無關。
-    a.act = ACT_ATTACK; a.act_done = 1; a.extra = 0; a.grp = 0; a.mon = &mon;
+    a.act = ACT_ATTACK; a.act_frame = 2; a.frame_tick = 9; a.extra = 0; a.grp = 0; a.mon = &mon;
     srand(123); int expected = 30 + rand() % 30;
     srand(123); action_tick(&a, &sc, 0);
     assert(a.cool == expected && !a.act);
@@ -1862,6 +1934,7 @@ int main(void) {
     character_skill_index_test();
     character_template_candidates_test();
     character_movement_speed_test();
+    character_animation_test();
     character_dynamic_exit_test();
     character_air_status_test();
     character_speed_memory_test();

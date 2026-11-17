@@ -804,7 +804,13 @@ CCharactor	+0x50f	人物通知第5參數原樣保存	Actor.behavior[1]
 CCharactor	+0x514	人物通知第7參數原樣保存	Actor.behavior[2]
 CCharactor	+0x518	人物通知第6參數原樣保存	Actor.behavior[3]
 CDynamicObj	+0x2cb	動態狀態退出設1的活動標記，非行為狀態	Actor.dynamic_active
-CDynamicObj	+0x3d1	本體動畫反向播放模式，退出11或31清0；不是moving旗標	Actor.reverse_playback（寫入已接，動畫消費仍todo）
+CDynamicObj	+0x3d1	本體動畫反向播放模式，退出11或31清0；不是moving旗標	Actor.reverse_playback／actor_body_step（固定拍本體反播，退出11或31清除）
 CDynamicObj	+0x2d7	目前離地高度；退出21/22與高度setter不清此值	Actor.z
 CDynamicObj	+0x2db	每拍垂直速度；退出22=-5，旋飛啟用2／解除-10	Actor.vz
 CDynamicObj	+0x2df	垂直高度上限；旋飛啟用100、解除及退出22為0	Actor.zmax
+SpriteSequence	+0x00	序列幀資料陣列，每幀原版22 bytes	Seq.frames（共用不可變Frame資源）
+SpriteSequence	+0x04	目前幀索引；反播在迴圈首幀跳至迴圈末幀	Actor.act_frame／Spr.cur
+SpriteSequence	+0x08	序列總幀數；反播索引負數繞末幀、超界繞0	Seq.count
+SpriteSequence	+0x10	目前幀已停拍數；滿max(幀延遲+調整,1)歸0換幀	Actor.frame_tick／Spr.tick
+SpriteSequence	+0x18	迴圈首幀；反播從此幀跳往迴圈末幀	Actor.body_start／Spr.start
+SpriteSequence	+0x1c	迴圈末幀；正播從此幀跳往首幀，完成判斷為目前幀>=此值且停到最後一拍	Actor.body_end／Spr.end
