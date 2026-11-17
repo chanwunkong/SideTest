@@ -3448,6 +3448,88 @@ static void character_hit_status_test(void) {
     *effect=saved_effect; unit_n=saved_n;
 }
 
+// 真正繪圖入口：早退不能推進浮字；特效三槽有各自的高度錨點。
+static Uint32 character_pixel(SDL_Surface *s, int x, int y) {
+    Uint8 r,g,b,a;
+    SDL_GetRGBA(((Uint32 *)s->pixels)[y*(s->pitch/4)+x], s->format, &r,&g,&b,&a);
+    return (Uint32)r<<16 | (Uint32)g<<8 | b;
+}
+static void character_draw_branches_test(void) {
+    SDL_Renderer *saved_ren=ren;
+    int saved_w=vw, saved_h=vh, saved_units=unit_n, saved_count=actor_count;
+    Uint8 saved_alpha=draw_alpha;
+    SceneClient saved_client=scene_client;
+    Actor saved_actor=actors[0]; MUnit saved_unit=units[0];
+    SDL_Surface *surface=SDL_CreateRGBSurfaceWithFormat(0,128,128,32,SDL_PIXELFORMAT_RGBA32);
+    assert(surface); ren=SDL_CreateSoftwareRenderer(surface); assert(ren);
+    vw=vh=128; draw_alpha=255;
+    const uint32_t refs[4]={0xf765001,0xf765002,0xf765003,0xf765004};
+    const Uint32 colors[4]={0xff0000,0x00ff00,0x0000ff,0xffffff};
+    Sprite saved_images[4]; SDL_Texture *textures[4];
+    Frame f[4]; Seq q[4]; Anim an[4];
+    for(int i=0;i<4;i++) {
+        SDL_Surface *pixel=SDL_CreateRGBSurfaceWithFormat(0,1,1,32,SDL_PIXELFORMAT_RGBA32);
+        SDL_FillRect(pixel,NULL,SDL_MapRGBA(pixel->format,colors[i]>>16,(colors[i]>>8)&255,colors[i]&255,255));
+        textures[i]=SDL_CreateTextureFromSurface(ren,pixel); SDL_FreeSurface(pixel); assert(textures[i]);
+        SDL_SetTextureBlendMode(textures[i],SDL_BLENDMODE_BLEND);
+        saved_images[i]=*slot_find(refs[i]);
+        *slot_find(refs[i])=(Sprite){.tex=textures[i],.w=1,.h=1};
+        f[i]=(Frame){.ref=refs[i],.delay=1}; q[i]=(Seq){.count=1,.frames=&f[i]};
+        an[i]=(Anim){.count=1,.seqs=&q[i]};
+    }
+    int count=1; uint8_t order_byte=0, *order=&order_byte;
+    Role role={.part_count=1,.seq_count=1,.frames=&count,.order=&order,.body={&an[3]}};
+    RoleDef model={.display=0};
+    Spr fx[3]={{.a=&an[0]},{.a=&an[1]},{.a=&an[2]}};
+    Actor a={.role=&role,.def=&model,.z=10,.head_height=20,.grp=77,
+             .effect={&fx[0],&fx[1],&fx[2]},.body_ready=1,.body_seq=0,.shown_ready=1,.shown_seq=0};
+    Scene scene={0}; actors[0]=(Actor){.role=&role,.grp=77}; actor_count=1;
+    scene_client=(SceneClient){.scene=&scene,.ready=1,.controlled=0};
+    for(int dead=0;dead<2;dead++) {
+        a.act=dead?ACT_DEAD:ACT_NONE;
+        SDL_SetRenderDrawColor(ren,0,0,0,255); SDL_RenderClear(ren);
+        actor_draw(&a,64,80,0); SDL_RenderPresent(ren);
+        assert(character_pixel(surface,64,80)==colors[2]); // 腳仍在地面。
+        assert(character_pixel(surface,64,70)==colors[1]); // 身體在本體之後。
+        assert(character_pixel(surface,64,50)==colors[0]); // 頭再扣head_height。
+    }
+    a.head_height=0;
+    SDL_SetRenderDrawColor(ren,0,0,0,255); SDL_RenderClear(ren);
+    actor_draw(&a,64,80,0); SDL_RenderPresent(ren);
+    assert(character_pixel(surface,64,70)==colors[0]); // 重疊時頭必須最後畫。
+    a.head_height=20;
+    // 同組隱身可見；沒有操控角色或不同組則早退，浮字倒數也不動。
+    a.flags=0x20000; a.overhead[0].left=10; a.overhead[0].total=10;
+    actors[0].grp=78;
+    SDL_SetRenderDrawColor(ren,0,0,0,255); SDL_RenderClear(ren);
+    actor_draw(&a,64,80,0); SDL_RenderPresent(ren);
+    assert(character_pixel(surface,64,80)==0 && a.overhead[0].left==10);
+    assert(!actor_draw_visible(&a)); actors[0].grp=77; assert(actor_draw_visible(&a));
+    scene_client.ready=0; assert(!actor_draw_visible(&a)); scene_client.ready=1;
+    a.flags=0; model.display=50; assert(!actor_draw_visible(&a));
+    a.modifier[10].value=1; assert(actor_draw_visible(&a));
+    a.modifier[10].value=50; model.display=1; assert(!actor_draw_visible(&a));
+    a.modifier[10].value=0; a.overhead[0].left=0;
+    memset(a.effect,0,sizeof a.effect); a.state[60]=1;
+    unit_n=1; units[0]=(MUnit){.cls=U_MAIN,.owner=&a};
+    SDL_SetRenderDrawColor(ren,0,0,0,255); SDL_RenderClear(ren);
+    actor_draw(&a,64,80,0); SDL_RenderPresent(ren);
+    assert(character_pixel(surface,79,70)!=0 && character_pixel(surface,49,70)!=0);
+    assert(character_pixel(surface,74,80)!=0 && character_pixel(surface,64,55)!=0);
+    int ink=0;
+    for(int y=0;y<128;y++) for(int x=0;x<128;x++) ink += character_pixel(surface,x,y)!=0;
+    assert(ink==9 && draw_alpha==255); // 本體加八個副本，沒有第九個副本。
+    units[0].main_detached=1;
+    SDL_SetRenderDrawColor(ren,0,0,0,255); SDL_RenderClear(ren);
+    actor_draw(&a,64,80,0); SDL_RenderPresent(ren);
+    assert(character_pixel(surface,79,70)==0);
+    for(int i=0;i<4;i++) { *slot_find(refs[i])=saved_images[i]; SDL_DestroyTexture(textures[i]); }
+    SDL_DestroyRenderer(ren); SDL_FreeSurface(surface);
+    ren=saved_ren; vw=saved_w; vh=saved_h; draw_alpha=saved_alpha;
+    scene_client=saved_client; actors[0]=saved_actor; actor_count=saved_count;
+    unit_n=saved_units; units[0]=saved_unit;
+}
+
 static void character_death_fear_test(void) {
     Actor saved[8]; memcpy(saved, actors, sizeof saved);
     int saved_count = actor_count;
@@ -3507,6 +3589,7 @@ static void character_death_fear_test(void) {
 int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
+    character_draw_branches_test();
     character_death_fear_test();
     character_hit_status_test();
     character_blood_test();

@@ -746,14 +746,15 @@ static void actor_body_step(Actor *a, const Seq *q, int stop) {
 static void actor_animation_tick(Actor *a);
 static void actor_yield_request(const Actor *a, int x, int y);
 
-// 三個附加精靈各自一份播放器；替換原先逐個Buff重畫且跟全域拍數循環的簡化版。
-// shortcut: 頭上／身上位置沿用動畫內建偏移，模型高度欄位接入後核對額外錨點偏移。
+// 角色繪圖的三附加精靈：腳部留在地面，身部隨高度，頭部再扣模型高度。
+// 三槽與本體比例無關；各自使用播放器保存的當前幀。
 static void status_fx_draw(const Actor *a, int sx, int sy, Uint32 tick, int foot) {
     (void)tick;
-    for (int k = 0; k < 3; k++) {
-        if ((k == 2) != foot || !a->effect[k]) continue;
+    for (int i = 0; i < (foot ? 1 : 2); ++i) {
+        int k = foot ? 2 : 1 - i; // 身上在頭上之前；即使兩者重疊也由頭上覆蓋。
+        if (!a->effect[k]) continue;
         const Frame *f = spr_frame(a->effect[k]);
-        if (f) draw(image(f->ref), sx - f->dx, sy - f->dy);
+        if (f) draw(image(f->ref), sx - f->dx, sy - f->dy - (k == 0 ? a->head_height : 0));
     }
 }
 
@@ -877,9 +878,13 @@ static void actor_scale_tick(Actor *a) {
 
 static void actor_overhead_draw(Actor *a, int sx, int sy);
 
+static int actor_draw_visible(const Actor *a);
+static int actor_has_method(const Actor *a);
+
+// 角色繪圖主入口尚缺調色盤覆色／標記資源，不以局部分支標成完成。
 static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     const Role *r = a->role;
-    if (!r) return;
+    if (!r || !actor_draw_visible(a)) return;
     int seq = actor_seq(a);
     if (seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
     int frame = actor_frame(a, seq) % r->frames[seq];
@@ -890,11 +895,22 @@ static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
         const Anim *ring = id ? anim_get(id) : NULL;
         if (ring && ring->count) draw_frame(ring, 0, frame_at(&ring->seqs[0], tick), sx, sy, 0);
     }
-    if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy, tick, 1);
+    status_fx_draw(a, sx, sy, tick, 1);
     actor_illusion_draw(a);
     if (a->scale) actor_scaled_draw(a, seq, frame, sx, sy - a->z, 0);
     else role_draw(r, seq, frame, sx, sy - a->z);  // 影子留在地上
-    if (a->act != ACT_DEAD) status_fx_draw(a, sx, sy - a->z, tick, 0);
+    // 狀態60僅在未縮放且有MethodMain時，以首部件畫八個固定偏移副本。
+    // shortcut: SBMP的0x80合成旗標暫由SDL半透明承接，調色盤渲染器接齊後核對。
+    if (!a->scale && has_status(a, 60) && actor_has_method(a)) {
+        static const int offset[8][2] = {{15,0},{-15,0},{10,10},{-10,10},
+                                        {-10,-10},{10,-10},{0,-15},{0,15}};
+        Uint8 saved = draw_alpha;
+        draw_alpha = 128;
+        for (int i = 0; i < 8; ++i)
+            draw_frame(r->body[0], seq, frame, sx + offset[i][0], sy - a->z + offset[i][1], 0);
+        draw_alpha = saved;
+    }
+    status_fx_draw(a, sx, sy - a->z, tick, 0);
     actor_overhead_draw(a, sx, sy - a->z);
 }
 
@@ -1172,6 +1188,13 @@ static Actor *scene_client_actor(const SceneClient *c) {
 static inline int scene_client_group(const SceneClient *c, int group) {
     if (!scene_client_actor(c)) return 0;
     return scene_client_actor(c)->grp == group;
+}
+
+// 繪圖本體的早退：隱身僅操控角色同組能看見，顯示50連影子／浮字也不處理。
+// 不在矩形getter隱藏，原版矩形計算與繪圖可見性是兩個入口。
+static int actor_draw_visible(const Actor *a) {
+    if ((a->flags & 0x20000) && !scene_client_group(&scene_client, a->grp)) return 0;
+    return actor_display(a) != 50;
 }
 
 // Poq.exe 0x489380：只揭開操控角色同組；上層擴大半徑，迴圈右／下界不含端點。
@@ -2195,6 +2218,8 @@ static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = �
 #include "light.c"
 #define scene (*unit_scene)
 #include "unit.c"
+
+static int actor_has_method(const Actor *a) { return main_of(a) != NULL; }
 #undef scene
 #include "weather.c"
 

@@ -1006,6 +1006,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 保留原版第一部件零幀時，方向維護清掉原幀索引的行為；不拿後面部件的幀數保存原幀。shortcut：原版無部件群會讀0x14，現有缺資源／負索引／超界回NULL，待資源完整性驗證接齊時改為載入錯誤。`Role.body[0]`承接首精靈，`Actor.role`直接持有目前群；兩個純指標getter記入base_map，fields新增已核對的+0x1f首精靈／+0x14序列表，語義類別名與未核對RTTI明示在表內。
   - 光環維護本體再核對仍是100拍、模式1、檢查施加者自己的狀態byte；接收端未確認，沒有猜狀態值8的語義或加入Buff。完整動態11、移除／繪圖、15..19互動及光環仍是同類別／引擎基礎todo；介面暫停、NPC全域選人及令牌通知仍依前輪等不同類別系統。**本輪未達成整類別完成要求**，主範圍完成位址未增加，下一步不前移。
   - skilltest新增實際方向維護的兩部件／首部件零幀測試，另驗證指定序列描述與一般播放查詢不同、負索引／超界／缺群安全限制；roles／fields／base_map及FUNCS.tsv更新。`cd engine && make && make skilltest 2>&1 | tail -3`通過，最後一行`skilltest ok`；原生建置6個既有unused-function警告。無新DLC分類；未commit／push。
+  ~~下一步：0x486270（CCharactor 尚餘9個todo；完成整類別才進CNpc）起~~。
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，本輪補角色繪圖的可見性、三附加精靈錨點及狀態60副本；整類別仍未完成，未進CNpc**。主範圍done 76、skip 33、todo 9不變，新增done／skip均0。
+  - `main.c actor_draw`接原版隱身旗標僅操控角色同組可見、修正優先的顯示方式50整段早退；沿用`scene_client_group`，沒有以side／敵對判斷代替組別。早退不畫影子、腳圈、特效，也不扣浮字倒數；矩形getter依原版保持獨立，不把繪圖早退誤套到矩形計算。
+  - `status_fx_draw`刪掉頭部沿用身部錨點的shortcut，腳部在地面，身部在本體高度，頭部再減`head_height`；身部先畫、頭部後畫，死亡不自行略過三槽。`actor_draw`在未縮放、狀態60且`main_of`確有綁定時，用首部件畫原版八個固定偏移副本；解綁／已死MethodMain不畫，不能用casting代替指標是否存在。
+  - shortcut：副本的SBMP旗標0x80暫用SDL alpha128，待調色盤渲染器接齊校對合成；原版部件覆色、頭上標記及診斷矩形仍缺，未將繪圖主入口寫完成位址。完整動態11尋路、移除、15..19互動及100拍光環仍屬同類別／引擎基礎todo；介面暫停、NPC全域選人及令牌通知才等不同類別系統。**本輪未達成整類別完成要求**，下一步不前移。
+  - skilltest以合成單像素精靈經實際`actor_draw`驗證三槽高度、頭身重疊、死亡仍畫、組別／缺操控角色／顯示修正優先、隱藏不扣浮字、首部件八副本及解綁停畫；修正測試fixture缺疊圖順序後通過。roles／fields更新、FUNCS.tsv重產，沒有新偏移／skip／base／DLC分類；`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`，原生建置6個既有unused-function警告；未commit／push。
   **下一步：0x486270（CCharactor 尚餘9個todo；完成整類別才進CNpc）起**。
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

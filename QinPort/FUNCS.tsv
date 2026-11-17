@@ -1017,7 +1017,7 @@ Poq.exe	99	00486d30	FUN_00486d30	CCharactor	game	skip	48	12	CCharactor卸載清�
 Poq.exe	99	00486e70	FUN_00486e70	~CCharactor	game	done	9	9		取消排隊命令：只將命令代號置-1，保留三參數；actor_cancel_command接actor_setup與換組	
 Poq.exe	99	00486e80	FUN_00486e80	~CCharactor	game	done	15	13		main.c actor_forget_command：原命令1/2設延遲50否則0，僅清代號保留三參數；接施法收尾及對話命令，主分派與記住命令重送仍未完成	
 Poq.exe	99	00486ed0	FUN_00486ed0	CCharactor	game	done	138	8			00497310 004a3340 00577d60
-Poq.exe	99	004872e0	FUN_004872e0	CCharactor|CNpc|CProtagonist	game	todo	300	17		角色繪圖：影子、關係腳圈、縮放、顯示模式／狀態覆色、三附加精靈、標記與8槽浮字；未完成	0049caf0 0049e2e0 00575700 00577360 00577d60 00577dd0 00578000 00578a20
+Poq.exe	99	004872e0	FUN_004872e0	CCharactor|CNpc|CProtagonist	game	todo	300	17		todo：actor_draw已接隱身0x20000僅操控角色同組可見、修正優先顯示50整段早退；腳特效留地面、身部隨高度、頭部再扣head_height且後畫，死亡不額外禁附加精靈；未縮放且狀態60且main_of存在時首部件畫八固定偏移副本；影子／腳圈／縮放／殘影／8槽浮字沿現有入口；仍缺部件調色盤覆色、頭上標記與診斷矩形，不標主入口done	0049caf0 0049e2e0 00575700 00577360 00577d60 00577dd0 00578000 00578a20
 Poq.exe	99	00487d30	FUN_00487d30	~CCharactor	game	skip	89	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	00487f30	FUN_00487f30	CCharactor|CNpc|CProtagonist	game	done	61	17		角色本體與三附加精靈逐拍更新：0x200凍結本體、修正5值1連做三次停末幀step、反播沿迴圈首尾、完成或空中解除101；actor_animation_tick已移至動態分派之後、高度與維護之前；action_tick僅消費播放前幀／完成快照，不再重播；死亡物件仍沿屍體計時並停末幀	0048d950
 Poq.exe	99	00488090	FUN_00488090	~CCharactor	game	todo	69	2		todo：actor_status_countdown已接共用倒數與優先序、114換色／精靈及12偵測；12每次找5圈不同組未發現陷阱並揭露，再查320世界單位周遭不同組旗標0x20000使自身解除8；仍等CGameApp介面自動暫停選項／1501訊息與場景暫停通知，不標完整入口done	0046c260 0048d950

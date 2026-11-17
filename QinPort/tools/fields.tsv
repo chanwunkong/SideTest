@@ -675,14 +675,14 @@ CCharactor	+0x43b	第6修正期限，移動入口-1／更新入口20	Actor.modif
 CCharactor	+0x43f	第7修正值，互動命令15設為操作者句柄	Actor.modifier[7].value
 CCharactor	+0x443	第7修正期限，命令15只在小於101且識別或期限不同時設100	Actor.modifier[7].time
 CCharactor	+0x44f	第9修正值，角色頭上標記ID	待頭上標記
-CCharactor	+0x457	第10修正值，非0覆蓋模板顯示方式；50不可作遍歷目標	Actor.modifier[10].value／actor_display
+CCharactor	+0x457	第10修正值，非0覆蓋模板顯示方式；50不可作遍歷目標且繪圖整段早退	Actor.modifier[10].value／actor_display
 CCharactor	+0x45b	第10修正期限	Actor.modifier[10].time
 CCharactor	+0x45f	第11修正值，套身體／武器顏色	Actor.modifier[11].value；完整角色覆色繪圖todo
 CCharactor	+0x467	第12修正值，套另一部件顏色	Actor.modifier[12].value；完整角色覆色繪圖todo
 CCharactor	+0x46f	第13修正值，套另一部件顏色	Actor.modifier[13].value；完整角色覆色繪圖todo
-CCharactor	+0x4a7	頭上附加精靈	Actor.effect[0]／actor_effect_sprite
-CCharactor	+0x4ab	身上附加精靈	Actor.effect[1]／actor_effect_sprite
-CCharactor	+0x4af	腳下附加精靈	Actor.effect[2]／actor_effect_sprite
+CCharactor	+0x4a7	頭上附加精靈；本體Y扣高度及head_height，最後覆蓋身部	Actor.effect[0]／actor_effect_sprite／status_fx_draw
+CCharactor	+0x4ab	身上附加精靈；本體Y扣離地高度，頭部之前繪製	Actor.effect[1]／actor_effect_sprite／status_fx_draw
+CCharactor	+0x4af	腳下附加精靈；地面Y，不扣離地高度	Actor.effect[2]／actor_effect_sprite／status_fx_draw
 CCharactor	+0x4b3	角色頭部高度u16，新載紙娃娃序列0／幀0本體矩形高加10，選方向之前計算	Actor.head_height／actor_appearance_init
 CCharactor	+0x4b5	多個特殊狀態共用倒數，105=9、111/114=8、115=5；每10拍減1、負數才清，優先105/12/111/115/114	Actor.status_countdown／actor_status_countdown；狀態12偵測已接，介面暫停通知及完整活動門檻仍todo
 CCharactor	+0x4b9	最後修改的狀態ID byte；組語確認重算比較的是狀態值與此ID，末次實際傳-1	Actor.last_status／actor_effects_recompute
