@@ -280,7 +280,8 @@ typedef struct Actor {
     int scale; // 目前比例與第4修正；模板指定比例時不追逐修正
     struct { int value, time; } modifier[20];
     int modifiers_dirty, modifier_clock, trail_mode;
-    unsigned char state[128]; // 已接修正副作用的狀態17／100；完整狀態設置副作用仍待移植
+    unsigned char state[128]; // 原版角色狀態byte；特殊主分派仍待補齊
+    int status_countdown, original_group, counter_skill, status_aux;
     int hp_percent, behavior[4];
     Spr *effect[3];
     int effect_speed, effect_applied;
@@ -363,6 +364,7 @@ static void actor_illusion_draw(const Actor *a);
 static void actor_modifier_changed(Actor *a, int index, int value);
 static void actor_effect(Actor *a, int status, int on, int skill);
 static void actor_status_notify(Actor *a, int status, int on, int skill);
+static void actor_status_countdown(Actor *a);
 // Poq.exe 0x48ec60：期限-1可覆寫任何值；其他期限只接受不短於現有期限。
 // 回傳暫存器原版混合了被呼叫函數結果與輸入索引；遊戲呼叫端均不消費，以void承接。
 static void actor_modifier_set(Actor *a, int index, int value, int time) {
@@ -397,6 +399,7 @@ static void actor_trail_exit(Actor *a) {
 // 完整每拍入口的方向漸轉、光環等分支仍待移植，不標完整入口位址。
 static void actor_modifiers_tick(Actor *a) {
     if (++a->modifier_clock % 10) return;
+    actor_status_countdown(a);
     for (int i = 0; i < 20; i++) {
         if (a->modifier[i].time < 0) continue;
         a->modifier[i].time -= 10;
@@ -1025,6 +1028,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
         a->hp_percent = 100;
         a->effect_speed = 100;
         a->display_number = -1;
+        a->counter_skill = -1;
     }
     actor_cancel_command(a);
     actor_name_set(a, a->spec ? a->spec->event : "");
@@ -1388,8 +1392,7 @@ static void actor_second(Actor *h) {
     int changed = 0;
     for (int b = 0; b < h->buff_n; b++)
         if (++h->buff[b].elapsed >= h->buff[b].time && h->buff[b].time >= 0) {
-            if ((unsigned)h->buff[b].status < 128u) h->state[h->buff[b].status] = 0;
-            actor_effect(h, h->buff[b].status, 0, -1);
+            actor_status_notify(h, h->buff[b].status, 0, -1);
             h->buff[b--] = h->buff[--h->buff_n]; changed = 1;
         }
     if (changed) { actor_derive(h); actor_effects_recompute(h); }
@@ -1631,11 +1634,11 @@ static int status_class(int st) {
     return -1;
 }
 
+// Poq.exe 0x494f50：讀角色byte，技能Buff名單不是第二份狀態來源。
+// shortcut: 128..255原版會讀越過狀態陣列的物件欄位；拒絕越界，若資料有此ID再核對用途。
 static int has_status(const Actor *a, int st) {
-    if ((unsigned)st < 128u && a->state[st]) return a->state[st];
-    for (int b = 0; b < a->buff_n; b++)
-        if (a->buff[b].status == st) return 1;
-    return 0;
+    unsigned id = (unsigned char)st;
+    return id < 128u ? a->state[id] : 0;
 }
 
 // 加不上的狀態（0x10058410）：身上已有同一個；或已有第 4 類時加第 5、2 類，第 7 類時加第 6 類，第 11 類時加第 10 類，第 2、5 類各自不能再加同類
@@ -1664,7 +1667,7 @@ static int buff_add(Actor *a, const SkillRow *r, int status, int side, int time,
         if (o < 0) continue;
         if ((o == c && (c == 1 || c == 3 || c == 4 || c == 6)) || (c == 3 && o == 4) || (c == 4 && (o == 2 || o == 3 || o == 5)) ||
             (c == 7 && o == 6) || (c == 11 && o == 10))
-            { if ((unsigned)a->buff[b].status < 128u) a->state[a->buff[b].status] = 0; actor_effect(a, a->buff[b].status, 0, -1); a->buff[b--] = a->buff[--a->buff_n]; }
+            { actor_status_notify(a, a->buff[b].status, 0, -1); a->buff[b--] = a->buff[--a->buff_n]; }
     }
     if (a->buff_n == 8) return 0;
     a->buff[a->buff_n++] = (Buff){r, r ? r->level : 0, status, 0, time, side, patch};
@@ -1920,7 +1923,7 @@ static const Scene *unit_scene;
 static void buff_drop(Actor *a, int st) {
     int n = a->buff_n;
     for (int b = 0; b < a->buff_n; b++)
-        if (a->buff[b].status == st) { if ((unsigned)st < 128u) a->state[st] = 0; actor_effect(a, st, 0, -1); a->buff[b--] = a->buff[--a->buff_n]; }
+        if (a->buff[b].status == st) { actor_status_notify(a, st, 0, -1); a->buff[b--] = a->buff[--a->buff_n]; }
     if (n != a->buff_n) { actor_derive(a); actor_effects_recompute(a); }
 }
 static int hostile(const Actor *a, const Actor *e);
@@ -1982,14 +1985,71 @@ static void actor_effect(Actor *a, int status, int on, int skill) {
 }
 
 // 共用byte通知及套表，供修正17／100與技能Buff使用。
-// 完整主分派的特殊狀態switch仍todo，不標其原版位址。
+// 已接本類別的隱身、反擊開關、蠱惑與特殊共用倒數；
+// 主分派的戰鬥命令、挨打取消及升空仍todo，不標完整主入口位址。
 static void actor_status_notify(Actor *a, int status, int on, int skill) {
     if ((unsigned)status >= 128u || a->state[status] == on) return;
     a->state[status] = (unsigned char)on;
+    switch (status) {
+    case 8:
+        actor_set_flags(a, 0x20000, on != 0);
+        break;
+    case 13:
+        a->counter_skill = on ? 0 : -1;
+        break;
+    case 14:
+        if (on) {
+            static int group = 99; // 原版共用分配器，99..1循環；不得依角色另起一份。
+            a->original_group = a->grp;
+            actor_group(a, group);
+            if (--group < 1) group = 99;
+        } else {
+            actor_group(a, a->original_group);
+            // +0x579用途尚未確定，不能猜成casting而中斷當前施法。
+            a->status_aux = 0;
+        }
+        break;
+    case 105:
+        if (on) a->status_countdown = 9;
+        break;
+    case 111:
+    case 114:
+        if (on) a->status_countdown = 8;
+        else if (status == 114) {
+            actor_modifier_set(a, 10, 0, -1);
+            if (a->effect[1]) {
+                free(a->effect[1]); a->effect[1] = NULL;
+            }
+        }
+        break;
+    case 115:
+        if (on) a->status_countdown = 5;
+        break;
+    case 121:
+        actor_set_flags(a, 0x80000, on != 0);
+        break;
+    }
     a->modifiers_dirty = 1;
     actor_effect(a, status, on, skill);
     const StatusDef *d = status_def(status);
     if (d && d->raw[1] != 65535) a->last_status = status;
+}
+
+// 特殊狀態共用倒數分支；完整入口還包含狀態12的陷阱偵測／介面暫停。
+// 此處不標完整入口位址，不能把待補的同類別分支視為外部系統。
+static void actor_status_countdown(Actor *a) {
+    --a->status_countdown;
+    int status = a->state[105] ? 105 : a->state[12] ? 12 :
+                 a->state[111] ? 111 : a->state[115] ? 115 :
+                 a->state[114] ? 114 : -1;
+    if (status == 114 && a->status_countdown == 5) {
+        // 原版直接覆寫，不經修正setter，亦不重設倒數。
+        a->modifier[10].value = 2;
+        a->modifier[10].time = -1;
+        actor_effect_sprite(a, 1, 0x100014);
+    }
+    if (status >= 0 && status != 12 && a->status_countdown < 0)
+        actor_status_notify(a, status, 0, -1);
 }
 
 static void actor_effects_tick(Actor *a) {

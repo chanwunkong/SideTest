@@ -18,6 +18,85 @@ static void mk(Actor *a) {
     a->hp = a->hp_max;
 }
 
+static void character_status_countdown_test(void) {
+    Actor a = {0};
+    for (int i = 0; i < 20; i++) a.modifier[i].time = -1;
+    // byte是唯一狀態來源；倒數清除不能被尚未到期的Buff「復活」。
+    a.buff[0] = (Buff){.status = 105, .time = 100}; a.buff_n = 1;
+    assert(!has_status(&a, 105));
+    actor_status_notify(&a, 105, 2, -1);
+    assert(has_status(&a, 105) == 2 && a.status_countdown == 9);
+    a.status_countdown = 4;
+    actor_status_notify(&a, 105, 2, -1);
+    assert(a.status_countdown == 4); // 相同值不能刷新共用倒數。
+    assert(has_status(&a, 105 + 256) == 2);
+    for (int i = 0; i < 4; i++) actor_status_countdown(&a);
+    assert(a.status_countdown == 0 && has_status(&a, 105) == 2);
+    actor_status_countdown(&a);
+    assert(!has_status(&a, 105) && a.buff_n == 1);
+
+    actor_status_notify(&a, 111, 1, -1);
+    assert(a.status_countdown == 8);
+    actor_status_notify(&a, 115, 1, -1);
+    assert(a.status_countdown == 5); // 不同狀態覆蓋同一計數器。
+    a.status_countdown = 0;
+    actor_status_countdown(&a);
+    assert(!a.state[111] && a.state[115]); // 每次只處理一個。
+    actor_status_countdown(&a);
+    assert(!a.state[115]);
+
+    actor_status_notify(&a, 114, 1, -1);
+    assert(a.status_countdown == 8);
+    a.state[12] = 1; a.status_countdown = 6;
+    actor_status_countdown(&a);
+    assert(!a.modifier[10].value && !a.effect[1]); // 12優先，遮蔽114的換色。
+    a.state[12] = 0; a.status_countdown = 6;
+    actor_status_countdown(&a);
+    assert(a.modifier[10].value == 2 && a.modifier[10].time == -1 && a.effect[1]);
+    assert(a.effect[1]->a == anim_get(0x100014));
+    for (int i = 0; i < 5; i++) actor_status_countdown(&a);
+    assert(a.status_countdown == 0 && a.state[114] && a.effect[1]);
+    actor_status_countdown(&a);
+    assert(!a.state[114] && !a.modifier[10].value && !a.effect[1]);
+
+    // 固定拍每十拍扣一次，恰好0仍有效；新設狀態不重設相位。
+    a.modifier_clock = 8;
+    actor_status_notify(&a, 115, 1, -1);
+    actor_modifiers_tick(&a); assert(a.status_countdown == 5);
+    actor_modifiers_tick(&a); assert(a.status_countdown == 4);
+    for (int i = 0; i < 40; i++) actor_modifiers_tick(&a);
+    assert(a.status_countdown == 0 && a.state[115]);
+    for (int i = 0; i < 10; i++) actor_modifiers_tick(&a);
+    assert(!a.state[115]);
+
+    a.flags = 0x123;
+    actor_status_notify(&a, 8, 2, -1);
+    assert(a.flags == (0x123 | 0x20000));
+    actor_status_notify(&a, 8, 0, -1); assert(a.flags == 0x123);
+    actor_status_notify(&a, 121, 1, -1); assert((a.flags & 0x80023) == 0x80023);
+    actor_status_notify(&a, 121, 0, -1); assert((a.flags & 0x80023) == 0x23);
+    actor_status_notify(&a, 13, 1, -1); assert(a.counter_skill == 0);
+    actor_status_notify(&a, 13, 0, -1); assert(a.counter_skill == -1);
+
+    // 蠱惑以原組別還原，不能誤清尚在播放的技能。
+    a.grp = 12345; a.casting = 2; a.status_aux = 7;
+    a.foe = &a; a.command[0] = 9;
+    actor_status_notify(&a, 14, 1, -1);
+    assert(a.original_group == 12345 && a.grp == 99 && !a.foe && a.command[0] == -1);
+    actor_status_notify(&a, 14, 0, -1);
+    assert(a.grp == 12345 && !a.status_aux && a.casting == 2);
+
+    // 到期與明確移除必須透過共用通知清除旗標。
+    a = (Actor){.def = &def, .hp = 100, .hp_max = 100};
+    assert(buff_add(&a, NULL, 8, 1, 1, 0));
+    assert(a.flags & 0x20000);
+    actor_second(&a); assert(!a.state[8] && !(a.flags & 0x20000));
+    assert(buff_add(&a, NULL, 8, 1, 10, 0));
+    assert(buff_add(&a, NULL, 121, 1, 10, 0));
+    assert(!a.state[8] && !(a.flags & 0x20000) && (a.flags & 0x80000));
+    buff_drop(&a, 121); assert(!a.state[121] && !(a.flags & 0x80000));
+}
+
 static void scene_client_test(void) {
     Actor saved = actors[0];
     int count = actor_count;
@@ -815,8 +894,8 @@ static void character_near_test(void) {
     assert(actor_near_begin(a, 0, -1) == first);
     first->modifier[10].value = 0; first->def = &d;
     a->flags = 0x4000; assert(!actor_near_begin(a, 0, -1));
-    a->flags = 0; a->buff_n = 1; a->buff[0].status = 102;
-    assert(!actor_near_begin(a, 0, -1)); a->buff_n = 0;
+    a->flags = 0; a->state[102] = 1;
+    assert(!actor_near_begin(a, 0, -1)); a->state[102] = 0;
     // 只有-1用預設範圍；零及其他負值都失敗，而且不重設底層游標。
     assert(actor_near_begin(a, 0, 2) == first);
     assert(!actor_near_begin(a, 0, 0));
@@ -931,7 +1010,7 @@ static void character_animation_select_test(void) {
     actor_animation_select(&a, -1); assert(a.animation_target == 35);
     a.dynamic_state = 1; d.run_seq = 40;
     actor_animation_select(&a, -1); assert(a.animation_target == 27);
-    a.buff_n = 1; a.buff[0].status = 101;
+    a.state[101] = 1;
     actor_animation_select(&a, -1); assert(a.animation_target == 51);
     d.hit = 65535; a.animation_target = 78;
     actor_animation_select(&a, -1); assert(a.animation_target == 78);
@@ -1644,6 +1723,7 @@ int main(void) {
     character_target_reaction_test();
     character_effect_test();
     character_effect_recompute_test();
+    character_status_countdown_test();
     character_relation_test();
     character_scale_test();
     character_skills_test();

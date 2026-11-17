@@ -650,8 +650,17 @@ CCharactor	+0xaf	當前移速的A參數；0時不能使用距離大於等於3的
 CCharactor	+0x2cf	角色模板指標	Actor.def
 CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減半	Actor.speed_threshold
 CCharactor	+0x339	AI組（0..99玩家、10000..60000 NPC組）	Actor.grp
-CCharactor	+0x33d	蠱惑前原AI組	待狀態14
-CCharactor	+0x341	128個狀態byte：值非0代表啟用，不限布林值	Actor.state[128]及Buff通知合併has_status；目前byte設置接17／100，其餘完整主分派todo
+CCharactor	+0x33d	蠱惑前原AI組	Actor.original_group；狀態14換組／還原，技能選取副作用仍todo
+CCharactor	+0x349	狀態8隱身byte；切換物件旗標0x20000	Actor.state[8]／actor_status_notify
+CCharactor	+0x34d	狀態12陷阱與周遭隱身偵測byte；倒數優先序在105之後	Actor.state[12]；偵測分支仍todo
+CCharactor	+0x34e	狀態13反擊byte；啟用寫反擊技能0，解除寫-1	Actor.state[13]／Actor.counter_skill
+CCharactor	+0x34f	狀態14蠱惑byte；保存原組並取全域99..1循環組	Actor.state[14]／Actor.original_group
+CCharactor	+0x3aa	狀態105byte；非0設共用倒數9，倒數負值才清	Actor.state[105]／Actor.status_countdown
+CCharactor	+0x3b0	狀態111byte；非0設共用倒數8	Actor.state[111]／Actor.status_countdown
+CCharactor	+0x3b3	狀態114byte；非0設倒數8，剩5設第10修正2及身上精靈，解除清兩者	Actor.state[114]／Actor.status_countdown
+CCharactor	+0x3b4	狀態115byte；非0設共用倒數5	Actor.state[115]／Actor.status_countdown
+CCharactor	+0x3ba	狀態121byte；切換令牌旗標0x80000	Actor.state[121]／actor_status_notify
+CCharactor	+0x341	128個狀態byte：值非0代表啟用，不限布林值	Actor.state[128]／has_status；移除Buff回退，特殊主分派仍todo
 CCharactor	+0x3ff	32位關聯識別，遍歷模式2與候選物件識別比較；G_NPCActive第三參數>0時寫第二參數	Actor.search_link／actor_search_link_set
 CCharactor	+0x403	角色組合旗標32位值	Actor.flags／actor_flags／actor_set_flags
 CCharactor	+0x407	20項修正值，每項相隔8bytes，初值0	Actor.modifier[20].value／actor_modifier_set
@@ -675,7 +684,7 @@ CCharactor	+0x4a7	頭上附加精靈	Actor.effect[0]／actor_effect_sprite
 CCharactor	+0x4ab	身上附加精靈	Actor.effect[1]／actor_effect_sprite
 CCharactor	+0x4af	腳下附加精靈	Actor.effect[2]／actor_effect_sprite
 CCharactor	+0x4b3	角色頭部高度u16，載模型時計算矩形高度加10	待角色模型矩形／頭頂文字
-CCharactor	+0x4b5	多個特殊狀態共用倒數，狀態105=9、111/114=8、115=5	待狀態倒數
+CCharactor	+0x4b5	多個特殊狀態共用倒數，105=9、111/114=8、115=5；每10拍減1、負數才清，優先105/12/111/115/114	Actor.status_countdown／actor_status_countdown；狀態12偵測及完整活動門檻仍todo
 CCharactor	+0x4b9	最後修改的狀態ID byte；組語確認重算比較的是狀態值與此ID，末次實際傳-1	Actor.last_status／actor_effects_recompute
 CCharactor	+0x4ba	狀態／修正需要重算的byte旗標	Actor.modifiers_dirty
 CCharactor	+0x4bb	SkillUnit技能鏈表頭	Actor.skills／skill_n（原模板重建後追加NPC／玩家技能列）
@@ -683,7 +692,7 @@ CCharactor	+0x4d7	SkillUnit技能鏈首節點	Actor.skills[0]／skill_n
 CCharactor	+0x4db	SkillUnit技能鏈遍歷游標	ActorSkill遍歷索引，無共用游標
 CCharactor	+0x4df	目前選取的SkillUnit指標；快捷索引選取不改左右手ID	Actor.selected（-1無選取）；actor_skill_select_index
 CCharactor	+0x4e7	目前MethodMain招式物件	main_of(a)
-CCharactor	+0x4eb	反擊技能ID，-1無、0複製來襲技能的特定分支	待反擊
+CCharactor	+0x4eb	反擊技能ID，-1無、0複製來襲技能的特定分支	Actor.counter_skill；狀態13開關已保存，完整反擊消費仍todo
 CCharactor	+0x4ef	四個候選技能ID的第一項，後續+0x4f3/+0x4f7/+0x4fb	Actor.candidate[0..3]／actor_candidate_cast
 CCharactor	+0x4ff	右手技能ID	Actor.right_id
 CCharactor	+0x503	左手技能ID	Actor.left_id
@@ -705,7 +714,7 @@ CCharactor	+0x569	狀態移動速度倍率百分比，初值100	Actor.effect_spe
 CCharactor	+0x56d	行為重設時清0的整數	待確認用途
 CCharactor	+0x571	出手冷卻，無MethodMain時每拍減1	Actor.cool（現有簡化更新時機）
 CCharactor	+0x575	行為重設時清0的整數，獨立setter無呼叫者	未使用
-CCharactor	+0x579	蠱惑狀態清除及行為重設時清0	待確認用途
+CCharactor	+0x579	蠱惑狀態清除及行為重設時清0；用途未定，不能當casting	Actor.status_aux；僅保存／清除原始欄位，不推測用途
 CCharactor	+0x57d	繪圖矩形診斷旗標	待診斷繪圖
 CCharactor	+0x581	主人／關聯識別值，getter與setter不改組別或目標	Actor.owner；actor_owner／actor_owner_set（Actor指標承接識別）
 CCharactor	+0x585	顯示名稱附加編號，初值-1	Actor.display_number／actor_name_number
