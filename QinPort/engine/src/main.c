@@ -321,6 +321,7 @@ typedef struct Actor {
     int body_size;                 // 動態物件占位大小（模板大小<7取1，否則減5）
     int grp;                       // AI 組（+0x339）：0～99 玩家組、10000～60000 NPC 組；敵對看它（near.c is_foe）
     int seek_adjust, view_range;
+    int trap_revealed, trap_group; // 陷阱發現旗標（原版+0x9f的反值）及最後主人組別
     int copied, copy[12];
     float knock_x, knock_y;        // 被擊退要滑到的點（knock = 1 時）
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
@@ -1151,6 +1152,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->act_tick = rand() % 200;
     a->ai_tick = rand() % 100;
     a->mon = m;
+    // shortcut: 陷阱沿用mon_make建立，預設未被發現；完整CTrapBase建立入口接入時對照初始旗標。
     a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
     a->side = 1;
     actor_group(a, 10000);  // shortcut: 沒有劇情時怪物都算同一個 NPC 組；有劇情時 actors_sync 換成 G_AIGroup
@@ -1159,6 +1161,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->exp = mon_stat(m->exp, a->level, 0);
     a->atk = method_find(skill_attack(m->skill[0]));  // 技能表沒有這招時的招式；有的話每次出手前由 mon_pick 選
     actor_setup(a, d);
+    a->trap_group = a->grp;
     return a;
 }
 
@@ -1829,6 +1832,7 @@ static void trap(Actor *a, const SkillRow *r) {
     int x = (int)a->x, y = (int)a->y;
     if (!trap_cell(&x, &y, 10)) { s->role = NULL; return; }  // CTrapBase 放進場景（0x49be40）：周圍 10 圈第一個能放的格子
     s->x = x + 0.5f, s->y = y + 0.5f;
+    s->trap_group = a->grp;
     s->copied = 1;
     s->copy[0] = a->ap;
     s->copy[1] = a->ap_max;
@@ -2035,13 +2039,28 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
     if (d && d->raw[1] != 65535) a->last_status = status;
 }
 
-// 特殊狀態共用倒數分支；完整入口還包含狀態12的陷阱偵測／介面暫停。
-// 此處不標完整入口位址，不能把待補的同類別分支視為外部系統。
+// 特殊狀態共用倒數與狀態12偵測；介面自動暫停通知仍待接，故不標完整入口位址。
 static void actor_status_countdown(Actor *a) {
     --a->status_countdown;
     int status = a->state[105] ? 105 : a->state[12] ? 12 :
                  a->state[111] ? 111 : a->state[115] ? 115 :
                  a->state[114] ? 114 : -1;
+    if (status == 12) {
+        if (!unit_scene || !unit_scene->cells) return; // 尚未登記場景時沒有可查詢物件。
+        Actor *t = near_trap((int)a->x, (int)a->y, 5, a->grp);
+        if (t) {
+            // todo: 介面自動暫停選項啟用時，先送訊息1501/16/1000並暫停場景。
+            // 尚未接CGameApp介面選項與暫停通知，不能自行以玩家組或side猜測條件。
+            trap_reveal(t);
+        }
+        for (t = near_first(ax64(a), ay64(a), 0x140); t; t = near_next()) {
+            if (a->grp != t->grp && actor_flags(t, 0x20000)) {
+                actor_status_notify(a, 8, 0, -1);
+                return;
+            }
+        }
+        return; // 不因共用倒數已負數而清12，也不落入較低優先狀態。
+    }
     if (status == 114 && a->status_countdown == 5) {
         // 原版直接覆寫，不經修正setter，亦不重設倒數。
         a->modifier[10].value = 2;

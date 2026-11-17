@@ -269,7 +269,7 @@ Poq.exe	99	00443a00	FUN_00443a00		game	done	90	14		找角色：下一個
 Poq.exe	99	00443c30	FUN_00443c30	~CSurBeastie	game	done	25	2		每次換一個方向（0~7 輪流）把點移開	
 Poq.exe	99	00443cd0	FUN_00443cd0		game	done	68	8		r 以內第一個不同組的角色	
 Poq.exe	99	00443e80	FUN_00443e80		game	done	114	4		周圍 n 圈找種類 0xc、+0x5c = 0x96 的建築	
-Poq.exe	99	00444130	FUN_00444130	~CCharactor	game	done	126	2		周圍 n 圈找別組放的、還有效的陷阱	
+Poq.exe	99	00444130	FUN_00444130	~CCharactor	game	done	126	2		near_trap：周圍n圈找不同AI組且尚未被發現的陷阱；主人存在含已死時更新組別快取；不再用side或alive替代旗標	
 Poq.exe	99	00444430	FUN_00444430	~CPropObj	game	done	120	2		周圍 n 圈第一個空格（放掉落道具）	
 Poq.exe	99	00444740	FUN_00444740	~CTrapBase	game	done	109	2		周圍 n 圈第一個能放陷阱的格子	
 Poq.exe	99	00444a10	FUN_00444a10	~CGameApp	game	done	15	6	weather.c 粒子管理建構		
@@ -493,7 +493,7 @@ Poq.exe	99	0044f460	FUN_0044f460		game	done	25	0		組物件的敵人名單加一
 Poq.exe	99	0044f4c0	FUN_0044f4c0		game	todo	25	2		依 SInit 建建築物件：物件表 +0x22 在 0x80～0x100 建 0xb0 的（可打壞），否則 0xa0；初始化後分串列	00497a40 004a3340
 Poq.exe	99	0044f580	FUN_0044f580		game	done	25	8	main.c mon_make（依 SInitCha 的圖形、位置建角色物件；建好送 0x10000 訊息）		004a3340
 Poq.exe	99	0044f6d0	FUN_0044f6d0		game	todo	177	2		角色倒下留下的東西（倒下種類 1～10）：3/5/9/10 角色 +0xcc==1 且 +0xd0==2 時放招式單位 10/0x73/0xeb/0xec；4 放痕跡動畫 0x100581（+0xd0==2）或 0x10000b；6/7/8 建 CPartDeadObj 碎屍（6/7 有 CFlyPartDeadObj 飛散的版本）；其他照預設建 CPartDeadObj，先擲 0x48f0a0 留血跡	0048f0a0 00498b80 00498c00 00498ed0 00498f70 00499120 004a3340 00578ac0
-Poq.exe	99	0044fd20	FUN_0044fd20		game	done	382	2		劇情建物件（0x474270 呼叫）：種類 0 角色（G_PosX −100 = 用入口點名稱 0x4cc9c0 隨機挑）、1 道具、2 依名字找建築設狀態、3 陷阱、4 依名字隨機挑一個可打壞的建築	0046a2c0 0046a370 0048d950 004963e0 00497bb0 0049c2e0 0049c340 0049c3a0 004a3340
+Poq.exe	99	0044fd20	FUN_0044fd20		game	done	382	2		劇情建物件（0x474270 呼叫）：種類 0 角色（G_PosX −100 = 用入口點名稱 0x4cc9c0 隨機挑）、1 道具、2 依名字找建築設狀態、3 陷阱、4 依名字隨機挑一個可打壞的建築	0046a2c0 0046a370 0048d950 004963e0 00497bb0 0049c2e0 0049c340 004a3340
 Poq.exe	99	00450700	FUN_00450700		game	done	81	21			004a3340
 Poq.exe	99	00450960	FUN_00450960		game	done	66	10	main.c mon_make／ground_drop／trap（CObjMng::AddObj 依物件表種類 2 角色、1 道具／建築、6 陷阱建類別；我們各自直接建）		00490240 004933a0 00497a40 00499e30 0049a7e0 0049ab20 0049b8d0 004a3340
 Poq.exe	99	00450b30	FUN_00450b30	~CScnClient	game	done	22	2		CBirdFast建立、格中心定位並加入場景陣列 → air.c bird_spawn	004a3340
@@ -814,7 +814,7 @@ Poq.exe	99	0046eea0	FUN_0046eea0		game	skip	85	0	無呼叫者：只在場景狀�
 Poq.exe	99	0046f100	FUN_0046f100	CScnClient|CScnClientRecord	game	todo	19	11		每拍更新天氣／物件／格子探索衰減／光影；非錄影模式無操作超過90000拍走斷線處理；todo 等不同類別CScene格子+0x13探索衰減與CMapDialog，現有主迴圈只覆蓋部分	004c7790 004f94c0
 Poq.exe	99	0046f180	FUN_0046f180		game	todo	446	2		生成小地圖：8×4地磚、建築縮圖、縮放／裁中、出口圖示、寫rdr且複製scn修改時間；todo 等不同類別CBuilding縮圖／通道識別與地圖圖示資源，非等待同類別ClientCreate	0044dda0 0046cab0 00482eb0 0049c910 0049c930 0049caf0 0049cb30 0049cbe0 004c7db0 004ceab0
 Poq.exe	99	00470270	FUN_00470270	~CGameApp	game	todo	18	2		還原場景的全域管理器、輸入／天氣、地圖原點、鏡頭及光影；todo 等不同類別CUserInput名單與CMapDialog完整重綁	0045a030 0045a3a0 00460570 004cede0
-Poq.exe	99	00470300	FUN_00470300	CScnClient	game	skip	746	8	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	0046b250 0046e360 0046ec80 00471890 00471dd0 00486910 0048d810 00494ec0 00496260 00497b20 00497bb0 0049a7e0 0049c2e0 0049c3a0 0049f1b0 004b8410 004c8630 004cf6e0 00578790 00579df0
+Poq.exe	99	00470300	FUN_00470300	CScnClient	game	skip	746	8	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	0046b250 0046e360 0046ec80 00471890 00471dd0 00486910 0048d810 00494ec0 00496260 00497b20 00497bb0 0049a7e0 0049c2e0 0049f1b0 004b8410 004c8630 004cf6e0 00578790 00579df0
 Poq.exe	99	00471830	FUN_00471830	~CScnClient	game	skip	12	0	無呼叫者／解構：釋放CViewPort並清指標	無呼叫者／解構：釋放CViewPort並清指標	
 Poq.exe	99	00471890	FUN_00471890	~CScnClient	game	todo	47	2		進場景收尾：清框選、設就緒、重建選人名單／探索顯示；todo 等不同類別CUserInput名單及CMapDialog探索顯示	0044db40 004590f0
 Poq.exe	99	004719a0	FUN_004719a0		game	todo	29	2		按+0x18編號找種類30～100角色並顯示文字；todo 等不同類別CCharactor頭頂文字顯示／生命週期	0048b6c0
@@ -1020,7 +1020,7 @@ Poq.exe	99	00486ed0	FUN_00486ed0	CCharactor	game	done	138	8			00497310 004a3340 
 Poq.exe	99	004872e0	FUN_004872e0	CCharactor|CNpc|CProtagonist	game	todo	300	17		角色繪圖：影子、關係腳圈、縮放、顯示模式／狀態覆色、三附加精靈、標記與8槽浮字；未完成	0049caf0 0049e2e0 00574e10 00575700 00577360 00577d60 00577dd0 00578000 00578a20
 Poq.exe	99	00487d30	FUN_00487d30	~CCharactor	game	skip	89	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	00487f30	FUN_00487f30	CCharactor|CNpc|CProtagonist	game	todo	61	17		角色動畫：停止旗標不推進、擊退三次step、常規或另一播放模式，結束清挨打及附加動畫回序列0；未完成	0048d950 00496de0 0049e5f0
-Poq.exe	99	00488090	FUN_00488090	~CCharactor	game	todo	69	2		todo：actor_status_countdown已接105/12/111/115/114優先序、共用倒數及114剩5換色／精靈；仍缺12陷阱偵測／隱身解除與暫停通知，不宣稱完整入口done	0046c260 0048d950 0049c3a0
+Poq.exe	99	00488090	FUN_00488090	~CCharactor	game	todo	69	2		todo：actor_status_countdown已接共用倒數與優先序、114換色／精靈及12偵測；12每次找5圈不同組未發現陷阱並揭露，再查320世界單位周遭不同組旗標0x20000使自身解除8；仍等CGameApp介面自動暫停選項／1501訊息與場景暫停通知，不標完整入口done	0046c260 0048d950
 Poq.exe	99	00488280	FUN_00488280	CCharactor|CNpc|CProtagonist	game	todo	16	17		移動狀態11及模式2且第6修正期限小於21時設1／20，再轉動態更新；未完成	00494950
 Poq.exe	99	00488300	FUN_00488300	~CCharactor	game	skip	21	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	0048d950
 Poq.exe	99	00488360	FUN_00488360	~CCharactor	game	done	11	7		actor_init_name：SInit種類10..16才取事件ID（並非HUD名稱）；接ONT劇情綁定與點NPC對話，動態角色用最小種類10記錄	
@@ -1330,13 +1330,13 @@ Poq.exe	99	0049b9e0	FUN_0049b9e0	CTrapBase	game	todo	15	7			00497650 00497f80 00
 Poq.exe	99	0049ba30	FUN_0049ba30	CTrapBase	game	todo	12	5			004979b0
 Poq.exe	99	0049ba80	FUN_0049ba80	CTrapBase	game	todo	10	5			004979c0 0049ea10
 Poq.exe	99	0049bc80	FUN_0049bc80	CTrapBase	game	todo	58	5			0049caf0
-Poq.exe	99	0049be00	FUN_0049be00	~CTrapBase	game	done	15	4			
+Poq.exe	99	0049be00	FUN_0049be00	~CTrapBase	game	done	15	4		trap_owner_group：有效角色主人含已死時更新陷阱AI組快取，無效時沿用最後組別；場景Actor名單承接句柄查詢	
 Poq.exe	99	0049be40	FUN_0049be40	CTrapBase	game	done	19	5			00497b30 00497c90
 Poq.exe	99	0049bef0	FUN_0049bef0	CTrapBase	game	todo	114	5			0049c580
 Poq.exe	99	0049c2b0	FUN_0049c2b0	~CTrapBase	game	todo	11	2			
 Poq.exe	99	0049c2e0	FUN_0049c2e0	~CTrapBase	game	todo	21	4			
 Poq.exe	99	0049c340	FUN_0049c340	~CTrapBase	game	todo	19	4			
-Poq.exe	99	0049c3a0	FUN_0049c3a0	~CTrapBase	game	todo	22	6			
+Poq.exe	99	0049c3a0	FUN_0049c3a0	~CTrapBase	game	done	22	6		trap_reveal：單機清陷阱尚未發現旗標，保留物件與觸發能力；同步封包以直接欄位寫入承接	
 Poq.exe	99	0049c410	FUN_0049c410	~CTrapBase	game	todo	33	2			
 Poq.exe	99	0049c510	FUN_0049c510	CTrapBase	game	todo	22	5			0049d740
 Poq.exe	99	0049c580	FUN_0049c580	~CTrapBase	game	todo	65	6			

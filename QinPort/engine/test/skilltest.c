@@ -97,6 +97,64 @@ static void character_status_countdown_test(void) {
     buff_drop(&a, 121); assert(!a.state[121] && !(a.flags & 0x80000));
 }
 
+static void character_detection_test(void) {
+    const Scene *saved_scene = unit_scene;
+    int saved_count = actor_count;
+    Actor saved[4]; memcpy(saved, actors, sizeof saved);
+    __typeof__(nr) saved_nr = nr;
+    Cell cells[15 * 15] = {0};
+    Scene detection_scene = {.w = 15, .h = 15, .cells = cells};
+    unit_scene = &detection_scene;
+    actor_count = 4;
+    MonDef trap_def = {.istrap = 1};
+    actors[0] = (Actor){.role = (const Role *)1, .x = 7.5f, .y = 7.5f, .grp = 10000};
+    Actor *a = &actors[0], *t = &actors[1], *owner = &actors[2], *hidden = &actors[3];
+    *t = (Actor){.role = (const Role *)1, .mon = &trap_def, .x = 7.5f, .y = 6.5f,
+                 .trap_group = 10001, .side = 1};
+    *owner = (Actor){.role = (const Role *)1, .x = 0.5f, .y = 0.5f,
+                     .grp = 10002, .act = ACT_DEAD};
+    *hidden = (Actor){.role = (const Role *)1, .x = 8.5f, .y = 7.5f, .grp = 10000};
+    a->state[12] = a->state[111] = 1;
+    actor_status_notify(a, 8, 1, -1);
+    a->status_countdown = 0;
+    actor_status_countdown(a);
+    assert(t->trap_revealed && a->state[8] && a->state[12] && a->state[111]);
+    assert(a->status_countdown == -1); // 12不倒數解除，也遮住111。
+    assert(!near_trap(7, 7, 5, 10000)); // 發現後不反覆命中。
+    assert(t->role && t->act != ACT_DEAD); // 發現不是殺死或解除陷阱。
+
+    // 同side的不同組仍被發現；主人存在但已死仍更新組別。
+    t->trap_revealed = 0; t->owner = owner;
+    assert(near_trap(7, 7, 5, 10000) == t && t->trap_group == 10002);
+    owner->grp = 10000;
+    assert(!near_trap(7, 7, 5, 10000) && t->trap_group == 10000);
+    owner->role = NULL; owner->grp = 12345;
+    assert(trap_owner_group(t) == 10000); // 無效主人沿用上次組別。
+    t->owner = (Actor *)1;
+    assert(trap_owner_group(t) == 10000); // 不解參考失效指標。
+
+    // 判定的是目標旗標與組別，不是敵對關係或狀態8 byte。
+    hidden->flags = 0x20000;
+    actor_status_countdown(a); assert(a->state[8]); // 同組不解除。
+    hidden->grp = 10001;
+    hidden->flags = 0;
+    actor_status_countdown(a); assert(a->state[8]);
+    hidden->flags = 0x20000;
+    a->state[105] = 1; a->status_countdown = 2;
+    actor_status_countdown(a); assert(a->state[8]); // 105擋住12。
+    a->state[105] = 0;
+    actor_status_countdown(a);
+    assert(!a->state[8] && !(a->flags & 0x20000) && a->state[12] && hidden->flags == 0x20000);
+
+    // 螺旋半徑5包含邊界，第6圈不納入。
+    t->trap_group = 20000; t->x = 12.5f; t->y = 7.5f;
+    assert(near_trap(7, 7, 5, 10000) == t);
+    t->x = 13.5f;
+    assert(!near_trap(7, 7, 5, 10000));
+    memcpy(actors, saved, sizeof saved); actor_count = saved_count;
+    unit_scene = saved_scene; nr = saved_nr;
+}
+
 static void scene_client_test(void) {
     Actor saved = actors[0];
     int count = actor_count;
@@ -1724,6 +1782,7 @@ int main(void) {
     character_effect_test();
     character_effect_recompute_test();
     character_status_countdown_test();
+    character_detection_test();
     character_relation_test();
     character_scale_test();
     character_skills_test();

@@ -54,9 +54,9 @@ SceneCell	+0x12	旗標（0x88 = 建築本體）	Cell.flags
 CCharactor	+0x34	位置（1/64 格）GPOINT	ax64/ay64
 CCharactor	+0x3c	畫面GRECT：本體移高、合影子後縮放、再合腳圈	viewport_actor_rect／pick_box共用（不再用固定點選方框）
 CCharactor	+0x67	物件種類（0x1e~0x64 角色、0xc 建築、0x18 陷阱）	-
-CTrapBase	+0x9b	放的時候記的隊伍組	（用 owner->side）
+CTrapBase	+0x9b	主人存在時更新的AI組別快取；主人失效沿用最後組別，含已死主人	Actor.trap_group／trap_owner_group
 CTrapBase	+0xab	放的人（物件編號）	Actor.owner
-CTrapBase	+0x9f	還有效	-
+CTrapBase	+0x9f	非零為尚未被發現；發現清0，不影響觸發或生命，繪製據此選模式	!Actor.trap_revealed／trap_reveal
 CScene	+0x18	上次取的格子指標（+0xa8、+0xac 是它的 x、y，相鄰時只加減）	-
 CGameApp	+0x0	CDD 顯示物件	-
 CGameApp	+0x4	顯示模式（0~8）	-
@@ -652,7 +652,7 @@ CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減�
 CCharactor	+0x339	AI組（0..99玩家、10000..60000 NPC組）	Actor.grp
 CCharactor	+0x33d	蠱惑前原AI組	Actor.original_group；狀態14換組／還原，技能選取副作用仍todo
 CCharactor	+0x349	狀態8隱身byte；切換物件旗標0x20000	Actor.state[8]／actor_status_notify
-CCharactor	+0x34d	狀態12陷阱與周遭隱身偵測byte；倒數優先序在105之後	Actor.state[12]；偵測分支仍todo
+CCharactor	+0x34d	狀態12陷阱與周遭隱身偵測byte；倒數優先序在105之後	Actor.state[12]；偵測已接，介面自動暫停通知仍todo
 CCharactor	+0x34e	狀態13反擊byte；啟用寫反擊技能0，解除寫-1	Actor.state[13]／Actor.counter_skill
 CCharactor	+0x34f	狀態14蠱惑byte；保存原組並取全域99..1循環組	Actor.state[14]／Actor.original_group
 CCharactor	+0x3aa	狀態105byte；非0設共用倒數9，倒數負值才清	Actor.state[105]／Actor.status_countdown
@@ -684,7 +684,7 @@ CCharactor	+0x4a7	頭上附加精靈	Actor.effect[0]／actor_effect_sprite
 CCharactor	+0x4ab	身上附加精靈	Actor.effect[1]／actor_effect_sprite
 CCharactor	+0x4af	腳下附加精靈	Actor.effect[2]／actor_effect_sprite
 CCharactor	+0x4b3	角色頭部高度u16，載模型時計算矩形高度加10	待角色模型矩形／頭頂文字
-CCharactor	+0x4b5	多個特殊狀態共用倒數，105=9、111/114=8、115=5；每10拍減1、負數才清，優先105/12/111/115/114	Actor.status_countdown／actor_status_countdown；狀態12偵測及完整活動門檻仍todo
+CCharactor	+0x4b5	多個特殊狀態共用倒數，105=9、111/114=8、115=5；每10拍減1、負數才清，優先105/12/111/115/114	Actor.status_countdown／actor_status_countdown；狀態12偵測已接，介面暫停通知及完整活動門檻仍todo
 CCharactor	+0x4b9	最後修改的狀態ID byte；組語確認重算比較的是狀態值與此ID，末次實際傳-1	Actor.last_status／actor_effects_recompute
 CCharactor	+0x4ba	狀態／修正需要重算的byte旗標	Actor.modifiers_dirty
 CCharactor	+0x4bb	SkillUnit技能鏈表頭	Actor.skills／skill_n（原模板重建後追加NPC／玩家技能列）

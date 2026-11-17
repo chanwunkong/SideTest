@@ -358,19 +358,33 @@ LATER static int near_bld96(int x, int y, int n) {
     return -1;
 }
 
-// 0x444130：(x, y) 周圍 n 圈（含中心）找第一個「不是 side 這邊放的、還有效（+0x9f）」的陷阱。
-// 陷阱的隊伍 = 放的人目前的隊伍（0x49be00，放的人不在了就用放的時候記的）
-// shortcut: 陷阱「還有效」（+0x9f）沒有對應的欄位，活著就當有效
-LATER static Actor *near_trap(int x, int y, int n, int side) {
+// Poq.exe 0x49be00：主人句柄存在即更新快取組別，死亡不等於失效。
+// shortcut: 句柄沿用Actor指標並檢查場景名單；同場景重用槽時改帶世代識別。
+static int trap_owner_group(Actor *t) {
+    for (int i = 0; t->owner && i < actor_count; i++) {
+        Actor *owner = &actors[i];
+        if (owner == t->owner && owner->role && !is_trap(owner)) {
+            t->trap_group = owner->grp;
+            break;
+        }
+    }
+    return t->trap_group;
+}
+
+// Poq.exe 0x49c3a0：被發現只清隱藏旗標；單機直接變更，不建立同步封包。
+static void trap_reveal(Actor *t) { t->trap_revealed = 1; }
+
+// 0x444130：(x,y)周圍n圈，找別組且尚未被發現的陷阱。
+// 不以HP／死亡動作替代+0x9f；物件只需仍登記在場景。
+static Actor *near_trap(int x, int y, int n, int group) {
     Spiral s;
     spiral_init(&s, x, y, n > 0 ? n : 1);
     while (spiral_next(&s)) {
         if (!cell_at(s.x, s.y)) continue;
         for (int i = 0; i < actor_count; i++) {
             Actor *t = &actors[i];
-            if (!alive(t) || !is_trap(t) || (int)t->x != s.x || (int)t->y != s.y) continue;
-            int tside = t->owner && alive(t->owner) ? t->owner->side : t->side;
-            if (tside != side) return t;
+            if (!t->role || !is_trap(t) || (int)t->x != s.x || (int)t->y != s.y) continue;
+            if (trap_owner_group(t) != group && !t->trap_revealed) return t;
         }
     }
     return NULL;
