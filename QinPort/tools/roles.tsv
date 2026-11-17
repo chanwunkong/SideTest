@@ -756,7 +756,7 @@
 0048eb90	索引無呼叫者；依本輪規則略過，不臆測用途
 0048eda0	actor_target_set：先寫目標，登記NPC目標組的敵對關係時排除來源102／0x4000；非NPC來源在NPC索敵圓距離內且NPC未入戰時先入戰再互設目標；接選敵／點擊／施法／反擊；狀態0仍沿actor_enter_fight橋接
 0048ef40	viewport_actor_rect：同幀紙娃娃矩形上移高度、合影子後按目前比例擴縮，再合不縮放關係腳圈；接viewport動態物件可見名單及pick_box滑鼠命中，刪除固定73x111方框
-0048f0a0	依第3修正與移動／靜止機率表產生0x17物件，特殊模板50例外；未完成
+0048f0a0	main.c actor_blood：按第3修正與平常／受擊表擲0x17，程序50不擲、空來源、複製層；接walk_fx及strike；shortcut 平常表保留原版BSS零值，執行期設定入口仍待核對
 0048f130	索引無呼叫者；依本輪規則略過，不臆測用途
 0048f200	actor_scaled_draw：紙娃娃依PLI順序合成RGBA暫存表面後按整體矩形擴縮，影子／本體分開；接actor_draw；shortcut 色鍵與格子光照用SDL透明及既有light_draw承接，原版色表接入時升級
 0048f460	actor_skills_rebuild：清鏈後依RoleMdl.rmd原序重建，缺失招式略過、重複保留、零外部識別、預設距離與三個1；保留手ID，接角色建立／hero_skill_apply

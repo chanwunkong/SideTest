@@ -492,7 +492,7 @@ Poq.exe	99	0044f410	FUN_0044f410		game	skip	14	0	容器：CStaticLinkList<*,1000
 Poq.exe	99	0044f460	FUN_0044f460		game	done	25	0		組物件的敵人名單加一個（已有就不加）	
 Poq.exe	99	0044f4c0	FUN_0044f4c0		game	todo	25	2		依 SInit 建建築物件：物件表 +0x22 在 0x80～0x100 建 0xb0 的（可打壞），否則 0xa0；初始化後分串列	00497a40 004a3340
 Poq.exe	99	0044f580	FUN_0044f580		game	done	25	8	main.c mon_make（依 SInitCha 的圖形、位置建角色物件；建好送 0x10000 訊息）		004a3340
-Poq.exe	99	0044f6d0	FUN_0044f6d0		game	todo	177	2		角色倒下留下的東西（倒下種類 1～10）：3/5/9/10 角色 +0xcc==1 且 +0xd0==2 時放招式單位 10/0x73/0xeb/0xec；4 放痕跡動畫 0x100581（+0xd0==2）或 0x10000b；6/7/8 建 CPartDeadObj 碎屍（6/7 有 CFlyPartDeadObj 飛散的版本）；其他照預設建 CPartDeadObj，先擲 0x48f0a0 留血跡	0048f0a0 00498b80 00498c00 00498ed0 00498f70 00499120 004a3340 00578ac0
+Poq.exe	99	0044f6d0	FUN_0044f6d0		game	todo	177	2		角色倒下留下的東西（倒下種類 1～10）：3/5/9/10 角色 +0xcc==1 且 +0xd0==2 時放招式單位 10/0x73/0xeb/0xec；4 放痕跡動畫 0x100581（+0xd0==2）或 0x10000b；6/7/8 建 CPartDeadObj 碎屍（6/7 有 CFlyPartDeadObj 飛散的版本）；其他照預設建 CPartDeadObj，先擲 0x48f0a0 留血跡	00498b80 00498c00 00498ed0 00498f70 00499120 004a3340 00578ac0
 Poq.exe	99	0044fd20	FUN_0044fd20		game	done	382	2		劇情建物件（0x474270 呼叫）：種類 0 角色（G_PosX −100 = 用入口點名稱 0x4cc9c0 隨機挑）、1 道具、2 依名字找建築設狀態、3 陷阱、4 依名字隨機挑一個可打壞的建築	0046a2c0 0046a370 0048d950 00497bb0 0049c2e0 0049c340 004a3340
 Poq.exe	99	00450700	FUN_00450700		game	done	81	21			004a3340
 Poq.exe	99	00450960	FUN_00450960		game	done	66	10	main.c mon_make／ground_drop／trap（CObjMng::AddObj 依物件表種類 2 角色、1 道具／建築、6 陷阱建類別；我們各自直接建）		00490240 004933a0 00497a40 00499e30 0049a7e0 0049ab20 0049b8d0 004a3340
@@ -1072,7 +1072,7 @@ Poq.exe	99	0048bf60	FUN_0048bf60	~CCharactor	game	skip	26	0	索引無呼叫者�
 Poq.exe	99	0048c050	FUN_0048c050	CCharactor	game	todo	37	8		角色每拍動態狀態／虛擬更新、位置改變同步及活動旗標；未完成	00496110
 Poq.exe	99	0048c150	FUN_0048c150	~CCharactor	game	done	20	8		actor_name_set：僅SInit種類10..16可複製事件ID，不更新顯示名稱；actor_setup接ONT來源，原始容量64 bytes	
 Poq.exe	99	0048c190	FUN_0048c190	CCharactor|CNpc|CProtagonist	game	done	78	17		main.c actor_animation_select／actor_animation_target：指定序列與帶符號方向餘數、擊退／挨打、跑步門檻與旗標、戰鬥20..30保留目標；接actor_tick/action_tick及繪製／矩形查詢，狀態來源以現有fight/Buff/knock橋接	
-Poq.exe	99	0048c3a0	FUN_0048c3a0	CCharactor|CNpc|CProtagonist	game	done	416	17			0048d950 0048f0a0 00496550 00497c10 00497cd0 004a3340 00579dd0
+Poq.exe	99	0048c3a0	FUN_0048c3a0	CCharactor|CNpc|CProtagonist	game	done	416	17			0048d950 00496550 00497c10 00497cd0 004a3340 00579dd0
 Poq.exe	99	0048d2c0	FUN_0048d2c0	~CScnClient	game	skip	9	2	客戶端狀態封包byte解碼轉接：唯一呼叫者00470300已略過；單機直接使用狀態業務入口，不建立低7位ID／高位啟用值的同步副本；完整狀態設置仍todo	客戶端狀態byte解碼：低7位ID、高位啟用值；唯一呼叫者為已略過同步分派，單機略過封包轉接；完整狀態設置仍todo	0048d950
 Poq.exe	99	0048d2f0	FUN_0048d2f0	~CCharactor	game	todo	14	2		保存待執行命令代號與三參數；尚未接同類別命令分派，不標done	
 Poq.exe	99	0048d330	FUN_0048d330		game	done	96	4		出手綁定及動畫延遲／間隔：攻速用float比例，零分母改1；NPC組乘倍率、其他組間隔加隨機；既有attack_speed／action_tick已更正比例與組別；shortcut仍於動作結束裝冷卻，NPC種類60免間隔及第6修正／MethodMain完整綁定尚待同類別狀態	00494c70 0049d6c0
@@ -1100,7 +1100,7 @@ Poq.exe	99	0048ebd0	FUN_0048ebd0	~CCharactor	game	done	25	6		actor_effect_sprite
 Poq.exe	99	0048ec60	FUN_0048ec60	~CCharactor	game	done	49	15		actor_modifier_set：20項值／期限共用表；期限-1或不短於現值才覆寫；第1重算速度、第3潰散byte、第5狀態100及選動畫、第6殘影；輸入0即使遭拒仍標重算；接狀態表及固定拍到期	0048d950
 Poq.exe	99	0048eda0	FUN_0048eda0	~CCharactor	game	done	61	25		actor_target_set：先寫目標，登記NPC目標組的敵對關係時排除來源102／0x4000；非NPC來源在NPC索敵圓距離內且NPC未入戰時先入戰再互設目標；接選敵／點擊／施法／反擊；狀態0仍沿actor_enter_fight橋接	00579dd0
 Poq.exe	99	0048ef40	FUN_0048ef40	CCharactor|CNpc|CProtagonist	game	done	52	17		viewport_actor_rect：同幀紙娃娃矩形上移高度、合影子後按目前比例擴縮，再合不縮放關係腳圈；接viewport動態物件可見名單及pick_box滑鼠命中，刪除固定73x111方框	0049d740 00577170 00578a20
-Poq.exe	99	0048f0a0	FUN_0048f0a0	~CCharactor	game	todo	27	4		依第3修正與移動／靜止機率表產生0x17物件，特殊模板50例外；未完成	
+Poq.exe	99	0048f0a0	FUN_0048f0a0	~CCharactor	game	done	27	4		main.c actor_blood：按第3修正與平常／受擊表擲0x17，程序50不擲、空來源、複製層；接walk_fx及strike；shortcut 平常表保留原版BSS零值，執行期設定入口仍待核對	
 Poq.exe	99	0048f130	FUN_0048f130	~CCharactor	game	skip	39	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	0048d950
 Poq.exe	99	0048f200	FUN_0048f200	~CCharactor	game	done	98	2		actor_scaled_draw：紙娃娃依PLI順序合成RGBA暫存表面後按整體矩形擴縮，影子／本體分開；接actor_draw；shortcut 色鍵與格子光照用SDL透明及既有light_draw承接，原版色表接入時升級	00577170 00577dd0 00578000
 Poq.exe	99	0048f460	FUN_0048f460	~CCharactor	game	done	39	4		actor_skills_rebuild：清鏈後依RoleMdl.rmd原序重建，缺失招式略過、重複保留、零外部識別、預設距離與三個1；保留手ID，接角色建立／hero_skill_apply	

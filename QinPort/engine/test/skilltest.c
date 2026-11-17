@@ -2427,9 +2427,52 @@ static void character_behavior_reset_test(void) {
     units[0]=saved; unit_n=saved_n;
 }
 
+static void character_blood_test(void) {
+    int saved_n = unit_n;
+    RoleDef d = {0};
+    Actor a = {.def=&d, .x=3.5f, .y=4.25f, .layer=14};
+    assert(unit_find(0x17));
+    unit_n=0;
+    // BSS表為零時不擲；模板50即使受擊也不擲。
+    srand(246); int next=rand(); srand(246);
+    assert(!actor_blood(&a,0) && rand()==next && !unit_n);
+    d.program=50; srand(246);
+    assert(!actor_blood(&a,1) && rand()==next && !unit_n);
+    d.program=0;
+    for (int level=0; level<4; level++) {
+        static const int period[4]={3,2,1,1};
+        a.modifier[3].value=level;
+        srand(823); int generated=rand()%period[level]==0;
+        int before=unit_n;
+        if (generated) {
+            MUnit source={0};
+            assert(unit_new(0x17,224,272,&source,actor_logic_tick));
+        }
+        next=rand(); unit_n=before; srand(823);
+        MUnit *u=actor_blood(&a,1);
+        assert((u!=NULL)==generated && rand()==next);
+        if (u) {
+            assert(u->def==unit_find(0x17) && u->x==224 && u->y==272 && u->layer==14);
+            assert(!u->owner && !u->target && !u->m && !u->sk);
+        }
+    }
+    a.modifier[3].value=0;
+    unsigned miss_seed=1;
+    for (;; miss_seed++) { srand(miss_seed); if (rand()%3) break; }
+    next=rand(); srand(miss_seed);
+    int before=unit_n;
+    assert(!actor_blood(&a,1) && unit_n==before && rand()==next);
+    // 有設定的平常表同樣經實際生成入口；除數1仍消耗一次亂數。
+    a.modifier[3].value=1; actor_blood_period[1]=1;
+    assert(actor_blood(&a,0)); actor_blood_period[1]=0;
+    unit_n=MAX_UNIT; assert(!actor_blood(&a,1));
+    unit_n=saved_n;
+}
+
 int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
+    character_blood_test();
     character_behavior_reset_test();
     character_placement_test();
     air_test();

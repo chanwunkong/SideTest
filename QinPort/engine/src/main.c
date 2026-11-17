@@ -2142,6 +2142,24 @@ static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = �
 #undef scene
 #include "weather.c"
 
+// Poq.exe 0x48f0a0：第3修正索引機率表；程序標識50完全不消耗亂數。
+// 靜止／移動共用的表在原版映像是BSS零值；受擊表為3、2、1、1。
+// shortcut: 尚未接原版對BSS機率表的執行期設定，接到其設定入口時更新此表。
+static int actor_blood_period[4];
+static MUnit *actor_blood(Actor *a, int hit) {
+    static const int hit_period[4] = {3, 2, 1, 1};
+    int level = a->modifier[3].value;
+    // shortcut: 非法修正索引不重現原版越界讀取，出現合法擴充值時再擴表。
+    if (!a->def || a->def->program == 50 || level < 0 || level >= 4) return NULL;
+    int period = (hit ? hit_period : actor_blood_period)[level];
+    if (!period || rand() % period) return NULL;
+    MUnit source = {0}; // 原版建立入口傳空來源，不繼承攻擊者／目標／技能。
+    MUnit *u = unit_new(0x17, ax64(a), ay64(a), &source, actor_logic_tick);
+    // shortcut: 容量耗盡／資料缺失時略過，不重現原版空指標寫入。
+    if (u) u->layer = a->layer;
+    return u;
+}
+
 // 角色更新的出手冷卻分支；有MethodMain時保留倒數，零與負數不再遞減。
 // 完整活動／動態更新門檻仍待接齊，不標完整角色更新入口位址。
 static void actor_cooldown_tick(Actor *a) {
@@ -2734,6 +2752,8 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     // shortcut: 之前還有一段盾牌格擋（0x48c4e3，看防守方 +0x4e7 的裝備和攻擊方向），沒有盾的主角用不到，還沒做
     int hr = a->hr ? a->hr : 1, chance = hr * 1000 / (t->sr + hr);
     if (rand() % 1000 >= (chance < 100 ? 100 : chance > 900 ? 900 : chance)) return;
+    // 原版受擊入口：4/7先留血，其餘0/1/2/3/8在反應後留血。
+    if (sk && (sk->attack == 4 || sk->attack == 7)) actor_blood(t, 1);
     // 技能參數（EasyRPG 0x10024xxx 一屬性一個處理，0x1039e628 起的函式表）存成這次攻擊的暫時加值，分固定值、百分比兩組：
     // 210~220 偶數 = 眩暈、中毒、冰凍、失明、石化、潰散的機率，222、223 = 吸血、吸精氣，250、251 = AP、AP_MAX，252~261 = MAP1~5、MAP1~5_MAX，
     // 287 = 自損生命（Attack方式 10）；ID > 500 拆成 ID−300、ID−299 兩個。262~269 寫進的變數整個 dll 沒有讀，沒作用
@@ -2797,6 +2817,8 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     if (t->hp <= 0) { actor_kill(t, a); return; }
     if (t->def->snd_hit) audio_sfx(t->def->snd_hit);
     hit_react(a, t, sk);
+    if (!sk || sk->attack == 0 || sk->attack == 1 || sk->attack == 2 || sk->attack == 3 || sk->attack == 8)
+        actor_blood(t, 1);
 }
 
 // 敵對：不同隊伍的
@@ -2880,8 +2902,7 @@ static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
 
 // 角色每拍的聲音和腳印（Poq.exe 0x486ed0）：千分之一播平時／戰鬥聲音；走路時每 max((15 − A)×2, 10) 拍腳步聲，
 // 腳數 6 用 0x218、軟地（地面種類 3）0x51、其他 0x50；角色大小 1、兩隻腳在軟地上離上個腳印 x 或 y 超過 32 就踩一個，左右腳輪流
-// shortcut: 音效原版依位置算音量（0x4804a0），這裡只播主角附近 12 格內的；程序标识 ≠ 50 的依場景表隨機放單位 0x17（0x663ed8）、
-// 騎乘時不出聲仍待接入；探索已交固定拍更新。
+// shortcut: 音效原版依位置算音量（0x4804a0），這裡只播主角附近 12 格內的；騎乘時不出聲仍待接入；探索已交固定拍更新。
 // Poq.exe 0x575ae0：採樣每個部件當前幀，離地高度以世界X/Y各扣2z承接。
 static void actor_illusion_sample(Actor *a) {
     const Role *r = a->role;
@@ -2902,6 +2923,7 @@ static void walk_fx(Actor *a, const Scene *s, Uint32 tick) {
     const RoleDef *d = a->def;
     if (!d || !a->role || !alive(a)) return;
     actor_illusion_sample(a);
+    actor_blood(a, 0);
     if (a->direction_clock % 20 == 1) actor_explore(a);
     int near = fabsf(a->x - actors[0].x) < 12 && fabsf(a->y - actors[0].y) < 12;
     int snd = a->fight ? d->snd_fight : d->snd_idle;

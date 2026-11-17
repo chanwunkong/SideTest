@@ -90,6 +90,7 @@ typedef struct MUnit {
     const SkillRow *sk;              // 結算用的技能（+0x93、+0x97）
     int range;                       // +0x9b 攻擊距離（格）
     int x, y, tx, ty, sx, sy;        // +0x34 位置、+0x73 目標點、+0x7b 一開始的目標點
+    unsigned char layer;             // CObj +0x66，來源角色的地面／高位層
     int dir, h, persist;             // +0x6b 方向、+0x42f 高度、+0x3e7 打中後還留著
     int ticks, t5, t0;               // +0x423 經過拍數、+0x427 計時觸發進度、+0x42b 幀觸發進度
     int path, path_mode, px, py;     // +0x3d7 沿路命中、+0x3e3 用哪種命中、+0x3db 上次掃到的點
@@ -272,6 +273,7 @@ static MUnit *unit_new(int id, int x, int y, const MUnit *src, Uint32 tick) {
     u->def = d;
     u->trig = d->trig, u->trig_n = d->trig_count;
     u->persist = 1;
+    u->layer = 1;
     u->mode = d->kind == 6;
     u->shadow = (uint32_t)d->d[1];
     u->x = x & 0xffff, u->y = y & 0xffff;

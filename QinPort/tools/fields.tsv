@@ -23,7 +23,7 @@ CPhantasmObj	+0x4f2	出手者走過的位移 CDMList<GPOINT>	MUnit.pq/pq_n
 CPhantasmObj	+0x478	放出它的招式物件編號	（比 MUnit.m）
 RoleMdl	+0xcc	角色大小（欄18）；關係腳圈<2選小圖，不能用動態占位大小替代	RoleDef.size
 RoleMdl	+0xd0	脚数（欄 19）	RoleDef.legs
-RoleMdl	+0x114	程序标识第一個值（欄 27），40允許同組遠距協助索敵	RoleDef.program
+RoleMdl	+0x114	程序标识第一個值（欄 27），40允許同組遠距協助索敵、50禁止留血	RoleDef.program
 RoleMdl	+0x134	平时声音（欄 32）	RoleDef.snd_idle
 RoleMdl	+0x138	战斗声音（欄 33）	RoleDef.snd_fight
 CCharactor	+0x3c5	這次踩哪隻腳	Actor.foot
@@ -845,3 +845,4 @@ CDynamicObj	+0x2bf	動態待處理值，重設0	Actor.dynamic_pending
 CDynamicObj	+0x2c3	路徑活動值，重設0	Actor.dynamic_path
 CDynamicObj	+0x3d9	剩餘位置插值拍數，重設-1	Actor.interpolation_left
 CDynamicObj	+0x3f7	上次同步的動態狀態，重設1	Actor.dynamic_reported_state
+MethodBase	+0x66	CObj層號byte；角色留血物件建立後複製角色層	MUnit.layer
