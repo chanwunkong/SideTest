@@ -904,3 +904,7 @@ CProtagonist	+0x67	物件種類60	Actor.object_kind
 CDeadObj	+0xa3	屍體階段 1 播死亡 / 2 停200拍 / 3 畫進地面層，畫面外0x50拍移除	Actor.dead_phase
 CDeadObj	+0x9f	階段計數	Actor.dead_ticks
 CNormalSurobj	+0x97	播放模式（0 step 並有壽命，否則 next）	MUnit.mode
+CPartDeadObj	+0x7b／+0x7f	血跡疊圖偏移（HD 矩形頂邊中央）	Actor.blood_x／blood_y
+CPartDeadObj	+0x93	血跡動畫（>0 才畫）	Actor.blood_id
+CPartDeadObj	+0x9f	CDeadObj 階段計數（階段0起始 25／30 停住不播、飛散件負數數 20 拍）	Actor.part_wait
+CFlyPartDeadObj	+0x101	飛散速度 rand()%5+10（+0xfd 播到一半旗標沒人讀）	Actor.fly_speed

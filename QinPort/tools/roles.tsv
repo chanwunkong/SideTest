@@ -868,9 +868,9 @@
 00492ed0	CNpc每拍主分派：恐懼逃跑→命令空且可重試→重設延遲→守衛→status_aux→玩家組旗標0x10→入戰主AI／閒置AI → main.c npc_dispatch（取代舊monster_think／npc_think，主迴圈直接呼叫）
 004933a0	CProtagonist建構：物件種類60（不消費重判層旗標）；未讀欄位+0x71e/+0x722/+0x726/+0x2c7不留 → main.c protagonist_new
 004934b0	CProtagonist虛擬重設：寫未讀欄位+0x726=-1後走CNpc重設0x492e70 → enter_scene的npc_behavior_reset(hero)
-00499270	CPartDeadObj畫（含血跡疊圖 +0x7b/+0x7f 偏移）：部件模型分件繪製；等部件模型（Role 分件 +0x124）系統，現在殘留物直接畫原角色
-00499540	CPartDeadObj畫（帶裁切矩形版）：同 0x499270
-004990e0	CPartDeadObj換階段：階段1設+0x73=3；其餘同 CDeadObj 0x4986c0
-004997f0	CFlyPartDeadObj每拍：階段1每4拍沿方向（+0x6f）移動至計數 > -20，播到一半設+0xfd；再走 CDeadObj 0x498a30
-004998a0	CPartDeadObj設類型：1/2/4 載入血跡動畫 0x1000b1／0x100106／0x10011b 並設疊圖偏移，3 取當前幀偏移
-00499af0	CPartDeadObj算畫面位置：格 → 畫面（0x4a1250），部件模型縮放；等部件模型系統
+00499270	main.c actor_draw 的屍體分支：影子、本體（part_hide 遮罩不畫的部件）、血跡疊圖；沒有狀態特效
+00499540	同 0x499270（裁切版：viewport 矩形相交）
+004990e0	main.c dead_phase_enter：階段1 序列+8，階段2 部件屍體不畫進地面層
+004997f0	main.c dead_obj_tick：飛散件階段0每4拍沿 facing 反方向退 fly_speed/64 格，計數 > -20
+004998a0	main.c part_blood_set：1/4 血跡掛 HD 矩形頂邊中央，2 掛 CA；3 沒呼叫者沒做
+00499af0	viewport.c viewport_actor_rect（屍體畫面矩形，縮放同角色）

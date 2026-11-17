@@ -3932,6 +3932,61 @@ static void character_remove_test(void) {
     unit_scene = saved_scene; scene_client = saved_client;
 }
 
+// CPartDeadObj／CFlyPartDeadObj 分件、飛散與屍體物件階段（0x44f6d0／0x4997f0／0x498a30／0x4986c0）
+static void part_dead_test(void) {
+    const Scene *saved_scene = unit_scene;
+    SceneClient saved_client = scene_client;
+    Scene active = {0};
+    Frame fr = {.delay = 1};
+    Seq seqs[56];
+    for (int i = 0; i < 56; i++) seqs[i] = (Seq){1, &fr};
+    Anim an = {.count = 56, .seqs = seqs};
+    Role role = {.part_count = 3, .seq_count = 56, .body = {&an, &an, &an}, .name = {"HD", "TK", "BD"}};
+    RoleDef d = {.death = 40, .snd_death = 65535};
+    int saved_keep = death_keep_mode, saved_auto = death_auto_pause, base = actor_count;
+    unit_scene = &active; scene_client = (SceneClient){.scene = &active, .ready = 1};
+    death_keep_mode = 1; death_auto_pause = 0;
+    Actor a = {.role = &role, .def = &d, .x = 5.5f, .y = 5.5f, .z = 9, .facing = 0};
+    actor_remove(&a, 7);
+    assert(a.part_kind == 1 && a.part_hide == 3 && a.part_wait == 25 && actor_count == base + 1);
+    Actor *f = &actors[base];
+    assert(f->part_kind == 2 && f->part_hide == ~3u && f->act == ACT_DEAD && f->fly_speed >= 10 && f->fly_speed <= 14);
+    a = (Actor){.role = &role, .def = &d};
+    actor_remove(&a, 6);
+    assert(a.part_hide == 1 && actor_count == base + 2 && actors[base + 1].part_hide == ~1u);
+    a = (Actor){.role = &role, .def = &d};
+    actor_remove(&a, 8);
+    assert(a.part_hide == 0 && a.part_wait == 30 && actor_count == base + 2);
+    Role one = {.part_count = 1, .seq_count = 56, .body = {&an}, .name = {"HD"}};
+    a = (Actor){.role = &one, .def = &d};
+    actor_remove(&a, 7);
+    assert(a.part_kind == 1 && !a.part_hide && actor_count == base + 2);  // 部件群只有 1 個部件不分件
+    // 飛散件：第 1 拍（全域拍 %4 == 1）往 facing 反方向退 fly_speed/64 格，計數 > -20 為止
+    f->act_done = 0; f->x = 5.5f; f->y = 5.5f; f->z = 8;
+    actor_logic_tick = 1;
+    assert(dead_obj_tick(f) && f->x < 5.5f && f->y > 5.5f && f->z == 4 && f->part_wait == -1);
+    float x = f->x;
+    actor_logic_tick = 2; dead_obj_tick(f); assert(f->x == x);
+    f->part_wait = -20; actor_logic_tick = 5; dead_obj_tick(f); assert(f->x == x);
+    // 換階段：階段0播完 → 1（序列 +8、高度 0、計數 -1）；階段1 計數 > 200 且播完 → 2；階段2 畫面外 > 0x50 拍 → 移除
+    f->act_done = 1; f->part_wait = 0;
+    dead_obj_tick(f);
+    assert(f->dead_phase == 1 && f->act_seq == 48 && f->z == 0 && f->part_wait == -1);
+    f->act_done = 1;
+    int n = 0;
+    while (f->dead_phase == 1 && n < 400) dead_obj_tick(f), n++;
+    assert(f->dead_phase == 2 && n == 203);
+    n = 0;
+    while (dead_obj_tick(f)) n++;
+    assert(n == 0x51);
+    // 身體屍體階段0先停 25 拍（動畫不推進）再換階段
+    a = (Actor){.role = &role, .def = &d, .act_done = 1, .part_wait = 25};
+    for (int i = 0; i < 25; i++) assert(dead_obj_tick(&a) && a.dead_phase == 0);
+    dead_obj_tick(&a); assert(a.dead_phase == 1);
+    actor_count = base; death_keep_mode = saved_keep; death_auto_pause = saved_auto;
+    unit_scene = saved_scene; scene_client = saved_client;
+}
+
 static void npc_ai_test(void) {
     const Scene *saved_scene = unit_scene; int saved_count = actor_count;
     unit_scene = NULL; actor_count = 0;
@@ -3986,6 +4041,7 @@ int main(void) {
     res_init("../../game");
     character_draw_branches_test();
     character_remove_test();
+    part_dead_test();
     character_death_fear_test();
     character_hit_status_test();
     character_blood_test();

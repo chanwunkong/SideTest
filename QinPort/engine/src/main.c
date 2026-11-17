@@ -375,6 +375,12 @@ typedef struct Actor {
     int print_x, print_y, foot;    // 上一個腳印的位置（+0x3c9）、這次踩哪隻腳（+0x3c5）
     int ai_tick;                  // 怪物 AI 計數（+0xbb，起始隨機 0~99）
     int cool, fight, dead_ticks, dead_phase;   // 攻擊冷卻（拍）、戰鬥姿態剩幾拍、死了幾拍、屍體階段（CDeadObj +0xa3 - 1）
+    int part_kind;                 // 屍體物件種類：0 一般角色、1 CPartDeadObj、2 CFlyPartDeadObj
+    unsigned part_hide;            // 部件群（Role 部件）不畫的遮罩：bit i = 第 i 個部件（原版 CSprGroup 部件樣式 0）
+    int part_wait;                 // CDeadObj +0x9f：階段0的倒數（起始 25／30 停住不播），飛散部件靠它數 20 拍
+    int fly_speed;                 // CFlyPartDeadObj +0x101 飛散速度（10~14；+0xfd 播到一半旗標全映像沒人讀，不留）
+    int blood_id, blood_x, blood_y; // CPartDeadObj +0x93 血跡動畫、+0x7b／+0x7f 疊圖偏移
+    Uint32 blood_start;            // 血跡動畫起始拍
     int sh;                        // 劇情物件（原版 EasyRPG 的人物；0 = 沒有）
     int remembered[4], remember_delay; // 原版記住命令與取消後延遲
     int command[4];                // 待執行命令，第一格 -1 表示沒有（原版 +0x5b6）
@@ -831,12 +837,13 @@ static void role_rect_scale(SDL_Rect *r, int scale, int center) {
 }
 
 // 紙娃娃的一幀：各部件照這幀的疊圖順序畫
+static unsigned role_hide;  // CPartDeadObj 分件：畫之前設成 Actor.part_hide，畫完清 0
 static void role_draw(const Role *r, int seq, int frame, int sx, int sy) {
     if (!r || seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
     frame %= r->frames[seq];
     const uint8_t *order = r->order[seq] + frame * r->part_count;
     for (int i = 0; i < r->part_count; i++)
-        if (order[i] < r->part_count) draw_frame(r->body[order[i]], seq, frame, sx, sy, 0);
+        if (order[i] < r->part_count && !(role_hide >> order[i] & 1)) draw_frame(r->body[order[i]], seq, frame, sx, sy, 0);
 }
 
 // Poq.exe 0x48f200：整份紙娃娃先合成到暫存表面，再按合成矩形縮放拷貝。
@@ -878,7 +885,7 @@ static void actor_scaled_draw(const Actor *a, int seq, int frame, int sx, int sy
     vw = role_surface_w; vh = role_surface_h; draw_alpha = 255;
     if (shadow) {
         for (int i = 0; i < a->role->part_count; i++)
-            draw_frame(a->role->shadow[i], seq, frame, sx - src.x, sy - src.y, 1);
+            if (!(role_hide >> i & 1)) draw_frame(a->role->shadow[i], seq, frame, sx - src.x, sy - src.y, 1);
     } else role_draw(a->role, seq, frame, sx - src.x, sy - src.y);
     vw = saved_w; vh = saved_h; draw_alpha = saved_alpha;
     SDL_SetRenderTarget(ren, target);
@@ -937,10 +944,11 @@ static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     int seq = actor_seq(a);
     if (seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
     int frame = actor_frame(a, seq) % r->frames[seq];
+    role_hide = a->part_hide;
     // 影子：光照模式單機固定2，大小≤3且全域0x639f38（選項，單機未設）才用色表9；其餘0
     role_palette_set(r, NULL, 0);
     if (a->scale) actor_scaled_draw(a, seq, frame, sx, sy, 1);
-    else for (int i = 0; i < r->part_count; i++) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
+    else for (int i = 0; i < r->part_count; i++) if (!(role_hide >> i & 1)) draw_frame(r->shadow[i], seq, frame, sx, sy, 1);
     if (a->flags & 0x100) {
         uint32_t id = actor_relation_anim(a);
         const Anim *ring = id ? anim_get(id) : NULL;
@@ -957,6 +965,13 @@ static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     }
     if (a->scale) actor_scaled_draw(a, seq, frame, sx, sy - a->z, 0);
     else role_draw(r, seq, frame, sx, sy - a->z);  // 影子留在地上
+    role_hide = 0;
+    if (a->part_kind) {  // 屍體物件 0x499270／0x499540（帶裁切版，裁切 = viewport 矩形相交）、縮放繪製 0x499b90 = actor_scaled_draw：影子、本體、血跡疊圖，沒有狀態特效和頭上標記
+        const Anim *blood = a->blood_id ? anim_get(a->blood_id) : NULL;
+        if (blood && blood->count)
+            draw_frame(blood, 0, frame_at(&blood->seqs[0], tick - a->blood_start), sx + a->blood_x, sy + a->blood_y, 0);
+        return;
+    }
     // 狀態60僅在未縮放且有MethodMain時，以首部件畫八個固定偏移副本。
     // shortcut: SBMP的0x80合成旗標暫由SDL半透明承接，調色盤渲染器接齊後核對。
     if (!a->scale && has_status(a, 60) && actor_has_method(a)) {
@@ -1472,17 +1487,6 @@ static void spawn_monsters(const Scene *s, const World *w, int room) {
 // ---- 戰鬥 ----
 #define FIGHT_TICKS 300  // shortcut: 打完多久收起戰鬥姿態是自訂的（約 5 秒）
 static int exp_table[100], exp_levels;  // Data/experience.txt：第 n 列 = 升到 n+1 級要的經驗
-
-// 屍體物件 CDeadObj 每拍（Poq.exe 0x498a30；建立 0x4987d0 = actor_remove 的殘留物）：
-// 階段 0 播死亡動畫（0x4988f0 播放 = actor_animation_tick），播完 → 階段 1 停 200 拍 → 階段 2（原版畫進地面層 0x498240）
-// 在畫面外超過 0x50 拍才移除。回傳 0 = 移除。設計數 0x498b80 = dead_ticks、換階段 0x498c00 = dead_phase。
-// shortcut: 階段切換時原版把序列換成 +8 的屍體序列（0x4986c0）、並在格子標屍體編號（0x498930），這裡停在死亡動畫末幀，要屍體序列時補。
-static int dead_obj_tick(Actor *a) {
-    if (a->dead_phase == 0) { if (a->act_done) a->dead_phase = 1, a->dead_ticks = 0; return 1; }
-    if (a->dead_phase == 1) { if (++a->dead_ticks > 200) a->dead_phase = 2, a->dead_ticks = 0; return 1; }
-    if (actor_draw_visible(a)) { a->dead_ticks = 0; return 1; }
-    return ++a->dead_ticks <= 0x50;
-}
 
 static int alive(const Actor *a) { return a && a->role && !a->object_dead && a->act != ACT_DEAD; }
 
@@ -2861,9 +2865,55 @@ static void actor_death_fear(Actor *a) {
     }
 }
 
-// 單機殘留物承接不同類別的倒下物件工廠；不給尚未完整移植的工廠掛完成位址。
-// shortcut: CPartDeadObj／CFlyPartDeadObj的分件飛散尚未移植，暫保留原角色
-// 死亡播放器作殘留物；其類別接齊後換獨立部件物件，不複製角色技能／占格。
+// CPartDeadObj 設類型（Poq.exe 0x4998a0，0x498b70 空函數）：1／4 載入血跡動畫 0x1000b1／0x10011b 掛在部件 "HD" 這幀矩形的頂邊中央，
+// 2 載入 0x100106 掛在部件 "CA"。偏移 = 矩形 x + w/2、y（+0x7b／+0x7f）；沒有該部件就不加。0x44f6d0 只用 1／2／4。
+// shortcut: 類型 3（取當前幀偏移）沒有呼叫者，沒做；網頁圖像尚未載入時取不到矩形，血跡就不加。
+static void part_blood_set(Actor *a, int type) {
+    static const struct { int id; const char *part; } T[5] = {{0, 0}, {0x1000b1, "HD"}, {0x100106, "CA"}, {0, 0}, {0x10011b, "HD"}};
+    const Role *r = a->role;
+    int p = T[type].part && r ? role_part_find(r, T[type].part) : -1;
+    if (p < 0) return;
+    SDL_Rect rc = {0};
+    frame_rect_union(&rc, r->body[p], a->def->death + DIR_MAP[a->dir], 0, 0, 0);
+    if (!rc.w) return;
+    a->blood_id = T[type].id; a->blood_x = rc.x + rc.w / 2; a->blood_y = rc.y; a->blood_start = actor_logic_tick;
+}
+
+// 6／7／8 的分件（Poq.exe 0x44f6d0 的 6／7／8 分支；部件群樣式 0x578ac0／0x5780b0 = part_hide 遮罩；CFlyPartDeadObj 建構 0x498ed0）：模式6 部件 "HD"、7 九個 HD TK LE RE LA LH RA RH SD、8 只量 "HD"。
+// 屍體先停 25（8 = 30）拍；部件群要 > 1 個部件，有被點名的部件才拿掉（身體不畫它）、掛血跡 1／2／4；
+// 6／7 再建一個 CFlyPartDeadObj（0x498ed0：速度 rand%5+10，同一份角色，只畫被點名的部件，往身後飛）。
+// shortcut: 模式6 的名單 DAT_006628cc 在原版映像沒有初始化來源，當 "HD"；部件群 > 1 的判斷（+0xc8）當 Role 部件數 > 1；
+// 飛散件沿用倒下角色的位置（原版放格子中央）和朝向（+0xa7 當 facing）。
+static void part_dead_split(Actor *a, int mode) {
+    static const char *const names[9] = {"HD", "TK", "LE", "RE", "LA", "LH", "RA", "RH", "SD"};
+    const Role *r = a->role;
+    a->part_wait = mode == 8 ? 30 : 25;
+    if (!r || r->part_count < 2) return;
+    unsigned hit = 0;
+    for (int i = 0; i < (mode == 7 ? 9 : 1); i++) {
+        int p = role_part_find(r, names[i]);
+        if (p >= 0) hit |= 1u << p;
+    }
+    if (!hit) return;
+    part_blood_set(a, mode == 6 ? 1 : mode == 7 ? 2 : 4);
+    if (mode == 8) return;
+    a->part_hide = hit;
+    if (actor_count >= MAX_ACTORS) return;
+    Actor *f = &actors[actor_count++];
+    *f = *a;
+    memset(f->effect, 0, sizeof f->effect);
+    memset(f->illusion, 0, sizeof f->illusion);
+    f->part_kind = 2;
+    f->part_hide = ~hit;
+    f->part_wait = f->blood_id = 0;
+    f->fly_speed = rand() % 5 + 10;
+    start_act(f, ACT_DEAD, a->def->death);
+}
+
+// 單機殘留物承接倒下物件工廠 0x44f6d0（原版回傳新物件；這裡倒下的 Actor 自己就是屍體物件；0x499120 初始化、0x499200 建立）：
+// 3／5／9／10 單位1×腿2 放招式單位，4 放腳印，其他走 CPartDeadObj（建構 0x498f70、初始化 0x499120：
+// 序列 = 模板死亡序列 +0xa4 + 方向，由 actor_remove 的 start_act 設）；6／7／8 進 part_dead_split。
+// shortcut: 原版 0 和 2、>10 的模式不建物件，這裡仍建一般屍體（舊行為，等選項介面核對）。
 static void actor_death_remnant(Actor *a, int mode) {
     if (!unit_scene || scene_client.scene != unit_scene) return;
     int unit = mode == 3 ? 10 : mode == 5 ? 0x73 : mode == 9 ? 0xeb : mode == 10 ? 0xec : 0;
@@ -2882,6 +2932,10 @@ static void actor_death_remnant(Actor *a, int mode) {
     }
     if (mode != 6 && mode != 7 && mode != 8) actor_blood(a, 1);
     a->corpse_visible = 1;
+    a->part_kind = 1;
+    a->part_hide = 0;
+    a->blood_id = 0;
+    if (mode >= 6 && mode <= 8) part_dead_split(a, mode);
 }
 
 // Poq.exe 0x486910（屍體物件建立 CDeadObj 0x4987d0）：移除→單機選項→模式正規化→殘留物→同組潰散→模式音效。
@@ -3019,8 +3073,8 @@ static void actor_animation_tick(Actor *a) {
         if (a->knock == 1) {
             for (int i = 0; i < 3; i++) actor_body_step(a, q, 1);
         } else {
-            // shortcut: 死亡仍由Actor屍體計時承接，保留停末幀；原版死亡物件移交接入時移除此橋接。
-            actor_body_step(a, q, a->act == ACT_DEAD);
+            // 死亡停末幀；屍體物件階段0 +0x9f>0 時不播（0x4988f0，部件屍體起始停 25／30 拍）。
+            if (!(a->act == ACT_DEAD && a->dead_phase == 0 && a->part_wait > 0)) actor_body_step(a, q, a->act == ACT_DEAD);
         }
         ++a->act_tick;
     }
@@ -7055,6 +7109,48 @@ static void hud_draw(Actor *hero) {
 
 static void air_draw_view(void);
 #include "viewport.c"
+
+// 屍體物件換階段（CDeadObj 0x4986c0／CPartDeadObj 0x4990e0／0x498c00；dead_phase 0..2 = 原版 +0xa3 的 1..3）。
+// 進階段1（原版2）：高度 0、計數歸零、序列 +8（屍體序列，模板沒有該序列就停在末幀）；
+// 進階段2（原版3）：一般屍體原版畫進地面層（0x498240，這裡仍是 Actor）；部件屍體只設 +0x73 = 3 並凍結全部精靈（0x49e9e0），
+// 這裡階段1之後已停在末幀，不用另外凍。階段0的格子屍體標記 0x498ba0 引擎沒有（FUNCS skip）。
+static void dead_phase_enter(Actor *a, int phase) {
+    a->dead_phase = phase;
+    a->part_wait = 0;
+    if (phase != 1) return;
+    a->z = 0;
+    if (a->role && role_seq(a->role, a->act_seq + 8 + DIR_MAP[a->dir])) {
+        a->act_seq += 8;
+        a->act_tick = a->act_frame = a->frame_tick = a->act_done = 0;
+        a->last_frame = -1;
+        a->body_ready = 0;
+    }
+}
+
+// 屍體物件每拍（CDeadObj 0x498a30；CPartDeadObj 0x499780 播放 = actor_animation_tick／血跡用時間取幀；CFlyPartDeadObj 0x4997f0 先飛：階段0每4拍（全域拍 %4 == 1）、計數 > -20 時沿 facing 反方向退 fly_speed/64 格）。
+// 高度每拍 -4；階段0計數 < 1 且播完 → 階段1（計數先歸零再 -1，與原版相同）；
+// 階段1計數 > 200 且序列播完 → 階段2；階段2在畫面內計數歸零，畫面外 > 0x50 拍移除。回傳 0 = 移除。
+// 設計數 0x498b80 = part_wait 起始值（0x4988f0 播放 = actor_animation_tick）。
+// shortcut: 階段2不畫進地面層、也沒有格子屍體編號（0x498930 寫格子），Actor 一直畫到移除。
+static int dead_obj_tick(Actor *a) {
+    if (a->z > 0) a->z -= 4;
+    if (a->dead_phase == 0) {
+        if (a->part_kind == 2 && (actor_logic_tick & 3) == 1 && a->part_wait > -20) {
+            a->x -= GRID_X[a->facing & 7] * a->fly_speed / 64.0f;
+            a->y -= GRID_Y[a->facing & 7] * a->fly_speed / 64.0f;
+        }
+        if (a->part_wait < 1 && a->act_done) dead_phase_enter(a, 1);
+        --a->part_wait;
+    } else if (a->dead_phase == 1) {
+        if (a->part_wait++ > 200 && a->act_done) { dead_phase_enter(a, 2); return 1; }
+    } else {
+        SDL_Point p = viewport_world_screen(&viewport, ax64(a), ay64(a));
+        SDL_Rect rect = viewport_actor_rect(a, p.x, p.y, 0), screen = {0, 0, viewport.w, viewport.h};
+        if (SDL_HasIntersection(&rect, &screen)) { a->part_wait = 0; return 1; }
+        return a->part_wait++ <= 0x50;
+    }
+    return 1;
+}
 
 // Poq.exe 0x4a1b40：由最舊往最新、按原索引餘數採樣，最後不足間隔的項不畫。
 static void illusion_draw(const Illusion *v) {

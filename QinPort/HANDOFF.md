@@ -1100,7 +1100,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   tools/fn.py 修正 fields.tsv 含「／」多偏移行會當掉（拆成多筆）。
   ~~下一步：0x497880（CObj／CMapObj 起）~~；~~下一步：0x4933a0（CProtagonist）起；0x490e70／0x4909b0／0x493320 等 CNpc 虛擬表第27／28格呼叫者尚未接（仍標 LATER）。**
 - 進度（11-18c）：0x497880～0x49e750 的 CObj／CMapObj／CStaticObj／CSurfaceObj／CDeadObj／CFootStep／CNormalSurobj 完成：建構解構、索引表、設值／getter 全 skip；地面物件畫法 0x497fd0／0x498130／0x498410 標在 viewport_units；CNormalSurobj 0x498d90／0x498e00／0x498e40 標在 unit.c foot_new／foot_tick；**CDeadObj 屍體物件**（0x498a30／0x4988f0／0x4987d0／0x498b80／0x498c00）新 `dead_obj_tick` 取代 CORPSE_TICKS 計時（死亡動畫播完 → 停 200 拍 → 畫面外 0x50 拍後移除）。shortcut：+8 屍體序列與格子屍體標記未移植。todo：CPartDeadObj／CFlyPartDeadObj 的畫、分件、飛散（0x499270／0x499540／0x4990e0／0x4997f0／0x4998a0／0x499af0，等 Role 分件模型，roles.tsv 有說明）。
-  **下一步：0x4990e0（CPartDeadObj／CFlyPartDeadObj）起。**
+  ~~**下一步：0x4990e0（CPartDeadObj／CFlyPartDeadObj）起。**~~
+- 進度（11-18d）：**CPartDeadObj／CFlyPartDeadObj 整類完成**（0x4990e0／0x499120／0x499270／0x499540／0x499780／0x4997f0／0x4998a0／0x499af0／0x499b90＋0x44f6d0 工廠＋0x498ed0 建構），不需要新的「分件模型」：原版的部件群 = 我們的 `Role.body[]`，「拿掉部件」= `Actor.part_hide` 遮罩（bit i = Role 第 i 個部件不畫，`role_hide` 在 actor_draw 內生效，影子一起跳過）。
+  - 倒下模式 6／7／8（`part_dead_split`）：模式6 部件 HD、7 九個 HD TK LE RE LA LH RA RH SD、8 只量 HD；屍體先停 25（8 = 30）拍（`part_wait`，`actor_animation_tick` 不推進）；部件群 > 1 個部件且有被點名的部件，才掛血跡（`part_blood_set`：類型 1／4 = 0x1000b1／0x10011b 掛 HD 矩形頂邊中央，2 = 0x100106 掛 CA；3 沒呼叫者不做）。6／7 另建 CFlyPartDeadObj = 把倒下 Actor 整個複製進 `actors[actor_count++]`（`part_kind` 2、`part_hide` 反選、速度 `fly_speed` rand%5+10），階段0每4拍（`actor_logic_tick % 4 == 1`）沿 facing 反方向退 fly_speed/64 格、計數 > -20 為止。其他模式（含 1）屍體 = `part_kind` 1，不分件；`actor_draw` 的屍體分支只畫影子、本體、血跡（`blood_id`），沒有狀態特效／頭上標記。
+  - `dead_obj_tick`（移到 viewport.c 之後）改成照 0x498a30 的 +0x9f 計數：階段0（計數 < 1 且播完 → 階段1，之後 -1）、階段1（計數 > 200 且播完 → 階段2）、階段2（用 `viewport_actor_rect` 與畫面矩形相交判斷，畫面外 > 0x50 拍移除，取代舊的 `actor_draw_visible` 替身）、高度每拍 -4。換階段 `dead_phase_enter`：進階段1 高度歸 0、序列 +8（屍體序列，模板沒有就停末幀；之前的 shortcut 已補）。
+  - skip：0x4989c0／0x578710／0x578a00（格子屍體編號、部件群載入、光照旗標，Actor 共用 Role）。新增 skilltest `part_dead_test`（分件遮罩、飛散件複製與位移、階段轉換 203 拍、畫面外 0x51 拍移除、停 25 拍）。
+  - shortcut：模式6 名單 DAT_006628cc 沒有初始化來源當 HD；部件群 > 1 的判斷（+0xc8）當 Role 部件數 > 1；飛散件用倒下位置與 facing（原版放格子中央、+0xa7）；網頁圖像尚未載入時取不到部件矩形，血跡就不加；階段2 不畫進地面層、沒有格子屍體編號；原版模式 0／2／>10 不建屍體物件，這裡維持舊行為。
+  **下一步：0x499e30（CPropObj 地上道具物件）起**：0x49a070 初始化、0x49a550 每拍（30 拍拋物線 DAT_0062a2e8 = 30、步距 DAT_0062a2ec = 7、落地音）、0x49a170 畫、0x49a810 矩形、0x49a880 移除；現在 `ground[]` 只是資料，要補拋出動畫欄位（拍數、高度、速度、起點）；DAT_00663f24（升降分界）是 BSS，要找設定處。
 
 
 
