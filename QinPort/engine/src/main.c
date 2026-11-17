@@ -300,7 +300,7 @@ typedef struct Actor {
     unsigned char state[128]; // 原版角色狀態byte；特殊主分派仍待補齊
     int status_countdown, original_group, counter_skill, status_aux;
     void *interaction;
-    int behavior_aux, behavior_unused, debug_rectangle;
+    int behavior_unused, debug_rectangle;
     int command_world_x, command_world_y;
     int hp_percent, behavior[4];
     int battle_return;
@@ -322,6 +322,7 @@ typedef struct Actor {
     int act, act_seq, last_frame;  // 單次動作與它的序列起點、上一拍的幀（觸發用）
     int body_seq, body_start, body_end, body_ready, animation_stepped;
     int act_frame, frame_tick, act_done;  // 單次動作播到第幾幀、這幀停了幾拍、播完了沒
+    unsigned char sequence_delay_bias; // 原版byte +0x345，非0時每幀延遲另加2
     int adj, extra;                // 這次動作每幀延遲的調整（序列 +0x14）、攻速多出來要補到間隔的拍數
     int flags;                     // 招式設的旗標（type 8）：0x10 = 怪物不選它當目標、0x200 = 在空中、0x4000 = 打它的會停手
     int z, vz, zmax;               // 離地高度、每拍升降、上限（+0x2d7、+0x2db、+0x2df）
@@ -1410,14 +1411,14 @@ static float cell_dist(const Actor *a, const Actor *b) {
     return fmaxf(fabsf(a->x - b->x), fabsf(a->y - b->y));
 }
 
-// 攻速（Poq.exe 0x48d330，出手時）：縮短 = 總拍數 − trunc(float(總拍數)×攻速倍率)；每幀延遲調整 = −縮短 / 幀數。
+// 攻速（MethodMain綁定時）：縮短 = 總拍數 − trunc(float(總拍數)×攻速倍率)；每幀延遲調整 = −縮短 / 幀數。
 // 有餘數時：縮短 > 0 調整再 −1、要補 幀數 − 餘數 拍，否則補 −餘數 拍；調整 < −1 時補的減半。補的（> 0 才算）加到出手間隔
-// shortcut: 原版 +0x345 有值時調整再 +2，那個欄位的意思沒查
 static void attack_speed(Actor *a) {
     const Seq *q = role_seq(a->role, actor_seq(a));
     if (!q || !q->count) return;
     int total = (int)seq_ticks(q), cut = total - (int)((float)total * actor_fight_ratio(a)), rem = cut % q->count;
     a->adj = -(cut / q->count);
+    a->extra = 0;
     if (rem) {
         if (cut < 1) a->extra = -rem;
         else {
@@ -1425,6 +1426,32 @@ static void attack_speed(Actor *a) {
             a->extra = q->count - rem;
         }
         if (a->adj < -1) a->extra /= 2;
+    }
+}
+
+static int grp_npc(int grp);
+
+// Poq.exe 0x48d330：MethodMain綁定／解除；冷卻在招式建立時裝入，活招式存在期間不遞減。
+// 單機模式2的NPC種類60只用餘拍，不夾負值；其他種類先夾餘拍再加間隔。
+static void actor_method_bound(Actor *a, int on) {
+    if (on) {
+        attack_speed(a);
+        int delay = a->def ? a->def->atk_delay : 0;
+        int cool = a->extra;
+        if (!grp_npc(a->grp) || a->object_kind != 60) {
+            // shortcut: 空白測試／缺模板的間隔0不做mod0；正式模板若有0須核對資料契約。
+            int interval = grp_npc(a->grp) ? (int)((float)delay * actor_fight_ratio(a)) : delay + (delay ? rand() % delay : 0);
+            cool = interval + (cool < 0 ? 0 : cool);
+        }
+        a->cool = cool;
+        if (a->sequence_delay_bias) a->adj += 2;
+    } else a->adj = 0;
+    if (a->trail_mode == 1 && (on || a->modifier[6].time < 21)) {
+        int time = on ? -1 : 20;
+        if (a->modifier[6].value != 1 || a->modifier[6].time != time) {
+            a->modifier[6].value = 1; a->modifier[6].time = time;
+            actor_illusion_begin(a);
+        }
     }
 }
 
@@ -2775,7 +2802,7 @@ static void actor_behavior_reset(Actor *a) {
     actor_cancel_command(a);
     actor_forget_command(a);
     a->command_world_x = a->command_world_y = -100;
-    a->status_aux = a->behavior_aux = a->cool = a->behavior_unused = a->debug_rectangle = 0;
+    a->status_aux = a->extra = a->cool = a->behavior_unused = a->debug_rectangle = 0;
     a->corrected_x = a->corrected_y = 0;
     actor_status_notify(a, 0, 0, -1);
     actor_light_init(a);
@@ -3347,14 +3374,9 @@ static void action_tick(Actor *a, const Scene *s, Uint32 tick) {
         if (u) unit_die(u, tick);
     }
     if (a->act != ACT_DEAD && finished) {
-        // 攻擊間隔（Poq.exe 0x48d330）：NPC組用float攻速倍率，其餘組為間隔+隨機(間隔)。
-        // shortcut: 仍於動作結束才裝冷卻，完整MethodMain狀態接入後改於綁定時裝入；NPC種類60的免間隔分支待物件種類接入。
         if (a->act == ACT_ATTACK && a->mon && a->skill) {  // 怪物打完一招記成上一招；完整NPC主AI仍待CNpc移植。
             a->last_skill = a->skill;
             a->skill = NULL;
-        }
-        if (a->act == ACT_ATTACK) {
-            a->cool = (grp_npc(a->grp) ? (int)((float)a->def->atk_delay * actor_fight_ratio(a)) : a->def->atk_delay + rnd(a->def->atk_delay)) + (a->extra > 0 ? a->extra : 0);
         }
         if (a->casting) {  // 左手技能放完：招式沒有打中的觸發就在這裡生效，換回右手招式
             if (a->casting == 1 && a->cast) skill_hit(a, skill_needs_foe(a->cast) ? a->foe : a, a->cast, tick);
@@ -3896,14 +3918,17 @@ static void cast_start(Actor *h, const SkillRow *r) {
 }
 
 // 共用現有技能結算與動畫，明確傳遞世界座標及對象至MethodMain。
-// shortcut: 原版施法入口的同步及完整戰鬥狀態副作用仍待主命令接齊。
 // shortcut: 沒有EasyRPG技能列的模板招式仍可播放與觸發，沒有額外技能數值結算。
 static int actor_cast_try(Actor *a, int id, int x, int y, Actor *target) {
     int i = actor_skill_find(a, id);
     if (i < 0) return 0;
     ActorSkill *s = &a->skills[i];
     const Method *m = method_find(s->id);
-    if (!m || !s->enabled || (a->def->speed && a->speed <= 0 && s->max >= 3)) return 0;
+    if (!m || !s->enabled || (a->def->speed && a->move_a <= 0 && s->max >= 3)) return 0;
+    // 原版先選明確傳入的角色目標；MethodMain建立失敗也保留此副作用。
+    // 地點施法稍後找占格供同隊技能檢查，不在這裡改角色目標。
+    if (target && !is_trap(target) && (unsigned)(target->object_kind - 30) < 71u)
+        actor_target_set(a, target);
     if (!target) target = cell_actor0(x / 64, y / 64);
     if (m->manual == 2) {
         if (!target || a->grp != target->grp) return 0;
@@ -3925,19 +3950,23 @@ static int actor_cast_try(Actor *a, int id, int x, int y, Actor *target) {
     a->atk_rh = right;
     a->aim_valid = 1; a->aim_x = x; a->aim_y = y;
     a->aim_actor = target; a->aim_range = actor_skill_range(a, s);
-    if (target && !is_trap(target) && (unsigned)(target->object_kind - 30) < 71u)
-        actor_target_set(a, target);
     main_new(a);
     return 1;
 }
 
-// 施法入口的記住命令收尾：失敗也執行；不同技能且仍有敵對角色目標時保留。
-// shortcut: 單機模式2；完整服務端入口接入時補非模式2的無條件清除分支。
-static int actor_cast_at(Actor *a, int id, int x, int y, Actor *target) {
+// 施法主入口：非強制冷卻直接返回，連記住命令也不清；成功建立招式後才送入戰命令。
+// shortcut: 單機模式2省略招式同步封包；NPC入戰的全域選人提示等CGameApp。
+// 不以局部入口標完成位址，外部選人通知仍列roles。
+static int actor_cast_at(Actor *a, int id, int x, int y, Actor *target, int forced) {
+    if (!forced && actor_cooling(a)) return 0;
     int result = actor_cast_try(a, id, x, y, target);
-    if ((a->remembered[0] == 8 || a->remembered[0] == 9) &&
-        (a->remembered[1] == id || !a->foe || !is_foe(a, a->foe)))
-        actor_forget_command(a);
+    if (result && !has_status(a, 0)) actor_command(a, 11, 1, 0, 0, 0, 0);
+    if (a->remembered[0] == 8 || a->remembered[0] == 9) {
+        Actor *t = a->remembered[1] == id ? NULL : actor_target(a);
+        if (a->remembered[1] == id || !t || is_trap(t) ||
+            (unsigned)(t->object_kind - 30) >= 71u || !is_foe(a, t))
+            actor_forget_command(a);
+    }
     return result;
 }
 
@@ -3947,7 +3976,7 @@ static void actor_candidate_cast(Actor *a) {
         int id = a->candidate[i];
         if (id <= 0 || actor_skill_find(a, id) < 0) continue;
         Actor *t = actor_target(a);
-        actor_cast_at(a, id, ax64(t ? t : a), ay64(t ? t : a), t);
+        actor_cast_at(a, id, ax64(t ? t : a), ay64(t ? t : a), t, 1);
         return;
     }
 }
@@ -3974,7 +4003,7 @@ static int actor_move_cast(Actor *a, unsigned short cx, unsigned short cy) {
         int slot = actor_skill_find(a, s->id);
         if (actor_can_use_skill(a, slot >= 0 ? &a->skills[slot] : NULL)) {
             a->moving = a->has_target = 0;
-            actor_cast_at(a, s->id, x * 64 + 32, y * 64 + 32, NULL);
+            actor_cast_at(a, s->id, x * 64 + 32, y * 64 + 32, NULL, 1);
         }
         return 1;
     }
@@ -4127,7 +4156,7 @@ static void actor_skill_command_tick(Actor *a) {
         if (!actor_can_use_id(a, id)) {
             actor_set_flags(a, 1, 1);
             actor_cancel_command(a);
-        } else if (!actor_cooling(a) && actor_cast_at(a, id, a->command[2] * 64 + 32, a->command[3] * 64 + 32, NULL))
+        } else if (actor_cast_at(a, id, a->command[2] * 64 + 32, a->command[3] * 64 + 32, NULL, 0))
             actor_cancel_command(a);
         return;
     }
@@ -4165,7 +4194,7 @@ static void actor_skill_command_tick(Actor *a) {
     // 單機省略NPC入戰的全域選人／介面同步，狀態與技能仍由共用接收端執行。
     if (actor_skill_in_range(sx - x, sy - y, range, skill->min)) {
         actor_dynamic_command(a, 1, 0, 0, 0);
-        if (!actor_cooling(a) && actor_cast_at(a, id, ax64(t), ay64(t), t)) actor_cancel_command(a);
+        if (actor_cast_at(a, id, ax64(t), ay64(t), t, 0)) actor_cancel_command(a);
         return;
     }
     if (a->dynamic_state == 11 && a->dynamic_command[0] == x && a->dynamic_command[1] == y) return;

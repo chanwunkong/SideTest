@@ -364,6 +364,7 @@ static int unit_bounce(MUnit *u) {
 static void unit_die(MUnit *u, Uint32 tick) {
     if (u->dead) return;
     u->dead = 1;
+    if (u->cls == U_MAIN && u->owner && !u->main_detached) actor_method_bound(u->owner, 0);
     hit_release(u);
     for (int i = 0; i < u->trig_n; i++)
         if (u->trig[i].flag == 3) unit_trig(u, &u->trig[i], tick);
@@ -817,6 +818,7 @@ static void main_new(Actor *a) {
         u->ty = u->y + (int)((u->ty - u->y) * k);
     }
     u->sx = u->tx, u->sy = u->ty;
+    actor_method_bound(a, 1);
 }
 
 // 角色出手打中人（0x439fb0 → 0x438560）：加進它的打中名單

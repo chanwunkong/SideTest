@@ -8,6 +8,110 @@ static RoleDef def;
 static MonDef md;
 static const Role empty_test_role;
 
+static void character_cast_entry_test(void) {
+    Actor saved[2] = {actors[0], actors[1]}; int saved_count = actor_count;
+    MUnit saved_unit = units[0]; int saved_units = unit_n;
+    const Scene *saved_scene = unit_scene;
+    RoleDef d = {.speed = 5, .fight_speed = 5};
+    Actor base = {.role = &empty_test_role, .def = &d, .speed = 5, .fight_speed = 5,
+        .move_a = 5, .layer = 1, .object_kind = 31, .grp = 0,
+        .dynamic_state = 1, .dynamic_active = 1, .right_id = 1, .selected = 0,
+        .skill_n = 1, .skills = {{.id = 1, .enabled = 1, .max = 4}},
+        .command = {-1}, .remembered = {9, 1, 77, 88}};
+    base.state[0] = 1;
+    actors[0] = base;
+    actors[1] = (Actor){.role = &empty_test_role, .def = &d, .object_kind = 31, .grp = 10001,
+        .state = {[0] = 1}, .hp = 100, .hp_max = 100, .x = 8.5f, .y = 9.5f};
+    actor_count = 2; unit_n = 0; unit_scene = NULL;
+    Actor *a = &actors[0], *target = &actors[1];
+    // 非強制冷卻是整入口早退：不選目標、不忘記命令；強制則仍進入失敗收尾。
+    a->cool = 3;
+    assert(!actor_cast_at(a, 1, ax64(target), ay64(target), target, 0));
+    assert(!a->foe && a->remembered[0] == 9 && !unit_n);
+    unit_n = MAX_UNIT;
+    assert(!actor_cast_at(a, 1, ax64(target), ay64(target), target, 1));
+    assert(a->foe == target && a->remembered[0] == -1 && a->cool == 3);
+    assert(a->remembered[2] == 77 && a->remembered[3] == 88);
+    // 停用或移速A為0時不選目標，但仍忘記相同招式；不是讀角色speed。
+    *a = base; a->skills[0].enabled = 0;
+    assert(!actor_cast_at(a, 1, 0, 0, target, 1) && !a->foe && a->remembered[0] == -1);
+    *a = base; a->move_a = 0;
+    assert(!actor_cast_at(a, 1, 0, 0, target, 1) && !a->foe && a->remembered[0] == -1);
+    unit_n = 0; *a = base; a->speed = 0;
+    assert(actor_cast_at(a, 1, ax64(target), ay64(target), target, 1));
+    assert(unit_n == 1 && a->foe == target && units[0].target == target);
+    unit_n = 0; *a = base; a->move_a = 0; a->skills[0].max = 2;
+    assert(actor_cast_at(a, 1, 0, 0, NULL, 0)); // 近距招式不受A限制。
+    unit_n = 0; *a = base; a->move_a = 0; d.speed = 0;
+    assert(actor_cast_at(a, 1, 0, 0, NULL, 0)); // 模板速度為0也不受A限制。
+    d.speed = 5;
+    // 不同技能的記住命令僅在目前可查到的敵對角色存在時保留。
+    *a = base; unit_n = MAX_UNIT; a->remembered[1] = 123; a->foe = target;
+    assert(!actor_cast_at(a, 1, 0, 0, NULL, 1) && a->remembered[0] == 9);
+    target->flags = 0x10;
+    assert(!actor_cast_at(a, 1, 0, 0, NULL, 1) && a->remembered[0] == -1 && a->foe == target);
+    target->flags = 0; target->object_kind = 24;
+    a->remembered[0] = 8; a->foe = target;
+    assert(!actor_cast_at(a, 1, 0, 0, NULL, 1) && a->remembered[0] == -1);
+    // 成功後命令11仍受MethodMain可用性門檻，不直接寫戰鬥byte繞過它。
+    int interruptible = -1;
+    for (int id = 1; id < 65535; id++) {
+        const Method *m = method_find(id);
+        if (m && m->interruptible) { interruptible = id; break; }
+    }
+    assert(interruptible > 0);
+    *a = base; unit_n = 0; a->state[0] = 0; a->skills[0].id = a->right_id = interruptible;
+    assert(actor_cast_at(a, interruptible, 0, 0, NULL, 1));
+    assert(has_status(a, 0) && main_of(a));
+    actors[0] = saved[0]; actors[1] = saved[1]; actor_count = saved_count;
+    units[0] = saved_unit; unit_n = saved_units; unit_scene = saved_scene;
+}
+
+static void character_method_binding_test(void) {
+    Frame frames[3] = {{.delay = 10}, {.delay = 10}, {.delay = 10}};
+    Seq q = {.count = 3, .frames = frames}; Anim an = {.count = 1, .seqs = &q};
+    Role role = {.part_count = 1, .seq_count = 1, .body = {&an}};
+    RoleDef d = {.atk_delay = 30};
+    Actor a = {.role = &role, .def = &d, .act = ACT_ATTACK, .dir = 2,
+        .object_kind = 60, .grp = 10000, .trail_mode = 1};
+    actor_property(&a, "B_C_FIGHT_SPEED", 1);
+    srand(51); int next = rand(); srand(51);
+    actor_method_bound(&a, 1);
+    assert(a.cool == 2 && a.adj == -1 && a.extra == 2 && rand() == next);
+    assert(a.modifier[6].value == 1 && a.modifier[6].time == -1);
+    actor_method_bound(&a, 0);
+    assert(a.cool == 2 && !a.adj && a.modifier[6].time == 20);
+    a.modifier[6].time = 21; a.modifier[6].value = 7; a.adj = 5;
+    actor_method_bound(&a, 0);
+    assert(a.modifier[6].time == 21 && a.modifier[6].value == 7 && !a.adj);
+    a.sequence_delay_bias = 1; a.object_kind = 31;
+    actor_method_bound(&a, 1);
+    assert(a.cool == 31 && a.adj == 1 && a.modifier[6].time == -1);
+    // 減速時有號負餘數取負補拍；種類60仍只用補拍，不加模板間隔。
+    frames[0].delay = frames[1].delay = frames[2].delay = 1;
+    a.ex[65] = -60; a.object_kind = 60;
+    actor_method_bound(&a, 1);
+    assert(a.cool == 1 && a.extra == 1 && a.adj == 3);
+    a.object_kind = 31; actor_method_bound(&a, 1);
+    assert(a.cool == 1 + (int)(30.0f * actor_fight_ratio(&a)));
+    a.grp = 0; a.ex[65] = 0; d.atk_delay = 1;
+    srand(52); (void)rand(); next = rand(); srand(52);
+    actor_method_bound(&a, 1);
+    assert(a.cool == 1 && rand() == next); // rand()%1仍消耗一次亂數。
+    // 真正MethodMain建立／結束接同一綁定函數，活招式期間不扣冷卻。
+    int saved_n = unit_n; MUnit saved = units[0]; unit_n = 0;
+    a.atk = method_find(1); a.act = ACT_ATTACK; a.cool = 999;
+    main_new(&a);
+    assert(unit_n == 1 && main_of(&a) && a.cool == 1 && a.modifier[6].time == -1);
+    actor_cooldown_tick(&a); assert(a.cool == 1);
+    unit_die(&units[0], 0);
+    assert(!main_of(&a) && a.cool == 1 && !a.adj && a.modifier[6].time == 20);
+    actor_cooldown_tick(&a); assert(!a.cool);
+    unit_die(&units[0], 0); assert(a.modifier[6].time == 20);
+    for (int i = 0; i < MAX_ROLE_PARTS; i++) illusion_clear(&a.illusion[i]);
+    units[0] = saved; unit_n = saved_n;
+}
+
 static void character_skill_commands_test(void) {
     const Scene *saved_scene = unit_scene;
     Actor saved0 = actors[0], saved1 = actors[1]; int saved_count = actor_count;
@@ -18,7 +122,7 @@ static void character_skill_commands_test(void) {
     Scene sc={.w=20,.h=20,.cells=cells}; unit_scene=&sc;
     RoleDef d={.speed=10,.fight_speed=10,.hit=65535};
     Actor base={.role=&empty_test_role,.def=&d,.x=5.5f,.y=5.5f,
-        .speed=10,.fight_speed=10,.layer=1,.body_size=1,.object_kind=31,.hp=100,.hp_max=100,
+        .speed=10,.move_a=10,.fight_speed=10,.layer=1,.body_size=1,.object_kind=31,.hp=100,.hp_max=100,
         .dynamic_state=1,.dynamic_active=1,.dynamic_path_result=1,.dynamic_enter_tick=-1000,
         .right_id=1,.selected=0,.skill_n=1,.skills={{.id=1,.enabled=1,.max=8,.min=3}},
         .template_skill_n=1,.template_skill={1}};
@@ -1807,7 +1911,7 @@ static void character_move_cast_test(void) {
     assert(id > 0);
     Role role = {0};
     RoleDef d = {.speed = 5, .move_cast = 1};
-    Actor a = {.def = &d, .role = &role, .x = 1.5f, .y = 1.5f, .grp = 0, .speed = 5,
+    Actor a = {.def = &d, .role = &role, .x = 1.5f, .y = 1.5f, .grp = 0, .speed = 5, .fight_speed = 5, .move_a = 5,
         .layer = 1, .skill_n = 1, .skills = {{.id = id, .enabled = 1, .max = 7}},
         .atk = method_find(1)};
     memset(cells, 0, sizeof cells); cells[4 * 20 + 8].walk = 1;
@@ -1844,7 +1948,7 @@ static void character_move_cast_test(void) {
     Actor target = {.role = &role, .x = 7.5f, .y = 8.5f};
     Actor saved_candidate_target = actors[0]; int saved_candidate_count = actor_count;
     actors[0] = target; actor_count = 1;
-    a.foe = &actors[0];
+    a.foe = &actors[0]; a.state[0] = 0;
     actor_enter_fight(&a);
     assert(unit_n == 1 && units[0].target == &actors[0] && a.aim_x == ax64(&actors[0]));
     actor_enter_fight(&a); assert(unit_n == 1); // 同一次入戰只觸發一次。
@@ -1856,7 +1960,7 @@ static void character_move_cast_test(void) {
     SkillRow old_skill = hero_skill[0]; int old_n = hero_skill_n, old_left = cur_skill[1];
     hero_skill_n = 1; cur_skill[1] = 0;
     hero_skill[0] = (SkillRow){.level = 1, .wtype = -1, .mod_n = 1, .mod = {{.id = 10, .init = id}}};
-    a.act = a.casting = 0; unit_n = 0;
+    a.act = a.casting = 0; a.cool = 99; unit_n = 0;
     a.skills[0].row = &hero_skill[0];
     a.dynamic_state = 1;
     a.template_skill_n = 1; a.template_skill[0] = id;
@@ -1878,9 +1982,9 @@ static void character_move_cast_test(void) {
     unit_n = 0; a.act = a.casting = 0;
     a.skills[0] = (ActorSkill){.id = ally_id, .enabled = 1, .max = 7};
     target.grp = a.grp + 1;
-    assert(!actor_cast_at(&a, ally_id, ax64(&target), ay64(&target), &target));
+    assert(!actor_cast_at(&a, ally_id, ax64(&target), ay64(&target), &target, 1));
     target.grp = a.grp;
-    assert(actor_cast_at(&a, ally_id, ax64(&target), ay64(&target), &target));
+    assert(actor_cast_at(&a, ally_id, ax64(&target), ay64(&target), &target, 1));
     assert(units[0].target == &target);
     units[0] = old_units[0]; units[1] = old_units[1]; units[2] = old_units[2];
     actors[0] = saved[0]; actors[1] = saved[1];
@@ -2375,12 +2479,18 @@ static void character_properties_test(void) {
     a = (Actor){.role = &role, .def = &d, .dir = 2, .grp = 10000,
                 .act = ACT_ATTACK, .body_ready = 1, .body_seq = 0, .body_end = 2, .act_frame = 2, .frame_tick = 9, .extra = 2};
     actor_property(&a, "B_C_FIGHT_SPEED", 1);
+    actor_method_bound(&a, 1); assert(a.cool == 31);
+    a.act_frame = 2; a.frame_tick = 8;
     action_tick(&a, &sc, 0);
     assert(a.cool == 31 && !a.act); // trunc(30*ratio)+2=31，與mon指標無關。
     a.act = ACT_ATTACK; a.act_frame = 2; a.frame_tick = 9; a.extra = 0; a.grp = 0; a.mon = &mon;
+    a.ex[65] = 0;
     srand(123); int expected = 30 + rand() % 30;
-    srand(123); action_tick(&a, &sc, 0);
-    assert(a.cool == expected && !a.act);
+    srand(123); actor_method_bound(&a, 1);
+    assert(a.cool == expected);
+    a.act_frame = 2; a.frame_tick = 9;
+    a.cool = 123; action_tick(&a, &sc, 0);
+    assert(a.cool == 123 && !a.act); // 結束不重新擲間隔或覆寫冷卻。
 }
 
 static void character_speed_memory_test(void) {
@@ -2409,15 +2519,19 @@ static void character_speed_memory_test(void) {
         actor_forget_command(&a); assert(a.remember_delay == 0);
     }
     // 失敗施法仍做收尾；記住不同技能且有敵對目標時保留。
-    RoleDef d = {0}; Actor enemy = {.grp = 10000};
-    a = (Actor){.def = &d, .grp = 0, .foe = &enemy, .remembered = {8, 123, 34, 56}};
-    assert(!actor_cast_at(&a, 999, 0, 0, NULL) && a.remembered[0] == 8);
-    assert(!actor_cast_at(&a, 123, 0, 0, NULL) && a.remembered[0] == -1);
+    RoleDef d = {0};
+    Actor saved = actors[0]; int saved_count = actor_count;
+    actors[0] = (Actor){.role = &empty_test_role, .object_kind = 31, .grp = 10000};
+    actor_count = 1; Actor *enemy = &actors[0];
+    a = (Actor){.def = &d, .grp = 0, .foe = enemy, .remembered = {8, 123, 34, 56}};
+    assert(!actor_cast_at(&a, 999, 0, 0, NULL, 1) && a.remembered[0] == 8);
+    assert(!actor_cast_at(&a, 123, 0, 0, NULL, 1) && a.remembered[0] == -1);
     assert(a.remembered[1] == 123 && a.remembered[2] == 34 && a.remembered[3] == 56);
     a.remembered[0] = 9; a.foe = NULL;
-    assert(!actor_cast_at(&a, 999, 0, 0, NULL) && a.remembered[0] == -1);
-    a.remembered[0] = 9; a.foe = &enemy; enemy.grp = 0;
-    assert(!actor_cast_at(&a, 999, 0, 0, NULL) && a.remembered[0] == -1);
+    assert(!actor_cast_at(&a, 999, 0, 0, NULL, 1) && a.remembered[0] == -1);
+    a.remembered[0] = 9; a.foe = enemy; enemy->grp = 0;
+    assert(!actor_cast_at(&a, 999, 0, 0, NULL, 1) && a.remembered[0] == -1);
+    actors[0] = saved; actor_count = saved_count;
 }
 
 static void character_template_environment_test(void) {
@@ -3045,7 +3159,7 @@ static void character_behavior_reset_test(void) {
         .command={8,11,22,33}, .remembered={2,44,55,66}, .cool=25,
         .state={[0]=1}, .grp=10000, .hp=7, .z=63, .vz=4, .zmax=100,
         .dynamic_command={3,4,5}, .corrected_x=9, .corrected_y=8,
-        .status_aux=7, .behavior_aux=6, .behavior_unused=5, .debug_rectangle=1,
+        .status_aux=7, .extra=6, .behavior_unused=5, .debug_rectangle=1,
         .previous_target=12, .object_dead=1, .dynamic_pending=2, .dynamic_path=3,
         .dynamic_counter=4, .dynamic_aux=5, .dynamic_cache_x=6, .dynamic_cache_y=7};
     units[0] = (MUnit){.cls=U_MAIN, .owner=&a};
@@ -3056,7 +3170,7 @@ static void character_behavior_reset_test(void) {
     assert(units[0].main_detached && !units[0].dead && units[0].owner==&a);
     assert(a.command[0]==-1 && a.command[1]==11 && a.command[2]==22 && a.command[3]==33);
     assert(a.remembered[0]==-1 && a.remembered[1]==44 && a.remember_delay==50);
-    assert(!a.cool && !a.status_aux && !a.behavior_aux && !a.behavior_unused && !a.debug_rectangle);
+    assert(!a.cool && !a.status_aux && !a.extra && !a.behavior_unused && !a.debug_rectangle);
     assert(a.command_world_x==-100 && a.command_world_y==-100 && !a.corrected_x && !a.corrected_y);
     assert(!a.state[0] && !a.bound_scene && !a.object_dead && a.layer==1 && a.hp==7);
     assert(a.z==63 && a.vz==-20 && !a.zmax && a.dynamic_state==1);
@@ -3168,6 +3282,8 @@ int main(void) {
     character_blood_test();
     character_behavior_reset_test();
     character_command_receiver_test();
+    character_cast_entry_test();
+    character_method_binding_test();
     character_skill_commands_test();
     character_overhead_test();
     character_status15_test();

@@ -646,7 +646,7 @@ CCharactor	+0x87	上次套用的目標動畫序列	Actor.previous_target／actor
 CCharactor	+0x8b	目標動畫序列（方向為帶符號餘數）	Actor.animation_target／actor_animation_select
 CCharactor	+0xa3	目前目標物件句柄，0無目標	Actor.foe（指標取代句柄）
 CCharactor	+0xa7	原版動畫方向，指定序列時取帶符號餘數；旗標0x400每拍減1，負數回7	Actor.animation_dir；現有面向以Actor.dir／DIR_MAP橋接
-CCharactor	+0xaf	當前移速的A參數；0時不能使用距離大於等於3的技能	Actor.move_a／actor_move_speed；技能速度限制讀取仍待完整動態狀態接齊
+CCharactor	+0xaf	當前移速的A參數；0時不能使用距離大於等於3的技能	Actor.move_a／actor_move_speed／actor_cast_try（模板speed非0且A<=0時拒絕max>=3）
 CCharactor	+0x2cf	角色模板指標	Actor.def
 CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減半	Actor.speed_threshold
 CCharactor	+0x339	AI組（0..99玩家、10000..60000 NPC組）	Actor.grp
@@ -698,7 +698,7 @@ CCharactor	+0x4ff	右手技能ID	Actor.right_id
 CCharactor	+0x503	左手技能ID	Actor.left_id
 CCharactor	+0x507	生命百分比，初值100，少於20／50設第3修正3／1	Actor.hp_percent／actor_health_percent
 CCharactor	+0x513	#UPDWTYPE／0x52a更新的武器種類byte，僅存低8位	Actor.weapon_type／actor_weapon_type_set
-CCharactor	+0x51c	模式，值2觸發移動第6修正	Actor.trail_mode
+CCharactor	+0x51c	殘影模式；1隨MethodMain綁定／解除設第6修正，2隨動態11進入／退出設第6修正	Actor.trail_mode／actor_method_bound／actor_trail_enter／actor_trail_exit
 CCharactor	+0x524	目前縮放量；模板比例ffff時逐拍往第4修正值移1，每20單位為一倍尺寸	Actor.scale／actor_scale_tick
 CCharactor	+0x528	死亡模式byte	待角色移除
 CCharactor	+0x529	活動旗標，角色更新時0轉1	待角色更新
@@ -711,8 +711,8 @@ CCharactor	+0x55d	B_C_VRANGE：模板索敵值加屬性值（只非10000..60000�
 CCharactor	+0x561	基礎追擊範圍，層大於10時加8	Actor.def->chase／actor_chase
 CCharactor	+0x565	B_C_VRANGE值加12；模板入口先設12	Actor.view_range
 CCharactor	+0x569	狀態移動速度倍率百分比，初值100	Actor.effect_speed／status_speed
-CCharactor	+0x56d	行為重設時清0的整數，用途未明	Actor.behavior_aux
-CCharactor	+0x571	出手冷卻，無MethodMain時每拍減1	Actor.cool／actor_cooldown_tick（正數且無存活MethodMain才遞減；先於空中維護略過判定，角色啟用門檻仍todo）
+CCharactor	+0x56d	攻速幀延遲除法的補拍數；負cut時取負餘數，正cut時幀數減餘數，delay<-1再除2；行為重設清0	Actor.extra／attack_speed
+CCharactor	+0x571	出手冷卻，無MethodMain時每拍減1	Actor.cool／actor_method_bound於建立時裝入，actor_cooldown_tick正數且無存活MethodMain才遞減；非強制施法正數直接早退，角色啟用門檻仍todo
 CCharactor	+0x575	行為重設時清0的整數，獨立setter無呼叫者	Actor.behavior_unused
 CCharactor	+0x579	蠱惑狀態清除及行為重設時清0；用途未定，不能當casting	Actor.status_aux；僅保存／清除原始欄位，不推測用途
 CCharactor	+0x57d	繪圖矩形診斷旗標	Actor.debug_rectangle
@@ -865,3 +865,6 @@ CCharactor	+0x2cb	技能命令消費的動態就緒標記；0時不消費，但�
 CDynamicObj	+0xcb	250筆雙byte座標反向路徑，從index=count-2往下消費	待動態11完整尋路
 CDynamicObj	+0x2c7	傳入XPS尋路虛擬格4的附加參數，語意未確認	待尋路工具
 CDynamicObj	+0x3d5	新路徑旗標，尋路成功設1，步進前清0且略過距離／負索引檢查	待動態11完整尋路
+CCharactor	+0x345	非0時MethodMain綁定的每幀延遲在攻速調整後另加2，不影響補拍及冷卻；語意名稱未明	Actor.sequence_delay_bias
+CDynamicObj	+0x3f5	路徑步進等待byte，每次可處理時先減1並早退；同組移動阻擋時設rand()%30+33	待動態11尋路步進
+CDynamicObj	+0x3f6	同組移動阻擋重試byte，小於3且對方等待為0才加1／設定等待；占格成功清0	待動態11尋路步進
