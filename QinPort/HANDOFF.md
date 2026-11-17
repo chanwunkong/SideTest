@@ -1053,6 +1053,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 保留怪現象：狀態15解除仍招惹640世界單位內模式0角色，且檢查施加者技能；101沒有挨打序列仍先停MethodMain及擲音效骰，再恢復舊byte並早退，不設dirty／不套表；相同byte完全不重送。既有8／13／105／110／111／114／115／121與套表後last_status次序保留。
   - shortcut：單機共用Actor，狀態同步封包與令牌配對容器沿既有skip／base由state及flags直接承接，不建立客戶端副本。隊伍八槽狀態圖示通知屬後段介面，roles明列轉送與接收端用途，等待隊伍介面；原版全域選人提示是空函數，無需另等系統。其餘完整繪圖與技能互動兩個主todo仍屬同類別／引擎基礎，繼續就地補，下一步不前移。
   - skilltest新增無服務場景／回放的0、14、15分支、100非布林byte保留／永久第5修正／同值不刷新／解除，以及服務端100不回寫修正；既有伺服邏輯測試補明確Scene fixture，避免以無場景狀態冒充服務端。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；原生建置仍6個既有unused-function警告。roles／fields／FUNCS更新（本輪無新偏移、無新增skip／base／DLC），未commit／push。
+  ~~下一步：0x4872e0（CCharactor 尚餘2個主todo；完成整類別才進CNpc）起~~。
+
+- 進度（11-18）：依大型類別每輪1～2個完整函數規則，完成同類別依賴 **0x497310 客戶端位置更新**（27行）→ `main.c actor_client_motion_tick`，接入 `actor_motion_tick` 回放分支；Poq.exe game todo **3790→3789**、done **572→573**，新增skip／base皆0。繪圖與技能互動兩個主todo仍未完成，不前進CNpc。
+  - 原版順序完整保留：動態1先讓路，否則動態22且剩餘拍數等於半程時先下降；再對任何動態的正剩餘拍數累加兩軸float、向零截斷寫世界位置並減1。怪現象：最後一拍不補目的地、不退出動態，零／負拍數也固定回1；回放不執行服務端尋路、撞格或衝刺結束命令。
+  - 單機服務端原路徑保留；回放改用完整客戶端入口，刪除該分支原本誤用的服務端動態分派。既有讓路、下降及插值基礎共用，沒有新shortcut／偏移；fields既有CDynamicObj +0x3d9／3dd／3e1／3e5／3e9與+0x2d3已涵蓋。roles與FUNCS已更新。
+  - skilltest增加負數向零截斷、各動態共用插值、零／負拍數、末拍不退出、回放跳躍中點先下降及靜止仍插值；`cd engine && make && make skilltest 2>&1 | tail -3`最後一行 `skilltest ok`，仍6個既有unused-function警告。未新增DLC，未碰decomp／story／game／tools/decomp_strings.py，未commit／push。
+  - 兩個主todo仍為完整繪圖（部件覆色／標記／診斷矩形）及技能互動；動態11尋路仍是引擎基礎todo，不能算等待其他系統。隊伍圖示／選人與完整設定介面依前輪等不同類別系統；本輪完成一個依賴todo，尚未完成整類別。
   **下一步：0x4872e0（CCharactor 尚餘2個主todo；完成整類別才進CNpc）起**。
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

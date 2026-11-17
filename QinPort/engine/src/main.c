@@ -3357,16 +3357,29 @@ static void actor_charge_tick(Actor *a) {
     else actor_interpolation_tick(a);
 }
 
+// Poq.exe 0x497310：客戶端／回放位置更新；不尋路、不在插值結束時退出動態。
+// 靜止先讓路，跳躍中點先轉下降；任何動態只要剩餘拍數為正都消費插值。
+static int actor_client_motion_tick(Actor *a) {
+    if (a->dynamic_state == 1) actor_yield_tick(a);
+    else if (a->dynamic_state == 22 && a->interpolation_left == a->jump_half)
+        actor_jump_phase(a, 0);
+    if (a->interpolation_left > 0) actor_interpolation_tick(a);
+    return 1;
+}
+
 // Poq.exe 0x48c050：活動時動態分派→虛擬播放更新，再處理位置同步與首次鎖存。
 // 動態分派原版固定回傳1；其動態11路徑限制由基底分派承接。
 static int actor_motion_tick(Actor *a) {
     int enabled = !a->activity_disabled;
     a->animation_sample_pending = 0;
     if (enabled) {
-        if (a->dynamic_state == 1) actor_yield_tick(a);
-        actor_rush_update(a);
-        actor_knock_tick(a);
-        actor_charge_tick(a);
+        if (scene_record_mode == 2) actor_client_motion_tick(a);
+        else {
+            if (a->dynamic_state == 1) actor_yield_tick(a);
+            actor_rush_update(a);
+            actor_knock_tick(a);
+            actor_charge_tick(a);
+        }
         a->dynamic_reported_state = a->dynamic_state; // 單機共用物件，不產生狀態同步封包。
         // 單次動作稍後才交MethodMain消費；保留播放前的幀及完成值，
         // 延遲只有1拍的首／末幀也必須各消費一次。

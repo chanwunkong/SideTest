@@ -906,6 +906,36 @@ static void character_activity_test(void) {
     unit_scene = saved_scene;
 }
 
+static void character_client_motion_test(void) {
+    // 所有動態皆插值，float累加但寫回向零截斷，末拍不退出也不補目的地。
+    Actor a = {.dynamic_state=11,.interpolation_left=2,
+        .interpolation_x=-3.75f,.interpolation_y=5.25f,
+        .interpolation_dx=.5f,.interpolation_dy=-.5f};
+    assert(actor_client_motion_tick(&a)==1);
+    assert(ax64(&a)==-3 && ay64(&a)==4 && a.interpolation_left==1);
+    actor_client_motion_tick(&a);
+    assert(ax64(&a)==-2 && ay64(&a)==4 && a.dynamic_state==11);
+    actor_client_motion_tick(&a);
+    assert(!a.interpolation_left && a.interpolation_x==-2.75f);
+    a.interpolation_left=-1;
+    actor_client_motion_tick(&a); assert(a.interpolation_left==-1);
+    // 真正更新入口的回放分支：中點下降先於水平插值，空拍仍留在22。
+    int saved_mode=scene_record_mode; scene_record_mode=2;
+    a=(Actor){.dynamic_state=22,.jump_half=2,.interpolation_left=2,
+        .interpolation_x=32,.interpolation_y=32,.interpolation_dx=1,
+        .z=8,.vz=4,.zmax=16,.flags=0x200};
+    actor_motion_tick(&a);
+    assert(a.vz==-4 && !a.jump_half && a.interpolation_left==1 && a.z==4);
+    actor_motion_tick(&a); actor_motion_tick(&a);
+    assert(a.dynamic_state==22 && !a.interpolation_left);
+    // 靜止也消費收到的位置插值，不能走伺服端的僅讓路分支。
+    a=(Actor){.dynamic_state=1,.interpolation_left=1,
+        .interpolation_x=32,.interpolation_y=32,.interpolation_dx=4};
+    actor_motion_tick(&a);
+    assert(ax64(&a)==36 && !a.interpolation_left);
+    scene_record_mode=saved_mode;
+}
+
 static void character_motion_order_test(void) {
     const Scene *saved = unit_scene;
     Cell cells[4];
@@ -3908,6 +3938,7 @@ int main(void) {
     character_rush_test();
     character_knock_test();
     character_charge_test();
+    character_client_motion_test();
     character_motion_order_test();
     character_dynamic_entry_test();
     character_activity_test();
