@@ -2135,9 +2135,11 @@ static void hero_gain_exp(Actor *h, int exp) {
 }
 
 // 倒下（0x100574e0）：播死亡動作，被主角打死的怪物給經驗，夠了就升級
+static void actor_death_fear(Actor *a);
 static void actor_kill(Actor *t, Actor *by) {
     t->hp = 0;
     actor_destroy(t);
+    actor_death_fear(t);
     start_act(t, ACT_DEAD, t->def->death);
     if (t->def->snd_death) audio_sfx(t->def->snd_death);
     if (t->mon) mon_loot(t);
@@ -2697,6 +2699,20 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
     actor_effect(a, status, on, skill);
     const StatusDef *d = status_def(status);
     if (d && d->raw[1] != 65535) a->last_status = status;
+}
+
+// 角色移除中的同組潰散分支；完整移除的模式／場景移交仍待接，不標整入口完成。
+static void actor_death_fear(Actor *a) {
+    for (Actor *t = actor_near_begin(a, 1, -1); t; t = actor_near_next(a)) {
+        int fear = t->def->death_fear;
+        // 原版只在1／2擲隨機：0（以及負值）必定潰散，>=3完全不擲。
+        if (fear < 1 || (fear < 3 && rand() % (fear + 1) == 0)) {
+            __typeof__(nr) cursor = nr;
+            actor_status_notify(t, 17, 1, -1);
+            nr = cursor;
+            actor_near_mode = 1;
+        }
+    }
 }
 
 // 特殊狀態共用倒數與狀態12偵測；介面自動暫停通知仍待接，故不標完整入口位址。

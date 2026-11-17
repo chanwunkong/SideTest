@@ -1012,7 +1012,7 @@ Poq.exe	99	00486270	FUN_00486270	CCharactor|CNpc|CProtagonist	game	todo	15	17		t
 Poq.exe	99	004862e0	FUN_004862e0	CCharactor|CNpc|CProtagonist	game	done	54	17		actor_setup：狀態103、模板模型種類低16位／組別直接寫入、清旗標、同步光源、按大小重定位、索敵／追擊與視野、同步探索、速度及反擊／四候選／比例ffff保留；外部小地圖刷新限制另列探索入口	0048d950
 Poq.exe	99	00486480	FUN_00486480	~CCharactor	game	done	26	6		actor_light_init：模板套用即建立角色光，不依賴紙娃娃或每拍掃描；同物件已有光回0、不替換舊光，半徑size*240+400及閃爍色照原版	
 Poq.exe	99	00486520	FUN_00486520	CCharactor|CNpc	game	done	158	14		actor_appearance_init：星號非空token首項PLI、餘項款式，失敗回模板；載入序列0矩形高+10，隨機方向、靜止命令、SInit靜態初始態與方向、速度、目標本體及>2幀隨機初幀；接actor_setup，刪出生隨機動畫拍數	00577170 00578710 00578a00
-Poq.exe	99	00486910	FUN_00486910	~CCharactor	game	todo	133	11		角色移除：死亡模式、嚇散周遭角色、特殊死亡動畫／音效及場景移交；未完成	0044f6d0 00458700 0046c260 0048d950
+Poq.exe	99	00486910	FUN_00486910	~CCharactor	game	todo	133	11		todo：actor_kill在actor_destroy之後接actor_death_fear；按預設索敵範圍／高層加8掃模式1同組角色，RoleMdl+0x104<1必定潰散，1/2才rand()%(值+1)==0，>=3不擲；以狀態17通知、不建立Buff；完整移除的死亡模式／特殊效果／場景移交仍屬同類別與引擎基礎未完成，介面暫停通知等不同類別CGameApp，不標主入口done	0044f6d0 00458700 0046c260 0048d950
 Poq.exe	99	00486d30	FUN_00486d30	CCharactor	game	skip	48	12	CCharactor卸載清理：清字串、三個附加精靈、技能鏈與浮字陣列；以場景／Actor陣列生命週期承接	CCharactor卸載：清字串、附加精靈、技能鏈與浮字，交現有場景生命週期	004948f0 0049ea10
 Poq.exe	99	00486e70	FUN_00486e70	~CCharactor	game	done	9	9		取消排隊命令：只將命令代號置-1，保留三參數；actor_cancel_command接actor_setup與換組	
 Poq.exe	99	00486e80	FUN_00486e80	~CCharactor	game	done	15	13		main.c actor_forget_command：原命令1/2設延遲50否則0，僅清代號保留三參數；接施法收尾及對話命令，主分派與記住命令重送仍未完成	
@@ -2024,7 +2024,7 @@ Poq.exe	99	004c90b0	FUN_004c90b0	~CGameApp	game	todo	30	2
 Poq.exe	99	004c9100	FUN_004c9100	~CGameApp	game	todo	104	2			004bb650 004bd130 004c9410 004c9710 004c9910
 Poq.exe	99	004c9410	FUN_004c9410	~CGameApp	game	todo	76	2			0049ebd0 0049ec10 0049fa90 0049fd20 0049fdd0 0049fe70
 Poq.exe	99	004c9710	FUN_004c9710	~CGameApp	game	todo	66	2			0049ebd0 0049ec10 0049fa90 0049fd20 0049fdd0 0049fe70
-Poq.exe	99	004c9910	FUN_004c9910	~CGameApp	game	todo	124	2		讀 RoleMdl.txt：欄 n 寫進角色表記錄（0x23e bytes），欄號跟我們的 COL(n) 一樣	0049ebd0 0049ec10 0049fa90 0049fd20 0049fdd0 0049fe70
+Poq.exe	99	004c9910	FUN_004c9910	~CGameApp	game	todo	124	2		讀 RoleMdl.txt：欄 n 寫進角色表記錄（0x23e bytes），欄號跟我們的 COL(n) 一樣；欄26四個int起於+0x104，首值映射RoleDef.death_fear，第三值panic，缺項65535	0049ebd0 0049ec10 0049fa90 0049fd20 0049fdd0 0049fe70
 Poq.exe	99	004c9f40	FUN_004c9f40	~CGameApp	game	skip	60	0	索引無呼叫者，原版角色模板管理物件的rmd載入入口依規則略過；引擎最小模板資源由roledefs_load直接讀RoleMdl.rmd承接	索引無呼叫者，原版管理物件入口依規則skip；引擎模板資源基礎在roledefs_load按RoleMdl列序讀RoleMdl.rmd，不移植原版管理物件／INI生命週期	004bb650 004bd130
 Poq.exe	99	004ca100	FUN_004ca100	~CGameApp	game	todo	41	2			
 Poq.exe	99	004ca1b0	FUN_004ca1b0	~CGameApp	game	todo	9	0			

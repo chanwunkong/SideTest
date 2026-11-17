@@ -141,7 +141,7 @@ typedef struct {
     int fight_idle, fight_walk, hit, death, fight_speed;  // 戰鬥休息/走路、挨打、死亡的動作起點（0 = 沒有）、戰鬥速度
     int run_seq; // 原版跑步序列；65535表示未指定
     int initial_seq[13]; // 欄12五值、欄13九值；第5值被欄13首值覆寫
-    int panic; // RoleMdl +0x10c，欄26第3值潰散隨機除數，<=0不觸發
+    int death_fear, panic; // 欄26第1值：同伴死亡潰散門檻；第3值：受傷潰散隨機除數
     int seek, chase, atk_delay, snd_death, snd_hit;       // 索敌/追击范围（格）、攻击延时（拍）、死亡/挨打聲音
     int size, legs, snd_idle, snd_fight;                  // 角色大小、脚数、平时/战斗声音（0 = 沒有）
     int light, flicker;                                   // 有无光影、光影闪烁（欄 15、16，RoleMdl +0xb8、+0xbc）

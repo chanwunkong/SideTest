@@ -1273,9 +1273,10 @@ int roledefs_load(void) {
         }
         r->death = c > 14 && *col[14] ? atoi(col[14]) : 65535;
         // 第26欄是四個*分隔整數；+0x10c是第3值，缺項65535。
-        r->panic = 65535;
+        r->death_fear = r->panic = 65535;
         if (c > 26) {
             const char *p = col[26];
+            if (*p && *p != '*') r->death_fear = atoi(p);
             for (int k = 0; k < 2 && p; k++) { p = strchr(p, '*'); if (p) p++; }
             if (p && *p) r->panic = atoi(p);
         }

@@ -3423,9 +3423,66 @@ static void character_hit_status_test(void) {
     *effect=saved_effect; unit_n=saved_n;
 }
 
+static void character_death_fear_test(void) {
+    Actor saved[8]; memcpy(saved, actors, sizeof saved);
+    int saved_count = actor_count;
+    const Scene *saved_scene = unit_scene;
+    __typeof__(nr) saved_cursor = nr;
+    int saved_mode = actor_near_mode;
+    RoleDef d = {.seek = 2, .death_fear = 0, .death = 65535};
+    RoleDef brave = d; brave.death_fear = 3;
+    RoleDef missing = d; missing.death_fear = 65535;
+    RoleDef negative = d; negative.death_fear = -1;
+    unit_scene = NULL; actor_count = 8;
+    for (int i = 0; i < 8; ++i)
+        actors[i] = (Actor){.role = &empty_test_role, .def = &d, .object_kind = 40,
+            .grp = 10000, .hp = 100, .hp_max = 100, .x = 10.5f, .y = 10.5f,
+            .dynamic_state = 1, .command = {-1}, .remembered = {-1}};
+    actors[2].grp = 10001;
+    actors[3].flags = 0x20000;
+    actors[4].x = 20.5f;
+    actors[5].def = &brave;
+    actors[6].def = &missing;
+    actors[7].def = &negative;
+    // 實際死亡入口在移除占格後仍能掃周遭；不以alive(來源)提早中止。
+    srand(913); int next = rand(); srand(913);
+    actor_kill(&actors[0], NULL);
+    assert(actors[0].object_dead && actors[0].act == ACT_DEAD);
+    assert(!has_status(&actors[0], 17));
+    assert(has_status(&actors[1], 17) && has_status(&actors[7], 17));
+    for (int i = 2; i <= 6; ++i) assert(!has_status(&actors[i], 17));
+    assert(rand() == next); // 必定／不會潰散的角色都不可消耗隨機序列。
+    // 只有1、2使用各自的分母；成功與失敗均覆蓋，且狀態由byte通知而非Buff存放。
+    actor_count = 2;
+    for (int fear = 1; fear <= 2; ++fear) {
+        int outcomes = 0;
+        d.death_fear = fear;
+        for (unsigned seed = 1; seed < 40; ++seed) {
+            actors[1].state[17] = 0;
+            srand(seed); int expected = rand() % (fear + 1) == 0; next = rand();
+            srand(seed); actor_death_fear(&actors[0]);
+            assert(!!has_status(&actors[1], 17) == expected && !actors[1].buff_n);
+            assert(rand() == next);
+            outcomes |= expected ? 1 : 2;
+        }
+        assert(outcomes == 3);
+    }
+    // 預設索敵半徑只在高層增加8；螺旋包含半徑10的格子。
+    actor_count = 5; d.death_fear = 0; actors[0].layer = 11;
+    actors[4].x = 21.5f;
+    actor_death_fear(&actors[0]);
+    assert(!has_status(&actors[4], 17));
+    actors[4].x = 20.5f;
+    actor_death_fear(&actors[0]);
+    assert(has_status(&actors[4], 17));
+    memcpy(actors, saved, sizeof saved); actor_count = saved_count;
+    unit_scene = saved_scene; nr = saved_cursor; actor_near_mode = saved_mode;
+}
+
 int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
+    character_death_fear_test();
     character_hit_status_test();
     character_blood_test();
     character_behavior_reset_test();
