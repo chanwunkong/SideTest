@@ -8,6 +8,41 @@ static RoleDef def;
 static MonDef md;
 static const Role empty_test_role;
 
+static void character_direction_test(void) {
+    Frame frames[3] = {{.delay=2}, {.delay=2}, {.delay=2}};
+    Seq seqs[16];
+    for (int i=0; i<16; i++) seqs[i] = (Seq){3, frames};
+    Anim anim = {.count=16, .seqs=seqs};
+    Role role = {.part_count=1, .seq_count=16, .body={&anim}};
+    RoleDef model = {.idle=0, .walk=0, .run_seq=65535};
+    Actor a = {.role=&role, .def=&model, .dir=2, .dynamic_state=1}; // 目標0
+    actor_direction_tick(&a); actor_body_select(&a);
+    a.dir=6; // 目標4，差四時0先往7轉。
+    a.act_frame=2; a.frame_tick=1;
+    for (int i=0; i<3; i++) actor_direction_tick(&a);
+    assert(a.shown_seq==0);
+    actor_direction_tick(&a);
+    assert(a.shown_seq==7 && a.act_frame==2 && a.frame_tick==0);
+    for (int i=0; i<4; i++) actor_direction_tick(&a);
+    assert(a.shown_seq==6);
+    a.dir=1; a.direction_clock=12; // 目標1，6到1走7。
+    actor_direction_tick(&a); assert(a.shown_seq==7);
+    a.body_size=6; a.direction_clock=14;
+    actor_direction_tick(&a); assert(a.shown_seq==7);
+    actor_direction_tick(&a); assert(a.shown_seq==0);
+    a.flags=0x200; a.dynamic_state=11; a.direction_clock=30;
+    actor_direction_tick(&a); assert(a.shown_seq==0);
+    a.dynamic_state=1; a.direction_clock=45;
+    actor_direction_tick(&a); assert(a.shown_seq==1);
+    a.flags=0; a.act=ACT_HIT; a.act_seq=8; a.direction_clock=46;
+    actor_direction_tick(&a); assert(a.shown_seq==9 && a.act_frame==0);
+    // 組切換先重設；純方向轉換遇到較短序列，原幀超界才歸零。
+    a.act=ACT_NONE; a.direction_clock=60;
+    actor_direction_tick(&a);
+    a.dir=2; a.act_frame=2; a.direction_clock=75; seqs[0].count=1;
+    actor_direction_tick(&a); assert(a.shown_seq==0 && a.act_frame==0);
+}
+
 static void character_animation_test(void) {
     Frame frames[4] = {{.delay = 2}, {.delay = 2}, {.delay = 2}, {.delay = 2}};
     Seq seqs[2] = {{4, frames}, {4, frames}};
@@ -39,7 +74,7 @@ static void character_animation_test(void) {
     actor_animation_tick(&a);
     assert(effect.seq == 0 && !effect.cur && !effect.tick);
     a.effect[0] = NULL; a.flags = 0;
-    a.act = ACT_HIT; a.act_seq = 1;
+    a.act = ACT_HIT; a.act_seq = 1; a.direction_clock = 0;
     actor_animation_tick(&a); assert(a.body_seq == 1 && !a.act_frame && a.frame_tick == 1);
     // 原版到最後幀最後一拍便解除101，不必等下一幀繞回。
     a.state[101] = 1; a.act_frame = 3; a.frame_tick = 0;
@@ -1934,6 +1969,7 @@ int main(void) {
     character_skill_index_test();
     character_template_candidates_test();
     character_movement_speed_test();
+    character_direction_test();
     character_animation_test();
     character_dynamic_exit_test();
     character_air_status_test();

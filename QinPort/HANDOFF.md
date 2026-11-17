@@ -798,7 +798,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 刪掉actor_tick／pursue的動畫拍數推進、actor_frame按累積拍數重算幀及action_tick私有逐幀程式。繪圖與MethodMain讀同一播放器；遊戲每拍只推進一次，建立角色的既有隨機相位在首次選序列時換成播放器狀態。單次動作先讓MethodMain消費末幀才收招，避免末幀只有1拍時漏掉觸發。
   - shortcut：全域播放器延遲調整仍沿用0，加入該選項時統一接本體／Spr；死亡仍沿用現有Actor屍體計時並停末幀，接原版死亡物件移交時移除橋接。方向漸轉、外觀覆寫及完整狀態／命令／動態位置更新仍待同類別與引擎基礎，不是等待外部系統。只有特殊倒數的介面自動暫停通知仍等不同類別CGameApp；無新增DLC分類。
   - `skilltest.c`新增正反播、迴圈首尾、擊退三次推進及停末幀、空中凍結本體但仍解除101／播放附加精靈、序列切換、隨機相位、個別走路延遲不改共用資源、單次動作及死亡橋接、1拍末幀MethodMain觸發測試；既有測試的手動done旗標改以真實播放器末幀狀態設置。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；-DSTORY語法檢查通過，仍有6個既有未使用函數警告。roles／fields／base_map已更新，FUNCS.tsv已重產；未commit或push。
-  **下一步：0x486270（CCharactor 尚餘21個todo；續補完整動態移動／模板、外觀／繪製、命令主分派與128狀態更新，完成整類別才進CNpc）起**。
+  ~~下一步：0x486270（CCharactor 尚餘21個todo；續補完整動態移動／模板、外觀／繪製、命令主分派與128狀態更新，完成整類別才進CNpc）起~~。
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，本輪接入角色更新的方向漸轉分支；整類別仍未完成，未進CNpc**。本輪新增done 0、skip 0、base 0；主範圍仍done 64、skip 33、todo 21，不把局部實作標為完整入口完成。
+  - `main.c`新增actor_direction_tick，actor_animation_tick每拍消費；actor_requested_seq提供目標，actor_seq改讀目前顯示序列，取代原先面向改變便立即換本體序列的簡化。大小<6每4拍、其他每15拍轉一向；目標換組或幀數不同先同步序列組，方向切換保留幀索引、超界歸0。保留差四方向沿原版分支反向轉、空中旗標且動態狀態非1時不轉向的行為。
+  - shortcut：物件累積更新拍暫以direction_clock承接，完整物件生命週期接入時統一；完整活動／高度更新門檻、0x400旋轉序列、特殊共用倒數與光環仍待同類別及引擎基礎，不能稱為等待外部系統。角色更新入口仍todo，註解不寫該未完成入口位址。外部依賴仍只有既有CGameApp介面暫停通知；無新增DLC分類。
+  - `skilltest.c`新增4／15拍、差四方向、跨0方向、保留幀／超界歸0、換組重設、空中靜止例外測試；兩序列動畫fixture指定轉向更新拍，避免把方向序列變更誤當即時換組。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；-DSTORY語法檢查、git diff --check通過。fields／roles已更新，FUNCS.tsv已重產；未commit或push。
+  **下一步：0x486270（CCharactor 仍餘21個todo；完整動態移動／模板、外觀／繪製、命令主分派與128狀態更新未完成，完成整類別才進CNpc）起**。
 
 
 

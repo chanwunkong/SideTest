@@ -642,7 +642,7 @@ CSprGroup	+0x10	當前序列：0靜止、1互動、2完成	Object.seq[part]
 CSprGroup	+0x14	序列總數	Anim.count
 CCharactor	+0x66	角色層號byte；大於10時索敵／追擊範圍各加8	Actor.layer；現有建立入口固定地面層1
 CCharactor	+0x73	動態物件行為狀態：1平常、11移動、20..30跳躍等，非dash布林值	Actor.dynamic_state（平常／移動已接，完整動態狀態仍待移植）
-CCharactor	+0x87	上次套用的目標動畫序列	待CCharactor動畫同步
+CCharactor	+0x87	上次套用的目標動畫序列	Actor.previous_target／actor_direction_tick
 CCharactor	+0x8b	目標動畫序列（方向為帶符號餘數）	Actor.animation_target／actor_animation_select
 CCharactor	+0xa3	目前目標物件句柄，0無目標	Actor.foe（指標取代句柄）
 CCharactor	+0xa7	原版動畫方向，指定序列時取帶符號餘數	Actor.animation_dir；現有面向以Actor.dir／DIR_MAP橋接
@@ -814,3 +814,4 @@ SpriteSequence	+0x08	序列總幀數；反播索引負數繞末幀、超界繞0	
 SpriteSequence	+0x10	目前幀已停拍數；滿max(幀延遲+調整,1)歸0換幀	Actor.frame_tick／Spr.tick
 SpriteSequence	+0x18	迴圈首幀；反播從此幀跳往迴圈末幀	Actor.body_start／Spr.start
 SpriteSequence	+0x1c	迴圈末幀；正播從此幀跳往首幀，完成判斷為目前幀>=此值且停到最後一拍	Actor.body_end／Spr.end
+CCharactor	+0xbb	物件累積更新拍，方向小於6格每4拍、否則每15拍更新	Actor.direction_clock（暫用動畫固定拍時鐘，完整生命週期接入時統一）

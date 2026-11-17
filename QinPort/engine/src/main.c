@@ -277,6 +277,8 @@ typedef struct Actor {
     int fight_speed, speed_threshold, dynamic_state;
     int dynamic_active, reverse_playback;
     int animation_target, animation_dir;
+    int shown_seq, shown_ready, previous_target;
+    Uint32 direction_clock;
     int move_a, move_b, move_c, move_remaining, walk_delay_adjust;
     int scale; // 目前比例與第4修正；模板指定比例時不追逐修正
     struct { int value, time; } modifier[20];
@@ -633,9 +635,13 @@ static void actor_animation_select(Actor *a, int seq) {
     } else a->animation_target = actor_animation_target(a, a->animation_dir);
 }
 
-static int actor_seq(const Actor *a) {
+static int actor_requested_seq(const Actor *a) {
     if (a->def && a->def->anim) return 0;  // shortcut: 小動物專用三序列的狀態切換待還原。
     return a->act ? a->act_seq + DIR_MAP[a->dir] : actor_animation_target(a, DIR_MAP[a->dir]);
+}
+
+static int actor_seq(const Actor *a) {
+    return a->shown_ready ? a->shown_seq : actor_requested_seq(a);
 }
 
 // 本體播放器由固定拍推進；繪製只讀，不能以畫面頻率或總拍數重算。
@@ -2172,9 +2178,52 @@ static void actor_status_countdown(Actor *a) {
         actor_status_notify(a, status, 0, -1);
 }
 
+// 角色更新的方向漸轉分支；完整角色更新入口仍有活動門檻、光環等未接。
+// shortcut: 物件累積拍以direction_clock承接，完整物件生命週期接入時共用其時鐘。
+// shortcut: 0x400旋轉仍留既有方向，待狀態22／旋轉動態序列完整接入時補死亡序列起點旋轉。
+static void actor_direction_tick(Actor *a) {
+    int target = actor_requested_seq(a);
+    Uint32 clock = a->direction_clock++;
+    if (!a->shown_ready) {
+        a->shown_seq = a->previous_target = target;
+        a->shown_ready = 1;
+        return;
+    }
+    if ((a->flags & 0x400) || ((a->flags & 0x200) && a->dynamic_state != 1)) return;
+    const Seq *old = role_seq(a->role, a->shown_seq);
+    const Seq *next = role_seq(a->role, target);
+    if (target != a->previous_target) {
+        if (!old || !next || old->count != next->count || a->shown_seq / 8 != target / 8) {
+            a->shown_seq = target / 8 * 8 + a->shown_seq % 8;
+            actor_body_select(a);
+        }
+        a->previous_target = target;
+    }
+    if (a->shown_seq == target || clock % (a->body_size < 6 ? 4 : 15)) return;
+    int from = a->shown_seq % 8, to = target % 8;
+    if (a->shown_seq / 8 != target / 8) {
+        a->shown_seq = target;
+        actor_body_select(a);
+    }
+    // 原版正好相差四方向時沿較長分支的方向轉，不可改成一般最短路徑tie-break。
+    if (from != to) {
+        if (abs(from - to) < 4) from += to < from ? -1 : 1;
+        else from += from < to ? -1 : 1;
+        if (from < 0) from = 7;
+        if (from > 7) from = 0;
+    }
+    int frame = a->act_frame;
+    a->shown_seq = target / 8 * 8 + from;
+    actor_body_select(a);
+    next = role_seq(a->role, a->shown_seq);
+    // 原版只保存幀索引；換方向重新選序列後的幀內拍數為零。
+    a->act_frame = next && frame < next->count ? frame : 0;
+}
+
 // Poq.exe 0x487f30：空中不推本體，但仍清挨打、播放三個附加精靈。
 static void actor_animation_tick(Actor *a) {
     a->animation_stepped = 1;
+    actor_direction_tick(a);
     actor_body_select(a);
     const Seq *q = role_seq(a->role, a->body_seq);
     if (!(a->flags & 0x200) && q && q->count) {
