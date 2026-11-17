@@ -391,6 +391,9 @@ static void actor_effect(Actor *a, int status, int on, int skill);
 static void actor_status_notify(Actor *a, int status, int on, int skill);
 static void actor_status_countdown(Actor *a);
 static void actor_dynamic_exit(Actor *a);
+static void actor_dynamic_rest(Actor *a);
+static void actor_dynamic_command(Actor *a, int state, int p0, int p1, int p2);
+static void actor_direction_set(Actor *a, int dir);
 // Poq.exe 0x48ec60：期限-1可覆寫任何值；其他期限只接受不短於現有期限。
 // 回傳暫存器原版混合了被呼叫函數結果與輸入索引；遊戲呼叫端均不消費，以void承接。
 static void actor_modifier_set(Actor *a, int index, int value, int time) {
@@ -938,16 +941,11 @@ static int movement_delay_adjust(float ratio) {
     return (double)ratio < 0.7 ? 3 : 1;
 }
 
-// 動態物件移速套用：基準比值只用A/B，不把C的小數移動量算進動畫速率。
-// shortcut: 狀態切換沿用現有dynamic_state／moving；完整狀態轉接接入時補虛擬退出入口。
+// Poq.exe 0x496ae0：基準比值只用A/B，不把C的小數移動量算進動畫速率。
 // 每個Actor保存調整量，避免修改共用Role資源而讓同模型的其他角色一起加速。
 static void actor_move_speed(Actor *a, int speed) {
     if (speed < 1 && a->dynamic_state == 11) {
-        // 零速也走角色退出分支，必須在改寫舊狀態前收尾移動殘影。
-        actor_trail_exit(a);
-        a->dynamic_state = 1;
-        a->moving = 0;
-        a->print_x = a->print_y = -100;
+        actor_dynamic_rest(a);
     }
     int base = speed_index(a->speed), index = speed_index(speed);
     a->move_a = SPEED_A[index];
@@ -2282,8 +2280,6 @@ static void actor_jump_phase(Actor *a, int rising) {
 
 // 動態進入的21/22分支；完整狀態主分派仍待補，不標主入口完成。
 static void actor_rush_enter(Actor *a) {
-    a->dynamic_enter_tick = (int)actor_logic_tick;
-    actor_speed_update(a); // 非靜止的虛擬+0x40，角色有效速度。
     if (a->move_a < 2 || !actor_rush_destination(a)) {
         a->dynamic_path_result = 0;
         return;
@@ -2292,43 +2288,97 @@ static void actor_rush_enter(Actor *a) {
     if (a->dynamic_state == 22) actor_jump_phase(a, 1);
 }
 
-// 命令7/10與動態狀態設定的衝刺／跳躍分支，供MethodMain觸發使用。
-// shortcut: 共用命令分派的技能可用性尚未齊備；僅接已存在MethodMain的內部觸發，完整分派接齊後合併。
+// Poq.exe 0x494f90：NPC組10000..60000快取15拍，其他50拍；取有號拍差絕對值。
+static int actor_dynamic_retry(const Actor *a) {
+    int32_t delta = (int32_t)(actor_logic_tick - (Uint32)a->dynamic_enter_tick);
+    uint32_t elapsed = delta < 0 ? 0u - (uint32_t)delta : (uint32_t)delta;
+    int limit = ((uint32_t)a->grp - 10000u) <= 50000u ? 15 : 50;
+    return (int32_t)elapsed < limit ? a->dynamic_path_result : 1;
+}
+
+// 動態進入：共用拍數與速度在各分支之前；角色殘影先於基底進入。
+// shortcut: 動態11仍把目的地交既有行走迴圈，完整尋路步進移植後替換此分支。
+// shortcut: 動態32已初始化速度／插值／方向，逐格碰撞更新仍待同類別分派接齊。
+static void actor_dynamic_enter(Actor *a) {
+    actor_trail_enter(a);
+    a->dynamic_enter_tick = (int)actor_logic_tick;
+    if (a->dynamic_state != 1) actor_speed_update(a);
+    switch (a->dynamic_state) {
+    case 11:
+        if (!actor_dynamic_retry(a)) { a->dynamic_path_result = 0; break; }
+        a->dynamic_destination_x = a->dynamic_command[0];
+        a->dynamic_destination_y = a->dynamic_command[1];
+        a->tx = a->dynamic_destination_x + .5f;
+        a->ty = a->dynamic_destination_y + .5f;
+        a->has_target = 1;
+        break;
+    case 21: case 22:
+        actor_rush_enter(a);
+        break;
+    case 31: {
+        int dir = a->dynamic_command[0];
+        actor_direction_set(a, dir >= 0 && dir < 8 ? (dir + 4) % 8 : dir);
+        if (a->dynamic_command[2]) actor_move_speed(a, a->dynamic_command[2]);
+        a->reverse_playback = 1;
+        break;
+    }
+    case 32:
+        if (a->move_a < 2) { a->dynamic_path_result = 0; break; }
+        actor_move_speed(a, actor_speed(a) * 3);
+        actor_interpolate(a, a->dynamic_command[0], a->dynamic_command[1], -1);
+        a->facing = dir_of(a->grid_x, a->grid_y, a->dynamic_command[0], a->dynamic_command[1], 8);
+        actor_animation_select(a, a->animation_target / 8 * 8 + a->facing);
+        break;
+    }
+}
+
+// Poq.exe 0x496550：單機也走原版服務端分支；比較狀態、三參數和旗標快照。
+// 靜止不寫三參數；21/22只在p0非零時強制打斷。失敗後保留進入時刻與結果。
+static void actor_dynamic_command(Actor *a, int state, int p0, int p1, int p2) {
+    int flag = actor_flags(a, 0x10000);
+    if (a->dynamic_state != state || a->dynamic_command[0] != p0 ||
+        a->dynamic_command[1] != p1 || a->dynamic_command[2] != p2 ||
+        a->dynamic_flag_snapshot != flag) {
+        actor_trail_exit(a);
+        int old = a->dynamic_state;
+        if (state == 1) {
+            a->print_x = a->print_y = -100;
+            if (p0 || (old != 21 && old != 22)) {
+                a->dynamic_state = 1;
+                a->moving = 0;
+            }
+        } else {
+            a->dynamic_path_result = 1;
+            a->dynamic_state = state;
+            a->dynamic_command[0] = p0;
+            a->dynamic_command[1] = p1;
+            a->dynamic_command[2] = p2;
+            actor_dynamic_enter(a);
+            if (!actor_dynamic_retry(a)) {
+                actor_trail_exit(a);
+                a->dynamic_state = 1;
+                a->moving = 0;
+            }
+        }
+        if ((unsigned)(a->dynamic_state - 20) > 10u && old != 21 && old != 22)
+            actor_animation_select(a, -1);
+    }
+    a->dynamic_flag_snapshot = flag;
+}
+
+// 命令7/10的可用性門檻；狀態轉接交共用入口。
+// shortcut: 角色技能可用性尚未齊備，完整主分派移植後合併門檻。
 static int actor_rush_command(Actor *a, int state, int x, int y, int distance) {
     if (has_status(a, 2) || has_status(a, 10) || has_status(a, 101) || a->knock == 1 ||
         (a->dynamic_state != 1 && a->dynamic_state != 11)) return 0;
-    int flag = actor_flags(a, 0x10000);
-    actor_trail_exit(a);
-    a->dynamic_path_result = 1;
-    a->dynamic_state = state;
-    a->dynamic_command[0] = x; a->dynamic_command[1] = y; a->dynamic_command[2] = distance;
-    actor_trail_enter(a);
-    actor_rush_enter(a);
-    if (!a->dynamic_path_result) {
-        actor_trail_exit(a);
-        a->dynamic_state = 1;
-        a->moving = 0;
-        a->print_x = a->print_y = -100;
-        actor_animation_select(a, -1);
-    }
-    a->dynamic_flag_snapshot = flag;
+    actor_dynamic_command(a, state, x, y, distance);
     return 1;
 }
 
 // Poq.exe 0x494a20：最後一拍只插值；下一拍才退出。平常命令(1,1,0,0)強制離開21/22。
 static void actor_rush_tick(Actor *a) {
     if (a->interpolation_left > 0) { actor_interpolation_tick(a); return; }
-    int flag = actor_flags(a, 0x10000);
-    if (a->dynamic_state != 1 || a->dynamic_command[0] != 1 || a->dynamic_command[1] ||
-        a->dynamic_command[2] || a->dynamic_flag_snapshot != flag) {
-        int old = a->dynamic_state;
-        actor_trail_exit(a);
-        a->print_x = a->print_y = -100;
-        a->dynamic_state = 1;
-        a->moving = 0;
-        if (old != 21 && old != 22) actor_animation_select(a, -1);
-    }
-    a->dynamic_flag_snapshot = flag;
+    actor_dynamic_command(a, 1, 1, 0, 0);
 }
 
 // 動態每拍的21/22分支；中點下降先於當拍水平插值，與高度更新分開。
@@ -2666,24 +2716,8 @@ static void actor_body_apply(Actor *a, int seq) {
     actor_body_sequence(a, seq);
 }
 
-// 動態狀態設定的(1,0,0,0)分支，供換裝使用。
-// shortcut: 其他狀態命令仍由既有移動／招式入口承接，完整動態分派接齊後合併。
-static void actor_dynamic_rest(Actor *a) {
-    int flag = actor_flags(a, 0x10000);
-    if (a->dynamic_state != 1 || a->dynamic_command[0] || a->dynamic_command[1] ||
-        a->dynamic_command[2] || a->dynamic_flag_snapshot != flag) {
-        int old = a->dynamic_state;
-        actor_trail_exit(a);
-        a->print_x = a->print_y = -100;
-        // 原版靜止命令不強制打斷21/22；仍會先執行退出的降落與清旗標。
-        if (old != 21 && old != 22) {
-            a->dynamic_state = 1;
-            a->moving = 0;
-            actor_animation_select(a, -1);
-        }
-    }
-    a->dynamic_flag_snapshot = flag;
-}
+// 換裝／一般靜止共用原版動態命令，不強制離開21/22。
+static void actor_dynamic_rest(Actor *a) { actor_dynamic_command(a, 1, 0, 0, 0); }
 
 // Poq.exe 0x495910：重設動態物件並解除場景；不改世界位置、命令三參數或高度。
 static void actor_dynamic_reset(Actor *a) {
@@ -2895,25 +2929,7 @@ static void actor_enter_fight(Actor *a);
 static int actor_knock_command(Actor *a, int direction, int cells, int speed) {
     if (has_status(a, 2) || has_status(a, 10) || has_status(a, 101) || a->knock == 1 ||
         (a->dynamic_state != 1 && a->dynamic_state != 11)) return 0;
-    int flag = actor_flags(a, 0x10000);
-    if (a->dynamic_state != 31 || a->dynamic_command[0] != direction ||
-        a->dynamic_command[1] != cells || a->dynamic_command[2] != speed ||
-        a->dynamic_flag_snapshot != flag) {
-        actor_trail_exit(a);
-        a->dynamic_path_result = 1;
-        a->dynamic_state = 31;
-        a->dynamic_command[0] = direction;
-        a->dynamic_command[1] = cells;
-        a->dynamic_command[2] = speed;
-        actor_trail_enter(a);
-        a->dynamic_enter_tick = (int)actor_logic_tick;
-        actor_speed_update(a);
-        actor_direction_set(a, direction >= 0 && direction < 8 ? (direction + 4) % 8 : direction);
-        if (speed) actor_move_speed(a, speed);
-        a->reverse_playback = 1;
-        actor_animation_select(a, -1);
-    }
-    a->dynamic_flag_snapshot = flag;
+    actor_dynamic_command(a, 31, direction, cells, speed);
     return 1;
 }
 

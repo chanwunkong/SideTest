@@ -458,6 +458,61 @@ static void character_knock_test(void) {
     actor_unoccupy(&a); unit_scene=saved;
 }
 
+static void character_dynamic_command_test(void) {
+    Uint32 saved_tick = actor_logic_tick;
+    RoleDef model = {.idle=0, .walk=8, .fight_idle=16, .fight_walk=24,
+                     .run_seq=65535};
+    Actor a = {.def=&model, .role=&empty_test_role, .speed=20,
+               .dynamic_state=1, .grp=10000};
+    actor_logic_tick = 100;
+    actor_dynamic_command(&a, 31, 2, 3, 20);
+    assert(a.dynamic_state==31 && a.dynamic_enter_tick==100 && a.reverse_playback);
+    assert(a.dynamic_command[0]==2 && a.dynamic_command[1]==3 && a.dynamic_command[2]==20);
+    a.dynamic_active=0;
+    actor_logic_tick=101;
+    actor_dynamic_command(&a,31,2,3,20);
+    assert(!a.dynamic_active && a.dynamic_enter_tick==100); // 完全相同不退出／重新進入。
+    actor_set_flags(&a,0x10000,1);
+    actor_dynamic_command(&a,31,2,3,20);
+    assert(a.dynamic_active && a.dynamic_enter_tick==101 && a.dynamic_flag_snapshot==0x10000);
+    actor_dynamic_rest(&a);
+    assert(a.dynamic_state==1 && !a.reverse_playback && a.print_x==-100 && a.print_y==-100);
+    assert(a.dynamic_command[0]==2 && a.dynamic_command[1]==3 && a.dynamic_command[2]==20);
+    // 原版靜止命令不保存新參數，故再次靜止仍可能退出；不能以state相同就去重。
+    a.dynamic_active=0; actor_dynamic_rest(&a); assert(a.dynamic_active);
+    a.dynamic_state=22; a.flags|=0x200; a.vz=4; a.zmax=20;
+    actor_dynamic_rest(&a);
+    assert(a.dynamic_state==22 && a.vz==-5 && !a.zmax && !(a.flags&0x200));
+    actor_dynamic_command(&a,1,1,0,0);
+    assert(a.dynamic_state==1 && a.dynamic_command[0]==2);
+    // 低速進入失敗：退回1但不清失敗結果、三參數或本次進入拍數。
+    a.speed=0; a.flags=0; actor_logic_tick=200;
+    actor_dynamic_command(&a,21,4,5,6);
+    assert(a.dynamic_state==1 && !a.dynamic_path_result && a.dynamic_enter_tick==200);
+    assert(a.dynamic_command[0]==4 && a.dynamic_command[1]==5 && a.dynamic_command[2]==6);
+    static const int groups[]={9999,10000,60000,60001,-1};
+    for (unsigned i=0;i<sizeof groups/sizeof *groups;i++) {
+        a.grp=groups[i];
+        int limit=i==1 || i==2 ? 15 : 50;
+        actor_logic_tick=200+limit-1; assert(!actor_dynamic_retry(&a));
+        actor_logic_tick=200+limit; assert(actor_dynamic_retry(&a));
+        actor_logic_tick=200-limit+1; assert(!actor_dynamic_retry(&a));
+        actor_logic_tick=200-limit; assert(actor_dynamic_retry(&a));
+    }
+    a.grp=10000; a.dynamic_enter_tick=-5; actor_logic_tick=5;
+    assert(!actor_dynamic_retry(&a)); // 全域32位拍數回繞。
+    a.dynamic_path_result=1; assert(actor_dynamic_retry(&a));
+    // 動態32進入只初始化插值，尚不改占格；內層先選方向，外層再依32重選走路序列。
+    a=(Actor){.role=&empty_test_role, .def=&model, .speed=20, .dynamic_state=1,
+              .grid_x=2, .grid_y=2, .grid_valid=1, .x=2.5f, .y=2.5f,
+              .animation_target=16};
+    actor_dynamic_command(&a,32,6,2,0);
+    assert(a.dynamic_state==32 && a.grid_x==2 && a.x==2.5f);
+    assert(a.move_a==SPEED_A[59] && a.interpolation_left>0);
+    assert(a.facing==dir_of(2,2,6,2,8) && a.animation_dir==a.facing && a.animation_target==model.walk+a.facing);
+    actor_logic_tick=saved_tick;
+}
+
 static void character_dynamic_exit_test(void) {
     Cell cells[4] = {{.layer = 12}, {.layer = 10}, {.layer = 9}, {.layer = 16}};
     Scene s = {.w = 2, .h = 2, .cells = cells};
@@ -2812,6 +2867,7 @@ int main(void) {
     character_rotation_cooldown_test();
     character_maintenance_test();
     character_animation_test();
+    character_dynamic_command_test();
     character_dynamic_exit_test();
     character_rush_test();
     character_knock_test();

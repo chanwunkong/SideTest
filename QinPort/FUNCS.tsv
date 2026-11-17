@@ -126,7 +126,7 @@ Poq.exe	99	00439e70	FUN_00439e70	~CARROW	game	done	39	2		MethodBase 放開打中
 Poq.exe	99	00439fb0	FUN_00439fb0	~CARROW	game	done	228	2			
 Poq.exe	99	0043a610	FUN_0043a610	~CARROW	game	done	20	8	unit.c 設沿路命中（unit_spawn 456）		
 Poq.exe	99	0043a660	FUN_0043a660	~CARROW	game	done	38	6			
-Poq.exe	99	0043a760	FUN_0043a760	CARROW|CFireDeadMan|CFlyCycleObj|+6	game	done	133	46		MethodBase 死亡：wQuality 3 彈到範圍內下一個敵人，否則放開名單、觸發結束事件	00496550
+Poq.exe	99	0043a760	FUN_0043a760	CARROW|CFireDeadMan|CFlyCycleObj|+6	game	done	133	46		MethodBase 死亡：wQuality 3 彈到範圍內下一個敵人，否則放開名單、觸發結束事件	
 Poq.exe	99	0043ab20	FUN_0043ab20		game	done	12	12	unit.c（座標 >> 6 = 格子）		
 Poq.exe	99	0043ab70	FUN_0043ab70		game	done	10	2	（不需要）CMethodMng 建構		
 Poq.exe	99	0043aba0	FUN_0043aba0		game	done	14	3	unit.c MethodMain 建構（main_new：種類 7、狀態 1）	MethodMain 建構	
@@ -395,7 +395,7 @@ Poq.exe	99	0044c830	FUN_0044c830		game	todo	59	2		存小地圖探索過的格子
 Poq.exe	99	0044c970	FUN_0044c970		game	done	22	8		畫面上的點 → 縮放前的點（zoom_point）	
 Poq.exe	99	0044ca30	FUN_0044ca30		game	skip	9	6	只讀／寫一個全域值（見 roles.tsv，用到時直接讀）	+0x260 = 0x662860	
 Poq.exe	99	0044ca40	FUN_0044ca40		game	done	28	26			0044da80
-Poq.exe	99	0044caf0	FUN_0044caf0	~CChooseDialog	game	done	32	2		主角和某角色停下來面對面（talk_face）；回呼 0x532750	00496550
+Poq.exe	99	0044caf0	FUN_0044caf0	~CChooseDialog	game	done	32	2		主角和某角色停下來面對面（talk_face）；回呼 0x532750	
 Poq.exe	99	0044cc40	FUN_0044cc40		game	skip	14	8	CRT：printf		
 Poq.exe	99	0044ce00	FUN_0044ce00		game	todo	38	2		+0x264 = 是不是大地圖；從大地圖換到大地圖且不在劇情模式 → 0x4f5190（自動存檔，Config 0x639f64）	004f5190 004fe130
 Poq.exe	99	0044cee0	FUN_0044cee0	~CGameApp	game	skip	10	2	轉接到 0x4fdb70（移植那邊時直接接）		004fdb70
@@ -768,7 +768,7 @@ Poq.exe	99	0046b230	FUN_0046b230	~CGameApp	game	todo	11	2		就緒場景才返回
 Poq.exe	99	0046b250	FUN_0046b250	~CGameApp	game	todo	42	6		比較目前與備份場景名稱，逐byte區分大小寫；todo 等不同類別 CScnClientRecord 場景備份／回放	
 Poq.exe	99	0046b2c0	FUN_0046b2c0	~CGameApp	game	skip	20	0	無呼叫者：目前伺服端與全域場景相符才查角色可見同步鏈；略過	無呼叫者：目前伺服端與全域場景相符才查角色可見同步鏈	
 Poq.exe	99	0046b320	FUN_0046b320	~CGameApp	game	todo	185	2		場景管理主拍，依暫停／錄影模式更新、畫圖與戰鬥自動暫停；todo 等不同類別 CScnClient 更新／角色戰鬥狀態及日期介面，未以目前主迴圈冒充完成	00458620 0046b230 0046bd80 0046c260 004de7f0 004deb10 004deb40
-Poq.exe	99	0046b8c0	FUN_0046b8c0	~CGameApp	game	todo	83	2		還原備份場景並重設角色位置／朝向，釋放現場景；todo 等不同類別 CScnClientRecord 備份及 CDynamicObj 狀態還原	0046c260 00470270 00496550 004b1880
+Poq.exe	99	0046b8c0	FUN_0046b8c0	~CGameApp	game	todo	83	2		還原備份場景並重設角色位置／朝向，釋放現場景；todo 等不同類別 CScnClientRecord 備份及 CDynamicObj 狀態還原	0046c260 00470270 004b1880
 Poq.exe	99	0046baf0	FUN_0046baf0	~CGameApp	game	done	50	2		light.c clock_tick：場景時計，室內與回放不走；固定31日／11個月（月份遞增後>11跨年），半小時切換；回放及日期介面通知見 shortcut	0057a010 0057a380
 Poq.exe	99	0046bb10	FUN_0046bb10		game	skip	14	0	無呼叫者：備份目前兩組場景、停天氣4000並清空現場景；略過	無呼叫者：備份目前兩組場景、停天氣4000並清空現場景	
 Poq.exe	99	0046bb60	FUN_0046bb60	~CScrMng	game	skip	28	2	平台顯示裝置通知轉送目前與備份介面並還原／釋放備份天氣資源；SDL裝置生命週期取代；略過	平台顯示裝置通知轉送目前與備份介面並還原／釋放備份天氣資源；SDL裝置生命週期取代	
@@ -814,7 +814,7 @@ Poq.exe	99	0046eea0	FUN_0046eea0		game	skip	85	0	無呼叫者：只在場景狀�
 Poq.exe	99	0046f100	FUN_0046f100	CScnClient|CScnClientRecord	game	todo	19	11		每拍更新天氣／物件／格子探索衰減／光影；非錄影模式無操作超過90000拍走斷線處理；todo 等不同類別CScene格子+0x13探索衰減與CMapDialog，現有主迴圈只覆蓋部分	004c7790 004f94c0
 Poq.exe	99	0046f180	FUN_0046f180		game	todo	446	2		生成小地圖：8×4地磚、建築縮圖、縮放／裁中、出口圖示、寫rdr且複製scn修改時間；todo 等不同類別CBuilding縮圖／通道識別與地圖圖示資源，非等待同類別ClientCreate	0044dda0 0046cab0 00482eb0 0049c910 0049c930 0049caf0 0049cb30 0049cbe0 004c7db0 004ceab0
 Poq.exe	99	00470270	FUN_00470270	~CGameApp	game	todo	18	2		還原場景的全域管理器、輸入／天氣、地圖原點、鏡頭及光影；todo 等不同類別CUserInput名單與CMapDialog完整重綁	0045a030 0045a3a0 00460570 004cede0
-Poq.exe	99	00470300	FUN_00470300	CScnClient	game	skip	746	8	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	0046b250 0046e360 0046ec80 00471890 00471dd0 00486910 00496260 00496550 00497b20 00497bb0 0049a7e0 0049c2e0 004b8410 004c8630 004cf6e0 00578790 00579df0
+Poq.exe	99	00470300	FUN_00470300	CScnClient	game	skip	746	8	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	0046b250 0046e360 0046ec80 00471890 00471dd0 00486910 00496260 00497b20 00497bb0 0049a7e0 0049c2e0 004b8410 004c8630 004cf6e0 00578790 00579df0
 Poq.exe	99	00471830	FUN_00471830	~CScnClient	game	skip	12	0	無呼叫者／解構：釋放CViewPort並清指標	無呼叫者／解構：釋放CViewPort並清指標	
 Poq.exe	99	00471890	FUN_00471890	~CScnClient	game	todo	47	2		進場景收尾：清框選、設就緒、重建選人名單／探索顯示；todo 等不同類別CUserInput名單及CMapDialog探索顯示	0044db40 004590f0
 Poq.exe	99	004719a0	FUN_004719a0		game	todo	29	2		按+0x18編號找種類30～100角色並顯示文字；todo 等不同類別CCharactor頭頂文字顯示／生命週期	0048b6c0
@@ -868,7 +868,7 @@ Poq.exe	99	004770a0	FUN_004770a0		game	done	9	2		通用物件編號查找轉接�
 Poq.exe	99	004770c0	FUN_004770c0		game	skip	61	0	依目的地識別值重建操控角色、設Default並綁定客戶端；無呼叫者	依目的地識別值重建操控角色、設Default並綁定客戶端；無呼叫者	00497bb0 00497d00
 Poq.exe	99	00477270	FUN_00477270		game	skip	63	0	跨場景按目的地重建操控角色、設Default並重綁；無呼叫者	跨場景按目的地重建操控角色、設Default並重綁；無呼叫者	00497bb0 00497d00
 Poq.exe	99	00477430	FUN_00477430		game	skip	30	0	接收第二byte為0xf0的角色命令並更新同步；無呼叫者	接收第二byte為0xf0的角色命令並更新同步；無呼叫者	00467620
-Poq.exe	99	004774d0	FUN_004774d0		game	todo	2110	3		todo：#文字命令及$劇情命令分派；等SceneResources初始化／切換、CCharactor屬性技能與動作、CDynamicObj及CTriBld業務；不可整段當純連線略過	0044e380 00450f70 004590f0 00465cf0 00467620 0046bc10 00474270 00474b30 00475270 004764c0 00486910 0048d950 00496550 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 004bcbc0 004bd270 004dee00 004deec0 00578790 00579dd0
+Poq.exe	99	004774d0	FUN_004774d0		game	todo	2110	3		todo：#文字命令及$劇情命令分派；等SceneResources初始化／切換、CCharactor屬性技能與動作、CDynamicObj及CTriBld業務；不可整段當純連線略過	0044e380 00450f70 004590f0 00465cf0 00467620 0046bc10 00474270 00474b30 00475270 004764c0 00486910 0048d950 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 004bcbc0 004bd270 004dee00 004deec0 00578790 00579dd0
 Poq.exe	99	0047b4d0	FUN_0047b4d0		game	skip	21	6	場景持有者清空生命週期：反覆解構目前場景直到計數為0，清當前全域別名	場景持有者清空生命週期：反覆解構目前場景直到計數為0，清當前全域別名	
 Poq.exe	99	0047b530	FUN_0047b530		game	skip	51	0	清空CScnGC的全部客戶端節點與三條配對鏈；無呼叫者	清空CScnGC的全部客戶端節點與三條配對鏈；無呼叫者	0046ec80
 Poq.exe	99	0047b900	FUN_0047b900		game	todo	40	9		todo：依目的地移除客戶端，視本機控制狀態通知、離開、刪鏈及減全域數量；等CScnClient離場／CClientScreen完整生命週期	0046ec80
@@ -899,7 +899,7 @@ Poq.exe	99	0047d020	FUN_0047d020		game	skip	23	0	共用命令區解碼場景切�
 Poq.exe	99	0047d100	FUN_0047d100		game	skip	33	0	共用命令區解碼場景切換，位置高半字為-100時只設狀態2；無呼叫者	共用命令區解碼場景切換，位置高半字為-100時只設狀態2；無呼叫者	
 Poq.exe	99	0047d1e0	FUN_0047d1e0		game	skip	72	0	依名稱比對場景出口並寫出口物件+0xa8；無呼叫者	依名稱比對場景出口並寫出口物件+0xa8；無呼叫者	
 Poq.exe	99	0047d380	FUN_0047d380		game	skip	43	0	解碼角色換裝字串並送0x138同步；無呼叫者	解碼角色換裝字串並送0x138同步；無呼叫者	00578790
-Poq.exe	99	0047d4e0	FUN_0047d4e0		game	done	570	2			0044e380 004590f0 00465cf0 0046bc10 00474740 00474b30 004764c0 0047b9d0 0047bb70 0047ca00 0048d950 00496550 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 00578790
+Poq.exe	99	0047d4e0	FUN_0047d4e0		game	done	570	2			0044e380 004590f0 00465cf0 0046bc10 00474740 00474b30 004764c0 0047b9d0 0047bb70 0047ca00 0048d950 00496e30 004979a0 00497bb0 00497c80 00497d00 0049c580 00578790
 Poq.exe	99	0047ece0	FUN_0047ece0		game	skip	27	0	解碼角色走路命令或直接重設位置方向；無呼叫者	解碼角色走路命令或直接重設位置方向；無呼叫者	00496e30
 Poq.exe	99	0047eec0	FUN_0047eec0		game	skip	22	0	解碼並要求角色屬性文字；無呼叫者	解碼並要求角色屬性文字；無呼叫者	
 Poq.exe	99	0047f580	FUN_0047f580		game	skip	39	0	由共用命令區解碼天氣表，byte有號擴展；無呼叫者，天氣業務已有weather_table	由共用命令區解碼天氣表，byte有號擴展；無呼叫者，天氣業務已有weather_table	
@@ -1003,15 +1003,15 @@ Poq.exe	99	004856e0	FUN_004856e0		game	skip	58	4	CCharactor解構；Actor陣列�
 Poq.exe	99	00485870	FUN_00485870		game	skip	14	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	004858e0	FUN_004858e0		game	skip	38	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	004859d0	FUN_004859d0	CCharactor	game	skip	61	6	CCharactor刪除解構；同一般解構加operator delete，以Actor陣列生命週期取代	CCharactor刪除解構：釋放成員及可選釋放本體	00486270 004872e0 00488dd0 00489730 0048a700 0048c050 00493790 004948f0 00497310 004973b0 0049ea10
-Poq.exe	99	00485b80	FUN_00485b80	~CCharactor	game	done	92	2		actor_move_cast：玩家組且移動技思想1，按SkillUnit鏈找啟用manual3、六圈空格、整數距離>2；可用性失敗仍吞命令；接戰鬥中地面點選；主命令分派仍為同類別todo	00496550
+Poq.exe	99	00485b80	FUN_00485b80	~CCharactor	game	done	92	2		actor_move_cast：玩家組且移動技思想1，按SkillUnit鏈找啟用manual3、六圈空格、整數距離>2；可用性失敗仍吞命令；接戰鬥中地面點選；主命令分派仍為同類別todo	
 Poq.exe	99	00485e10	FUN_00485e10	~CScnClient	game	skip	73	2	客戶端技能副本新增：索引唯一業務呼叫者00470300為已略過的同步分派；單機共用Actor技能鏈，由完整新增／模板重建承接，不建立零欄位的同步副本	客戶端技能副本新增；唯一業務呼叫者為已略過的同步分派，單機共用Actor.skills，skip；不以零欄位副本覆寫服務端完整技能	00497b20 004a3340
 Poq.exe	99	00485f80	FUN_00485f80		game	done	105	7		完整SkillUnit先插入再依hand低兩位選手，模板缺項僅診斷不回滾；actor_skill_add接NPC／玩家技能建立，單機略同步，候選來源仍有明示shortcut	00497b20 004a3340
 Poq.exe	99	004861c0	FUN_004861c0		game	skip	9	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	004861e0	FUN_004861e0	CCharactor	game	done	31	8		actor_candidate_cast：依四個正ID候選選第一個查得到的SkillUnit，朝目標或自身位置施放；即使拒絕也不試下一個；接入戰0→1；完整狀態入口仍todo	
-Poq.exe	99	00486270	FUN_00486270	CCharactor|CNpc|CProtagonist	game	todo	15	17		todo：移動殘影actor_trail_enter、21/22進入與31反向／速度／反播已接；仍缺11／32及完整基底進入，不把部分分支標完成	004942d0
+Poq.exe	99	00486270	FUN_00486270	CCharactor|CNpc|CProtagonist	game	todo	15	17		todo：actor_dynamic_enter已接角色殘影、共用進入拍數／速度及21/22/31/32初始化；11仍橋接既有目的地行走，缺完整尋路進入，不標入口done	004942d0
 Poq.exe	99	004862e0	FUN_004862e0	CCharactor|CNpc|CProtagonist	game	done	54	17		actor_setup：狀態103、模板模型種類低16位／組別直接寫入、清旗標、同步光源、按大小重定位、索敵／追擊與視野、同步探索、速度及反擊／四候選／比例ffff保留；外部小地圖刷新限制另列探索入口	0048d950
 Poq.exe	99	00486480	FUN_00486480	~CCharactor	game	done	26	6		actor_light_init：模板套用即建立角色光，不依賴紙娃娃或每拍掃描；同物件已有光回0、不替換舊光，半徑size*240+400及閃爍色照原版	
-Poq.exe	99	00486520	FUN_00486520	CCharactor|CNpc	game	done	158	14		actor_appearance_init：星號非空token首項PLI、餘項款式，失敗回模板；載入序列0矩形高+10，隨機方向、靜止命令、SInit靜態初始態與方向、速度、目標本體及>2幀隨機初幀；接actor_setup，刪出生隨機動畫拍數	00496550 00577170 00578710 00578a00
+Poq.exe	99	00486520	FUN_00486520	CCharactor|CNpc	game	done	158	14		actor_appearance_init：星號非空token首項PLI、餘項款式，失敗回模板；載入序列0矩形高+10，隨機方向、靜止命令、SInit靜態初始態與方向、速度、目標本體及>2幀隨機初幀；接actor_setup，刪出生隨機動畫拍數	00577170 00578710 00578a00
 Poq.exe	99	00486910	FUN_00486910	~CCharactor	game	todo	133	11		角色移除：死亡模式、嚇散周遭角色、特殊死亡動畫／音效及場景移交；未完成	0044f6d0 00458700 0046c260 0048d950
 Poq.exe	99	00486d30	FUN_00486d30	CCharactor	game	skip	48	12	CCharactor卸載清理：清字串、三個附加精靈、技能鏈與浮字陣列；以場景／Actor陣列生命週期承接	CCharactor卸載：清字串、附加精靈、技能鏈與浮字，交現有場景生命週期	004948f0 0049ea10
 Poq.exe	99	00486e70	FUN_00486e70	~CCharactor	game	done	9	9		取消排隊命令：只將命令代號置-1，保留三參數；actor_cancel_command接actor_setup與換組	
@@ -1053,13 +1053,13 @@ Poq.exe	99	00488d90	FUN_00488d90	~CCharactor	game	skip	10	2	平台資源預讀�
 Poq.exe	99	00488dd0	FUN_00488dd0	CCharactor|CNpc|CProtagonist	game	todo	208	17		todo：actor_maintenance_tick已接冷卻先扣、無0x400且有0x200且非靜止時略過整段修正／縮放／重算；修正每10拍共用direction_clock，不另起相位或落地補扣；方向漸轉／高度已有對應；仍缺活動啟用門檻、動畫與高度前後順序統一及100拍光環命令接收端，均為同類別／引擎基礎；特殊倒數介面暫停通知才等CGameApp	00488090 0048d950 00496d80
 Poq.exe	99	00489340	FUN_00489340	~CCharactor	game	skip	12	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	00489380	FUN_00489380	~CCharactor	game	done	142	8		actor_explore：同操控角色組別才按格子快取及世界距離提高探索；高層14加8、16加12、其餘>10加4，內圈10／中圈角色30..100為10／外圈1；接模板、場景就緒及角色累積拍餘1；shortcut SDL全畫面重繪，仍等不同類別CMapDialog表面刷新通知	00460e10
-Poq.exe	99	00489730	FUN_00489730	CCharactor|CNpc|CProtagonist	game	todo	460	17		todo：完整角色技能使用入口；舊monster_think僅檢查目標旗標的註解造成誤判done，移除該註解位址，不以局部檢查宣稱整個入口完成	00459050 00494f90 00496550 00497b20 00579dd0
-Poq.exe	99	0048a700	FUN_0048a700	CCharactor|CNpc|CProtagonist	game	todo	261	17		CCharactor角色命令主分派與排隊／去重；DAT_00663804是場景服務端入口條件，不能僅憑非零判成連線專用，未完成	0048d2f0 0048d950 00496550
+Poq.exe	99	00489730	FUN_00489730	CCharactor|CNpc|CProtagonist	game	todo	460	17		todo：完整角色技能使用入口；舊monster_think僅檢查目標旗標的註解造成誤判done，移除該註解位址，不以局部檢查宣稱整個入口完成	00459050 00497b20 00579dd0
+Poq.exe	99	0048a700	FUN_0048a700	CCharactor|CNpc|CProtagonist	game	todo	261	17		CCharactor角色命令主分派與排隊／去重；DAT_00663804是場景服務端入口條件，不能僅憑非零判成連線專用，未完成	0048d2f0 0048d950
 Poq.exe	99	0048af20	FUN_0048af20	CCharactor|CNpc|CProtagonist	game	skip	9	17	紙娃娃資源卸載轉接；角色快取由roles_clear與場景生命週期統一釋放	紙娃娃兩套精靈資源卸載轉接，由roles_clear／場景生命週期承接	00578770
 Poq.exe	99	0048af30	FUN_0048af30	~CCharactor	game	done	29	4		依外部識別刪第一個SkillUnit，清目前選取但不清目標／左右手ID；actor_skill_remove接模板與主角技能重建	
-Poq.exe	99	0048afc0	FUN_0048afc0	CCharactor	game	done	51	8		actor_behavior_reset：清互動／目標／MethodMain綁定、取消命令保留參數、記住1/2給50延遲，退戰／光源／高度-20，再動態重設；接新角色與換場景	0048d950 00496550
+Poq.exe	99	0048afc0	FUN_0048afc0	CCharactor	game	done	51	8		actor_behavior_reset：清互動／目標／MethodMain綁定、取消命令保留參數、記住1/2給50延遲，退戰／光源／高度-20，再動態重設；接新角色與換場景	0048d950
 Poq.exe	99	0048b160	FUN_0048b160	~CNpc	game	done	9	2		虛擬旗標設置入口清除指定mask；actor_clear_flags接type8招式觸發	
-Poq.exe	99	0048b2d0	FUN_0048b2d0	CCharactor|CNpc|CProtagonist	game	done	12	17		actor_speed_update：有效速度getter交actor_move_speed，接模板建立、一般移動與衝刺；底層完整動態狀態退出仍獨立todo	00496ae0
+Poq.exe	99	0048b2d0	FUN_0048b2d0	CCharactor|CNpc|CProtagonist	game	done	12	17		actor_speed_update：有效速度getter交actor_move_speed，接模板建立、一般移動與衝刺；底層完整動態狀態退出仍獨立todo	
 Poq.exe	99	0048b2f0	FUN_0048b2f0	~CCharactor	game	done	98	2		actor_effects_recompute：127至0逆序查非零狀態byte且值不同於last_status才套表；組語確認末次傳-1（低byte255），不重套最後ID，末尾清dirty；接固定拍及技能Buff byte同步／到期，刪最後狀態優先shortcut	0049f300 0049fdd0
 Poq.exe	99	0048b6c0	FUN_0048b6c0	~CCharactor	game	todo	16	2		角色頭頂文字：持續拍數=min(strlen(text)*10+16,255)；todo 原版訊息佇列form-feed+二進位物件ID呼叫路徑尚未接入；文字槽／繪製僅核對過且已撤回，仍待實作，不新增無呼叫者包裝	0048b710
 Poq.exe	99	0048b710	FUN_0048b710	~CCharactor	game	todo	113	5		8槽頭頂／上飄文字：普通覆寫0，上飄找空或首個上飄；倒數在繪製時扣，中段上飄每畫面扣2；todo 原版二進位聊天訊息及實際單機呼叫端尚未接；現有RoleMdl未找到有效平時台詞區間，不新增無人呼叫函數	00587260
@@ -1072,18 +1072,18 @@ Poq.exe	99	0048bf60	FUN_0048bf60	~CCharactor	game	skip	26	0	索引無呼叫者�
 Poq.exe	99	0048c050	FUN_0048c050	CCharactor	game	todo	37	8		角色每拍動態狀態／虛擬更新、位置改變同步及活動旗標；actor_motion_tick已接21/22/31先推動態再推高度，仍缺完整動態11/32、活動byte、動畫虛擬更新與場景活動通知，同類別／引擎基礎todo	00496110
 Poq.exe	99	0048c150	FUN_0048c150	~CCharactor	game	done	20	8		actor_name_set：僅SInit種類10..16可複製事件ID，不更新顯示名稱；actor_setup接ONT來源，原始容量64 bytes	
 Poq.exe	99	0048c190	FUN_0048c190	CCharactor|CNpc|CProtagonist	game	done	78	17		main.c actor_animation_select／actor_animation_target：指定序列與帶符號方向餘數、擊退／挨打、跑步門檻與旗標、戰鬥20..30保留目標；接actor_tick/action_tick及繪製／矩形查詢，狀態來源以現有fight/Buff/knock橋接	
-Poq.exe	99	0048c3a0	FUN_0048c3a0	CCharactor|CNpc|CProtagonist	game	done	416	17			0048d950 00496550 00497c10 004a3340 00579dd0
+Poq.exe	99	0048c3a0	FUN_0048c3a0	CCharactor|CNpc|CProtagonist	game	done	416	17			0048d950 00497c10 004a3340 00579dd0
 Poq.exe	99	0048d2c0	FUN_0048d2c0	~CScnClient	game	skip	9	2	客戶端狀態封包byte解碼轉接：唯一呼叫者00470300已略過；單機直接使用狀態業務入口，不建立低7位ID／高位啟用值的同步副本；完整狀態設置仍todo	客戶端狀態byte解碼：低7位ID、高位啟用值；唯一呼叫者為已略過同步分派，單機略過封包轉接；完整狀態設置仍todo	0048d950
 Poq.exe	99	0048d2f0	FUN_0048d2f0	~CCharactor	game	todo	14	2		保存待執行命令代號與三參數；尚未接同類別命令分派，不標done	
 Poq.exe	99	0048d330	FUN_0048d330		game	done	96	4		出手綁定及動畫延遲／間隔：攻速用float比例，零分母改1；NPC組乘倍率、其他組間隔加隨機；既有attack_speed／action_tick已更正比例與組別；shortcut仍於動作結束裝冷卻，NPC種類60免間隔及第6修正／MethodMain完整綁定尚待同類別狀態	00494c70 0049d6c0
 Poq.exe	99	0048d630	FUN_0048d630	~CNpc	game	done	19	6		依呼叫者與目標層差篩選SkillUnit，跨層近距離或目標高兩級以上清選取；actor_skill_select接右手選招	
 Poq.exe	99	0048d6a0	FUN_0048d6a0	~CGameApp	game	done	23	2		actor_skill_select_index：空鏈不改、依SkillUnit鏈順序選取，越界清空；目標跨層且max<3或高出兩級拒選，忽略Enable、不改左右手ID；接數字鍵五組索引及實際下次攻擊資料	
 Poq.exe	99	0048d740	FUN_0048d740	~CScnClient	game	skip	30	2	客戶端組合旗標整值同步：唯一呼叫者00470300已略過；單機共用Actor.flags，不另接收整值副本；取消MethodMain及第12修正的服務端狀態業務仍須由完整狀態系統移植，不據此宣稱完成	客戶端整值旗標接收後中斷禁攻MethodMain並調第12修正；唯一呼叫者為已略過同步分派，skip同步副本入口，服務端狀態業務仍todo	
-Poq.exe	99	0048d810	FUN_0048d810		game	done	31	7		actor_look_set：回平常後更換角色專用外觀組合、重選目標序列，合法時復原舊本體序列／幀，最後仍套目標；接hero_refresh換裝，單機不送外觀封包	00496550 00578930
+Poq.exe	99	0048d810	FUN_0048d810		game	done	31	7		actor_look_set：回平常後更換角色專用外觀組合、重選目標序列，合法時復原舊本體序列／幀，最後仍套目標；接hero_refresh換裝，單機不送外觀封包	00578930
 Poq.exe	99	0048d8d0	FUN_0048d8d0		game	skip	10	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	0048d8f0	FUN_0048d8f0		game	done	9	4		actor_search_link_set：僅保存32位關聯識別，接G_NPCActive／0x51b第三參數>0分支及模式2索敵；狀態103仍為同類別todo，不標完整通知分派done	
 Poq.exe	99	0048d910	FUN_0048d910	CCharactor|CNpc|CProtagonist	game	done	13	17		按非零開關OR或AND-NOT旗標；actor_set_flags接招式type8觸發	
-Poq.exe	99	0048d950	FUN_0048d950	~CCharactor	game	todo	240	40		todo：已接戰鬥byte0、8/13/14/101/105/110/111/114/115/121；101非零先中止MethodMain，冷卻不足1補rand()%10+10，非ffff音效擲rand()%3，無挨打序列恢復舊byte並不套表；hit_react已接且刪無條件音效；仍缺15周遭命令、完整命令12可用性／技能選取門檻及外部通知，前兩項為同類別待補	00496550 0049ea10 0049f300 0049fdd0 00579dd0
+Poq.exe	99	0048d950	FUN_0048d950	~CCharactor	game	todo	240	40		todo：已接戰鬥byte0、8/13/14/101/105/110/111/114/115/121；101非零先中止MethodMain，冷卻不足1補rand()%10+10，非ffff音效擲rand()%3，無挨打序列恢復舊byte並不套表；hit_react已接且刪無條件音效；仍缺15周遭命令、完整命令12可用性／技能選取門檻及外部通知，前兩項為同類別待補	0049ea10 0049f300 0049fdd0 00579dd0
 Poq.exe	99	0048e120	FUN_0048e120	~CCharactor	game	done	194	4		actor_effect：依原始20欄65535判未指定；旗標、速度、三獨立精靈、光環資料、殘影模式、四修正及縮放、聲音；接Buff通知與修正17／100 byte；完整狀態主分派及光環每100拍觸發仍屬對應todo	0049ea10 0049f300 0049fdd0
 Poq.exe	99	0048e6c0	FUN_0048e6c0	~CCharactor	game	done	9	7		actor_owner_set：只寫主人識別，不改組別／目標；接summon及join馴服／分身／放出	
 Poq.exe	99	0048e6e0	FUN_0048e6e0	~CCharactor	game	done	27	10		同組不動；換AI組先清目標及待命令，再寫組並可選同步；actor_group接出生／召喚／馴服／劇情組別切換	
@@ -1126,16 +1126,16 @@ Poq.exe	99	00490c20	FUN_00490c20	~CNpc	game	todo	40	0
 Poq.exe	99	00490d10	FUN_00490d10	~CNpc	game	todo	48	0		NPC隨機台詞：有目標選戰鬥區間70次，否則平時50次；槽0空且rand%255==100才從[lo,hi)選Chat.Dlg；索引無呼叫者，未實作；角色表未找到有效平時台詞區間	0048b710
 Poq.exe	99	00490e30	FUN_00490e30	CNpc|CProtagonist	game	todo	15	11			00579dd0
 Poq.exe	99	00490e70	FUN_00490e70	CNpc|CProtagonist	game	todo	51	11		NPC每10拍（角色計數餘1）同隨機台詞；todo 尚未接完整CNpc更新，現有角色表未找到有效平時台詞區間，未實作	0048b710
-Poq.exe	99	00490fc0	FUN_00490fc0	~CNpc	game	todo	68	2			0048d950 00494f90
-Poq.exe	99	004911b0	FUN_004911b0	~CNpc	game	done	274	2			00488bb0 00490430 00491af0 004924b0 00496550 00497c10
+Poq.exe	99	00490fc0	FUN_00490fc0	~CNpc	game	todo	68	2			0048d950
+Poq.exe	99	004911b0	FUN_004911b0	~CNpc	game	done	274	2			00488bb0 00490430 00491af0 004924b0 00497c10
 Poq.exe	99	00491af0	FUN_00491af0	~CNpc	game	todo	57	2			00488bb0 00579dd0
 Poq.exe	99	00491c80	FUN_00491c80	~CNpc	game	todo	25	5			
-Poq.exe	99	00491d00	FUN_00491d00	~CNpc	game	todo	210	2			00488bb0 00490430 00494f90 00496550 00497c10
+Poq.exe	99	00491d00	FUN_00491d00	~CNpc	game	todo	210	2			00488bb0 00490430 00497c10
 Poq.exe	99	00492370	FUN_00492370	~CNpc	game	todo	43	0			00491c80
 Poq.exe	99	004924b0	FUN_004924b0	~CNpc	game	todo	79	4			
-Poq.exe	99	00492730	FUN_00492730	~CNpc	game	todo	251	2			0046a260 00488bb0 00490430 00496550 00497d00
+Poq.exe	99	00492730	FUN_00492730	~CNpc	game	todo	251	2			0046a260 00488bb0 00490430 00497d00
 Poq.exe	99	00492e70	FUN_00492e70	CNpc	game	todo	17	8			00579dd0
-Poq.exe	99	00492ed0	FUN_00492ed0	CNpc	game	todo	64	8			0048c050 00490430 00490fc0 00491d00 00492730 00493080 00494f90
+Poq.exe	99	00492ed0	FUN_00492ed0	CNpc	game	todo	64	8			0048c050 00490430 00490fc0 00491d00 00492730 00493080
 Poq.exe	99	00493080	FUN_00493080	~CNpc	game	todo	102	2			00488bb0 00491c80 00493320
 Poq.exe	99	00493320	FUN_00493320	~CNpc	game	todo	25	2			
 Poq.exe	99	004933a0	FUN_004933a0		game	todo	15	2			00486270 004872e0 00488dd0 00489730 0048a700 00490240 004909b0 00490e30 00490e70 00493430 00493480 004934a0 004934b0 004934d0 00497310 004973b0
@@ -1151,13 +1151,13 @@ Poq.exe	99	00493790	FUN_00493790		game	todo	28	5			00493850 004942d0 004948f0 00
 Poq.exe	99	00493850	FUN_00493850	CDynamicObj	game	todo	31	6			00493850 004942d0 004948f0 00494be0 00494ca0 00494f40 00494f70 004959c0 00496110 00496250 00496430 00497310 004973b0 004975d0 00497620 004979c0 00497aa0 00497d30 005786a0 00578770
 Poq.exe	99	00493930	FUN_00493930	~CDynamicObj	game	todo	70	0			
 Poq.exe	99	00493ad0	FUN_00493ad0	~CDynamicObj	game	todo	73	0			
-Poq.exe	99	00493cb0	FUN_00493cb0	~CDynamicObj	game	todo	88	2		todo：actor_knock_tick已接所有角色固定拍，逐格先占位再插值、命令第二參數逐格減1、末拍後一拍標活動／再下拍移下一格、遇阻退出；移除knock_x／knock_y／knock_motion連續滑動；counter返回目的地仍shortcut橋接既有行走，等同類別動態11尋路，未標整入口done	00496550
-Poq.exe	99	00493f80	FUN_00493f80	~CDynamicObj	game	todo	33	0			00496ae0
-Poq.exe	99	00494070	FUN_00494070	~CDynamicObj	game	done	107	2		actor_rush_destination：相同占格回0；跳躍先升層，依層與占位用line_end回退落點；速度2／4倍、先移占格後初始化插值，保留占格失敗仍插值的原版順序；接MethodMain觸發5／7	00496ae0
-Poq.exe	99	004942d0	FUN_004942d0	CDynamicObj	game	todo	109	8		todo：actor_rush_enter已接21/22；actor_knock_command補31進入拍數、有效速度、面向反向、非零第三參數覆寫速度與反播；仍缺11完整尋路目的地與32三倍速，不標完整入口done	00494f90 00496ae0 00496f20
-Poq.exe	99	004945d0	FUN_004945d0	~CDynamicObj	game	todo	104	2			00496550
+Poq.exe	99	00493cb0	FUN_00493cb0	~CDynamicObj	game	todo	88	2		todo：actor_knock_tick已接所有角色固定拍，逐格先占位再插值、命令第二參數逐格減1、末拍後一拍標活動／再下拍移下一格、遇阻退出；移除knock_x／knock_y／knock_motion連續滑動；counter返回目的地仍shortcut橋接既有行走，等同類別動態11尋路，未標整入口done	
+Poq.exe	99	00493f80	FUN_00493f80	~CDynamicObj	game	todo	33	0			
+Poq.exe	99	00494070	FUN_00494070	~CDynamicObj	game	done	107	2		actor_rush_destination：相同占格回0；跳躍先升層，依層與占位用line_end回退落點；速度2／4倍、先移占格後初始化插值，保留占格失敗仍插值的原版順序；接MethodMain觸發5／7	
+Poq.exe	99	004942d0	FUN_004942d0	CDynamicObj	game	todo	109	8		todo：actor_dynamic_enter已接共用拍數／有效速度、21/22落點／跳躍、31反向／速度／反播及32三倍速／插值／面向；11仍橋接目的地行走，待同類別完整尋路進入	00496f20
+Poq.exe	99	004945d0	FUN_004945d0	~CDynamicObj	game	todo	104	2		todo：動態32逐格越過目的地判斷、相鄰方向通行與占格前移、剩餘插值；進入初始化已在actor_dynamic_enter，更新尚未移植，不能稱等別的系統	
 Poq.exe	99	004948f0	FUN_004948f0	CDynamicObj	game	todo	10	12			004979c0 00578770
-Poq.exe	99	00494910	FUN_00494910	~CDynamicObj	game	todo	12	0			00496ae0 004c90b0
+Poq.exe	99	00494910	FUN_00494910	~CDynamicObj	game	todo	12	0			004c90b0
 Poq.exe	99	00494950	FUN_00494950	CDynamicObj	game	done	30	8		actor_dynamic_exit：標活動；11/31清反播；22設下降-5/上限0再走21清空中旗標、有效格且物件層>10時取回地面層；不改行為狀態與目前高度	00494b30
 Poq.exe	99	00494a20	FUN_00494a20	~CDynamicObj	game	done	44	2		actor_rush_tick：有剩餘拍只做插值，末拍不退出；下拍用(1,1,0,0)強制靜止，先角色退出、清腳印而不清舊三參數，21/22不重選動畫；接所有角色固定拍	
 Poq.exe	99	00494b30	FUN_00494b30	~CDynamicObj	game	todo	13	8			
@@ -1167,19 +1167,19 @@ Poq.exe	99	00494c30	FUN_00494c30	~CDynamicObj	game	todo	22	4
 Poq.exe	99	00494c70	FUN_00494c70	~CDynamicObj	game	todo	17	10			00574e10 005770e0
 Poq.exe	99	00494ca0	FUN_00494ca0	CDynamicObj	game	todo	8	6			
 Poq.exe	99	00494cb0	FUN_00494cb0	~CDynamicObj	game	todo	93	4			
-Poq.exe	99	00494e80	FUN_00494e80	~CDynamicObj	game	todo	12	0			00496ae0 004c90b0
+Poq.exe	99	00494e80	FUN_00494e80	~CDynamicObj	game	todo	12	0			004c90b0
 Poq.exe	99	00494ec0	FUN_00494ec0	~CDynamicObj	game	done	28	20		actor_body_apply：-1取既有目標，其他值先保存目標，再切本體；同序列保留幀內拍數，接外觀更新	00574e10 005770e0
 Poq.exe	99	00494f40	FUN_00494f40	CDynamicObj	game	todo	8	6			
 Poq.exe	99	00494f50	FUN_00494f50	~CDynamicObj	game	done	8	70		has_status讀角色狀態byte原值，參數截低byte；Buff名單不再作第二來源；128以上防越界為明示shortcut	
 Poq.exe	99	00494f70	FUN_00494f70	CDynamicObj	game	todo	8	6			
-Poq.exe	99	00494f90	FUN_00494f90	~CDynamicObj	game	todo	17	12		動態目的地重試快取：距上次命令拍數絕對差，NPC組<15拍／其他<50拍回上次結果，否則回1；todo 動態移動基礎	
+Poq.exe	99	00494f90	FUN_00494f90	~CDynamicObj	game	done	17	12		actor_dynamic_retry：有號32位拍差絕對值，組10000..60000的15拍內／其他50拍內回上次結果，邊界恢復1；供共用動態命令失敗處理	
 Poq.exe	99	00495010	FUN_00495010	CDynamicObj	game	done	109	8		actor_height_tick：固定回1的基底門檻、共用時鐘、A>8非走路48單位落塵、跳躍上升扣上限並加回傳步高／下降按剩餘拍減高、靜止落地插值回占格中心；actor_motion_tick先動態再高度，接所有角色固定拍並刪非跳躍簡化版	
 Poq.exe	99	004952d0	FUN_004952d0	~CDynamicObj	game	done	21	2		actor_interpolation_tick：浮點累加、世界整數向零截斷、剩餘拍減1；接靜止下降回格中心，不改占位	
 Poq.exe	99	00495340	FUN_00495340	~CDynamicObj	game	done	42	7		near.c actor_unoccupy：依大小從-(size-1)/2至size/2掃方形，只清Cell.actor等於自己的格子；不移世界座標，不誤清別人	
 Poq.exe	99	00495420	FUN_00495420	~CDynamicObj	game	done	190	20		near.c actor_place：大小1檢層／占位，必要時八圈找空格；大物件全占地驗證且可重疊自己，成功才移除舊占位並保留世界座標；接出生及移動跨格	00493740 00494b30
 Poq.exe	99	00495910	FUN_00495910	CDynamicObj	game	done	24	8		actor_dynamic_reset：rand()%100拍數、狀態1、序列／插值／進入拍數快取-1，清活動輔助並解除場景、死亡旗標0及層1；不改世界位置／高度／命令三參數	00497650
 Poq.exe	99	004959c0	FUN_004959c0	CDynamicObj	game	todo	8	6			
-Poq.exe	99	004959d0	FUN_004959d0	~CDynamicObj	game	todo	240	2			00494b30 00494c30 00494f90 00496550 004c7f40
+Poq.exe	99	004959d0	FUN_004959d0	~CDynamicObj	game	todo	240	2			00494b30 00494c30 004c7f40
 Poq.exe	99	00496110	FUN_00496110	CDynamicObj	game	todo	47	8		todo：actor_motion_tick先跑actor_rush_update(21/22)及actor_knock_tick(31)，再由actor_height_tick算高度／共用時鐘；修正跳躍中點當拍下降及退出當拍落地；仍缺1避讓／11尋路步進／32衝刺與完整活動門檻，屬同類別與引擎基礎	00493cb0 004945d0 00494cb0 004959d0
 Poq.exe	99	004961e0	FUN_004961e0	~CDynamicObj	game	done	10	6		actor_height_set：只設定垂直速度與高度上限，不歸零目前高度；接角色招式離地觸發及狀態110旋飛／解除	
 Poq.exe	99	00496250	FUN_00496250	CDynamicObj	game	todo	8	6			
@@ -1190,12 +1190,12 @@ Poq.exe	99	00496430	FUN_00496430	CDynamicObj	game	todo	8	6
 Poq.exe	99	00496440	FUN_00496440		game	todo	11	0			
 Poq.exe	99	00496460	FUN_00496460		game	done	42	4		actor_jump_phase：啟用清高度，以水平剩餘拍數/2設半程與4倍上限／速度4；解除先按落點回地面層，再半程0／速度-4／上限0；接跳躍進入及固定拍中點	
 Poq.exe	99	00496530	FUN_00496530	~CCharactor	game	done	9	2		actor_size_set：只保存動態占位大小，接actor_setup按模板size<7取1否則減5；位置重定位仍屬模板入口todo	
-Poq.exe	99	00496550	FUN_00496550	~CCharactor	game	todo	86	44		todo：actor_rush_command接21/22；actor_knock_command接31服務端退出／命令三參數／拍數／戰鬥旗標快照；actor_dynamic_rest接(1,0,0,0)；仍缺11／32與完整共用去重／失敗快取分派	
+Poq.exe	99	00496550	FUN_00496550	~CCharactor	game	done	86	44		actor_dynamic_command：單機共用服務端分派，狀態／三參數／0x10000快照去重，先退出再進入，失敗快取後退回1；靜止不寫三參數，p0=0不強制打斷21/22；已接衝刺／跳躍／擊退／換裝及零速；進入回呼的11尋路及32逐格更新另列todo	
 Poq.exe	99	004967d0	FUN_004967d0	~CCharactor	game	done	114	13		actor_interpolate：-1取占格與A+C/10；整數歐氏距離除float速度，剩餘拍截斷但增量除未截斷拍數；接高度下降，單機共用服務端move_remaining門檻，回放模式10方向追趕不實作	00494c30
 Poq.exe	99	00496ac0	FUN_00496ac0	~CCharactor	game	skip	9	0	動態移動結果+0x3f1的獨立setter；FUNCS.tsv索引無呼叫者，依規則略過，不新增只供測試的入口	寫動態移動嘗試結果+0x3f1；總表無呼叫者，依規則skip，不新增無遊戲呼叫端setter	
-Poq.exe	99	00496ae0	FUN_00496ae0	~CCharactor	game	todo	102	9		actor_move_speed已補A/B/C、A倒數初值、原版浮點比例11段及每Actor走路延遲，接移動／衝刺／擊退；零速由舊狀態11先接actor_trail_exit再靜止，保留20拍殘影收尾；完整動態狀態退出虛擬入口仍todo	00496550 00574e10 005770e0
+Poq.exe	99	00496ae0	FUN_00496ae0	~CCharactor	game	done	102	9		actor_move_speed：A/B/C、倒數A、浮點比例11段與每Actor走路動畫延遲；零速移動改走共用actor_dynamic_command(1,0,0,0)，保留角色殘影退出；接所有現有移動／衝刺／擊退	00574e10 005770e0
 Poq.exe	99	00496d80	FUN_00496d80	~CCharactor	game	todo	16	2		取指定序列描述：由當前部件群首個精靈的序列表+index*32；反編譯空指標分支會讀0x14，未自行設計安全替代；todo 動畫基礎	00574e10 005770e0
-Poq.exe	99	00496e30	FUN_00496e30		game	todo	36	5			00496550
+Poq.exe	99	00496e30	FUN_00496e30		game	todo	36	5			
 Poq.exe	99	00496f20	FUN_00496f20	~CDynamicObj	game	todo	146	2		目的地合法性及逐格回溯、占位／層檢查、目的地偏差與距離門檻，最後嘗試尋路並快取結果；todo 動態移動與占位基礎	
 Poq.exe	99	00497310	FUN_00497310	CCharactor|CNpc|CProtagonist|+1	game	todo	27	25			00494cb0
 Poq.exe	99	004973b0	FUN_004973b0	CCharactor|CNpc|CProtagonist|+1	game	todo	79	23			004c8700 004d0890 004d0900 004d09e0 004d0af0 004d0b10
