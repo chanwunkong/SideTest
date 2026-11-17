@@ -297,25 +297,29 @@ static Actor *near_first(int px, int py, int r) { near_begin(px, py, r); return 
 // 角色遍歷共用模式；與底層near游標一樣，巢狀開始會覆蓋前次遍歷。
 static int actor_near_mode;
 
-// shortcut: Actor名單皆為角色，以存活角色承接原版種類30..100檢查；物件種類接入時改精確篩選。
-// shortcut: 戰鬥狀態0沿用fight，初始化記錄座標以目前整數格承接；完整狀態／SInit接入後替換。
-// 此處尚非完整角色遍歷入口，不以原版位址標記完成。
+// SInit格與插值中的世界位置分開；未綁場景fixture沿初始世界格讀取。
+static int actor_init_x(const Actor *a) { return a->grid_valid ? a->grid_x : (int)a->x; }
+static int actor_init_y(const Actor *a) { return a->grid_valid ? a->grid_y : (int)a->y; }
+
+// Poq.exe 0x48ba50：四種遍歷模式；同組援敵看狀態byte0及SInit格，非退戰計時或插值位置。
+// 單機有劇情的物件共用handle，其他物件使用建立時分配的object_id，不另建C++物件索引。
 static Actor *actor_near_next(const Actor *a) {
     for (Actor *t; (t = near_next());) {
         if (actor_flags(t, 0x20010) || actor_display(t) == 50) continue;
         if (actor_near_mode == 0 && !has_status(a, 102) && !actor_flags(a, 0x4000)) {
             if (is_foe(a, t)) return t;
             Actor *foe = actor_target(t);
-            if (t != a && t->grp == a->grp && t->fight && alive(foe) && foe->grp != a->grp) {
-                int d = dist_of((int)a->x, (int)a->y, (int)foe->x, (int)foe->y);
-                int td = dist_of((int)a->x, (int)a->y, (int)t->x, (int)t->y);
+            if (t != a && t->grp == a->grp && has_status(t, 0) && foe &&
+                (unsigned)(foe->object_kind - 30) < 71u && foe->grp != a->grp) {
+                int d = dist_of(actor_init_x(a), actor_init_y(a), actor_init_x(foe), actor_init_y(foe));
+                int td = dist_of(actor_init_x(a), actor_init_y(a), actor_init_x(t), actor_init_y(t));
                 if (d < actor_seek(a) && (t->def->program == 40 || td < 1)) return foe;
             }
         } else if (actor_near_mode == 1) {
             if (t != a && t->grp == a->grp) return t;
         } else if (actor_near_mode == 2) {
-            // shortcut: 物件識別沿用劇情handle；非劇情物件ID建立後改用共用CObj識別。
-            if (t != a && a->search_link == t->sh) return t;
+            uint32_t id = t->sh ? (uint32_t)t->sh : t->object_id;
+            if (t != a && (uint32_t)a->search_link == id) return t;
         } else if (actor_near_mode == 3) {
             if (t != a && grp_npc(t->grp)) return t;
         }

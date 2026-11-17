@@ -837,7 +837,17 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - shortcut：SDL全畫面重繪取代背景髒矩形；CMapDialog表面刷新通知仍等不同類別小地圖系統，未標該通知入口完成。scene_load既有全圖探索初值2及探索衰減仍待CScene／CMapDialog接齊，本輪只補角色探索提升，未宣稱完整迷霧。錄影回放模式2未啟用，之後接回放時補禁止建光條件；未綁場景先用零投影，首次光源更新同步位置。無新增DLC分類。
   - `skilltest.c`走真實模板入口測光源即時建立、重套不替換、淡出後不自動重建、ffff模型類型、探索圈邊界／種類篩選／高層／組別／場景就緒／200不降級。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；-DSTORY語法檢查及AddressSanitizer（停用既有全域快取leak檢查）通過。修正fields末兩列誤寫字面\t導致fn.py --brief失敗；fields／roles更新，FUNCS.tsv重產。未commit或push。
   - 其餘18個主範圍todo仍含同類別動態移動／外觀／繪製／命令／狀態主入口，不能當成等外部系統；尚未達成整類別完成，不前移到CNpc。
-  **下一步：0x486270（CCharactor 仍餘18個todo；完整動態移動、外觀／繪製、命令主分派與128狀態更新未完成，完成整類別才進CNpc）起**。
+  ~~下一步：0x486270（CCharactor 仍餘18個todo；完整動態移動、外觀／繪製、命令主分派與128狀態更新未完成，完成整類別才進CNpc）起~~。
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，接續並核對未提交換裝改動，修正監獄開場誤索敵；整類別仍未完成，未進CNpc**。相對上一段新增done 2（0x48d810、0x48ba50）、主範圍skip 0、base 0；主範圍done 69、skip 33、todo 16。
+  - 保留並核對上輪`main.c`的actor_look_set、actor_body_sequence／apply、不可變RoleVariant快取及`skilltest.c`換裝測試。外觀只換指定角色使用的組合，不能原地修改共用模板Role；保留原版最後套目標導致舊序列／幀再次重設的怪現象。動態休息分支已接換裝，完整動態主分派仍未完成，不標該主入口done。
+  - **xy_2prison開場獄卒誤入戰鬥是移植錯誤，並非原版開場死亡劇情**：實際場景四名守衛使用模型90，模板組別2；原版守衛腳本覆寫組別100、Invincible=1，主角組10001。spawn_npcs原先只綁劇情handle，留下模型組2和零HP；靠近通知會使守衛與主角互選目標。新增actor_person_init，ONT及入口生成角色建立時讀劇情組別、生命／攻防及無敵等現值；scene_enter在第一拍前恢復主角的劇情組別，避免等資源載完才覆寫。沒有改掉原版0..99組的敵對規則。
+  - `actor_status_notify`補狀態0：非NPC組清排隊命令／動態休息、更新速度與動畫，退戰清目標及返回旗標、入戰觸發候選；actor_enter_fight及退戰倒數接入，重複入戰不重做通知。`near.c`的actor_near_next完成同組援敵的狀態byte0、SInit格距離及種類30..100篩選；保留嚴格距離、目標getter及轉交時不重套候選旗標。無劇情物件補高半區32位唯一識別，跨場景不重用，重套模板保留；劇情物件共用既有handle。
+  - shortcut：舊AI的退戰時限仍沿用FIGHT_TICKS；完整命令11的選招門檻及其他命令／動態入口未完成。未綁場景fixture的初始化格沿初始世界格讀取；完整遊戲角色使用grid_x/y。SDL每畫面重繪及省略單機同步封包沿用原有限制；沒有新增DLC分類。
+  - `skilltest.c`補模型組2會互相入戰的重現、套用劇情組100後600次靠近不入戰、初始HP／Invincible、戰鬥byte0通知／重入／NPC組差異、SInit距離邊界、種類29/100/101及非劇情識別／模板重套測試。原版監獄房間與四守衛腳本另以WebAssembly執行，確認主角10001、四守衛100／無敵／存活（人物表hook固定HP供腳本驗證）；實際模型90組2另讀場景資源核對。
+  - `cd engine && make && make skilltest`最後一行`skilltest ok`；-DSTORY語法檢查及AddressSanitizer通過（停用既有全域資源快取leak檢查）。fields／roles更新，FUNCS.tsv重產；未commit或push。
+  - 其餘16個todo仍包含同類別動態移動、初始外觀／繪製、角色移除、技能與命令主分派、狀態及更新，並非全部能等待外部系統；只有既有CGameApp介面暫停通知等屬不同類別依賴。**本輪尚未達成整個CCharactor完成的要求，不能前移至CNpc。**
+  **下一步：0x486270（CCharactor 尚餘16個todo；完成整類別才進CNpc）起**。
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）
 

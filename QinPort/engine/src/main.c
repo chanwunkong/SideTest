@@ -276,6 +276,7 @@ typedef struct Actor {
     int dir, moving, speed;
     int fight_speed, speed_threshold, dynamic_state;
     int dynamic_active, reverse_playback;
+    int dynamic_command[3], dynamic_flag_snapshot;
     const Scene *bound_scene;
     int grid_x, grid_y, grid_valid, occupancy_removed, object_dead, object_kind;
     uint16_t model_type;
@@ -290,6 +291,7 @@ typedef struct Actor {
     unsigned char state[128]; // 原版角色狀態byte；特殊主分派仍待補齊
     int status_countdown, original_group, counter_skill, status_aux;
     int hp_percent, behavior[4];
+    int battle_return;
     Spr *effect[3];
     int effect_speed, effect_applied;
     unsigned char last_status; // 最後修改的狀態ID；重算原版卻拿它與狀態值比較
@@ -326,6 +328,7 @@ typedef struct Actor {
     struct Actor *owner;           // 召喚出來的：召喚者
     int side;                      // 隊伍：0 = 主角這邊（主角、他的召喚兽、馴服的、陷阱、分身），1 = 怪物
     int search_link; // 關聯識別與第10修正（索敵篩選）
+    uint32_t object_id; // 無劇情handle的場景物件也有獨立的32位識別。
     int body_size;                 // 動態物件占位大小（模板大小<7取1，否則減5）
     int grp;                       // AI 組（+0x339）：0～99 玩家組、10000～60000 NPC 組；敵對看它（near.c is_foe）
     int seek_adjust, view_range;
@@ -987,9 +990,46 @@ static void npc_think(Actor *a, const Scene *s, Uint32 tick) {
 
 // 依角色表載入外觀；roles 是這個場景已載入過的外觀快取（同一模板共用）
 #define MAX_ROLES 64
-typedef struct { int tmpl; Role role; } RoleSlot;
+typedef struct {
+    int tmpl;
+    Role role;
+    int pli;
+    uint32_t anim;
+    char graphic[16], styles[96];
+} RoleSlot;
 static RoleSlot roles[MAX_ROLES];
 static int role_count;
+
+// 紙娃娃資源可共用，換裝後的組合不可原地改寫其他角色正在使用的Role。
+typedef struct RoleVariant {
+    struct RoleVariant *next;
+    int pli;
+    uint32_t anim;
+    char graphic[16], styles[96];
+    Role role;
+} RoleVariant;
+static RoleVariant *role_variants;
+
+static const Role *role_variant_for(const RoleDef *d) {
+    for (int i = 0; i < role_count; i++) {
+        const RoleSlot *r = &roles[i];
+        if (r->pli == d->pli && r->anim == d->anim &&
+            !strcmp(r->graphic, d->graphic) && !strcmp(r->styles, d->styles)) return &r->role;
+    }
+    for (RoleVariant *v = role_variants; v; v = v->next)
+        if (v->pli == d->pli && v->anim == d->anim &&
+            !strcmp(v->graphic, d->graphic) && !strcmp(v->styles, d->styles)) return &v->role;
+    RoleVariant *v = calloc(1, sizeof *v);
+    if (!v) return NULL;
+    if (!(d->anim ? role_load_anim(&v->role, d->anim) : role_load(&v->role, d->graphic, d->pli, d->styles))) {
+        role_free(&v->role); free(v); return NULL;
+    }
+    v->pli = d->pli; v->anim = d->anim;
+    snprintf(v->graphic, sizeof v->graphic, "%s", d->graphic);
+    snprintf(v->styles, sizeof v->styles, "%s", d->styles);
+    v->next = role_variants; role_variants = v;
+    return &v->role;
+}
 
 static const Role *role_for(const RoleDef *d) {
     for (int i = 0; i < role_count; i++)
@@ -998,6 +1038,9 @@ static const Role *role_for(const RoleDef *d) {
     RoleSlot *r = &roles[role_count];
     if (!(d->anim ? role_load_anim(&r->role, d->anim) : role_load(&r->role, d->graphic, d->pli, d->styles))) return NULL;
     r->tmpl = d->id;
+    r->pli = d->pli; r->anim = d->anim;
+    snprintf(r->graphic, sizeof r->graphic, "%s", d->graphic);
+    snprintf(r->styles, sizeof r->styles, "%s", d->styles);
     role_count++;
     return &r->role;
 }
@@ -1006,6 +1049,11 @@ static void roles_clear(void) {
     actors_illusion_clear();
     for (int i = 0; i < role_count; i++) role_free(&roles[i].role);
     role_count = 0;
+    while (role_variants) {
+        RoleVariant *v = role_variants;
+        role_variants = v->next;
+        role_free(&v->role); free(v);
+    }
 }
 
 // 主角 + 場景 NPC
@@ -1103,11 +1151,14 @@ static void actor_explore(Actor *a) {
 
 static void actor_skills_init(Actor *a);
 static int actor_light_init(const Actor *a);
+// 劇情handle為正整數；無劇情物件使用高半區，跨場景不重用，避免關聯命中另一個角色。
+static uint32_t next_actor_object_id = 0x80000000u;
 
 // Poq.exe 0x4862e0：套用角色模板；狀態103先啟用，再寫模型種類、組別、光源、占位與探索。
 static void actor_setup(Actor *a, const RoleDef *d) {
     // 新角色的候選初值屬於建構；重套模板不可先清掉既有候選。
     if (!a->def) {
+        if (!a->object_id) a->object_id = next_actor_object_id++;
         for (int i = 0; i < 4; i++) a->candidate[i] = -1;
         a->remembered[0] = -1;
         a->dynamic_state = 1;
@@ -1195,6 +1246,22 @@ static int sroom;    // 目前場景的劇情房間
 static void story_killed(int h);
 #endif
 
+// 建立時複製劇情人物的現值：SetInt初值不發屬性通知，不能只等story_msgs。
+// ONT角色與入口生成角色共用；僅建立時套用，避免每拍重設受傷、換組及狀態。
+static void actor_person_init(Actor *a, int h, int (*get)(int, const char *)) {
+    actor_group(a, get(h, "G_AIGroup"));
+    a->hp = get(h, "HP"); a->hp_max = get(h, "HP_MAX");
+    a->mp = get(h, "MP"); a->mp_max = get(h, "MP_MAX");
+    a->level = get(h, "Level");
+    a->ap = get(h, "AP"); a->ap_max = get(h, "AP_MAX");
+    a->dp = get(h, "DP"); a->hr = get(h, "SR"); a->sr = get(h, "HR");
+    a->ex[20] = get(h, "Invincible");
+    a->ex[64] = get(h, "B_C_MOVE_SPEED");
+    a->ex[65] = get(h, "B_C_FIGHT_SPEED");
+    a->ex[66] = get(h, "B_C_VRANGE");
+    actor_properties_update(a);
+}
+
 static void spawn_npcs(const Scene *s) {
     actor_count = 1;  // actors[0] 是主角
     for (int i = 0; i < s->npc_count && actor_count < MAX_ACTORS; i++) {
@@ -1215,6 +1282,7 @@ static void spawn_npcs(const Scene *s) {
 #ifdef STORY
         const char *event = actor_init_name(a);
         a->sh = event && *event ? story_find(sroom, event) : 0;
+        if (a->sh) actor_person_init(a, a->sh, story_get_int);
 #endif
     }
 }
@@ -2147,11 +2215,27 @@ static void actor_effect(Actor *a, int status, int on, int skill) {
 
 // 共用byte通知及套表，供修正17／100與技能Buff使用。
 // 已接本類別的隱身、反擊開關、蠱惑與特殊共用倒數；
-// 主分派的戰鬥命令、挨打取消及升空仍todo，不標完整主入口位址。
+// 主分派的周遭命令、挨打取消及其他通知仍todo，不標完整主入口位址。
+static void actor_dynamic_rest(Actor *a);
+static void actor_candidate_cast(Actor *a);
 static void actor_status_notify(Actor *a, int status, int on, int skill) {
     if ((unsigned)status >= 128u || a->state[status] == on) return;
     a->state[status] = (unsigned char)on;
     switch (status) {
+    case 0:
+        // 原版服務端的戰鬥byte是唯一狀態來源；fight僅保留舊AI的退戰計時。
+        a->fight = on ? FIGHT_TICKS : 0;
+        if (!grp_npc(a->grp)) {
+            actor_cancel_command(a);
+            actor_dynamic_rest(a);
+        }
+        actor_speed_update(a);
+        actor_animation_select(a, -1);
+        if (!on) {
+            a->battle_return = 1;
+            actor_clear_target(a);
+        } else actor_candidate_cast(a);
+        break;
     case 8:
         actor_set_flags(a, 0x20000, on != 0);
         if (!on) actor_light_init(a);
@@ -2317,9 +2401,70 @@ static void actor_animation_tick(Actor *a) {
     }
 }
 
+// Poq.exe 0x496380：直接切本體序列，與目標序列分開；同序列不重設幀。
+static void actor_body_sequence(Actor *a, int seq) {
+    if (a->body_ready && a->body_seq == seq) return;
+    a->shown_seq = seq;
+    a->shown_ready = 1;
+    a->body_ready = 0;
+    a->act_tick = 0;
+    actor_body_select(a);
+}
+
+// Poq.exe 0x494ec0：-1使用既有目標，其他值先保存為目標再切本體。
+static void actor_body_apply(Actor *a, int seq) {
+    if (seq == -1) seq = a->animation_target;
+    else a->animation_target = seq;
+    actor_body_sequence(a, seq);
+}
+
+// 動態狀態設定的(1,0,0,0)分支，供換裝使用。
+// shortcut: 其他狀態命令仍由既有移動／招式入口承接，完整動態分派接齊後合併。
+static void actor_dynamic_rest(Actor *a) {
+    int flag = actor_flags(a, 0x10000);
+    if (a->dynamic_state != 1 || a->dynamic_command[0] || a->dynamic_command[1] ||
+        a->dynamic_command[2] || a->dynamic_flag_snapshot != flag) {
+        int old = a->dynamic_state;
+        actor_trail_exit(a);
+        a->print_x = a->print_y = -100;
+        // 原版靜止命令不強制打斷21/22；仍會先執行退出的降落與清旗標。
+        if (old != 21 && old != 22) {
+            a->dynamic_state = 1;
+            a->moving = 0;
+            actor_animation_select(a, -1);
+        }
+    }
+    a->dynamic_flag_snapshot = flag;
+}
+
+// Poq.exe 0x48d810：先記本體序列／幀，回平常、換紙娃娃、重選目標，再嘗試復原。
+// 底層輸入由既有styles_equip解析成RoleDef；單機共用Actor，不發外觀同步封包。
+// SDL繪製／點選每次依現有Role算矩形，不需另保存過期的矩形快取。
+static void actor_look_set(Actor *a, const RoleDef *look) {
+    int old_seq = a->body_ready ? a->body_seq : actor_seq(a);
+    int old_frame = a->act_frame;
+    actor_dynamic_rest(a);
+    const Role *r = role_variant_for(look);
+    if (r && r != a->role) {
+        a->role = r;
+        // 新紙娃娃的播放器從0開始，即使前後的序列編號相同也不能沿用舊播放器。
+        a->shown_seq = 0; a->shown_ready = 1;
+        a->body_ready = 0; a->act_tick = 0;
+        actor_body_select(a);
+    }
+    actor_animation_select(a, -1);
+    if (a->role && old_seq < a->role->seq_count && old_seq >= 0) {
+        actor_body_sequence(a, old_seq);
+        const Seq *q = role_seq(a->role, old_seq);
+        if (q && old_frame < q->count) a->act_frame = old_frame;
+    }
+    // 保留原版怪現象：最後仍套目標；若目標不同，剛復原的舊序列／幀會再被重設。
+    actor_body_apply(a, -1);
+}
+
 static void actor_enter_fight(Actor *a);
 // Poq.exe 0x48eda0：先寫目標識別，再登記被指向NPC組的敵對關係。
-// shortcut: 狀態0轉換仍由actor_enter_fight承接；完整狀態byte主分派接入時改由其命令11入口發送。
+// 入戰透過actor_enter_fight轉入狀態byte0；完整命令11的選招門檻仍待主命令分派。
 static void actor_target_set(Actor *a, Actor *t) {
     if (!t) { actor_clear_target(a); return; }
     a->foe = t;
@@ -3237,11 +3382,10 @@ static void actor_candidate_cast(Actor *a) {
     }
 }
 
-// shortcut: 現有fight計時橋接戰鬥狀態0的0→1入口；完整狀態byte分派接入後由該入口呼叫。
+// 舊AI的入戰呼叫轉入原版狀態0通知；重複入戰只延長現有退戰計時。
 static void actor_enter_fight(Actor *a) {
-    int entered = a->fight == 0;
     a->fight = FIGHT_TICKS;
-    if (entered) actor_candidate_cast(a);
+    actor_status_notify(a, 0, 1, -1);
 }
 
 // Poq.exe 0x485b80：玩家組且模板思想1，沿鏈找manual3技能；目的地含六圈找空格。
@@ -3374,13 +3518,7 @@ static void hero_refresh(Actor *h) {
     hero_look();
     uint32_t g[MAX_ROLE_PARTS * 2];
     res_fetch_now(g, role_anim_ids(hero_def.graphic, hero_def.pli, hero_def.styles, g, MAX_ROLE_PARTS * 2));
-    for (int i = 0; i < role_count; i++) {  // 原地換掉快取裡的主角外觀（Role 位址不變）
-        Role r;
-        if (roles[i].tmpl == hero_def.id && role_load(&r, hero_def.graphic, hero_def.pli, hero_def.styles)) {
-            role_free(&roles[i].role);
-            roles[i].role = r;
-        }
-    }
+    actor_look_set(h, &hero_def);
 }
 
 // 能不能穿（0x1004c0e0）：等級、力量、體質、敏捷夠，耐久不是 0，已鑑定
@@ -4262,6 +4400,7 @@ static void actors_sync(const Scene *s) {
         int x = en->x, y = en->y;
         Actor *a = mon_make(m, d, x, y, en->x, en->y, story_get_int(h, "Level"));
         a->sh = h;
+        actor_person_init(a, h, story_get_int);
         for (int k = 0; k < 8; k++)
             if (DIR_MAP[k] == en->dir) a->dir = k;
         actor_group(a, story_get_int(h, "G_AIGroup"));
@@ -5273,6 +5412,10 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     roles_clear();
     preload_roles(scene, hd);
     if (hd) actor_setup(hero, hd);
+#ifdef STORY
+    // 模板會直接覆寫組別；第一拍索敵前便恢復劇情玩家組，不等資源載完的actors_sync。
+    actor_group(hero, story_get_int(story_player(), "G_AIGroup"));
+#endif
     spawn_npcs(scene);
     ground_n = 0;  // 地上的道具不跟著換場景
     ground_want = walk_cx = -1;
@@ -5695,7 +5838,8 @@ int main(int argc, char **argv) {
                 actor_scale_tick(&actors[i]);
                 if (actors[i].modifiers_dirty) actor_effects_recompute(&actors[i]);
                 actor_cooldown_tick(&actors[i]);
-                if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
+                if (actors[i].fight > 0 && !actors[i].foe && !--actors[i].fight)
+                    actor_status_notify(&actors[i], 0, 0, -1);
             }
             int held = hero->act != ACT_DEAD && react_tick(hero, &scene);
             if (hero->act == ACT_DEAD) {  // shortcut: 原版死亡後的處理（回城、掉經驗）還沒做，先 3 秒後原地復活

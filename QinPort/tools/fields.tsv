@@ -321,8 +321,8 @@ CInitObjMng	+0x8	初始化來源檔名 CString	未移植：CInitObjMng INI載入
 CInitObjMng	+0xc	四組記錄總數	未移植
 CInitObjMng	+0x10	四組16-byte描述子起點；每組+0容量/+4數量/+8指標陣列/+0xc已建立旗標陣列	C陣列／數量；資料載入待移植
 SInitBase	+0xa	模板ID ushort；CInitMngMain排除1500～2000（含端點），以ushort差值比較	未移植：初始化記錄
-SInitBase	+0xc	地圖座標X int	未移植：SInit記錄還原
-SInitBase	+0x10	地圖座標Y int	未移植：SInit記錄還原
+SInitBase	+0xc	地圖座標X int	Actor.grid_x（未綁場景fixture沿初始世界格）
+SInitBase	+0x10	地圖座標Y int	Actor.grid_y（未綁場景fixture沿初始世界格）
 SInitCha	+0x18	平時邏輯種類：0初始態／1隨機／2路徑／3跟隨	未移植：SInit記錄還原
 SInitCha	+0x1c	行走休息 int	未移植：SInit記錄還原
 SInitChaInit	+0x78	初始態ushort；+0x7a另一ushort，原版連續讀兩次同名鍵	未移植：SInit記錄還原
@@ -760,7 +760,7 @@ RoleMdl	+0x158	第三候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef
 RoleMdl	+0x15c	第四候選技能ID；ffff不覆寫，0及-1照值寫入	RoleDef.candidate[3]
 CCharactor	+0x40f	第1修正速度覆寫，0不覆寫，非0以值減1作基礎速度	Actor.speed_override；完整20修正表仍待接齊
 RoleMdl	+0x128	模板顯示方式（RoleMdl第29欄），第10修正為0時使用；50排除角色遍歷	RoleDef.display／actor_display／actor_near_next
-CObj	+0x24	物件識別，角色遍歷模式2與發起者+0x3ff比較	Actor.sh僅劇情物件橋接；共用識別待接
+CObj	+0x24	物件識別，角色遍歷模式2與發起者+0x3ff比較	劇情Actor.sh；非劇情Actor.object_id（高半區單調分配，跨場景不重用）
 CCharactor	+0x3c1	動態物件大小；模板size小於7取1，否則減5；setter只寫值	Actor.body_size／actor_size_set
 RoleMdl	+0x60	戰鬥走路序列，第10欄第一個整數	RoleDef.fight_walk
 RoleMdl	+0x64	跑步序列，第10欄第二個整數，缺項65535	RoleDef.run_seq
@@ -827,3 +827,9 @@ RoleMdl	+0x12c	欄30模板組別；模板套用直接寫入、不經換組setter
 RoleMdl	+0x140	欄35反擊技能；65535保留原值，零及負數直接覆寫	RoleDef.counter_skill／Actor.counter_skill
 RoleMdl	+0x22	模板基底類型的低16位；普通RoleMdl建構固定ffff，文字欄4是字串不是此欄	RoleDef.model_type
 CCharactor	+0x5c	模板+0x22低16位，不等於物件種類+0x67	Actor.model_type
+CDynamicObj	+0x77	上次非平常狀態命令參數1；平常命令不覆寫	Actor.dynamic_command[0]（完整非平常命令寫入仍待主分派）
+CDynamicObj	+0x7b	上次非平常狀態命令參數2；平常命令不覆寫	Actor.dynamic_command[1]（完整非平常命令寫入仍待主分派）
+CDynamicObj	+0x7f	上次非平常狀態命令參數3；平常命令不覆寫	Actor.dynamic_command[2]（完整非平常命令寫入仍待主分派）
+CDynamicObj	+0x83	上次動態命令的0x10000旗標遮罩原值，參與命令去重	Actor.dynamic_flag_snapshot
+SpriteSequence	+0xc	精靈群組當前序列編號，與動態物件目標序列+0x8b分開	Actor.body_seq／actor_body_sequence
+CCharactor	+0x520	退戰設1；明確入戰命令可清0的返回旗標	Actor.battle_return

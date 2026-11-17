@@ -828,6 +828,72 @@ static void character_target_reaction_test(void) {
     memcpy(grps, group_copy, sizeof grps); free(group_copy); grp_n = groups;
 }
 
+static int prison_guard_int(int h, const char *key) {
+    assert(h == 135);
+    if (!strcmp(key, "G_AIGroup")) return 100;
+    if (!strcmp(key, "Invincible")) return 1;
+    if (!strcmp(key, "HP") || !strcmp(key, "HP_MAX")) return 300;
+    if (!strcmp(key, "Level")) return 40;
+    if (!strcmp(key, "SR")) return 50;
+    if (!strcmp(key, "HR")) return 30;
+    return 0;
+}
+
+static void prison_guard_initialization_test(void) {
+    Actor saved[2] = {actors[0], actors[1]};
+    int count = actor_count, groups = grp_n;
+    void *group_copy = malloc(sizeof grps); memcpy(group_copy, grps, sizeof grps);
+    grp_n = 0; actor_count = 2;
+    RoleDef model = {.seek=5, .speed=20};
+    actors[0] = (Actor){.role=&empty_test_role, .def=&model, .grp=10001,
+        .layer=1, .x=3, .y=3};
+    actors[1] = (Actor){.role=&empty_test_role, .def=&model, .grp=2,
+        .layer=1, .x=4, .y=3};
+    Actor *hero = &actors[0], *guard = &actors[1];
+    for (int i=0; i<4; i++) hero->candidate[i] = guard->candidate[i] = -1;
+    assert(is_foe(guard, hero)); // xy_2prison的模型90預設組2；漏掉劇情組覆寫便誤索敵。
+    actor_notice_near(guard, hero);
+    assert(guard->foe == hero && hero->foe == guard && guard->fight && hero->fight);
+    actor_status_notify(guard, 0, 0, -1);
+    actor_status_notify(hero, 0, 0, -1);
+    actor_person_init(guard, 135, prison_guard_int);
+    assert(guard->grp == 100 && guard->ex[20] == 1);
+    assert(guard->hp == 300 && guard->hp_max == 300 && guard->level == 40);
+    assert(guard->hr == 50 && guard->sr == 30);
+    for (int i=0; i<600; i++) {
+        actor_near_reactions(hero); actor_near_reactions(guard);
+    }
+    assert(!is_foe(hero, guard) && !is_foe(guard, hero));
+    assert(!hero->foe && !guard->foe && !hero->fight && !guard->fight);
+    assert(alive(guard) && guard->hp == 300);
+    // 原版0..99為敵對組；修正建立資料不能改掉這項規則。
+    actor_group(guard, 0);
+    assert(is_foe(hero, guard));
+    actors[0] = saved[0]; actors[1] = saved[1]; actor_count = count;
+    memcpy(grps, group_copy, sizeof grps); free(group_copy); grp_n = groups;
+}
+
+static void character_battle_state_test(void) {
+    RoleDef model = {.speed=20, .idle=0, .fight_idle=8, .run_seq=65535};
+    Actor target = {0};
+    Actor a = {.def=&model, .role=&empty_test_role, .dynamic_state=11, .speed=20, .fight_speed=20,
+        .grp=100, .moving=1, .foe=&target, .command={9,11,12,13}};
+    for (int i=0; i<4; i++) a.candidate[i] = -1;
+    actor_enter_fight(&a);
+    assert(a.state[0] == 1 && a.fight == FIGHT_TICKS);
+    assert(a.command[0] == -1 && a.command[1] == 11);
+    assert(a.dynamic_state == 1 && !a.moving && a.animation_target == 8);
+    a.command[0] = 9;
+    actor_enter_fight(&a);
+    assert(a.command[0] == 9); // 同byte不重做退出／清命令副作用。
+    actor_status_notify(&a, 0, 0, -1);
+    assert(!a.state[0] && !a.fight && !a.foe && a.battle_return == 1);
+    assert(a.animation_target == 0);
+    a.grp=10000; a.dynamic_state=11; a.command[0]=9;
+    actor_enter_fight(&a);
+    assert(a.state[0] && a.command[0] == 9 && a.dynamic_state == 11);
+}
+
 static void character_effect_test(void) {
     StatusDef *d = (StatusDef *)status_def(126), saved = *d;
     for (int i = 0; i < 20; i++) d->raw[i] = 65535;
@@ -1249,7 +1315,8 @@ static void character_names_owner_test(void) {
 static void character_near_test(void) {
     RoleDef d = {.seek = 2};
     for (int i = 0; i < 4; i++) {
-        mk(&actors[i]); actors[i].def = &d;
+        mk(&actors[i]); actors[i].def = &d; actors[i].object_kind = 40;
+        actors[i].object_id = 0x80000000u + i;
         actors[i].x = actors[i].y = 10.5f;
         actors[i].grp = i ? 10000 : 0;
     }
@@ -1299,7 +1366,9 @@ static void character_near_test(void) {
     assert(actor_near_begin(a, 2, 2) == first);
     assert(a->foe == closer && a->command[0] == 9 && a->command[1] == 71);
     actor_search_link_set(a, -1); assert(!actor_near_begin(a, 2, 2));
-    actor_search_link_set(a, 0); assert(actor_near_begin(a, 2, 2) == closer);
+    actor_search_link_set(a, 0); assert(!actor_near_begin(a, 2, 2));
+    actor_search_link_set(a, (int)closer->object_id);
+    assert(actor_near_begin(a, 2, 2) == closer);
     first->sh = 71;
     actor_search_link_set(a, 71);
     a->foe = NULL;
@@ -1309,14 +1378,30 @@ static void character_near_test(void) {
     // 同組戰鬥角色可轉交其目標；以整數格歐氏距離嚴格小於索敵範圍。
     actor_count = 4; Actor *foe = &actors[3];
     foe->x = 11.5f; foe->y = 10.5f; foe->grp = 10000;
-    first->fight = 1; first->foe = foe;
+    first->state[0] = 1; first->foe = foe;
     assert(actor_near_begin(a, 0, 2) == foe);
+    foe->object_kind = 29;
+    assert(actor_near_begin(a, 0, 2) == closer);
+    foe->object_kind = 100;
+    assert(actor_near_begin(a, 0, 2) == foe);
+    foe->object_kind = 101;
+    assert(actor_near_begin(a, 0, 2) == closer);
+    foe->object_kind = 40;
+    a->grid_valid=foe->grid_valid=1;
+    a->grid_x=10; a->grid_y=10; foe->grid_x=12; foe->grid_y=10;
+    assert(actor_near_begin(a, 0, 2) == closer); // 插值很近，SInit目的格仍在嚴格邊界外。
+    foe->grid_x=11;
+    assert(actor_near_begin(a, 0, 2) == foe);
+    a->grid_valid=foe->grid_valid=0;
+    first->state[0]=0; first->fight=100;
+    assert(actor_near_begin(a, 0, 2) == closer); // 舊退戰計時不能冒充狀態byte。
+    first->state[0]=1; first->fight=0;
     foe->x = 12.5f;
     assert(actor_near_begin(a, 0, 2) == closer);
-    first->fight = 0;
+    first->state[0] = 0;
     assert(actor_near_begin(a, 0, 2) == closer);
     // 程序40可在不同格協助；一般程序只在整數格距離0時協助。
-    first->fight = 1; first->y = 9.5f; foe->x = 11.5f;
+    first->state[0] = 1; first->y = 9.5f; foe->x = 11.5f;
     closer->flags = foe->flags = 0x10;
     assert(!actor_near_begin(a, 0, 2));
     d.program = 40;
@@ -1364,6 +1449,63 @@ static void character_target_display_test(void) {
     a.foe = &actors[0]; actors[0].role = (const Role *)1; actor_count = 0;
     assert(!actor_target(&a) && !a.foe);
     actors[0] = saved; actor_count = saved_count;
+}
+
+static void character_look_test(void) {
+    RoleVariant *saved_variants = role_variants;
+    Frame frames[5] = {{.delay=5}, {.delay=5}, {.delay=5}, {.delay=5}, {.delay=5}};
+    Seq old_sequences[24], new_sequences[16];
+    for (int i = 0; i < 24; i++) old_sequences[i] = (Seq){.count=5, .frames=frames};
+    for (int i = 0; i < 16; i++) new_sequences[i] = (Seq){.count=3, .frames=frames};
+    Anim old_anim = {.count=24, .seqs=old_sequences};
+    Anim new_anim = {.count=16, .seqs=new_sequences};
+    Role old_role = {.part_count=1, .seq_count=24, .body={&old_anim}};
+    RoleVariant variant = {.pli=987, .graphic="look-test", .styles="001",
+        .role={.part_count=1, .seq_count=16, .body={&new_anim}}};
+    role_variants = &variant;
+    RoleDef model = {.idle=8, .walk=16, .run_seq=65535};
+    RoleDef look = {.pli=987, .graphic="look-test", .styles="001"};
+    Actor a = {.def=&model, .role=&old_role, .dynamic_state=1, .animation_dir=2,
+        .shown_ready=1, .shown_seq=10, .body_ready=1, .body_seq=10,
+        .act_frame=2, .frame_tick=3, .body_end=4};
+    Actor same_model = a;
+    actor_look_set(&a, &look);
+    assert(a.role == &variant.role && same_model.role == &old_role);
+    assert(a.def == &model && a.body_seq == 10 && a.animation_target == 10);
+    assert(a.act_frame == 2 && a.frame_tick == 0 && a.body_end == 2);
+    a.frame_tick = 3;
+    actor_look_set(&a, &look);
+    assert(a.act_frame == 2 && a.frame_tick == 3); // 相同外觀／序列不重設播放器。
+
+    a = same_model; a.act_frame=4;
+    actor_look_set(&a, &look);
+    assert(a.act_frame == 0); // 舊幀不在新序列範圍內。
+    a = same_model; a.shown_seq=a.body_seq=11;
+    actor_look_set(&a, &look);
+    assert(a.body_seq == 10 && a.act_frame == 0); // 最後套目標，並非無條件保留11。
+    a = same_model; a.shown_seq=a.body_seq=23;
+    actor_look_set(&a, &look);
+    assert(a.body_seq == 10 && a.act_frame == 0); // 舊序列超出新外觀。
+
+    a = same_model; a.dynamic_state=11; a.moving=1; a.reverse_playback=1;
+    a.trail_mode=2; a.modifier[6].value=1; a.modifier[6].time=-1;
+    actor_look_set(&a, &look);
+    assert(a.dynamic_state == 1 && !a.moving && !a.reverse_playback);
+    assert(a.modifier[6].time == 20 && a.print_x == -100 && a.print_y == -100);
+    a = same_model; a.dynamic_state=22; a.flags=0x200; a.z=53; a.vz=4; a.zmax=100;
+    actor_look_set(&a, &look);
+    assert(a.dynamic_state == 22 && !(a.flags & 0x200));
+    assert(a.z == 53 && a.vz == -5 && a.zmax == 0);
+
+    a = same_model;
+    actor_body_apply(&a, 12);
+    assert(a.animation_target == 12 && a.body_seq == 12 && a.act_frame == 0);
+    a.act_frame=1; a.frame_tick=2;
+    actor_body_apply(&a, -1);
+    assert(a.body_seq == 12 && a.act_frame == 1 && a.frame_tick == 2);
+    actor_body_sequence(&a, 13);
+    assert(a.body_seq == 13 && a.animation_target == 12); // 直接切本體不寫目標。
+    role_variants = saved_variants;
 }
 
 static void character_animation_select_test(void) {
@@ -1647,6 +1789,12 @@ static void character_template_candidates_test(void) {
     Actor fresh = {0};
     actor_setup(&fresh, &d);
     assert(fresh.body_size == 1);
+    uint32_t identity = fresh.object_id;
+    assert(identity >= 0x80000000u);
+    actor_setup(&fresh, &d);
+    assert(fresh.object_id == identity); // 重套模板保留物件識別。
+    Actor another = {0}; actor_setup(&another, &d);
+    assert(another.object_id != identity && another.object_id >= 0x80000000u);
     for (int i = 0; i < 4; i++) assert(fresh.candidate[i] == -1);
     Actor a = {.def = &d, .candidate = {276, 277, 278, 279}};
     actor_setup(&a, &d);
@@ -2214,6 +2362,9 @@ int main(void) {
     character_speed_memory_test();
     character_properties_test();
     character_animation_select_test();
+    character_look_test();
+    prison_guard_initialization_test();
+    character_battle_state_test();
     character_near_test();
     character_target_display_test();
     character_names_owner_test();
@@ -2306,6 +2457,25 @@ int main(void) {
     assert(t.act == ACT_DEAD);
     // 召喚：匈奴法师_召唤（273 = 10 → 朱厌，最多 2 隻）
     roledefs_load();
+    {
+        // 真實PLI資源路徑：換裝只切此Actor使用的組合，原模板快取保持可用。
+        RoleDef base = *roledef_find(29), dressed = base;
+        const Role *original = role_for(&base);
+        assert(original && original->part_count);
+        const Anim *part = original->body[0];
+        memcpy(dressed.styles, "000", 3);
+        Actor wearer = {.def=&base, .role=original, .dynamic_state=1};
+        Actor bystander = wearer;
+        actor_look_set(&wearer, &dressed);
+        assert(wearer.role && wearer.role != original);
+        assert(!wearer.role->body[0] && original->body[0] == part);
+        assert(bystander.role == original && role_for(&base) == original);
+        const Role *equipped = wearer.role;
+        actor_look_set(&wearer, &dressed);
+        assert(wearer.role == equipped); // 重複款式共用不可變資源，不累加新組合。
+        actor_look_set(&wearer, &base);
+        assert(wearer.role == original); // 卸裝回原快取。
+    }
     assert(roledef_find(29)->scale == 65535);
     assert(roledef_find(327)->scale == 4 && roledef_find(320)->scale == 14);
     {
