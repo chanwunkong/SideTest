@@ -500,6 +500,22 @@ static void character_rotation_cooldown_test(void) {
     a.direction_clock=30;
     character_direction_step(&a); assert(a.shown_seq==8);
 
+    // 真實維護→播放次序：旋轉每拍只選一次，播放不能再轉方向或重置幀。
+    a.flags=0x400; a.animation_dir=0; a.direction_clock=31;
+    actor_maintenance_tick(&a);
+    assert(a.animation_dir==7 && a.body_seq==15 && !a.frame_tick);
+    actor_animation_tick(&a);
+    assert(a.animation_dir==7 && a.body_seq==15 && a.frame_tick==1);
+    actor_maintenance_tick(&a);
+    assert(a.animation_dir==6 && a.body_seq==14 && !a.frame_tick);
+    actor_animation_tick(&a);
+    assert(a.animation_dir==6 && a.body_seq==14 && a.frame_tick==1);
+    // 空中非靜止略過維護時，動畫亦不可補做普通漸轉。
+    a.flags=0x200; a.dynamic_state=22; a.direction_clock=45;
+    actor_maintenance_tick(&a);
+    actor_animation_tick(&a);
+    assert(a.body_seq==14 && a.animation_dir==6 && a.frame_tick==1);
+
     unit_n=0;
     a.cool=3; actor_cooldown_tick(&a); assert(a.cool==2);
     units[0]=(MUnit){.cls=U_MAIN, .owner=&a}; unit_n=1;
@@ -579,6 +595,7 @@ static void character_animation_test(void) {
     assert(effect.seq == 0 && !effect.cur && !effect.tick);
     a.effect[0] = NULL; a.flags = 0;
     a.act = ACT_HIT; a.act_seq = 1; a.direction_clock = 0;
+    actor_direction_tick(&a); // 序列漸轉屬維護階段，播放器只消費已選本體。
     actor_animation_tick(&a); assert(a.body_seq == 1 && !a.act_frame && a.frame_tick == 1);
     // 原版到最後幀最後一拍便解除101，不必等下一幀繞回。
     a.state[101] = 1; a.act_frame = 3; a.frame_tick = 0;

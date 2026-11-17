@@ -645,7 +645,7 @@ CCharactor	+0x73	動態物件行為狀態：1平常、11移動、20..30跳躍等
 CCharactor	+0x87	上次套用的目標動畫序列	Actor.previous_target／actor_direction_tick
 CCharactor	+0x8b	目標動畫序列（方向為帶符號餘數）	Actor.animation_target／actor_animation_select
 CCharactor	+0xa3	目前目標物件句柄，0無目標	Actor.foe（指標取代句柄）
-CCharactor	+0xa7	原版動畫方向，指定序列時取帶符號餘數；旗標0x400每拍減1，負數回7	Actor.animation_dir；現有面向以Actor.dir／DIR_MAP橋接
+CCharactor	+0xa7	原版動畫方向，指定序列時取帶符號餘數；旗標0x400在維護階段、修正倒數之前每拍減1，負數回7；動畫播放不改方向	Actor.animation_dir；現有面向以Actor.dir／DIR_MAP橋接
 CCharactor	+0xaf	當前移速的A參數；0時不能使用距離大於等於3的技能	Actor.move_a／actor_move_speed／actor_cast_try（模板speed非0且A<=0時拒絕max>=3）
 CCharactor	+0x2cf	角色模板指標	Actor.def
 CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減半	Actor.speed_threshold

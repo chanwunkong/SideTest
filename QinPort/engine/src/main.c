@@ -2778,7 +2778,6 @@ static void actor_direction_tick(Actor *a) {
 static void actor_animation_tick(Actor *a) {
     if (a->head_height_pending) actor_head_height(a);
     a->animation_stepped = 1;
-    actor_direction_tick(a);
     actor_body_select(a);
     const Seq *q = role_seq(a->role, a->body_seq);
     if (!(a->flags & 0x200) && q && q->count) {
@@ -2807,6 +2806,8 @@ static void actor_animation_tick(Actor *a) {
 static void actor_maintenance_tick(Actor *a) {
     actor_cooldown_tick(a);
     if (!(a->flags & 0x400) && (a->flags & 0x200) && a->dynamic_state != 1) return;
+    // 原版維護階段先轉向再扣修正；播放本體時不能再轉一次。
+    actor_direction_tick(a);
     actor_modifiers_tick(a);
     actor_scale_tick(a);
     if (a->modifiers_dirty) actor_effects_recompute(a);
