@@ -2336,6 +2336,58 @@ static int actor_dynamic_retry(const Actor *a) {
     return (int32_t)elapsed < limit ? a->dynamic_path_result : 1;
 }
 
+// Poq.exe 0x493ad0：從目的格往目前占格掃第一個空格；相鄰不掃，
+// 抵達目前占格仍無空格時，反而以原目的地為中心找六圈。
+// shortcut: 反編譯遺失Y軸累加變數，以與X軸對稱的整數DDA承接；取得組語後核對相等門檻。
+static int actor_walk_fallback(const Actor *a, int *x, int *y, int end_x, int end_y) {
+    int dx = abs(end_x - *x), dy = abs(end_y - *y);
+    int n = dx > dy ? dx : dy;
+    if (n < 2) return 0;
+    int px = *x, py = *y, ex = 0, ey = 0;
+    for (;;) {
+        if (px == end_x && py == end_y) return vacant_cell(x, y, a->layer, 6);
+        const Cell *c = cell_at(px, py);
+        if (c && cell_pass(c, a->layer) && !cell_occupant(px, py)) {
+            *x = px; *y = py;
+            return 1;
+        }
+        ex += dx;
+        if (ex >= n) { px += end_x < *x ? -1 : 1; ex -= n; }
+        ey += dy;
+        if (ey >= n) { py += end_y < *y ? -1 : 1; ey -= n; }
+    }
+}
+
+// 動態11目的地校正；完整入口還缺原版反向路徑生成，不標完成位址。
+static int actor_walk_destination(Actor *a, int x, int y) {
+    int original_x = x, original_y = y;
+    a->dynamic_destination_x = x;
+    a->dynamic_destination_y = y;
+    const Cell *original = cell_at(x, y);
+    int sx = a->grid_valid ? a->grid_x : (int)a->x;
+    int sy = a->grid_valid ? a->grid_y : (int)a->y;
+    if (!original || !cell_pass(original, a->layer) || cell_occupant(x, y)) {
+        if (!actor_walk_fallback(a, &x, &y, sx, sy)) {
+            a->dynamic_path = 0;
+            return 0;
+        }
+        a->dynamic_destination_x = x;
+        a->dynamic_destination_y = y;
+        // NULL目標與空占位也相等，保留原版的指標相等判斷。
+        if (original && cell_occupant(original_x, original_y) == a->foe) {
+            int dx = abs(x - original_x), dy = abs(y - original_y);
+            int corrected = dx > dy ? dx : dy;
+            dx = abs(sx - original_x); dy = abs(sy - original_y);
+            int current = dx > dy ? dx : dy;
+            if (a->dynamic_command[2] < corrected && current <= corrected) {
+                a->dynamic_path = 0;
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 // 動態進入：共用拍數與速度在各分支之前；角色殘影先於基底進入。
 // shortcut: 動態11仍把目的地交既有行走迴圈，完整尋路步進移植後替換此分支。
 static void actor_dynamic_enter(Actor *a) {
@@ -2345,8 +2397,16 @@ static void actor_dynamic_enter(Actor *a) {
     switch (a->dynamic_state) {
     case 11:
         if (!actor_dynamic_retry(a)) { a->dynamic_path_result = 0; break; }
-        a->dynamic_destination_x = a->dynamic_command[0];
-        a->dynamic_destination_y = a->dynamic_command[1];
+        // shortcut: 未綁場景的舊fixture保留原目的地；建立入口統一登記後移除。
+        if (unit_scene && unit_scene->cells) {
+            if (!actor_walk_destination(a, a->dynamic_command[0], a->dynamic_command[1])) {
+                a->dynamic_path_result = 0;
+                break;
+            }
+        } else {
+            a->dynamic_destination_x = a->dynamic_command[0];
+            a->dynamic_destination_y = a->dynamic_command[1];
+        }
         a->tx = a->dynamic_destination_x + .5f;
         a->ty = a->dynamic_destination_y + .5f;
         a->has_target = 1;
@@ -4215,7 +4275,7 @@ static void actor_skill_command_tick(Actor *a) {
 static int actor_command_walk_tick(Actor *a, const Scene *s, Uint32 tick) {
     if (a->dynamic_state != 11 || !a->has_target) { a->moving = 0; return 0; }
     int range = a->dynamic_command[2];
-    int dx = actor_init_x(a) - a->dynamic_command[0], dy = actor_init_y(a) - a->dynamic_command[1];
+    int dx = actor_init_x(a) - a->dynamic_destination_x, dy = actor_init_y(a) - a->dynamic_destination_y;
     if (abs(dx) <= range && abs(dy) <= range) {
         a->has_target = 0;
         actor_dynamic_command(a, 1, 0, 0, 0);
@@ -6359,13 +6419,6 @@ static void game_speed_key(int faster) {
     game_speed_set(5 - (v - 16) / 3);
 }
 
-// 點地面後走過去（指令 1）：直線走到格子中央。shortcut: 原版指令 1 的走法（尋路）在 CCharactor，還沒做
-static void point_walk(Actor *h, const Scene *s, Uint32 tick) {
-    float gx = walk_cx + 0.5f - h->x, gy = walk_cy + 0.5f - h->y;
-    if (gx * gx + gy * gy < 0.25f) { h->moving = 0; walk_cx = -1; return; }
-    actor_tick(h, s, (gx - gy) * 32, (gx + gy) * 16, tick);
-}
-
 // 主角是否站在觸發區上（以觸發區所在格為中心 3×3 格）。shortcut: 觸發區實際形狀在 MDL 的佔地格，還沒解析
 static const Trigger *trigger_at(const Scene *s, const Actor *h) {
     for (int i = 0; i < s->trigger_count; i++) {
@@ -6532,9 +6585,8 @@ int main(int argc, char **argv) {
                 case CMD_MOVE:
                     if (!actor_command(hero, 1, cx, cy, 0, 1, 1)) break;
                     mark_new(cx, cy); hero->foe = NULL; hero->want = NULL; ground_want = -1;
-                    // shortcut: 動態11仍由既有point_walk消費；逐格尋路接入後刪此橋接。
-                    walk_cx = hero->dynamic_state == 11 ? hero->dynamic_command[0] : -1;
-                    walk_cy = hero->dynamic_command[1];
+                    walk_cx = hero->dynamic_state == 11 ? hero->dynamic_destination_x : -1;
+                    walk_cy = hero->dynamic_destination_y;
                     break;
                 case CMD_TALK: {  // shortcut: 原版指令 0xf 是走過去再說；這裡馬上說，而且只有 ONT 擺的（有事件 ID）的 NPC 能說
                     actor_forget_command(hero);
@@ -6667,7 +6719,10 @@ int main(int argc, char **argv) {
             }  // 自己走 = 放棄目標與記住的技能命令。
             else if (!actor_command_idle(hero)) actor_command_walk_tick(hero, &scene, tick);
             else if (ground_want >= 0 && !hero->foe) ground_walk(hero, &scene, tick);
-            else if (walk_cx >= 0 && !hero->foe) point_walk(hero, &scene, tick);
+            else if (walk_cx >= 0 && !hero->foe) {
+                actor_command_walk_tick(hero, &scene, tick);
+                if (hero->dynamic_state != 11) walk_cx = -1;
+            }
             else if (!pursue(hero, &scene, tick)) actor_tick(hero, &scene, 0, 0, tick);
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];

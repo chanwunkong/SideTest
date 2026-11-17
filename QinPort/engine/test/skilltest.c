@@ -879,6 +879,66 @@ static void character_yield_test(void) {
     actors[0]=saved[0]; actors[1]=saved[1]; actor_count=saved_count; unit_scene=saved_scene;
 }
 
+static void character_walk_destination_test(void) {
+    const Scene *saved_scene = unit_scene;
+    int saved_count = actor_count;
+    Cell cells[100] = {0};
+    Scene scene = {.w=10, .h=10, .cells=cells}; unit_scene = &scene; actor_count = 0;
+    for (int i=0; i<100; ++i) cells[i] = (Cell){.walk=1, .layer=1};
+    Actor a = {.layer=1, .grid_valid=1, .grid_x=1, .grid_y=1, .x=1.5f, .y=1.5f};
+    Actor target = {.grp=10};
+    int x=2, y=1;
+    // 工具本身即使起點空也拒絕相鄰；正式入口合法目的地則直接接受。
+    assert(!actor_walk_fallback(&a, &x, &y, 1, 1) && x==2 && y==1);
+    assert(actor_walk_destination(&a, 2, 1));
+    assert(a.dynamic_destination_x==2 && a.dynamic_destination_y==1);
+    cells[12].actor=&target;
+    a.dynamic_path=8;
+    assert(!actor_walk_destination(&a, 2, 1) && !a.dynamic_path);
+    // 橫向、縱向、斜線和出界目的格都從目的地向目前占格找空格。
+    cells[16].actor=&target;
+    assert(actor_walk_destination(&a, 6, 1) && a.dynamic_destination_x==5 && a.dynamic_destination_y==1);
+    cells[61].walk=0;
+    assert(actor_walk_destination(&a, 1, 6) && a.dynamic_destination_x==1 && a.dynamic_destination_y==5);
+    cells[64].walk=0; cells[54].walk=0;
+    assert(actor_walk_destination(&a, 4, 6) && a.dynamic_destination_x==3 && a.dynamic_destination_y==4);
+    assert(actor_walk_destination(&a, 12, 1) && a.dynamic_destination_x==9 && a.dynamic_destination_y==1);
+    // 層判斷沿原版cell_pass，不能把不可走的高層格當空地。
+    a.layer=15;
+    cells[16].actor=NULL; cells[16].layer=14;
+    assert(actor_walk_destination(&a, 6, 1) && a.dynamic_destination_x==6);
+    a.layer=1; cells[16].layer=1; cells[16].actor=&target;
+    // 原目標格等於選取目標時，校正點不得更遠且超過命令range。
+    for (int i=0; i<100; ++i) cells[i].walk=0;
+    cells[11].actor=&a; cells[1].walk=1;
+    a.foe=&target; a.dynamic_command[2]=0;
+    assert(!actor_walk_destination(&a, 6, 1));
+    assert(a.dynamic_destination_x==1 && a.dynamic_destination_y==0);
+    a.dynamic_command[2]=5;
+    assert(actor_walk_destination(&a, 6, 1)); // 六圈由原目的地找出1,0，距離5不超過range。
+    // 全部封死時不改座標；fallback不把目前占格本身視為可站終點。
+    cells[1].walk=0;
+    x=6; y=1;
+    assert(!actor_walk_fallback(&a, &x, &y, 1, 1) && x==6 && y==1);
+    // 真正命令入口安裝校正後目的地，失敗由共用動態命令退回靜止。
+    for (int i=0; i<100; ++i) cells[i] = (Cell){.walk=1, .layer=1};
+    cells[16].actor=&target;
+    RoleDef model = {.run_seq=65535};
+    a=(Actor){.role=&empty_test_role, .def=&model, .layer=1, .speed=5,
+        .grid_valid=1, .grid_x=1, .grid_y=1, .x=1.5f, .y=1.5f, .dynamic_state=1};
+    actor_dynamic_command(&a, 11, 6, 1, 0);
+    assert(a.dynamic_state==11 && a.has_target && a.tx==5.5f && a.ty==1.5f);
+    a.grid_x=5; a.x=5.5f;
+    assert(actor_command_walk_tick(&a, &scene, 0));
+    assert(a.dynamic_state==1 && !a.has_target); // 停在校正格，不再追原先被占用的6,1。
+    a.grid_x=1; a.x=1.5f;
+    actor_dynamic_command(&a, 1, 1, 0, 0);
+    cells[12].actor=&target;
+    actor_dynamic_command(&a, 11, 2, 1, 0);
+    assert(a.dynamic_state==1 && !a.dynamic_path_result);
+    unit_scene=saved_scene; actor_count=saved_count;
+}
+
 static void character_dynamic_command_test(void) {
     Uint32 saved_tick = actor_logic_tick;
     RoleDef model = {.idle=0, .walk=8, .fight_idle=16, .fight_walk=24,
@@ -3312,6 +3372,7 @@ int main(void) {
     character_rotation_cooldown_test();
     character_maintenance_test();
     character_animation_test();
+    character_walk_destination_test();
     character_dynamic_command_test();
     character_yield_test();
     character_dynamic_exit_test();

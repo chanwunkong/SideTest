@@ -1008,7 +1008,7 @@ Poq.exe	99	00485e10	FUN_00485e10	~CScnClient	game	skip	73	2	客戶端技能副�
 Poq.exe	99	00485f80	FUN_00485f80		game	done	105	7		完整SkillUnit先插入再依hand低兩位選手，模板缺項僅診斷不回滾；actor_skill_add接NPC／玩家技能建立，單機略同步，候選來源仍有明示shortcut	00497b20 004a3340
 Poq.exe	99	004861c0	FUN_004861c0		game	skip	9	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	004861e0	FUN_004861e0	CCharactor	game	done	31	8		actor_candidate_cast：依四個正ID候選選第一個查得到的SkillUnit，朝目標或自身位置施放；即使拒絕也不試下一個；接入戰0→1；完整狀態入口仍todo	0048ffe0
-Poq.exe	99	00486270	FUN_00486270	CCharactor|CNpc|CProtagonist	game	todo	15	17		todo：actor_dynamic_enter已接角色殘影、共用進入拍數／速度及21/22/31/32初始化；11仍橋接既有目的地行走，缺完整尋路進入，不標入口done	004942d0
+Poq.exe	99	00486270	FUN_00486270	CCharactor|CNpc|CProtagonist	game	todo	15	17		todo：actor_dynamic_enter已接角色殘影、共用進入拍數／速度及21/22/31/32初始化；11已接目的地合法性／回掃與失敗快取，仍缺完整XPS反向路徑生成／步進，不標入口done	004942d0
 Poq.exe	99	004862e0	FUN_004862e0	CCharactor|CNpc|CProtagonist	game	done	54	17		actor_setup：狀態103、模板模型種類低16位／組別直接寫入、清旗標、同步光源、按大小重定位、索敵／追擊與視野、同步探索、速度及反擊／四候選／比例ffff保留；外部小地圖刷新限制另列探索入口	0048d950
 Poq.exe	99	00486480	FUN_00486480	~CCharactor	game	done	26	6		actor_light_init：模板套用即建立角色光，不依賴紙娃娃或每拍掃描；同物件已有光回0、不替換舊光，半徑size*240+400及閃爍色照原版	
 Poq.exe	99	00486520	FUN_00486520	CCharactor|CNpc	game	done	158	14		actor_appearance_init：星號非空token首項PLI、餘項款式，失敗回模板；載入序列0矩形高+10，隨機方向、靜止命令、SInit靜態初始態與方向、速度、目標本體及>2幀隨機初幀；接actor_setup，刪出生隨機動畫拍數	00577170 00578710 00578a00
@@ -1150,11 +1150,11 @@ Poq.exe	99	00493740	FUN_00493740		game	todo	17	2
 Poq.exe	99	00493790	FUN_00493790		game	todo	28	5			00493850 004942d0 004948f0 00494be0 00494ca0 00494f40 00494f70 004959c0 00496110 00496250 00496430 00497310 004973b0 004975d0 00497620 004979c0 00497aa0 00497d30 005786a0 00578770
 Poq.exe	99	00493850	FUN_00493850	CDynamicObj	game	todo	31	6			00493850 004942d0 004948f0 00494be0 00494ca0 00494f40 00494f70 004959c0 00496110 00496250 00496430 00497310 004973b0 004975d0 00497620 004979c0 00497aa0 00497d30 005786a0 00578770
 Poq.exe	99	00493930	FUN_00493930	~CDynamicObj	game	todo	70	0		todo：由起點朝終點逐格找第一個合法層且無角色格，抵達終點回0；動態尋路基礎回溯工具，尚未接入	
-Poq.exe	99	00493ad0	FUN_00493ad0	~CDynamicObj	game	todo	73	0		todo：起終點Chebyshev距離小於2回0；否則逐格找第一可站格，抵達終點仍未找到則vacant_cell六圈；動態尋路基礎回溯工具，尚未接入	
+Poq.exe	99	00493ad0	FUN_00493ad0	~CDynamicObj	game	done	73	0		actor_walk_fallback：動態11目的地回掃第一合法層空格；Chebyshev距離<2直接失敗，抵達自身占格則以原目的地找六圈；已接actor_walk_destination；反編譯遺失Y軸累加器按對稱整數DDA承接，待組語核對	
 Poq.exe	99	00493cb0	FUN_00493cb0	~CDynamicObj	game	todo	88	2		todo：actor_knock_tick已接所有角色固定拍，逐格先占位再插值、命令第二參數逐格減1、末拍後一拍標活動／再下拍移下一格、遇阻退出；移除knock_x／knock_y／knock_motion連續滑動；counter返回目的地仍shortcut橋接既有行走，等同類別動態11尋路，未標整入口done	
 Poq.exe	99	00493f80	FUN_00493f80	~CDynamicObj	game	todo	33	0		todo：動態32重設三倍速度、插值至命令目的地、由占格決定面向及動畫；與actor_dynamic_enter的32初始化相同，尚未接獨立重進入呼叫	
 Poq.exe	99	00494070	FUN_00494070	~CDynamicObj	game	done	107	2		actor_rush_destination：相同占格回0；跳躍先升層，依層與占位用line_end回退落點；速度2／4倍、先移占格後初始化插值，保留占格失敗仍插值的原版順序；接MethodMain觸發5／7	
-Poq.exe	99	004942d0	FUN_004942d0	CDynamicObj	game	todo	109	8		todo：actor_dynamic_enter已接共用拍數／有效速度、21/22落點／跳躍、31反向／速度／反播及32三倍速／插值／面向；32更新及越界工具已核對接齊；11仍橋接目的地行走，待同類別完整尋路進入	00496f20
+Poq.exe	99	004942d0	FUN_004942d0	CDynamicObj	game	todo	109	8		todo：actor_dynamic_enter已接共用拍數／有效速度、21/22落點／跳躍、31反向／速度／反播及32三倍速／插值／面向；11接actor_walk_destination校正，點地與技能追近共用actor_command_walk_tick並刪point_walk；仍缺完整反向路徑生成／步進	00496f20
 Poq.exe	99	004945d0	FUN_004945d0	~CDynamicObj	game	done	104	2		main.c actor_charge_tick：先IsExceedDest再側向地形、逐格占位、最後插值；OmUtil匯出跳表核對為任一行進軸到達即成立且含相等，非法方向回0；保留混合格／世界座標算方向、碰撞不消耗插值及末拍後一拍退出	
 Poq.exe	99	004948f0	FUN_004948f0	CDynamicObj	game	todo	10	12			004979c0 00578770
 Poq.exe	99	00494910	FUN_00494910	~CDynamicObj	game	todo	12	0			004c90b0
@@ -1196,7 +1196,7 @@ Poq.exe	99	00496ac0	FUN_00496ac0	~CCharactor	game	skip	9	0	動態移動結果+0x
 Poq.exe	99	00496ae0	FUN_00496ae0	~CCharactor	game	done	102	9		actor_move_speed：A/B/C、倒數A、浮點比例11段與每Actor走路動畫延遲；零速移動改走共用actor_dynamic_command(1,0,0,0)，保留角色殘影退出；接所有現有移動／衝刺／擊退	00574e10 005770e0
 Poq.exe	99	00496d80	FUN_00496d80	~CCharactor	game	todo	16	2		取指定序列描述：由當前部件群首個精靈的序列表+index*32；反編譯空指標分支會讀0x14，未自行設計安全替代；todo 動畫基礎	00574e10 005770e0
 Poq.exe	99	00496e30	FUN_00496e30		game	todo	36	5			
-Poq.exe	99	00496f20	FUN_00496f20	~CDynamicObj	game	todo	146	2		todo：目的地合法性及從目的地朝現占格逐格回溯；原目的格存在且其占位為目前選目標時，校正距離超過命令p2並且不比角色更接近才繼續；最後尋路成功設新路徑旗標，失敗清索引0；待完整動態11路徑基礎	
+Poq.exe	99	00496f20	FUN_00496f20	~CDynamicObj	game	todo	146	2		todo：actor_walk_destination已接合法目的格／反向逐格回掃／六圈找空格，以及原格占位等於目前選取目標（含NULL相等）時的range與距離拒絕；失敗清dynamic_path；仍缺同類別XPS反向路徑生成與成功新路徑旗標，不標整入口done	
 Poq.exe	99	00497310	FUN_00497310	CCharactor|CNpc|CProtagonist|+1	game	todo	27	25			
 Poq.exe	99	004973b0	FUN_004973b0	CCharactor|CNpc|CProtagonist|+1	game	todo	79	23		todo：CDynamicObj尋路；暫以自身ID覆寫目的格占位，XPS_Control執行後復原，讀最多250筆反向byte路徑，index=count-2；index0時原版條件為目的X不同或Y相等仍可成功；待同類別動態11尋路與路徑工具接入	004c8700 004d0890 004d0900 004d09e0 004d0af0 004d0b10
 Poq.exe	99	004975a0	FUN_004975a0		game	todo	11	6			004975e0 00497620 00497650 00497660 004979c0 00497aa0 00497d30

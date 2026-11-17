@@ -854,8 +854,8 @@ CDynamicObj	+0x3dd	水平插值累積世界X，float；每拍寫入位置時向�
 CDynamicObj	+0x3e1	水平插值累積世界Y，float	Actor.interpolation_y
 CDynamicObj	+0x3e5	水平插值每拍世界X增量；除以未截斷float拍數	Actor.interpolation_dx
 CDynamicObj	+0x3e9	水平插值每拍世界Y增量	Actor.interpolation_dy
-CDynamicObj	+0xc3	動態11尋路目的地X；狀態31有counter時返回此目的地，非+0x97位置快取	Actor.dynamic_destination_x
-CDynamicObj	+0xc7	動態11尋路目的地Y；狀態31有counter時返回此目的地，非+0x9b位置快取	Actor.dynamic_destination_y
+CDynamicObj	+0xc3	動態11校正後尋路目的地X；回掃與六圈找空格結果，失敗仍保留校正結果；狀態31有counter時返回此目的地	Actor.dynamic_destination_x
+CDynamicObj	+0xc7	動態11校正後尋路目的地Y；回掃與六圈找空格結果，失敗仍保留校正結果；狀態31有counter時返回此目的地	Actor.dynamic_destination_y
 CDynamicObj	+0x3d9	動態32大於0才嘗試前移占格；最後一拍扣0仍留32，下一拍才退出，不補末端位置	Actor.interpolation_left
 OverheadText	+0x0	剩餘畫面數byte；只在實際繪圖時先減1，中段上飄再減1	Actor.overhead[].left
 OverheadText	+0x1	起始畫面數byte，用於首8畫面淡入	Actor.overhead[].total
