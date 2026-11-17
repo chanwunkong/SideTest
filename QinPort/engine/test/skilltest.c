@@ -500,7 +500,8 @@ static void character_maintenance_test(void) {
     a=(Actor){.direction_clock=10};
     for (int i=0; i<20; i++) a.modifier[i].time=-1;
     a.modifier[4].time=9; actor_modifiers_tick(&a);
-    assert(a.modifier[4].time==-1 && !a.modifiers_dirty);
+    assert(a.modifier[4].time==-1 && a.modifiers_dirty);
+    a.modifiers_dirty=0;
     a.modifier[4].time=8; actor_modifiers_tick(&a);
     assert(a.modifier[4].time==-1 && a.modifiers_dirty);
 }
@@ -820,6 +821,9 @@ static void character_dynamic_entry_test(void) {
 }
 
 static void character_activity_test(void) {
+    const Scene *saved_scene = unit_scene;
+    Scene active_scene = {0};
+    unit_scene = &active_scene;
     Actor a = {.activity_disabled=1, .dynamic_state=32,
         .dynamic_reported_state=11, .interpolation_left=3,
         .z=8, .vz=4, .zmax=20, .direction_clock=9, .cool=3};
@@ -845,6 +849,13 @@ static void character_activity_test(void) {
     assert(a.activity_latched && !a.activity_disabled);
     a.activity_disabled=1;
     assert(!actor_motion_tick(&a) && a.direction_clock==10);
+    unit_scene = NULL; a.x = 100;
+    actor_motion_tick(&a);
+    assert(a.command_world_x == 128); // 無服務場景不更新同步快照。
+    unit_scene = &active_scene; scene_record_mode = 2;
+    actor_motion_tick(&a); assert(a.command_world_x == 128);
+    scene_record_mode = 0;
+    unit_scene = saved_scene;
 }
 
 static void character_motion_order_test(void) {
@@ -1475,6 +1486,9 @@ static void character_detection_test(void) {
     scene_paused = 0; toast_until = 123;
     actor_status_countdown(a);
     assert(!scene_paused && toast_until == 123); // 已揭露不重送。
+    t->trap_revealed = 0; scene_record_mode = 2;
+    actor_status_countdown(a); assert(!scene_paused && t->trap_revealed);
+    scene_record_mode = 0;
     t->trap_revealed = 0; scene_client.ready = 0;
     actor_status_countdown(a);
     assert(t->trap_revealed && !scene_paused && toast_until != 123);
@@ -1507,6 +1521,17 @@ static void character_detection_test(void) {
     a->state[105] = 0;
     actor_status_countdown(a);
     assert(!a->state[8] && !(a->flags & 0x20000) && a->state[12] && hidden->flags == 0x20000);
+
+    // 缺格子不跳過後段隱身掃描；fixture沿既有世界位置查詢。
+    detection_scene.cells = NULL;
+    actor_status_notify(a, 8, 1, -1);
+    actor_status_countdown(a);
+    assert(!a->state[8]);
+    unit_scene = NULL;
+    actor_status_notify(a, 8, 1, -1);
+    actor_status_countdown(a);
+    assert(!a->state[8]);
+    unit_scene = &detection_scene; detection_scene.cells = cells;
 
     // 螺旋半徑5包含邊界，第6圈不納入。
     t->trap_group = 20000; t->x = 12.5f; t->y = 7.5f;
@@ -3713,10 +3738,64 @@ static void character_death_fear_test(void) {
     unit_scene = saved_scene; nr = saved_cursor; actor_near_mode = saved_mode;
 }
 
+static void character_remove_test(void) {
+    const Scene *saved_scene = unit_scene;
+    SceneClient saved_client = scene_client;
+    Scene active = {0};
+    RoleDef d = {.death = 65535, .snd_death = 65535, .seek = 0};
+    Actor a;
+    int saved_keep = death_keep_mode, saved_auto = death_auto_pause;
+    unit_scene = &active; scene_client = (SceneClient){0};
+    death_keep_mode = 1; death_auto_pause = 0;
+    for (int mode = 0; mode <= 100; ++mode) {
+        a = (Actor){.role = &empty_test_role, .def = &d, .hp_percent = 80};
+        actor_remove(&a, mode);
+        assert(a.object_dead && a.occupancy_removed && a.removal_mode == mode);
+        assert(a.act == ACT_DEAD && !a.corpse_visible && scene_objects_dirty);
+        assert(a.hp_percent == (mode ? 0 : 80));
+    }
+    scene_client = (SceneClient){.scene = &active, .ready = 1};
+    a = (Actor){.role = &empty_test_role, .def = &d};
+    actor_remove(&a, 1); assert(a.corpse_visible);
+    a = (Actor){.role = &empty_test_role, .def = &d};
+    actor_remove(&a, 0); assert(!a.corpse_visible);
+    a = (Actor){.role = &empty_test_role, .def = &d};
+    actor_remove(&a, 100); assert(a.corpse_visible); // 100仍先建立殘留物，再略音效。
+    int before = unit_n;
+    a = (Actor){.role = &empty_test_role, .def = &d};
+    actor_remove(&a, 4);
+    assert(!a.corpse_visible && unit_n == before + 1);
+    assert(units[before].cls == U_FOOT && units[before].x == ax64(&a));
+    unit_die(&units[before], 0); unit_n = before;
+    scene_record_mode = 2;
+    a = (Actor){.role = &empty_test_role, .def = &d};
+    actor_remove(&a, 1); assert(a.corpse_visible); // 回放照樣建立可見殘留物，僅暫停被阻擋。
+    scene_record_mode = 0;
+    scene_client = (SceneClient){.scene = &active};
+    death_keep_mode = 0;
+    a = (Actor){.role = &empty_test_role, .def = &d};
+    actor_remove(&a, 100); assert(a.removal_mode == 1);
+    unit_scene = NULL; scene_client = (SceneClient){0};
+    a = (Actor){.role = &empty_test_role, .def = &d};
+    actor_remove(&a, 100); assert(a.removal_mode == 100);
+    d.force_death_mode = 1;
+    a = (Actor){.role = &empty_test_role, .def = &d, .hp_percent = 80};
+    actor_remove(&a, 0);
+    assert(a.removal_mode == 1 && a.hp_percent == 80); // 強制模式發生在生命百分比之後。
+    d.program = 50;
+    a = (Actor){.role = &empty_test_role, .def = &d};
+    int saved_units = unit_n;
+    actor_remove(&a, 4); assert(!a.removal_mode && !a.corpse_visible);
+    while (unit_n > saved_units) unit_die(&units[unit_n - 1], 0), --unit_n;
+    death_keep_mode = saved_keep; death_auto_pause = saved_auto;
+    unit_scene = saved_scene; scene_client = saved_client;
+}
+
 int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
     character_draw_branches_test();
+    character_remove_test();
     character_death_fear_test();
     character_hit_status_test();
     character_blood_test();

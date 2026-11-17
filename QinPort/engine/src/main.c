@@ -29,7 +29,13 @@
 // DAT_00639f6c：單機發現陷阱自動暫停選項。
 // shortcut: 設定介面未接，暫由--pause-traps提供；JM31完成後改接原版設定值。
 static int trap_auto_pause, scene_paused;
+// Rec模式0=關、2=回放；目前單機沒有回放入口。
+static int scene_record_mode;
+static int death_auto_pause, death_keep_mode = 1;
+static int scene_objects_dirty;
+
 static void trap_detected_message(void);
+static void character_death_message(void);
 static void ui_text(int id, char *out, size_t cap);
 static int game_speed_ms = 21;
 static void game_speed_set(int level) { game_speed_ms = 31 - 3 * level; }
@@ -293,6 +299,8 @@ typedef struct Actor {
     int dynamic_pending, dynamic_path, dynamic_aux, dynamic_path_result;
     const Scene *bound_scene;
     int grid_x, grid_y, grid_valid, occupancy_removed, object_dead, object_kind;
+    unsigned char removal_mode;
+    int corpse_visible;
     uint16_t model_type;
     int corrected_x, corrected_y;
     int animation_target, animation_dir;
@@ -449,12 +457,14 @@ static void actor_modifiers_tick(Actor *a) {
     for (int i = 0; i < 20; i++) {
         if (a->modifier[i].time < 0) continue;
         a->modifier[i].time -= 10;
-        if (a->modifier[i].time < 0 &&
-            (a->modifier[i].value != 0 || a->modifier[i].time != -1)) {
-            a->modifier[i].value = 0;
-            a->modifier[i].time = -1;
-            // 到期分支只有1/5/6具有副作用；不重新擲第3修正的潰散。
-            if (i == 1 || i == 5 || i == 6) actor_modifier_changed(a, i, 0);
+        if (a->modifier[i].time < 0) {
+            if (a->modifier[i].value != 0 || a->modifier[i].time != -1) {
+                a->modifier[i].value = 0;
+                a->modifier[i].time = -1;
+                // 到期分支只有1/5/6具有副作用；不重新擲第3修正的潰散。
+                if (i == 1 || i == 5 || i == 6) actor_modifier_changed(a, i, 0);
+            }
+            // +0x4ba在負期限分支無條件設置，含0值恰好減至-1。
             a->modifiers_dirty = 1;
         }
     }
@@ -890,7 +900,7 @@ static int actor_has_method(const Actor *a);
 // 角色繪圖主入口尚缺調色盤覆色／標記資源，不以局部分支標成完成。
 static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     const Role *r = a->role;
-    if (!r || !actor_draw_visible(a)) return;
+    if (!r || (a->object_dead && !a->corpse_visible) || !actor_draw_visible(a)) return;
     int seq = actor_seq(a);
     if (seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
     int frame = actor_frame(a, seq) % r->frames[seq];
@@ -1179,6 +1189,12 @@ typedef struct {
     int controlled;
 } SceneClient;
 static SceneClient scene_client;
+
+// 暫停要求對照場景管理器：回放、無場景、未就緒一律清零。
+static void scene_pause(int pause) {
+    if (scene_record_mode == 2 || !scene_client.scene || !scene_client.ready) pause = 0;
+    scene_paused = pause;
+}
 
 // Poq.exe 0x46eb40：沒有場景或場景未就緒時，不查操控角色。
 // shortcut: 原版以帶世代的物件句柄查找；目前 controlled 是 actors 索引，
@@ -1800,6 +1816,8 @@ static int actor_row_enabled(const Actor *a, const SkillRow *r) {
 // Poq.exe 0x48af30：按外部識別刪第一個；選中的節點清空，後面索引跟隨搬移。
 static void actor_skill_remove(Actor *a, int key) {
     for (int i = 0; i < a->skill_n; i++) if (a->skills[i].key == key) {
+        // 陣列表示法補償（原版此入口不寫光環欄位）：保持來源節點身份，
+        // 刪除來源後以0表示原版有效性查詢失敗，不能誤指搬上來的下一項。
         if (a->aura_skill == i + 1) a->aura_skill = 0;
         else if (a->aura_skill > i + 1) --a->aura_skill;
         if (a->selected == i) a->selected = -1;
@@ -2179,12 +2197,10 @@ static void hero_gain_exp(Actor *h, int exp) {
 
 // 倒下（0x100574e0）：播死亡動作，被主角打死的怪物給經驗，夠了就升級
 static void actor_death_fear(Actor *a);
+static void actor_remove(Actor *a, int mode);
 static void actor_kill(Actor *t, Actor *by) {
     t->hp = 0;
-    actor_destroy(t);
-    actor_death_fear(t);
-    start_act(t, ACT_DEAD, t->def->death);
-    if (t->def->snd_death) audio_sfx(t->def->snd_death);
+    actor_remove(t, 1);
     if (t->mon) mon_loot(t);
     if (by && !by->mon && t->mon) hero_gain_exp(by, t->exp);
     printf("%s 倒下\n", t->mon ? "怪物" : "主角");
@@ -2752,7 +2768,7 @@ static void actor_status_notify(Actor *a, int status, int on, int skill) {
     if (d && d->raw[1] != 65535) a->last_status = status;
 }
 
-// 角色移除中的同組潰散分支；完整移除的模式／場景移交仍待接，不標整入口完成。
+// 角色移除中的同組潰散分支；與移除主入口共用原版範圍及near游標。
 static void actor_death_fear(Actor *a) {
     for (Actor *t = actor_near_begin(a, 1, -1); t; t = actor_near_next(a)) {
         int fear = t->def->death_fear;
@@ -2766,6 +2782,72 @@ static void actor_death_fear(Actor *a) {
     }
 }
 
+// 單機殘留物承接不同類別的倒下物件工廠；不給尚未完整移植的工廠掛完成位址。
+// shortcut: CPartDeadObj／CFlyPartDeadObj的分件飛散尚未移植，暫保留原角色
+// 死亡播放器作殘留物；其類別接齊後換獨立部件物件，不複製角色技能／占格。
+static void actor_death_remnant(Actor *a, int mode) {
+    if (!unit_scene || scene_client.scene != unit_scene) return;
+    int unit = mode == 3 ? 10 : mode == 5 ? 0x73 : mode == 9 ? 0xeb : mode == 10 ? 0xec : 0;
+    MUnit source = {0};
+    if (unit && a->def->size == 1 && a->def->legs == 2) {
+        unit_new(unit, ax64(a), ay64(a), &source, actor_logic_tick);
+        return;
+    }
+    if (mode == 4) {
+        if (unit_n < MAX_UNIT) {
+            MUnit *u = &units[unit_n++];
+            *u = (MUnit){.cls = U_FOOT, .x = ax64(a), .y = ay64(a), .mode = 1};
+            spr_load(&u->spr, a->def->legs == 2 ? 0x100581 : 0x10000b);
+        }
+        return;
+    }
+    if (mode != 6 && mode != 7 && mode != 8) actor_blood(a, 1);
+    a->corpse_visible = 1;
+}
+
+// Poq.exe 0x486910：移除→單機選項→模式正規化→殘留物→同組潰散→模式音效。
+// shortcut: 共用Actor代替伺服／客戶端副本，略過傳輸和令牌配對容器；
+// 單機無回放入口。完整選項介面接齊時接death_auto_pause／death_keep_mode。
+static void actor_remove(Actor *a, int mode) {
+    actor_destroy(a);
+    int has_scene = scene_client.scene && unit_scene == scene_client.scene;
+    if (scene_client.scene && !death_keep_mode && mode != 0 && mode != 1) mode = 1;
+    if (mode) {
+        if (death_auto_pause && scene_client.scene) {
+            // shortcut: 目前選人鏈只有操控角色；隊伍多選介面接齊後查整條選人鏈。
+            Actor *selected = scene_client_actor(&scene_client);
+            if (selected == a) { character_death_message(); scene_pause(1); }
+        }
+        actor_health_percent(a, 0);
+    }
+    if (a->def->force_death_mode == 1) mode = 1;
+    if (a->def->program == 50 && mode != 0) {
+        mode = 0;
+        MUnit source = {0};
+        MUnit *u = unit_new(0x65, (uint16_t)ax64(a), (uint16_t)ay64(a), &source, actor_logic_tick);
+        if (u) u->layer = a->layer;
+    }
+    a->removal_mode = (unsigned char)mode;
+    a->corpse_visible = 0;
+    if (mode && has_scene) actor_death_remnant(a, mode);
+    start_act(a, ACT_DEAD, a->def->death);
+    scene_objects_dirty = 1;
+    actor_death_fear(a);
+    int sound = -1;
+    switch (mode) {
+    case 0: case 3: case 100: return;
+    case 4: sound = 0x4a; break;
+    case 5: sound = 0x4d; break;
+    case 6: sound = 0x48; break;
+    case 7: sound = 0x47; break;
+    case 8: audio_sfx(0x49); return;
+    case 9: sound = 0x4c; break;
+    case 10: sound = 0x4b; break;
+    }
+    if (sound >= 0) audio_sfx(sound);
+    if (a->def->snd_death != 65535) audio_sfx(a->def->snd_death);
+}
+
 // Poq.exe 0x488090：共用倒數、嚴格優先序與陷阱／隱身偵測。
 static void actor_status_countdown(Actor *a) {
     --a->status_countdown;
@@ -2773,12 +2855,11 @@ static void actor_status_countdown(Actor *a) {
                  a->state[111] ? 111 : a->state[115] ? 115 :
                  a->state[114] ? 114 : -1;
     if (status == 12) {
-        if (!unit_scene || !unit_scene->cells) return; // 尚未登記場景時沒有可查詢物件。
         Actor *t = near_trap((int)a->x, (int)a->y, 5, a->grp);
         if (t) {
-            if (trap_auto_pause && unit_scene) {
+            if (trap_auto_pause) {
                 trap_detected_message();
-                scene_paused = scene_client.scene && scene_client.ready;
+                scene_pause(1);
             }
             trap_reveal(t);
         }
@@ -3292,8 +3373,10 @@ static int actor_motion_tick(Actor *a) {
     // 單機使用服務端分支。CClientScreen的dirty與視野廣播只同步客戶端副本，
     // 已列skip；本地共用Actor即時位置，不建立第二份可見物件鏈。
     // 停用也會處理位移；門檻嚴格大於127，更新兩軸快照。
-    if (llabs((long long)a->command_world_x - ax64(a)) > 127 ||
-        llabs((long long)a->command_world_y - ay64(a)) > 127) {
+    // DAT_00663804是目前伺服場景，建立／切換才綁定，清場及回放可為0。
+    if (unit_scene && scene_record_mode != 2 &&
+        (llabs((long long)a->command_world_x - ax64(a)) > 127 ||
+         llabs((long long)a->command_world_y - ay64(a)) > 127)) {
         a->command_world_x = ax64(a);
         a->command_world_y = ay64(a);
     }
@@ -4487,6 +4570,10 @@ static char toast[128];    // 系統訊息（原版 0x1004e560 秀在畫面上�
 static Uint32 toast_until;
 // shortcut: 原版訊息的字串表（0x10060280 的編號）還沒對，先用自訂的中文
 static void hud_say(const char *t) { snprintf(toast, sizeof toast, "%s", t); toast_until = SDL_GetTicks() + 2500; }
+static void character_death_message(void) {
+    ui_text(1500, toast, sizeof toast);
+    toast_until = SDL_GetTicks() + 1000;
+}
 static void trap_detected_message(void) {
     // CGameApp訊息1501，類型16，1000ms；使用原版字串表。
     ui_text(1501, toast, sizeof toast);
@@ -6586,6 +6673,8 @@ int main(int argc, char **argv) {
     const char *give[8];
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--pause-traps")) trap_auto_pause = 1;
+        if (!strcmp(argv[i], "--pause-deaths")) death_auto_pause = 1;
+        if (!strcmp(argv[i], "--simple-deaths")) death_keep_mode = 0;
         else if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);

@@ -524,6 +524,7 @@ static void viewport_layers(const ViewPort *v, const Scene *s, Uint32 tick) {
 static void viewport_dynamic(const ViewPort *v, const Scene *s, Uint32 tick) {
     SDL_Rect screen = {0, 0, v->w, v->h};
     view_dynamic.n = 0;
+    scene_objects_dirty = 0; // 全重建取代原版物件異動dirty名單。
     for (int i = 0; i < actor_count; i++) {
         const Actor *a = &actors[i];
         int shift = a->view_link_type == 2 || a->view_link_type == 3 ? 128 : 0;

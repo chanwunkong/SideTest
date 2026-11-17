@@ -1280,7 +1280,8 @@ int roledefs_load(void) {
             for (int k = 0; k < 2 && p; k++) { p = strchr(p, '*'); if (p) p++; }
             if (p && *p) r->panic = atoi(p);
         }
-        r->seek = COL(24); r->chase = COL(25); r->snd_death = COL(31); r->snd_hit = COL(34); r->atk_delay = COL(39);
+        r->force_death_mode = c > 36 && *col[36] ? atoi(col[36]) : 65535;
+        r->seek = COL(24); r->chase = COL(25); r->snd_death = c > 31 && *col[31] ? atoi(col[31]) : 65535; r->snd_hit = COL(34); r->atk_delay = COL(39);
         r->size = COL(18); r->legs = COL(19); r->snd_idle = COL(32); r->snd_fight = COL(33);
         r->light = COL(15); r->flicker = COL(16);
         r->program = COL(27);

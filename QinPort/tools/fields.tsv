@@ -873,3 +873,10 @@ RoleMdl	+0x104	欄26星號切四個int的第1值，缺項65535；同伴死亡時
 SpritePartGroup	+0x1f	首個精靈指標（00574e10直接getter，語義類別名，原RTTI待核對）	Role.body[0]／actor_sequence
 SpriteResource	+0x14	序列描述表指標（00496d80由首個精靈取，原描述stride32；語義類別名）	Anim.seqs，索引直接取Seq且保留零幀
 Global	0x639f6c	單機模式且場景管理存在時讀取的陷阱自動暫停選項；原版預設值尚未核對	trap_auto_pause；shortcut暫由--pause-traps提供，JM31接齊後升級
+RoleMdl	+0x130	欄31倒下音效；65535略過，模式0/3/100及8不播放此聲	RoleDef.snd_death
+RoleMdl	+0x144	欄36；值1在生命百分比處理後強制倒下模式1	RoleDef.force_death_mode
+CCharactor	+0x528	移除模式低byte；程序50強制0後才保存	Actor.removal_mode
+Global	0x663804	目前CScnGC伺服場景指標，建立／切換綁定、清場可0；非零才處理位置同步快照	單機unit_scene且非回放；不再假定恆非零
+Global	0x663eec	角色移除後無條件設1的場景物件異動旗標	scene_objects_dirty；viewport_dynamic全重建後清
+Global	0x639f5c	場景存在且值0時非零倒下模式正規化為1	death_keep_mode；shortcut預設保留模式，--simple-deaths關閉，設定介面接齊後核對預設
+Global	0x639f70	單機有場景時所選角色移除的自動暫停選項	death_auto_pause；shortcut暫以--pause-deaths啟用，隊伍多選與JM31接齊後升級
