@@ -420,7 +420,7 @@ LATER static int line_clear(int fx, int fy, int tx, int ty, int steps, int mode)
 
 // 0x443230：從格子 f 往 8 個方向各試 1～max−1 格，出界或「層 2～9 而且不能走」就停；
 // 取能走最遠的方向（一樣遠時第 k 個以 1/(k+1) 機率換掉），回那方向擋住前一格。最遠的連 1 格都走不了（< 2）回 (−1, −1)
-LATER static void open_dir(int *ox, int *oy, int fx, int fy, int max) {
+static void open_dir(int *ox, int *oy, int fx, int fy, int max) {
     int run[8], px[8], py[8];
     for (int d = 0; d < 8; d++) {
         int k = 1;

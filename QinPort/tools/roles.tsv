@@ -881,3 +881,12 @@ CSurBeastie	+0x93	狀態：0 休息、1 走、2 逃、3 被踩死（500 拍移�
 CSurBeastie	+0x97	目標格 x／y（+0x9b）	SurBeastie.tx/ty
 CSurBeastie	+0x9f	目前速度（低速／逃跑高速）	SurBeastie.speed
 CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 500 拍）	SurBeastie.count
+0049b8d0	CTrapBase 建構：狀態0、未發現、計數0 → mon_make 對 istrap 設 trap_uses（次數）
+0049ba30	CTrapBase 設模型（次數 +0xb7）→ mon_make trap_uses = 1（模型 +0x32 來源沒找到）
+0049bc80	CTrapBase 畫 → actor_draw 的 object_kind 24 分支：已發現待命 192／其他不透明；未發現只有主人組看得到、半透明 128
+0049bef0	CTrapBase 每拍 → trap_tick：狀態0 每30拍偵測128內別組、30內別組放招；1 動畫播完→2；2 冷卻500拍後次數−1，用完移除
+0049c340	CTrapBase 設主人／攻擊力 → trap() 的 owner／trap_group／copy
+0049c410	CTrapBase 設狀態 → trap_set_state（序列跟狀態）
+0049c510	CTrapBase 畫面矩形 → viewport_actor_rect
+0049c580	CTrapBase 放招 → trap_fire（open_dir 挑格子、actor_cast_at、成功進狀態1）
+0049c710	CTrapBase 移除 → trap_tick 次數用完：role=NULL、object_dead

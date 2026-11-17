@@ -797,3 +797,23 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 0049ad20 CSurBeastie 釋放動畫
 0049aef0 CSurBeastie 向上轉型取址
 0049b690 CSurBeastie 設目標 + 轉走態（沒有呼叫者；sur_idle 內聯同樣動作）
+0049b9b0 CTrapBase 解構本體：Actor 生命週期承接
+0049b9d6 CTrapBase 解構跳板
+0049b9e0 CTrapBase 刪除解構：Actor 生命週期承接
+0049ba80 CTrapBase 重設：清精靈群與格子綁定，Actor 共用 Role／格子由 trap_tick 移除處理
+0049c2b0 CTrapBase 滑鼠指著暫停動畫：手機沒有游標指著陷阱（hover 只選角色）
+0049c2e0 CTrapBase 設組別 + 連線封包：單機 trap_group 直接寫（trap_owner_group 更新）
+0049caf0 取精靈群（拿不到丟例外）：Anim/Role 指標承接
+0049ea10 CMapObj 清精靈群與格子占位：Actor 生命週期承接
+0049c910 CAutoPaper（資源句柄，引用計數）建構：Anim/Sprite 指標承接
+0049c930 CAutoPaper 解構：引用計數放開，Anim 常駐
+0049c9c0 CAutoPaper 刪除解構
+0049cad0 CAutoPaper 取資源資料指標：Anim 指標直接用
+0049cb30 CAutoPaper 取寬（資源表 +0xc，找不到丟例外）：Anim 直接讀
+0049cbe0 CAutoPaper 取高（資源表 +0x10）：Anim 直接讀
+0049cc90 CAutoPaper 設句柄並引用計數 +1：Anim 常駐不計數
+0049cd50 SPT_FRAME 建構：Frame 陣列承接
+0049cd80 SPT_FRAME 元素建構（零初始化）
+0049cdd0 SPT_FRAME 釋放陣列
+0049ce60 SPT_FRAME 刪除指標陣列
+0049cea0 SPT_FRAME 解構（含陣列版）

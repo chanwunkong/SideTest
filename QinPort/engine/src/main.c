@@ -370,6 +370,7 @@ typedef struct Actor {
     int grp;                       // AI 組（+0x339）：0～99 玩家組、10000～60000 NPC 組；敵對看它（near.c is_foe）
     int seek_adjust, view_range;
     int trap_revealed, trap_group; // 陷阱發現旗標（原版+0x9f的反值）及最後主人組別
+    int trap_state, trap_timer, trap_fired, trap_trig, trap_uses;  // CTrapBase +0x97 狀態0待命1觸發動畫2冷卻、+0x77 計數、+0xa7 已放招、+0xbb 偵測到敵人、+0xb7 剩餘次數
     int copied, copy[12];
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
     int print_x, print_y, foot;    // 上一個腳印的位置（+0x3c9）、這次踩哪隻腳（+0x3c5）
@@ -707,7 +708,7 @@ static void actor_animation_select(Actor *a, int seq) {
 }
 
 static int actor_requested_seq(const Actor *a) {
-    if (a->def && a->def->anim) return 0;  // shortcut: 小動物專用三序列的狀態切換待還原。
+    if (a->def && a->def->anim) return a->object_kind == 24 ? a->trap_state : 0;  // 陷阱三序列 = 狀態 0／1／2（0x49c410）；shortcut: 其他小動物的狀態切換待還原。
     // 靜態SInit的初始態是明確選定的目標序列，不能每拍用休息序列覆蓋。
     if (!a->act && a->spec && !a->spec->logic && a->dynamic_state == 1)
         return a->animation_target;
@@ -908,6 +909,8 @@ static void actor_scale_tick(Actor *a) {
 static void actor_overhead_draw(Actor *a, int sx, int sy);
 
 static int actor_draw_visible(const Actor *a);
+static int trap_owner_group(Actor *t);  // near.c
+static int trap_viewer_sees(Actor *a);
 static int actor_has_method(const Actor *a);
 
 // Poq.exe 0x577d60：未選部件群時false，否則只檢查首部件的殘影容器。
@@ -941,6 +944,16 @@ static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy, Uint32 tick)
 static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     const Role *r = a->role;
     if (!r || (a->object_dead && !a->corpse_visible) || !actor_draw_visible(a)) return;
+    if (a->object_kind == 24) {  // CTrapBase 畫（0x49bc80）：只畫當前幀；已發現 = 待命 192／其他不透明，沒發現 = 只有主人那組看得到、半透明 128
+        int seq = actor_seq(a);
+        if (seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
+        if (!a->trap_revealed && !trap_viewer_sees(a)) return;
+        Uint8 saved = draw_alpha;  // shortcut: 待命時原版另疊色 0x7c00／0xf800（紅），沒做
+        draw_alpha = a->trap_revealed ? (a->trap_state == 0 ? 192 : 255) : 128;
+        role_draw(r, seq, actor_frame(a, seq) % r->frames[seq], sx, sy);
+        draw_alpha = saved;
+        return;
+    }
     int seq = actor_seq(a);
     if (seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
     int frame = actor_frame(a, seq) % r->frames[seq];
@@ -1236,6 +1249,8 @@ static inline int scene_client_group(const SceneClient *c, int group) {
     return scene_client_actor(c)->grp == group;
 }
 
+static int trap_viewer_sees(Actor *a) { return scene_client_group(&scene_client, trap_owner_group(a)); }
+
 // 繪圖本體的早退：隱身僅操控角色同組能看見，顯示50連影子／浮字也不處理。
 // 不在矩形getter隱藏，原版矩形計算與繪圖可見性是兩個入口。
 static int actor_draw_visible(const Actor *a) {
@@ -1445,7 +1460,8 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->spec = sp;
     a->mon = m;
     a->object_kind = m->istrap ? 24 : 40;
-    // shortcut: 陷阱沿用mon_make建立，預設未被發現；完整CTrapBase建立入口接入時對照初始旗標。
+    // 陷阱建構（0x49b8d0）：狀態0、未被發現、計數0；0x49ba30 設模型時的次數（+0xb7）沒找到來源，一律 1。
+    if (m->istrap) a->trap_uses = 1;
     a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
     a->side = 1;
     actor_group(a, 10000);  // shortcut: 沒有劇情時怪物都算同一個 NPC 組；有劇情時 actors_sync 換成 G_AIGroup
@@ -2162,7 +2178,7 @@ static void trap(Actor *a, const SkillRow *r) {
     int x = (int)a->x, y = (int)a->y;
     if (!trap_cell(&x, &y, 10)) { s->role = NULL; return; }  // CTrapBase 放進場景（0x49be40）：周圍 10 圈第一個能放的格子
     s->x = x + 0.5f, s->y = y + 0.5f;
-    s->trap_group = a->grp;
+    s->trap_group = a->grp;  // 設主人與攻擊力（0x49c340）：owner 由 join 設，AP 照抄在下面
     s->copied = 1;
     s->copy[0] = a->ap;
     s->copy[1] = a->ap_max;
@@ -3952,7 +3968,7 @@ static void cast_start(Actor *h, const SkillRow *r);
 static void actor_skill_command_tick(Actor *a);
 
 // 追打只提交目標技能命令；範圍、追近、退避和施法統一由角色命令消費端處理。
-// shortcut: 只供主角點選目標與陷阱（CTrapBase觸發系統未移植）；NPC／怪物改走npc_dispatch。
+// shortcut: 只供主角點選目標；NPC／怪物改走npc_dispatch，陷阱走 trap_tick。
 static int pursue(Actor *a) {
     Actor *t = actor_target(a);
     if (!t) return 0;
@@ -4465,17 +4481,6 @@ static int npc_dispatch(Actor *a) {
     return 1;
 }
 
-// 陷阱（CTrapBase，種類24）不屬CNpc：觸發系統未移植前沿用範圍索敵加出招。
-static void trap_think(Actor *a) {
-    Actor *target = actor_target(a);
-    if (target && (!alive(target) || actor_flags(target, 0x4000))) { actor_clear_target(a); target = NULL; }
-    const SkillRow *ts = a->mon ? npc_skill(a->mon->skill[0]) : NULL;
-    int radius = !actor_seek(a) && ts ? skill_range_max(ts) : -1;
-    Actor *near = target ? NULL : actor_near_begin(a, 0, radius);
-    if (near) actor_target_set(a, near);
-    pursue(a);
-}
-
 // 畫面上點到哪隻活著的怪物：0x442b10（點的格子周圍 5×5 格、點在方框裡、離方框中心最近）
 // 點選與可見名單共用當幀紙娃娃矩形，包含比例、離地高度、影子及腳圈。
 static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy, Uint32 tick);
@@ -4979,6 +4984,58 @@ static int actor_cast_at(Actor *a, int id, int x, int y, Actor *target, int forc
             actor_forget_command(a);
     }
     return result;
+}
+
+// ---- CTrapBase 陷阱物件（Poq.exe 0x49b8d0～0x49c710，種類 24）----
+// 0x49c410 設狀態：1 = 觸發動畫（發現、播音效 0x3c），2 = 冷卻 500 拍，0 = 回待命。序列跟著狀態（actor_requested_seq）。
+// shortcut: 觸發音效 0x3c 沒有位置音效入口。
+static void trap_set_state(Actor *t, int state) {
+    t->trap_state = state;
+    if (state == 1) t->trap_revealed = 1;
+    else if (state == 2) t->trap_timer = 500;
+}
+
+// 0x49c580 放招：連鎖範圍 > 1 時往 8 方向挑最遠的格子（0x443230），格子中心當目標點；成功放出（0x43acb0）才進狀態 1、計數 100。
+// shortcut: 原版範圍來自陷阱模型 +0x3e，這裡用技能範圍。
+static void trap_fire(Actor *t) {
+    t->trap_fired = 1;
+    const SkillRow *r = npc_skill(t->mon->skill[0]);
+    if (!r) return;
+    int x = (int)t->x, y = (int)t->y, range = skill_range_max(r);
+    if (range > 1) open_dir(&x, &y, x, y, range);
+    if (x == -1) return;
+    t->skill = r;
+    if (actor_cast_at(t, skill_attack_id(r), x * 64 + 32, y * 64 + 32, NULL, 1)) {
+        trap_set_state(t, 1);
+        t->trap_timer = 100;
+    }
+}
+
+// 0x49bef0 每拍（單機 = 伺服端）。狀態 0：每 30 拍看 128 單位內有沒有別組的人（組別 = 主人的組，0x49be00），
+// 有就每拍看 30 單位內是不是有別組的人、有就放招。狀態 1：動畫播完 → 冷卻。狀態 2：500 拍後次數 −1，用完移除（0x49c710），否則回待命。
+// shortcut: 格子上有建築（+0xe）時原版依建築種類可能不查 30 單位就放招，建築還不是物件、一律照有人才放；
+// 滑鼠指著暫停動畫手機沒有指著，不做；次數（模型 +0x32）沒找到來源，一律 1 次。
+static void trap_tick(Actor *t) {
+    if (t->trap_state == 0) {
+        if (t->trap_fired) return;
+        int group = trap_owner_group(t);
+        if (t->trap_timer++ % 30 == 0) {
+            t->trap_trig = 0;
+            near_begin(ax64(t), ay64(t), 0x80);
+            for (Actor *e = near_next(); e; e = near_next())
+                if (e->grp != group) { t->trap_trig = 1; break; }
+        }
+        if (!t->trap_trig) return;
+        near_begin(ax64(t), ay64(t), 0x1e);
+        for (Actor *e = near_next(); e; e = near_next())
+            if (e->grp != group && e != t) { trap_fire(t); return; }
+    } else if (t->trap_state == 1) {
+        if (t->body_seq == 1 && t->act_done) trap_set_state(t, 2);
+    } else if (--t->trap_timer == 0) {
+        if (--t->trap_uses < 1) { t->role = NULL; t->object_dead = 1; return; }  // 0x49c710 移除
+        t->trap_state = 0;
+        t->trap_fired = t->trap_trig = 0;
+    }
 }
 
 // Poq.exe 0x4861e0：第一個正ID且查得到SkillUnit的候選即停止，施法失敗也不試後面的。
@@ -7810,7 +7867,7 @@ int main(int argc, char **argv) {
                 else if (a->act == ACT_DEAD) { action_tick(a, &scene, tick); if (!dead_obj_tick(a)) a->role = NULL; }
                 else if (react_tick(a, &scene) && !a->act) a->moving = 0;
                 else if (a->act) action_tick(a, &scene, tick);
-                else if (a->object_kind == 24) trap_think(a);
+                else if (a->object_kind == 24) trap_tick(a);
                 else npc_dispatch(a);
             }
             for (int i = 0; i < actor_count; i++) {

@@ -908,3 +908,8 @@ CPartDeadObj	+0x7b／+0x7f	血跡疊圖偏移（HD 矩形頂邊中央）	Actor.b
 CPartDeadObj	+0x93	血跡動畫（>0 才畫）	Actor.blood_id
 CPartDeadObj	+0x9f	CDeadObj 階段計數（階段0起始 25／30 停住不播、飛散件負數數 20 拍）	Actor.part_wait
 CFlyPartDeadObj	+0x101	飛散速度 rand()%5+10（+0xfd 播到一半旗標沒人讀）	Actor.fly_speed
+CTrapBase	+0x77	計數（偵測每30拍、放招後100、冷卻500）	Actor.trap_timer
+CTrapBase	+0x97	狀態 0待命 1觸發動畫 2冷卻	Actor.trap_state
+CTrapBase	+0xa7	已放招旗標	Actor.trap_fired
+CTrapBase	+0xb7	剩餘次數（模型 +0x32）	Actor.trap_uses
+CTrapBase	+0xbb	偵測到別組的人	Actor.trap_trig

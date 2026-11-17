@@ -1109,7 +1109,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   ~~**下一步：0x499e30（CPropObj 地上道具物件）起**：0x49a070 初始化、0x49a550 每拍（30 拍拋物線 DAT_0062a2e8 = 30、步距 DAT_0062a2ec = 7、落地音）、0x49a170 畫、0x49a810 矩形、0x49a880 移除；現在 `ground[]` 只是資料，要補拋出動畫欄位（拍數、高度、速度、起點）；DAT_00663f24（升降分界）是 BSS，要找設定處。~~
 - 進度（11-18e）：**CPropObj 整類完成**（0x49a350／0x49a550／0x49a170／0x49a880 接進 `ground[]`：新欄位 `dx dy`（畫的位置，像素）、`vx vy`、`t`、`z`；`ground_drop` 設起點 = 掉落格中央、落點 = free_cell 找到的格，速度 = 差/30；`ground_tick` 每拍照 0x49a550 走 29 步，viewport 畫在 (dx, dy − z)；撿起 `ground_pick` = 移除 0x49a880）。照原版怪現象：只走 29/30 路程；DAT_00663f24（升降分界）全映像沒寫入 = 0，所以高度恆 0（沒有拋物線，只有滑行）。建構／解構／初始化動畫／設旗標（只有連線版呼叫）／矩形皆 skip；shortcut：起飛／落地音（模型 +0x32／+0x2e）、地上光照與陰影、地面圖動畫幀。skilltest `prop_obj_test`。
 - 進度（11-18f）：CRainSpray 整類標完（雨濺水 splash_new = 0x49aa40，unit.c U_SPLASH 每拍 = 0x49aa90／0x49aad0，其餘建構解構 skip）。**CSurBeastie 整類完成**（air.c：`sur_*`，地面小動物 老鼠 1001／公雞 1005／母雞 1006／小雞 1007，BeastieMdl 移動屬性 0；之前完全沒生成）：休息→挑目標（logic 1 範圍閒逛／logic 2 路線）→走（探半格看格子 walk，不能走從原格 spread_pt 5 重挑，最多 8 次）、怕人的（reaction 1）每 80 拍看 448 內 NPC 組（grp 10000~60000）就逃（高速）、序列 > 24 的被 NPC 組走近 30 內（動態狀態 ≠ 1）踩死，500 拍後移除。畫法與空中小動物共用 `beast_draw_one`。shortcut：物件層號固定 1（原版 11／13／15 的水面／特殊層判斷沒做）、聲音非位置音效。skilltest `sur_beastie_test`。
-  **下一步：0x49b8d0（CTrapBase 陷阱物件）起**：0x49bc80 畫、0x49bef0 每拍（狀態 0 待命／1 觸發動畫／2 冷卻 500 拍）、0x49c510 矩形、0x49c710 移除；現在陷阱是 Actor（is_trap／trap_revealed／trap_cell），要接上原版每拍後把舊簡化版刪掉。
+  ~~**下一步：0x49b8d0（CTrapBase 陷阱物件）起**：0x49bc80 畫、0x49bef0 每拍（狀態 0 待命／1 觸發動畫／2 冷卻 500 拍）、0x49c510 矩形、0x49c710 移除；現在陷阱是 Actor（is_trap／trap_revealed／trap_cell），要接上原版每拍後把舊簡化版刪掉。~~
+- 進度（11-18g）：**CTrapBase 整類完成**（0x49b8d0／0x49ba30／0x49bc80／0x49bef0／0x49c340／0x49c410／0x49c510／0x49c580／0x49c710 done，其餘建構解構／滑鼠指著暫停 0x49c2b0／設組別封包 0x49c2e0／0x49caf0／0x49ea10 skip）。舊的 `trap_think`（陷阱當怪物追人放招）刪除，改 `trap_tick`（main.c，種類 24 每拍）：狀態 0 待命（每 30 拍看 128 單位內有沒有別組的人 → 偵測旗標；旗標在時每拍看 30 單位內別組 → `trap_fire` 放招）、1 觸發動畫（`body_seq == 1` 且播完 → 2）、2 冷卻 500 拍，次數 −1，用完移除（role=NULL、object_dead），否則回待命。序列跟狀態（`actor_requested_seq`，小動物三序列 = 狀態 0／1／2）；`trap_fire` 用 `open_dir`（0x443230，原本 LATER）挑目標格、`actor_cast_at` 放招，成功才進狀態 1（發現、`trap_revealed`）並計數 100。畫（actor_draw 種類 24 分支）：已發現待命半透明 192、其他不透明；未發現只有主人那組看得到、半透明 128。新欄位 `trap_state trap_timer trap_fired trap_trig trap_uses`。
+  - 照原版怪現象：放招失敗（沒技能列、位置沒格）時 `trap_fired` 留 1，陷阱卡住不再偵測；偵測旗標留到下個 30 拍整點才重算。
+  - shortcut：次數（模型 +0x32）來源沒找到，一律 1 次（放一次就消失，原本是不會用完）；放招範圍用技能範圍（原版模型 +0x3e）；格子上有建築時原版可能不查 30 單位直接放招，沒做；觸發音效 0x3c、待命紅色疊色沒做；0x450f70（劇情建陷阱設主人）等 0x44fd20 種類 3 分支，仍 todo。skilltest `trap_tick_test`。
+- 進度（11-18h）：0x49c910～0x49cea0 CAutoPaper（資源句柄）／SPT_FRAME 陣列整批 skip（Anim 指標直接用）。
+  **下一步：0x49cf70（SPT_FRAME 其餘，精靈圖載入／繪製基礎）起**——先 `python3 tools/functool.py next 0x49cf70`。
 
 
 

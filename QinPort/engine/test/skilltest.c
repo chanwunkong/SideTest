@@ -3963,6 +3963,41 @@ static void sur_beastie_test(void) {
     assert(sur_tick_one(&b) == 0);
     unit_scene = saved_scene;
 }
+static void trap_tick_test(void) {
+    const Scene *saved_scene = unit_scene;
+    int saved_count = actor_count;
+    Actor saved[3]; memcpy(saved, actors, sizeof saved);
+    Cell cells[15 * 15] = {0};
+    Scene sc = {.w = 15, .h = 15, .cells = cells};
+    unit_scene = &sc;
+    actor_count = 3;
+    MonDef def = {.istrap = 1};
+    Actor *t = &actors[0], *e = &actors[1];
+    *t = (Actor){.role = (const Role *)1, .mon = &def, .object_kind = 24, .x = 7.5f, .y = 7.5f, .trap_group = 10001, .trap_uses = 2};
+    *e = (Actor){.role = (const Role *)1, .x = 9.5f, .y = 7.5f, .grp = 10000};
+    trap_tick(t);                       // 計數 0：128 單位內有別組的 → 偵測旗標，但 30 單位內沒人
+    assert(t->trap_timer == 1 && !t->trap_fired);
+    e->x = 7.6f;
+    trap_tick(t);                       // 偵測旗標留著，之後每拍只看 30 單位內
+    assert(t->trap_fired && t->trap_state == 0);  // 沒有技能列放不出招：照原版卡在已放招
+    e->grp = 10001; t->trap_fired = t->trap_trig = t->trap_timer = 0;
+    trap_tick(t);
+    assert(!t->trap_trig && !t->trap_fired);      // 同組的不算
+    t->trap_state = 1; t->body_seq = 0; t->act_done = 1;
+    trap_tick(t); assert(t->trap_state == 1);     // 序列還沒切到 1 不算播完
+    t->body_seq = 1; trap_tick(t);
+    assert(t->trap_state == 2 && t->trap_timer == 500);
+    t->trap_revealed = 0; trap_set_state(t, 1); assert(t->trap_revealed); t->trap_state = 2;
+    for (int i = 0; i < 499; i++) trap_tick(t);
+    assert(t->trap_state == 2 && t->role);
+    trap_tick(t);                       // 次數 2 → 1：回待命
+    assert(t->trap_state == 0 && !t->trap_fired && t->role && t->trap_uses == 1);
+    t->trap_state = 2; t->trap_timer = 1; trap_tick(t);
+    assert(!t->role && t->object_dead); // 次數用完移除
+    memcpy(actors, saved, sizeof saved); actor_count = saved_count;
+    unit_scene = saved_scene;
+}
+
 static void part_dead_test(void) {
     const Scene *saved_scene = unit_scene;
     SceneClient saved_client = scene_client;
@@ -4074,6 +4109,7 @@ int main(void) {
     part_dead_test();
     prop_obj_test();
     sur_beastie_test();
+    trap_tick_test();
     character_death_fear_test();
     character_hit_status_test();
     character_blood_test();
