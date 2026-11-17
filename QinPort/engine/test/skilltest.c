@@ -8,6 +8,45 @@ static RoleDef def;
 static MonDef md;
 static const Role empty_test_role;
 
+static void character_rotation_cooldown_test(void) {
+    Frame frames[3] = {{.delay=2}, {.delay=2}, {.delay=2}};
+    Seq seqs[16];
+    for (int i=0; i<16; i++) seqs[i] = (Seq){3, frames};
+    Anim anim = {.count=16, .seqs=seqs};
+    Role role = {.part_count=1, .seq_count=16, .body={&anim}};
+    RoleDef model = {.idle=8, .death=40, .run_seq=65535};
+    Actor a = {.role=&role, .def=&model, .dir=2, .animation_dir=0,
+        .flags=0x600, .dynamic_state=22, .body_size=9};
+    actor_direction_tick(&a);
+    assert(a.animation_dir==7 && a.shown_seq==15 && a.body_seq==15);
+    assert(a.dir==2 && !a.previous_target); // 不覆寫面向／普通漸轉目標快取。
+    a.act_frame=2; a.frame_tick=1;
+    actor_direction_tick(&a);
+    assert(a.animation_dir==6 && a.shown_seq==14 && !a.act_frame && !a.frame_tick);
+    for (int i=0; i<7; i++) actor_direction_tick(&a);
+    assert(a.animation_dir==7 && a.shown_seq==15); // 一整圈，無15拍節流。
+    a.flags=0x400;
+    Scene s = {0};
+    actor_tick(&a, &s, 0, 0, 0);
+    assert(a.animation_dir==7); // 移動入口不能把旋轉累積方向改回面向。
+    actor_direction_tick(&a); assert(a.shown_seq==14);
+    a.flags=0; a.dynamic_state=1; a.direction_clock=15;
+    actor_direction_tick(&a); assert(a.shown_seq==15); // 同組解除後仍按普通漸轉，6→7→0。
+    a.direction_clock=30;
+    actor_direction_tick(&a); assert(a.shown_seq==8);
+
+    unit_n=0;
+    a.cool=3; actor_cooldown_tick(&a); assert(a.cool==2);
+    units[0]=(MUnit){.cls=U_MAIN, .owner=&a}; unit_n=1;
+    actor_cooldown_tick(&a); assert(a.cool==2);
+    units[0].dead=1;
+    actor_cooldown_tick(&a); assert(a.cool==1);
+    actor_cooldown_tick(&a); assert(!a.cool);
+    actor_cooldown_tick(&a); assert(!a.cool);
+    a.cool=-1; actor_cooldown_tick(&a); assert(a.cool==-1);
+    unit_n=0;
+}
+
 static void character_direction_test(void) {
     Frame frames[3] = {{.delay=2}, {.delay=2}, {.delay=2}};
     Seq seqs[16];
@@ -1970,6 +2009,7 @@ int main(void) {
     character_template_candidates_test();
     character_movement_speed_test();
     character_direction_test();
+    character_rotation_cooldown_test();
     character_animation_test();
     character_dynamic_exit_test();
     character_air_status_test();

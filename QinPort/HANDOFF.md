@@ -804,6 +804,12 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - `main.c`新增actor_direction_tick，actor_animation_tick每拍消費；actor_requested_seq提供目標，actor_seq改讀目前顯示序列，取代原先面向改變便立即換本體序列的簡化。大小<6每4拍、其他每15拍轉一向；目標換組或幀數不同先同步序列組，方向切換保留幀索引、超界歸0。保留差四方向沿原版分支反向轉、空中旗標且動態狀態非1時不轉向的行為。
   - shortcut：物件累積更新拍暫以direction_clock承接，完整物件生命週期接入時統一；完整活動／高度更新門檻、0x400旋轉序列、特殊共用倒數與光環仍待同類別及引擎基礎，不能稱為等待外部系統。角色更新入口仍todo，註解不寫該未完成入口位址。外部依賴仍只有既有CGameApp介面暫停通知；無新增DLC分類。
   - `skilltest.c`新增4／15拍、差四方向、跨0方向、保留幀／超界歸0、換組重設、空中靜止例外測試；兩序列動畫fixture指定轉向更新拍，避免把方向序列變更誤當即時換組。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；-DSTORY語法檢查、git diff --check通過。fields／roles已更新，FUNCS.tsv已重產；未commit或push。
+  ~~下一步：0x486270（CCharactor 仍餘21個todo；完整動態移動／模板、外觀／繪製、命令主分派與128狀態更新未完成，完成整類別才進CNpc）起~~。
+
+- 進度（11-17）：Poq.exe **0x485270～0x490220 CCharactor，本輪補角色更新的旋轉與冷卻分支；整類別未完成，未進CNpc**。新增done 0、skip 0、base 0；主範圍仍done 64、skip 33、todo 21，未以局部實作標記完整更新入口。
+  - `main.c`的actor_direction_tick接旗標0x400：動畫方向每拍減1、負數回7，以模板+0x4c加方向重選序列，優先於空中靜止例外且不受4／15拍節流；actor_tick不再把旋轉累積方向改回物件面向。更正上輪shortcut提及的「死亡序列起點」：核對模板讀表器後，+0x4c是第7欄休息序列第一值，死亡是+a4。保留換旋轉序列重設幀、解除後按普通漸轉回目標的行為。
+  - 新增actor_cooldown_tick，取代固定拍無條件扣冷卻：正數且無存活MethodMain才減1，零／負數保留。shortcut：完整活動／高度門檻仍未接入；累積拍仍沿既有direction_clock橋接。完整動態移動／模板、外觀／繪製、主命令、狀態及100拍光環都是同類別或引擎基礎待補，不能稱為等待別的系統；外部依賴仍只有既有CGameApp介面暫停通知。無新增DLC分類。
+  - `skilltest.c`新增非零休息起點與不同死亡起點、完整旋轉一圈、空中／狀態22旋轉、逐拍重設幀、移動入口保留旋轉方向、解除旋轉漸轉，以及MethodMain存在／死亡與冷卻零／負數測試。`cd engine && make && make skilltest 2>&1 | tail -3`最後一行`skilltest ok`；fields／roles更新、FUNCS.tsv重產。未commit或push。
   **下一步：0x486270（CCharactor 仍餘21個todo；完整動態移動／模板、外觀／繪製、命令主分派與128狀態更新未完成，完成整類別才進CNpc）起**。
 
 

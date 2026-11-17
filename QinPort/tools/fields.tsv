@@ -645,7 +645,7 @@ CCharactor	+0x73	動態物件行為狀態：1平常、11移動、20..30跳躍等
 CCharactor	+0x87	上次套用的目標動畫序列	Actor.previous_target／actor_direction_tick
 CCharactor	+0x8b	目標動畫序列（方向為帶符號餘數）	Actor.animation_target／actor_animation_select
 CCharactor	+0xa3	目前目標物件句柄，0無目標	Actor.foe（指標取代句柄）
-CCharactor	+0xa7	原版動畫方向，指定序列時取帶符號餘數	Actor.animation_dir；現有面向以Actor.dir／DIR_MAP橋接
+CCharactor	+0xa7	原版動畫方向，指定序列時取帶符號餘數；旗標0x400每拍減1，負數回7	Actor.animation_dir；現有面向以Actor.dir／DIR_MAP橋接
 CCharactor	+0xaf	當前移速的A參數；0時不能使用距離大於等於3的技能	Actor.move_a／actor_move_speed；技能速度限制讀取仍待完整動態狀態接齊
 CCharactor	+0x2cf	角色模板指標	Actor.def
 CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減半	Actor.speed_threshold
@@ -712,7 +712,7 @@ CCharactor	+0x561	基礎追擊範圍，層大於10時加8	Actor.def->chase／act
 CCharactor	+0x565	B_C_VRANGE值加12；模板入口先設12	Actor.view_range
 CCharactor	+0x569	狀態移動速度倍率百分比，初值100	Actor.effect_speed／status_speed
 CCharactor	+0x56d	行為重設時清0的整數	待確認用途
-CCharactor	+0x571	出手冷卻，無MethodMain時每拍減1	Actor.cool（現有簡化更新時機）
+CCharactor	+0x571	出手冷卻，無MethodMain時每拍減1	Actor.cool／actor_cooldown_tick（正數且無存活MethodMain才遞減；活動門檻仍待完整更新）
 CCharactor	+0x575	行為重設時清0的整數，獨立setter無呼叫者	未使用
 CCharactor	+0x579	蠱惑狀態清除及行為重設時清0；用途未定，不能當casting	Actor.status_aux；僅保存／清除原始欄位，不推測用途
 CCharactor	+0x57d	繪圖矩形診斷旗標	待診斷繪圖
@@ -815,3 +815,4 @@ SpriteSequence	+0x10	目前幀已停拍數；滿max(幀延遲+調整,1)歸0換�
 SpriteSequence	+0x18	迴圈首幀；反播從此幀跳往迴圈末幀	Actor.body_start／Spr.start
 SpriteSequence	+0x1c	迴圈末幀；正播從此幀跳往首幀，完成判斷為目前幀>=此值且停到最後一拍	Actor.body_end／Spr.end
 CCharactor	+0xbb	物件累積更新拍，方向小於6格每4拍、否則每15拍更新	Actor.direction_clock（暫用動畫固定拍時鐘，完整生命週期接入時統一）
+RoleMdl	+0x4c	第7欄休息序列第一值；旗標0x400旋轉使用此起點而非死亡序列	RoleDef.idle／actor_direction_tick

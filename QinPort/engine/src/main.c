@@ -937,7 +937,7 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
         float px = tick % a->move_b ? 0 : a->move_a + a->move_c / 10.0f;
         actor_step(a, s, mx, my, px);
     }
-    a->animation_dir = DIR_MAP[a->dir];
+    if (!(a->flags & 0x400)) a->animation_dir = DIR_MAP[a->dir];
     actor_animation_select(a, -1);
 }
 
@@ -1991,6 +1991,12 @@ static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = �
 #undef scene
 #include "weather.c"
 
+// 角色更新的出手冷卻分支；有MethodMain時保留倒數，零與負數不再遞減。
+// 完整活動／動態更新門檻仍待接齊，不標完整角色更新入口位址。
+static void actor_cooldown_tick(Actor *a) {
+    if (a->cool > 0 && !main_of(a)) --a->cool;
+}
+
 // Poq.exe 0x4c7d60：格子層<10才轉地面1，層10照原值保留。
 static unsigned char actor_ground_layer(const Cell *c) {
     return c->layer < 10 ? 1 : c->layer;
@@ -2180,16 +2186,24 @@ static void actor_status_countdown(Actor *a) {
 
 // 角色更新的方向漸轉分支；完整角色更新入口仍有活動門檻、光環等未接。
 // shortcut: 物件累積拍以direction_clock承接，完整物件生命週期接入時共用其時鐘。
-// shortcut: 0x400旋轉仍留既有方向，待狀態22／旋轉動態序列完整接入時補死亡序列起點旋轉。
 static void actor_direction_tick(Actor *a) {
     int target = actor_requested_seq(a);
     Uint32 clock = a->direction_clock++;
+    if (a->flags & 0x400) {
+        // 模板+0x4c是休息序列第一值；每拍遞減動畫方向，不改物件面向或目標序列。
+        // 此分支優先於空中靜止判定，也不受普通漸轉的4／15拍節流。
+        if (--a->animation_dir < 0) a->animation_dir = 7;
+        a->shown_seq = (a->def ? a->def->idle : 0) + a->animation_dir;
+        a->shown_ready = 1;
+        actor_body_select(a);
+        return;
+    }
     if (!a->shown_ready) {
         a->shown_seq = a->previous_target = target;
         a->shown_ready = 1;
         return;
     }
-    if ((a->flags & 0x400) || ((a->flags & 0x200) && a->dynamic_state != 1)) return;
+    if ((a->flags & 0x200) && a->dynamic_state != 1) return;
     const Seq *old = role_seq(a->role, a->shown_seq);
     const Seq *next = role_seq(a->role, target);
     if (target != a->previous_target) {
@@ -5620,7 +5634,7 @@ int main(int argc, char **argv) {
                 actors[i].animation_stepped = 0;
                 actor_scale_tick(&actors[i]);
                 if (actors[i].modifiers_dirty) actor_effects_recompute(&actors[i]);
-                if (actors[i].cool > 0) actors[i].cool--;
+                actor_cooldown_tick(&actors[i]);
                 if (actors[i].fight > 0 && !actors[i].foe) actors[i].fight--;
             }
             int held = hero->act != ACT_DEAD && react_tick(hero, &scene);
