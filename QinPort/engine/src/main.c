@@ -26,6 +26,11 @@
 // 遊戲速度（Poq.exe 0x448a70）：設定的速度 0~5 → 31 − 3×速度（開局 21，Config 預設速度 2 → 25）。
 // 節拍固定 16ms 不受影響；原版只有 0x449c90（每 5000/值 拍）和 0x566920（字幕捲動）讀它。
 // 原版在連線客戶端（DAT_00942f28 == 2）不改，單機沒有這情況。
+// DAT_00639f6c：單機發現陷阱自動暫停選項。
+// shortcut: 設定介面未接，暫由--pause-traps提供；JM31完成後改接原版設定值。
+static int trap_auto_pause, scene_paused;
+static void trap_detected_message(void);
+static void ui_text(int id, char *out, size_t cap);
 static int game_speed_ms = 21;
 static void game_speed_set(int level) { game_speed_ms = 31 - 3 * level; }
 
@@ -2754,7 +2759,7 @@ static void actor_death_fear(Actor *a) {
     }
 }
 
-// 特殊狀態共用倒數與狀態12偵測；介面自動暫停通知仍待接，故不標完整入口位址。
+// Poq.exe 0x488090：共用倒數、嚴格優先序與陷阱／隱身偵測。
 static void actor_status_countdown(Actor *a) {
     --a->status_countdown;
     int status = a->state[105] ? 105 : a->state[12] ? 12 :
@@ -2764,8 +2769,10 @@ static void actor_status_countdown(Actor *a) {
         if (!unit_scene || !unit_scene->cells) return; // 尚未登記場景時沒有可查詢物件。
         Actor *t = near_trap((int)a->x, (int)a->y, 5, a->grp);
         if (t) {
-            // todo: 介面自動暫停選項啟用時，先送訊息1501/16/1000並暫停場景。
-            // 尚未接CGameApp介面選項與暫停通知，不能自行以玩家組或side猜測條件。
+            if (trap_auto_pause && unit_scene) {
+                trap_detected_message();
+                scene_paused = scene_client.scene && scene_client.ready;
+            }
             trap_reveal(t);
         }
         for (t = near_first(ax64(a), ay64(a), 0x140); t; t = near_next()) {
@@ -4440,6 +4447,11 @@ static char toast[128];    // 系統訊息（原版 0x1004e560 秀在畫面上�
 static Uint32 toast_until;
 // shortcut: 原版訊息的字串表（0x10060280 的編號）還沒對，先用自訂的中文
 static void hud_say(const char *t) { snprintf(toast, sizeof toast, "%s", t); toast_until = SDL_GetTicks() + 2500; }
+static void trap_detected_message(void) {
+    // CGameApp訊息1501，類型16，1000ms；使用原版字串表。
+    ui_text(1501, toast, sizeof toast);
+    toast_until = SDL_GetTicks() + 1000;
+}
 // 原版系統訊息：EasyRPG_C.dlg 第 id 筆（GBK 格式字串）照參數排好再秀
 static void hud_msg(int id, ...) {
     char f[256], g[256];
@@ -6533,7 +6545,8 @@ int main(int argc, char **argv) {
     int pos = 0, warp = -1, at_x = -1, at_y = -1, level = 1, gives = 0, money = -1;
     const char *give[8];
     for (int i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
+        if (!strcmp(argv[i], "--pause-traps")) trap_auto_pause = 1;
+        else if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
@@ -6634,6 +6647,8 @@ int main(int argc, char **argv) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) running = 0;
+            // shortcut: 暫停介面未完成，Esc暫代繼續；JM31接入後使用原版暫停按鈕。
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE && scene_paused) scene_paused = 0;
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) sys_toggle();  // 原版 Esc 開系統選單
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F9) {  // F9 快速存盘（UI_C 2620）
                 if (hero->fight > 0) ui_say(1507);
@@ -6784,6 +6799,7 @@ int main(int argc, char **argv) {
         if (now_ms - logic_ms > 250) logic_ms = now_ms - TICK_MS;  // 卡頓或切到背景後不要一次補太多拍
         while (now_ms - logic_ms >= TICK_MS) {
             logic_ms += TICK_MS;
+            if (scene_paused) continue;
             ++tick;
             actor_logic_tick = tick;
             if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000) for (int i = 0; i < actor_count; i++)

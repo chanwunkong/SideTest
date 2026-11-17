@@ -652,7 +652,7 @@ CCharactor	+0x2e3	速度及動畫門檻；速度>=101才整數除2，<101不減�
 CCharactor	+0x339	AI組（0..99玩家、10000..60000 NPC組）	Actor.grp
 CCharactor	+0x33d	蠱惑前原AI組	Actor.original_group；狀態14換組／還原，技能選取副作用仍todo
 CCharactor	+0x349	狀態8隱身byte；切換物件旗標0x20000	Actor.state[8]／actor_status_notify
-CCharactor	+0x34d	狀態12陷阱與周遭隱身偵測byte；倒數優先序在105之後	Actor.state[12]；偵測已接，介面自動暫停通知仍todo
+CCharactor	+0x34d	狀態12陷阱與周遭隱身偵測byte；倒數優先序在105之後	Actor.state[12]；actor_status_countdown偵測／自動暫停已接
 CCharactor	+0x34e	狀態13反擊byte；啟用寫反擊技能0，解除寫-1	Actor.state[13]／Actor.counter_skill
 CCharactor	+0x34f	狀態14蠱惑byte；保存原組並取全域99..1循環組	Actor.state[14]／Actor.original_group
 CCharactor	+0x3aa	狀態105byte；非0設共用倒數9，倒數負值才清	Actor.state[105]／Actor.status_countdown
@@ -684,7 +684,7 @@ CCharactor	+0x4a7	頭上附加精靈；本體Y扣高度及head_height，最後�
 CCharactor	+0x4ab	身上附加精靈；本體Y扣離地高度，頭部之前繪製	Actor.effect[1]／actor_effect_sprite／status_fx_draw
 CCharactor	+0x4af	腳下附加精靈；地面Y，不扣離地高度	Actor.effect[2]／actor_effect_sprite／status_fx_draw
 CCharactor	+0x4b3	角色頭部高度u16，新載紙娃娃序列0／幀0本體矩形高加10，選方向之前計算	Actor.head_height／actor_appearance_init
-CCharactor	+0x4b5	多個特殊狀態共用倒數，105=9、111/114=8、115=5；每10拍減1、負數才清，優先105/12/111/115/114	Actor.status_countdown／actor_status_countdown；狀態12偵測已接，介面暫停通知及完整活動門檻仍todo
+CCharactor	+0x4b5	多個特殊狀態共用倒數，105=9、111/114=8、115=5；每10拍減1、負數才清，優先105/12/111/115/114	Actor.status_countdown／actor_status_countdown
 CCharactor	+0x4b9	最後修改的狀態ID byte；組語確認重算比較的是狀態值與此ID，末次實際傳-1	Actor.last_status／actor_effects_recompute
 CCharactor	+0x4ba	狀態／修正需要重算的byte旗標	Actor.modifiers_dirty
 CCharactor	+0x4bb	SkillUnit技能鏈表頭	Actor.skills／skill_n（原模板重建後追加NPC／玩家技能列）
@@ -872,3 +872,4 @@ RoleMdl	+0x104	欄26星號切四個int的第1值，缺項65535；同伴死亡時
 
 SpritePartGroup	+0x1f	首個精靈指標（00574e10直接getter，語義類別名，原RTTI待核對）	Role.body[0]／actor_sequence
 SpriteResource	+0x14	序列描述表指標（00496d80由首個精靈取，原描述stride32；語義類別名）	Anim.seqs，索引直接取Seq且保留零幀
+CGameApp	DAT_00639f6c	單機模式且場景管理存在時讀取的陷阱自動暫停選項；原版預設值尚未核對	trap_auto_pause；shortcut暫由--pause-traps提供，JM31接齊後升級

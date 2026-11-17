@@ -1390,6 +1390,31 @@ static void character_detection_test(void) {
     assert(!near_trap(7, 7, 5, 10000)); // 發現後不反覆命中。
     assert(t->role && t->act != ACT_DEAD); // 發現不是殺死或解除陷阱。
 
+    // 選項關閉不暫停；開啟只在發現未揭露陷阱時提示，無就緒場景強制不暫停。
+    SceneClient saved_client = scene_client;
+    int saved_auto = trap_auto_pause, saved_pause = scene_paused;
+    Uint32 saved_toast_until = toast_until;
+    assert(!scene_paused);
+    trap_auto_pause = 1;
+    scene_client = (SceneClient){.scene = &detection_scene, .ready = 1};
+    t->trap_revealed = 0;
+    Uint32 before = SDL_GetTicks();
+    actor_status_countdown(a);
+    assert(t->trap_revealed && scene_paused);
+    assert(toast_until - before >= 1000 && toast_until - before < 1100);
+    scene_paused = 0; toast_until = 123;
+    actor_status_countdown(a);
+    assert(!scene_paused && toast_until == 123); // 已揭露不重送。
+    t->trap_revealed = 0; scene_client.ready = 0;
+    actor_status_countdown(a);
+    assert(t->trap_revealed && !scene_paused && toast_until != 123);
+    trap_auto_pause = 0; scene_client.ready = 1; t->trap_revealed = 0;
+    toast_until = 123;
+    actor_status_countdown(a);
+    assert(t->trap_revealed && !scene_paused && toast_until == 123);
+    scene_client = saved_client; trap_auto_pause = saved_auto;
+    scene_paused = saved_pause; toast_until = saved_toast_until;
+
     // 同side的不同組仍被發現；主人存在但已死仍更新組別。
     t->trap_revealed = 0; t->owner = owner;
     assert(near_trap(7, 7, 5, 10000) == t && t->trap_group == 10002);
