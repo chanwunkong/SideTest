@@ -1086,7 +1086,15 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - **CNpc 還剩 2 個 todo：0x492730（閒置／巡邏／跟隨 AI，251行）、0x492ed0（CNpc 每拍主分派，64行）。** 上面這些 npc_* 目前都標 `LATER`（沒人呼叫）：舊的 `monster_think`／`pursue`／`npc_think` 仍是實際行為。0x492ed0 做好後要用它取代 `monster_think`（順序：0x48c050 → 0x490fc0 → 命令空且動態重試 → 重設延遲 → 0x493080 → 0x491d00 → NPC組>50000 的 vtable 0x10 狀態與遠離重啟 → 有狀態0走 0x4911b0，否則 0x492730），並讓 `pursue`／`mon_pick` 只留 0x4906c0 的選招。0x492730 對應：記錄 +0x18 = `NpcSpec.logic`(0 站著播待機動畫序列、1 矩形閒逛 rx/ry/rw/rh、2 路徑巡邏 path/path_i、3 跟隨 +0x78 的角色、4 停)，+0x1c = `rest`，+0x20 = 計時，+0x88 = 連結的 SInit。
   - shortcut：0x4911b0 打物件（目標種類21..29）原版要招式旗標0x4（來源沒找到）一律視為可打；0x490430 場景類型0x12／0x13早退（CScene+0x6c，封包來源）單機沒有；GetFleePos 的隱藏步長用3格；0x490c20／0x490430 裡 has_status／0x48eda0 的 this 反編譯沒帶出，取被掃到的同伴／自己。
   - skilltest 新增 `npc_ai_test`（守衛出生格、選目標清目標、重設、status_aux 狀態機、主AI空技能鏈）與路徑測試（15層連通路徑 6 點、終點在[0]）；最後一行 `skilltest ok`。
-  **下一步：0x492730（CNpc 閒置 AI）起，再 0x492ed0（CNpc 主分派，接進主迴圈取代 monster_think）；做完 CNpc 才進 CProtagonist（0x4933a0 起）。**
+  ~~**下一步：0x492730（CNpc 閒置 AI）起，再 0x492ed0**~~。
+
+- 進度（11-18）：完成 **0x4959d0 動態11逐格步進**、**0x492730 CNpc閒置AI**、**0x492ed0 CNpc主分派**，CNpc 類別 todo 清空；Poq.exe game todo -3。
+  - 0x4959d0 → `main.c actor_walk_step`，接在 `actor_motion_tick`（狀態11且 `Actor.path_walk`，由 `actor_dynamic_base_enter` 路徑建成功時設、`actor_dynamic_command` 退出時清）。照原版：等待byte(+0x3f5)、新路徑跳過距離檢查、首點被同組占住送讓路（`dynamic_aux`）並跳一點、方向差1且下一點同向一次占兩格、差4且戰鬥中朝目標倒退走（`reverse_playback`）、占格失敗同組移動等 rand()%30+33（最多3次）、大小>2停移、其他重尋；插值只在 `direction_clock % move_b == 0` 推進。刪掉舊 `actor_command_walk_tick`／`has_target` 橋接；`actor_knock_finish` 改交 `actor_dynamic_command(11,…)`（範圍參數0是猜的）。鍵盤像素行走（`actor_tick`）不設 path_walk，互不干擾。
+  - 0x492730 → `npc_idle_ai`；0x492ed0 → `npc_dispatch`（主迴圈對NPC／怪物直接呼叫，取代 `monster_think`、`npc_think`）。陷阱（種類24，CTrapBase）改走 `trap_think`；`pursue` 只剩主角與陷阱用。Actor 新增 `path_walk walk_wait walk_block npc_timer follow_id npc_rest_stop`。怪物索敵改成原版節奏（每100拍 `npc_pick_target`、受擊／入戰事件），不再每拍掃。
+  - shortcut：直線分支失敗後原版（反編譯）回退格落在「下一點」的全域暫存，這裡改占目前路徑點；記錄+0x88（連結SInit）恆當 -1，ONT 跟隨參數沿用矩形鍵 y／cx／cy；跟隨模式命令1的參數反編譯沒帶出，與命令2同；玩家組旗標0x10遠距1/200呼叫招式物件虛擬+0x20 省略；主人消失（0x497d00）改清 owner；`actor_owner` 當 +0x581==1。
+  - skilltest：逐格走到(5,1)、knock 返回11、閒置AI巡邏／休息4；最後一行 `skilltest ok`。
+  **下一步：0x4933a0（CProtagonist）起；0x490e70／0x4909b0／0x493320 等 CNpc 虛擬表第27／28格呼叫者尚未接（仍標 LATER）。**
+
 
 
 ### 移植步驟（2026-11-15 定，嚴格照做，不再每個函數翻大量原檔）

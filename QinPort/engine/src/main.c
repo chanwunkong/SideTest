@@ -298,6 +298,9 @@ typedef struct Actor {
     int dynamic_destination_x, dynamic_destination_y;
     int dynamic_pending, dynamic_path, dynamic_aux, dynamic_path_result;
     int dynamic_new_path;           // +0x3d5：新路徑旗標
+    int path_walk;                  // 動態11走逐格路徑（actor_walk_step）；鍵盤像素行走不設
+    int walk_wait, walk_block;      // +0x3f5等待拍、+0x3f6同組阻擋重試
+    int npc_timer, follow_id, npc_rest_stop; // CNpc閒置：記錄+0x20計時、跟隨目標句柄(+0x78)、+0x1c被改成4
     int npc_home_x, npc_home_y, npc_wait, npc_idle; // CNpc +0x5e2／+0x5e6（-1未設、-2停用）、+0x5ea攻擊間隔、+0x5ee閒置拍
     unsigned char path_buf[500];    // +0xcb：250筆(x,y)反向路徑，[0]=終點、[count-1]=起點
     const Scene *bound_scene;
@@ -1058,6 +1061,7 @@ static int actor_can_move(const Actor *a);
 static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick) {
     if (a->dynamic_state == 21 || a->dynamic_state == 22 || a->dynamic_state == 31 || a->dynamic_state == 32) return;
     a->moving = 0;
+    a->path_walk = 0;
     // shortcut: 現有移動迴圈承接平常／移動狀態，跳躍等完整動態狀態仍待移植。
     int state = mx * mx + my * my > 0.01f ? 11 : 1;
     int changed = state != a->dynamic_state;
@@ -1074,37 +1078,6 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
     if (!(a->flags & 0x400)) a->animation_dir = DIR_MAP[a->dir];
     if (changed || state == 11 || !a->spec || a->spec->logic)
         actor_animation_select(a, -1);
-}
-
-// NPC 平時邏輯：13 在範圍內隨機走走停停、14 沿路線來回巡邏、其他站著
-static void npc_think(Actor *a, const Scene *s, Uint32 tick) {
-    const NpcSpec *n = a->spec;
-    float mx = 0, my = 0;
-    if (a->rest > 0) a->rest--;
-    else if (n->type == 13 || (n->type == 14 && n->path_n)) {
-        if (!a->has_target) {
-            if (n->type == 14) {
-                a->path_i = (a->path_i + 1) % n->path_n;
-                a->tx = n->path[a->path_i][0] + 0.5f;
-                a->ty = n->path[a->path_i][1] + 0.5f;
-            } else {  // shortcut: 閒逛的停留時間與選點方式是自訂的，原版邏輯還沒拆
-                a->tx = n->rx + rand() % (n->rw > 0 ? n->rw : 1) + 0.5f;
-                a->ty = n->ry + rand() % (n->rh > 0 ? n->rh : 1) + 0.5f;
-            }
-            a->has_target = scene_walkable(s, (int)a->tx, (int)a->ty);
-        }
-        float gx = a->tx - a->x, gy = a->ty - a->y;
-        if (!a->has_target || gx * gx + gy * gy < 0.04f) {
-            a->has_target = 0;
-            if (n->type == 13) a->rest = 60 + rand() % 180;
-        } else {
-            mx = (gx - gy) * 32;  // 格子方向 → 畫面方向
-            my = (gx + gy) * 16;
-        }
-    }
-    float bx = a->x, by = a->y;
-    actor_tick(a, s, mx, my, tick);
-    if (a->moving && a->x == bx && a->y == by) { a->has_target = 0; a->rest = 30; }  // 卡住就換目標
 }
 
 // 依角色表載入外觀；roles 是這個場景已載入過的外觀快取（同一模板共用）
@@ -2545,7 +2518,6 @@ static int actor_walk_destination(Actor *a, int x, int y) {
 }
 
 // 動態基底進入：共用拍數與速度在各分支之前。
-// shortcut: 動態11仍把目的地交既有行走迴圈，完整尋路步進移植後替換此分支。
 static void actor_dynamic_base_enter(Actor *a) {
     a->dynamic_enter_tick = (int)actor_logic_tick;
     if (a->dynamic_state != 1) actor_speed_update(a);
@@ -2562,9 +2534,7 @@ static void actor_dynamic_base_enter(Actor *a) {
             a->dynamic_destination_x = a->dynamic_command[0];
             a->dynamic_destination_y = a->dynamic_command[1];
         }
-        a->tx = a->dynamic_destination_x + .5f;
-        a->ty = a->dynamic_destination_y + .5f;
-        a->has_target = 1;
+        a->path_walk = unit_scene && unit_scene->cells;
         break;
     case 21: case 22:
         actor_rush_enter(a);
@@ -2606,10 +2576,12 @@ static void actor_dynamic_command(Actor *a, int state, int p0, int p1, int p2) {
             a->print_x = a->print_y = -100;
             if (p0 || (old != 21 && old != 22)) {
                 a->dynamic_state = 1;
+                a->path_walk = 0;
                 a->moving = 0;
             }
         } else {
             a->dynamic_path_result = 1;
+            a->path_walk = 0;
             a->dynamic_state = state;
             a->dynamic_command[0] = p0;
             a->dynamic_command[1] = p1;
@@ -2618,6 +2590,7 @@ static void actor_dynamic_command(Actor *a, int state, int p0, int p1, int p2) {
             if (!actor_dynamic_retry(a)) {
                 actor_trail_exit(a);
                 a->dynamic_state = 1;
+                a->path_walk = 0;
                 a->moving = 0;
             }
         }
@@ -3383,17 +3356,13 @@ static void actor_knock_finish(Actor *a) {
     actor_dynamic_rest(a);
     if (a->dynamic_counter) {
         a->dynamic_counter = 0;
-        // shortcut: 原版在這裡送回動態11的快取目的地；完整尋路未齊，
-        // 先用既有目的地行走消費端，完成動態11後改交共用設定入口。
-        a->tx = a->dynamic_destination_x + 0.5f;
-        a->ty = a->dynamic_destination_y + 0.5f;
-        a->has_target = 1;
+        // shortcut: 原版送回動態11的快取目的地，到達範圍參數沒查到，先用0。
+        actor_dynamic_command(a, 11, a->dynamic_destination_x, a->dynamic_destination_y, 0);
         if (a == actors) { walk_cx = a->dynamic_destination_x; walk_cy = a->dynamic_destination_y; }
     }
 }
 
 // 動態31逐格更新；原版先移占格再插值，插值結束的下一拍才標記可走下一格。
-// shortcut: 返回動態11沿actor_knock_finish的既有行走橋接，完整尋路接齊後移除。
 static void actor_knock_tick(Actor *a) {
     if (a->dynamic_state != 31) return;
     if (a->dynamic_active) {
@@ -3449,6 +3418,85 @@ static void actor_charge_tick(Actor *a) {
     else actor_interpolation_tick(a);
 }
 
+// Poq.exe 0x4959d0：動態11沿反向byte路徑逐格步進。活動時先更新速度、等待byte先扣早退；
+// 新路徑跳過距離／索引重尋；首點被同組占住就送讓路請求並跳過（最多一點）；
+// 方向差1格直線可一次占兩格，差4且戰鬥中朝目標可倒退走；占格遇同組移動最多3次rand()%30+33等待，
+// 大小>2失敗停移，其他重尋；插值只在direction_clock%move_b==0推進，插值完才標下一格可走。
+// shortcut: 原版直線分支失敗後反編譯讓回退格落在「下一點」的全域暫存，這裡改占目前路徑點；
+// 回放模式（scene_record_mode==2）不走這裡。
+static void actor_walk_step(Actor *a) {
+    a->moving = 0;
+    if (a->dynamic_active) {
+        actor_speed_update(a);
+        if (a->walk_wait) { a->walk_wait--; return; }
+        if (!a->dynamic_new_path) {
+            int dx = abs(actor_init_x(a) - a->dynamic_destination_x), dy = abs(actor_init_y(a) - a->dynamic_destination_y);
+            if ((dx > dy ? dx : dy) <= a->dynamic_command[2]) { actor_dynamic_command(a, 1, 0, 0, 0); return; }
+            if (a->dynamic_path < 0) {
+                actor_dynamic_enter(a);
+                if (!actor_dynamic_retry(a)) actor_dynamic_command(a, 1, 0, 0, 0);
+                return;
+            }
+        } else a->dynamic_new_path = 0;
+        int count = 0, px, py;
+        for (;;) {
+            if ((unsigned)a->dynamic_path > 249u) return;
+            px = a->path_buf[a->dynamic_path * 2]; py = a->path_buf[a->dynamic_path * 2 + 1];
+            count++;
+            const Cell *c = cell_at(px, py);
+            Actor *o = c && cell_pass(c, a->layer) ? cell_occupant(px, py) : NULL;
+            if (!o || (unsigned)(o->object_kind - 30) > 70u || o->grp != a->grp || count > 1) break;
+            if (o != a) o->dynamic_aux = a->sh ? a->sh : (int)a->object_id;  // 讓路請求
+            a->dynamic_path--;
+        }
+        int tx = px * 64 + 32, ty = py * 64 + 32;
+        int dir = dir_of(ax64(a), ay64(a), tx, ty, 8);
+        int diff = abs(dir - a->animation_dir), straight = 0, back = 0;
+        if (diff == 1 || diff == 7) straight = 1;
+        else if (diff == 4 && has_status(a, 0)) {
+            Actor *t = actor_target(a);
+            if (t && dist_of(ax64(a), ay64(a), ax64(t), ay64(t)) <= 0x1df) {
+                int d = abs(dir - dir_of(ax64(a), ay64(a), ax64(t), ay64(t), 8));
+                d = d == 7 ? 1 : d == 6 ? 2 : d == 5 ? 3 : d;
+                back = d <= 1;
+            }
+        }
+        int done = 0;
+        if (straight && (unsigned)(a->dynamic_path - 1) <= 0xfa) {
+            int nx = a->path_buf[(a->dynamic_path - 1) * 2], ny = a->path_buf[(a->dynamic_path - 1) * 2 + 1];
+            if (dir_of(tx, ty, nx * 64 + 32, ny * 64 + 32, 8) == a->animation_dir && actor_place(a, nx, ny, 0)) {
+                a->dynamic_path--;
+                done = 1;
+            }
+        }
+        if (!done) {
+            a->reverse_playback = back;
+            actor_direction_set(a, back ? (dir + 4) % 8 : dir);
+            if (!actor_place(a, px, py, 0)) {
+                Actor *o = cell_at(px, py) ? cell_occupant(px, py) : NULL;
+                if (o && (unsigned)(o->object_kind - 30) <= 70u && o->grp == a->grp && a->walk_block < 3 &&
+                    o->dynamic_state != 1 && !o->walk_wait) {
+                    a->walk_block++;
+                    a->walk_wait = rand() % 30 + 33;
+                    return;
+                }
+                if (a->body_size > 2) { a->dynamic_path_result = 0; actor_dynamic_command(a, 1, 0, 0, 0); return; }
+                actor_dynamic_enter(a);
+                if (!actor_dynamic_retry(a)) actor_dynamic_command(a, 1, 0, 0, 0);
+                return;
+            }
+            a->walk_block = 0;
+        }
+        actor_interpolate(a, -1, -1, -1);
+        a->dynamic_path--;
+        a->dynamic_active = 0;
+    }
+    if (a->move_b > 0 && a->direction_clock % a->move_b == 0) {
+        if (a->interpolation_left > 0) { actor_interpolation_tick(a); a->moving = 1; return; }
+        a->dynamic_active = 1;
+    }
+}
+
 // Poq.exe 0x497310：客戶端／回放位置更新；不尋路、不在插值結束時退出動態。
 // 靜止先讓路，跳躍中點先轉下降；任何動態只要剩餘拍數為正都消費插值。
 static int actor_client_motion_tick(Actor *a) {
@@ -3471,6 +3519,7 @@ static int actor_motion_tick(Actor *a) {
             actor_rush_update(a);
             actor_knock_tick(a);
             actor_charge_tick(a);
+            if (a->dynamic_state == 11 && a->path_walk) actor_walk_step(a);
         }
         a->dynamic_reported_state = a->dynamic_state; // 單機共用物件，不產生狀態同步封包。
         // 單次動作稍後才交MethodMain消費；保留播放前的幀及完成值，
@@ -3819,10 +3868,10 @@ static const SkillRow *mon_pick(const Actor *a) {
 static void cast_start(Actor *h, const SkillRow *r);
 
 static void actor_skill_command_tick(Actor *a);
-static int actor_command_walk_tick(Actor *a, const Scene *s, Uint32 tick);
 
 // 追打只提交目標技能命令；範圍、追近、退避和施法統一由角色命令消費端處理。
-static int pursue(Actor *a, const Scene *s, Uint32 tick) {
+// shortcut: 只供主角點選目標與陷阱（CTrapBase觸發系統未移植）；NPC／怪物改走npc_dispatch。
+static int pursue(Actor *a) {
     Actor *t = actor_target(a);
     if (!t) return 0;
     if (!alive(t)) { actor_clear_target(a); return 0; }
@@ -3836,7 +3885,6 @@ static int pursue(Actor *a, const Scene *s, Uint32 tick) {
         actor_command(a, 9, id, t->sh ? t->sh : (int)t->object_id, 0, 0, 1);
         a->want = NULL;
     }
-    actor_command_walk_tick(a, s, tick);
     return 1;
 }
 
@@ -3945,7 +3993,7 @@ static void npc_flee_pos(const Actor *a, const Actor *foe, int *x, int *y) {
 }
 
 // Poq.exe 0x490fc0：狀態0x11（恐懼）逃跑。無敵人時隨機走開並解除，有敵人時往反方向逃；逃不掉有1/15機率解除。
-LATER static int npc_flee(Actor *a) {
+static int npc_flee(Actor *a) {
     if (!has_status(a, 0x11)) return 0;
     if (a->dynamic_state == 1) {
         Actor *foe = actor_near_begin(a, 0, actor_seek(a) - 2);
@@ -3983,7 +4031,7 @@ LATER static void npc_move_away(Actor *a, Actor *foe, int dist) {
 
 // Poq.exe 0x493080：程序0x28（守衛）。第一次記出生格，之後有目標時近了回出生格附近，遠一點出技能，太遠追上；
 // 回到出生格3格內就把家記成-2停用。回傳1表示本拍已處理。
-LATER static int npc_guard(Actor *a) {
+static int npc_guard(Actor *a) {
     if (a->def->program != 0x28 || a->npc_home_x == -2) return 0;
     if (a->npc_home_x == -1 || a->npc_home_y == -1) {
         a->npc_home_x = actor_init_x(a);
@@ -4016,7 +4064,7 @@ LATER static int npc_guard(Actor *a) {
 // （程序第3值==1時優先取有狀態0x79者）；NPC組只有候選在技能射程（至少4格）內才登記目標；
 // 沒候選且退戰旗標開時清目標，force或累積拍%5==1才離戰。最後一律入戰（狀態0）。
 // shortcut: 場景類型0x12／0x13早退（CScene+0x6c來源是0x123封包）單機沒有；0x79的has_status取候選。
-LATER static void npc_pick_target(Actor *a, int force) {
+static void npc_pick_target(Actor *a, int force) {
     if (has_status(a, 0x12) && actor_target(a)) return;
     Actor *first = actor_near_begin(a, 0, -1), *pick = first;
     if (first && a->def->prog_extra[1] == 1) {
@@ -4069,7 +4117,7 @@ static int npc_line_blocked(const Actor *a, const Actor *t, int range) {
 
 // Poq.exe 0x491d00：+0x579（status_aux）狀態機。>2 = 追著目標打（每150～249拍續一次）；
 // 2 = 找目標、試出手，打不到15～34拍再試；1 = 走回修正目的格（<3格就結束）；<1 = 不處理。回傳1表示本拍已處理。
-LATER static int npc_aux_ai(Actor *a) {
+static int npc_aux_ai(Actor *a) {
     int aux = a->status_aux;
     if (aux < 1) return 0;
     if (aux > 2) {
@@ -4132,7 +4180,7 @@ LATER static int npc_aux_ai(Actor *a) {
 // 太近退一步、到間隔且目標站著才出手（射程內直線過得去用命令9，否則走近到射程-1）。
 // shortcut: 打物件（目標種類21..29）原版要招式旗標0x4才可，旗標來源沒找到，一律視為可打；
 // 連線客戶端（DAT_00942f28==2）分支單機沒有；vtable+0x48(1,1)的清除副作用因此也不做。
-LATER static int npc_main_ai(Actor *a) {
+static int npc_main_ai(Actor *a) {
     Actor *t = actor_target(a);
     int npc = (unsigned)(a->grp - 10000u) <= 50000u;
     if (npc) {
@@ -4232,25 +4280,118 @@ LATER static int npc_main_ai(Actor *a) {
     return 0;
 }
 
-// 怪物：主角進入索敌范围就追上去打，離出生點超過追击范围就放棄回去閒逛
-static void monster_think(Actor *a, Actor *hero, const Scene *s, Uint32 tick) {
-    (void)hero;
-    Actor *owner = actor_owner(a);
-    if (owner && alive(owner)) {  // 主人那邊的：閒逛、追击范围都以主人為中心
-        mon_specs[a - actors].rx = (int)owner->x - MON_WANDER;
-        mon_specs[a - actors].ry = (int)owner->y - MON_WANDER;
+// Poq.exe 0x492730：CNpc閒置AI。每100拍選目標（入戰就結束）；有關聯識別每60拍找人互動；
+// 沒主人時依記錄邏輯：0站著（播兩個初始態序列，每5拍抽1次換）、1矩形閒逛、2路徑巡邏、3跟隨、
+// 其他偶爾走回修正格；被互動（修正7）時面向對方；有主人（召喚）則每70拍走回主人身邊。
+// shortcut: 記錄+0x88（連結的SInit，ONT跟隨參數沒解析）恆視為-1；跟隨參數沿用矩形鍵（ry／rw／rh = +0x7c／+0x80／+0x84），
+// 模式0與非0原版只看得到命令2的參數，命令1的參數反編譯沒帶出，兩者都用（對象格、距離）；遠距主人消失（0x497d00）改清owner。
+static void npc_idle_ai(Actor *a) {
+    const NpcSpec *sp = a->spec;
+    if (a->direction_clock % 100 == 1) {
+        npc_pick_target(a, 0);
+        if (npc_in_fight(a)) return;
     }
-    if (a->foe && (!alive(a->foe) || fabsf(a->x - a->spec->rx - MON_WANDER) + fabsf(a->y - a->spec->ry - MON_WANDER) > actor_chase(a)))
-        a->foe = NULL;
-    // 暫時不可選取的目標只讓getter回空，不清掉其識別。
+    if (a->search_link && a->direction_clock % 60 == 1) {
+        Actor *p = actor_near_begin(a, 2, 10);
+        if (p) actor_command(a, 15, p->sh ? p->sh : (int)p->object_id, 0, 0, 1, 0);
+    }
+    int cx = actor_init_x(a), cy = actor_init_y(a);
+    if (!actor_owner(a) && sp) {
+        int logic = sp->logic;
+        if (a->modifier[7].value) {
+            if (logic || a->def->speed) {
+                Actor *p = actor_of(a->modifier[7].value);
+                if (!p) actor_modifier_set(a, 7, 0, -1);
+                else if (a->dynamic_active) {
+                    if (a->dynamic_state == 1) actor_direction_set(a, dir_of(ax64(a), ay64(a), ax64(p), ay64(p), 8));
+                    else actor_dynamic_command(a, 1, 0, 0, 0);
+                }
+            }
+        } else if (logic == 0) {
+            int idle = actor_command_idle(a);
+            if (idle && a->dynamic_state == 1 && a->move_a != 0 &&
+                (a->corrected_x != cx || a->corrected_y != cy) && rand() % 100 == 1)
+                actor_command(a, 1, a->corrected_x, a->corrected_y, 0, 1, 0);
+            if (idle && a->dynamic_state == 1) {
+                const Seq *q = role_seq(a->role, a->body_seq);
+                int s0 = sp->initial_state[0], s1 = sp->initial_state[1];
+                if ((!q || actor_body_done(a, q)) && s0 < 13 && s1 < 13 &&
+                    a->def->initial_seq[s0] != 65535 && a->def->initial_seq[s1] != 65535) {
+                    int first = (uint16_t)(a->def->initial_seq[s0] + sp->dir);
+                    int second = (short)a->def->initial_seq[s1] + sp->dir;
+                    if ((a->body_ready ? a->body_seq : actor_seq(a)) == first) {
+                        if (rand() % 5 == 1) actor_animation_select(a, second);
+                    } else actor_animation_select(a, first);
+                }
+            }
+        } else if (logic != 1 && logic != 2 && logic != 3) {
+            if (actor_command_idle(a) && a->dynamic_state == 1 && rand() % 100 == 1 &&
+                !(a->corrected_x == -1 && a->corrected_y == -1) && !(a->corrected_x == cx && a->corrected_y == cy))
+                actor_command(a, 1, a->corrected_x, a->corrected_y, 0, 1, 0);
+        } else if (a->dynamic_state == 1) {
+            int rest = a->npc_rest_stop ? 4 : sp->rest;
+            if (a->npc_timer > 0) a->npc_timer--;
+            else if (rest == 4) a->npc_timer = 10000;
+            else {
+                if (rest != 0) a->npc_timer = rand() % (rest * 200 + 10);
+                if (logic == 1) {
+                    int x = cx - 5 + rand() % 10, y = cy - 5 + rand() % 10;
+                    x = x <= sp->rx + sp->rw ? (x < sp->rx ? sp->rx : x) : sp->rx + sp->rw;
+                    y = y <= sp->ry + sp->rh ? (y < sp->ry ? sp->ry : y) : sp->ry + sp->rh;
+                    actor_command(a, 1, x, y, 0, 1, 0);
+                } else if (logic == 2) {
+                    if (sp->path_n > 0) {
+                        int i = a->path_i % sp->path_n;
+                        a->path_i = i + 1 >= sp->path_n ? 0 : i + 1;
+                        actor_command(a, 1, sp->path[i][0], sp->path[i][1], 0, 1, 0);
+                    }
+                } else if (!a->follow_id) {
+                    Actor *p = actor_near_begin(a, 3, 6);
+                    if (p) { a->follow_id = p->sh ? p->sh : (int)p->object_id; a->npc_timer = 100; }
+                } else {
+                    Actor *p = actor_of(a->follow_id);
+                    if (!p || is_foe(a, p)) a->follow_id = 0;
+                    else if (sp->rh < dist_of(actor_init_x(p), actor_init_y(p), cx, cy))
+                        actor_command(a, sp->rw ? 2 : 1, actor_init_x(p), actor_init_y(p), sp->rh, 1, 0);
+                }
+            }
+        }
+    }
+    if (actor_owner(a) && !a->foe && a->direction_clock % 70 == 1) {
+        if (!actor_owner(a)->role) actor_owner_set(a, NULL);
+        else {
+            int r = npc_in_fight(a) ? 2 : 4, ox = actor_init_x(actor_owner(a)), oy = actor_init_y(actor_owner(a));
+            if (abs(ox - cx) > r || abs(oy - cy) > r) actor_command(a, 1, ox, oy, r, 1, 0);
+        }
+    }
+}
+
+// Poq.exe 0x492ed0：CNpc每拍主分派（動態／播放／高度的0x48c050已在主迴圈前置）。
+// 順序：恐懼逃跑 → 命令空且動態可重試 → 重設延遲 → 守衛 → status_aux → 玩家組旗標0x10的跟隨 → 入戰走主AI，否則閒置AI。
+// shortcut: 玩家組旗標0x10且1/200、目標超過321單位時原版呼叫招式物件虛擬函式+0x20（來源沒查到），省略。
+static int npc_dispatch(Actor *a) {
+    if (a->activity_disabled) return 0;
+    int before = a->dynamic_state;
+    if (npc_flee(a)) return 1;
+    if (a->remembered[0] != -1 || !actor_dynamic_retry(a)) return 0;
+    if (a->remember_delay >= 1) { a->remember_delay--; return 0; }
+    if (grp_npc(a->grp) && before == 11 && a->dynamic_state != 11) npc_pick_target(a, 1);
+    if (npc_guard(a) || npc_aux_ai(a)) return 1;
+    if (!grp_npc(a->grp) && actor_flags(a, 0x10)) return 1;
+    if (npc_in_fight(a)) npc_main_ai(a);
+    else npc_idle_ai(a);
+    return 1;
+}
+
+// 陷阱（CTrapBase，種類24）不屬CNpc：觸發系統未移植前沿用範圍索敵加出招。
+static void trap_think(Actor *a) {
     Actor *target = actor_target(a);
-    if (target && actor_flags(target, 0x4000)) actor_clear_target(a);
-    // shortcut: 陷阱的觸發系統尚未移植，仍以技能範圍作明確半徑；完成陷阱系統時移除。
-    const SkillRow *ts = a->mon && a->mon->istrap == 1 ? npc_skill(a->mon->skill[0]) : NULL;
+    if (target && (!alive(target) || actor_flags(target, 0x4000))) { actor_clear_target(a); target = NULL; }
+    const SkillRow *ts = a->mon ? npc_skill(a->mon->skill[0]) : NULL;
     int radius = !actor_seek(a) && ts ? skill_range_max(ts) : -1;
-    Actor *near = actor_target(a) ? NULL : actor_near_begin(a, 0, radius);
+    Actor *near = target ? NULL : actor_near_begin(a, 0, radius);
     if (near) actor_target_set(a, near);
-    if (!pursue(a, s, tick)) npc_think(a, s, tick);
+    pursue(a);
 }
 
 // 畫面上點到哪隻活著的怪物：0x442b10（點的格子周圍 5×5 格、點在方框裡、離方框中心最近）
@@ -5069,29 +5210,6 @@ static void actor_skill_command_tick(Actor *a) {
         if (range > 1 && !line_clear(sx, sy, x, y, range, 3)) range = 2;
         actor_command(a, 1, x, y, range, 0, 0);
     }
-}
-
-// shortcut: 動態11完整尋路尚未移植，技能命令追近先共用既有逐拍行走。
-// 到目的方框才停止，不再由pursue以歐氏距離提早出手；尋路移植時刪除此橋接。
-static int actor_command_walk_tick(Actor *a, const Scene *s, Uint32 tick) {
-    if (a->dynamic_state != 11 || !a->has_target) { a->moving = 0; return 0; }
-    int range = a->dynamic_command[2];
-    int dx = actor_init_x(a) - a->dynamic_destination_x, dy = actor_init_y(a) - a->dynamic_destination_y;
-    if (abs(dx) <= range && abs(dy) <= range) {
-        a->has_target = 0;
-        actor_dynamic_command(a, 1, 0, 0, 0);
-        return 1;
-    }
-    // 反向路徑步進（原版0x4959d0未移植）：走到目前路徑點的格子就換下一點。
-    if (a->dynamic_pending > 0 && a->dynamic_path >= 0 && a->dynamic_path < a->dynamic_pending) {
-        while (a->dynamic_path > 0 && actor_init_x(a) == a->path_buf[a->dynamic_path * 2] &&
-               actor_init_y(a) == a->path_buf[a->dynamic_path * 2 + 1]) a->dynamic_path--;
-        a->tx = a->path_buf[a->dynamic_path * 2] + .5f;
-        a->ty = a->path_buf[a->dynamic_path * 2 + 1] + .5f;
-    }
-    float gx = a->tx - a->x, gy = a->ty - a->y;
-    actor_tick(a, s, (gx - gy) * 32, (gx + gy) * 16, tick);
-    return 1;
 }
 
 static void hero_cast_point(Actor *h, int x, int y) {
@@ -7532,23 +7650,20 @@ int main(int argc, char **argv) {
                 hero->foe = NULL; hero->want = NULL; walk_cx = -1;
                 actor_tick(hero, &scene, mx, my, tick);
             }  // 自己走 = 放棄目標與記住的技能命令。
-            else if (!actor_command_idle(hero)) actor_command_walk_tick(hero, &scene, tick);
+            else if (!actor_command_idle(hero)) { }  // 逐格路徑由actor_motion_tick推進
             else if (walk_cx >= 0 && !hero->foe) {
-                actor_command_walk_tick(hero, &scene, tick);
                 if (hero->dynamic_state != 11) walk_cx = -1;
             }
-            else if (!pursue(hero, &scene, tick)) actor_tick(hero, &scene, 0, 0, tick);
+            else if (!pursue(hero)) actor_tick(hero, &scene, 0, 0, tick);
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
-                if (!a->mon) { if (!react_tick(a, &scene)) {
-                    if (!actor_command_idle(a)) actor_command_walk_tick(a, &scene, tick);
-                    else npc_think(a, &scene, tick);
-                } }
+                if (!a->mon) { if (!react_tick(a, &scene)) npc_dispatch(a); }
                 else if (!a->role) continue;
                 else if (a->act == ACT_DEAD) { action_tick(a, &scene, tick); if (++a->dead_ticks > CORPSE_TICKS) a->role = NULL; }
                 else if (react_tick(a, &scene) && !a->act) a->moving = 0;
                 else if (a->act) action_tick(a, &scene, tick);
-                else monster_think(a, hero, &scene, tick);
+                else if (a->object_kind == 24) trap_think(a);
+                else npc_dispatch(a);
             }
             for (int i = 0; i < actor_count; i++) {
                 actor_near_reactions(&actors[i]);

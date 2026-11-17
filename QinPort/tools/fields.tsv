@@ -893,3 +893,7 @@ CNpc	+0x5ee	閒置拍（NPC組50000以上，每80拍重新靜止）	Actor.npc_id
 RoleMdl	+0x110	欄26（性格）第4值，求援除數；缺項65535	RoleDef.help
 RoleMdl	+0x118	欄27（程序）第2值	RoleDef.prog_extra[0]
 RoleMdl	+0x11c	欄27第3值；1時選目標優先取有狀態0x79者	RoleDef.prog_extra[1]
+CNpc	+0x20	SInitCha閒置計時，>0每拍減1；休息值4設10000	Actor.npc_timer
+SInitChaFollow	+0x78	執行期跟隨目標句柄（與矩形X聯集）	Actor.follow_id
+SInitChaFollow	+0x80／+0x84	跟隨模式（0走1跑）／保持距離	NpcSpec.rw／rh（ONT鍵沿用矩形鍵，shortcut）
+CDynamicObj	+0x3f5／+0x3f6	（同上）步進等待byte／阻擋重試byte	Actor.walk_wait／walk_block

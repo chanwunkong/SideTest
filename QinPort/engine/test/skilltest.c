@@ -184,7 +184,7 @@ static void character_skill_commands_test(void) {
     assert(a->remembered[0]==-1); unit_n=0;
     // 一般追打也只排隊，下一拍才用共用消費端出手；模板招式無SkillRow也可收尾。
     *a=base; t->x=9.5f; a->foe=t;
-    assert(pursue(a,&sc,1000) && a->command[0]==9 && !unit_n);
+    assert(pursue(a) && a->command[0]==9 && !unit_n);
     actor_skill_command_tick(a);
     assert(unit_n==1 && actor_command_idle(a) && units[0].target==t);
     action_tick(a,&sc,1000); assert(a->act==ACT_NONE && !a->casting);
@@ -1140,12 +1140,10 @@ static void character_knock_test(void) {
     a.state[101]=1; assert(!actor_knock_command(&a,7,2,20)); a.state[101]=0;
     a.knock=1; assert(!actor_knock_command(&a,7,2,20)); a.knock=0;
     // 保留返回目的地的counter分支；沒有counter時不建立新的行走目標。
-    assert(!a.has_target);
     assert(actor_knock_command(&a,7,0,20));
     a.dynamic_counter=1; a.dynamic_destination_x=8; a.dynamic_destination_y=7;
     actor_knock_tick(&a);
-    assert(a.dynamic_state==1 && !a.dynamic_counter && a.has_target);
-    assert(a.tx==8.5f && a.ty==7.5f);
+    assert(!a.dynamic_counter && a.dynamic_command[0]==8 && a.dynamic_command[1]==7); // 送回動態11的快取目的地
     // 穿不過不可走的格子，插值／世界位置都留在原處。
     cells[36].actor=NULL; cells[36].walk=0;
     assert(actor_knock_command(&a,7,3,20));
@@ -1263,15 +1261,25 @@ static void character_walk_destination_test(void) {
     a=(Actor){.role=&empty_test_role, .def=&model, .layer=1, .speed=5,
         .grid_valid=1, .grid_x=1, .grid_y=1, .x=1.5f, .y=1.5f, .dynamic_state=1};
     actor_dynamic_command(&a, 11, 6, 1, 0);
-    assert(a.dynamic_state==11 && a.has_target && a.tx==5.5f && a.ty==1.5f);
+    assert(a.dynamic_state==11 && a.path_walk && a.dynamic_destination_x==5 && a.dynamic_destination_y==1);
     a.grid_x=5; a.x=5.5f;
-    assert(actor_command_walk_tick(&a, &scene, 0));
-    assert(a.dynamic_state==1 && !a.has_target); // 停在校正格，不再追原先被占用的6,1。
+    a.dynamic_active=1; a.dynamic_new_path=0;
+    actor_walk_step(&a);
+    assert(a.dynamic_state==1 && !a.path_walk); // 停在校正格，不再追原先被占用的6,1。
     a.grid_x=1; a.x=1.5f;
     actor_dynamic_command(&a, 1, 1, 0, 0);
     cells[12].actor=&target;
     actor_dynamic_command(&a, 11, 2, 1, 0);
     assert(a.dynamic_state==1 && !a.dynamic_path_result);
+    // 逐格步進（0x4959d0）：空地走到(5,1)，路徑逐格推進、到達後退回靜止。
+    for (int i=0; i<100; ++i) cells[i] = (Cell){.walk=1, .layer=1};
+    a.grid_x=1; a.grid_y=1; a.x=1.5f; a.y=1.5f; a.dynamic_state=1; a.dynamic_active=1; a.interpolation_left=0;
+    a.dynamic_path_result=1; a.dynamic_enter_tick=-1000;
+    cells[11].actor=&a;
+    actor_dynamic_command(&a, 11, 5, 1, 0);
+    assert(a.dynamic_state==11 && a.path_walk && a.dynamic_path==3);
+    for (int i=0; i<4000 && a.dynamic_state==11; ++i) { ++a.direction_clock; actor_walk_step(&a); }
+    assert(a.dynamic_state==1 && a.grid_x==5 && a.grid_y==1 && !a.path_walk);
     unit_scene=saved_scene; actor_count=saved_count;
 }
 
@@ -2641,7 +2649,7 @@ static void character_target_display_test(void) {
     actors[0].flags = 0x10;
     assert(!actor_target(&a) && a.foe == &actors[0]);
     Scene sc = {0};
-    assert(!pursue(&a, &sc, 0) && a.foe == &actors[0]);
+    assert(!pursue(&a) && a.foe == &actors[0]);
     actors[0].flags = 0;
     assert(actor_target(&a) == &actors[0]); // 移除旗標即可重現，不需重設目標。
     MonDef trap = {.istrap = 1};
@@ -3960,6 +3968,16 @@ static void npc_ai_test(void) {
     a.skill_n = 0;
     // 台詞區間缺項不抽。
     npc_chat(&a);
+    // 閒置AI（0x492730）：路徑巡邏依序取點並循環；停止(休息4)只設超長計時；矩形閒逛夾在框內。
+    NpcSpec sp = {.logic = 2, .path_n = 2, .path = {{7, 8}, {9, 10}}};
+    a.spec = &sp; a.def = &d; a.direction_clock = 5; a.role = NULL;
+    a.speed = 0; a.dynamic_state = 1; a.command[0] = -1;
+    npc_idle_ai(&a);
+    assert(a.path_i == 1 && a.npc_timer == 0);
+    npc_idle_ai(&a);
+    assert(a.path_i == 0);
+    sp.logic = 1; sp.rest = 4; npc_idle_ai(&a);
+    assert(a.npc_timer == 10000);
     unit_scene = saved_scene; actor_count = saved_count;
 }
 

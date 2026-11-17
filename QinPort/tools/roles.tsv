@@ -785,7 +785,7 @@
 004c9050	移速工具：速度夾限0..59後輸出A/B與可選C，以C靜態陣列及speed_index承接
 
 00490d10	NPC隨機台詞：有戰鬥用欄40前兩值（70拍）、平時用後兩值（50拍），槽0空且rand%255==100才抽Chat.dlg → main.c npc_chat
-00490e70	NPC每10拍同隨機台詞，回傳恆1 → main.c npc_chat_tick；待主AI 0x492730
+00490e70	NPC每10拍同隨機台詞，回傳恆1 → main.c npc_chat_tick；原版由虛擬表第28格呼叫，來源未查，仍待接入
 004b8190	Chat.Dlg字串取值後保存在管理器暫存；以現有res_dlg及呼叫者緩衝區承接字串資源工具，不複製CString管理器
 0048d330	actor_method_bound／attack_speed：main_new綁定時裝冷卻，unit_die解除時清每幀調整但保留冷卻；刪action_tick結束擲間隔。NPC組按float倍率、其他組rand()%模板間隔（1仍消耗亂數）、單機NPC種類60只用補拍；byte345非0延遲+2；trail_mode1綁定第6修正1/-1，解除時time<21才改1/20；補拍統一Actor.extra不再另存behavior_aux；間隔0明示shortcut避免mod0
 00496ac0	寫動態移動嘗試結果+0x3f1；總表無呼叫者，依規則skip，不新增無遊戲呼叫端setter
@@ -846,8 +846,8 @@
 00493ad0	actor_walk_fallback：動態11目的地回掃第一合法層空格；Chebyshev距離<2直接失敗，抵達自身占格則以原目的地找六圈；已接actor_walk_destination；反編譯遺失Y軸累加器按對稱整數DDA承接，待組語核對
 004973b0	CDynamicObj尋路（虛擬格20）：目的格暫蓋自身ID後XPS尋路，讀最多250筆反向byte路徑（[0]=終點、[count-1]=起點），index=count-2；index0要求終點對得上；→ main.c actor_path_build（BFS代XPS）
 00493930	todo：由起點朝終點逐格找第一個合法層且無角色格，抵達終點回0；動態尋路基礎回溯工具，尚未接入
-004911b0	CNpc主AI（有技能鏈的戰鬥一拍）：重選目標、出生格／追擊界限、攻擊間隔、選招、太近退步、到間隔出手 → main.c npc_main_ai；尚未取代monster_think／pursue（等主迴圈0x492ed0接入）
-004959d0	todo：動態11反向byte路徑步進，活動時先更新速度、等待byte先扣早退；新路徑跳過距離／索引重尋檢查；首點同組讓路請求、選方向／可反播與提前占下一格；占格遇同組移動最多3次rand()%30+33等待，size>2失敗停移，其他重尋；插值只在direction_clock%move_b==0推進；屬同類別／引擎基礎未完成
+004911b0	CNpc主AI（有技能鏈的戰鬥一拍）：重選目標、出生格／追擊界限、攻擊間隔、選招、太近退步、到間隔出手 → main.c npc_main_ai；由npc_dispatch（0x492ed0）呼叫
+004959d0	動態11沿反向byte路徑逐格步進：活動先更新速度、等待byte早退；新路徑略過距離／索引重尋；首點同組占住送讓路請求並跳一點；方向差1且下一點同向可一次占兩格、差4戰鬥中朝目標倒退走；占格遇同組移動最多3次等rand()%30+33，大小>2失敗停移，其他重尋；插值只在direction_clock%move_b==0推進 → main.c actor_walk_step（接actor_motion_tick，取代舊actor_command_walk_tick）
 00574e10	部件群首個精靈指標getter；由Role.body[0]直接取得，actor_sequence接方向維護
 00579dd0	原版空函數：NPC敵對入戰／全域選人提示呼叫無任何副作用，不等待CGameApp
 0053b0b0	todo：隊伍介面依狀態分類更新每人8槽圖示、排序及前兩圖顯示；等待隊伍介面類別，不屬角色狀態邏輯
@@ -868,3 +868,6 @@
 00493080	程序0x28守衛：記出生格、近了回出生格、中距出技能、遠了追 → main.c npc_guard
 00493320	NPC找最近人或主角當目標並入戰 → main.c npc_aggro_nearest
 00491d00	NPC status_aux(+0x579)狀態機：>2追打（150～249拍續）、2找目標試出手、1走回修正目的格 → main.c npc_aux_ai
+
+00492730	CNpc閒置AI：每100拍選目標、60拍找互動對象、被互動面向對方、邏輯0站著播兩初始態／1矩形閒逛／2路徑巡邏／3跟隨／其他走回修正格、有主人每70拍走回身邊 → main.c npc_idle_ai
+00492ed0	CNpc每拍主分派：恐懼逃跑→命令空且可重試→重設延遲→守衛→status_aux→玩家組旗標0x10→入戰主AI／閒置AI → main.c npc_dispatch（取代舊monster_think／npc_think，主迴圈直接呼叫）
