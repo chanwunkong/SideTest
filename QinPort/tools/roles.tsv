@@ -998,3 +998,4 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 0055a680	CTradeDialog 顯示掛鉤：非遊戲暫停時送 0x532570(1)（暫停世界）；引擎開視窗不暫停（HANDOFF 待查）
 00563360	CTeamDialog 頁籤刷新（12 格一頁）；連線組隊，待確認後 skip
 00563ea0	CShortcutSkillDialog 選技能：呼叫 0x507180 設當前手技能並關窗；引擎 hand skill 選擇已做，待標位址
+00528d10	客戶端封包：開場景名橫幅（CSceneNameDialog 0x564a20）；等場景名橫幅系統

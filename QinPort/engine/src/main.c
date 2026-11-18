@@ -4778,47 +4778,6 @@ static void actor_overhead_draw(Actor *a, int sx, int sy) {
     }
 }
 
-#ifdef STORY
-// ---- 對話（劇情來自原版 EasyRPG.dll，見 story/）：畫面下方的框，說話者、台詞、回答選項 ----
-static int dialog_open;
-static int opt_y0[STORY_MAX_OPTIONS], opt_y1[STORY_MAX_OPTIONS];
-
-// shortcut: 原版對話框的介面圖（ResUI）還沒做，先畫半透明的框
-static void dialog_draw(void) {
-    if (!dialog_open) return;
-    const StoryDialog *d = &story_dialog;
-    int x = 10, w = vw - 20, tw = w - 20;
-    int h = 10 + 18 + draw_text(0, 0, d->text, tw, 0, 0) + 10;
-    for (int i = 0; i < d->option_count; i++) h += draw_text(0, 0, d->options[i].text, tw - 20, 0, 0) + 6;
-    int y = vh - h - 10;
-    SDL_Rect box = {x, y, w, h};
-    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(ren, 0, 0, 0, 200);
-    SDL_RenderFillRect(ren, &box);
-    SDL_SetRenderDrawColor(ren, 160, 130, 80, 255);
-    SDL_RenderDrawRect(ren, &box);
-    int cy = y + 10;
-    cy += draw_text(x + 10, cy, d->speaker, tw, 0xF0D080, 1);
-    cy += draw_text(x + 10, cy, d->text, tw, 0xFFFFFF, 1) + 4;
-    for (int i = 0; i < d->option_count; i++) {
-        opt_y0[i] = cy - 3;
-        cy += draw_text(x + 30, cy, d->options[i].text, tw - 20, 0x80E0FF, 1) + 6;
-        opt_y1[i] = cy - 3;
-        draw_text(x + 10, opt_y0[i] + 3, "\xe2\x96\xb6", 20, 0x80E0FF, 1);  // ▶
-    }
-}
-
-// 對話中點畫面：點到選項就選；沒有選項時點哪裡都關掉
-static void dialog_tap(int py) {
-    for (int i = 0; i < story_dialog.option_count; i++)
-        if (py >= opt_y0[i] && py < opt_y1[i]) {
-            story_choose(i);
-            if (!story_dialog.text[0] && !story_dialog.option_count) dialog_open = 0;
-            return;
-        }
-    if (!story_dialog.option_count) dialog_open = 0;
-}
-#endif
 
 
 // ---- 原版介面：ini/DialogInfo.ini 每個 [介面] 一段；每個元件「名稱=種類,x,y,寬,高,旗標,ID,提示,圖,…」----
@@ -4891,6 +4850,65 @@ static void ui_draw(UiDialog *d, int ox, int oy) {
         draw(ui_image(c->img, 0), ox + c->x, oy + c->y);
     }
 }
+
+static int dialog_open;  // 劇情對話開著：原版 0x565330 把主列、隊伍、小地圖都藏起來，關了再顯示
+
+// 對話視窗 JM108（Poq.exe CChooseDialog）：0x5655a0 畫說話者（[0名字]）與台詞、0x5650a0 每幀顯示／隱藏、0x5651f0 關閉（對話結束）、0x565b90 設台詞（story_dialog.text）、
+// 0x565c10 設旗標、0x565c50 關閉並讓 HUD 回來、0x565c70 收到說話者與台詞並開窗（story_talk 後 dialog_open = 1）、0x564bf0 取消鈕＝關。
+// 高度：底圖 342 固定 600×150，說話者 m_Title (27,7)、
+// 台詞 m_Text (28,26) 寬 439 高 72、「Choose：」m_Title2 (27,100)；台詞或選項放不下時往上加高（shortcut: 原版用捲軸，這裡直接長高）
+static int choose_height(int text_h, int opt_h) {
+    int h = 26 + (text_h > 72 ? text_h : 72) + 8;
+    if (opt_h > 0) h += 16 + opt_h + 4;
+    return h > 150 ? h : 150;
+}
+
+#ifdef STORY
+static int opt_y0[STORY_MAX_OPTIONS], opt_y1[STORY_MAX_OPTIONS];
+static UiDialog choose_ui;
+static int choose_loaded;
+
+// 對話：JM108 擺在畫面底部置中（原版 0x565330 擺位 mode 2），上方空出主列位置（HUD 這時是藏起來的）
+static void dialog_draw(void) {
+    if (!dialog_open) return;
+    if (!choose_loaded) choose_loaded = ui_load("JM108_\xb6\xd4\xbb\xb0\xd1\xa1\xd4\xf1\xbd\xe7\xc3\xe6", &choose_ui) ? 1 : -1;
+    const StoryDialog *d = &story_dialog;
+    int w = choose_ui.w ? choose_ui.w : 600, tw = 439, ow = w - 60;
+    int th = d->text[0] ? draw_text(0, 0, d->text, tw, 0, 0) : 0, oh = 0;
+    for (int i = 0; i < d->option_count; i++) oh += draw_text(0, 0, d->options[i].text, ow, 0, 0) + 4;
+    int h = choose_height(th, oh);
+    int x = (vw - w) / 2, y = vh - h - 4;
+    if (choose_loaded > 0) {
+        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, 200);
+        SDL_Rect up = {x, y, w, h - 150};
+        SDL_RenderFillRect(ren, &up);
+        ui_draw(&choose_ui, x, y + h - 150);
+    }
+    int by = y + h - 150;
+    draw_text(x + 27, y + (h - 150) + 7, d->speaker, 400, 0xFFFF00, 1);
+    draw_text(x + 28, by + 26, d->text, tw, 0xBECDCE, 1);
+    int cy = by + 26 + (th > 72 ? th : 72) + 8;
+    if (d->option_count) { draw_text(x + 27, cy, "Choose\xef\xbc\x9a", 200, 0xFFFF00, 1); cy += 16; }
+    for (int i = 0; i < d->option_count; i++) {
+        opt_y0[i] = cy;
+        cy += draw_text(x + 40, cy, d->options[i].text, ow, 0x80E0FF, 1) + 4;
+        opt_y1[i] = cy;
+        draw_text(x + 27, opt_y0[i], "\xe2\x96\xb6", 20, 0x80E0FF, 1);  // ▶
+    }
+}
+
+// 對話中點畫面：點到選項就選（0x565c20 選項回應）；沒有選項時點哪裡都關掉（0x564bb0 單機確定鈕直接關閉）
+static void dialog_tap(int py) {
+    for (int i = 0; i < story_dialog.option_count; i++)
+        if (py >= opt_y0[i] && py < opt_y1[i]) {
+            story_choose(i);
+            if (!story_dialog.text[0] && !story_dialog.option_count) dialog_open = 0;
+            return;
+        }
+    if (!story_dialog.option_count) dialog_open = 0;
+}
+#endif
 
 // 主畫面介面，位置照原版（Poq.exe 0x5d3xxx 建立介面那段）：
 // 底部主列 JM51_状态界面_中间 = 底部置中；隊伍面板 JM51_状态界面_主控 = 右緣、貼在主列上方
@@ -6535,6 +6553,8 @@ typedef struct {
     int dir, level, exp, hp, mp, attr[6], extra_exp, extra_skill, money, prof, cur_skill[2], skill_lv[20];
 } SaveHero;
 static UiDialog sys_d, sav_d, ask_d, quit_d;
+static UiDialog diff_d;  // JM21 難度選擇（CDiffcultyDialog 0x566ec0；0x570820 新遊戲時開窗、0x566f80 選定存難度並關窗）
+static int diff_open;
 static int sys_open, sav_mode, sav_page, sav_sel = -1, ask_open, quit_open;  // sav_mode：1 保存、2 读取
 static SaveHead *sav_head[SAVE_SLOTS];   // 開視窗時讀的各格檔頭，NULL = 空格
 static SDL_Texture *sav_tex[6];          // 這一頁的縮圖
@@ -6737,6 +6757,15 @@ static int ask_button(int x, int y) {  // 1 是、2 否、0 沒點到
 
 // 系統選單、存取盘、確認框是蓋在畫面上的（點哪裡都吃掉）
 static int sys_tap(int x, int y) {
+    if (diff_open) {  // 新遊戲開場先選難度：m_pEasy 410 = 1、m_pNormal 411 = 2、m_pHard 412 = 3（shortcut: 按鈕代碼對應值沒在 Poq 查到，照 0x1039b000 的 1 容易、2 普通、3 困難）
+        const Sprite *bg = ui_image(196, 0);
+        const UiCtrl *c = ui_button_at(&diff_d, (vw - (bg ? bg->w : 0)) / 2, (vh - (bg ? bg->h : 0)) / 2, x, y);
+        if (c && !strcmp(c->name, "m_pEasy")) difficulty = 1;
+        else if (c && !strcmp(c->name, "m_pNormal")) difficulty = 2;
+        else if (c && !strcmp(c->name, "m_pHard")) difficulty = 3;
+        if (c) diff_open = 0;
+        return 1;
+    }
     if (quit_open) {
         const UiCtrl *c = ui_button_at(&quit_d, (vw - quit_d.w) / 2, (vh - quit_d.h) / 2, x, y);
         if (c && !strcmp(c->name, "m_Yes")) quit_due = 1;
@@ -6851,6 +6880,11 @@ static void sys_draw(void) {
         }
     }
     if (quit_open) ui_draw(&quit_d, (vw - quit_d.w) / 2, (vh - quit_d.h) / 2);
+    if (diff_open) {
+        if (!diff_d.count) ui_load("JM21_\xc4\xd1\xb6\xc8\xd1\xa1\xd4\xf1\xbd\xe7\xc3\xe6", &diff_d);
+        const Sprite *bg = ui_image(196, 0);
+        ui_draw(&diff_d, (vw - (bg ? bg->w : 0)) / 2, (vh - (bg ? bg->h : 0)) / 2);
+    }
 }
 
 // 多行文字框（種類 3）的捲軸：ini 第 10~13 欄是軌道、上箭頭、下箭頭、滑塊的圖。字超過框高才有捲軸。
@@ -7164,6 +7198,7 @@ static void hud_draw(Actor *hero) {
         ui_load("JM51_\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6_\xd6\xf7\xbf\xd8", &party);    // JM51_状态界面_主控
         ui_load("JM515_\xb5\xd0\xc8\xcb\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6", &enemy);    // JM515_敌人状态界面
     }
+    if (dialog_open) return;  // 0x565330：對話開著 HUD 全藏
     // 敵人狀態：上方置中、距頂 20（原版位置）
     Actor *t = status_target(hero, hover_actor, hover_mouse);
     if (enemy.count && t) {
@@ -7720,7 +7755,7 @@ int main(int argc, char **argv) {
     save_mount();
 #ifdef STORY
     story_register_all();
-    if (pos < 2 && story_start_room()) scn = story_start_room();  // 沒指定場景 = 新遊戲，從原版的開場房間開始
+    if (pos < 2 && story_start_room()) { scn = story_start_room(); diff_open = 1; }  // 沒指定場景 = 新遊戲，從原版的開場房間開始，先選難度
 #endif
 
     js_status(-1);

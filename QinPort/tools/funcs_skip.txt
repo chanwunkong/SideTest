@@ -2082,3 +2082,152 @@ CDeadDialog|CMessagePipeDialog|CExchangeDialog|CPlayerDialog  連線版介面：
 0050b090  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
 0050b120  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
 0056dc90  memcpy_s 安全拷貝（執行庫等價）：C 的 memcpy 取代
+00502250  CLoadingDialog／CGameInfoDialog 殼：載入視窗轉接、清除、取封包欄位、視窗開關旗標；無遊戲規則
+005022f0  CLoadingDialog／CGameInfoDialog 殼：載入視窗轉接、清除、取封包欄位、視窗開關旗標；無遊戲規則
+00502340  CLoadingDialog／CGameInfoDialog 殼：載入視窗轉接、清除、取封包欄位、視窗開關旗標；無遊戲規則
+00502370  CLoadingDialog／CGameInfoDialog 殼：載入視窗轉接、清除、取封包欄位、視窗開關旗標；無遊戲規則
+005026c0  CLoadingDialog／CGameInfoDialog 殼：載入視窗轉接、清除、取封包欄位、視窗開關旗標；無遊戲規則
+00502780  CLoadingDialog／CGameInfoDialog 殼：載入視窗轉接、清除、取封包欄位、視窗開關旗標；無遊戲規則
+005027e0  CLoadingDialog／CGameInfoDialog 殼：載入視窗轉接、清除、取封包欄位、視窗開關旗標；無遊戲規則
+00502840  CLoadingDialog／CGameInfoDialog 殼：載入視窗轉接、清除、取封包欄位、視窗開關旗標；無遊戲規則
+005029c0  CLoadingDialog／CGameInfoDialog 殼：載入視窗轉接、清除、取封包欄位、視窗開關旗標；無遊戲規則
+00502a70  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00503c50  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00505b30  CStatusDialogA（狀態列）殼：開關、擺位排版、取控制項、隊伍索引；引擎 hud_draw 自己排
+00505b70  CStatusDialogA（狀態列）殼：開關、擺位排版、取控制項、隊伍索引；引擎 hud_draw 自己排
+00505bc0  CStatusDialogA（狀態列）殼：開關、擺位排版、取控制項、隊伍索引；引擎 hud_draw 自己排
+005060a0  CStatusDialogA（狀態列）殼：開關、擺位排版、取控制項、隊伍索引；引擎 hud_draw 自己排
+00506340  CStatusDialogA（狀態列）殼：開關、擺位排版、取控制項、隊伍索引；引擎 hud_draw 自己排
+00506d20  CStatusDialogA（狀態列）殼：開關、擺位排版、取控制項、隊伍索引；引擎 hud_draw 自己排
+00506ec0  CStatusDialogA（狀態列）殼：開關、擺位排版、取控制項、隊伍索引；引擎 hud_draw 自己排
+00509600  客戶端顯示資料表／提示文字／字串清單合併：規則在 main.c 的 item／hero 計算，引擎文字另組
+0050a140  客戶端顯示資料表／提示文字／字串清單合併：規則在 main.c 的 item／hero 計算，引擎文字另組
+0050a940  客戶端顯示資料表／提示文字／字串清單合併：規則在 main.c 的 item／hero 計算，引擎文字另組
+0050b0c0  CDMList／連結串列容器節點操作：引擎用陣列（base_map）
+0050b0e0  CDMList／連結串列容器節點操作：引擎用陣列（base_map）
+0050b170  客戶端顯示資料表／提示文字／字串清單合併：規則在 main.c 的 item／hero 計算，引擎文字另組
+0050b1b0  位元集合讀寫（1<<(n%7)，每位元組 7 位）：客戶端工具，引擎的旗標用 int 陣列
+0050b200  CDMList／連結串列容器節點操作：引擎用陣列（base_map）
+0050b220  客戶端顯示資料表／提示文字／字串清單合併：規則在 main.c 的 item／hero 計算，引擎文字另組
+0050b360  客戶端顯示資料表／提示文字／字串清單合併：規則在 main.c 的 item／hero 計算，引擎文字另組
+0050bcb0  客戶端顯示資料表／提示文字／字串清單合併：規則在 main.c 的 item／hero 計算，引擎文字另組
+0050bd60  CDMList／連結串列容器節點操作：引擎用陣列（base_map）
+0050be20  CDMList／連結串列容器節點操作：引擎用陣列（base_map）
+0050bea0  CDMList／連結串列容器節點操作：引擎用陣列（base_map）
+0050bef0  CDMList／連結串列容器節點操作：引擎用陣列（base_map）
+0050bf50  CDMList／連結串列容器節點操作：引擎用陣列（base_map）
+0050c340  位元集合讀寫（1<<(n%7)，每位元組 7 位）：客戶端工具，引擎的旗標用 int 陣列
+00510310  客戶端顯示資料表／提示文字／字串清單合併：規則在 main.c 的 item／hero 計算，引擎文字另組
+005159d0  客戶端封包處理（解字串參數後呼叫視窗開關／顯示）：引擎直接呼叫規則，沒有封包層
+00518c40  客戶端封包處理（解字串參數後呼叫視窗開關／顯示）：引擎直接呼叫規則，沒有封包層
+005197f0  客戶端封包處理（解字串參數後呼叫視窗開關／顯示）：引擎直接呼叫規則，沒有封包層
+0051b7d0  客戶端封包處理（解字串參數後呼叫視窗開關／顯示）：引擎直接呼叫規則，沒有封包層
+0051bf20  客戶端封包處理（解字串參數後呼叫視窗開關／顯示）：引擎直接呼叫規則，沒有封包層
+0051c040  客戶端封包處理（解字串參數後呼叫視窗開關／顯示）：引擎直接呼叫規則，沒有封包層
+0051c110  客戶端封包處理（解字串參數後呼叫視窗開關／顯示）：引擎直接呼叫規則，沒有封包層
+0051d270  客戶端封包處理（解字串參數後呼叫視窗開關／顯示）：引擎直接呼叫規則，沒有封包層
+0051d5a0  客戶端封包處理（解字串參數後呼叫視窗開關／顯示）：引擎直接呼叫規則，沒有封包層
+0051de90  客戶端封包處理（解字串參數後呼叫視窗開關／顯示）：引擎直接呼叫規則，沒有封包層
+00520870  封包內容取出（取 int 陣列／字串）：客戶端轉接，引擎直接呼叫規則
+005208c0  封包內容取出（取 int 陣列／字串）：客戶端轉接，引擎直接呼叫規則
+00520a80  封包內容取出（取 int 陣列／字串）：客戶端轉接，引擎直接呼叫規則
+00520ad0  封包內容取出（取 int 陣列／字串）：客戶端轉接，引擎直接呼叫規則
+00520ce0  CGameDialog 基底殼：視窗旗標位置設定、顯示／隱藏、封包欄位取出、清單釋放；引擎 JM 視窗取代
+00520d90  CGameDialog 基底殼：視窗旗標位置設定、顯示／隱藏、封包欄位取出、清單釋放；引擎 JM 視窗取代
+00520db0  CGameDialog 基底殼：視窗旗標位置設定、顯示／隱藏、封包欄位取出、清單釋放；引擎 JM 視窗取代
+00520e20  CGameDialog 基底殼：視窗旗標位置設定、顯示／隱藏、封包欄位取出、清單釋放；引擎 JM 視窗取代
+00520f60  CGameDialog 基底殼：視窗旗標位置設定、顯示／隱藏、封包欄位取出、清單釋放；引擎 JM 視窗取代
+005210b0  CGameDialog 基底殼：視窗旗標位置設定、顯示／隱藏、封包欄位取出、清單釋放；引擎 JM 視窗取代
+00521200  CGameDialog 基底殼：視窗旗標位置設定、顯示／隱藏、封包欄位取出、清單釋放；引擎 JM 視窗取代
+005212f0  CGameDialog 基底殼：視窗旗標位置設定、顯示／隱藏、封包欄位取出、清單釋放；引擎 JM 視窗取代
+00526a20  客戶端封包分派（切分空格參數後轉呼叫視窗函式）：引擎直接呼叫規則
+00527110  客戶端封包分派（切分空格參數後轉呼叫視窗函式）：引擎直接呼叫規則
+005271e0  客戶端封包分派（切分空格參數後轉呼叫視窗函式）：引擎直接呼叫規則
+005292c0  客戶端封包分派（切分空格參數後轉呼叫視窗函式）：引擎直接呼叫規則
+0052a080  客戶端封包分派（切分空格參數後轉呼叫視窗函式）：引擎直接呼叫規則
+0052c200  客戶端封包分派（切分空格參數後轉呼叫視窗函式）：引擎直接呼叫規則
+0052c880  客戶端封包分派（切分空格參數後轉呼叫視窗函式）：引擎直接呼叫規則
+0052ca10  客戶端封包分派（切分空格參數後轉呼叫視窗函式）：引擎直接呼叫規則
+005322e0  單機／連線版共用轉接（檢查 DAT 旗標後送封包）：單機直接設 hero
+00532300  單機／連線版共用轉接（檢查 DAT 旗標後送封包）：單機直接設 hero
+00532430  單機／連線版共用轉接（檢查 DAT 旗標後送封包）：單機直接設 hero
+00532660  單機／連線版共用轉接（檢查 DAT 旗標後送封包）：單機直接設 hero
+005326e0  單機／連線版共用轉接（檢查 DAT 旗標後送封包）：單機直接設 hero
+00532720  單機／連線版共用轉接（檢查 DAT 旗標後送封包）：單機直接設 hero
+00532770  單機／連線版共用轉接（檢查 DAT 旗標後送封包）：單機直接設 hero
+005327e0  單機／連線版共用轉接（檢查 DAT 旗標後送封包）：單機直接設 hero
+00532950  單機／連線版共用轉接（檢查 DAT 旗標後送封包）：單機直接設 hero
+00533180  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00533710  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00533ed0  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00533fc0  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00534190  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+005341f0  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00534220  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00534270  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+005342c0  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00534350  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+005343a0  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00534700  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+005347c0  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00534880  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00534940  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+00534a00  CMainDialog／CStartDialog 版面與切換殼（擺位、啟用按鈕、閃幀）：引擎自己排
+005351c0  CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則
+005351f0  CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則
+00535250  CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則
+00535300  CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則
+00537800  CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則
+00539270  CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則
+005392b0  CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則
+00539a70  CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則
+00539b20  CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則
+00539d00  CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則
+0053a3c0  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053c120  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053c3f0  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053e4d0  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053e7e0  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053e8c0  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053e980  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053ea60  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053eb30  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053ed50  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053eea0  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053f930  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053fce0  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+0053ff60  CMainControlDialog／系統選單開窗殼（取控制項、開 JM 視窗、擺位）：引擎已有 JM50 等
+005439c0  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+005450e0  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00545570  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00545600  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00545710  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+005463a0  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00546560  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00546640  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+005466d0  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00546a50  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00548330  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+005483f0  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+005484a0  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00548550  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+005487a0  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+005487f0  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00548880  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+0054af70  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+0054c710  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+0054c960  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+0054cbb0  CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則
+00565250  CChooseDialog 文字暫存圖（離屏貼圖）：SDL 每幀直接畫文字，不需要
+00565a40  CChooseDialog 重繪文字暫存（髒矩形）：SDL 每幀整個重畫，不需要
+00517130  客戶端文字協定（聊天類型 0~7 分派到對話／任務視窗）：引擎 story_dialog 欄位直接設，沒有封包層
+00528980  客戶端文字協定（@CLEAR/@ALIAS/@NAME/@REPLY/@ASK/@CHS/@CLOSE/@NONE 指令）：引擎劇情直接填 story_dialog（說話者、台詞、選項），沒有字串層
+0052eca0  去掉對話指令字首（第一個空格前）的字串工具：引擎沒有指令字串
+00515e70  客戶端對話封包（代號 + 名字 → 0x565e20 設說話者）：引擎直接設 story_dialog.speaker
+00527020  同 0x515e70 的另一個封包入口（解空格參數）
+00516060  客戶端交易／商店封包分派（0x55d… 買賣視窗的刷新）：引擎 shop_* 直接用規則
+00527300  同 0x516060 的另一個封包入口（解空格參數）
+005162d0  客戶端商店封包（開窗 + 文字）：引擎 shop_open 直接開
+005275b0  同 0x5162d0 的另一個封包入口（解空格參數）
+00527510  客戶端封包：設商店頁籤旗標後重畫；引擎 shop 頁籤直接改欄位
+00537800  CMainDialog 訊息轉接：0x103 按鍵就轉 0x532430 送封包；單機 click_cmd 直接處理

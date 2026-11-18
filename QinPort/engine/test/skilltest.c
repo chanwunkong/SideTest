@@ -4115,6 +4115,15 @@ static void npc_ai_test(void) {
     unit_scene = saved_scene; actor_count = saved_count;
 }
 
+// 對話視窗 JM108 高度：底圖 150 起跳，台詞／選項放不下就加高；difficulty 預設普通
+static void choose_height_test(void) {
+    assert(choose_height(30, 0) == 150);
+    assert(choose_height(72, 0) == 150);
+    assert(choose_height(130, 0) == 26 + 130 + 8);
+    assert(choose_height(72, 60) == 26 + 72 + 8 + 16 + 60 + 4);
+    assert(difficulty == 2);
+}
+
 static void make_ready_test(void) {
     // 0x541650／0x5417d0：材料放齊 = 放的件數等於配方件數總和且不為 0
     Recipe r = {0};
@@ -4134,6 +4143,7 @@ int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
     make_ready_test();
+    choose_height_test();
     character_draw_branches_test();
     character_remove_test();
     part_dead_test();
