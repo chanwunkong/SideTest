@@ -2476,48 +2476,120 @@ static int actor_walk_fallback(const Actor *a, int *x, int *y, int end_x, int en
     }
 }
 
+// Poq.exe 0x4d0610（插入 0x4d0700）：堆上浮（1 起算位置 pos；f = g + h）。
+static void sift_up(int *heap, int *hp, const int *g, const int *hh, int pos) {
+    while (pos > 1) {
+        int up = pos >> 1, a = heap[up - 1], b = heap[pos - 1];
+        if (g[a] + hh[a] <= g[b] + hh[b]) return;
+        heap[up - 1] = b; heap[pos - 1] = a; hp[b] = up; hp[a] = pos; pos = up;
+    }
+}
+// XPS_Control（0x4d0b10 展開／0x4d0890 估價／0x4d0af0 終點判斷）用的格子狀態（0x4c7eb0）：
+// 1 空、2 同組角色（可穿，加權）、3 擋住。目的格原版暫蓋自身ID，所以 occ 在目的格 = 自己。
+typedef struct { const Actor *a; int dx, dy; } XpsCtl;
+static const Actor *xps_occ(const XpsCtl *c, int x, int y) {
+    return x == c->dx && y == c->dy ? c->a : cell_occupant(x, y);
+}
+static int xps_state(const XpsCtl *c, int x, int y) {
+    const Cell *cell = cell_at(x, y);
+    if (!cell || !cell_pass(cell, c->a->layer)) return 3;
+    const Actor *o = xps_occ(c, x, y);
+    if (!o) return 1;
+    // shortcut: 自己一律算同組（object_kind 許多角色還沒設，建立入口補齊後可移除 o == a）。
+    return o == c->a || (o->object_kind >= 0x1e && o->object_kind <= 0x64 && o->grp == c->a->grp) ? 2 : 3;
+}
+// Poq.exe 0x4d0b10：dir 0..7（上起順時針，奇數＝斜）；回傳 0 = 不能走，*cost = 5（+3 同組占格／+3 斜走）。
+static int xps_expand(const XpsCtl *c, int x, int y, int dir, int *nx, int *ny, int *cost) {
+    static const int DX[8] = {0, 1, 1, 1, 0, -1, -1, -1}, DY[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+    *nx = x + DX[dir]; *ny = y + DY[dir];
+    int st = xps_state(c, *nx, *ny);
+    if (st == 3) return 0;
+    *cost = 5;
+    if (st == 2) {
+        // 兩個不同的同組占格之間不能直接走
+        if (cell_at(x, y) && xps_occ(c, x, y) != xps_occ(c, *nx, *ny) && xps_state(c, x, y) == 2) return 0;
+        *cost += 3;
+    }
+    if (dir & 1) {
+        if (xps_state(c, *nx, y) == 3 && xps_state(c, x, *ny) == 3) return 0;
+        *cost += 3;
+    }
+    return 1;
+}
+// Poq.exe 0x4d0890（終點判斷 0x4d0af0 = 座標相等）：估價（八方向，直 10 斜 4 的加權；比 g 的 5 大，所以偏貪婪，照原版）。
+static int xps_heur(const XpsCtl *c, int x, int y) {
+    int ax = abs(c->dx - x), ay = abs(c->dy - y);
+    return ay < ax ? ax * 10 + ay * 4 : ax * 4 + ay * 10;
+}
+
 // Poq.exe 0x4973b0（CCharactor虛擬格20）：從目前占格到動態目的地(+0xc3,+0xc7)生成反向byte路徑。
-// 原版以自身ID暫蓋目的格占位後交XPS_Control尋路；這裡等價於BFS時把目的格視為空，其他格要層可過且沒人站。
-// shortcut: XPS_Control演算法不在映像內，改8方向BFS（不穿牆角），不可達時走到離目的地最近（切比雪夫）的格；
-// 取得XPS後核對路徑形狀。
+// XPathSearch（Poq.exe 0x4cff00，A*：開表＝二元堆，f = g(+0xc) + h(+0x10)；0x4d0610 上浮）＋XPS_Control（上面三個）＋Poq.exe 0x4d09e0 取路徑。
+// 開表空了沒到終點 → 取 h 最小（先到先贏）的節點當終點（走到最近處）。
+// shortcut: 最大展開數參數（0x4cff00 param_4）傳 0＝不限；節點表用整張地圖陣列取代雜湊桶＋分塊鏈。
 static int actor_path_build(Actor *a) {
     if (!unit_scene) return 0;
     int w = unit_scene->w, h = unit_scene->h, dx = a->dynamic_destination_x, dy = a->dynamic_destination_y;
     int sx = actor_init_x(a), sy = actor_init_y(a);
     a->dynamic_pending = 0;
     if (!cell_at(sx, sy) || !cell_at(dx, dy)) return 0;
-    int *from = malloc(sizeof(int) * w * h), *queue = malloc(sizeof(int) * w * h);
-    if (!from || !queue) { free(from); free(queue); return 0; }
-    for (int i = 0; i < w * h; i++) from[i] = -2;
-    int head = 0, tail = 0, best = sy * w + sx, best_d = 1 << 30;
-    from[best] = -1; queue[tail++] = best;
-    while (head < tail && from[dy * w + dx] == -2) {
-        int cur = queue[head++], cx = cur % w, cy = cur / w;
-        int d = abs(cx - dx) > abs(cy - dy) ? abs(cx - dx) : abs(cy - dy);
-        if (d < best_d) { best_d = d; best = cur; }
-        for (int k = 0; k < 8; k++) {
-            static const int DX[8] = {0, 1, 1, 1, 0, -1, -1, -1}, DY[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
-            int nx = cx + DX[k], ny = cy + DY[k];
-            const Cell *c = cell_at(nx, ny);
-            if (!c || from[ny * w + nx] != -2 || !cell_pass(c, a->layer)) continue;
-            Actor *o = cell_occupant(nx, ny);
-            if (o && o != a && !(nx == dx && ny == dy)) continue;
-            if (k & 1) {  // 斜走兩側都要可過
-                const Cell *c1 = cell_at(cx + DX[k], cy), *c2 = cell_at(cx, cy + DY[k]);
-                if (!c1 || !c2 || !cell_pass(c1, a->layer) || !cell_pass(c2, a->layer)) continue;
-            }
-            from[ny * w + nx] = cur; queue[tail++] = ny * w + nx;
+    XpsCtl ctl = { a, dx, dy };
+    int n = w * h;
+    int *par = malloc(sizeof(int) * n * 5);  // par, g, h, 在開表的堆位置(1起,0=不在), 已建節點(1)
+    int *heap = malloc(sizeof(int) * n), *order = malloc(sizeof(int) * n);
+    if (!par || !heap || !order) { free(par); free(heap); free(order); return 0; }
+    int *g = par + n, *hh = par + 2 * n, *hp = par + 3 * n, *made = par + 4 * n;
+    memset(par, 0, sizeof(int) * n * 5);
+    int hn = 0, on = 0, found = -1;
+#define F(i) (g[i] + hh[i])
+#define NODE(i, p, gg, hv) (par[i] = (p), g[i] = (gg), hh[i] = (hv), made[i] = 1, order[on++] = (i))
+#define PUSH(i) do { heap[hn++] = (i); hp[i] = hn; sift_up(heap, hp, g, hh, hn); } while (0)
+    int s = sy * w + sx;
+    if (sx == dx && sy == dy) found = s, NODE(s, -1, 0, 0);
+    else { NODE(s, -1, 0, xps_heur(&ctl, sx, sy)); PUSH(s); }
+    while (found < 0 && hn) {
+        int cur = heap[0];
+        heap[0] = heap[--hn]; hp[cur] = 0;
+        if (hn) hp[heap[0]] = 1;
+        for (int i = 1; 2 * i <= hn;) {  // 0x4cff00 的下沉（右子較小才換右）
+            int c = 2 * i;
+            if (c < hn && F(heap[c]) < F(heap[c - 1])) c++;
+            if (F(heap[i - 1]) <= F(heap[c - 1])) break;
+            int t = heap[i - 1]; heap[i - 1] = heap[c - 1]; heap[c - 1] = t;
+            hp[heap[i - 1]] = i; hp[heap[c - 1]] = c; i = c;
+        }
+        for (int dir = 0; dir < 8 && found < 0; dir++) {
+            int nx, ny, cost;
+            if (!xps_expand(&ctl, cur % w, cur / w, dir, &nx, &ny, &cost)) continue;
+            int ni = ny * w + nx, g2 = g[cur] + cost;
+            if (nx == dx && ny == dy) { NODE(ni, cur, g2, 0); found = ni; break; }
+            if (made[ni]) {
+                if (g[ni] > g2 && hp[ni]) {  // 還在開表才更新
+                    par[ni] = cur; g[ni] = g2;
+                    sift_up(heap, hp, g, hh, hp[ni]);
+                }
+            } else { NODE(ni, cur, g2, xps_heur(&ctl, nx, ny)); PUSH(ni); }
         }
     }
-    if (from[dy * w + dx] != -2) best = dy * w + dx;
-    int n = 0;
-    for (int p = best; p != -1 && n < 250; p = from[p], n++) {
-        a->path_buf[n * 2] = (unsigned char)(p % w);
-        a->path_buf[n * 2 + 1] = (unsigned char)(p / w);
+    if (found < 0) {
+        for (int k = 0; k < on; k++) if (found < 0 || hh[order[k]] < hh[found]) found = order[k];
     }
-    free(from); free(queue);
-    a->dynamic_pending = n;
-    a->dynamic_path = n - 2;
+#undef F
+#undef NODE
+#undef PUSH
+    // 0x4d09e0：終點格空（沒被別人占）才算一筆；然後沿父節點到起點，最多250筆。
+    int cnt = 0;
+    const Cell *fc = cell_at(found % w, found / w);
+    if (fc && cell_pass(fc, a->layer) && !cell_occupant(found % w, found / w) && found != -1) {
+        a->path_buf[0] = (unsigned char)(found % w); a->path_buf[1] = (unsigned char)(found / w);
+        cnt = 1;
+    }
+    for (int p = par[found]; p != -1 && cnt < 250; p = par[p], cnt++) {
+        a->path_buf[cnt * 2] = (unsigned char)(p % w);
+        a->path_buf[cnt * 2 + 1] = (unsigned char)(p / w);
+    }
+    free(par); free(heap); free(order);
+    a->dynamic_pending = cnt;
+    a->dynamic_path = cnt - 2;
     return a->dynamic_path >= 0 &&
         (a->dynamic_path != 0 || dx == a->path_buf[0] || dy == a->path_buf[1]);
 }

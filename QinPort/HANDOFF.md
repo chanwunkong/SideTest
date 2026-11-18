@@ -1124,7 +1124,11 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 進度（11-18k）：上輪 todo 清掉：0x4a11f0 → viewport.c `viewport_screen_world`（右鍵地點施法改用像素世界座標，不再取格中心）；0x4a05e0 → main.c `xmouse_draw`（游標依序列最大幀寬高置中、數量 > 1 寫數字，取代迴圈裡的簡化 draw_frame）；0x4a0aa0 → `xmouse_count`；0x4a0ac0 旗標只供換色表，沒有換色表，roles 註明不實作；0x4a37b0 SLightMap 色表被 light.c 的每格 RGB 倍率取代，skip（原版是逐像素 16 位色表，引擎用 SDL 混色）。shortcut：游標旗標 0x100／0x140、第二精靈沒來源不畫；原版畫幀還減 +0x12／+0x14 偏移，這裡只置中。skilltest 加 `viewport_screen_world` 反投影斷言。
   0x4a66e0～0x4b7a70：全是 STL／nlohmann::json／std::ifstream／CMemoryMng 除錯記憶池／CResMng、CResList 容器（引擎 res.c 取代），整批 skip；0x4b0ba0（CResMng 取圖）= main.c `image()` 加位址註解。
   todo：0x4a66e0／0x4a6720（淡入淡出重設／每拍；0x4a6480 啟動、0x4a6770 畫、0x44ca40／0x44bf00 入口）是同一個畫面效果系統，原版由劇情觸發 type 14 ID 1~3 啟動，引擎的劇情觸發還沒接畫面效果，等那邊一起做。
-  **下一步：0x4b7af0（nlohmann 例外之後的 ~CGameApp 區）起**——先 `python3 tools/functool.py next 0x4b7af0`；這一帶預期仍是 JSON／STL 樣板，快速判讀後 skip。
+  ~~**下一步：0x4b7af0（nlohmann 例外之後的 ~CGameApp 區）起**~~
+- **0x4b7af0 起（2026-11-18）**：functool 的 skip 檔多了 `~`（所有解構函數整批 skip）；連線物件（CNetItem/CNetBase/CSocketItem/CSingleItem）、IME、DirectInput、Direct3D 裝置、記憶體鏈配置器、nlohmann 整批 skip。
+  - XPathSearch（0x4cff00 A*）＋XPS_Control（0x4d0b10 展開／0x4d0890 估價／0x4d0af0 終點／0x4d0610、0x4d0700 開表堆）＋0x4d09e0 取路徑 → `main.c actor_path_build` 換掉舊 BFS（`xps_expand`／`xps_heur`／`sift_up`）。照原版：每步成本 5、同組占格 +3、斜走 +3（兩側都被擋才不能斜）、估價 直10斜4（比 g 大，偏貪婪）、開表空了取 h 最小的節點（走到最近處）；終點格被別人占就不算進路徑。方向表 0x5f293c = 上起順時針（與舊程式相同）。shortcut：最大展開數傳 0；自己一律算同組；節點用整張地圖陣列。skilltest 加繞牆與封死兩例。
+  - 剩下的 todo 幾乎都是介面（CGameDialog 等 JM 對話框，引擎用自己的 JM 介面取代）與等其他系統的 CTriBld／CAirObj／InitBld 等。
+  **下一步：0x4b89b0（介面類別：CPushbutton／CGameDialog／各 Dialog）起**——先 `python3 tools/functool.py next 0x4b89b0`；介面逐類別對照引擎現有 JM 介面，沒對應用途的 skip。
 
 
 

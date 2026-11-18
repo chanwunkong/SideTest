@@ -1280,6 +1280,17 @@ static void character_walk_destination_test(void) {
     assert(a.dynamic_state==11 && a.path_walk && a.dynamic_path==3);
     for (int i=0; i<4000 && a.dynamic_state==11; ++i) { ++a.direction_clock; actor_walk_step(&a); }
     assert(a.dynamic_state==1 && a.grid_x==5 && a.grid_y==1 && !a.path_walk);
+    // XPathSearch A*（0x4cff00）：牆（x=3,y 0..8）繞過，路徑相鄰格都是一步；封死時停在 h 最小處。
+    for (int i=0; i<100; ++i) cells[i] = (Cell){.walk=1, .layer=1};
+    for (int y=0; y<9; ++y) cells[y*10+3].walk=0;
+    a.grid_x=1; a.grid_y=1; cells[11].actor=&a;
+    a.dynamic_destination_x=5; a.dynamic_destination_y=1;
+    assert(actor_path_build(&a) && a.path_buf[0]==5 && a.path_buf[1]==1);
+    int last=a.dynamic_pending-1;
+    assert(a.path_buf[last*2]==1 && a.path_buf[last*2+1]==1 && a.dynamic_pending>=6);
+    for (int i=0; i<last; ++i) assert(abs(a.path_buf[i*2]-a.path_buf[i*2+2])<=1 && abs(a.path_buf[i*2+1]-a.path_buf[i*2+3])<=1);
+    cells[93].walk=0;  // 全封死：走到離目的地估價最小的格(2,y)
+    assert(actor_path_build(&a) && a.path_buf[0]==2);
     unit_scene=saved_scene; actor_count=saved_count;
 }
 

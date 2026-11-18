@@ -1104,3 +1104,18 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 004b7740 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
 004b78f0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
 004b7a70 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+~  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+004cfce0 XPathSearch 解構（C 版 free 陣列）
+004cfe20 XPathSearch 清空節點表／堆（C 版每次尋路重配陣列）
+004d02e0 XPathSearch 重設節點表（同上）
+004d0480 XPathSearch 重設節點表（同上）
+004d0370 XPathSearch 取方向 byte 路徑（呼叫端只用 0x4d09e0 的座標路徑，無呼叫者）
+004d03f0 XPathSearch 虛擬空函式回 0
+004d0400 XPathSearch 取節點指標串列（無呼叫者）
+004d0900 XPS_Control 虛擬函式回 1（無呼叫者）
+CNetItem|CNetBase|CSocketItem|CSingleItem  連線版：socket／網路物件（含鎖與事件），單機不做
+CCIme|LIme  平台層：Windows IME 輸入法（網頁用瀏覽器輸入）
+CUIDIServer|CUIServer|CUIStateServer  平台層：DirectInput／輸入伺服器，換成 SDL 事件
+CGfxRenderDevice|CRenderDevice  平台層：Direct3D 繪圖裝置，換成 SDL
+nlohmann.*  nlohmann::json 函式庫：不移植
+CMemChainHeader|CMemFrame  平台層：記憶體鏈配置器，C 用 malloc

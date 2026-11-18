@@ -919,3 +919,6 @@ XMOUSE	+0x48	雙緩衝游標位置槽（每槽 0x14）	-
 FadeObj	+0x0	淡入淡出暫存表面（模式 3 抓畫面）	-
 FadeObj	+0x8	剩餘計數（0x17 起，每 3 拍一級，共 8 級）	-
 FadeObj	+0x14	模式（1 淡入、2 淡出到黑、3 畫面交叉）	-
+XPathSearchNode	+0xc	g 已走成本	actor_path_build g[]
+XPathSearchNode	+0x10	h 估價	hh[]
+XPathSearchNode	+0x14	方向 byte（路徑不用）	-

@@ -908,4 +908,10 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 004a37b0	SLightMap 建構（100 級光照色表）：light.c 以每格 RGB 倍率取代，skip
 
 004a66e0	場景淡入淡出物件重設（釋放兩張暫存表面、模式歸 0）；等 0x44ca40 啟動（0x4a6480）：劇情觸發 type 14 ID 1~3 還沒接，引擎沒有淡入淡出
-004a6720	淡入淡出每拍（計數 +8 遞減，到 0 且模式≠2 重設）；與 0x4a66e0／0x4a6770／0x44bf00／0x44ca40 同一系統，等劇情畫面效果觸發
+004a6720	淡入淡出每拍（計數 +8 遞減，到 0 且模式≠2 重設）；與 0x4a66e0／0x4a6770／0x44bf00／0x44ca40 同一系統，等劇情畫面效果觸發004cff00	XPathSearch A*尋路（開表二元堆，f=g+h，每方向成本由XPS_Control給）→ main.c actor_path_build
+004d0b10	XPS_Control展開：方向表0x5f293c、格子狀態1空/2同組/3擋、成本5+3+3 → xps_expand
+004d0890	XPS_Control估價 直10斜4 → xps_heur
+004d0af0	XPS_Control終點判斷：座標相等 → actor_path_build內
+004d0610	開表堆上浮 → sift_up
+004d0700	開表／節點表插入 → actor_path_build內NODE/PUSH
+004d09e0	節點鏈轉反向座標byte路徑（終點格空才算，最多250筆）→ actor_path_build
