@@ -1120,7 +1120,11 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - 進度（11-18j）：0x49de30～0x4a3340：0x49de30（名稱是 Ghidra 誤標，實為 CSprGroup 各部件畫面矩形聯集）→ main.c role_rect；0x49fa90／0x4a0060／0x49fe70／0x49fdd0／0x49fd20 文字表 → res.c tab_load／tab_s／tab_i（空格原版 0xffff，這裡 −1，shortcut）。
   skip：精靈群／單幀帶偏移的畫函式（0x49e200～0x49e420）、CString／檔案／磁碟工具（0x49ebd0～0x49ff60）、XMOUSE 建構／載入／還原底圖、CRHOMB 查表建構（算式取代）、殘影 30 槽容器、物件索引表（0x4a2590～0x4a29c0）、記憶池（0x4a2aa0～0x4a35a0）。
   todo：0x49e490／0x49dcb0（介面動畫反播，等 0x56e450 元件）、0x4a05e0／0x4a0aa0／0x4a0ac0（XMOUSE 畫游標：序列最大寬高置中、旗標、數量字；現在 main.c 迴圈畫簡化版）、0x4a11f0（畫面→世界，等 Ctrl 對地點出手）、0x4a37b0（SLightMap，等逐像素光照）。
-  **下一步：0x4a66e0（~CGameApp 起，SBMP 淡入淡出等）**——先 `python3 tools/functool.py next 0x4a66e0`。
+  ~~**下一步：0x4a66e0（~CGameApp 起，SBMP 淡入淡出等）**~~
+- 進度（11-18k）：上輪 todo 清掉：0x4a11f0 → viewport.c `viewport_screen_world`（右鍵地點施法改用像素世界座標，不再取格中心）；0x4a05e0 → main.c `xmouse_draw`（游標依序列最大幀寬高置中、數量 > 1 寫數字，取代迴圈裡的簡化 draw_frame）；0x4a0aa0 → `xmouse_count`；0x4a0ac0 旗標只供換色表，沒有換色表，roles 註明不實作；0x4a37b0 SLightMap 色表被 light.c 的每格 RGB 倍率取代，skip（原版是逐像素 16 位色表，引擎用 SDL 混色）。shortcut：游標旗標 0x100／0x140、第二精靈沒來源不畫；原版畫幀還減 +0x12／+0x14 偏移，這裡只置中。skilltest 加 `viewport_screen_world` 反投影斷言。
+  0x4a66e0～0x4b7a70：全是 STL／nlohmann::json／std::ifstream／CMemoryMng 除錯記憶池／CResMng、CResList 容器（引擎 res.c 取代），整批 skip；0x4b0ba0（CResMng 取圖）= main.c `image()` 加位址註解。
+  todo：0x4a66e0／0x4a6720（淡入淡出重設／每拍；0x4a6480 啟動、0x4a6770 畫、0x44ca40／0x44bf00 入口）是同一個畫面效果系統，原版由劇情觸發 type 14 ID 1~3 啟動，引擎的劇情觸發還沒接畫面效果，等那邊一起做。
+  **下一步：0x4b7af0（nlohmann 例外之後的 ~CGameApp 區）起**——先 `python3 tools/functool.py next 0x4b7af0`；這一帶預期仍是 JSON／STL 樣板，快速判讀後 skip。
 
 
 

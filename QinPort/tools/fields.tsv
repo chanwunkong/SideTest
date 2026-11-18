@@ -913,3 +913,9 @@ CTrapBase	+0x97	狀態 0待命 1觸發動畫 2冷卻	Actor.trap_state
 CTrapBase	+0xa7	已放招旗標	Actor.trap_fired
 CTrapBase	+0xb7	剩餘次數（模型 +0x32）	Actor.trap_uses
 CTrapBase	+0xbb	偵測到別組的人	Actor.trap_trig
+XMOUSE	+0x30	游標旗標（0x100／0x140 換色）	-
+XMOUSE	+0x34	游標數量（>1 畫數字）	xmouse_count
+XMOUSE	+0x48	雙緩衝游標位置槽（每槽 0x14）	-
+FadeObj	+0x0	淡入淡出暫存表面（模式 3 抓畫面）	-
+FadeObj	+0x8	剩餘計數（0x17 起，每 3 拍一級，共 8 級）	-
+FadeObj	+0x14	模式（1 淡入、2 淡出到黑、3 畫面交叉）	-

@@ -949,3 +949,158 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 004b1910 std::map 哨兵節點配置（0x34）：STL，不移植
 004b1930 std::map 節點配置（0x34）：STL，不移植
 004b5000 std::string::insert／assign：STL，不移植
+004a99f0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004a9b70 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004a9cc0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004a9e20 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aa020 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aa170 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aa2c0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aa410 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aa520 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aa660 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aa8f0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aaa00 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aab60 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aacc0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aaea0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ab060 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ab340 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ab540 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ab810 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ab880 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ab920 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ab990 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004abcb0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004abd90 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004abef0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ac110 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ac340 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ac5a0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ac7d0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aca00 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004acc40 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004ace60 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004acfa0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004add10 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aed20 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aed50 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aede0 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aee00 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aee20 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004aee50 STL vector／variant（JSON 式 9 位元組值）樣板函式：STL／連線版 JSON 容器，不移植
+004af210 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af3a0 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af4d0 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af510 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af540 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af5c0 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af640 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af6c0 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af740 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af7c0 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af850 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004af940 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004afa70 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004afd40 JSON 解析器／STL 容器／CResList、CResMng 建構解構（資源管理由 res.c 取代）：不移植
+004aff40 CResList 解構（逐個 delete 指標向量）：STL，不移植
+004affd0 vector 釋放：STL，不移植
+004b00c0 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b0120 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b0150 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b01e0 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b0210 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b0260 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b0340 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b0460 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b0510 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b0580 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b05d0 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b0650 nlohmann::json／STL 迭代器、例外：JSON 函式庫，不移植
+004b0680 CResList 刪除解構：容器，不移植
+004b06c0 CResMng 刪除解構：資源管理由 res.c 取代
+004b0700 nlohmann::json 例外／輸入配接：JSON 函式庫，不移植
+004b09a0 CResMng 逐包釋放（每包呼叫 0x4a7fe0）：資源由 res.c 快取管理，不移植
+004b09e0 CResMng 資源號拆包號與包內序號：res.c 資源索引取代
+004b0a30 CResMng 取包物件：res.c 資源索引取代
+004b0a50 CResMng 取音效資源（種類 5）：audio.c 取代
+004b1850 CResMng 逐包重設：res.c 取代，不移植
+004b1880 CResMng 逐包呼叫 0x4a81c0：res.c 取代，不移植
+004b18b0 CResMng 逐包呼叫 0x4a8200：res.c 取代，不移植
+004b18f0 設全域 DAT_00639460（只寫不讀）：沒有作用，不移植
+004b0750 nlohmann::json 例外／輸入配接：JSON 函式庫，不移植
+004b0780 nlohmann::json 例外／輸入配接：JSON 函式庫，不移植
+004b0810 nlohmann::json 例外／輸入配接：JSON 函式庫，不移植
+004b0860 nlohmann::json 例外／輸入配接：JSON 函式庫，不移植
+004b08b0 nlohmann::json 例外／輸入配接：JSON 函式庫，不移植
+004b0900 nlohmann::json 例外／輸入配接：JSON 函式庫，不移植
+004b0950 nlohmann::json 例外／輸入配接：JSON 函式庫，不移植
+004b1960 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b19e0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b1aa0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b1b40 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b1be0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b1c40 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b1c70 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b1cd0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2000 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2010 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2230 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b22a0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2330 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b23c0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b24b0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2560 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b25c0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2620 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2630 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2640 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2650 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2660 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2670 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2680 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2690 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b26a0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2720 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b27a0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2820 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b28a0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2a50 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2ae0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2b90 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2c60 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2ca0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b2ef0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b3140 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b3390 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b3af0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b3de0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b3ee0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b3f80 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b3fe0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b40e0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b4360 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b4530 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b4bd0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b4c50 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b4d60 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b5260 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b5420 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b5490 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b5500 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b5810 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b58d0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b5a90 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b5fd0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b60d0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b61d0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b6270 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b62d0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b6440 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b6750 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b6800 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b6e10 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b7590 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b7740 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b78f0 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植
+004b7a70 nlohmann::json 函式庫／STL 容器（vector、紅黑樹、迭代器、詞法分析）內部函式：不移植

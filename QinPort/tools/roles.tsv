@@ -901,8 +901,11 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 0049fd20	文字表取格短整數：res.c tab_i
 0049e490	圖板（CPortraitPanel）反向播放器：回傳幀；等 0x56e450 介面動畫元件系統
 0049dcb0	播放器回到起點判斷：等 0x56e450 介面動畫元件系統
-004a05e0	XMOUSE 畫游標：依序列最大寬高置中、旗標0x100／0x140換色表、數量>1畫數字、第二精靈；目前 main.c 迴圈畫簡化版，等 0x49d860／0x49d8f0（CSprSerialPicture）與圖+0x52旗標
-004a0aa0	XMOUSE 設游標數量（+0x34）：等 0x4a05e0 游標繪製
-004a0ac0	XMOUSE 設游標旗標（+0x30）：等 0x4a05e0 游標繪製
-004a11f0	畫面像素轉世界64分格（CRHOMB 反向）；等 Ctrl 對地點出手／指令地點（0x455d60）接入
-004a37b0	SLightMap 建構：填 100 級光照色表（0x664058 起，每級 x<<16）；等逐像素光照（building_part_draw 的 shortcut）系統
+004a05e0	XMOUSE 畫游標：main.c xmouse_draw（序列最大幀寬高置中；數量>1 寫數字）；旗標 0x100／0x140 換色表、第二精靈沒來源，見 shortcut
+004a0aa0	XMOUSE 設游標數量（+0x34）：main.c xmouse_count（沒有游標拿道具，沒人寫）
+004a0ac0	XMOUSE 設游標旗標（+0x30）：只給 0x4a05e0 的換色表用，引擎沒有換色表，不實作
+004a11f0	畫面像素轉世界64分格：viewport.c viewport_screen_world，接右鍵地點施法
+004a37b0	SLightMap 建構（100 級光照色表）：light.c 以每格 RGB 倍率取代，skip
+
+004a66e0	場景淡入淡出物件重設（釋放兩張暫存表面、模式歸 0）；等 0x44ca40 啟動（0x4a6480）：劇情觸發 type 14 ID 1~3 還沒接，引擎沒有淡入淡出
+004a6720	淡入淡出每拍（計數 +8 遞減，到 0 且模式≠2 重設）；與 0x4a66e0／0x4a6770／0x44bf00／0x44ca40 同一系統，等劇情畫面效果觸發

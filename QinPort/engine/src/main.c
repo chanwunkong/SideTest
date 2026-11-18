@@ -148,7 +148,7 @@ static const Sprite *upload_or_wait(Sprite *s, uint32_t *px) {
     return upload(s, px);
 }
 
-// 全域圖片 ref（高 8 位幀號）。ref 不會是 0xFFxxxxxx，所以磁磚用那段當 key
+// 全域圖片 ref（高 8 位幀號、低 18 位資源號）= CResMng 取圖 0x4b0ba0（懶載入、快取）。ref 不會是 0xFFxxxxxx，所以磁磚用那段當 key
 static const Sprite *image(uint32_t ref) {
     Sprite *s = slot_find(ref);
     if (s->tex) return s;
