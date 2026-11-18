@@ -3580,3 +3580,270 @@ EasyRPG.dll:10013a50  文字指令 c_choose：選取隊友（Running／Chosen �
 EasyRPG.dll:10013bb0  文字指令 c_equippos：設手持類 0x1003b760。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
 EasyRPG.dll:10013c70  文字指令 c_equipstr：設裝備字串 0x1003b910。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
 EasyRPG.dll:10013fd0  文字指令 c_fightstatus：送戰鬥狀態給客戶端 0x10041930。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+
+# EasyRPG.dll 規則移植第 2 輪（讀過代表函數、依位址段分類）
+EasyRPG.dll:1001f7e0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:1001f910  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:1001fa30  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:1001fca0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:1001fd50  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:1001fdb0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:1001fe30  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:1001fe90  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:1001fee0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:100201d0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10020280  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:100202e0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10020350  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10020390  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:100205c0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10020610  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10021de0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10021fa0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10022180  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10022350  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:100228a0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:100229e0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10022d70  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10022db0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10023560  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10023610  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:100236d0  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10023710  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10023810  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:10023950  CERObject 基底物件方法（屬性表讀寫、子物件鏈、虛擬函式預設值如 slot 11 0x10023550 回 0、拷貝／清除）：story_rt.c 的 Obj／KV／objs[] 取代，不需逐函式翻（讀過 0x10023550／0x100226e0／0x1003e920 代表）
+EasyRPG.dll:100260d0  G_Info／G_Info2／G_Info3 說明欄位的刷新與技能 Attack 分類（送客戶端顯示用）；引擎的說明文字由 JM 視窗另畫
+EasyRPG.dll:100263f0  G_Info／G_Info2／G_Info3 說明欄位的刷新與技能 Attack 分類（送客戶端顯示用）；引擎的說明文字由 JM 視窗另畫
+EasyRPG.dll:100264b0  G_Info／G_Info2／G_Info3 說明欄位的刷新與技能 Attack 分類（送客戶端顯示用）；引擎的說明文字由 JM 視窗另畫
+EasyRPG.dll:10026520  G_Info／G_Info2／G_Info3 說明欄位的刷新與技能 Attack 分類（送客戶端顯示用）；引擎的說明文字由 JM 視窗另畫
+EasyRPG.dll:10027220  技能名／職業技能表的說明文字輔助（G_Info 組字用），隨說明文字 0x100279b0 一起，引擎沒有滑鼠停留說明
+EasyRPG.dll:100274a0  技能名／職業技能表的說明文字輔助（G_Info 組字用），隨說明文字 0x100279b0 一起，引擎沒有滑鼠停留說明
+EasyRPG.dll:10028a20  說明文字：依物件 G_Info 組字串（人物／道具 tooltip），同 0x100279b0
+EasyRPG.dll:10028cc0  說明文字：依物件 G_Info 組字串（人物／道具 tooltip），同 0x100279b0
+EasyRPG.dll:100290e0  說明文字：類型 49 書的屬性說明字串，同 0x100279b0（use 指令送客戶端的文字）
+EasyRPG.dll:10041130  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100412e0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10041530  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100415d0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10041700  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10041770  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10041820  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100419f0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10041a90  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10041c10  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10041d10  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10041df0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10041e80  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100421a0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10042230  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100426b0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10042750  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10042980  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10042aa0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10042c30  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10042e00  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10042ea0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100431b0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100433e0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10043480  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10043770  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10043dd0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10043e80  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10044570  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100449f0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10044bc0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10044dc0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100452e0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100454f0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10045690  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10045730  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10045780  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100457f0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10045860  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100458d0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10045a10  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10045b20  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10045c00  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10045e20  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10045f60  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100460a0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046180  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046260  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046340  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046420  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100464d0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046630  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046910  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100469f0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046b10  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046c90  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046d00  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046da0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10046e20  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10047050  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100470c0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10047270  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10047440  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100474b0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10047520  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10047750  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100482e0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10048400  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100484c0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100488d0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10048e20  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10048f30  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10049150  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100492d0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:100493f0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10049630  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10049a60  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10049ca0  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:10049e30  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:1004a450  伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）
+EasyRPG.dll:1004b800  同上：Friend 條件的客戶端同步
+EasyRPG.dll:1004b9a0  同上：Friend 條件的客戶端同步
+EasyRPG.dll:1004c250  同上：Friend 條件的客戶端同步
+EasyRPG.dll:1004e2d0  系統訊息送客戶端（0x1004e560／0x1004e5d0 格式化後 0x100603a0 送出）：引擎 hud_msg 取代
+EasyRPG.dll:1004e430  系統訊息送客戶端（0x1004e560／0x1004e5d0 格式化後 0x100603a0 送出）：引擎 hud_msg 取代
+EasyRPG.dll:1004e480  系統訊息送客戶端（0x1004e560／0x1004e5d0 格式化後 0x100603a0 送出）：引擎 hud_msg 取代
+EasyRPG.dll:1004e510  系統訊息送客戶端（0x1004e560／0x1004e5d0 格式化後 0x100603a0 送出）：引擎 hud_msg 取代
+EasyRPG.dll:1004e5d0  系統訊息送客戶端（0x1004e560／0x1004e5d0 格式化後 0x100603a0 送出）：引擎 hud_msg 取代
+EasyRPG.dll:1005928c  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:10059300  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:10059469  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:100594e9  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:100595b0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:100596ec  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005975d  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:100599da  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:10059a5d  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:10059c7f  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:10059cff  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:10059da0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:10059ed1  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:10059f42  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:10059fb0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005a080  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005a0d0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005a120  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005a480  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005a4f0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005a7a0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005aa90  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005abc0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005ae20  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005aee0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005b220  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005b4f0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005b560  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005b5a0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005b660  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005b700  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005b7f0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005ba10  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005bab0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005bb10  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005bb70  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005bce0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005bf20  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005bfd0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c210  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c220  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c230  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c360  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c3e0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c450  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c480  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c4b0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c4e0  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c510  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c560  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c600  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c630  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c640  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005c720  物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代
+EasyRPG.dll:1005d330  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005d760  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005d7e0  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005d880  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005daf0  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005dc90  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005e350  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005e3f0  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005e4b0  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005e580  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005e6d0  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005eb00  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005ebe0  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005ec80  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005ef30  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005f010  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005f340  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005f3b0  物件存取幫手（Title／Channel／Deal*／Job 等欄位、鏈結節點）：story_rt.c 取代；Deal*／Job 是連線版
+EasyRPG.dll:1005fa30  ER_Explain 文字指令入口與分派幫手：引擎視窗直接呼叫規則
+EasyRPG.dll:1005fc20  ER_Explain 文字指令入口與分派幫手：引擎視窗直接呼叫規則
+EasyRPG.dll:1005fc30  ER_Explain 文字指令入口與分派幫手：引擎視窗直接呼叫規則
+EasyRPG.dll:1005fc40  ER_Explain 文字指令入口與分派幫手：引擎視窗直接呼叫規則
+EasyRPG.dll:1005fc50  ER_Explain 文字指令入口與分派幫手：引擎視窗直接呼叫規則
+EasyRPG.dll:1005fe20  ER_Explain 文字指令入口與分派幫手：引擎視窗直接呼叫規則
+EasyRPG.dll:1005ff00  ER_Explain 文字指令入口與分派幫手：引擎視窗直接呼叫規則
+EasyRPG.dll:10060070  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:10060130  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:100601e0  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:10060260  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:100602c0  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:100603a0  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:10060500  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:10060640  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:10060710  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:100607c0  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:10060950  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:10060990  封包組裝與文字系統幫手（0x10060280 取 dlg 文字 = res_dlg、0x100603a0 送客戶端）：引擎 res_dlg／hud_msg 取代
+EasyRPG.dll:10060dd0  ER_Explain 的 $ 封包指令分派（2487 行 switch，碼 0x1f6 起，封包碼→規則函式）：引擎視窗直接呼叫規則，規則函式另外逐一處理（讀過分派頭）
+EasyRPG.dll:100647c0  玩家間交易詢問（Askings 清單）：連線版
+EasyRPG.dll:100647f0  玩家間交易詢問（Askings 清單）：連線版
+EasyRPG.dll:10064820  玩家間交易詢問（Askings 清單）：連線版
+EasyRPG.dll:10064860  玩家間交易詢問（Askings 清單）：連線版
+EasyRPG.dll:100648b0  玩家間交易詢問（Askings 清單）：連線版
+EasyRPG.dll:10064980  玩家間交易詢問（Askings 清單）：連線版
+EasyRPG.dll:10064a60  玩家間交易詢問（Askings 清單）：連線版
+EasyRPG.dll:10064cd0  玩家間交易詢問（Askings 清單）：連線版
+EasyRPG.dll:10066580  玩家間交易金額確認（DealMoney）：連線版
+EasyRPG.dll:10066860  玩家間交易金額確認（DealMoney）：連線版
+EasyRPG.dll:1006a6e0  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006a790  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006a820  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006a890  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006a930  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006a980  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006a9e0  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006aa60  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006ad00  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006adc0  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006ae30  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006af50  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006af60  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006b220  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006b2e0  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006b4a0  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006b540  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006b930  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006b990  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006b9b0  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006b9c0  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006b9d0  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006b9f0  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006ba10  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006ba30  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1006ba70  文字指令表登記與查找（/? /h /help、指令名→處理函式）：引擎視窗直接呼叫規則，不經文字指令
+EasyRPG.dll:1008a610  劇情物件工廠表（依路徑建立一整個場景的 NPC／道具／技能清單，秦殇/…字串）：story/index.txt + story_register 取代
+EasyRPG.dll:10093780  劇情物件工廠表（依路徑建立一整個場景的 NPC／道具／技能清單，秦殇/…字串）：story/index.txt + story_register 取代
+EasyRPG.dll:100a2e60  劇情物件工廠表（依路徑建立一整個場景的 NPC／道具／技能清單，秦殇/…字串）：story/index.txt + story_register 取代
+EasyRPG.dll:100b0570  劇情物件工廠表（依路徑建立一整個場景的 NPC／道具／技能清單，秦殇/…字串）：story/index.txt + story_register 取代
+EasyRPG.dll:100bc370  劇情物件工廠表（依路徑建立一整個場景的 NPC／道具／技能清單，秦殇/…字串）：story/index.txt + story_register 取代
+EasyRPG.dll:100c9a30  劇情物件工廠表（依路徑建立一整個場景的 NPC／道具／技能清單，秦殇/…字串）：story/index.txt + story_register 取代
+EasyRPG.dll:100d6d30  劇情物件工廠表（依路徑建立一整個場景的 NPC／道具／技能清單，秦殇/…字串）：story/index.txt + story_register 取代
+EasyRPG.dll:100e3ec0  劇情物件工廠表（依路徑建立一整個場景的 NPC／道具／技能清單，秦殇/…字串）：story/index.txt + story_register 取代
+EasyRPG.dll:100f0be0  劇情物件工廠表（依路徑建立一整個場景的 NPC／道具／技能清單，秦殇/…字串）：story/index.txt + story_register 取代
+EasyRPG.dll:100f8900  劇情物件工廠表（依路徑建立一整個場景的 NPC／道具／技能清單，秦殇/…字串）：story/index.txt + story_register 取代

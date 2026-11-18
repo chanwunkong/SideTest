@@ -323,3 +323,14 @@
 1001c040  main.c（trap_revealed：s_findtrap 設陷阱物件 Find = 1，引擎陷阱被發現時設 trap_revealed）
 100151a0  story_rt.c case 0x1003d0b0（文字指令 chapter：net < 2 時呼叫章節字幕 0x1003d0b0(玩家, 章, 1)）
 1001a6a0  main.c gem_remove（文字指令 removegem：解析三個別名後呼叫 0x10053a40）
+# EasyRPG.dll 第 2 輪
+10016920 ground_drop（文字指令 drop：把東西放到腳下，main.c m_pReject／ground_drop）
+100177d0 ground_pick（文字指令 get：撿地上道具，main.c）
+1001f290 ground_drop（drop 核心）
+1004cf20 inv_swap（UI_Pos 交換兩格，main.c）
+1002f420 hero_derive（重算前先回到基礎值 *0 欄，main.c hero_derive 起頭）
+1003e920 obj_delete（story_rt.c DelObject）
+1003c6a0 w_set_attr（story_rt.c 設屬性；HP／MP／BD／Money 的同步通知單機不需要）
+1004b910 item_repair（修理價錢 = 原價 × 損耗 × 4 / 耐久上限，NPC ×2，main.c）
+1004b7a0 item_identify（鑑定費用 (等級+4)×10，main.c）
+1006a470 item_eat（封包 use，同文字指令 use 0x1001e660）

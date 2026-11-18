@@ -5680,6 +5680,18 @@ static int hero_learn_skill(const char *key) {
     return 1;
 }
 
+// 忘記技能（文字指令 skl_forget 0x1001d840）：技能物件刪掉，訊息 1323；不是自己的技能 1267。單機沒有技能物件代號，用技能表索引
+static int hero_forget_skill(int k) {
+    if (k < 0 || k >= hero_skill_n || hero_skill[k].level <= 0) { hud_msg(1267, ""); return 0; }
+    char g[128] = "";
+    res_dlg("name_C.dlg", hero_skill[k].name_id, g, sizeof g);
+    hero_skill[k].level = 0;
+    hero_skill_class[k] = -1;
+    actor_skill_enable(&actors[0], k + 1, 0, 0);
+    hud_msg(1323, g);
+    return 1;
+}
+
 static int bag_free(void) {
     for (int i = 0; i < 24; i++)
         if (!inv[i].name[0]) return i;
@@ -5693,6 +5705,21 @@ static int hero_burden(void) {
     return w;
 }
 static int hero_burden_max(const Actor *h) { return (int)((hero_attr[STR] + h->ex[27]) * 1.5f + 30); }
+static char hero_name[64];
+// 訊息裡的 %s 是主角名（UTF-8，不能走 hud_msg 的 GBK 轉碼）：先轉格式再填名字
+static void hud_msg_hero(int id) {
+    char f[256], u[512];
+    if (!res_dlg("EasyRPG_C.dlg", id, f, sizeof f)) return;
+    gbk_utf8(f, u, sizeof u);
+    snprintf(toast, sizeof toast, u, hero_name);
+    toast_until = SDL_GetTicks() + 2500;
+}
+// 東西搬進身上（UI_Pos 從 200~299 倉庫／地上 → <200，0x1004cb00）：加進去前不超重、加完超重 → 訊息 3026「%s的東西太多走不動了」（一次，之後 BD > BD_MAX 不再提醒）。
+// BD 加減本身 = hero_burden 即時加總，不必存。shortcut: 超重的效果（原版另在角色屬性重算 0x1002d8d0 一帶，沒找到速度懲罰）沒做
+static void burden_warn(const Item *it) {
+    int bd = hero_burden(), mx = hero_burden_max(&actors[0]);
+    if (bd <= mx && bd + it->weight > mx) hud_msg_hero(3026);
+}
 
 // 外觀：角色表的款式蓋上身上每件裝備的「該職業裝備串」（道具表 33~37 欄），重新載入主角的部件
 static void hero_look(void) {
@@ -5795,10 +5822,14 @@ static void item_equip(Actor *h, int p) {
 // 吃（0x10016be0）：要已鑑定；把特性套到身上後道具消失。食物 21 = 生命、292 = 生命%、22 = 精氣、293 = 精氣%；
 // 書 27~33 = 永久加力量、体质、敏捷、（30 不用）悟性、智慧、魅力
 // shortcut: can_eat 在原版是物件模板設的，沒找到設的地方，先當食物（51）和書（49）能吃
-static int item_eat(Actor *h, int p) {
+// 文字指令 use（0x1001e660）同一套：不看 can_eat，通用 vtable 第 11 格回 0 = 用掉，訊息 1200（把%s用掉了）；
+// 差別只在 use 多了「use X to Y」給別人（單機只有主角，沒做）和類型 49 書印說明（送客戶端的文字，沒做）
+// shortcut: 只有一個道具子類別（story 物件類別）覆寫第 11 格，單機劇情沒用到
+static int item_eat(Actor *h, int p, int use) {
     Item *it = &inv[p];
-    if (it->type != 51 && it->type != 49) return 0;
-    if (!it->identify) { hud_say("需要先鑑定"); return 1; }
+    if (!use && it->type != 51 && it->type != 49) return 0;
+    if (!it->identify) { hud_msg(1293); return 1; }
+    if (h->hp <= 0) return 1;  // Dying：原版直接 return
     for (int i = 0; i < it->fx_n; i++) {
         const ItemFx *f = &it->fx[i];
         int v = (int)f->v;
@@ -5813,6 +5844,7 @@ static int item_eat(Actor *h, int p) {
     }
     if (h->hp > h->hp_max) h->hp = h->hp_max;
     if (h->mp > h->mp_max) h->mp = h->mp_max;
+    if (use) { char g[64]; snprintf(g, sizeof g, "%s", inv[p].name); hud_msg(1200, g); }
     inv[p].name[0] = 0;
     item_sel = -1;
     hero_derive(h);
@@ -5952,7 +5984,8 @@ static void ground_pick(int g) {
     if (it->type == 60) hero_money += it->amount;
     else {
         int b = bag_free();
-        if (b < 0) { hud_say("背包已滿"); return; }
+        if (b < 0) { hud_msg_hero(1118); return; }  // 1118 身上的東西太多（0x1001f4e0 傳回 −1）；1117 can_get = 0 的搬不動，單機地上道具都能撿
+        burden_warn(it);
         inv[b] = *it;
         inv[b].pos = b;
     }
@@ -6001,7 +6034,7 @@ static int arrow_merge(int dst, int src) {
 }
 static void bag_use(int p) {
     if (inv[p].part > 0) item_equip(&actors[0], p);
-    else if (!item_eat(&actors[0], p)) hud_say("不能使用");
+    else if (!item_eat(&actors[0], p, 0) && !(inv[p].fx_n && item_eat(&actors[0], p, 1))) hud_say("不能使用");  // shortcut: 原版 use 連沒特性的道具也會用掉，這裡只讓有特性的用
 }
 static void bag_button(const char *name) {
     int p = !strncmp(name, "m_pItem[", 8) ? atoi(name + 8) : !strncmp(name, "m_pShortcutItem[", 16) ? 24 + atoi(name + 16) : -1;
@@ -6441,6 +6474,7 @@ static void store_button(const char *name) {
     if (i < 0 || i >= STORE_N) return;
     if (i == store_sel && store[i].name[0]) {
         if ((b = bag_free()) < 0) { hud_say("背包已滿"); return; }
+        burden_warn(&store[i]);
         inv[b] = store[i];
         inv[b].pos = b;
         store[i].name[0] = 0;

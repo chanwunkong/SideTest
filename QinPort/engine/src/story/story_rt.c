@@ -500,12 +500,34 @@ static int spawn_exact(int room, const char *name, int n, int level, int tier, i
     return h;
 }
 
+// 隊友依職業技能樹學技能（0x100265d0，原版由升級和入隊自動加點函數呼叫；這裡只在入隊時呼叫，隊友升級和自動加點還沒做）：Friend >= 2、IsActorNPC 1~5（游侠、力士、刺客、术士、巫师）；
+// 技能目錄 秦殇/主角/<職業>技能 下還沒學的，先建暫時物件看 Level_Req，高於等級就丟掉，否則放進隊友身上。
+// shortcut: 只做單機目錄（原版連線版改用 秦殇/NET/…）；AddSkill 的技能效果和 G_IsUISkill == 4 的介面登記沒做，隊友用引擎的技能表出招
+static void team_learn(int h, int level) {
+    static const char *const CLS[5] = {"游侠", "力士", "刺客", "术士", "巫师"};
+    int actor = story_get_int(h, "IsActorNPC") - 1;
+    if (!O(h) || actor < 0 || actor > 4 || story_get_int(h, "Friend") < 2) return;
+    char pre[64];
+    snprintf(pre, sizeof pre, "秦殇/主角/%s技能/", CLS[actor]);
+    for (int i = 0; i < class_count; i++) {
+        if (classes[i].kind != 5 || strncmp(classes[i].path, pre, strlen(pre))) continue;
+        int have = 0;
+        for (int c = story_next(h, 0); c && !have; c = story_next(h, c)) have = !strcmp(objs[c].path, classes[i].path);
+        if (have) continue;
+        int sk = story_new(classes[i].path, -1);
+        if (!O(sk)) continue;
+        if (story_get_int(sk, "Level_Req") > level) { objs[sk].kind = -1; continue; }  // 原版刪暫時物件
+        put_in(sk, h);
+    }
+}
+
 // 0x10037850 AddMember(帶頭者, 隊員)
 static void team_add(int lead, int m) {
     if (!O(lead) || objs[lead].kind != 1) { fprintf(stderr, "AddMember: 不是人物\n"); return; }
     if (!O(m) || objs[m].kind != 1) return;
     objs[m].leader = lead;
     story_set_int(m, "G_AIGroup_Save", story_get_int(m, "G_AIGroup"));
+    team_learn(m, story_get_int(m, "Level"));
     set_aigroup(m, story_get_int(lead, "G_AIGroup"), 0);
     int friend_ = story_get_int(m, "Friend"), actor = story_get_int(m, "IsActorNPC");
     if (friend_ == 2 && actor >= 1 && actor <= 5) {  // 主角級的隊友：外觀字串照職業

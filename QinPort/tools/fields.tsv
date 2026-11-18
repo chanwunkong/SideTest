@@ -944,3 +944,5 @@ CERPerson	屬性 BAPA／Job	幫派（門派）名／職位；Job ≥ 5 才能用
 CERPerson	屬性 Status_N	狀態 N 的計時「已過秒 時間 來源」（0x10055e90 每秒 +1）；0x1003f130 把第 6~9 類狀態的已過秒加上去	Buff.elapsed／time
 CERPerson	屬性 SKL_ToLearn	可學技能「索引名 分類 …」（伺服器老師封包寫入）	hero_to_learn
 CERSkill	屬性 S_Class	技能分類（同分類最多學 4 個，0x1004bbf0 計數）	hero_skill_class
+CERPerson	屬性 BD／BD_MAX	負重／負重上限（BD_MAX = Str × 1.5 + 30）；搬進身上時 BD + 重量 > BD_MAX 且原本沒超 → 訊息 3026（0x1004cb00）	hero_burden／burden_warn
+CERItem	屬性 UI_Pos／UI_PosOld	道具所在格：<200 身上（30~40 裝備）、200~299 倉庫、≥300 交易	inv 索引

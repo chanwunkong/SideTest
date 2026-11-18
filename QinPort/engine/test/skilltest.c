@@ -4301,6 +4301,22 @@ static void instant_gem_learn_test(void) {
     snprintf(key, sizeof key, "%s", hero_skill[5].key);
     snprintf(hero_to_learn, sizeof hero_to_learn, "%s 7 ", key);
     assert(!hero_learn_skill(key) && hero_skill[5].level == 0 && strstr(toast, "\xe6\x8a\x80\xe8\x83\xbd\xe5\xb7\xb2\xe6\xbb\xa1"));  // 「技能已满」
+    // 忘記技能 0x1001d840：已學的清掉（1323），沒學的 1267
+    assert(hero_forget_skill(1) && hero_skill[1].level == 0 && hero_skill_class[1] == -1 && strstr(toast, "\xe5\xbf\x98\xe8\xae\xb0\xe4\xba\x86"));
+    assert(!hero_forget_skill(1) && !hero_forget_skill(-1));
+    // use 0x1001e660：沒鑑定 1293；通用道具（類型 20）有特性才用得了，用掉 1200
+    Item su = inv[3]; int shp = actors[0].hp; actors[0].hp = 50; actors[0].hp_max = 100;
+    inv[3] = (Item){.name = "x", .type = 20, .identify = 0, .fx_n = 1, .weight = 3};
+    assert(item_eat(&actors[0], 3, 1) && inv[3].name[0] && strstr(toast, "\xe4\xbd\xa0\xe4\xb8\x8d\xe8\x83\xbd\xe4\xbd\xbf\xe7\x94\xa8\xe6\x9c\xaa\xe9\x89\xb4"));
+    inv[3].identify = 1; inv[3].fx[0].id = 21; inv[3].fx[0].v = 0;
+    assert(!item_eat(&actors[0], 3, 0) && inv[3].name[0]);  // eat 不收類型 20
+    assert(item_eat(&actors[0], 3, 1) && !inv[3].name[0] && strstr(toast, "\xe7\x94\xa8\xe6\x8e\x89\xe4\xba\x86"));
+    inv[3] = su; actors[0].hp = shp;
+    // 負重 3026：加進去前不超、加完超才說一次
+    toast[0] = 0;
+    Item hv = {.name = "h", .weight = 100000};
+    burden_warn(&hv);
+    assert(strstr(toast, "\xe5\xa4\xaa\xe5\xa4\x9a\xe8\xb5\xb0\xe4\xb8\x8d\xe5\x8a\xa8"));
     hero_skill_n = -1;
     // 合併箭堆 0x100133c0：上限 500，超過的留在來源；類型條件 dst == 13 或 src == 14
     Item save_a = inv[0], save_b = inv[1];
@@ -4898,7 +4914,7 @@ int main(void) {
     assert(item_new(&food, 51, 1, -1, "maibing") && food.type == 51);
     inv[6] = food;
     h.hp = 1;
-    assert(item_eat(&h, 6) && !inv[6].name[0]);
+    assert(item_eat(&h, 6, 0) && !inv[6].name[0]);
     // 怪物掉寶：必掉 3 件金錢（類型 60）
     MonDef dm = md;
     dm.drop_min = dm.drop_max = 3;
