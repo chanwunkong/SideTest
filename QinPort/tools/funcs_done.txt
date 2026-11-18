@@ -262,3 +262,64 @@
 10024410  main.c skill_field（技能參數 屬性代號 10~19：EDR = (等級−1)×增量＋初始值；0x10026270 分派）
 10024450  main.c skill_field（技能參數 屬性代號 10~19：B_C_JDR = (等級−1)×增量＋初始值；0x10026270 分派）
 100244a0  main.c skill_field（技能參數 屬性代號 10~19：B_C_DJHF = (等級−1)×增量＋初始值；0x10026270 分派）
+100244f0  main.c strike（技能參數 210：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024550  main.c strike（技能參數 212：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+100245b0  main.c strike（技能參數 214：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024610  main.c strike（技能參數 216：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024670  main.c strike（技能參數 218：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+100246d0  main.c strike（技能參數 220：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024730  main.c strike（技能參數 222：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024780  main.c strike（技能參數 223：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+100247d0  main.c strike（技能參數 250：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024820  main.c strike（技能參數 251：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024870  main.c strike（技能參數 252：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+100248c0  main.c strike（技能參數 253：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024910  main.c strike（技能參數 254：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024960  main.c strike（技能參數 255：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+100249b0  main.c strike（技能參數 256：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024a00  main.c strike（技能參數 257：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024a50  main.c strike（技能參數 258：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024aa0  main.c strike（技能參數 259：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024af0  main.c strike（技能參數 260：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024b40  main.c strike（技能參數 261：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024b90  main.c strike（技能參數 262：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024be0  main.c strike（技能參數 263：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024c30  main.c strike（技能參數 264：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024c80  main.c strike（技能參數 265：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024cd0  main.c strike（技能參數 266：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024d20  main.c strike（技能參數 267：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024d70  main.c strike（技能參數 268：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10024dc0  main.c strike（技能參數 269：施放時暫時加值，固定值／百分比兩組 add／pct；表 0x1039e628）
+10025160  main.c skill_now（技能參數 292 立即生效：HP／MP 上限的百分比加到 HP／MP；施放時表 0x1039e628 的處理）
+100251c0  main.c skill_now（技能參數 293 立即生效：HP／MP 上限的百分比加到 HP／MP；施放時表 0x1039e628 的處理）
+10025220  main.c skill_now → status_clear（技能參數 295：呼叫 0x1003f130 清狀態）
+10025260  main.c gem_fx（寶石特性 300：耐久上限／等級／力量／體質／敏捷需求 × 加上或拆下的正負號）
+10025370  main.c gem_fx（寶石特性 301：耐久上限／等級／力量／體質／敏捷需求 × 加上或拆下的正負號）
+10025450  main.c gem_fx（寶石特性 302：耐久上限／等級／力量／體質／敏捷需求 × 加上或拆下的正負號）
+10025530  main.c gem_fx（寶石特性 303：耐久上限／等級／力量／體質／敏捷需求 × 加上或拆下的正負號）
+10025610  main.c gem_fx（寶石特性 304：耐久上限／等級／力量／體質／敏捷需求 × 加上或拆下的正負號）
+10035fd0  main.c skill_now（屬性分類 1 的立即生效：21 HP、22 MP、292、293、295）
+10026590  main.c gem_fx（屬性加上 DAT_1039b5dc 正負號倍數）
+10026b50  main.c strike（讀攻擊方 AP、AP_MAX → Actor.ap／ap_max）
+10026b80  main.c strike（讀防守方 DP → Actor.dp）
+10026ba0  main.c strike（讀 HR／SR → Actor.hr／sr）
+10026bd0  main.c strike（讀 MAP1~5 與 MAP1~5_MAX → Actor.ex[43..52]）
+1005b410  story_rt.c O(h)（依代號取物件：代號低 24 位元為索引，物件代號要相符，否則 NULL）
+1005b4a0  story_rt.c O(h)（代號有效檢查：不是 −1、低 24 位元 ≤ 0xffff）
+1005b4d0  story_rt.c story_kind(h) == 2（種類 0x65 = 道具）
+1005b510  story_rt.c story_kind(h) == 1（種類 0x66／0x67 = 人物／玩家）
+1005b540  story_rt.c story_kind(h) == 1 且是玩家（種類 0x67；單機 = story_player）
+1005b580  story_rt.c story_kind(h) == 5（種類 0x68 = 技能）
+1004c610  story_rt.c 空字串比較（!*s；原版和 .rdata 0x102352e8 的空字串比）
+1004c7f0  story_rt.c 物件指標非空（h != 0）
+1004c7a0  story_rt.c story_get_int(h, "Amount") != 0（金錢／堆疊道具有數量）
+10018a20  main.c item_identify（文字指令 identify 的包裝：解析「誰 道具 兩個數」後呼叫 0x1004be60）
+1001a7a0  main.c item_repair（文字指令 repair 的包裝：解析參數、all 逐件呼叫 0x10054090）
+1001a110  main.c make_produce（文字指令 produce 的包裝：解析 6+ 參數、找材料後呼叫 0x10051530 打造；訊息 1214）
+10013e40  main.c hero_attr_points（文字指令 c_extrause：0／1 個參數顯示剩餘點數、3 個參數呼叫 0x1003bb10）
+1003bb10  main.c hero_attr_points（加屬性點：Extra_Exp > 0 才加，屬性 +n、剩餘點數 −n 不夠補 0、重算 0x1002d8d0）
+10013d00  main.c skill_add（文字指令 c_extrause2：解析「誰 技能 次數」後呼叫 0x1003b9e0 技能升級）
+100133c0  main.c arrow_merge（文字指令 c_arrow：解析兩個道具別名、類型條件 dst 13／src 14、上限 500 超過留在來源）
+1001c040  main.c（trap_revealed：s_findtrap 設陷阱物件 Find = 1，引擎陷阱被發現時設 trap_revealed）
+100151a0  story_rt.c case 0x1003d0b0（文字指令 chapter：net < 2 時呼叫章節字幕 0x1003d0b0(玩家, 章, 1)）
+1001a6a0  main.c gem_remove（文字指令 removegem：解析三個別名後呼叫 0x10053a40）

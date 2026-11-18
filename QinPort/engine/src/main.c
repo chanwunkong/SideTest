@@ -2091,9 +2091,35 @@ static void actor_health_sync(Actor *a) {
 
 static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick);
 
-// 立即生效的參數（0x10035fd0，屬性分類 1）：21 HP、22 MP 加值（百分比 = 目前值的 %），292、293 = HP_MAX、MP_MAX 的 % 加到 HP、MP
+// 清狀態（0x1003f130）：身上第 6~9 類狀態（status_class）的已過時間加 v（原版改 "Status_N" 屬性的第一個數字 = 已過秒數；v 取 char），
+// 之後 actor_second 的計時就提早到期。技能參數 295（圣手祛魔）、attribT 的 clearstatus10／20／30
+static void status_clear(Actor *x, int v) {
+    v = (signed char)v;
+    for (int b = 0; b < x->buff_n; b++) {
+        int c = status_class(x->buff[b].status);
+        if (c > 5 && c < 10) x->buff[b].elapsed += v;
+    }
+}
+
+// 寶石特性 300~304（0x10025260／0x10025370／0x10025450／0x10025530／0x10025610，加上寶石 sign = 1、拆下 −1）：耐久上限（HP_MAX，之後耐久不得超過上限）、
+// 等級、力量、體質、敏捷需求各加 v × sign。shortcut: 原版不夾下限（需求可能變負，讀的地方都用 ≥ 比較）；G_Info 說明字串引擎每次畫時現算
+static void gem_fx(Item *w, const ItemFx *f, int sign) {
+    int d = (int)f->v * sign;
+    switch (f->id) {
+    case 300: w->hp_max += d; if (w->hp > w->hp_max) w->hp = w->hp_max; break;
+    case 301: w->lv_req += d; break;
+    case 302: w->str_req += d; break;
+    case 303: w->con_req += d; break;
+    case 304: w->dex_req += d; break;
+    }
+}
+
+// 立即生效的參數（0x10035fd0 屬性分類 1，也是 0x10025160／0x100251c0／0x10025220 的施放時版本）：21 HP、22 MP 加值（百分比 = 目前值的 %），
+// 292、293 = HP_MAX、MP_MAX 的 % 加到 HP、MP；295 = 清狀態（0x1003f130）
+static int skill_instant(int id) { return id == 21 || id == 22 || id == 292 || id == 293 || id == 295; }
 static void skill_now(Actor *x, const SkillMod *m, int level) {
     float v = skill_value(m->init, m->incr, level);
+    if (m->id == 295) { status_clear(x, (int)v); return; }
     int *f = m->id == 21 || m->id == 292 ? &x->hp : m->id == 22 || m->id == 293 ? &x->mp : NULL;
     if (!f) return;
     int max = f == &x->hp ? x->hp_max : x->mp_max;
@@ -2231,7 +2257,7 @@ static void skill_hit(Actor *a, Actor *t, const SkillRow *r, Uint32 tick) {
     }
     for (int i = 0; r && i < r->mod_n; i++) {
         const SkillMod *m = &r->mod[i];
-        if (m->id == 21 || m->id == 22 || m->id == 292 || m->id == 293) skill_now(m->enemy > 0 && t ? t : a, m, r->level);
+        if (skill_instant(m->id)) skill_now(m->enemy > 0 && t ? t : a, m, r->level);
     }
     int k = r ? r->attack : 1;
     if (k == 2) tame(a, t, r);
@@ -3260,7 +3286,7 @@ static void actor_aura_receive(Actor *target, const ActorSkill *skill, int statu
     if (!buff_add_source(target, r, status, 2, skill_time(r), 0, skill->key)) return;
     for (int i = 0; i < r->mod_n; i++) {
         const SkillMod *m = &r->mod[i];
-        if (m->id == 21 || m->id == 22 || m->id == 292 || m->id == 293)
+        if (skill_instant(m->id))
             skill_now(target, m, r->level);
     }
 }
@@ -4995,13 +5021,20 @@ static void role_set_mode(int mode) {
     }
 }
 
-// 加點按鈕 m_pOK[i]（Poq.exe 0x553b00）：剩餘點數 −1、送 0x200 訊息讓第 i 項屬性 +1，再照目前模式重整（點數用完就回顯示模式）。
+// 加屬性點（EasyRPG.dll 0x1003bb10，文字指令 c_extrause 0x10013e40 也走這）：還有剩餘點數才加，第 i 項（力、體、敏、悟、魅、智）+n、剩餘點數 −n（不夠補 0）、重算數值
+static void hero_attr_points(int i, int n) {
+    if (hero_extra_exp <= 0 || i < 0 || i > 5) return;
+    hero_attr[i] += n;
+    hero_extra_exp -= n;
+    if (hero_extra_exp < 0) hero_extra_exp = 0;
+    hero_derive(&actors[0]);
+}
+
+// 加點按鈕 m_pOK[i]（Poq.exe 0x553b00）：送 0x200 訊息讓第 i 項屬性 +1（hero_attr_points），再照目前模式重整（點數用完就回顯示模式）。
 // shortcut: 原版按住會越加越快（間隔 400 → 50 毫秒），這裡一下一點
 static void role_add_point(int i) {
     if (hero_extra_exp <= 0 || i < 0 || i > 5) return;
-    hero_extra_exp--;
-    hero_attr[i]++;
-    hero_derive(&actors[0]);
+    hero_attr_points(i, 1);
     role_set_mode(role_mode);
 }
 
@@ -5617,6 +5650,36 @@ static void hud_msg(int id, ...) {
     toast_until = SDL_GetTicks() + 2500;
 }
 
+// 學技能（Poq 封包 0x231 → 0x1006a120；文字指令 skl_learn 0x1001d980 同式，AddSkill 0x10037d70、建技能物件 0x100529a0）。
+// 已學過 → 1325；技能不在 SKL_ToLearn（「索引名 分類 索引名 分類…」，分類 = S_Class）→ 1322；同分類已學 4 個 → 1324；成功 → 1321「你学会了技能」。
+// shortcut: SKL_ToLearn 原版由伺服器的老師封包寫入（0x1004f0xx），單機劇情沒人教，所以只有 --learn（網址 learn=）塞得進去；
+//   技能表沒有 S_Class 欄（在技能物件上），已學的技能分類記在學的當下（hero_skill_class，起始 −1）；學到的等級用 1（表上初始等級空白 = −1，引擎 0 = 沒學）
+static char hero_to_learn[512];
+static int hero_skill_class[20] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+static int hero_learn_skill(const char *key) {
+    skills_load();
+    int k = -1;
+    for (int i = 0; i < hero_skill_n; i++)
+        if (!strcmp(hero_skill[i].key, key)) k = i;
+    if (k >= 0 && hero_skill[k].level > 0) { hud_msg(1325); return 0; }
+    const char *p = strstr(hero_to_learn, key);
+    if (!p || k < 0) { hud_msg(1322); return 0; }
+    p += strlen(key);
+    int cls = atoi(p), n = 0;
+    for (int i = 0; i < hero_skill_n; i++) n += hero_skill[i].level > 0 && hero_skill_class[i] == cls;
+    if (n > 3) { hud_msg(1324); return 0; }
+    SkillRow *r = &hero_skill[k];
+    r->level = 1;
+    hero_skill_class[k] = cls;
+    actor_skill_update(&actors[0], k + 1, skill_attack_id(r), (int)skill_field(r, 12, skill_value(r->range_min, r->range_min_inc, r->level)),
+        skill_range_max(r), 0, 0);
+    actor_skill_enable(&actors[0], k + 1, 1, 0);
+    char g[128] = "";
+    res_dlg("name_C.dlg", r->name_id, g, sizeof g);
+    hud_msg(1321, g);
+    return 1;
+}
+
 static int bag_free(void) {
     for (int i = 0; i < 24; i++)
         if (!inv[i].name[0]) return i;
@@ -5925,6 +5988,17 @@ static int ground_at(int px, int py, int ox, int oy, const Scene *s) {
 static int shop_bag_act(int p);
 static int store_bag_act(int p);
 #endif
+// 合併箭堆（文字指令 c_arrow 0x100133c0，客戶端把一堆拖到另一堆時送）：dst 有數量上限 500（.data 0x1039f554），超過的留在 src。
+// 條件照原版：dst 類型 13 或 src 類型 14（原版 `Type(a) == 13 || Type(b) == 14`，不要求兩邊同類）；不符合不動。回 1 = 有合併
+#define ARROW_MAX 500
+static int arrow_merge(int dst, int src) {
+    if (dst == src || !inv[dst].name[0] || !inv[src].name[0] || !(inv[dst].type == 13 || inv[src].type == 14)) return 0;
+    int n = inv[dst].arrows + inv[src].arrows, rest = n > ARROW_MAX ? n - ARROW_MAX : 0;
+    inv[dst].arrows = n - rest;
+    if (rest) inv[src].arrows = rest;
+    else inv[src].name[0] = 0;
+    return 1;
+}
 static void bag_use(int p) {
     if (inv[p].part > 0) item_equip(&actors[0], p);
     else if (!item_eat(&actors[0], p)) hud_say("不能使用");
@@ -5937,7 +6011,7 @@ static void bag_button(const char *name) {
         if (p == sel && (shop_bag_act(p) || store_bag_act(p))) return;
 #endif
         if (p == sel) bag_use(p);
-        else if (inv[p].name[0]) item_sel = p;
+        else if (inv[p].name[0]) { if (sel >= 0) arrow_merge(p, sel); item_sel = p; }  // 選中箭堆再點另一堆 = 合併（c_arrow）
         else if (sel >= 0) { inv_swap(sel, p); item_sel = p; }
     } else if (!strcmp(name, "m_pNeaten")) bag_neaten();
     else if (sel < 0) { if (!strcmp(name, "m_pEquip")) ui_command(name); }
@@ -6233,6 +6307,7 @@ static void gem_add(int g) {
         if (weapon ? def : atk) continue;
         w->fx[w->fx_n] = gem->fx[i];
         w->fx[w->fx_n++].gem = w->gem_n + 1;
+        gem_fx(w, &gem->fx[i], 1);
     }
     w->gem_icon[w->gem_n] = gem->icon;
     w->gem_value[w->gem_n++] = gem->value;
@@ -6246,7 +6321,7 @@ static void gem_remove(int k) {
     if (k < 0 || k >= w->gem_n) return;
     int n = 0, v = (int)(w->gem_value[k] * 1.5f);
     for (int i = 0; i < w->fx_n; i++) {
-        if (w->fx[i].gem == k + 1) continue;
+        if (w->fx[i].gem == k + 1) { gem_fx(w, &w->fx[i], -1); continue; }
         w->fx[n] = w->fx[i];
         if (w->fx[n].gem > k + 1) w->fx[n].gem--;
         n++;
@@ -6400,6 +6475,13 @@ static void *story_item_new(int h, int type, int level, int col, const char *ali
 
 // 劇情給經驗（0x1003d270：主角和隊友各加）、系統訊息（0x1004dd00 → 介面訊息 0x5ea）
 static void story_exp(int h, int exp) { if (h == story_player()) hero_gain_exp(&actors[0], exp); }
+static const char *story_text(int id) {
+    static char out[256];
+    char g[256] = "";
+    out[0] = 0;
+    if (res_dlg("EasyRPG_C.dlg", id, g, sizeof g)) gbk_utf8(g, out, sizeof out);
+    return out;
+}
 static void story_log(int h, int kind, const char *text) { (void)kind; if (h == story_player()) hud_say(text); }
 
 // 劇情和引擎共用主角的錢、身上的東西。叫劇情前：錢給它，inv 的每件道具放回主角的物件身上（find_item 找得到、
@@ -8133,7 +8215,8 @@ static int trade_paused(void) { return 0; }  // 沒有劇情就沒有交易視�
 int main(int argc, char **argv) {
     const char *game = "game", *scn = "xianyang", *shot = NULL;
     int pos = 0, warp = -1, at_x = -1, at_y = -1, level = 1, gives = 0, money = -1;
-    const char *give[8];
+    const char *give[8], *learn[8];
+    int learns = 0;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--pause-traps")) trap_auto_pause = 1;
         if (!strcmp(argv[i], "--pause-deaths")) death_auto_pause = 1;
@@ -8144,6 +8227,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
         else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--money") && i + 1 < argc) money = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--learn") && i + 1 < argc && learns < 8) learn[learns++] = argv[++i];  // 測試用：模擬文字指令 skl_learn「索引名,分類」
         else if (!strcmp(argv[i], "--item") && i + 1 < argc && gives < 8) give[gives++] = argv[++i];
         else if (!strcmp(argv[i], "--prof") && i + 1 < argc) hero_prof = atoi(argv[++i]) < 1 || atoi(argv[i]) > 5 ? 1 : atoi(argv[i]);
         else if (pos++ == 0) game = argv[i];
@@ -8173,6 +8257,7 @@ int main(int argc, char **argv) {
     story_on_person = story_person;
     story_on_skill = story_skill;
     story_on_msg = story_msg;
+    story_on_text = story_text;
     story_end();  // 開場裝備照劇情的主角（扶苏武器、布衣）
     hero_look();
 #else
@@ -8192,6 +8277,13 @@ int main(int argc, char **argv) {
     if (!hero->role) { fprintf(stderr, "載入主角失敗\n"); return 1; }
     hero_stats(hero, level < 1 ? 1 : level > 99 ? 99 : level);
     hero_extra_exp = 10 * (hero->level - 1), hero_extra_skill = hero->level - 1;  // 測試用 --level：當成從 1 級升上來，點數照原版給
+    for (int i = 0; i < learns; i++) {  // 測試用 --learn 索引名,分類：先放進 SKL_ToLearn 再學（skl_learn）
+        char key[64] = "";
+        int cls = 0;
+        sscanf(learn[i], "%63[^,],%d", key, &cls);
+        snprintf(hero_to_learn + strlen(hero_to_learn), sizeof hero_to_learn - strlen(hero_to_learn), "%s %d ", key, cls);
+        if (hero_learn_skill(key)) hero_skill_apply(hero);
+    }
     int room = -1, armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
     int monsters_due = 1;      // 進場景後等圖片都下載好，再讀房間表放怪物（網頁版開場不用等 4MB 的 DLL）
     if (at_x >= 0) actor_restore_position(hero, at_x + 0.5f, at_y + 0.5f);

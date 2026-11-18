@@ -80,3 +80,4 @@ int story_team_next(int leader, int after);
 extern int (*story_on_person)(int h, const char *name, int level, int tier);
 extern int (*story_on_skill)(int h, const char *key, int level);
 extern void (*story_on_msg)(int id, const intptr_t *v, int n, const char *s);
+extern const char *(*story_on_text)(int id);  // 系統訊息表 EasyRPG_C.dlg 第 id 筆（UTF-8），主程式提供

@@ -151,6 +151,12 @@ void *(*story_item_make)(int h, int type, int level, int col, const char *alias)
 int (*story_on_person)(int h, const char *name, int level, int tier);
 int (*story_on_skill)(int h, const char *key, int level);
 void (*story_on_msg)(int id, const intptr_t *v, int n, const char *s);
+const char *(*story_on_text)(int id);  // 系統訊息表 EasyRPG_C.dlg（原版 0x10060280）第 id 筆，沒有回 ""
+
+static void sysmsg(int h, int kind, int id) {  // 0x1004dd00(誰, 種類, −1, 0x10060280(id))
+    const char *t = story_on_text ? story_on_text(id) : "";
+    if (story_on_log) story_on_log(h, kind, t);
+}
 
 static void msg(int id, const char *s, int n, ...) {
     if (quiet || !story_on_msg) return;
@@ -1083,10 +1089,22 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
         story_set_int(a[0], "Amount", 0);
         return 0;
 
-    // ---- 連線版（幫派）：單機沒有 Job ≥ 5 的人物，原版直接回錯誤訊息 ----
-    case 0x10039b60: case 0x10038f90:
-        if (story_on_log) story_on_log((int)a[0], 0x10, "");  // shortcut: 原版字串 easyrpg.dlg 0xbf4／0xbf7，還沒讀那個檔
+    // ---- 連線版（幫派）：Job 只由幫派指令寫（0x1004xxxx 任命、升降），單機沒有幫派，Job 恆為 0 ----
+    case 0x10039b60:                                                         // 撤銷幫派：Job < 9 → 「你不是掌门人不能撤销门派」
+        sysmsg((int)a[0], 0x10, 0xbf4);
+        return 0;                                                            // shortcut: Job ≥ 9 之後（BAPA 比對、解散幫派檔）單機到不了
+    case 0x10038f90: {                                                       // 天王令牌升幫派（玩家, 模式, 值）：Job ≥ 5、錢 ≥ 40 萬、身上有令牌
+        int p = (int)a[0];
+        if (story_get_int(p, "Job") < 5) { sysmsg(p, 0x10, 0xbf7); return 0; }
+        if (story_get_int(p, "Money") < 400000) { sysmsg(p, 0x10, 0xc13); return 0; }
+        int tok = find_in(p, "tianwanglingpai");
+        if (!tok) { sysmsg(p, 0x10, 0xc14); return 0; }
+        // shortcut: 模式 1 要讀幫派檔（BAPA 的 .bp，0x1000f810／0x1000fde0 改人數上限），單機沒有幫派檔：回「没有找到门派信息」(0xbf5) 不扣錢
+        if (a[1] == 1) { sysmsg(p, 0x10, 0xbf5); return 0; }
+        w_add_money(p, -400000);
+        story_delete(tok);                                                   // 令牌用掉（0x1004df20 移出身上、0x1003e920 刪）
         return 0;
+    }
     case 0x1004d500: return 0;  // 令牌（Type 0x3d）換手的訊息：shortcut: 只有連線版的天王令牌用到
     }
     Fn *f = fn_find(addr);  // 劇情呼叫別的類別的方法（例如衍生類別先跑基底的第 1 格）

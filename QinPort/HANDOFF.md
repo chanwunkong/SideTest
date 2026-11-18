@@ -1486,4 +1486,18 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - done：技能參數屬性代號 10~19 的 10 個設定函數（0x100241e0~0x100244a0）對到 main.c `skill_field`（funcs_done.txt）。
 - roles.tsv 補 66 個保留的文字指令處理（s_*／c_*／open／use／get／drop／produce…）的指令名。
 - **還是 todo（837）**：文字指令的 s_*／c_*／open／use／get／drop／produce／identify／repair／skl_*（引擎有等價實作但沒逐一對位址）；技能參數 20~99 的立即生效函式表（0x100244f0~0x10025610，0x10035fd0 分派）；人物數值（0x10025xxx~0x1003xxxx：升級 0x100265d0、人物屬性 0x100295b0 2909 行、背包 BAPA 操作 0x10038ae0~0x1003a8f0、UI_Pos 交換 0x1004cf20）；物件模型存取（0x1004xxxx~0x1006xxxx）；隨機道具第二版 0x10071910／0x10072e30。
-- **下一步：0x10025b70 之後的 0x100258b0 起（技能參數 20~99 函式表）**，接著 0x100265d0（升級）、0x100295b0（人物初始化）。
+- ~~**下一步：0x10025b70 之後的 0x100258b0 起（技能參數 20~99 函式表）**，接著 0x100265d0（升級）、0x100295b0（人物初始化）。~~
+
+### EasyRPG.dll 規則移植第 1 輪（2026-11-18）
+- EasyRPG.dll 遊戲函數 todo 837 → 425（done +66、skip +346）。
+- **用 PE 映像掃描判死碼**：todo 裡沒有呼叫者的 330 個，掃 .data／.rdata 的 4 位元組指標與 .text 的位址立即值：只有 38 個被函式表（0x1039e628／0x1039e8f4）參照，其餘 291 個＋只被它們呼叫的 10 個是死碼（含 0x10071910 第二版隨機道具產生器 842 行），進 funcs_skip.txt。`0x10064000~0x1006b000` 封包處理那批沒動。
+- **技能參數函式表**（0x10026270／0x10025b70／0x100260d0 依 `FUN_100364a0(id)` 分類：0 技能自己的欄位、1 立即生效、2 施放暫存、3 道具生成）：表 0x1039e628 的 38 個處理對應 main.c：210~269（0x100244f0~0x10024dc0，28 個）= `strike` 的 add／pct 暫存；292／293（0x10025160／0x100251c0）= `skill_now`；**295（0x10025220 → 0x1003f130）新做 `status_clear`**：第 6~9 類狀態的已過秒加 v（技能表圣手祛魔、attribT clearstatus10／20／30）；**300~304（0x10025260~0x10025610）新做 `gem_fx`**：寶石特性改耐久上限／等級／力量／體質／敏捷需求（attribT 的 gemduration／gemlevreq／gemstrreq／gemconreq／gemdexreq），镶嵌 `gem_add` 加、拆除 `gem_remove` 減；0x10035fd0 = `skill_now`。280（CART）、291（FE）技能表與 attribT 都沒用到，skip（以後 DLC 可用再做）。
+- **學技能**（封包 0x231 → 0x1006a120、文字指令 skl_learn 0x1001d980、AddSkill 0x10037d70、建技能物件 0x100529a0）：`hero_learn_skill`：已學 1325、不在 SKL_ToLearn 1322、同分類滿 4 個 1324、成功 1321。單機劇情沒人教技能（SKL_ToLearn 原版由伺服器老師封包寫，0x1004f0xx），所以只有測試參數 `--learn 索引名,分類`（網址 `learn=`）塞得進去。shortcut：技能表沒有 S_Class 欄（在技能物件上），分類記在學的當下；學到等級 1。
+- **天王令牌**（0x10038f90）、撤銷幫派（0x10039b60）：Job 只由幫派指令寫（單機沒有幫派），驗證過 Job 恆 0 → story_rt.c 現在照原版回「没有权限」（EasyRPG_C.dlg 3063／3060），不是空字串；Job ≥ 5 以後的錢（3091）、令牌（3092）檢查也照翻，模式 1 要幫派檔（.bp）單機沒有，shortcut 回 3061。新增 `story_on_text(id)` 讓 story_rt.c 讀 EasyRPG_C.dlg。
+- 加屬性點 0x1003bb10（c_extrause 0x10013e40）= `hero_attr_points(i, n)`；合併箭堆 c_arrow 0x100133c0 = `arrow_merge`（上限 500、`dst 類型 13 或 src 類型 14` 的原版條件，背包選箭堆再點另一堆）。
+- 物件模型存取（0x1005b410／1005b4a0／1005b4d0／1005b510／1005b540／1005b580／1004c610／1004c7f0／1004c7a0）= story_rt.c `O(h)`、`story_kind`：0x65 道具、0x66／0x67 人物／玩家、0x68 技能。
+- **BAPA／Job = 幫派（門派）**，不是背包：0x10038ae0／10038eb0／100391d0／100395f0／10039810／10039d70／1003a140／1003a8f0／1003aa10／10044eb0／1004b110／1004b3b0 全是幫派任命、加入、解散、名單封包，skip。
+- 文字指令（讀過本體）：identify／repair／produce／removegem／c_extrause／c_extrause2 是包裝，內層規則 `item_identify`／`item_repair`／`make_produce`／`gem_remove`／`hero_attr_points`／`skill_add` 引擎已有，標 done；s_*（場景同步 G_Created／G_ScnInitID…）、c_*（UI_Pos／Trading／價格送客戶端）是伺服器→客戶端同步，單機共用物件，skip。
+- **還是 todo（425）**：`use`（0x1001e660，通用道具使用，引擎只有吃 type 49／51）、`get`／`drop` 核心 0x1001f4e0／0x1001f290（can_get、搬不動 1117／背包滿 1118／找不到 1119 訊息，引擎 ground_pick 只有「背包已滿」）、`open`／`openall`（開箱，引擎沒有接收系統）、skl_forget 0x1001d840（忘記技能，訊息 1323）、abandon／give／inventory、0x100295b0（隊友入隊自動加點，2909 行 + 職業表）與 0x100265d0（隊友升級學技能）等隊友控制系統、0x1004cb00／0x1004cf20（UI_Pos 搬移的負重 BD／交易／倉庫處理，負重超過的訊息 3026 與效果）、0x100279b0（道具說明文字 619 行，G_Info 刷新 0x100263f0 等依賴它）、0x1002d8d0 一帶人物數值（0x1002e060／0x1002e3c0／0x1002eaa0／0x10030c90）。
+- 封包處理 89 條（0x10064d00~0x1006a370）的呼叫樹整理：它們呼叫的規則函數主要是 0x10038ae0 起的幫派（已 skip）、0x1003a140、0x10041xxx~0x10047xxx 的客戶端通知（0x10045e20 等）；沒逐一讀（請另一人抽查），其中 0x10065af0 呼叫的 0x10038f90、0x1006a120 學技能已確認有規則並移植。
+- **下一步：0x1001e660（use）、0x1001f4e0／0x1001f290（get／drop 訊息）、0x1004cb00／0x1004cf20（UI_Pos 搬移 + BD），再 0x1002d8d0 一帶人物數值。**

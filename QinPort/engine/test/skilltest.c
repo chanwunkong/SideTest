@@ -4272,6 +4272,50 @@ static void newchar_opt_test(void) {
     assert(!memcmp(opt_v, opt_def, sizeof opt_v));
 }
 
+// 清狀態 0x1003f130（技能參數 295）、寶石特性 300~304（0x10025260~0x10025610）、學技能 0x1006a120
+static void instant_gem_learn_test(void) {
+    Actor a = {.def = &def, .hp = 100, .hp_max = 100};
+    assert(buff_add(&a, NULL, 14, 1, 100, 0) && buff_add(&a, NULL, 76, 1, 100, 0));  // 14 第 6 類（可清）、76 第 2 類（不清）
+    SkillMod m = {.id = 295, .init = 12, .incr = 8};
+    assert(skill_instant(295));
+    skill_now(&a, &m, 3);  // 12 + 8 × 2 = 28
+    assert(a.buff[0].elapsed == 28 && a.buff[1].elapsed == 0);
+    // 耐久上限、需求加減；拆下還原；耐久不超過上限
+    Item w = {.hp = 90, .hp_max = 100, .lv_req = 10, .str_req = 100, .con_req = 5, .dex_req = 7};
+    ItemFx f300 = {.id = 300, .v = -20}, f302 = {.id = 302, .v = -52}, f301 = {.id = 301, .v = -6}, f303 = {.id = 303, .v = 3}, f304 = {.id = 304, .v = 4};
+    gem_fx(&w, &f300, 1); gem_fx(&w, &f302, 1); gem_fx(&w, &f301, 1); gem_fx(&w, &f303, 1); gem_fx(&w, &f304, 1);
+    assert(w.hp_max == 80 && w.hp == 80 && w.str_req == 48 && w.lv_req == 4 && w.con_req == 8 && w.dex_req == 11);
+    gem_fx(&w, &f302, -1); gem_fx(&w, &f301, -1); gem_fx(&w, &f303, -1); gem_fx(&w, &f304, -1);
+    assert(w.str_req == 100 && w.lv_req == 10 && w.con_req == 5 && w.dex_req == 7);
+    // 學技能：不在清單 1322、成功 1321、已學 1325、同分類滿 4 個 1324
+    hero_skill_n = -1; skills_load();
+    assert(hero_skill_n > 6 && hero_skill[1].level == 0);
+    char key[40];
+    snprintf(key, sizeof key, "%s", hero_skill[1].key);
+    memset(hero_to_learn, 0, sizeof hero_to_learn);
+    assert(!hero_learn_skill(key) && strstr(toast, "\xe4\xb8\x8d\xe5\xb1\x9e\xe4\xba\x8e"));  // 「不属于」
+    snprintf(hero_to_learn, sizeof hero_to_learn, "%s 7 ", key);
+    assert(hero_learn_skill(key) && hero_skill[1].level == 1 && hero_skill_class[1] == 7 && strstr(toast, "\xe4\xbd\xa0\xe5\xad\xa6\xe4\xbc\x9a"));
+    assert(!hero_learn_skill(key) && strstr(toast, "\xe5\xb7\xb2\xe7\xbb\x8f\xe5\xad\xa6\xe4\xbc\x9a"));
+    for (int i = 2; i < 5; i++) { hero_skill[i].level = 1; hero_skill_class[i] = 7; }
+    snprintf(key, sizeof key, "%s", hero_skill[5].key);
+    snprintf(hero_to_learn, sizeof hero_to_learn, "%s 7 ", key);
+    assert(!hero_learn_skill(key) && hero_skill[5].level == 0 && strstr(toast, "\xe6\x8a\x80\xe8\x83\xbd\xe5\xb7\xb2\xe6\xbb\xa1"));  // 「技能已满」
+    hero_skill_n = -1;
+    // 合併箭堆 0x100133c0：上限 500，超過的留在來源；類型條件 dst == 13 或 src == 14
+    Item save_a = inv[0], save_b = inv[1];
+    inv[0] = (Item){.name = "a", .type = 13, .arrows = 300};
+    inv[1] = (Item){.name = "b", .type = 13, .arrows = 350};
+    assert(arrow_merge(0, 1) && inv[0].arrows == 500 && inv[1].name[0] && inv[1].arrows == 150);
+    inv[1].arrows = 20;
+    assert(arrow_merge(0, 1) == 1 && inv[0].arrows == 500 && inv[1].arrows == 20);  // 已滿：全留在來源
+    inv[0].arrows = 100;
+    assert(arrow_merge(0, 1) && inv[0].arrows == 120 && !inv[1].name[0]);
+    inv[1] = (Item){.name = "c", .type = 7, .arrows = 5};
+    assert(!arrow_merge(1, 0) && !arrow_merge(0, 0));
+    inv[0] = save_a; inv[1] = save_b;
+}
+
 int main(void) {
     weaponset_test();
     newchar_opt_test();
@@ -4285,6 +4329,7 @@ int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
     make_ready_test();
+    instant_gem_learn_test();
     choose_height_test();
     caption_test();
     map_test();

@@ -933,3 +933,14 @@ CChapterDialog	+0x2a0	第一頁的章節（-1 = 未設）	caption.c ch.first
 CChapterDialog	+0x2a8	結局章組（1~7，頁數表 0x645270）	caption.c ch.group
 CChapterDialog	+0x2b0	每行等幾拍（沒有配音 = 200）	caption.c ch.step
 CCreditsDialog	+0x298	捲動速度（3；按住 1）	caption.c cr.speed
+SkillParam	+0x0	是否对敌（≠ 0 套在對方 DAT_104784d4，否則施放者 DAT_104784d0）	SkillMod.enemy
+SkillParam	+0x4	是否百分比（== 1.0 → 寫百分比那組暫存，否則固定值那組）	SkillMod.pct
+SkillParam	+0x8	初始值	SkillMod.init
+SkillParam	+0xc	增量	SkillMod.incr
+SkillParam	+0x10	等級偏移（值 = (技能等級 + 偏移) × 增量 + 初始值；表上為 −1）	skill_value 的 (level − 1)
+CERItem	屬性 HP_MAX／HP	耐久上限／耐久（寶石特性 300 改耐久上限）	Item.hp_max／hp
+CERItem	屬性 LevelReq／StrReq／ConReq／DexReq	裝備等級／力量／體質／敏捷需求（寶石特性 301~304 加減）	Item.lv_req／str_req／con_req／dex_req
+CERPerson	屬性 BAPA／Job	幫派（門派）名／職位；Job ≥ 5 才能用天王令牌（0x10038f90）、≥ 9 才能撤銷（0x10039b60）；單機沒有幫派 Job 恆 0	story 屬性 Job
+CERPerson	屬性 Status_N	狀態 N 的計時「已過秒 時間 來源」（0x10055e90 每秒 +1）；0x1003f130 把第 6~9 類狀態的已過秒加上去	Buff.elapsed／time
+CERPerson	屬性 SKL_ToLearn	可學技能「索引名 分類 …」（伺服器老師封包寫入）	hero_to_learn
+CERSkill	屬性 S_Class	技能分類（同分類最多學 4 個，0x1004bbf0 計數）	hero_skill_class

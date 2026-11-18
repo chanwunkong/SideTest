@@ -3219,3 +3219,364 @@ UIWndEx.dll:10003910  UIWndEx.dll 是 MFC 內嵌網頁視窗外掛（AfxParseURL
 UIWndEx.dll:10003930  UIWndEx.dll 是 MFC 內嵌網頁視窗外掛（AfxParseURL／CString／HWND 對話框，開線上頁面如充值／官網）：平台層與連線版，單機網頁版不用
 UIWndEx.dll:10003a80  UIWndEx.dll 是 MFC 內嵌網頁視窗外掛（AfxParseURL／CString／HWND 對話框，開線上頁面如充值／官網）：平台層與連線版，單機網頁版不用
 UIWndEx.dll:10003bf0  UIWndEx.dll 是 MFC 內嵌網頁視窗外掛（AfxParseURL／CString／HWND 對話框，開線上頁面如充值／官網）：平台層與連線版，單機網頁版不用
+EasyRPG.dll:10011030  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10019bce  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1001f3f0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1001fa60  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1001fae0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1001fb60  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1001fb90  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1001fc00  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1001fc80  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1001fd00  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10022360  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100223e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100224c0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10022570  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10022690  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100227a0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100228e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10022be0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10022d20  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10023760  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10023880  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100238d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10025700  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10025720  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10025770  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100257b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10025850  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10025880  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10025930  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10026590  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10026b50  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10026b80  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10026bd0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10031940  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10031c90  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10031d20  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10032490  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100325c0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10032f20  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10033040  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10034470  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100351f0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10035d90  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10035ef0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10035f50  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10035f90  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10036350  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100363a0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100363d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10036ae0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10036d40  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10036eb0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10037190  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100371b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100371d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100372b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100372f0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10037380  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10037400  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10037430  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100377e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10037ca0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10038070  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100386a0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003cdc0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003cf10  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003d7d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003e040  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003e0f0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003e3d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003ec70  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003ed70  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003eff0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003f970  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003fa20  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003fa50  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003fa80  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1003fe70  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10040360  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10040480  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10040500  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10041010  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10041380  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10041410  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10041650  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10041b40  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10041f10  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10041fe0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100420e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100425c0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10042840  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100428e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10043030  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10043320  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100444c0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10044aa0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10044c60  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10044d50  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10045120  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100451d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10045610  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10045ab0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10045b90  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10045d20  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10045d90  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10046580  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10046720  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10046790  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10046800  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100468a0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10046980  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10046a10  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10046ac0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10046c00  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10046c20  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10046ea0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10047590  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100476e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10048610  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10048e90  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10049060  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10049ac0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004a9c0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004aff0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004ba50  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004bb20  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004c210  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004c350  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004c430  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004c4e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004c7c0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004c810  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004d2f0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004d6e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004e370  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004e3d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004ecf0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1004f8c0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100536b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10053800  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10053840  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10053880  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10053980  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10053af0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10054360  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100547a0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10054fe0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100550e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10056360  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10056440  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10056520  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10056e00  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10058180  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100585e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100589b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10058ad0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10058bb0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10058c90  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005a610  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005a9d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005aea0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005b480  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005b620  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005b7c0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005b830  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005b880  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005b8b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005b910  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005b950  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005b980  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005b9e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005ba70  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005c330  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005c420  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005c7d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005c8d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005c930  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005c950  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005c990  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005d6e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005dac0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005db30  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005dbd0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005dc30  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005e900  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005e9b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005ea40  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005ed90  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005ee30  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005ee80  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005eee0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005f100  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005f170  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005f1f0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005f350  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005f400  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005fa10  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005fb70  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005fc10  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005fc60  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005fd60  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005fde0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005fe80  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005ff10  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005ff20  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005ff30  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005ff40  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005ffa0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1005fff0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10060040  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10060090  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100600b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100601b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100601c0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100602a0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100602e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10060330  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10060370  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10060890  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100608d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10060a00  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10060b00  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10060ba0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10060bf0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006b6a0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006b6e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006b810  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006b860  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006bae0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006bb30  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006bb40  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006db50  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006db70  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006dc00  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006dc50  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006dcf0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006dd40  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006dd90  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006dde0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006de30  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006dec0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006dee0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006df00  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006df50  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006dfa0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006dff0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006e040  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006e0e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006e190  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006e240  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006e2b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006ebc0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1006f9e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10070000  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10071910  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10072d60  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100743d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:100756e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10075710  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10075ff0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10079d20  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1010a835  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1010c4d5  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1010e125  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1010ef15  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10120065  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10120f95  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1012a215  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1016bad0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10174000  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f000  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f060  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f0e0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f140  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f1a0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f200  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f270  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f2d0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f330  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f390  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f3f0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f450  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:1020f4b0  EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植
+EasyRPG.dll:10023910  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
+EasyRPG.dll:10036520  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
+EasyRPG.dll:10038180  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
+EasyRPG.dll:10040100  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
+EasyRPG.dll:10049840  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
+EasyRPG.dll:1004aa40  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
+EasyRPG.dll:1004c980  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
+EasyRPG.dll:10054a50  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
+EasyRPG.dll:1005ac30  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
+EasyRPG.dll:1005ecd0  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
+EasyRPG.dll:10024fb0  技能參數 280（CART 載貨量）：技能表、attribT 都沒有用到這個屬性代號（掃描全部 skill_*.txt／attribT.txt），單機資料沒用；DLC 用到再做（HANDOFF「劇情沒用到」）
+EasyRPG.dll:10025120  技能參數 291（FE 五行元素）：技能表、attribT 都沒有用到這個屬性代號，單機資料沒用；DLC 用到再做
+EasyRPG.dll:10025700  CContainer<int,40> 建構（容器樣板）
+EasyRPG.dll:10025720  CContainer<CERObject*,40> 建構（容器樣板）
+EasyRPG.dll:10025770  CStack<int,40> 建構（容器樣板）
+EasyRPG.dll:100257b0  CStack<CERObject*,40> 建構（容器樣板）
+EasyRPG.dll:10025850  CStack<int,40> 解構（容器樣板）
+EasyRPG.dll:10025880  CStack<CERObject*,40> 解構（容器樣板）
+EasyRPG.dll:10025930  鏈結串列（CStaticLinkList 風格）尾端加一格的容器操作
+EasyRPG.dll:100259a0  鏈結串列複製（屬性節點 0x34 位元組）的容器操作
+EasyRPG.dll:10025a90  鏈結串列複製（字串節點）的容器操作
+EasyRPG.dll:10038ae0  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:10038eb0  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:100391d0  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:100395f0  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:10039810  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:10039d70  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:1003a140  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:1003a8f0  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:1003aa10  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:10044eb0  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:1004b110  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:1004b3b0  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:10055340  BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0
+EasyRPG.dll:1005c140  CChain／CContainer 衍生類的建構（容器）
+EasyRPG.dll:1001bd20  文字指令（讀過本體）：伺服器→客戶端的場景／物件同步（G_Created、G_ScnInitID、G_PicID、封包 0x60a 等屬性複製），單機引擎伺服器與客戶端共用同一份物件，不需要同步（s_delscene：G_Created = 0 並請客戶端移掉場景物件）
+EasyRPG.dll:1001c0a0  文字指令（讀過本體）：伺服器→客戶端的場景／物件同步（G_Created、G_ScnInitID、G_PicID、封包 0x60a 等屬性複製），單機引擎伺服器與客戶端共用同一份物件，不需要同步（s_needsceneinit：標 G_Created = 2、送整個場景給客戶端）
+EasyRPG.dll:1001c680  文字指令（讀過本體）：伺服器→客戶端的場景／物件同步（G_Created、G_ScnInitID、G_PicID、封包 0x60a 等屬性複製），單機引擎伺服器與客戶端共用同一份物件，不需要同步（s_sceneinitend：標 G_Created = 1）
+EasyRPG.dll:1001c3f0  文字指令（讀過本體）：伺服器→客戶端的場景／物件同步（G_Created、G_ScnInitID、G_PicID、封包 0x60a 等屬性複製），單機引擎伺服器與客戶端共用同一份物件，不需要同步（s_savepos：存 G_ScnInitID／G_PicID 給客戶端建場景）
+EasyRPG.dll:1001c4d0  文字指令（讀過本體）：伺服器→客戶端的場景／物件同步（G_Created、G_ScnInitID、G_PicID、封包 0x60a 等屬性複製），單機引擎伺服器與客戶端共用同一份物件，不需要同步（s_savetrap：存 G_ScnInitID／G_PicID 給客戶端建場景）
+EasyRPG.dll:1001c320  文字指令（讀過本體）：伺服器→客戶端的場景／物件同步（G_Created、G_ScnInitID、G_PicID、封包 0x60a 等屬性複製），單機引擎伺服器與客戶端共用同一份物件，不需要同步（s_saveequip：把裝備字串存成屬性給客戶端）
+EasyRPG.dll:1001c5b0  文字指令（讀過本體）：伺服器→客戶端的場景／物件同步（G_Created、G_ScnInitID、G_PicID、封包 0x60a 等屬性複製），單機引擎伺服器與客戶端共用同一份物件，不需要同步（s_scenecmd：轉送場景指令 0x10054630）
+EasyRPG.dll:1001c240  文字指令（讀過本體）：伺服器→客戶端的場景／物件同步（G_Created、G_ScnInitID、G_PicID、封包 0x60a 等屬性複製），單機引擎伺服器與客戶端共用同一份物件，不需要同步（s_quitok：送 0x60a 訊息給客戶端）
+EasyRPG.dll:1001c180  文字指令（讀過本體）：伺服器→客戶端的場景／物件同步（G_Created、G_ScnInitID、G_PicID、封包 0x60a 等屬性複製），單機引擎伺服器與客戶端共用同一份物件，不需要同步（s_pctend：結束事件，通知客戶端 0x1004f2a0）
+EasyRPG.dll:1001c210  文字指令（讀過本體）：伺服器→客戶端的場景／物件同步（G_Created、G_ScnInitID、G_PicID、封包 0x60a 等屬性複製），單機引擎伺服器與客戶端共用同一份物件，不需要同步（s_pctstart：開始事件，通知客戶端 0x1004f1a0）
+EasyRPG.dll:1001cc80  文字指令 s_time：設玩家 Time 屬性（伺服器時間同步給客戶端），單機沒有伺服器時間同步
+EasyRPG.dll:1001cc40  文字指令 s_testopen：測試客戶端能否開物件（0x10045730 通知客戶端），單機不需要
+EasyRPG.dll:1001ccb0  文字指令 saveexit：存檔離線時通知所有客戶端（連線版流程）；單機存檔走 save 系統
+EasyRPG.dll:10012160  文字指令 askquit：伺服器詢問玩家是否離線（連線版）；單機離開走主選單
+EasyRPG.dll:10012220  文字指令 asksave：伺服器詢問玩家存檔（連線版）；單機存檔走 save 系統
+EasyRPG.dll:1001bda0  文字指令 s_deltrap：伺服器刪陷阱物件並寫 deleted.log；引擎陷阱走 trap_tick（0x49b8d0 系統）
+EasyRPG.dll:10014540  文字指令 c_making：設玩家 making 屬性（客戶端打造視窗狀態）；引擎 make_mode 直接保存
+EasyRPG.dll:10014510  文字指令 c_log：切換客戶端物件記錄視窗（0x1003be50）；單機沒有
+EasyRPG.dll:10014e90  文字指令 c_uibuy：開商店介面（0x10055990）；引擎的商店視窗由劇情 story_dialog.shop 開
+EasyRPG.dll:10014a40  文字指令 c_readestr：客戶端讀裝備字串（0x10041df0）；引擎直接讀 hero_look
+EasyRPG.dll:10014b80  文字指令 c_talkend：客戶端結束對話（0x100426b0）；引擎 story_choose／對話框自己收
+EasyRPG.dll:10014be0  文字指令 c_teaminfo：取隊伍資訊（連線組隊）
+EasyRPG.dll:10013580  文字指令 c_attributes：請伺服器把整組屬性送客戶端（@ALL）；單機引擎直接讀 Actor
+EasyRPG.dll:100140a0  文字指令 c_init_attr：把整組屬性 @ALL 送客戶端。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10014150  文字指令 c_itempos2：靜默設道具 UI_Pos。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10014280  文字指令 c_itempos：設 UI_Pos 並呼叫 0x1004cb00（規則函數另列）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10014390  文字指令 c_itemreplace：交換兩件 UI_Pos 並呼叫 0x1004cf20（規則函數另列）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10014570  文字指令 c_ItemInfo：開道具／技能資訊（0x10046260 等）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:100146d0  文字指令 c_priceiden：算鑑定價 0x1004b800 送客戶端。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:100147c0  文字指令 c_priceprod：算打造價 0x1004b8b0 送客戶端。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10014950  文字指令 c_pricerepa：算修理價 0x1004b9a0 送客戶端。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10014a70  文字指令 c_skillpos：設技能位置 0x1003bfb0。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10014c30  文字指令 c_teaming：設 Teaming 旗標。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10014d10  文字指令 c_tradebegin：設 Trading 旗標（雙方）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10014de0  文字指令 c_tradeend：清 Trading 旗標。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10014ec0  文字指令 c_wname：改道具名稱並重畫。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10013270  文字指令 c_aigroup：把某 G_AIGroup 的全部人物改群組（GM／劇情用，劇情有 set_aigroup 0x1005a3b0）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10013730  文字指令 c_changeint：GM 改任意屬性 + @屬性 同步，HP ≤ 0 時 kill。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10013940  文字指令 c_channelneed：聊天頻道需求（連線）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10013a50  文字指令 c_choose：選取隊友（Running／Chosen 旗標，連線組隊）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10013bb0  文字指令 c_equippos：設手持類 0x1003b760。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10013c70  文字指令 c_equipstr：設裝備字串 0x1003b910。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
+EasyRPG.dll:10013fd0  文字指令 c_fightstatus：送戰鬥狀態給客戶端 0x10041930。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令

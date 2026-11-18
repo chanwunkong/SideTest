@@ -1079,3 +1079,20 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 10013940	文字指令 c_channelneed 的處理（ER_Explain 0x1005fa30 分派，0x1006b2e0 登記）：還沒逐一翻；引擎的對應功能在 main.c（hero_*／item_*／story），翻時對照
 1001d980	文字指令 skl_learn 的處理（ER_Explain 0x1005fa30 分派，0x1006b2e0 登記）：還沒逐一翻；引擎的對應功能在 main.c（hero_*／item_*／story），翻時對照
 1001d840	文字指令 skl_forget 的處理（ER_Explain 0x1005fa30 分派，0x1006b2e0 登記）：還沒逐一翻；引擎的對應功能在 main.c（hero_*／item_*／story），翻時對照
+1006a120	學技能（封包 0x231）：已學 0x52d、不在 SKL_ToLearn 0x52a、同分類 ≥ 4 個 0x52c，成功送 0x529；引擎 main.c hero_learn_skill
+1001d980	文字指令 skl_learn：同 0x1006a120（多一個 0x464 前置檢查）；引擎 main.c hero_learn_skill
+10038f90	天王令牌升幫派：Job ≥ 5、錢 ≥ 40 萬、持令牌；單機 Job 恆 0 → 訊息 0xbf7；story_rt.c 0x10038f90
+10039b60	撤銷幫派：Job < 9 → 訊息 0xbf4；story_rt.c 0x10039b60
+1003f130	清狀態（技能參數 295、attribT clearstatus）：第 6~9 類狀態的已過秒 += v；引擎 main.c status_clear
+10025260	寶石特性 300（gemduration）：耐久上限 ± v、耐久夾上限；引擎 main.c gem_fx
+10025370	寶石特性 301（gemlevreq）：裝備等級需求 ± v；引擎 main.c gem_fx
+10025450	寶石特性 302（gemstrreq）：力量需求 ± v；引擎 main.c gem_fx
+10025530	寶石特性 303（gemconreq）：體質需求 ± v；引擎 main.c gem_fx
+10025610	寶石特性 304（gemdexreq）：敏捷需求 ± v；引擎 main.c gem_fx
+10035fd0	屬性分類 1 的立即生效參數（21 HP、22 MP、292／293 上限百分比、295 清狀態）；引擎 main.c skill_now
+10026270	施放／掛狀態時依屬性分類分派技能參數：分類 0 改技能自己的欄位、1 立即生效、2 施放暫存（strike）、3 …；引擎 skill_field／skill_now／strike
+1003bb10	加屬性點：Extra_Exp > 0 時屬性 +n、點數 −n；引擎 main.c hero_attr_points
+10071910	第二版隨機道具產生器（842 行）：沒有任何呼叫者（死碼），不移植
+10028a20	依物件 G_Info 組說明字串（人物／道具／技能 tooltip）；引擎 item_tip 還沒翻（0x100279b0 619 行文字格式）
+100295b0	隊友加入隊伍時依職業自動分配屬性點／技能點（Friend 2、IsActorNPC 1~5，由 0x10037850 AddMember 呼叫）；用到 .data 的職業表（0x10237af8 起），引擎隊友還沒有自己的屬性成長：待隊友控制系統
+100265d0	隊友升級時依職業技能樹學新技能（Level_Req ≤ 等級；由 0x10026d30／0x10029550 呼叫）；待隊友控制系統（story_rt.c team_add 後面接）

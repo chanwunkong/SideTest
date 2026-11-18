@@ -37,6 +37,7 @@
   if (q.get('prof')) args.push('--prof', q.get('prof'));
   if (q.get('at')) args.push('--at', q.get('at'));
   if (q.get('money')) args.push('--money', q.get('money'));
+  for (const it of q.getAll('learn')) args.push('--learn', it);  // learn=索引名,分類（模擬 skl_learn）
   for (const it of q.getAll('item')) args.push('--item', it);  // item=類型,等級（可以多個）
   var Module = {
     canvas,
