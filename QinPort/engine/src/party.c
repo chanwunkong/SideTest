@@ -105,6 +105,7 @@ static int party_tap(int x, int y) {
         const Sprite *s = c ? ui_image(c->img, 0) : NULL;
         if (s && x >= px + c->x && x < px + c->x + s->w && y >= py + c->y && y < py + c->y + s->h) {
             party_show = m[i];
+            if (input_sel_has(m[i])) { if (input_sel_count() > 1) input_sel_remove(m[i]); } else input_sel_add(m[i]);  // 點頭像切換選人（0x457a30／0x458fc0）
             party_show_until = SDL_GetTicks() + 3000;
             return 1;
         }

@@ -5132,6 +5132,18 @@ int main(void) {
         s.cur = 2; s.tick = 0; assert(!spr_adv(&s, 0) && s.cur == 2 && spr_done(&s));
         s.cur = 7; assert(spr_frame(&s) == &fr[0]);
     }
+    {   // CUserInput 選人名單 0x457a30／0x458fc0／0x458f30／0x458400／0x4590f0；陷阱主人 0x450f70
+        Actor a = {0}, b = {0};
+        input_reset();
+        assert(input_sel_add(&a) && !input_sel_add(&a) && input_sel_has(&a) && a.sel && sel_changed);
+        assert(input_sel_add(&b) && input_sel_count() == 2);
+        assert(input_sel_remove(&a) && !a.sel && !input_sel_has(&a) && !input_sel_remove(&a) && input_sel_count() == 1);
+        sel_target = &a; input_sel_clear(); assert(input_sel_count() == 0 && !sel_target && !b.sel);
+        input_sel_add(&a); input_reset(); assert(!input_sel_count() && !sel_changed);
+        MonDef md = {.istrap = 1}; Actor tr = {.mon = &md}, ow = {.grp = 7}, no = {0};
+        trap_owner_set(&tr, &ow); assert(tr.trap_group == 7);
+        trap_owner_set(&no, &ow); assert(no.trap_group == 0);
+    }
     puts("skilltest ok");
     return 0;
 }

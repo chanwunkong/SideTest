@@ -59,20 +59,13 @@ static int map_pixel_cell(const Scene *s, int mx, int my, int *cx, int *cy) {
     return *cx >= 0 && *cy >= 0 && *cx < s->w && *cy < s->h;
 }
 static void camera_to_cell(int x, int y);  // viewport.c 之後（鏡頭置中到格）
+static void map_base_update(const Scene *s);  // viewport.c 之後（0x46f180 地磚／建築縮圖底圖）
+static SDL_Texture *map_base;
 
-static void map_build(void) {  // 小地圖（單色版）
+static void map_build(void) {  // 小地圖疊圖：標記、人物（地磚與建築在 map_base，0x46f180）
     memset(map_px, 0, sizeof map_px);
     const Scene *s = unit_scene;
     if (!s || !s->cells) return;
-    for (int y = 0; y < s->h; y++)
-        for (int x = 0; x < s->w; x++) {
-            const Cell *c = &s->cells[y * s->w + x];
-            if (!c->view) continue;
-            int px, py;
-            float sc = map_cell_px(s, x, y, &px, &py);
-            int w = (int)(7 * sc) > 0 ? (int)(7 * sc) : 1, h = (int)(3 * sc) > 0 ? (int)(3 * sc) : 1;
-            map_fill(px - w / 2, py - h / 2, w, h, c->walk ? 0xFF3E6B3E : 0xFF555555);
-        }
     if (map_marks)
         for (int i = 0; i < s->entry_count; i++) {
             int px, py;
@@ -118,8 +111,9 @@ static void map_draw(void) {
         }
     } else {
         if (!map_tex) map_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, MAP_W, MAP_H);
-        if (!map_age--) { map_age = 30; map_build(); SDL_UpdateTexture(map_tex, NULL, map_px, MAP_W * 4); SDL_SetTextureBlendMode(map_tex, SDL_BLENDMODE_BLEND); }
+        if (!map_age--) { map_age = 30; map_base_update(unit_scene); map_build(); SDL_UpdateTexture(map_tex, NULL, map_px, MAP_W * 4); SDL_SetTextureBlendMode(map_tex, SDL_BLENDMODE_BLEND); }
         SDL_Rect r = {ox + 29, oy + 22, MAP_W, MAP_H};
+        if (map_base) SDL_RenderCopy(ren, map_base, NULL, &r);
         SDL_RenderCopy(ren, map_tex, NULL, &r);
     }
 }

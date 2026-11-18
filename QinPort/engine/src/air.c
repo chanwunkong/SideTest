@@ -26,6 +26,7 @@ static void air_place(AirBeastie *a, const NpcSpec *n) {
     a->gx = n->x; a->gy = n->y;
     a->x = n->x * 64 + 32; a->y = n->y * 64 + 32;
 }
+// 0x4808b0（CAirObj 釋放：清精靈群 0x4a1a50 + 從場景名單移除 0x4979c0）= 下面 free(air)／bird_clear，進出場景整批釋放。
 static void air_enter(const Scene *s) {
     bird_clear();
     free(air);
@@ -82,7 +83,7 @@ static void air_run(AirBeastie *a, const Actor *t) {
         audio_sfx(a->def->snd_run); // shortcut: SDL現有非位置音效；位置播放接入後傳入a->gx/gy。
 }
 static void air_animate(AirBeastie *a);
-// 0x480f60：更新先經基底恆真與動畫虛擬更新，再處理閒逛、移動與每80拍反應。
+// 0x480f60（CAirObj 更新判定 0x4809a0：CObj 狀態非零才呼叫虛擬更新、兩者非零回 1；基底虛擬更新 0x480990 恆回 1，故 C 版直接進動畫更新）：更新先經基底恆真與動畫虛擬更新，再處理閒逛、移動與每80拍反應。
 static void air_tick_one(AirBeastie *a, const Actor *hero) {
     air_animate(a);
     if (!a->state) {
@@ -153,6 +154,8 @@ static void beast_draw_one(const ViewPort *v, Spr *spr, const RoleDef *def, int 
     SDL_SetTextureAlphaMod(s->tex, 255);
 }
 static void sur_draw(const ViewPort *v);
+// 0x4808d0（CAirObj 繪製：先虛擬更新；普通模式直接畫當前幀、調色模式套全域色表；上面 beast_draw_one 兩條路徑）、
+// 0x4809d0（更新畫面位置：世界座標轉畫面，按當前幀算範圍 = viewport_world_screen + frame_rect）。
 static void air_draw(const ViewPort *v) {
     for (int i = 0; i < air_n; i++) beast_draw_one(v, &air[i].spr, air[i].def, air[i].x, air[i].y);
     sur_draw(v);

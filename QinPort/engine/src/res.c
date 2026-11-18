@@ -733,7 +733,9 @@ static void parse_ont(Scene *s, char *text) {
 }
 
 int scene_load(Scene *s, const char *scn_name) {
+    static int serial_count;
     memset(s, 0, sizeof *s);
+    s->serial = ++serial_count;
     char dir[1100], name[256], map_name[128], bnt_name[128], ont_name[128], v[32];
     size_t size;
     snprintf(dir, sizeof dir, "%s/scene", game_dir);
@@ -771,7 +773,9 @@ int scene_load(Scene *s, const char *scn_name) {
     s->cells = malloc((size_t)s->w * s->h * sizeof(Cell));
     for (int i = 0; i < s->w * s->h; i++) {
         const uint8_t *c = map + grid + i * 10;
-        s->cells[i] = (Cell){u16(c), u16(c + 2), c[4], c[7], c[6], 2, 0, -1, 0, NULL};
+        // 探索值（+0x13）：地圖寬 ≤ 32 的小場景一律全亮 200（0x44c830 也只存寬 > 32 的，衰減 0x4c7790 跳過 200）；大場景從 0 = 沒走過開始
+        // shortcut: 原版初值來源沒查到（CScene 載入 0x4c7fe0 沒寫 +0x13），依上面兩個旁證推定
+        s->cells[i] = (Cell){u16(c), u16(c + 2), c[4], c[7], c[6], s->w <= 32 ? 200 : 0, 0, -1, 0, NULL};
     }
     snprintf(name, sizeof name, "%s", (const char *)map + 0x90);
     free(map);
@@ -941,6 +945,19 @@ void scene_buildings_tick(Scene *s) {
                 scene_building_state(s, i, 1); break;
             }
         }
+    }
+}
+
+// 0x4c7790（CScnClient 每拍 0x46f100 呼叫）：每拍處理 格數/50 格（+0x24 = 格數 / 0x32），游標每次前進一格、到尾回頭；
+// 探索值（格子 +0x13）> 1 且不是 200 就減 1（降到 1 = 看過但現在看不到，單位不再顯示）。降到 1 時原版重畫小地圖那格，
+// SDL 小地圖每幀重畫（mapwin.c），不需通知。
+void scene_explore_decay(Scene *s) {
+    int total = s->w * s->h, n = total / 50;
+    if (!s->cells || total <= 0) return;
+    for (int i = 0; i < n; i++) {
+        if (++s->decay_pos >= total) s->decay_pos = 0;
+        Cell *c = &s->cells[s->decay_pos];
+        if (c->view > 1 && c->view != 200) c->view--;
     }
 }
 

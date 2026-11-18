@@ -1527,5 +1527,15 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - skip 的 140 個（funcs_skip.txt 最後一段，附原因）：文字指令 give／inventory／look／s_*／c_buychange／GM 檢查、屬性基底備份 *0 與需求備份（引擎重算取代）、裝備特性裝上拿下複製（item_mods 整個重算）、技能施放暫存全域、狀態字串條目、客戶端同步送出器、物件名單／容器小幫手、玩家死亡（連線版扣錢經驗）、創建玩家角色封包、房間輪流刷新後段、第二版隨機道具周邊（死碼）、資料表載入。其中 `abandon` 0x10011410／0x10053ef0 對到 `hero_forget_skill`、0x10035c90／0x10035df0 對到 `skill_now`、0x10032740 對到 `fx_merge`、0x100364a0 對到屬性分類（註解寫了位址）。
 - **劇情沒用到（以後 DLC 可用）**：丟錢 0x1003b640（建「秦殇/金钱」放腳下）、銀行 0x1003ac40、開鎖／偷竊 Attack 5／6（0x10034010／0x10034900）、玩家死亡類型 61 掉落（0x1004f3a0）。
 - **抽查之前「只讀代表函數」就批次 skip 的區段**（每段隨機 8 個讀本體，種子 20261118）：封包處理 0x10064d00~0x1006a370、伺服器→客戶端送出器、物件表／容器、CERObject 基底、玩家交易、劇情物件工廠表、物件存取幫手、文字系統幫手／說明文字：**都沒有含遊戲規則的（0 處）**——只有 0x100654f0（向人買道具）本身含價錢檢查，但規則已在 main.c 買賣（0x10029400 價格、錢不夠 1185）。工廠表只是 `FUN_1007f970(建構函式, 路徑, 種類, 0)` 的登記。CERObject 0x1001f7e0 其實是 look 指令的文字輸出，不是基底方法（原因欄寫錯，不影響結果）。
-- **下一步**：EasyRPG.dll 只剩 open／openall（等房間寶箱顯示）；Poq.exe 剩 39 個（CUserInput 多角色選取、小地圖生成、探索存檔、劇情命令分派其餘 case、CTriB…，見 FUNCS.tsv）。隊友還沒有引擎角色（Actor），party.c 面板的 HP／MP 條讀的是 character_of；隊友戰鬥、跟隨、技能施放要先做這個。
+- ~~**下一步**：EasyRPG.dll 只剩 open／openall；Poq.exe 剩 39 個~~（CUserInput 多角色選取、小地圖生成、探索存檔、劇情命令分派其餘 case、CTriB…，見 FUNCS.tsv）。隊友還沒有引擎角色（Actor），party.c 面板的 HP／MP 條讀的是 character_of；隊友戰鬥、跟隨、技能施放要先做這個。
 
+
+### 最後 41 個 todo 第 1 輪（41 → 13）
+- **open／openall（EasyRPG.dll 0x10019c70／0x10019d70，規則 0x1004e680）**：main.c `chest_open*`。箱子是 BNT 建築（模型種類 0x85，名稱 = 劇情物件別名）；點箱子下命令 19，走到 4 格內開（`actor_interact_tick`）。規則：isbuilding<1 訊息 0x49b、2／6 說 openedinfo、key 要身上有（deletekey 用掉）否則 lockinfo、1→2／5→6、箱裡道具掉到地上、說 openinfo；Level 1～9 只說 lockinfo（開鎖技能劇情沒用到）。已開的箱子進場換開啟狀態（`chest_state_sync`）。`--openall <別名>` 測試用。shortcut：虛擬格 0x44 當恆真、鑰匙只比別名、距離 4 格是猜的。沒有 skilltest（STORY 才編得到），storytest 通過。
+- **CUserInput 選人名單**（input.c）：0x457a30／0x458400／0x458550／0x4585c0／0x458620／0x458700／0x458f30／0x458fc0／0x459050／0x4590f0／0x459170／0x457be0（右鍵出手改走 `input_cast`）、0x465cf0／0x467620（進場保護 250 拍狀態 102）。框選（viewport.c `input_box_*`，0x46e8b0／0x454eb0／0x454f00，只有滑鼠）、0x46ec80 `scene_ready_set`（取代兩處 fade_start(3)）、點隊員頭像切換選取（party.c）、R 鍵切換跑步（0x459170，位置為 shortcut）、陷阱主人 0x450f70／0x474740（`trap_owner_set`）。shortcut：隊友沒有 Actor，名單實際只有主角和召喚物；技能 +0x36 旗標用 skill_manual／skill_needs_foe 近似；`input_party_fighting` 接到自動存檔條件是猜的。
+- **探索**：res.c `scene_explore_decay`（0x4c7790／0x46f100）；格子探索初值改為寬 ≤ 32 → 200、其餘 0（原為 2，shortcut）；存檔尾巴 `explore_pack／explore_restore`（0x44c830）。**行為變動**：離開視野後單位會隱藏（原版）。
+- **小地圖**：viewport.c `map_base_update`（0x46f180／0x482eb0）原地磚＋建築縮圖取代單色格，mapwin.c 只疊標記與人物。沒有目視驗證（只確認原生能起、skilltest 過）。
+- **CAirObj**（0x4808b0／0x4808d0／0x480990／0x4809a0／0x4809d0）：air.c 已有等效程式，補位址註解。
+- skilltest 加選人名單與陷阱主人。
+- **還是 todo（13）**：0x44f4c0（SInit 建建築）、0x460570／0x4607c0（CViewPort 初始化後段與雷達標記）、0x469c80／0x484550／0x484590（建築環境音：audio_loop 只有一個槽、且 +0xa7 的組別與 wind 音效編號衝突，要先擴多槽並確認）、0x474270／0x4774d0（劇情命令分派 2110 行）、0x47bb70（依編號移除物件，與 actors_sync 的移除路徑衝突未接）、0x484a80／0x484e80／0x485250（CTriBld，等角色接收命令 0x13d／0x8e）、0x56db60（存檔格隊員頭像，沒有頭像資源對應）。
+- **下一步：0x4774d0（劇情命令分派）起，其餘見上。**

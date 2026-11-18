@@ -615,3 +615,109 @@ static void viewport_draw(ViewPort *v, Scene *s, Uint32 tick) {
     air_draw_view();
     weather_draw(v->pos.x, v->pos.y);
 }
+
+// ---- 框選（0x454eb0 按下記位置、0x454f00 放開選人；0x46e8b0 按著時畫框）----
+// 原版按住左鍵拖出框（欄位 +0x40～+0x50），放開時框內自己這邊的人換成選取名單。手機按住空地是走路，所以只有滑鼠（非觸控）拖超過 6 像素才算框。
+// shortcut: 框內判斷用角色腳底畫面點（原版用角色矩形相交）
+static int box_on, box_down, box_x0, box_y0, box_x1, box_y1;  // 畫面座標（沒縮放）
+static void input_box_down(int x, int y) { box_down = 1; box_on = 0; box_x0 = box_x1 = x; box_y0 = box_y1 = y; }
+static int input_box_move(int x, int y) {  // 回 1 = 現在是框選（呼叫端不要再按住走路）
+    if (!box_down) return 0;
+    box_x1 = x; box_y1 = y;
+    if (!box_on && abs(x - box_x0) + abs(y - box_y0) > 6) box_on = 1;
+    return box_on;
+}
+// 放開：回 1 = 這次是框選（不下走路／攻擊指令）
+static int input_box_up(void) {
+    int was = box_on;
+    box_down = box_on = 0;
+    if (!was) return 0;
+    int ax = box_x0, ay = box_y0, bx = box_x1, by = box_y1;
+    zoom_point(&ax, &ay); zoom_point(&bx, &by);
+    int l = ax < bx ? ax : bx, r = ax < bx ? bx : ax, t = ay < by ? ay : by, b = ay < by ? by : ay;
+    Actor *hit[SEL_MAX];
+    int n = 0;
+    for (int i = 0; i < actor_count && n < SEL_MAX; i++) {
+        Actor *a = &actors[i];
+        if (!input_side_has(a) || (unsigned)(a->object_kind - 30) >= 71u) continue;
+        SDL_Point p = viewport_world_screen(&viewport, ax64(a), ay64(a));
+        if (p.x >= l && p.x <= r && p.y >= t && p.y <= b) hit[n++] = a;
+    }
+    if (!n) return 1;  // 框裡沒有人：名單不變
+    input_sel_clear();
+    for (int i = 0; i < n; i++) input_sel_add(hit[i]);
+    return 1;
+}
+static void input_box_draw(void) {  // 0x46e8b0 的框
+    if (!box_on) return;
+    SDL_Rect r = {box_x0 < box_x1 ? box_x0 : box_x1, box_y0 < box_y1 ? box_y0 : box_y1, abs(box_x1 - box_x0), abs(box_y1 - box_y0)};
+    SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+    SDL_RenderDrawRect(ren, &r);
+}
+static void input_box_clear(void) { box_down = box_on = 0; }
+
+// ---- 小地圖底圖（Poq.exe 0x46f180 生成、0x482eb0 建築縮圖）----
+// 0x46f180：每個探索過的格子把底圖、覆圖（地磚）縮成 8×4 貼上（太大的場景整體縮 sc），再把建築（格子旗標 +0x14 == 1 的原點格）
+// 各部件合成縮圖貼到建築格位置（0x482eb0：部件依序貼、尺寸 ceil 縮放）。原版畫進整張 (寬×8)×(高×4) 的圖再縮小；
+// 這裡直接畫進 512×256 的 target 貼圖（縮一次），每格只畫一次（新探索到才補畫）。
+// shortcut: 原版整張生成後才縮放並「複製 scn 修改時間」寫 rdr 快取檔，這裡不落地；建築縮圖用第 0 幀、不分狀態；
+//   原版出口圖示（0x46f180 後段）改由 map_build 疊上的 entries 標記
+static SDL_Texture *map_base;
+static int map_base_serial;
+static unsigned char *map_tdone, *map_bdone;
+static void map_base_update(const Scene *s) {
+    if (!s || !s->cells) return;
+    int total = s->w * s->h;
+    if (!map_base) {
+        map_base = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, MAP_W, MAP_H);
+        if (!map_base) return;
+        SDL_SetTextureBlendMode(map_base, SDL_BLENDMODE_BLEND);
+        map_base_serial = 0;
+    }
+    SDL_Texture *old = SDL_GetRenderTarget(ren);
+    SDL_SetRenderTarget(ren, map_base);
+    if (map_base_serial != s->serial) {  // 換場景：重來
+        map_base_serial = s->serial;
+        free(map_tdone); free(map_bdone);
+        map_tdone = calloc((size_t)total, 1);
+        map_bdone = calloc((size_t)s->object_count + 1, 1);
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, 0);
+        SDL_RenderClear(ren);
+    }
+    for (int y = 0; y < s->h; y++)
+        for (int x = 0; x < s->w; x++) {
+            int i = y * s->w + x;
+            const Cell *c = &s->cells[i];
+            if (!c->view || map_tdone[i]) continue;
+            int px, py;
+            float sc = map_cell_px(s, x, y, &px, &py);
+            SDL_Rect d = {px - (int)(4 * sc), py - (int)(2 * sc), (int)ceilf(8 * sc), (int)ceilf(4 * sc)};
+            uint16_t ids[2] = {c->ground, c->over};
+            for (int k = 0; k < 2; k++) {
+                if (ids[k] == 0xffff) continue;
+                const Sprite *t = tile(&((Scene *)s)->tiles, ids[k]);
+                if (t && t->tex) SDL_RenderCopy(ren, t->tex, NULL, &d);
+            }
+            map_tdone[i] = 1;
+        }
+    for (int i = 0; i < s->object_count; i++) {  // 0x482eb0
+        const Object *o = &s->objects[i];
+        if (map_bdone[i] || !o->m || o->x < 0 || o->y < 0 || o->x >= s->w || o->y >= s->h || !s->cells[o->y * s->w + o->x].view) continue;
+        int px, py;
+        float k = map_cell_px(s, o->x, o->y, &px, &py) / 8;  // 縮放：整格 64 → 8×sc
+        for (int p = 0; p < o->m->part_count; p++) {
+            const Part *pt = &o->m->parts[p];
+            const Anim *a = pt->anim ? anim_get(pt->gid) : NULL;
+            const Sprite *im = NULL;
+            int dx = pt->dx, dy = pt->dy;
+            const Seq *q = building_sequence(o, p, a);
+            if (q && q->count) { const Frame *f = &q->frames[0]; im = image(f->ref); dx -= f->dx; dy -= f->dy; }
+            else if (!pt->anim) im = image(pt->gid);
+            if (!im || !im->tex) continue;
+            SDL_Rect d = {px + (int)floorf(dx * k), py + (int)floorf(dy * k), (int)ceilf(im->w * k), (int)ceilf(im->h * k)};
+            SDL_RenderCopy(ren, im->tex, NULL, &d);
+        }
+        map_bdone[i] = 1;
+    }
+    SDL_SetRenderTarget(ren, old);
+}

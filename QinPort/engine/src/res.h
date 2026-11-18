@@ -98,7 +98,10 @@ typedef struct {
     Model *models;
     int model_count;
     Lib tiles;
+    int serial;     // 每次載入 +1（小地圖底圖判斷換了場景）
+    int decay_pos;  // 探索衰減游標（CScene +0x20，0x4c7790）
 } Scene;
+void scene_explore_decay(Scene *s);
 
 int scene_load(Scene *s, const char *scn_name);
 const Entry *scene_entry(const Scene *s, int id);  // 找不到就回第一個入口

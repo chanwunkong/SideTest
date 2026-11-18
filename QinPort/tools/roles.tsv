@@ -99,7 +99,7 @@
 0044c090	狀態 3 但場景還沒好
 0044c0d0	讀回小地圖探索過的格子（位元表 → 格子 +0x13）
 0044c800	轉接 0x45e710（有視窗時）
-0044c830	存小地圖探索過的格子（格子 +0x13 → 位元表；地圖寬 > 32 才存）
+0044c830	存小地圖探索過的格子（格子 +0x13 → 位元表；地圖寬 > 32 才存；引擎 main.c explore_pack／explore_restore，存檔尾巴）
 0044c970	畫面上的點 → 縮放前的點（zoom_point）
 0044ca30	+0x260 = 0x662860
 0044caf0	主角和某角色停下來面對面（talk_face）；回呼 0x532750
@@ -425,17 +425,17 @@
 00471d30	無呼叫者：借用另一客戶端場景資源指標並執行ClientCreate
 00471d50	幾何工具：以兩端點最小值及絕對差設定框選矩形，保留第五欄；使用SDL_Rect，框選呼叫端待不同類別CUserInput選人名單
 0046e360	場景建立：綁管理器／地圖原點、讀探索狀態、初始化鏡頭與小地圖快取；同類別小地圖生成已核對，todo 等不同類別CMapDialog探索位元表及CBuilding縮圖／出口圖示
-0046e8b0	繪場景及框選框；狀態+0x60非-1清黑、進場後超過10拍恢復游標；todo 等不同類別CUserInput框選名單及游標狀態，現有viewport_draw只覆蓋場景繪製
-0046ec80	場景就緒狀態轉換：清框選／目標、重設輸入和游標；todo 等不同類別CUserInput選人／目標清理及介面游標狀態
+0046e8b0	繪場景及框選框；按著左鍵時畫框（引擎 viewport.c input_box_*）；shortcut：進場後 10 拍恢復游標沒做
+0046ec80	場景就緒狀態轉換：離場關狀態框、解除暫停、清框選與目標；進場交叉淡出並重設輸入（引擎 input.c scene_ready_set）
 0046f100	每拍更新天氣／物件／格子探索衰減／光影；非錄影模式無操作超過90000拍走斷線處理；todo 等不同類別CScene格子+0x13探索衰減與CMapDialog，現有主迴圈只覆蓋部分
-0046f180	生成小地圖：8×4地磚、建築縮圖、縮放／裁中、出口圖示、寫rdr且複製scn修改時間；todo 等不同類別CBuilding縮圖／通道識別與地圖圖示資源，非等待同類別ClientCreate
+0046f180	生成小地圖：8×4 地磚、建築縮圖（0x482eb0）、縮放置中（引擎 viewport.c map_base_update，畫進 512×256 target 貼圖，不寫 rdr）
 00470270	還原場景的全域管理器、輸入／天氣、地圖原點、鏡頭及光影；todo 等不同類別CUserInput名單與CMapDialog完整重綁
 00471890	進場景收尾：清框選、設就緒、重建選人名單／探索顯示；todo 等不同類別CUserInput名單及CMapDialog探索顯示
 004719a0	scene_character_say：有場景才按編號掃種類30..100第一筆角色，包含已死；接劇情0x53e單機顯示路徑，省去字串往返同步封包
 00471dd0	釋放舊場景並依名稱配置／載入新資源再ClientCreate；同類別入口已核對，todo 等不同類別SceneResources完整載入與CInitObjMng／CBuilding初始化
 0046eb40	scene_client_actor：有場景且就緒才查操控角色；shortcut 暫用actors索引取代CScene世代句柄
 0046ebd0	scene_client_group：查操控角色後比+0x339組別，接actors_sync分邊；無角色回假
-004c7790	地圖格子探索衰減（原索引推測CScnClient不可靠）：每拍處理+0x24格，先前進21byte再回繞，+0x13大於1且非200才減1；降至1時通知CMapDialog；todo 等不同類別CMapDialog探索顯示
+004c7790	地圖格子探索衰減：每拍處理 格數/50 格（+0x24 = 格數/0x32），游標前進一格、到尾回頭；+0x13 大於 1 且非 200 才減 1（引擎 res.c scene_explore_decay，Cell.view）
 004cede0	地圖投影原點工具：保存地圖指標並將origin設為高度/2
 00471ed0	CScnClientRecord 建構：清對話／跟隨／語音狀態並設客戶端標記-1；建構略過
 00471f90	CScnClientRecord 解構：釋放CString並解構CScnClient；無呼叫者
@@ -616,7 +616,7 @@
 00482db0	SInitBuilding名稱取值；BNT建築名轉Object.name，保留原始GBK，不經CString
 00482dd0	有任一門點偏移才以擺放格扣模型原點加門點，否則保留輸入點；scene_load快取Object.door_x/y；互動消費端等CTriBld
 00482e30	建築光源格中心：擺放格扣模型原點加光源格後乘64加32；light_buildings投影到光照圖
-00482eb0	CBuilding各部件合成縮圖後ceil尺寸縮放、輸出模型矩形原點/倍率；todo 等不同類別CScnClient小地圖生成與CMapDialog消費端，未新增無呼叫者縮圖函數
+00482eb0	CBuilding 各部件合成縮圖（引擎 viewport.c map_base_update 的建築段）
 004830f0	CBuilding遮擋平面測試；viewport_blocks，座標和相等／分軸相等皆不遮擋，X偏移<1優先
 00483400	CBuilding高位占地旗標與建築索引寫場景格，另設原點標記；scene_building_cells(-1)在scene_load接入
 00483620	CBuilding清除高位且低3位為1的格子walk；scene_building_cells(walk=0)，已接CTriBld狀態0/2

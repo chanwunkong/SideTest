@@ -389,6 +389,7 @@ typedef struct Actor {
     struct { unsigned char left, total, floating; char text[1024]; } overhead[8];
     int display_number;           // 顯示名稱附加編號；不屬於SInit事件ID
     ActorSkill skills[MAX_ACTOR_SKILLS];
+    int sel;  // 在選人名單裡（原版旗標 0x100）
     int skill_n, selected, right_id, left_id, range_adjust, selection_pending;
     int template_skill[MAX_ACTOR_SKILLS], template_skill_n;
     int candidate[4];
@@ -428,6 +429,14 @@ static void actor_dynamic_exit(Actor *a);
 static void actor_dynamic_rest(Actor *a);
 static void actor_dynamic_command(Actor *a, int state, int p0, int p1, int p2);
 static int actor_command(Actor *a, int command, int p0, int p1, int p2, int cancel, int remember);
+static int input_party_targets(const Actor *a);
+static int input_sel_remove(Actor *a);
+static int input_sel_has(const Actor *a);
+static int input_sel_add(Actor *a);
+static int input_sel_count(void);
+static int input_party_fighting(void);
+static int input_side_command(int p0);
+static void scene_ready_set(int on);
 static void actor_direction_set(Actor *a, int dir);
 // Poq.exe 0x48ec60：期限-1可覆寫任何值；其他期限只接受不短於現有期限。
 // 回傳暫存器原版混合了被呼叫函數結果與輸入索引；遊戲呼叫端均不消費，以void承接。
@@ -2212,6 +2221,11 @@ static void tame(Actor *a, Actor *t, const SkillRow *r) {
 // 陷阱（Attack方式 8，0x10034cb0）：參數 286 選 1 猎杀陷阱、2 引蜂术、3 捆仙之索、4 陷地毒签、5 无情箭阱；自己的陷阱超過 7 個不放。
 // 攻擊力、法術攻擊照抄放的人，不給經驗
 static int trap_cell(int *x, int *y, int n);  // near.c
+// 0x450f70（0x474740 是連線轉接，單機同一個函數）：物件是陷阱（種類 0x15～0x1d）才設主人（0x49c340：記主人句柄、組別；owner 由 join 設）
+static void trap_owner_set(Actor *s, const Actor *owner) {
+    if (!s || !owner || !((s->mon && s->mon->istrap == 1) || (unsigned)(s->object_kind - 0x15) < 9)) return;
+    s->trap_group = owner->grp;
+}
 static void trap(Actor *a, const SkillRow *r) {
     static const char *N[6] = {"", "\xc1\xd4\xc9\xb1\xcf\xdd\xda\xe5", "\xd2\xfd\xb7\xe4\xca\xf5", "\xc0\xa6\xcf\xc9\xd6\xae\xcb\xf7", "\xcf\xdd\xb5\xd8\xb6\xbe\xc7\xa9", "\xce\xde\xc7\xe9\xbc\xfd\xda\xe5"};
     int k = skill_param(r, 286), n = 0;
@@ -2222,7 +2236,7 @@ static void trap(Actor *a, const SkillRow *r) {
     int x = (int)a->x, y = (int)a->y;
     if (!trap_cell(&x, &y, 10)) { s->role = NULL; return; }  // CTrapBase 放進場景（0x49be40）：周圍 10 圈第一個能放的格子
     s->x = x + 0.5f, s->y = y + 0.5f;
-    s->trap_group = a->grp;  // 設主人與攻擊力（0x49c340）：owner 由 join 設，AP 照抄在下面
+    trap_owner_set(s, a);  // 設主人（0x450f70）；攻擊力照抄在下面
     s->copied = 1;
     s->copy[0] = a->ap;
     s->copy[1] = a->ap_max;
@@ -3159,13 +3173,14 @@ static void actor_death_remnant(Actor *a, int mode) {
 // 單機無回放入口。完整選項介面接齊時接death_auto_pause／death_keep_mode。
 static void actor_remove(Actor *a, int mode) {
     actor_destroy(a);
+    input_sel_remove(a);  // 0x458fc0：死的人離開選人名單
     int has_scene = scene_client.scene && unit_scene == scene_client.scene;
     if (scene_client.scene && !death_keep_mode && mode != 0 && mode != 1) mode = 1;
     if (mode) {
         if (death_auto_pause && scene_client.scene) {
-            // shortcut: 目前選人鏈只有操控角色；隊伍多選介面接齊後查整條選人鏈。
+            // 0x458700：本機隊伍有人以它為目標；shortcut: 連原本的「死的是操控角色」也算（原版 vf+0x44 回什麼沒確認）
             Actor *selected = scene_client_actor(&scene_client);
-            if (selected == a) { character_death_message(); scene_pause_count(1); }
+            if (selected == a || input_party_targets(a)) { character_death_message(); scene_pause_count(1); }
         }
         actor_health_percent(a, 0);
     }
@@ -5466,6 +5481,7 @@ static int ground_find(int id) {
 // shortcut: 物件編號 = Scene.objects 索引（原版是帶世代的句柄）；原版呼叫的 0x405597（距離類判斷，推 0x60 = 96 單位內）、
 // 0x4017f3／0x406181（控制權／句柄有效）來源在映像外，分別當距離判斷與恆真；建築名稱載入（封包0x142，CTriBld）與
 // 開箱／使用物件（封包0x8e）尚無接收系統，只做到定位、記 interaction 與收尾。
+static void chest_open_object(int idx);  // 開箱（0x85 建築，封包 0x8e → 文字指令 open）
 static void actor_interact_tick(Actor *a) {
     int c = a->command[0], sx = ax64(a) >> 6, sy = ay64(a) >> 6;
     const Scene *sc = unit_scene;
@@ -5513,7 +5529,7 @@ static void actor_interact_tick(Actor *a) {
         int tx = o->x, ty = o->y;
         int ok = c == 18 ? abs(ax64(a) - (tx * 64 + 32)) <= 0x60 && abs(ay64(a) - (ty * 64 + 32)) <= 0x60
                          : abs(sx - tx) <= 4 && abs(sy - ty) <= 4;
-        if (ok) actor_command_finish(a); else actor_interact_approach(a, tx, ty);
+        if (ok) { if (c == 19) chest_open_object(idx); actor_command_finish(a); } else actor_interact_approach(a, tx, ty);
     }
 }
 
@@ -5665,6 +5681,7 @@ static void hud_say(const char *t) { snprintf(toast, sizeof toast, "%s", t); toa
 #include "caption.c"
 #include "mapwin.c"
 #include "party.c"
+#include "input.c"
 static void character_death_message(void) {
     ui_text(1500, toast, sizeof toast);
     toast_until = SDL_GetTicks() + 1000;
@@ -6830,6 +6847,84 @@ static void story_msgs(void) {
     }
     smsg_n = 0;
 }
+
+// ---- 開箱（EasyRPG.dll 文字指令 open 0x10019c70、openall 0x10019d70，規則 0x1004e680）----
+// 房間裡的寶箱是 BNT 建築（模型種類 0x85），名稱 = 劇情物件的別名；箱裡的道具是劇情物件的子物件。
+static void chest_say(int h, const char *key) {  // 訊息 kind 0xf（0x1004dd00）：非空才顯示
+    const char *t = story_get_str(h, key);
+    if (t && *t) hud_say(t);
+}
+// 0x1004e680 開箱規則：isbuilding < 1 不能開（訊息 0x49b）；2／6 已開（openedinfo）；有 key 要身上有那件（deletekey ≠ 0 用掉），
+// 沒有就說 lockinfo；可以開 → isbuilding 1 → 2、5 → 6，箱裡的道具（G_AIGroup 設成箱子代號）掉到地上，說 openinfo。回 1 = 開了
+// shortcut: 虛擬格 0x44（能不能開）沒找到覆寫，當恆真；身上找鑰匙只比別名（原版 0x10059fb0 還會進背包容器找）
+static int chest_open_rule(int h, float cx, float cy) {
+    int isb = story_get_int(h, "isbuilding");
+    if (isb < 1) { hud_say(story_text(0x49b)); return 0; }
+    if (isb == 2 || isb == 6) { chest_say(h, "openedinfo"); return 0; }
+    const char *key = story_get_str(h, "key");
+    if (key && *key) {
+        int pl = story_player(), kh = 0;
+        for (int k = story_next(pl, 0); k && !kh; k = story_next(pl, k))
+            if (!strcmp(story_alias(k), key)) kh = k;
+        if (!kh) { chest_say(h, "lockinfo"); return 0; }
+        if (story_get_int(h, "deletekey")) story_delete(kh);
+    }
+    story_set_int(h, "isbuilding", isb == 1 ? 2 : isb == 5 ? 6 : isb);
+    for (int it = story_next(h, 0); it;) {
+        int next = story_next(h, it);
+        if (story_kind(it) == 2) {
+            if (!story_get_int(it, "G_AIGroup")) story_set_int(it, "G_AIGroup", -1);
+            story_set_int(it, "G_AIGroup", h);
+            Item *item = story_item(it);
+            if (item) { item->sh = it; ground_drop(item, cx, cy); story_take(it); }
+        }
+        it = next;
+    }
+    chest_say(h, "openinfo");
+    return 1;
+}
+// 0x10019c70 open：找不到物件訊息 0x49a；Level 1～9（要開鎖技能，Attack 5／6 單機劇情沒用到）只說 lockinfo，其他走開箱規則
+static void chest_open(int h, float cx, float cy) {
+    if (!h) { hud_say(story_text(0x49a)); return; }
+    int lv = story_get_int(h, "Level");
+    if (lv >= 1 && lv <= 9) { chest_say(h, "lockinfo"); return; }
+    chest_open_rule(h, cx, cy);
+}
+static void chest_state_sync(Scene *scene) {  // 0x10041d10 → 封包 0x523：已開（isbuilding ≠ 1、5）的箱子換成開啟狀態
+    for (int i = 0; scene && i < scene->object_count; i++) {
+        Object *o = &scene->objects[i];
+        if (!o->m || o->m->type != 0x85 || !o->name[0]) continue;
+        int h = story_find(sroom, o->name), isb = h ? story_get_int(h, "isbuilding") : 0;
+        int want = h && isb != 1 && isb != 5 ? 1 : 0;
+        if (o->state != want) scene_building_state(scene, i, want);
+    }
+}
+static void chest_open_object(int idx) {
+    Scene *scene = (Scene *)unit_scene;  // shortcut: 場景是 main 的區域變數，只能走 unit_scene（const），改狀態時去掉 const
+    if (!scene || idx < 0 || idx >= scene->object_count) return;
+    const Object *o = &scene->objects[idx];
+    story_begin();
+    chest_open(o->name[0] ? story_find(sroom, o->name) : 0, o->x + 0.5f, o->y + 0.5f);
+    story_end();
+    chest_state_sync(scene);
+}
+// 0x10019d70 openall：房間裡別名相符、isbuilding 是 1 或 5 的箱子全部開（逐個執行 open #代號）
+static void chest_open_all(const char *alias) {
+    story_begin();
+    for (int h = story_next(sroom, 0); h; h = story_next(sroom, h)) {
+        int isb = story_get_int(h, "isbuilding");
+        if (strcmp(story_alias(h), alias) || (isb != 1 && isb != 5)) continue;
+        float x = actors[0].x, y = actors[0].y;
+        for (int i = 0; unit_scene && i < unit_scene->object_count; i++)
+            if (unit_scene && !strcmp(unit_scene->objects[i].name, alias)) { x = unit_scene->objects[i].x + 0.5f; y = unit_scene->objects[i].y + 0.5f; break; }
+        chest_open(h, x, y);
+    }
+    story_end();
+    chest_state_sync((Scene *)unit_scene);
+}
+#else
+static void chest_open_object(int idx) { (void)idx; }
+static void chest_state_sync(Scene *scene) { (void)scene; }
 #endif
 
 // ---- 存檔（原版 JM50_内部主界面 的保存、读取 → JM62_存取盘界面，Poq.exe CSystemDialog 0x5354a0、CLoadDialog 0x56c400；開存／讀視窗 0x570900、0x5728c0，畫格子 0x56ce20）----
@@ -6890,6 +6985,27 @@ static void snap_take(SDL_Texture *canvas) {
     free(px);
 }
 
+// 0x44c830：存小地圖探索過的格子。只存地圖寬 > 32 的場景；位元表長 (寬×高)/8 + 1，y 外 x 內，格子探索值（+0x13）≠ 0 設位元。
+// 存檔尾巴：場景別名（64）、寬、高、位元表長、位元表。讀回後進場景時套用（explore_restore）：位元 = 1 的格子至少是 1（看過、現在看不到）
+static unsigned char *explore_saved;
+static int explore_saved_w, explore_saved_h;
+static char explore_saved_alias[64];
+static unsigned char *explore_pack(const Scene *s, size_t *n) {
+    if (!s || !s->cells || s->w <= 32) return NULL;
+    *n = (size_t)s->w * s->h / 8 + 1;
+    unsigned char *b = calloc(*n, 1);
+    if (!b) return NULL;
+    for (int y = 0, i = 0; y < s->h; y++)
+        for (int x = 0; x < s->w; x++, i++) b[i >> 3] |= (s->cells[y * s->w + x].view != 0) << (i & 7);
+    return b;
+}
+static void explore_restore(Scene *s, const char *alias) {
+    if (explore_saved && s->cells && s->w == explore_saved_w && s->h == explore_saved_h && !strcmp(alias, explore_saved_alias))
+        for (int i = 0; i < s->w * s->h; i++)
+            if ((explore_saved[i >> 3] >> (i & 7) & 1) && !s->cells[i].view) s->cells[i].view = 1;
+    free(explore_saved);
+    explore_saved = NULL;
+}
 static int save_write(int slot) {
     char p[64];
     save_path(slot, p, sizeof p);
@@ -6916,6 +7032,16 @@ static int save_write(int slot) {
     fwrite(store, sizeof store, 1, f);
     story_save(f, sizeof(Item));
 #endif
+    {   // 探索尾巴（0x44c830）：沒有（寬 ≤ 32）寫長度 0
+        size_t n = 0;
+        unsigned char *b = explore_pack(unit_scene, &n);
+        char al[64] = "";
+        snprintf(al, sizeof al, "%s", save_alias);
+        int dim[2] = {unit_scene ? unit_scene->w : 0, unit_scene ? unit_scene->h : 0};
+        fwrite(al, sizeof al, 1, f); fwrite(dim, sizeof dim, 1, f); fwrite(&n, sizeof n, 1, f);
+        if (b) fwrite(b, 1, n, f);
+        free(b);
+    }
     int ok = !ferror(f);
     if (fclose(f) || !ok) { remove(p); return 0; }
     save_flush();
@@ -6939,6 +7065,17 @@ static int save_read(int slot, SaveHead *h) {
     shop_close();
     dialog_open = 0;
 #endif
+    {   // 探索尾巴；舊存檔沒有就算了
+        char al[64]; int dim[2]; size_t n;
+        free(explore_saved); explore_saved = NULL;
+        if (fread(al, sizeof al, 1, f) == 1 && fread(dim, sizeof dim, 1, f) == 1 && fread(&n, sizeof n, 1, f) == 1 && n < (1u << 24) && n) {
+            explore_saved = malloc(n);
+            if (explore_saved && fread(explore_saved, 1, n, f) == n) {
+                explore_saved_w = dim[0]; explore_saved_h = dim[1];
+                snprintf(explore_saved_alias, sizeof explore_saved_alias, "%s", al);
+            } else { free(explore_saved); explore_saved = NULL; }
+        }
+    }
     fclose(f);
     memcpy(inv, tmp, sizeof inv);
     memcpy(hero_attr, s.attr, sizeof hero_attr);
@@ -8104,7 +8241,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     snprintf(file, sizeof file, "%.80s.Scn", alias);
     Scene next;
     if (!scene_load(&next, file)) { fprintf(stderr, "載入場景失敗：%s\n", file); return 0; }
-    scene_client.ready = 0;
+    scene_ready_set(0);
     npc_behavior_reset(hero);  // 0x4934b0（CProtagonist虛擬重設）= 寫未讀欄位後走CNpc重設0x492e70
     if (scene->cells) scene_free(scene);
     *scene = next;
@@ -8166,7 +8303,11 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     prefetch_scene(scene, hero);
     air_enter(scene);
     sur_enter(scene);
-    scene_client.ready = 1;
+    scene_ready_set(1);  // 0x46ec80（淡出 + 重設輸入 0x4590f0）
+    party_protect = 0;
+    input_sel_add(hero);
+    input_player_add(hero);  // 0x465cf0
+    chest_state_sync(scene);
     for (int i = 0; i < actor_count; i++) if (actors[i].role) actor_explore(&actors[i]);
     return 1;
 }
@@ -8227,6 +8368,15 @@ static Object *input_building(const Scene *s, int x, int y) {
 
 // 原版旗標 +0x341 第 n 個 = 身上有狀態 n；狀態 0 战斗状态 = 我們的 fight 計時
 static int in_fight(const Actor *h) { return h->fight > 0; }
+
+// 游標那格的 0x85 箱子（建築索引，沒有 -1）：同 input_cursor 找建築的方式
+static const char *openall_alias;
+static int chest_at(int cx, int cy) {
+    const Cell *bc = cell_at(cx, cy);
+    if (!unit_scene || !bc || bc->view < 2 || (bc->flags & 0x88) != 0x88 || bc->building < 0 || bc->building >= unit_scene->object_count) return -1;
+    const Object *o = &unit_scene->objects[bc->building];
+    return o->m && o->m->type == 0x85 && (!o->tri || building_available(o)) ? bc->building : -1;
+}
 
 // 0x455d60 算游標那段：c = 游標下的角色、item = 指著的地上道具、(cx, cy) = 游標那格。
 // 角色是自己（原版看自己這邊的名單）就往下看道具和格子；沒指著角色、格子主角那層不能過（0x435c00）或有角色站 → 5
@@ -8319,7 +8469,8 @@ static int load_world(World *world, int *tried, const char *alias) {
 // 大地圖（Poq.exe 0x44ce00：場景寬 > 0x3f，沒有場景也算）換到大地圖才自動存檔（Config 自动存盘、不是回放、不是連線）。
 // shortcut: 原版還要「不在劇情播放模式」（0x4fe130），過場播放器還沒做，先不檢查
 static int scene_big(const Scene *s) { return !s || s->w > 0x3f; }
-static int autosave_due(int was_big, const Scene *now) { return was_big && scene_big(now) && scene_record_mode != 2; }
+// shortcut: 隊伍在戰鬥中（0x458620）不自動存檔——原版呼叫處沒找到，先用在這裡避免存到打到一半的狀態
+static int autosave_due(int was_big, const Scene *now) { return was_big && scene_big(now) && scene_record_mode != 2 && !input_party_fighting(); }
 
 #ifndef STORY
 static int trade_paused(void) { return 0; }  // 沒有劇情就沒有交易視窗
@@ -8333,6 +8484,7 @@ int main(int argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--pause-traps")) trap_auto_pause = 1;
         if (!strcmp(argv[i], "--pause-deaths")) death_auto_pause = 1;
+        else if (!strcmp(argv[i], "--openall") && i + 1 < argc) openall_alias = argv[++i];  // 文字指令 openall（0x10019d70）
         if (!strcmp(argv[i], "--simple-deaths")) death_keep_mode = 0;
         else if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
@@ -8481,15 +8633,22 @@ int main(int argc, char **argv) {
                 // 原版按下只記位置（0x454eb0），放開才下指令（0x454f00）。shortcut: 按住空地會一直往那邊走（手機要用；原版按住拖拉是選人框）
                 int cx, cy;
                 click_down = 1;
+                if (mouse_seen) input_box_down(px, py);  // 0x454eb0
                 pointer_down = !input_char(zx, zy, ox, oy, &scene, &cx, &cy) && ground_at(zx, zy, ox, oy, &scene) < 0;
             }
             else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT && click_down) {
                 click_down = pointer_down = 0;
+                if (input_box_up()) continue;  // 0x454f00：框選，不下指令
                 if (SDL_GetModState() & KMOD_ALT) continue;  // 0x454f00：Alt 按著不下指令
                 int zx = e.button.x, zy = e.button.y, cx, cy;
                 zoom_point(&zx, &zy);
                 Actor *m = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
                 int g = ground_at(zx, zy, ox, oy, &scene);
+                int chest = !m && g < 0 ? chest_at(cx, cy) : -1;  // 0x85 箱子：走到旁邊開（命令 19）
+                if (chest >= 0 && !has_status(hero, 17) && !has_status(hero, 14)) {
+                    actor_command(hero, 19, chest, 0, 0, 1, 1); hero->foe = NULL; hero->want = NULL; walk_cx = -1;
+                    continue;
+                }
                 switch (click_cmd(hero, m, g)) {
                 case CMD_ATTACK: actor_target_set(hero, m); hero->want = NULL; walk_cx = -1; break;
                 case CMD_PICK: actor_command(hero, 0x11, ground[g].id, 0, 0, 1, 1); hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
@@ -8517,6 +8676,8 @@ int main(int argc, char **argv) {
             // 遊戲速度：數字鍵盤 +／= 加快、數字鍵盤 −／- 減慢（0x455d60）
             else if (e.type == SDL_KEYDOWN && (e.key.keysym.sym == SDLK_KP_PLUS || e.key.keysym.sym == SDLK_EQUALS)) game_speed_key(1);
             else if (e.type == SDL_KEYDOWN && (e.key.keysym.sym == SDLK_KP_MINUS || e.key.keysym.sym == SDLK_MINUS)) game_speed_key(0);
+            // R：自己這邊全部切換跑步旗標 0x10000（0x459170 命令 3）。shortcut: 原版的切換按鈕位置沒找到，先用 R 鍵
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_r && !e.key.repeat) { static int run_on; input_side_command(run_on = !run_on); }
             // 空白鍵／手把 A：打最近的怪物
             else if ((e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE) ||
                      (e.type == SDL_CONTROLLERBUTTONDOWN && e.cbutton.button == SDL_CONTROLLER_BUTTON_A)) {
@@ -8528,12 +8689,14 @@ int main(int argc, char **argv) {
                 int zx = e.button.x, zy = e.button.y, cx, cy;
                 zoom_point(&zx, &zy);
                 Actor *m = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
-                if (m) actor_target_set(hero, m);
                 SDL_Point wp = viewport_screen_world(&viewport, zx, zy);  // 0x4a11f0
-                hero_cast_point(hero, wp.x, wp.y);
+                input_cast(wp.x, wp.y, m);  // 0x457be0
             }
             else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) pointer_down = 0;
-            else if (e.type == SDL_MOUSEMOTION) { px = e.motion.x; py = e.motion.y; mouse_seen = e.motion.which != SDL_TOUCH_MOUSEID; }
+            else if (e.type == SDL_MOUSEMOTION) {
+                px = e.motion.x; py = e.motion.y; mouse_seen = e.motion.which != SDL_TOUCH_MOUSEID;
+                if (click_down && input_box_move(px, py)) pointer_down = 0;  // 拖出框：不再按住走路
+            }
             else if (e.type == SDL_CONTROLLERDEVICEADDED && !pad) pad = SDL_GameControllerOpen(e.cdevice.which);
         }
         if (pad && SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_BACK) && SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_START))
@@ -8550,7 +8713,7 @@ int main(int argc, char **argv) {
                 float x = hero->x, y = hero->y;
                 int dir = hero->dir, lv = hero->level, exp = hero->exp, hp = hero->hp, mp = hero->mp;
                 js_status(-1);
-                if (enter_scene(&scene, hero, h.alias, -1)) snprintf(alias, sizeof alias, "%s", h.alias);
+                if (enter_scene(&scene, hero, h.alias, -1)) { snprintf(alias, sizeof alias, "%s", h.alias); explore_restore(&scene, alias); }
                 actor_restore_position(hero, x, y); hero->dir = dir;
                 hero->foe = NULL; hero->want = NULL; hero->cast = NULL; hero->casting = 0; hero->act = ACT_NONE;
                 hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->stun = hero->z = 0;
@@ -8658,9 +8821,14 @@ int main(int argc, char **argv) {
                 walk_fx(&actors[i], &scene, tick);
             }
             unit_scene = &scene;
+            input_tick();
+#ifdef STORY
+            if (openall_alias) { chest_open_all(openall_alias); openall_alias = NULL; }
+#endif
             units_tick(tick);
             scene_buildings_tick(&scene);
             light_tick(&scene);
+            scene_explore_decay(&scene);  // 0x46f100 最後一步：格子探索衰減（0x4c7790）
             clock_tick();
             weather_tick();
             air_tick(scene_client_actor(&scene_client));
@@ -8690,7 +8858,6 @@ int main(int argc, char **argv) {
                     scene_music(alias, music, sizeof music);
                     audio_music(music);
                     printf("進入 %s\n", alias);
-                    fade_start(3);  // 0x44ca40(3, 0)：換場景交叉淡出
                     snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）：大場景換大場景才存（0x44ce00）
                     if (opt_v[O_AUTOSAVE] && autosave_due(was_big, &scene)) save_due = 0;
                 }
@@ -8712,8 +8879,7 @@ int main(int argc, char **argv) {
                         scene_music(world.rooms[room].alias, music, sizeof music);
                         audio_music(music);
                         printf("進入 %s\n", world.rooms[room].alias);
-                        fade_start(3);  // 0x44ca40(3, 0)：換場景交叉淡出
-                        snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）：大場景換大場景才存（0x44ce00）
+                            snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）：大場景換大場景才存（0x44ce00）
                         if (opt_v[O_AUTOSAVE] && autosave_due(was_big, &scene)) save_due = 0;
                     }
                     armed = 0;
@@ -8769,6 +8935,7 @@ int main(int argc, char **argv) {
             viewport_building_hover(&viewport, &scene, hx, hy, mouse_seen && !c && !win_left.open && !win_right.open, tick);
         }
         viewport_draw(&viewport, &scene, tick);
+        input_box_draw();  // 0x46e8b0
         fade_draw(vw, vh);  // 0x44bf00：場景畫完再淡入淡出（介面不受影響）
         if (snap_due) { snap_take(canvas); snap_due = 0; }
         if (save_due >= 0) {

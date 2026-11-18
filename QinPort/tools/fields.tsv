@@ -952,3 +952,9 @@ CERPerson	屬性 NextExp／CurExp	下一級還要的經驗／累計經驗	story_
 CERPerson	屬性 HasArrow	裝備的箭袋物件（左手 UI_Pos 33，類型 13／14）	inv[33]
 CERPerson	屬性 B_QTIMMU（ex[98]）	其他免疫 ≥ 100：狀態 Status／EStatus 都不加	Actor.ex[98]
 CERPerson	屬性 G_PicID2（隊友）	職業人物序號（4 6 …22），查 team_class 表	team_tables.h TeamClass.pic2
+CUserInput	+0x14 選人名單（60 格靜態鏈，頭 +0x1f0、數量 +0x1e4）	角色旗標 0x100 = 在名單裡	input.c sel_list／Actor.sel
+CUserInput	+0x3f0 名單變了	0x457a30／0x458fc0 設 1、0x45a100 同步完設 0	input.c sel_changed
+CUserInput	+4 目標物件編號	0x459050 放掉	input.c sel_target
+CScene	+0x20 探索衰減游標、+0x24 每拍格數（總格數 / 0x32）、+0x1c 格陣列頭、格 +0x13 探索值（1 看過、≥2 現在看得到、200 常亮）	0x4c7790	Scene.decay_pos、Cell.view
+CClient	+0x4c 進場保護倒數（250 拍；> 0 隊員有狀態 102）	0x467620／0x465cf0	input.c party_protect
+CERItem(宝箱)	屬性 isbuilding／key／deletekey／lockinfo／openinfo／openedinfo／Level／contain	0x1004e680 開箱規則	main.c chest_open_rule
