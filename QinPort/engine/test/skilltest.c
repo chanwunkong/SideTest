@@ -4330,6 +4330,58 @@ static void instant_gem_learn_test(void) {
     inv[1] = (Item){.name = "c", .type = 7, .arrows = 5};
     assert(!arrow_merge(1, 0) && !arrow_merge(0, 0));
     inv[0] = save_a; inv[1] = save_b;
+    // 箭消耗 0x1003f370：Attack == 1 的技能每發 −1，用光刪箭袋、關掉 W_Type 1／3 的弓技能
+    {
+        Item sv = inv[33]; Actor h = {.def = &def, .skill_n = 2};
+        SkillRow bow = {.wtype = 1, .level = 1, .mod_n = 1, .mod = {{.id = 10, .init = 1}}}, sw = {.wtype = 0, .level = 1, .mod_n = 1, .mod = {{.id = 10, .init = 1}}},
+                 other = {.wtype = 1, .level = 1, .mod_n = 1, .mod = {{.id = 10, .init = 4}}};
+        snprintf(bow.key, sizeof bow.key, "x_bow");
+        h.skills[0] = (ActorSkill){.id = 1, .enabled = 1, .row = &bow}; h.skills[1] = (ActorSkill){.id = 2, .enabled = 1, .row = &sw};
+        inv[33] = (Item){.name = "arrow", .type = 13, .arrows = 2};
+        arrow_spend(&h, &other); assert(inv[33].arrows == 2);  // 不是 Attack 1
+        arrow_spend(&h, &bow); assert(inv[33].arrows == 1 && h.skills[0].enabled);
+        arrow_spend(&h, &bow); assert(!inv[33].name[0] && !h.skills[0].enabled && h.skills[1].enabled);
+        arrow_spend(&h, &bow); assert(!inv[33].name[0]);  // 沒有箭袋：不動
+        arrow_refresh(&h); assert(!h.skills[0].enabled);  // 沒箭不開
+        inv[33] = (Item){.name = "arrow2", .type = 14, .arrows = 5};
+        arrow_refresh(&h); assert(h.skills[0].enabled && h.skills[1].enabled);  // 裝上箭 → 弓技能打開（W_Type 1／3）
+        inv[33] = sv;
+    }
+    // 五行相生（0x10055d50）：飾品 39 的五行 3 → 相生表 2 = 盔甲 31 的五行 → 盔甲的相生特性（種類 2）生效；拿掉就失效；對不上不動
+    {
+        Item sv31 = inv[31], sv39 = inv[39], sv0 = inv[0];
+        inv[31] = (Item){.name = "armor", .fe = 2, .fx_n = 2, .fx = {{.id = 53, .on = 1, .kind = 1}, {.id = 53, .on = 0, .kind = 2}}};
+        inv[0] = (Item){.name = "belt", .fe = 3};
+        inv_swap(0, 39);
+        assert(inv[39].name[0] == 'b' && inv[31].fx[1].on == 1 && inv[31].fx[0].on == 1);
+        inv_swap(39, 0);
+        assert(inv[31].fx[1].on == 0 && inv[31].fx[0].on == 1);  // 只動種類 2
+        inv[0].fe = 4;  // 相生表[4] = 5 ≠ 2：對不上
+        inv_swap(0, 39);
+        assert(inv[31].fx[1].on == 0);
+        inv[31] = sv31; inv[39] = sv39; inv[0] = sv0;
+    }
+    // 其他免疫 B_QTIMMU ≥ 100：對方免疫 → 我方、敵方状态都不加；不免疫 → 兩個都加
+    {
+        Actor a = {.def = &def, .role = &empty_test_role, .hp = 100, .hp_max = 100}, t = {.def = &def, .role = &empty_test_role, .hp = 100, .hp_max = 100};
+        SkillRow r = {.status = 14, .estatus = 76, .level = 1, .time = 5};
+        t.ex[98] = 100;
+        skill_hit(&a, &t, &r, 0);
+        assert(a.buff_n == 0 && t.buff_n == 0);
+        t.ex[98] = 99;
+        skill_hit(&a, &t, &r, 0);
+        assert(a.buff_n == 1 && t.buff_n == 1);
+    }
+    // 殺怪經驗（0x100574e0）：× (悟性 + 150) / 150；殺手比怪物高 2 級以上每級 −10%，最多 −90%
+    {
+        Actor m = {.exp = 300, .level = 10}, k = {.level = 11};
+        int sv = hero_attr[SAVVY]; hero_attr[SAVVY] = 0; k.ex[31] = 0;
+        assert(kill_exp_total(&m, &k) == 300);        // (0+150)/150
+        hero_attr[SAVVY] = 30; assert(kill_exp_total(&m, &k) == 360);
+        k.level = 13; assert(kill_exp_total(&m, &k) == (10 - 2) * 360 * 10 / 100);  // 高 3 級 → d = 2
+        k.level = 40; assert(kill_exp_total(&m, &k) == (10 - 9) * 360 * 10 / 100);  // 差距封頂 9
+        hero_attr[SAVVY] = sv;
+    }
 }
 
 int main(void) {

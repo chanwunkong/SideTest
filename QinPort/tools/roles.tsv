@@ -1101,3 +1101,15 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 1004f3a0	死亡處理：玩家 Dying=1、連線版（NetType > 1）扣錢扣經驗、清座標；單機只剩把身上 Type 61 的東西放回地上與 Dying 旗標，引擎由 actor_kill 處理
 1003b640	丟錢：身上錢扣掉、建「秦殇/金钱」物件（圖 0x7e9／0x7ea／0x7eb 依 300／1000）放在腳下，訊息 3029 錢不夠：單機沒有丟錢介面，todo
 1003ac40	銀行存提款（Bank 屬性，訊息 3098~3102）：單機劇情沒有銀行，DLC 才用，todo
+1003f370	技能施放後箭消耗：Attack == 1 時 HasArrow（左手 UI_Pos 33 的箭袋）ArrowNum −1；< 1 刪箭袋、訊息 1289、關掉 W_Type 1／3 技能 = main.c arrow_spend（精氣由施放處先扣）
+10055b50	裝備變動後重找箭袋 HasArrow（第一件類型 13／14），有就打開 W_Type 1／3 技能（沒有時不關）= main.c arrow_refresh（hero_refresh 呼叫）
+10055d50	裝備相生配對：移動的道具找搭檔（39—31、38—30、36—32、37—33），符合相生表 {0,3,4,2,5,1} → 搭檔的相生特性（種類 2）生效／失效 = main.c fe_toggle（inv_swap 呼叫）
+100581b0	找相生搭檔（UI_Pos 對、五行相生表 {0,3,4,2,5,1}、34／35 手套靴子不算）= main.c fe_toggle
+1006e340	相生特性生效：搭檔道具種類 2 的特性 on = 1 = fe_toggle(…, 1)
+1006f920	相生特性失效：搭檔道具種類 2 的特性 on = 0 = fe_toggle(…, 0)
+100295b0	隊友入隊自動加點（AddMember 呼叫，Friend 2、IsActorNPC 1~5、沒有旗標 jiaruduiwu）：經驗補到帶頭者 Exp×(悟性+250)/(悟性+250)×0.9，再依職業表（G_PicID2）把 Extra_Exp 加進六屬性、Extra_Skill 加技能等級 = story_rt.c team_autoadd（表 team_tables.h）
+10029550	隊友升級後算 NextExp、學技能 = story_rt.c team_level_set
+10026d30	加經驗連升級（主角 hero_gain_exp；隊友 story_rt.c story_gain_exp：每級 Extra_Exp +10、Extra_Skill +1）
+1003d270	劇情 add_exp：帶頭者的 Friend 2 隊友各加同樣經驗再加本人 = story_rt.c case 0x1003d270 + story_gain_exp
+100574e0	倒下：經驗 = 怪物 Exp × (殺手悟性+150)/150，殺手等級高 2 級以上每級 −10%（≤ 9 級）；隊伍依權重分（殺手 1.2、其他 1 − 0.05×|等級差|，至少 0.05）= main.c kill_exp
+10056d50	技能打中套狀態：Status 給施放者、EStatus 給對方，其他免疫 B_QTIMMU ≥ 100 就都不加（0x1003f590 判斷）= main.c skill_hit 的 immune

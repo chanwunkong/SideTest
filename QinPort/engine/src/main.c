@@ -1453,6 +1453,7 @@ static NpcSpec mon_specs[MAX_ACTORS];
 
 static void mon_derive(Actor *a);
 static int skill_attack_id(const SkillRow *r);
+static void arrow_spend(Actor *h, const SkillRow *r);
 
 // 怪物的技能1（Data/skill_npc.txt，0x100529a0 → 0x10059b20 依索引名找）：技能等級用表上的初始技能等级，沒填 0
 static const SkillRow *npc_skill(const char *key) {
@@ -2114,7 +2115,7 @@ static void gem_fx(Item *w, const ItemFx *f, int sign) {
     }
 }
 
-// 立即生效的參數（0x10035fd0 屬性分類 1，也是 0x10025160／0x100251c0／0x10025220 的施放時版本）：21 HP、22 MP 加值（百分比 = 目前值的 %），
+// 立即生效的參數（0x10035fd0 屬性分類 1；HP／MP 的 % 版 0x10035c90／0x10035df0 = 292／293 那兩格；屬性分類函式 0x100364a0：< 20 技能自己的欄位、1 立即、2 暫存、3 道具生成，也是 0x10025160／0x100251c0／0x10025220 的施放時版本）：21 HP、22 MP 加值（百分比 = 目前值的 %），
 // 292、293 = HP_MAX、MP_MAX 的 % 加到 HP、MP；295 = 清狀態（0x1003f130）
 static int skill_instant(int id) { return id == 21 || id == 22 || id == 292 || id == 293 || id == 295; }
 static void skill_now(Actor *x, const SkillMod *m, int level) {
@@ -2249,7 +2250,9 @@ static void clone(Actor *a) {
 // Attack方式：1、4、10 物理，2 馴服，3 召喚，8 陷阱，9 除障，11 分身；5 開鎖、6 偷竊、12 清狀態、13 界面技能沒有技能用到，沒做
 // shortcut: 沒有敌方状态但有對敵參數的（點石成俑）也當成狀態加在對方身上
 static void skill_hit(Actor *a, Actor *t, const SkillRow *r, Uint32 tick) {
-    if (r && (r->status > 0 || r->estatus > 0) && !(r->status > 0 && has_status(a, r->status)) && !(t && r->estatus > 0 && has_status(t, r->estatus))) {
+    // 其他免疫 B_QTIMMU（ex[98]）≥ 100：自己免疫就不加我方状态、對方免疫就不加敌方状态——任何一邊擋住，兩個状态都不加（0x1003f590、0x10056d50）
+    int immune = (r && r->status > 0 && a->ex[98] >= 100) || (r && r->estatus > 0 && t && t->ex[98] >= 100);
+    if (r && !immune && (r->status > 0 || r->estatus > 0) && !(r->status > 0 && has_status(a, r->status)) && !(t && r->estatus > 0 && has_status(t, r->estatus))) {
         if (r->status > 0) buff_add(a, r, r->status, 0, skill_time(r), 0);
         int enemy_mod = 0;
         for (int i = 0; i < r->mod_n; i++) enemy_mod |= r->mod[i].enemy > 0 && r->mod[i].id >= 20 && r->mod[i].id < 100;
@@ -2280,6 +2283,37 @@ static void hero_gain_exp(Actor *h, int exp) {
     }
 }
 
+// 怪物倒下的經驗分配（0x100574e0 後段）：怪物的 Exp × (殺手悟性 + 150) / 150；殺手等級比怪物高 2 級以上，每多 1 級少 10%（最多多 9 級）。
+// 單機沒有別的玩家（Friend 3），人數 n = 1，總量 = n × 經驗 × 2 / (n + 1) = 經驗。隊伍（Friend 2 的隊友）依權重分：殺手 1.2，
+// 其他隊員 1 − 0.05 × |等級差|（至少 0.05）；殺手以外的帶頭者（沒有）。每人 = 權重 / 總權重 × 總量
+static int kill_exp_total(const Actor *t, const Actor *by) {
+    int e = t->exp * (hero_attr[SAVVY] + by->ex[31] + 150) / 150;
+    if (t->level + 1 < by->level) {
+        int d = by->level - t->level - 1;
+        e = (10 - (d > 9 ? 9 : d)) * e * 10 / 100;
+    }
+    return e;
+}
+static void kill_exp(const Actor *t, Actor *by) {
+    int total = kill_exp_total(t, by);
+#ifdef STORY
+    float w_by = 1.2f, sum = w_by, w[16];
+    int mem[16], n = 0;
+    for (int m = story_team_next(story_player(), 0); m && n < 16; m = story_team_next(story_player(), m)) {
+        if (story_get_int(m, "Friend") < 2) continue;
+        int d = story_get_int(m, "Level") - t->level;  // 原版這裡用的是怪物等級（local_1c24）
+        float x = 1.0f - (d < 0 ? -d : d) * 0.05f;
+        w[n] = x < 0.05f ? 0.05f : x;
+        sum += w[n];
+        mem[n++] = m;
+    }
+    for (int i = 0; i < n; i++) story_gain_exp(mem[i], (int)(w[i] / sum * total));
+    hero_gain_exp(by, (int)(w_by / sum * total));
+#else
+    hero_gain_exp(by, total);
+#endif
+}
+
 // 倒下（0x100574e0）：播死亡動作，被主角打死的怪物給經驗，夠了就升級
 static void actor_death_fear(Actor *a);
 static void actor_remove(Actor *a, int mode);
@@ -2287,7 +2321,7 @@ static void actor_kill(Actor *t, Actor *by) {
     t->hp = 0;
     actor_remove(t, 1);
     if (t->mon) mon_loot(t);
-    if (by && !by->mon && t->mon) hero_gain_exp(by, t->exp);
+    if (by && !by->mon && t->mon) kill_exp(t, by);
     printf("%s 倒下\n", t->mon ? "怪物" : "主角");
 #ifdef STORY
     if (t->sh) story_killed(t->sh);  // 原版 0x100574e0 最後刪掉人物；Boss 的第 10 格會開劇情
@@ -5138,6 +5172,7 @@ static void cast_start(Actor *h, const SkillRow *r) {
     const Method *m = method_find(skill_attack_id(r));
     if (h->act || h->casting || !m || !actor_row_enabled(h, r) || !actor_can_use_id(h, skill_attack_id(r)) || !skill_usable(h, r) || status_noattack(h)) return;
     h->mp -= skill_mpu(r);
+    if (h == &actors[0]) arrow_spend(h, r);
     h->cast = r;
     h->casting = 1;
     h->atk_rh = h->atk;
@@ -5172,6 +5207,7 @@ static int actor_cast_try(Actor *a, int id, int x, int y, Actor *target) {
     if (old) unit_die(old, SDL_GetTicks());
     else act_end(a);
     if (r && !a->mon) a->mp -= skill_mpu(r);
+    if (r && a == &actors[0]) arrow_spend(a, r);
     a->act = ACT_NONE; a->atk = m;
     a->cast = r; a->casting = 1;
     start_act(a, ACT_ATTACK, m->seq);
@@ -5680,7 +5716,7 @@ static int hero_learn_skill(const char *key) {
     return 1;
 }
 
-// 忘記技能（文字指令 skl_forget 0x1001d840）：技能物件刪掉，訊息 1323；不是自己的技能 1267。單機沒有技能物件代號，用技能表索引
+// 忘記技能（文字指令 skl_forget 0x1001d840；放棄 abandon 0x10011410 → 核心 0x10053ef0：技能物件從技能清單刪掉、送客戶端 DEL_S）：技能物件刪掉，訊息 1323；不是自己的技能 1267。單機沒有技能物件代號，用技能表索引
 static int hero_forget_skill(int k) {
     if (k < 0 || k >= hero_skill_n || hero_skill[k].level <= 0) { hud_msg(1267, ""); return 0; }
     char g[128] = "";
@@ -5730,7 +5766,15 @@ static void hero_look(void) {
         if (inv[s].name[0] && inv[s].equip[hero_prof - 1][0])
             styles_equip(hero_def.styles, sizeof hero_def.styles, d->graphic, d->pli, inv[s].equip[hero_prof - 1]);
 }
+// 裝備變動後重找箭袋（0x10055b50）：左手 UI_Pos 33 的類型 13／14 = HasArrow，有的話打開所有 W_Type 1／3 的弓技能（Enable = 1）。
+// 沒有箭時原版不關（關是箭射完那一刻 0x1003f370，arrow_spend）
+static void arrow_refresh(Actor *h) {
+    if (!inv[33].name[0] || (inv[33].type != 13 && inv[33].type != 14)) return;
+    for (int i = 0; i < h->skill_n; i++)
+        if (h->skills[i].row && (h->skills[i].row->wtype == 1 || h->skills[i].row->wtype == 3)) h->skills[i].enabled = 1;
+}
 static void hero_refresh(Actor *h) {
+    arrow_refresh(h);
     hero_derive(h);
     if (!h->role) return;  // 還沒進場景（開場）
     hero_look();
@@ -5786,13 +5830,32 @@ static void set_combine(void) {  // Poq.exe 0x555380：件數 > 1 才送；0x100
     hud_msg(1210, "\xb7\xfc\xcb\xd5");
 }
 
+// 五行相生（裝備搭檔，0x10055d50）：腰帶 39—盔甲 31、項鍊 38—頭盔 30、右戒 36—右手 32、左戒 37—左手 33 兩件都穿著，
+// 飾品（前者）的五行 f 經相生表 {0,3,4,2,5,1}[f] 等於另一件的五行（0x100581b0）→ 搭檔的「相生特性」（種類 2）生效（0x1006e340），
+// 拿掉其中一件 → 搭檔的相生特性失效（0x1006f920）。原版只開關搭檔那件（剛穿上的那件本身不動），所以先穿的那件才拿到加成；
+// 照原版保留：道具自己的開關旗標不會因為離開裝備欄而還原
+static void fe_toggle(int s, int equip) {
+    static const int P[4][2] = {{39, 31}, {38, 30}, {36, 32}, {37, 33}}, MAP[6] = {0, 3, 4, 2, 5, 1};
+    if (s < 30 || s > 39 || !inv[s].name[0]) return;
+    for (int k = 0; k < 4; k++) {
+        int idx = P[k][0] == s ? 0 : P[k][1] == s ? 1 : -1;
+        if (idx < 0) continue;
+        int o = P[k][1 - idx], acc = P[k][0], arm = P[k][1];
+        if (!inv[o].name[0] || inv[acc].fe < 0 || inv[acc].fe > 5 || MAP[inv[acc].fe] != inv[arm].fe) return;
+        for (int i = 0; i < inv[o].fx_n; i++)
+            if (inv[o].fx[i].kind == 2) inv[o].fx[i].on = equip;
+        return;
+    }
+}
 static void inv_swap(int a, int b) {
     if ((a >= INV_BAG && a < 40) || (b >= INV_BAG && b < 40)) memset(&inv[40], 0, sizeof inv[40]);
+    fe_toggle(a, 0); fe_toggle(b, 0);  // 先把要離開裝備欄的對搭檔關掉
     Item t = inv[a];
     inv[a] = inv[b];
     inv[b] = t;
     inv[a].pos = a;
     inv[b].pos = b;
+    fe_toggle(a, 1); fe_toggle(b, 1);
 }
 
 // 脫下 UI_Pos s 的裝備放進背包空格；背包滿了不脫
@@ -5816,6 +5879,21 @@ static void item_equip(Actor *h, int p) {
     if (s == 33 && inv[32].name[0] && inv[32].part == 10 && !(it->type == 13 || it->type == 14) && !item_unequip(h, 32)) return;
     inv_swap(p, s);
     item_sel = -1;
+    hero_refresh(h);
+}
+
+// 施放技能後箭消耗（EasyRPG.dll 0x1003f370，精氣由呼叫處先扣）：技能 Attack == 1（射箭）時，左手的箭堆（HasArrow = UI_Pos 33 的類型 13／14）
+// 每發 −1；用光就刪箭堆、訊息 1289「箭射完了」，並關掉所有 W_Type 1／3 的弓技能（Enable = 0）。原版另送箭數給客戶端，單機不需要
+static void arrow_spend(Actor *h, const SkillRow *r) {
+    Item *ar = &inv[33];
+    if (!r || skill_attack_id(r) != 1 || !ar->name[0] || (ar->type != 13 && ar->type != 14)) return;
+    if (--ar->arrows > 0) return;
+    memset(ar, 0, sizeof *ar);
+    hud_msg_hero(1289);
+    for (int i = 0; i < h->skill_n; i++) {
+        const SkillRow *w = h->skills[i].row;
+        if (w && (w->wtype == 1 || w->wtype == 3)) h->skills[i].enabled = 0;
+    }
     hero_refresh(h);
 }
 
@@ -6276,7 +6354,7 @@ static int make_used(int p) {
     return 0;
 }
 
-// 合併一件材料的特性（0x10051530：同屬性、同種類、同百分比的相加）
+// 合併一件材料的特性（0x10051530；特性清單合併 0x10032740：同屬性、同種類、同百分比的相加）
 static void fx_merge(ItemFx *list, int *n, const ItemFx *f) {
     for (int i = 0; i < *n; i++)
         if (list[i].id == f->id && list[i].kind == f->kind && list[i].pct == f->pct) { list[i].v += f->v; return; }
@@ -6508,6 +6586,7 @@ static void *story_item_new(int h, int type, int level, int col, const char *ali
 }
 
 // 劇情給經驗（0x1003d270：主角和隊友各加）、系統訊息（0x1004dd00 → 介面訊息 0x5ea）
+static int story_exp_need(int lv) { return lv < exp_levels ? exp_table[lv] : 0x7fffffff; }  // 原版 DAT_104784e8[lv]
 static void story_exp(int h, int exp) { if (h == story_player()) hero_gain_exp(&actors[0], exp); }
 static const char *story_text(int id) {
     static char out[256];
@@ -8292,6 +8371,7 @@ int main(int argc, char **argv) {
     story_on_skill = story_skill;
     story_on_msg = story_msg;
     story_on_text = story_text;
+    story_exp_for = story_exp_need;
     story_end();  // 開場裝備照劇情的主角（扶苏武器、布衣）
     hero_look();
 #else
@@ -8661,6 +8741,9 @@ int main(int argc, char **argv) {
                 if (d) {
                     res_unxor(d, n);
                     for (char *l = strtok((char *)d, "\r\n"); l && exp_levels < 100; l = strtok(NULL, "\r\n")) exp_table[exp_levels++] = atoi(l);
+#ifdef STORY
+                    story_exp_max = exp_levels;
+#endif
                     free(d);
                 }
             }

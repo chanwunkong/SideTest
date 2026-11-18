@@ -946,3 +946,9 @@ CERPerson	屬性 SKL_ToLearn	可學技能「索引名 分類 …」（伺服器�
 CERSkill	屬性 S_Class	技能分類（同分類最多學 4 個，0x1004bbf0 計數）	hero_skill_class
 CERPerson	屬性 BD／BD_MAX	負重／負重上限（BD_MAX = Str × 1.5 + 30）；搬進身上時 BD + 重量 > BD_MAX 且原本沒超 → 訊息 3026（0x1004cb00）	hero_burden／burden_warn
 CERItem	屬性 UI_Pos／UI_PosOld	道具所在格：<200 身上（30~40 裝備）、200~299 倉庫、≥300 交易	inv 索引
+CERItem	屬性 FE／ItemFx.kind=2	五行、相生特性（on = 0 預設，搭檔都穿上才生效）	Item.fe／ItemFx.on
+CERPerson	屬性 Extra_Exp／Extra_Skill	可分配屬性點／技能點（每升一級 +10／+1）	hero_extra_exp／hero_extra_skill；隊友存在物件屬性
+CERPerson	屬性 NextExp／CurExp	下一級還要的經驗／累計經驗	story_rt.c story_gain_exp
+CERPerson	屬性 HasArrow	裝備的箭袋物件（左手 UI_Pos 33，類型 13／14）	inv[33]
+CERPerson	屬性 B_QTIMMU（ex[98]）	其他免疫 ≥ 100：狀態 Status／EStatus 都不加	Actor.ex[98]
+CERPerson	屬性 G_PicID2（隊友）	職業人物序號（4 6 …22），查 team_class 表	team_tables.h TeamClass.pic2

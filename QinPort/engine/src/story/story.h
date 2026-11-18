@@ -43,6 +43,9 @@ void story_take(int h);                     // 從原本的持有者身上拿走
 int story_put(int owner, void *item);       // 把引擎的道具（malloc 的）放到 owner 身上
 // 引擎接的事件：加經驗（0x1003d270）、系統訊息（0x1004dd00，kind 7 得到、8 失去、13 經驗…）
 extern void (*story_on_exp)(int h, int exp);
+extern int (*story_exp_for)(int level);  // 升到 level+1 要的累計經驗（引擎的經驗表），沒設 = 隊友不升級
+extern int story_exp_max;                // 最高等級
+void story_gain_exp(int h, int exp);     // 隊友（非玩家人物）加經驗，連升級（0x10026d30）
 extern void (*story_on_log)(int h, int kind, const char *text);
 // 主角身上的道具在引擎的 inv：物件留著（別名、屬性給劇情找），item 交給引擎（held）
 void story_hold(int h);

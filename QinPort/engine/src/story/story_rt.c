@@ -521,6 +521,92 @@ static void team_learn(int h, int level) {
     }
 }
 
+#include "team_tables.h"
+int (*story_exp_for)(int level);  // 升到 level+1 要的累計經驗（引擎的 Data/experience.txt，原版 DAT_104784e8[level]）；沒設 = 不升級
+int story_exp_max;                // 最高等級（原版 DAT_1039b5e8）
+
+// 隊友（非玩家人物）加經驗（0x10026d30）：Exp、CurExp 加上去，夠了連升幾級，每級 Extra_Exp +10、Extra_Skill +1；
+// 升級後學新技能（0x100265d0 = team_learn）、訊息 0x44e。shortcut: 升級後的 Upgrade_ 屬性重算（HP_MAX／MP_MAX 隨等級）沒做：單機劇情物件上沒有 Upgrade_* 欄位，
+// 隊友的 HP_MAX 等等有隊友角色（引擎）時再算
+void story_gain_exp(int h, int exp) {
+    if (!O(h)) return;
+    story_set_int(h, "Exp", story_get_int(h, "Exp") + exp);
+    story_set_int(h, "CurExp", story_get_int(h, "CurExp") + exp);
+    int lv = story_get_int(h, "Level"), nl = lv, e = story_get_int(h, "Exp");
+    if (story_exp_for && story_exp_for(lv) <= e) {
+        do nl++; while (nl < story_exp_max && story_exp_for(nl) <= e);
+        if (nl > story_exp_max) nl = story_exp_max;
+        story_set_int(h, "Level", nl);
+    }
+    if (story_exp_for) story_set_int(h, "NextExp", story_exp_for(nl) - e);
+    int gain = nl > lv ? nl - lv : 0;
+    if (gain < 1) return;
+    story_set_int(h, "Extra_Exp", (story_get_int(h, "Extra_Exp") < 0 ? 0 : story_get_int(h, "Extra_Exp")) + gain * 10);
+    story_set_int(h, "Extra_Skill", (story_get_int(h, "Extra_Skill") < 0 ? 0 : story_get_int(h, "Extra_Skill")) + gain);
+    team_learn(h, nl);
+    if (story_on_text && story_on_log) {
+        char s[256];
+        snprintf(s, sizeof s, story_on_text(0x44e), story_name(h));
+        story_on_log(h, 14, s);
+    }
+}
+
+// 0x10029550：升級後算下一級經驗（NextExp = 經驗表[等級] − Exp）、學技能（0x100265d0）
+// shortcut: 之後原版做 Upgrade_ 屬性重算，同 story_gain_exp 沒做
+static void team_level_set(int h, int level) {
+    if (story_exp_for) story_set_int(h, "NextExp", story_exp_for(level) - story_get_int(h, "Exp"));
+    team_learn(h, level);
+}
+
+// 隊友入隊自動加點（0x100295b0，AddMember 0x10037850 在 Friend 2、IsActorNPC 1~5、還沒有旗標 jiaruduiwu 時呼叫）：
+// 經驗補到帶頭者的 Exp × (隊友悟性+250)/(帶頭者悟性+250) × 90/100；再依職業（G_PicID2）表把 Extra_Exp 照屬性優先順序加進六項屬性
+// （每項要 (int)(每級點數 × (等級−1)) 點，不夠就停），Extra_Skill 依 8 個技能的等級公式 ((等級−1−req)/step + 1) 加技能等級。
+// 照原版保留：點數用完（> 0 才寫回）時 Extra_Exp、Extra_Skill 屬性不更新（留舊值）
+// shortcut: 只做單機表（連線版 DAT_10478d30 == 1 用 秦殇/NET/ 路徑）；屬性同時寫 *0 基礎值和現值（原版只寫 *0，再整個重算）；
+// 技能升級後原版套技能參數，隊友沒有引擎角色，不做
+static void team_autoadd(int lead, int m) {
+    if (!O(lead) || !O(m)) return;
+    int pic2 = story_get_int(m, "G_PicID2");
+    const TeamClass *tc = NULL;
+    for (size_t i = 0; i < sizeof team_class / sizeof *team_class; i++) if (team_class[i].pic2 == pic2) tc = &team_class[i];
+    float ratio = (float)(story_get_int(m, "Savvy") + 250) / (float)(story_get_int(lead, "Savvy") + 250);
+    unsigned target = (unsigned)((float)(unsigned)story_get_int(lead, "Exp") * ratio * 90.0f / 100.0f);
+    unsigned have = (unsigned)story_get_int(m, "Exp");
+    if (!(have < target || lead == m)) return;
+    story_gain_exp(m, (int)(target - have));
+    team_level_set(m, story_get_int(m, "Level"));
+    if (!tc) return;  // 表上沒有這個職業（原版會寫空名稱的屬性）
+    int lv = story_get_int(m, "Level"), ex = story_get_int(m, "Extra_Exp");
+    for (int k = 0; k < 6; k++) {
+        int need = (int)(tc->incr[k] * (float)(lv - 1));
+        if (ex < need) break;
+        ex -= need;
+        char cur[16];
+        snprintf(cur, sizeof cur, "%.*s", (int)strlen(tc->attr[k]) - 1, tc->attr[k]);  // Str0 → Str
+        story_set_int(m, tc->attr[k], (int)tc->base[k] + need);
+        story_set_int(m, cur, (int)tc->base[k] + need);
+    }
+    if (ex > 0) story_set_int(m, "Extra_Exp", ex);
+    int pts = story_get_int(m, "Extra_Skill");
+    for (int k = 0; k < 8; k++) {
+        if (pts < 1) return;
+        int sk = 0;
+        for (int c = story_next(m, 0); c && !sk; c = story_next(m, c)) if (!strcmp(story_alias(c), tc->skill[k])) sk = c;
+        int want = (lv - 1 - tc->req[k]) / tc->step[k] + 1, cur = sk ? story_get_int(sk, "Level") : 0;
+        if (sk && want > 0 && cur < want) {
+            int add = want - cur, room = story_get_int(sk, "Level_Max") - cur;
+            if (room < add) add = room;
+            if (add > pts) add = pts;
+            pts -= add;
+            story_set_int(sk, "Level", cur + add);
+        }
+    }
+    if (pts > 0) {
+        story_set_int(m, "Extra_Skill", pts);
+        if (ex < 1) story_set_int(m, "Extra_Exp", 0);  // 原版刪掉這個屬性
+    }
+}
+
 // 0x10037850 AddMember(帶頭者, 隊員)
 static void team_add(int lead, int m) {
     if (!O(lead) || objs[lead].kind != 1) { fprintf(stderr, "AddMember: 不是人物\n"); return; }
@@ -542,8 +628,10 @@ static void team_add(int lead, int m) {
         (void)EQ;  // shortcut: 原版這裡用 (&local_420)[IsActorNPC] 取字串，索引偏了一格（local_420 = Friend），照抄會拿到 EQ[actor-1]
         story_set_str(m, key, EQ[actor - 1]);
     }
+    KV *jr;
     if (lead == the_player) {
         msg(0x49b70, NULL, 2, lead, m);  // 原版 0x10049b70、0x100443d0：隊伍面板加一格
+        if (friend_ == 2 && actor >= 1 && actor <= 5 && (!(jr = kv_find(O(m)->flags, O(m)->nflags, "jiaruduiwu")) || jr->val < 1)) team_autoadd(lead, m);  // 0x100295b0；有旗標 = 已入過隊
         if (friend_ >= 2) {
             char s[256];
             snprintf(s, sizeof s, "%s加入了队伍。", story_name(m));  // shortcut: 原版字串 easyrpg.dlg 0x40c，還沒讀那個檔
@@ -816,7 +904,13 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
         for (int i = 0; i < (a[2] > 0 ? a[2] : 1); i++) h = story_new(S(a[1]), (int)a[0]);
         return h;
     case 0x1003d3e0: w_add_money((int)a[0], (int)a[1]); return 0;              // add_money
-    case 0x1003d270: if (story_on_exp) story_on_exp((int)a[0], (int)a[1]); return 0;  // add_exp(主角, 值)：shortcut: 隊友（Friend 2）還沒有
+    case 0x1003d270: {                                                       // add_exp(人物, 值)：帶頭者的隊伍裡 Friend 2 的隊友各加同樣的經驗，再加本人
+        int who = (int)a[0], lead = leader_of(who);
+        for (int m = story_team_next(lead, 0); m; m = story_team_next(lead, m))
+            if (m != who && story_get_int(m, "Friend") == 2) story_gain_exp(m, (int)a[1]);
+        if (story_on_exp) story_on_exp(who, (int)a[1]);
+        return 0;
+    }
     case 0x1004dd00:                                                         // quest_log(誰, 種類, 顏色, 文字)
         if (story_on_log) story_on_log((int)a[0], (int)a[1], S(a[3]));
         else printf("【訊息 %d】%s\n", (int)a[1], S(a[3]));
