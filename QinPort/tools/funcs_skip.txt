@@ -1800,7 +1800,7 @@ CNetStatusDialog|CDebugDialog|CJoinNetGameDialog  連線版／除錯用介面
 005541f0  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 00554570  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 00555270  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
-00555650  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
+00555650  CRoleDialog 放進背包的客戶端鏡像：FUN_0050acf0 在範圍內找空欄，或 Type 0x33（成套武装容器）同名且 MemberCount<9 的欄，找不到送封包 0x69，找到由 FUN_0050c390 搬移；規則在 EasyRPG 端，引擎 bag_free／inv[] 直接放，沒有可翻的規則
 00555900  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 005562b0  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 005567f0  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
@@ -1822,7 +1822,6 @@ CNetStatusDialog|CDebugDialog|CJoinNetGameDialog  連線版／除錯用介面
 0055af80  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 0055b3e0  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 0055b7d0  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
-0055b980  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 0055bb30  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 0055c240  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 0055c4e0  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
@@ -1847,7 +1846,7 @@ CNetStatusDialog|CDebugDialog|CJoinNetGameDialog  連線版／除錯用介面
 00560350  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 00560410  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 00560680  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
-00560d20  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
+00560d20  CSkillDialog 快捷技能格排版：依技能表 Hand（0 右、1 左、2 兩手）把 8 個控制項分成 0～3／4～7 兩組顯示或停用並寫圖示 ResID；引擎只有左右手兩個技能，沒有 8 格快捷列，純畫面無規則
 00561720  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 005620b0  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
 00562150  介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包
@@ -1921,3 +1920,10 @@ FUN_005(7[89a-f]|[89a-f][0-9a-f])[0-9a-f]{3}|FUN_005a[0-4][0-9a-f]{3}  UI 工具
 005742a0  介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代
 FUN_(00537ab0|00537b40|00538870|00538df0|00538eb0|00538f50|005390e0)  CGameDialog 的關閉清理、顯示／隱藏全部 HUD、鍵盤事件轉發、連線版聊天輸入／輸出視窗焦點與格式化送字；單機沒有聊天，HUD 開關由 main.c 控制
 CDeadDialog|CMessagePipeDialog|CExchangeDialog|CPlayerDialog  連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有
+
+0055fb10  依 ID 取控制項的轉接，無規則
+0056b260  依 ID 取控制項的轉接，無規則
+00557780  解構函數
+00559800  解構函數
+0056b140  解構函數
+0054cc50  解構函數
