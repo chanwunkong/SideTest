@@ -1134,7 +1134,9 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
   - 對到引擎（註解標位址）：res.c `parse_ont` ＝ CInitObjMng 0x4cb440／0x4cb640；`scene_load` 讀 .scn ＝ 0x4cce40（入口加名單 0x4cc4c0）、SoloMap 檔頭 ＝ 0x4c7fe0、BNT（SoloInit）＝ LoadInt 0x4cef30；main.c 快捷技能視窗 `pick_open`／`pick_pos`／`hud_tap` ＝ CShortcutSkillDialog 0x5640a0／0x564250／0x564140；`hud_draw` 載入各 HUD ＝ CGameDialog 0x537bb0／0x5389e0（排版）。
   - shortcut：parse_ont 沒讀 iType 15（跟隨）的五個參數鍵、.scn 的「雷达地图ID」沒讀；JM65 消息、JM108 選擇視窗的位置等各自視窗做時再對。
   - 剩 todo 423 個（約 1.4 萬行，全在 0x502250～0x577fd0，各 Dialog 的事件／繪製處理）：CLoadingDialog／CTalkDialog／CStatusDialogA～C／CGameDialog 剩下的／CMapDialog／CMainControlDialog／CMakePropDialog／CPropDialog／CEquipDialog／CTradeDialog／CSkillDialog／CTeamDialog／CChooseDialog／CLoadDialog／CCreditsDialog／CSinglePlayerDialog／COptionDialog／CCreateNewCharDialog 等，以及位址落在這些類別之間、沒有類別標記的函數（約 300 個）。做法：一個視窗一個視窗，打開 main.c 對應的 JM 視窗程式比對；沒有引擎對應的（標題畫面 CSinglePlayerDialog、片尾 CCreditsDialog、創角 CCreateNewCharDialog、選擇框 CChooseDialog）等該功能做時一起翻。
-  **下一步：0x502250（CLoadingDialog 起）**——先 `python3 tools/functool.py next 0x502250`；逐個視窗對照 main.c，有規則的翻進去，只是排版的在引擎對應程式標位址。
+  ~~**下一步：0x502250（CLoadingDialog 起）**——先 `python3 tools/functool.py next 0x502250`；逐個視窗對照 main.c，有規則的翻進去，只是排版的在引擎對應程式標位址。~~
+- **0x502250 起介面逐個對照（2026-11-18，第 1 輪）**：CLoadingDialog 0x502450 小提示 → main.c `loading_tip`（rand()&3 選組 2500×9／2600×22／2700×13／2800×10 取 UI_C 文字，去掉 &1xxxxxxxxxx 標記；載入中畫在底部置中）。視窗擺位（0x554150／0x556200／0x55a5e0 左、0x560380／0x54e340 右）→ `win_x／win_y`。買的錢不夠判斷 0x55b980（價格 > Money 不送封包，秀 UI_C 1508）→ `shop_buy`，取代原本誤用的 EasyRPG 1185。0x560d20（技能 Hand 8 格排版）、0x555650（放進背包的客戶端鏡像）判讀為無規則，skip 理由待登記進 funcs_skip.txt（這輪沒權限改該檔）。剩 417 個 todo。
+  **下一步：0x502250 起剩下的（CLoadingDialog 其餘轉接函數、CMakePropDialog 0x5406d0、CPropDialog 0x54e3d0、CEquipDialog 0x556000、CSkillDialog／CLearnSkillDialog 0x56b140 起）**——先 `python3 tools/functool.py next 0x502250`
 
 
 

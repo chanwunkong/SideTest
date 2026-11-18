@@ -4668,6 +4668,25 @@ static int draw_text(int x, int y, const char *t, int maxw, Uint32 rgb, int draw
     return cy + 16;
 }
 
+// 載入畫面小提示（CLoadingDialog 0x502450）：rand()&3 選一組（UI.Dlg 起點／筆數 2500×9、2600×22、2700×13、2800×10），組內再 rand 一筆。
+// 文字裡的「&1xxxxxxxxxx」是原版顏色／名稱標記，連同前面的括號拿掉
+static void loading_tip(char *out, size_t cap) {
+    static const int base[4] = {2500, 2600, 2700, 2800}, cnt[4] = {9, 22, 13, 10};
+    int k = rand() & 3;
+    char t[512];
+    ui_text(base[k] + rand() % cnt[k], t, sizeof t);
+    size_t n = 0;
+    for (const char *p = t; *p && n + 4 < cap;) {
+        if (p[0] == '&' && p[1] == '1' && strspn(p + 2, "0123456789") >= 10) {
+            p += 12;
+            if (n >= 3 && !memcmp(out + n - 3, "\xef\xbc\x88", 3) && !memcmp(p, "\xef\xbc\x89", 3)) { n -= 3; p += 3; }
+            continue;
+        }
+        out[n++] = *p++;
+    }
+    out[n] = 0;
+}
+
 // Poq.exe 0x48b710：單機模式2；普通文字覆寫槽0，上飄用第一空槽，滿時用第一上飄槽。
 // shortcut: 以UTF-8緩衝和現有字型取代200x100的SBMP，超過1023 bytes截斷；需要超長台詞時改動態字串。
 static void actor_overhead(Actor *a, const char *text, unsigned char duration, unsigned char floating) {
@@ -4913,6 +4932,8 @@ static void win_toggle(Win *w, const char *section) {
     if (w->open && !strcmp(section, JM52)) role_set_mode(1);  // 開人物屬性是顯示模式（Poq.exe 0x554080）
 }
 
+// 原版各視窗的擺位函式（FUN_00583790 型 6 置中後）：左邊 x = W/2 − 寬（人物屬性 0x554150、裝備 0x556200、交易 0x55a5e0），
+// 右邊 x = W/2（技能 0x560380、道具 0x54e340）；y = H/2 − 高/2 − 50
 static int win_x(const Win *w) { return w == &win_left ? vw / 2 - w->d.w : vw / 2; }
 static int win_y(const Win *w) { return (vh - w->d.h) / 2 - 50; }
 
@@ -5888,12 +5909,17 @@ static void shop_close(void) {
     if (win_left.open && (!strcmp(win_left.d.name, JM63) || !strcmp(win_left.d.name, JM56))) win_left.open = 0;
 }
 
-// 買（EasyRPG buy 0x10012ef0）：錢不夠秀 1185；錢付給商人，道具放進背包空格
+// 買（EasyRPG buy 0x10012ef0；介面判斷 0x55b980）；錢付給商人，道具放進背包空格
 static void shop_buy(int i) {
     if (i < 0 || i >= shop_n) return;
     Item *it = story_item(shop_slot[i]);
     int p = trade_price(it, 1), b = bag_free();
-    if (hero_money < p) { hud_msg(1185, p, hero_money); return; }
+    if (hero_money < p) {  // 介面先擋（CTradeDialog 買 0x55b980：價格 > Money 不送封包、秀 UI_C 1508）；0x10012ef0 伺服器端的 1185 不會到
+        char m[128];
+        ui_text(1508, m, sizeof m);
+        hud_say(m);
+        return;
+    }
     if (b < 0) { hud_say("背包已滿"); return; }
     hero_money -= p;
     story_set_int(shop_npc, "Money", story_get_int(shop_npc, "Money") + p);
@@ -8120,6 +8146,20 @@ int main(int argc, char **argv) {
             Actor *c = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
             int k = input_cursor(hero, c, ground_at(zx, zy, ox, oy, &scene), cx, cy);
             xmouse_draw(cur, k, px, py, tick);
+        }
+        {  // 載入中顯示小提示（0x502450：進入載入時挑一次），畫在底部置中
+            static char tip[512];
+            static int tipping;
+            if (res_loading() > 0) {
+                if (!tipping) loading_tip(tip, sizeof tip);
+                tipping = 1;
+                int tw = text_width(tip), th = draw_text(0, 0, tip, vw - 40, 0, 0);
+                SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+                SDL_SetRenderDrawColor(ren, 0, 0, 0, 160);
+                SDL_Rect bg = {(vw - (tw < vw - 40 ? tw : vw - 40)) / 2 - 6, vh - th - 14, (tw < vw - 40 ? tw : vw - 40) + 12, th + 8};
+                SDL_RenderFillRect(ren, &bg);
+                draw_text(bg.x + 6, bg.y + 4, tip, vw - 40, 0xFFFFFF, 1);
+            } else tipping = 0;
         }
         if (shot && tick > 3) {
             SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, vw, vh, 32, SDL_PIXELFORMAT_ARGB8888);

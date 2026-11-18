@@ -923,3 +923,5 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 004cef30	CScene 讀 BNT（「SoloInit」檔頭 0x480；kind 3 = InitBld、4 = InitBldTrigger +128 bytes 事件文字）；res.c scene_load
 004c7fe0	CScene 讀 SoloMap 檔頭與格子；res.c scene_load
 004cce40	CScnClient 讀 .scn（Map名称、IntBld名称、IntObj名称、入口点数、入口記錄、雷达地图ID）；res.c scene_load
+00502450	CLoadingDialog 載入畫面小提示（UI_C 2500/2600/2700/2800 組隨機一筆）	main.c loading_tip
+0055b980	CTradeDialog 買：價格>Money 不送封包、秀 UI_C 1508	main.c shop_buy
