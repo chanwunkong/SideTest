@@ -268,6 +268,10 @@ def main():
                 st = 'done'  # 劇情類別的建構／解構：story_register 取代
             else:
                 for k, w in sk:
+                    if ':' in k:  # 'EasyRPG.dll:10001660' 只對指定的檔（位址在 EasyRPG.dll 和 UIWndEx.dll 重疊）
+                        kb, _, k = k.partition(':')
+                        if not b.startswith(kb):
+                            continue
                     if k == a or (k == '~' and f['cls'].startswith('~')) or (k != '~' and not re.fullmatch(r'[0-9a-f]{8}', k) and
                                   (any(re.fullmatch(k, x) for x in f['cls'].replace('~', '').split('|')) or
                                    re.fullmatch(k, f['name']))):
