@@ -4932,7 +4932,8 @@ static void win_toggle(Win *w, const char *section) {
     if (w->open && !strcmp(section, JM52)) role_set_mode(1);  // 開人物屬性是顯示模式（Poq.exe 0x554080）
 }
 
-// 原版各視窗的擺位函式（FUN_00583790 型 6 置中後）：左邊 x = W/2 − 寬（人物屬性 0x554150、裝備 0x556200、交易 0x55a5e0），
+// 原版各視窗的擺位函式（FUN_00583790 型 6 置中後；左邊的還有 0x552ab0、0x557880、0x557e20、0x56b540、0x5422e0（打造），
+// 右邊的還有 0x55e880，地圖 0x53cee0 置中不貼邊）：左邊 x = W/2 − 寬（人物屬性 0x554150、裝備 0x556200、交易 0x55a5e0），
 // 右邊 x = W/2（技能 0x560380、道具 0x54e340）；y = H/2 − 高/2 − 50
 static int win_x(const Win *w) { return w == &win_left ? vw / 2 - w->d.w : vw / 2; }
 static int win_y(const Win *w) { return (vh - w->d.h) / 2 - 50; }
@@ -5845,7 +5846,7 @@ static void bag_button(const char *name) {
 #ifdef STORY
 // ---- 買賣（原版交易介面 JM63，Poq.exe CTradeDialog；買賣規則在 EasyRPG.dll）----
 // 劇情選項叫 0x10055990(主角, 商人) → 左邊開 JM63、右邊開道具 JM54；商人的貨 = 劇情物件身上的道具（add_item、drop_items）。
-// 頁籤（0x368）：m_pWeapons 3、m_pShield 2、m_pLeechdom 1、m_pOther 0，開的時候是 3（0x55aed0）。
+// 頁籤（0x368；點頁籤 0x558850、0x5588a0、0x5588f0、0x558940）：m_pWeapons 3、m_pShield 2、m_pLeechdom 1、m_pOther 0，開的時候是 3（0x55aed0）。
 // 每頁列商人身上該類的前 20 件（EasyRPG 0x1003aef0）：類型 0~6、49、50、52 → 0；51 → 1；25~34 → 2；7~24 → 3
 #define JM56 "JM56_\xb4\xf2\xd4\xec\xbd\xe7\xc3\xe6"  // JM56_打造界面
 #define JM63 "JM63_\xbd\xbb\xd2\xd7\xbd\xe7\xc3\xe6"  // JM63_交易界面
@@ -6065,12 +6066,12 @@ static void fx_merge(ItemFx *list, int *n, const ItemFx *f) {
 
 static void make_produce(void) {
     const Recipe *r = make_recipe();
-    if (!r) return;
+    if (!r || !recipe_ready(r, make_mat)) return;  // 材料還沒放齊（原版打造鈕是灰的）
     int cost = 0, first = -1;
     for (int c = 0; c < 5; c++)
         for (int k = 0; k < r->need[c]; k++) {
             int p = make_mat[k * 5 + c];
-            if (p < 0 || !inv[p].name[0]) return;  // 材料還沒放齊（原版打造鈕是灰的）
+            if (p < 0 || !inv[p].name[0]) return;
             cost += inv[p].value_un;
         }
     if (r->main >= 1 && r->main <= 5) first = make_mat[r->main - 1];
@@ -6516,7 +6517,7 @@ static void story_msgs(void) {
 }
 #endif
 
-// ---- 存檔（原版 JM50_内部主界面 的保存、读取 → JM62_存取盘界面，Poq.exe CSystemDialog 0x5354a0、CLoadDialog 0x56c400）----
+// ---- 存檔（原版 JM50_内部主界面 的保存、读取 → JM62_存取盘界面，Poq.exe CSystemDialog 0x5354a0、CLoadDialog 0x56c400；開存／讀視窗 0x570900、0x5728c0，畫格子 0x56ce20）----
 // 一頁 6 格、最多 16 頁；第 0 頁前兩格是自动存盘（穿梭大場景時存）、快速存盘（F9），UI_C.dlg 2130、2131。
 // 每格秀場景縮圖、場景名、時間。存檔格式是自己的（原版是整個 EasyRPG 世界的序列化）：主角、背包、寄存、劇情物件
 // shortcut: 每格的隊伍頭像（ResID1~5）還沒做，只有空框；原版 m_pDelete（刪除）是隱藏的，沒做

@@ -1498,6 +1498,14 @@ const MonDef *mondef_pick(const char *prefix) {
     return NULL;
 }
 
+// 打造材料放齊：材料格（15 格，−1 = 空）填了幾件（0x541650），已選配方且件數等於配方五種材料件數總和且不為 0（0x5417d0）
+int recipe_ready(const Recipe *r, const int *mat) {
+    if (!r) return 0;
+    int n = 0, need = 0;
+    for (int i = 0; i < 15; i++) n += mat[i] != -1;
+    for (int i = 0; i < 5; i++) need += r->need[i];
+    return n != 0 && n == need;
+}
 int recipes_load(const Recipe **out) {
     static Recipe r[64];
     static int n = -1;

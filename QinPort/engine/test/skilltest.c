@@ -4115,9 +4115,25 @@ static void npc_ai_test(void) {
     unit_scene = saved_scene; actor_count = saved_count;
 }
 
+static void make_ready_test(void) {
+    // 0x541650／0x5417d0：材料放齊 = 放的件數等於配方件數總和且不為 0
+    Recipe r = {0};
+    r.need[0] = 2; r.need[2] = 1;
+    int m[15];
+    for (int i = 0; i < 15; i++) m[i] = -1;
+    assert(!recipe_ready(&r, m));
+    m[0] = 3; m[5] = 4;
+    assert(!recipe_ready(&r, m));
+    m[2] = 7;
+    assert(recipe_ready(&r, m));
+    m[7] = 1;
+    assert(!recipe_ready(&r, m));
+}
+
 int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
+    make_ready_test();
     character_draw_branches_test();
     character_remove_test();
     part_dead_test();

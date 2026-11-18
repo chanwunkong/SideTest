@@ -922,3 +922,9 @@ FadeObj	+0x14	模式（1 淡入、2 淡出到黑、3 畫面交叉）	-
 XPathSearchNode	+0xc	g 已走成本	actor_path_build g[]
 XPathSearchNode	+0x10	h 估價	hh[]
 XPathSearchNode	+0x14	方向 byte（路徑不用）	-
+CMakePropDialog	+0x368	材料格 15 個（3 列 × 5 欄，−1 = 空）	main.c make_mat[15]
+CMakePropDialog	+0x35c	已選配方（−1 = 沒選）	main.c make_rec
+CMakePropDialog	+0x10c～+0x11c	配方五種材料（木矿骨皮筋）件數	Recipe.need[5]
+CEquipDialog	+0x304	目前人物名稱字串	（主角固定，不存）
+CEquipDialog	+0x308	成套武裝用：10 個道具編號（−1 = 空）	（成套武裝還沒做）
+CChapterDialog	+0x29c	章節序號（≥10 = 單頁章節）	（章節字幕還沒做）

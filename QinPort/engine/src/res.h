@@ -221,6 +221,7 @@ int item_tables_load(void);
 // 主材（1~5 = 道具類型 1~5）、文字ID（UI_C.dlg 的名稱）
 typedef struct { int id, cat, type, need[5], main, text; } Recipe;
 int recipes_load(const Recipe **out);    // 道具表、attribT、SLevel_i/t 一次讀齊（網頁版一次批次）
+int recipe_ready(const Recipe *r, const int *mat);
 // 裝備串（例如 "RH_010_001" 或 "CA_009*TK_009"）覆蓋角色表「屬性」裡對應部件的款式；styles 依 PLI 部件順序、用 * 分隔
 void styles_equip(char *styles, size_t n, const char *graphic, int pli_no, const char *equip);
 

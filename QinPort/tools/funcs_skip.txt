@@ -1927,3 +1927,158 @@ CDeadDialog|CMessagePipeDialog|CExchangeDialog|CPlayerDialog  連線版介面：
 00559800  解構函數
 0056b140  解構函數
 0054cc50  解構函數
+# 2026-11 Dialog 層（0x54e3d0～0x577fd0 與 CMakePropDialog／CMapDialog／CTalkDialog）逐個讀過本體後的歸類
+005034c0  連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天
+00503500  連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天
+00503530  連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天
+00503640  連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天
+00503790  連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天
+00503840  連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天
+00520e90  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00535db0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+0053c490  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+0053c7a0  介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代
+0053c9d0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+005401d0  CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）
+005401f0  CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）
+00540440  CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）
+005404b0  CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）
+005406d0  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+00540cb0  介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代
+005411d0  CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）
+00541210  CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）
+005415f0  可變參數／字串小工具（執行庫等價）：C 的 snprintf／strtok 取代
+00541890  CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）
+00541b50  按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制
+00542380  按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制
+005425e0  CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）
+00542940  按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則
+00542b40  按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則
+0054e3d0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+0054ec50  按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則
+0054f6c0  設定視窗位置欄位後重畫（FUN_00550120／FUN_005567f0 重填）：引擎視窗每幀依 win_x／win_y 重畫
+0054f700  道具／技能說明字串組合：UI_C.dlg 2127／2126 格式 + 提示文字送工具提示（FUN_00596730），引擎 JM54 左邊說明已用同一份 dlg 字串
+00550060  道具／技能說明字串組合：UI_C.dlg 2127／2126 格式 + 提示文字送工具提示（FUN_00596730），引擎 JM54 左邊說明已用同一份 dlg 字串
+005508f0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+005515c0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+005517f0  介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代
+00551900  按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則
+005526c0  按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制
+00552740  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+005527f0  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+00552b50  按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則
+00553640  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+00553d20  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00554040  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00555ae0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00556560  設定視窗位置欄位後重畫（FUN_00550120／FUN_005567f0 重填）：引擎視窗每幀依 win_x／win_y 重畫
+005565a0  視窗訊息／重繪的平台層轉接：SDL 事件迴圈與 ui_draw 取代
+005576c0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00557c50  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00557d20  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+005587d0  按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制
+00559650  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+0055ab00  按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則
+0055c460  按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制
+0055c730  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+0055d6d0  按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則
+0055d790  按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則
+0055d850  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+0055d8a0  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+0055e650  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+0055e9b0  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+0055e9d0  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+0055e9f0  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+0055f5d0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+005625c0  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+00562a40  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+00562ac0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00562ee0  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+00562f10  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+00563ee0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+005646f0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+005647d0  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+00564c30  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00564d80  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+00565cf0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+005663a0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00568130  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+005694b0  連線版：幫會
+0056a530  連線版：組隊／玩家列表／伺服器訊息，單機沒有
+0056aff0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+0056ba70  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+0056bac0  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+0056bb20  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+0056c530  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+0056c620  介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代
+0056cb10  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+0056d100  存取盤視窗刪除鈕依是否選了格切換啟用幀：引擎 m_pDelete 是隱藏的（main.c 存檔段 shortcut）
+0056e2f0  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+0056ef30  開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用
+0056f080  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+0056f340  輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代
+0056f4e0  輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代
+00570740  輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代
+00570760  輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代
+00570780  輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代
+005707a0  輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代
+005707c0  輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代
+00570df0  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00570f00  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+00571d80  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00571ea0  介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代
+00572e30  介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）
+00572fa0  解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植
+00573020  介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代
+00573400  開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用
+00573710  開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用
+005737a0  開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用
+005738f0  開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用
+005739a0  開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用
+00573a00  開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用
+00573d30  開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用
+00573d50  開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用
+00574010  開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用
+00574150  可變參數／字串小工具（執行庫等價）：C 的 snprintf／strtok 取代
+00574620  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+005746d0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00574780  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+005747f0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+005748b0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00574960  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+005749e0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00574cd0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00574d20  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00574d30  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00574d60  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00574d70  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00574e30  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00574e40  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00574e50  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+005753a0  可變參數／字串小工具（執行庫等價）：C 的 snprintf／strtok 取代
+005754e0  可變參數／字串小工具（執行庫等價）：C 的 snprintf／strtok 取代
+00575630  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00575660  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00575670  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+005756a0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+005756d0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00575710  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00575720  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00575900  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+005759d0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00575a40  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00575a90  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00577dd0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00577ea0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00577fd0  CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則
+00509080  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
+00509130  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
+00509160  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
+00509450  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
+00509550  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
+00509a30  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
+0050a370  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
+0050a920  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
+0050b090  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
+0050b120  CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）
+0056dc90  memcpy_s 安全拷貝（執行庫等價）：C 的 memcpy 取代

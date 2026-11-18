@@ -177,7 +177,7 @@ Poq.exe	99	0043df4e	FUN_0043df4e	CPhantasmObj	game	done	9	5	unit.c 解構轉呼�
 Poq.exe	99	0043df60	FUN_0043df60	CPhantasmObj	game	done	33	7	unit.c 解構：沒有要放的		
 Poq.exe	99	0043e100	FUN_0043e100	~CPhantasmObj	game	done	236	4			
 Poq.exe	99	0043e710	FUN_0043e710	CPhantasmObj	game	done	11	5	unit.c 解構：沒有要放的		
-Poq.exe	99	0043e740	FUN_0043e740	CPhantasmObj	game	done	26	5			00577dd0
+Poq.exe	99	0043e740	FUN_0043e740	CPhantasmObj	game	done	26	5			
 Poq.exe	99	0043e830	FUN_0043e830	CPhantasmObj	game	done	175	5			
 Poq.exe	99	0043ee20	FUN_0043ee20	~CPhantasmObj	game	done	16	2	unit.c 換序列 = MUnit.seq		
 Poq.exe	99	0043ee70	FUN_0043ee70	CPhantasmObj	game	done	24	5	unit.c units_draw 世界 → 畫面		
@@ -1017,7 +1017,7 @@ Poq.exe	99	00486d30	FUN_00486d30	CCharactor	game	skip	48	12	CCharactor卸載清�
 Poq.exe	99	00486e70	FUN_00486e70	~CCharactor	game	done	9	9		取消排隊命令：只將命令代號置-1，保留三參數；actor_cancel_command接actor_setup與換組	
 Poq.exe	99	00486e80	FUN_00486e80	~CCharactor	game	done	15	13		main.c actor_forget_command：原命令1/2設延遲50否則0，僅清代號保留三參數；接施法收尾及對話命令，主分派與記住命令重送仍未完成	
 Poq.exe	99	00486ed0	FUN_00486ed0	CCharactor	game	done	138	8			
-Poq.exe	99	004872e0	FUN_004872e0	CCharactor|CNpc|CProtagonist	game	done	300	17		main.c actor_draw：CCharactor整個繪圖；影子→腳圈→腳附加→殘影→本體色表(覆色RH/LH/SD/HD)→狀態60八副本→身／頭附加→頭上標記→8槽浮字→診斷矩形；色表與標記圖資源為shortcut	00577dd0
+Poq.exe	99	004872e0	FUN_004872e0	CCharactor|CNpc|CProtagonist	game	done	300	17		main.c actor_draw：CCharactor整個繪圖；影子→腳圈→腳附加→殘影→本體色表(覆色RH/LH/SD/HD)→狀態60八副本→身／頭附加→頭上標記→8槽浮字→診斷矩形；色表與標記圖資源為shortcut	
 Poq.exe	99	00487d30	FUN_00487d30	~CCharactor	game	skip	89	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	00487f30	FUN_00487f30	CCharactor|CNpc|CProtagonist	game	done	61	17		角色本體與三附加精靈逐拍更新：0x200凍結本體、修正5值1連做三次停末幀step、反播沿迴圈首尾、完成或空中解除101；actor_animation_tick已移至動態分派之後、高度與維護之前；action_tick僅消費播放前幀／完成快照，不再重播；死亡物件仍沿屍體計時並停末幀	
 Poq.exe	99	00488090	FUN_00488090	~CCharactor	game	done	69	2		actor_status_countdown：完整共用倒數／105→12→111→115→114優先序；114剩5換修正與精靈；12先查5圈陷阱，單機選項開啟時提示1501/16/1000並請求暫停再揭露，續查320世界單位不同組隱身旗標解除8；設定暫由--pause-traps承接，完整JM31介面仍等CGameApp	
@@ -1049,7 +1049,7 @@ Poq.exe	99	00488c70	FUN_00488c70	~CCharactor	game	done	12	13		actor_can_use_id�
 Poq.exe	99	00488ca0	FUN_00488ca0	~CCharactor	game	done	25	11		actor_can_use_skill：0x800旗標、MethodMain中斷及空鏈／Enable／速度限制；中斷可越過禁止攻擊，保留Enable原整數；接選招及施法	
 Poq.exe	99	00488d20	FUN_00488d20	CCharactor|CNpc|CProtagonist	game	done	11	17		當前速度非0且沒有MethodMain才能移動；actor_can_move接actor_tick統一移動入口	
 Poq.exe	99	00488d50	FUN_00488d50	~CCharactor	game	done	12	4		模板速度0或當前速度>0或最大距離<3時回Enable原值，否則0；actor_skill_enabled接怪物選招與左手施放	
-Poq.exe	99	00488d90	FUN_00488d90	~CCharactor	game	skip	10	2	平台資源預讀：同參數對紙娃娃兩套精靈批次預讀；現有role_load／preload_roles與動畫快取承接，不複製原版預讀呼叫次數	平台資源預讀：同參數預讀紙娃娃兩套精靈，由role_load／preload_roles及動畫快取承接	00577ea0
+Poq.exe	99	00488d90	FUN_00488d90	~CCharactor	game	skip	10	2	平台資源預讀：同參數對紙娃娃兩套精靈批次預讀；現有role_load／preload_roles與動畫快取承接，不複製原版預讀呼叫次數	平台資源預讀：同參數預讀紙娃娃兩套精靈，由role_load／preload_roles及動畫快取承接	
 Poq.exe	99	00488dd0	FUN_00488dd0	CCharactor|CNpc|CProtagonist	game	done	208	17		actor_maintenance_tick：完整維護入口，動態／播放／高度前置後按活動門檻扣冷卻、空中略過、轉向、十拍倒數／修正、比例及重算，100拍按有效來源技能掃模式1同組角色；檢查施加者自身光環狀態；0x139的8為非零啟用，接actor_aura_receive施加狀態及雙方技能參數，狀態0保留FightStatus值8，已有同狀態拒絕且不刷新；技能實例暫以ActorSkill.row承接	
 Poq.exe	99	00489340	FUN_00489340	~CCharactor	game	skip	12	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
 Poq.exe	99	00489380	FUN_00489380	~CCharactor	game	done	142	8		actor_explore：同操控角色組別才按格子快取及世界距離提高探索；高層14加8、16加12、其餘>10加4，內圈10／中圈角色30..100為10／外圈1；接模板、場景就緒及角色累積拍餘1；shortcut SDL全畫面重繪，仍等不同類別CMapDialog表面刷新通知	00460e10
@@ -1102,7 +1102,7 @@ Poq.exe	99	0048eda0	FUN_0048eda0	~CCharactor	game	done	61	25		actor_target_set�
 Poq.exe	99	0048ef40	FUN_0048ef40	CCharactor|CNpc|CProtagonist	game	done	52	17		viewport_actor_rect：同幀紙娃娃矩形上移高度、合影子後按目前比例擴縮，再合不縮放關係腳圈；接viewport動態物件可見名單及pick_box滑鼠命中，刪除固定73x111方框	
 Poq.exe	99	0048f0a0	FUN_0048f0a0	~CCharactor	game	done	27	4		main.c actor_blood：按第3修正與平常／受擊表擲0x17，程序50不擲、空來源、複製層；接walk_fx及strike；shortcut 平常表保留原版BSS零值，執行期設定入口仍待核對	
 Poq.exe	99	0048f130	FUN_0048f130	~CCharactor	game	skip	39	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
-Poq.exe	99	0048f200	FUN_0048f200	~CCharactor	game	done	98	2		actor_scaled_draw：紙娃娃依PLI順序合成RGBA暫存表面後按整體矩形擴縮，影子／本體分開；接actor_draw；shortcut 色鍵與格子光照用SDL透明及既有light_draw承接，原版色表接入時升級	00577dd0
+Poq.exe	99	0048f200	FUN_0048f200	~CCharactor	game	done	98	2		actor_scaled_draw：紙娃娃依PLI順序合成RGBA暫存表面後按整體矩形擴縮，影子／本體分開；接actor_draw；shortcut 色鍵與格子光照用SDL透明及既有light_draw承接，原版色表接入時升級	
 Poq.exe	99	0048f460	FUN_0048f460	~CCharactor	game	done	39	4		actor_skills_rebuild：清鏈後依RoleMdl.rmd原序重建，缺失招式略過、重複保留、零外部識別、預設距離與三個1；保留手ID，接角色建立／hero_skill_apply	
 Poq.exe	99	0048f560	FUN_0048f560	~CCharactor	game	done	31	2		actor_notice_near：非NPC且無目標，敵對非0x20000角色進嚴格索敵方框才設目標並入戰；高層+8，接每拍actor_near_reactions取代缺失通知	
 Poq.exe	99	0048f630	FUN_0048f630	~CCharactor	game	skip	76	0	索引無呼叫者；本輪依規則略過，保留原版入口供後續接線參考	索引無呼叫者；依本輪規則略過，不臆測用途	
@@ -1273,15 +1273,15 @@ Poq.exe	99	004990e0	FUN_004990e0	CFlyPartDeadObj	game	done	50	2		main.c dead_pha
 Poq.exe	99	00499120	FUN_00499120		game	done	31	2			
 Poq.exe	99	004991e0	FUN_004991e0	CPartDeadObj|CFlyPartDeadObj	game	skip	10	10	CPartDeadObj釋放：容器解構＋CDeadObj釋放；Actor承接		
 Poq.exe	99	00499200	FUN_00499200	CPartDeadObj|CFlyPartDeadObj	game	done	20	10			
-Poq.exe	99	00499270	FUN_00499270	CPartDeadObj|CFlyPartDeadObj	game	done	88	10		main.c actor_draw 的屍體分支：影子、本體（part_hide 遮罩不畫的部件）、血跡疊圖；沒有狀態特效	00577dd0
-Poq.exe	99	00499540	FUN_00499540	CPartDeadObj|CFlyPartDeadObj	game	done	71	10		同 0x499270（裁切版：viewport 矩形相交）	00577dd0
+Poq.exe	99	00499270	FUN_00499270	CPartDeadObj|CFlyPartDeadObj	game	done	88	10		main.c actor_draw 的屍體分支：影子、本體（part_hide 遮罩不畫的部件）、血跡疊圖；沒有狀態特效	
+Poq.exe	99	00499540	FUN_00499540	CPartDeadObj|CFlyPartDeadObj	game	done	71	10		同 0x499270（裁切版：viewport 矩形相交）	
 Poq.exe	99	00499780	FUN_00499780	CPartDeadObj|CFlyPartDeadObj	game	done	12	10			
 Poq.exe	99	004997c0	FUN_004997c0	CPartDeadObj|CFlyPartDeadObj	game	skip	10	10	部件群取首個精靈：Actor.role／Role.body[0] 直接取得		
 Poq.exe	99	004997e0	FUN_004997e0	CFlyPartDeadObj	game	skip	8	2	虛擬槽常數1：無用途		
 Poq.exe	99	004997f0	FUN_004997f0	CFlyPartDeadObj	game	done	30	2		main.c dead_obj_tick：飛散件階段0每4拍沿 facing 反方向退 fly_speed/64 格，計數 > -20	
 Poq.exe	99	004998a0	FUN_004998a0	CPartDeadObj|CFlyPartDeadObj	game	done	81	10		main.c part_blood_set：1/4 血跡掛 HD 矩形頂邊中央，2 掛 CA；3 沒呼叫者沒做	
 Poq.exe	99	00499af0	FUN_00499af0	CPartDeadObj|CFlyPartDeadObj	game	done	24	10		viewport.c viewport_actor_rect（屍體畫面矩形，縮放同角色）	
-Poq.exe	99	00499b90	FUN_00499b90	~CPartDeadObj	game	done	109	4			00577dd0
+Poq.exe	99	00499b90	FUN_00499b90	~CPartDeadObj	game	done	109	4			
 Poq.exe	99	00499e30	FUN_00499e30		game	skip	30	2	CPropObj 建構（欄位初始化；ground[] 欄位照 0x49a350 填）		
 Poq.exe	99	00499f10	FUN_00499f10		game	skip	26	0	CPropObj 解構		
 Poq.exe	99	00499fb0	FUN_00499fb0	CPropObj	game	skip	29	5	CPropObj 刪除解構		
@@ -2619,7 +2619,7 @@ Poq.exe	99	004f4f00	FUN_004f4f00		game	skip	23	4	連線版／平台層：CNetGam
 Poq.exe	99	004f5060	FUN_004f5060		game	skip	45	3	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004f5190	FUN_004f5190		game	skip	30	4	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004f5240	FUN_004f5240	~CGameApp	game	skip	39	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	004f5350	FUN_004f5350	~CGameApp	game	skip	111	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00535db0
+Poq.exe	99	004f5350	FUN_004f5350	~CGameApp	game	skip	111	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004f56a0	FUN_004f56a0	~CGameApp	game	skip	61	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004f58f0	FUN_004f58f0	~CGameApp	game	skip	74	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004f5b00	FUN_004f5b00	~CGameApp	game	skip	58	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -2699,21 +2699,21 @@ Poq.exe	99	004fc850	FUN_004fc850		game	skip	18	0	遊戲外殼層：開啟各 JM 
 Poq.exe	99	004fc8b0	FUN_004fc8b0		game	skip	46	0	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004fc980	FUN_004fc980		game	skip	8	1	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004fc990	FUN_004fc990		game	skip	26	5	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
-Poq.exe	99	004fca00	FUN_004fca00		game	skip	90	1	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005212f0 005663a0
-Poq.exe	99	004fcd30	FUN_004fcd30		game	skip	67	27	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005078d0 0054f6c0 00556560 005565a0
+Poq.exe	99	004fca00	FUN_004fca00		game	skip	90	1	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005212f0
+Poq.exe	99	004fcd30	FUN_004fcd30		game	skip	67	27	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005078d0
 Poq.exe	99	004fcf30	FUN_004fcf30		game	skip	11	2	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004fcf50	FUN_004fcf50		game	skip	45	45	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005212f0 00565b90
 Poq.exe	99	004fd080	FUN_004fd080		game	skip	27	0	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005212f0
 Poq.exe	99	004fd0e0	FUN_004fd0e0		game	skip	21	0	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005212f0
 Poq.exe	99	004fd130	FUN_004fd130		game	skip	48	34	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004fd270	FUN_004fd270		game	skip	31	27	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
-Poq.exe	99	004fd320	FUN_004fd320		game	skip	84	5	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0 005694b0
-Poq.exe	99	004fd570	FUN_004fd570		game	skip	96	4	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0 00552740
+Poq.exe	99	004fd320	FUN_004fd320		game	skip	84	5	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0
+Poq.exe	99	004fd570	FUN_004fd570		game	skip	96	4	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0
 Poq.exe	99	004fd810	FUN_004fd810		game	skip	75	9	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0 00546a50
 Poq.exe	99	004fda30	FUN_004fda30	~CGameApp	game	skip	26	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fdad0	FUN_004fdad0	~CGameApp	game	skip	36	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fdb70	FUN_004fdb70	~CGameApp	game	skip	18	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00520ce0
-Poq.exe	99	004fdbd0	FUN_004fdbd0	~CGameApp	game	skip	87	5	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0 0055c730
+Poq.exe	99	004fdbd0	FUN_004fdbd0	~CGameApp	game	skip	87	5	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0
 Poq.exe	99	004fde50	FUN_004fde50	~CGameApp	game	skip	61	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fdf90	FUN_004fdf90	~CGameApp	game	skip	61	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe0d0	FUN_004fe0d0	~CGameApp	game	skip	8	130	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -2722,21 +2722,21 @@ Poq.exe	99	004fe130	FUN_004fe130	~CGameApp	game	skip	12	2	解構函數（物件�
 Poq.exe	99	004fe170	FUN_004fe170	~CGameApp	game	skip	11	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe1a0	FUN_004fe1a0	~CGameApp	game	skip	34	11	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe220	FUN_004fe220	~CGameApp	game	skip	8	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	004fe230	FUN_004fe230	~CGameApp	game	skip	89	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0 0056aff0
+Poq.exe	99	004fe230	FUN_004fe230	~CGameApp	game	skip	89	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0
 Poq.exe	99	004fe4a0	FUN_004fe4a0	~CGameApp	game	skip	19	7	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe510	FUN_004fe510	~CGameApp	game	skip	86	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005212f0
 Poq.exe	99	004fe730	FUN_004fe730	~CGameApp	game	skip	27	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005212f0
 Poq.exe	99	004fe7a0	FUN_004fe7a0	~CGameApp	game	skip	49	66	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005212f0
 Poq.exe	99	004fe8a0	FUN_004fe8a0	~CGameApp	game	skip	18	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe8e0	FUN_004fe8e0	~CGameApp	game	skip	11	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	004fe900	FUN_004fe900		game	skip	80	1	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005212f0 00565cf0
+Poq.exe	99	004fe900	FUN_004fe900		game	skip	80	1	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005212f0
 Poq.exe	99	004fead0	FUN_004fead0		game	skip	90	5	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004fed10	FUN_004fed10		game	skip	104	10	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0 0054c960
 Poq.exe	99	004fefc0	FUN_004fefc0	~CPropObj	game	skip	134	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004ff260	FUN_004ff260		game	skip	8	1	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004ff270	FUN_004ff270		game	skip	15	5	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
-Poq.exe	99	004ff2b0	FUN_004ff2b0		game	skip	97	2	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0 00553d20
-Poq.exe	99	004ff520	FUN_004ff520		game	skip	59	7	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005646f0
+Poq.exe	99	004ff2b0	FUN_004ff2b0		game	skip	97	2	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0
+Poq.exe	99	004ff520	FUN_004ff520		game	skip	59	7	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200
 Poq.exe	99	004ff6c0	FUN_004ff6c0		game	skip	21	26	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004ff730	FUN_004ff730		game	skip	26	38	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004ff7b0	FUN_004ff7b0		game	skip	9	21	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
@@ -2746,18 +2746,18 @@ Poq.exe	99	004ffd90	FUN_004ffd90	~CGameApp	game	skip	11	6	解構函數（物件�
 Poq.exe	99	004ffdc0	FUN_004ffdc0	~CGameApp	game	skip	11	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		0053b040
 Poq.exe	99	004ffde0	FUN_004ffde0	~CGameApp	game	skip	11	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植	todo：隊伍介面存在時轉送角色識別／狀態／值更新圖示；等待後段隊伍介面，CCharactor狀態邏輯已完成	0053b0b0
 Poq.exe	99	004ffe10	FUN_004ffe10	~CGameApp	game	skip	11	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	004ffe40	FUN_004ffe40	~CGameApp	game	skip	58	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005663a0
-Poq.exe	99	004fffd0	FUN_004fffd0	~CGameApp	game	skip	57	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0 00568130
-Poq.exe	99	00500160	FUN_00500160	~CGameApp	game	skip	65	1	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0 0056ba70
+Poq.exe	99	004ffe40	FUN_004ffe40	~CGameApp	game	skip	58	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200
+Poq.exe	99	004fffd0	FUN_004fffd0	~CGameApp	game	skip	57	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0
+Poq.exe	99	00500160	FUN_00500160	~CGameApp	game	skip	65	1	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0
 Poq.exe	99	00500330	FUN_00500330	~CGameApp	game	skip	11	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00500360	FUN_00500360	~CGameApp	game	skip	102	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0 0055f5d0
+Poq.exe	99	00500360	FUN_00500360	~CGameApp	game	skip	102	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0
 Poq.exe	99	00500600	FUN_00500600	~CGameApp	game	skip	42	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00500720	FUN_00500720		game	skip	85	0	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0 00562ac0
-Poq.exe	99	00500950	FUN_00500950		game	skip	96	4	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0 00559650
+Poq.exe	99	00500720	FUN_00500720		game	skip	85	0	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0
+Poq.exe	99	00500950	FUN_00500950		game	skip	96	4	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0
 Poq.exe	99	00500c20	FUN_00500c20		game	skip	59	18	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
-Poq.exe	99	00500d90	FUN_00500d90		game	skip	189	2	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0 005515c0
-Poq.exe	99	00501200	FUN_00501200		game	skip	132	19	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		0050bcb0 005508f0 005565a0
-Poq.exe	99	00501680	FUN_00501680		game	skip	159	50	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		0050bcb0 005508f0 005565a0
+Poq.exe	99	00500d90	FUN_00500d90		game	skip	189	2	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		005210b0 00521200 005212f0
+Poq.exe	99	00501200	FUN_00501200		game	skip	132	19	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		0050bcb0
+Poq.exe	99	00501680	FUN_00501680		game	skip	159	50	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		0050bcb0
 Poq.exe	99	00501bc0	FUN_00501bc0		game	skip	8	9	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	00501bd0	FUN_00501bd0		game	skip	12	0	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	00501c30	FUN_00501c30		game	skip	16	17	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
@@ -2766,7 +2766,7 @@ Poq.exe	99	00501dd0	FUN_00501dd0		game	skip	23	0	遊戲外殼層：開啟各 JM 
 Poq.exe	99	00501e40	FUN_00501e40		game	skip	115	10	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	005020c0	FUN_005020c0		game	skip	24	0	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	00502190	FUN_00502190		game	skip	16	101	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
-Poq.exe	99	005021c0	FUN_005021c0		game	skip	13	2	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		00502250 005022f0 00502340 00502370 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	005021c0	FUN_005021c0		game	skip	13	2	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		00502250 005022f0 00502340 00502370 005026c0 00502780 00520f60
 Poq.exe	99	00502210	FUN_00502210	CLoadingDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00502240	FUN_00502240	CGameBaseDialog|CMessageDialog|CPortraitPanel|+11	game	skip	8	31	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00502250	FUN_00502250	CLoadingDialog	game	todo	10	2			
@@ -2810,7 +2810,7 @@ Poq.exe	99	00502760	FUN_00502760	~CLoadingDialog	game	skip	10	2	解構函數（�
 Poq.exe	99	00502780	FUN_00502780	CLoadingDialog|CGameInfoDialog|CTalkDialog|+68	game	todo	15	157			
 Poq.exe	99	005027e0	FUN_005027e0		game	todo	17	4			
 Poq.exe	99	00502840	FUN_00502840		game	todo	26	0			
-Poq.exe	99	005028b0	FUN_005028b0		game	skip	13	4	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 005029c0 00502a70 00520e90 00520f60
+Poq.exe	99	005028b0	FUN_005028b0		game	skip	13	4	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 005029c0 00502a70 00520f60
 Poq.exe	99	00502900	FUN_00502900	CGameInfoDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00502930	FUN_00502930	~CGameInfoDialog	game	skip	9	3	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00502950	FUN_00502950	CGameInfoDialog	game	skip	14	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
@@ -2823,19 +2823,19 @@ Poq.exe	99	00502a20	FUN_00502a20	CGameInfoDialog	game	skip	10	2	介面類別樣�
 Poq.exe	99	00502a60	FUN_00502a60	CGameInfoDialog|CTalkDialog|CGameBaseDialog|+59	game	skip	8	126	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00502a70	FUN_00502a70	CGameInfoDialog	game	todo	23	2			
 Poq.exe	99	00502ae0	FUN_00502ae0		game	skip	9	10	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00502b30	FUN_00502b30	~CGameDialog	game	skip	25	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 005034c0 00503500 00503530 00503640 00503790 00503840 00520e90 00520f60
+Poq.exe	99	00502b30	FUN_00502b30	~CGameDialog	game	skip	25	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00502bf0	FUN_00502bf0	CTalkDialog	game	skip	13	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00502c30	FUN_00502c30	CTalkDialog	game	skip	18	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00502c90	FUN_00502c90	CTalkDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00502ca0	FUN_00502ca0	CTalkDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00502cb0	FUN_00502cb0	~CTalkDialog	game	skip	19	96	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00502cf0	FUN_00502cf0	~CTalkDialog	game	skip	319	1	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005327e0 00545600
-Poq.exe	99	005034c0	FUN_005034c0	CTalkDialog	game	todo	12	2			
-Poq.exe	99	00503500	FUN_00503500	CTalkDialog	game	todo	10	2			
-Poq.exe	99	00503530	FUN_00503530	CTalkDialog	game	todo	59	2			
-Poq.exe	99	00503640	FUN_00503640	CTalkDialog	game	todo	48	2			
-Poq.exe	99	00503790	FUN_00503790	CTalkDialog	game	todo	25	2			
-Poq.exe	99	00503840	FUN_00503840	CTalkDialog	game	todo	32	2			
+Poq.exe	99	005034c0	FUN_005034c0	CTalkDialog	game	skip	12	2	連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天		
+Poq.exe	99	00503500	FUN_00503500	CTalkDialog	game	skip	10	2	連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天		
+Poq.exe	99	00503530	FUN_00503530	CTalkDialog	game	skip	59	2	連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天		
+Poq.exe	99	00503640	FUN_00503640	CTalkDialog	game	skip	48	2	連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天		
+Poq.exe	99	00503790	FUN_00503790	CTalkDialog	game	skip	25	2	連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天		
+Poq.exe	99	00503840	FUN_00503840	CTalkDialog	game	skip	32	2	連線版：聊天輸入列歷史、輸入／輸出視窗位置與焦點，單機沒有聊天		
 Poq.exe	99	00503a00	FUN_00503a00		game	skip	81	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00503c10	FUN_00503c10		game	skip	13	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00503c50	FUN_00503c50		game	todo	44	0			00532660
@@ -2846,8 +2846,8 @@ Poq.exe	99	00504500	FUN_00504500		game	skip	9	0	介面類別樣板：虛擬函�
 Poq.exe	99	00504520	FUN_00504520		game	skip	165	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00504950	FUN_00504950		game	skip	10	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00504990	FUN_00504990		game	skip	77	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00504b40	FUN_00504b40		game	done	69	0			005210b0 00521200 005212f0 00563ee0
-Poq.exe	99	00504d90	FUN_00504d90		game	done	61	0			005210b0 00521200 005212f0 00563ee0
+Poq.exe	99	00504b40	FUN_00504b40		game	done	69	0			005210b0 00521200 005212f0
+Poq.exe	99	00504d90	FUN_00504d90		game	done	61	0			005210b0 00521200 005212f0
 Poq.exe	99	00504fc0	FUN_00504fc0	~CGameDialog	game	skip	79	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00505b30 00505b70 00505bc0 005060a0 00506340
 Poq.exe	99	005052b0	FUN_005052b0	CStatusDialogA	game	skip	15	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00505300	FUN_00505300	~CStatusDialogA	game	skip	27	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -2888,30 +2888,30 @@ Poq.exe	99	00508200	FUN_00508200		game	skip	168	10	介面→本機伺服器訊�
 Poq.exe	99	00508620	FUN_00508620		game	skip	176	29	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00508a20	FUN_00508a20		game	skip	99	7	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00508c60	FUN_00508c60		game	skip	167	1	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00509080	FUN_00509080		game	todo	14	0			
-Poq.exe	99	00509130	FUN_00509130		game	todo	13	0			
-Poq.exe	99	00509160	FUN_00509160		game	todo	18	2			
+Poq.exe	99	00509080	FUN_00509080		game	skip	14	0	CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）		
+Poq.exe	99	00509130	FUN_00509130		game	skip	13	0	CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）		
+Poq.exe	99	00509160	FUN_00509160		game	skip	18	2	CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）		
 Poq.exe	99	00509290	FUN_00509290		game	skip	73	10	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00509450	FUN_00509450		game	todo	59	2			
-Poq.exe	99	00509550	FUN_00509550		game	todo	38	2			
+Poq.exe	99	00509450	FUN_00509450		game	skip	59	2	CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）		
+Poq.exe	99	00509550	FUN_00509550		game	skip	38	2	CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）		
 Poq.exe	99	00509600	FUN_00509600		game	todo	99	0			
 Poq.exe	99	00509890	FUN_00509890		game	skip	78	6	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00509a30	FUN_00509a30		game	todo	33	8			
-Poq.exe	99	00509a90	FUN_00509a90		game	skip	176	10	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00509550
+Poq.exe	99	00509a30	FUN_00509a30		game	skip	33	8	CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）		
+Poq.exe	99	00509a90	FUN_00509a90		game	skip	176	10	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0050a140	FUN_0050a140		game	todo	57	4			
-Poq.exe	99	0050a370	FUN_0050a370		game	todo	11	0			
+Poq.exe	99	0050a370	FUN_0050a370		game	skip	11	0	CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）		
 Poq.exe	99	0050a390	FUN_0050a390		game	skip	9	4	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0050a3c0	FUN_0050a3c0		game	skip	218	28	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0050a920	FUN_0050a920		game	todo	11	0			
+Poq.exe	99	0050a920	FUN_0050a920		game	skip	11	0	CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）		
 Poq.exe	99	0050a940	FUN_0050a940		game	todo	68	2			
 Poq.exe	99	0050aa90	FUN_0050aa90		game	skip	108	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0050acb0	FUN_0050acb0		game	skip	10	4	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0050acf0	FUN_0050acf0		game	skip	148	21	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0050aff0	FUN_0050aff0		game	skip	34	12	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0050b090	FUN_0050b090		game	todo	23	0			
+Poq.exe	99	0050b090	FUN_0050b090		game	skip	23	0	CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）		
 Poq.exe	99	0050b0c0	FUN_0050b0c0		game	todo	10	0			
 Poq.exe	99	0050b0e0	FUN_0050b0e0		game	todo	15	0			
-Poq.exe	99	0050b120	FUN_0050b120		game	todo	19	0			
+Poq.exe	99	0050b120	FUN_0050b120		game	skip	19	0	CDMList／連結串列容器（NewNode、取第 n 個、清除）：引擎用陣列（tools/base_map.tsv）		
 Poq.exe	99	0050b170	FUN_0050b170		game	todo	11	2			
 Poq.exe	99	0050b1b0	FUN_0050b1b0		game	todo	9	7			
 Poq.exe	99	0050b200	FUN_0050b200		game	todo	12	0			
@@ -2934,7 +2934,7 @@ Poq.exe	99	0050bf50	FUN_0050bf50		game	todo	40	0
 Poq.exe	99	0050bfe0	FUN_0050bfe0		game	skip	148	14	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0050c2e0	FUN_0050c2e0		game	skip	21	6	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0050c340	FUN_0050c340		game	todo	10	6			
-Poq.exe	99	0050c390	FUN_0050c390		game	skip	2409	30	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00509160 00509450 0050a940 0050b170 00510310
+Poq.exe	99	0050c390	FUN_0050c390		game	skip	2409	30	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0050a940 0050b170 00510310
 Poq.exe	99	00510310	FUN_00510310		game	todo	343	2			
 Poq.exe	99	005108c0	FUN_005108c0		game	skip	162	6	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00510d00	FUN_00510d00		game	skip	209	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0050b360
@@ -2948,19 +2948,19 @@ Poq.exe	99	00513a30	FUN_00513a30		game	skip	260	2	介面→本機伺服器訊息
 Poq.exe	99	00514270	FUN_00514270		game	skip	311	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00514bd0	FUN_00514bd0		game	skip	106	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00514ed0	FUN_00514ed0		game	skip	76	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00515160	FUN_00515160		game	skip	99	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0056a530
-Poq.exe	99	005153d0	FUN_005153d0		game	skip	194	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0056a530
+Poq.exe	99	00515160	FUN_00515160		game	skip	99	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
+Poq.exe	99	005153d0	FUN_005153d0		game	skip	194	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005159d0	FUN_005159d0		game	todo	22	0			
 Poq.exe	99	00515a70	FUN_00515a70		game	skip	127	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00515e70	FUN_00515e70		game	todo	44	0			
-Poq.exe	99	00516060	FUN_00516060		game	todo	67	0			0055d850 0055d8a0
+Poq.exe	99	00516060	FUN_00516060		game	todo	67	0			
 Poq.exe	99	005162d0	FUN_005162d0		game	todo	47	0			
 Poq.exe	99	005163f0	FUN_005163f0		game	skip	98	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00516620	FUN_00516620		game	skip	72	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00516860	FUN_00516860		game	skip	217	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0053a7f0
 Poq.exe	99	00516ea0	FUN_00516ea0		game	skip	97	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00560550
 Poq.exe	99	00517130	FUN_00517130		game	todo	126	2			005212f0 00565b90 00565c10
-Poq.exe	99	005174d0	FUN_005174d0		game	done	653	4			00506e20 00506ec0 00517130 00533ed0 00541b50 0055d850 0055d8a0 00563360 00564a20
+Poq.exe	99	005174d0	FUN_005174d0		game	done	653	4			00506e20 00506ec0 00517130 00533ed0 00563360 00564a20
 Poq.exe	99	005188b0	FUN_005188b0		game	skip	107	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00518c40	FUN_00518c40		game	todo	13	0			
 Poq.exe	99	00518c70	FUN_00518c70		game	skip	33	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00506ec0
@@ -2997,7 +2997,7 @@ Poq.exe	99	0051d660	FUN_0051d660		game	skip	126	2	介面→本機伺服器訊息
 Poq.exe	99	0051da20	FUN_0051da20		game	skip	150	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00563360
 Poq.exe	99	0051de90	FUN_0051de90		game	todo	21	0			00563360
 Poq.exe	99	0051df30	FUN_0051df30		game	skip	81	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0051e160	FUN_0051e160		game	skip	832	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0054f700 00550060 0056a530
+Poq.exe	99	0051e160	FUN_0051e160		game	skip	832	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0051fc40	FUN_0051fc40		game	skip	54	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0051fdd0	FUN_0051fdd0		game	skip	119	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005201b0	FUN_005201b0		game	skip	57	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
@@ -3014,7 +3014,7 @@ Poq.exe	99	00520d80	FUN_00520d80	~CGameApp	game	skip	8	2	解構函數（物件�
 Poq.exe	99	00520d90	FUN_00520d90		game	todo	11	3			
 Poq.exe	99	00520db0	FUN_00520db0		game	todo	46	11			
 Poq.exe	99	00520e20	FUN_00520e20		game	todo	46	24			
-Poq.exe	99	00520e90	FUN_00520e90		game	todo	17	79			005022f0 00502340 005026c0 00502780 00520f60
+Poq.exe	99	00520e90	FUN_00520e90		game	skip	17	79	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00520f10	FUN_00520f10	CGameBaseDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00520f40	FUN_00520f40	CGameBaseDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00520f50	FUN_00520f50	CGameBaseDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3024,21 +3024,21 @@ Poq.exe	99	00521020	FUN_00521020	CGameInfoDialog|CGameBaseDialog|CCIme|+43	game	
 Poq.exe	99	005210b0	FUN_005210b0		game	todo	43	49			
 Poq.exe	99	00521200	FUN_00521200		game	todo	36	49			
 Poq.exe	99	005212f0	FUN_005212f0		game	todo	35	83			
-Poq.exe	99	005213c0	FUN_005213c0		game	skip	859	4	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00506ec0 00526a20 00527020 00527110 005271e0 00527300 00527510 005275b0 00528980 00528d10 005292c0 0052a080 0052c200 0052c880 0052ca10 0052eca0 00541b50
+Poq.exe	99	005213c0	FUN_005213c0		game	skip	859	4	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00506ec0 00526a20 00527020 00527110 005271e0 00527300 00527510 005275b0 00528980 00528d10 005292c0 0052a080 0052c200 0052c880 0052ca10 0052eca0
 Poq.exe	99	005229c0	FUN_005229c0		game	skip	146	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00522f00	FUN_00522f00		game	skip	720	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00524a60	FUN_00524a60		game	skip	246	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005252f0	FUN_005252f0		game	skip	282	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00525d00	FUN_00525d00		game	skip	114	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005260f0	FUN_005260f0		game	skip	77	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	005263e0	FUN_005263e0		game	skip	83	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0056a530
-Poq.exe	99	005266a0	FUN_005266a0		game	skip	92	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0056a530
+Poq.exe	99	005263e0	FUN_005263e0		game	skip	83	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
+Poq.exe	99	005266a0	FUN_005266a0		game	skip	92	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00526a20	FUN_00526a20		game	todo	28	2			
 Poq.exe	99	00526b20	FUN_00526b20		game	skip	136	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00527020	FUN_00527020		game	todo	26	2			
 Poq.exe	99	00527110	FUN_00527110		game	todo	31	2			00533ed0
 Poq.exe	99	005271e0	FUN_005271e0		game	todo	31	2			
-Poq.exe	99	00527300	FUN_00527300		game	todo	60	2			0055d850 0055d8a0
+Poq.exe	99	00527300	FUN_00527300		game	todo	60	2			
 Poq.exe	99	00527510	FUN_00527510		game	todo	20	2			
 Poq.exe	99	005275b0	FUN_005275b0		game	todo	48	2			
 Poq.exe	99	00527730	FUN_00527730		game	skip	98	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
@@ -3084,7 +3084,7 @@ Poq.exe	99	0052e770	FUN_0052e770		game	skip	83	2	介面→本機伺服器訊息�
 Poq.exe	99	0052ead0	FUN_0052ead0		game	skip	79	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00563360
 Poq.exe	99	0052eca0	FUN_0052eca0		game	todo	31	8			
 Poq.exe	99	0052ed50	FUN_0052ed50		game	skip	88	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0052f020	FUN_0052f020		game	skip	871	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0052eca0 0054f700 00550060
+Poq.exe	99	0052f020	FUN_0052f020		game	skip	871	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0052eca0
 Poq.exe	99	00531350	FUN_00531350		game	skip	47	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005314f0	FUN_005314f0		game	skip	126	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005319a0	FUN_005319a0		game	skip	60	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
@@ -3134,7 +3134,7 @@ Poq.exe	99	005327a0	FUN_005327a0		game	skip	9	0	介面類別樣板：虛擬函�
 Poq.exe	99	005327c0	FUN_005327c0		game	skip	9	3	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		0044e380
 Poq.exe	99	005327e0	FUN_005327e0		game	todo	11	2			
 Poq.exe	99	00532800	FUN_00532800	~CGameDialog	game	skip	41	20	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00532950	FUN_00532950		game	todo	22	0			005022f0 00502340 005026c0 00502780 00520e90 00520f60 0056f340
+Poq.exe	99	00532950	FUN_00532950		game	todo	22	0			005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	005329cd	FUN_005329cd	CCIme	game	skip	9	1	平台層：Windows IME 輸入法（網頁用瀏覽器輸入）		
 Poq.exe	99	005329e0	FUN_005329e0	CCIme	game	skip	13	3	平台層：Windows IME 輸入法（網頁用瀏覽器輸入）		
 Poq.exe	99	00532a20	FUN_00532a20	CCIme	game	skip	8	1	平台層：Windows IME 輸入法（網頁用瀏覽器輸入）		
@@ -3165,7 +3165,7 @@ Poq.exe	99	00533e40	FUN_00533e40	CNetStatusDialog	game	skip	20	2	連線版／除
 Poq.exe	99	00533ec0	FUN_00533ec0	CNetStatusDialog|CMainControlDialog|CGameStatusDialog	game	skip	8	6	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00533ed0	FUN_00533ed0		game	todo	49	4			
 Poq.exe	99	00533fc0	FUN_00533fc0		game	todo	25	6			
-Poq.exe	99	005340c0	FUN_005340c0	~CGameApp	game	skip	10	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90 00520f60 00534190 005341f0
+Poq.exe	99	005340c0	FUN_005340c0	~CGameApp	game	skip	10	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520f60 00534190 005341f0
 Poq.exe	99	005340f0	FUN_005340f0	CStartDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00534120	FUN_00534120	CStartDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00534130	FUN_00534130	CStartDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3182,20 +3182,20 @@ Poq.exe	99	00534270	FUN_00534270		game	todo	13	0
 Poq.exe	99	005342c0	FUN_005342c0		game	todo	17	0			
 Poq.exe	99	00534350	FUN_00534350		game	todo	13	0			
 Poq.exe	99	005343a0	FUN_005343a0		game	todo	13	0			
-Poq.exe	99	00534410	FUN_00534410		game	todo	79	0			00568130 00570df0
+Poq.exe	99	00534410	FUN_00534410		game	todo	79	0			
 Poq.exe	99	00534700	FUN_00534700		game	todo	32	0			
 Poq.exe	99	005347c0	FUN_005347c0		game	todo	32	0			
 Poq.exe	99	00534880	FUN_00534880		game	todo	32	0			
 Poq.exe	99	00534940	FUN_00534940		game	todo	32	0			
 Poq.exe	99	00534a00	FUN_00534a00		game	todo	32	0			
-Poq.exe	99	00534b60	FUN_00534b60	~CGameApp	game	skip	29	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90 005351c0 005351f0 00535250 00535300
+Poq.exe	99	00534b60	FUN_00534b60	~CGameApp	game	skip	29	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 005351c0 005351f0 00535250 00535300
 Poq.exe	99	00534c70	FUN_00534c70	CSystemDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
-Poq.exe	99	00534ca0	FUN_00534ca0	~CSystemDialog	game	skip	34	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00568130
+Poq.exe	99	00534ca0	FUN_00534ca0	~CSystemDialog	game	skip	34	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00534d80	FUN_00534d80	CSystemDialog	game	skip	66	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00534f40	FUN_00534f40	~CSystemDialog	game	skip	19	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00534f90	FUN_00534f90	~CSystemDialog	game	skip	38	1	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00571d80
+Poq.exe	99	00534f90	FUN_00534f90	~CSystemDialog	game	skip	38	1	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00535080	FUN_00535080	~CSystemDialog	game	skip	14	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00520db0
-Poq.exe	99	005350c0	FUN_005350c0	~CSystemDialog	game	skip	36	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00570df0
+Poq.exe	99	005350c0	FUN_005350c0	~CSystemDialog	game	skip	36	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005351a0	FUN_005351a0	CSystemDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005351b0	FUN_005351b0	CSystemDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005351c0	FUN_005351c0	CSystemDialog	game	todo	13	2			
@@ -3204,7 +3204,7 @@ Poq.exe	99	00535250	FUN_00535250	CSystemDialog	game	todo	19	2
 Poq.exe	99	00535300	FUN_00535300	CSystemDialog	game	todo	12	2			00520db0
 Poq.exe	99	00535330	FUN_00535330	CSystemDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00535340	FUN_00535340		game	skip	16	7	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	005353c0	FUN_005353c0		game	todo	36	0			00572e30
+Poq.exe	99	005353c0	FUN_005353c0		game	todo	36	0			
 Poq.exe	99	005354a0	FUN_005354a0		game	done	38	0			
 Poq.exe	99	005355a0	FUN_005355a0		game	skip	239	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00520e20
 Poq.exe	99	00535a80	FUN_00535a80		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3213,7 +3213,7 @@ Poq.exe	99	00535ba0	FUN_00535ba0		game	skip	16	0	介面類別樣板：虛擬函�
 Poq.exe	99	00535c30	FUN_00535c30		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00535cb0	FUN_00535cb0		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00535d30	FUN_00535d30		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00535db0	FUN_00535db0		game	todo	34	6			005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	00535db0	FUN_00535db0		game	skip	34	6	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00535ec0	FUN_00535ec0		game	done	29	2			
 Poq.exe	99	00535f40	FUN_00535f40	CCreateNetGameDialog	game	skip	24	2	連線版：建立網路遊戲		
 Poq.exe	99	00535fb0	FUN_00535fb0	CCreateNetGameDialog	game	skip	62	2	連線版：建立網路遊戲		
@@ -3222,37 +3222,37 @@ Poq.exe	99	00536190	FUN_00536190	CCreateNetGameDialog	game	skip	8	2	連線版：
 Poq.exe	99	005361a0	FUN_005361a0	CCreateNetGameDialog	game	skip	10	2	連線版：建立網路遊戲		
 Poq.exe	99	005361c0	FUN_005361c0	CCreateNetGameDialog	game	skip	49	2	連線版：建立網路遊戲		
 Poq.exe	99	005362c0	FUN_005362c0		game	skip	13	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	005362e0	FUN_005362e0		game	todo	47	0			00573710 005737a0 00573d30
-Poq.exe	99	00536420	FUN_00536420		game	todo	91	0			0056f080 00573710 005737a0 00573d30
-Poq.exe	99	005366a0	FUN_005366a0		game	skip	10	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		00520e20 00573710
+Poq.exe	99	005362e0	FUN_005362e0		game	todo	47	0			
+Poq.exe	99	00536420	FUN_00536420		game	todo	91	0			
+Poq.exe	99	005366a0	FUN_005366a0		game	skip	10	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		00520e20
 Poq.exe	99	00536730	FUN_00536730		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005367c0	FUN_005367c0		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00536850	FUN_00536850		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005368e0	FUN_005368e0		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00536960	FUN_00536960		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005369e0	FUN_005369e0		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00536a60	FUN_00536a60	~CGameApp	game	skip	39	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90 00520f60 005735c0
+Poq.exe	99	00536a60	FUN_00536a60	~CGameApp	game	skip	39	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520f60 005735c0
 Poq.exe	99	00536c00	FUN_00536c00	CMultiPlayerDialog	game	skip	46	2	連線版：多人遊戲選單		
-Poq.exe	99	00536ce0	FUN_00536ce0	~CMultiPlayerDialog	game	skip	60	2	連線版：多人遊戲選單		00535db0
+Poq.exe	99	00536ce0	FUN_00536ce0	~CMultiPlayerDialog	game	skip	60	2	連線版：多人遊戲選單		
 Poq.exe	99	00536e60	FUN_00536e60	CMultiPlayerDialog	game	skip	61	2	連線版：多人遊戲選單		
 Poq.exe	99	00537060	FUN_00537060	CMultiPlayerDialog	game	skip	8	2	連線版：多人遊戲選單		
 Poq.exe	99	00537070	FUN_00537070	CMultiPlayerDialog	game	skip	8	2	連線版：多人遊戲選單		
-Poq.exe	99	00537080	FUN_00537080	~CMultiPlayerDialog	game	skip	35	0	連線版：多人遊戲選單		005738f0
+Poq.exe	99	00537080	FUN_00537080	~CMultiPlayerDialog	game	skip	35	0	連線版：多人遊戲選單		
 Poq.exe	99	00537140	FUN_00537140	CMultiPlayerDialog	game	skip	10	2	連線版：多人遊戲選單		
-Poq.exe	99	00537160	FUN_00537160	CMultiPlayerDialog	game	skip	315	2	連線版：多人遊戲選單		005738f0 00574010
+Poq.exe	99	00537160	FUN_00537160	CMultiPlayerDialog	game	skip	315	2	連線版：多人遊戲選單		
 Poq.exe	99	005377a0	FUN_005377a0	CMultiPlayerDialog	game	skip	9	2	連線版：多人遊戲選單		
-Poq.exe	99	005377c0	FUN_005377c0		game	skip	9	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		00574010
+Poq.exe	99	005377c0	FUN_005377c0		game	skip	9	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00537800	FUN_00537800		game	todo	14	0			00532430
-Poq.exe	99	00537840	FUN_00537840	~CGameApp	game	skip	12	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90
+Poq.exe	99	00537840	FUN_00537840	~CGameApp	game	skip	12	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780
 Poq.exe	99	00537880	FUN_00537880	CGameDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	005378b0	FUN_005378b0	~CGameDialog	game	skip	9	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	005378c0	FUN_005378c0	~CGameDialog	game	skip	55	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00564c30
+Poq.exe	99	005378c0	FUN_005378c0	~CGameDialog	game	skip	55	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00537a70	FUN_00537a70	CGameDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00537a80	FUN_00537a80	CGameDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00537a90	FUN_00537a90	CGameDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00537ab0	FUN_00537ab0	CGameDialog	game	skip	26	2	CGameDialog 的關閉清理、顯示／隱藏全部 HUD、鍵盤事件轉發、連線版聊天輸入／輸出視窗焦點與格式化送字；單機沒有聊天，HUD 開關由 main.c 控制		00532660
 Poq.exe	99	00537b40	FUN_00537b40	CGameDialog	game	skip	21	2	CGameDialog 的關閉清理、顯示／隱藏全部 HUD、鍵盤事件轉發、連線版聊天輸入／輸出視窗焦點與格式化送字；單機沒有聊天，HUD 開關由 main.c 控制		00532660
-Poq.exe	99	00537bb0	FUN_00537bb0	CGameDialog	game	done	241	2		CGameDialog 建立各 HUD 視窗並擺位置（JM51 底部置中、JM515 上方置中 y=0x14、JM65、JM60、JM108…）；main.c hud_draw 載入並依此擺位	00564c30
+Poq.exe	99	00537bb0	FUN_00537bb0	CGameDialog	game	done	241	2		CGameDialog 建立各 HUD 視窗並擺位置（JM51 底部置中、JM515 上方置中 y=0x14、JM65、JM60、JM108…）；main.c hud_draw 載入並依此擺位	
 Poq.exe	99	00538490	FUN_00538490	CGameDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005384b0	FUN_005384b0	CGameDialog	game	skip	16	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005384f0	FUN_005384f0	CGameDialog	game	skip	165	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005212f0
@@ -3268,7 +3268,7 @@ Poq.exe	99	00538df0	FUN_00538df0	CGameDialog	game	skip	28	2	CGameDialog 的關�
 Poq.exe	99	00538eb0	FUN_00538eb0	CGameDialog	game	skip	30	2	CGameDialog 的關閉清理、顯示／隱藏全部 HUD、鍵盤事件轉發、連線版聊天輸入／輸出視窗焦點與格式化送字；單機沒有聊天，HUD 開關由 main.c 控制		
 Poq.exe	99	00538f30	FUN_00538f30		game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00538f50	FUN_00538f50		game	skip	31	2	CGameDialog 的關閉清理、顯示／隱藏全部 HUD、鍵盤事件轉發、連線版聊天輸入／輸出視窗焦點與格式化送字；單機沒有聊天，HUD 開關由 main.c 控制		
-Poq.exe	99	00538ff0	FUN_00538ff0	~CStatusDialogA	game	skip	11	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90
+Poq.exe	99	00538ff0	FUN_00538ff0	~CStatusDialogA	game	skip	11	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780
 Poq.exe	99	00539020	FUN_00539020	CDebugDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00539050	FUN_00539050	CDebugDialog	game	skip	14	2	連線版／除錯用介面		
 Poq.exe	99	00539080	FUN_00539080	CDebugDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3276,7 +3276,7 @@ Poq.exe	99	00539090	FUN_00539090	CDebugDialog	game	skip	8	2	介面類別樣板�
 Poq.exe	99	005390b0	FUN_005390b0	CDebugDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005390d0	FUN_005390d0	CDebugDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005390e0	FUN_005390e0		game	skip	31	2	CGameDialog 的關閉清理、顯示／隱藏全部 HUD、鍵盤事件轉發、連線版聊天輸入／輸出視窗焦點與格式化送字；單機沒有聊天，HUD 開關由 main.c 控制		
-Poq.exe	99	00539190	FUN_00539190		game	skip	11	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520e90 00520f60 00539270 005392b0
+Poq.exe	99	00539190	FUN_00539190		game	skip	11	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60 00539270 005392b0
 Poq.exe	99	005391c0	FUN_005391c0	CTitleDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	005391f0	FUN_005391f0	CTitleDialog	game	skip	14	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00539220	FUN_00539220	CTitleDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3285,7 +3285,7 @@ Poq.exe	99	00539240	FUN_00539240	CTitleDialog	game	skip	10	2	介面類別樣板�
 Poq.exe	99	00539260	FUN_00539260	CTitleDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00539270	FUN_00539270	CTitleDialog	game	todo	10	2			
 Poq.exe	99	005392b0	FUN_005392b0	CTitleDialog	game	todo	12	2			
-Poq.exe	99	00539340	FUN_00539340	~CGameDialog	game	skip	12	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	00539340	FUN_00539340	~CGameDialog	game	skip	12	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00539380	FUN_00539380	CBloodDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	005393b0	FUN_005393b0	CBloodDialog	game	skip	18	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00539410	FUN_00539410	CBloodDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3332,25 +3332,25 @@ Poq.exe	99	0053bd70	FUN_0053bd70		game	skip	50	0	介面→本機伺服器訊息�
 Poq.exe	99	0053be60	FUN_0053be60		game	skip	47	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0053bf50	FUN_0053bf50		game	skip	92	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0050b1b0
 Poq.exe	99	0053c120	FUN_0053c120		game	todo	22	0			
-Poq.exe	99	0053c1c0	FUN_0053c1c0	~CGameDialog	game	skip	84	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90 00520f60 0053c490 0053c7a0 0053c9d0 0053cb30 0053cc10 0053cee0 0053d810
+Poq.exe	99	0053c1c0	FUN_0053c1c0	~CGameDialog	game	skip	84	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520f60 0053cb30 0053cc10 0053d810
 Poq.exe	99	0053c3f0	FUN_0053c3f0		game	todo	27	0			
-Poq.exe	99	0053c490	FUN_0053c490	CMapDialog	game	todo	26	2			
+Poq.exe	99	0053c490	FUN_0053c490	CMapDialog	game	skip	26	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0053c540	FUN_0053c540	~CViewPort	game	skip	60	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0053c6b0	FUN_0053c6b0		game	skip	58	5	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0053c7a0	FUN_0053c7a0	CMapDialog	game	todo	67	2			
+Poq.exe	99	0053c7a0	FUN_0053c7a0	CMapDialog	game	skip	67	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	0053c960	FUN_0053c960	~CMapDialog	game	skip	15	8	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	0053c9d0	FUN_0053c9d0	CMapDialog	game	todo	8	2			
+Poq.exe	99	0053c9d0	FUN_0053c9d0	CMapDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0053c9e0	FUN_0053c9e0	CMapDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0053c9f0	FUN_0053c9f0	~CMapDialog	game	skip	51	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0053cb10	FUN_0053cb10	CMapDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	0053cb30	FUN_0053cb30	CMapDialog	game	todo	27	2			
-Poq.exe	99	0053cc10	FUN_0053cc10	CMapDialog	game	todo	18	2			
+Poq.exe	99	0053cb30	FUN_0053cb30	CMapDialog	game	todo	27	2		地圖視窗 JM60 開啟時的按鈕與元件初始狀態；等地圖視窗系統	
+Poq.exe	99	0053cc10	FUN_0053cc10	CMapDialog	game	todo	18	2		地圖視窗按 Esc(0x1b) 關閉，其餘交給視窗基底；等地圖視窗系統	
 Poq.exe	99	0053cc60	FUN_0053cc60	CMapDialog	game	skip	57	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0053cde0	FUN_0053cde0	CMapDialog	game	skip	44	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0053cee0	FUN_0053cee0	CMapDialog	game	todo	23	2			
+Poq.exe	99	0053cee0	FUN_0053cee0	CMapDialog	game	done	23	2			
 Poq.exe	99	0053cf80	FUN_0053cf80	CMapDialog	game	skip	299	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0053d750	FUN_0053d750	CMapDialog	game	skip	27	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0053d810	FUN_0053d810	CMapDialog	game	todo	108	2			
+Poq.exe	99	0053d810	FUN_0053d810	CMapDialog	game	todo	108	2		地圖視窗重畫：依髒矩形逐一重畫子精靈；等地圖視窗系統	
 Poq.exe	99	0053d830	FUN_0053d830	~CMapDialog	game	skip	194	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0053dc60	FUN_0053dc60	~CViewPort	game	skip	24	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0053dd20	FUN_0053dd20	~CMapDialog	game	skip	86	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -3364,7 +3364,7 @@ Poq.exe	99	0053e8c0	FUN_0053e8c0		game	todo	33	0
 Poq.exe	99	0053e980	FUN_0053e980		game	todo	36	0			
 Poq.exe	99	0053ea60	FUN_0053ea60		game	todo	36	0			
 Poq.exe	99	0053eb30	FUN_0053eb30		game	todo	36	0			
-Poq.exe	99	0053ec00	FUN_0053ec00		game	skip	14	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520e90 00520f60 0053ed50
+Poq.exe	99	0053ec00	FUN_0053ec00		game	skip	14	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60 0053ed50
 Poq.exe	99	0053ec60	FUN_0053ec60	CMainDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	0053ec90	FUN_0053ec90	CMainDialog	game	skip	26	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	0053ed30	FUN_0053ed30	CMainDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3377,7 +3377,7 @@ Poq.exe	99	0053eee0	FUN_0053eee0		game	skip	76	0	介面→本機伺服器訊息�
 Poq.exe	99	0053f0c0	FUN_0053f0c0		game	skip	101	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0053f2d0	FUN_0053f2d0		game	skip	128	6	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0053f5c0	FUN_0053f5c0		game	skip	48	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0053f6c0	FUN_0053f6c0		game	skip	100	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00520e20 00541650
+Poq.exe	99	0053f6c0	FUN_0053f6c0		game	skip	100	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00520e20
 Poq.exe	99	0053f930	FUN_0053f930		game	todo	14	0			
 Poq.exe	99	0053f990	FUN_0053f990		game	skip	67	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0053fb00	FUN_0053fb00		game	skip	62	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
@@ -3385,18 +3385,18 @@ Poq.exe	99	0053fce0	FUN_0053fce0		game	todo	21	0
 Poq.exe	99	0053fd70	FUN_0053fd70		game	skip	75	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0053ff60	FUN_0053ff60		game	todo	27	0			
 Poq.exe	99	0053ffe0	FUN_0053ffe0		game	skip	75	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	005401d0	FUN_005401d0		game	todo	10	0			
-Poq.exe	99	005401f0	FUN_005401f0		game	todo	12	0			
-Poq.exe	99	00540230	FUN_00540230		game	done	73	4			005022f0 00502340 005026c0 00502780 005406d0 00540cb0 005422e0 00542380 00574540
-Poq.exe	99	00540440	FUN_00540440		game	todo	12	0			
-Poq.exe	99	005404b0	FUN_005404b0		game	todo	12	0			
-Poq.exe	99	005406d0	FUN_005406d0	CMakePropDialog	game	todo	21	2			
+Poq.exe	99	005401d0	FUN_005401d0		game	skip	10	0	CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）		
+Poq.exe	99	005401f0	FUN_005401f0		game	skip	12	0	CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）		
+Poq.exe	99	00540230	FUN_00540230		game	done	73	4			005022f0 00502340 005026c0 00502780 00574540
+Poq.exe	99	00540440	FUN_00540440		game	skip	12	0	CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）		
+Poq.exe	99	005404b0	FUN_005404b0		game	skip	12	0	CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）		
+Poq.exe	99	005406d0	FUN_005406d0	CMakePropDialog	game	skip	21	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00540730	FUN_00540730	~CMakePropDialog	game	skip	14	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00540780	FUN_00540780	~CMakePropDialog	game	skip	20	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00540830	FUN_00540830	~CMakePropDialog	game	skip	16	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005408a0	FUN_005408a0	~CMakePropDialog	game	skip	9	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00540a20	FUN_00540a20	~CMakePropDialog	game	skip	116	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00540cb0	FUN_00540cb0	CMakePropDialog	game	todo	95	2			
+Poq.exe	99	00540cb0	FUN_00540cb0	CMakePropDialog	game	skip	95	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00540f10	FUN_00540f10	~CMakePropDialog	game	skip	31	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00541070	FUN_00541070	~CMakePropDialog	game	skip	24	11	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005410d0	FUN_005410d0	~CMakePropDialog	game	skip	30	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -3404,36 +3404,36 @@ Poq.exe	99	00541150	FUN_00541150	~CMakePropDialog	game	skip	11	0	解構函數（
 Poq.exe	99	00541170	FUN_00541170	~CMakePropDialog	game	skip	11	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005411a0	FUN_005411a0	CMakePropDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005411c0	FUN_005411c0	CMakePropDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	005411d0	FUN_005411d0		game	todo	17	0			
-Poq.exe	99	00541210	FUN_00541210		game	todo	12	0			
-Poq.exe	99	005415f0	FUN_005415f0		game	todo	21	0			
-Poq.exe	99	00541650	FUN_00541650		game	todo	41	8			
+Poq.exe	99	005411d0	FUN_005411d0		game	skip	17	0	CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）		
+Poq.exe	99	00541210	FUN_00541210		game	skip	12	0	CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）		
+Poq.exe	99	005415f0	FUN_005415f0		game	skip	21	0	可變參數／字串小工具（執行庫等價）：C 的 snprintf／strtok 取代		
+Poq.exe	99	00541650	FUN_00541650		game	done	41	8			
 Poq.exe	99	005416c0	FUN_005416c0		game	skip	43	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	005417d0	FUN_005417d0		game	todo	24	0			00541650
+Poq.exe	99	005417d0	FUN_005417d0		game	done	24	0			
 Poq.exe	99	00541860	FUN_00541860		game	skip	13	1	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00541890	FUN_00541890		game	todo	8	0			
+Poq.exe	99	00541890	FUN_00541890		game	skip	8	0	CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）		
 Poq.exe	99	005418b0	FUN_005418b0	~CGameApp	game	skip	68	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00541b50	FUN_00541b50		game	todo	37	4			
+Poq.exe	99	00541b50	FUN_00541b50		game	skip	37	4	按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制		
 Poq.exe	99	00541c50	FUN_00541c50	CMakePropDialog	game	skip	86	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00541e70	FUN_00541e70	CMakePropDialog	game	skip	68	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00542000	FUN_00542000	CMakePropDialog	game	skip	42	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005420d0	FUN_005420d0	~CMakePropDialog	game	skip	101	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	005422e0	FUN_005422e0	CMakePropDialog	game	todo	24	2			
-Poq.exe	99	00542380	FUN_00542380	CMakePropDialog	game	todo	45	2			00541650
+Poq.exe	99	005422e0	FUN_005422e0	CMakePropDialog	game	done	24	2			
+Poq.exe	99	00542380	FUN_00542380	CMakePropDialog	game	skip	45	2	按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制		
 Poq.exe	99	00542460	FUN_00542460		game	skip	59	4	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	005425e0	FUN_005425e0		game	todo	14	0			
-Poq.exe	99	00542940	FUN_00542940		game	todo	17	2			
-Poq.exe	99	00542b40	FUN_00542b40		game	todo	15	0			
+Poq.exe	99	005425e0	FUN_005425e0		game	skip	14	0	CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）		
+Poq.exe	99	00542940	FUN_00542940		game	skip	17	2	按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則		
+Poq.exe	99	00542b40	FUN_00542b40		game	skip	15	0	按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則		
 Poq.exe	99	00542bb0	FUN_00542bb0		game	skip	201	7	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00543120	FUN_00543120		game	done	270	10			00541650
+Poq.exe	99	00543120	FUN_00543120		game	done	270	10			
 Poq.exe	99	00543810	FUN_00543810		game	skip	70	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005439c0	FUN_005439c0		game	todo	31	2			
 Poq.exe	99	00543a70	FUN_00543a70		game	skip	63	5	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00543c30	FUN_00543c30		game	skip	125	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0050b220
-Poq.exe	99	00543f30	FUN_00543f30		game	skip	393	7	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00541650 00542940 005439c0
+Poq.exe	99	00543f30	FUN_00543f30		game	skip	393	7	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005439c0
 Poq.exe	99	00544980	FUN_00544980		game	skip	168	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005463a0
 Poq.exe	99	00544e50	FUN_00544e50		game	skip	88	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005463a0
-Poq.exe	99	00545070	FUN_00545070	~CGameDialog	game	skip	16	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	00545070	FUN_00545070	~CGameDialog	game	skip	16	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	005450e0	FUN_005450e0		game	todo	114	2			
 Poq.exe	99	005453a0	FUN_005453a0	~CMessagePipeDialog	game	skip	23	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005453f0	FUN_005453f0	~CMessagePipeDialog	game	skip	29	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -3460,7 +3460,7 @@ Poq.exe	99	00546280	FUN_00546280	~CMessagePipeDialog	game	skip	21	0	解構函數
 Poq.exe	99	005462d0	FUN_005462d0	~CMessagePipeDialog	game	skip	23	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00546340	FUN_00546340	~CMessagePipeDialog	game	skip	24	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005463a0	FUN_005463a0		game	todo	54	6			
-Poq.exe	99	00546490	FUN_00546490	~CStatusDialogA	game	skip	11	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90 00520f60 00546560
+Poq.exe	99	00546490	FUN_00546490	~CStatusDialogA	game	skip	11	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520f60 00546560
 Poq.exe	99	005464c0	FUN_005464c0	CPauseDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	005464f0	FUN_005464f0	CPauseDialog	game	skip	14	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00546520	FUN_00546520	CPauseDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3469,7 +3469,7 @@ Poq.exe	99	00546540	FUN_00546540	CPauseDialog	game	skip	10	2	介面類別樣板�
 Poq.exe	99	00546560	FUN_00546560	CPauseDialog	game	todo	17	2			
 Poq.exe	99	005465b0	FUN_005465b0		game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005465d0	FUN_005465d0		game	skip	18	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00520db0
-Poq.exe	99	00546640	FUN_00546640		game	todo	14	1			005022f0 00502340 005026c0 00502780 00520e90 00520f60 005466d0
+Poq.exe	99	00546640	FUN_00546640		game	todo	14	1			005022f0 00502340 005026c0 00502780 00520f60 005466d0
 Poq.exe	99	00546680	FUN_00546680	CDropMoneyDialog	game	skip	15	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	005466d0	FUN_005466d0	CDropMoneyDialog	game	todo	9	2			
 Poq.exe	99	00546700	FUN_00546700	CDropMoneyDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3478,7 +3478,7 @@ Poq.exe	99	00546720	FUN_00546720	~CDropMoneyDialog	game	skip	13	1	解構函數�
 Poq.exe	99	00546750	FUN_00546750	CDropMoneyDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00546770	FUN_00546770	CDropMoneyDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00546780	FUN_00546780		game	skip	10	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		00520db0
-Poq.exe	99	005467b0	FUN_005467b0		game	skip	10	3	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	005467b0	FUN_005467b0		game	skip	10	3	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	005467e0	FUN_005467e0	CQuitGameDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00546810	FUN_00546810	CQuitGameDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00546820	FUN_00546820	CQuitGameDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3487,7 +3487,7 @@ Poq.exe	99	00546840	FUN_00546840	CQuitGameDialog	game	skip	10	2	介面類別樣�
 Poq.exe	99	00546860	FUN_00546860	CQuitGameDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00546870	FUN_00546870	CQuitGameDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00546880	FUN_00546880		game	skip	77	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00520db0
-Poq.exe	99	00546a50	FUN_00546a50		game	todo	32	2			005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	00546a50	FUN_00546a50		game	todo	32	2			005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00546b10	FUN_00546b10	CCreateConfraternityDialog	game	skip	18	2	連線版：建立幫會		
 Poq.exe	99	00546b60	FUN_00546b60	CCreateConfraternityDialog	game	skip	15	2	連線版：建立幫會		
 Poq.exe	99	00546bb0	FUN_00546bb0	CCreateConfraternityDialog	game	skip	8	2	連線版：建立幫會		
@@ -3501,7 +3501,7 @@ Poq.exe	99	00547080	FUN_00547080		game	todo	25	0
 Poq.exe	99	005470f0	FUN_005470f0		game	todo	23	0			
 Poq.exe	99	00547160	FUN_00547160		game	todo	17	0			
 Poq.exe	99	005471b0	FUN_005471b0		game	todo	12	0			
-Poq.exe	99	005471e0	FUN_005471e0		game	skip	16	3	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520e90 00520f60 00547460 005474a0 00547500
+Poq.exe	99	005471e0	FUN_005471e0		game	skip	16	3	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60 00547460 005474a0 00547500
 Poq.exe	99	00547250	FUN_00547250	CGameOptionDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00547280	FUN_00547280	CGameOptionDialog	game	skip	44	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00547440	FUN_00547440	CGameOptionDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3510,7 +3510,7 @@ Poq.exe	99	00547460	FUN_00547460	CGameOptionDialog	game	todo	16	2
 Poq.exe	99	005474a0	FUN_005474a0	CGameOptionDialog	game	todo	17	2			
 Poq.exe	99	00547500	FUN_00547500	CGameOptionDialog	game	todo	58	2			
 Poq.exe	99	00547720	FUN_00547720		game	todo	73	0			
-Poq.exe	99	00547990	FUN_00547990	~CGameApp	game	skip	25	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	00547990	FUN_00547990	~CGameApp	game	skip	25	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00547a30	FUN_00547a30	CDeadDialog	game	skip	24	2	連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有		
 Poq.exe	99	00547aa0	FUN_00547aa0	CDeadDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00547ab0	FUN_00547ab0	CDeadDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3533,24 +3533,24 @@ Poq.exe	99	00548980	FUN_00548980	CMessageDialog	game	skip	9	2	介面類別樣板
 Poq.exe	99	00548990	FUN_00548990	~CGameDialog	game	skip	13	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005489f0	FUN_005489f0	~CGameDialog	game	skip	16	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00548a40	FUN_00548a40	~CGameDialog	game	skip	630	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00549610	FUN_00549610		game	todo	60	0			
-Poq.exe	99	005496d0	FUN_005496d0		game	todo	20	0			
-Poq.exe	99	00549710	FUN_00549710		game	todo	31	2			
+Poq.exe	99	00549610	FUN_00549610		game	todo	60	0		地圖視窗 JM60 依數值門檻分段（9 段）取等級索引；等地圖視窗系統（引擎還沒有大地圖／小地圖視窗）	
+Poq.exe	99	005496d0	FUN_005496d0		game	todo	20	0		地圖視窗依數值門檻分 3 段；等地圖視窗系統	
+Poq.exe	99	00549710	FUN_00549710		game	todo	31	2		地圖視窗探索格（0x200×0x100 範圍，每格 0x10 bytes）全部清 0；等地圖視窗系統	
 Poq.exe	99	00549780	FUN_00549780	~CMapDialog	game	skip	49	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00549870	FUN_00549870	~CMapDialog	game	skip	9	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005498b0	FUN_005498b0	~CGameDialog	game	skip	18	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005498f0	FUN_005498f0	~CGameDialog	game	skip	58	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00549a10	FUN_00549a10		game	todo	13	2			
+Poq.exe	99	00549a10	FUN_00549a10		game	todo	13	2		地圖視窗設定探索格值（座標 / 格寬、格高）；等地圖視窗系統	
 Poq.exe	99	00549a60	FUN_00549a60		game	skip	69	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00549bb0	FUN_00549bb0		game	skip	71	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00549d00	FUN_00549d00		game	skip	53	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00549e40	FUN_00549e40		game	skip	89	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005078d0 00556560
+Poq.exe	99	00549e40	FUN_00549e40		game	skip	89	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005078d0
 Poq.exe	99	0054a0a0	FUN_0054a0a0		game	skip	210	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0054a550	FUN_0054a550		game	skip	171	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005078d0 005210b0 00521200 005212f0 00555ae0 00556560
+Poq.exe	99	0054a550	FUN_0054a550		game	skip	171	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005078d0 005210b0 00521200 005212f0
 Poq.exe	99	0054aa20	FUN_0054aa20		game	skip	65	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0054abd0	FUN_0054abd0		game	skip	100	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005210b0 00521200 005212f0 00555ae0 005565a0
+Poq.exe	99	0054abd0	FUN_0054abd0		game	skip	100	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005210b0 00521200 005212f0
 Poq.exe	99	0054af70	FUN_0054af70		game	todo	82	0			005210b0 00521200 005212f0
-Poq.exe	99	0054b190	FUN_0054b190		game	skip	152	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005022f0 00502340 005026c0 00502780 005210b0 00521200 005212f0 0054e3d0 00574540
+Poq.exe	99	0054b190	FUN_0054b190		game	skip	152	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005022f0 00502340 005026c0 00502780 005210b0 00521200 005212f0 00574540
 Poq.exe	99	0054b620	FUN_0054b620		game	skip	121	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005210b0 00521200 005212f0
 Poq.exe	99	0054b990	FUN_0054b990		game	skip	58	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00546640
 Poq.exe	99	0054bb30	FUN_0054bb30		game	skip	320	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
@@ -3558,12 +3558,12 @@ Poq.exe	99	0054c270	FUN_0054c270		game	skip	9	0	介面類別樣板：虛擬函�
 Poq.exe	99	0054c290	FUN_0054c290		game	skip	176	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054c710	FUN_0054c710		game	todo	16	0			
 Poq.exe	99	0054c830	FUN_0054c830		game	skip	52	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0054c960	FUN_0054c960		game	todo	75	2			005022f0 00502340 005026c0 00502780 0054e3d0 00574540
+Poq.exe	99	0054c960	FUN_0054c960		game	todo	75	2			005022f0 00502340 005026c0 00502780 00574540
 Poq.exe	99	0054cbb0	FUN_0054cbb0		game	todo	28	4			
 Poq.exe	99	0054cc50	FUN_0054cc50	CPropDialog	game	skip	19	3	解構函數		
 Poq.exe	99	0054ccb0	FUN_0054ccb0	~CPropDialog	game	skip	25	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0054cdb0	FUN_0054cdb0	~CPropDialog	game	skip	14	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	0054ce00	FUN_0054ce00	~CPropDialog	game	skip	24	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00509a30
+Poq.exe	99	0054ce00	FUN_0054ce00	~CPropDialog	game	skip	24	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0054cea0	FUN_0054cea0	~CPropDialog	game	skip	29	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005212f0
 Poq.exe	99	0054cf40	FUN_0054cf40	CPropDialog	game	skip	62	3	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	0054d0b0	FUN_0054d0b0	CPropDialog	game	skip	8	3	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3571,67 +3571,67 @@ Poq.exe	99	0054d0c0	FUN_0054d0c0	CPropDialog	game	skip	8	3	介面類別樣板：
 Poq.exe	99	0054d0d0	FUN_0054d0d0	~CPropDialog	game	skip	87	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0054d2b0	FUN_0054d2b0	~CPropDialog	game	skip	120	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0054d560	FUN_0054d560	~CPropDialog	game	skip	58	1	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	0054d6c0	FUN_0054d6c0	~CPropDialog	game	skip	65	5	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0 005576c0
+Poq.exe	99	0054d6c0	FUN_0054d6c0	~CPropDialog	game	skip	65	5	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0
 Poq.exe	99	0054d8a0	FUN_0054d8a0	CPropDialog	game	skip	28	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054d940	FUN_0054d940	CPropDialog	game	skip	125	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054dd50	FUN_0054dd50	CPropDialog	game	skip	228	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054e340	FUN_0054e340	CPropDialog	game	done	23	3			
-Poq.exe	99	0054e3d0	FUN_0054e3d0	CPropDialog	game	todo	32	3			00577dd0
-Poq.exe	99	0054e430	FUN_0054e430	CPropDialog	game	skip	103	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00509a30
-Poq.exe	99	0054e890	FUN_0054e890		game	skip	115	4	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005565a0
+Poq.exe	99	0054e3d0	FUN_0054e3d0	CPropDialog	game	skip	32	3	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	0054e430	FUN_0054e430	CPropDialog	game	skip	103	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
+Poq.exe	99	0054e890	FUN_0054e890		game	skip	115	4	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054eac0	FUN_0054eac0		game	skip	69	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0054ec50	FUN_0054ec50		game	todo	22	2			
+Poq.exe	99	0054ec50	FUN_0054ec50		game	skip	22	2	按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則		
 Poq.exe	99	0054ed10	FUN_0054ed10		game	skip	111	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054efa0	FUN_0054efa0		game	skip	55	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054f190	FUN_0054f190		game	skip	214	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0054f6c0	FUN_0054f6c0		game	todo	13	8			
-Poq.exe	99	0054f700	FUN_0054f700		game	todo	44	8			0054cbb0
+Poq.exe	99	0054f6c0	FUN_0054f6c0		game	skip	13	8	設定視窗位置欄位後重畫（FUN_00550120／FUN_005567f0 重填）：引擎視窗每幀依 win_x／win_y 重畫		
+Poq.exe	99	0054f700	FUN_0054f700		game	skip	44	8	道具／技能說明字串組合：UI_C.dlg 2127／2126 格式 + 提示文字送工具提示（FUN_00596730），引擎 JM54 左邊說明已用同一份 dlg 字串		0054cbb0
 Poq.exe	99	0054f820	FUN_0054f820		game	done	334	6			
-Poq.exe	99	00550060	FUN_00550060		game	todo	34	4			
-Poq.exe	99	00550120	FUN_00550120		game	skip	328	16	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00509a30 0054f700
-Poq.exe	99	005508f0	FUN_005508f0		game	todo	19	4			
-Poq.exe	99	00550980	FUN_00550980		game	skip	243	10	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0054ec50 0054f700
+Poq.exe	99	00550060	FUN_00550060		game	skip	34	4	道具／技能說明字串組合：UI_C.dlg 2127／2126 格式 + 提示文字送工具提示（FUN_00596730），引擎 JM54 左邊說明已用同一份 dlg 字串		
+Poq.exe	99	00550120	FUN_00550120		game	skip	328	16	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
+Poq.exe	99	005508f0	FUN_005508f0		game	skip	19	4	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00550980	FUN_00550980		game	skip	243	10	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00550ee0	FUN_00550ee0		game	skip	102	10	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005510e0	FUN_005510e0		game	skip	164	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00551480	FUN_00551480		game	todo	14	0			00532430
+Poq.exe	99	00551480	FUN_00551480		game	todo	14	0		隊伍面板 CStatusDialogB 點成員頭像 → click_cmd 0x11（選隊友）；等隊伍系統	00532430
 Poq.exe	99	005514e0	FUN_005514e0		game	skip	27	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00551560	FUN_00551560		game	todo	14	0			005326e0
-Poq.exe	99	00551590	FUN_00551590		game	todo	11	0			005326e0
-Poq.exe	99	005515c0	FUN_005515c0		game	todo	38	2			005022f0 00502340 005026c0 00502780 005517f0 005518c0 00574540
+Poq.exe	99	00551560	FUN_00551560		game	todo	14	0		隊伍面板點成員 → 0x459ce0 切換控制；等隊伍系統	005326e0
+Poq.exe	99	00551590	FUN_00551590		game	todo	11	0		隊伍面板放開成員點擊 → 0x459ce0(0)；等隊伍系統	005326e0
+Poq.exe	99	005515c0	FUN_005515c0		game	skip	38	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 005518c0 00574540
 Poq.exe	99	00551730	FUN_00551730	CStatusDialogB	game	skip	15	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00551780	FUN_00551780	~CStatusDialogB	game	skip	16	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	005517f0	FUN_005517f0	CStatusDialogB	game	todo	31	2			
+Poq.exe	99	005517f0	FUN_005517f0	CStatusDialogB	game	skip	31	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00551880	FUN_00551880	CStatusDialogB	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00551890	FUN_00551890	CStatusDialogB	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005518a0	FUN_005518a0	CStatusDialogB	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	005518c0	FUN_005518c0	CStatusDialogB	game	todo	18	2			
-Poq.exe	99	00551900	FUN_00551900		game	todo	15	0			
+Poq.exe	99	005518c0	FUN_005518c0	CStatusDialogB	game	todo	18	2		隊伍面板 CStatusDialogB 顯示更新（9 格狀態幀）；等隊伍系統	
+Poq.exe	99	00551900	FUN_00551900		game	skip	15	0	按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則		
 Poq.exe	99	00551970	FUN_00551970		game	skip	137	5	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00551c70	FUN_00551c70		game	skip	376	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005524a0	FUN_005524a0		game	skip	96	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	005526c0	FUN_005526c0		game	todo	16	0			
-Poq.exe	99	00552740	FUN_00552740		game	todo	33	2			005022f0 00502340 005026c0 00502780 00520e90 00520f60 005527f0 00552ab0
-Poq.exe	99	005527f0	FUN_005527f0	CStatusDialogC	game	todo	18	2			
+Poq.exe	99	005526c0	FUN_005526c0		game	skip	16	0	按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制		
+Poq.exe	99	00552740	FUN_00552740		game	skip	33	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
+Poq.exe	99	005527f0	FUN_005527f0	CStatusDialogC	game	skip	18	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00552840	FUN_00552840	~CStatusDialogC	game	skip	26	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00552930	FUN_00552930	CStatusDialogC	game	skip	29	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	005529b0	FUN_005529b0	CStatusDialogC	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005529c0	FUN_005529c0	CStatusDialogC	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005529d0	FUN_005529d0	CStatusDialogC	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005529f0	FUN_005529f0	CStatusDialogC	game	skip	31	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00552ab0	FUN_00552ab0	CStatusDialogC	game	todo	24	2			
-Poq.exe	99	00552b50	FUN_00552b50		game	todo	22	2			
+Poq.exe	99	00552ab0	FUN_00552ab0	CStatusDialogC	game	done	24	2			
+Poq.exe	99	00552b50	FUN_00552b50		game	skip	22	2	按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則		
 Poq.exe	99	00552c10	FUN_00552c10		game	skip	18	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00552c60	FUN_00552c60		game	skip	158	8	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00553070	FUN_00553070		game	skip	134	6	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00552b50
+Poq.exe	99	00553070	FUN_00553070		game	skip	134	6	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005533a0	FUN_005533a0		game	skip	69	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005534f0	FUN_005534f0		game	skip	71	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00553640	FUN_00553640		game	todo	72	0			005210b0 00521200 005212f0 0055e650
-Poq.exe	99	005538a0	FUN_005538a0		game	done	91	0			005210b0 00521200 005212f0 0055f5d0
-Poq.exe	99	00553b00	FUN_00553b00		game	done	79	0			00509a30
-Poq.exe	99	00553d20	FUN_00553d20		game	todo	39	2			005022f0 00502340 005026c0 00502780 00554040 00574540
+Poq.exe	99	00553640	FUN_00553640		game	skip	72	0	連線版：組隊／玩家列表／伺服器訊息，單機沒有		005210b0 00521200 005212f0
+Poq.exe	99	005538a0	FUN_005538a0		game	done	91	0			005210b0 00521200 005212f0
+Poq.exe	99	00553b00	FUN_00553b00		game	done	79	0			
+Poq.exe	99	00553d20	FUN_00553d20		game	skip	39	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00574540
 Poq.exe	99	00553e50	FUN_00553e50	CRoleDialog	game	skip	15	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00553ea0	FUN_00553ea0	CRoleDialog	game	skip	59	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00554040	FUN_00554040	CRoleDialog	game	todo	8	2			
+Poq.exe	99	00554040	FUN_00554040	CRoleDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00554050	FUN_00554050	CRoleDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00554060	FUN_00554060	CRoleDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00554080	FUN_00554080	CRoleDialog	game	done	31	2			
@@ -3640,59 +3640,59 @@ Poq.exe	99	005541f0	FUN_005541f0		game	skip	62	4	介面→本機伺服器訊息�
 Poq.exe	99	00554370	FUN_00554370		game	done	85	8			
 Poq.exe	99	00554570	FUN_00554570		game	skip	448	10	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0050b220
 Poq.exe	99	00555270	FUN_00555270		game	skip	53	11	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0053b370
-Poq.exe	99	00555380	FUN_00555380		game	todo	69	0			
-Poq.exe	99	005554c0	FUN_005554c0		game	todo	46	0			
+Poq.exe	99	00555380	FUN_00555380		game	todo	69	0		成套武裝 m_pCombo：把身上裝備欄的道具編號串成「weaponset #主角 null #編號…」送出（件數 > 1 才送）；等成套武裝系統（HANDOFF 還沒做）	
+Poq.exe	99	005554c0	FUN_005554c0		game	todo	46	0		成套武裝 m_Asunder：「weaponset #主角 #套裝編號」拆解成套武裝；等成套武裝系統	
 Poq.exe	99	00555650	FUN_00555650		game	skip	101	0	CRoleDialog 放進背包的客戶端鏡像：FUN_0050acf0 在範圍內找空欄，或 Type 0x33（成套武装容器）同名且 MemberCount<9 的欄，找不到送封包 0x69，找到由 FUN_0050c390 搬移；規則在 EasyRPG 端，引擎 bag_free／inv[] 直接放，沒有可翻的規則		
 Poq.exe	99	00555900	FUN_00555900		game	skip	90	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00555ae0	FUN_00555ae0		game	todo	50	3			005022f0 00502340 005026c0 00502780 00556000 00574540
+Poq.exe	99	00555ae0	FUN_00555ae0		game	skip	50	3	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00556000 00574540
 Poq.exe	99	00555c20	FUN_00555c20	CEquipDialog	game	skip	15	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00555c70	FUN_00555c70	CEquipDialog	game	skip	54	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00555da0	FUN_00555da0	~CEquipDialog	game	skip	91	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00555fc0	FUN_00555fc0	CEquipDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00555fd0	FUN_00555fd0	CEquipDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00555fe0	FUN_00555fe0	CEquipDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00556000	FUN_00556000	CEquipDialog	game	todo	82	2			
+Poq.exe	99	00556000	FUN_00556000	CEquipDialog	game	todo	82	2		裝備視窗 JM55 初始化：11 個裝備欄的底色／狀態，再填入目前人物（0x5567f0 已移植）；引擎 JM55 已有，視覺細節等人物預覽	
 Poq.exe	99	00556200	FUN_00556200	CEquipDialog	game	done	24	2			
 Poq.exe	99	005562a0	FUN_005562a0	CEquipDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005562b0	FUN_005562b0		game	skip	140	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00556560	FUN_00556560		game	todo	13	9			
-Poq.exe	99	005565a0	FUN_005565a0		game	todo	67	9			
+Poq.exe	99	00556560	FUN_00556560		game	skip	13	9	設定視窗位置欄位後重畫（FUN_00550120／FUN_005567f0 重填）：引擎視窗每幀依 win_x／win_y 重畫		
+Poq.exe	99	005565a0	FUN_005565a0		game	skip	67	9	視窗訊息／重繪的平台層轉接：SDL 事件迴圈與 ui_draw 取代		
 Poq.exe	99	005567f0	FUN_005567f0		game	skip	338	10	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00556f60	FUN_00556f60		game	skip	310	14	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	005576c0	FUN_005576c0		game	todo	34	2			005022f0 00502340 005026c0 00502780 00557880 00574540
+Poq.exe	99	005576c0	FUN_005576c0		game	skip	34	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00574540
 Poq.exe	99	00557780	FUN_00557780	CPropIntroduceDialog	game	skip	18	2	解構函數		
 Poq.exe	99	005577d0	FUN_005577d0	CPropIntroduceDialog	game	skip	15	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00557810	FUN_00557810	CPropIntroduceDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00557820	FUN_00557820	CPropIntroduceDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00557830	FUN_00557830	CPropIntroduceDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00557850	FUN_00557850	CPropIntroduceDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00557880	FUN_00557880	CPropIntroduceDialog	game	todo	24	2			
+Poq.exe	99	00557880	FUN_00557880	CPropIntroduceDialog	game	done	24	2			
 Poq.exe	99	00557920	FUN_00557920		game	skip	118	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00557c50	FUN_00557c50		game	todo	35	2			005022f0 00502340 005026c0 00502780 00557d20 00557e20 00574540
-Poq.exe	99	00557d20	FUN_00557d20	CSkillIntroduceDialog	game	todo	18	2			
+Poq.exe	99	00557c50	FUN_00557c50		game	skip	35	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00574540
+Poq.exe	99	00557d20	FUN_00557d20	CSkillIntroduceDialog	game	skip	18	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00557d70	FUN_00557d70	CSkillIntroduceDialog	game	skip	19	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00557dd0	FUN_00557dd0	CSkillIntroduceDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00557de0	FUN_00557de0	CSkillIntroduceDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00557df0	FUN_00557df0	CSkillIntroduceDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00557e10	FUN_00557e10	CSkillIntroduceDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00557e20	FUN_00557e20	CSkillIntroduceDialog	game	todo	24	2			
+Poq.exe	99	00557e20	FUN_00557e20	CSkillIntroduceDialog	game	done	24	2			
 Poq.exe	99	00557ec0	FUN_00557ec0		game	skip	107	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00558160	FUN_00558160		game	skip	26	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00558210	FUN_00558210		game	skip	148	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005585e0	FUN_005585e0		game	skip	84	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	005587d0	FUN_005587d0		game	todo	16	0			
-Poq.exe	99	00558850	FUN_00558850		game	todo	12	0			
-Poq.exe	99	005588a0	FUN_005588a0		game	todo	12	0			
-Poq.exe	99	005588f0	FUN_005588f0		game	todo	12	0			
-Poq.exe	99	00558940	FUN_00558940		game	todo	12	0			
+Poq.exe	99	005587d0	FUN_005587d0		game	skip	16	0	按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制		
+Poq.exe	99	00558850	FUN_00558850		game	done	12	0			
+Poq.exe	99	005588a0	FUN_005588a0		game	done	12	0			
+Poq.exe	99	005588f0	FUN_005588f0		game	done	12	0			
+Poq.exe	99	00558940	FUN_00558940		game	done	12	0			
 Poq.exe	99	00558990	FUN_00558990		game	done	34	0			
 Poq.exe	99	00558ac0	FUN_00558ac0		game	done	32	0			
 Poq.exe	99	00558b20	FUN_00558b20		game	done	45	0			
-Poq.exe	99	00558bc0	FUN_00558bc0		game	skip	120	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005078d0 005210b0 00521200 005212f0 0054f6c0 00555ae0 00556560
+Poq.exe	99	00558bc0	FUN_00558bc0		game	skip	120	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005078d0 005210b0 00521200 005212f0
 Poq.exe	99	00558f40	FUN_00558f40		game	done	90	0			005210b0 00521200 005212f0
-Poq.exe	99	005591a0	FUN_005591a0		game	skip	73	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005078d0 0054f6c0
+Poq.exe	99	005591a0	FUN_005591a0		game	skip	73	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005078d0
 Poq.exe	99	00559390	FUN_00559390		game	done	90	0			005210b0 00521200 005212f0
-Poq.exe	99	00559650	FUN_00559650		game	todo	65	2			005022f0 00502340 005026c0 00502780 0055a680 00574540
+Poq.exe	99	00559650	FUN_00559650		game	skip	65	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 0055a680 00574540
 Poq.exe	99	00559800	FUN_00559800	CTradeDialog	game	skip	18	2	解構函數		
 Poq.exe	99	00559850	FUN_00559850	~CTradeDialog	game	skip	26	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00559940	FUN_00559940	~CTradeDialog	game	skip	52	3	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -3702,28 +3702,28 @@ Poq.exe	99	00559ec0	FUN_00559ec0	CTradeDialog	game	skip	90	2	介面取控制項�
 Poq.exe	99	0055a140	FUN_0055a140	CTradeDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0055a150	FUN_0055a150	CTradeDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0055a180	FUN_0055a180	~CTradeDialog	game	skip	8	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	0055a1c0	FUN_0055a1c0	CTradeDialog	game	skip	69	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005078d0 0054f6c0 00556560
+Poq.exe	99	0055a1c0	FUN_0055a1c0	CTradeDialog	game	skip	69	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005078d0
 Poq.exe	99	0055a380	FUN_0055a380	CTradeDialog	game	skip	54	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055a4f0	FUN_0055a4f0	CTradeDialog	game	skip	42	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055a5e0	FUN_0055a5e0	CTradeDialog	game	done	24	2			
-Poq.exe	99	0055a680	FUN_0055a680	CTradeDialog	game	todo	17	2			
+Poq.exe	99	0055a680	FUN_0055a680	CTradeDialog	game	todo	17	2		CTradeDialog 顯示掛鉤：非遊戲暫停時送 0x532570(1)（暫停世界）；引擎開視窗不暫停（HANDOFF 待查）	
 Poq.exe	99	0055a6c0	FUN_0055a6c0	CTradeDialog	game	skip	22	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055a720	FUN_0055a720		game	skip	118	10	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055aa70	FUN_0055aa70		game	skip	21	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0055ab00	FUN_0055ab00		game	todo	22	2			
+Poq.exe	99	0055ab00	FUN_0055ab00		game	skip	22	2	按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則		
 Poq.exe	99	0055abc0	FUN_0055abc0		game	skip	79	4	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055adb0	FUN_0055adb0		game	done	33	4			
-Poq.exe	99	0055aed0	FUN_0055aed0		game	done	24	4			005078d0 0054f6c0 00556560
+Poq.exe	99	0055aed0	FUN_0055aed0		game	done	24	4			005078d0
 Poq.exe	99	0055af80	FUN_0055af80		game	skip	181	18	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0055b3e0	FUN_0055b3e0		game	skip	166	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0055ab00
+Poq.exe	99	0055b3e0	FUN_0055b3e0		game	skip	166	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055b7d0	FUN_0055b7d0		game	skip	79	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055b980	FUN_0055b980		game	done	79	0		CTradeDialog 買：價格>Money 不送封包、秀 UI_C 1508	main.c shop_buy	
 Poq.exe	99	0055bb30	FUN_0055bb30		game	skip	315	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055c240	FUN_0055c240		game	skip	99	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0055c460	FUN_0055c460		game	todo	16	0			
+Poq.exe	99	0055c460	FUN_0055c460		game	skip	16	0	按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制		
 Poq.exe	99	0055c4e0	FUN_0055c4e0		game	skip	90	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055c6d0	FUN_0055c6d0		game	skip	15	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0055c730	FUN_0055c730		game	todo	50	2			005022f0 00502340 005026c0 00502780 00574540
+Poq.exe	99	0055c730	FUN_0055c730		game	skip	50	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00574540
 Poq.exe	99	0055c870	FUN_0055c870	CExchangeDialog	game	skip	18	2	連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有		
 Poq.exe	99	0055c8c0	FUN_0055c8c0	~CExchangeDialog	game	skip	26	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0055c9b0	FUN_0055c9b0	~CExchangeDialog	game	skip	26	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -3742,45 +3742,45 @@ Poq.exe	99	0055d400	FUN_0055d400	CExchangeDialog	game	skip	36	2	介面→本機�
 Poq.exe	99	0055d500	FUN_0055d500	CExchangeDialog	game	skip	24	2	連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有		
 Poq.exe	99	0055d5a0	FUN_0055d5a0	CExchangeDialog	game	skip	32	2	連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有		
 Poq.exe	99	0055d620	FUN_0055d620	CExchangeDialog	game	skip	34	2	連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有		
-Poq.exe	99	0055d6d0	FUN_0055d6d0		game	todo	22	2			
-Poq.exe	99	0055d790	FUN_0055d790		game	todo	22	2			
-Poq.exe	99	0055d850	FUN_0055d850		game	todo	12	5			
-Poq.exe	99	0055d8a0	FUN_0055d8a0		game	todo	10	5			
+Poq.exe	99	0055d6d0	FUN_0055d6d0		game	skip	22	2	按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則		
+Poq.exe	99	0055d790	FUN_0055d790		game	skip	22	2	按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則		
+Poq.exe	99	0055d850	FUN_0055d850		game	skip	12	5	連線版：組隊／玩家列表／伺服器訊息，單機沒有		
+Poq.exe	99	0055d8a0	FUN_0055d8a0		game	skip	10	5	連線版：組隊／玩家列表／伺服器訊息，單機沒有		
 Poq.exe	99	0055d8c0	FUN_0055d8c0		game	skip	9	5	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0055d8e0	FUN_0055d8e0		game	skip	18	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055d930	FUN_0055d930		game	skip	45	5	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0050b220
 Poq.exe	99	0055da50	FUN_0055da50		game	skip	129	4	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0055dd80	FUN_0055dd80		game	skip	119	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0055d6d0
+Poq.exe	99	0055dd80	FUN_0055dd80		game	skip	119	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055e040	FUN_0055e040		game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0055e060	FUN_0055e060		game	skip	123	6	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0055e370	FUN_0055e370		game	skip	113	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0055d790
+Poq.exe	99	0055e370	FUN_0055e370		game	skip	113	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055e610	FUN_0055e610		game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	0055e650	FUN_0055e650		game	todo	28	1			005022f0 00502340 005026c0 00502780 0055e880 00574540
+Poq.exe	99	0055e650	FUN_0055e650		game	skip	28	1	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00574540
 Poq.exe	99	0055e6f0	FUN_0055e6f0	CRoleIntroduceDialog	game	skip	15	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	0055e740	FUN_0055e740	CRoleIntroduceDialog	game	skip	15	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	0055e780	FUN_0055e780	CRoleIntroduceDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0055e790	FUN_0055e790	CRoleIntroduceDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0055e7a0	FUN_0055e7a0	CRoleIntroduceDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0055e7c0	FUN_0055e7c0	CRoleIntroduceDialog	game	skip	30	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0055e880	FUN_0055e880	CRoleIntroduceDialog	game	todo	23	2			
+Poq.exe	99	0055e880	FUN_0055e880	CRoleIntroduceDialog	game	done	23	2			
 Poq.exe	99	0055e910	FUN_0055e910		game	skip	29	4	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0055e9b0	FUN_0055e9b0		game	todo	9	0			
-Poq.exe	99	0055e9d0	FUN_0055e9d0		game	todo	9	0			
-Poq.exe	99	0055e9f0	FUN_0055e9f0		game	todo	9	0			
+Poq.exe	99	0055e9b0	FUN_0055e9b0		game	skip	9	0	連線版：組隊／玩家列表／伺服器訊息，單機沒有		
+Poq.exe	99	0055e9d0	FUN_0055e9d0		game	skip	9	0	連線版：組隊／玩家列表／伺服器訊息，單機沒有		
+Poq.exe	99	0055e9f0	FUN_0055e9f0		game	skip	9	0	連線版：組隊／玩家列表／伺服器訊息，單機沒有		
 Poq.exe	99	0055ea10	FUN_0055ea10		game	skip	9	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0055ea30	FUN_0055ea30		game	skip	95	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055eca0	FUN_0055eca0		game	skip	95	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055eee0	FUN_0055eee0		game	skip	109	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0055f120	FUN_0055f120		game	skip	125	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0053b370
 Poq.exe	99	0055f4a0	FUN_0055f4a0		game	skip	63	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0055f5d0	FUN_0055f5d0		game	todo	81	3			005022f0 00502340 005026c0 00502780 00574540
+Poq.exe	99	0055f5d0	FUN_0055f5d0		game	skip	81	3	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00574540
 Poq.exe	99	0055f8b0	FUN_0055f8b0	CSkillDialog	game	skip	15	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	0055f900	FUN_0055f900	~CSkillDialog	game	done	70	6			
 Poq.exe	99	0055fb10	FUN_0055fb10	CSkillDialog	game	skip	72	2	依 ID 取控制項的轉接，無規則		
 Poq.exe	99	0055fca0	FUN_0055fca0	~CSkillDialog	game	skip	34	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0055fd30	FUN_0055fd30	CSkillDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0055fd40	FUN_0055fd40	CSkillDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	0055fd50	FUN_0055fd50	~CSkillDialog	game	skip	99	1	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0 00557c50
+Poq.exe	99	0055fd50	FUN_0055fd50	~CSkillDialog	game	skip	99	1	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005210b0 00521200 005212f0
 Poq.exe	99	00560000	FUN_00560000	CSkillDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00560020	FUN_00560020	CSkillDialog	game	skip	51	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00560110	FUN_00560110	CSkillDialog	game	skip	22	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
@@ -3788,7 +3788,7 @@ Poq.exe	99	00560170	FUN_00560170	~CSkillDialog	game	skip	74	0	解構函數（物
 Poq.exe	99	00560350	FUN_00560350	CSkillDialog	game	skip	18	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00560380	FUN_00560380	CSkillDialog	game	done	23	2			
 Poq.exe	99	00560410	FUN_00560410	CSkillDialog	game	skip	59	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		005212f0
-Poq.exe	99	00560550	FUN_00560550		game	todo	32	4			
+Poq.exe	99	00560550	FUN_00560550		game	todo	32	4		技能視窗點技能頁分格：頁碼 ≥4 時換頁並標灰（0x40000）；引擎 JM53 已有頁籤，手機操作用另一套，細節待對	
 Poq.exe	99	00560680	FUN_00560680		game	skip	117	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00560950	FUN_00560950		game	done	141	12			
 Poq.exe	99	00560d20	FUN_00560d20		game	skip	90	2	CSkillDialog 快捷技能格排版：依技能表 Hand（0 右、1 左、2 兩手）把 8 個控制項分成 0～3／4～7 兩組顯示或停用並寫圖示 ResID；引擎只有左右手兩個技能，沒有 8 格快捷列，純畫面無規則		
@@ -3798,12 +3798,12 @@ Poq.exe	99	005620b0	FUN_005620b0		game	skip	31	0	介面→本機伺服器訊息�
 Poq.exe	99	00562150	FUN_00562150		game	skip	70	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00563360
 Poq.exe	99	005622e0	FUN_005622e0		game	skip	66	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00563360
 Poq.exe	99	00562450	FUN_00562450		game	skip	66	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00563360
-Poq.exe	99	005625c0	FUN_005625c0		game	todo	13	0			
+Poq.exe	99	005625c0	FUN_005625c0		game	skip	13	0	連線版：組隊／玩家列表／伺服器訊息，單機沒有		
 Poq.exe	99	00562600	FUN_00562600		game	skip	72	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00563360
 Poq.exe	99	005627c0	FUN_005627c0		game	skip	55	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00563360
 Poq.exe	99	00562900	FUN_00562900		game	skip	55	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00563360
-Poq.exe	99	00562a40	FUN_00562a40		game	todo	31	0			
-Poq.exe	99	00562ac0	FUN_00562ac0		game	todo	19	1			005022f0 00502340 005026c0 00502780 00520e90 00520f60 00562ee0 00562f10
+Poq.exe	99	00562a40	FUN_00562a40		game	skip	31	0	連線版：組隊／玩家列表／伺服器訊息，單機沒有		
+Poq.exe	99	00562ac0	FUN_00562ac0		game	skip	19	1	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00562b60	FUN_00562b60	CTeamDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00562b90	FUN_00562b90	CTeamDialog	game	skip	34	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00562c70	FUN_00562c70	CTeamDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3811,16 +3811,16 @@ Poq.exe	99	00562c80	FUN_00562c80	CTeamDialog	game	skip	8	2	介面類別樣板：
 Poq.exe	99	00562c90	FUN_00562c90	~CTeamDialog	game	skip	69	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00562dd0	FUN_00562dd0	CTeamDialog	game	skip	14	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00562e20	FUN_00562e20	CTeamDialog	game	skip	30	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00563360
-Poq.exe	99	00562ee0	FUN_00562ee0	CTeamDialog	game	todo	17	2			
-Poq.exe	99	00562f10	FUN_00562f10	CTeamDialog	game	todo	11	2			00563360
+Poq.exe	99	00562ee0	FUN_00562ee0	CTeamDialog	game	skip	17	2	連線版：組隊／玩家列表／伺服器訊息，單機沒有		
+Poq.exe	99	00562f10	FUN_00562f10	CTeamDialog	game	skip	11	2	連線版：組隊／玩家列表／伺服器訊息，單機沒有		00563360
 Poq.exe	99	00562f30	FUN_00562f30		game	skip	96	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00563140	FUN_00563140		game	skip	76	15	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00563360	FUN_00563360		game	todo	26	31			
+Poq.exe	99	00563360	FUN_00563360		game	todo	26	31		CTeamDialog 頁籤刷新（12 格一頁）；連線組隊，待確認後 skip	
 Poq.exe	99	005633c0	FUN_005633c0		game	skip	176	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005638c0	FUN_005638c0		game	skip	150	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00563cd0	FUN_00563cd0		game	skip	73	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00563ea0	FUN_00563ea0		game	todo	11	0			00520e20
-Poq.exe	99	00563ee0	FUN_00563ee0		game	todo	38	2			005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	00563ea0	FUN_00563ea0		game	todo	11	0		CShortcutSkillDialog 選技能：呼叫 0x507180 設當前手技能並關窗；引擎 hand skill 選擇已做，待標位址	00520e20
+Poq.exe	99	00563ee0	FUN_00563ee0		game	skip	38	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00563fb0	FUN_00563fb0	CShortcutSkillDialog	game	skip	15	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00564000	FUN_00564000	~CShortcutSkillDialog	game	skip	20	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005640a0	FUN_005640a0	CShortcutSkillDialog	game	done	22	2		CShortcutSkillDialog 取 24 個 m_pItem 格子；main.c pick_open ui_load	
@@ -3834,37 +3834,37 @@ Poq.exe	99	00564240	FUN_00564240	CShortcutSkillDialog	game	skip	9	2	介面類別
 Poq.exe	99	00564250	FUN_00564250	CShortcutSkillDialog	game	done	40	2		CShortcutSkillDialog 擺位置（左手靠左、右手靠右，貼在主列上緣）；main.c pick_pos	
 Poq.exe	99	00564310	FUN_00564310		game	done	13	0			
 Poq.exe	99	00564360	FUN_00564360		game	done	131	10			
-Poq.exe	99	005646f0	FUN_005646f0		game	todo	36	2			005022f0 00502340 005026c0 00502780 00520e90 00520f60 005647d0 005648a0
-Poq.exe	99	005647d0	FUN_005647d0	CSceneNameDialog	game	todo	18	2			
+Poq.exe	99	005646f0	FUN_005646f0		game	skip	36	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60 005648a0
+Poq.exe	99	005647d0	FUN_005647d0	CSceneNameDialog	game	skip	18	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00564820	FUN_00564820	CSceneNameDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00564830	FUN_00564830	CSceneNameDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00564840	FUN_00564840	CSceneNameDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00564850	FUN_00564850	CSceneNameDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00564870	FUN_00564870	CSceneNameDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	005648a0	FUN_005648a0	CSceneNameDialog	game	todo	53	2			005212f0
-Poq.exe	99	00564a20	FUN_00564a20		game	todo	20	7			
+Poq.exe	99	005648a0	FUN_005648a0	CSceneNameDialog	game	todo	53	2		CSceneNameDialog 每幀：場景名橫幅（置中上方）與訊息文字（500 幀後消失）；引擎還沒有場景名橫幅，等「場景名／系統訊息」	005212f0
+Poq.exe	99	00564a20	FUN_00564a20		game	todo	20	7		CSceneNameDialog 設場景名／訊息文字與模式；同上	
 Poq.exe	99	00564a80	FUN_00564a80		game	skip	59	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	00564bb0	FUN_00564bb0		game	todo	17	0			005212f0
-Poq.exe	99	00564bf0	FUN_00564bf0		game	todo	17	0			005212f0
-Poq.exe	99	00564c30	FUN_00564c30		game	todo	43	3			005022f0 00502340 005026c0 00502780 00520e90 00564d80 005650a0 005651f0 00565250 00565330 005655a0 00565a40
-Poq.exe	99	00564d80	FUN_00564d80	CChooseDialog	game	todo	19	2			
+Poq.exe	99	00564bb0	FUN_00564bb0		game	todo	17	0		CChooseDialog 確定鈕：單機直接關閉對話；等整個對話介面	005212f0
+Poq.exe	99	00564bf0	FUN_00564bf0		game	todo	17	0		CChooseDialog 取消鈕：同確定；等整個對話介面	005212f0
+Poq.exe	99	00564c30	FUN_00564c30		game	skip	43	3	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 005650a0 005651f0 00565250 00565330 005655a0 00565a40
+Poq.exe	99	00564d80	FUN_00564d80	CChooseDialog	game	skip	19	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00564de0	FUN_00564de0	~CChooseDialog	game	skip	40	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00564ee0	FUN_00564ee0	CChooseDialog	game	skip	22	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00564f60	FUN_00564f60	~CChooseDialog	game	skip	38	10	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00565080	FUN_00565080	CChooseDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00565090	FUN_00565090	CChooseDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	005650a0	FUN_005650a0	CChooseDialog	game	todo	60	2			
-Poq.exe	99	005651f0	FUN_005651f0	CChooseDialog	game	todo	20	2			
-Poq.exe	99	00565250	FUN_00565250	CChooseDialog	game	todo	43	2			
-Poq.exe	99	00565330	FUN_00565330	CChooseDialog	game	todo	72	2			
-Poq.exe	99	005655a0	FUN_005655a0	CChooseDialog	game	todo	163	2			0054cbb0
-Poq.exe	99	00565a40	FUN_00565a40	CChooseDialog	game	todo	33	2			
-Poq.exe	99	00565b90	FUN_00565b90		game	todo	23	6			
-Poq.exe	99	00565c10	FUN_00565c10		game	todo	9	4			
-Poq.exe	99	00565c20	FUN_00565c20		game	todo	10	0			00520db0
-Poq.exe	99	00565c50	FUN_00565c50		game	todo	12	0			00520e20 00533fc0
-Poq.exe	99	00565c70	FUN_00565c70		game	todo	20	0			00520db0
-Poq.exe	99	00565cf0	FUN_00565cf0		game	todo	36	2			005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	005650a0	FUN_005650a0	CChooseDialog	game	todo	60	2		CChooseDialog（JM108 劇情對話／選項）每幀；引擎現為簡化對話框 dialog_draw，等整個對話介面	
+Poq.exe	99	005651f0	FUN_005651f0	CChooseDialog	game	todo	20	2		CChooseDialog 關閉：清暫存、關閉 JM108；等整個對話介面	
+Poq.exe	99	00565250	FUN_00565250	CChooseDialog	game	todo	43	2		CChooseDialog 建立文字暫存圖；等整個對話介面	
+Poq.exe	99	00565330	FUN_00565330	CChooseDialog	game	todo	72	2		CChooseDialog 顯示／隱藏時各 HUD（主列、隊伍、小地圖）互相切換；等整個對話介面	
+Poq.exe	99	005655a0	FUN_005655a0	CChooseDialog	game	todo	163	2		CChooseDialog 畫對話文字（[0..] 顏色標記、換行、說話者）；等整個對話介面	0054cbb0
+Poq.exe	99	00565a40	FUN_00565a40	CChooseDialog	game	todo	33	2		CChooseDialog 重繪文字暫存；等整個對話介面	
+Poq.exe	99	00565b90	FUN_00565b90		game	todo	23	6		CChooseDialog 設對話文字、重設計時；等整個對話介面	
+Poq.exe	99	00565c10	FUN_00565c10		game	todo	9	4		CChooseDialog 設旗標；等整個對話介面	
+Poq.exe	99	00565c20	FUN_00565c20		game	todo	10	0		CChooseDialog 選項回應（經伺服器訊息送選擇）；等整個對話介面	00520db0
+Poq.exe	99	00565c50	FUN_00565c50		game	todo	12	0		CChooseDialog 關閉並隱藏 HUD；等整個對話介面	00520e20 00533fc0
+Poq.exe	99	00565c70	FUN_00565c70		game	todo	20	0		CChooseDialog 收到伺服器的對話文字（說話者、文字）並開窗；等整個對話介面	00520db0
+Poq.exe	99	00565cf0	FUN_00565cf0		game	skip	36	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00565dd0	FUN_00565dd0	CPlayerDialog	game	skip	18	2	連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有		
 Poq.exe	99	00565e20	FUN_00565e20	~CPlayerDialog	game	skip	73	5	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00566010	FUN_00566010	~CPlayerDialog	game	skip	44	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -3878,33 +3878,33 @@ Poq.exe	99	005661f0	FUN_005661f0	CPlayerDialog	game	skip	12	2	連線版介面：
 Poq.exe	99	00566220	FUN_00566220	~CPlayerDialog	game	skip	26	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005662b0	FUN_005662b0	CPlayerDialog	game	skip	12	2	連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有		00520e20 00533fc0
 Poq.exe	99	005662e0	FUN_005662e0	CPlayerDialog	game	skip	18	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	005663a0	FUN_005663a0		game	todo	23	4			005022f0 00502340 005026c0 00502780 00520e90 00520f60 005664f0 00566550 00566590 005665f0 00566630 00566740
+Poq.exe	99	005663a0	FUN_005663a0		game	skip	23	4	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60 005664f0 00566550 00566590 005665f0 00566630 00566740
 Poq.exe	99	00566470	FUN_00566470	CChapterDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	005664a0	FUN_005664a0	CChapterDialog	game	skip	14	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	005664d0	FUN_005664d0	CChapterDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005664e0	FUN_005664e0	CChapterDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	005664f0	FUN_005664f0	CChapterDialog	game	todo	19	2			
-Poq.exe	99	00566550	FUN_00566550	CChapterDialog	game	todo	13	2			
-Poq.exe	99	00566590	FUN_00566590	CChapterDialog	game	todo	17	2			
-Poq.exe	99	005665f0	FUN_005665f0	CChapterDialog	game	todo	12	2			
-Poq.exe	99	00566630	FUN_00566630	CChapterDialog	game	todo	48	2			
-Poq.exe	99	00566740	FUN_00566740	CChapterDialog	game	todo	57	2			
-Poq.exe	99	00566860	FUN_00566860		game	todo	44	0			
+Poq.exe	99	005664f0	FUN_005664f0	CChapterDialog	game	todo	19	2		CChapterDialog 結束：清字幕暫存、停配音、顯示 HUD；等章節字幕畫面	
+Poq.exe	99	00566550	FUN_00566550	CChapterDialog	game	todo	13	2		CChapterDialog 開始：隱藏 HUD；等章節字幕畫面	
+Poq.exe	99	00566590	FUN_00566590	CChapterDialog	game	todo	17	2		CChapterDialog 下一頁：章節 ≥10 且已最後一頁就結束，否則 0x566920 載下一頁；等章節字幕畫面	
+Poq.exe	99	005665f0	FUN_005665f0	CChapterDialog	game	todo	12	2		CChapterDialog 顯示掛鉤：章節 ≥10 時暫停（0x5326a0）；等章節字幕畫面	
+Poq.exe	99	00566630	FUN_00566630	CChapterDialog	game	todo	48	2		CChapterDialog 重畫字幕暫存圖；等章節字幕畫面	
+Poq.exe	99	00566740	FUN_00566740	CChapterDialog	game	todo	57	2		CChapterDialog 每幀捲動：每 +0x2b0 拍上移一個字高，到頂放配音完才換頁；等章節字幕畫面	
+Poq.exe	99	00566860	FUN_00566860		game	todo	44	0		CChapterDialog 開配音 sound\C%.3d.wav；等章節字幕畫面	
 Poq.exe	99	00566920	FUN_00566920		game	done	186	8			
-Poq.exe	99	00566ec0	FUN_00566ec0		game	skip	10	1	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	00566ec0	FUN_00566ec0		game	skip	10	1	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00566ef0	FUN_00566ef0	CDiffcultyDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00566f20	FUN_00566f20	CDiffcultyDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00566f30	FUN_00566f30	CDiffcultyDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00566f40	FUN_00566f40	CDiffcultyDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00566f50	FUN_00566f50	CDiffcultyDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00566f70	FUN_00566f70	CDiffcultyDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00566f80	FUN_00566f80		game	todo	14	0			005212f0
+Poq.exe	99	00566f80	FUN_00566f80		game	todo	14	0		難度選擇 JM21 選定後存難度 DAT_00645684 並關窗；等標題／新遊戲流程	005212f0
 Poq.exe	99	00566fd0	FUN_00566fd0	~CLogDialog	game	skip	88	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005672a0	FUN_005672a0	~CLogDialog	game	skip	75	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00567410	FUN_00567410	~CLogDialog	game	skip	55	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00567580	FUN_00567580	~CLogDialog	game	skip	65	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00567740	FUN_00567740	~CLogDialog	game	skip	13	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00567770	FUN_00567770	~CLogDialog	game	skip	20	1	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	00567770	FUN_00567770	~CLogDialog	game	skip	20	1	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00567810	FUN_00567810	CLogDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00567840	FUN_00567840	CLogDialog	game	skip	46	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00567990	FUN_00567990	CLogDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3916,20 +3916,20 @@ Poq.exe	99	00567cf0	FUN_00567cf0		game	skip	54	4	介面→本機伺服器訊息�
 Poq.exe	99	00567e60	FUN_00567e60		game	skip	89	7	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00568020	FUN_00568020		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005680b0	FUN_005680b0		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00568130	FUN_00568130		game	todo	19	4			005022f0 00502340 005026c0 00502780 00520e90 00520f60 005682c0 00568310 005685e0 005685f0 00568620 00568720
+Poq.exe	99	00568130	FUN_00568130		game	skip	19	4	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60 005682c0 00568310 005685e0 005685f0 00568620 00568720
 Poq.exe	99	005681d0	FUN_005681d0	CCreditsDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00568200	FUN_00568200	CCreditsDialog	game	skip	26	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	005682a0	FUN_005682a0	CCreditsDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005682b0	FUN_005682b0	CCreditsDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	005682c0	FUN_005682c0	CCreditsDialog	game	todo	16	2			
-Poq.exe	99	00568310	FUN_00568310	CCreditsDialog	game	todo	106	2			
-Poq.exe	99	005685e0	FUN_005685e0	CCreditsDialog	game	todo	9	2			
-Poq.exe	99	005685f0	FUN_005685f0	CCreditsDialog	game	todo	9	2			
+Poq.exe	99	005682c0	FUN_005682c0	CCreditsDialog	game	todo	16	2		CCreditsDialog 結束：停字幕捲動、釋放暫存；等片尾字幕	
+Poq.exe	99	00568310	FUN_00568310	CCreditsDialog	game	todo	106	2		CCreditsDialog 開始：組字幕文字（文字 0x81c）、排版成暫存圖；等片尾字幕	
+Poq.exe	99	005685e0	FUN_005685e0	CCreditsDialog	game	todo	9	2		CCreditsDialog 設狀態 1；等片尾字幕	
+Poq.exe	99	005685f0	FUN_005685f0	CCreditsDialog	game	todo	9	2		CCreditsDialog 設狀態 3；等片尾字幕	
 Poq.exe	99	00568600	FUN_00568600	CCreditsDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		00520e20
 Poq.exe	99	00568610	FUN_00568610	CCreditsDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00568620	FUN_00568620	CCreditsDialog	game	todo	47	2			
-Poq.exe	99	00568720	FUN_00568720	CCreditsDialog	game	todo	27	2			005212f0
-Poq.exe	99	00568790	FUN_00568790		game	skip	39	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0056a530
+Poq.exe	99	00568620	FUN_00568620	CCreditsDialog	game	todo	47	2		CCreditsDialog 重畫字幕暫存圖；等片尾字幕	
+Poq.exe	99	00568720	FUN_00568720	CCreditsDialog	game	todo	27	2		CCreditsDialog 每幀捲動字幕、到頂關閉；等片尾字幕	005212f0
+Poq.exe	99	00568790	FUN_00568790		game	skip	39	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00568850	FUN_00568850		game	skip	107	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00568aa0	FUN_00568aa0		game	skip	43	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00520e20
 Poq.exe	99	00568bc0	FUN_00568bc0		game	skip	14	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00520e20
@@ -3938,102 +3938,102 @@ Poq.exe	99	00568e90	FUN_00568e90		game	skip	50	0	介面→本機伺服器訊息�
 Poq.exe	99	00568fb0	FUN_00568fb0		game	skip	58	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005690f0	FUN_005690f0		game	skip	83	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00569300	FUN_00569300		game	skip	75	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	005694b0	FUN_005694b0		game	todo	51	2			005022f0 00502340 005026c0 00502780 00574540
+Poq.exe	99	005694b0	FUN_005694b0		game	skip	51	2	連線版：幫會		005022f0 00502340 005026c0 00502780 00574540
 Poq.exe	99	00569650	FUN_00569650	CConfraternityDialog	game	skip	18	2	連線版：幫會		
 Poq.exe	99	005696a0	FUN_005696a0	CConfraternityDialog	game	skip	63	2	連線版：幫會		
 Poq.exe	99	00569880	FUN_00569880	CConfraternityDialog	game	skip	8	2	連線版：幫會		
 Poq.exe	99	00569890	FUN_00569890	CConfraternityDialog	game	skip	8	2	連線版：幫會		
 Poq.exe	99	005698a0	FUN_005698a0	~CConfraternityDialog	game	skip	47	2	連線版：幫會		
 Poq.exe	99	005699a0	FUN_005699a0	CConfraternityDialog	game	skip	18	2	連線版：幫會		
-Poq.exe	99	005699f0	FUN_005699f0	CConfraternityDialog	game	skip	40	2	連線版：幫會		0056a530
-Poq.exe	99	00569ac0	FUN_00569ac0	CConfraternityDialog	game	skip	11	2	連線版：幫會		0056a530
+Poq.exe	99	005699f0	FUN_005699f0	CConfraternityDialog	game	skip	40	2	連線版：幫會		
+Poq.exe	99	00569ac0	FUN_00569ac0	CConfraternityDialog	game	skip	11	2	連線版：幫會		
 Poq.exe	99	00569ae0	FUN_00569ae0		game	skip	32	7	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00569b90	FUN_00569b90		game	skip	196	11	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0056a0e0	FUN_0056a0e0		game	skip	156	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0056a530	FUN_0056a530		game	todo	26	15			
+Poq.exe	99	0056a530	FUN_0056a530		game	skip	26	15	連線版：組隊／玩家列表／伺服器訊息，單機沒有		
 Poq.exe	99	0056a590	FUN_0056a590		game	skip	175	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0056aa90	FUN_0056aa90		game	skip	68	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0056ac30	FUN_0056ac30		game	skip	70	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0056add0	FUN_0056add0		game	skip	82	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00520db0
-Poq.exe	99	0056aff0	FUN_0056aff0		game	todo	51	2			005022f0 00502340 005026c0 00502780 0056b510 0056b540 00574540
+Poq.exe	99	0056aff0	FUN_0056aff0		game	skip	51	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 0056b510 00574540
 Poq.exe	99	0056b140	FUN_0056b140	CLearnSkillDialog	game	skip	22	2	解構函數		
 Poq.exe	99	0056b1d0	FUN_0056b1d0	~CLearnSkillDialog	game	skip	17	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056b260	FUN_0056b260	CLearnSkillDialog	game	skip	43	2	依 ID 取控制項的轉接，無規則		
 Poq.exe	99	0056b320	FUN_0056b320	CLearnSkillDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056b330	FUN_0056b330	CLearnSkillDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056b340	FUN_0056b340	CLearnSkillDialog	game	skip	93	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0056b510	FUN_0056b510	CLearnSkillDialog	game	todo	10	2			
-Poq.exe	99	0056b540	FUN_0056b540	CLearnSkillDialog	game	todo	24	2			
+Poq.exe	99	0056b510	FUN_0056b510	CLearnSkillDialog	game	todo	10	2		CLearnSkillDialog OnInit：呼叫 0x56b650（已 skip，經伺服器訊息層）；單機技能學習在 JM53 m_pAdd（EasyRPG 0x1003b9e0 條件）已做	
+Poq.exe	99	0056b540	FUN_0056b540	CLearnSkillDialog	game	done	24	2			
 Poq.exe	99	0056b5e0	FUN_0056b5e0		game	skip	15	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056b650	FUN_0056b650		game	skip	134	6	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0056b9c0	FUN_0056b9c0		game	todo	11	0			00520e20 005322e0
-Poq.exe	99	0056b9f0	FUN_0056b9f0		game	todo	11	0			00520e20
-Poq.exe	99	0056ba70	FUN_0056ba70		game	todo	17	2			005022f0 00502340 005026c0 00502780 00520e90 00520f60 0056bac0 0056bb20 0056bb60
-Poq.exe	99	0056bac0	FUN_0056bac0	CPortraitDialog	game	todo	18	2			
+Poq.exe	99	0056b9c0	FUN_0056b9c0		game	todo	11	0		CPortraitDialog 取消：回選頭像前狀態；等標題／新遊戲（選頭像）	00520e20 005322e0
+Poq.exe	99	0056b9f0	FUN_0056b9f0		game	todo	11	0		CPortraitDialog 確定：把選的頭像送出；等標題／新遊戲（選頭像）	00520e20
+Poq.exe	99	0056ba70	FUN_0056ba70		game	skip	17	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60 0056bb60
+Poq.exe	99	0056bac0	FUN_0056bac0	CPortraitDialog	game	skip	18	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056bb10	FUN_0056bb10	CPortraitDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	0056bb20	FUN_0056bb20	CPortraitDialog	game	todo	8	2			
+Poq.exe	99	0056bb20	FUN_0056bb20	CPortraitDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056bb30	FUN_0056bb30	CPortraitDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056bb40	FUN_0056bb40	CPortraitDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	0056bb60	FUN_0056bb60	CPortraitDialog	game	todo	22	2			
+Poq.exe	99	0056bb60	FUN_0056bb60	CPortraitDialog	game	todo	22	2		CPortraitDialog OnInit：讀目前頭像資料；等標題／新遊戲（選頭像）	
 Poq.exe	99	0056bbb0	FUN_0056bbb0		game	skip	144	1	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		00520db0 005212f0
 Poq.exe	99	0056bf70	FUN_0056bf70		game	skip	48	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0056c0d0	FUN_0056c0d0		game	skip	35	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0056c1a0	FUN_0056c1a0		game	todo	10	0			
+Poq.exe	99	0056c1a0	FUN_0056c1a0		game	todo	10	0		CPortraitDialog 選頭像格；等標題／新遊戲（選頭像）	
 Poq.exe	99	0056c1c0	FUN_0056c1c0		game	skip	114	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0056c400	FUN_0056c400		game	done	49	6			005022f0 00502340 005026c0 00502780 00520e90 00520f60 0056c530 0056c620 0056cb10 0056ce20 0056d100
-Poq.exe	99	0056c530	FUN_0056c530	CLoadDialog	game	todo	24	2			
+Poq.exe	99	0056c400	FUN_0056c400		game	done	49	6			005022f0 00502340 005026c0 00502780 00520f60
+Poq.exe	99	0056c530	FUN_0056c530	CLoadDialog	game	skip	24	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056c5a0	FUN_0056c5a0	~CLoadDialog	game	skip	28	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	0056c620	FUN_0056c620	CLoadDialog	game	todo	57	2			
+Poq.exe	99	0056c620	FUN_0056c620	CLoadDialog	game	skip	57	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	0056c760	FUN_0056c760	CLoadDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056c770	FUN_0056c770	CLoadDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056c780	FUN_0056c780	~CLoadDialog	game	skip	71	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056c900	FUN_0056c900	~CLoadDialog	game	skip	85	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	0056cb10	FUN_0056cb10	CLoadDialog	game	todo	27	2			
+Poq.exe	99	0056cb10	FUN_0056cb10	CLoadDialog	game	skip	27	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056cb90	FUN_0056cb90	CLoadDialog	game	done	53	2			
 Poq.exe	99	0056cce0	FUN_0056cce0	~CLoadDialog	game	done	66	0			
-Poq.exe	99	0056ce20	FUN_0056ce20	CLoadDialog	game	todo	131	2			
+Poq.exe	99	0056ce20	FUN_0056ce20	CLoadDialog	game	done	131	2			
 Poq.exe	99	0056cf7a	FUN_0056cf7a	~CLoadDialog	game	skip	73	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056d029	FUN_0056d029	~CLoadDialog	game	skip	24	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	0056d100	FUN_0056d100	CLoadDialog	game	todo	13	2			
+Poq.exe	99	0056d100	FUN_0056d100	CLoadDialog	game	skip	13	2	存取盤視窗刪除鈕依是否選了格切換啟用幀：引擎 m_pDelete 是隱藏的（main.c 存檔段 shortcut）		
 Poq.exe	99	0056d130	FUN_0056d130		game	skip	326	8	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0050b220 0056db60
-Poq.exe	99	0056db60	FUN_0056db60		game	todo	37	2			
-Poq.exe	99	0056dc90	FUN_0056dc90		game	todo	35	0			
-Poq.exe	99	0056dd60	FUN_0056dd60		game	skip	10	6	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520e90
+Poq.exe	99	0056db60	FUN_0056db60		game	todo	37	2		存取盤單格內容設定（五個隊伍頭像圖號、文字）；等頭像（HANDOFF 存檔段 shortcut：每格隊伍頭像）	
+Poq.exe	99	0056dc90	FUN_0056dc90		game	skip	35	0	memcpy_s 安全拷貝（執行庫等價）：C 的 memcpy 取代	memcpy_s 安全拷貝（執行庫等價，檢查長度後 memcpy）；C 的 memcpy 取代	
+Poq.exe	99	0056dd60	FUN_0056dd60		game	skip	10	6	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780
 Poq.exe	99	0056dd90	FUN_0056dd90	CGameStatusDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	0056ddc0	FUN_0056ddc0	CGameStatusDialog	game	skip	8	4	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056ddd0	FUN_0056ddd0	CGameStatusDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056dde0	FUN_0056dde0	CGameStatusDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056ddf0	FUN_0056ddf0	CStatusDialogA|CNetStatusDialog|CMainControlDialog|+1	game	skip	21	8	連線版／除錯用介面		
-Poq.exe	99	0056de50	FUN_0056de50	~CStatusDialogA	game	skip	45	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 0056e1e0 0056e2f0 0056e360 0056e450
+Poq.exe	99	0056de50	FUN_0056de50	~CStatusDialogA	game	skip	45	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005022f0 00502340 005026c0 00502780 0056e1e0 0056e360 0056e450
 Poq.exe	99	0056dfd0	FUN_0056dfd0	CPortraitPanel	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	0056e000	FUN_0056e000	~CPortraitPanel	game	skip	9	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056e020	FUN_0056e020	~CPortraitPanel	game	skip	54	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056e1c0	FUN_0056e1c0	CPortraitPanel	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056e1d0	FUN_0056e1d0	CInterfaceBase|CPushbutton|CAnimate|+3	game	skip	8	27	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	0056e1e0	FUN_0056e1e0	CPortraitPanel	game	todo	46	2			
-Poq.exe	99	0056e2f0	FUN_0056e2f0	CPortraitPanel	game	todo	26	2			
+Poq.exe	99	0056e1e0	FUN_0056e1e0	CPortraitPanel	game	todo	46	2		CPortraitPanel 載入 5 個頭像精靈（0x1223～0x1227）；等隊伍系統（頭像轉盤）	
+Poq.exe	99	0056e2f0	FUN_0056e2f0	CPortraitPanel	game	skip	26	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056e350	FUN_0056e350	CPortraitPanel|CEditBox|CAnimate|+7	game	skip	8	23	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	0056e360	FUN_0056e360	CPortraitPanel	game	todo	35	2			
-Poq.exe	99	0056e450	FUN_0056e450	CPortraitPanel	game	todo	83	2			0049dcb0 0056e650 0056e930
-Poq.exe	99	0056e650	FUN_0056e650		game	todo	71	4			
-Poq.exe	99	0056e810	FUN_0056e810		game	todo	9	2			
-Poq.exe	99	0056e830	FUN_0056e830		game	todo	50	2			0056e930
-Poq.exe	99	0056e930	FUN_0056e930		game	todo	54	4			
+Poq.exe	99	0056e360	FUN_0056e360	CPortraitPanel	game	todo	35	2		CPortraitPanel 繪製（依矩形剪裁貼上頭像精靈）；等隊伍系統	
+Poq.exe	99	0056e450	FUN_0056e450	CPortraitPanel	game	todo	83	2		CPortraitPanel 每幀：頭像轉盤動畫（5 格輪轉，動畫完成才切下一步）；等隊伍系統	0049dcb0 0056e650 0056e930
+Poq.exe	99	0056e650	FUN_0056e650		game	todo	71	4		CPortraitPanel 把 5 個頭像精靈調成亮度／顏色（依目前頭像序號）；等隊伍系統	
+Poq.exe	99	0056e810	FUN_0056e810		game	todo	9	2		CPortraitPanel 清除某格選取；等隊伍系統	
+Poq.exe	99	0056e830	FUN_0056e830		game	todo	50	2		CPortraitPanel 轉到第 n 個頭像（算順逆向最短）；等隊伍系統	0056e930
+Poq.exe	99	0056e930	FUN_0056e930		game	todo	54	4		CPortraitPanel 往下轉一格並設 5 個頭像精靈圖號；等隊伍系統	
 Poq.exe	99	0056ead0	FUN_0056ead0		game	skip	191	6	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		0056e650
-Poq.exe	99	0056ef30	FUN_0056ef30		game	todo	60	0			005735c0 00573710 005737a0 005738f0 00573d30 00574010
-Poq.exe	99	0056f080	FUN_0056f080		game	todo	21	1			005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	0056ef30	FUN_0056ef30		game	skip	60	0	開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用		005735c0
+Poq.exe	99	0056f080	FUN_0056f080		game	skip	21	1	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	0056f0f0	FUN_0056f0f0	CJoinNetGameDialog	game	skip	24	2	連線版／除錯用介面		
-Poq.exe	99	0056f160	FUN_0056f160	~CJoinNetGameDialog	game	skip	48	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00520e20 00535db0
+Poq.exe	99	0056f160	FUN_0056f160	~CJoinNetGameDialog	game	skip	48	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00520e20
 Poq.exe	99	0056f2a0	FUN_0056f2a0	CJoinNetGameDialog	game	skip	9	2	連線版／除錯用介面		
 Poq.exe	99	0056f2d0	FUN_0056f2d0	CJoinNetGameDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056f2e0	FUN_0056f2e0	CJoinNetGameDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056f2f0	FUN_0056f2f0	CJoinNetGameDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056f310	FUN_0056f310	CJoinNetGameDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0056f320	FUN_0056f320		game	skip	10	4	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	0056f340	FUN_0056f340		game	todo	26	1			
+Poq.exe	99	0056f340	FUN_0056f340		game	skip	26	1	輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代		
 Poq.exe	99	0056f3e0	FUN_0056f3e0	~CCIme	game	skip	21	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056f450	FUN_0056f450	LIme	game	skip	24	6	平台層：Windows IME 輸入法（網頁用瀏覽器輸入）		
-Poq.exe	99	0056f4e0	FUN_0056f4e0		game	todo	9	0			
+Poq.exe	99	0056f4e0	FUN_0056f4e0		game	skip	9	0	輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代		
 Poq.exe	99	0056f500	FUN_0056f500	CCIme|LIme	game	skip	67	7	平台層：Windows IME 輸入法（網頁用瀏覽器輸入）		
 Poq.exe	99	0056f670	FUN_0056f670	~CCIme	game	skip	20	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0056f6e0	FUN_0056f6e0	~CCIme	game	skip	60	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -4054,15 +4054,15 @@ Poq.exe	99	00570110	FUN_00570110	~CCIme	game	skip	30	0	解構函數（物件清�
 Poq.exe	99	00570190	FUN_00570190	~CCIme	game	skip	129	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00570610	FUN_00570610	~CCIme	game	skip	39	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00570710	FUN_00570710	~CCIme	game	skip	14	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00570740	FUN_00570740		game	todo	10	0			
-Poq.exe	99	00570760	FUN_00570760		game	todo	9	0			
-Poq.exe	99	00570780	FUN_00570780		game	todo	9	0			
-Poq.exe	99	005707a0	FUN_005707a0		game	todo	9	0			
-Poq.exe	99	005707c0	FUN_005707c0		game	todo	9	0			
+Poq.exe	99	00570740	FUN_00570740		game	skip	10	0	輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代		
+Poq.exe	99	00570760	FUN_00570760		game	skip	9	0	輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代		
+Poq.exe	99	00570780	FUN_00570780		game	skip	9	0	輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代		
+Poq.exe	99	005707a0	FUN_005707a0		game	skip	9	0	輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代		
+Poq.exe	99	005707c0	FUN_005707c0		game	skip	9	0	輸入法（IME）轉接：ImmSetXxx 平台 API 包裝，網頁／SDL 用 SDL_TextInput 取代		
 Poq.exe	99	005707e0	FUN_005707e0		game	skip	9	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005707f0	FUN_005707f0	LIme	game	skip	11	6	平台層：Windows IME 輸入法（網頁用瀏覽器輸入）		
-Poq.exe	99	00570820	FUN_00570820		game	todo	36	0			
-Poq.exe	99	00570900	FUN_00570900		game	todo	60	0			
+Poq.exe	99	00570820	FUN_00570820		game	todo	36	0		難度選擇 JM21 開窗；等標題／新遊戲流程	
+Poq.exe	99	00570900	FUN_00570900		game	done	60	0			
 Poq.exe	99	00570aa0	FUN_00570aa0		game	skip	10	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		00520e20
 Poq.exe	99	00570ac0	FUN_00570ac0		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00570b50	FUN_00570b50		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -4070,16 +4070,16 @@ Poq.exe	99	00570be0	FUN_00570be0		game	skip	16	0	介面類別樣板：虛擬函�
 Poq.exe	99	00570c70	FUN_00570c70		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00570cf0	FUN_00570cf0		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00570d70	FUN_00570d70		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00570df0	FUN_00570df0		game	todo	33	2			005022f0 00502340 005026c0 00502780 00520e90 00520f60 00570f00 00571160
-Poq.exe	99	00570f00	FUN_00570f00	CSinglePlayerDialog	game	todo	24	2			
+Poq.exe	99	00570df0	FUN_00570df0		game	skip	33	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60 00571160
+Poq.exe	99	00570f00	FUN_00570f00	CSinglePlayerDialog	game	skip	24	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00570f70	FUN_00570f70	CSinglePlayerDialog	game	skip	58	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00571120	FUN_00571120	CSinglePlayerDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00571130	FUN_00571130	CSinglePlayerDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00571140	FUN_00571140	CSinglePlayerDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00571160	FUN_00571160	CSinglePlayerDialog	game	todo	302	2			
+Poq.exe	99	00571160	FUN_00571160	CSinglePlayerDialog	game	todo	302	2		讀／存設定檔（FileData、SaveFolder 設定表）；等設定畫面	
 Poq.exe	99	00571780	FUN_00571780	CSinglePlayerDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00571790	FUN_00571790		game	todo	34	0			
-Poq.exe	99	00571860	FUN_00571860		game	todo	36	0			
+Poq.exe	99	00571790	FUN_00571790		game	todo	34	0		遊戲設定 JM31 開窗；等設定畫面	
+Poq.exe	99	00571860	FUN_00571860		game	todo	36	0		遊戲說明 JM36 開窗；等設定畫面	
 Poq.exe	99	00571940	FUN_00571940		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005719d0	FUN_005719d0		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00571a60	FUN_00571a60		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -4088,46 +4088,46 @@ Poq.exe	99	00571b80	FUN_00571b80		game	skip	16	0	介面類別樣板：虛擬函�
 Poq.exe	99	00571c00	FUN_00571c00		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00571c80	FUN_00571c80		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00571d00	FUN_00571d00		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00571d80	FUN_00571d80		game	todo	26	2			005022f0 00502340 005026c0 00502780 00520e90 00520f60 00571ea0
+Poq.exe	99	00571d80	FUN_00571d80		game	skip	26	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00571e70	FUN_00571e70	COptionDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
-Poq.exe	99	00571ea0	FUN_00571ea0	COptionDialog	game	todo	74	2			
+Poq.exe	99	00571ea0	FUN_00571ea0	COptionDialog	game	skip	74	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	005720d0	FUN_005720d0	COptionDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005720e0	FUN_005720e0	COptionDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005720f0	FUN_005720f0	COptionDialog	game	skip	12	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00572110	FUN_00572110	COptionDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00572120	FUN_00572120	COptionDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00572130	FUN_00572130	COptionDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00572140	FUN_00572140		game	todo	28	0			0050b220
-Poq.exe	99	00572200	FUN_00572200		game	todo	26	0			0050b220
+Poq.exe	99	00572140	FUN_00572140		game	todo	28	0		創建新主角：外貌／職業選項上一個；等標題／新遊戲流程	0050b220
+Poq.exe	99	00572200	FUN_00572200		game	todo	26	0		創建新主角：外貌／職業選項下一個；等標題／新遊戲流程	0050b220
 Poq.exe	99	005722c0	FUN_005722c0		game	skip	278	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	005728c0	FUN_005728c0		game	todo	60	0			
-Poq.exe	99	00572a60	FUN_00572a60		game	todo	12	0			00573530
-Poq.exe	99	00572aa0	FUN_00572aa0		game	todo	17	0			00573530
+Poq.exe	99	005728c0	FUN_005728c0		game	done	60	0			
+Poq.exe	99	00572a60	FUN_00572a60		game	todo	12	0		創建新主角：選性別頁；等標題／新遊戲流程	00573530
+Poq.exe	99	00572aa0	FUN_00572aa0		game	todo	17	0		創建新主角：選職業頁；等標題／新遊戲流程	00573530
 Poq.exe	99	00572b00	FUN_00572b00		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00572b90	FUN_00572b90		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00572c20	FUN_00572c20		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00572cb0	FUN_00572cb0		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00572d30	FUN_00572d30		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00572db0	FUN_00572db0		game	skip	16	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00572e30	FUN_00572e30		game	todo	47	1			005022f0 00502340 005026c0 00502780 00520e90 00520f60 00572fa0 00573020 00573250
-Poq.exe	99	00572fa0	FUN_00572fa0	CCreateNewCharDialog	game	todo	27	2			
-Poq.exe	99	00573020	FUN_00573020	CCreateNewCharDialog	game	todo	63	2			
+Poq.exe	99	00572e30	FUN_00572e30		game	skip	47	1	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60 00573250
+Poq.exe	99	00572fa0	FUN_00572fa0	CCreateNewCharDialog	game	skip	27	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00573020	FUN_00573020	CCreateNewCharDialog	game	skip	63	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00573210	FUN_00573210	CCreateNewCharDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00573220	FUN_00573220	CCreateNewCharDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00573230	FUN_00573230	CCreateNewCharDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00573250	FUN_00573250	CCreateNewCharDialog	game	todo	57	2			0050b220
-Poq.exe	99	00573400	FUN_00573400		game	todo	57	0			
-Poq.exe	99	00573530	FUN_00573530		game	todo	20	2			0050b220
-Poq.exe	99	005735c0	FUN_005735c0		game	todo	50	3			
-Poq.exe	99	00573710	FUN_00573710		game	todo	34	4			
-Poq.exe	99	005737a0	FUN_005737a0		game	todo	69	3			
-Poq.exe	99	005738f0	FUN_005738f0		game	todo	37	4			005739a0
-Poq.exe	99	005739a0	FUN_005739a0		game	todo	103	2			
-Poq.exe	99	00573d30	FUN_00573d30		game	todo	9	3			00573d50
-Poq.exe	99	00573d50	FUN_00573d50		game	todo	90	2			
-Poq.exe	99	00574010	FUN_00574010		game	todo	85	4			
-Poq.exe	99	00574150	FUN_00574150		game	todo	29	0			
-Poq.exe	99	00574200	FUN_00574200		game	skip	15	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520e90 00520f60
+Poq.exe	99	00573250	FUN_00573250	CCreateNewCharDialog	game	todo	57	2		創建新主角 OnInit：填各欄文字、預設選項；等標題／新遊戲流程	0050b220
+Poq.exe	99	00573400	FUN_00573400		game	skip	57	0	開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用		
+Poq.exe	99	00573530	FUN_00573530		game	todo	20	2		創建新主角：依選項刷新描述文字與外觀預覽；等標題／新遊戲流程	0050b220
+Poq.exe	99	005735c0	FUN_005735c0		game	todo	50	3		INI 設定容器建構（user.ini）；等設定畫面	
+Poq.exe	99	00573710	FUN_00573710		game	skip	34	4	開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用		
+Poq.exe	99	005737a0	FUN_005737a0		game	skip	69	3	開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用		
+Poq.exe	99	005738f0	FUN_005738f0		game	skip	37	4	開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用		
+Poq.exe	99	005739a0	FUN_005739a0		game	skip	103	2	開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用		
+Poq.exe	99	00573d30	FUN_00573d30		game	skip	9	3	開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用		
+Poq.exe	99	00573d50	FUN_00573d50		game	skip	90	2	開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用		
+Poq.exe	99	00574010	FUN_00574010		game	skip	85	4	開／存設定檔 ini\user.ini（登入帳號清單 COMMON／COUNT／USER%d）與 INI 容器：連線版登入，單機不用		
+Poq.exe	99	00574150	FUN_00574150		game	skip	29	0	可變參數／字串小工具（執行庫等價）：C 的 snprintf／strtok 取代		
+Poq.exe	99	00574200	FUN_00574200		game	skip	15	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520f60
 Poq.exe	99	00574270	FUN_00574270	CHelpDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	005742a0	FUN_005742a0	CHelpDialog	game	skip	30	2	介面取控制項：把視窗的 m_pXxx 控制項（FUN_00582cb0 依編號取）綁到成員；引擎 ui_load／ui_find 依名稱找控制項取代		
 Poq.exe	99	00574360	FUN_00574360	CHelpDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -4135,77 +4135,77 @@ Poq.exe	99	00574370	FUN_00574370	CHelpDialog	game	skip	8	2	介面類別樣板：
 Poq.exe	99	00574380	FUN_00574380	CHelpDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005743a0	FUN_005743a0	CHelpDialog	game	skip	11	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005743d0	FUN_005743d0	~CHelpDialog	game	skip	42	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	005744b0	FUN_005744b0		game	skip	10	27	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00520e90 00574540
+Poq.exe	99	005744b0	FUN_005744b0		game	skip	10	27	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		005022f0 00502340 005026c0 00502780 00574540
 Poq.exe	99	005744e0	FUN_005744e0	CGameInDialog	game	skip	12	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	00574510	FUN_00574510	CGameInDialog	game	skip	8	26	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00574520	FUN_00574520	CGameInDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00574530	FUN_00574530	CGameInDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00574540	FUN_00574540	CMakePropDialog|CPropDialog|CStatusDialogB|+11	game	todo	35	29			
+Poq.exe	99	00574540	FUN_00574540	CMakePropDialog|CPropDialog|CStatusDialogB|+11	game	todo	35	29		視窗基底每幀：隱藏／顯示邏輯與選取框；平台層，待確認後 skip	
 Poq.exe	99	005745f0	FUN_005745f0	CGameInDialog	game	skip	12	24	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00574610	FUN_00574610	CGameInDialog	game	skip	9	26	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	00574620	FUN_00574620		game	todo	40	0			
-Poq.exe	99	005746d0	FUN_005746d0		game	todo	32	0			
-Poq.exe	99	00574780	FUN_00574780		game	todo	24	3			
-Poq.exe	99	005747f0	FUN_005747f0		game	todo	35	1			
-Poq.exe	99	005748b0	FUN_005748b0		game	todo	40	2			
-Poq.exe	99	00574960	FUN_00574960		game	todo	24	2			
-Poq.exe	99	005749e0	FUN_005749e0		game	todo	210	5			
-Poq.exe	99	00574cd0	FUN_00574cd0		game	todo	18	2			
-Poq.exe	99	00574d20	FUN_00574d20		game	todo	8	7			
-Poq.exe	99	00574d30	FUN_00574d30		game	todo	8	7			
-Poq.exe	99	00574d60	FUN_00574d60		game	todo	8	9			
-Poq.exe	99	00574d70	FUN_00574d70		game	todo	28	2			
-Poq.exe	99	00574e30	FUN_00574e30		game	todo	8	26			
-Poq.exe	99	00574e40	FUN_00574e40		game	todo	8	1			
-Poq.exe	99	00574e50	FUN_00574e50		game	todo	217	2			
-Poq.exe	99	005753a0	FUN_005753a0		game	todo	71	0			
-Poq.exe	99	005754e0	FUN_005754e0		game	todo	71	0			
-Poq.exe	99	00575630	FUN_00575630		game	todo	16	2			
-Poq.exe	99	00575660	FUN_00575660		game	todo	9	0			
-Poq.exe	99	00575670	FUN_00575670		game	todo	16	4			
-Poq.exe	99	005756a0	FUN_005756a0		game	todo	16	3			
-Poq.exe	99	005756d0	FUN_005756d0		game	todo	16	4			
+Poq.exe	99	00574620	FUN_00574620		game	skip	40	0	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	005746d0	FUN_005746d0		game	skip	32	0	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00574780	FUN_00574780		game	skip	24	3	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	005747f0	FUN_005747f0		game	skip	35	1	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	005748b0	FUN_005748b0		game	skip	40	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00574960	FUN_00574960		game	skip	24	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	005749e0	FUN_005749e0		game	skip	210	5	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00574cd0	FUN_00574cd0		game	skip	18	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00574d20	FUN_00574d20		game	skip	8	7	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00574d30	FUN_00574d30		game	skip	8	7	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00574d60	FUN_00574d60		game	skip	8	9	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00574d70	FUN_00574d70		game	skip	28	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00574e30	FUN_00574e30		game	skip	8	26	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00574e40	FUN_00574e40		game	skip	8	1	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00574e50	FUN_00574e50		game	skip	217	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	005753a0	FUN_005753a0		game	skip	71	0	可變參數／字串小工具（執行庫等價）：C 的 snprintf／strtok 取代		
+Poq.exe	99	005754e0	FUN_005754e0		game	skip	71	0	可變參數／字串小工具（執行庫等價）：C 的 snprintf／strtok 取代		
+Poq.exe	99	00575630	FUN_00575630		game	skip	16	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00575660	FUN_00575660		game	skip	9	0	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00575670	FUN_00575670		game	skip	16	4	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	005756a0	FUN_005756a0		game	skip	16	3	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	005756d0	FUN_005756d0		game	skip	16	4	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
 Poq.exe	99	00575700	FUN_00575700		game	done	9	4			
-Poq.exe	99	00575710	FUN_00575710		game	todo	9	2			
-Poq.exe	99	00575720	FUN_00575720		game	todo	74	1			
-Poq.exe	99	00575900	FUN_00575900		game	todo	37	2			005749e0
-Poq.exe	99	005759d0	FUN_005759d0		game	todo	28	0			
-Poq.exe	99	00575a40	FUN_00575a40		game	todo	19	2			
-Poq.exe	99	00575a90	FUN_00575a90		game	todo	18	4			
-Poq.exe	99	00575ae0	FUN_00575ae0	~CCharactor	game	done	33	2		actor_illusion_sample：共用首部件播放幀索引，各部件越界回0；保存Frame與離地世界位置，各槽獨立採樣，接walk_fx	00574e30
+Poq.exe	99	00575710	FUN_00575710		game	skip	9	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00575720	FUN_00575720		game	skip	74	1	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00575900	FUN_00575900		game	skip	37	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	005759d0	FUN_005759d0		game	skip	28	0	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00575a40	FUN_00575a40		game	skip	19	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00575a90	FUN_00575a90		game	skip	18	4	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00575ae0	FUN_00575ae0	~CCharactor	game	done	33	2		actor_illusion_sample：共用首部件播放幀索引，各部件越界回0；保存Frame與離地世界位置，各槽獨立採樣，接walk_fx	
 Poq.exe	99	00575bd0	FUN_00575bd0	~CCharactor	game	done	31	2		actor_illusion_draw：各部件依序繪殘影，接actor_draw的本體前位置；不以首槽是否有殘影阻擋其餘槽	
-Poq.exe	99	00575cb0	FUN_00575cb0	~CCharactor	game	done	31	8		actor_illusion_begin：有效有序列的各本體部件建立獨立殘影容器，參數2/12/2/1；第6修正及移動進入呼叫	00574e30
-Poq.exe	99	00575d40	FUN_00575d40	~CCharactor	game	skip	55	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574e30
-Poq.exe	99	00575e50	FUN_00575e50	~CCharactor	game	skip	35	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574e30
-Poq.exe	99	00575f10	FUN_00575f10	~CCharactor	game	skip	436	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574780 005749e0 00574d30 00574d60 00575670 005756a0 005756d0
+Poq.exe	99	00575cb0	FUN_00575cb0	~CCharactor	game	done	31	8		actor_illusion_begin：有效有序列的各本體部件建立獨立殘影容器，參數2/12/2/1；第6修正及移動進入呼叫	
+Poq.exe	99	00575d40	FUN_00575d40	~CCharactor	game	skip	55	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00575e50	FUN_00575e50	~CCharactor	game	skip	35	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00575f10	FUN_00575f10	~CCharactor	game	skip	436	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005769a0	FUN_005769a0	~CCharactor	game	skip	21	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	005769f0	FUN_005769f0	~CCharactor	game	skip	21	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00576a50	FUN_00576a50	~CCharactor	game	skip	41	13	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574960
+Poq.exe	99	00576a50	FUN_00576a50	~CCharactor	game	skip	41	13	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00576b30	FUN_00576b30	~CCharactor	game	skip	19	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00576b90	FUN_00576b90	~CCharactor	game	done	21	5		actor_illusion_end：逐個有效且有序列部件清殘影容器；第6修正解除／到期及場景釋放接入	00574e30
-Poq.exe	99	00576c00	FUN_00576c00	~CCharactor	game	skip	40	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574d20
-Poq.exe	99	00576c70	FUN_00576c70	~CCharactor	game	skip	61	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574d20 00574e30
-Poq.exe	99	00576d70	FUN_00576d70	~CCharactor	game	skip	61	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574d30 00574e30
-Poq.exe	99	00576e70	FUN_00576e70	~CCharactor	game	skip	122	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		005748b0 00574d20 00574d30 00574d60 00574e30
-Poq.exe	99	00577100	FUN_00577100	~CCharactor	game	done	32	6			00574e30
-Poq.exe	99	00577170	FUN_00577170	~CCharactor	game	skip	80	12	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574d70 00574e30
+Poq.exe	99	00576b90	FUN_00576b90	~CCharactor	game	done	21	5		actor_illusion_end：逐個有效且有序列部件清殘影容器；第6修正解除／到期及場景釋放接入	
+Poq.exe	99	00576c00	FUN_00576c00	~CCharactor	game	skip	40	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00576c70	FUN_00576c70	~CCharactor	game	skip	61	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00576d70	FUN_00576d70	~CCharactor	game	skip	61	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00576e70	FUN_00576e70	~CCharactor	game	skip	122	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00577100	FUN_00577100	~CCharactor	game	done	32	6			
+Poq.exe	99	00577170	FUN_00577170	~CCharactor	game	skip	80	12	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00577340	FUN_00577340	~CCharactor	game	skip	8	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00577360	FUN_00577360	~CCharactor	game	done	14	2			
-Poq.exe	99	00577390	FUN_00577390	~CCharactor	game	skip	46	11	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574d60 00574e30
-Poq.exe	99	00577440	FUN_00577440	~CCharactor	game	skip	61	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574d60 00574e30
-Poq.exe	99	00577540	FUN_00577540	~CCharactor	game	skip	16	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574e40
-Poq.exe	99	00577580	FUN_00577580	~CCharactor	game	skip	333	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		00574d20 00574d30 00574d60 00575630 00575670 005756d0 00575900
+Poq.exe	99	00577390	FUN_00577390	~CCharactor	game	skip	46	11	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00577440	FUN_00577440	~CCharactor	game	skip	61	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00577540	FUN_00577540	~CCharactor	game	skip	16	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00577580	FUN_00577580	~CCharactor	game	skip	333	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00577d60	FUN_00577d60	~CCharactor	game	done	14	4		actor_illusion_enabled：目前群不存在回false，否則僅看首部件殘影容器非NULL；空容器亦true，接actor_draw整群殘影繪圖門檻	
 Poq.exe	99	00577d90	FUN_00577d90	~CPropDialog	game	skip	15	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00577dd0	FUN_00577dd0		game	todo	31	14			00574e50
-Poq.exe	99	00577ea0	FUN_00577ea0		game	todo	50	2			00574e30
-Poq.exe	99	00577fd0	FUN_00577fd0		game	todo	16	2			
-Poq.exe	99	00578000	FUN_00578000		game	done	31	12			00574e30
-Poq.exe	99	005780b0	FUN_005780b0		game	done	31	2			00574e30 00575710
-Poq.exe	99	00578160	FUN_00578160		game	skip	31	0	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		00575720
-Poq.exe	99	00578240	FUN_00578240		game	skip	172	0	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		00574780 005749e0 005756a0
-Poq.exe	99	00578610	FUN_00578610		game	skip	23	10	部件容器建構：一般C陣列承接		00575a40 00577fd0
-Poq.exe	99	005786a0	FUN_005786a0		game	skip	21	15	部件容器解構：一般C陣列承接		00575a90
+Poq.exe	99	00577dd0	FUN_00577dd0		game	skip	31	14	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00577ea0	FUN_00577ea0		game	skip	50	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00577fd0	FUN_00577fd0		game	skip	16	2	CSprGroup 精靈組（部件群）的載入／複製／取欄位／繪製：引擎 Role／Anim／Sprite 載入與 SDL 貼圖（混合模式、顏色鍵）取代，無遊戲規則		
+Poq.exe	99	00578000	FUN_00578000		game	done	31	12			
+Poq.exe	99	005780b0	FUN_005780b0		game	done	31	2			
+Poq.exe	99	00578160	FUN_00578160		game	skip	31	0	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		
+Poq.exe	99	00578240	FUN_00578240		game	skip	172	0	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		
+Poq.exe	99	00578610	FUN_00578610		game	skip	23	10	部件容器建構：一般C陣列承接		
+Poq.exe	99	005786a0	FUN_005786a0		game	skip	21	15	部件容器解構：一般C陣列承接		
 Poq.exe	99	00578710	FUN_00578710		game	skip	20	10	部件群載入 PLI（CPartDeadObj 0x499120 用）：Actor 共用 Role，不另載		
 Poq.exe	99	00578770	FUN_00578770		game	skip	10	17	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00578790	FUN_00578790		game	skip	34	11	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		
@@ -4214,8 +4214,8 @@ Poq.exe	99	00578930	FUN_00578930		game	skip	61	4	UI 工具箱／平台層：CInt
 Poq.exe	99	00578a00	FUN_00578a00		game	skip	12	8	部件群設光照旗標：Role 繪圖不分旗標		
 Poq.exe	99	00578a20	FUN_00578a20		game	skip	29	6	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		
 Poq.exe	99	00578ac0	FUN_00578ac0		game	done	17	2			
-Poq.exe	99	00578b10	FUN_00578b10		game	skip	31	0	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		005747f0
-Poq.exe	99	00578bd0	FUN_00578bd0		game	skip	17	4	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		00574cd0
+Poq.exe	99	00578b10	FUN_00578b10		game	skip	31	0	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		
+Poq.exe	99	00578bd0	FUN_00578bd0		game	skip	17	4	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		
 Poq.exe	99	00578c10	FUN_00578c10		game	skip	46	2	UI 工具箱／平台層：CInterfaceBase 與控制項基底、JM 介面腳本解析（		
 Poq.exe	99	00578cb0	FUN_00578cb0	~CGameApp	game	skip	55	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00578dd0	FUN_00578dd0	~CGameApp	game	skip	32	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
