@@ -2085,7 +2085,7 @@ int res_dlg_nth(const char *name, int id, int nth, char *out, size_t cap) {
     if (c == 4) { free(cache[3].d); c = 3; cache[3].name[0] = 0; }
     if (!cache[c].name[0]) {
         cache[c].d = res_file("Dlg", name, &cache[c].n);
-        snprintf(cache[c].name, sizeof cache[c].name, "%s", name);
+        if (cache[c].d) snprintf(cache[c].name, sizeof cache[c].name, "%s", name);  // 還沒設資源路徑時找不到，不要把失敗記起來
     }
     uint8_t *d = cache[c].d;
     size_t n = cache[c].n;

@@ -2231,3 +2231,69 @@ CDeadDialog|CMessagePipeDialog|CExchangeDialog|CPlayerDialog  連線版介面：
 005275b0  同 0x5162d0 的另一個封包入口（解空格參數）
 00527510  客戶端封包：設商店頁籤旗標後重畫；引擎 shop 頁籤直接改欄位
 00537800  CMainDialog 訊息轉接：0x103 按鍵就轉 0x532430 送封包；單機 click_cmd 直接處理
+# ---- 2026-11-18 第 4 輪：章節／片尾／地圖／隊伍面板收尾後逐組判斷 ----
+005665f0  CChapterDialog 顯示掛鉤：章節 ≥ 10 只寫遊戲模式全域 0x626180 = 4 再交基底顯示；該全域在反編譯裡只有寫入、沒有讀者，引擎沒有對應狀態
+00566860  CChapterDialog 開配音 sound\C%.3d.wav（Mfx 播放器）：配音 29 個共 74MB，網頁版不打包；caption.c 照原版「沒有配音」的預設（每行 200 拍、不等配音）
+0053d810  CMapDialog 重畫：依髒矩形（GRECT 串列）逐一重畫子精靈，純 DirectDraw 局部重畫；引擎每幀整個畫面重畫（mapwin.c map_draw）
+00549610  地圖視窗 9 段門檻分段取等級索引：全 Poq.exe 沒有呼叫者（死碼），也沒有資料表指向它
+005496d0  地圖視窗 3 段門檻分段：沒有呼叫者（死碼）
+00549710  地圖視窗標記格（0x200×0x100 的 MapData 格，每格 0x10 bytes）全清：格子內容只由伺服器封包 0x4fa560 → 0x549a10 填，單機沒有生產者
+00549a10  地圖視窗設標記格值：呼叫者 0x4fa560 是伺服器 MapData 封包處理，單機沒有生產者
+005518c0  CStatusDialogB 9 格顯示更新：JM51_状态界面_主控B（9 格版）只在連線版（0x4f6960 == 2）建立，單機用 JM51 主控 5 格版（party.c）
+00506e20  CStatusDialogA（JM511_状态界面_左）設目前角色：JM511 在 Poq.exe 裡沒有任何建立它的字串（這版沒用到）
+005078d0  CStatusDialogA 設血魔值：同 JM511，沒有建立者
+00507910  CStatusDialogA 重整：同 JM511，沒有建立者
+0056e1e0  CPortraitPanel（頭像轉盤，只掛在沒用到的 JM511）載入 5 個頭像精靈
+0056e360  CPortraitPanel 繪製：同上，JM511 沒用到
+0056e450  CPortraitPanel 每幀轉盤動畫：同上
+0056e650  CPortraitPanel 調 5 個精靈亮度顏色：同上
+0056e810  CPortraitPanel 清除某格選取：同上
+0056e830  CPortraitPanel 轉到第 n 個頭像（0x506e20 呼叫）：同上
+0056e930  CPortraitPanel 往下轉一格：同上
+0056b9c0  CPortraitDialog 取消：選頭像是連線版帳號資料（0x4fead0 送伺服器），單機創角 JM09 的頭像由職業／外貌決定
+0056b9f0  CPortraitDialog 確定：把選的頭像經 0x4fead0 送伺服器，單機沒有帳號
+0056bb60  CPortraitDialog OnInit：讀連線版帳號的目前頭像，單機沒有帳號
+0056c1a0  CPortraitDialog 點頭像格：同上，連線版帳號資料
+0056b510  CLearnSkillDialog OnInit：只呼叫已 skip 的 0x56b650（伺服器訊息層）；單機學技能在 JM53 m_pAdd（EasyRPG 0x1003b9e0 條件，已做）
+00563360  CTeamDialog 頁籤刷新：連線組隊（P 鍵組隊界面），單機組隊走劇情 AddMember
+005648a0  CSceneNameDialog 每幀：場景名橫幅（置中、距頂 100，500 拍後消失）只由連線客戶端封包 0x5213c0 → 0x528d10 觸發，單機沒有對應事件
+00564a20  CSceneNameDialog 設場景名／訊息：呼叫者只有 0x528d10（封包觸發）
+00528d10  客戶端封包：開場景名橫幅；同上，封包分派 0x5213c0 在單機沒有來源
+0055a680  CTradeDialog 顯示掛鉤：已接進主迴圈 trade_paused（開交易視窗世界暫停），不是獨立函數
+005362e0  標題畫面（連線版帳號）用戶名檢查：空白 UI_C 1542、含 \/|:*?"<> 空格 UI_C 1544，之後開連線登入 JM06；單機沒有帳號
+00536420  標題畫面「加入網絡游戏」：同 0x5362e0 的用戶名檢查後開 JM06
+005353c0  標題畫面開創角 JM09：引擎沒有標題畫面，新遊戲直接 new_show
+00533500  標題畫面訊息轉接（輸入框內容 +0x2bc／+0x2c0 空白就不處理，否則送連線資料）：連線版
+00534410  標題畫面按鈕：單人／制作群／連線版分支開 JM02／JM33／JM06；引擎沒有標題畫面（片尾字幕由章節結束或後續標題接 credits_start）
+00547720  標題畫面「讀取」：把單人遊戲資料表複製給 JM62 存取盘並開窗；引擎用主列的存取盘（sav_open）
+00571160  讀／存設定檔 ini\user.ini 的 FileData／SaveFolder 設定表（登入帳號清單）：單機設定存檔用 save/ 目錄的 IndexedDB，不讀原版帳號 ini
+005735c0  user.ini 設定容器建構（登入帳號清單）：同上
+00574540  視窗基底每幀：隱藏／顯示邏輯與選取框（MFC 式 CDialog 狀態機）；引擎 JM 視窗直接用 open 旗標
+0044e2a0  鏡頭看不在畫面內的人：只被沒有呼叫者的 0x5327a0 包裝呼叫（死碼）
+0044da80  UI 控制項顯示切換（0x4fc990 取旗標 → 0x583e40 顯示／隱藏）：介面殼
+00497b20  CObj 取 +0x2c 的存取函數：Actor 欄位直接讀，沒有規則
+004a7bb0  資源庫（.Lib）讀一筆：依索引表 seek 後讀進配置的緩衝；引擎 res.c lib_for／res_span 已取代
+004a7c60  資源庫讀一筆（已載入就不重讀）：同 res.c 已取代
+004a7d10  資源庫索引逐筆載入：同 res.c 已取代
+0049e800  CSprGroup deleting destructor（釋放精靈群後 free）：引擎生命週期取代
+0049dcb0  播放器「回到起點」判斷：唯一呼叫者是 CPortraitPanel 每幀 0x56e450（JM511 頭像轉盤，這版沒用到）
+0044ae60  送訊息 0xf023 給每個隊員（連線版同步封包）
+0044aeb0  載入畫面把遊戲速度值 +n 加快載入：引擎資源非同步載入（res_loading），沒有同步載入畫面
+0044dbd0  開始同步載入畫面（速度 +100、0x4f58f0 進度條）：同上，引擎用 loading_tip 小提示
+0044dda0  載入畫面進度條推進 n 格：同上
+0044db40  每拍 1/20 機率呼叫除錯用函式指標 0x626674（指回 0x405fb0 自己的包裝，無指派者）後顯示 HUD（0x404174）；HUD 顯示由 hud_draw 控制
+0046bc10  記錄錄影模式與檔名（Rec 錄影／回放）：單機不做 Rec
+0046a140  CInitObjMng 初始化後掃 SInit 複製：引擎 .ONT 擺放（NpcSpec／scene_load）取代
+0046a2c0  CInitObjMng 依名稱找 SInit：同上，劇情建角走 story_rt／actors_sync
+0046a370  CInitObjMng 依索引配置 SInit 並設已建立：同上
+0046ce90  載場景描述、清舊物件、綁五管理器：引擎 scene_load／scene_free／enter_scene 取代（管理器是原版全域物件）
+0046d1d0  清資源鏈、重綁五管理器、清 CObjMng：同上 scene_free
+0046e360  場景建立（綁管理器、讀探索、鏡頭與小地圖快取）：鏡頭部分已在 viewport_enter，其餘是原版全域管理器綁定
+00474030  連線版依場景名查找／配置 CScnGC：單機切換是 enter_scene + story_enter
+00474b30  儲存場景切換七個參數並送封包 0xd23：連線版
+00475270  連線版同步場景切換（保存可見角色、換場景、移交）：單機同上 enter_scene
+0047b900  連線版依目的地移除客戶端並通知：單機只有一個 scene_client
+0047b9d0  跨場景轉接客戶端移除：連線版
+0047ca00  由連線共用命令區解碼建立物件（名稱 0x0e 還原空白）：封包解碼，單機劇情物件走 story_rt
+004764c0  CScnGC 新增 SKillPlayer 倒數節點：踢人倒數，倒數結束送 0x147 給客戶端（連線版）
+00476560  CScnGC SKillPlayer 倒數每拍：同上

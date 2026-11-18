@@ -4116,6 +4116,114 @@ static void npc_ai_test(void) {
 }
 
 // 對話視窗 JM108 高度：底圖 150 起跳，台詞／選項放不下就加高；difficulty 預設普通
+// 地圖視窗 JM60：開窗、m_pAll 切換、m_pCClose 關、小地圖格座標（每格 8×4 菱形，64×64 剛好 512×256）
+static void map_test(void) {
+    map_open = 0; map_show();
+    assert(map_open && ui_find(&map_d, "m_pSite[35]") && !(ui_find(&map_d, "m_pDestiation")->flags & 9));
+    assert(map_tap(0, 0));  // 開著時點擊都被吃掉（圖片沒載入的測試環境點不到按鈕）
+    map_show(); assert(!map_open);  // 再按主列的地圖鈕 = 關
+    assert(!map_tap(0, 0));
+    Scene s = {.w = 64, .h = 64};
+    int px, py;
+    assert(map_cell_px(&s, 0, 0, &px, &py) == 1.0f && px == 256 && py == 2);
+    map_cell_px(&s, 63, 0, &px, &py); assert(px == 508 && py == 128);
+    int cx, cy;  // 反算
+    map_cell_px(&s, 10, 20, &px, &py);
+    assert(map_pixel_cell(&s, px, py, &cx, &cy) && cx == 10 && cy == 20);
+    assert(!map_pixel_cell(&s, 0, 0, &cx, &cy));
+    Scene big = {.w = 128, .h = 128};  // 太大就縮小置中
+    assert(map_cell_px(&big, 0, 0, &px, &py) == 0.5f && px == 256);
+}
+
+// 隊伍面板：狀態圖示組（表 0x63ea40）、0x53b0b0 取最大兩組、隊伍名單
+static void party_test(void) {
+    assert(party_group(4) == 0 && party_group(17) == 1 && party_group(3) == 5 && party_group(65) == 6 && party_group(1) == 7);
+    assert(party_group(99) == -1 && party_group(0) == -1);
+    Actor a = {0};
+    int ic[2];
+    a.buff_n = 3; a.buff[0].status = 4; a.buff[1].status = 3; a.buff[2].status = 1;
+    assert(party_icons(&a, ic) == 3 && ic[0] == 7 && ic[1] == 5);
+    a.buff_n = 1; assert(party_icons(&a, ic) == 1 && ic[0] == 0 && ic[1] == -1);
+    a.buff[0].status = 99; assert(!party_icons(&a, ic) && ic[0] == -1 && ic[1] == -1);
+    Actor saved[2] = {actors[0], actors[1]}; int saved_count = actor_count;
+    actors[0] = (Actor){.role = &empty_test_role, .object_kind = 31};
+    actors[1] = (Actor){.role = &empty_test_role, .object_kind = 31};
+    actor_count = 2;
+    Actor *m[PARTY_SLOTS];
+    assert(party_list(m) == 1 && m[0] == &actors[0]);  // 沒有劇情隊伍表（skilltest 不連劇情）：只有主角
+    actors[0] = saved[0]; actors[1] = saved[1]; actor_count = saved_count;
+}
+
+// 創角名字輸入框：上限 20 位元組（中文算 2）、退格以 UTF-8 字元為單位
+static void new_name_test(void) {
+    new_name[0] = 0;
+    new_name_add("ab"); new_name_add("\xe6\x89\xb6");
+    assert(!strcmp(new_name, "ab\xe6\x89\xb6") && name_len(new_name) == 4);
+    new_name_back(); assert(!strcmp(new_name, "ab"));
+    new_name_back(); new_name_back(); new_name_back(); assert(!new_name[0]);
+    for (int i = 0; i < 12; i++) new_name_add("\xe6\x89\xb6");
+    assert(name_len(new_name) == 20);  // 第 11 個中文放不下
+    new_name_default(); new_prof = 0; new_var = 0; new_name_default(); assert(new_name[0]);
+    new_name[0] = 0;
+}
+
+// 說明視窗內文 0x5743d0：各頁筆數 9、22、13、10、3，每筆一行，圖示標記拿掉
+static void help_text_test(void) {
+    static const int rows[5] = {9, 22, 13, 10, 3};
+    char t[8192];
+    for (int i = 0; i < 5; i++) {
+        help_text(i, t, sizeof t);
+        int n = 0;
+        for (const char *p = t; *p; p++) n += *p == '\n';
+        assert(n == rows[i] && !strchr(t, '&') && !strchr(t, '['));
+    }
+    help_text(5, t, sizeof t); assert(!t[0]);
+}
+
+// 暫停計數 0x44d9e0
+static void pause_count_test(void) {
+    SceneClient saved = scene_client; Scene sc = {0};
+    scene_client = (SceneClient){&sc, 1, 0};
+    scene_paused = scene_pause_n = 0;
+    scene_pause_count(1); assert(scene_paused && scene_pause_n == 0);
+    scene_pause_count(1); scene_pause_count(1); assert(scene_paused && scene_pause_n == 2);
+    scene_pause_count(0); scene_pause_count(0); assert(scene_paused && scene_pause_n == 0);
+    scene_pause_count(0); assert(!scene_paused);
+    scene_pause_count(0); assert(!scene_paused && scene_pause_n == 0);
+    scene_client = saved;
+}
+
+// 大地圖換大地圖才自動存檔（0x44ce00）
+static void autosave_test(void) {
+    Scene big = {.w = 64, .h = 64}, small = {.w = 32, .h = 32};
+    assert(scene_big(&big) && !scene_big(&small) && scene_big(NULL));
+    assert(autosave_due(1, &big) && !autosave_due(0, &big) && !autosave_due(1, &small));
+    scene_record_mode = 2; assert(!autosave_due(1, &big)); scene_record_mode = 0;
+}
+
+// 章節字幕 0x566920／0x566740／0x4fca00、片尾字幕 0x568310／0x568720
+static void caption_test(void) {
+    assert(ch_group_page(1) == 12 && ch_group_page(2) == 15 && ch_group_page(7) == 28);
+    ch_open(2, 0);
+    assert(ch.open && ch.chap == 0 && ch.y == CH_BOTTOM && ch.gate == CH_BOTTOM - CH_LINE && ch.text[0]);
+    for (int i = 0; i < 16; i++) ch_tick();
+    assert(ch.y == CH_BOTTOM - CH_LINE && ch.tick == 17);  // 先升 16 拍到閘門
+    for (int n = 0; ch.open && n < 100000; n++) ch_tick();
+    assert(!ch.open && !cr.open);  // 章節 < 10 讀完就關
+    ch_open(ch_group_page(7), 7);  // 結局章 26~28：換頁到最後一頁 → 片尾字幕
+    assert(ch.chap == 26);
+    for (int n = 0; ch.open && n < 1000000; n++) ch_tick();
+    assert(!ch.open && ch.chap == 28 && cr.open && caption_music == 1 && cr.y == CR_BOTTOM && cr.text[0]);
+    int y0 = cr.y;
+    for (int i = 0; i < 6; i++) credits_tick();
+    assert(cr.y == y0 - 2);  // 每 3 拍上移 1
+    for (int n = 0; cr.open && n < 1000000; n++) credits_tick();
+    assert(!cr.open && caption_music == 2);
+    caption_music = 0;
+    chapter_message(-1, 1); assert(ch.open && ch.chap == 10 && ch.first == 10); ch.open = 0;
+    chapter_message(-1, 0); assert(!ch.open || ch.chap == 10);
+}
+
 static void choose_height_test(void) {
     assert(choose_height(30, 0) == 150);
     assert(choose_height(72, 0) == 150);
@@ -4178,6 +4286,13 @@ int main(void) {
     res_init("../../game");
     make_ready_test();
     choose_height_test();
+    caption_test();
+    map_test();
+    party_test();
+    new_name_test();
+    help_text_test();
+    pause_count_test();
+    autosave_test();
     character_draw_branches_test();
     character_remove_test();
     part_dead_test();

@@ -999,3 +999,17 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 00563360	CTeamDialog 頁籤刷新（12 格一頁）；連線組隊，待確認後 skip
 00563ea0	CShortcutSkillDialog 選技能：呼叫 0x507180 設當前手技能並關窗；引擎 hand skill 選擇已做，待標位址
 00528d10	客戶端封包：開場景名橫幅（CSceneNameDialog 0x564a20）；等場景名橫幅系統
+00566920	CChapterDialog 載一頁（頁→章節、文字、閘門）	caption.c ch_page
+00566740	CChapterDialog 每拍捲動	caption.c ch_tick
+00566590	CChapterDialog OK／下一頁（≥10）	caption.c ch_next
+00568310	CCreditsDialog 開始（info9_C 2076 第 2 欄、Tab→4 空格）	caption.c credits_start
+00568720	CCreditsDialog 每拍捲動、到頂關閉	caption.c credits_tick
+0044e380	劇情鏡頭（story 0x533 v[1]=2）：角色類物件平滑置中，不是震動	main.c camera_look_at
+0044d9e0	暫停計數	main.c scene_pause_count
+0044ce00	大地圖換大地圖才自動存檔	main.c autosave_due
+0053b0b0	隊伍面板狀態圖示：8 組、由大到小取前 2	party.c party_icons
+0053cb30	地圖視窗 OnInit／開窗	mapwin.c map_show
+0053cc60	地圖視窗點場景地圖定位鏡頭（標記提示為伺服器 MapData，不做）	mapwin.c map_tap
+0055a680	交易視窗開著世界暫停	main.c trade_paused
+005743d0	（原名 ~CHelpDialog）說明視窗換頁：UI_C 2500×9、2600×22、2700×13、2800×10、2900×3	main.c help_text
+005470f0	光影下一個（&1）；0x547080 上一個；0x5471b0／0x547160 解析度 %3；0x547020 亮度 (值+50)/100	main.c opt_tap／亮度疊色
