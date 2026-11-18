@@ -3192,6 +3192,9 @@ static void viewport_test(void) {
     gp = viewport_world_screen(&v, 20 * 64 + 3, 20 * 64 + 7);
     SDL_Point wp = viewport_project(&sc, 20 * 64 + 3, 20 * 64 + 7);
     assert(gp.x == wp.x - 100 && gp.y == wp.y - 200);
+    gp = viewport_world_screen(&v, 20 * 64 + 3, 20 * 64 + 7);
+    wp = viewport_screen_world(&v, gp.x, gp.y);  // 0x4a11f0 反投影（誤差只在 /2 /4 取整）
+    assert(abs(wp.x - (20 * 64 + 3)) <= 4 && abs(wp.y - (20 * 64 + 7)) <= 4);
     // 舊換算函數都由鏡頭狀態更新實際使用。
     assert(v.center.x == v.base.x + 15 && v.center.y == v.base.y + 10);
     v.pos = (SDL_Point){100, 210};

@@ -379,6 +379,11 @@ static SDL_Point viewport_screen_grid(const ViewPort *v, int x, int y) {
     }
     return p;
 }
+// 0x4a11f0：畫面像素轉世界64分格（viewport_world_screen 的反向，不取整）。
+static SDL_Point viewport_screen_world(const ViewPort *v, int x, int y) {
+    int dx = x - 32 + v->rem.x, dy = (v->rem.y + y) * 2;
+    return (SDL_Point){v->base.x * 64 + dy + dx, v->base.y * 64 - dx + dy};
+}
 // 0x4a1030：格點轉畫面像素。
 static SDL_Point viewport_grid_screen(const ViewPort *v, int x, int y) {
     x -= v->base.x; y -= v->base.y;

@@ -7534,6 +7534,31 @@ static int input_cursor(const Actor *h, const Actor *c, int item, int cx, int cy
     return CUR_NORMAL;
 }
 
+// XMOUSE 游標數量（+0x34，0x4a0aa0 設；旗標 +0x30 的 0x4a0ac0 沒有用途，見下）：原版介面「拿著道具」時設；這裡沒有游標拿道具（點選再點），沒人寫。
+// shortcut: 旗標 0x100／0x140（換色表）、第二精靈（+0x28）沒有來源，不畫；原版畫幀還加 −幀偏移（+0x12／+0x14），引擎幀 dx／dy 當中心偏移用，這裡改成只置中
+static int xmouse_count;
+
+// 0x4a05e0：游標畫在序列最大幀寬高（0x49d860／0x49d8f0）置中的位置，數量 > 1 在游標位置寫數字（原版 SetView 游標大小的矩形）
+static void xmouse_draw(const Anim *cur, int k, int x, int y, Uint32 tick) {
+    if (!cur || k >= cur->count || !cur->seqs[k].count) return;
+    const Seq *q = &cur->seqs[k];
+    int mw = 0, mh = 0;
+    for (int i = 0; i < q->count; i++) {
+        const Sprite *s = image(q->frames[i].ref);
+        if (!s) continue;
+        if (s->w > mw) mw = s->w;
+        if (s->h > mh) mh = s->h;
+    }
+    const Frame *f = &q->frames[frame_at(q, tick)];
+    const Sprite *s = image(f->ref);
+    if (s) draw(s, x - mw / 2 + f->ex, y - mh / 2 + f->ey);
+    if (xmouse_count > 1) {
+        char n[16];
+        snprintf(n, sizeof n, "%d", xmouse_count);
+        draw_text(x, y, n, 64, 0xffffff, 1);
+    }
+}
+
 // 左鍵放開（0x454f00）要給主角的指令（原版包成 0xf023 訊息送給主角和選到的隊友）。
 // 溃散（17）、盅惑人心（14）不收指令；战斗状态點誰都打（9），平常點敵人打、點其他人對話（0xf）；再來是撿道具（0x12），其他 = 走過去（1）
 // shortcut: 拖拉選人框、Ctrl 對地點出手（8）、物件（0x80 打、0x85 開、0x96 門 0x10、0x17 → 0x11）還沒做
@@ -7756,8 +7781,8 @@ int main(int argc, char **argv) {
                 zoom_point(&zx, &zy);
                 Actor *m = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
                 if (m) actor_target_set(hero, m);
-                // shortcut: 點選地點取格子中心；像素級地點施法待世界座標逆投影接入。
-                hero_cast_point(hero, cx * 64 + 32, cy * 64 + 32);
+                SDL_Point wp = viewport_screen_world(&viewport, zx, zy);  // 0x4a11f0
+                hero_cast_point(hero, wp.x, wp.y);
             }
             else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) pointer_down = 0;
             else if (e.type == SDL_MOUSEMOTION) { px = e.motion.x; py = e.motion.y; mouse_seen = e.motion.which != SDL_TOUCH_MOUSEID; }
@@ -8017,7 +8042,7 @@ int main(int argc, char **argv) {
             zoom_point(&zx, &zy);
             Actor *c = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
             int k = input_cursor(hero, c, ground_at(zx, zy, ox, oy, &scene), cx, cy);
-            if (cur && k < cur->count) draw_frame(cur, k, frame_at(&cur->seqs[k], tick), px, py, 0);
+            xmouse_draw(cur, k, px, py, tick);
         }
         if (shot && tick > 3) {
             SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, vw, vh, 32, SDL_PIXELFORMAT_ARGB8888);

@@ -912,3 +912,40 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 004a33c0 記憶池使用量報表（CString 格式化）：除錯，不移植
 004a35a0 記憶池使用量報表並全部釋放：除錯，不移植
 004a6610 建立空 SBMP：SDL_Surface／Sprite 承接
+004a37b0 SLightMap 建構：100 級光照色表（x<<16），給逐像素色表換色用；light.c 以每格 RGB 倍率 + SDL 混色取代，不需要
+004a6870 std::vector 元素（0x2e 位元組）解構範圍：STL，不移植
+004a6900 std::vector::resize（元素 0x2e 位元組）：STL，不移植
+004a6c60 std::locale codecvt 取得：STL，不移植
+004a6da0 std::ifstream 建構（開檔）：STL／檔案 IO，用 res_file 取代
+004a6fa0 CMemoryMng 建構（內含 ifstream、除錯用記憶池報表）：除錯記憶池，不移植
+004a7120 vector 元素（0x2e 位元組）搬移建構：STL，不移植
+004a7240 std::bad_cast 複製建構：STL，不移植
+004a7280 std::bad_cast 建構：STL，不移植
+004a7340 std::ifstream 解構：STL，不移植
+004a7420 std::vector 釋放（元素 0x2e 位元組）：STL，不移植
+004a74c0 std::vector<指標> 釋放（逐個 delete）：STL，不移植
+004a7580 std::vector<物件指標> 釋放（逐個虛擬解構）：STL，不移植
+004a7610 CMemoryMng 解構：除錯記憶池，不移植
+004a7690 vector 元素（0x2e）解構：STL，不移植
+004a7750 vector 元素（0x2e）賦值：STL，不移植
+004a7830 vector 元素（0x2e）預設建構範圍：STL，不移植
+004a78f0 std::ifstream 解構（CMemoryMng 內）：STL，不移植
+004a7ae0 CMemoryMng 刪除解構：除錯記憶池，不移植
+004a8240 std::filebuf 收尾（unshift）：STL，不移植
+004a8330 std::filebuf 接上 FILE*：STL，不移植
+004a8450 std::vector too long 例外：STL，不移植
+004a8460 vector 元素（0x2e）清空：STL，不移植
+004a8520 std::filebuf 關檔：STL，不移植
+004a88a0 std::string::push_back：STL，不移植
+004a8c80 std::filebuf swap：STL，不移植
+004a9440 std::map／variant 節點建構（new 0x18）：STL，不移植
+004a94e0 std::map 複製：STL，不移植
+004a9600 std::string 相加：STL，不移植
+004a9790 std::map 節點建立（0x34）：STL，不移植
+004a9850 std::map 節點建立（0x34）：STL，不移植
+004a9900 std::map 子樹複製：STL，不移植
+004aee90 variant 複製（case 1~3 分配節點）：STL 容器，不移植
+004af010 variant 建構（依種類配節點）：STL 容器，不移植
+004b1910 std::map 哨兵節點配置（0x34）：STL，不移植
+004b1930 std::map 節點配置（0x34）：STL，不移植
+004b5000 std::string::insert／assign：STL，不移植
