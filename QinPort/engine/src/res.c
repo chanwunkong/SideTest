@@ -691,7 +691,9 @@ static void parse_models(Scene *s, const uint8_t *d, size_t n) {
     }
 }
 
-// .ONT（GBK 文字）：每個物件以 iType= 開頭，後面是 key=value 行
+// .ONT（GBK 文字）：每個物件以 iType= 開頭，後面是 key=value 行。
+// 原版 CInitObjMng 0x4cb440（讀檔頭）／0x4cb640（逐筆記錄；依 iType 配置 SInit 衍生類別，依「平时逻辑类型」讀行走區域或路徑）。
+// shortcut: iType 101/102（建築）由 BNT 載入、iType 15（跟隨）的五個參數鍵還沒讀，等跟隨 AI 接入再補
 static void parse_ont(Scene *s, char *text) {
     int cap = 0;
     int initial_count = 0;
@@ -740,7 +742,9 @@ int scene_load(Scene *s, const char *scn_name) {
     scn_value(text, 0, map_name, sizeof map_name);
     scn_value(text, 1, bnt_name, sizeof bnt_name);
     scn_value(text, 2, ont_name, sizeof ont_name);
-    // 第 4 行「入口点数」，之後每個入口 4 行：前场景名称(入口編號)、x、y、角色初始方向
+    // 原版 CScnClient 讀 .scn 0x4cce40：Map名称、IntBld名称、IntObj名称、第 4 行「入口点数」，
+    // 之後每個入口 4 行：前场景名称(入口編號)、x、y、角色初始方向；入口加進名單 0x4cc4c0（上限 299）
+    // shortcut: 「雷达地图ID」沒讀（小地圖直接用場景圖），等小地圖接原版 CMapDialog 再補
     scn_value(text, 3, v, sizeof v);
     int n = atoi(v);
     s->entries = calloc(n > 0 ? n : 1, sizeof(Entry));
@@ -755,6 +759,7 @@ int scene_load(Scene *s, const char *scn_name) {
     snprintf(dir, sizeof dir, "%s/scene/Map", game_dir);
     uint8_t *map = read_all(dir, map_name, &size);
     if (!map || size < 0x200 || memcmp(map, "SoloMap", 7)) { free(map); return 0; }
+    // 原版 SoloMap 檔頭檢查與讀取 0x4c7fe0
     s->w = u16(map + 0x22);
     s->h = u16(map + 0x24);
     s->view_x = (int32_t)u32(map + 0x26);
@@ -775,6 +780,7 @@ int scene_load(Scene *s, const char *scn_name) {
 
     snprintf(dir, sizeof dir, "%s/scene/Int", game_dir);
     uint8_t *bnt = read_all(dir, bnt_name, &size);
+    // 原版 LoadInt 0x4cef30：檔頭 0x480（「SoloInit」）、每筆 kind 3 = InitBld、4 = InitBldTrigger（多 128 bytes 事件文字）
     if (bnt && size >= 0x480) {
         snprintf(name, sizeof name, "%s", (const char *)bnt + 0x22);
         for (size_t p = 0x480; p + 20 <= size;) {

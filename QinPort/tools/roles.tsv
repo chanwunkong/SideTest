@@ -915,3 +915,11 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 004d0610	開表堆上浮 → sift_up
 004d0700	開表／節點表插入 → actor_path_build內NODE/PUSH
 004d09e0	節點鏈轉反向座標byte路徑（終點格空才算，最多250筆）→ actor_path_build
+00537bb0	CGameDialog 建立各 HUD 視窗並擺位置（JM51 底部置中、JM515 上方置中 y=0x14、JM65、JM60、JM108…）；main.c hud_draw 載入並依此擺位
+005389e0	CGameDialog 依畫面大小重新擺各 HUD 視窗位置；main.c hud_draw 每幀依 vw／vh 算
+005640a0	CShortcutSkillDialog 取 24 個 m_pItem 格子；main.c pick_open ui_load
+00564140	CShortcutSkillDialog 滑鼠放開：逐格 PtInRect 選技能，沒點到格子交基底收起來；main.c hud_tap
+00564250	CShortcutSkillDialog 擺位置（左手靠左、右手靠右，貼在主列上緣）；main.c pick_pos
+004cef30	CScene 讀 BNT（「SoloInit」檔頭 0x480；kind 3 = InitBld、4 = InitBldTrigger +128 bytes 事件文字）；res.c scene_load
+004c7fe0	CScene 讀 SoloMap 檔頭與格子；res.c scene_load
+004cce40	CScnClient 讀 .scn（Map名称、IntBld名称、IntObj名称、入口点数、入口記錄、雷达地图ID）；res.c scene_load

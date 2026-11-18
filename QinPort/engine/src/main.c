@@ -5453,6 +5453,7 @@ static void hero_cast(Actor *h) { hero_cast_point(h, ax64(h), ay64(h)); }
 static UiDialog pick;
 static int pick_hand = -1, pick_skill[24], pick_n;
 
+// 原版 CShortcutSkillDialog 0x5640a0：把 24 個 m_pItem 控制項（0x6a5 起）取好，這裡 ui_load 一次載入；0x564310 關閉＝ pick_hand = -1
 static void pick_open(int hand) {
     if (pick_hand == hand) { pick_hand = -1; return; }
     skills_load();
@@ -5462,6 +5463,7 @@ static void pick_open(int hand) {
         if ((hero_skill[k].hand == hand || hero_skill[k].hand == 2) && hero_skill[k].level > 0) pick_skill[pick_n++] = k;
 }
 
+// 原版 0x564250：左手（+0x2e4 == 0）貼在左手鍵位置的視窗左邊界，右手對齊右邊界，視窗底貼在主列上緣
 static void pick_pos(int *x, int *y) {
     char key[16];
     snprintf(key, sizeof key, "m_pSkill[%d]", pick_hand);
@@ -6841,7 +6843,7 @@ static int in_rect(const SDL_Rect *r, int x, int y) { return x >= r->x && x < r-
 // 介面吃掉的點擊回 1（不再拿去走路、打怪）。shortcut: 主列只有按鈕吃點擊，主列底圖空白處還是會走路
 static int hud_tap(int x, int y) {
     if (sys_tap(x, y)) return 1;
-    if (pick_hand >= 0) {  // 快捷技能視窗開著：點格子換技能；點哪裡都收起來
+    if (pick_hand >= 0) {  // 快捷技能視窗開著：點格子換技能；點哪裡都收起來（原版 0x564140 逐格 PtInRect，沒點到格子就交給基底 0x521020 收起來）
         int px, py;
         pick_pos(&px, &py);
         const UiCtrl *c = ui_button_at(&pick, px, py, x, y);
@@ -7128,6 +7130,9 @@ static void hud_draw(Actor *hero) {
     static int tried;
     if (!tried) {
         tried = 1;
+        // 原版 CGameDialog 0x537bb0 建立各 HUD 視窗、0x5389e0 依畫面大小重新擺位：JM51 中間 = 底部置中、
+        // JM515 敵人狀態 = 上方置中距頂 0x14、JM65 消息 = 貼在主列上方、JM60 地圖 = 置中再往上 0x32、JM108 選擇 = 底部置中。
+        // 單機沒有 JM106／JM101（交談輸入輸出）、JM75（網路狀態）。shortcut: JM65／JM108 的位置在各自視窗做時再對
         ui_load("JM51_\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6_\xd6\xd0\xbc\xe4", &bar);      // JM51_状态界面_中间（GBK）
         ui_load("JM51_\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6_\xd6\xf7\xbf\xd8", &party);    // JM51_状态界面_主控
         ui_load("JM515_\xb5\xd0\xc8\xcb\xd7\xb4\xcc\xac\xbd\xe7\xc3\xe6", &enemy);    // JM515_敌人状态界面

@@ -1128,7 +1128,13 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 - **0x4b7af0 起（2026-11-18）**：functool 的 skip 檔多了 `~`（所有解構函數整批 skip）；連線物件（CNetItem/CNetBase/CSocketItem/CSingleItem）、IME、DirectInput、Direct3D 裝置、記憶體鏈配置器、nlohmann 整批 skip。
   - XPathSearch（0x4cff00 A*）＋XPS_Control（0x4d0b10 展開／0x4d0890 估價／0x4d0af0 終點／0x4d0610、0x4d0700 開表堆）＋0x4d09e0 取路徑 → `main.c actor_path_build` 換掉舊 BFS（`xps_expand`／`xps_heur`／`sift_up`）。照原版：每步成本 5、同組占格 +3、斜走 +3（兩側都被擋才不能斜）、估價 直10斜4（比 g 大，偏貪婪）、開表空了取 h 最小的節點（走到最近處）；終點格被別人占就不算進路徑。方向表 0x5f293c = 上起順時針（與舊程式相同）。shortcut：最大展開數傳 0；自己一律算同組；節點用整張地圖陣列。skilltest 加繞牆與封死兩例。
   - 剩下的 todo 幾乎都是介面（CGameDialog 等 JM 對話框，引擎用自己的 JM 介面取代）與等其他系統的 CTriBld／CAirObj／InitBld 等。
-  **下一步：0x4b89b0（介面類別：CPushbutton／CGameDialog／各 Dialog）起**——先 `python3 tools/functool.py next 0x4b89b0`；介面逐類別對照引擎現有 JM 介面，沒對應用途的 skip。
+  ~~**下一步：0x4b89b0（介面類別：CPushbutton／CGameDialog／各 Dialog）起**~~
+- **0x4b89b0～0x578000 介面區（2026-11-18）**：0x4b89b0 之後原版的結構看清楚了——Poq.exe 的介面層是「客戶端」：玩家動作經 `FUN_00511a80` 送封包給本機伺服器（EasyRPG.dll 端，規則已移植到 main.c 的 hero_*／item_*／trade_*），畫面資料靠字串鍵資料表（`FUN_00458010`：RoleData／SkillData／PropData／TradeData…）同步，視窗用 `FUN_004fe7a0` 開、`FUN_00583790` 擺位置。引擎的 JM 視窗直接呼叫規則，所以這一層絕大部分沒有可翻的遊戲規則。
+  - skip（funcs_skip.txt，各有原因）：Part* 轉接；0x4b8fa0～0x4c8880 工具庫（記憶體鏈、CDMList、CIniFile 寫入、CDlgFile 載入／存檔／匯出匯入編輯器、CIDTable）；0x4ca930～0x4cf7ff 初始化物件容器（SInit*／InitBld* 建構解構與虛擬複製、入口表、CMdlBldMng、CAutoPaper）；0x4d0920～0x4f4fff 連線版（CNetGame／CNetItem／CUserInfo 伺服器）；0x4f5c70～0x502190 開視窗輔助與連線存檔同步；0x578000 以後 UI 工具箱與平台層；控制項類別（CPushbutton／CEditBox／CCombo／CEnumBox／CScroll／CProgress／CStaticText／CToolTip／CUIWinManager…）；介面類別樣板（vftable 轉接、空函式、訊息表、deleting destructor）、取控制項（FUN_00582cb0）、送封包（FUN_00511a80）、讀資料鏡像（FUN_00458010）的函數；連線版視窗（CDeadDialog／CMessagePipeDialog／CExchangeDialog／CPlayerDialog）。
+  - 對到引擎（註解標位址）：res.c `parse_ont` ＝ CInitObjMng 0x4cb440／0x4cb640；`scene_load` 讀 .scn ＝ 0x4cce40（入口加名單 0x4cc4c0）、SoloMap 檔頭 ＝ 0x4c7fe0、BNT（SoloInit）＝ LoadInt 0x4cef30；main.c 快捷技能視窗 `pick_open`／`pick_pos`／`hud_tap` ＝ CShortcutSkillDialog 0x5640a0／0x564250／0x564140；`hud_draw` 載入各 HUD ＝ CGameDialog 0x537bb0／0x5389e0（排版）。
+  - shortcut：parse_ont 沒讀 iType 15（跟隨）的五個參數鍵、.scn 的「雷达地图ID」沒讀；JM65 消息、JM108 選擇視窗的位置等各自視窗做時再對。
+  - 剩 todo 423 個（約 1.4 萬行，全在 0x502250～0x577fd0，各 Dialog 的事件／繪製處理）：CLoadingDialog／CTalkDialog／CStatusDialogA～C／CGameDialog 剩下的／CMapDialog／CMainControlDialog／CMakePropDialog／CPropDialog／CEquipDialog／CTradeDialog／CSkillDialog／CTeamDialog／CChooseDialog／CLoadDialog／CCreditsDialog／CSinglePlayerDialog／COptionDialog／CCreateNewCharDialog 等，以及位址落在這些類別之間、沒有類別標記的函數（約 300 個）。做法：一個視窗一個視窗，打開 main.c 對應的 JM 視窗程式比對；沒有引擎對應的（標題畫面 CSinglePlayerDialog、片尾 CCreditsDialog、創角 CCreateNewCharDialog、選擇框 CChooseDialog）等該功能做時一起翻。
+  **下一步：0x502250（CLoadingDialog 起）**——先 `python3 tools/functool.py next 0x502250`；逐個視窗對照 main.c，有規則的翻進去，只是排版的在引擎對應程式標位址。
 
 
 
