@@ -111,6 +111,11 @@ static void mix(void *userdata, Uint8 *out, int len) {
     }
 }
 
+void audio_volume(int music_percent, int sfx_percent) {
+    music_vol = music_percent * SDL_MIX_MAXVOLUME / 100;
+    sfx_vol = sfx_percent * SDL_MIX_MAXVOLUME / 100;
+}
+
 void audio_init(int music_percent, int sfx_percent) {
     music_vol = music_percent * SDL_MIX_MAXVOLUME / 100;
     sfx_vol = sfx_percent * SDL_MIX_MAXVOLUME / 100;

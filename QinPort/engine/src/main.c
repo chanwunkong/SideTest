@@ -2258,6 +2258,55 @@ static void actor_kill(Actor *t, Actor *by) {
 
 // ---- 招式單位（觸發 type 2 → MethodUnit_Mdl.ini）：原版的特效與飛行物件，見 unit.c ----
 static int shake_left, shake_total;
+
+// ---- 畫面效果（Poq.exe 0x44ca40 入口；招式觸發 type 14：ID 1~3 淡入淡出、4 震畫面（param = 長度）、其他 = 重設）----
+// 淡入淡出物件（0x4a6480 啟動、0x4a66e0 重設、0x4a6720 每拍、0x4a6770 畫，0x44bf00 畫完場景後呼叫）：計數 23 每拍 −1，等級 = 計數 / 3（7 → 0）；
+// 模式 1 = 黑幕等級 / 8 的透明度，由黑漸亮；模式 2 = 7 − 等級，漸暗，到 7 整個畫面清成黑，計數用完模式不重設（黑著等下一個效果）；
+// 模式 3 = 啟動時把整個畫面複製一份，用等級 / 8 的透明度疊在新畫面上（場景切換的交叉淡出）
+// shortcut: 0x44ca40 模式 1、2 先呼叫的那個小函數沒翻（還沒查它設什麼）；原版只在放招的人在畫面內才觸發，這裡由 unit.c 用距離判斷
+static int fade_mode, fade_cnt, fade_hold;  // fade_hold = 0x44ca40 存的 +0x25c：黑著等幾拍再淡入（模式 2 的參數，劇情畫面效果 1 用 0x50）
+static SDL_Texture *fade_tex, *fade_canvas;  // fade_canvas = 主畫布（模式 3 啟動時複製它）
+static void fade_reset(void) { fade_mode = fade_cnt = 0; }  // 0x4a66e0
+static void fade_start(int mode) {  // 0x4a6480（單機光影固定模式，這裡只管淡入淡出）
+    fade_reset();
+    if (mode < 1 || mode > 3) return;
+    fade_mode = mode;
+    fade_cnt = 0x17;
+    if (mode == 3 && fade_canvas) {
+        int w, h;
+        SDL_QueryTexture(fade_canvas, NULL, NULL, &w, &h);
+        if (!fade_tex) fade_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, w, h);
+        SDL_Texture *old = SDL_GetRenderTarget(ren);
+        SDL_SetRenderTarget(ren, fade_tex);
+        SDL_RenderCopy(ren, fade_canvas, NULL, NULL);
+        SDL_SetRenderTarget(ren, old);
+        SDL_SetTextureBlendMode(fade_tex, SDL_BLENDMODE_BLEND);
+    }
+}
+static void screen_effect(int mode, int param) {  // 0x44ca40
+    if (mode == 4) { if (shake_left < 1) shake_left = shake_total = param; return; }  // 震畫面（0x461180）
+    fade_hold = param;
+    fade_start(mode);
+}
+// 每個畫面：先畫（0x4a6770）再減計數（0x4a6720：計數用完且模式不是 2 就重設）
+static void fade_draw(int w, int h) {
+    if (!fade_mode) return;
+    int lv = fade_cnt / 3;
+    if (fade_mode == 3 && fade_tex) {
+        SDL_SetTextureAlphaMod(fade_tex, (Uint8)(lv * 255 / 8));
+        SDL_RenderCopy(ren, fade_tex, NULL, NULL);
+    } else if (fade_mode != 3) {
+        int a = fade_mode == 2 ? 7 - lv : lv;
+        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, a >= 7 && fade_mode == 2 ? 255 : a * 255 / 8);
+        SDL_Rect r = {0, 0, w, h};
+        SDL_RenderFillRect(ren, &r);
+    }
+    if (fade_cnt > 0) fade_cnt--;
+    else if (fade_mode != 2) fade_reset();
+    // 黑著的等待（Poq.exe 0x43cdxx 那段：+0x25c > 0 倒數，到 1 且模式 2 就 0x44ca40(1, 0) 淡入）。shortcut: 倒數放在畫面迴圈，原版放哪一拍沒查
+    if (fade_hold > 0 && --fade_hold == 0 && fade_mode == 2) fade_start(1);
+}
 // ---- 畫面縮放（CGameApp +0x234 現在值、+0x238 目標、+0x23c 記住的值）：0 = 原尺寸，最大 0.24（中間 52% 放大到整個畫面）----
 // 原版 PageUp／滾輪往上 +0.04、PageDown／滾輪往下 −0.04；招式觸發 12（來源是角色）ID 非 0 = +0.24、0 = 回記住的值。
 // 照原版保留：記住的是「現在值」而不是目標；用浮點數比相等，目標不是 0.04 的倍數（劇情指令）時會在兩個值之間來回跳。
@@ -5608,7 +5657,32 @@ static int equip_slot(const Item *it) {
     return -1;
 }
 
+// 成套武装（EasyRPG.dll 0x1001eaa0 把各件裝備移進一件「秦殇/道具/成套武装」放 UI_Pos 40，裡面的道具保留原本的 UI_Pos）。
+// shortcut: 這裡不真的搬進容器，件留在 30~39、inv[40] 只記是哪幾格（set_mask）；穿著時數值照原樣算（原版套裝內道具怎麼算還沒查）。
+// 成員欄一有變動就拆掉套裝（原版拖放規則還沒拆）。套裝本身不能放進背包，點它 = 拆開
+static void set_asunder(void) {  // Poq.exe 0x5554c0 「weaponset #主角 #套裝」→ EasyRPG.dll 0x1001eaa0 的兩參數版：把套裝拆回各件
+    if (!inv[40].name[0]) { hud_msg(1207); return; }
+    memset(&inv[40], 0, sizeof inv[40]);
+    hud_msg(1208, "\xb7\xfc\xcb\xd5");  // 扶苏（GBK）
+}
+static void set_combine(void) {  // Poq.exe 0x555380：件數 > 1 才送；0x1001eaa0 的多參數版
+    int n = 0, first = -1, mask = 0;
+    for (int s = INV_BAG; s < 40; s++)
+        if (inv[s].name[0]) { n++; mask |= 1 << (s - INV_BAG); if (first < 0) first = s; }
+    if (n < 2) { hud_msg(1205); return; }
+    if (inv[40].name[0]) set_asunder();  // 原版只有一件，新的蓋過去（拆開舊的）
+    Item *c = &inv[40];
+    memset(c, 0, sizeof *c);
+    snprintf(c->name, sizeof c->name, "\xb3\xc9\xcc\xd7\xce\xe4\xd7\xb0");  // 成套武装（GBK，只是佔位）
+    snprintf(c->alias, sizeof c->alias, "chengtaowuzhuang");
+    c->icon = inv[first].icon;  // shortcut: 原版圖示是模板自己的，沒查到，借第一件的
+    c->pos = 40;
+    c->set_mask = mask;
+    hud_msg(1210, "\xb7\xfc\xcb\xd5");
+}
+
 static void inv_swap(int a, int b) {
+    if ((a >= INV_BAG && a < 40) || (b >= INV_BAG && b < 40)) memset(&inv[40], 0, sizeof inv[40]);
     Item t = inv[a];
     inv[a] = inv[b];
     inv[b] = t;
@@ -6527,6 +6601,10 @@ static void story_msgs(void) {
             // 接入後補齊本分支；目前只接原版獨立的關聯識別setter。
             if (a && m->v[2] > 0) actor_search_link_set(a, (int)m->v[1]);
             break;
+        case 0x533:  // 畫面效果（Poq.exe 0x533）：v[1] = 1 → v[2] 1 黑幕淡出停 0x50 拍再淡入、2 淡出後黑著；v[1] = 2 → 震動（對應的函數還沒翻）
+            if (m->v[1] == 1 && m->v[2] == 1) screen_effect(2, 0x50);
+            else if (m->v[1] == 1 && m->v[2] == 2) screen_effect(2, 0);
+            break;
         case 0x52c: case 0x519: break;  // 出口開關（走出口時再查）、轉向
         default: fprintf(stderr, "劇情訊息 0x%x（%s）還沒做\n", m->id, m->s); break;
         }
@@ -6555,6 +6633,7 @@ typedef struct {
 static UiDialog sys_d, sav_d, ask_d, quit_d;
 static UiDialog diff_d;  // JM21 難度選擇（CDiffcultyDialog 0x566ec0；0x570820 新遊戲時開窗、0x566f80 選定存難度並關窗）
 static int diff_open;
+static void new_show(void);
 static int sys_open, sav_mode, sav_page, sav_sel = -1, ask_open, quit_open;  // sav_mode：1 保存、2 读取
 static SaveHead *sav_head[SAVE_SLOTS];   // 開視窗時讀的各格檔頭，NULL = 空格
 static SDL_Texture *sav_tex[6];          // 這一頁的縮圖
@@ -6720,6 +6799,181 @@ static void sav_ok(int confirmed) {
 
 static void ui_say(int id) { char t[256]; ui_text(id, t, sizeof t); hud_say(t); }
 
+// ---- 遊戲設定 JM31（Poq.exe CGameOptionDialog：開窗 0x571790、滑桿改值 0x5474a0、初始 0x547500、關閉 0x547460）、遊戲說明 JM36（CHelpDialog 開窗 0x571860）----
+// 值依控制項名：勾選（透明、血腥、自动存盘、自动暂停 1~4）、滑桿（音效、音乐 0~100、速度 0~5，種類 8：軌道 = 第 10 欄、滑塊 = 第 13 欄）、亮度（進度條 0~100）、光影前後
+// shortcut: 預設值與勾選圖的幀（0 關、1 開）沒對原版；速度、亮度、光影、解析度、透明、血腥、自动暂停只存值還沒有作用；滑桿只能點、不能拖；
+// 說明視窗只有分頁鈕，內文（建立後讀的檔）沒在遊戲資料裡找到
+enum { O_TRANS, O_GORE, O_AUTOSAVE, O_PAUSE1, O_PAUSE2, O_PAUSE3, O_PAUSE4, O_SOUND, O_MUSIC, O_SPEED, O_GAMMA, O_LIGHT, O_N };
+static const char *const opt_name[O_N] = {"m_pTransparent", "m_pGore", "m_pAutoSave", "m_pAutoPause1", "m_pAutoPause2", "m_pAutoPause3",
+                                          "m_pAutoPause4", "m_pSound", "m_pMusic", "m_pSpeed", "m_pGamma", "m_pLight"};
+static const int opt_max[O_N] = {1, 1, 1, 1, 1, 1, 1, 100, 100, 5, 100, 2};
+static const int opt_def[O_N] = {1, 1, 1, 0, 0, 0, 0, 100, 15, 3, 50, 0};
+static int opt_v[O_N] = {1, 1, 1, 0, 0, 0, 0, 100, 15, 3, 50, 0}, opt_bak[O_N];
+static UiDialog opt_d, help_d;
+static int opt_open, help_open, help_tab;
+
+static void opt_show(void) {  // 0x571790
+    if (!ui_load("JM31_\xd3\xce\xcf\xb7\xc9\xe8\xd6\xc3\xbd\xe7\xc3\xe6", &opt_d)) return;
+    memcpy(opt_bak, opt_v, sizeof opt_v);
+    opt_open = 1;
+}
+static void help_show(void) {  // 0x571860
+    if (!ui_load("JM36_\xd3\xce\xcf\xb7\xb0\xef\xd6\xfa\xbd\xe7\xc3\xe6", &help_d)) return;
+    help_tab = 0;
+    help_open = 1;
+}
+static void opt_apply(void) {  // 0x5474a0：音效／音乐滑桿改值就套到音量
+    audio_volume(opt_v[O_MUSIC], opt_v[O_SOUND]);
+}
+static void opt_ui_pos(const UiDialog *d, int *x, int *y) { *x = (vw - d->w) / 2; *y = (vh - d->h) / 2; }
+static int opt_ctrl(const char *name) {
+    for (int i = 0; i < O_N; i++)
+        if (!strcmp(name, opt_name[i])) return i;
+    return -1;
+}
+
+static int opt_tap(int x, int y) {
+    int ox, oy;
+    if (help_open) {
+        opt_ui_pos(&help_d, &ox, &oy);
+        const UiCtrl *c = ui_button_at(&help_d, ox, oy, x, y);
+        static const char *const tab[5] = {"m_pGeneral", "m_pControl", "m_pProp", "m_pFight", "m_pNetwork"};
+        for (int i = 0; c && i < 5; i++)
+            if (!strcmp(c->name, tab[i])) help_tab = i;
+        if (c && !strcmp(c->name, "m_Cancel")) help_open = 0;
+        return 1;
+    }
+    if (!opt_open) return 0;
+    opt_ui_pos(&opt_d, &ox, &oy);
+    const UiCtrl *c = ui_button_at(&opt_d, ox, oy, x, y);
+    if (c) {
+        int k = opt_ctrl(c->name);
+        if (k >= 0 && k < O_SOUND) opt_v[k] ^= 1;
+        else if (!strcmp(c->name, "m_pLight") || !strcmp(c->name, "m_pNextLight")) opt_v[O_LIGHT] = (opt_v[O_LIGHT] + 1) % (opt_max[O_LIGHT] + 1);
+        else if (!strcmp(c->name, "m_pPrevLight")) opt_v[O_LIGHT] = (opt_v[O_LIGHT] + opt_max[O_LIGHT]) % (opt_max[O_LIGHT] + 1);
+        else if (!strcmp(c->name, "m_pDefaults")) { memcpy(opt_v, opt_def, sizeof opt_v); opt_apply(); }
+        else if (!strcmp(c->name, "m_pOK")) opt_open = 0;
+        else if (!strcmp(c->name, "m_pCancel")) { memcpy(opt_v, opt_bak, sizeof opt_v); opt_apply(); opt_open = 0; }
+        return 1;
+    }
+    for (int k = O_SOUND; k <= O_GAMMA; k++) {  // 滑桿／亮度條：點的位置換算成值
+        const UiCtrl *s = ui_find(&opt_d, opt_name[k]);
+        const Sprite *t = s ? ui_image(s->type == 8 ? s->sb[0] : s->img, 0) : NULL;
+        if (t && x >= ox + s->x && x < ox + s->x + t->w && y >= oy + s->y - 8 && y < oy + s->y + t->h + 8) {
+            opt_v[k] = (x - ox - s->x) * opt_max[k] / (t->w > 1 ? t->w - 1 : 1);
+            opt_apply();
+            return 1;
+        }
+    }
+    return 1;
+}
+
+static void opt_draw(void) {
+    int ox, oy;
+    UiDialog *d = help_open ? &help_d : opt_open ? &opt_d : NULL;
+    if (!d) return;
+    opt_ui_pos(d, &ox, &oy);
+    UiCtrl *bg = ui_find(d, "m_pBackGround");
+    if (bg) draw(ui_image(bg->img, 0), ox + bg->x, oy + bg->y);  // 底圖旗標是 0，ui_draw 不畫
+    ui_draw(d, ox, oy);
+    if (help_open) {
+        static const char *const tab[5] = {"m_pGeneral", "m_pControl", "m_pProp", "m_pFight", "m_pNetwork"};
+        UiCtrl *t = ui_find(d, tab[help_tab]);
+        if (t) draw(ui_image(t->img, 1), ox + t->x, oy + t->y);  // 選到的分頁換第 1 幀（猜的）
+        return;
+    }
+    for (int k = 0; k < O_N; k++) {
+        UiCtrl *c = ui_find(d, opt_name[k]);
+        if (!c) continue;
+        if (k < O_SOUND) draw(ui_image(c->img, opt_v[k]), ox + c->x, oy + c->y);
+        else if (c->type == 8) {
+            const Sprite *tr = ui_image(c->sb[0], 0), *th = ui_image(c->sb[3], 0);
+            if (!tr) continue;
+            draw(tr, ox + c->x, oy + c->y);
+            if (th) draw(th, ox + c->x + (tr->w - th->w) * opt_v[k] / opt_max[k], oy + c->y + (tr->h - th->h) / 2);
+        } else if (c->type == 6) ui_bar(c, ox, oy, opt_v[k], opt_max[k]);
+    }
+}
+
+// ---- 創建新主角 JM09（Poq.exe CCreateNewCharDialog：OnInit 0x573250、選職業頁 0x572a60／0x572aa0、上一個／下一個外貌 0x572140／0x572200、換外貌刷新 0x573530）----
+// 5 個職業（m_pRoleFlag1~5 = 職業序號 1~5），每職業有幾種外貌（0x648024：3、3、3、4、3），預覽圖 = 0x63b6d8 表第 4 + 職業×4 + 外貌格；
+// 介紹文字 info9_C.dlg 第 3000 + 職業×4 + 外貌 筆（第 0 欄人名、第 1 欄介紹）
+// shortcut: 外貌只換預覽、介紹、名字，進遊戲的主角模型還是遊俠扶苏那套；名字欄（m_pRoleName 輸入框）沒做，用外貌的人名；
+// 沒有標題畫面所以「取消」當確定；選到的職業鈕（顯示用）換第 1 幀是猜的
+static const int new_var_n[5] = {3, 3, 3, 4, 3};
+static const int new_pic[24] = {5270, 8200, 8459, 0, 5454, 8198, 8461, 0, 5455, 8196, 8463, 0, 8465, 8455, 5456, 8469, 8144, 8467, 8457, 0, 5450, 0, 0, 0};
+static UiDialog new_d;
+static int new_open, new_prof, new_var;
+static char hero_name[32] = "\xb7\xfc\xcb\xd5";  // 扶苏（GBK）；顯示時轉 UTF-8
+
+static void new_pick(int prof) { new_prof = prof; new_var = 0; }  // 0x572a60／0x572aa0 → 0x573530：外貌回第 0 個
+static void new_step(int d) {  // 0x572140 上一個（0 → 最後）、0x572200 下一個（取餘數）
+    new_var = (new_var + d + new_var_n[new_prof]) % new_var_n[new_prof];
+}
+static void new_show(void) {  // 0x573250
+    if (!ui_load("JM09_\xb4\xb4\xbd\xa8\xd0\xc2\xd6\xf7\xbd\xc7\xbd\xe7\xc3\xe6", &new_d)) { diff_open = 1; return; }
+    new_open = 1;
+    new_prof = hero_prof - 1;
+    new_var = 0;
+}
+static void new_done(void) {
+    hero_prof = new_prof + 1;
+    char g[64];
+    if (res_dlg_nth("info9_C.dlg", 3000 + new_prof * 4 + new_var, 0, g, sizeof g)) snprintf(hero_name, sizeof hero_name, "%s", g);
+    new_open = 0;
+    diff_open = 1;
+}
+static int new_tap(int x, int y) {
+    if (!new_open) return 0;
+    const UiCtrl *c = ui_button_at(&new_d, (vw - new_d.w) / 2, (vh - new_d.h) / 2, x, y);
+    if (!c) return 1;
+    if (!strncmp(c->name, "m_pRoleFlag", 11) || !strncmp(c->name, "m_pRoleName", 11)) {
+        int k = c->name[strlen(c->name) - 1] - '1';
+        if (k >= 0 && k < 5 && strcmp(c->name, "m_pRoleName")) new_pick(k);
+    } else if (!strcmp(c->name, "m_pPrevRole")) new_step(-1);
+    else if (!strcmp(c->name, "m_pNextRole")) new_step(1);
+    else if (!strcmp(c->name, "m_pNewGame") || !strcmp(c->name, "m_pCancel")) new_done();
+    return 1;
+}
+static void new_draw(void) {
+    if (!new_open) return;
+    int ox = (vw - new_d.w) / 2, oy = (vh - new_d.h) / 2;
+    UiCtrl *bg = ui_find(&new_d, "m_pBackGround");
+    if (bg) draw(ui_image(bg->img, 0), ox + bg->x, oy + bg->y);
+    ui_draw(&new_d, ox, oy);
+    char k[24], t[96], g[1024], u[2048];
+    for (int i = 0; i < 5; i++) {
+        snprintf(k, sizeof k, "m_pRoleFlag%d", i + 1);
+        UiCtrl *c = ui_find(&new_d, k);
+        if (c) draw(ui_image(c->img, i == new_prof), ox + c->x, oy + c->y);
+        snprintf(k, sizeof k, "m_pRoleName%d", i + 1);
+        c = ui_find(&new_d, k);
+        if (c) { ui_text(2132 + i, t, sizeof t); draw_text(ox + c->x + 4, oy + c->y + 5, t, c->w, i == new_prof ? 0xFFFF00 : 0xBECDCE, 1); }
+    }
+    UiCtrl *c = ui_find(&new_d, "m_pRoleTitle");
+    if (c) { ui_text(2204, t, sizeof t); draw_text(ox + c->x, oy + c->y, t, c->w, 0xBECDCE, 1); }
+    c = ui_find(&new_d, "m_pPortrait");
+    int pic = new_pic[new_prof * 4 + new_var];
+    if (c) draw(ui_image(pic ? pic : c->img, 0), ox + c->x, oy + c->y);
+    c = ui_find(&new_d, "m_pRoleInfo");
+    if (c && res_dlg_nth("info9_C.dlg", 3000 + new_prof * 4 + new_var, 1, g, sizeof g)) {
+        gbk_utf8(g, u, sizeof u);
+        char o[2048];
+        size_t n = 0;
+        for (const char *p = u; *p && n + 1 < sizeof o; p++) {  // 拿掉顏色標記 [1…] 和圖示 &10000008046
+            if (*p == '[' && p[1] >= '0' && p[1] <= '9') { p++; continue; }
+            if (*p == ']') continue;
+            if (*p == '&' && p[1] >= '0' && p[1] <= '9') { p++; while (*p >= '0' && *p <= '9') p++; p--; continue; }
+            o[n++] = *p;
+        }
+        o[n] = 0;
+        SDL_Rect clip = {ox + c->x, oy + c->y, c->w, c->h};
+        SDL_RenderSetClipRect(ren, &clip);
+        draw_text(ox + c->x, oy + c->y, o, c->w, 0xBECDCE, 1);  // shortcut: 介紹比框長時沒有捲動
+        SDL_RenderSetClipRect(ren, NULL);
+    }
+}
+
 static void sys_button(const char *name) {
     if (!strcmp(name, "m_pSave")) {
         if (actors[0].fight > 0) { ui_say(1507); return; }  // 战斗时不能够保存进度
@@ -6730,11 +6984,12 @@ static void sys_button(const char *name) {
     } else if (!strcmp(name, "m_pLoad")) sav_open(2);
     else if (!strcmp(name, "m_pResume") || !strcmp(name, "m_pClose")) sys_open = 0;
     else if (!strcmp(name, "m_pQuit")) quit_open = ui_load(JM102, &quit_d) > 0;
-    // shortcut: 设置、帮助（JM31、JM36）還沒做
+    else if (!strcmp(name, "m_pSetting")) opt_show();
+    else if (!strcmp(name, "m_pHelp")) help_show();
 }
 
 static void sys_toggle(void) {
-    if (sys_open) { sys_open = 0; sav_close(); quit_open = 0; return; }
+    if (sys_open) { sys_open = opt_open = help_open = 0; sav_close(); quit_open = 0; return; }
     if (!ui_load(JM50, &sys_d)) return;
     UiCtrl *q = ui_find(&sys_d, "m_pQuit");
     if (q) q->flags |= 9;  // 單機版顯示「退出」（保存并退出 是網路版的）
@@ -6757,6 +7012,7 @@ static int ask_button(int x, int y) {  // 1 是、2 否、0 沒點到
 
 // 系統選單、存取盘、確認框是蓋在畫面上的（點哪裡都吃掉）
 static int sys_tap(int x, int y) {
+    if (new_tap(x, y)) return 1;
     if (diff_open) {  // 新遊戲開場先選難度：m_pEasy 410 = 1、m_pNormal 411 = 2、m_pHard 412 = 3（shortcut: 按鈕代碼對應值沒在 Poq 查到，照 0x1039b000 的 1 容易、2 普通、3 困難）
         const Sprite *bg = ui_image(196, 0);
         const UiCtrl *c = ui_button_at(&diff_d, (vw - (bg ? bg->w : 0)) / 2, (vh - (bg ? bg->h : 0)) / 2, x, y);
@@ -6766,6 +7022,7 @@ static int sys_tap(int x, int y) {
         if (c) diff_open = 0;
         return 1;
     }
+    if (opt_tap(x, y)) return 1;
     if (quit_open) {
         const UiCtrl *c = ui_button_at(&quit_d, (vw - quit_d.w) / 2, (vh - quit_d.h) / 2, x, y);
         if (c && !strcmp(c->name, "m_Yes")) quit_due = 1;
@@ -6880,6 +7137,8 @@ static void sys_draw(void) {
         }
     }
     if (quit_open) ui_draw(&quit_d, (vw - quit_d.w) / 2, (vh - quit_d.h) / 2);
+    opt_draw();
+    new_draw();
     if (diff_open) {
         if (!diff_d.count) ui_load("JM21_\xc4\xd1\xb6\xc8\xd1\xa1\xd4\xf1\xbd\xe7\xc3\xe6", &diff_d);
         const Sprite *bg = ui_image(196, 0);
@@ -6943,6 +7202,8 @@ static int hud_tap(int x, int y) {
             skill_mode = 0;
             if (!win_right.open || strcmp(win_right.d.name, JM53)) win_toggle(&win_right, JM53);
         } else if (c && !strcmp(w->d.name, JM54)) bag_button(c->name);
+        else if (c && !strcmp(w->d.name, JM55) && !strcmp(c->name, "m_pCombo")) set_combine();
+        else if (c && !strcmp(w->d.name, JM55) && (!strcmp(c->name, "m_Asunder") || !strcmp(c->name, "m_pItem[10]"))) set_asunder();
         else if (c && !strcmp(w->d.name, JM55) && !strncmp(c->name, "m_pItem[", 8)) item_unequip(&actors[0], INV_BAG + atoi(c->name + 8));
         else if (c) ui_command(c->name);
         return 1;
@@ -7119,7 +7380,9 @@ static void hero_describe(const Actor *h, char *out, size_t cap) {
     ui_text(2131 + hero_prof, prof, sizeof prof);
     ui_text(2197 + hero_gender, gender, sizeof gender);
     // shortcut: 名字原版來自開新遊戲畫面的輸入（0x94c358），那個畫面還沒做，先用劇情主角的名字
-    snprintf(out, cap, "%s\n%s%s\n%s%s\n%s%d\n%s%d\n", "扶苏", l[0], prof, l[1], gender, l[2], hero_age, l[3], h->level);
+    char nm[96];
+    gbk_utf8(hero_name, nm, sizeof nm);
+    snprintf(out, cap, "%s\n%s%s\n%s%s\n%s%d\n%s%d\n", nm, l[0], prof, l[1], gender, l[2], hero_age, l[3], h->level);
 }
 
 // 技能視窗一頁 4 列（Poq.exe 0x560f30 → 0x55f900）：m_pItem[i] 圖示（ResID）、m_pItemInfo[i] 名稱、m_pOK[i] 等級。
@@ -7266,7 +7529,7 @@ static void hud_draw(Actor *hero) {
             }
             SDL_RenderSetClipRect(ren, NULL);
         }
-        // 裝備：圖示畫在 m_pItem[UI_Pos − 30]
+        // 裝備：圖示畫在 m_pItem[UI_Pos − 30]（Poq.exe 0x556000 CEquipDialog::OnInit：11 欄、載入人物 0x5567f0）
         for (int i = INV_BAG; !strcmp(win_left.d.name, JM55) && i < INV_N; i++) {
             char slot[16];
             snprintf(slot, sizeof slot, "m_pItem[%d]", i - INV_BAG);
@@ -7755,7 +8018,7 @@ int main(int argc, char **argv) {
     save_mount();
 #ifdef STORY
     story_register_all();
-    if (pos < 2 && story_start_room()) { scn = story_start_room(); diff_open = 1; }  // 沒指定場景 = 新遊戲，從原版的開場房間開始，先選難度
+    if (pos < 2 && story_start_room()) { scn = story_start_room(); new_show(); }  // 沒指定場景 = 新遊戲，從原版的開場房間開始，先創角（JM09）再選難度
 #endif
 
     js_status(-1);
@@ -7817,6 +8080,7 @@ int main(int argc, char **argv) {
     SDL_RenderSetLogicalSize(ren, vw, vh);  // 視窗多大都等比例縮放，畫面內容固定 vw x vh
     // 先以 1:1 畫在畫布上再整張放大；直接放大每塊磁磚會在接縫透出細線
     SDL_Texture *canvas = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
+    fade_canvas = canvas;
     SDL_Texture *zoom_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);  // 縮放時的暫存
     // 音量與開關照原版 ini/Config.ini（[音频] 音效、音乐、音效音量、音乐音量）
     size_t cfg_size;
@@ -8075,8 +8339,9 @@ int main(int argc, char **argv) {
                     scene_music(alias, music, sizeof music);
                     audio_music(music);
                     printf("進入 %s\n", alias);
+                    fade_start(3);  // 0x44ca40(3, 0)：換場景交叉淡出
                     snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）。shortcut: 原版只在「大場景」之間存，這裡每個出口都存
-                    save_due = 0;
+                    if (opt_v[O_AUTOSAVE]) save_due = 0;
                 }
             }
 #else
@@ -8095,8 +8360,9 @@ int main(int argc, char **argv) {
                         scene_music(world.rooms[room].alias, music, sizeof music);
                         audio_music(music);
                         printf("進入 %s\n", world.rooms[room].alias);
-                        snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）。shortcut: 原版只在「大場景」之間存，這裡每個出口都存
-                        save_due = 0;
+                        fade_start(3);  // 0x44ca40(3, 0)：換場景交叉淡出
+                    snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）。shortcut: 原版只在「大場景」之間存，這裡每個出口都存
+                        if (opt_v[O_AUTOSAVE]) save_due = 0;
                     }
                     armed = 0;
                     break;
@@ -8148,6 +8414,7 @@ int main(int argc, char **argv) {
             viewport_building_hover(&viewport, &scene, hx, hy, mouse_seen && !c && !win_left.open && !win_right.open, tick);
         }
         viewport_draw(&viewport, &scene, tick);
+        fade_draw(vw, vh);  // 0x44bf00：場景畫完再淡入淡出（介面不受影響）
         if (snap_due) { snap_take(canvas); snap_due = 0; }
         if (save_due >= 0) {
             snprintf(save_alias, sizeof save_alias, "%s", alias);

@@ -406,7 +406,7 @@ static void unit_spawn(int id, const Trig *t, MUnit *src, int cx, int cy, int ex
     unit_new(id, x, y, src, tick);
 }
 
-// 執行一個觸發（0x43c4f0，招式單位當來源）：0 命中、1 音效、2 放單位、10 結束、14 震畫面、16 改目標點（1 往側邊、0x21 隨機方向、0x22 抖動）
+// 執行一個觸發（0x43c4f0，招式單位當來源）：0 命中、1 音效、2 放單位、10 結束、14 畫面效果（ID 1~3 淡入淡出、4 震畫面，0x44ca40）、16 改目標點（1 往側邊、0x21 隨機方向、0x22 抖動）
 // shortcut: 3/4（地上的痕跡物件 0x498c40）、5/7/8/11/13（對放的人的動作，單位很少用）、12 透明度沒做
 static void unit_trig(MUnit *u, const Trig *t, Uint32 tick) {
     if (u->cls == U_MAIN && owner_trig(u, t, tick)) return;
@@ -420,7 +420,7 @@ static void unit_trig(MUnit *u, const Trig *t, Uint32 tick) {
     }
     case 10: unit_die(u, tick); break;
     case 14:
-        if (t->id == 4 && shake_left < 1 && abs(u->x - ax64(&actors[0])) + abs(u->y - ay64(&actors[0])) < 20 * 64) shake_left = shake_total = t->id2;
+        if (abs(u->x - ax64(&actors[0])) + abs(u->y - ay64(&actors[0])) < 20 * 64) screen_effect(t->id, t->id2);  // 0x43c4f0 type 0xe → 0x44ca40
         break;
     case 16:
         if (t->id == 1) {

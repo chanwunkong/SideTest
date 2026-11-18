@@ -4139,7 +4139,41 @@ static void make_ready_test(void) {
     assert(!recipe_ready(&r, m));
 }
 
+static void weaponset_test(void) {
+    Item sv[INV_N]; memcpy(sv, inv, sizeof inv);
+    memset(inv, 0, sizeof inv);
+    set_combine();  // 少於 2 件不組
+    assert(!inv[40].name[0]);
+    inv[32].name[0] = inv[31].name[0] = 'x'; inv[31].icon = 7;
+    set_combine();
+    assert(inv[40].name[0] && inv[40].set_mask == 6 && inv[40].icon == 7 && inv[40].pos == 40);
+    inv_swap(32, 5);  // 成員欄變動 → 拆套
+    assert(!inv[40].name[0]);
+    inv[40].name[0] = 'y'; set_asunder();
+    assert(!inv[40].name[0]);
+    memcpy(inv, sv, sizeof inv);
+}
+
+static void newchar_opt_test(void) {
+    new_pick(3);  // 0x572140／0x572200：外貌上一個從 0 繞到最後、下一個取餘數；換職業外貌回 0
+    assert(new_var == 0 && new_var_n[new_prof] == 4);
+    new_step(-1); assert(new_var == 3);
+    new_step(1); assert(new_var == 0);
+    new_var = 2; new_pick(0); assert(new_var == 0 && new_prof == 0);
+    assert(opt_ctrl("m_pMusic") == O_MUSIC && opt_ctrl("m_pNothing") < 0);
+    assert(!memcmp(opt_v, opt_def, sizeof opt_v));
+}
+
 int main(void) {
+    weaponset_test();
+    newchar_opt_test();
+    shake_left = 0;
+    screen_effect(4, 12); assert(shake_left == 12 && shake_total == 12);  // 0x44ca40 模式 4 = 震畫面
+    screen_effect(1, 0); assert(fade_mode == 1 && fade_cnt == 0x17 && !fade_tex);
+    screen_effect(0, 0); assert(!fade_mode && !fade_cnt);
+    screen_effect(2, 0); assert(fade_mode == 2);
+    screen_effect(2, 0x50); assert(fade_hold == 0x50);
+    fade_reset(); shake_left = 0; fade_hold = 0;
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
     make_ready_test();

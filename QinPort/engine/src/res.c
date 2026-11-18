@@ -2078,7 +2078,7 @@ static uint32_t dlg_u32(const uint8_t *b) {
     return v;
 }
 
-int res_dlg(const char *name, int id, char *out, size_t cap) {
+int res_dlg_nth(const char *name, int id, int nth, char *out, size_t cap) {
     static struct { char name[64]; uint8_t *d; size_t n; } cache[4];  // 介面字（UI_C）和名稱（name_C）每畫面都會查，各留一份
     int c = 0;
     while (c < 4 && cache[c].name[0] && strcmp(cache[c].name, name)) c++;
@@ -2119,7 +2119,8 @@ int res_dlg(const char *name, int id, char *out, size_t cap) {
         }
         out[k] = 0;
         p += m;
-        if (k) return 1;  // 前面幾個字串欄常是空的
+        if (k && nth-- <= 0) return 1;  // 前面幾個字串欄常是空的；nth = 跳過幾個有字的欄（info9_C：第 0 欄人名、第 1 欄介紹）
     }
     return 0;
 }
+int res_dlg(const char *name, int id, char *out, size_t cap) { return res_dlg_nth(name, id, 0, out, cap); }

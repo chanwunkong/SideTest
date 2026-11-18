@@ -40,6 +40,7 @@ void res_preload(const char *sub, const char *const *names, int n);
 size_t res_unxor(uint8_t *d, size_t n);
 // 原版文字表 Dlg/<name>（例如 UI_C.dlg）第 id 筆的第一個非空字串（GBK，含原版的 [1…] 標記）；沒有回 0
 int res_dlg(const char *name, int id, char *out, size_t cap);
+int res_dlg_nth(const char *name, int id, int nth, char *out, size_t cap);  // 跳過前 nth 個有字的欄
 uint8_t *res_read(uint32_t gid, uint32_t *size);
 // 圖片：xbm 直接解；xbmgroup 用 ref 高 8 位當幀號(從 1 起)。回傳 RGBA32，呼叫者 free。
 // 網頁版不等下載：還沒到就回 NULL 並設 res_waiting
@@ -210,6 +211,7 @@ typedef struct {
     int fx_n;
     ItemFx fx[32];
     int sh;  // 劇情那邊對應的道具物件（0 = 還沒有；網頁版劇情用）
+    int set_mask;  // 成套武装（0x1001eaa0）：包了哪幾個裝備欄（bit i = UI_Pos 30+i），0 = 不是套裝
     int gem_n, gem_icon[3], gem_value[3];  // 鑲嵌的寶石（0x10037690）：圖示、價值（拆掉時扣回）
 } Item;
 // 產生一件：type = 道具表類型（或掉寶類型，經 item_type_pick），level < 0 時依 col（SLevel_i 的欄）隨機等級，

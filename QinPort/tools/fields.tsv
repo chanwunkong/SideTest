@@ -928,3 +928,4 @@ CMakePropDialog	+0x10c～+0x11c	配方五種材料（木矿骨皮筋）件數	Re
 CEquipDialog	+0x304	目前人物名稱字串	（主角固定，不存）
 CEquipDialog	+0x308	成套武裝用：10 個道具編號（−1 = 空）	（成套武裝還沒做）
 CChapterDialog	+0x29c	章節序號（≥10 = 單頁章節）	（章節字幕還沒做）
+Item	set_mask	成套武裝容器（inv[40]）包的裝備欄 bit（bit i = UI_Pos 30+i），0x1001eaa0；實作不搬進容器
