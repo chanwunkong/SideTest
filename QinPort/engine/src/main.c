@@ -1478,10 +1478,14 @@ static void id_add(IdList *l, uint32_t v) {
 static void preload_roles(const Scene *s, const RoleDef *hero_def) {
     const RoleDef *defs[MAX_ACTORS];
     int n = 0;
-    if (hero_def) defs[n++] = hero_def;
+    IdList ids = {0};
+    // 有 anim 的角色用 role_load_anim（單一動畫），沒有 PLI 檔；graphic 空的是這種，不能要 _000.PLI（創角 404）
+    if (hero_def && hero_def->anim) id_add(&ids, hero_def->anim);
+    else if (hero_def && role_drawable(hero_def)) defs[n++] = hero_def;
     for (int i = 0; i < s->npc_count && n < MAX_ACTORS; i++) {
         const RoleDef *d = roledef_find(s->npcs[i].tmpl);
         int dup = !d || !role_drawable(d);
+        if (d && d->anim) { id_add(&ids, d->anim); dup = 1; }
         for (int k = 0; k < n && !dup; k++) dup = defs[k] == d;
         if (!dup) defs[n++] = d;
     }
@@ -1494,7 +1498,6 @@ static void preload_roles(const Scene *s, const RoleDef *hero_def) {
         list[i + 1] = names[i + 1];
     }
     res_preload("PLI", list, n + 1);
-    IdList ids = {0};
     for (int i = 0; i < n; i++) {
         uint32_t g[MAX_ROLE_PARTS * 2];
         int m = role_anim_ids(defs[i]->graphic, defs[i]->pli, defs[i]->styles, g, MAX_ROLE_PARTS * 2);
@@ -2040,6 +2043,7 @@ static int actor_skill_add(Actor *a, ActorSkill skill, unsigned hand) {
     a->skills[slot] = skill;
     if (hand & 1) actor_right_skill(a, skill.id);
     if (hand & 2) actor_left_skill(a, skill.id);
+    if (skill.id < 0) return slot;  // 被動／光環技能沒有 Attack方式（招式 ID −1）：靠 row 辨識，不是模板招式，模板檢查（0x485f80 的 AfxMessageBox）不適用
     for (int i = 0; i < a->template_skill_n; i++)
         if (a->template_skill[i] == skill.id) return slot;
     fprintf(stderr, "角色%d技能%d不在模板中\n", a->def ? a->def->id : -1, skill.id);

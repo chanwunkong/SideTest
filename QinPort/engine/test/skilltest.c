@@ -2330,6 +2330,8 @@ static void character_skills_test(void) {
     a.skills[1].enabled = 0; assert(actor_skill_find(&a, -1) == 0);
     a.template_skill_n = 0; assert(actor_skill_find(&a, -1) == -1);
     assert(actor_skill_find(&a, 10) == 1); // 不在模板也能精確命中停用項。
+    { int n0 = a.skill_n, tn = a.template_skill_n; a.template_skill_n = 0;  // 被動技能（id −1）加入不印「不在模板中」診斷（創角畫面每次都印）
+      assert(actor_skill_add(&a, (ActorSkill){.id = -1, .key = 77}, 0) == n0 && a.skill_n == n0 + 1); a.skill_n = n0; a.template_skill_n = tn; }
     a.foe = NULL; a.layer = 1;
     int added = actor_skill_add(&a, (ActorSkill){.key = 42, .id = 99,
         .min = -2, .max = 7, .p6 = 5, .p7 = 6, .p8 = 7, .p9 = 8, .enabled = 0}, 7);

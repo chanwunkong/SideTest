@@ -1717,3 +1717,15 @@ FUNCS.tsv todo 仍 0。使用者要玩非劇情模式，「劇情沒用到」不
 
 ## 接力第 2 輪：分身技能、銀行／丟錢、偷開鎖、時鐘天氣除錯入口、章節配音、Rec #6／#8／#9（2026-11-19）
 見 tools/PORT_QUEUE.md 最後一節。新檔 engine/src/money.c（銀行、丟錢、JM109 數字輸入）。分身：main.c `clone_skills`（0x1003df00）。偷竊／開鎖：`skill_steal`、`skill_open_lock`。除錯：`--weather N`（0~10 天氣、11~16 色調）、`--hour`、`--clock Y,M,D,H,T`、`--cmd "SetFog n"／"GetSpeed"`。章節配音：audio_voice(1000 + 檔號)。Rec：`rec_cast`（#9）、#8 unit_new、#6 ground_drop、#1 子類 1 weather_set。skilltest 全過；storytest 絡女 0 1 正常；/tmp/qb13 make web 通過。
+
+## 實際遊玩驗證（2026-11-19，headless Chrome，複本 /tmp/qb14，8654）
+走過：新遊戲創角（五個職業圖示都開局成功、截圖確認角色外觀不同）→ 難度 → 赵村開場（日誌三則）→ 老者自動對話選項（任務日誌「老者指路」）→ 背包視窗（新遊戲 20/75、劍與衣服在背包）→ 選單視窗。沒走到：商店買賣／打造／換地圖來回／存讀檔／死亡／打怪射箭（?scene=zhaocun1&at=93,128 附近沒看到怪，沒找到怪的位置）——留在 PORT_QUEUE「遊玩驗證待修」。
+**修了（瀏覽器重跑確認 console 沒有了）**
+1. 創角畫面 5 次 404 `game/PLI/_000.PLI`：根因 `preload_roles`（main.c）把「沒有 PLI 的角色」也當 PLI 角色，主角在創角時是 anim 型（graphic 空、`role_load_anim`），用空 graphic 組出 `_000.PLI` 並呼叫 `role_anim_ids`。修：anim 角色（主角與場景 NPC）只預載單一動畫 id，不進 PLI 清單。
+2. 「角色29技能-1不在模板中」：`actor_skill_add` 的模板診斷（原版 0x485f80 的 AfxMessageBox）不適用於被動／光環技能（無 Attack方式，招式 ID −1，靠 row 辨識；skilltest 的光環測試依賴它們進技能列）。修：id < 0 不做模板檢查。skilltest 新增斷言（技能列加 id −1 不拒絕）。
+**找到沒修**
+- 創角畫面點職業「名稱」文字沒反應，只有左邊圖示可點（tap 120,y 才換職業）；原版 dlg 該文字是否為按鈕沒查，原版規則沒找到。
+- 每次新遊戲 console 警告「過場 pct_wmtya 的場景是 ptdhcj，目前是 zhaocun1，不播」：Rec 多場景（PORT_QUEUE 第 5 點已知）。
+- 用 ?scene= 直接進場景時背包是空的（沒有開局道具），只有走新遊戲流程才有。
+- 背包裡點道具（觸控 tap／滑鼠 click）沒有看到穿上的效果，裝備娃娃面板全黑：原版穿裝規則（雙擊／拖放）沒在瀏覽器驗證。
+驗證：`make skilltest` → skilltest ok；storytest 絡女 0 1 正常。
