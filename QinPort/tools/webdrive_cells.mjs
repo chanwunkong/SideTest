@@ -1,5 +1,5 @@
 // 網頁版自動操作（headless Chrome + CDP，只用 node 內建 API）：node tools/webdrive_cells.mjs <網址> <寬> <高> <輸出前綴> "<步驟>"
-// 步驟以 ; 分隔：wait:毫秒 | tap:x,y | click:x,y（滑鼠）| key:字母 | hold:x,y,毫秒（按住）| drag:x0,y0,x1,y1,毫秒（手指）| mdrag:x0,y0,x1,y1,毫秒（滑鼠拖放）| shot:名字 | eval:JS 運算式（印出結果）
+// 步驟以 ; 分隔：wait:毫秒 | tap:x,y | click:x,y（滑鼠）| key:字母 | vk:鍵名,code,碼 | hold:x,y,毫秒（按住）| drag:x0,y0,x1,y1,毫秒（手指）| mdrag:x0,y0,x1,y1,毫秒（滑鼠拖放）| shot:名字 | eval:JS 運算式（印出結果）
 // 環境變數 NOCLICK = 不在開頭點一下（用 ?scene= 直接進場景、要看過場時用）；INJECT = 每頁載入前先執行的 JS（例如監看載入畫面）；CDP_PORT = 除錯埠（預設 9344）；THROTTLE=1 = 模擬 4G
 // 第一次玩的片頭影片：預設先設好 localStorage.qinIntro，並在開頭點一下跳過 logo 影片。console 輸出存到 <前綴>.log
 import { spawn } from 'node:child_process';
@@ -37,6 +37,7 @@ for (const st of steps.split(';').filter(Boolean)) {
   else if (cmd === 'tap') { const [x, y] = arg.split(',').map(Number); await touch('touchStart', x, y); await sleep(80); await touch('touchEnd'); }
   else if (cmd === 'click') { const [x, y] = arg.split(',').map(Number); await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }); for (const t of ['mousePressed', 'mouseReleased']) { await send('Input.dispatchMouseEvent', { type: t, x, y, button: 'left', buttons: t === 'mousePressed' ? 1 : 0, clickCount: 1 }); await sleep(80); } }  // 滑鼠點擊（會收起觸控介面，不點到觸控按鈕）
   else if (cmd === 'key') { for (const t of ['keyDown', 'keyUp']) { await send('Input.dispatchKeyEvent', { type: t, key: arg, code: 'Key' + arg.toUpperCase(), text: t === 'keyDown' ? arg : undefined, windowsVirtualKeyCode: arg.toUpperCase().charCodeAt(0) }); await sleep(60); } }  // 按鍵（例如 h = 鏡頭回到主角）
+  else if (cmd === 'vk') { const [k, c, v] = arg.split(','); for (const t of ['keyDown', 'keyUp']) { await send('Input.dispatchKeyEvent', { type: t, key: k, code: c, windowsVirtualKeyCode: +v }); await sleep(60); } }  // 特殊鍵：vk:鍵名,code,虛擬鍵碼（F9 = vk:F9,F9,120；Esc = vk:Escape,Escape,27；空白 = vk: ,Space,32）
   else if (cmd === 'hold') { const [x, y, ms] = arg.split(',').map(Number); await touch('touchStart', x, y); await sleep(ms); await touch('touchEnd'); }
   else if (cmd === 'drag') { const [x0, y0, x1, y1, ms] = arg.split(',').map(Number); await touch('touchStart', x0, y0);
     for (let k = 1; k <= 10; k++) { await touch('touchMove', x0 + (x1 - x0) * k / 10, y0 + (y1 - y0) * k / 10); await sleep(ms / 10); } await sleep(300); await touch('touchEnd'); }

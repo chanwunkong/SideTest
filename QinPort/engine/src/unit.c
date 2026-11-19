@@ -239,6 +239,7 @@ static void unit_sweep(MUnit *u, Uint32 tick) {
         move_angle(&u->px, &u->py, u->px, u->py, angle_of(u->px, u->py, x, y), 64);
         u->x = u->px, u->y = u->py;
         unit_hits(u, u->path_mode, tick);
+        if (u->px == -100) u->px = u->x, u->py = u->y;  // 0x439b80：打中觸發（456）把掃描起點重設成 -100 時，接回剛掃到的點；少了這行會從 (-100,-100) 反覆重掃，同一拍打中幾百次
         steps++;
     }
     if (steps) u->x = u->px = x, u->y = u->py = y;

@@ -2117,10 +2117,10 @@ static int hand_calc(int npc, int rt, int lt) {
     if (v[1] != -1) return v[1];
     return npc == 1 ? 0 : npc == 2 ? 7 : 3;
 }
-// 主角目前的手持類：由右手（UI_Pos 32）、左手（33）道具類型算；裝備變動（hero_refresh）與技能重建時更新
+// 主角目前的手持類（IsActorNPC = 職業序號 hero_prof：1 游俠、2 力士、3 刺客；以前固定傳 1，刺客裝弓箭算成游俠的 2，刺客的招式 W_Type 5 永遠用不了）：由右手（UI_Pos 32）、左手（33）道具類型算；裝備變動（hero_refresh）與技能重建時更新
 static int hero_hand;
 static void hero_hand_update(void) {
-    int h = hand_calc(1, inv[32].name[0] ? inv[32].type : 0, inv[33].name[0] ? inv[33].type : 0);
+    int h = hand_calc(hero_prof, inv[32].name[0] ? inv[32].type : 0, inv[33].name[0] ? inv[33].type : 0);
     if (h != -1) hero_hand = h;
 }
 
@@ -2130,7 +2130,7 @@ static int skill_usable(const Actor *h, const SkillRow *r) {
     if (r->level < 1 || h->mp < skill_mpu(r)) return 0;
     if (h->team) return 1;  // shortcut: 隊友沒有裝備，不查武器種類與箭（主角的 hero_hand、箭袋不是他們的）
     // shortcut: 沒箭射不出去。原版靠 Enable 旗標（箭射完關、裝箭開，arrow_spend／arrow_refresh），但沒找到開局弓技能預設是否關；這裡直接看左手有沒有箭袋
-    if (!h->mon && skill_attack_id(r) == 1 && (w == 1 || w == 3) && (!inv[33].name[0] || (inv[33].type != 13 && inv[33].type != 14))) return 0;
+    if (!h->mon && r->attack == 1 && (w == 1 || w == 3) && (!inv[33].name[0] || (inv[33].type != 13 && inv[33].type != 14))) return 0;
     return w < 0 || w == hero_hand || (w == 0 ? hero_hand < 0 : w == 1 ? hero_hand == 2 : w == 4 && hero_hand == 5);
 }
 
@@ -4126,7 +4126,7 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     if (shield_block(a, t, tick)) return;
     // 命中（Poq.exe 0x48c600，CCharactor 虛擬函式第 104 格）：千分比 = HR×1000 / (SR + HR)，夾在 100~900；HR 0 當 1
     int hr = a->hr ? a->hr : 1, chance = hr * 1000 / (t->sr + hr);
-    if (rand() % 1000 >= (chance < 100 ? 100 : chance > 900 ? 900 : chance)) return;
+    if (rand() % 1000 >= (chance < 100 ? 100 : chance > 900 ? 900 : chance)) { if (debug_cells == 2) printf("strike t=%u #%d -> #%d miss chance=%d hr=%d sr=%d\n", tick, (int)(a - actors), (int)(t - actors), chance, a->hr, t->sr); return; }
     // 原版受擊入口：4/7先留血，其餘0/1/2/3/8在反應後留血。
     if (sk && (sk->attack == 4 || sk->attack == 7)) actor_blood(t, 1);
     // 技能參數（EasyRPG 0x10024xxx 一屬性一個處理，0x1039e628 起的函式表）存成這次攻擊的暫時加值，分固定值、百分比兩組：
@@ -4166,6 +4166,7 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     int loss = phys - jswl * phys / 100 + magic - jsmf * magic / 100;
     if (loss <= 0) loss = 3;  // 總損血不到 1 才補成 3（原版 -1 < 損 → -3）
     t->hp -= loss;
+    if (debug_cells == 2) printf("strike t=%u #%d -> #%d loss=%d phys=%d magic=%d t.hp=%d refl=%d atk=%d\n", tick, (int)(a - actors), (int)(t - actors), loss, phys, magic, t->hp, t->ex[68], sk ? sk->attack : -1);
     hit_wear(a, t, sk);
     // 反彈（對方 B_FJXS% 的損血打回來）、自損（Attack方式 10：HP_MAX × 287 參數%）、吸血（B_XQSM + 222，補到滿為止）、吸精氣（B_XQMF + 223）
     if (t->ex[68] > 0) a->hp -= t->ex[68] * loss / 100;
@@ -6253,7 +6254,7 @@ static void item_equip(Actor *h, int p) { item_equip_slot(h, p, -1); }
 // 每發 −1；用光就刪箭堆、訊息 1289「箭射完了」，並關掉所有 W_Type 1／3 的弓技能（Enable = 0）。原版另送箭數給客戶端，單機不需要
 static void arrow_spend(Actor *h, const SkillRow *r) {
     Item *ar = &inv[33];
-    if (!r || skill_attack_id(r) != 1 || !ar->name[0] || (ar->type != 13 && ar->type != 14)) return;
+    if (!r || r->attack != 1 || !ar->name[0] || (ar->type != 13 && ar->type != 14)) return;
     if (--ar->arrows > 0) return;
     memset(ar, 0, sizeof *ar);
     hud_msg_hero(1289);
@@ -7506,7 +7507,7 @@ static SaveHead *sav_head[SAVE_SLOTS];   // 開視窗時讀的各格檔頭，NUL
 static SDL_Texture *sav_tex[6];          // 這一頁的縮圖
 static uint32_t snap[THUMB_W * THUMB_H]; // 開系統選單前的畫面（原版也是先截圖，0x535ec0）
 static int snap_due, save_due = -1, load_due = -1, quit_due, dead_open;
-static char save_alias[64], save_name[64];  // 目前場景的別名、房間名（GBK）
+static char save_alias[64], save_name[64];  // 目前場景的別名、房間名（劇情版 UTF-8、舊版 GBK）
 
 #ifdef __EMSCRIPTEN__
 // 網頁版存在瀏覽器的 IndexedDB：開場掛上、讀進來；每次存完寫回去
@@ -8209,7 +8210,11 @@ static void sys_draw(void) {
             if (k < 2) ui_text(2130 + k, t, sizeof t);
             if (h) {
                 char u[96];
+#ifdef STORY
+                snprintf(u, sizeof u, "%s", h->name[0] ? h->name : h->alias);  // 劇情版的房間名（story_name）是 UTF-8，不能再當 GBK 轉（以前存檔格子顯示「璧垫潙」= 赵村）
+#else
                 gbk_utf8(h->name[0] ? h->name : h->alias, u, sizeof u);
+#endif
                 snprintf(t + strlen(t), sizeof t - strlen(t), "%s%s", t[0] ? " " : "", u);
             }
             if (nm && t[0]) draw_text(ox + nm->x, oy + nm->y + 5, t, nm->w, 0xBECDCE, 1);
@@ -9168,7 +9173,27 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     actor_group(hero, story_get_int(story_player(), "G_AIGroup"));
 #endif
     spawn_npcs(scene);
-    ground_n = 0;  // 地上的道具不跟著換場景
+    {  // 地上的道具留在丟下它的場景（房間的物件）：離開時存起來、回來放回去。原版規則沒找到：這是依「房間物件跟著房間」的推測；存檔不含地上道具
+        static char ground_alias[64];
+        static struct { char alias[64]; int n; __typeof__(ground[0]) g[MAX_GROUND]; } store[8];
+        int old = -1, nw = -1, freeslot = -1;
+        for (int i = 0; i < 8; i++) {
+            if (!store[i].alias[0]) { if (freeslot < 0) freeslot = i; continue; }
+            if (!strcmp(store[i].alias, ground_alias)) old = i;
+            if (!strcmp(store[i].alias, alias)) nw = i;
+        }
+        if (ground_alias[0] && strcmp(ground_alias, alias)) {
+            if (old < 0) old = freeslot >= 0 ? freeslot : 0;  // shortcut: 超過 8 個場景就蓋掉第一格
+            snprintf(store[old].alias, sizeof store[old].alias, "%s", ground_alias);
+            store[old].n = ground_n;
+            memcpy(store[old].g, ground, sizeof(ground[0]) * ground_n);
+        }
+        if (strcmp(ground_alias, alias)) {
+            ground_n = 0;
+            if (nw >= 0 && store[nw].n > 0) { ground_n = store[nw].n; memcpy(ground, store[nw].g, sizeof(ground[0]) * ground_n); store[nw].n = 0; }
+            snprintf(ground_alias, sizeof ground_alias, "%s", alias);
+        }
+    }
     walk_cx = -1;
     unit_n = 0;
     const Entry *en = scene_entry(scene, entry_id);
@@ -9838,6 +9863,7 @@ int main(int argc, char **argv) {
     int press_x = -1, press_y = -1;
     int pos = 0, warp = -1, at_x = -1, at_y = -1, level = 1, gives = 0, money = -1;
     const char *give[8], *learn[8];
+    int give_eq[8], drop_t = -1, drop_lv = 1;
     int learns = 0, win_w = 0, win_h = 0;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--pause-traps")) trap_auto_pause = 1;
@@ -9870,6 +9896,7 @@ int main(int argc, char **argv) {
             dbg_clk.use_clock = sscanf(argv[++i], "%d,%d,%d,%d,%d", &dbg_clk.clock[0], &dbg_clk.clock[1], &dbg_clk.clock[2], &dbg_clk.clock[3], &dbg_clk.clock[4]) == 5;
         else if (!strcmp(argv[i], "--learn") && i + 1 < argc && learns < 8) learn[learns++] = argv[++i];  // 測試用：模擬文字指令 skl_learn「索引名,分類」
         else if (!strcmp(argv[i], "--item") && i + 1 < argc && gives < 8) give[gives++] = argv[++i];
+        else if (!strcmp(argv[i], "--drop") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &drop_t, &drop_lv);  // 測試用：開場在主角右前方 2 格放一件地上的道具（類型,等級），試撿取
         else if (!strcmp(argv[i], "--prof") && i + 1 < argc) hero_prof = atoi(argv[++i]) < 1 || atoi(argv[i]) > 5 ? 1 : atoi(argv[i]);
         else if (pos++ == 0) game = argv[i];
         else scn = argv[i];
@@ -9907,9 +9934,10 @@ int main(int argc, char **argv) {
     hero_equip();
 #endif
     for (int i = 0; i < gives; i++) {  // 測試用：--item 類型,等級 放一件到背包
-        int t = 0, lv = 1, b = bag_free();
-        sscanf(give[i], "%d,%d", &t, &lv);
-        if (b >= 0 && item_new(&inv[b], t, lv, -1, NULL)) inv[b].pos = b;
+        int t = 0, lv = 1, eq = 0, b = bag_free();
+        sscanf(give[i], "%d,%d,%d", &t, &lv, &eq);
+        if (b >= 0 && item_new(&inv[b], t, lv, -1, NULL)) { inv[b].pos = b; give_eq[i] = eq ? b : -1; }  // 第三欄 1 = 穿上（弓／箭袋測試用，開場時主角已建好才呼叫 item_equip）
+        else give_eq[i] = -1;
     }
     if (money >= 0) hero_money = money;  // 測試用 --money
     Scene scene = {0};
@@ -9919,6 +9947,7 @@ int main(int argc, char **argv) {
     if (!enter_scene(&scene, hero, alias, -1)) return 1;
     if (!hero->role) { fprintf(stderr, "載入主角失敗\n"); return 1; }
     hero_stats(hero, level < 1 ? 1 : level > 99 ? 99 : level);
+    for (int i = 0; i < gives; i++) if (give_eq[i] >= 0) item_equip(hero, give_eq[i]);
     hero_extra_exp = 10 * (hero->level - 1), hero_extra_skill = hero->level - 1;  // 測試用 --level：當成從 1 級升上來，點數照原版給
     for (int i = 0; i < learns; i++) {  // 測試用 --learn 索引名,分類：先放進 SKL_ToLearn 再學（skl_learn）
         char key[64] = "";
@@ -9930,6 +9959,7 @@ int main(int argc, char **argv) {
     int room = -1;
     int monsters_due = 1;      // 進場景後等圖片都下載好，再讀房間表放怪物（網頁版開場不用等 4MB 的 DLL）
     if (at_x >= 0) actor_restore_position(hero, at_x + 0.5f, at_y + 0.5f);
+    if (drop_t >= 0) { Item di; if (item_new(&di, drop_t, drop_lv, -1, NULL)) ground_drop(&di, hero->x + 2, hero->y); }
     if (debug_cells) for (int i = 0; i < scene.trigger_count; i++) printf("trigger %d %s at %d,%d\n", i, scene.triggers[i].event, scene.triggers[i].x, scene.triggers[i].y);
     if (warp >= 0 && warp < scene.trigger_count) {
         int wt_x = 0, wt_y = 0;
@@ -10211,7 +10241,9 @@ int main(int argc, char **argv) {
                 int dir = hero->dir, lv = hero->level, exp = hero->exp, hp = hero->hp, mp = hero->mp;
                 js_status(-1);
                 if (enter_scene(&scene, hero, h.alias, -1)) { snprintf(alias, sizeof alias, "%s", h.alias); explore_restore(&scene, alias); }
+                ground_n = 0;  // 讀檔：地上的道具以存檔為準（存檔不含地上道具），不留讀檔前的
                 actor_restore_position(hero, x, y); hero->dir = dir;
+                viewport_home(&viewport, &scene, hero, 0);  // 讀檔後鏡頭回到主角（同場景讀檔時鏡頭原本留在舊位置，主角在畫面角落）
                 hero->foe = NULL; hero->want = NULL; hero->cast = NULL; hero->casting = 0; hero->act = ACT_NONE; hero->object_dead = 0; dead_open = 0;
                 hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->stun = hero->z = 0;
                 hero_stats(hero, lv);
@@ -10390,7 +10422,7 @@ int main(int argc, char **argv) {
             }
             else if (!pursue(hero)) actor_tick(hero, &scene, 0, 0, tick);
             if (debug_cells == 2 && tick % 2 == 0)
-                printf("trace t=%u hero=%.3f,%.3f cam=%d,%d moving=%d dir=%d act=%d frame=%d done=%d\n", tick, hero->x, hero->y, viewport.pos.x, viewport.pos.y, hero->moving, hero->dir, hero->act, hero->act_frame, hero->act_done);
+                printf("trace t=%u hero=%.3f,%.3f cam=%d,%d moving=%d dir=%d act=%d frame=%d done=%d hp=%d/%d mp=%d lv=%d exp=%d arrows=%d money=%d foe=%d ground=%d hand=%d rs=%d ls=%d inv32=%d/%d rsk=%d/%d/%d use=%d\n", tick, hero->x, hero->y, viewport.pos.x, viewport.pos.y, hero->moving, hero->dir, hero->act, hero->act_frame, hero->act_done, hero->hp, hero->hp_max, hero->mp, hero->level, hero->exp, inv[33].name[0] ? inv[33].arrows : -1, hero_money, hero->foe ? hero->foe->hp : -1, ground_n, hero_hand, cur_skill[0], cur_skill[1], inv[32].name[0] ? inv[32].type : -1, inv[33].name[0] ? inv[33].type : -1, hero_skill_n > 0 ? hero_skill[0].wtype : -9, hero_skill_n > 0 ? hero_skill[0].level : -9, hero_skill_n > 0 ? skill_attack_id(&hero_skill[0]) : -9, hero_skill_n > 0 ? skill_usable(hero, &hero_skill[0]) : -9);
             if (debug_cells == 2 && tick % 120 == 0)  // 除錯：列出可對話的 NPC（事件ID、格子、畫面座標），自動操作腳本用來點它們
                 for (int i = 1; i < actor_count; i++) {
                     const char *ev = actor_init_name(&actors[i]);
@@ -10406,12 +10438,18 @@ int main(int argc, char **argv) {
                     actor_restore_position(hero, actors[best].x - 2.0f, actors[best].y);
                     viewport_home(&viewport, &scene, hero, 0);
                     printf("at-mon: 怪物 %d 在 %.1f,%.1f，主角站到 %.1f,%.1f\n", best, actors[best].x, actors[best].y, hero->x, hero->y);
+                    if (debug_cells == 2) for (int i = 0; i < hero_skill_n; i++) printf("hskill %d key=%s wtype=%d hand=%d attack=%d lv=%d max=%d req=%d usable=%d\n", i, hero_skill[i].key, hero_skill[i].wtype, hero_skill[i].hand, skill_attack_id(&hero_skill[i]), hero_skill[i].level, hero_skill[i].max_level, hero_skill[i].req, skill_usable(hero, &hero_skill[i]));
                     at_mon = 0;
                 }
             }
             if (debug_cells == 2 && tick % 60 == 0)  // 除錯：列出怪物（格子、血量、距離主角）
                 for (int i = 1; i < actor_count; i++)
                     if (actors[i].mon && actors[i].role) printf("mon %d cell=%.1f,%.1f hp=%d/%d dead=%d dist=%.1f act=%d\n", i, actors[i].x, actors[i].y, actors[i].hp, actors[i].hp_max, actors[i].object_dead, cell_dist(hero, &actors[i]), actors[i].act);
+            if (debug_cells == 2 && tick % 120 == 0)  // 除錯：地上的道具（畫面座標，自動操作腳本點它們）
+                for (int i = 0; i < ground_n; i++) {
+                    SDL_Point gp = viewport_world_screen(&viewport, (int)(ground[i].x * 64), (int)(ground[i].y * 64));
+                    printf("ground %d %s cell=%.1f,%.1f screen=%d,%d\n", i, ground[i].it.name, (double)ground[i].x, (double)ground[i].y, gp.x, gp.y);
+                }
             if (debug_cells == 2 && tick % 120 == 0)  // 除錯：列出可互動建築（名稱、種類、狀態、格子、畫面座標），自動操作腳本點它們
                 for (int i = -1; i < scene.object_count; i++) {
                     if (i < 0) { SDL_Point hp = viewport_world_screen(&viewport, ax64(hero), ay64(hero)); printf("bld hero screen=%d,%d vw=%d vh=%d zoom=%.3f\n", hp.x, hp.y, vw, vh, (double)zoom); continue; }

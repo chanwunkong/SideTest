@@ -4506,8 +4506,8 @@ static void instant_gem_learn_test(void) {
     // 箭消耗 0x1003f370：Attack == 1 的技能每發 −1，用光刪箭袋、關掉 W_Type 1／3 的弓技能
     {
         Item sv = inv[33]; Actor h = {.def = &def, .skill_n = 2};
-        SkillRow bow = {.wtype = 1, .level = 1, .mod_n = 1, .mod = {{.id = 10, .init = 1}}}, sw = {.wtype = 0, .level = 1, .mod_n = 1, .mod = {{.id = 10, .init = 1}}},
-                 other = {.wtype = 1, .level = 1, .mod_n = 1, .mod = {{.id = 10, .init = 4}}};
+        SkillRow bow = {.wtype = 1, .level = 1, .attack = 1, .mod_n = 1, .mod = {{.id = 10, .init = 1}}}, sw = {.wtype = 0, .level = 1, .attack = 1, .mod_n = 1, .mod = {{.id = 10, .init = 1}}},
+                 other = {.wtype = 1, .level = 1, .attack = 4, .mod_n = 1, .mod = {{.id = 10, .init = 4}}};  // Attack方式（r->attack）才算箭消耗，招式 ID（mod 10）不是：真資料的射箭招式 ID 109、方式 1
         snprintf(bow.key, sizeof bow.key, "x_bow");
         h.skills[0] = (ActorSkill){.id = 1, .enabled = 1, .row = &bow}; h.skills[1] = (ActorSkill){.id = 2, .enabled = 1, .row = &sw};
         inv[33] = (Item){.name = "arrow", .type = 13, .arrows = 2};
@@ -4530,15 +4530,16 @@ static void instant_gem_learn_test(void) {
         Actor sa0 = actors[0], *hp = &actors[0];
         *hp = (Actor){.def = &def, .skill_n = 1, .mp = 99, .mp_max = 99};
         #define h (*hp)
-        SkillRow bow = {.wtype = 1, .level = 1, .mod_n = 1, .mod = {{.id = 10, .init = 1}}};
+        SkillRow bow = {.wtype = 1, .level = 1, .attack = 1, .mod_n = 1, .mod = {{.id = 10, .init = 109}}};
         snprintf(bow.key, sizeof bow.key, "x_bow");
-        h.skills[0] = (ActorSkill){.id = 1, .enabled = 1, .row = &bow};
+        h.skills[0] = (ActorSkill){.id = 109, .enabled = 1, .row = &bow};
         inv[32] = (Item){.name = "sword", .type = 8}; inv[33] = (Item){0};
         hero_hand_update(); assert(hero_hand == 0 && !skill_usable(&h, &bow));
         inv[32] = (Item){.name = "bow", .type = 11};
         hero_hand_update(); assert(hero_hand == 1 && !skill_usable(&h, &bow));  // 有弓沒箭：Hand 1，射不出去
         inv[33] = (Item){.name = "arrow", .type = 13, .arrows = 2};
         hero_hand_update(); assert(hero_hand == 2 && skill_usable(&h, &bow));
+        { int sp = hero_prof; hero_prof = 3; hero_hand_update(); assert(hero_hand == 5); hero_prof = sp; hero_hand_update(); assert(hero_hand == 2); }  // 刺客（IsActorNPC 3）拿弓有箭 = Hand 5（招式 W_Type 5），以前固定當游俠算成 2
         cast_start(&h, &bow); assert(h.casting && inv[33].arrows == 1);  // 射出一支
         h.casting = 0; h.act = 0; h.cast = NULL;
         cast_start(&h, &bow); assert(!inv[33].name[0] && !h.skills[0].enabled);  // 最後一支
