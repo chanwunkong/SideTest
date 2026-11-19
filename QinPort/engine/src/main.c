@@ -983,6 +983,7 @@ static void actor_scale_tick(Actor *a) {
 }
 
 static void actor_overhead_draw(Actor *a, int sx, int sy);
+static void rec_dialog_note(const Actor *a, int sx, int sy);
 
 static int actor_draw_visible(const Actor *a);
 static int trap_owner_group(Actor *t);  // near.c
@@ -1075,6 +1076,7 @@ static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     status_fx_draw(a, sx, sy - a->z, tick, 0);
     if (a->modifier[9].value) (void)actor_marker_index(a->modifier[9].value);
     actor_overhead_draw(a, sx, sy - a->z);
+    rec_dialog_note(a, sx, sy - a->z - a->head_height - 10);
     if (a->debug_rectangle) {
         SDL_Rect box = viewport_actor_rect(a, sx, sy, tick);
         SDL_SetRenderDrawColor(ren, 0, 0, 255, 255);
@@ -4967,30 +4969,34 @@ static void utf8_gbk(const char *in, char *out, size_t n) {
 }
 #endif
 
+// 文字放大倍率（直式手機畫面縮小時，過場對話框用來維持可讀；平常 1）
+static float text_zoom = 1;
+static float screen_zoom = 1;  // 邏輯畫面寬 / 實際視窗寬（> 1 = 遊戲被縮小顯示）
 // 一行字的寬度（置中用）
 static int text_width(const char *t) {
     int w = 0;
-    for (const char *q = t; *q;) { uint32_t c = utf8_next(&q); glyph(c); w += glyph_adv[c <= 0xFFFF ? c : '?']; }
+    for (const char *q = t; *q;) { uint32_t c = utf8_next(&q); glyph(c); w += (int)(glyph_adv[c <= 0xFFFF ? c : '?'] * text_zoom + 0.5f); }
     return w;
 }
 
 // 行距 16：原版 m_pDescribe 框高 84 要放 5 行。從 (x, y) 開始寫，超過 maxw 換行；draw = 0 只量高度。回傳用掉的高度
 static int draw_text(int x, int y, const char *t, int maxw, Uint32 rgb, int draw) {
-    int cx = 0, cy = 0;
+    int cx = 0, cy = 0, step = (int)(16 * text_zoom + 0.5f);
     while (*t) {
         uint32_t c = utf8_next(&t);
-        if (c == '\n') { cx = 0; cy += 16; continue; }
+        if (c == '\n') { cx = 0; cy += step; continue; }
         SDL_Texture *g = glyph(c);
         if (!g) return 0;
-        if (cx + glyph_adv[c] > maxw) { cx = 0; cy += 16; }
+        int adv = (int)(glyph_adv[c] * text_zoom + 0.5f);
+        if (cx + adv > maxw) { cx = 0; cy += step; }
         if (draw) {
             SDL_SetTextureColorMod(g, rgb >> 16, rgb >> 8 & 0xFF, rgb & 0xFF);
-            SDL_Rect r = {x + cx, y + cy, 16, 16};
+            SDL_Rect r = {x + cx, y + cy, step, step};
             SDL_RenderCopy(ren, g, NULL, &r);
         }
-        cx += glyph_adv[c];
+        cx += adv;
     }
-    return cy + 16;
+    return cy + step;
 }
 
 // 載入畫面小提示（CLoadingDialog 0x502450）：rand()&3 選一組（UI.Dlg 起點／筆數 2500×9、2600×22、2700×13、2800×10），組內再 rand 一筆。
@@ -9078,14 +9084,14 @@ static void game_speed_key(int faster) {
 #ifdef STORY
 // Poq.exe 0x484a80（CTriBld 每拍）的感應：倒數 < 1 才掃占地格，格子上有 AI 組 10000..60000 的角色（0x4c78b0 取格上單位，+0x339）
 // 就執行建築名稱的文字指令（0x482db0 取名稱；BNT 觸發區出現 "s_pctstart <劇情事件路徑>"（開始劇情事件）與 "openall <別名>"（0x10019d70 開同名箱子；
-// 資料 90 次，之前漏掉），其他名稱（iron_ore、mucai…）不是文字指令表裡的指令，原版也沒有作用），倒數設 1000；
+// 資料 90 次，之前漏掉），c_aigroup <原組> <新組>（0x10013270，xianbei 約 5 處）把房間裡原組的人物改成新組；其他名稱（iron_ore、mucai 兩個字串在 Poq.exe／EasyRPG.dll 位元組搜尋 0 次，不是指令，原版沒有作用；snow1 是連線版房間的入口）），倒數設 1000；
 // 沒人踩到倒數設 1（隔拍再掃）。動畫部分（狀態 5 播完回 1）在 res.c scene_buildings_tick。
 // 原版名稱不是 s_pctstart 時送命令 0x13d 給那個角色（接收端是連線版的指令字串，BNT 觸發區沒有這種名稱，不做）。
 static void trigger_sense_tick(Scene *s) {
     for (int i = 0; i < s->trigger_count; i++) {
         Trigger *t = &s->triggers[i];
-        int is_pct = !strncmp(t->event, "s_pctstart ", 11), is_oall = !strncmp(t->event, "openall ", 8);  // 文字指令 s_pctstart 0x1001c210、openall 0x10019d70
-        if ((!is_pct && !is_oall) || !t->m || t->m->type != 0x96) continue;  // 0x4847a0：只有 0x96 且名稱不是 go 才 active = 1
+        int is_pct = !strncmp(t->event, "s_pctstart ", 11), is_oall = !strncmp(t->event, "openall ", 8), is_cai = !strncmp(t->event, "c_aigroup ", 10);  // 文字指令 s_pctstart 0x1001c210、openall 0x10019d70、c_aigroup 0x10013270
+        if ((!is_pct && !is_oall && !is_cai) || !t->m || t->m->type != 0x96) continue;  // 0x4847a0：只有 0x96 且名稱不是 go 才 active = 1
         if (t->cooldown > 0) { t->cooldown--; continue; }
         int hit = 0;
         const Model *m = t->m;  // 掃模型占地矩形（沒有模型 = 擺放格）
@@ -9099,6 +9105,7 @@ static void trigger_sense_tick(Scene *s) {
         if (!hit) { t->cooldown = 1; continue; }
         char path[128];
         t->cooldown = 1000;
+        if (is_cai) { int from = -1, to = 0; if (sscanf(t->event + 10, "%d %d", &from, &to) == 2) { story_begin(); story_c_aigroup(from, to); story_end(); } continue; }
         if (is_oall) { gbk_utf8(t->event + 8, path, sizeof path); chest_open_all(path); continue; }  // 觸發區 "openall <別名>"（兵馬俑坑 shhl_neicheng 約 90 處）：同別名的箱子全開
         gbk_utf8(t->event + 11, path, sizeof path);
         story_begin();
@@ -9130,18 +9137,25 @@ static int trade_paused(void) { return 0; }  // 沒有劇情就沒有交易視�
 // .rec = 0x80 位元組檔頭（"soloRecord 1.0"）＋ 封包串，每包 u32 長度＋內容。'@' 控制包（0x4725c0）、'#' 伺服器同步包（0x470300），
 // '@' 0 = 時間戳：封包依戳在第幾拍播（0x472f50：戳 == 目前拍才處理，之後的等到那拍）。
 // 這裡的做法：開始時把真角色全部凍結、不畫（不是原版那樣載入另一份場景拷貝），錄影裡的角色另外建（Actor.rec），播完刪掉、真角色放回。
-// shortcut: 錄影的場景名跟目前房間不同就不播（原版會載另一份場景）；'#' 6／7／8／9（地上道具、建築開關、飛行單位、招式）、'@' 5／8／10／12（旗標、
-// 霧、光影）沒做；'@' 4 的語音、'@' 11 的音效已做（audio_voice）；對話用頭頂泡泡（actor_say）代替原版對話框，語音沒有；劇情角色在錄影裡是新建的拷貝（外觀字串照錄影），不是房間裡那個 NPC。
+// shortcut: 錄影的場景名跟目前房間不同就不播（原版會載另一份場景）；'#' 6／8／9（地上道具、飛行單位、招式）、'@' 5／8／10／12（旗標、
+// 霧、光影）沒做；'@' 4 的語音、'@' 11 的音效已做（audio_voice）；對話框 = 0x4722f0／0x5963e0 的頭頂文字框（rec_dialog_*）；劇情角色在錄影裡是新建的拷貝（外觀字串照錄影），不是房間裡那個 NPC。
 typedef struct {
     uint8_t *d; size_t n, p;
     unsigned tick;
     int id[96], idx[96], cnt;          // 錄影物件編號 → actors 索引
+    RoleDef look[96];                  // 各錄影角色目前的外觀（#3 子碼 0x01 在這份上改款式）
     char strq[8][256]; int strn;       // '#' 10 字串佇列
     int follow;                        // 鏡頭跟隨的錄影物件編號（0 = 不跟）
     int saved_count, hero_foe;
     int hold[MAX_ACTORS];              // 被凍結的真角色（佔格已放掉）
     int hold_n;
     int skip;
+    // 對話框（CScnClientRecord +0x1fd4 文字、+0x1fd8 說話者、+0x1fec 剩餘拍、+0x1ff0 有語音）
+    int dlg_id, dlg_voice, dlg_played, dlg_t, dlg_n6;  // dlg_t < 0 = 沒顯示
+    char dlg_text[512];
+    int sv_day, sv_night, sv_type, light_set, ctl64;  // #1 子類 1 改過的亮度參數（rec_end 還原）；@8 存的 CScnClient +0x64
+    char room[64]; int foreign;        // 錄影開始時的房間；foreign = 錄影目前在別的場景（#13 子類 2 換場景），那些場景的建築／物件這裡沒有
+    int dlg_sx, dlg_sy;                // 說話者上一次畫的螢幕位置（actor_draw 記下）
 } Rec;
 static Rec rec;
 
@@ -9183,6 +9197,7 @@ static void rec_add(const uint8_t *b, const Scene *s) {
     if (memcmp(&look, d, sizeof look)) actor_look_set(a, &look);
     a->grp = grp == 3 || is_player ? actors[0].grp : 20000 + (int)grp;  // 錄影的組別 3 = 主角那組
     a->side = a->grp != actors[0].grp;
+    rec.look[rec.cnt] = look;
     rec.id[rec.cnt] = (int)id; rec.idx[rec.cnt++] = actor_count++;
 }
 
@@ -9191,23 +9206,47 @@ static void rec_remove(Actor *a) {
     a->role = NULL; a->rec = 0;
 }
 
-// '#' 3：角色屬性小包。子碼 0x34 動態狀態、0x66 動畫序列、0x65 組別、0x33 移除；其餘（外觀 0x01、名字 0x02、0x35、0x36、血量 0x67）沒做
+// '#' 3：角色屬性小包（0x470300 case 3）。子碼 0x01 換外觀（0x48d810，字串佇列第 0 條 "部件_款式*…"）、0x02 名字（字串佇列第 0 條）、
+// 0x33 移除、0x34 動態狀態、0x35 層號（+0x66）、0x36 名字編號（0x48e820）、0x65 組別、0x66 動畫序列、0x67 生命百分比（0x48e8f0）；其他子碼（資料裡有 0x79）原版沒處理
 static void rec_attr(const uint8_t *b, Actor *a) {
     switch (b[4]) {
+    case 0x01:
+        if (rec.strn) {
+            for (int i = 0; i < rec.cnt; i++)
+                if (&actors[rec.idx[i]] == a) { styles_equip(rec.look[i].styles, sizeof rec.look[i].styles, rec.look[i].graphic, rec.look[i].pli, rec.strq[0]); actor_look_set(a, &rec.look[i]); }
+            rec.strn = 0;
+        }
+        break;
+    case 0x02:
+        if (rec.strn) {
+            char u[256]; gbk_utf8(rec.strq[0], u, sizeof u);
+            actor_display_name_set(a, u, actor_name_number(a), 1);
+            rec.strn = 0;
+        }
+        break;
     case 0x34: actor_dynamic_command(a, b[5], 0, 0, 0); break;                // 0x496550
+    case 0x35: a->layer = b[5]; break;                                         // CCharactor +0x66
+    case 0x36: { char base[256]; snprintf(base, sizeof base, "%s", actor_name(a)); char *p = strrchr(base, '('); if (p) *p = 0; actor_display_name_set(a, base, b[5], 1); break; }  // 0x48e820
     case 0x66: actor_animation_select(a, (int)rec_u16(b + 5)); break;          // 0x48c190
     case 0x65: actor_group(a, 20000 + (int)rec_u16(b + 5)); break;             // 0x48e6e0
+    case 0x67: actor_health_percent(a, (int)rec_u16(b + 5)); break;            // 0x48e8f0
     case 0x33: actor_remove(a, b[5]); break;                                   // 0x486910
     default: break;
     }
 }
 
 // 一包 '#'：0x470300 的分派
-static void rec_net(const uint8_t *b, size_t n, const Scene *s) {
-    if (n < 4) return;
-    Actor *a = rec_actor(rec_u16(b + 2));
+static void rec_net(const uint8_t *b, size_t n, Scene *s) {
+    if (n < 3) return;   // '#' 13 子類 2 只有 3 byte
+    Actor *a = n >= 4 ? rec_actor(rec_u16(b + 2)) : NULL;
     switch (b[1]) {
-    case 1: if (n >= 5 && b[4] == 0) rec_add(b, s); break;           // 子類 1 = 進場景（天氣）：沒做
+    case 1:
+        if (n >= 5 && b[4] == 0) rec_add(b, s);
+        else if (n >= 13 && b[4] == 1 && !rec.foreign) {   // 子類 1（0x470300 case 1）：進場景的亮度參數 0x44e5d0(類型 u16 b7、夜 b9、日 b10、b11)；原版載另一份場景，這裡在原房間上暫改、rec_end 還原
+            if (!rec.light_set) { rec.sv_day = lt.day; rec.sv_night = lt.night; rec.sv_type = lt.type; rec.light_set = 1; }
+            light_table(b[10], b[9], (int)rec_u16(b + 7), wx.idx);
+        }
+        break;
     case 2: if (a) rec_remove(a); break;
     case 3: if (a && n >= 6) rec_attr(b, a); break;
     case 4:   // 0x496260：位置修正（離太遠 > 127 像素才改）、占格換到 (b8, b10)、0x4967d0 插值走過去（回放模式 2 靠逐拍插值推進）
@@ -9222,37 +9261,54 @@ static void rec_net(const uint8_t *b, size_t n, const Scene *s) {
     case 10:
         if (rec.strn < 8) { snprintf(rec.strq[rec.strn++], sizeof rec.strq[0], "%s", (const char *)b + 2); }
         break;
-    case 13: rec.strn = 0; break;  // 場景切換（子類 2 的場景名在開始時查過）／命令字串
-    default: break;                // 6、7、8、9：見檔頭 shortcut
+    case 7:   // 0x470300 case 7：建築狀態。物件編號 = 低 14 位 − 2001 = BNT 建築順序（0x4a2600 配號：2000 起、先加 1 再用；0x44f4c0 逐筆建築 CTriBld／NormalBuilding 各配一個）；
+              // 0x484ee0 只對 CTriBld（類型 0x80～0x100，物件種類 12）起作用，其他種類原版只寫除錯訊息。
+              // 原版規則沒找到：資料裡有些場景（hd_mishi 第 1 次進入）偏移是 2000，同場景第 2 次是 2001，配號前還有什麼東西先配了編號沒查到；這裡一律照 2001
+        if (!rec.foreign && n >= 5) {
+            int i = (int)(rec_u16(b + 2) & 0x3fff) - 2001;
+            if (i >= 0 && i < s->object_count && s->objects[i].tri) scene_building_state(s, i, b[4]);
+        }
+        break;
+    case 13:   // 命令字串；子類 2 = 換場景（場景名 = 前一條 #10 字串）：不是開始時的房間就暫停處理場景建築（這裡不會換場景）
+        if (n >= 3 && b[2] == 2 && rec.strn) { char sc[64]; snprintf(sc, sizeof sc, "%.63s", rec.strq[rec.strn - 1]); char *sp = strchr(sc, ' '); if (sp) *sp = 0; rec.foreign = strcasecmp(sc, rec.room) != 0; }
+        rec.strn = 0;
+        break;
+    default: break;                // 6、8、9：見檔頭 shortcut（#6 資料與原版讀的欄位對不上，#8／#9 要 MethodMain 出手動畫）
     }
 }
 
 // 一包 '@'：0x4725c0 的分派
-static void rec_ctl(const uint8_t *b, size_t n) {
+static void rec_ctl(const uint8_t *b, size_t n, Scene *sc) {
     switch (b[1]) {
     case 1:   // 鏡頭定位（螢幕多出 640×480 的部分對半）
         if (n >= 10) viewport_set(&viewport, unit_scene, (int)rec_u32(b + 2) - (viewport.w - 640) / 2, (int)rec_u32(b + 6) - (viewport.h - 480) / 2);
         break;
     case 2: if (n >= 6) { uint32_t v = rec_u32(b + 2); float f; memcpy(&f, &v, 4); zoom_set(f); } break;  // 0x4493f0
-    case 4:   // 對話：說話者、PTalk_C.dlg 的鍵
+    case 4:   // 0x4725c0 case 4：說話者 +2、PTalk_C.dlg 鍵 +6（也是語音檔號）；對話框文字 = 字串裡 \r\n → \n
         if (n >= 10) {
-            Actor *a = rec_actor(rec_u32(b + 2));
-            char g[1024], u[2048], o[2048];
-            audio_voice((int)rec_u32(b + 6));  // 0x4725c0 case 4：對話語音 sound/<鍵 %.3d>.wav，沒有檔就停掉上一句
-            if (a && res_dlg("PTalk_C.dlg", (int)rec_u32(b + 6), g, sizeof g)) {
+            char g[1024], u[2048];
+            audio_voice((int)rec_u32(b + 6));  // 沒有檔就停掉上一句
+            if (res_dlg("PTalk_C.dlg", (int)rec_u32(b + 6), g, sizeof g)) {
                 gbk_utf8(g, u, sizeof u);
                 size_t k = 0;
-                for (const char *q = u; *q && k + 1 < sizeof o; q++) {  // 拿掉顏色標記 [0 … ]，換行接成一行
+                for (const char *q = u; *q && k + 1 < sizeof rec.dlg_text; q++) {  // 拿掉顏色標記 [0 … ]，\r\n → \n
                     if (*q == '[' && q[1] >= '0' && q[1] <= '9') { q++; continue; }
                     if (*q == ']' || *q == '\r') continue;
-                    o[k++] = *q == '\n' ? ' ' : *q;
+                    rec.dlg_text[k++] = *q;
                 }
-                o[k] = 0;
-                actor_say(a, o);
+                rec.dlg_text[k] = 0;
+                rec.dlg_id = (int)rec_u32(b + 2);
+                rec.dlg_voice = 1; rec.dlg_played = 0; rec.dlg_n6 = 0; rec.dlg_t = 1 << 30;  // 先當有語音：等語音狀態出來再決定（網頁版要下載）
             }
         }
         break;
+    case 6:   // 0x4725c0 case 6：沒有語音才設顯示拍數 n×3，至少 0x28
+        if (n >= 6) { rec.dlg_n6 = (int)rec_u32(b + 2) * 3; if (rec.dlg_n6 < 0x28) rec.dlg_n6 = 0x28; if (!rec.dlg_voice) rec.dlg_t = rec.dlg_n6; }
+        break;
     case 7: if (n >= 6) rec.follow = (int)rec_u32(b + 2); break;                 // 0x473660 鏡頭跟隨
+    case 8: if (n >= 10) { if (rec_u32(b + 2)) screen_effect((int)rec_u32(b + 2), 0); rec.ctl64 = (int)rec_u32(b + 6); } break;  // 0x44ca40(模式, 0)：1／2／3 淡入淡出、4 震；+0x64 只有 '#' 11／12 讀（資料沒有）
+    case 10: if (n >= 6) { int m = (int)rec_u32(b + 2); for (int i = 0; i < sc->w * sc->h; i++) if (m >= 0 && m <= 2) sc->cells[i].view = m == 0 ? 0xc9 : m == 1 ? 1 : 0; } break;  // 0x4c8630：全場景探索值 0 → 0xc9、1 → 1、2 → 0
+    case 12: if (n >= 6) clock_hour_set((int)rec_u32(b + 2)); break;             // 0x469630 + 0x4695f0
     case 11: if (n >= 6) audio_sfx((int)rec_u32(b + 2)); break;                  // 0x4804a0 播音效（錄影的環境音、開門聲）
     case 9: if (n >= 14) viewport_pan(&viewport, (int)rec_u32(b + 2) - (viewport.w - 640) / 2, (int)rec_u32(b + 6) - (viewport.h - 480) / 2, (int)rec_u32(b + 10)); break;  // 0x461150
     default: break;
@@ -9267,7 +9323,8 @@ static void rec_end(const Scene *s, Actor *hero) {
     for (int i = 0; i < rec.hold_n; i++) { Actor *a = &actors[rec.hold[i]]; if (a->role) actor_place(a, (int)a->x, (int)a->y, 1); }
     rec_on = 0;
     scene_record_mode = 0;
-    free(rec.d); memset(&rec, 0, sizeof rec);
+    if (rec.light_set) light_table(rec.sv_day, rec.sv_night, rec.sv_type, wx.idx);
+    free(rec.d); memset(&rec, 0, sizeof rec); rec.dlg_t = -1; audio_voice(-1);
     zoom_back();
     viewport_follow_set(&viewport, s, hero, 1);
 #ifdef STORY
@@ -9277,8 +9334,55 @@ static void rec_end(const Scene *s, Actor *hero) {
 #endif
 }
 
+// 0x472e70：有語音 = 語音播完就收（Mfx_LWave_IsPlaying）；沒有語音 = 倒數 n×3 拍；到 0 就停語音、關對話框
+// shortcut: 網頁版語音檔下載完才知道有沒有；下載後沒檔就改用 @6 的拍數（原版一開始就知道）
+static void rec_dialog_tick(void) {
+    if (rec.dlg_t < 0) return;
+    if (rec.dlg_voice) {
+        int v = audio_voice_state();
+        if (v == 2) rec.dlg_played = 1;
+        if (v) return;
+        if (rec.dlg_played) rec.dlg_t = 0;          // 播完
+        else { rec.dlg_voice = 0; rec.dlg_t = rec.dlg_n6 ? rec.dlg_n6 : 1 << 30; }  // 沒語音：等 @6
+    }
+    if (rec.dlg_t > 0 && rec.dlg_t < 1 << 30) --rec.dlg_t;
+    if (!rec.dlg_t) { audio_voice(-1); rec.dlg_t = -1; rec.dlg_id = 0; }
+}
+
+// 0x4722f0 + 0x538f50 + 0x5963e0：文字框置中在說話者頭頂（x = 角色 x，下緣 = 角色 y − 頭高 − 10），超出畫面就推回來（0x5962e0 後段的 OffsetRect 夾邊）
+// shortcut: 原版框色是 16 位元全域 DAT_0064b3b4／0x64b49c，字色參數 0，沒查到值；先用半透明黑底白字。原版 Rec 對話沒有說話者名與頭像（case 4 只存文字）
+static void rec_dialog_draw(int vw, int vh) {
+    if (!rec_on || rec.dlg_t < 0 || !rec.dlg_text[0]) return;
+    // 直式手機：遊戲畫面被縮小顯示，文字照比例放大才看得清
+    text_zoom = screen_zoom > 2 ? 2 : screen_zoom < 1 ? 1 : screen_zoom;
+    int maxw = vw - 16, w = 0;
+    for (const char *l = rec.dlg_text; *l;) {   // 最寬的一行
+        const char *e = strchr(l, '\n'); char ln[512]; size_t k = e ? (size_t)(e - l) : strlen(l);
+        snprintf(ln, sizeof ln, "%.*s", (int)k, l); int lw = text_width(ln); if (lw > w) w = lw;
+        l += k + (e ? 1 : 0);
+    }
+    if (w > maxw) w = maxw;
+    int h = draw_text(0, 0, rec.dlg_text, w, 0, 0), bw = w + 8, bh = h + 4;
+    int x = rec.dlg_sx - bw / 2, y = rec.dlg_sy - bh;
+    if (x + bw > vw) x = vw - bw;
+    if (x < 0) x = 0;
+    if (y + bh > vh) y = vh - bh;
+    if (y < 0) y = 0;
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 200);
+    SDL_Rect r = {x, y, bw, bh};
+    SDL_RenderFillRect(ren, &r);
+    SDL_SetRenderDrawColor(ren, 220, 200, 140, 255);
+    SDL_RenderDrawRect(ren, &r);
+    draw_text(x + 4, y + 2, rec.dlg_text, w, 0xffffff, 1);
+    text_zoom = 1;
+}
+static void rec_dialog_note(const Actor *a, int sx, int sy) {
+    if (rec_on && rec.dlg_t >= 0 && rec.dlg_id && a == rec_actor((unsigned)rec.dlg_id)) { rec.dlg_sx = sx; rec.dlg_sy = sy; }
+}
+
 // 每拍（0x472f50）：處理戳 == 目前拍的封包
-static void rec_tick(const Scene *s, Actor *hero) {
+static void rec_tick(Scene *s, Actor *hero) {
     if (!rec_on) return;
     while (!rec.skip && rec.p + 4 <= rec.n) {
         size_t len = rec_u32(rec.d + rec.p), q = rec.p + 4;
@@ -9287,8 +9391,9 @@ static void rec_tick(const Scene *s, Actor *hero) {
         if (b[0] == '@' && b[1] == 0 && len >= 6 && rec_u32(b + 2) > rec.tick) break;  // 還沒到
         rec.p = q + len;
         if (b[0] == '#') rec_net(b, len, s);
-        else if (b[0] == '@') rec_ctl(b, len);
+        else if (b[0] == '@') rec_ctl(b, len, s);
     }
+    rec_dialog_tick();
     if (rec.follow) { Actor *f = rec_actor((unsigned)rec.follow); if (f) viewport_center_actor(&viewport, s, f, 1); }
     rec.tick++;
     if (rec.skip || rec.p + 4 > rec.n) rec_end(s, hero);
@@ -9301,9 +9406,9 @@ static int rec_begin(const char *name, const Scene *s, Actor *hero, const char *
     snprintf(file, sizeof file, "%s.rec", name);
     uint8_t *d = res_file("Rec/User", file, &n);
     if (!d) d = res_file("Rec", file, &n);
-    if (!d || n < 0x84 || memcmp(d, "soloRecord 1.0", 14)) { free(d); return 0; }
+    if (!d || n < 0x84 || memcmp(d, "soloRecord 1.0", 14)) { fprintf(stderr, "過場 %s：找不到錄影檔\n", name); free(d); return 0; }
     memset(&rec, 0, sizeof rec);
-    rec.d = d; rec.n = n; rec.p = 0x80;
+    rec.d = d; rec.n = n; rec.p = 0x80; rec.dlg_t = -1; snprintf(rec.room, sizeof rec.room, "%s", room);
     // 場景名：第一個 '#' 13 子類 2 之前的最後一條 '#' 10 字串
     for (size_t p = 0x80, last = 0; p + 6 <= n;) {
         size_t len = rec_u32(d + p);
@@ -9369,6 +9474,9 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--press") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &press_x, &press_y);  // 測試用：假裝有一根手指按在螢幕座標 X,Y 的介面上（看放大鏡與亮框）
         else if (!strcmp(argv[i], "--movie") && i + 1 < argc) movie_play(argv[++i]);  // 測試用：只播影片（End 等）
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
+#ifdef STORY
+        else if (!strcmp(argv[i], "--rec") && i + 1 < argc) snprintf(rec_pending, sizeof rec_pending, "%s", argv[++i]);  // 測試用：進場景就播這個過場
+#endif
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
         else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
@@ -9725,6 +9833,7 @@ int main(int argc, char **argv) {
             touch_win_track();
             int ww, wh;
             screen_size(win, &ww, &wh);
+            screen_zoom = tch.L.sw > 0 && ww > 0 ? (float)tch.L.sw / ww : 1;
             SDL_Rect ws = {0};
             if (win_left.open || win_right.open) {  // 開著的側邊視窗（遊戲座標）的聯集
                 for (int i = 0; i < 2; i++) {
@@ -10030,6 +10139,7 @@ int main(int argc, char **argv) {
             viewport_building_hover(&viewport, &scene, hx, hy, mouse_seen && !c && !win_left.open && !win_right.open, tick);
         }
         viewport_draw(&viewport, &scene, tick);
+        rec_dialog_draw(vw, vh);
         input_box_draw();  // 0x46e8b0
         fade_draw(vw, vh);  // 0x44bf00：場景畫完再淡入淡出（介面不受影響）
         if (snap_due) { snap_take(canvas); snap_due = 0; }

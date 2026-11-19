@@ -692,6 +692,19 @@ static void w_start_plot(const char *path) {
     msg(0x52e, objs[h].alias, 0);
 }
 void story_pct_start(const char *path) { w_start_plot(path); }
+// 文字指令 c_aigroup <原組> <新組>（EasyRPG.dll 0x10013270，0x1006b2e0 登記；xianbei 的 BNT 觸發區約 5 處）：主角所在房間（0x100558c0）裡 G_AIGroup == 原組的人物，
+// 存 G_AIGroup_Save、改成新組、送 0x51c（0x100408b0）；新組 < 100 再把 Invincible 清 0 並同步（0x100419f0）
+void story_c_aigroup(int from, int to) {
+    int room = story_parent(story_player());
+    if (!O(room) || from < 0) return;
+    for (int x = story_next(room, 0); x; x = story_next(room, x)) {
+        if (!story_has_int(x, "G_AIGroup") || story_get_int(x, "G_AIGroup") != from) continue;
+        story_set_int(x, "G_AIGroup_Save", from);
+        story_set_int(x, "G_AIGroup", to);
+        msg(0x51c, NULL, 2, x, to);
+        if (to < 100) { story_set_int(x, "Invincible", 0); msg(0x535, NULL, 2, x, 0); }
+    }
+}
 // 0x1004f2a0：第 18 格（給獎勵、寫日誌）後刪掉
 void story_plot_end(void) {
     int h = story_plot.h;
@@ -735,6 +748,20 @@ int story_find(int room, const char *alias) { return find_in(room, alias); }
 
 // 主角進房間（原版 go 0x10017e30 → 0x1004f9a0 → 0x1003d470）：舊房間第 13 格、新房間第 14 格都同意才進，
 // 進了以後隊員跟著，新房間第 16 格。回傳 1 = 進去了
+// 0x100484c0（玩家進房間 0x10049e30 呼叫）：房間 Map 在 1~50 才記：CurMap = Map；"Map" 字串是已去過的位元遮罩（第 Map/7 個位元組的第 Map%7 位）；"Place" = 房間名。
+// 原版怪現象照留：位元組存進 C 字串，低位的位元組是 0 就被截斷（0 結尾），遮罩只有前面都非 0 時才累積得起來
+static void room_map_note(int pl, int room) {
+    int m = story_get_int(room, "Map");
+    if ((unsigned)(m - 1) >= 0x32) return;
+    story_set_int(pl, "CurMap", m);
+    unsigned char buf[0x400] = {0};
+    const char *old = story_get_str(pl, "Map");
+    if (old) strncpy((char *)buf, old, sizeof buf - 1);
+    buf[m / 7] |= (unsigned char)(1 << (m % 7));
+    story_set_str(pl, "Map", (const char *)buf);
+    story_set_str(pl, "Place", story_name(room));
+}
+
 int story_enter(int room) {
     int pl = story_player(), old = objs[pl].parent;
     if (!O(room)) return 0;
@@ -747,6 +774,7 @@ int story_enter(int room) {
     story_set_int(pl, "G_PosY", -1);
     objs[pl].parent = room;
     for (int m = team_next(pl, 0); m; m = team_next(pl, m)) objs[m].parent = room;
+    room_map_note(pl, room);
     story_set_int(pl, "FightStatus", 0);
     checks = 1;
     slot_call(room, 16, pl);

@@ -968,3 +968,6 @@ Poq 死亡界面	JM513：m_pBackGround 334、m_pGameOver 5146（類型 9）、m_
 Rec 檔	0x80 位元組檔頭 "soloRecord 1.0"，之後每包 u32 長度＋內容；'@' 控制包（@0 u32 戳、@1 鏡頭 x y、@2 縮放 float、@4 對話 說話者 PTalk_C 鍵 時間、@7 跟隨、@9 平移）、'#' 同步包（#1 建角色 id pic x y …、#3 屬性 id 子碼 值、#4 走位 id px py cx cy 模式、#10 字串佇列）	0x4725c0 0x470300 0x472f50	main.c rec_ctl／rec_net／rec_tick
 主角範本	秦殇/主角/<職業人名>：IsActorNPC（職業 1~5）、G_PicID（角色表 29 游俠 379 力士 207 刺客 208 術士 209 巫師）、G_PicID2（4×職業+外貌）、G_EquipStr<職業>（動作方式*款式）、Str Con Dex Savvy Charm Wisdom、Money、起始道具；0x1005f3c0 的前兩個浮點 = Upgrade_HP_MAX／MP_MAX 的基礎與每級（游俠 120 28／140 4、力士 150 38／120 3、刺客 105 24／130 4、術士 110 22／180 5、巫師 100 20／200 6）	0x10050630 0x1005f3c0	main.c hero_from_story／person_derive、story_rt.c story_player_choose
 圖形 ID 名字角色	RoleMdl 欄 2 非數字：BIANFU1／2 蝙蝠（450 451）、SKULLBOW 骷髏弓箭 452、SKULLDAO 骷髏刀盾 453、ZHIZHU 蜘蛛 454；PLI/<名>_001.PLI 同格式（一個部件 TK）、圖在 Res/ResRole12Spr.Lib（全域編號 0xD00000 起 10 張）	0x44f4c0	res.c LIBS、main.c role_drawable
+CScnClientRecord	+0x1fd4	對話框文字（\r\n → \n）；+0x1fd8 說話者編號、+0x1fdc／+0x1fe0 框位置、+0x1fe4 說話者物件編號、+0x1fec 剩餘拍（−1 = 沒顯示）、+0x1ff0 有語音	rec.dlg_*
+CScnClientRecord	+0x64	@8 存的旗標，只有 #11／#12 讀（資料沒有）	rec.ctl64
+CIDTable	+0x17ffa	≥2000 配號計數（起始 2000）；+0x17ffe 是 <2000（角色）計數（起始 1）	（Rec #7：編號 − 2001 = BNT 順序）

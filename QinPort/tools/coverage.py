@@ -33,7 +33,7 @@ for k in ['', '0']: S['am:' + k] = ('完整', '不造成傷害，skill_hit 只�
 for k, v in {'2': '馴服 tame 0x10035370', '3': '召喚 summon 0x100355d0', '8': '陷阱 trap 0x10034cb0', '9': '除障 disarm', '10': '自損物理 strike（287）'}.items(): S['am:' + k] = ('完整', v)
 S['am:1'] = ('完整', 'strike 物理'); S['am:4'] = ('完整', 'strike 物理')
 S['am:11'] = ('部分', 'clone() 放克隆刺客刀／弓；缺 0x1003df00（複製施放者的裝備子物件與技能，技能等級上限 9，經 0x10037d70；原版規則已讀）')
-for k, v in {'5': '開鎖 0x10034900', '6': '偷竊 0x10034010', '7': '(原版 strike 的第 7 類)', '12': '清狀態', '13': '界面技能'}.items(): S['am:' + k] = ('?', '資料 0 次；' + v + '，見 PORT_QUEUE')
+for k, v in {'5': '開鎖 0x10034900', '6': '偷竊 0x10034010', '7': '(原版 strike 的第 7 類)', '12': '清狀態', '13': '界面技能'}.items(): S['am:' + k] = ('無', '669 列技能全掃資料 0 次，遊戲不會出現；' + v + '，見 PORT_QUEUE')
 for k in ['10', '18', '19', '21', '22', '23', '24']: S['sp:' + k] = ('完整', 'skill_field／skill_now／stat_ptr（0x10026270 表）')
 for i in list(range(210, 224, 2)) + list(range(250, 262)) + [550, 552, 554, 556, 558, 560, 512, 222, 223, 287]: S['sp:%d' % i] = ('完整', 'strike 暫存 add/pct（0x100244f0~0x10024dc0），ID>500 拆兩個')
 S['sp:269'] = ('完整', '原版整個 dll 沒有讀這個變數，沒作用（等價）')
@@ -43,14 +43,19 @@ for i in list(range(41, 59)) + [53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 70, 71, 
 for i in (69,): S['sp:%d' % i] = ('?', 'ex[69] 沒有讀它的地方，原版是否使用未查')
 
 
-for k, v in {'#1': ('部分', '子類 0（角色）rec_add 完整；子類 1（進場景＋天氣 0x470300 case1）沒做'), '#2': ('完整', 'rec_remove'), '#3': ('部分', '屬性小包：0x34／0x66／0x65／0x33 做；外觀 0x01、名字 0x02、0x35、0x36、血量 0x67 沒做'),
- '#4': ('完整', '位置修正 0x496260／插值 0x4967d0'), '#5': ('完整', 'actor_status_notify 0x48d2c0'), '#6': ('無', '地上道具 ground_drop（AddProp）24 次'),
- '#7': ('無', '建築狀態 0x484ee0（scene_building_state 已有；缺原版「物件編號 → BNT 建築」對照，資料裡編號 2000+ 起、不是 BNT 順序，要查 CIDTable 配號）'),
- '#8': ('無', '飛行效果單位 0x450700（0xc9／300／500／0x1fe 四種）'), '#9': ('無', 'SkillUnit 招式單位 0x43acb0（錄影裡的招式特效）'), '#10': ('完整', '字串佇列 strq'), '#13': ('完整', '場景名／命令字串'),
- '@0': ('完整', '時間戳'), '@1': ('完整', '鏡頭定位'), '@2': ('完整', 'zoom'), '@4': ('部分', '對話：頭頂泡泡代替對話框；語音 sound/NNN.wav 已做（audio_voice，本輪）；缺對話框 UI（框、說話者名、+0x1fd0 位置）'),
- '@5': ('完整', '原版單機不建 Rec 封包，只寫標記（等價）'), '@6': ('無', '對話框顯示時間 n×3（至少 0x28）；對話框 UI 沒做，泡泡用字數計時'), '@7': ('完整', '鏡頭跟隨'),
- '@8': ('無', '0x44ca40 切光影模式 1／2／4 與 CScnClient+0x64（資料全是 0／1，值 0 時只設 +0x64）'), '@9': ('完整', '鏡頭平移'), '@10': ('無', '0x4c8630（3 次，值 0）'),
- '@11': ('完整', '播音效 0x4804a0（audio_sfx，本輪）'), '@12': ('無', '設小時並 light_hour（1 次）')}.items(): S['rec:' + k.replace('#', '#').replace('@', '@')] = v
+for k, v in {'#1': ('部分', '子類 0（角色）rec_add 完整；子類 1（進場景）：亮度參數（類型 u16 b7、夜 b9、日 b10 → light_table，rec_end 還原）做；b12＋u16(b13) 傳給 vfunc+8（疑似時鐘，資料 538/1370 等超過一個半小時，原版規則沒找到）和原版載另一份場景拷貝沒做'),
+ '#2': ('完整', 'rec_remove'), '#3': ('完整', '0x470300 case 3：子碼 0x01 換外觀 0x48d810、0x02 名字、0x33、0x34、0x35 層號 +0x66、0x36 名字編號 0x48e820、0x65、0x66、0x67 生命百分比 0x48e8f0；0x79（資料 1 次）原版不處理'),
+ '#4': ('完整', '位置修正 0x496260／插值 0x4967d0'), '#5': ('完整', 'actor_status_notify 0x48d2c0'),
+ '#6': ('無', '地上道具 24 次：資料封包只有 12 byte，原版 case 6 讀的 x（b+9）、y（b+0xb）、擁有者（b+0xd）超出封包（0xcdcd 殘值），原版規則沒找到、不編造；AddProp 0x450f00／0x450cc0 → 0x450960 會配一個 ≥2000 編號'),
+ '#7': ('部分', '建築狀態 0x484ee0：編號 = 低 14 位 − 2001 = BNT 順序（0x4a2600 配號 2000 起先加 1、0x44f4c0 逐筆建築；rec_net case 7，只動 CTriBld）。資料 612 筆全落在 BNT 範圍內；但同場景不同次進入偏移會差 1（hd_mishi），#6 地上道具也佔編號，原版規則沒找到（記錄檔封包比原版讀的欄位短，見 #6）'),
+ '#8': ('無', '飛行效果單位 0x450700（4 次；0xc9／300／500／0x1fe 四種類別，要 MethodMain／CARROW 出手動畫，引擎沒有）'),
+ '#9': ('無', 'SkillUnit 招式單位 0x43acb0（47 次；要 MethodMain 0x43af50／0x43c4f0 出手動畫，引擎的戰鬥是即時結算沒有這個物件）'), '#10': ('完整', '字串佇列 strq'),
+ '#13': ('完整', '場景名／命令字串；子類 2 換場景 → rec.foreign（本輪修：3 byte 封包以前被長度檢查擋掉）'),
+ '@0': ('完整', '時間戳'), '@1': ('完整', '鏡頭定位'), '@2': ('完整', 'zoom'),
+ '@4': ('部分', '對話框 = 說話者頭頂的文字框（0x4722f0 定位 x = 角色 x、下緣 = y − 頭高 − 10；0x5963e0 建框；超出畫面推回）；\\r\\n → \\n；語音 sound/NNN.wav 播完才收。原版 Rec 對話沒有說話者名／頭像（case 4 只存文字，名字在 PTalk_C 文字裡）。框色與字色（DAT_0064b3b4 16 位元全域）沒查到'),
+ '@5': ('完整', '原版單機不建 Rec 封包，只寫標記（等價）'), '@6': ('完整', 'case 6：沒有語音才設拍數 n×3、至少 0x28；有語音靠語音播完（0x472e70）'), '@7': ('完整', '鏡頭跟隨'),
+ '@8': ('完整', '0x44ca40(模式, 0)：1／2／3 淡入淡出 = screen_effect；+0x64 只被 #11／#12 讀（資料沒有）'), '@9': ('完整', '鏡頭平移'), '@10': ('完整', '0x4c8630：全場景探索值 0 → 0xc9、1 → 1、2 → 0'),
+ '@11': ('完整', '播音效 0x4804a0（audio_sfx）'), '@12': ('完整', '0x469630＋0x4695f0：設小時並依亮度表重設亮度（clock_hour_set）')}.items(): S['rec:' + k.replace('#', '#').replace('@', '@')] = v
 
 # ---------- (a) 技能 ----------
 am = collections.Counter(); sp = collections.Counter(); sts = collections.Counter(); die = collections.Counter(); nrows = 0
@@ -118,10 +123,13 @@ for f in glob.glob(ROOT + '/story/**/*.c', recursive=True):
     if '/NET/' in f or '/_' in f: continue
     s = open(f, encoding='utf8', errors='replace').read()
     for m in re.finditer(r'\b(?:set_int|new_int)\([^,]+,\s*"([^"]+)"\s*,\s*([^)]+)\)', s): keys[m.group(1)] += 1
+C2 = {'Map': ('部分', '0x100484c0：玩家進房間記 CurMap／"Map" 已去過位元遮罩／Place（story_rt room_map_note，本輪）；地圖視窗 JM60 的地點按鈕還是全部顯示，沒用這份遮罩（site 序號 ↔ Map 號對照沒查）')}
+for k in ['SortInquiry', 'G_InfoID', 'UIS_Addgem', 'G_IsUISkill', 'UI_Cur', 'BD_MAX0', 'Value', 'maketype', 'Type']:
+    C2[k] = ('無', 'EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用')
 rows = []
 for k, v in keys.items():
     hit = ('"%s"' % k) in ENG
-    rows.append((k, v, *(('完整', '引擎 literal 有讀／寫（story_rt／main）') if hit else ('?', '引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查'))))
+    rows.append((k, v, *C2.get(k, ('完整', '引擎 literal 有讀／寫（story_rt／main）') if hit else ('?', '引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查'))))
 section('(c2) 劇情物件屬性鍵（set_int／new_int，不含 NET）', rows, '含 G_AIGroup、NpcBehavior 等 AI 旗標。')
 
 # ---------- (d) 劇情命令 ----------
@@ -179,7 +187,7 @@ for p in glob.glob(G + '/scene/Int/*.BNT'):
         if t == 4:
             trig[(ev.decode('gbk', 'replace').split() or ['(空)'])[0]] += 1
         else: bt[cache[mn].get(mid, '無模型')] += 1
-BST = {1: ('完整', '一般建築：占地格、遮擋'), 0x81: ('完整', '樹／礦：點擊命令 0x12、開箱規則 0x1004e680'), 0x96: ('完整', '門：go 門點擊命令 0x10、非 go 感應區'), 0x80: ('完整', '水缸：打 0x439fb0 → 0x8e'), 0x8c: ('完整', '同 0x80'), 0x85: ('完整', '命令 0x13（4 格內開）')}
+BST = {'無模型': ('完整', '4 筆 BNT 建築模型編號在 .MDL 裡找不到：原版 0x44f4c0 對空模型指標讀 +0x22（資料錯誤、未定義行為），引擎 o->m = NULL 略過（等價於不存在）'), 1: ('完整', '一般建築：占地格、遮擋'), 0x81: ('完整', '樹／礦：點擊命令 0x12、開箱規則 0x1004e680'), 0x96: ('完整', '門：go 門點擊命令 0x10、非 go 感應區'), 0x80: ('完整', '水缸：打 0x439fb0 → 0x8e'), 0x8c: ('完整', '同 0x80'), 0x85: ('完整', '命令 0x13（4 格內開）')}
 section('(e1) 場景 BNT 建築模型種類', [('模型類型 %s' % (hex(k) if isinstance(k, int) else k), v, *BST.get(k, ('?', '未列'))) for k, v in bt.items()])
 aliases = set(); netal = set()
 for f in glob.glob(ROOT + '/story/**/*.c', recursive=True):
@@ -192,7 +200,10 @@ def e2(k):
     if k == 'openall': return ('完整', '本輪補：trigger_sense_tick 執行 openall <別名>（0x10019d70 chest_open_all），之前只認 s_pctstart')
     if k.lower() in aliases: return ('完整', '同名單機劇情物件（object_story 依名稱配對，chest_state_sync）')
     if k.lower() in netal or k.startswith('net'): return ('完整', '只有 NET（連線版）劇情物件用，單機不產生')
-    if k == '(空)': return ('?', '空名稱：只是建築／觸發區，無事件文字（原版 0x482db0 空字串不動作）')
+    if k == '(空)': return ('完整', '空名稱：只是建築／觸發區，無事件文字（原版 0x482db0 空字串不動作）')
+    if k == 'c_aigroup': return ('完整', '本輪補：trigger_sense_tick 執行 c_aigroup <原組> <新組>（0x10013270 → story_c_aigroup，storytest aigroup=）；之前誤判為「不是指令」')
+    if k == 'snow1': return ('完整', '連線版房間入口（EasyRPG.dll 0x1005d8b0 "snow1" → 秦殇/NET/雁门关/ROOM/雪地战场01），所在場景 net_xiongnuyingdi 是連線版場景')
+    if k in ('iron_ore', 'mucai'): return ('完整', '字串在 Poq.exe／EasyRPG.dll 位元組搜尋 0 次：不是指令、沒有同名物件，原版沒有作用（等價）')
     return ('?', '單機劇情沒有同名物件；不在文字指令表（EasyRPG.dll 0x1006b2e0 登記的 ~250 個）= 原版也沒作用，但沒逐個證明')
 section('(e2) BNT 事件文字／物件名稱第一詞', [(k, v, *e2(k)) for k, v in trig.items()])
 # ---------- (f) 場景 ----------

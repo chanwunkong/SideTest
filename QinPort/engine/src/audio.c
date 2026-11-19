@@ -317,6 +317,15 @@ void audio_voice(int key) {
 #endif
 }
 
+// 對話語音狀態（0x472e70 的 Mfx_LWave_IsPlaying）：0 = 沒在播也沒在等下載，1 = 網頁版下載中，2 = 播放中
+int audio_voice_state(void) {
+    if (voice_v.sfx) return 2;
+#ifdef __EMSCRIPTEN__
+    if (voice_want >= 0) return 1;
+#endif
+    return 0;
+}
+
 void audio_sfx(int id) {
     if (!dev || id < 0 || id >= MAX_SFX) return;
     int n = sfx_files(id);

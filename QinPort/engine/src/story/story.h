@@ -23,6 +23,7 @@ extern StoryDialog story_dialog;  // 目前畫面上的對話
 typedef struct { int h; char alias[64]; } StoryPlot;
 extern StoryPlot story_plot;
 void story_plot_end(void);
+void story_c_aigroup(int from, int to);        // 感應區文字指令 c_aigroup（0x10013270）
 void story_pct_start(const char *path);  // 感應區文字指令 s_pctstart（0x1001c210 → 0x1004f1a0 start_plot）
 
 int story_new(const char *path, int parent);  // 產生物件，回傳代號

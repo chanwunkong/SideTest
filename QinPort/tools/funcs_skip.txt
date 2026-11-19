@@ -459,7 +459,6 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 0046eb90  工具：檢查場景管理器全域別名是否對應當前借用場景（錄影模式2例外）；單機直接傳Scene，不需切換全域別名
 0046edc0  CRT／檔案工具：整檔讀入配置的buffer，使用res.c read_all／res_file；原版接受正長度短讀，不擴散此行為
 0046eea0  無呼叫者：只在場景狀態-2且scn/rdr修改時間一致時重載小地圖快取
-00470300  客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態
 00471830  無呼叫者／解構：釋放CViewPort並清指標
 00471860  幾何工具：框選矩形五個整數清零；使用SDL_Rect及獨立旗標，框選呼叫端待不同類別CUserInput選人名單
 00471a10  指令傳輸層：格式化命令、相同命令30拍去重及每1001毫秒節流，透過連線送出或本機封包回送；單機直接執行click_cmd
@@ -471,7 +470,6 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00471ed0  CScnClientRecord 建構／解構與CString生命週期；平台物件包裝略過
 00471f90  CScnClientRecord 建構／解構與CString生命週期；平台物件包裝略過
 00471fd0  CScnClientRecord 建構／解構與CString生命週期；平台物件包裝略過
-004722f0  回放對話框位置（頭頂高度）：過場對話改用頭頂泡泡 actor_say，位置由泡泡自己算
 00472470  CRT錄影檔案輸出層；RecordType=0不寫record.rec
 00472a80  可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理
 00472e60  Rec狀態存取工具；單機無錄影模式／錄影封包
@@ -486,7 +484,6 @@ CUserGroup  劇情沒用到：玩家隊伍群組（單機沒建立）
 00473500  錄影／同步傳輸包裝，單機直接使用業務物件，不建立封包副本
 004735c0  Rec狀態存取工具；單機無錄影模式／錄影封包
 00473660  可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理
-004725c0  可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理
 00473740  無呼叫者；全域雙值設定工具，語意未確認，不新增無呼叫函數
 00473760  可選Rec錄影／回放專用對話等待控制；單機RecordType=0不啟用，片頭沿用網頁影片工作
 00473800  容器建構／解構／重置；使用現有C陣列，不複製MFC容器生命週期
@@ -3571,7 +3568,6 @@ EasyRPG.dll:10014c30  文字指令 c_teaming：設 Teaming 旗標。客戶端同
 EasyRPG.dll:10014d10  文字指令 c_tradebegin：設 Trading 旗標（雙方）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
 EasyRPG.dll:10014de0  文字指令 c_tradeend：清 Trading 旗標。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
 EasyRPG.dll:10014ec0  文字指令 c_wname：改道具名稱並重畫。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
-EasyRPG.dll:10013270  文字指令 c_aigroup：把某 G_AIGroup 的全部人物改群組（GM／劇情用，劇情有 set_aigroup 0x1005a3b0）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
 EasyRPG.dll:10013730  文字指令 c_changeint：GM 改任意屬性 + @屬性 同步，HP ≤ 0 時 kill。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
 EasyRPG.dll:10013940  文字指令 c_channelneed：聊天頻道需求（連線）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令
 EasyRPG.dll:10013a50  文字指令 c_choose：選取隊友（Running／Chosen 旗標，連線組隊）。客戶端同步命令（讀過本體）：解析參數後設屬性（UI_Pos／Trading／Teaming…）或呼叫已另列的規則函數再重畫視窗；單機引擎視窗直接操作 inv／Actor，不經文字指令

@@ -6,7 +6,7 @@
 
 | 類別 | 項數 | 完整 | 部分 | 無 | ? |
 |---|---|---|---|---|---|
-| (a1) 技能 Attack方式（669 列技能） | 13 | 7 | 1 | 0 | 5 |
+| (a1) 技能 Attack方式（669 列技能） | 13 | 7 | 1 | 5 | 0 |
 | (a2) 技能參數 ID（skill_field／0x1039e628 處理表） | 79 | 78 | 0 | 0 | 1 |
 | (a3) 技能用到的狀態 ID（RoleEffectMdl 91 個） | 52 | 52 | 0 | 0 | 0 |
 | (a4) 狀態表欄位（RoleEffectMdl.txt） | 18 | 9 | 0 | 0 | 9 |
@@ -14,11 +14,11 @@
 | (b1) 道具類型（道具表第 3 欄） | 37 | 37 | 0 | 0 | 0 |
 | (b2) 道具特性屬性 ID（attribT 欄 31，604 列特性） | 67 | 66 | 0 | 0 | 1 |
 | (c1) 怪物表欄位（499 個怪物列） | 73 | 73 | 0 | 0 | 0 |
-| (c2) 劇情物件屬性鍵（set_int／new_int，不含 NET） | 55 | 45 | 0 | 0 | 10 |
+| (c2) 劇情物件屬性鍵（set_int／new_int，不含 NET） | 55 | 45 | 1 | 9 | 0 |
 | (d1) 劇情用到的 EasyRPG 命令（ENGINE／共用函式） | 93 | 92 | 1 | 0 | 0 |
-| (d2) 劇情錄影（Rec/User/*.rec）封包子類（`#` 0x470300、`@` 0x4725c0） | 22 | 11 | 3 | 8 | 0 |
-| (e1) 場景 BNT 建築模型種類 | 4 | 3 | 0 | 0 | 1 |
-| (e2) BNT 事件文字／物件名稱第一詞 | 242 | 237 | 0 | 0 | 5 |
+| (d2) 劇情錄影（Rec/User/*.rec）封包子類（`#` 0x470300、`@` 0x4725c0） | 22 | 16 | 3 | 3 | 0 |
+| (e1) 場景 BNT 建築模型種類 | 4 | 4 | 0 | 0 | 0 |
+| (e2) BNT 事件文字／物件名稱第一詞 | 242 | 242 | 0 | 0 | 0 |
 | (f1) 場景檔 .Scn 欄位 | 6 | 6 | 0 | 0 | 0 |
 | (f2) 其他場景資料 | 3 | 2 | 1 | 0 | 0 |
 
@@ -35,11 +35,11 @@
 | Attack方式 2 | 2 | 完整 | 馴服 tame 0x10035370 |
 | Attack方式 9 | 2 | 完整 | 除障 disarm |
 | Attack方式 11 | 2 | 部分 | clone() 放克隆刺客刀／弓；缺 0x1003df00（複製施放者的裝備子物件與技能，技能等級上限 9，經 0x10037d70；原版規則已讀） |
-| Attack方式 5 | 0 | ? | 資料 0 次；開鎖 0x10034900，見 PORT_QUEUE |
-| Attack方式 6 | 0 | ? | 資料 0 次；偷竊 0x10034010，見 PORT_QUEUE |
-| Attack方式 7 | 0 | ? | 資料 0 次；(原版 strike 的第 7 類)，見 PORT_QUEUE |
-| Attack方式 12 | 0 | ? | 資料 0 次；清狀態，見 PORT_QUEUE |
-| Attack方式 13 | 0 | ? | 資料 0 次；界面技能，見 PORT_QUEUE |
+| Attack方式 5 | 0 | 無 | 669 列技能全掃資料 0 次，遊戲不會出現；開鎖 0x10034900，見 PORT_QUEUE |
+| Attack方式 6 | 0 | 無 | 669 列技能全掃資料 0 次，遊戲不會出現；偷竊 0x10034010，見 PORT_QUEUE |
+| Attack方式 7 | 0 | 無 | 669 列技能全掃資料 0 次，遊戲不會出現；(原版 strike 的第 7 類)，見 PORT_QUEUE |
+| Attack方式 12 | 0 | 無 | 669 列技能全掃資料 0 次，遊戲不會出現；清狀態，見 PORT_QUEUE |
+| Attack方式 13 | 0 | 無 | 669 列技能全掃資料 0 次，遊戲不會出現；界面技能，見 PORT_QUEUE |
 
 ## (a2) 技能參數 ID（skill_field／0x1039e628 處理表）
 
@@ -429,9 +429,9 @@
 | G_Day | 66 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_Night | 64 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Level | 47 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| Map | 43 | ? | 引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查 |
-| SortInquiry | 41 | ? | 引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查 |
-| G_InfoID | 39 | ? | 引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查 |
+| Map | 43 | 部分 | 0x100484c0：玩家進房間記 CurMap／"Map" 已去過位元遮罩／Place（story_rt room_map_note，本輪）；地圖視窗 JM60 的地點按鈕還是全部顯示，沒用這份遮罩（site 序號 ↔ Map 號對照沒查） |
+| SortInquiry | 41 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
+| G_InfoID | 39 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
 | UI_Pos | 37 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Con | 34 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | IsActorNPC | 33 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
@@ -441,7 +441,7 @@
 | Friend | 18 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | isbuilding | 17 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | UIS_Produce | 17 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| UIS_Addgem | 17 | ? | 引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查 |
+| UIS_Addgem | 17 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
 | Money | 17 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Gender | 16 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Age | 16 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
@@ -456,24 +456,24 @@
 | deletekey | 13 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_WEA_BigRain | 11 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_WEA_SmallRain | 11 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| G_IsUISkill | 6 | ? | 引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查 |
+| G_IsUISkill | 6 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
 | SR | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | HR | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | istrap | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | HP | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | HP_MAX | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| UI_Cur | 5 | ? | 引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查 |
+| UI_Cur | 5 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
 | Amount | 4 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | BD_MAX | 4 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| BD_MAX0 | 4 | ? | 引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查 |
+| BD_MAX0 | 4 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
 | G_WEA_BigSnow | 3 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_WEA_SmallSnow | 3 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| Value | 3 | ? | 引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查 |
+| Value | 3 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
 | Exp | 3 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | UIS_Repair | 2 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| maketype | 1 | ? | 引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查 |
+| maketype | 1 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
 | contain | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| Type | 1 | ? | 引擎沒有這個字串，可能只是劇情自己讀寫（資料）；原版有無消費者要查 |
+| Type | 1 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
 | AP | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | AP_MAX | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | DP | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
@@ -583,27 +583,27 @@
 | 項目 | 資料次數 | 引擎 | 證據／缺什麼 |
 |---|---|---|---|
 | @ 0 | 4051 | 完整 | 時間戳 |
-| # 3 | 3666 | 部分 | 屬性小包：0x34／0x66／0x65／0x33 做；外觀 0x01、名字 0x02、0x35、0x36、血量 0x67 沒做 |
+| # 3 | 3666 | 完整 | 0x470300 case 3：子碼 0x01 換外觀 0x48d810、0x02 名字、0x33、0x34、0x35 層號 +0x66、0x36 名字編號 0x48e820、0x65、0x66、0x67 生命百分比 0x48e8f0；0x79（資料 1 次）原版不處理 |
 | # 4 | 1561 | 完整 | 位置修正 0x496260／插值 0x4967d0 |
-| @ 4 | 1000 | 部分 | 對話：頭頂泡泡代替對話框；語音 sound/NNN.wav 已做（audio_voice，本輪）；缺對話框 UI（框、說話者名、+0x1fd0 位置） |
-| @ 6 | 999 | 無 | 對話框顯示時間 n×3（至少 0x28）；對話框 UI 沒做，泡泡用字數計時 |
+| @ 4 | 1000 | 部分 | 對話框 = 說話者頭頂的文字框（0x4722f0 定位 x = 角色 x、下緣 = y − 頭高 − 10；0x5963e0 建框；超出畫面推回）；\r\n → \n；語音 sound/NNN.wav 播完才收。原版 Rec 對話沒有說話者名／頭像（case 4 只存文字，名字在 PTalk_C 文字裡）。框色與字色（DAT_0064b3b4 16 位元全域）沒查到 |
+| @ 6 | 999 | 完整 | case 6：沒有語音才設拍數 n×3、至少 0x28；有語音靠語音播完（0x472e70） |
 | # 10 | 932 | 完整 | 字串佇列 strq |
-| # 1 | 837 | 部分 | 子類 0（角色）rec_add 完整；子類 1（進場景＋天氣 0x470300 case1）沒做 |
+| # 1 | 837 | 部分 | 子類 0（角色）rec_add 完整；子類 1（進場景）：亮度參數（類型 u16 b7、夜 b9、日 b10 → light_table，rec_end 還原）做；b12＋u16(b13) 傳給 vfunc+8（疑似時鐘，資料 538/1370 等超過一個半小時，原版規則沒找到）和原版載另一份場景拷貝沒做 |
 | # 5 | 702 | 完整 | actor_status_notify 0x48d2c0 |
-| # 7 | 612 | 無 | 建築狀態 0x484ee0（scene_building_state 已有；缺原版「物件編號 → BNT 建築」對照，資料裡編號 2000+ 起、不是 BNT 順序，要查 CIDTable 配號） |
-| # 13 | 174 | 完整 | 場景名／命令字串 |
-| @ 8 | 151 | 無 | 0x44ca40 切光影模式 1／2／4 與 CScnClient+0x64（資料全是 0／1，值 0 時只設 +0x64） |
+| # 7 | 612 | 部分 | 建築狀態 0x484ee0：編號 = 低 14 位 − 2001 = BNT 順序（0x4a2600 配號 2000 起先加 1、0x44f4c0 逐筆建築；rec_net case 7，只動 CTriBld）。資料 612 筆全落在 BNT 範圍內；但同場景不同次進入偏移會差 1（hd_mishi），#6 地上道具也佔編號，原版規則沒找到（記錄檔封包比原版讀的欄位短，見 #6） |
+| # 13 | 174 | 完整 | 場景名／命令字串；子類 2 換場景 → rec.foreign（本輪修：3 byte 封包以前被長度檢查擋掉） |
+| @ 8 | 151 | 完整 | 0x44ca40(模式, 0)：1／2／3 淡入淡出 = screen_effect；+0x64 只被 #11／#12 讀（資料沒有） |
 | @ 5 | 104 | 完整 | 原版單機不建 Rec 封包，只寫標記（等價） |
 | @ 1 | 92 | 完整 | 鏡頭定位 |
 | @ 9 | 74 | 完整 | 鏡頭平移 |
-| # 9 | 47 | 無 | SkillUnit 招式單位 0x43acb0（錄影裡的招式特效） |
+| # 9 | 47 | 無 | SkillUnit 招式單位 0x43acb0（47 次；要 MethodMain 0x43af50／0x43c4f0 出手動畫，引擎的戰鬥是即時結算沒有這個物件） |
 | @ 7 | 42 | 完整 | 鏡頭跟隨 |
-| @ 11 | 34 | 完整 | 播音效 0x4804a0（audio_sfx，本輪） |
-| # 6 | 24 | 無 | 地上道具 ground_drop（AddProp）24 次 |
-| # 8 | 4 | 無 | 飛行效果單位 0x450700（0xc9／300／500／0x1fe 四種） |
+| @ 11 | 34 | 完整 | 播音效 0x4804a0（audio_sfx） |
+| # 6 | 24 | 無 | 地上道具 24 次：資料封包只有 12 byte，原版 case 6 讀的 x（b+9）、y（b+0xb）、擁有者（b+0xd）超出封包（0xcdcd 殘值），原版規則沒找到、不編造；AddProp 0x450f00／0x450cc0 → 0x450960 會配一個 ≥2000 編號 |
+| # 8 | 4 | 無 | 飛行效果單位 0x450700（4 次；0xc9／300／500／0x1fe 四種類別，要 MethodMain／CARROW 出手動畫，引擎沒有） |
 | # 2 | 4 | 完整 | rec_remove |
-| @ 10 | 3 | 無 | 0x4c8630（3 次，值 0） |
-| @ 12 | 1 | 無 | 設小時並 light_hour（1 次） |
+| @ 10 | 3 | 完整 | 0x4c8630：全場景探索值 0 → 0xc9、1 → 1、2 → 0 |
+| @ 12 | 1 | 完整 | 0x469630＋0x4695f0：設小時並依亮度表重設亮度（clock_hour_set） |
 
 ## (e1) 場景 BNT 建築模型種類
 
@@ -613,7 +613,7 @@
 | 模型類型 0x1 | 106820 | 完整 | 一般建築：占地格、遮擋 |
 | 模型類型 0x81 | 32 | 完整 | 樹／礦：點擊命令 0x12、開箱規則 0x1004e680 |
 | 模型類型 0x96 | 5 | 完整 | 門：go 門點擊命令 0x10、非 go 感應區 |
-| 模型類型 無模型 | 4 | ? | 未列 |
+| 模型類型 無模型 | 4 | 完整 | 4 筆 BNT 建築模型編號在 .MDL 裡找不到：原版 0x44f4c0 對空模型指標讀 +0x22（資料錯誤、未定義行為），引擎 o->m = NULL 略過（等價於不存在） |
 
 ## (e2) BNT 事件文字／物件名稱第一詞
 
@@ -621,7 +621,7 @@
 | 項目 | 資料次數 | 引擎 | 證據／缺什麼 |
 |---|---|---|---|
 | go | 2729 | 完整 | door_go_due／story_exit |
-| (空) | 932 | ? | 空名稱：只是建築／觸發區，無事件文字（原版 0x482db0 空字串不動作） |
+| (空) | 932 | 完整 | 空名稱：只是建築／觸發區，無事件文字（原版 0x482db0 空字串不動作） |
 | netsuijiwupinbaoxiang | 330 | 完整 | 只有 NET（連線版）劇情物件用，單機不產生 |
 | suijikuangshi | 265 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | netsuijikuangshi | 257 | 完整 | 只有 NET（連線版）劇情物件用，單機不產生 |
@@ -638,7 +638,7 @@
 | box_d | 13 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | shumu_a | 12 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | jiujiwuqi | 11 | 完整 | 只有 NET（連線版）劇情物件用，單機不產生 |
-| iron_ore | 10 | ? | 單機劇情沒有同名物件；不在文字指令表（EasyRPG.dll 0x1006b2e0 登記的 ~250 個）= 原版也沒作用，但沒逐個證明 |
+| iron_ore | 10 | 完整 | 字串在 Poq.exe／EasyRPG.dll 位元組搜尋 0 次：不是指令、沒有同名物件，原版沒有作用（等價） |
 | yicengbaoxiang | 9 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | gaojishipinbaoxiang | 8 | 完整 | 只有 NET（連線版）劇情物件用，單機不產生 |
 | jiujishipin | 8 | 完整 | 只有 NET（連線版）劇情物件用，單機不產生 |
@@ -674,7 +674,7 @@
 | bingyongzu11 | 5 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | bingyongzu10 | 5 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | superbox | 5 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
-| c_aigroup | 5 | ? | 單機劇情沒有同名物件；不在文字指令表（EasyRPG.dll 0x1006b2e0 登記的 ~250 個）= 原版也沒作用，但沒逐個證明 |
+| c_aigroup | 5 | 完整 | 本輪補：trigger_sense_tick 執行 c_aigroup <原組> <新組>（0x10013270 → story_c_aigroup，storytest aigroup=）；之前誤判為「不是指令」 |
 | shuigang_hsh | 4 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | shuiguan_wch | 4 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | door_of_shuaifu | 4 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
@@ -695,7 +695,7 @@
 | bingyongzu8 | 4 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | xiaoguizi_px | 4 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | box_gk | 4 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
-| snow1 | 4 | ? | 單機劇情沒有同名物件；不在文字指令表（EasyRPG.dll 0x1006b2e0 登記的 ~250 個）= 原版也沒作用，但沒逐個證明 |
+| snow1 | 4 | 完整 | 連線版房間入口（EasyRPG.dll 0x1005d8b0 "snow1" → 秦殇/NET/雁门关/ROOM/雪地战场01），所在場景 net_xiongnuyingdi 是連線版場景 |
 | table_pch | 3 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | guizi_pch | 3 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | door_of_bingying | 3 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
@@ -790,7 +790,7 @@
 | tree_yc | 1 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | netdsjunyingdamen | 1 | 完整 | 只有 NET（連線版）劇情物件用，單機不產生 |
 | shuijing_pch | 1 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
-| mucai | 1 | ? | 單機劇情沒有同名物件；不在文字指令表（EasyRPG.dll 0x1006b2e0 登記的 ~250 個）= 原版也沒作用，但沒逐個證明 |
+| mucai | 1 | 完整 | 字串在 Poq.exe／EasyRPG.dll 位元組搜尋 0 次：不是指令、沒有同名物件，原版沒有作用（等價） |
 | shoutuiche_pch | 1 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | bingqijiazi_yc | 1 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |
 | box_pch | 1 | 完整 | 同名單機劇情物件（object_story 依名稱配對，chest_state_sync） |

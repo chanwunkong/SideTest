@@ -70,8 +70,23 @@ static int room_test(const char *alias) {
     return 0;
 }
 
+// storytest aigroup=<人物路徑>：c_aigroup（0x10013270）把主角房間裡 G_AIGroup 102 的人物改成 0，存 G_AIGroup_Save；別組不動；新組 < 100 清 Invincible
+static int aigroup_test(const char *path) {
+    story_register_all();
+    int room = story_room("zhaocun1");
+    story_place(room);
+    int a = story_new(path, room), b = story_new(path, room);
+    story_set_int(a, "G_AIGroup", 102); story_set_int(a, "Invincible", 1); story_set_int(b, "G_AIGroup", 103);
+    story_c_aigroup(102, 0);
+    printf("a: 組 %d 存 %d 無敵 %d；b: 組 %d\n", story_get_int(a, "G_AIGroup"), story_get_int(a, "G_AIGroup_Save"), story_get_int(a, "Invincible"), story_get_int(b, "G_AIGroup"));
+    if (story_get_int(a, "G_AIGroup") != 0 || story_get_int(a, "G_AIGroup_Save") != 102 || story_get_int(a, "Invincible") || story_get_int(b, "G_AIGroup") != 103) { puts("aigroup FAILED"); return 1; }
+    puts("aigroup ok");
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) return 1;
+    if (!strncmp(argv[1], "aigroup=", 8)) return aigroup_test(argv[1] + 8);
     if (!strncmp(argv[1], "room=", 5)) return room_test(argv[1] + 5);
     if (!strncmp(argv[1], "hero=", 5)) return hero_test(argv[1] + 5);
     if (!strncmp(argv[1], "team=", 5)) { story_register_all(); return team_test(argv[1] + 5, argc > 2 ? atoi(argv[2]) : 3000); }

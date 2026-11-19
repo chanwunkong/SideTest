@@ -1114,3 +1114,9 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 
 004fe130	讀並清「劇情播放」旗標（DAT_00953a80）；引擎以 rec_on／scene_record_mode == 2 取代（autosave_due）10058900	五行換算：產品五行 fe 決定屬性 43~52（兩個一組）、54~58 用哪一組；fe<1 回 −1 = 拿掉。引擎 main.c fe_conv
 1004b8b0	製作費用：模式 0（自己用技能）= (技能等級+10)×5 精氣、模式 1（找 NPC）= 材料 ValueUn 總和。引擎 make_produce
+00470300	客戶端同步封包分派：#1 進場景／建角色、#3 角色屬性子碼、#7 建築狀態（0x484ee0）、#13 換場景；引擎只接 Rec 回放用到的（main.c rec_net／rec_attr）
+004722f0	Rec 對話框定位（角色頭頂：x = 角色 x，下緣 = y − 頭高 − 10）；main.c rec_dialog_note／rec_dialog_draw
+004725c0	Rec 控制包分派：@4 對話（存文字、說話者、語音）、@6 顯示拍數 n×3 至少 0x28（沒語音才設）、@8 淡入淡出＋+0x64、@10 探索值、@12 設小時
+00472e70	Rec 對話框每拍：有語音等語音播完、沒有就倒數；到 0 停語音關框；main.c rec_dialog_tick
+004a2600	CIDTable 配號 ≥2000（先 +1 再用、跳過已用、超過 0x3ffe 回 2000、第 15 位起 2 位世代）；Rec #7 建築編號 − 2001 = BNT 順序的依據
+100484c0	玩家進房間：記 CurMap／"Map" 位元遮罩（第 Map/7 位元組的第 Map%7 位）／Place；story_rt.c room_map_note

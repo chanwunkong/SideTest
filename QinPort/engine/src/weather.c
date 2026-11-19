@@ -280,6 +280,9 @@ static void weather_tick(void) {
     if (clk.tick == 0) light_hour(wx.idx);  // 每半小時（0x4695f0）
 }
 
+// Rec '@' 12（0x469630 → 0x44e880 設 DAT_00662890 小時，再 0x4695f0）：設小時並依亮度表重設亮度
+static void clock_hour_set(int h) { clk.hour = h; light_hour(wx.idx); }
+
 // 亮度變了粒子跟著換色（CParticleMng 虛擬函式 +8）
 static void weather_retone(int b) {
     if (wx.idx && wx.tex_kind) weather_tex(wx.tex_kind, b < 0 ? 0 : b > 16 ? 16 : b);

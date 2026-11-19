@@ -5524,6 +5524,35 @@ int main(void) {
         rec_look(&lk, "001*CA_002_001*TK_003_001");
         assert(lk.pli == 1 && strstr(lk.styles, "003") && strstr(lk.styles, "002"));
     }
+    {  // 過場對話框（0x4725c0 case 4／6、0x472e70）、建築狀態 #7、@8／@10／@12、#3 子碼 0x35／0x67
+        Scene sc = {0};
+        Model mdl = {.type = 0x96};
+        sc.w = sc.h = 2; sc.cells = calloc(4, sizeof *sc.cells);
+        sc.object_count = 3; sc.objects = calloc(3, sizeof *sc.objects);
+        for (int i = 0; i < 3; i++) sc.objects[i] = (Object){.m = &mdl, .tri = i != 0, .state = -1};
+        rec_on = 1; memset(&rec, 0, sizeof rec); rec.dlg_t = -1; snprintf(rec.room, sizeof rec.room, "here");
+        uint8_t talk[10] = {'@', 4, 7, 0, 0, 0, 0x56, 3, 0, 0}, six[6] = {'@', 6, 5, 0, 0, 0};   // 說話者 7、PTalk_C 鍵 854、n = 5
+        rec_ctl(talk, 10, &sc); assert(rec.dlg_id == 7 && rec.dlg_voice && rec.dlg_t == 1 << 30 && rec.dlg_text[0]);
+        rec_ctl(six, 6, &sc); assert(rec.dlg_n6 == 0x28);                 // 5 × 3 < 0x28 → 0x28；有語音時不直接設拍數
+        rec_dialog_tick(); assert(!rec.dlg_voice && rec.dlg_t == 0x27);   // 沒有語音檔（測試沒開音訊）→ 改倒數 0x28 拍
+        for (int i = 0; i < 0x27; i++) rec_dialog_tick();
+        assert(rec.dlg_t == -1 && !rec.dlg_id);
+        six[2] = 20; rec_ctl(talk, 10, &sc); rec_ctl(six, 6, &sc); rec_dialog_tick(); assert(rec.dlg_t == 59);   // 20 × 3 = 60
+        uint8_t bs[5] = {'#', 7, 0xd2, 0x47, 5};                          // 物件編號 0x47d2 & 0x3fff = 2002 → BNT 第 1 筆（2001 起）
+        rec_net(bs, 5, &sc); assert(sc.objects[1].state == 5 && sc.objects[2].state == -1);
+        bs[2] = 0xd1; bs[4] = 1; rec_net(bs, 5, &sc); assert(sc.objects[0].state == -1);   // 第 0 筆不是 CTriBld：原版只寫除錯訊息
+        uint8_t sw[3] = {'#', 13, 2}; snprintf(rec.strq[0], sizeof rec.strq[0], "elsewhere NULL"); rec.strn = 1;
+        rec_net(sw, 3, &sc); assert(rec.foreign);                          // 換到別的場景：建築封包不套在這個房間
+        bs[2] = 0xd3; bs[4] = 5; rec_net(bs, 5, &sc); assert(sc.objects[2].state == -1);
+        uint8_t ex[6] = {'@', 10, 0, 0, 0, 0};
+        rec_ctl(ex, 6, &sc); assert(sc.cells[3].view == 0xc9); ex[2] = 2; rec_ctl(ex, 6, &sc); assert(!sc.cells[0].view); ex[2] = 1; rec_ctl(ex, 6, &sc); assert(sc.cells[2].view == 1);
+        uint8_t fx[10] = {'@', 8, 2, 0, 0, 0, 1, 0, 0, 0};
+        rec_ctl(fx, 10, &sc); assert(fade_mode == 2 && rec.ctl64 == 1); fade_reset(); fade_hold = 0;
+        uint8_t hr[6] = {'@', 12, 23, 0, 0, 0}; rec_ctl(hr, 6, &sc); assert(clk.hour == 23);
+        Actor ra = {0}; uint8_t at[6] = {'#', 3, 1, 0, 0x35, 7};
+        rec_attr(at, &ra); assert(ra.layer == 7);
+        free(sc.cells); free(sc.objects); memset(&rec, 0, sizeof rec); rec_on = 0;
+    }
     {  // 創角範本的外觀字串：動作方式＋款式，空欄略過
         RoleDef lk = *roledef_find(29);
         assert(look_override(&lk, "003*001**002") && lk.pli == 3 && !strcmp(lk.styles, "001*002"));

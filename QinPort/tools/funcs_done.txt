@@ -353,3 +353,13 @@
 1002e3c0 item_mods／fe_toggle（拿下裝備：特性移除、五行相生搭檔 0x10055d50 失效，髒名單 → hero_derive 重算）
 10037510 item_mods（UI_Pos 30~40 裝備欄特性清單複製）
 1002eaa0 item_eat（use 永久屬性：特性寫 *0 基底 → 引擎 hero_attr／gem_fx）
+00470300 main.c rec_net／rec_attr（#1 子類 1 亮度參數、#3 子碼 0x01／0x02／0x35／0x36／0x67、#7 建築狀態 = 低 14 位 − 2001 → BNT 順序、#13 換場景）；#6／#8／#9 沒做，見 coverage.md
+004722f0 main.c rec_dialog_note（對話框定位：角色 x、y − 頭高 − 10）
+004725c0 main.c rec_ctl（@4／@6 對話框與計時、@8 淡入淡出、@10 探索值、@12 小時）
+00472e70 main.c rec_dialog_tick（有語音播完才收，沒有倒數 n×3、至少 0x28）
+00538f50 main.c rec_dialog_draw（頭頂文字框；框色／字色沒查到）
+005963e0 main.c rec_dialog_draw（同上，TIPINFO 建框、置中、夾邊）
+004c8630 main.c rec_ctl @10（全場景探索值 0／1／2 → 0xc9／1／0）
+004a2600 無程式（CIDTable 配號：≥2000 先加 1 再用、跳過已用；Rec #7 的編號 − 2001 = BNT 順序依據）
+100484c0 story_rt.c room_map_note（玩家進房間記 CurMap／Map 位元遮罩／Place）
+10013270 story_rt.c story_c_aigroup（BNT 觸發區文字指令 c_aigroup，trigger_sense_tick）
