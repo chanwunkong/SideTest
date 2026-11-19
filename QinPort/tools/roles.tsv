@@ -1112,4 +1112,5 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 0048c4e3	盾牌格擋（0x48c3a0 內，旗標 0x40000＋面向差）：main.c shield_block（strike 開頭）
 1002d8d0	人物數值重算（主角 hero_derive／隊友 team_derive／怪物 mon_derive 共用 person_derive 公式）
 
-004fe130	讀並清「劇情播放」旗標（DAT_00953a80）；引擎以 rec_on／scene_record_mode == 2 取代（autosave_due）
+004fe130	讀並清「劇情播放」旗標（DAT_00953a80）；引擎以 rec_on／scene_record_mode == 2 取代（autosave_due）10058900	五行換算：產品五行 fe 決定屬性 43~52（兩個一組）、54~58 用哪一組；fe<1 回 −1 = 拿掉。引擎 main.c fe_conv
+1004b8b0	製作費用：模式 0（自己用技能）= (技能等級+10)×5 精氣、模式 1（找 NPC）= 材料 ValueUn 總和。引擎 make_produce

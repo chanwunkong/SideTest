@@ -6122,6 +6122,15 @@ static void set_combine(void) {  // Poq.exe 0x555380：件數 > 1 才送；0x100
     hud_msg(1210, "\xb7\xfc\xcb\xd5");
 }
 
+// 五行換算（0x10058900）：產品的五行 fe 決定它的五行特性（屬性 43~52 兩個一組、54~58）用哪一組。回 −1 = 這條特性不要（沒有五行 fe < 1）
+static int fe_conv(int fe, int id) {
+    static const int A[6] = {0, 43, 45, 47, 49, 51}, B[6] = {0, 55, 58, 57, 54, 56};
+    if (fe < 1) return (id >= 43 && id <= 52) || (id >= 54 && id <= 58) ? -1 : id;
+    if (id >= 43 && id <= 52) return fe <= 5 ? A[fe] + (id % 2 == 0) : id;
+    if (id >= 54 && id <= 58) return fe <= 5 ? B[fe] : id;
+    return id;
+}
+
 // 五行相生（裝備搭檔，0x10055d50）：腰帶 39—盔甲 31、項鍊 38—頭盔 30、右戒 36—右手 32、左戒 37—左手 33 兩件都穿著，
 // 飾品（前者）的五行 f 經相生表 {0,3,4,2,5,1}[f] 等於另一件的五行（0x100581b0）→ 搭檔的「相生特性」（種類 2）生效（0x1006e340），
 // 拿掉其中一件 → 搭檔的相生特性失效（0x1006f920）。原版只開關搭檔那件（剛穿上的那件本身不動），所以先穿的那件才拿到加成；
@@ -6391,6 +6400,8 @@ static int ground_at(int px, int py, int ox, int oy, const Scene *s) {
 #ifdef STORY
 static int shop_bag_act(int p);
 static int store_bag_act(int p);
+static int make_self;  // 打造介面是從背包（JM54 的 m_pMake／m_pEnchase，Poq.exe 0x54af70／0x54b620）開的 = 用自己的技能，不是商人
+static void make_open(int mode);
 #endif
 // 合併箭堆（文字指令 c_arrow 0x100133c0，客戶端把一堆拖到另一堆時送）：dst 有數量上限 500（.data 0x1039f554），超過的留在 src。
 // 條件照原版：dst 類型 13 或 src 類型 14（原版 `Type(a) == 13 || Type(b) == 14`，不要求兩邊同類）；不符合不動。回 1 = 有合併
@@ -6418,6 +6429,9 @@ static void bag_button(const char *name) {
         else if (inv[p].name[0]) { if (sel >= 0) arrow_merge(p, sel); item_sel = p; }  // 選中箭堆再點另一堆 = 合併（c_arrow）
         else if (sel >= 0) { inv_swap(sel, p); item_sel = p; }
     } else if (!strcmp(name, "m_pNeaten")) bag_neaten();
+#ifdef STORY
+    else if (!strcmp(name, "m_pMake") || !strcmp(name, "m_pEnchase")) { make_self = 1; make_open(name[3] == 'M' ? -1 : 1); }
+#endif
     else if (sel < 0) { if (!strcmp(name, "m_pEquip")) ui_command(name); }
     else if (!strcmp(name, "m_pUse")) bag_use(sel);
     else if (!strcmp(name, "m_pRepair")) item_repair(sel);
@@ -6558,11 +6572,10 @@ static void shop_identify(int p) {
 // 在游標模式下對背包的道具做事；回 1 = 做了
 static int make_on(void);
 static int make_bag_act(int p);
-static void make_open(int mode);
 static void ui_text(int id, char *out, size_t cap);
 static void item_icon(UiDialog *d, const char *key, int wx, int wy, const Item *it);
 static int shop_bag_act(int p) {
-    if (shop_npc && p >= 0 && p < INV_BAG && inv[p].name[0] && make_on()) return make_bag_act(p);
+    if ((shop_npc || make_self) && p >= 0 && p < INV_BAG && inv[p].name[0] && make_on()) return make_bag_act(p);
     if (!shop_npc || p < 0 || p >= INV_BAG || !inv[p].name[0]) return 0;
     if (shop_mode == SHOP_SELL) shop_sell(p);
     else if (shop_mode == SHOP_REPAIR) shop_repair(p);
@@ -6589,7 +6602,7 @@ static void shop_button(const char *name) {
         shop_sel = -1;
         if (sel >= 0) shop_bag_act(sel);
         else hud_say(shop_mode == SHOP_SELL ? "賣：點背包的道具" : shop_mode == SHOP_REPAIR ? "修理：點背包的道具" : "鑑定：點背包的道具");
-    } else if (!strcmp(name, "m_pMake") || !strcmp(name, "m_pEnchase")) make_open(name[3] == 'M' ? -1 : 1);
+    } else if (!strcmp(name, "m_pMake") || !strcmp(name, "m_pEnchase")) { make_self = 0; make_open(name[3] == 'M' ? -1 : 1); }
     else if (!strcmp(name, "m_pCClose")) shop_close();
 }
 
@@ -6603,7 +6616,7 @@ static void shop_button(const char *name) {
 // 镶嵌（addgem 0x10011a20 → 0x10037690）：m_pProduct 放武器或防具（類型 7~34，13、14 箭矢除外，1215），寶石（類型 0，否則 1298）
 // 放上去；鑲滿 SlotMax 顆（1299）。寶石的特性依道具種類過濾（0x10026fc0：武器去掉防禦類、防具去掉攻擊類）後加上，價格 + 寶石價 ×1.5。
 // m_pBackout 拆除寶石（removegem 0x10053a40）：寶石毀掉，特性拿掉，價格扣回寶石價 ×1.5（不低於 0）。
-// shortcut: 自己用技能打造（扣精氣 (等級+10)×5）、五行屬性換算（0x10058900）、打造中的進度動畫 m_pProductFinish 還沒做；
+// 自己用技能打造（背包 m_pMake，扣精氣 (等級+10)×5）、五行屬性換算 0x10058900 已做。shortcut: 打造中的進度動畫 m_pProductFinish 還沒做；
 // 類別按鈕對配方類別是照按鈕名稱對的（刀剑 0、斧锤 4、棍杖 2、抢矛 3、弓箭 1、盾甲 5、配饰 6、其它 7）
 static const int MAKE_CAT[8] = {0, 4, 2, 3, 1, 5, 6, 7};
 static int make_mode, make_cat, make_rec = -1, make_mat[15], make_item = -1, make_gem = -1;
@@ -6654,9 +6667,12 @@ static void fx_merge(ItemFx *list, int *n, const ItemFx *f) {
     if (*n < 32) list[(*n)++] = *f;
 }
 
+// 自己用技能打造（0x54af70 開窗、模式 0）：要有「打造之术」，等級 = 技能等級，扣精氣 (等級 + 10) × 5（0x1004b8b0 模式 0；不夠 3024），不花錢
 static void make_produce(void) {
     const Recipe *r = make_recipe();
     if (!r || !recipe_ready(r, make_mat)) return;  // 材料還沒放齊（原版打造鈕是灰的）
+    int self_lv = make_self ? hero_skill_level("\xb4\xf2\xd4\xec\xd6\xae\xca\xf5") : 0;  // 打造之术（GBK）
+    if (make_self && self_lv < 1) return;  // 0x541c50：沒有技能、也沒商人等級，不送封包
     int cost = 0, first = -1;
     for (int c = 0; c < 5; c++)
         for (int k = 0; k < r->need[c]; k++) {
@@ -6665,20 +6681,31 @@ static void make_produce(void) {
             cost += inv[p].value_un;
         }
     if (r->main >= 1 && r->main <= 5) first = make_mat[r->main - 1];
-    if (hero_money < cost) { hud_msg(3025); return; }
+    int mp_cost = (self_lv + 10) * 5;
+    if (make_self ? actors[0].mp < mp_cost : hero_money < cost) { hud_msg(make_self ? 3024 : 3025); return; }
     Item out;
-    int level = story_get_int(shop_npc, "UIS_Produce");
+    int level = make_self ? self_lv : story_get_int(shop_npc, "UIS_Produce");
     if (!item_new(&out, r->type, level > 0 ? level : 1, -1, NULL)) { hud_msg(3014, r->type); return; }
-    hero_money -= cost;
+    if (make_self) actors[0].mp -= mp_cost; else hero_money -= cost;
     if (out.type >= 7 && out.type <= 34) {
-        if (first >= 0 && inv[first].type == r->main) out.fe = inv[first].fe;
+        out.fe = first >= 0 && inv[first].type == r->main ? inv[first].fe : -1;  // 原版 FE 一律設（沒有主材 = −1）
+        for (int i = 0; i < out.fx_n;) {  // 產品自己的五行特性依 FE 換算，沒有五行就拿掉
+            int id = out.fx[i].id, c = id >= 41 && id <= 58 ? fe_conv(out.fe, id) : id;
+            if (c < 0) memmove(&out.fx[i], &out.fx[i + 1], (--out.fx_n - i) * sizeof out.fx[0]);
+            else out.fx[i++].id = c;
+        }
         ItemFx add[32];
         int n = 0;
         for (int i = 0; i < 15; i++) {
             const Item *m = make_mat[i] >= 0 ? &inv[make_mat[i]] : NULL;
             if (!m) continue;
             for (int j = 0; j < m->fx_n; j++)
-                if (m->fx[j].kind != 3 || m->type == r->main) fx_merge(add, &n, &m->fx[j]);
+                if (m->fx[j].kind != 3 || m->type == r->main) {
+                    ItemFx f = m->fx[j];
+                    int c = f.id >= 41 && f.id <= 58 ? fe_conv(out.fe, f.id) : f.id;
+                    if (c >= 0) f.id = c;  // 材料的特性：換不出來就保留原樣（0x10051530 第二輪）
+                    fx_merge(add, &n, &f);
+                }
             if (m->lv_req > out.lv_req) out.lv_req = m->lv_req;
             out.value += m->value > 0 ? m->value : 0;
             out.weight += m->weight > 0 ? m->weight : 0;
@@ -6763,7 +6790,7 @@ static void make_button(const char *name) {
     else if (!strncmp(name, "m_pGem[", 7)) make_gem = atoi(name + 7);
     else if (!strcmp(name, "m_pBackout")) {
         if (make_item >= 0) gem_remove(make_gem >= 0 ? make_gem : inv[make_item].gem_n - 1);
-    } else if (!strcmp(name, "m_pCClose")) shop_open(shop_npc);
+    } else if (!strcmp(name, "m_pCClose")) { if (shop_npc) shop_open(shop_npc); else win_left.open = 0; make_self = 0; }
 }
 
 // 配方列表一行 16 點

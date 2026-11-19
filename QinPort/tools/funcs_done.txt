@@ -347,3 +347,9 @@
 10031840  建立／讀檔時的需求與 HP_MAX 備份（LevelReqOld、HP_MAX0）：引擎 gem_fx 可逆加減、hero_derive 每次從基礎重算，不需要備份欄
 1004bcb0  story_rt.c story_get_int(h,"Level")（取等級包裝）／升級通知 @Exp @EXTRA 只是封包，單機直接讀屬性
 10031680  story_rt.c story_get_int(h,"Level")（取等級包裝）／升級通知 @Exp @EXTRA 只是封包，單機直接讀屬性
+# 裝備特性增量重算（2026-11-19 逐個讀過本體）：引擎 item_mods／fe_toggle／person_derive 每次由 inv 全部重算，等價
+1002e040 item_mods（0x1002e060 的 UI_Pos 轉接）
+1002e060 person_derive／status_patch（依擁有者代號清掉 Patch_ 狀態改的值：引擎狀態到期即重算）
+1002e3c0 item_mods／fe_toggle（拿下裝備：特性移除、五行相生搭檔 0x10055d50 失效，髒名單 → hero_derive 重算）
+10037510 item_mods（UI_Pos 30~40 裝備欄特性清單複製）
+1002eaa0 item_eat（use 永久屬性：特性寫 *0 基底 → 引擎 hero_attr／gem_fx）

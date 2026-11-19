@@ -2718,7 +2718,7 @@ Poq.exe	99	004fde50	FUN_004fde50	~CGameApp	game	skip	61	0	解構函數（物件�
 Poq.exe	99	004fdf90	FUN_004fdf90	~CGameApp	game	skip	61	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe0d0	FUN_004fe0d0	~CGameApp	game	skip	8	130	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe0e0	FUN_004fe0e0	~CGameApp	game	skip	22	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	004fe130	FUN_004fe130	~CGameApp	game	skip	12	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植	讀並清「劇情播放」旗標（DAT_00953a80）；引擎以 rec_on／scene_record_mode == 2 取代（autosave_due）	
+Poq.exe	99	004fe130	FUN_004fe130	~CGameApp	game	skip	12	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植	讀並清「劇情播放」旗標（DAT_00953a80）；引擎以 rec_on／scene_record_mode == 2 取代（autosave_due）10058900	五行換算：產品五行 fe 決定屬性 43~52（兩個一組）、54~58 用哪一組；fe<1 回 −1 = 拿掉。引擎 main.c fe_conv	
 Poq.exe	99	004fe170	FUN_004fe170	~CGameApp	game	skip	11	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe1a0	FUN_004fe1a0	~CGameApp	game	skip	34	11	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe220	FUN_004fe220	~CGameApp	game	skip	8	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -3414,7 +3414,7 @@ Poq.exe	99	00541860	FUN_00541860		game	skip	13	1	介面類別樣板：虛擬函�
 Poq.exe	99	00541890	FUN_00541890		game	skip	8	0	CContainer／CStaticLinkList<ModelMaterial*,200> 容器的建構／取值／移除：引擎用 make_mat[15] 陣列（tools/base_map.tsv）		
 Poq.exe	99	005418b0	FUN_005418b0	~CGameApp	game	skip	68	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00541b50	FUN_00541b50		game	skip	37	4	按鈕啟用／停用幀切換（FUN_00583e40 設按鈕狀態、FUN_00580df0 顯示）：引擎以 ui 旗標 0x1／0x8 顯示控制		
-Poq.exe	99	00541c50	FUN_00541c50	CMakePropDialog	game	skip	86	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
+Poq.exe	99	00541c50	FUN_00541c50	CMakePropDialog	game	done	86	2			
 Poq.exe	99	00541e70	FUN_00541e70	CMakePropDialog	game	skip	68	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	00542000	FUN_00542000	CMakePropDialog	game	skip	42	2	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	005420d0	FUN_005420d0	~CMakePropDialog	game	skip	101	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -3549,9 +3549,9 @@ Poq.exe	99	0054a0a0	FUN_0054a0a0		game	skip	210	0	介面→本機伺服器訊息
 Poq.exe	99	0054a550	FUN_0054a550		game	skip	171	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054aa20	FUN_0054aa20		game	skip	65	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054abd0	FUN_0054abd0		game	skip	100	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0054af70	FUN_0054af70		game	skip	82	0	CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則		
+Poq.exe	99	0054af70	FUN_0054af70		game	done	82	0			
 Poq.exe	99	0054b190	FUN_0054b190		game	skip	152	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0054b620	FUN_0054b620		game	skip	121	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
+Poq.exe	99	0054b620	FUN_0054b620		game	done	121	0			
 Poq.exe	99	0054b990	FUN_0054b990		game	skip	58	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054bb30	FUN_0054bb30		game	skip	320	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054c270	FUN_0054c270		game	skip	9	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -5848,10 +5848,10 @@ EasyRPG.dll	3	100295b0	FUN_100295b0		game	done	2909	2		隊友入隊自動加點�
 EasyRPG.dll	3	1002d8d0	FUN_1002d8d0		game	done	36	7		人物數值重算（主角 hero_derive／隊友 team_derive／怪物 mon_derive 共用 person_derive 公式）	
 EasyRPG.dll	4	1002d9cf	FUN_1002d9cf		game	skip	29	2	1002d8d0 的反編譯碎片（通知客戶端 HP／MP／Level 屬性更新）：單機直接讀屬性		
 EasyRPG.dll	5	1002daa0	FUN_1002daa0		game	done	141	3			
-EasyRPG.dll	3	1002e040	FUN_1002e040		game	skip	12	3	裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同		
-EasyRPG.dll	3	1002e060	FUN_1002e060		game	skip	157	2	裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同		
-EasyRPG.dll	3	1002e3c0	FUN_1002e3c0		game	skip	345	2	裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同		
-EasyRPG.dll	3	1002eaa0	FUN_1002eaa0		game	skip	449	2	裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同		
+EasyRPG.dll	3	1002e040	FUN_1002e040		game	done	12	3	item_mods（0x1002e060 的 UI_Pos 轉接）		
+EasyRPG.dll	3	1002e060	FUN_1002e060		game	done	157	2	person_derive／status_patch（依擁有者代號清掉 Patch_ 狀態改的值：引擎狀態到期即重算）		
+EasyRPG.dll	3	1002e3c0	FUN_1002e3c0		game	done	345	2	item_mods／fe_toggle（拿下裝備：特性移除、五行相生搭檔 0x10055d50 失效，髒名單 → hero_derive 重算）		
+EasyRPG.dll	3	1002eaa0	FUN_1002eaa0		game	done	449	2	item_eat（use 永久屬性：特性寫 *0 基底 → 引擎 hero_attr／gem_fx）		
 EasyRPG.dll	3	1002f420	FUN_1002f420		game	done	156	4	hero_derive（重算前先回到基礎值 *0 欄，main.c hero_derive 起頭）		
 EasyRPG.dll	5	1002fa90	FUN_1002fa90		game	done	95	1			
 EasyRPG.dll	2	1002fe20	FUN_1002fe20		game	done	135	9			
@@ -5924,7 +5924,7 @@ EasyRPG.dll	99	10037400	FUN_10037400		game	skip	13	0	EasyRPG.dll 沒有呼叫者
 EasyRPG.dll	99	10037430	FUN_10037430		game	skip	13	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	99	10037460	FUN_10037460		game	skip	14	0	建構／解構／STL 容器轉接／欄位存取器（14 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	3	10037490	FUN_10037490		game	done	26	17			
-EasyRPG.dll	3	10037510	FUN_10037510		game	skip	69	4	裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同		
+EasyRPG.dll	3	10037510	FUN_10037510		game	done	69	4	item_mods（UI_Pos 30~40 裝備欄特性清單複製）		
 EasyRPG.dll	2	10037690	FUN_10037690		game	done	62	3			
 EasyRPG.dll	99	100377e0	FUN_100377e0		game	skip	31	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	2	10037850	FUN_10037850		game	done	163	57			
@@ -6182,7 +6182,7 @@ EasyRPG.dll	99	1004b680	FUN_1004b680		game	skip	12	0	建構／解構／STL 容�
 EasyRPG.dll	99	1004b6a0	FUN_1004b6a0		game	skip	12	0	建構／解構／STL 容器轉接／欄位存取器（12 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	3	1004b7a0	FUN_1004b7a0		game	done	23	1	item_identify（鑑定費用 (等級+4)×10，main.c）		
 EasyRPG.dll	2	1004b800	FUN_1004b800		game	skip	36	3	同上：Friend 條件的客戶端同步		
-EasyRPG.dll	2	1004b8b0	FUN_1004b8b0		game	skip	31	3	製作費用 0x1004b8b0：mode 0 = (等級 + 10) × 5、mode 1 = 材料 ValueUn 總和（UIS_Produce）= main.c make_produce 的錢（NPC 打造費用）		
+EasyRPG.dll	2	1004b8b0	FUN_1004b8b0		game	done	31	3		製作費用：模式 0（自己用技能）= (技能等級+10)×5 精氣、模式 1（找 NPC）= 材料 ValueUn 總和。引擎 make_produce	
 EasyRPG.dll	3	1004b910	FUN_1004b910		game	done	30	1	item_repair（修理價錢 = 原價 × 損耗 × 4 / 耐久上限，NPC ×2，main.c）		
 EasyRPG.dll	2	1004b9a0	FUN_1004b9a0		game	skip	36	3	同上：Friend 條件的客戶端同步		
 EasyRPG.dll	99	1004ba50	FUN_1004ba50		game	skip	37	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		

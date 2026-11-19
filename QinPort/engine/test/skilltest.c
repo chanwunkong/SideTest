@@ -4395,6 +4395,13 @@ static void choose_height_test(void) {
     assert(difficulty == 2);
 }
 
+// 五行換算 0x10058900：fe < 1 去掉五行特性；fe ≥ 1 依 fe 選組（43~52 兩個一組、54~58 一個）
+static void fe_conv_test(void) {
+    assert(fe_conv(0, 43) == -1 && fe_conv(-1, 52) == -1 && fe_conv(0, 54) == -1 && fe_conv(0, 41) == 41 && fe_conv(0, 59) == 59);
+    assert(fe_conv(1, 43) == 43 && fe_conv(1, 44) == 44 && fe_conv(2, 43) == 45 && fe_conv(2, 44) == 46 && fe_conv(5, 52) == 52 && fe_conv(4, 51) == 49);
+    assert(fe_conv(1, 58) == 55 && fe_conv(2, 54) == 58 && fe_conv(3, 56) == 57 && fe_conv(4, 55) == 54 && fe_conv(5, 57) == 56 && fe_conv(3, 41) == 41);
+    printf("fe_conv ok\n");
+}
 static void make_ready_test(void) {
     // 0x541650／0x5417d0：材料放齊 = 放的件數等於配方件數總和且不為 0
     Recipe r = {0};
@@ -4587,6 +4594,7 @@ int main(void) {
     // 資源測試必須先設定路徑；anim_get會快取不存在的動畫，晚設路徑無法補救。
     res_init("../../game");
     make_ready_test();
+    fe_conv_test();
     instant_gem_learn_test();
     choose_height_test();
     caption_test();
