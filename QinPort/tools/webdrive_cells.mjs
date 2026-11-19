@@ -1,6 +1,6 @@
 // 網頁版自動操作（headless Chrome + CDP，只用 node 內建 API）：node tools/webdrive_cells.mjs <網址> <寬> <高> <輸出前綴> "<步驟>"
-// 步驟以 ; 分隔：wait:毫秒 | tap:x,y | click:x,y（滑鼠）| key:字母 | hold:x,y,毫秒（按住）| drag:x0,y0,x1,y1,毫秒 | shot:名字 | eval:JS 運算式（印出結果）
-// 環境變數 INJECT = 每頁載入前先執行的 JS（例如監看載入畫面）；CDP_PORT = 除錯埠（預設 9344）；THROTTLE=1 = 模擬 4G
+// 步驟以 ; 分隔：wait:毫秒 | tap:x,y | click:x,y（滑鼠）| key:字母 | hold:x,y,毫秒（按住）| drag:x0,y0,x1,y1,毫秒（手指）| mdrag:x0,y0,x1,y1,毫秒（滑鼠拖放）| shot:名字 | eval:JS 運算式（印出結果）
+// 環境變數 NOCLICK = 不在開頭點一下（用 ?scene= 直接進場景、要看過場時用）；INJECT = 每頁載入前先執行的 JS（例如監看載入畫面）；CDP_PORT = 除錯埠（預設 9344）；THROTTLE=1 = 模擬 4G
 // 第一次玩的片頭影片：預設先設好 localStorage.qinIntro，並在開頭點一下跳過 logo 影片。console 輸出存到 <前綴>.log
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -29,7 +29,7 @@ await send('Page.navigate', { url });
 const touch = (type, x, y) => send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
 let shots = 0;
 await sleep(5000);
-for (const t of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type: t, x: w / 2, y: h / 2, button: 'left', clickCount: 1 });  // 跳過 logo 影片
+if (!process.env.NOCLICK) for (const t of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type: t, x: w / 2, y: h / 2, button: 'left', clickCount: 1 });  // 跳過 logo 影片（NOCLICK=1：直接進場景的測試不要點，會把過場跳掉）
 for (let i = 0; i < 120; i++) { await sleep(500); const v = await send('Runtime.evaluate', { expression: "document.getElementById('loader').style.display", returnByValue: true }); if (v.result.value === 'none') break; }
 for (const st of steps.split(';').filter(Boolean)) {
   const [cmd, ...rest] = st.split(':'); const arg = rest.join(':');
@@ -40,6 +40,9 @@ for (const st of steps.split(';').filter(Boolean)) {
   else if (cmd === 'hold') { const [x, y, ms] = arg.split(',').map(Number); await touch('touchStart', x, y); await sleep(ms); await touch('touchEnd'); }
   else if (cmd === 'drag') { const [x0, y0, x1, y1, ms] = arg.split(',').map(Number); await touch('touchStart', x0, y0);
     for (let k = 1; k <= 10; k++) { await touch('touchMove', x0 + (x1 - x0) * k / 10, y0 + (y1 - y0) * k / 10); await sleep(ms / 10); } await sleep(300); await touch('touchEnd'); }
+  else if (cmd === 'mdrag') { const [x0, y0, x1, y1, ms] = arg.split(',').map(Number); const m = (type, x, y, b) => send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: b, clickCount: 1 });
+    await m('mouseMoved', x0, y0, 0); await m('mousePressed', x0, y0, 1);
+    for (let k = 1; k <= 10; k++) { await m('mouseMoved', x0 + (x1 - x0) * k / 10, y0 + (y1 - y0) * k / 10, 1); await sleep(ms / 10); } await m('mouseReleased', x1, y1, 0); await sleep(200); }
   else if (cmd === 'shot') { const s = await send('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(`${prefix}_${arg || shots++}.png`, Buffer.from(s.data, 'base64')); }
   else if (cmd === 'eval') { const r = await send('Runtime.evaluate', { expression: arg, returnByValue: true }); logs.push('eval: ' + JSON.stringify(r.result.value)); }
 }

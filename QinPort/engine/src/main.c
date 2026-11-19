@@ -1583,9 +1583,9 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     a->y = y + 0.5f;
     a->spec = sp;
     a->mon = m;
-    a->object_kind = m->istrap ? 24 : 40;
+    a->object_kind = m->istrap == 1 ? 24 : 40;  // istrap：1 = 陷阱（CTrapBase），10 = 可馴服的動物、20 = 召喚獸，都是一般角色（以前非 0 全當陷阱，狼群看不見、打不到）
     // 陷阱建構（0x49b8d0）：狀態0、未被發現、計數0；0x49ba30 設模型時的次數（+0xb7）沒找到來源，一律 1。
-    if (m->istrap) a->trap_uses = 1;
+    if (m->istrap == 1) a->trap_uses = 1;
     a->level = lv < 1 ? 1 : lv > 99 ? 99 : lv;
     a->side = 1;
     actor_group(a, 10000);  // shortcut: 沒有劇情時怪物都算同一個 NPC 組；有劇情時 actors_sync 換成 G_AIGroup
@@ -1596,7 +1596,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, 
     actor_setup(a, d);
     actor_group(a, 10000); // 出生AI組覆寫在模板預設組之後。
     a->trap_group = a->grp;
-    if (unit_scene && !m->istrap && (!actor_bind_scene(a, unit_scene) ||
+    if (unit_scene && m->istrap != 1 && (!actor_bind_scene(a, unit_scene) ||
         !actor_place(a, (int)a->x, (int)a->y, 1))) a->role = NULL;
     return a;
 }
@@ -6232,10 +6232,14 @@ static int item_unequip(Actor *h, int s) {
 
 // 穿上背包 p 的道具，原來那格的換回背包。雙手武器要空出左手（箭除外），左手放東西時右手不能是雙手武器
 // shortcut: 原版 Poq.exe 拖放裝備的檢查（哪些部位能互放、弓配箭）還沒拆，照部位表推的
-static void item_equip(Actor *h, int p) {
+static void item_equip_slot(Actor *h, int p, int want) {
     Item *it = &inv[p];
     int s = equip_slot(it);
     if (s < 0) return;
+    if (want >= 0 && want != s) {  // 拖放到指定格：只有該部位本來能放的格（戒指兩格都行）
+        if (!(it->part == 7 && (want == 36 || want == 37))) { hud_say("這件裝備不能放在這一格"); return; }
+        s = want;
+    }
     if (!item_can_equip(h, it)) { hud_say(!it->identify ? "需要先鑑定" : it->hp == 0 ? "已經損壞，需要修理" : "條件不足，不能裝備"); return; }
     if (s == 32 && it->part == 10 && inv[33].name[0] && inv[33].type != 13 && inv[33].type != 14 && !item_unequip(h, 33)) return;
     if (s == 33 && inv[32].name[0] && inv[32].part == 10 && !(it->type == 13 || it->type == 14) && !item_unequip(h, 32)) return;
@@ -6243,6 +6247,7 @@ static void item_equip(Actor *h, int p) {
     item_sel = -1;
     hero_refresh(h);
 }
+static void item_equip(Actor *h, int p) { item_equip_slot(h, p, -1); }
 
 // 施放技能後箭消耗（EasyRPG.dll 0x1003f370，精氣由呼叫處先扣）：技能 Attack == 1（射箭）時，左手的箭堆（HasArrow = UI_Pos 33 的類型 13／14）
 // 每發 −1；用光就刪箭堆、訊息 1289「箭射完了」，並關掉所有 W_Type 1／3 的弓技能（Enable = 0）。原版另送箭數給客戶端，單機不需要
@@ -7952,6 +7957,7 @@ static void new_done(void) {
 #ifdef STORY
     char path[96];
     snprintf(path, sizeof path, "\xe7\xa7\xa6\xe6\xae\x87/\xe4\xb8\xbb\xe8\xa7\x92/%s", NEW_TMPL[new_prof][new_var]);  // 秦殇/主角/
+    memset(inv, 0, sizeof inv);  // 預設主角的道具（story_end 已同步進來）隨舊主角物件刪掉；不清的話新範本的武器、布衣因欄位被舊的佔著而掉進背包，變成兩份
     story_player_choose(path);
     hero_from_story(1);
     hero_skill_n = -1;  // 技能表依新職業重讀
@@ -7964,11 +7970,18 @@ static void new_done(void) {
 }
 static int new_tap(int x, int y) {
     if (!new_open) return 0;
-    const UiCtrl *c = ui_button_at(&new_d, (vw - new_d.w) / 2, (vh - new_d.h) / 2, x, y);
+    int ox = (vw - new_d.w) / 2, oy = (vh - new_d.h) / 2;
+    for (int i = 0; i < 5; i++) {  // 職業名稱 m_pRoleName1~5 在原版 DialogInfo 是種類 2 的按鈕（無圖，框 108×26，旗標 0x3804019），和圖示一樣選職業
+        char k[24];
+        snprintf(k, sizeof k, "m_pRoleName%d", i + 1);
+        const UiCtrl *n = ui_find(&new_d, k);
+        if (n && n->flags & 9 && x >= ox + n->x && x < ox + n->x + n->w && y >= oy + n->y && y < oy + n->y + n->h) { new_pick(i); return 1; }
+    }
+    const UiCtrl *c = ui_button_at(&new_d, ox, oy, x, y);
     if (!c) return 1;
-    if (!strncmp(c->name, "m_pRoleFlag", 11) || !strncmp(c->name, "m_pRoleName", 11)) {
+    if (!strncmp(c->name, "m_pRoleFlag", 11)) {
         int k = c->name[strlen(c->name) - 1] - '1';
-        if (k >= 0 && k < 5 && strcmp(c->name, "m_pRoleName")) new_pick(k);
+        if (k >= 0 && k < 5) new_pick(k);
     } else if (!strcmp(c->name, "m_pPrevRole")) new_step(-1);
     else if (!strcmp(c->name, "m_pNextRole")) new_step(1);
     else if (!strcmp(c->name, "m_pNewGame") || !strcmp(c->name, "m_pCancel")) new_done();
@@ -8346,6 +8359,71 @@ static int win_tap(int x, int y) {
     return 0;
 }
 
+// ---- 道具拖放：從道具視窗的格子（或裝備視窗的裝備欄）按下，拖到別處放開。滑鼠與手機手指共用（手機放開前仍是放大鏡預覽）。
+// 拖到裝備欄（或裝備視窗任何地方）= 穿上；拖到別的背包格 = 搬移／交換（箭堆合併）；裝備欄拖到背包格 = 脫下放到那格。
+// 沒拖動（< 12 點）就當一般點擊（選取、再點使用）。原版規則沒找到：Poq.exe 拖放事件的細節（哪些格互換、放到地上）沒查，照部位表做
+static int drag_src = -1, drag_sx, drag_sy, drag_x, drag_y;
+static int drag_cell_at(int x, int y) {
+    Win *wr = &win_right, *wl = &win_left;
+    if (wr->open && !strcmp(wr->d.name, JM54)) {
+        int ox = win_x(wr), oy = win_y(wr);
+        for (int i = 0; i < INV_BAG; i++) {
+            char key[24];
+            snprintf(key, sizeof key, i < 24 ? "m_pItem[%d]" : "m_pShortcutItem[%d]", i < 24 ? i : i - 24);
+            const UiCtrl *c = ui_find(&wr->d, key);
+            if (!c) continue;
+            const Sprite *sp = ui_image(c->img, 0);
+            int w = sp ? sp->w : 24, h = sp ? sp->h : 24;
+            if (x >= ox + c->x && x < ox + c->x + w && y >= oy + c->y && y < oy + c->y + h) return i;
+        }
+    }
+    if (wl->open && !strcmp(wl->d.name, JM55)) {
+        const UiCtrl *c = ui_button_at(&wl->d, win_x(wl), win_y(wl), x, y);
+        if (c && !strncmp(c->name, "m_pItem[", 8) && atoi(c->name + 8) < 10) return INV_BAG + atoi(c->name + 8);
+    }
+    return -1;
+}
+static int drag_in_equip_win(int x, int y) {
+    Win *wl = &win_left;
+    return wl->open && !strcmp(wl->d.name, JM55) && x >= win_x(wl) && x < win_x(wl) + wl->d.w && y >= win_y(wl) && y < win_y(wl) + wl->d.h;
+}
+static int drag_press(int x, int y) {
+#ifdef STORY
+    if (trade_paused() || make_on() || store_on()) { drag_src = -1; return 0; }  // 買賣、製作、倉庫中點一下就是操作，不拖
+#endif
+    int c = drag_cell_at(x, y);
+    drag_src = c >= 0 && inv[c].name[0] ? c : -1;
+    drag_sx = drag_x = x; drag_sy = drag_y = y;
+    return drag_src >= 0;
+}
+static int drag_moved(void) { return drag_src >= 0 && abs(drag_x - drag_sx) + abs(drag_y - drag_sy) >= 12; }
+// 放開：有拖動 → 做搬移回 1；沒拖動回 0（呼叫端當一般點擊）
+static int drag_release(int x, int y) {
+    int src = drag_src;
+    drag_src = -1;
+    if (src < 0 || abs(x - drag_sx) + abs(y - drag_sy) < 12) return 0;
+    Actor *h = &actors[0];
+    int dst = drag_cell_at(x, y);
+    if (src < INV_BAG) {
+        if (dst >= INV_BAG) item_equip_slot(h, src, dst);
+        else if (dst >= 0 && dst != src) { if (!arrow_merge(dst, src)) inv_swap(src, dst); item_sel = dst; }
+        else if (dst < 0 && drag_in_equip_win(x, y)) item_equip(h, src);
+    } else if (dst >= 0 && dst < INV_BAG) {
+        if (!inv[dst].name[0]) { inv_swap(src, dst); hero_refresh(h); }
+        else item_equip_slot(h, dst, src);  // 放到有東西的格子：背包那件換上來（要穿得上、部位對）
+    }
+    return 1;
+}
+static void drag_draw(void) {
+    if (!drag_moved()) return;
+    const Sprite *sp = inv[drag_src].name[0] && inv[drag_src].icon ? ui_image(inv[drag_src].icon, 0) : NULL;
+    if (!sp) return;
+    Uint8 a = draw_alpha;
+    draw_alpha = 200;
+    draw(sp, drag_x - sp->w / 2, drag_y - sp->h / 2);
+    draw_alpha = a;
+}
+
 // 介面吃掉的點擊回 1（不再拿去走路、打怪）。shortcut: 主列只有按鈕吃點擊，主列底圖空白處還是會走路
 static int hud_tap(int x, int y) {
     if (sys_tap(x, y)) return 1;
@@ -8536,8 +8614,25 @@ static void item_describe(const Item *it, char *out, size_t cap) {
 }
 
 // 道具視窗：背包、快捷欄的圖示、選取框（m_pHItem，4412）、負重，選中的道具說明畫在視窗左邊
+// 道具視窗上方的黑框（底圖 781 在 x105~178、y26~103，左右各一顆 m_pPrevRole／m_pNextRole 換人箭頭）：畫主角穿著裝備的紙娃娃，穿脫即時變。
+// 原版規則沒找到：黑框的繪製在資料驅動的介面函式（Poq.exe 0x54ed10／0x54f190 一帶，名稱全被轉成 CString 查表），沒找到畫法；
+// shortcut: 站姿面向畫面前方、循環站立序列，位置靠框底中央，沒有隊友切換（m_pPrevRole／m_pNextRole 本來就隱藏）
+static void doll_draw(int wx, int wy) {
+    Actor *h = &actors[0];
+    if (!h->role) return;
+    int seq = actor_animation_target(h, DIR_MAP[4]);
+    const Seq *q = role_seq(h->role, seq);
+    if (!q || !q->count) return;
+    SDL_Rect box = {wx + 105, wy + 26, 73, 77};
+    SDL_RenderSetClipRect(ren, &box);
+    role_hide = 0;
+    role_palette_set(h->role, NULL, 10);
+    role_draw(h->role, seq, (int)(SDL_GetTicks() / 150), box.x + box.w / 2, box.y + box.h - 6);
+    SDL_RenderSetClipRect(ren, NULL);
+}
 static void bag_draw(UiDialog *d, int wx, int wy) {
     char key[24], t[1024];
+    doll_draw(wx, wy);
     for (int i = 0; i < INV_BAG; i++) {
         snprintf(key, sizeof key, i < 24 ? "m_pItem[%d]" : "m_pShortcutItem[%d]", i < 24 ? i : i - 24);
         item_icon(d, key, wx, wy, &inv[i]);
@@ -8808,6 +8903,7 @@ static void hud_draw(Actor *hero) {
             draw_text(wx + money->x + (money->w - text_width(t)) / 2, wy + money->y + (money->h - 16) / 2, t, money->w, 0xBECDCE, 1);
         }
     }
+    drag_draw();
     if (win_off && win_tex) SDL_SetRenderTarget(ren, fade_canvas);
     if (SDL_GetTicks() < toast_until) {
         int tw = text_width(toast);
@@ -9347,7 +9443,9 @@ typedef struct {
     int sv_wx, sv_wleft, wx_set;       // #1 子類 1 的天氣（vfunc+8 = 0x4697b0 換天氣）蓋掉前的天氣，rec_end 還原
     int gid[32], gid_n;                // #6 放的地上道具編號（ground[].id），rec_end 移除
     int sv_day, sv_night, sv_type, light_set, ctl64;  // #1 子類 1 改過的亮度參數（rec_end 還原）；@8 存的 CScnClient +0x64
-    char room[64]; int foreign;        // 錄影開始時的房間；foreign = 錄影目前在別的場景（#13 子類 2 換場景），那些場景的建築／物件這裡沒有
+    char room[64]; int foreign;        // 錄影開始時的房間；foreign = 錄影目前在別的場景（#13 子類 2 換場景）而沒載成功，那些場景的建築／物件這裡沒有
+    char cur[64], back[64];            // cur = 錄影目前載著的場景；back = 開始時的房間（換過場景才有，rec_end 載回去）
+    float bx, by; int bdir;            // 開始時主角的位置，載回去時放回
     int dlg_sx, dlg_sy;                // 說話者上一次畫的螢幕位置（actor_draw 記下）
 } Rec;
 static Rec rec;
@@ -9436,6 +9534,13 @@ static int rec_cast(Actor *a, int id, int x, int y) {
     if (actor_skill_find(a, id) < 0) actor_skill_add(a, (ActorSkill){.id = id, .min = m->range_min, .max = m->range_max, .enabled = 1, .p8 = 1, .p9 = 1}, 0);
     return actor_cast_try(a, id, x, y, NULL);
 }
+// 錄影換到別的場景（例如 pct_wmtya 在片頭動畫場景 ptdhcj 演）：第一次換記下主角的位置與原房間，rec_end 載回。回 0 = 載不進去，維持原場景
+static int rec_scene_swap(Scene *s, Actor *hero, const char *alias) {
+    if (!rec.back[0]) { snprintf(rec.back, sizeof rec.back, "%s", rec.room); rec.bx = hero->x; rec.by = hero->y; rec.bdir = hero->dir; }
+    if (!enter_scene(s, hero, alias, -1)) return 0;
+    snprintf(rec.cur, sizeof rec.cur, "%s", alias);
+    return 1;
+}
 static void rec_net(const uint8_t *b, size_t n, Scene *s) {
     if (n < 3) return;   // '#' 13 子類 2 只有 3 byte
     Actor *a = n >= 4 ? rec_actor(rec_u16(b + 2)) : NULL;
@@ -9472,7 +9577,12 @@ static void rec_net(const uint8_t *b, size_t n, Scene *s) {
         }
         break;
     case 13:   // 命令字串；子類 2 = 換場景（場景名 = 前一條 #10 字串）：不是開始時的房間就暫停處理場景建築（這裡不會換場景）
-        if (n >= 3 && b[2] == 2 && rec.strn) { char sc[64]; snprintf(sc, sizeof sc, "%.63s", rec.strq[rec.strn - 1]); char *sp = strchr(sc, ' '); if (sp) *sp = 0; rec.foreign = strcasecmp(sc, rec.room) != 0; }
+        if (n >= 3 && b[2] == 2 && rec.strn) {  // 載入場景：原版載另一份場景拷貝（舊物件全清）。這裡換了場景就真的載入；同一場景再載 = 清掉錄影建的角色
+            char sc[64]; snprintf(sc, sizeof sc, "%.63s", rec.strq[rec.strn - 1]); char *sp = strchr(sc, ' '); if (sp) *sp = 0;
+            for (int i = 0; i < rec.cnt; i++) { Actor *r = &actors[rec.idx[i]]; if (r->rec) rec_remove(r); }
+            rec.cnt = 0;
+            if (strcasecmp(sc, rec.cur)) rec.foreign = !rec_scene_swap(s, &actors[0], sc);
+        }
         rec.strn = 0;
         break;
     case 6:   // 地上道具（0x470300 case 6 → AddProp 0x450cc0）：PicID b4 ≥ 2000（PropMdl 地面圖）、b8 = 0 才有掉落動畫（0x49a7e0）、格子 x = u16(b9)、y = u16(b11)、擁有者 u16(b13)。
@@ -9564,26 +9674,44 @@ static void rec_ctl(const uint8_t *b, size_t n, Scene *sc) {
     }
 }
 
+static int rec_scene_moved;  // rec_end 載了別的場景，主迴圈要更新別名、音樂
 // 結束 Rec（0x472380 模式 2 還原場景／介面）：錄影角色刪掉、真角色放回、鏡頭回主角，再跑劇情事件的第 18 格
-static void rec_end(const Scene *s, Actor *hero) {
+static void rec_end(Scene *s, Actor *hero) {
     printf("過場結束（第 %u 拍）\n", rec.tick);
+    char back[64], cur[64];  // 錄影載過別的場景：back = 開始時的房間（沒換過 = 空）、cur = 現在載著的場景
+    snprintf(back, sizeof back, "%s", rec.back);
+    snprintf(cur, sizeof cur, "%s", rec.cur);
+    float bx = rec.bx, by = rec.by;
+    int bdir = rec.bdir;
     for (int i = 0; i < rec.cnt; i++) { Actor *a = &actors[rec.idx[i]]; if (a->rec) rec_remove(a); }
     while (actor_count > rec.saved_count && !actors[actor_count - 1].role && !actors[actor_count - 1].mon && actors[actor_count - 1].sh == 0) actor_count--;
-    for (int i = 0; i < rec.hold_n; i++) { Actor *a = &actors[rec.hold[i]]; if (a->role) actor_place(a, (int)a->x, (int)a->y, 1); }
+    if (!back[0])
+        for (int i = 0; i < rec.hold_n; i++) { Actor *a = &actors[rec.hold[i]]; if (a->role) actor_place(a, (int)a->x, (int)a->y, 1); }
     rec_on = 0;
     scene_record_mode = 0;
-    if (rec.light_set) light_table(rec.sv_day, rec.sv_night, rec.sv_type, wx.idx);
-    if (rec.wx_set) weather_set(rec.sv_wx, rec.sv_wleft > 0 ? rec.sv_wleft : 1000);
+    if (rec.light_set && !back[0]) light_table(rec.sv_day, rec.sv_night, rec.sv_type, wx.idx);  // 換過場景的由 enter_scene 重設
+    if (rec.wx_set && !back[0]) weather_set(rec.sv_wx, rec.sv_wleft > 0 ? rec.sv_wleft : 1000);
     for (int i = 0; i < rec.gid_n; i++)
         for (int g = 0; g < ground_n; g++) if (ground[g].id == rec.gid[i]) { ground[g] = ground[--ground_n]; break; }
     free(rec.d); memset(&rec, 0, sizeof rec); rec.dlg_t = -1; audio_voice(-1);
     zoom_back();
-    viewport_follow_set(&viewport, s, hero, 1);
 #ifdef STORY
     story_begin();
     story_plot_end();   // 0x1004f2a0：第 18 格（獎勵、日誌）
     story_end();
+    {   // 第 18 格可能把主角搬進別的房間（例：pct_kgszhu 把主角放進衙府），畫面跟著載主角所在房間的場景；回到開始的房間就站回原位置
+        const char *to = story_room_alias(story_parent(story_player()));
+        if (!to || !*to) to = cur;
+        if (back[0] && !strcasecmp(to, back)) { hero->x = bx; hero->y = by; hero->dir = bdir; }
+        if (strcasecmp(to, cur)) {
+            if (!enter_scene(s, hero, to, !strcasecmp(to, back) ? -1 : 0)) fprintf(stderr, "過場結束載不進 %s\n", to);
+            else rec_scene_moved = 1;
+        } else if (back[0]) actor_place(hero, (int)hero->x, (int)hero->y, 1);
+    }
+#else
+    if (back[0] && !enter_scene(s, hero, back, -1)) fprintf(stderr, "過場結束載不回 %s\n", back);
 #endif
+    viewport_follow_set(&viewport, s, hero, 1);
 }
 
 // 0x472e70：有語音 = 語音播完就收（Mfx_LWave_IsPlaying）；沒有語音 = 倒數 n×3 拍；到 0 就停語音、關對話框
@@ -9652,7 +9780,7 @@ static void rec_tick(Scene *s, Actor *hero) {
 }
 
 // 開始播放（訊息 0x52e）：找不到檔、場景不對就不播，直接收尾
-static int rec_begin(const char *name, const Scene *s, Actor *hero, const char *room) {
+static int rec_begin(const char *name, Scene *s, Actor *hero, const char *room) {
     char file[96];
     size_t n = 0;
     snprintf(file, sizeof file, "%s.rec", name);
@@ -9660,7 +9788,7 @@ static int rec_begin(const char *name, const Scene *s, Actor *hero, const char *
     if (!d) d = res_file("Rec", file, &n);
     if (!d || n < 0x84 || memcmp(d, "soloRecord 1.0", 14)) { fprintf(stderr, "過場 %s：找不到錄影檔\n", name); free(d); return 0; }
     memset(&rec, 0, sizeof rec);
-    rec.d = d; rec.n = n; rec.p = 0x80; rec.dlg_t = -1; snprintf(rec.room, sizeof rec.room, "%s", room);
+    rec.d = d; rec.n = n; rec.p = 0x80; rec.dlg_t = -1; snprintf(rec.room, sizeof rec.room, "%s", room); snprintf(rec.cur, sizeof rec.cur, "%s", room);
     // 場景名：第一個 '#' 13 子類 2 之前的最後一條 '#' 10 字串
     for (size_t p = 0x80, last = 0; p + 6 <= n;) {
         size_t len = rec_u32(d + p);
@@ -9670,7 +9798,7 @@ static int rec_begin(const char *name, const Scene *s, Actor *hero, const char *
         if (b[0] == '#' && b[1] == 13 && b[2] == 2 && last) {
             char sc[64]; snprintf(sc, sizeof sc, "%.63s", (const char *)d + last);
             char *sp = strchr(sc, ' '); if (sp) *sp = 0;
-            if (strcasecmp(sc, room)) { fprintf(stderr, "過場 %s 的場景是 %s，目前是 %s，不播\n", name, sc, room); free(d); memset(&rec, 0, sizeof rec); return 0; }
+            if (strcasecmp(sc, room) && !rec_scene_swap(s, hero, sc)) { fprintf(stderr, "過場 %s 的場景是 %s，載不進去（目前是 %s），不播\n", name, sc, room); free(d); memset(&rec, 0, sizeof rec); return 0; }
             break;
         }
         p += 4 + len;
@@ -9704,6 +9832,7 @@ static void screen_size(SDL_Window *win, int *w, int *h) {
 }
 
 static const char *bounce_alias;
+static int at_mon;
 int main(int argc, char **argv) {
     const char *game = "game", *scn = "xianyang", *shot = NULL, *open_win = NULL;
     int press_x = -1, press_y = -1;
@@ -9731,6 +9860,7 @@ int main(int argc, char **argv) {
 #endif
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
+        else if (!strcmp(argv[i], "--at-mon")) at_mon = 1;  // 測試用：開場後把主角放到離最近怪物兩格的地方（怪物出生點是隨機的）
         else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--money") && i + 1 < argc) money = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--weather") && i + 1 < argc) dbg_clk.weather = atoi(argv[++i]);  // 0~10 天氣、11~16 色調（0x4697b0 的 idx）
@@ -9906,6 +10036,12 @@ int main(int argc, char **argv) {
                     if (hud_target(fx - tch.L.game.x, fy - tch.L.game.y, 0, &hr)) { touch_set_kind(fid, TK_UI); kind = TK_UI; }
                 }
                 if (kind == TK_UI || kind == TK_WIN) {
+                    int dux, duy, dwin;
+                    if (touch_ui_pt(&tch.L, fx, fy, &dux, &duy, &dwin)) {  // 道具拖放：按在道具格上拖到裝備欄／別格；沒拖動走原來的預覽點擊
+                        if (e.type == SDL_FINGERDOWN) drag_press(dux, duy);
+                        else if (e.type == SDL_FINGERMOTION) { drag_x = dux; drag_y = duy; }
+                        else if (drag_release(dux, duy)) continue;
+                    }
                     if (e.type == SDL_FINGERUP) touch_ui_release(fx, fy);  // 放開在控制項上才點；滑出介面外 = 取消
                     continue;
                 }
@@ -9936,6 +10072,7 @@ int main(int argc, char **argv) {
                 }
                 if (e.type != SDL_MOUSEMOTION || e.motion.which != SDL_TOUCH_MOUSEID) tch.kbm = 1;
             } else if (e.type == SDL_KEYDOWN) tch.kbm = 1;
+            if (e.type == SDL_MOUSEMOTION && drag_src >= 0) { drag_x = e.motion.x; drag_y = e.motion.y; }
             if (e.type == SDL_QUIT) running = 0;
             else if (mny.open && (e.type == SDL_TEXTINPUT || e.type == SDL_KEYDOWN)) {  // 丟錢／銀行輸入框：數字、退格、Enter 確定、Esc 取消
                 if (e.type == SDL_TEXTINPUT) money_text(e.text.text);
@@ -9964,9 +10101,14 @@ int main(int argc, char **argv) {
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_f)
                 SDL_SetWindowFullscreen(win, SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
             // 滑鼠與觸控（SDL 預設會把觸控也送成滑鼠事件）：按住就一直往指的地方走
+            else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT && drag_src >= 0) {  // 道具拖放放開；沒拖動 = 補上延後的點擊
+                if (!drag_release(e.button.x, e.button.y)) win_tap(e.button.x, e.button.y);
+                continue;
+            }
             else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
                 px = e.button.x;
                 py = e.button.y;
+                if (!win_off && !dialog_open && !sys_open && !diff_open && drag_press(px, py)) continue;  // 按在道具格上：點擊延後到放開（拖動 = 搬移）
 #ifdef STORY
                 if (dialog_open) { story_begin(); dialog_tap(py); story_end(); continue; }  // 對話中不走路
 #endif
@@ -10161,12 +10303,21 @@ int main(int argc, char **argv) {
             ++tick;
             actor_logic_tick = tick;
 #ifdef STORY
-            if (rec_pending[0]) {  // 劇情事件的過場：沒檔、場景不對就直接收尾
+            if (rec_pending[0] && !diff_open) {  // 劇情事件的過場（新遊戲要等難度選完才開演）：沒檔、場景載不進去就直接收尾
                 if (!rec_begin(rec_pending, &scene, hero, story_room_alias(sroom))) { story_begin(); story_plot_end(); story_end(); }
                 rec_pending[0] = 0;
             }
 #endif
             rec_tick(&scene, hero);
+#ifdef STORY
+            if (rec_scene_moved && !rec_on) {  // 過場結束時畫面換了場景（rec_end）：別名、音樂跟著
+                rec_scene_moved = 0;
+                snprintf(alias, sizeof alias, "%s", story_room_alias(sroom));
+                scene_music(alias, music, sizeof music);
+                audio_music(music);
+                monsters_due = 1;
+            }
+#endif
             if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000 && !rec_on) for (int i = 0; i < actor_count; i++)
                     if (!i || actors[i].mon || actors[i].team) {
                         actor_second(&actors[i]);
@@ -10245,8 +10396,22 @@ int main(int argc, char **argv) {
                     const char *ev = actor_init_name(&actors[i]);
                     if (actors[i].mon || !ev || !*ev) continue;
                     SDL_Point sp = viewport_world_screen(&viewport, ax64(&actors[i]), ay64(&actors[i]));
-                    printf("npc %s cell=%d,%d screen=%d,%d\n", ev, (int)actors[i].x, (int)actors[i].y, sp.x, sp.y);
+                    printf("npc %s cell=%d,%d screen=%d,%d role=%d disp=%d flags=%x dead=%d vis=%d\n", ev, (int)actors[i].x, (int)actors[i].y, sp.x, sp.y, actors[i].role != NULL, actor_display(&actors[i]), actors[i].flags, actors[i].object_dead, actor_draw_visible(&actors[i]));
                 }
+            if (at_mon && tick > 60) {
+                int best = -1;
+                for (int i = 1; i < actor_count; i++)
+                    if (actors[i].mon && actors[i].role && actors[i].mon->istrap != 1 && (best < 0 || cell_dist(hero, &actors[i]) < cell_dist(hero, &actors[best]))) best = i;
+                if (best >= 0) {
+                    actor_restore_position(hero, actors[best].x - 2.0f, actors[best].y);
+                    viewport_home(&viewport, &scene, hero, 0);
+                    printf("at-mon: 怪物 %d 在 %.1f,%.1f，主角站到 %.1f,%.1f\n", best, actors[best].x, actors[best].y, hero->x, hero->y);
+                    at_mon = 0;
+                }
+            }
+            if (debug_cells == 2 && tick % 60 == 0)  // 除錯：列出怪物（格子、血量、距離主角）
+                for (int i = 1; i < actor_count; i++)
+                    if (actors[i].mon && actors[i].role) printf("mon %d cell=%.1f,%.1f hp=%d/%d dead=%d dist=%.1f act=%d\n", i, actors[i].x, actors[i].y, actors[i].hp, actors[i].hp_max, actors[i].object_dead, cell_dist(hero, &actors[i]), actors[i].act);
             if (debug_cells == 2 && tick % 120 == 0)  // 除錯：列出可互動建築（名稱、種類、狀態、格子、畫面座標），自動操作腳本點它們
                 for (int i = -1; i < scene.object_count; i++) {
                     if (i < 0) { SDL_Point hp = viewport_world_screen(&viewport, ax64(hero), ay64(hero)); printf("bld hero screen=%d,%d vw=%d vh=%d zoom=%.3f\n", hp.x, hp.y, vw, vh, (double)zoom); continue; }

@@ -9,9 +9,9 @@ chk talk "autotalk oldman_a" "走近老者自動觸發"; chk talk "talk oldman_a
 CDP_PORT=9412 node $D/webdrive_cells.mjs "$U?scene=zhaocun1&at=44,107&debug=trace&autotalk=0" 640 480 $O/off "wait:5000" >/dev/null 2>&1
 if grep -aq "autotalk oldman_a" $O/off.log; then echo "FAIL autotalk=0 仍觸發"; bad=1; else echo "ok   autotalk=0 不觸發"; fi
 # 3. 新遊戲：創角（遊俠）→ 難度 → 開場日誌「重返咸阳」（亡命天涯）
-CDP_PORT=9413 node $D/webdrive_cells.mjs "$U" 640 480 $O/new "wait:2000;tap:170,106;wait:500;tap:320,297;wait:3000;tap:320,240;wait:5000" >/dev/null 2>&1
-chk new "重返京城" "新遊戲開場任務日誌"
+CDP_PORT=9413 node $D/webdrive_cells.mjs "$U" 640 480 $O/new "wait:2000;tap:170,106;wait:500;tap:320,297;wait:3000;tap:320,240;wait:4000;tap:320,100;wait:3000" >/dev/null 2>&1
+chk new "過場 pct_wmtya 開始" "新遊戲開場過場在片頭動畫場景 ptdhcj 播出"; chk new "重返京城" "過場跳過後出現開場任務日誌"
 # 4. 出口：踩 go eastsouth → 阳周城（過場、孔刚入隊）
-CDP_PORT=9414 node $D/webdrive_cells.mjs "$U?scene=zhaocun1&warp=1" 640 480 $O/exit "wait:9000" >/dev/null 2>&1
-chk exit "孔刚 入隊" "離開赵村進入阳周城"
+NOCLICK=1 CDP_PORT=9414 node $D/webdrive_cells.mjs "$U?scene=zhaocun1&warp=1" 640 480 $O/exit "wait:34000" >/dev/null 2>&1  # 過場約 14 秒，結束後主角被搬進衙府（換載 yzh_yafu）
+chk exit "孔刚 入隊" "離開赵村進入阳周城、過場播完孔刚入隊"
 [ $bad = 0 ] && echo "firstmap ok" || { echo "firstmap FAILED"; exit 1; }

@@ -5153,6 +5153,22 @@ int main(void) {
     assert(inv[32].name[0] && !inv[3].name[0]);
     assert(h.ap == (int)lo * (hero_attr[STR] + 150) / 150);
     assert(item_unequip(&h, 32) && h.ap == 0 && inv[0].name[0]);
+    // 拖放到指定裝備格：武器拖到靴子格被拒（原物不動），拖到右手格穿上
+    inv[3] = it; inv[3].pos = 3;
+    item_equip_slot(&h, 3, 35);
+    assert(inv[3].name[0] && !inv[35].name[0]);
+    item_equip_slot(&h, 3, 32);
+    assert(inv[32].name[0] && !inv[3].name[0]);
+    assert(item_unequip(&h, 32));
+    // 怪物表 istrap：只有 1 是陷阱（種類 24）；10（可馴服的動物，如狼）、20（召喚獸）是一般角色，以前非 0 全當陷阱而看不見
+    {
+        int saved = actor_count;
+        RoleDef rd = {0};
+        MonDef wolf = {.istrap = 10}, mine = {.istrap = 1};
+        assert(mon_make(&wolf, &rd, 3, 3, 3, 3, 1)->object_kind == 40);
+        assert(mon_make(&mine, &rd, 3, 3, 3, 3, 1)->object_kind == 24);
+        actor_count = saved;
+    }
     // 耐久：每 40 次 HitPoint 扣 1
     item_equip(&h, 0);
     int dur = inv[32].hp;
