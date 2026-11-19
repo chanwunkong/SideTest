@@ -36,8 +36,10 @@ static SDL_AudioSpec have;
 static int music_vol = 128, sfx_vol = 128;  // SDL_MixAudioFormat 的音量 0..128
 
 static FILE *music_file;
-static long music_data, music_end;  // 資料區在檔案裡的範圍（循環播放用）
+static long music_data, music_end;  // 資料區在檔案裡的範圍
 static SDL_AudioStream *music_stream;
+static volatile int music_eof, music_over;  // 檔案讀完、聲音也放完（原版 OpenAL 來源播完一次就停，0x57d1b0 看狀態）
+static int music_pct = 15;                  // 設定的音樂音量百分比（DAT_00953ab8）
 static Sfx file_cache[MAX_FILE];
 static struct { int n, file[5]; } sfx_def[MAX_SFX];  // n：0 = 還沒讀、−1 = 沒有
 static uint8_t *snd_tab;     // WAV 表：3000 筆 × 0x10c（檔名 260、大小、位移）
@@ -87,7 +89,7 @@ static void mix(void *userdata, Uint8 *out, int len) {
         Uint8 tmp[16384];
         while (SDL_AudioStreamAvailable(music_stream) < len) {
             long left = music_end - ftell(music_file);
-            if (left <= 0) { fseek(music_file, music_data, SEEK_SET); continue; }  // 循環
+            if (left <= 0) { music_eof = 1; break; }  // 不循環：播完由 audio_music_tick 的狀態機決定下一首（原版 0x57a010）
             size_t n = fread(tmp, 1, left < (long)sizeof tmp ? (size_t)left : sizeof tmp, music_file);
             if (!n) break;
             SDL_AudioStreamPut(music_stream, tmp, (int)n);
@@ -99,6 +101,7 @@ static void mix(void *userdata, Uint8 *out, int len) {
             SDL_MixAudioFormat(out + done, buf, have.format, n, music_vol);
             done += n;
         }
+        if (music_eof && !SDL_AudioStreamAvailable(music_stream)) music_over = 1;
     }
     for (int i = 0; i < VOICES; i++) {
         Voice *v = &voices[i];
@@ -123,13 +126,26 @@ static void mix(void *userdata, Uint8 *out, int len) {
     }
 }
 
+static struct { int state, mode, prev_state, cd, gap, prev_gap, has, prev_has; char name[64], prev_name[64]; } mu;  // CMusic：0x649200 狀態、0x649210 模式、0x649208 前一狀態、0x953ac4 倒數
+static char cur_name[64];  // 最後開始播的檔名（沒有裝置時也記，測試用）
+static int sim_busy;       // 沒有裝置時模擬「正在播」（測試用 audio_music_sim_end 結束）
+
+// 0x57a720／0x579df0 裡的音量：場景模式 10 且狀態 2 時減半
+static void music_vol_apply(void) {
+    int p = music_pct;
+    if (mu.mode == 10 && mu.state == 2) p /= 2;
+    music_vol = p * SDL_MIX_MAXVOLUME / 100;
+}
+
 void audio_volume(int music_percent, int sfx_percent) {
-    music_vol = music_percent * SDL_MIX_MAXVOLUME / 100;
+    music_pct = music_percent;
+    music_vol_apply();
     sfx_vol = sfx_percent * SDL_MIX_MAXVOLUME / 100;
 }
 
 void audio_init(int music_percent, int sfx_percent) {
-    music_vol = music_percent * SDL_MIX_MAXVOLUME / 100;
+    music_pct = music_percent;
+    music_vol_apply();
     sfx_vol = sfx_percent * SDL_MIX_MAXVOLUME / 100;
     if (SDL_InitSubSystem(SDL_INIT_AUDIO)) { fprintf(stderr, "沒有音效：%s\n", SDL_GetError()); return; }
     SDL_AudioSpec want = {0};
@@ -149,10 +165,14 @@ static void music_start(FILE *f) {
     if ((music_file = f) && wav_open(music_file, &src, &music_data, &music_end))
         music_stream = SDL_NewAudioStream(src.format, src.channels, src.freq, have.format, have.channels, have.freq);
     if (!music_stream && music_file) { fclose(music_file); music_file = NULL; }
+    music_eof = music_over = 0;
     SDL_UnlockAudioDevice(dev);
 }
 
 void audio_music(const char *name) {
+    snprintf(cur_name, sizeof cur_name, "%s", name);
+    sim_busy = name[0] != 0;
+    if (audio_trace) printf("music %s\n", name[0] ? name : "(stop)");
     if (!dev) return;
     SDL_LockAudioDevice(dev);
     if (music_stream) SDL_FreeAudioStream(music_stream);
@@ -195,6 +215,66 @@ void audio_update(int network_idle) {
 #else
     (void)network_idle;
 #endif
+}
+
+// ---- 背景音樂狀態機（CMusic，Poq.exe 0x579df0 換場景、0x57a010 每拍、0x57a910 特殊曲、0x57ab50 收尾還原、0x57a720 音量）----
+// 狀態 2 = 場景音樂、1 = 特殊曲（credit／start／dead，播一次）。原版沒有戰鬥曲、日夜曲、淡入淡出：music.txt 第 3、4 欄（战斗音乐名）
+// 只用來判斷「播完要不要隔幾拍再播」（第 3 欄非空 = 隔 rand()%12 拍，空 = 馬上）。換場景只改「下一首」，現在這首播完才換
+// （0x57a010 的 isPlaying 檢查，OpenAL 播放中不能換緩衝）。場景種類（G_Type）12（山洞）= 播完就停；10／0x12 不重選曲、10 音量減半。
+// dead.wav 是連線版 CDeadDialog（0x547b00）、start.wav 是標題選單（0x535250），單機流程沒有觸發點。
+static int music_busy(void) {
+#ifdef __EMSCRIPTEN__
+    if (pending[0]) return 1;
+#endif
+    if (!dev) return sim_busy;
+    return music_stream && !music_over;
+}
+void audio_music_sim_end(void) { sim_busy = 0; }
+const char *audio_music_now(void) { return music_busy() ? cur_name : ""; }
+int audio_music_mode(void) { return mu.mode; }
+
+static void music_end_check(void) {  // 播完的來源（OpenAL 狀態不是 PLAYING）：放掉串流
+    if (dev && music_stream && music_over) audio_music("");
+}
+
+void audio_music_tick(int force) {  // 0x57a010
+    music_end_check();
+    if (mu.state != 2 && mu.state != 0) return;
+    if (!force && music_busy()) return;
+    if (--mu.cd > 0) return;
+    if (mu.mode == 12) { if (cur_name[0]) audio_music(""); }
+    else if (mu.has && mu.name[0]) { music_vol_apply(); audio_music(mu.name); }
+    mu.cd = mu.has && mu.gap ? rand() % 12 : 0;
+}
+
+void audio_scene_music(int mode, const char *name, int gap) {  // 0x579df0（mode = 房間 G_Type）
+    int sp = mode == 10 || mode == 0x12, prev_sp = mu.mode == 10 || mu.mode == 0x12, upd = 1;
+    mu.mode = mode;
+    if (sp && !prev_sp) { music_vol_apply(); upd = 0; }
+    else if (sp) upd = 0;
+    else if (prev_sp) { music_vol_apply(); upd = 0; }
+    if (upd) {
+        mu.prev_state = mu.state; snprintf(mu.prev_name, sizeof mu.prev_name, "%s", mu.name); mu.prev_gap = mu.gap; mu.prev_has = mu.has;
+        mu.state = 2; mu.has = 1; snprintf(mu.name, sizeof mu.name, "%s", name); mu.gap = gap;
+    }
+    mu.cd = 2;
+    audio_music_tick(upd);
+}
+
+void audio_music_special(const char *name) {  // 0x57a910：存下目前的、改播特殊曲一次（shortcut: 原版沒先停，OpenAL 播放中換緩衝會失敗；這裡照意圖直接換）
+    mu.prev_state = mu.state; snprintf(mu.prev_name, sizeof mu.prev_name, "%s", mu.name); mu.prev_gap = mu.gap; mu.prev_has = mu.has;
+    mu.state = 1; mu.has = 1; snprintf(mu.name, sizeof mu.name, "%s", name); mu.mode = 0;
+    audio_music(name);
+}
+
+void audio_music_pop(void) {  // 0x57ab50：還原前一個狀態
+    mu.state = mu.prev_state;
+    if (mu.state == 1) { char n[64]; snprintf(n, sizeof n, "%s", mu.prev_name); audio_music_special(n); return; }
+    snprintf(mu.name, sizeof mu.name, "%s", mu.prev_name); mu.gap = mu.prev_gap; mu.has = mu.prev_has;
+    if (mu.has) { mu.cd = 0; audio_music_tick(1); return; }
+    audio_music("");  // 沒有前一首：整個重設
+    mu.state = 0; mu.mode = 0; mu.name[0] = 0; mu.cd = 0; mu.has = 0;
+    music_vol_apply();
 }
 
 // snd.lib：檔頭 0x104 音效數、0x108 WAV 數；0x20c 起每個音效 0x598 bytes（變化數、名稱 128、5 個檔名各 260），

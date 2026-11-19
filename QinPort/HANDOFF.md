@@ -1783,3 +1783,15 @@ skilltest 新增：刺客 Hand 5、箭消耗用 Attack方式（真資料招式 I
 - 怪物位置／狀態不存檔（原版 CERWorld::Save 存全部物件，讀檔後怪物位置與血量還原）：現在讀檔重放怪物。
 - (D) 劇情主線長途走查（NPC 對話、任務日誌、過場逐章）沒做。
 驗證：`make && make skilltest` → skilltest ok；storytest 绣女 0 1 正常；複本 make web 通過；firstmap_check.sh 全部 ok。
+
+### 實際遊玩驗證 第 5 輪（2026-11-20，複本 /tmp/qb18，8658）
+**(A) 音樂（已做，瀏覽器證明）**：原版 CMusic（Poq 0x579df0 換場景、0x57a010 每拍、0x57a720 音量、0x57a910 特殊曲、0x57ab50 還原、0x57a8d0）讀過反組譯：
+- **原版沒有戰鬥曲、日夜曲、淡入淡出**。music.txt 第 3 欄（战斗音乐名）只被 0x57a010 拿來判斷「這首播完要不要隔 rand()%12 拍再播」（非空隔、空馬上）；第 4 欄與 fight*.wav 沒有任何讀取（r2 搜 0x953ad8／0x953adc 位址無參照）。
+- 換場景只改「下一首」：0x57a010 先看 isPlaying（0x57d1b0），播放中就不動，所以現在這首播完才換（OpenAL 播放中不能換緩衝）。場景種類 G_Type（房間 +0x1c）：12（山洞，33 間）= 播完就停、不再播；10／0x12 = 不重選曲，10 音量減半；其他照名稱選曲，找不到別名用第 1 列（normal1）。
+- dead.wav 是連線版 CDeadDialog（0x547b00）、start.wav 是標題選單（0x535250），單機流程沒有觸發點（引擎也沒有標題畫面）；credit.wav 片尾（0x568310）開、0x5682c0 關還原。
+- 做在 audio.c（audio_scene_music／audio_music_tick／audio_music_special／audio_music_pop），main.c scene_music_enter 以 lt.type 呼叫、主迴圈每拍 tick；不再循環。shortcut：特殊曲與還原直接換曲（原版沒先停，OpenAL 會失敗，是意圖不是行為）；別名比對不分大小寫。skilltest 新增 music_state_test。瀏覽器 --debug-trace：赵村 `music normal1`、阳周→beiyi 只印一次 `music city`（舊曲還在播，沒換）、山洞 bdj_cave1 完全沒有 music 行。
+**(B) 0x4ea10**：EasyRPG 0x1004ea10（isbuilding 2→1、6→5，建築重生）的 109 處呼叫全在 story/room/NET/（連線版），單機房間、NPC、任務沒有呼叫、也沒有單機房間的出口通到 NET，所以單機不會觸發，沒做（net_* 場景仍印訊息）。
+**(C) 主線逐章走查：本輪沒做**（上下文用在 A、D）；留在 PORT_QUEUE。
+**(D) 存檔**：story_save 已含任務旗標、隊友（劇情物件）、錢、技能；新增 MONS 尾巴存有劇情物件的非隊友角色（怪物與 NPC）位置、血量、魔力、方向，讀檔後 actors_sync 後套回（瀏覽器：F9 後 ?load=1 印「讀檔還原怪物 sh=9 hp=93 at 105.6,110.4」等）。skilltest save_ground_test 驗 MONS。**日夜時刻與天氣不存是原版行為**：時鐘 0x662884 是 Poq 全域（CGodClient 建構時 0x44e6e0 設 23 點），只被連線訊息 0xb（0x44e890）改，CERWorld::Save 只走世界物件，天氣是客戶端擲的；引擎沿用（讀檔時鐘照走）。
+**(E) 日夜／天氣**：亮度表、時鐘、天氣機率表早已照 0x4682e0／0x44e750／0x44e5d0 翻；瀏覽器 ?hour=3／12／23 截圖夜間明顯較暗偏藍。沒有原版畫面可逐時段比對（原版規則已照反編譯，不是截圖比對）。
+驗證：make、skilltest ok、storytest 绣女 0 1 正常、複本 make web 通過。

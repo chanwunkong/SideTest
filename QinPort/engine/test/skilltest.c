@@ -229,6 +229,30 @@ static void character_skill_commands_test(void) {
     units[0]=saved_unit; unit_n=saved_n; actor_logic_tick=saved_tick;
 }
 
+// CMusic 狀態機（0x579df0／0x57a010／0x57a910／0x57ab50）：換場景等現在這首播完才換、山洞（12）播完停、10／0x12 不重選曲、特殊曲與還原
+static void music_state_test(void) {
+    audio_music(""); audio_scene_music(11, "normal1", 1);          // 進城：下一拍開始播
+    audio_music_tick(0); assert(!strcmp(audio_music_now(), "normal1"));
+    audio_scene_music(11, "city", 1);                              // 換場景：現在這首還在播，不換
+    for (int i = 0; i < 30; i++) audio_music_tick(0);
+    assert(!strcmp(audio_music_now(), "normal1"));
+    audio_music_sim_end();                                         // 播完 → 隔 0~11 拍後播新的
+    for (int i = 0; i < 14; i++) audio_music_tick(0);
+    assert(!strcmp(audio_music_now(), "city"));
+    audio_scene_music(10, "fight2", 1);                            // 進 10（野外）：不重選曲，音量減半（原版）
+    assert(audio_music_mode() == 10 && !strcmp(audio_music_now(), "city"));
+    audio_scene_music(12, "xianyang", 0);                          // 山洞：現在這首播完就停
+    for (int i = 0; i < 5; i++) audio_music_tick(0);
+    audio_music_sim_end(); audio_music_tick(0); audio_music_tick(0);
+    assert(!audio_music_now()[0]);
+    audio_scene_music(11, "xianyang", 0);                          // 出山洞：馬上播
+    for (int i = 0; i < 3; i++) audio_music_tick(0);
+    assert(!strcmp(audio_music_now(), "xianyang"));
+    audio_music_special("credit"); assert(!strcmp(audio_music_now(), "credit"));
+    audio_music_pop(); assert(!strcmp(audio_music_now(), "xianyang"));  // 關片尾：回場景音樂
+    audio_music("");
+}
+
 // 存檔含地上道具（原版世界存檔 0x1000a8b0 存全部物件）：寫檔再讀回，目前場景與各場景暫存的地上道具都在
 static void save_ground_test(void) {
     save_mount();
@@ -237,9 +261,12 @@ static void save_ground_test(void) {
     ground_n=2; memset(ground,0,2*sizeof ground[0]); ground[0].it=it; ground[0].x=5.5f; ground[1].it=it; ground[1].x=6.5f;
     snprintf(ground_alias,sizeof ground_alias,"zhaocun1");
     snprintf(gstore[3].alias,sizeof gstore[3].alias,"xianyang"); gstore[3].n=1; gstore[3].g[0]=ground[0];
+    Actor sv1=actors[1]; int svc=actor_count; RoleDef rd={0}; actors[1]=(Actor){.sh=77,.role=&empty_test_role,.hp=33,.mp=4,.dir=2,.x=9.5f,.y=8.5f}; (void)rd; actor_count=2;
     assert(save_write(95));
+    actors[1]=sv1; actor_count=svc;
     ground_n=0; gstore[3].n=0; gstore[3].alias[0]=0;
     static SaveHead h; assert(save_read(95,&h));
+    assert(pending_mons_n==1 && pending_mons[0].sh==77 && pending_mons[0].hp==33 && pending_mons[0].x==9.5f);
     assert(ground_pending && pending_n==2 && pending_ground[1].x==6.5f && pending_ground[0].it.type==60 && pending_ground[0].it.amount==7);
     assert(!strcmp(pending_alias,"zhaocun1") && pending_gstore[3].n==1 && !strcmp(pending_gstore[3].alias,"xianyang"));
     remove(SAVE_DIR "/qin95.sav"); ground_pending=0; ground_n=sn; snprintf(ground_alias,sizeof ground_alias,"%s",sa);
@@ -5689,6 +5716,7 @@ int main(void) {
     assert(prop_sound(0x7e9, 1) == 284 && prop_sound(0x7e9, 0) == 400 && prop_sound(2001, 1) == 276 && prop_sound(2006, 1) == 0xffff && prop_sound(99999, 0) == 0xffff);  // PropMdl 落地／下落聲音
     first_map_test();
     death_team_test();  // 用到 rand（npc_selected），放最後免得改變前面測試的亂數序列
+    music_state_test();
     save_ground_test();  // 讀檔會換掉背包等全域，放在最後
     puts("skilltest ok");
     return 0;

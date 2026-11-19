@@ -2624,6 +2624,9 @@ static int ground_n, ground_next_id = 1;
 // 離開場景時各場景留下的地上道具（連同存檔：原版 CERWorld::Save 0x1000a8b0 存世界全部物件，丟在房間的道具也在內）
 static char ground_alias[64];
 static struct { char alias[64]; int n; __typeof__(ground[0]) g[MAX_GROUND]; } gstore[8];
+typedef struct { int sh, hp, mp, dir; float x, y; } MonSave;  // 存檔：怪物／NPC 的位置與血量（原版 CERWorld::Save 存全部世界物件）
+static MonSave pending_mons[256];
+static int pending_mons_n;
 static int ground_pending;  // 讀檔讀到的地上道具，進場景後套用
 static char pending_alias[64];
 static __typeof__(gstore) pending_gstore;
@@ -7609,6 +7612,14 @@ static int save_write(int slot) {
         fwrite("GRND", 4, 1, f); fwrite(ground_alias, sizeof ground_alias, 1, f); fwrite(gstore, sizeof gstore, 1, f);
         fwrite(&ground_n, sizeof ground_n, 1, f); fwrite(ground, sizeof ground[0], ground_n, f);
     }
+    {   // 怪物尾巴：有劇情物件的非隊友角色（隊友靠劇情物件的 HP／MP 與隊伍表存）
+        MonSave m[256]; int n = 0;
+        for (int i = 1; i < actor_count && n < 256; i++) {
+            const Actor *c = &actors[i];
+            if (c->sh && c->role && !c->team && c->act != ACT_DEAD) m[n++] = (MonSave){c->sh, c->hp, c->mp, c->dir, c->x, c->y};
+        }
+        fwrite("MONS", 4, 1, f); fwrite(&n, sizeof n, 1, f); fwrite(m, sizeof m[0], n, f);
+    }
     int ok = !ferror(f);
     if (fclose(f) || !ok) { remove(p); return 0; }
     save_flush();
@@ -7650,6 +7661,12 @@ static int save_read(int slot, SaveHead *h) {
         if (fread(mg, 4, 1, f) == 1 && !memcmp(mg, "GRND", 4) && fread(pending_alias, sizeof pending_alias, 1, f) == 1 &&
             fread(&pending_gstore, sizeof pending_gstore, 1, f) == 1 && fread(&n, sizeof n, 1, f) == 1 && n >= 0 && n <= MAX_GROUND &&
             fread(pending_ground, sizeof pending_ground[0], n, f) == (size_t)n) { pending_n = n; ground_pending = 1; }
+    }
+    pending_mons_n = 0;
+    {   // 怪物尾巴；舊存檔沒有就算了
+        char mg[4]; int n;
+        if (fread(mg, 4, 1, f) == 1 && !memcmp(mg, "MONS", 4) && fread(&n, sizeof n, 1, f) == 1 && n >= 0 && n <= 256 &&
+            fread(pending_mons, sizeof pending_mons[0], n, f) == (size_t)n) pending_mons_n = n;
     }
     fclose(f);
     memcpy(inv, tmp, sizeof inv);
@@ -9246,22 +9263,32 @@ static int ini_int(const char *text, const char *key, int def) {
     return def;
 }
 
-// Data/music.txt：場景別名 → 背景音樂檔名（第 2 欄）
-static void scene_music(const char *alias, char *out, size_t n) {
+// Data/music.txt：場景別名 → 背景音樂檔名（第 2 欄）；回傳第 3 欄（战斗音乐名）是否非空（只決定播完要不要隔幾拍，原版沒有戰鬥曲）。
+// 原版 0x579df0 逐列比對別名，找不到用第 1 列（第 2 欄 normal1）
+static int scene_music(const char *alias, char *out, size_t n) {
     snprintf(out, n, "normal1");
     size_t size;
     uint8_t *d = res_file("Data", "music.txt", &size);
-    if (!d) return;
+    if (!d) return 1;
     res_unxor(d, size);
+    int gap = 1;
     for (char *line = strtok((char *)d, "\r\n"); line; line = strtok(NULL, "\r\n")) {
         char *tab = strchr(line, '\t');
         if (!tab || (size_t)(tab - line) != strlen(alias) || strncasecmp(line, alias, tab - line)) continue;
         char *end = strchr(tab + 1, '\t');
+        gap = end && end[1] && end[1] != '\t';
         if (end) *end = 0;
         if (tab[1]) snprintf(out, n, "%s", tab + 1);
         break;
     }
     free(d);
+    return gap;
+}
+// 進場景：照原版把場景種類（G_Type）與音樂交給 CMusic 狀態機
+static void scene_music_enter(const char *alias) {
+    char m[64];
+    int gap = scene_music(alias, m, sizeof m);
+    audio_scene_music(lt.type, m, gap);
 }
 
 // ---- 滑鼠（CUserInput，Poq.exe 0x454790～0x457360）----
@@ -10043,9 +10070,7 @@ int main(int argc, char **argv) {
     audio_init(ini_int(cfg_text, "\xd2\xf4\xc0\xd6=", 1) ? ini_int(cfg_text, "\xd2\xf4\xc0\xd6\xd2\xf4\xc1\xbf=", 15) : 0,   // 音乐、音乐音量
                ini_int(cfg_text, "\xd2\xf4\xd0\xa7=", 1) ? ini_int(cfg_text, "\xd2\xf4\xd0\xa7\xd2\xf4\xc1\xbf=", 100) : 0);  // 音效、音效音量
     free(cfg);
-    char music[64];
-    scene_music(alias, music, sizeof music);
-    audio_music(music);
+    scene_music_enter(alias);
     SDL_GameController *pad = NULL;
     for (int i = 0; i < SDL_NumJoysticks() && !pad; i++)
         if (SDL_IsGameController(i)) pad = SDL_GameControllerOpen(i);
@@ -10273,8 +10298,7 @@ int main(int argc, char **argv) {
                 monsters_due = 1;
                 pointer_down = 0;
                 walk_cx = -1;
-                scene_music(alias, music, sizeof music);
-                audio_music(music);
+                scene_music_enter(alias);
                 hud_say("\xe6\xb8\xb8\xe6\x88\x8f\xe8\xbf\x9b\xe5\xba\xa6\xe8\xaf\xbb\xe5\x8f\x96\xe6\x88\x90\xe5\x8a\x9f");  // 游戏进度读取成功（EasyRPG_C 7054，拿掉顏色標記）
             } else hud_say("\xe8\xaf\xbb\xe5\x8f\x96\xe5\xa4\xb1\xe8\xb4\xa5");  // shortcut: 自訂「读取失败」
             load_due = -1;
@@ -10365,8 +10389,7 @@ int main(int argc, char **argv) {
             if (rec_scene_moved && !rec_on) {  // 過場結束時畫面換了場景（rec_end）：別名、音樂跟著
                 rec_scene_moved = 0;
                 snprintf(alias, sizeof alias, "%s", story_room_alias(sroom));
-                scene_music(alias, music, sizeof music);
-                audio_music(music);
+                scene_music_enter(alias);
                 monsters_due = 1;
             }
 #endif
@@ -10379,8 +10402,9 @@ int main(int argc, char **argv) {
                     }
             viewport_tick(&viewport, &scene, hero);
             caption_tick();
+            audio_music_tick(0);  // CMusic 每拍（0x44e750 → 0x57a010）
             if (caption_music) {  // 片尾字幕放 credit，關窗回場景音樂（0x57a910／0x57ab50）
-                if (caption_music == 1) audio_music("credit"); else { scene_music(alias, music, sizeof music); audio_music(music); }
+                if (caption_music == 1) audio_music_special("credit"); else audio_music_pop();
                 caption_music = 0;
             }
             ground_tick();
@@ -10537,8 +10561,7 @@ int main(int argc, char **argv) {
                 if (ok && enter_scene(&scene, hero, story_room_alias(to), entry)) {
                     monsters_due = 1;
                     snprintf(alias, sizeof alias, "%s", story_room_alias(to));
-                    scene_music(alias, music, sizeof music);
-                    audio_music(music);
+                    scene_music_enter(alias);
                     printf("進入 %s\n", alias);
                     snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）：大場景換大場景才存（0x44ce00）
                     if (opt_v[O_AUTOSAVE] && autosave_due(was_big, &scene)) save_due = 0;
@@ -10558,8 +10581,7 @@ int main(int argc, char **argv) {
                         room = x->to;
                         monsters_due = 1;
                         snprintf(alias, sizeof alias, "%s", world.rooms[room].alias);
-                        scene_music(world.rooms[room].alias, music, sizeof music);
-                        audio_music(music);
+                        scene_music_enter(world.rooms[room].alias);
                         printf("進入 %s\n", world.rooms[room].alias);
                             snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）：大場景換大場景才存（0x44ce00）
                         if (opt_v[O_AUTOSAVE] && autosave_due(was_big, &scene)) save_due = 0;
@@ -10609,6 +10631,15 @@ int main(int argc, char **argv) {
             }
 #ifdef STORY
             actors_sync(&scene);
+            for (int k = 0; k < pending_mons_n; k++)  // 讀檔：怪物回到存檔時的位置與血量
+                for (int i = 1; i < actor_count; i++) {
+                    Actor *c = &actors[i];
+                    if (c->sh != pending_mons[k].sh || !c->role || c->team) continue;
+                    if (actor_restore_position(c, pending_mons[k].x, pending_mons[k].y)) { c->dir = pending_mons[k].dir; }
+                    c->hp = pending_mons[k].hp; c->mp = pending_mons[k].mp;
+                    if (debug_cells) printf("讀檔還原怪物 sh=%d hp=%d at %.1f,%.1f\n", c->sh, c->hp, c->x, c->y);
+                }
+            pending_mons_n = 0;
 #else
             if (mondefs_load()) spawn_monsters(&scene, &world, room);
 #endif
