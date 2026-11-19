@@ -4246,7 +4246,7 @@ Poq.exe	99	0057a380	FUN_0057a380	~CGameApp	game	skip	8	5	解構函數（物件�
 Poq.exe	99	0057a390	FUN_0057a390	~CGameApp	game	skip	87	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057a5a0	FUN_0057a5a0	~CGameApp	game	skip	9	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057a5d0	FUN_0057a5d0	~CGameApp	game	skip	32	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	0057a6b0	FUN_0057a6b0	~CGameApp	game	skip	18	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	0057a6b0	FUN_0057a6b0	~CGameApp	game	done	18	6			
 Poq.exe	99	0057a720	FUN_0057a720	~CGameApp	game	skip	17	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057a780	FUN_0057a780	~CGameApp	game	skip	29	15	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057a8d0	FUN_0057a8d0	~CGameApp	game	skip	15	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		

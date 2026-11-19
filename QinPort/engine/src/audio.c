@@ -43,6 +43,9 @@ static struct { int n, file[5]; } sfx_def[MAX_SFX];  // n：0 = 還沒讀、−1
 static uint8_t *snd_tab;     // WAV 表：3000 筆 × 0x10c（檔名 260、大小、位移）
 static uint32_t snd_rec, snd_data, snd_files;
 static Voice voices[VOICES];
+static Sfx voice_buf[2];  // 對話語音（audio_voice）
+static int voice_flip;
+static Voice voice_v;
 #define LOOPS 4  // 環境音槽：0 雨、1 風（也是建築環境音組 1）、2、3 建築環境音組（Mfx 以音效編號當鍵，原版 0x480740／0x47ff60）
 static Voice loop_v[LOOPS];
 static int loop_id[LOOPS] = {-1, -1, -1, -1}, loop_pct[LOOPS];
@@ -104,6 +107,12 @@ static void mix(void *userdata, Uint8 *out, int len) {
         v->pos += n;
         if (v->pos >= v->sfx->len) v->sfx = NULL;
     }
+    if (voice_v.sfx) {
+        Uint32 n = voice_v.sfx->len - voice_v.pos < (Uint32)len ? voice_v.sfx->len - voice_v.pos : (Uint32)len;
+        SDL_MixAudioFormat(out, voice_v.sfx->buf + voice_v.pos, have.format, n, sfx_vol);
+        voice_v.pos += n;
+        if (voice_v.pos >= voice_v.sfx->len) voice_v.sfx = NULL;
+    }
     for (int k = 0; k < LOOPS; k++)
     for (int done = 0; loop_v[k].sfx && loop_v[k].sfx->len && done < len;) {
         Uint32 n = loop_v[k].sfx->len - loop_v[k].pos < (Uint32)(len - done) ? loop_v[k].sfx->len - loop_v[k].pos : (Uint32)(len - done);
@@ -163,8 +172,12 @@ void audio_music(const char *name) {
 #endif
 }
 
+#ifdef __EMSCRIPTEN__
+static void voice_update(void);
+#endif
 void audio_update(int network_idle) {
 #ifdef __EMSCRIPTEN__
+    voice_update();
     if (!pending[0]) return;
     if (!fetching) {
         if (!network_idle) return;
@@ -212,18 +225,12 @@ static int sfx_files(int id) {
     return sfx_def[id].n = n ? n : -1;
 }
 
-static const Sfx *sfx_load(int k) {
-    Sfx *s = &file_cache[k];
-    if (s->buf) return s;
-    const uint8_t *e = snd_tab + k * 0x10c;
-    uint32_t size = rd32(e + 0x104);
-    uint8_t *data = res_span("snd.lib", snd_data + rd32(e + 0x108), size);
-    if (!data) return NULL;
+// WAV 記憶體 → 裝置格式的 Sfx（音效庫與語音檔共用）
+static int wav_to_sfx(const uint8_t *data, uint32_t size, Sfx *s) {
     SDL_AudioSpec spec;
     Uint8 *buf;
     Uint32 len;
-    if (!SDL_LoadWAV_RW(SDL_RWFromConstMem(data, (int)size), 1, &spec, &buf, &len)) { free(data); return NULL; }
-    free(data);
+    if (!SDL_LoadWAV_RW(SDL_RWFromConstMem(data, (int)size), 1, &spec, &buf, &len)) return 0;
     SDL_AudioCVT cvt;
     SDL_BuildAudioCVT(&cvt, spec.format, spec.channels, spec.freq, have.format, have.channels, have.freq);
     cvt.len = len;
@@ -233,7 +240,81 @@ static const Sfx *sfx_load(int k) {
     if (cvt.needed) SDL_ConvertAudio(&cvt);
     s->buf = cvt.buf;
     s->len = cvt.needed ? cvt.len_cvt : len;
-    return s;
+    return 1;
+}
+
+static const Sfx *sfx_load(int k) {
+    Sfx *s = &file_cache[k];
+    if (s->buf) return s;
+    const uint8_t *e = snd_tab + k * 0x10c;
+    uint32_t size = rd32(e + 0x104);
+    uint8_t *data = res_span("snd.lib", snd_data + rd32(e + 0x108), size);
+    if (!data) return NULL;
+    int ok = wav_to_sfx(data, size, s);
+    free(data);
+    return ok ? s : NULL;
+}
+
+// 對話語音（Poq.exe 0x4725c0 '@' 4：GetSoundPath + "%.3d.wav"，對話鍵 = 檔號；沒有檔就停掉上一句，0x57a6b0 < 0 → Mfx_LWave_Stop）。
+// 一次只一句：新的換掉舊的。網頁版先背景下載到 /voice，audio_update 下載好才播。
+static void voice_start(const uint8_t *data, uint32_t size) {
+    Sfx *s = &voice_buf[voice_flip ^ 1];
+    SDL_LockAudioDevice(dev);
+    voice_v.sfx = NULL;
+    SDL_UnlockAudioDevice(dev);
+    SDL_free(s->buf);
+    *s = (Sfx){0};
+    if (!wav_to_sfx(data, size, s)) return;
+    voice_flip ^= 1;
+    SDL_LockAudioDevice(dev);
+    voice_v = (Voice){s, 0};
+    SDL_UnlockAudioDevice(dev);
+}
+#ifdef __EMSCRIPTEN__
+static int voice_want = -1;
+EM_JS(void, js_fetch_voice, (int key), {
+    const n = String(key).padStart(3, '0');
+    fetch('game/sound/' + n + '.wav').then(r => r.ok ? r.arrayBuffer() : null).then(b => {
+        try { FS.mkdir('/voice'); } catch (e) {}
+        if (b) { FS.writeFile('/voice/' + n + '.part', new Uint8Array(b)); FS.rename('/voice/' + n + '.part', '/voice/' + n + '.wav'); }
+        else FS.writeFile('/voice/' + n + '.none', new Uint8Array(0));
+    });
+});
+static void voice_update(void) {
+    char path[48];
+    if (voice_want < 0) return;
+    snprintf(path, sizeof path, "/voice/%03d.none", voice_want);
+    if (!access(path, F_OK)) { remove(path); voice_want = -1; return; }
+    snprintf(path, sizeof path, "/voice/%03d.wav", voice_want);
+    FILE *f = fopen(path, "rb");
+    if (!f) return;
+    fseek(f, 0, SEEK_END);
+    long n = ftell(f);
+    rewind(f);
+    uint8_t *d = malloc(n);
+    if (d && fread(d, 1, n, f) == (size_t)n) voice_start(d, (uint32_t)n);
+    free(d);
+    fclose(f);
+    remove(path);
+    voice_want = -1;
+}
+#endif
+void audio_voice(int key) {
+    if (!dev) return;
+    SDL_LockAudioDevice(dev);
+    voice_v.sfx = NULL;
+    SDL_UnlockAudioDevice(dev);
+    if (key < 0 || key > 999) return;
+#ifdef __EMSCRIPTEN__
+    voice_want = key;
+    js_fetch_voice(key);
+#else
+    char name[16];
+    size_t n;
+    snprintf(name, sizeof name, "%03d.wav", key);
+    uint8_t *d = res_file("sound", name, &n);
+    if (d) { voice_start(d, (uint32_t)n); free(d); }
+#endif
 }
 
 void audio_sfx(int id) {

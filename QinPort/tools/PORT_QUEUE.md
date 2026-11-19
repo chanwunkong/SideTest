@@ -2,6 +2,19 @@
 
 目標：做出完整可玩的《秦殤》（含非劇情模式）。使用者明確要求：不接受「自行判斷略過」「簡化版當完成」。只有 tools/reach.tsv 證明「只能從連線模式到達」的函數才可以不移植。查不到原版規則時，回報裡寫「原版規則沒找到」並列出函數，不要編造。
 
+## 新策略：資料驅動補齊，函數層級只用來查原版規則（2026-11-19）
+逐個函數移植太慢（單機可達 skip 約 1000 個）。改成：`python3 -I tools/coverage.py` 從資料（Data／ObjMdl／scene／Rec／story）統計「遊戲真的會出現的機制」，輸出 tools/coverage.md（各項資料次數＋引擎 完整／部分／無／?）。
+只補矩陣裡「無」「部分」，依資料次數由多到少；需要原版規則時才用 `python3 tools/fn.py --brief`／`r2` 查函數。改了引擎就更新 coverage.py 開頭的 S[...] 狀態表並重跑。
+**本輪（資料驅動第 1 輪）補了**：對話語音 `audio_voice`（Rec '@' 4，game/sound/NNN.wav，919/935 個鍵有檔）、Rec '@' 11 音效、BNT 觸發區 `openall <別名>`（shhl_neicheng 約 90 處，原本只認 s_pctstart）。
+**矩陣裡尚未補的（依優先序）**：
+1. Rec '#' 7 建築狀態（612 次）：`scene_building_state` 已有，缺「封包物件編號（2000 起）→ BNT 建築」對照（不是 BNT 順序；要查 Poq 場景載入的 CIDTable 配號，0x65eaac／0x65ead0）。
+2. Rec '@' 4／6 對話框 UI（約 1000 次）：現在用頭頂泡泡；原版是對話框（顯示時間 n×3、至少 0x28，說話者、位置 +0x1fd0）。
+3. Rec '#' 1 子類 1 進場景＋天氣（98）、'#' 3 屬性子碼 0x01／0x02／0x35／0x36／0x67（外觀、名字、血量）。
+4. Rec '#' 9 招式單位 0x43acb0（47）、'@' 8 光影模式 0x44ca40（151，資料值多為 0）、'#' 6 地上道具（24）、'#' 8 飛行效果 0x450700（4）、'@' 10（3）、'@' 12 設小時（1）。
+5. Attack 11 分身 0x1003df00（複製施放者裝備子物件與技能，技能等級上限 9 → 0x10037d70；原版規則已讀，缺「分身有自己的技能列」模型）；偷竊／開鎖 0x10034010／0x10034900（Attack 5／6，資料 0 次）；銀行 0x1003ac40；丟錢 0x1003b640／0x10054830；0x1003de10、0x10035540、0x10038240、SetSkill。
+6. 章節配音 `sound\C%.3d.wav`（Poq 0x566920／0x566860，c011…）、天氣疾風與色調、遊戲時鐘設定、CZhenMng、CGroup、錄影回放除錯指令。
+7. 矩陣 `?`：狀態表 9 欄是否逐欄消費、技能死亡方式 8 種、劇情屬性鍵 10 個引擎沒有字串（SortInquiry、G_InfoID、UIS_Addgem、G_IsUISkill…是界面技能用）、BNT 名稱 5 個（iron_ore、mucai、snow1、c_aigroup、空）。
+
 ## 每一批的做法（Sonnet 子代理，model=sonnet，主樹一次只能一個）
 1. 派 general-purpose 子代理，prompt 要包含：照 tools/CODEX_TASK.md 的規則；不要 git commit／push；網頁版只在 /tmp 複本編（`rsync -a --exclude game --exclude decomp --exclude extracted ../ /tmp/qbN/qinport/`），不動 qinport/web/ 與 8642／8643 伺服器；驗證 `cd engine && make && make skilltest 2>&1 | tail -3` 印 skilltest ok、`make web` 能編、動到 story 就跑 `make storytest && node build/storytest.js 秦殇/咸阳/NPC/绣女 0 1`；更新 HANDOFF／roles／fields／FUNCS（`python3 tools/functool.py`）。
 2. 子代理回報後我（主對話）重跑 make／skilltest／storytest，通過才 `git add -A ':(icase)qinport' ':(icase,exclude)qinport/tools/decomp_strings.py'` commit（結尾 Co-Authored-By 行照系統提示）並 push origin qinport。

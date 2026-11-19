@@ -9077,13 +9077,15 @@ static void game_speed_key(int faster) {
 
 #ifdef STORY
 // Poq.exe 0x484a80（CTriBld 每拍）的感應：倒數 < 1 才掃占地格，格子上有 AI 組 10000..60000 的角色（0x4c78b0 取格上單位，+0x339）
-// 就執行建築名稱的文字指令（0x482db0 取名稱；只有 "s_pctstart <劇情事件路徑>" 這一種出現在 BNT 觸發區，→ 開始劇情事件），倒數設 1000；
+// 就執行建築名稱的文字指令（0x482db0 取名稱；BNT 觸發區出現 "s_pctstart <劇情事件路徑>"（開始劇情事件）與 "openall <別名>"（0x10019d70 開同名箱子；
+// 資料 90 次，之前漏掉），其他名稱（iron_ore、mucai…）不是文字指令表裡的指令，原版也沒有作用），倒數設 1000；
 // 沒人踩到倒數設 1（隔拍再掃）。動畫部分（狀態 5 播完回 1）在 res.c scene_buildings_tick。
 // 原版名稱不是 s_pctstart 時送命令 0x13d 給那個角色（接收端是連線版的指令字串，BNT 觸發區沒有這種名稱，不做）。
 static void trigger_sense_tick(Scene *s) {
     for (int i = 0; i < s->trigger_count; i++) {
         Trigger *t = &s->triggers[i];
-        if (strncmp(t->event, "s_pctstart ", 11) || !t->m || t->m->type != 0x96) continue;  // 0x4847a0：只有 0x96 且名稱不是 go 才 active = 1
+        int is_pct = !strncmp(t->event, "s_pctstart ", 11), is_oall = !strncmp(t->event, "openall ", 8);  // 文字指令 s_pctstart 0x1001c210、openall 0x10019d70
+        if ((!is_pct && !is_oall) || !t->m || t->m->type != 0x96) continue;  // 0x4847a0：只有 0x96 且名稱不是 go 才 active = 1
         if (t->cooldown > 0) { t->cooldown--; continue; }
         int hit = 0;
         const Model *m = t->m;  // 掃模型占地矩形（沒有模型 = 擺放格）
@@ -9096,11 +9098,12 @@ static void trigger_sense_tick(Scene *s) {
             }
         if (!hit) { t->cooldown = 1; continue; }
         char path[128];
+        t->cooldown = 1000;
+        if (is_oall) { gbk_utf8(t->event + 8, path, sizeof path); chest_open_all(path); continue; }  // 觸發區 "openall <別名>"（兵馬俑坑 shhl_neicheng 約 90 處）：同別名的箱子全開
         gbk_utf8(t->event + 11, path, sizeof path);
         story_begin();
         story_pct_start(path);
         story_end();
-        t->cooldown = 1000;
     }
 }
 #endif
@@ -9127,8 +9130,8 @@ static int trade_paused(void) { return 0; }  // 沒有劇情就沒有交易視�
 // .rec = 0x80 位元組檔頭（"soloRecord 1.0"）＋ 封包串，每包 u32 長度＋內容。'@' 控制包（0x4725c0）、'#' 伺服器同步包（0x470300），
 // '@' 0 = 時間戳：封包依戳在第幾拍播（0x472f50：戳 == 目前拍才處理，之後的等到那拍）。
 // 這裡的做法：開始時把真角色全部凍結、不畫（不是原版那樣載入另一份場景拷貝），錄影裡的角色另外建（Actor.rec），播完刪掉、真角色放回。
-// shortcut: 錄影的場景名跟目前房間不同就不播（原版會載另一份場景）；'#' 6／7／8／9（地上道具、建築開關、飛行單位、招式）、'@' 5／8／10／11／12（旗標、
-// 霧、光影）沒做；對話用頭頂泡泡（actor_say）代替原版對話框，語音沒有；劇情角色在錄影裡是新建的拷貝（外觀字串照錄影），不是房間裡那個 NPC。
+// shortcut: 錄影的場景名跟目前房間不同就不播（原版會載另一份場景）；'#' 6／7／8／9（地上道具、建築開關、飛行單位、招式）、'@' 5／8／10／12（旗標、
+// 霧、光影）沒做；'@' 4 的語音、'@' 11 的音效已做（audio_voice）；對話用頭頂泡泡（actor_say）代替原版對話框，語音沒有；劇情角色在錄影裡是新建的拷貝（外觀字串照錄影），不是房間裡那個 NPC。
 typedef struct {
     uint8_t *d; size_t n, p;
     unsigned tick;
@@ -9235,6 +9238,7 @@ static void rec_ctl(const uint8_t *b, size_t n) {
         if (n >= 10) {
             Actor *a = rec_actor(rec_u32(b + 2));
             char g[1024], u[2048], o[2048];
+            audio_voice((int)rec_u32(b + 6));  // 0x4725c0 case 4：對話語音 sound/<鍵 %.3d>.wav，沒有檔就停掉上一句
             if (a && res_dlg("PTalk_C.dlg", (int)rec_u32(b + 6), g, sizeof g)) {
                 gbk_utf8(g, u, sizeof u);
                 size_t k = 0;
@@ -9249,6 +9253,7 @@ static void rec_ctl(const uint8_t *b, size_t n) {
         }
         break;
     case 7: if (n >= 6) rec.follow = (int)rec_u32(b + 2); break;                 // 0x473660 鏡頭跟隨
+    case 11: if (n >= 6) audio_sfx((int)rec_u32(b + 2)); break;                  // 0x4804a0 播音效（錄影的環境音、開門聲）
     case 9: if (n >= 14) viewport_pan(&viewport, (int)rec_u32(b + 2) - (viewport.w - 640) / 2, (int)rec_u32(b + 6) - (viewport.h - 480) / 2, (int)rec_u32(b + 10)); break;  // 0x461150
     default: break;
     }
