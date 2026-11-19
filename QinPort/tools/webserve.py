@@ -12,7 +12,7 @@
 只綁 Tailscale 位址，不要開到公開網路：遊戲檔只給自己的裝置用。
 用法：python3 webserve.py <web 資料夾> <遊戲資料夾> <綁定位址> [連接埠]
 """
-import gzip, http.server, json, os, struct, sys
+import gzip, http.server, json, os, struct, subprocess, sys, tempfile
 from functools import lru_cache
 from socketserver import ThreadingMixIn
 
@@ -48,6 +48,32 @@ def send_body(handler, data):
     handler.wfile.write(data)
 
 
+MOVIE_CACHE = os.path.join(tempfile.gettempdir(), 'qinport-movie')
+
+
+def movie_mp4(name):
+    """game/movie/<name>.avi 轉成瀏覽器放得動的 mp4（第一次要求時轉，之後用快取）。
+    原版 End.avi 是 Indeo5 且檔頭第一個位元組被清成 0（'RIFF'），所以先補檔頭再重新編碼；H.264 的直接搬進 mp4。"""
+    src = resolve('movie/' + name + '.avi')
+    if not src:
+        return None
+    os.makedirs(MOVIE_CACHE, exist_ok=True)
+    out = os.path.join(MOVIE_CACHE, name.lower() + '.mp4')
+    if not os.path.exists(out):
+        d = open(src, 'rb').read()
+        fixed = os.path.join(MOVIE_CACHE, name.lower() + '.avi')
+        open(fixed, 'wb').write(b'R' + d[1:] if d[:4] != b'RIFF' else d)
+        h264 = b'H264' in d[:4096] or b'h264' in d[:4096] or b'X264' in d[:4096]
+        v = ['-c:v', 'copy'] if h264 else ['-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p']
+        tmp = out + '.part.mp4'
+        r = subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', fixed, *v, '-c:a', 'aac', '-movflags', '+faststart', tmp])
+        os.remove(fixed)
+        if r.returncode:
+            return None
+        os.replace(tmp, out)
+    return out
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **k):
         super().__init__(*a, directory=WEB, **k)
@@ -60,7 +86,27 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-cache')
         super().end_headers()
 
+    def send_movie(self, path):
+        data, rng = open(path, 'rb').read(), self.headers.get('Range', '')
+        a, b = 0, len(data) - 1
+        if rng.startswith('bytes='):  # iOS Safari 的 <video> 一定要 Range
+            lo, _, hi = rng[6:].partition('-')
+            a = int(lo or 0)
+            b = int(hi) if hi else b
+            self.send_response(206)
+            self.send_header('Content-Range', f'bytes {a}-{b}/{len(data)}')
+        else:
+            self.send_response(200)
+        self.send_header('Content-Type', 'video/mp4')
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Content-Length', str(b - a + 1))
+        self.end_headers()
+        self.wfile.write(data[a:b + 1])
+
     def do_GET(self):
+        if self.path.startswith('/movie/') and self.path.split('?')[0].endswith('.mp4'):
+            path = movie_mp4(os.path.basename(self.path.split('?')[0])[:-4])
+            return self.send_movie(path) if path else self.send_error(404)
         if not self.path.startswith('/game/'):
             return super().do_GET()
         from urllib.parse import unquote

@@ -389,6 +389,7 @@ static const struct { const char *name; uint32_t base; } LIBS[] = {
     {"Res03.Lib", 0x400000}, {"Res04.Lib", 0x500000}, {"Res05.Lib", 0x600000}, {"Res06.Lib", 0x700000},
     {"Res07.Lib", 0x800000}, {"Res08.Lib", 0x900000}, {"ResUI2.Lib", 0xA00000}, {"ResUI5.Lib", 0xA80000},
     {"ResUI3.Lib", 0xB00000}, {"ResUI4.Lib", 0xC00000},
+    {"ResRole12Spr.Lib", 0xD00000},  // 蝙蝠、骷髏、蜘蛛（BIANFU1／2、SKULLBOW／DAO、ZHIZHU 的 TK 與影子 TKS；0000_001.PLI 的 13631488~13631497）
 };
 #define LIB_N (int)(sizeof LIBS / sizeof LIBS[0])
 static Lib libs[LIB_N];

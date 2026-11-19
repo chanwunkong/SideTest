@@ -27,6 +27,7 @@ void story_pct_start(const char *path);  // 感應區文字指令 s_pctstart（0
 
 int story_new(const char *path, int parent);  // 產生物件，回傳代號
 int story_player(void);
+void story_player_choose(const char *path);  // 創角選的主角範本（秦殇/主角/<職業人名>），換掉預設的遊俠扶蘇
 const char *story_name(int h);
 int story_room(const char *alias);             // 進房間（依別名 = 場景檔名；同一房間只產生一次）
 int story_find(int room, const char *alias);   // 房間裡的物件

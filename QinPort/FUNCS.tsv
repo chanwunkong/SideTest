@@ -213,7 +213,7 @@ Poq.exe	99	0043fe50	FUN_0043fe50	CGale	game	done	60	6		疾風粒子顏色：每�
 Poq.exe	99	00440070	FUN_00440070		game	skip	180	1	平台層：MFC 視窗／訊息（SDL 代替）		
 Poq.exe	99	00440610	FUN_00440610		game	skip	34	0	平台層：MFC 視窗／訊息（SDL 代替）		
 Poq.exe	99	004406b0	FUN_004406b0		game	skip	61	0	沒有呼叫者：Movie/End.avi 第一個 byte 當「看過結局」旗標（0x52）的讀寫		
-Poq.exe	99	00440830	FUN_00440830	~CGameApp	game	skip	67	2	平台層：播 movie/ 的 AVI 影片（片頭影片另做網頁播放，見 HANDOFF）		
+Poq.exe	99	00440830	FUN_00440830	~CGameApp	game	done	67	2			
 Poq.exe	99	00440d00	FUN_00440d00		game	skip	41	0	平台層：MFC 視窗／訊息（SDL 代替）		
 Poq.exe	99	00440e70	FUN_00440e70		game	skip	10	0	劇情沒用到：CGroup／CUserGroup 隊伍群組		
 Poq.exe	99	00440e90	FUN_00440e90		game	skip	12	0	劇情沒用到：CGroup／CUserGroup 隊伍群組		
@@ -814,7 +814,7 @@ Poq.exe	99	0046eea0	FUN_0046eea0		game	skip	85	0	無呼叫者：只在場景狀�
 Poq.exe	99	0046f100	FUN_0046f100	CScnClient|CScnClientRecord	game	done	19	11		每拍更新天氣／物件／格子探索衰減／光影；非錄影模式無操作超過90000拍走斷線處理；todo 等不同類別CScene格子+0x13探索衰減與CMapDialog，現有主迴圈只覆蓋部分	
 Poq.exe	99	0046f180	FUN_0046f180		game	done	446	2		生成小地圖：8×4 地磚、建築縮圖（0x482eb0）、縮放置中（引擎 viewport.c map_base_update，畫進 512×256 target 貼圖，不寫 rdr）	
 Poq.exe	99	00470270	FUN_00470270	~CGameApp	game	skip	18	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植	還原場景的全域管理器、輸入／天氣、地圖原點、鏡頭及光影；todo 等不同類別CUserInput名單與CMapDialog完整重綁	
-Poq.exe	99	00470300	FUN_00470300	CScnClient	game	skip	746	8	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態	
+Poq.exe	99	00470300	FUN_00470300	CScnClient	game	done	746	8		客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態；過場用的子集 main.c rec_net（1 子類 0 建角色、2 刪、3 屬性小包、4 走位、5 狀態、10 字串佇列、13）	
 Poq.exe	99	00471830	FUN_00471830	~CScnClient	game	skip	12	0	無呼叫者／解構：釋放CViewPort並清指標	無呼叫者／解構：釋放CViewPort並清指標	
 Poq.exe	99	00471890	FUN_00471890	~CScnClient	game	skip	47	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植	進場景收尾：清框選、設就緒、重建選人名單／探索顯示；todo 等不同類別CUserInput名單及CMapDialog探索顯示	
 Poq.exe	99	004719a0	FUN_004719a0		game	done	29	2		scene_character_say：有場景才按編號掃種類30..100第一筆角色，包含已死；接劇情0x53e單機顯示路徑，省去字串往返同步封包	
@@ -826,17 +826,17 @@ Poq.exe	99	00471ed0	FUN_00471ed0	~CGameApp	game	skip	30	6	CScnClientRecord 建�
 Poq.exe	99	00471f90	FUN_00471f90		game	skip	14	0	CScnClientRecord 建構／解構與CString生命週期；平台物件包裝略過	CScnClientRecord 解構：釋放CString並解構CScnClient；無呼叫者	
 Poq.exe	99	00471fd0	FUN_00471fd0	CScnClientRecord	game	skip	17	5	CScnClientRecord 建構／解構與CString生命週期；平台物件包裝略過	CScnClientRecord deleting destructor；釋放0x1ff4 bytes	
 Poq.exe	99	00472030	FUN_00472030		game	skip	113	5	輸入錄影／回放 record.rec（開發用，RecordType=0 時不做事）	輸入錄影／回放（RecordType 1 錄、2 放）	
-Poq.exe	99	004722f0	FUN_004722f0	~CGameApp	game	skip	27	2	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	回放對話定位：依角色頭頂高度更新座標，Y=角色Y-高度-10，失效沿用舊座標	
-Poq.exe	99	00472380	FUN_00472380	~CGameApp	game	skip	33	4	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	結束Rec：模式2還原場景／介面，停止語音、關檔並釋放封包buffer	
+Poq.exe	99	004722f0	FUN_004722f0	~CGameApp	game	skip	27	2	回放對話框位置（頭頂高度）：過場對話改用頭頂泡泡 actor_say，位置由泡泡自己算	回放對話定位：依角色頭頂高度更新座標，Y=角色Y-高度-10，失效沿用舊座標	
+Poq.exe	99	00472380	FUN_00472380	~CGameApp	game	done	33	4		結束Rec：模式2還原場景／介面，停止語音、關檔並釋放封包buffer	
 Poq.exe	99	00472470	FUN_00472470	~CGameApp	game	skip	54	2	CRT錄影檔案輸出層；RecordType=0不寫record.rec	錄影開場：寫格式化字串封包及0x0d23場景命令，模式1才寫檔	
-Poq.exe	99	004725c0	FUN_004725c0	~CGameApp	game	skip	160	3	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	Rec控制包分派：tick／鏡頭／縮放／對話語音／標記／等待／跟隨／場景模式／霧／光影；先前zoom_set註解誤標done，未移植	
+Poq.exe	99	004725c0	FUN_004725c0	~CGameApp	game	done	160	3		Rec控制包分派：tick／鏡頭 1／縮放 2／對話 4／跟隨 7／平移 9；main.c rec_ctl（5、6、8、10、11、12 旗標／霧／光影沒做）	
 Poq.exe	99	00472a80	FUN_00472a80	~CGameApp	game	skip	147	2	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	錄影場景快照：寫狀態、場景名、地圖、可見建築／人物／道具及跟隨句柄	
-Poq.exe	99	00472e70	FUN_00472e70	~CGameApp	game	skip	29	2	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	Rec對話等待：有語音查播放狀態，否則倒數；零時停聲並回-1	
-Poq.exe	99	00472f50	FUN_00472f50	~CGameApp	game	skip	75	2	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	Rec逐拍回放：按tick讀長度及封包，分派#同步／@控制，再更新對話及鏡頭跟隨	
+Poq.exe	99	00472e70	FUN_00472e70	~CGameApp	game	skip	29	2	回放對話等待（有語音查播放、否則倒數）：沒有語音，泡泡自己計時（actor_say）	Rec對話等待：有語音查播放狀態，否則倒數；零時停聲並回-1	
+Poq.exe	99	00472f50	FUN_00472f50	~CGameApp	game	done	75	2		Rec逐拍回放：戳 == 目前拍才處理封包；main.c rec_tick（過場播放器，rec_begin 開始、rec_end 結束）	
 Poq.exe	99	00473240	FUN_00473240	CScnClientRecord	game	skip	12	5	錄影／同步傳輸包裝，單機直接使用業務物件，不建立封包副本	Rec同步接收包裝：模式1先寫檔，再交CScnClient封包分派	
 Poq.exe	99	00473280	FUN_00473280	~CGameApp	game	skip	41	2	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	Rec更新：錄影時記縮放變更，回放時讀包，每次遞增tick	
 Poq.exe	99	00473500	FUN_00473500	CScnClientRecord	game	skip	36	5	錄影／同步傳輸包裝，單機直接使用業務物件，不建立封包副本	Rec命令封裝：先送佇列字串，再送命令，最後清佇列；單機直接執行業務	
-Poq.exe	99	00473660	FUN_00473660	~CGameApp	game	skip	28	6	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	Rec鏡頭跟隨：存角色句柄、呼叫CViewPort跟隨入口，再寫0x740六byte錄影包	
+Poq.exe	99	00473660	FUN_00473660	~CGameApp	game	done	28	6		Rec鏡頭跟隨：存角色句柄、呼叫CViewPort跟隨入口，再寫0x740六byte錄影包	
 Poq.exe	99	00473760	FUN_00473760	~CGameApp	game	skip	13	6	可選Rec錄影／回放專用對話等待控制；單機RecordType=0不啟用，片頭沿用網頁影片工作	CScnClientRecord 設回放對話等待值；僅設0時停語音並清語音旗標，非零（含-1）不停止	
 Poq.exe	99	004738d0	FUN_004738d0	~CGameApp	game	skip	42	2	CScnGC建構／配置；依規則略過生命週期入口，未代表場景業務已完成	CScnGC 建構：初始化四個CHAINHEADER及天氣，配置0x25602-byte場景物件	
 Poq.exe	99	004739e0	FUN_004739e0	~CGameApp	game	skip	40	2	場景管理容器物件建構；依規則略過建構／CString初始化	場景管理容器物件建構（RTTI未確認）：100場景槽、20角色槽、三個CString及-1哨兵	
@@ -1073,7 +1073,7 @@ Poq.exe	99	0048c050	FUN_0048c050	CCharactor	game	done	37	8		actor_motion_tick：
 Poq.exe	99	0048c150	FUN_0048c150	~CCharactor	game	done	20	8		actor_name_set：僅SInit種類10..16可複製事件ID，不更新顯示名稱；actor_setup接ONT來源，原始容量64 bytes	
 Poq.exe	99	0048c190	FUN_0048c190	CCharactor|CNpc|CProtagonist	game	done	78	17		main.c actor_animation_select／actor_animation_target：指定序列與帶符號方向餘數、擊退／挨打、跑步門檻與旗標、戰鬥20..30保留目標；接actor_tick/action_tick及繪製／矩形查詢，狀態來源以現有fight/Buff/knock橋接	
 Poq.exe	99	0048c3a0	FUN_0048c3a0	CCharactor|CNpc|CProtagonist	game	done	416	17			
-Poq.exe	99	0048d2c0	FUN_0048d2c0	~CScnClient	game	skip	9	2	客戶端狀態封包byte解碼轉接：唯一呼叫者00470300已略過；單機直接使用狀態業務入口，不建立低7位ID／高位啟用值的同步副本；完整狀態設置仍todo	客戶端狀態byte解碼：低7位ID、高位啟用值；唯一呼叫者為已略過同步分派，單機略過封包轉接；完整狀態設置仍todo	
+Poq.exe	99	0048d2c0	FUN_0048d2c0	~CScnClient	game	done	9	2		客戶端狀態byte解碼：低7位ID、高位啟用值；唯一呼叫者為已略過同步分派，單機略過封包轉接；完整狀態設置仍todo	
 Poq.exe	99	0048d2f0	FUN_0048d2f0	~CCharactor	game	done	14	2		actor_queue_command：四欄逐一保存命令及三參數；接actor_command技能8/9與互動15..19，不清記住命令	
 Poq.exe	99	0048d330	FUN_0048d330		game	done	96	4		actor_method_bound／attack_speed：main_new綁定時裝冷卻，unit_die解除時清每幀調整但保留冷卻；刪action_tick結束擲間隔。NPC組按float倍率、其他組rand()%模板間隔（1仍消耗亂數）、單機NPC種類60只用補拍；byte345非0延遲+2；trail_mode1綁定第6修正1/-1，解除時time<21才改1/20；補拍統一Actor.extra不再另存behavior_aux；間隔0明示shortcut避免mod0	
 Poq.exe	99	0048d630	FUN_0048d630	~CNpc	game	done	19	6		依呼叫者與目標層差篩選SkillUnit，跨層近距離或目標高兩級以上清選取；actor_skill_select接右手選招	
@@ -1183,7 +1183,7 @@ Poq.exe	99	004959d0	FUN_004959d0	~CDynamicObj	game	done	240	2		動態11沿反向
 Poq.exe	99	00496110	FUN_00496110	CDynamicObj	game	done	47	8			
 Poq.exe	99	004961e0	FUN_004961e0	~CDynamicObj	game	done	10	6		actor_height_set：只設定垂直速度與高度上限，不歸零目前高度；接角色招式離地觸發及狀態110旋飛／解除	
 Poq.exe	99	00496250	FUN_00496250	CDynamicObj	game	skip	8	6	虛擬槽空函數		
-Poq.exe	99	00496260	FUN_00496260	~CScnClient	game	skip	59	2	連線版：客戶端收服務端位置修正（DAT_00663804==0才執行）；單機是服務端，不做		
+Poq.exe	99	00496260	FUN_00496260	~CScnClient	game	done	59	2			
 Poq.exe	99	00496380	FUN_00496380		game	done	22	5		actor_body_sequence：只切目前本體序列，不改目標；不同序列重設播放器，同序列保留幀／拍數，接外觀更新	
 Poq.exe	99	004963e0	FUN_004963e0		game	done	14	29		actor_direction_set：保存原版八方向面向，依目標序列向零除8的分組選新方向；Actor.dir轉為畫面八方向，接外觀初始化	
 Poq.exe	99	00496430	FUN_00496430	CDynamicObj	game	skip	8	6	虛擬槽空函數		
@@ -2718,7 +2718,7 @@ Poq.exe	99	004fde50	FUN_004fde50	~CGameApp	game	skip	61	0	解構函數（物件�
 Poq.exe	99	004fdf90	FUN_004fdf90	~CGameApp	game	skip	61	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe0d0	FUN_004fe0d0	~CGameApp	game	skip	8	130	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe0e0	FUN_004fe0e0	~CGameApp	game	skip	22	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	004fe130	FUN_004fe130	~CGameApp	game	done	12	2			
+Poq.exe	99	004fe130	FUN_004fe130	~CGameApp	game	skip	12	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植	讀並清「劇情播放」旗標（DAT_00953a80）；引擎以 rec_on／scene_record_mode == 2 取代（autosave_due）	
 Poq.exe	99	004fe170	FUN_004fe170	~CGameApp	game	skip	11	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe1a0	FUN_004fe1a0	~CGameApp	game	skip	34	11	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004fe220	FUN_004fe220	~CGameApp	game	skip	8	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -6247,7 +6247,7 @@ EasyRPG.dll	3	1004fc50	FUN_1004fc50		game	skip	16	2	客戶端同步送出器（�
 EasyRPG.dll	2	1004fcc0	FUN_1004fcc0		game	skip	33	1	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1004fd90	FUN_1004fd90		game	skip	263	1	連線版屬性起始（IsActorNPC 隊友 Str0 Con0… 隨機加點，NetType > 1 才呼叫 0x1004fd90）：單機隊友加點由 0x100295b0 team_autoadd 處理		
 EasyRPG.dll	2	10050540	FUN_10050540		game	skip	45	2	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
-EasyRPG.dll	2	10050630	FUN_10050630		game	skip	675	1	創建玩家角色（網路封包：職業表 24 筆 + G_PicID2 選秦殇/主角/<職業人名> 範本）：單機主角由引擎新遊戲／hero_prof 創角，隊友範本由劇情給		
+EasyRPG.dll	2	10050630	FUN_10050630		game	done	675	1			
 EasyRPG.dll	2	100512a0	FUN_100512a0		game	skip	16	3	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	100512e0	FUN_100512e0		game	skip	59	7	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	1	10051480	FUN_10051480		game	skip	38	1	物件名單找法（依別名、		

@@ -39,8 +39,24 @@ static int team_test(const char *path, int exp) {
     return 0;
 }
 
+// storytest hero=<主角範本路徑>：創角選的範本（story_player_choose）→ 職業、角色表列、外觀字串、屬性、起始道具
+static int hero_test(const char *path) {
+    story_register_all();
+    story_player_choose(path);
+    int pl = story_player(), prof = story_get_int(pl, "IsActorNPC"), items = 0;
+    char k[16];
+    snprintf(k, sizeof k, "G_EquipStr%d", prof);
+    const char *eq = story_get_str(pl, k);
+    for (int h = story_next(pl, 0); h; h = story_next(pl, h)) items++;
+    printf("%s 職業 %d G_PicID %d G_PicID2 %d 外觀 %s Str %d Charm %d 道具 %d\n", story_path(pl), prof, story_get_int(pl, "G_PicID"), story_get_int(pl, "G_PicID2"), eq, story_get_int(pl, "Str"), story_get_int(pl, "Charm"), items);
+    if (strcmp(story_path(pl), path) || prof < 1 || prof > 5 || !eq || !*eq || !items || story_get_int(pl, "G_PicID2") / 4 != prof) return 1;
+    printf("hero ok\n");
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) return 1;
+    if (!strncmp(argv[1], "hero=", 5)) return hero_test(argv[1] + 5);
     if (!strncmp(argv[1], "team=", 5)) { story_register_all(); return team_test(argv[1] + 5, argc > 2 ? atoi(argv[2]) : 3000); }
     story_register_all();
     int pl = story_player();

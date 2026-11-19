@@ -29,9 +29,10 @@
 // DAT_00639f6c：單機發現陷阱自動暫停選項。
 // shortcut: 設定介面未接，暫由--pause-traps提供；JM31完成後改接原版設定值。
 static int trap_auto_pause, scene_paused;
-// Rec模式0=關、2=回放；目前單機沒有回放入口。
+// Rec模式0=關、2=回放（過場播放器 rec_begin／rec_end 設）。
 static int scene_record_mode;
 static int death_auto_pause, death_keep_mode = 1;
+static int rec_on;  // 過場播放中（原版 Rec 模式 2，Poq.exe 0x472e60）：其他角色凍結不畫、不收輸入
 static int scene_objects_dirty;
 
 static void trap_detected_message(void);
@@ -191,6 +192,39 @@ EM_JS(void, js_status, (int n), {
 });
 #else
 static void js_status(int n) { (void)n; }
+#endif
+
+// 片頭／片尾影片（原版 Poq.exe 0x440830 播 movie/<名>.avi；狀態機 0x449f50：Logo1~3 → Start（PlayIntro）→ 主選單、End 在片尾）。
+// 網頁：蓋一個 <video>（webserve.py 把 game/movie/*.avi 轉成 mp4：Start/logo 的 H.264 直接搬、End 的 Indeo5 重新編碼），
+// 播完或點一下畫面（原版按鍵跳過）才回來。原生版沒有影片解碼，直接略過。
+// shortcut: 原生版不播；原版 Logo2／Logo3 檔案不在遊戲資料夾，略過。
+#ifdef __EMSCRIPTEN__
+EM_ASYNC_JS(void, movie_play, (const char *name), {
+    const n = UTF8ToString(name);
+    await new Promise((done) => {
+        const v = document.createElement('video');
+        v.src = '/movie/' + n + '.mp4';
+        v.playsInline = true;
+        v.autoplay = true;
+        v.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;background:#000;object-fit:contain;z-index:9';
+        const end = () => { v.remove(); done(); };
+        v.onended = end;
+        v.onerror = end;  // 沒有這支影片或轉檔失敗：直接進遊戲
+        v.onclick = end;
+        v.play().catch(() => { v.muted = true; v.play().catch(end); });  // 瀏覽器擋有聲自動播放時改靜音
+        document.body.appendChild(v);
+    });
+});
+// PlayIntro（POQ.ini）：第一次玩才播 Start，播過記在 localStorage（原版播完把 ini 寫 0）；網址 ?intro=1 強制再看
+EM_JS(int, intro_wanted, (void), {
+    const f = new URLSearchParams(location.search).get('intro') === '1';
+    if (!f && localStorage.getItem('qinIntro')) return 0;
+    localStorage.setItem('qinIntro', '1');
+    return 1;
+});
+#else
+static void movie_play(const char *name) { (void)name; }
+static int intro_wanted(void) { return 0; }
 #endif
 
 static Uint8 draw_alpha = 255;  // 不是 255 時半透明（分身）
@@ -391,6 +425,7 @@ typedef struct Actor {
     ActorSkill skills[MAX_ACTOR_SKILLS];
     int sel;  // 在選人名單裡（原版旗標 0x100）
     int arrow_kind;  // +0x52d：箭種（原版預設 1；0 當 1）；技能參數 291 設、msg 0x531 設，unit_spawn 依它換飛行物
+    int rec;   // 過場播放器建的角色（rec_on 時只有它們動、被畫）
     int team;  // 隊友（劇情的 Friend 2 隊員）：1 起的槽號，0 = 不是；屬性、職業供 team_derive 用（劇情人物的 Str／Con／Dex／Savvy／Charm／Wisdom、IsActorNPC）
     int team_attr[6], team_prof;
     int skill_n, selected, right_id, left_id, range_adjust, selection_pending;
@@ -1125,6 +1160,11 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
         actor_animation_select(a, -1);
 }
 
+// 圖形 ID（RoleMdl 欄 2）：數字 = 紙娃娃 PLI（0001_001.PLI…）；蝙蝠 BIANFU1／2、骷髏 SKULLBOW／SKULLDAO、蜘蛛 ZHIZHU 是名字，
+// 同一套 PLI 格式（BIANFU1_001.PLI，部件 TK＋影子 TKS，資源 SPR_ROLE_<名字>_TK_001_001），role_load 的 %.8s 本來就吃得下；
+// 小動物（BeastieMdl）則是單一動畫。兩種都沒有的角色不畫。
+static int role_drawable(const RoleDef *d) { return d && (d->anim || d->graphic[0]); }
+
 // 依角色表載入外觀；roles 是這個場景已載入過的外觀快取（同一模板共用）
 #define MAX_ROLES 64
 typedef struct {
@@ -1282,6 +1322,7 @@ static int trap_viewer_sees(Actor *a) { return scene_client_group(&scene_client,
 // 繪圖本體的早退：隱身僅操控角色同組能看見，顯示50連影子／浮字也不處理。
 // 不在矩形getter隱藏，原版矩形計算與繪圖可見性是兩個入口。
 static int actor_draw_visible(const Actor *a) {
+    if (rec_on && !a->rec) return 0;
     if ((a->flags & 0x20000) && !scene_client_group(&scene_client, a->grp)) return 0;
     return actor_display(a) != 50;
 }
@@ -1391,7 +1432,7 @@ static void preload_roles(const Scene *s, const RoleDef *hero_def) {
     if (hero_def) defs[n++] = hero_def;
     for (int i = 0; i < s->npc_count && n < MAX_ACTORS; i++) {
         const RoleDef *d = roledef_find(s->npcs[i].tmpl);
-        int dup = !d || !atoi(d->graphic);
+        int dup = !d || !role_drawable(d);
         for (int k = 0; k < n && !dup; k++) dup = defs[k] == d;
         if (!dup) defs[n++] = d;
     }
@@ -1441,7 +1482,7 @@ static void spawn_npcs(const Scene *s) {
     for (int i = 0; i < s->npc_count && actor_count < MAX_ACTORS; i++) {
         const NpcSpec *n = &s->npcs[i];
         const RoleDef *d = roledef_find(n->tmpl);
-        if (!d || (d->beast && d->air) || !atoi(d->graphic)) continue;  // shortcut: 圖形 ID 是名字的（怪物）用另一套格式，之後做戰鬥時處理
+        if (!d || (d->beast && d->air) || !role_drawable(d)) continue;
         Actor *a = &actors[actor_count++];
         memset(a, 0, sizeof *a);
         npc_behavior_reset(a);
@@ -1520,7 +1561,7 @@ static void spawn_monsters(const Scene *s, const World *w, int room) {
         for (int k = 0; k < mg->count && actor_count < MAX_ACTORS; k++) {
             const MonDef *m = mondef_pick(mg->name);
             const RoleDef *d = m ? roledef_find(m->role) : NULL;
-            if (!d || (!atoi(d->graphic) && !d->anim)) continue;  // shortcut: 圖形 ID 是名字的（蝙蝠、骷髏、蜘蛛）用另一套格式，還沒做
+            if (!d || !role_drawable(d)) continue;
             int x = en->x, y = en->y;
             int lv = mg->level, tier = mg->tier;
             if (lv < 0) lv = tier * 5 - rand() % 5;
@@ -1627,7 +1668,11 @@ enum { STR, CON, DEX, SAVVY, CHARM, WISDOM };
 static int hero_attr[6] = {30, 25, 25, 30, 40, 20};
 static int hero_extra_exp, hero_extra_skill;  // 剩餘屬性點、技能點：每升一級 +10、+1（EasyRPG.dll 0x10026d30）
 static int hero_money = 100;  // 同一模板的 Money
-static const int hero_gender = 0, hero_age = 29;  // 同一模板的 Gender、Age
+static int hero_gender = 0, hero_age = 29;  // 同一模板的 Gender、Age
+// 創角選的主角範本（秦殇/主角/<職業人名>）的外觀：G_PicID = 角色表列（29 遊俠、379 力士、207 刺客、208 術士、209 巫師）、
+// G_EquipStr<職業> = 外觀字串（動作方式*各部件款式），之後身上裝備再蓋上去（hero_look）。沒有劇情時是遊俠扶蘇
+static int hero_pic = 29;
+static char hero_look_str[96] = "001*009*009*009*009*009*009*009*009*009*000*009";
 static int hero_prof = 1;  // 職業序號（0x94c2fb，2131 + 序號 = 1 游侠、2 力士、3 刺客…）；測試用 --prof 換
 // shortcut: 開新遊戲選職業的畫面還沒做
 
@@ -1676,8 +1721,12 @@ static void status_patch(Actor *a) {
 // attr 六項屬性、prof 職業序號（R 表）；equip = 主角才有的裝備特性（隊友沒有裝備模型，見 team_derive）
 static void person_derive(Actor *h, const int *attr, int prof, int equip) {
     const int K = 150, lv = h->level;
-    h->hp_max = 120 + 28 * lv;
-    h->mp_max = 140 + 4 * lv;
+    // 升級表 Upgrade_HP_MAX／MP_MAX = 基礎 每級（秦殇/主角 範本裡 0x1005f3c0 的前兩個浮點，依職業 IsActorNPC 1~5；
+    // 遊俠 120 28／140 4、力士 150 38／120 3、刺客 105 24／130 4、術士 110 22／180 5、巫師 100 20／200 6）
+    static const int UP[6][4] = {{120, 28, 140, 4}, {120, 28, 140, 4}, {150, 38, 120, 3}, {105, 24, 130, 4}, {110, 22, 180, 5}, {100, 20, 200, 6}};
+    const int *up = UP[prof < 1 || prof > 5 ? 0 : prof];
+    h->hp_max = up[0] + up[1] * lv;
+    h->mp_max = up[2] + up[3] * lv;
     h->ap = h->ap_max = h->dp = h->hr = h->sr = h->hp_speed = h->mp_speed = 0;
     memset(h->ex, 0, sizeof h->ex);
     if (equip) item_mods(h, 0);
@@ -3507,28 +3556,32 @@ static void actor_direction_set(Actor *a, int dir) {
 
 // Poq.exe 0x486520：載紙娃娃，初始化方向／序列，長於兩幀才隨機初幀。
 // 單機直接載完整Role；不需要原版模式2的伺服端省略圖資／矩形分支。
+// 外觀字串「動作方式*款式*款式…」（G_EquipStr、原版封包的外觀）蓋在角色表列上。回 0 = 款式太長
+static int look_override(RoleDef *look, const char *override) {
+    // 原版星號分詞略過空token：首值是動作方式（PLI），餘值重新以*串接。
+    const char *p = override + strspn(override, "*");
+    size_t n = strcspn(p, "*");
+    look->pli = atoi(p);
+    look->styles[0] = 0;
+    p += n;
+    size_t used = 0;
+    while (*(p += strspn(p, "*"))) {
+        n = strcspn(p, "*");
+        // shortcut: 沿用RoleDef的96-byte款式上限，遇到更長外觀資料時改動態字串。
+        if (used + n + (used != 0) >= sizeof look->styles) return 0;
+        if (used) look->styles[used++] = '*';
+        memcpy(look->styles + used, p, n); used += n;
+        look->styles[used] = 0;
+        p += n;
+    }
+    return 1;
+}
 static void actor_appearance_init(Actor *a, const char *override) {
     const RoleDef *d = a->def;
     const Role *r = NULL;
     if (override && *override && strcasecmp(override, "NULL")) {
         RoleDef look = *d;
-        // 原版星號分詞略過空token：首值是動作方式（PLI），餘值重新以*串接。
-        const char *p = override + strspn(override, "*");
-        size_t n = strcspn(p, "*");
-        look.pli = atoi(p);
-        look.styles[0] = 0;
-        p += n;
-        size_t used = 0;
-        while (*(p += strspn(p, "*"))) {
-            n = strcspn(p, "*");
-            // shortcut: 沿用RoleDef的96-byte款式上限，遇到更長外觀資料時改動態字串。
-            if (used + n + (used != 0) >= sizeof look.styles) { r = NULL; break; }
-            if (used) look.styles[used++] = '*';
-            memcpy(look.styles + used, p, n); used += n;
-            look.styles[used] = 0;
-            p += n;
-        }
-        if (!*p) r = role_variant_for(&look);
+        if (look_override(&look, override)) r = role_variant_for(&look);
     }
     if (!r) r = role_for(d); // 覆寫載入失敗仍退回模板紙娃娃。
     a->role = r;
@@ -5862,12 +5915,14 @@ static void burden_warn(const Item *it) {
 
 // 外觀：角色表的款式蓋上身上每件裝備的「該職業裝備串」（道具表 33~37 欄），重新載入主角的部件
 static void hero_look(void) {
-    const RoleDef *d = roledef_by_graphic(HERO_GRAPHIC);
+    const RoleDef *d = roledef_find(hero_pic);
+    if (!d) d = roledef_by_graphic(HERO_GRAPHIC);
     if (!d) return;
     hero_def = *d;
+    if (hero_look_str[0]) look_override(&hero_def, hero_look_str);  // 範本的外觀字串（動作方式＋款式）
     for (int s = INV_BAG; s < INV_N; s++)
         if (inv[s].name[0] && inv[s].equip[hero_prof - 1][0])
-            styles_equip(hero_def.styles, sizeof hero_def.styles, d->graphic, d->pli, inv[s].equip[hero_prof - 1]);
+            styles_equip(hero_def.styles, sizeof hero_def.styles, d->graphic, hero_def.pli, inv[s].equip[hero_prof - 1]);
 }
 // 裝備變動後重找箭袋（0x10055b50）：左手 UI_Pos 33 的類型 13／14 = HasArrow，有的話打開所有 W_Type 1／3 的弓技能（Enable = 1）。
 // 沒有箭時原版不關（關是箭射完那一刻 0x1003f370，arrow_spend）
@@ -6720,6 +6775,7 @@ static void story_log(int h, int kind, const char *text) { (void)kind; if (h == 
 // 有 UI_Pos 且那格空著就放那格（開場的扶苏武器 32、布衣 31），否則背包空格，滿了掉在腳下；被劇情拿走的從 inv 移除。
 // 劇情叫出買賣介面就打開
 static void story_msgs(void);
+static char rec_pending[64];  // 劇情事件要播的錄影別名（訊息 0x52e）
 static void story_begin(void) {
     int pl = story_player();
     story_set_int(pl, "Money", hero_money);
@@ -6911,7 +6967,7 @@ static Actor *team_make(const Scene *s, int h) {
         if (!used) break;
     }
     const RoleDef *d = roledef_find(story_get_int(h, "G_PicID"));
-    if (slot == TEAM_MAX || actor_count >= MAX_ACTORS || !d || (!atoi(d->graphic) && !d->anim)) return NULL;
+    if (slot == TEAM_MAX || actor_count >= MAX_ACTORS || !d || !role_drawable(d)) return NULL;
     Actor *hero = &actors[0];
     int cx = (int)hero->x, cy = (int)hero->y;
     if (!free_cell(&cx, &cy, 6)) return NULL;
@@ -6959,7 +7015,7 @@ static void actors_sync(const Scene *s) {
         if (h == pl || story_kind(h) != 1 || actor_of(h)) continue;
         const MonDef *m = mondef_find(story_get_str(h, "MonRow"));
         const RoleDef *d = roledef_find(story_get_int(h, "G_PicID"));
-        if (!m || !d || (!atoi(d->graphic) && !d->anim)) continue;  // shortcut: 圖形 ID 是名字的怪物（蝙蝠、骷髏、蜘蛛）還沒做
+        if (!m || !d || !role_drawable(d)) continue;
         if (story_get_int(h, "G_PosX") != -100) continue;  // 劇情 NPC（ONT 擺的）由 spawn_npcs 放
         // 劇情建角色（0x44fd20 種類 0、G_PosX −100）：同名入口點隨機挑一個（0x4cc9c0，第 n 個以 1/n 換掉），面向入口方向
         // 入口格交角色場景綁定／占位，依原版邊圈順序找空格。
@@ -7009,7 +7065,7 @@ static void story_msgs(void) {
             break;
         case 0x574e0: if (a && alive(a)) actor_kill(a, NULL); break;        // 劇情讓人物死掉
         case 0x42aa0: if (a && a != &actors[0]) a->hp = story_get_int(a->sh, "HP"); break;
-        case 0x52e: story_plot_end(); break;  // shortcut: 過場播放器還沒做（清單 D），先直接結束（第 18 格）
+        case 0x52e: snprintf(rec_pending, sizeof rec_pending, "%s", story_plot.alias); break;  // 播 Rec/User/<別名>.rec（主迴圈 rec_begin）；播完 rec_end 跑第 18 格
         case 0x47870:
             if (a && m->s[0] == '@') actor_attribute_changed(a, m->s + 1, story_get_int(a->sh, m->s + 1));
             break;
@@ -7117,6 +7173,7 @@ static void chest_open_object(int idx) { (void)idx; }
 static void chest_state_sync(Scene *scene) { (void)scene; }
 #endif
 
+
 // ---- 存檔（原版 JM50_内部主界面 的保存、读取 → JM62_存取盘界面，Poq.exe CSystemDialog 0x5354a0、CLoadDialog 0x56c400；開存／讀視窗 0x570900、0x5728c0，畫格子 0x56ce20）----
 // 一頁 6 格、最多 16 頁；第 0 頁前兩格是自动存盘（穿梭大場景時存）、快速存盘（F9），UI_C.dlg 2130、2131。
 // 每格秀場景縮圖、場景名、時間。存檔格式是自己的（原版是整個 EasyRPG 世界的序列化）：主角、背包、寄存、劇情物件
@@ -7138,6 +7195,9 @@ static UiDialog sys_d, sav_d, ask_d, quit_d;
 static UiDialog diff_d;  // JM21 難度選擇（CDiffcultyDialog 0x566ec0；0x570820 新遊戲時開窗、0x566f80 選定存難度並關窗）
 static int diff_open;
 static void new_show(void);
+#ifdef STORY
+static void hero_from_story(int full);
+#endif
 static int sys_open, sav_mode, sav_page, sav_sel = -1, ask_open, quit_open;  // sav_mode：1 保存、2 读取
 static SaveHead *sav_head[SAVE_SLOTS];   // 開視窗時讀的各格檔頭，NULL = 空格
 static SDL_Texture *sav_tex[6];          // 這一頁的縮圖
@@ -7273,6 +7333,13 @@ static int save_read(int slot, SaveHead *h) {
     hero_extra_skill = s.extra_skill;
     hero_money = s.money;
     hero_prof = s.prof;
+#ifdef STORY
+    hero_from_story(0);  // 存檔裡的主角物件就是創角選的範本
+    {   // 創角時把名字寫進主角物件；舊存檔還是範本的職業名（游侠…），沿用目前的名字
+        const char *nm = story_name(story_player());
+        if (*nm && !strstr("\xe6\xb8\xb8\xe4\xbe\xa0 \xe5\x8a\x9b\xe5\xa3\xab \xe5\x88\xba\xe5\xae\xa2 \xe6\x9c\xaf\xe5\xa3\xab \xe5\xb7\xab\xe5\xb8\x88", nm)) snprintf(hero_name, sizeof hero_name, "%s", nm);
+    }
+#endif
     hero_skill_n = -1;
     skills_load();
     for (int i = 0; i < hero_skill_n && i < 20; i++) hero_skill[i].level = s.skill_lv[i];
@@ -7456,8 +7523,9 @@ static void opt_draw(void) {
 // ---- 創建新主角 JM09（Poq.exe CCreateNewCharDialog：OnInit 0x573250、選職業頁 0x572a60／0x572aa0、上一個／下一個外貌 0x572140／0x572200、換外貌刷新 0x573530）----
 // 5 個職業（m_pRoleFlag1~5 = 職業序號 1~5），每職業有幾種外貌（0x648024：3、3、3、4、3），預覽圖 = 0x63b6d8 表第 4 + 職業×4 + 外貌格；
 // 介紹文字 info9_C.dlg 第 3000 + 職業×4 + 外貌 筆（第 0 欄人名、第 1 欄介紹）
-// shortcut: 外貌只換預覽、介紹、名字，進遊戲的主角模型還是遊俠扶苏那套；名字欄（m_pRoleName 輸入框）沒做，用外貌的人名；
-// 沒有標題畫面所以「取消」當確定；選到的職業鈕（顯示用）換第 1 幀是猜的
+// 選定的外貌 = 秦殇/主角 範本（EasyRPG.dll 0x10050630 依 G_PicID2 = 4×(職業序號+1)+外貌 取「秦殇/主角/<職業><人名>」）：
+// 角色表列、外觀字串、起始屬性與道具（紙娃娃部件、起始裝備）都跟著範本，名字用輸入框的（new_done → hero_from_story）
+// shortcut: 沒有標題畫面所以「取消」當確定；選到的職業鈕（顯示用）換第 1 幀是猜的
 static const int new_var_n[5] = {3, 3, 3, 4, 3};
 static const int new_pic[24] = {5270, 8200, 8459, 0, 5454, 8198, 8461, 0, 5455, 8196, 8463, 0, 8465, 8455, 5456, 8469, 8144, 8467, 8457, 0, 5450, 0, 0, 0};
 static UiDialog new_d;
@@ -7498,9 +7566,41 @@ static void new_show(void) {  // 0x573250
     new_name_default();
     SDL_StartTextInput();
 }
+#ifdef STORY
+// 創角範本：[職業序號 − 1][外貌] = G_PicID2 4×(職業序號)+外貌 對到的劇情人物（story/npc/主角/，G_PicID2：游俠 4~6、力士 8~10、刺客 12~14、術士 16~19、巫師 20~22）
+static const char *const NEW_TMPL[5][4] = {
+    {"游侠扶苏", "游侠韩信", "游侠李由", NULL}, {"力士孔刚", "力士冒顿", "力士黥布", NULL}, {"刺客赵茜", "刺客荆无忌", "刺客田玥琳", NULL},
+    {"术士张良", "术士昆蒲", "术士方仲", "术士廖异"}, {"巫师茵珠", "巫师瑶彤", "巫师淳于秋", NULL}};
+// 範本人物 → 引擎的主角：職業（IsActorNPC）、六項屬性、性別年齡、外觀；full = 新遊戲（讀檔時屬性、錢、名字由存檔給）
+static void hero_from_story(int full) {
+    int pl = story_player();
+    char k[16];
+    hero_pic = story_get_int(pl, "G_PicID");
+    int prof = story_get_int(pl, "IsActorNPC");
+    snprintf(k, sizeof k, "G_EquipStr%d", prof);
+    const char *eq = story_get_str(pl, k);
+    snprintf(hero_look_str, sizeof hero_look_str, "%s", eq ? eq : "");
+    hero_gender = story_get_int(pl, "Gender");
+    hero_age = story_get_int(pl, "Age");
+    if (!full) return;
+    hero_prof = prof >= 1 && prof <= 5 ? prof : 1;
+    static const char *const A[6] = {"Str", "Con", "Dex", "Savvy", "Charm", "Wisdom"};
+    for (int i = 0; i < 6; i++) hero_attr[i] = story_get_int(pl, A[i]);
+    hero_money = story_get_int(pl, "Money");
+    story_set_name(pl, hero_name);
+}
+#endif
 static void new_done(void) {
     hero_prof = new_prof + 1;
     if (new_name[0]) snprintf(hero_name, sizeof hero_name, "%s", new_name);  // 輸入框空白就保留舊名
+#ifdef STORY
+    char path[96];
+    snprintf(path, sizeof path, "\xe7\xa7\xa6\xe6\xae\x87/\xe4\xb8\xbb\xe8\xa7\x92/%s", NEW_TMPL[new_prof][new_var]);  // 秦殇/主角/
+    story_player_choose(path);
+    hero_from_story(1);
+    hero_skill_n = -1;  // 技能表依新職業重讀
+    cur_skill[0] = cur_skill[1] = 0;
+#endif
     SDL_StopTextInput();
     new_open = 0;
     diff_open = 1;
@@ -8504,10 +8604,11 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     cache_clear();
     res_cache_clear();
     // 外觀快取跟著場景換：先留主角的，再重建 NPC
+    hero_look();  // 範本外觀＋身上裝備（第一次進場景時還沒有）
     const RoleDef *hd = hero_def.id ? &hero_def : roledef_by_graphic(HERO_GRAPHIC);
     roles_clear();
     preload_roles(scene, hd);
-    if (hd) actor_setup(hero, hd);
+    if (hd) { actor_setup(hero, hd); if (hd == &hero_def) actor_look_set(hero, &hero_def); }
 #ifdef STORY
     // 模板會直接覆寫組別；第一拍索敵前便恢復劇情玩家組，不等資源載完的actors_sync。
     actor_group(hero, story_get_int(story_player(), "G_AIGroup"));
@@ -8734,7 +8835,7 @@ static int load_world(World *world, int *tried, const char *alias) {
 }
 
 // 大地圖（Poq.exe 0x44ce00：場景寬 > 0x3f，沒有場景也算）換到大地圖才自動存檔（Config 自动存盘、不是回放、不是連線）。
-// shortcut: 原版還要「不在劇情播放模式」（0x4fe130），過場播放器還沒做，先不檢查
+// 原版還要「不在劇情播放模式」：過場播放中 scene_record_mode = 2（rec_begin；0x472e60 讀的 Rec 模式），不自動存檔
 static int scene_big(const Scene *s) { return !s || s->w > 0x3f; }
 // shortcut: 隊伍在戰鬥中（0x458620）不自動存檔——原版呼叫處沒找到，先用在這裡避免存到打到一半的狀態
 static int autosave_due(int was_big, const Scene *now) { return was_big && scene_big(now) && scene_record_mode != 2 && !input_party_fighting(); }
@@ -8742,6 +8843,206 @@ static int autosave_due(int was_big, const Scene *now) { return was_big && scene
 #ifndef STORY
 static int trade_paused(void) { return 0; }  // 沒有劇情就沒有交易視窗
 #endif
+
+// ---- 過場播放器（劇情事件 CERPCT：start_plot 0x1004f1a0 → 訊息 0x52e → 客戶端回放 Rec/User/<別名>.rec；Poq.exe CScnClientRecord）----
+// .rec = 0x80 位元組檔頭（"soloRecord 1.0"）＋ 封包串，每包 u32 長度＋內容。'@' 控制包（0x4725c0）、'#' 伺服器同步包（0x470300），
+// '@' 0 = 時間戳：封包依戳在第幾拍播（0x472f50：戳 == 目前拍才處理，之後的等到那拍）。
+// 這裡的做法：開始時把真角色全部凍結、不畫（不是原版那樣載入另一份場景拷貝），錄影裡的角色另外建（Actor.rec），播完刪掉、真角色放回。
+// shortcut: 錄影的場景名跟目前房間不同就不播（原版會載另一份場景）；'#' 6／7／8／9（地上道具、建築開關、飛行單位、招式）、'@' 5／8／10／11／12（旗標、
+// 霧、光影）沒做；對話用頭頂泡泡（actor_say）代替原版對話框，語音沒有；劇情角色在錄影裡是新建的拷貝（外觀字串照錄影），不是房間裡那個 NPC。
+typedef struct {
+    uint8_t *d; size_t n, p;
+    unsigned tick;
+    int id[96], idx[96], cnt;          // 錄影物件編號 → actors 索引
+    char strq[8][256]; int strn;       // '#' 10 字串佇列
+    int follow;                        // 鏡頭跟隨的錄影物件編號（0 = 不跟）
+    int saved_count, hero_foe;
+    int hold[MAX_ACTORS];              // 被凍結的真角色（佔格已放掉）
+    int hold_n;
+    int skip;
+} Rec;
+static Rec rec;
+
+static Actor *rec_actor(unsigned id) {
+    for (int i = 0; i < rec.cnt; i++) if (rec.id[i] == (int)id) return &actors[rec.idx[i]];
+    return NULL;
+}
+static unsigned rec_u16(const uint8_t *b) { return b[0] | b[1] << 8; }
+static unsigned rec_u32(const uint8_t *b) { return b[0] | b[1] << 8 | b[2] << 16 | (unsigned)b[3] << 24; }
+
+// 外觀字串 "動作方式*部件_款式_動作方式*…"（'#' 1 的字串佇列第 3 欄）蓋在角色表列上
+static void rec_look(RoleDef *look, const char *str) {
+    if (!*str || !strcasecmp(str, "NULL")) return;
+    look->pli = atoi(str);
+    const char *e = strchr(str, '*');
+    if (e) styles_equip(look->styles, sizeof look->styles, look->graphic, look->pli, e + 1);
+}
+
+// '#' 1（0x470300 case 1 子類 0）：依圖形 ID（角色表）在 (x, y) 建角色；"player" 用目前主角的外觀
+static void rec_add(const uint8_t *b, const Scene *s) {
+    char tok[3][256] = {{0}};
+    if (rec.strn) sscanf(rec.strq[0], "%255s %255s %255s", tok[0], tok[1], tok[2]);
+    rec.strn = 0;
+    unsigned id = rec_u16(b + 2), pic = rec_u16(b + 5), grp = rec_u16(b + 13);
+    int cx = rec_u16(b + 7) >> 6, cy = rec_u16(b + 9) >> 6;
+    int is_player = !strcmp(tok[0], "player");
+    const RoleDef *d = is_player ? (hero_look(), &hero_def) : roledef_find((int)pic);
+    if (!d || !role_drawable(d) || actor_count >= MAX_ACTORS || rec.cnt >= 96) return;
+    RoleDef look = *d;
+    if (!is_player) rec_look(&look, tok[2]);
+    Actor *a = &actors[actor_count];
+    memset(a, 0, sizeof *a);
+    npc_behavior_reset(a);
+    a->x = cx + 0.5f; a->y = cy + 0.5f;
+    a->object_kind = 40;
+    a->rec = 1;
+    actor_setup(a, d);
+    if (!actor_bind_scene(a, s) || !actor_place(a, cx, cy, 1)) { a->role = NULL; a->rec = 0; return; }
+    if (memcmp(&look, d, sizeof look)) actor_look_set(a, &look);
+    a->grp = grp == 3 || is_player ? actors[0].grp : 20000 + (int)grp;  // 錄影的組別 3 = 主角那組
+    a->side = a->grp != actors[0].grp;
+    rec.id[rec.cnt] = (int)id; rec.idx[rec.cnt++] = actor_count++;
+}
+
+static void rec_remove(Actor *a) {
+    actor_unoccupy(a);
+    a->role = NULL; a->rec = 0;
+}
+
+// '#' 3：角色屬性小包。子碼 0x34 動態狀態、0x66 動畫序列、0x65 組別、0x33 移除；其餘（外觀 0x01、名字 0x02、0x35、0x36、血量 0x67）沒做
+static void rec_attr(const uint8_t *b, Actor *a) {
+    switch (b[4]) {
+    case 0x34: actor_dynamic_command(a, b[5], 0, 0, 0); break;                // 0x496550
+    case 0x66: actor_animation_select(a, (int)rec_u16(b + 5)); break;          // 0x48c190
+    case 0x65: actor_group(a, 20000 + (int)rec_u16(b + 5)); break;             // 0x48e6e0
+    case 0x33: actor_remove(a, b[5]); break;                                   // 0x486910
+    default: break;
+    }
+}
+
+// 一包 '#'：0x470300 的分派
+static void rec_net(const uint8_t *b, size_t n, const Scene *s) {
+    if (n < 4) return;
+    Actor *a = rec_actor(rec_u16(b + 2));
+    switch (b[1]) {
+    case 1: if (n >= 5 && b[4] == 0) rec_add(b, s); break;           // 子類 1 = 進場景（天氣）：沒做
+    case 2: if (a) rec_remove(a); break;
+    case 3: if (a && n >= 6) rec_attr(b, a); break;
+    case 4:   // 0x496260：位置修正（離太遠 > 127 像素才改）、占格換到 (b8, b10)、0x4967d0 插值走過去（回放模式 2 靠逐拍插值推進）
+        if (a && n >= 13) {
+            int px = rec_u16(b + 4), py = rec_u16(b + 6);
+            if (llabs((long long)a->command_world_x - px) + llabs((long long)a->command_world_y - py) > 127) { a->command_world_x = px; a->command_world_y = py; }
+            actor_place(a, (int)rec_u16(b + 8), (int)rec_u16(b + 10), 1);
+            actor_interpolate(a, -1, -1, -1);
+        }
+        break;
+    case 5: if (a && n >= 5) actor_status_notify(a, b[4] & 0x7f, b[4] >> 7, -1); break;  // 0x48d2c0
+    case 10:
+        if (rec.strn < 8) { snprintf(rec.strq[rec.strn++], sizeof rec.strq[0], "%s", (const char *)b + 2); }
+        break;
+    case 13: rec.strn = 0; break;  // 場景切換（子類 2 的場景名在開始時查過）／命令字串
+    default: break;                // 6、7、8、9：見檔頭 shortcut
+    }
+}
+
+// 一包 '@'：0x4725c0 的分派
+static void rec_ctl(const uint8_t *b, size_t n) {
+    switch (b[1]) {
+    case 1:   // 鏡頭定位（螢幕多出 640×480 的部分對半）
+        if (n >= 10) viewport_set(&viewport, unit_scene, (int)rec_u32(b + 2) - (viewport.w - 640) / 2, (int)rec_u32(b + 6) - (viewport.h - 480) / 2);
+        break;
+    case 2: if (n >= 6) { uint32_t v = rec_u32(b + 2); float f; memcpy(&f, &v, 4); zoom_set(f); } break;  // 0x4493f0
+    case 4:   // 對話：說話者、PTalk_C.dlg 的鍵
+        if (n >= 10) {
+            Actor *a = rec_actor(rec_u32(b + 2));
+            char g[1024], u[2048], o[2048];
+            if (a && res_dlg("PTalk_C.dlg", (int)rec_u32(b + 6), g, sizeof g)) {
+                gbk_utf8(g, u, sizeof u);
+                size_t k = 0;
+                for (const char *q = u; *q && k + 1 < sizeof o; q++) {  // 拿掉顏色標記 [0 … ]，換行接成一行
+                    if (*q == '[' && q[1] >= '0' && q[1] <= '9') { q++; continue; }
+                    if (*q == ']' || *q == '\r') continue;
+                    o[k++] = *q == '\n' ? ' ' : *q;
+                }
+                o[k] = 0;
+                actor_say(a, o);
+            }
+        }
+        break;
+    case 7: if (n >= 6) rec.follow = (int)rec_u32(b + 2); break;                 // 0x473660 鏡頭跟隨
+    case 9: if (n >= 14) viewport_pan(&viewport, (int)rec_u32(b + 2) - (viewport.w - 640) / 2, (int)rec_u32(b + 6) - (viewport.h - 480) / 2, (int)rec_u32(b + 10)); break;  // 0x461150
+    default: break;
+    }
+}
+
+// 結束 Rec（0x472380 模式 2 還原場景／介面）：錄影角色刪掉、真角色放回、鏡頭回主角，再跑劇情事件的第 18 格
+static void rec_end(const Scene *s, Actor *hero) {
+    for (int i = 0; i < rec.cnt; i++) { Actor *a = &actors[rec.idx[i]]; if (a->rec) rec_remove(a); }
+    while (actor_count > rec.saved_count && !actors[actor_count - 1].role && !actors[actor_count - 1].mon && actors[actor_count - 1].sh == 0) actor_count--;
+    for (int i = 0; i < rec.hold_n; i++) { Actor *a = &actors[rec.hold[i]]; if (a->role) actor_place(a, (int)a->x, (int)a->y, 1); }
+    rec_on = 0;
+    scene_record_mode = 0;
+    free(rec.d); memset(&rec, 0, sizeof rec);
+    zoom_back();
+    viewport_follow_set(&viewport, s, hero, 1);
+#ifdef STORY
+    story_begin();
+    story_plot_end();   // 0x1004f2a0：第 18 格（獎勵、日誌）
+    story_end();
+#endif
+}
+
+// 每拍（0x472f50）：處理戳 == 目前拍的封包
+static void rec_tick(const Scene *s, Actor *hero) {
+    if (!rec_on) return;
+    while (!rec.skip && rec.p + 4 <= rec.n) {
+        size_t len = rec_u32(rec.d + rec.p), q = rec.p + 4;
+        if (len < 2 || q + len > rec.n) { rec.p = rec.n; break; }
+        const uint8_t *b = rec.d + q;
+        if (b[0] == '@' && b[1] == 0 && len >= 6 && rec_u32(b + 2) > rec.tick) break;  // 還沒到
+        rec.p = q + len;
+        if (b[0] == '#') rec_net(b, len, s);
+        else if (b[0] == '@') rec_ctl(b, len);
+    }
+    if (rec.follow) { Actor *f = rec_actor((unsigned)rec.follow); if (f) viewport_center_actor(&viewport, s, f, 1); }
+    rec.tick++;
+    if (rec.skip || rec.p + 4 > rec.n) rec_end(s, hero);
+}
+
+// 開始播放（訊息 0x52e）：找不到檔、場景不對就不播，直接收尾
+static int rec_begin(const char *name, const Scene *s, Actor *hero, const char *room) {
+    char file[96];
+    size_t n = 0;
+    snprintf(file, sizeof file, "%s.rec", name);
+    uint8_t *d = res_file("Rec/User", file, &n);
+    if (!d) d = res_file("Rec", file, &n);
+    if (!d || n < 0x84 || memcmp(d, "soloRecord 1.0", 14)) { free(d); return 0; }
+    memset(&rec, 0, sizeof rec);
+    rec.d = d; rec.n = n; rec.p = 0x80;
+    // 場景名：第一個 '#' 13 子類 2 之前的最後一條 '#' 10 字串
+    for (size_t p = 0x80, last = 0; p + 6 <= n;) {
+        size_t len = rec_u32(d + p);
+        if (len < 2 || p + 4 + len > n) break;
+        const uint8_t *b = d + p + 4;
+        if (b[0] == '#' && b[1] == 10) last = p + 6;
+        if (b[0] == '#' && b[1] == 13 && b[2] == 2 && last) {
+            char sc[64]; snprintf(sc, sizeof sc, "%.63s", (const char *)d + last);
+            char *sp = strchr(sc, ' '); if (sp) *sp = 0;
+            if (strcasecmp(sc, room)) { fprintf(stderr, "過場 %s 的場景是 %s，目前是 %s，不播\n", name, sc, room); free(d); memset(&rec, 0, sizeof rec); return 0; }
+            break;
+        }
+        p += 4 + len;
+    }
+    rec.saved_count = actor_count;
+    for (int i = 0; i < actor_count; i++)
+        if (actors[i].role) { actor_unoccupy(&actors[i]); rec.hold[rec.hold_n++] = i; }
+    hero->foe = NULL; hero->want = NULL; hero->moving = 0;
+    viewport_follow_set(&viewport, s, hero, 0);
+    rec_on = 1;
+    scene_record_mode = 2;  // 0x472e60：Rec 模式 2 = 回放
+    return 1;
+}
+
 
 #include "touch_ui.c"
 
@@ -8772,6 +9073,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--touch")) tch.forced = 1;  // 測試用：永遠顯示觸控介面
         else if (!strcmp(argv[i], "--win") && i + 1 < argc) sscanf(argv[++i], "%dx%d", &win_w, &win_h);  // 測試用：視窗大小，配 --touch --shot 看橫直式版面
+        else if (!strcmp(argv[i], "--movie") && i + 1 < argc) movie_play(argv[++i]);  // 測試用：只播影片（End 等）
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
@@ -8790,6 +9092,7 @@ int main(int argc, char **argv) {
     if (pos < 2 && story_start_room()) { scn = story_start_room(); new_show(); }  // 沒指定場景 = 新遊戲，從原版的開場房間開始，先創角（JM09）再選難度
 #endif
 
+    if (pos < 2 && !shot) { movie_play("logo1"); if (intro_wanted()) movie_play("Start"); }  // 0x449f50 狀態 8~0xb
     js_status(-1);
     // 房間表（EasyRPG.dll，4MB）等第一次踩到出口才讀：網頁版開場不用等它
     World world = {0};
@@ -8892,6 +9195,8 @@ int main(int argc, char **argv) {
     while (running) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
+            if (rec_on && (e.type == SDL_KEYDOWN || e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_FINGERDOWN)) { rec.skip = 1; continue; }  // 按任一鍵／點一下跳過
+            if (rec_on && (e.type == SDL_KEYUP || e.type == SDL_MOUSEBUTTONUP || e.type == SDL_MOUSEMOTION || e.type == SDL_MOUSEWHEEL || e.type == SDL_FINGERUP || e.type == SDL_FINGERMOTION || e.type == SDL_TEXTINPUT)) continue;
             // 觸控：手指事件依用途分流（搖桿、按鈕、遊戲畫面、雙指縮放）；遊戲畫面上的單指改寫成滑鼠事件走原本的點擊流程
             if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP) {
                 tch.last_touch = SDL_GetTicks();
@@ -9129,7 +9434,14 @@ int main(int argc, char **argv) {
             if (scene_paused || trade_paused()) continue;
             ++tick;
             actor_logic_tick = tick;
-            if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000) for (int i = 0; i < actor_count; i++)
+#ifdef STORY
+            if (rec_pending[0]) {  // 劇情事件的過場：沒檔、場景不對就直接收尾
+                if (!rec_begin(rec_pending, &scene, hero, story_room_alias(sroom))) { story_begin(); story_plot_end(); story_end(); }
+                rec_pending[0] = 0;
+            }
+#endif
+            rec_tick(&scene, hero);
+            if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000 && !rec_on) for (int i = 0; i < actor_count; i++)
                     if (!i || actors[i].mon || actors[i].team) {
                         actor_second(&actors[i]);
 #ifdef STORY
@@ -9144,6 +9456,7 @@ int main(int argc, char **argv) {
             }
             ground_tick();
             for (int i = 0; i < actor_count; i++) {
+                if (rec_on && !actors[i].rec) continue;  // 過場：真角色凍結
                 if (actors[i].role) actor_motion_tick(&actors[i]);
                 actor_health_sync(&actors[i]);
                 if (actors[i].role) actor_maintenance_tick(&actors[i]);
@@ -9163,8 +9476,9 @@ int main(int argc, char **argv) {
                 }
             }
 #endif
-            int held = hero->act != ACT_DEAD && react_tick(hero, &scene);
-            if (hero->act == ACT_DEAD) {  // 死亡：播完倒下動作停一下（shortcut: 180 拍是自訂，原版開 JM513 的時機沒查到），開死亡界面等讀取或退出
+            int held = !rec_on && hero->act != ACT_DEAD && react_tick(hero, &scene);
+            if (rec_on) { }
+            else if (hero->act == ACT_DEAD) {  // 死亡：播完倒下動作停一下（shortcut: 180 拍是自訂，原版開 JM513 的時機沒查到），開死亡界面等讀取或退出
                 if (++hero->dead_ticks > 180 && !dead_open) dead_show();
                 action_tick(hero, &scene, tick);
             } else if (hero->act) action_tick(hero, &scene, tick);
@@ -9181,6 +9495,7 @@ int main(int argc, char **argv) {
             else if (!pursue(hero)) actor_tick(hero, &scene, 0, 0, tick);
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
+                if (rec_on) continue;  // 過場：錄影角色只照封包動（actor_motion_tick），真角色凍結
                 if (!a->mon) { if (!react_tick(a, &scene)) npc_dispatch(a); }
                 else if (!a->role) continue;
                 else if (a->act == ACT_DEAD) { action_tick(a, &scene, tick); if (!dead_obj_tick(a)) a->role = NULL; }
@@ -9206,14 +9521,14 @@ int main(int argc, char **argv) {
             weather_tick();
             ambient_tick(&scene);
 #ifdef STORY
-            trigger_sense_tick(&scene);
+            if (!rec_on) trigger_sense_tick(&scene);
 #endif
             air_tick(scene_client_actor(&scene_client));
             sur_tick();
             bird_tick(&scene, &viewport);
             zoom_tick();
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
-            const Trigger *t = trigger_at(&scene, hero);
+            const Trigger *t = rec_on ? NULL : trigger_at(&scene, hero);  // 過場中不踩出口
             if (!t) armed = 1;
 #ifdef STORY
             // 原版 go（EasyRPG 0x10017e30）：出口要開著；隨機地下城出口（0x10052af0）；舊房間第 13 格、新房間第 14 格同意才進

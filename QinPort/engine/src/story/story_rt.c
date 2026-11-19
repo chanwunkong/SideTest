@@ -132,12 +132,20 @@ int story_new(const char *path, int parent) {
     return h;
 }
 
+static void obj_delete(int h);
 int story_player(void) {
     if (!the_player) {
-        the_player = story_new("秦殇/主角/游侠扶苏", 0);  // 劇情模式的主角（遊俠扶蘇）
+        the_player = story_new("秦殇/主角/游侠扶苏", 0);  // 沒創角就直接開始（測試、--prof）：遊俠扶蘇
         objs[the_player].kind = 1;
     }
     return the_player;
+}
+// 創角（JM09）選定的主角範本：EasyRPG.dll 0x10050630 依 G_PicID2 取「秦殇/主角/<職業人名>」產生玩家人物（含起始道具、屬性、外觀字串）。
+// 新遊戲還沒進任何房間時呼叫，換掉預設的主角
+void story_player_choose(const char *path) {
+    if (the_player) obj_delete(the_player);
+    the_player = story_new(path, 0);
+    objs[the_player].kind = 1;
 }
 
 const char *story_name(int h) { return O(h) ? O(h)->name : ""; }

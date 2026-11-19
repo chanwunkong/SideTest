@@ -3,6 +3,7 @@
 #include "../src/main.c"
 #undef main
 #include <assert.h>
+#include <dirent.h>
 
 static RoleDef def;
 static MonDef md;
@@ -4176,10 +4177,18 @@ static void death_team_test(void) {
     // 隊友數值：同 0x1002d8d0（HP 120 + 28×等級、MP 140 + 4×等級），沒有裝備特性，攻擊力用等級估
     Actor t = {.level = 5, .team = 1, .team_attr = {15, 25, 25, 35, 30, 35}, .team_prof = 4};
     actor_derive(&t);
-    assert(t.hp_max == 120 + 28 * 5 && t.mp_max == 140 + 4 * 5);
+    assert(t.hp_max == 110 + 22 * 5 && t.mp_max == 180 + 5 * 5);  // 術士（IsActorNPC 4）的升級表
     assert(t.ap == (2 * 5 + 8) * (15 + 150) / 150 && t.dp == 0);
     t.level = 10; actor_derive(&t);
-    assert(t.hp_max == 120 + 28 * 10);
+    assert(t.hp_max == 110 + 22 * 10);
+    {   // 五職業的升級表（秦殇/主角 範本的 Upgrade_HP_MAX／MP_MAX）
+        static const int E[6][4] = {{120, 28, 140, 4}, {120, 28, 140, 4}, {150, 38, 120, 3}, {105, 24, 130, 4}, {110, 22, 180, 5}, {100, 20, 200, 6}};
+        for (int pf = 1; pf <= 5; pf++) {
+            Actor u = {.level = 7, .team = 1, .team_prof = pf};
+            actor_derive(&u);
+            assert(u.hp_max == E[pf][0] + E[pf][1] * 7 && u.mp_max == E[pf][2] + E[pf][3] * 7);
+        }
+    }
     // 隊友挑技能：精气夠的對敵技能才挑；都不能放就用沒有技能列的普通攻擊
     SkillRow strike_row = {.level = 1, .attack = 1, .mpu = 5};
     t.skill_n = 2; t.selected = -1; t.mp = 100;
@@ -5334,6 +5343,50 @@ int main(void) {
         tch.blocked = 0; tch.kbm = 1;
         assert(!touch_active()); tch.forced = 1; assert(touch_active());  // 有鍵盤滑鼠自動隱藏，--touch 強制顯示
         memset(&tch, 0, sizeof tch); tch.size = 1; tch.aim = -1;
+    }
+    {  // 過場播放器：Rec/User 全部 72 個檔的封包串都能走到底（長度一致），只有已知的封包種類，'@' 0 時間戳不倒退
+        DIR *dir = opendir("../../game/Rec/User");
+        assert(dir);
+        int files = 0;
+        for (struct dirent *de; (de = readdir(dir));) {
+            if (!strcasestr(de->d_name, ".rec")) continue;  // 有一個副檔名是大寫 .Rec（pct_tamtian）
+            size_t n = 0;
+            uint8_t *d = res_file("Rec/User", de->d_name, &n);
+            assert(d && n > 0x84 && !memcmp(d, "soloRecord 1.0", 14));
+            unsigned stamp = 0;
+            size_t p = 0x80;
+            while (p + 4 <= n) {
+                size_t len = rec_u32(d + p);
+                assert(len >= 2 && p + 4 + len <= n);
+                const uint8_t *b = d + p + 4;
+                assert(b[0] == '#' ? b[1] >= 1 && b[1] <= 13 : b[0] == '@' && b[1] <= 12);
+                if (b[0] == '@' && b[1] == 0) { assert(rec_u32(b + 2) >= stamp); stamp = rec_u32(b + 2); }
+                p += 4 + len;
+            }
+            assert(p == n);
+            free(d);
+            files++;
+        }
+        closedir(dir);
+        assert(files == 72);
+        // 外觀字串（"動作方式*部件_款式_動作方式*…"）換成角色表列的動作方式與款式
+        RoleDef lk = *roledef_find(207);
+        rec_look(&lk, "001*CA_002_001*TK_003_001");
+        assert(lk.pli == 1 && strstr(lk.styles, "003") && strstr(lk.styles, "002"));
+    }
+    {  // 創角範本的外觀字串：動作方式＋款式，空欄略過
+        RoleDef lk = *roledef_find(29);
+        assert(look_override(&lk, "003*001**002") && lk.pli == 3 && !strcmp(lk.styles, "001*002"));
+        assert(hero_pic == 29 && !strncmp(hero_look_str, "001*009", 7));  // 預設主角 = 遊俠扶蘇範本
+    }
+    {  // 圖形 ID 是名字的角色（蝙蝠、骷髏、蜘蛛）：同一套 PLI，載得進來、有序列有部件
+        static const int ids[] = {450, 451, 452, 453, 454};
+        for (int i = 0; i < 5; i++) {
+            const RoleDef *d = roledef_find(ids[i]);
+            assert(d && !atoi(d->graphic) && role_drawable(d));
+            const Role *r = role_for(d);
+            assert(r && r->seq_count > 0 && r->part_count > 0 && r->body[0]);
+        }
     }
     death_team_test();  // 用到 rand（npc_selected），放最後免得改變前面測試的亂數序列
     puts("skilltest ok");
