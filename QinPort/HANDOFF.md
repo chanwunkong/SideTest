@@ -1795,3 +1795,42 @@ skilltest 新增：刺客 Hand 5、箭消耗用 Attack方式（真資料招式 I
 **(D) 存檔**：story_save 已含任務旗標、隊友（劇情物件）、錢、技能；新增 MONS 尾巴存有劇情物件的非隊友角色（怪物與 NPC）位置、血量、魔力、方向，讀檔後 actors_sync 後套回（瀏覽器：F9 後 ?load=1 印「讀檔還原怪物 sh=9 hp=93 at 105.6,110.4」等）。skilltest save_ground_test 驗 MONS。**日夜時刻與天氣不存是原版行為**：時鐘 0x662884 是 Poq 全域（CGodClient 建構時 0x44e6e0 設 23 點），只被連線訊息 0xb（0x44e890）改，CERWorld::Save 只走世界物件，天氣是客戶端擲的；引擎沿用（讀檔時鐘照走）。
 **(E) 日夜／天氣**：亮度表、時鐘、天氣機率表早已照 0x4682e0／0x44e750／0x44e5d0 翻；瀏覽器 ?hour=3／12／23 截圖夜間明顯較暗偏藍。沒有原版畫面可逐時段比對（原版規則已照反編譯，不是截圖比對）。
 驗證：make、skilltest ok、storytest 绣女 0 1 正常、複本 make web 通過。
+
+## 主線走查（2026-11-20，實際遊玩驗證 第 6 輪，複本 /tmp/qb19，8659）
+**怎麼走的**（工具都在 tools/、engine/test/walk/）
+- `make walktest`（engine/）：無畫面主線走查回歸。`storytest walk=-` 從標準輸入讀腳本（用 `sh tools/walk.sh 腳本` 餵；node 的標準輸入會弄壞部分位元組，所以 walk.sh 把非 ASCII 轉成 %XX）。指令：`start`／`go 出口`／`enter 房間別名`／`talk NPC別名 選項鍵…`／`plot 劇情事件路徑`／`pickup 道具路徑`／`canopen 箱子或門路徑`／`flag 名=值`／`money N`／`expect 名=值`／`has 道具`／`roomhas 房間 字串`／`trig`／`explore N`。對話、旗標變化（只印變的）、日誌、章節、劇情事件（無錄影時直接跑第 18 格）都印出來；出不去、NPC 不在、選項不存在、expect／has 不符印 FAIL，結束碼 1。腳本：ch1_main（第一章整條）、ch1a（赵村開場）、ch1b（北地郡花錢買路）、ch2a（第二章開頭）、open17（開箱規則第 17 格與撿起第 15 格）。
+- `explore`（test/walk/explore.txt，`use_triggers` 帶入 tools/triggers.tsv）：自動問遍每個 NPC 的每個選項（廣度優先、重放）、走遍開著的出口、重複到沒有新進展；假設 2000 文錢，**不模擬戰鬥、撿地上道具、點建築**，所以要這些才推進的環節顯示成「卡住」。結果：去過 112 間房間、進不去 56 間（都是旗標門／要戰鬥或撿道具的）、78 個旗標變化、六個劇情事件、第二章字幕。
+- tools/webtrig.mjs：同一個 headless Chrome 依序載入 `?scene=`，印每個場景的 BNT 感應區文字指令（tools/triggers.tsv：整個遊戲只有 16 個場景有 `s_pctstart` 劇情事件、約 42 個 `openall`／`c_aigroup`）；`WARN=1` 改印 console 警告與例外。
+- 引擎除錯入口：`--cmd "SetFlag 旗標 值"`、`--cmd "WatchFlag 旗標"`（每 30 拍看一次，變了印 `flag 名 = 值`；網頁 `?cmd=SetFlag%20名%20值`，要複本 shell.html 的 cmd 參數）；`debug=cells` 才會印 `click bld`／`use bld`／`chest children`（`debug=trace` 不印）。
+- 章節判定：第二章字幕在進 新咸阳北郊／雍县／三川郡／北地郡 時、旗標 diyizhangjieshu 是 1（桓峰的劇情事件設）；第三章字幕在進 砀山／九江／泰山／沛县 時、shuifuxiaoqi 是 8（彭城萧起第 46 格設，同時 dierzhangjieshu = 1，＝第二章「寻访异人」結束）；第三章結束 disanzhangjieshu（衡山村田纲第 51 格）；之後 骊山 第四、五章。章節訊息 0x53a → `chapter_message`，現在只是 hud 一行「第二章。」（JM69 章節視窗沒做，見上面 todo）。
+
+**主線走查表**（結果：通過＝headless 走查腳本通過；瀏覽器欄寫有沒有在真引擎驗證）
+| 章 | 環節 | 結果 | 備註 |
+|---|---|---|---|
+| 1 | 新遊戲：創角→難度→片頭過場 ptdhcj→赵村，亡命天涯：日誌×3、任務「重返京城」、旗標 kaishiyouxi | 通過 | firstmap_check.sh 全 ok（瀏覽器） |
+| 1 | 赵村 老者（ask1→4→5→10）日誌「老者指路」 | 通過 | 走近自動說話在瀏覽器開對話 |
+| 1 | 初遇赵茜：BNT 赵村 33 個感應區（84~101,100~108）→ 劇情事件 pct_cyzqian：麦饼×3、日誌、旗標 chuyuzhaoqian | 通過 | 瀏覽器：站到感應區過場播 1257 拍、日誌出現 |
+| 1 | 赵村→阳周城（出口 eastsouth 一開始就開），第一次進阳周城：pct_kgszhu，孔刚入隊、主角搬進衙府 | 通過 | 瀏覽器（firstmap_check） |
+| 1 | 孔刚第一次對話（ask1：konggangsuizhu 1→2、tanshimengtian = 1） | 通過 | 孔刚 s19／s22（「蒙老将军关在大牢」、「公子说来听听」）在原版只有虛擬表引用、沒有任何選項指到：原版此段沒入口（見下「原版沒入口的格子」），不是移植漏 |
+| 1 | 菜贩情報（ask1→3→4→5）日誌、旗標 xinxitigong／tanshimengtian | 通過 | |
+| 1 | 秦兵校尉＋孔刚（ask1→3）→ dakaijianyu = 1、door_of_prison 解鎖；没做這步進监狱入口 → 訊息「监狱大门紧闭…」 | 通過 | 瀏覽器沒走 |
+| 1 | 监狱：狱吏用「御使」唬人（ask2→10→11→12→13）：+500 經驗、tanshimengtian = 3、menghunguoguan = 3 | 通過 | 其他路線（令符／动手）有選項、沒逐條走 |
+| 1 | 探视蒙恬：BNT yzh_prison3 三個感應區（62,53／58,53／59,48）→ pct_tamtian（需 dakaijianyu = 1）：日誌、dakaijianyu = 2、搬回阳周城 | 通過 | 瀏覽器：`SetFlag dakaijianyu 1` 後站感應區，過場 1811 拍、日誌、搬走 |
+| 1 | 北地驿站驿使（ask1→5→6→7）騙到「公文」：+500 經驗、日誌 | 通過 | 道具進背包的瀏覽器路徑沒走 |
+| 1 | 北地郡城門：守将（有公文 ask2→8／花一千 ask1→5／八百 ask1→4→7）→ door_of_city 的 key 清空、beiditongxing = 1 | 通過 | 瀏覽器：沒解鎖點門 →「城门紧闭，看来无法通过。」；付一千（1500→500）守將說「你可以进城了」，主角走過城門（y 108→91） |
+| 1 | 北地郡→咸阳：第 14 格 churuxianyang 0→2、日誌「历尽千辛万苦，回到咸阳」（任務完成） | 通過 | |
+| 1 | 咸阳乐伯（ask1→3→4→6）：太子府后门钥匙、quhuiyaoshi = 1 | 通過 | |
+| 1 | 桓将军府桓峰（ask1→3）→ pct_jyhfeng：日誌、任務「寻找精通机关制作的巧匠相助」、diyizhangjieshu = 1、xunfangyiren = 0 | 通過 | 劇情事件的 Rec 在 game/Rec/User |
+| 1 | 離開桓府再進咸阳：第 14 格 xunfangyiren 0→1、出口換成 新咸阳北郊／被摧毁的赵村 | 通過 | |
+| 2 | 進新咸阳北郊：第 16 格 diyizhangjieshu 1→2，章節訊息 0x53a（章 2） | 通過 | 瀏覽器：從咸阳進雍县，console「章節 2 節 1：第二章。」；hud 一行字（JM69 章節視窗沒做） |
+| 2 | 阳周城往西→被摧毁的赵村（pct_zcbhui），赵茜（ask1→2→3→4）加入 | **修好** | 根因：被摧毁的赵村第 14 格 Ghidra 認成 void、包裝回 0 → 房間永遠進不去（原版組語 `mov eax,1`）；改 tools/storytool.py 與該檔（第 13／14 格 void 回 1）；ch2a 走查 |
+| 1～2 | NPC 對話框選項太多超出畫面 | **修好** | 根因：dialog_draw 的框貼畫面底、文字卻從框頂算起，≥3 個選項（或選項折行）最後幾個在畫面外點不到（守將 3 個選項第 3 個不見）。改成框頂為基準、超出 150 高時下方接黑底。瀏覽器截圖 3 個選項都在 |
+| 1～2 | 箱子／門的「能不能開」（虛擬格 0x44 = 第 17 格）從來沒跑 | **修好** | 原版 0x1004e680 在鑰匙檢查後呼叫，覆寫的 11 個物件會做事（薛城暗門放強盜與密道口、颖川牢房大門開劇情事件解救王岩、宛城帅府大门叫醒守衛、匈奴药箱放士兵、咸阳箱子叫居民C）；引擎以前當恆真。`story_can_open`；open17 走查 |
+| 1～2 | 任務道具從箱子掉到地上、撿起時物件第 15 格（旗標、日誌、劇情事件）從來沒跑 | **修好** | 原版 move（0x10059020）搬完呼叫第 15 格（目的, 舊持有者；新建的物件沒有舊持有者所以 give_object／add_npc 不呼叫）。箱子→房間、房間→主角各補一次（`story_item_moved`）。瀏览器：赵村猎户的家宝箱開、撿解毒药，旗標 jieduyao 1→3（以前不變）；open17 |
+| 2～3 | 寻访异人本體：三川郡田玥琳、云雾谷茵珠、鹰喙岭张良、邯郸淳于秋、颖川王岩、彭城荆无忌、萧起（shuifuxiaoqi = 8）→ 第三章 | **未解（沒走完）** | explore 到的：進得了 三川郡／颖川／鹰喙岭／邯郸／沛县／雍县／栎县／汉中；卡在要戰鬥或撿道具的環節（見 PORT_QUEUE「主線走查待續」） |
+| 3 | 第三章：砀山／泰山／九江／沛县 字幕、衡山村田纲（xianyanglishan、disanzhangjieshu） | **未解（沒走）** | 要先走完第二章 |
+
+**原版沒入口的格子**：用「選項包裝 _w 在檔案裡出現次數 ≤ 3（宣告、定義、登記表）」找 `story/` 裡第 18 格以後定義了、卻沒有任何選項指到的格子：110 個（3614 個格子的 3%，106 個物件）。孔刚 s19／s22 用位元組搜尋 EasyRPG.dll 確認只有虛擬表（0x23f74c…）引用；原版沒有其他物件跨物件呼叫虛擬格（story/ 沒有 `(**(code **)(*…`）。判斷是原版遺留的舊對話，**原版規則沒找到**它們的呼叫點，所以沒做。完整清單：`python3 -I tools/story_orphans.py`。
+**console 警告**：`WARN=1 node tools/webtrig.mjs 網址 埠 場景…`。第一章走過的場景（赵村、民居、阳周城、衙府、监狱、北地驿站、驿站、北地郡、咸阳、桓将军府、新咸阳北郊…共 20 個）0 個警告、0 個例外；全部 450 個非連線場景的 `?scene=` 載入 0 個例外（觸發區掃描，不看警告）。全場景的 WARN 掃描跑到一半被我停掉（輸出 0 行，但不知道掃到第幾個場景），**其餘場景的警告沒記錄**：要的話 `L=$(ls game/scene | grep Scn$ | sed s/.Scn//); WARN=1 node tools/webtrig.mjs 網址 埠 "$(echo $L | tr ' ' ,)"`（約 30 分鐘）。log 裡 NPC 名字亂碼（`npc С…`）是 log 沒轉 GBK，只影響除錯輸出。
+**沒做到／還沒查**：怪物掉落的劇情道具（山魈头等）不經 move、沒有第 15 格；撿道具的瀏覽器路徑只走了解毒药；城門「打開」的動畫沒截到；第二章之後見 PORT_QUEUE。
+驗證：`make`、`make skilltest` → skilltest ok；`make storytest && node build/storytest.js 秦殇/咸阳/NPC/绣女 0 1` 正常；`make walktest` → walktest ok；複本 `make web` 通過；firstmap_check.sh 全部 ok。

@@ -226,6 +226,17 @@ int story_get_int(int h, const char *key) {
     KV *e = O(h) ? kv_find(O(h)->ints, O(h)->nints, key) : NULL;
     return e ? (int)e->val : 0;
 }
+// 旗標列舉（走查用，storytest walk）：第 i 個旗標的名稱／值；沒有回 NULL
+const char *story_flag_at(int h, int i, int *val) { Obj *o = O(h); if (!o || i < 0 || i >= o->nflags) return NULL; *val = (int)o->flags[i].val; return o->flags[i].key; }
+// 開箱規則 0x1004e680 的「能不能開」：呼叫箱子（道具物件）虛擬格 0x44 = 第 17 格，鑰匙檢查過了才問。預設 1；有覆寫的箱子、門會在這裡做事
+// （薛城暗門放強盜與密道口、颖川牢房大門開劇情事件解救王岩、宛城帅府大门叫醒守衛、匈奴药箱放士兵、咸阳箱子叫居民C 說話），回 0 就不開。
+// 走查發現：以前引擎把它當恆真，這 11 個物件的第 17 格從來沒跑過
+int story_can_open(int h) { return O(h) ? (int)slot_call(h, 17, 0) : 0; }
+// 道具從一個持有者搬到另一個（引擎的箱子掉落、撿起）：原版 move（0x10059020）搬完呼叫物件第 15 格（目的, 舊持有者），
+// 只在「原本有持有者」時呼叫（新建的物件 give_object／add_npc 沒有，piVar7 == NULL）。走查發現：以前引擎自己搬道具（箱子掉到地上、撿進背包）
+// 不經過 move，任務道具的第 15 格（旗標、日誌、劇情事件）永遠不跑。箱子開時：箱內道具搬到箱子所在的房間（0x1004e680 的 FUN_1004df20(道具, 箱子的持有者)），
+// 撿起時：房間 → 主角
+void story_item_moved(int h, int dest, int old) { if (O(h)) slot_calla(h, 15, (intptr_t[8]){0, dest, old}); }
 int story_has_int(int h, const char *key) { return O(h) && kv_find(O(h)->ints, O(h)->nints, key); }
 void story_set_int(int h, const char *key, int v) { if (O(h)) kv_add(&O(h)->ints, &O(h)->nints, key)->val = v; }
 const char *story_get_str(int h, const char *key) {  // 原版 0x10022ac0：沒有回 ""
@@ -313,6 +324,13 @@ int story_exit(int room, const char *dir, char *path, int cap, int *entry) {  //
     if (!x || !x->on) return 0;
     snprintf(path, cap, "%s", x->path);
     *entry = x->entry;
+    return 1;
+}
+// 出口列舉（走查 explore 用）：第 i 個出口的方向、目的房間路徑、入口、開關；沒有回 0
+int story_exit_nth(int room, int i, const char **dir, const char **path, int *entry, int *on) {
+    Obj *o = O(room);
+    if (!o || i < 0 || i >= o->nexits) return 0;
+    *dir = o->exits[i].dir; *path = o->exits[i].path; *entry = o->exits[i].entry; *on = o->exits[i].on;
     return 1;
 }
 int story_exit_on(int room, const char *dir) { ExitRec *x = exit_find(room, dir, 0); return x ? x->on : -1; }

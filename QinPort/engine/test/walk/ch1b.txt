@@ -1,0 +1,9 @@
+# 第一章 B：北地郡城門另一條路（花錢買路：守將 ask1 -> ask5 付一千文，旗標 beiditongxing）
+start
+go eastsouth
+go out
+go south
+go sorth
+money 1000
+talk shoujiang ask1 ask5
+expect beiditongxing=1

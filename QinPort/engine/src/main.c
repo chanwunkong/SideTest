@@ -5263,12 +5263,12 @@ static void dialog_draw(void) {
     if (choose_loaded > 0) {
         SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(ren, 0, 0, 0, 200);
-        SDL_Rect up = {x, y, w, h - 150};
-        SDL_RenderFillRect(ren, &up);
-        ui_draw(&choose_ui, x, y + h - 150);
+        SDL_Rect up = {x, y + 150, w, h - 150};  // 內容超過 150 高時，框下方接一塊黑底（走查發現：以前框貼底、文字卻從框頂算起，3 個選項以上超出畫面下緣點不到）
+        if (h > 150) SDL_RenderFillRect(ren, &up);
+        ui_draw(&choose_ui, x, y);
     }
-    int by = y + h - 150;
-    draw_text(x + 27, y + (h - 150) + 7, d->speaker, 400, 0xFFFF00, 1);
+    int by = y;
+    draw_text(x + 27, y + 7, d->speaker, 400, 0xFFFF00, 1);
     draw_text(x + 28, by + 26, d->text, tw, 0xBECDCE, 1);
     int cy = by + 26 + (th > 72 ? th : 72) + 8;
     if (d->option_count) { draw_text(x + 27, cy, "Choose\xef\xbc\x9a", 200, 0xFFFF00, 1); cy += 16; }
@@ -6468,8 +6468,15 @@ static void mon_loot(const Actor *m) {
 }
 
 // 撿起來（同時是 CPropObj 移除 0x49a880：格子道具記號隨 ground[] 一起消失）：錢直接加到金錢（金钱 = 類型 60，數量在 Amount），其他放進背包空格
+#ifdef STORY
+static void story_begin(void);
+static void story_end(void);
+#endif
 static void ground_pick(int g) {
     Item *it = &ground[g].it;
+#ifdef STORY
+    int sh = it->sh;  // 劇情道具（箱子掉的）：撿起後要補物件第 15 格
+#endif
     if (it->type == 60) hero_money += it->amount;
     else {
         int b = bag_free();
@@ -6479,6 +6486,9 @@ static void ground_pick(int g) {
         inv[b].pos = b;
     }
     ground[g] = ground[--ground_n];
+#ifdef STORY
+    if (sh) { story_begin(); story_item_moved(sh, story_player(), sroom); story_end(); }  // 房間 → 主角：物件第 15 格
+#endif
 }
 
 // 按鈕名稱 → 開的視窗（主列和人物屬性視窗裡的 m_pRole／m_pSkill／m_pProp 同名同作用）
@@ -7359,7 +7369,7 @@ static void chest_say(int h, const char *key) {  // 訊息 kind 0xf（0x1004dd00
 }
 // 0x1004e680 開箱規則：isbuilding < 1 不能開（訊息 0x49b）；2／6 已開（openedinfo）；有 key 要身上有那件（deletekey ≠ 0 用掉），
 // 沒有就說 lockinfo；可以開 → isbuilding 1 → 2、5 → 6，箱裡的道具（G_AIGroup 設成箱子代號）掉到地上，說 openinfo。回 1 = 開了
-// shortcut: 虛擬格 0x44（能不能開）沒找到覆寫，當恆真；身上找鑰匙只比別名（原版 0x10059fb0 還會進背包容器找）
+// 虛擬格 0x44 = 第 17 格（story_can_open）；shortcut: 身上找鑰匙只比別名（原版 0x10059fb0 還會進背包容器找）
 static int chest_open_rule(int h, float cx, float cy) {
     int isb = story_get_int(h, "isbuilding");
     if (isb < 1) { hud_say(story_text(0x49b)); return 0; }
@@ -7372,6 +7382,7 @@ static int chest_open_rule(int h, float cx, float cy) {
         if (!kh) { chest_say(h, "lockinfo"); return 0; }
         if (story_get_int(h, "deletekey")) story_delete(kh);
     }
+    if (!story_can_open(h)) return 0;  // 虛擬格 0x44（第 17 格）：覆寫的箱子、門在這裡做事，回 0 不開
     if (debug_cells) { int n = 0, k2 = 0; for (int c = story_next(h, 0); c; c = story_next(h, c)) { n++; k2 += story_kind(c) == 2; } printf("chest children=%d items=%d\n", n, k2); }
     story_set_int(h, "isbuilding", isb == 1 ? 2 : isb == 5 ? 6 : isb);
     for (int it = story_next(h, 0); it;) {
@@ -7380,7 +7391,7 @@ static int chest_open_rule(int h, float cx, float cy) {
             if (!story_get_int(it, "G_AIGroup")) story_set_int(it, "G_AIGroup", -1);
             story_set_int(it, "G_AIGroup", h);
             Item *item = story_item(it);
-            if (item) { item->sh = it; ground_drop(item, cx, cy); story_take(it); }
+            if (item) { item->sh = it; ground_drop(item, cx, cy); story_take(it); story_item_moved(it, story_parent(h), h); }  // 箱子 → 房間：物件第 15 格（0x10059020）
         }
         it = next;
     }
@@ -9687,13 +9698,36 @@ static void scene_fog_set(Scene *sc, int m) {
 }
 // 除錯指令（Poq.exe 0x455d60 讀 DAT_00662924，DAT_0094c1b8 == 1 的測試主控台）：SetFog <n>（0x4c8630）；GetSpeed → "#ObjSpeed"（0x4774d0 回報主角的速度欄位）。
 // 單機入口：--cmd "SetFog 0"（可重複，網頁用網址參數 cmd= 要改 web/shell.html，主樹的 web/ 不動）
-static char dbg_cmds[4][64];
+static char dbg_cmds[16][64];
+#ifdef STORY
+static char flag_watch[8][48];
+static int flag_watch_n, flag_watch_val[8];
+static void flag_watch_tick(unsigned tick) {
+    if (!flag_watch_n || tick % 30) return;
+    story_begin();
+    for (int i = 0; i < flag_watch_n; i++) {
+        int v = (int)ENGINE(0x1005df70, story_player(), (intptr_t)flag_watch[i]);
+        if (v != flag_watch_val[i]) { printf("flag %s = %d\n", flag_watch[i], v); flag_watch_val[i] = v; }
+    }
+    story_end();
+}
+#endif
 static int dbg_cmd_n;
 static void debug_command(const char *cmd) {
     char w[32] = "";
     int n = 0;
     sscanf(cmd, "%31s %d", w, &n);
     if (!strcasecmp(w, "SetFog")) scene_fog_set((Scene *)unit_scene, n);
+#ifdef STORY
+    else if (!strcasecmp(w, "SetFlag")) {  // 走查用：--cmd "SetFlag 旗標名 值" 設主角的劇情旗標（新增＋設值，等於劇情的 NewFlag／SetFlag）
+        char name[48]; int v = 0;
+        if (sscanf(cmd, "%*s %47s %d", name, &v) == 2) { story_begin(); ENGINE(0x1005e850, story_player(), (intptr_t)name, -1); ENGINE(0x1005f270, story_player(), (intptr_t)name, v); story_end(); printf("SetFlag %s = %d\n", name, v); }
+    }
+    else if (!strcasecmp(w, "WatchFlag")) {  // 走查用：--cmd "WatchFlag 旗標名" 之後每 30 拍看一次，值變了就印（沒有這個旗標 = -1）
+        char name[48];
+        if (sscanf(cmd, "%*s %47s", name) == 1 && flag_watch_n < 8) { snprintf(flag_watch[flag_watch_n], sizeof flag_watch[0], "%s", name); flag_watch_val[flag_watch_n++] = -2; }
+    }
+#endif
     else if (!strcasecmp(w, "GetSpeed")) {
         const Actor *h = &actors[0];
         snprintf(toast, sizeof toast, " m_iB_C_MOVE_SPEED = %d\n m_iSpeedCent = %d\n m_nNormalSpeed = %d\n m_nFightSpeed = %d\n",
@@ -9935,7 +9969,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--money") && i + 1 < argc) money = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--weather") && i + 1 < argc) dbg_clk.weather = atoi(argv[++i]);  // 0~10 天氣、11~16 色調（0x4697b0 的 idx）
-        else if (!strcmp(argv[i], "--cmd") && i + 1 < argc) { if (dbg_cmd_n < 4) snprintf(dbg_cmds[dbg_cmd_n++], sizeof dbg_cmds[0], "%s", argv[i + 1]); i++; }  // 除錯指令 SetFog／GetSpeed
+        else if (!strcmp(argv[i], "--cmd") && i + 1 < argc) { if (dbg_cmd_n < 16) snprintf(dbg_cmds[dbg_cmd_n++], sizeof dbg_cmds[0], "%s", argv[i + 1]); i++; }  // 除錯指令 SetFog／GetSpeed
         else if (!strcmp(argv[i], "--hour") && i + 1 < argc) dbg_clk.hour = atoi(argv[++i]);        // 0x44e880
         else if (!strcmp(argv[i], "--clock") && i + 1 < argc)                                         // 0x44e890：年,月,日,時,拍
             dbg_clk.use_clock = sscanf(argv[++i], "%d,%d,%d,%d,%d", &dbg_clk.clock[0], &dbg_clk.clock[1], &dbg_clk.clock[2], &dbg_clk.clock[3], &dbg_clk.clock[4]) == 5;
@@ -10005,7 +10039,7 @@ int main(int argc, char **argv) {
     int monsters_due = 1;      // 進場景後等圖片都下載好，再讀房間表放怪物（網頁版開場不用等 4MB 的 DLL）
     if (at_x >= 0) actor_restore_position(hero, at_x + 0.5f, at_y + 0.5f);
     if (drop_t >= 0) { Item di; if (item_new(&di, drop_t, drop_lv, -1, NULL)) ground_drop(&di, hero->x + 2, hero->y); }
-    if (debug_cells) for (int i = 0; i < scene.trigger_count; i++) printf("trigger %d %s at %d,%d\n", i, scene.triggers[i].event, scene.triggers[i].x, scene.triggers[i].y);
+    if (debug_cells) for (int i = 0; i < scene.trigger_count; i++) { char ev[256]; gbk_utf8(scene.triggers[i].event, ev, sizeof ev); printf("trigger %d %s at %d,%d\n", i, ev, scene.triggers[i].x, scene.triggers[i].y); }  // 事件名是 GBK，轉 UTF-8 才看得懂（走查要看 s_pctstart 的劇情事件路徑）
     if (warp >= 0 && warp < scene.trigger_count) {
         int wt_x = 0, wt_y = 0;
         {   // 站到觸發區的感應格裡（可走、離擺放格最近的那格）；找不到就站擺放格
@@ -10533,6 +10567,9 @@ int main(int argc, char **argv) {
             clock_tick();
             debug_clock_apply();
             debug_commands_apply();
+#ifdef STORY
+            flag_watch_tick(tick);
+#endif
             weather_tick();
             ambient_tick(&scene);
 #ifdef STORY

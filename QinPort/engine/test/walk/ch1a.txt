@@ -1,0 +1,8 @@
+# 第一章 A：赵村開場（老者指路、初遇赵茜給麦饼）
+start
+expect kaishiyouxi=1
+talk oldman_a ask1 ask4 ask5 ask10
+plot 秦殇/赵村/PCT/初遇赵茜
+expect chuyuzhaoqian=1
+has ITEM/麦饼
+talk zhaoqian ask1

@@ -1,0 +1,15 @@
+# 開箱規則的「能不能開」（箱子／門物件第 17 格）：以前引擎當恆真，11 個覆寫的物件（颖川牢房大門、薛城暗門、宛城帅府大门等）的第 17 格從來沒跑
+start
+# 薛城暗門：第 17 格在目前房間放 3 個強盜（give_object 給房間）
+enter xuecheng
+canopen 秦殇/薛城/ITEM/暗门
+roomhas xuecheng NPC/强盗
+# 颖川牢房大門：key 還沒清掉時第 17 格什麼都不做、回 1
+canopen 秦殇/颖川/ITEM/牢房大门
+# 撿起劇情道具補第 15 格：太子妻遺書竹簡 → 劇情事件 爱妻遗书（日誌、旗標 aiqiyishu）
+pickup 秦殇/咸阳/ITEM/太子妻遗书竹简
+expect aiqiyishu=1
+# 撿起任務道具：解毒药的第 15 格在旗標 jieduyao 是 1 時改成 3（瀏覽器：赵村猎户的家宝箱開了、撿起地上的藥，旗標 1 -> 3；以前不變）
+flag jieduyao=1
+pickup 秦殇/赵村/ITEM/解毒药
+expect jieduyao=3

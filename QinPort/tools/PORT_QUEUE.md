@@ -59,5 +59,17 @@
 - [ ] 日夜／天氣循環逐時段截圖比對
 
 ## 遊玩驗證待修（2026-11-20 第 5 輪後）
-- [ ] 主線逐章走查前三章（NPC 對話、日誌、任務道具、過場、BOSS、出口旗標）：第 5 輪沒做
+- [x] 主線逐章走查：第 6 輪走完第一章整條、第二章開頭（HANDOFF「主線走查」表；`make walktest`）；沒走完的見下「主線走查待續」
 - [ ] 日夜／天氣逐時段與原版畫面比對（只有程式依據，沒有原版截圖）
+
+## 主線走查待續（第 6 輪停在這裡；2026-11-20，HANDOFF「主線走查」表）
+**走到哪**：第一章整條（赵村→阳周城→监狱→北地驿站→北地郡→咸阳→桓峰）headless 走查通過，第二章字幕與「回赵村、赵茜加入」（ch2a）通過。**下一步從第二章「寻访异人」本體開始**（桓峰任務「寻找精通机关制作的巧匠」），一路到彭城萧起（shuifuxiaoqi = 8、dierzhangjieshu = 1）→ 第三章字幕（砀山／泰山／九江／沛县）→ 衡山村田纲（disanzhangjieshu）。
+**要做的環節**（explore 卡住、需要戰鬥／撿道具／點建築的；先在 storytest walk 加 `kill 別名`（story_die）、`open 建築別名`（chest_open_rule）、`pickup` 指令，再用瀏覽器驗證）：
+1. 被摧毁的赵村：桃花仙境出口 taohuayuan（`0x1003ee60` 關著）、仙境山洞隨機出口（第 14 格用 STL list 抽 4 個山洞，已讓房間進得去，但山洞的隨機配對沒驗）；赵茜加入後旗標 zhaocunbeihui = 3。
+2. 雍县：当铺（第 14 格 start_plot 當鋪女子後 return 0，原版意圖，進不去是對的）、雍县城郊（BNT yongxian 8 區）、少年宝箱（yx_dongku 2 區）、屋门从里面锁上了（yx_house1）。
+3. 三川郡：田玥琳（tianyuelin 旗標 3→5、tianylbiwu 比武、晋府偏房搬人）、赵高手书／御使（帅府 schj_shuaifu 訊息「也许应该先去看看那个赵高派来的御使」）。
+4. 邯郸（淳于秋密室、丁迅请医生、hd_mishi 复活 14 區、送信遭擒）、云雾谷（宋季阴谋、茵珠加入、金蟾珠第 15 格 journal）、颖川（牢房大门 key lxdalao → 第 17 格開解救王岩；县令）、鹰喙岭（张良、聚义厅对质韩成）、沛县→彭城（荆无忌，dangshanyinju == 3 時進彭城第 16 格 start_plot）→ 萧起第 46 格。
+5. 咸阳的門：戏水村要 jingxiaomimi = 1 且 tuweiqiujiu < 3 或 > 9；骊山要 xianyanglishan（衡山村田纲第 48 格）；阿房宫要 xianyangepang（宛城「回报刘邦」）；太子府／赵高府邸「府门紧闭」是 BNT 建築的 key，用后门钥匙進偏房、遺書（香炉）→ 爱妻遗书事件還沒在瀏覽器走。
+6. explore 進不去的 56 間（`sh tools/walk.sh engine/test/walk/explore.txt | grep ^卡住`）多半是上面這些旗標門。
+**瀏覽器還沒驗的**：公文／钥匙等給道具後背包顯示與 find_item；桓峰劇情事件 pct_jyhfeng、赵村被毁 pct_zcbhui 的 Rec 播放；城門打開動畫；BOSS／戰鬥環節；怪物掉落的劇情道具（山魈头等，引擎 item_new 沒有劇情物件，第 15 格不會跑，原版是物件搬到地上／主角都跑）。
+**原版規則沒找到**：孔刚 s19／s22 等 110 個沒有呼叫點的格子（`python3 -I tools/story_orphans.py`，只有虛擬表引用）；薛城暗門第 17 格「place_npc 密道口 B 之後又 DelObjectFromRoom 同別名」——民居裡沒有先放過的同別名物件，結果看起來是把剛放的 B 刪掉，原版意圖沒查清（可能是 0x1003e5d0 對房間內建築有別的規則）。

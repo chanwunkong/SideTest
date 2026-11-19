@@ -1,0 +1,4 @@
+# 全遊戲可達性探索（假設 2000 文錢；不模擬戰鬥／撿道具／點建築）
+use_triggers
+start
+explore 14

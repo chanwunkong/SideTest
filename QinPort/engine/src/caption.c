@@ -131,6 +131,7 @@ static void chapter_message(int chap, int section) {
     }
     char t[128];
     ui_text(0x5ef + chap, t, sizeof t);
+    printf("章節 %d 節 %d：%s\n", chap, section, t);
     if (t[0]) hud_say(t);
 }
 

@@ -31,6 +31,10 @@ build/story-wasm.a: ../story/index.txt src/story/qinstory.h
 storytest: src/story/storytest.c src/story/story_rt.c src/story/story.h build/story-wasm.a
 	emcc -O1 -Wall -Wextra -Isrc/story -sALLOW_MEMORY_GROWTH -o build/storytest.js src/story/storytest.c src/story/story_rt.c build/story-wasm.a
 
+# 主線走查（無畫面，劇情世界）：make walktest → 印 walktest ok（腳本在 test/walk/，探索報告 test/walk/explore.txt 見 tools/walk.sh）
+walktest: storytest
+	sh ../tools/walktest.sh
+
 # 網頁版（給手機透過 Tailscale 測試）：遊戲檔不打包，執行時跟 tools/webserve.py 要
 # 有 ../story（tools/storytool.py 產生）就把原版劇情編進去（-DSTORY）；劇情只在 32 位元下才對，所以只有網頁版有
 WEB_STORY = $(if $(wildcard ../story/index.txt),-DSTORY -Isrc/story src/story/story_rt.c build/story-wasm.a)

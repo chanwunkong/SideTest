@@ -67,7 +67,10 @@ int story_load(FILE *f, size_t item_size);
 const char *story_alias(int h);
 const char *story_path(int h);
 int story_kind(int h);                          // 0 房間 1 人物 2 道具 5 技能 6 劇情事件；−1 不存在
+int story_can_open(int h);                      // 開箱規則的「能不能開」（箱子／門物件第 17 格）
+void story_item_moved(int h, int dest, int old); // 道具換持有者（箱子掉落、撿起）後補物件第 15 格（旗標、日誌、劇情事件）
 int story_has_int(int h, const char *key);
+const char *story_flag_at(int h, int i, int *val);  // 旗標列舉（走查用）
 const char *story_get_str(int h, const char *key);
 void story_set_str(int h, const char *key, const char *s);
 void story_set_name(int h, const char *s);
@@ -77,6 +80,7 @@ int story_enter(int room);                       // 主角走進房間（查出�
 void story_place(int room);                      // 主角直接放進房間（新遊戲、讀檔）
 void story_start(int room);                      // 新遊戲開局：放進開場房間並跑進房間檢查（第 14 格）
 int story_exit(int room, const char *dir, char *path, int cap, int *entry);  // 出口（開著才回 1）
+int story_exit_nth(int room, int i, const char **dir, const char **path, int *entry, int *on);  // 出口列舉（走查用）
 int story_exit_on(int room, const char *dir);    // 出口開關；沒有這個出口回 −1
 int story_random_exit(int room, const char *dir, char *path, int cap, int *entry);  // 隨機地下城出口（有換回 1）
 int story_die(int h);                            // 被打倒：第 10 格同意就刪掉，回 1
