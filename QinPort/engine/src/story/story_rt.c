@@ -730,6 +730,13 @@ void story_place(int room) {
     for (int m = team_next(pl, 0); m; m = team_next(pl, m)) objs[m].parent = room;
 }
 
+// 新遊戲開局：主角放進開場房間後跑進房間檢查（第 14 格）。赵村的第 14 格在旗標 kaishiyouxi 還沒有時開「亡命天涯」（日誌「重返咸阳」、血量扣 2/3），
+// 單機沒有別的房間可「走進來」，不跑的話新遊戲永遠沒有這段開場、也沒有任務。shortcut: 原版新遊戲怎麼進開場房間（0x1003d470 的 old = 空，不查第 13／14 格）沒查到，這裡補跑
+void story_start(int room) {
+    story_place(room);
+    if (O(room)) slot_calla(room, 14, (intptr_t[8]){0, story_player(), 0});
+}
+
 // 隨機出口（0x10052af0）：房間的 "Exit_<方向>_<n>" 字串有 1/(n+1) 機會不用，否則挑一個產生地下城房間，
 // 它的 "out" 出口回到原本的出口。有換時 path 改成新房間、回 1
 int story_random_exit(int room, const char *dir, char *path, int cap, int *entry) {

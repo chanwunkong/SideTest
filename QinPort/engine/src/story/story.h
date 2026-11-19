@@ -74,6 +74,7 @@ int story_room_by_path(const char *path);        // 依路徑取房間（還沒�
 const char *story_room_alias(int room);          // 房間別名 = 場景檔名
 int story_enter(int room);                       // 主角走進房間（查出入、隊員跟著、第 16 格）；不讓進回 0
 void story_place(int room);                      // 主角直接放進房間（新遊戲、讀檔）
+void story_start(int room);                      // 新遊戲開局：放進開場房間並跑進房間檢查（第 14 格）
 int story_exit(int room, const char *dir, char *path, int cap, int *entry);  // 出口（開著才回 1）
 int story_exit_on(int room, const char *dir);    // 出口開關；沒有這個出口回 −1
 int story_random_exit(int room, const char *dir, char *path, int cap, int *entry);  // 隨機地下城出口（有換回 1）

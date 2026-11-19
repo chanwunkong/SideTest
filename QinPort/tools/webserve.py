@@ -10,6 +10,8 @@
   進場景時引擎用它一次抓回幾百張圖，避免一張一張來回。
 - 瀏覽器支援 gzip 時回應會壓縮（行動網路差很多）。
 只綁 Tailscale 位址，不要開到公開網路：遊戲檔只給自己的裝置用。
+要 https（service worker／加入主畫面離線快取需要）：伺服器綁 127.0.0.1，再 `tailscale serve --bg --https=443 http://127.0.0.1:<連接埠>`，
+手機開 https://<機器名>.<tailnet>.ts.net/（反向代理，這支程式不用改；細節見 HANDOFF「PWA」）。
 用法：python3 webserve.py <web 資料夾> <遊戲資料夾> <綁定位址> [連接埠]
 """
 import gzip, http.server, json, os, struct, subprocess, sys, tempfile
@@ -75,6 +77,8 @@ def movie_mp4(name):
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    extensions_map = {**http.server.SimpleHTTPRequestHandler.extensions_map, '.webmanifest': 'application/manifest+json', '.wasm': 'application/wasm', '.js': 'text/javascript'}
+
     def __init__(self, *a, **k):
         super().__init__(*a, directory=WEB, **k)
 

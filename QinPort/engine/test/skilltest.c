@@ -209,8 +209,10 @@ static void character_skill_commands_test(void) {
     *a=base; t->x=14.5f; actor_queue_command(a,15,(int)t->object_id,0,0); actor_skill_command_tick(a);
     assert(!talk_to && a->command[0]==15 && a->dynamic_state==11 && a->dynamic_command[0]==14);
     t->x=6.5f; *a=base; a->command[0]=15; a->command[1]=(int)t->object_id; a->modifier[0].value=0;
-    assert(buff_add(a,NULL,103,1,5,0)); actor_skill_command_tick(a);
-    assert(a->command[0]==15 && !talk_to);
+    assert(buff_add(t,NULL,103,1,5,0)); actor_skill_command_tick(a);  // 無对话是目標的狀態（0x489e74 ecx = 目標）
+    assert(a->command[0]==15 && !talk_to); t->state[103]=0;
+    assert(buff_add(a,NULL,103,1,5,0)); actor_skill_command_tick(a);  // 說話者自己的 103 不擋
+    assert(a->command[0]==-1 && talk_to==t); talk_from=talk_to=NULL; a->state[103]=0;
     // 目標不存在：收尾。命令0x11撿地上道具：2格內撿起來，不在範圍走過去。
     *a=base; a->command[0]=15; a->command[1]=12345; actor_skill_command_tick(a); assert(a->command[0]==-1);
     {
@@ -4201,6 +4203,13 @@ static void first_map_test(void) {
     cache_clear();
     assert(tile_tag("game/Res/b.Lib") == 1 && tex_bytes == 0);
     cache_clear();
+    // 走近自動說話：站著 3 格內、走動 2 格內觸發；觸發後離開 6 格才再觸發
+    unsigned char done = 0;
+    assert(!auto_talk_step(4, 1, &done) && !auto_talk_step(3, 0, &done) && !done);  // 站著 4 格、走動 3 格都不觸發
+    assert(auto_talk_step(3, 1, &done) && done);
+    assert(!auto_talk_step(1, 1, &done) && !auto_talk_step(6, 1, &done) && done);   // 已觸發：近或剛好 6 格都不再觸發
+    assert(!auto_talk_step(7, 1, &done) && !done);                                  // 離開超過 6 格：清掉
+    assert(auto_talk_step(2, 0, &done));                                            // 之後走動靠近 2 格又能觸發
 }
 
 static void death_team_test(void) {
@@ -5269,7 +5278,7 @@ int main(void) {
         h.fight = 1;  // 战斗状态點誰都打
         assert(click_cmd(&h, &c, -1) == CMD_ATTACK && input_cursor(&h, &c, -1, -1, -1) == CUR_ATTACK);
         h.fight = 0;
-        assert(buff_add(&h, NULL, 103, 1, 5, 0) && input_cursor(&h, &c, -1, -1, -1) == CUR_NORMAL);
+        assert(buff_add(&c, NULL, 103, 1, 5, 0) && input_cursor(&h, &c, -1, -1, -1) == CUR_NORMAL);  // 目標的 103（0x489e74：ecx = 目標）
         assert(click_cmd(&h, &h, 3) == CMD_PICK && input_cursor(&h, &h, 3, -1, -1) == CUR_ITEM);  // 點自己 = 看底下的道具
         assert(click_cmd(&h, NULL, -1) == CMD_MOVE);
         assert(buff_add(&h, NULL, 17, 1, 5, 0) && click_cmd(&h, &c, -1) == CMD_NONE);  // 溃散不收指令

@@ -2,12 +2,20 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="秦殤">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>秦殤 測試版</title>
 <style>
   html, body { margin: 0; height: 100%; background: #000; color: #ccc; overflow: hidden; touch-action: none; font-family: sans-serif; }
   #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  /* 瀏海／底部橫條：用探針取 env(safe-area-inset-*)，畫布只佔安全區（虛擬按鍵跟著避開），其餘黑色 */
+  #safe { position: fixed; inset: 0; visibility: hidden; pointer-events: none; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
   canvas { display: block; image-rendering: auto; }
   /* 載入畫面：標題、進度條、下載了幾張圖／剩幾張；載入完成才消失，出錯顯示紅字 */
   #loader { position: fixed; inset: 0; z-index: 5; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
@@ -21,6 +29,7 @@
 </style>
 </head>
 <body>
+<div id="safe"></div>
 <div id="wrap"><canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas></div>
 <div id="loader"><div id="ltitle">秦殤</div><div id="lbar"><div id="lfill"></div></div><div id="lsub">正在下載遊戲程式…</div><div id="lcount"></div><div id="lerr"></div></div>
 <div id="status"></div>
@@ -61,9 +70,14 @@
     addEventListener(ev, () => { window.qinTouched = 1; if (!failed && !status.textContent.startsWith('載入')) status.textContent = ''; }, true);
   // 畫布塞滿整個可視區；遊戲畫面固定 4:3 不拉伸，橫式置中、直式貼上緣，其餘給觸控按鈕
   // （引擎每幀讀 innerWidth／innerHeight 排版，並把畫布緩衝設成同樣長寬比，這裡只負責 CSS 塞滿）
+  // qinW／qinH = 安全區內的可用大小（引擎 js_inner_w／h 讀它）；canvas 放在安全區內（#wrap 全螢幕置中，用 margin 讓出非對稱的瀏海）
+  const safeEl = document.getElementById('safe');
   function fit() {
-    canvas.style.width = innerWidth + 'px';
-    canvas.style.height = innerHeight + 'px';
+    const c = getComputedStyle(safeEl), t = parseFloat(c.paddingTop) || 0, r = parseFloat(c.paddingRight) || 0, b = parseFloat(c.paddingBottom) || 0, l = parseFloat(c.paddingLeft) || 0;
+    window.qinW = Math.max(1, innerWidth - l - r); window.qinH = Math.max(1, innerHeight - t - b);
+    canvas.style.width = window.qinW + 'px';
+    canvas.style.height = window.qinH + 'px';
+    canvas.style.margin = `${t}px ${r}px ${b}px ${l}px`;
   }
   addEventListener('orientationchange', fit);
   addEventListener('resize', fit);
@@ -74,6 +88,7 @@
   if (q.get('scene')) args.push(q.get('scene'));  // 沒指定 = 新遊戲（從原版開場房間開始）
   if (q.get('debug') === 'cells') args.push('--debug-cells'); else if (q.get('debug') === 'trace') args.push('--debug-trace');  // 疊圖：不可走／建築占地／觸發區
   if (q.get('bounce')) args.push('--debug-bounce', q.get('bounce'));  // 測試：進這個場景再回來，console 印耗時
+  if (q.get('autotalk') === '0') args.push('--no-autotalk');  // 關閉走近自動說話
   if (q.get('warp')) args.push('--warp', q.get('warp'));
   if (q.get('level')) args.push('--level', q.get('level'));
   if (q.get('prof')) args.push('--prof', q.get('prof'));
@@ -89,6 +104,8 @@
     printErr: (t) => console.warn(t),
   };
   new ResizeObserver(fit).observe(canvas);
+  // PWA：只有 https 或 localhost（安全環境）才有 service worker；http://100.x.x.x 沒有，照樣能玩只是不離線快取（見 HANDOFF「PWA」）
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch((e) => console.warn('service worker 註冊失敗', e));
 </script>
 {{{ SCRIPT }}}
 </body>

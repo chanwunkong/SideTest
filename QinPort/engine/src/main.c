@@ -360,6 +360,7 @@ typedef struct Actor {
     unsigned char path_buf[500];    // +0xcb：250筆(x,y)反向路徑，[0]=終點、[count-1]=起點
     const Scene *bound_scene;
     int grid_x, grid_y, grid_valid, occupancy_removed, object_dead, object_kind;
+    unsigned char auto_talked;      // 走近自動說話已觸發過：離開 AUTO_TALK_LEAVE 格才清（auto_talk_step）
     int walk_blocked;               // 按住走路（actor_step）上一次嘗試完全走不動：站著不播走路動作
     unsigned char removal_mode;
     int corpse_visible;
@@ -1518,6 +1519,7 @@ static void actor_person_init(Actor *a, int h, int (*get)(int, const char *)) {
     a->ex[64] = get(h, "B_C_MOVE_SPEED");
     a->ex[65] = get(h, "B_C_FIGHT_SPEED");
     a->ex[66] = get(h, "B_C_VRANGE");
+    actor_status_notify(a, 103, get(h, "G_NPCActive") != 0, -1);  // 0x51b 的起始值：G_NPCActive 0 = 能對話（其餘狀態 103 無对话）
     actor_properties_update(a);
 }
 
@@ -5654,6 +5656,15 @@ static void actor_interact_approach(Actor *a, int x, int y) {
 
 // 原版封包0x75（說話）／0x68（撿道具）的單機接收端。
 static Actor *talk_from, *talk_to;
+// 走近自動說話（輔助，預設開；--no-autotalk／?autotalk=0 關）。shortcut: 原版沒有「主角走近 NPC 自動開口」（只有 s_pctstart 觸發區、
+// 命令 15 點 NPC、NPC 頭頂隨機台詞 npc_chat），手機很難點準 NPC 才加。主角站著時 3 格內、走動時 2 格內觸發；同一個 NPC 說過後要離開 6 格才再觸發。
+static int auto_talk = 1;
+#define AUTO_TALK_LEAVE 6
+static int auto_talk_step(int dist, int still, unsigned char *done) {
+    if (dist > AUTO_TALK_LEAVE) *done = 0;
+    if (*done || dist > (still ? 3 : 2)) return 0;
+    return *done = 1;
+}
 static void ground_pick(int g);
 static int ground_find(int id) {
     for (int i = 0; i < ground_n; i++) if (ground[i].id == id) return i;
@@ -5676,7 +5687,7 @@ static void actor_interact_tick(Actor *a) {
         if (abs(sx - tx) > 3 || abs(sy - ty) > 3 || !line_clear(sx, sy, tx, ty, 3, 3)) { actor_interact_approach(a, tx, ty); return; }
         Actor *from = a, *to = t;
         if (a->grp > 60000) { a->search_link = 0; from = t; to = a; }  // 組60001以上：說話者與對象互換
-        else if (has_status(a, 0x67)) return;  // 无对话：等狀態解除，命令保留
+        else if (has_status(t, 0x67)) return;  // 目標無对话（0x489e74：ecx = 目標）：等狀態解除，命令保留
         actor_dynamic_command(a, 1, 0, 0, 0);
         // shortcut: 原版模板+0x118==1（單方向模型）不轉向，這裡都轉
         actor_direction_set(t, dir_of(ax64(a), ay64(a), ax64(t), ay64(t), 8));
@@ -7118,8 +7129,7 @@ static void story_msgs(void) {
         case 0x51b:
             a = character_of((int)m->v[0]);
             // 原版僅第三參數>0時寫第二參數；0及負數只改狀態103。
-            // shortcut: 狀態103的設定／解除仍待完整角色狀態入口，
-            // 接入後補齊本分支；目前只接原版獨立的關聯識別setter。
+            if (a) actor_status_notify(a, 103, m->v[2] != 0, -1);  // 0x51b：第三參數 0 解除「无对话」，其餘設上
             if (a && m->v[2] > 0) actor_search_link_set(a, (int)m->v[1]);
             break;
         case 0x533:  // 畫面效果（Poq.exe 0x533）：v[1] = 1 → v[2] 1 黑幕淡出停 0x50 拍再淡入、2 淡出後黑著；v[1] = 2 → 鏡頭平滑移到物件 v[2]（0x44e380，不是震動）
@@ -7646,6 +7656,7 @@ static void new_done(void) {
     hero_from_story(1);
     hero_skill_n = -1;  // 技能表依新職業重讀
     cur_skill[0] = cur_skill[1] = 0;
+    story_begin(); story_start(sroom); story_end();  // 開場房間的進房間檢查（赵村：亡命天涯）
 #endif
     SDL_StopTextInput();
     new_open = 0;
@@ -8855,7 +8866,7 @@ static int chest_at(int cx, int cy) {
 static int input_cursor(const Actor *h, const Actor *c, int item, int cx, int cy) {
     if (c && c != h) {
         if (in_fight(h) || is_foe(c, h)) return CUR_ATTACK;
-        return has_status(h, 103) ? CUR_NORMAL : CUR_TALK;  // 103 无对话
+        return has_status(c, 103) ? CUR_NORMAL : CUR_TALK;  // 103 无对话（目標的）
     }
     if (item >= 0) return CUR_ITEM;
     Object *b = NULL;
@@ -9116,6 +9127,7 @@ static void rec_ctl(const uint8_t *b, size_t n) {
 
 // 結束 Rec（0x472380 模式 2 還原場景／介面）：錄影角色刪掉、真角色放回、鏡頭回主角，再跑劇情事件的第 18 格
 static void rec_end(const Scene *s, Actor *hero) {
+    printf("過場結束（第 %u 拍）\n", rec.tick);
     for (int i = 0; i < rec.cnt; i++) { Actor *a = &actors[rec.idx[i]]; if (a->rec) rec_remove(a); }
     while (actor_count > rec.saved_count && !actors[actor_count - 1].role && !actors[actor_count - 1].mon && actors[actor_count - 1].sh == 0) actor_count--;
     for (int i = 0; i < rec.hold_n; i++) { Actor *a = &actors[rec.hold[i]]; if (a->role) actor_place(a, (int)a->x, (int)a->y, 1); }
@@ -9179,6 +9191,7 @@ static int rec_begin(const char *name, const Scene *s, Actor *hero, const char *
     viewport_follow_set(&viewport, s, hero, 0);
     rec_on = 1;
     scene_record_mode = 2;  // 0x472e60：Rec 模式 2 = 回放
+    printf("過場 %s 開始\n", name);
     return 1;
 }
 
@@ -9187,8 +9200,8 @@ static int rec_begin(const char *name, const Scene *s, Actor *hero, const char *
 
 // 視窗（網頁 = 瀏覽器可視區）實際大小，排版用
 #ifdef __EMSCRIPTEN__
-EM_JS(int, js_inner_w, (), { return window.innerWidth; });
-EM_JS(int, js_inner_h, (), { return window.innerHeight; });
+EM_JS(int, js_inner_w, (), { return window.qinW || window.innerWidth; });  // qinW／qinH：shell.html 扣掉瀏海／橫條的安全區
+EM_JS(int, js_inner_h, (), { return window.qinH || window.innerHeight; });
 #endif
 static void screen_size(SDL_Window *win, int *w, int *h) {
 #ifdef __EMSCRIPTEN__
@@ -9212,6 +9225,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--openall") && i + 1 < argc) openall_alias = argv[++i];  // 文字指令 openall（0x10019d70）
         if (!strcmp(argv[i], "--simple-deaths")) death_keep_mode = 0;
         else if (!strcmp(argv[i], "--debug-bounce") && i + 1 < argc) bounce_alias = argv[++i];  // 測試用：200 拍後進這個場景、420 拍後回來，印耗時
+        else if (!strcmp(argv[i], "--no-autotalk")) auto_talk = 0;
         else if (!strcmp(argv[i], "--debug-cells")) debug_cells = 1;
         else if (!strcmp(argv[i], "--debug-trace")) debug_cells = 2;  // 疊圖並每 2 拍印主角座標與鏡頭
         else if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
@@ -9287,6 +9301,7 @@ int main(int argc, char **argv) {
     int room = -1, armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
     int monsters_due = 1;      // 進場景後等圖片都下載好，再讀房間表放怪物（網頁版開場不用等 4MB 的 DLL）
     if (at_x >= 0) actor_restore_position(hero, at_x + 0.5f, at_y + 0.5f);
+    if (debug_cells) for (int i = 0; i < scene.trigger_count; i++) printf("trigger %d %s at %d,%d\n", i, scene.triggers[i].event, scene.triggers[i].x, scene.triggers[i].y);
     if (warp >= 0 && warp < scene.trigger_count) {
         {   // 站到觸發區的感應格裡（可走、離擺放格最近的那格）；找不到就站擺放格
             const Trigger *wt = &scene.triggers[warp];
@@ -9659,8 +9674,27 @@ int main(int argc, char **argv) {
                 const char *event = actor_init_name(n);
                 if (!n->mon && event && *event && from == scene_client_actor(&scene_client)) {
                     int npc = story_find(story_room(alias), event);
+                    if (debug_cells == 2) printf("talk %s npc=%d\n", event, npc);
                     if (npc) { story_begin(); story_talk(npc); story_end(); dialog_open = 1; }
                     else printf("劇情裡找不到 NPC %s\n", event);
+                }
+            }
+#endif
+#ifdef STORY
+            if (auto_talk && !rec_on && !dialog_open && !(dead_open || sys_open || map_open || new_open || pick_hand >= 0 || ask_open || quit_open || sav_mode || diff_open || trade_paused()) &&
+                hero->act == 0 && !has_status(hero, 17) && !has_status(hero, 14)) {
+                int hsx = ax64(hero) >> 6, hsy = ay64(hero) >> 6;
+                for (int i = 1; i < actor_count; i++) {
+                    Actor *n = &actors[i];
+                    const char *ev = actor_init_name(n);
+                    if (n->mon || !n->role || n->act == ACT_DEAD || !ev || !*ev || is_foe(n, hero)) continue;
+                    int nx = ax64(n) >> 6, ny = ay64(n) >> 6, d = abs(hsx - nx) > abs(hsy - ny) ? abs(hsx - nx) : abs(hsy - ny);
+                    if (!auto_talk_step(d, !hero->moving && mx * mx + my * my <= 0.01f, &n->auto_talked)) continue;
+                    if (!line_clear(hsx, hsy, nx, ny, 3, 3) || !story_find(story_room(alias), ev)) { n->auto_talked = 0; continue; }
+                    if (debug_cells == 2) printf("autotalk %s\n", ev);
+                    actor_command(hero, 0xf, n->sh ? n->sh : (int)n->object_id, 0, 0, 1, 1);
+                    hero->foe = NULL; hero->want = NULL; walk_cx = -1;
+                    break;
                 }
             }
 #endif
@@ -9683,6 +9717,13 @@ int main(int argc, char **argv) {
             else if (!pursue(hero)) actor_tick(hero, &scene, 0, 0, tick);
             if (debug_cells == 2 && tick % 2 == 0)
                 printf("trace t=%u hero=%.3f,%.3f cam=%d,%d moving=%d dir=%d\n", tick, hero->x, hero->y, viewport.pos.x, viewport.pos.y, hero->moving, hero->dir);
+            if (debug_cells == 2 && tick % 120 == 0)  // 除錯：列出可對話的 NPC（事件ID、格子、畫面座標），自動操作腳本用來點它們
+                for (int i = 1; i < actor_count; i++) {
+                    const char *ev = actor_init_name(&actors[i]);
+                    if (actors[i].mon || !ev || !*ev) continue;
+                    SDL_Point sp = viewport_world_screen(&viewport, ax64(&actors[i]), ay64(&actors[i]));
+                    printf("npc %s cell=%d,%d screen=%d,%d\n", ev, (int)actors[i].x, (int)actors[i].y, sp.x, sp.y);
+                }
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
                 if (rec_on) continue;  // 過場：錄影角色只照封包動（actor_motion_tick），真角色凍結

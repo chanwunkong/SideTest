@@ -1635,3 +1635,34 @@ FUNCS.tsv todo 仍 0。使用者要玩非劇情模式，「劇情沒用到」不
 - 沒實機驗證：手機上的手感（貼牆滑動／站住的抖動是否消失）、真實 4G 的回場景時間；記憶體上限（下載資料 96MB、貼圖 160MB）是估的，iPhone 上若仍被系統殺掉要調低 `CACHE_CAP`／`TEX_CAP`。
 - 回到快取過的場景時，被丟棄的是「還在路上的批次」：離開時還沒下載完的圖回來要重抓（下載中的那批結果因世代作廢）。
 - 原生版（沒有劇情）`--warp` 找到的感應格若周圍 20 格內都不可走，會退回擺放格。
+
+## 走近自動說話、開場流程、PWA（2026-11-19）
+使用者手機試玩：「NPC 很難點」「第一張地圖什麼事情都不能做」「想加到主畫面」。驗證都用 headless Chrome（複本 `/tmp/qb6/qinport`、`webserve.py … 127.0.0.1 8651`）；整套自動檢查：`sh tools/firstmap_check.sh http://127.0.0.1:8651/`（印 firstmap ok）、`node tools/pwa_check.mjs http://127.0.0.1:8651/`（印 pwa ok）。
+
+### (2) 第一張地圖「什麼都不能做」——真正的根因：主角說不了話
+- **查到的**：新遊戲起點是赵村（zhaocun1，`story_start_room`）。原版沒有強制任務：日誌「重返京城咸阳」（亡命天涯）、出口 `go eastsouth`（地圖東南角 173,114）→ 阳周城；NPC 都是問答式（老者A 指路咸阳、赵茜在村東、武器要去阳周城買）；中間大片感應區（x 84~101、y 101~108，約 30 個 `s_pctstart`）觸發「初遇赵茜」過場（給 3 麥餅、日誌）。主角出生在 (29,107)，離最近的 NPC 老者（45,106）16 格、離感應區 55 格，所以只看到走路。
+- **bug（已修）**：`actor_setup`（Poq 0x4862e0）給每個角色先設狀態 103「无对话」（0x67），原版由訊息 0x51b（EasyRPG SetAttr G_NPCActive）：第三參數 0 → 解除、其餘設上；單機版 0x51b 沒接 103（註解寫「待完整角色狀態入口」），而且命令 15（`actor_interact_tick`）與游標（`input_cursor`）檢查的是**說話者（主角）**的 103。結果主角永遠有 103，**點 NPC 永遠說不了話**（命令保留、一直追著走）。原版組語 0x489e74：`mov ecx, edi; push 0x67; call 0x404156` 的 edi = 目標 NPC，所以檢查的是**目標**。修法：`has_status(t, 0x67)`、`input_cursor` 看 c、0x51b 設／解 103、`actor_person_init` 照 G_NPCActive 起始（0 = 能說話）。skilltest：`character_skill_commands_test`（103 在目標才擋、說話者自己有 103 不擋）、`input_cursor` 斷言改目標。
+- **新遊戲沒有開場任務（已修）**：赵村第 14 格（進房間檢查）在旗標 kaishiyouxi 不存在時開「亡命天涯」，但新遊戲 `story_place` 不跑第 14 格，所以「重返咸阳」日誌從來沒出現（只有離開再回赵村才會）。新增 `story_start(room)`（story_rt.c；創角完成 `new_done` 呼叫）：放進房間並跑第 14 格。shortcut：原版新遊戲怎麼進開場房間沒查到，這裡補跑。
+- **引擎流程 vs 原版**：原版 pct_wmtya.rec 的場景是 `ptdhcj`（片头动画场景，另一個房間）、引擎沒有那個場景，過場「場景不同不播」直接給日誌；亡命天涯／初遇赵茜把血量 −2/3、+1000 的屬性效果也沒有（0x42aa0 對主角不套用，主角血量是引擎自己算的，沒動）。其餘驗證過：走到 `go eastsouth` 感應格（`?warp=1`）→ 過場 pct_kgszhu、孔刚入隊 → 進阳周城；踩 `s_pctstart`（`?warp=16`）→ 過場 pct_cyzqian 約 295 拍播完、日誌。
+- **沒解決**：過場播放時鏡頭不跟（錄影裡的鏡頭封包沒做），畫面看不到赵茜；開場沒有任何方向提示（原版也沒有，只有日誌）。`--at` 傳送後鏡頭不會立刻置中（測試用旗標的舊毛病，沒動）。
+- 除錯：`?debug=trace` 現在每 120 拍列出 NPC（事件 ID、格、畫面座標）、場景列出全部觸發區（`trigger N 事件 at x,y`）、說話請求（`talk 事件 npc=`）、自動說話（`autotalk 事件`）；過場開始／結束一律印。
+
+### (1) 走近 NPC 自動說話（輔助，不是原版機制）
+- 查原版：只有 ① 命令 15 點 NPC（3 格內且直線通才說）② BNT 觸發區 `s_pctstart`（CTriBld 0x484a80，踩占地格開劇情）③ NPC 頭頂隨機台詞 `npc_chat`（0x490d10／0x490e70，只是泡泡，不開對話）。**沒有**「主角走近自動開口」，所以是輔助：預設開，`--no-autotalk`／網頁 `?autotalk=0` 關。
+- 規則（`auto_talk_step`，純函數；主迴圈在 `talk_to` 處理後）：非怪物、活著、有事件 ID 且劇情裡有這個 NPC、不是敵對；主角站著（沒走、搖桿放開）3 格內、走動 2 格內，且 `line_clear`（跟原版一樣的直線）→ 發命令 15（走完轉向、開對話都沿用 `actor_interact_tick`）。觸發過的 NPC 標記 `auto_talked`，離開 6 格才清。對話、系統選單、創角、難度、地圖、存讀檔、交易、過場、死亡、主角有狀態 17／14 時不觸發。
+- 驗證：skilltest `auto_talk_step`；瀏覽器 `?scene=zhaocun1&at=44,107` 站在老者旁 → console `autotalk oldman_a`、`talk oldman_a npc=8`、對話窗開（截圖看到「老者／您好，老伯！」，點選項推進對話）；`autotalk=0` 不觸發。**沒用手指實際走過去驗證**（`--at` 傳送後鏡頭沒置中，點不到畫面上的 NPC；走動分支只靠單元測試）。
+- 限制：NPC 擋在牆後（直線不通）不觸發、要靠近一點；多個 NPC 同時在 3 格內，一拍只開一個（陣列順序）。
+
+### (3) PWA（加入主畫面）
+- `web/manifest.webmanifest`（name 秦殤、standalone、orientation any、黑底、192／512／maskable 圖示）、`web/apple-touch-icon.png`（180）、圖示由 `node tools/pwa_icons.mjs` 用 headless Chrome 畫（深綠底、金色「秦」；已產生放在 web/，不必每次建）。shell.html：`viewport-fit=cover`、`apple-mobile-web-app-capable`／`mobile-web-app-capable`、`status-bar-style=black-translucent`、`theme-color`、`link manifest／apple-touch-icon`。
+- **安全區**：`#safe` 探針取 `env(safe-area-inset-*)`，`fit()` 算 `window.qinW／qinH`（扣掉瀏海、底部橫條）並把畫布放進安全區（margin），引擎 `js_inner_w／h` 讀 qinW／qinH，所以虛擬按鍵、搖桿自然避開；缺口處是黑色。`pwa_check.mjs` 用 CDP `Emulation.setSafeAreaInsetsOverride`（左右 47、下 21）驗證畫布範圍。
+- **Service worker**：樣板 `tools/sw.template.js`，`make web` 結尾（Makefile）把版本換成 index.js／index.wasm／shell.html 的 cksum，寫成 `web/sw.js`（已加進 .gitignore）。只快取 `./ index.html index.js index.wasm manifest 圖示`（cache-first，網址參數忽略）；`/game/`、`/batch`、`/movie`、sw.js 本身不攔、走網路。無 skipWaiting：新版本裝好後等舊分頁／App 全關，下次開啟才換。
+- `pwa_check.mjs`（localhost 是安全環境）驗證：`Page.getAppManifest` 無錯誤、圖示可下載且是 PNG、快取只有引擎檔、離線重開引擎仍載入、安全區。
+- **限制：`http://100.x.x.x` 不是安全環境，瀏覽器不提供 service worker**（`navigator.serviceWorker` 不存在，shell.html 已防呆）；manifest／圖示／iOS meta 仍有效，iOS 照樣能「加入主畫面」並全螢幕，只是沒有離線快取（每次還是下載 9MB 的 wasm，瀏覽器 HTTP 快取另計）。要 service worker 就要 https：
+  1. Tailscale 管理頁 DNS 分頁開 MagicDNS 與 HTTPS Certificates（一次性）。
+  2. 伺服器綁本機：`python3 tools/webserve.py web game 127.0.0.1 8642`（跟現在綁 100.x 的那個擇一，或另開別的埠）。
+  3. `tailscale serve --bg --https=443 http://127.0.0.1:8642`（`tailscale serve status` 看網址；`tailscale serve reset` 取消）。
+  4. 手機（要在同一個 tailnet）開 `https://<機器名>.<tailnet>.ts.net/` → 分享 → 加入主畫面。webserve.py 不用改（反向代理；只補了 `.webmanifest`／`.wasm` 的 MIME）。這個流程**沒有實際執行**（沒動使用者的伺服器、沒有設定 Tailscale）。
+- 沒驗證：iOS 實機（加入主畫面的圖示、黑色狀態列、瀏海避讓只在 Chrome 模擬）；`Add to Home Screen` 在 http 下 iOS 是否保留全螢幕沒實測。
+
+測試最後一行：`make skilltest` → `skilltest ok`；`make storytest && node build/storytest.js 秦殇/咸阳/NPC/绣女 0 1` 正常；`firstmap ok`、`pwa ok`。
