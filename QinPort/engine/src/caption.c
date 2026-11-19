@@ -8,8 +8,9 @@
 // 捲動：文字從框底升起（每拍 1 像素到閘門 +0x28c），之後每 +0x2b0 拍把閘門上移一行（16 像素，再用 16 拍升上去）；
 // 文字剩不到 6 行高就換頁（章節 ≥ 10 且還有下一頁）或結束（章節 < 10 關窗；≥ 10 最後一頁 → 模式 12 = 片尾字幕）。
 // 開始 0x566550 把 HUD 藏起來（這裡整個畫面蓋黑底）；結束 0x5664f0 停配音、HUD 回來；OK 鈕 0x566590：章節 ≥ 10 = 下一頁（最後一頁就結束），< 10 = 關窗。
-// shortcut: 配音 sound\C%.3d.wav 沒播（單機網頁版整包預載，29 個共 74MB 太大），所以每行間隔用原版「沒有配音」的預設 200 拍
-//   （0x566920：+0x2b4 == −1 時 +0x2b0 = 0 → 200），配音一結束才換頁的判斷（Mfx_LWave_IsPlaying）永遠是「沒在播」；
+// 配音 sound\C%.3d.wav（0x566920 每頁開始播，檔號 = 文字 id 表 ch_text；Mfx_LWave_IsPlaying 配音沒播完不換頁）：audio_voice(1000 + 檔號)。
+//   每行間隔 +0x2b0 = (1000 / 每拍毫秒) × 配音秒數 / 行數（+0x2b8 = 文字高 / 行高）；沒有配音（或還沒載好）= 0 → 200 拍。網頁版配音要先下載，
+//   shortcut: 下載中（audio_voice_state == 1）捲動暫停，載好才依長度算間隔（原版 Mfx_LWave_Play 同步播）；
 //   字色 (192,200,184) 是 16 位元色 0xC657 轉的，原版的陰影／描邊旗標（DrawText 旗標 7）沒做；
 //   遊戲模式旗標（原版開窗時寫 7、4、結束寫 12）反編譯裡沒有地方讀它，沒做。
 #define CH_TOP 361   // 0x953a50~5c = 0x645568：框 (44, 361) – (597, 441)，兩種章節同一個框
@@ -21,7 +22,7 @@ static const int ch_lines[10] = {4, 3, 2, 2, 2, 3, 3, 4, 2, 3};
 static const int ch_text[29] = {11, 15, 18, 20, 22, 24, 27, 30, 34, 36, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61};
 static const int ch_group_pages[8] = {0, 3, 3, 2, 3, 3, 2, 3};  // 0x645270（第 0 筆 61 是配音表最後一筆，組從 1 起）
 static struct {
-    int open, page, chap, first, group, y, gate, h, step, tick;  // 原版 +0x2a4、+0x29c、+0x2a0、+0x2a8、+0x288、+0x28c、+0x294、+0x2b0、DAT_00645164
+    int open, page, chap, first, group, y, gate, h, step, tick, vwait;  // vwait：配音還沒載好，等載好再算 step  // 原版 +0x2a4、+0x29c、+0x2a0、+0x2a8、+0x288、+0x28c、+0x294、+0x2b0、DAT_00645164
     UiDialog d;
     char text[4096];
 } ch;
@@ -44,6 +45,8 @@ static void ch_page(int page) {  // 0x566920
     }
     ch.h = draw_text(0, 0, ch.text, CH_RIGHT - CH_LEFT, 0, 0) - CH_LINE;
     ch.step = 200;  // 沒有配音：+0x2b0 = 0 → 200
+    audio_voice(1000 + ch_text[ch.chap]);  // 0x57a6b0 播配音（沒有檔 = 停掉上一個）
+    ch.vwait = 1;
 }
 
 static void ch_open(int page, int group) {  // 0x4ffe40（頁）、0x4fca00（負的章節 = 組）
@@ -61,7 +64,8 @@ static int ch_group_page(int g) {
     return p;
 }
 
-static void ch_close(void) {  // 0x5664f0
+static void ch_close(void) {  // 0x5664f0：停配音
+    audio_voice(-1);
     ch.open = 0;
 }
 
@@ -70,10 +74,22 @@ static void ch_next(void) {  // 0x566590：結局章下一頁；最後一頁 = �
     else { ch_close(); credits_start(); }
 }
 
+// 配音長度 → 每行間隔（0x566920 尾）：(1000 / 每拍毫秒) × 秒數 / 行數；行數 = 文字高 / 行高
+static int ch_voice_step(float secs, int h) {
+    int lines = h / CH_LINE, step = lines > 0 ? (1000 / game_speed_ms) * (int)secs / lines : 0;
+    return step > 0 ? step : 200;
+}
 static void ch_tick(void) {  // 0x566740
     if (!ch.open) return;
+    if (ch.vwait) {
+        int st = audio_voice_state();
+        if (st == 1) return;  // 下載中
+        if (st == 2) ch.step = ch_voice_step(audio_voice_seconds(), ch.h);
+        ch.vwait = 0;
+    }
     if (ch.gate < ch.y) { ch.y--; ch.tick++; return; }
-    if (ch.h - 5 * CH_LINE + ch.y < CH_TOP) {  // 文字剩不到 6 行（配音沒有，不用等）
+    if (ch.h - 5 * CH_LINE + ch.y < CH_TOP) {  // 文字剩不到 6 行：配音還在播就等（Mfx_LWave_IsPlaying）
+        if (audio_voice_state() == 2) return;
         if (ch.chap < 10) ch_close();
         else ch_next();
     } else {

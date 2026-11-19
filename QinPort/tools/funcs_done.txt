@@ -363,3 +363,17 @@
 004a2600 無程式（CIDTable 配號：≥2000 先加 1 再用、跳過已用；Rec #7 的編號 − 2001 = BNT 順序依據）
 100484c0 story_rt.c room_map_note（玩家進房間記 CurMap／Map 位元遮罩／Place）
 10013270 story_rt.c story_c_aigroup（BNT 觸發區文字指令 c_aigroup，trigger_sense_tick）
+1003df00 main.c clone_skills（分身複製施放者技能，等級上限 9）
+1003ac40 money.c bank_op
+1003b640 money.c money_drop
+10054830 money.c money_pic
+1003d3e0 money.c money_add
+10034010 main.c lockpick_open／skill_open_lock
+10034900 main.c skill_steal
+10054cb0 main.c hero_set_skill
+0044e880 weather.c clock_set_hour
+0044e890 weather.c clock_set
+004c8630 main.c scene_fog_set
+00455d60 main.c debug_command（SetFog／GetSpeed 部分）
+0054b990 money.c money_open（背包 m_pMoney → JM109）
+005465d0 money.c money_ok

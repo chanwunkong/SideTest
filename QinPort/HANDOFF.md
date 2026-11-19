@@ -1714,3 +1714,6 @@ FUNCS.tsv todo 仍 0。使用者要玩非劇情模式，「劇情沒用到」不
 - **劇情屬性鍵**："Map" 有消費者（0x100484c0 玩家進房間記 CurMap／Map 位元遮罩／Place）→ `room_map_note`；地圖視窗還沒用這份遮罩（site 序號 ↔ Map 號沒查）。SortInquiry／G_InfoID／UIS_Addgem／G_IsUISkill／UI_Cur／BD_MAX0／Value／maketype／Type 在 EasyRPG.dll 只出現一次（登記屬性名），沒有以名稱讀取，是否以索引讀沒證明。
 - **矩陣 ? 剩 19 項**（見 PORT_QUEUE 第 6 點）。Attack 5／6／7／12／13 資料 0 次改標「無」。
 - **驗證**：`make && make skilltest` → skilltest ok（新增過場對話計時、#7、@8／@10／@12、#3 0x35 檢查）；`make storytest`、`node build/storytest.js 秦殇/咸阳/NPC/绣女 0 1` 正常、`aigroup=秦殇/咸阳/NPC/绣女` → aigroup ok；複本 /tmp/qb12 `make web` 通過，headless Chrome 實測過場對話框。
+
+## 接力第 2 輪：分身技能、銀行／丟錢、偷開鎖、時鐘天氣除錯入口、章節配音、Rec #6／#8／#9（2026-11-19）
+見 tools/PORT_QUEUE.md 最後一節。新檔 engine/src/money.c（銀行、丟錢、JM109 數字輸入）。分身：main.c `clone_skills`（0x1003df00）。偷竊／開鎖：`skill_steal`、`skill_open_lock`。除錯：`--weather N`（0~10 天氣、11~16 色調）、`--hour`、`--clock Y,M,D,H,T`、`--cmd "SetFog n"／"GetSpeed"`。章節配音：audio_voice(1000 + 檔號)。Rec：`rec_cast`（#9）、#8 unit_new、#6 ground_drop、#1 子類 1 weather_set。skilltest 全過；storytest 絡女 0 1 正常；/tmp/qb13 make web 通過。

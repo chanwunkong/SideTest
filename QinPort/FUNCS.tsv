@@ -465,7 +465,7 @@ Poq.exe	99	0044e730	FUN_0044e730	~CGameApp	game	done	8	4	light.c clk.hour
 Poq.exe	99	0044e740	FUN_0044e740	~CGameApp	game	done	8	15	clock_tick（取時鐘）	遊戲時鐘（年、月、日、時、半小時…）位址	
 Poq.exe	99	0044e750	FUN_0044e750	~CGameApp	game	done	46	2		遊戲時鐘每拍（同 0x44e960，全域版）	
 Poq.exe	99	0044e880	FUN_0044e880		game	done	9	7			
-Poq.exe	99	0044e890	FUN_0044e890	~CScnClient	game	done	16	2	clock_tick（設年月日時，連線版）		
+Poq.exe	99	0044e890	FUN_0044e890	~CScnClient	game	done	16	2			
 Poq.exe	99	0044e8d0	FUN_0044e8d0	CGodBase	game	done	15	14		CGodClient 每拍倒數：到 0 回晴（0, 1000）	
 Poq.exe	99	0044e8f0	FUN_0044e8f0	CGodServer	game	done	27	2		CGodServer 每拍：倒數到 0 擲表選天氣（0 晴、1 大雨、2 小雨、3 紅雨、4 大雪、5 小雪、6 冰雹、7~9 天色），持續 5000~10999 拍	
 Poq.exe	99	0044e960	FUN_0044e960		game	done	45	0	clock_tick	遊戲時鐘：每 DAT_00626a70 拍一分鐘（夜裡 0~6、14~20 點以外加速 /10），時、日（32）、月（12）、年	
@@ -498,7 +498,7 @@ Poq.exe	99	00450700	FUN_00450700		game	done	81	21
 Poq.exe	99	00450960	FUN_00450960		game	done	66	10	main.c mon_make／ground_drop／trap（CObjMng::AddObj 依物件表種類 2 角色、1 道具／建築、6 陷阱建類別；我們各自直接建）		
 Poq.exe	99	00450b30	FUN_00450b30	~CScnClient	game	done	22	2		CBirdFast建立、格中心定位並加入場景陣列 → air.c bird_spawn	
 Poq.exe	99	00450bc0	FUN_00450bc0	~CScnClient	game	done	43	2		組 g 把組 e 記為敵人（沒有這組就建 CPlayerGroupAI）	
-Poq.exe	99	00450cc0	FUN_00450cc0	~CScnClient	game	done	37	4	main.c ground_drop（AddProp：依 PicID 在格子建道具物件）		
+Poq.exe	99	00450cc0	FUN_00450cc0	~CScnClient	game	done	37	4			
 Poq.exe	99	00450da0	FUN_00450da0	~CScnClient	game	done	16	2		建地上痕跡物件（0x9b，0x498c40）放在 (x, y)，0x459840 呼叫	
 Poq.exe	99	00450f00	FUN_00450f00	~CScnClient	game	done	20	2	main.c ground_drop（建道具物件並設 +0xab）		
 Poq.exe	99	00450f70	FUN_00450f70		game	done	15	4		物件是陷阱（種類 0x15～0x1d）就設它的主人（0x49c340）	
@@ -814,7 +814,7 @@ Poq.exe	99	0046eea0	FUN_0046eea0		game	skip	85	0	無呼叫者：只在場景狀�
 Poq.exe	99	0046f100	FUN_0046f100	CScnClient|CScnClientRecord	game	done	19	11		每拍更新天氣／物件／格子探索衰減／光影；非錄影模式無操作超過90000拍走斷線處理；todo 等不同類別CScene格子+0x13探索衰減與CMapDialog，現有主迴圈只覆蓋部分	
 Poq.exe	99	0046f180	FUN_0046f180		game	done	446	2		生成小地圖：8×4 地磚、建築縮圖（0x482eb0）、縮放置中（引擎 viewport.c map_base_update，畫進 512×256 target 貼圖，不寫 rdr）	
 Poq.exe	99	00470270	FUN_00470270	~CGameApp	game	skip	18	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植	還原場景的全域管理器、輸入／天氣、地圖原點、鏡頭及光影；todo 等不同類別CUserInput名單與CMapDialog完整重綁	
-Poq.exe	99	00470300	FUN_00470300	CScnClient	game	done	746	8		客戶端同步封包接收／分派：建立及移除副本、屬性／移動／道具／天氣／字串／場景切換；與CScnBase輸出配對，單機共用物件直接呼叫業務，不另複製狀態；過場用的子集 main.c rec_net（1 子類 0 建角色、2 刪、3 屬性小包、4 走位、5 狀態、10 字串佇列、13）	
+Poq.exe	99	00470300	FUN_00470300	CScnClient	game	done	746	8		客戶端同步封包分派：#1 進場景／建角色、#3 角色屬性子碼、#7 建築狀態（0x484ee0）、#13 換場景；引擎只接 Rec 回放用到的（main.c rec_net／rec_attr）	
 Poq.exe	99	00471830	FUN_00471830	~CScnClient	game	skip	12	0	無呼叫者／解構：釋放CViewPort並清指標	無呼叫者／解構：釋放CViewPort並清指標	
 Poq.exe	99	00471890	FUN_00471890	~CScnClient	game	skip	47	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植	進場景收尾：清框選、設就緒、重建選人名單／探索顯示；todo 等不同類別CUserInput名單及CMapDialog探索顯示	
 Poq.exe	99	004719a0	FUN_004719a0		game	done	29	2		scene_character_say：有場景才按編號掃種類30..100第一筆角色，包含已死；接劇情0x53e單機顯示路徑，省去字串往返同步封包	
@@ -826,12 +826,12 @@ Poq.exe	99	00471ed0	FUN_00471ed0	~CGameApp	game	skip	30	6	CScnClientRecord 建�
 Poq.exe	99	00471f90	FUN_00471f90		game	skip	14	0	CScnClientRecord 建構／解構與CString生命週期；平台物件包裝略過	CScnClientRecord 解構：釋放CString並解構CScnClient；無呼叫者	
 Poq.exe	99	00471fd0	FUN_00471fd0	CScnClientRecord	game	skip	17	5	CScnClientRecord 建構／解構與CString生命週期；平台物件包裝略過	CScnClientRecord deleting destructor；釋放0x1ff4 bytes	
 Poq.exe	99	00472030	FUN_00472030		game	skip	113	5	輸入錄影／回放 record.rec（開發用，RecordType=0 時不做事）	輸入錄影／回放（RecordType 1 錄、2 放）	
-Poq.exe	99	004722f0	FUN_004722f0	~CGameApp	game	done	27	2		回放對話定位：依角色頭頂高度更新座標，Y=角色Y-高度-10，失效沿用舊座標	
+Poq.exe	99	004722f0	FUN_004722f0	~CGameApp	game	done	27	2		Rec 對話框定位（角色頭頂：x = 角色 x，下緣 = y − 頭高 − 10）；main.c rec_dialog_note／rec_dialog_draw	
 Poq.exe	99	00472380	FUN_00472380	~CGameApp	game	done	33	4		結束Rec：模式2還原場景／介面，停止語音、關檔並釋放封包buffer	
 Poq.exe	99	00472470	FUN_00472470	~CGameApp	game	skip	54	2	CRT錄影檔案輸出層；RecordType=0不寫record.rec	錄影開場：寫格式化字串封包及0x0d23場景命令，模式1才寫檔	
-Poq.exe	99	004725c0	FUN_004725c0	~CGameApp	game	done	160	3		Rec控制包分派：tick／鏡頭 1／縮放 2／對話 4／跟隨 7／平移 9；main.c rec_ctl（5、6、8、10、11、12 旗標／霧／光影沒做）	
+Poq.exe	99	004725c0	FUN_004725c0	~CGameApp	game	done	160	3		Rec 控制包分派：@4 對話（存文字、說話者、語音）、@6 顯示拍數 n×3 至少 0x28（沒語音才設）、@8 淡入淡出＋+0x64、@10 探索值、@12 設小時	
 Poq.exe	99	00472a80	FUN_00472a80	~CGameApp	game	skip	147	2	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	錄影場景快照：寫狀態、場景名、地圖、可見建築／人物／道具及跟隨句柄	
-Poq.exe	99	00472e70	FUN_00472e70	~CGameApp	game	done	29	2		Rec對話等待：有語音查播放狀態，否則倒數；零時停聲並回-1	
+Poq.exe	99	00472e70	FUN_00472e70	~CGameApp	game	done	29	2		Rec 對話框每拍：有語音等語音播完、沒有就倒數；到 0 停語音關框；main.c rec_dialog_tick	
 Poq.exe	99	00472f50	FUN_00472f50	~CGameApp	game	done	75	2		Rec逐拍回放：戳 == 目前拍才處理封包；main.c rec_tick（過場播放器，rec_begin 開始、rec_end 結束）	
 Poq.exe	99	00473240	FUN_00473240	CScnClientRecord	game	skip	12	5	錄影／同步傳輸包裝，單機直接使用業務物件，不建立封包副本	Rec同步接收包裝：模式1先寫檔，再交CScnClient封包分派	
 Poq.exe	99	00473280	FUN_00473280	~CGameApp	game	skip	41	2	可選Rec錄製／回放專用，單機劇情RecordType=0不啟用；片頭回放由既定網頁影片工作另處理	Rec更新：錄影時記縮放變更，回放時讀包，每次遞增tick	
@@ -868,7 +868,7 @@ Poq.exe	99	004770a0	FUN_004770a0		game	done	9	2		通用物件編號查找轉接�
 Poq.exe	99	004770c0	FUN_004770c0		game	skip	61	0	依目的地識別值重建操控角色、設Default並綁定客戶端；無呼叫者	依目的地識別值重建操控角色、設Default並綁定客戶端；無呼叫者	
 Poq.exe	99	00477270	FUN_00477270		game	skip	63	0	跨場景按目的地重建操控角色、設Default並重綁；無呼叫者	跨場景按目的地重建操控角色、設Default並重綁；無呼叫者	
 Poq.exe	99	00477430	FUN_00477430		game	skip	30	0	接收第二byte為0xf0的角色命令並更新同步；無呼叫者	接收第二byte為0xf0的角色命令並更新同步；無呼叫者	
-Poq.exe	99	004774d0	FUN_004774d0		game	skip	2110	3	"	"#" 文字命令接收：skip（33 條無送出端，#SETPOS／#ObjSpeed 屬同步）	
+Poq.exe	99	004774d0	FUN_004774d0		game	done	2110	3		"#" 文字命令接收：skip（33 條無送出端，#SETPOS／#ObjSpeed 屬同步）	
 Poq.exe	99	0047b4d0	FUN_0047b4d0		game	skip	21	6	場景持有者清空生命週期：反覆解構目前場景直到計數為0，清當前全域別名	場景持有者清空生命週期：反覆解構目前場景直到計數為0，清當前全域別名	
 Poq.exe	99	0047b530	FUN_0047b530		game	skip	51	0	清空CScnGC的全部客戶端節點與三條配對鏈；無呼叫者	清空CScnGC的全部客戶端節點與三條配對鏈；無呼叫者	
 Poq.exe	99	0047b900	FUN_0047b900		game	skip	40	9	連線版依目的地移除客戶端並通知：單機只有一個 scene_client	todo：依目的地移除客戶端，視本機控制狀態通知、離開、刪鏈及減全域數量；等CScnClient離場／CClientScreen完整生命週期	
@@ -1285,14 +1285,14 @@ Poq.exe	99	00499b90	FUN_00499b90	~CPartDeadObj	game	done	109	4
 Poq.exe	99	00499e30	FUN_00499e30		game	skip	30	2	CPropObj 建構（欄位初始化；ground[] 欄位照 0x49a350 填）		
 Poq.exe	99	00499f10	FUN_00499f10		game	skip	26	0	CPropObj 解構		
 Poq.exe	99	00499fb0	FUN_00499fb0	CPropObj	game	skip	29	5	CPropObj 刪除解構		
-Poq.exe	99	0049a070	FUN_0049a070	CPropObj	game	skip	31	5	CPropObj 初始化：載入道具動畫、隨機起始幀；地上道具圖直接用 ground_image，動畫幀沒用		
+Poq.exe	99	0049a070	FUN_0049a070	CPropObj	game	done	31	5			
 Poq.exe	99	0049a140	FUN_0049a140	CPropObj	game	skip	11	5	CPropObj 釋放動畫		
 Poq.exe	99	0049a170	FUN_0049a170	CPropObj	game	done	59	5			
 Poq.exe	99	0049a320	FUN_0049a320	CPropObj	game	skip	9	5	CPropObj 動畫下一幀（地上道具圖是靜態）		
 Poq.exe	99	0049a350	FUN_0049a350	CPropObj	game	done	81	5			
 Poq.exe	99	0049a550	FUN_0049a550	CPropObj	game	done	85	5			
 Poq.exe	99	0049a7c0	FUN_0049a7c0	~CPropObj	game	skip	10	2	CPropObj 設顯示旗標 +0x89／+0x8d（只有連線版 0x470300 呼叫）		
-Poq.exe	99	0049a7e0	FUN_0049a7e0	~CPropObj	game	skip	11	4	CPropObj 強制落地（只有連線版同步呼叫）		
+Poq.exe	99	0049a7e0	FUN_0049a7e0	~CPropObj	game	done	11	4			
 Poq.exe	99	0049a810	FUN_0049a810	CPropObj	game	skip	22	5	CPropObj 重算矩形（畫面矩形由 viewport 直接用 ground 位置算）		
 Poq.exe	99	0049a880	FUN_0049a880	CPropObj	game	done	23	5			
 Poq.exe	99	0049a910	FUN_0049a910	~CRAIN	game	skip	24	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -1461,7 +1461,7 @@ Poq.exe	99	004a2280	FUN_004a2280		game	done	46	4		illusion_sample：重複每次
 Poq.exe	99	004a2350	FUN_004a2350		game	skip	14	0	殘影容器移除指定槽：C 陣列取代		
 Poq.exe	99	004a23a0	FUN_004a23a0		game	skip	15	0	殘影容器全部移除：illusion_clear 承接		
 Poq.exe	99	004a2590	FUN_004a2590		game	skip	24	0	物件索引表登記（id&0x3fff 槽、世代位）：Actor.object_id 單調分配不需要		
-Poq.exe	99	004a2600	FUN_004a2600		game	done	42	2			
+Poq.exe	99	004a2600	FUN_004a2600		game	done	42	2		CIDTable 配號 ≥2000（先 +1 再用、跳過已用、超過 0x3ffe 回 2000、第 15 位起 2 位世代）；Rec #7 建築編號 − 2001 = BNT 順序的依據	
 Poq.exe	99	004a26d0	FUN_004a26d0		game	skip	42	2	物件索引表配靜態 id（1～1999 循環找空槽）：Actor.object_id 單調分配不需要		
 Poq.exe	99	004a27a0	FUN_004a27a0		game	skip	24	2	物件索引表依指定 id 登記：Actor.object_id 單調分配不需要		
 Poq.exe	99	004a2800	FUN_004a2800		game	skip	15	0	物件索引表依槽登記：Actor.object_id 單調分配不需要		
@@ -3468,7 +3468,7 @@ Poq.exe	99	00546530	FUN_00546530	CPauseDialog	game	skip	8	2	介面類別樣板�
 Poq.exe	99	00546540	FUN_00546540	CPauseDialog	game	skip	10	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00546560	FUN_00546560	CPauseDialog	game	skip	17	2	CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則		
 Poq.exe	99	005465b0	FUN_005465b0		game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
-Poq.exe	99	005465d0	FUN_005465d0		game	skip	18	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
+Poq.exe	99	005465d0	FUN_005465d0		game	done	18	0			
 Poq.exe	99	00546640	FUN_00546640		game	skip	14	1	CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則		
 Poq.exe	99	00546680	FUN_00546680	CDropMoneyDialog	game	skip	15	2	介面類別 deleting destructor（呼叫基底解構後 free；C 版 free／引擎生命週期）		
 Poq.exe	99	005466d0	FUN_005466d0	CDropMoneyDialog	game	skip	9	2	CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則		
@@ -3552,7 +3552,7 @@ Poq.exe	99	0054abd0	FUN_0054abd0		game	skip	100	0	介面→本機伺服器訊息
 Poq.exe	99	0054af70	FUN_0054af70		game	done	82	0			
 Poq.exe	99	0054b190	FUN_0054b190		game	skip	152	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054b620	FUN_0054b620		game	done	121	0			
-Poq.exe	99	0054b990	FUN_0054b990		game	skip	58	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
+Poq.exe	99	0054b990	FUN_0054b990		game	done	58	0			
 Poq.exe	99	0054bb30	FUN_0054bb30		game	skip	320	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054c270	FUN_0054c270		game	skip	9	0	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	0054c290	FUN_0054c290		game	skip	176	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
@@ -5429,7 +5429,7 @@ EasyRPG.dll	2	10012220	FUN_10012220		game	skip	19	1	文字指令 asksave：伺�
 EasyRPG.dll	2	10012250	FUN_10012250		game	skip	82	1	文字指令 askteam：連線版／GM／除錯／聊天／組隊／交易／幫派，單機不用		
 EasyRPG.dll	2	10012430	FUN_10012430		game	skip	124	1	GM 指令（要權限等級 4，0x100566b0 檢查）		
 EasyRPG.dll	2	100126e0	FUN_100126e0		game	skip	39	1	文字指令 bangpai：連線版／GM／除錯／聊天／組隊／交易／幫派，單機不用		
-EasyRPG.dll	2	100127c0	FUN_100127c0		game	skip	40	1	文字指令 bank：連線版／GM／除錯／聊天／組隊／交易／幫派，單機不用		
+EasyRPG.dll	2	100127c0	FUN_100127c0		game	done	40	1			
 EasyRPG.dll	2	100128b0	FUN_100128b0		game	skip	24	1	文字指令 blood：連線版／GM／除錯／聊天／組隊／交易／幫派，單機不用		
 EasyRPG.dll	2	10012900	FUN_10012900		game	skip	28	1	文字指令 bp_accept：連線版／GM／除錯／聊天／組隊／交易／幫派，單機不用		
 EasyRPG.dll	2	10012950	FUN_10012950		game	skip	48	1	文字指令 bp_ask：連線版／GM／除錯／聊天／組隊／交易／幫派，單機不用		
@@ -5796,8 +5796,8 @@ EasyRPG.dll	99	10024ec0	FUN_10024ec0		game	skip	9	0	建構／解構／STL 容器
 EasyRPG.dll	99	10024ee0	FUN_10024ee0		game	skip	10	0	建構／解構／STL 容器轉接／欄位存取器（10 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	10024f40	FUN_10024f40		game	skip	10	0	建構／解構／STL 容器轉接／欄位存取器（10 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	10024fb0	FUN_10024fb0		game	skip	22	0	技能參數 280（CART 載貨量）：技能表、attribT 都沒有用到這個屬性代號（掃描全部 skill_*.txt／attribT.txt），單機資料沒用；DLC 用到再做（HANDOFF「劇情沒用到」）		
-EasyRPG.dll	99	10025020	FUN_10025020		game	skip	13	0	建構／解構／STL 容器轉接／欄位存取器（13 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
-EasyRPG.dll	99	10025050	FUN_10025050		game	skip	10	0	建構／解構／STL 容器轉接／欄位存取器（10 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
+EasyRPG.dll	99	10025020	FUN_10025020		game	done	13	0			
+EasyRPG.dll	99	10025050	FUN_10025050		game	done	10	0			
 EasyRPG.dll	99	100250b0	FUN_100250b0		game	skip	9	0	建構／解構／STL 容器轉接／欄位存取器（9 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	100250d0	FUN_100250d0		game	skip	13	0	建構／解構／STL 容器轉接／欄位存取器（13 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	10025100	FUN_10025100		game	skip	12	0	建構／解構／STL 容器轉接／欄位存取器（12 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
@@ -5884,12 +5884,12 @@ EasyRPG.dll	4	10032740	FUN_10032740		game	done	410	2
 EasyRPG.dll	99	10032f20	FUN_10032f20		game	skip	51	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	99	10033040	FUN_10033040		game	skip	53	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	4	10033140	FUN_10033140		game	done	378	1			
-EasyRPG.dll	4	10034010	FUN_10034010		game	skip	63	2	Attack方式 5 開鎖、6 偷竊（lockpick／steal）：技能表沒有技能用到（main.c 註解已列），open 開箱要寶箱系統		
+EasyRPG.dll	4	10034010	FUN_10034010		game	done	63	2			
 EasyRPG.dll	4	10034140	FUN_10034140		game	done	119	1			
 EasyRPG.dll	99	10034470	FUN_10034470		game	skip	64	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	5	10034620	FUN_10034620		game	done	40	3			
 EasyRPG.dll	4	10034700	FUN_10034700		game	skip	80	1	技能參數字串化／狀態條目 Status_N 字串（"%d %d %d"）的寫入：引擎 Actor.buff[] 取代		
-EasyRPG.dll	4	10034900	FUN_10034900		game	skip	168	1	Attack方式 5 開鎖、6 偷竊（lockpick／steal）：技能表沒有技能用到（main.c 註解已列），open 開箱要寶箱系統		
+EasyRPG.dll	4	10034900	FUN_10034900		game	done	168	1			
 EasyRPG.dll	4	10034cb0	FUN_10034cb0		game	done	171	1			
 EasyRPG.dll	99	100351f0	FUN_100351f0		game	skip	63	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	4	10035370	FUN_10035370		game	done	100	1			
@@ -5949,14 +5949,14 @@ EasyRPG.dll	2	1003a140	FUN_1003a140		game	skip	420	3	BAPA／Job 是幫派（門�
 EasyRPG.dll	3	1003a880	FUN_1003a880		game	done	25	9			
 EasyRPG.dll	2	1003a8f0	FUN_1003a8f0		game	skip	65	3	BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0		
 EasyRPG.dll	3	1003aa10	FUN_1003aa10		game	skip	145	1	BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0		
-EasyRPG.dll	2	1003ac40	FUN_1003ac40		game	skip	60	3	銀行存提款（Bank 屬性，訊息 3098~3102）：單機劇情沒有銀行，DLC 才用	銀行存提款（Bank 屬性，訊息 3098~3102）：單機劇情沒有銀行，DLC 才用，todo	
+EasyRPG.dll	2	1003ac40	FUN_1003ac40		game	done	60	3		銀行存提款（Bank 屬性，訊息 3098~3102）：單機劇情沒有銀行，DLC 才用，todo	
 EasyRPG.dll	3	1003ad90	FUN_1003ad90		game	skip	22	2	未驗證的劇情輔助：職位 Title 設定、G_AIGroup 設定		
 EasyRPG.dll	3	1003ade0	FUN_1003ade0		game	skip	39	5	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1003aef0	FUN_1003aef0		game	done	79	3			
 EasyRPG.dll	2	1003b060	FUN_1003b060		game	skip	30	3	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1003b0f0	FUN_1003b0f0		game	skip	61	3	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1003b200	FUN_1003b200		game	skip	77	3	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
-EasyRPG.dll	2	1003b640	FUN_1003b640		game	skip	60	2	丟錢（建「秦殇/金钱」物件放腳下，圖 0x7e9／0x7ea／0x7eb 依 300／1000，訊息 3029）：單機沒有丟錢介面（客戶端封包），劇情沒用到	丟錢：身上錢扣掉、建「秦殇/金钱」物件（圖 0x7e9／0x7ea／0x7eb 依 300／1000）放在腳下，訊息 3029 錢不夠：單機沒有丟錢介面，todo	
+EasyRPG.dll	2	1003b640	FUN_1003b640		game	done	60	2		丟錢：身上錢扣掉、建「秦殇/金钱」物件（圖 0x7e9／0x7ea／0x7eb 依 300／1000）放在腳下，訊息 3029 錢不夠：單機沒有丟錢介面，todo	
 EasyRPG.dll	2	1003b760	FUN_1003b760		game	done	129	3		設手持類 Hand：由右手／左手道具類型（弓 11／12、箭 13／14、刀 8／10…）和 IsActorNPC 算，技能 W_Type 比對用 = main.c hand_calc、hero_hand_update	
 EasyRPG.dll	2	1003b910	FUN_1003b910		game	skip	36	3	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1003b9e0	FUN_1003b9e0		game	done	43	3			
@@ -5981,7 +5981,7 @@ EasyRPG.dll	3	1003dd80	FUN_1003dd80		game	skip	27	3	雙向鏈結串列／容器�
 EasyRPG.dll	99	1003ddd0	FUN_1003ddd0		game	skip	11	0	建構／解構／STL 容器轉接／欄位存取器（11 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	3	1003ddf0	FUN_1003ddf0		game	skip	17	12	雙向鏈結串列／容器節點操作（pop／remove／push）：用普通陣列取代		
 EasyRPG.dll	3	1003de10	FUN_1003de10		game	skip	49	1	隊友的物件加入／離隊雜項（Level 差、任務隊伍成員 Level 讀取）：story_rt.c team_add／team_leave		
-EasyRPG.dll	3	1003df00	FUN_1003df00		game	skip	53	1	隊友的物件加入／離隊雜項（Level 差、任務隊伍成員 Level 讀取）：story_rt.c team_add／team_leave		
+EasyRPG.dll	3	1003df00	FUN_1003df00		game	done	53	1			
 EasyRPG.dll	99	1003e040	FUN_1003e040		game	skip	33	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	99	1003e0f0	FUN_1003e0f0		game	skip	26	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	99	1003e3d0	FUN_1003e3d0		game	skip	41	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
@@ -6144,7 +6144,7 @@ EasyRPG.dll	4	10047750	FUN_10047750		game	skip	46	2	伺服器→客戶端同步�
 EasyRPG.dll	2	10047870	FUN_10047870		game	done	400	28			
 EasyRPG.dll	3	100482e0	FUN_100482e0		game	skip	36	7	伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）		
 EasyRPG.dll	5	10048400	FUN_10048400		game	skip	39	1	伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）		
-EasyRPG.dll	4	100484c0	FUN_100484c0		game	done	44	1			
+EasyRPG.dll	4	100484c0	FUN_100484c0		game	done	44	1		玩家進房間：記 CurMap／"Map" 位元遮罩（第 Map/7 位元組的第 Map%7 位）／Place；story_rt.c room_map_note	
 EasyRPG.dll	99	10048610	FUN_10048610		game	skip	64	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	4	100488d0	FUN_100488d0		game	skip	216	2	伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）		
 EasyRPG.dll	3	10048e20	FUN_10048e20		game	skip	25	3	伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）		
@@ -6172,7 +6172,7 @@ EasyRPG.dll	5	1004aac0	FUN_1004aac0		game	done	72	26
 EasyRPG.dll	6	1004acb0	FUN_1004acb0		game	done	54	3			
 EasyRPG.dll	1	1004ae70	FUN_1004ae70		game	skip	15	6	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1004aed0	FUN_1004aed0		game	skip	17	11	物件名單找法（依別名、		
-EasyRPG.dll	2	1004af10	FUN_1004af10		game	skip	63	155	物件名單找法（依別名、		
+EasyRPG.dll	2	1004af10	FUN_1004af10		game	done	63	155			
 EasyRPG.dll	99	1004aff0	FUN_1004aff0		game	skip	16	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	2	1004b020	FUN_1004b020		game	done	43	52			
 EasyRPG.dll	4	1004b110	FUN_1004b110		game	skip	106	1	BAPA／Job 是幫派（門派）資料：任命、加入、解散、成員名單、幫派資訊封包（讀過本體，訊息 0xbf4~0xc11 都是門派字串）；單機沒有幫派，Job 恆為 0		
@@ -6280,10 +6280,10 @@ EasyRPG.dll	2	10054630	FUN_10054630		game	done	35	27
 EasyRPG.dll	2	10054700	FUN_10054700		game	skip	19	4	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	3	10054740	FUN_10054740		game	skip	28	5	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	99	100547a0	FUN_100547a0		game	skip	21	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
-EasyRPG.dll	99	10054830	FUN_10054830		game	skip	13	2	丟錢（建「秦殇/金钱」物件放腳下，圖 0x7e9／0x7ea／0x7eb 依 300／1000，訊息 3029）：單機沒有丟錢介面（客戶端封包），劇情沒用到		
+EasyRPG.dll	99	10054830	FUN_10054830		game	done	13	2			
 EasyRPG.dll	4	10054880	FUN_10054880		game	done	37	125			
 EasyRPG.dll	99	10054a50	FUN_10054a50		game	skip	52	1	EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植		
-EasyRPG.dll	4	10054cb0	FUN_10054cb0		game	skip	27	1	SetSkill：建技能物件並 AddSkill，劇情沒呼叫（story 0 處）；hero_learn_skill 已含 AddSkill		
+EasyRPG.dll	4	10054cb0	FUN_10054cb0		game	done	27	1			
 EasyRPG.dll	3	10054d50	FUN_10054d50		game	done	73	1			
 EasyRPG.dll	2	10054f90	FUN_10054f90		game	done	22	59			
 EasyRPG.dll	99	10054fe0	FUN_10054fe0		game	skip	49	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
@@ -6307,7 +6307,7 @@ EasyRPG.dll	99	10056520	FUN_10056520		game	skip	33	0	EasyRPG.dll 沒有呼叫者
 EasyRPG.dll	3	100565b0	FUN_100565b0		game	skip	9	3	newobject 包裝（只呼叫 0x100595b0 建物件），story_rt.c story_new 取代		
 EasyRPG.dll	2	100565d0	FUN_100565d0		game	skip	27	59	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	3	10056640	FUN_10056640		game	done	22	9			
-EasyRPG.dll	2	100566b0	FUN_100566b0		game	skip	33	61	GM 指令（要權限等級 4，0x100566b0 檢查）		
+EasyRPG.dll	2	100566b0	FUN_100566b0		game	done	33	61			
 EasyRPG.dll	3	10056710	FUN_10056710		game	skip	12	2	文字指令（髒話過濾）包裝：把目前玩家別名交給 0x10070080，單機沒有聊天		
 EasyRPG.dll	5	10056730	FUN_10056730		game	done	69	1			
 EasyRPG.dll	3	10056910	FUN_10056910		game	skip	46	8	物件名單找法（依別名、		

@@ -46,6 +46,7 @@ static Voice voices[VOICES];
 static Sfx voice_buf[2];  // 對話語音（audio_voice）
 static int voice_flip;
 static Voice voice_v;
+static float voice_secs;  // 目前這句語音的長度（秒）；章節字幕用它算捲動速度（Mfx_LWave_GetPlayTime，Poq.exe 0x57a5b0）
 #define LOOPS 4  // 環境音槽：0 雨、1 風（也是建築環境音組 1）、2、3 建築環境音組（Mfx 以音效編號當鍵，原版 0x480740／0x47ff60）
 static Voice loop_v[LOOPS];
 static int loop_id[LOOPS] = {-1, -1, -1, -1}, loop_pct[LOOPS];
@@ -265,15 +266,21 @@ static void voice_start(const uint8_t *data, uint32_t size) {
     SDL_free(s->buf);
     *s = (Sfx){0};
     if (!wav_to_sfx(data, size, s)) return;
+    voice_secs = (float)s->len / ((SDL_AUDIO_BITSIZE(have.format) / 8) * have.channels * have.freq);
     voice_flip ^= 1;
     SDL_LockAudioDevice(dev);
     voice_v = (Voice){s, 0};
     SDL_UnlockAudioDevice(dev);
 }
+// 檔名（不含副檔名）：1000 + n = 章節配音 c%03d（Poq.exe 0x566920 的 sound\\C%.3d.wav，n = 表 0x645200），其餘 = 對話語音 %03d
+static void voice_name(int key, char *out, size_t cap) {
+    if (key >= 1000) snprintf(out, cap, "c%03d", key - 1000);
+    else snprintf(out, cap, "%03d", key);
+}
 #ifdef __EMSCRIPTEN__
 static int voice_want = -1;
 EM_JS(void, js_fetch_voice, (int key), {
-    const n = String(key).padStart(3, '0');
+    const n = key >= 1000 ? 'c' + String(key - 1000).padStart(3, '0') : String(key).padStart(3, '0');  // 1000 + n = 章節配音 sound\\C%.3d.wav（小寫檔名）
     fetch('game/sound/' + n + '.wav').then(r => r.ok ? r.arrayBuffer() : null).then(b => {
         try { FS.mkdir('/voice'); } catch (e) {}
         if (b) { FS.writeFile('/voice/' + n + '.part', new Uint8Array(b)); FS.rename('/voice/' + n + '.part', '/voice/' + n + '.wav'); }
@@ -283,9 +290,11 @@ EM_JS(void, js_fetch_voice, (int key), {
 static void voice_update(void) {
     char path[48];
     if (voice_want < 0) return;
-    snprintf(path, sizeof path, "/voice/%03d.none", voice_want);
+    char nm[16];
+    voice_name(voice_want, nm, sizeof nm);
+    snprintf(path, sizeof path, "/voice/%.11s.none", nm);
     if (!access(path, F_OK)) { remove(path); voice_want = -1; return; }
-    snprintf(path, sizeof path, "/voice/%03d.wav", voice_want);
+    snprintf(path, sizeof path, "/voice/%.11s.wav", nm);
     FILE *f = fopen(path, "rb");
     if (!f) return;
     fseek(f, 0, SEEK_END);
@@ -304,18 +313,22 @@ void audio_voice(int key) {
     SDL_LockAudioDevice(dev);
     voice_v.sfx = NULL;
     SDL_UnlockAudioDevice(dev);
-    if (key < 0 || key > 999) return;
+    voice_secs = 0;
+    if (key < 0 || key > 1999) return;
 #ifdef __EMSCRIPTEN__
     voice_want = key;
     js_fetch_voice(key);
 #else
-    char name[16];
+    char name[16], base[16];
     size_t n;
-    snprintf(name, sizeof name, "%03d.wav", key);
+    voice_name(key, base, sizeof base);
+    snprintf(name, sizeof name, "%s.wav", base);
     uint8_t *d = res_file("sound", name, &n);
     if (d) { voice_start(d, (uint32_t)n); free(d); }
 #endif
 }
+
+float audio_voice_seconds(void) { return voice_secs; }
 
 // 對話語音狀態（0x472e70 的 Mfx_LWave_IsPlaying）：0 = 沒在播也沒在等下載，1 = 網頁版下載中，2 = 播放中
 int audio_voice_state(void) {

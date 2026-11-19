@@ -4367,6 +4367,7 @@ static void autosave_test(void) {
 // 章節字幕 0x566920／0x566740／0x4fca00、片尾字幕 0x568310／0x568720
 static void caption_test(void) {
     assert(ch_group_page(1) == 12 && ch_group_page(2) == 15 && ch_group_page(7) == 28);
+    assert(ch_voice_step(30.5f, 160) == (1000 / game_speed_ms) * 30 / 10 && ch_voice_step(0, 160) == 200 && ch_voice_step(5, 0) == 200);  // 0x566920：配音長度 → 行間隔
     ch_open(2, 0);
     assert(ch.open && ch.chap == 0 && ch.y == CH_BOTTOM && ch.gate == CH_BOTTOM - CH_LINE && ch.text[0]);
     for (int i = 0; i < 16; i++) ch_tick();
@@ -5551,6 +5552,31 @@ int main(void) {
         uint8_t hr[6] = {'@', 12, 23, 0, 0, 0}; rec_ctl(hr, 6, &sc); assert(clk.hour == 23);
         Actor ra = {0}; uint8_t at[6] = {'#', 3, 1, 0, 0x35, 7};
         rec_attr(at, &ra); assert(ra.layer == 7);
+        // #6 地上道具（15 byte 才有座標）、#1 子類 1 的天氣（b12、u16 b13）
+        int g0 = ground_n;
+        uint8_t pr[15] = {'#', 6, 1, 0, 0x74, 0x08, 0x5a, 0x0f, 1, 3, 0, 1, 0, 0, 0}, pr12[12] = {'#', 6, 1, 0, 0xe3, 0x07, 0x40, 0, 0x5e, 0, 0xcd, 0xcd};
+        rec_net(pr12, 12, &sc); assert(ground_n == g0);             // 12 byte 舊格式：原版讀到封包外的座標，什麼都不放
+        sc.w = sc.h = 8; sc.cells = realloc(sc.cells, 64 * sizeof *sc.cells); memset(sc.cells, 0, 64 * sizeof *sc.cells); for (int i = 0; i < 64; i++) sc.cells[i].walk = 1;
+        const Scene *sv_sc = unit_scene; unit_scene = &sc;
+        rec.foreign = 0; rec_net(pr, 15, &sc); assert(ground_n == g0 + 1 && ground[g0].it.ground == 2164 && rec.gid_n == 1);
+        unit_scene = sv_sc;
+        uint8_t ws[16] = {'#', 1, 0, 0, 1, 0, 0, 0, 0x0f, 0, 0, 0, 3, 0x2e, 0x01, 0};       // 子類 1：亮度 + b12 = 3（紅雨）、拍數 0x12e = 302
+        rec_net(ws, 16, &sc); assert(wx.idx == 3 && wx.left == 302 && rec.wx_set);
+        weather_set(0, 1000); ground_n = g0;
+        {   // #8 飛行效果單位（0x450700）、#9 招式（0x43acb0 → MethodMain）
+            int u0 = unit_n; MUnit saved_u = units[0];
+            uint8_t u8[8] = {'#', 8, 23, 0, 0xe0, 0x09, 0xa0, 0x0b};
+            rec_net(u8, 8, &sc); assert(unit_n == u0 + 1 && units[u0].x == 0x9e0 && units[u0].y == 0xba0 && !units[u0].owner);
+            unit_n = u0; units[0] = saved_u;
+            Actor saved[2] = {actors[0], actors[1]}; int saved_count = actor_count;
+            RoleDef d9 = {.speed = 5, .fight_speed = 5};
+            actors[1] = (Actor){.role = &empty_test_role, .def = &d9, .speed = 5, .move_a = 5, .layer = 1, .object_kind = 31, .command = {-1}};
+            actors[1].state[0] = 1; actor_count = 2;
+            unit_scene = &sc;
+            assert(rec_cast(&actors[1], 288, 1869, 5555) && actors[1].casting && main_of(&actors[1]));
+            unit_scene = sv_sc;
+            unit_n = u0; actors[0] = saved[0]; actors[1] = saved[1]; actor_count = saved_count;
+        }
         free(sc.cells); free(sc.objects); memset(&rec, 0, sizeof rec); rec_on = 0;
     }
     {  // 創角範本的外觀字串：動作方式＋款式，空欄略過
@@ -5567,6 +5593,64 @@ int main(void) {
             assert(r && r->seq_count > 0 && r->part_count > 0 && r->body[0]);
         }
     }
+    {  // 分身複製施放者技能（0x1003df00）：等級 > 0 的都複製，等級上限 9（Level 超過 9 → 9）
+        static SkillRow rs[3]; RoleDef cd = {0};
+        rs[0] = (SkillRow){.level = 12, .attack = 1}; rs[1] = (SkillRow){.level = 0}; rs[2] = (SkillRow){.level = 5, .attack = 1};
+        static Actor src, dst;
+        memset(&src, 0, sizeof src); memset(&dst, 0, sizeof dst);
+        src.def = dst.def = &cd; src.skill_n = 3;
+        for (int i = 0; i < 3; i++) src.skills[i] = (ActorSkill){.key = i + 1, .id = 100 + i, .row = &rs[i]};
+        int saved_n = actor_count; actor_count = 0;
+        clone_skills(&dst, &src);
+        actor_count = saved_n;
+        assert(dst.cloned && dst.skill_n == 2 && dst.skills[0].row->level == 9 && dst.skills[1].row->level == 5);
+        assert(rs[0].level == 12);  // 施放者自己的技能不受影響
+    }
+    {  // 銀行 0x1003ac40、丟錢 0x1003b640／0x10054830、Money 加減 0x1003d3e0
+        hero_money = 1000; hero_bank = 0;
+        assert(bank_op(1, 300) && hero_money == 700 && hero_bank == 300);
+        assert(!bank_op(0, 400) && hero_money == 700 && hero_bank == 300);   // 庫存不夠（3098）
+        assert(!bank_op(1, 701) && hero_money == 700);                        // 身上不夠（3097）
+        assert(bank_op(0, 100) && hero_money == 800 && hero_bank == 200);
+        assert(!bank_op(1, 0) && !bank_op(0, -5) && hero_money == 800);       // 金額 < 1（3101）
+        assert(money_pic(299) == 0x7e9 && money_pic(300) == 0x7ea && money_pic(999) == 0x7ea && money_pic(1000) == 0x7eb);
+        hero_money = 499999999; money_add(1); assert(hero_money == 0);        // 超過上限歸零
+        hero_money = 800; int g0 = ground_n;
+        assert(money_drop(5000) == 800 && hero_money == 0 && ground_n == g0 + 1);   // 不夠就丟全部（3029）
+        assert(ground[g0].it.type == 60 && ground[g0].it.amount == 800 && ground[g0].it.ground == 0x7ea);
+        assert(money_drop(10) == 0 && ground_n == g0 + 1);                    // 沒錢不丟
+        ground_n = g0; hero_bank = 0;
+    }
+    {  // 偷竊 0x10034900：技能等級 < 目標等級 / 9 → 5129；成功率 100 時有主人的目標 → 5130；沒錢沒東西 → 5009
+        static Actor th, vic;
+        memset(&th, 0, sizeof th); memset(&vic, 0, sizeof vic);
+        th.hp = vic.hp = 10; th.role = vic.role = &empty_test_role; th.side = 0; vic.side = 1; th.level = 1; vic.level = 90;
+        SkillRow sr = {.level = 3, .attack = 6, .mod_n = 1, .mod = {{.id = 103, .init = 100}}};
+        toast[0] = 0; skill_steal(&th, &vic, &sr); assert(strstr(toast, "\xe5\x81\xb7"));   // 偷窃的技能太低
+        vic.level = 5; vic.owner = &th;
+        skill_steal(&th, &vic, &sr); assert(strstr(toast, "\xe7\x8e\xa9\xe5\xae\xb6") || strstr(toast, "\xe5\x81\xb7"));  // 玩家身上的東西不能被偷
+        vic.owner = NULL;
+        skill_steal(&th, &vic, &sr); assert(strstr(toast, "\xe4\xbb\x80\xe4\xb9\x88\xe4\xb9\x9f"));  // 遺憾的是你什麼也沒有偷到
+    }
+    {  // 疾風（天氣 10）、色調 11~16 → light_mode 2~7、時鐘設定 0x44e880／0x44e890
+        weather_force(10); assert(wx.idx == 10 && wx.srv_idx == 10);
+        weather_force(13); assert(wx.idx == 13 && lt.mode == 4);          // 藍
+        weather_force(16); assert(lt.mode == 7);
+        weather_force(0); assert(lt.mode == 0 && wx.idx == 0);
+        clock_set(3, 4, 5, 6, 7); assert(clk.year == 3 && clk.month == 4 && clk.day == 5 && clk.hour == 6 && clk.tick == 7);
+        clock_set_hour(21); assert(clk.hour == 21 && clk.tick == 7);
+    }
+    {  // 除錯指令 SetFog（0x4c8630）、GetSpeed（#ObjSpeed）
+        Scene sc = {0}; sc.w = sc.h = 2; sc.cells = calloc(4, sizeof *sc.cells);
+        const Scene *sv = unit_scene; unit_scene = &sc;
+        debug_command("SetFog 0"); assert(sc.cells[3].view == 0xc9);
+        debug_command("setfog 1"); assert(sc.cells[0].view == 1);
+        debug_command("SetFog 2"); assert(sc.cells[2].view == 0);
+        debug_command("SetFog 7"); assert(sc.cells[2].view == 0);  // 不認得的值不動
+        toast[0] = 0; debug_command("GetSpeed"); assert(strstr(toast, "m_iSpeedCent = 100") && strstr(toast, "m_nFightSpeed"));
+        unit_scene = sv; free(sc.cells);
+    }
+    assert(prop_sound(0x7e9, 1) == 284 && prop_sound(0x7e9, 0) == 400 && prop_sound(2001, 1) == 276 && prop_sound(2006, 1) == 0xffff && prop_sound(99999, 0) == 0xffff);  // PropMdl 落地／下落聲音
     first_map_test();
     death_team_test();  // 用到 rand（npc_selected），放最後免得改變前面測試的亂數序列
     puts("skilltest ok");

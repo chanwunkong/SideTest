@@ -95,6 +95,10 @@
   if (q.get('at')) args.push('--at', q.get('at'));
   if (q.get('money')) args.push('--money', q.get('money'));
   for (const it of q.getAll('learn')) args.push('--learn', it);  // learn=索引名,分類（模擬 skl_learn）
+  if (q.get('weather')) args.push('--weather', q.get('weather'));
+  if (q.get('hour')) args.push('--hour', q.get('hour'));
+  if (q.get('clock')) args.push('--clock', q.get('clock'));
+  for (const c of q.getAll('cmd')) args.push('--cmd', c);
   for (const it of q.getAll('item')) args.push('--item', it);  // item=類型,等級（可以多個）
   var Module = {
     canvas,

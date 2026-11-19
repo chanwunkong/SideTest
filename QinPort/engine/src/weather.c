@@ -283,6 +283,25 @@ static void weather_tick(void) {
 // Rec '@' 12（0x469630 → 0x44e880 設 DAT_00662890 小時，再 0x4695f0）：設小時並依亮度表重設亮度
 static void clock_hour_set(int h) { clk.hour = h; light_hour(wx.idx); }
 
+// 0x44e880（設時 DAT_00662890，連線版）、0x44e890（設年月日時＋拍數 DAT_00662884~94，連線版）：單機沒有呼叫者，入口是 --hour／--clock／--weather（debug_clock_apply）
+static void clock_set_hour(int h) { clk.hour = h; }
+static void clock_set(int year, int month, int day, int hour, int tick) { clk.year = year, clk.month = month, clk.day = day, clk.hour = hour, clk.tick = tick; }
+// 強制天氣 idx（0~10 天氣、11~16 色調 → light_mode 2~7）：伺服器端倒數拉長不再擲表
+static void weather_force(int idx) {
+    wx.srv_idx = idx;
+    wx.srv_cd = 1 << 30;
+    weather_set(idx, 1 << 30);
+    weather_resume();
+}
+static struct { int weather, hour, clock[5], use_clock; } dbg_clk = {.weather = -1, .hour = -1};
+static void debug_clock_apply(void) {  // 主迴圈第一拍：套 --weather／--hour／--clock，之後依亮度表重設亮度（0x4695f0）
+    if (dbg_clk.use_clock) clock_set(dbg_clk.clock[0], dbg_clk.clock[1], dbg_clk.clock[2], dbg_clk.clock[3], dbg_clk.clock[4]);
+    if (dbg_clk.hour >= 0) clock_set_hour(dbg_clk.hour);
+    if (dbg_clk.weather >= 0) weather_force(dbg_clk.weather);
+    if (dbg_clk.use_clock || dbg_clk.hour >= 0) light_hour(wx.idx);
+    dbg_clk.use_clock = 0, dbg_clk.hour = dbg_clk.weather = -1;
+}
+
 // 亮度變了粒子跟著換色（CParticleMng 虛擬函式 +8）
 static void weather_retone(int b) {
     if (wx.idx && wx.tex_kind) weather_tex(wx.tex_kind, b < 0 ? 0 : b > 16 ? 16 : b);

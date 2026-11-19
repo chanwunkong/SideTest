@@ -430,6 +430,7 @@ typedef struct Actor {
     int trap_revealed, trap_group; // 陷阱發現旗標（原版+0x9f的反值）及最後主人組別
     int trap_state, trap_timer, trap_fired, trap_trig, trap_uses;  // CTrapBase +0x97 狀態0待命1觸發動畫2冷卻、+0x77 計數、+0xa7 已放招、+0xbb 偵測到敵人、+0xb7 剩餘次數
     int copied, copy[12];
+    int cloned;                    // 分身（IsCloned = 1）：技能列複製自施放者（0x1003df00），AI 像隊友一樣挑技能
     int knock, stun;               // 擊退中、硬直剩幾拍（+0x42f、+0x433：不能動、不能出手）
     int print_x, print_y, foot;    // 上一個腳印的位置（+0x3c9）、這次踩哪隻腳（+0x3c5）
     int ai_tick;                  // 怪物 AI 計數（+0xbb，起始隨機 0~99）
@@ -1717,6 +1718,7 @@ enum { STR, CON, DEX, SAVVY, CHARM, WISDOM };
 static int hero_attr[6] = {30, 25, 25, 30, 40, 20};
 static int hero_extra_exp, hero_extra_skill;  // 剩餘屬性點、技能點：每升一級 +10、+1（EasyRPG.dll 0x10026d30）
 static int hero_money = 100;  // 同一模板的 Money
+static int hero_bank;  // 人物屬性 Bank（存在錢庄的錢，money.c）；劇情版由 story_begin／story_end 與劇情物件同步，存檔跟著劇情存
 static int hero_gender = 0, hero_age = 29;  // 同一模板的 Gender、Age
 // 創角選的主角範本（秦殇/主角/<職業人名>）的外觀：G_PicID = 角色表列（29 遊俠、379 力士、207 刺客、208 術士、209 巫師）、
 // G_EquipStr<職業> = 外觀字串（動作方式*各部件款式），之後身上裝備再蓋上去（hero_look）。沒有劇情時是遊俠扶蘇
@@ -2391,11 +2393,42 @@ static void disarm(Actor *a, Actor *t, const SkillRow *r) {
 
 // 分身（Attack方式 11，0x10034140）：已有分身就不放；拿弓（Hand 2、5）放克隆刺客弓，否則克隆刺客刀
 // shortcut: 原版把放的人的裝備（G_EquipStr3 → 分身的 G_EquipStr1）給分身，換裝還沒做
+// 0x1003df00：放完後把施放者的每個技能（等級 > 0）複製給分身，等級上限 9（0x10037d70 加進技能列）
+#define CLONE_MAX 4
+static SkillRow clone_row[CLONE_MAX][MAX_ACTOR_SKILLS];
+static void clone_skills(Actor *c, const Actor *src) {
+    int slot = 0;
+    for (; slot < CLONE_MAX - 1; slot++) {  // 空槽 = 沒有活著的分身用它（最後一槽共用）
+        int used = 0;
+        for (int i = 0; i < actor_count; i++) used |= actors[i].cloned == slot + 1 && actors[i].role && &actors[i] != c;
+        if (!used) break;
+    }
+    SkillRow *rows = clone_row[slot];
+    int n = 0;
+    c->cloned = slot + 1;
+    actor_skills_rebuild(c);
+    for (int i = 0; i < src->skill_n && n < MAX_ACTOR_SKILLS; i++) {
+        const SkillRow *r = src->skills[i].row;
+        if (!r || r->level < 1) continue;
+        rows[n] = *r;
+        if (rows[n].level > 9) rows[n].level = 9;
+        actor_skill_append(c, &rows[n], n + 1);
+        n++;
+    }
+    actor_right_skill(c, -1);
+    actor_left_skill(c, -1);
+    c->mp = c->mp_max;
+}
 static void clone(Actor *a) {
+    if (a->cloned) return;  // shortcut: 原版 0x10034140 只查施放者隊伍的 IsCloned；分身自己放分身的情況沒查，這裡不遞迴
     for (int i = 0; i < actor_count; i++)
         if (alive(&actors[i]) && actors[i].owner == a && !strncmp(actors[i].mon->name, "\xbf\xcb\xc2\xa1", 4)) return;
-    make_beside(a, hero_hand == 2 || hero_hand == 5 ? "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb9\xad" : "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb5\xb6");
+    Actor *c = make_beside(a, hero_hand == 2 || hero_hand == 5 ? "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb9\xad" : "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb5\xb6");
+    if (c) clone_skills(c, a);
 }
+
+static void skill_open_lock(Actor *a, const SkillRow *r);
+static void skill_steal(Actor *a, Actor *t, const SkillRow *r);
 
 // 技能打中（0x1003f590）：我方状态、敌方状态都沒填就不加；我方状态已在自己身上、敌方状态已在對方身上也不加。
 // 否則自己加我方状态、對方加敌方状态（0x1002fe20 → 0x10037f40），時間 = 作用時間。
@@ -2421,6 +2454,8 @@ static void skill_hit(Actor *a, Actor *t, const SkillRow *r, Uint32 tick) {
     else if (k == 8) trap(a, r);
     else if (k == 9) disarm(a, t, r);
     else if (k == 11) clone(a);
+    else if (k == 5) skill_open_lock(a, r);
+    else if (k == 6) skill_steal(a, t, r);
     else if (t && t != a && (k == 1 || k == 4 || k == 10)) strike(a, t, r, tick);
 }
 
@@ -4589,7 +4624,7 @@ static ActorSkill *npc_selected(Actor *a) {
         const SkillRow *r = mon_pick(a);
         if (r) { a->skill = r; actor_right_skill(a, skill_attack_id(r)); }
     }
-    if ((a->selected < 0 || a->selected >= a->skill_n) && a->team) {  // 隊友：技能表裡等級 > 0、精气夠的技能隨機挑一個（shortcut: 原版 AI 依技能 manual 旗標分組挑，沒查）
+    if ((a->selected < 0 || a->selected >= a->skill_n) && (a->team || a->cloned)) {  // 隊友與分身：技能表裡等級 > 0、精气夠的技能隨機挑一個（shortcut: 原版 AI 依技能 manual 旗標分組挑，沒查）
         int ok[MAX_ACTOR_SKILLS], n = 0;
         for (int i = 0; i < a->skill_n; i++)
             if (a->skills[i].row && a->skills[i].enabled && skill_usable(a, a->skills[i].row) && skill_needs_foe(a->skills[i].row)) ok[n++] = i;
@@ -5448,10 +5483,10 @@ static int actor_cast_at(Actor *a, int id, int x, int y, Actor *target, int forc
 
 // ---- CTrapBase 陷阱物件（Poq.exe 0x49b8d0～0x49c710，種類 24）----
 // 0x49c410 設狀態：1 = 觸發動畫（發現、播音效 0x3c），2 = 冷卻 500 拍，0 = 回待命。序列跟著狀態（actor_requested_seq）。
-// shortcut: 觸發音效 0x3c 沒有位置音效入口。
+// shortcut: 音效 0x3c 原版有位置（0x4804a0 帶陷阱座標），audio_sfx 沒有位置音量，全音量播。
 static void trap_set_state(Actor *t, int state) {
     t->trap_state = state;
-    if (state == 1) t->trap_revealed = 1;
+    if (state == 1) { t->trap_revealed = 1; audio_sfx(0x3c); }
     else if (state == 2) t->trap_timer = 500;
 }
 
@@ -6009,6 +6044,22 @@ static int hero_forget_skill(int k) {
     return 1;
 }
 
+// SetSkill（0x10054cb0 → AddSkill 0x10037d70）：直接給技能並設等級；同名技能已有 → 加不進去（回 0，原版回 NULL）；技能表沒有 → 0（「创建物体失败」）
+// shortcut: 原版沒有單機呼叫者（劇情 0 處），所以沒有入口；--setskill 之類的除錯入口也沒做，只有 skilltest 呼叫
+static int hero_set_skill(const char *key, int level) {
+    skills_load();
+    int k = -1;
+    for (int i = 0; i < hero_skill_n; i++)
+        if (!strcmp(hero_skill[i].key, key)) k = i;
+    if (k < 0 || hero_skill[k].level > 0) return 0;
+    SkillRow *r = &hero_skill[k];
+    r->level = level;
+    actor_skill_update(&actors[0], k + 1, skill_attack_id(r), (int)skill_field(r, 12, skill_value(r->range_min, r->range_min_inc, r->level)),
+        skill_range_max(r), 0, 0);
+    actor_skill_enable(&actors[0], k + 1, 1, 0);
+    return 1;
+}
+
 static int bag_free(void) {
     for (int i = 0; i < 24; i++)
         if (!inv[i].name[0]) return i;
@@ -6332,9 +6383,40 @@ static void ground_drop(const Item *it, float x, float y) {
 // 每拍（CPropObj 0x49a550）：前 PROP_TICKS-1 拍沿直線飛，高度 +PROP_STEP 到 PROP_SPLIT 拍、之後落回 0；最後一拍高度歸零。
 // 怪現象（照原版）：只飛 29 步，停在落點前 1/30；PROP_SPLIT（DAT_00663f24）沒有任何寫入處 = 0，所以高度一直是 0。
 // shortcut: 起飛／落地音（物件模型 +0x32／+0x2e）、地面動畫幀、地上光照／陰影還沒做，等道具模型表
+// 地上道具模型（ObjMdl/PropMdl.txt：名称、地面图片ID、图片ID、落地声音、下落声音；CPropObj +0x85 的模型，0x49a070 設）：
+// 依道具的地面圖 G_PicID 找列；0x49a550 在第 1 拍播 +0x32（下落声音）、第 29 拍（落地）播 +0x2e（落地声音），空欄 = 0xffff 不播
+static int prop_sound(int ground_id, int landing) {
+    static int loaded, n, tab[256][3];
+    if (!loaded) {
+        loaded = 1;
+        size_t len;
+        uint8_t *d = res_file("ObjMdl", "PropMdl.txt", &len);
+        if (d) {
+            if (len && d[0] == 0x80) len = res_unxor(d, len);
+            char *save = NULL;
+            strtok_r((char *)d, "\r\n", &save);  // 表頭
+            for (char *l; n < 256 && (l = strtok_r(NULL, "\r\n", &save));) {
+                char *f[6] = {0};
+                int k = 0;
+                for (char *p = l; k < 6; k++) { f[k] = p; p = strchr(p, '\t'); if (!p) { k++; break; } *p++ = 0; }
+                if (k < 5) continue;
+                tab[n][0] = atoi(f[1]);
+                tab[n][1] = f[3][0] ? atoi(f[3]) : 0xffff;
+                tab[n][2] = f[4][0] ? atoi(f[4]) : 0xffff;
+                n++;
+            }
+            free(d);
+        }
+    }
+    for (int i = 0; i < n; i++)
+        if (tab[i][0] == ground_id) return tab[i][landing ? 1 : 2];
+    return 0xffff;
+}
 static void ground_tick(void) {
     for (int i = 0; i < ground_n; i++) {
         if (++ground[i].t >= PROP_TICKS) continue;
+        int snd = ground[i].t == PROP_TICKS - 1 ? prop_sound(ground[i].it.ground, 1) : ground[i].t == 1 ? prop_sound(ground[i].it.ground, 0) : 0xffff;
+        if (snd != 0xffff) audio_sfx(snd);
         if (ground[i].t < PROP_SPLIT) ground[i].z += PROP_STEP;
         else if (ground[i].z > 0) ground[i].z -= PROP_STEP;
         ground[i].dx += ground[i].vx, ground[i].dy += ground[i].vy;
@@ -6932,6 +7014,7 @@ static char rec_pending[64];  // 劇情事件要播的錄影別名（訊息 0x52
 static void story_begin(void) {
     int pl = story_player();
     story_set_int(pl, "Money", hero_money);
+    story_set_int(pl, "Bank", hero_bank);
     story_unhold(pl);
     for (int p = 0; p < INV_N; p++) {
         if (!inv[p].name[0]) continue;
@@ -6943,6 +7026,7 @@ static void story_begin(void) {
 static void story_end(void) {
     int pl = story_player(), equip = 0;
     hero_money = story_get_int(pl, "Money");
+    hero_bank = story_get_int(pl, "Bank");
     for (int p = 0; p < INV_N; p++) {
         if (!inv[p].name[0] || !inv[p].sh || story_parent(inv[p].sh) == pl) continue;
         Item *it = malloc(sizeof *it);  // 給了別人：道具跟著物件走
@@ -7339,10 +7423,48 @@ static void chest_open_all(const char *alias) {
     chest_state_sync((Scene *)unit_scene, 1);
 }
 static void door_gather_say(void) { hud_say(story_text(0x508)); }
+
+// 開鎖（0x10034010）：技能等級 < 目標 Level → 5005；isbuilding > 0（1 = 鎖著：key 清空、訊息 5007）→ 走開箱規則 0x1004e680；其他 5006
+static int lockpick_open(const SkillRow *r, int h, float cx, float cy) {
+#ifdef STORY
+    if (r->level < story_get_int(h, "Level")) { hud_msg(5005); return 0; }
+    int isb = story_get_int(h, "isbuilding");
+    if (isb > 0) {
+        if (isb == 1) { story_set_str(h, "key", ""); hud_msg(5007); }
+        story_begin();
+        chest_open_rule(h, cx, cy);
+        story_end();
+        chest_state_sync((Scene *)unit_scene, 1);
+        return 1;
+    }
+    hud_msg(5006, story_alias(h));
+#else
+    (void)r; (void)h; (void)cx; (void)cy;
+#endif
+    return 0;
+}
+static void skill_open_lock(Actor *a, const SkillRow *r) {
+#ifdef STORY
+    const Scene *sc = unit_scene;
+    float ax = a->aim_valid ? a->aim_x / 64.0f : a->x, ay = a->aim_valid ? a->aim_y / 64.0f : a->y;
+    int best = -1;
+    float bd = 4;
+    for (int i = 0; sc && i < sc->object_count; i++) {
+        const Object *o = &sc->objects[i];
+        float d = (o->x + 0.5f - ax) * (o->x + 0.5f - ax) + (o->y + 0.5f - ay) * (o->y + 0.5f - ay);
+        if (o->name[0] && d < bd && object_story(sc, i) && story_get_int(object_story(sc, i), "isbuilding") > 0) { best = i; bd = d; }
+    }
+    if (best < 0) { hud_msg(5006, ""); return; }
+    lockpick_open(r, object_story(sc, best), sc->objects[best].x + 0.5f, sc->objects[best].y + 0.5f);
+#else
+    (void)a; (void)r;
+#endif
+}
 #else
 static void door_gather_say(void) {}
 static void chest_open_object(int idx) { (void)idx; }
 static void chest_state_sync(Scene *scene, int animate) { (void)scene; (void)animate; }
+static void skill_open_lock(Actor *a, const SkillRow *r) { (void)a; (void)r; hud_msg(5006, ""); }
 #endif
 
 
@@ -7452,6 +7574,7 @@ static int save_write(int slot) {
     fwrite(inv, sizeof inv, 1, f);
 #ifdef STORY
     fwrite(store, sizeof store, 1, f);
+    story_set_int(story_player(), "Bank", hero_bank);  // 錢庄存款跟著劇情物件存
     story_save(f, sizeof(Item));
 #endif
     {   // 探索尾巴（0x44c830）：沒有（寬 ≤ 32）寫長度 0
@@ -7484,6 +7607,7 @@ static int save_read(int slot, SaveHead *h) {
     static Item st[STORE_N];
     if (fread(st, sizeof st, 1, f) != 1 || !story_load(f, sizeof(Item))) { fclose(f); return 0; }  // shortcut: 劇情讀到一半壞掉時世界已清空，沒有退回
     memcpy(store, st, sizeof store);
+    hero_bank = story_get_int(story_player(), "Bank");
     shop_close();
     dialog_open = 0;
 #endif
@@ -7701,6 +7825,62 @@ static void opt_draw(void) {
 static const int new_var_n[5] = {3, 3, 3, 4, 3};
 static const int new_pic[24] = {5270, 8200, 8459, 0, 5454, 8198, 8461, 0, 5455, 8196, 8463, 0, 8465, 8455, 5456, 8469, 8144, 8467, 8457, 0, 5450, 0, 0, 0};
 static UiDialog new_d;
+#include "money.c"
+
+// ---- 開鎖（Attack方式 5，0x10034900 對道具目標 → 0x10034010）、偷竊（Attack方式 6，0x10034900 對人物目標）----
+// 原版技能脈絡全域：DAT_104784d0 施放者、d4 目標、d8 技能物件。資料裡沒有技能用 5／6（coverage 0 次），規則照原版，單機劇情與非劇情模式的新技能可用。
+// 訊息（EasyRPG_C.dlg）：5005 等級不夠、5006 不是寶箱、5007 鎖拆了、5008 偷失敗、5009 什麼也沒偷到、5010 偷到了 %s(%s)、5129 偷竊技能太低、5130 玩家身上的東西不能偷
+// 參數 101（0x10025020 → DAT_10478a2c）開鎖旗標只在開完後歸零；參數 103（0x10025050 → DAT_10478d28）= 偷竊成功率（百分比，與 rand()%100 比）。
+// shortcut: 參數 ID 101／103 是用函式表 0x1039e8f4 的位置推出來的（entry 位址差 / 4），沒有資料可驗證。
+// 開鎖目標 = 施放點（aim）一格內最近、isbuilding > 0 的劇情物件（原版目標是點選的物件，引擎技能沒有「對建築」的點選）
+static int steal_money_get(Actor *t) {
+#ifdef STORY
+    if (t->sh) return story_get_int(t->sh, "Money");
+#endif
+    (void)t;
+    return 0;
+}
+// 偷竊（0x10034900 人物分支）
+static void skill_steal(Actor *a, Actor *t, const SkillRow *r) {
+    if (!t || t == a || !alive(t)) return;
+    if (r->level < t->level / 9) { hud_msg(5129); return; }          // 0x1409
+    int roll = rnd(100);
+    if (skill_param(r, 103) < roll) { hud_msg(5008); return; }       // 0x1390 偷失敗
+    if (t->owner || t->side == a->side) { hud_msg(5130); return; }   // 0x140a：有主人的（召喚獸、隊友、自己這邊的）偷不得
+    Actor *to = a->owner ? a->owner : a;                              // 東西給施放者的主人（FUN_1004af10）
+    if (!(roll & 1)) {
+        int take = steal_money_get(t) / 3;
+        if (take < 1) { hud_msg(5009); return; }
+#ifdef STORY
+        story_set_int(t->sh, "Money", story_get_int(t->sh, "Money") - take);
+#endif
+        if (to == &actors[0]) money_add(take);
+        char nm[64] = "", amt[16];
+        res_dlg("EasyRPG_C.dlg", 5028, nm, sizeof nm);                // 金钱
+        snprintf(amt, sizeof amt, "%d", take);
+        hud_msg(5010, nm, amt);
+        return;
+    }
+#ifdef STORY
+    if (t->sh && to == &actors[0]) {
+        int n = 0, pick = 0, ch = 0;
+        for (int c = story_next(t->sh, 0); c; c = story_next(t->sh, c)) n++;
+        pick = rnd(n);
+        for (int c = story_next(t->sh, 0), i = 0; c; c = story_next(t->sh, c), i++)
+            if (i == pick) ch = c;
+        int ty = ch ? story_get_int(ch, "Type") : 0, pos = ch ? story_get_int(ch, "UI_Pos") : 0;
+        if (ch && ty != 0x31 && ty != 0x32 && !(pos >= 0x1e && pos <= 0x28)) {  // 0x31／0x32 與穿在身上的（UI_Pos 30~40）偷不得
+            const char *an = story_alias(ch);
+            story_begin();
+            story_move(ch, story_player());
+            story_end();
+            hud_msg(5010, an, an);
+            return;
+        }
+    }
+#endif
+    hud_msg(5009);
+}
 static int new_open, new_prof, new_var;
 static char hero_name[64] = "\xe6\x89\xb6\xe8\x8b\x8f";  // 扶苏（UTF-8）；創角 m_pRoleName 輸入框可改
 static char new_name[64];  // 創角輸入框的內容（UTF-8）；換外貌時重設成該外貌的人名
@@ -7923,6 +8103,7 @@ static int sys_tap(int x, int y) {
         return 1;
     }
     if (opt_tap(x, y)) return 1;
+    if (money_tap(x, y)) return 1;
     if (quit_open) {
         const UiCtrl *c = ui_button_at(&quit_d, (vw - quit_d.w) / 2, (vh - quit_d.h) / 2, x, y);
         if (c && !strcmp(c->name, "m_Yes")) quit_due = 1;
@@ -8044,6 +8225,7 @@ static void sys_draw(void) {
         }
     }
     if (quit_open) ui_draw(&quit_d, (vw - quit_d.w) / 2, (vh - quit_d.h) / 2);
+    money_draw();
     opt_draw();
     new_draw();
     map_draw();
@@ -8134,6 +8316,10 @@ static int win_tap(int x, int y) {
         }
         const UiCtrl *c = ui_button_at(&w->d, ox, oy, x, y);
         int role = !strcmp(w->d.name, JM52);
+        if (!strcmp(w->d.name, JM54)) {  // 道具視窗的錢數鈕 m_pMoney → 丟錢視窗（Poq.exe 0x54b990）
+            const UiCtrl *mc = ui_find(&w->d, "m_pMoney");
+            if (mc && x >= ox + mc->x && x < ox + mc->x + mc->w && y >= oy + mc->y && y < oy + mc->y + mc->h) { money_open(0); return 1; }
+        }
 #ifdef STORY
         if (c && !strcmp(w->d.name, JM63)) { shop_button(c->name); return 1; }
         if (!strcmp(w->d.name, JM73)) { if (c) store_button(c->name); return 1; }
@@ -8220,6 +8406,7 @@ static int hud_target(int x, int y, int win, SDL_Rect *r) {
     if (dialog_open) return 0;
 #endif
     if (map_open || new_open || opt_open || help_open || cr.open || ch.open) return 0;
+    if (mny.open) return 2;
     if (diff_open) {
         const Sprite *bg = ui_image(196, 0);
         return ctrl_target(&diff_d, (vw - (bg ? bg->w : 0)) / 2, (vh - (bg ? bg->h : 0)) / 2, x, y, r);
@@ -9153,6 +9340,8 @@ typedef struct {
     // 對話框（CScnClientRecord +0x1fd4 文字、+0x1fd8 說話者、+0x1fec 剩餘拍、+0x1ff0 有語音）
     int dlg_id, dlg_voice, dlg_played, dlg_t, dlg_n6;  // dlg_t < 0 = 沒顯示
     char dlg_text[512];
+    int sv_wx, sv_wleft, wx_set;       // #1 子類 1 的天氣（vfunc+8 = 0x4697b0 換天氣）蓋掉前的天氣，rec_end 還原
+    int gid[32], gid_n;                // #6 放的地上道具編號（ground[].id），rec_end 移除
     int sv_day, sv_night, sv_type, light_set, ctl64;  // #1 子類 1 改過的亮度參數（rec_end 還原）；@8 存的 CScnClient +0x64
     char room[64]; int foreign;        // 錄影開始時的房間；foreign = 錄影目前在別的場景（#13 子類 2 換場景），那些場景的建築／物件這裡沒有
     int dlg_sx, dlg_sy;                // 說話者上一次畫的螢幕位置（actor_draw 記下）
@@ -9236,6 +9425,13 @@ static void rec_attr(const uint8_t *b, Actor *a) {
 }
 
 // 一包 '#'：0x470300 的分派
+// '#' 9：錄影角色 a 對目標點放招式 id（0x43acb0 建 MethodMain）。錄影角色的技能列是模板招式，沒有這招就補一筆（沒有技能數值結算，同 actor_cast_try 的模板招式）
+static int rec_cast(Actor *a, int id, int x, int y) {
+    const Method *m = method_find(id);
+    if (!m || !a->def) return 0;
+    if (actor_skill_find(a, id) < 0) actor_skill_add(a, (ActorSkill){.id = id, .min = m->range_min, .max = m->range_max, .enabled = 1, .p8 = 1, .p9 = 1}, 0);
+    return actor_cast_try(a, id, x, y, NULL);
+}
 static void rec_net(const uint8_t *b, size_t n, Scene *s) {
     if (n < 3) return;   // '#' 13 子類 2 只有 3 byte
     Actor *a = n >= 4 ? rec_actor(rec_u16(b + 2)) : NULL;
@@ -9245,6 +9441,8 @@ static void rec_net(const uint8_t *b, size_t n, Scene *s) {
         else if (n >= 13 && b[4] == 1 && !rec.foreign) {   // 子類 1（0x470300 case 1）：進場景的亮度參數 0x44e5d0(類型 u16 b7、夜 b9、日 b10、b11)；原版載另一份場景，這裡在原房間上暫改、rec_end 還原
             if (!rec.light_set) { rec.sv_day = lt.day; rec.sv_night = lt.night; rec.sv_type = lt.type; rec.light_set = 1; }
             light_table(b[10], b[9], (int)rec_u16(b + 7), wx.idx);
+            if (n >= 15 && !rec.wx_set) { rec.sv_wx = wx.idx; rec.sv_wleft = wx.left; rec.wx_set = 1; }
+            if (n >= 15) weather_set(b[12], (int)rec_u16(b + 13));  // 0x470300 case 1：(**(CGodClient+8))(b12, u16(b13)) = 0x4697b0 換天氣（天氣編號、持續拍數；資料 b12 都是 0 晴、拍數 239~1370）
         }
         break;
     case 2: if (a) rec_remove(a); break;
@@ -9273,11 +9471,58 @@ static void rec_net(const uint8_t *b, size_t n, Scene *s) {
         if (n >= 3 && b[2] == 2 && rec.strn) { char sc[64]; snprintf(sc, sizeof sc, "%.63s", rec.strq[rec.strn - 1]); char *sp = strchr(sc, ' '); if (sp) *sp = 0; rec.foreign = strcasecmp(sc, rec.room) != 0; }
         rec.strn = 0;
         break;
-    default: break;                // 6、8、9：見檔頭 shortcut（#6 資料與原版讀的欄位對不上，#8／#9 要 MethodMain 出手動畫）
+    case 6:   // 地上道具（0x470300 case 6 → AddProp 0x450cc0）：PicID b4 ≥ 2000（PropMdl 地面圖）、b8 = 0 才有掉落動畫（0x49a7e0）、格子 x = u16(b9)、y = u16(b11)、擁有者 u16(b13)。
+        // 資料 24 筆中 20 筆只有 12 byte（舊版格式）：原版照新格式讀 x、y 會讀到封包外的 0xcdcd（格子在地圖外），AddObj 失敗什麼都不放，這裡也不放。PicID < 2000（陷阱等）沒有 15 byte 的資料，不做
+        if (n >= 15 && rec_u16(b + 4) >= 2000 && !rec.foreign && rec.gid_n < 32) {
+            Item it = {0};
+            it.pos = -1;
+            snprintf(it.name, sizeof it.name, "item");
+            it.ground = (int)rec_u16(b + 4);
+            int g0 = ground_n;
+            ground_drop(&it, rec_u16(b + 9) + 0.5f, rec_u16(b + 11) + 0.5f);
+            if (ground_n > g0) {
+                if (b[8]) { ground[g0].t = PROP_TICKS; ground[g0].z = 0; ground[g0].dx = (int)ground[g0].x * 64 + 32; ground[g0].dy = (int)ground[g0].y * 64 + 32; }
+                rec.gid[rec.gid_n++] = ground[g0].id;
+            }
+        }
+        break;
+    case 8:   // 飛行效果單位（0x450700(單位編號 b2, x b4, y b6, 0, 0)）：沒有放的人（來源 0），單位在 (x, y) 像素
+        if (n >= 8) { MUnit src0; memset(&src0, 0, sizeof src0); unit_new((int)rec_u16(b + 2), (int)rec_u16(b + 4), (int)rec_u16(b + 6), &src0, SDL_GetTicks()); }
+        break;
+    case 9:   // 招式單位（0x43acb0(角色 b2, 招式 b4, 目標點 (s16 b6, s16 b8))）：角色出手動畫 MethodMain + 招式的觸發
+        if (a && n >= 10) rec_cast(a, (int)rec_u16(b + 4), (short)rec_u16(b + 6), (short)rec_u16(b + 8));
+        break;
+    default: break;
     }
 }
 
 // 一包 '@'：0x4725c0 的分派
+// 0x4c8630 SetFog：全場景探索值 0 → 0xc9（沒探索過）、1 → 1、2 → 0（全亮）。Rec '@' 10 與除錯指令 SetFog 共用
+static void scene_fog_set(Scene *sc, int m) {
+    for (int i = 0; sc && i < sc->w * sc->h; i++)
+        if (m >= 0 && m <= 2) sc->cells[i].view = m == 0 ? 0xc9 : m == 1 ? 1 : 0;
+}
+// 除錯指令（Poq.exe 0x455d60 讀 DAT_00662924，DAT_0094c1b8 == 1 的測試主控台）：SetFog <n>（0x4c8630）；GetSpeed → "#ObjSpeed"（0x4774d0 回報主角的速度欄位）。
+// 單機入口：--cmd "SetFog 0"（可重複，網頁用網址參數 cmd= 要改 web/shell.html，主樹的 web/ 不動）
+static char dbg_cmds[4][64];
+static int dbg_cmd_n;
+static void debug_command(const char *cmd) {
+    char w[32] = "";
+    int n = 0;
+    sscanf(cmd, "%31s %d", w, &n);
+    if (!strcasecmp(w, "SetFog")) scene_fog_set((Scene *)unit_scene, n);
+    else if (!strcasecmp(w, "GetSpeed")) {
+        const Actor *h = &actors[0];
+        snprintf(toast, sizeof toast, " m_iB_C_MOVE_SPEED = %d\n m_iSpeedCent = %d\n m_nNormalSpeed = %d\n m_nFightSpeed = %d\n",
+                 actor_move_bonus(h), status_speed(h), h->speed, h->fight_speed);
+        toast_until = SDL_GetTicks() + 4000;
+        printf("%s", toast);
+    }
+}
+static void debug_commands_apply(void) {
+    for (int i = 0; i < dbg_cmd_n; i++) debug_command(dbg_cmds[i]);
+    dbg_cmd_n = 0;
+}
 static void rec_ctl(const uint8_t *b, size_t n, Scene *sc) {
     switch (b[1]) {
     case 1:   // 鏡頭定位（螢幕多出 640×480 的部分對半）
@@ -9307,7 +9552,7 @@ static void rec_ctl(const uint8_t *b, size_t n, Scene *sc) {
         break;
     case 7: if (n >= 6) rec.follow = (int)rec_u32(b + 2); break;                 // 0x473660 鏡頭跟隨
     case 8: if (n >= 10) { if (rec_u32(b + 2)) screen_effect((int)rec_u32(b + 2), 0); rec.ctl64 = (int)rec_u32(b + 6); } break;  // 0x44ca40(模式, 0)：1／2／3 淡入淡出、4 震；+0x64 只有 '#' 11／12 讀（資料沒有）
-    case 10: if (n >= 6) { int m = (int)rec_u32(b + 2); for (int i = 0; i < sc->w * sc->h; i++) if (m >= 0 && m <= 2) sc->cells[i].view = m == 0 ? 0xc9 : m == 1 ? 1 : 0; } break;  // 0x4c8630：全場景探索值 0 → 0xc9、1 → 1、2 → 0
+    case 10: if (n >= 6) scene_fog_set(sc, (int)rec_u32(b + 2)); break;  // 0x4c8630
     case 12: if (n >= 6) clock_hour_set((int)rec_u32(b + 2)); break;             // 0x469630 + 0x4695f0
     case 11: if (n >= 6) audio_sfx((int)rec_u32(b + 2)); break;                  // 0x4804a0 播音效（錄影的環境音、開門聲）
     case 9: if (n >= 14) viewport_pan(&viewport, (int)rec_u32(b + 2) - (viewport.w - 640) / 2, (int)rec_u32(b + 6) - (viewport.h - 480) / 2, (int)rec_u32(b + 10)); break;  // 0x461150
@@ -9324,6 +9569,9 @@ static void rec_end(const Scene *s, Actor *hero) {
     rec_on = 0;
     scene_record_mode = 0;
     if (rec.light_set) light_table(rec.sv_day, rec.sv_night, rec.sv_type, wx.idx);
+    if (rec.wx_set) weather_set(rec.sv_wx, rec.sv_wleft > 0 ? rec.sv_wleft : 1000);
+    for (int i = 0; i < rec.gid_n; i++)
+        for (int g = 0; g < ground_n; g++) if (ground[g].id == rec.gid[i]) { ground[g] = ground[--ground_n]; break; }
     free(rec.d); memset(&rec, 0, sizeof rec); rec.dlg_t = -1; audio_voice(-1);
     zoom_back();
     viewport_follow_set(&viewport, s, hero, 1);
@@ -9481,6 +9729,11 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
         else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--money") && i + 1 < argc) money = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--weather") && i + 1 < argc) dbg_clk.weather = atoi(argv[++i]);  // 0~10 天氣、11~16 色調（0x4697b0 的 idx）
+        else if (!strcmp(argv[i], "--cmd") && i + 1 < argc) { if (dbg_cmd_n < 4) snprintf(dbg_cmds[dbg_cmd_n++], sizeof dbg_cmds[0], "%s", argv[i + 1]); i++; }  // 除錯指令 SetFog／GetSpeed
+        else if (!strcmp(argv[i], "--hour") && i + 1 < argc) dbg_clk.hour = atoi(argv[++i]);        // 0x44e880
+        else if (!strcmp(argv[i], "--clock") && i + 1 < argc)                                         // 0x44e890：年,月,日,時,拍
+            dbg_clk.use_clock = sscanf(argv[++i], "%d,%d,%d,%d,%d", &dbg_clk.clock[0], &dbg_clk.clock[1], &dbg_clk.clock[2], &dbg_clk.clock[3], &dbg_clk.clock[4]) == 5;
         else if (!strcmp(argv[i], "--learn") && i + 1 < argc && learns < 8) learn[learns++] = argv[++i];  // 測試用：模擬文字指令 skl_learn「索引名,分類」
         else if (!strcmp(argv[i], "--item") && i + 1 < argc && gives < 8) give[gives++] = argv[++i];
         else if (!strcmp(argv[i], "--prof") && i + 1 < argc) hero_prof = atoi(argv[++i]) < 1 || atoi(argv[i]) > 5 ? 1 : atoi(argv[i]);
@@ -9680,6 +9933,13 @@ int main(int argc, char **argv) {
                 if (e.type != SDL_MOUSEMOTION || e.motion.which != SDL_TOUCH_MOUSEID) tch.kbm = 1;
             } else if (e.type == SDL_KEYDOWN) tch.kbm = 1;
             if (e.type == SDL_QUIT) running = 0;
+            else if (mny.open && (e.type == SDL_TEXTINPUT || e.type == SDL_KEYDOWN)) {  // 丟錢／銀行輸入框：數字、退格、Enter 確定、Esc 取消
+                if (e.type == SDL_TEXTINPUT) money_text(e.text.text);
+                else if (e.key.keysym.sym == SDLK_BACKSPACE) money_back();
+                else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER) money_ok(mny.kind == 1);
+                else if (e.key.keysym.sym == SDLK_ESCAPE) money_close();
+            }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_b && !new_open && !sys_open && !mny.open) money_open(1);  // B：銀行視窗（自訂入口）
             else if (new_open && (e.type == SDL_TEXTINPUT || e.type == SDL_KEYDOWN)) {  // 創角名字輸入框：打字、退格；其他鍵不傳給遊戲
                 if (e.type == SDL_TEXTINPUT) new_name_add(e.text.text);
                 else if (e.key.keysym.sym == SDLK_BACKSPACE) new_name_back();
@@ -10019,6 +10279,8 @@ int main(int argc, char **argv) {
             light_tick(&scene);
             scene_explore_decay(&scene);  // 0x46f100 最後一步：格子探索衰減（0x4c7790）
             clock_tick();
+            debug_clock_apply();
+            debug_commands_apply();
             weather_tick();
             ambient_tick(&scene);
 #ifdef STORY
