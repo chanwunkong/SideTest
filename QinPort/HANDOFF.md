@@ -1666,3 +1666,21 @@ FUNCS.tsv todo 仍 0。使用者要玩非劇情模式，「劇情沒用到」不
 - 沒驗證：iOS 實機（加入主畫面的圖示、黑色狀態列、瀏海避讓只在 Chrome 模擬）；`Add to Home Screen` 在 http 下 iOS 是否保留全螢幕沒實測。
 
 測試最後一行：`make skilltest` → `skilltest ok`；`make storytest && node build/storytest.js 秦殇/咸阳/NPC/绣女 0 1` 正常；`firstmap ok`、`pwa ok`。
+
+## 世界物件互動：樹／礦／水缸、點門、其他點擊命令（2026-11-19）
+照 Poq.exe 0x454a90（游標下建築）、0x454f00（放開下指令）、0x489730（命令 0x10～0x13 tick）、0x439fb0（招式掃格）、EasyRPG.dll 0x1004e680（開）、0x10069af0（封包 0x142 = go）。驗證：複本 `/tmp/qb7/qinport` 的 `make web`、`webserve.py … 8653`、`node tools/webdrive_cells.mjs`（新增步驟 `click:x,y` 滑鼠、`key:h`；觸控按鈕會蓋住點擊所以用滑鼠）；`?debug=trace` 會印 `bld …`（建築座標、狀態、walk）、`click …`、`use bld …`、`door go …`。
+
+**原版規則（找到的）**
+- 游標下建築 = 格子 +0xe 的建築且旗標 0x88（探索值 ≥ 2）；可破壞種類（0x80～0x100 非門）狀態不是 0／2 就不算（`hover_building`）。點擊後依種類：0x81／0x8c → 命令 0x12（走到離建築 < 0x60 歐氏距離 → 封包 0x8e = 開）、0x85 → 0x13（4 格內開）、0x80 → 命令 9（打，目標 = 建築）、0x96 且名稱第一詞 "go" → 命令 0x10（門點、建築），0x96 其他 → 走；其他種類什麼都不做。
+- **樹、礦石、水缸、宮裡箱子全是「寶箱」子類別**（ITEM/赵村/ITEM/水缸A、矿石A、树木A… 都先呼叫 0x100f94c0 寶箱基底：isbuilding 1），所以「採／挖／打破」= 開箱規則 0x1004e680：isbuilding 1 → 2、裡面的道具掉在地上、說 openinfo、狀態 0 → 5（播互動動畫，播完 1）；Level 1～9 只說 lockinfo。**沒有工具／技能／等級需求、沒有耗時、沒有金錢／經驗**（原版規則沒找到）。0x80（水缸）要「打」：普通招式（manual 0）掃到的格子上若是 0x80 建築且狀態 0／2 就「使用」它（0x439fb0 → vtable +0x28 = 0x484e80 → 0x8e）；0x81（樹、礦）靠點擊命令 0x12，不用打。
+- 破壞後：水缸（0x80／0x8c）狀態 5 → 恢復占地格 walk（0x4841f0，驗證 walk 0 → 1）；樹、礦（0x81）圖與占地不變（原版如此，只是不能再開，再點會游標不可用）。音效 0x60（水缸）、0x5e（樹／礦）在狀態 5 播。
+- **門**：「go」門（0x96，包含村屋門與 go east 等出口區）active = 0，**走進感應區不會觸發 go**；只能點門 → 命令 0x10 → 走到門點旁（0x443600：主角 3×3 內有該建築 0x88 格；隊友任一人在旁且全隊離主角 ≤ 0x180 也算）→ 封包 0x142 送名稱第 2 詞 → go。門點 = 模型門偏移不為零用「擺放格 − 錨點 + 門偏移」，為零（出口區）= 點的那格。隊伍沒到齊說訊息 0x508；送出後 0x60 拍冷卻（door_cool）。走進感應區只剩 active = 1 的 0x96（非 go，例如 s_pctstart）。
+
+**做法**：main.c `hover_building`、`click_building`、`actor_interact_tick`（0x10／0x12／0x13）、`actor_skill_command_tick`（命令 9 目標 ≥ BLD_TARGET = 建築）、`door_near`、`object_story`（同名建築依 BNT 順序對同名劇情物件）、`chest_state_sync(scene, animate)`（所有有劇情物件的建築，開後狀態 5）；unit.c `hit_find`／`hit_buildings_only`（角色出手的命中觸發也掃建築）；res.c `trigger_hit` 改為純 0x88（去掉門點 3×3 近似）；story_rt.c `chest_base`（**實作了原本空的 0x100f94c0 基底**——之前所有 ITEM 寶箱 isbuilding 都是 0，開不了）。主迴圈 go 改由 `door_go_due` 觸發；`--warp N` 站到感應格後下命令 0x10 代替踩入。Ctrl+點：地點 → 命令 8、角色 → 命令 9（原版 Ctrl 判斷是按鍵查詢，這裡用 SDL Ctrl 狀態）。
+**驗證（headless Chrome，赵村）**：點礦石 → 走過去、`use bld`、掉礦（`ground drop`）；點水缸 → 走到旁邊揮劍、狀態 0 → 5 → 1、walk 0 → 1；點村屋門（in_hs1）→ 走到門點 → `door go in_hs1` → 進 zhc_house1（截圖）；`warp=1` 出口 → 阳周城。skilltest 新增 door_near／door_is_go／hover_building 與 trigger_hit 新語意。
+**沒做到／注意**：
+- 隨機掉落（slot 6）在 `story_refresh` 的 `__fresh` shortcut 下，**第一次進房間時礦、樹、水缸是空的，離開再回來才有東西**；原版何時第一次呼叫第 6 格沒查到（0x10052e40 只對沒玩家的房間呼叫）。
+- 重生：只找到連線版 `net…` 箱子（0x1004ea10 isbuilding 2 → 1）；單機樹礦水缸是否重生原版規則沒找到，沒做。
+- 打中水缸的音效種類（DAT_0065ea2c = 2）、門游標的名稱提示（封包 0x143）、0x80 被命令 0x12 點時的格式字串沒做。
+- 按住走路／搖桿不再走進出口區觸發 go（原版就是這樣）；要點門或出口區。點樹冠（圖）不算，要點占地格。
+- 命令 9 打建築原版 range 取技能射程，這裡接近用「走到旁邊格」（建築擺放格不可走，原樣會卡住）。

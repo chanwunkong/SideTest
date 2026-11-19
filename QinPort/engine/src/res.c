@@ -1017,18 +1017,14 @@ void scene_explore_decay(Scene *s) {
     }
 }
 
-// BNT 類型 4（InitBldTrigger = CTriBld）的感應格：模型占地格旗標 0x88（0x484a80 掃的就是這些格）；
-// 類型 0x96 的房屋門另外在門點（0x482dd0：門偏移都為零就是擺放格，否則擺放格 − 錨點 + 門）算踩到
-// （原版是點門 → 走到門點 → 執行 go；單機沒點門流程，shortcut: 走到門點周圍 3×3 就當點了——門點本身常是不可走格；點門做好再換）。
+// BNT 類型 4（InitBldTrigger = CTriBld）的感應格：模型占地格旗標 0x88（0x484a80 掃的就是這些格；原版只有 active = 1 的才掃，
+// 見 main.c trigger_sense_tick）。門點不是感應格：點門（命令 0x10）走到門點旁才送 go（main.c actor_interact_tick）。
 // 沒有模型（檔案缺）= 只有擺放格
 int trigger_hit(const Trigger *t, int x, int y) {
     const Model *m = t->m;
     if (!m || !m->footprint) return x == t->x && y == t->y;
     int fx = x - (t->x - m->anchor_x + m->grid_x), fy = y - (t->y - m->anchor_y + m->grid_y);
-    if (fx >= 0 && fy >= 0 && fx < m->grid_w && fy < m->grid_h && (m->footprint[fy * m->grid_w + fx] & 0x88) == 0x88) return 1;
-    if (m->type != 0x96) return 0;
-    int dx = m->door_x || m->door_y ? t->x - m->anchor_x + m->door_x : t->x, dy = m->door_x || m->door_y ? t->y - m->anchor_y + m->door_y : t->y;
-    return abs(x - dx) <= 1 && abs(y - dy) <= 1;
+    return fx >= 0 && fy >= 0 && fx < m->grid_w && fy < m->grid_h && (m->footprint[fy * m->grid_w + fx] & 0x88) == 0x88;
 }
 
 int scene_walkable(const Scene *s, int x, int y) {

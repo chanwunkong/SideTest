@@ -4171,13 +4171,29 @@ static void first_map_test(void) {
     assert(trigger_hit(&t, 9, 9) && trigger_hit(&t, 10, 10) && trigger_hit(&t, 11, 11));
     assert(!trigger_hit(&t, 10, 9) && !trigger_hit(&t, 12, 12) && !trigger_hit(&t, 8, 8) && !trigger_hit(&t, 11, 9));
     m.type = 150;
-    // 房屋（類型 0x96）門點：門偏移 (2,1) → 格 (10−1+2, 10−1+1) = (11,10)；門偏移都 0 = 擺放格
+    // 房屋門（0x96）的門點不是感應格（點門命令 0x10 才走門點）：門偏移 (2,1) 的門點格 (11,10) 本身不是 0x88 就不感應
     m.door_x = 2; m.door_y = 1;
-    assert(trigger_hit(&t, 11, 10) && trigger_hit(&t, 12, 11) && !trigger_hit(&t, 9, 11) && !trigger_hit(&t, 13, 10));  // 門點周圍 3×3
-    m.door_x = m.door_y = 0; fp[4] = 0;
-    assert(trigger_hit(&t, 10, 10) && trigger_hit(&t, 11, 9) && !trigger_hit(&t, 12, 12 - 3));
-    m.type = 129; assert(!trigger_hit(&t, 10, 10));  // 非門、占地格沒 0x88 = 不感應
+    assert(!trigger_hit(&t, 11, 10) && !trigger_hit(&t, 12, 11) && trigger_hit(&t, 10, 10));
+    m.door_x = m.door_y = 0;
     t.m = NULL; assert(trigger_hit(&t, 10, 10) && !trigger_hit(&t, 11, 10));  // 沒有模型 = 只有擺放格
+    // 點門／物件（原版 0x454a90、0x443600、0x4831c0）：door_near = 3×3 內有該建築 0x88 格；door_is_go = 0x96 且名稱第一詞 "go"；hover_building 可破壞物件用過就清掉
+    {
+        Scene ds = {.w = 8, .h = 8}; ds.cells = calloc(64, sizeof(Cell));
+        for (int i = 0; i < 64; i++) ds.cells[i].building = -1, ds.cells[i].view = 2;
+        ds.cells[3 * 8 + 3].building = 0; ds.cells[3 * 8 + 3].flags = 0x88;
+        ds.cells[5 * 8 + 5].building = 1; ds.cells[5 * 8 + 5].flags = 0x88;
+        Model dm = {.type = 0x96}, vm = {.type = 0x80};
+        Object objs[2] = {{.m = &dm, .tri = 1, .state = 1}, {.m = &vm, .tri = 1, .state = 0}};
+        snprintf(objs[0].name, sizeof objs[0].name, "go in_hs1");
+        ds.objects = objs; ds.object_count = 2;
+        const Scene *saved_scene = unit_scene; unit_scene = &ds;
+        assert(door_near(2, 2, 0) && door_near(4, 4, 0) && !door_near(5, 5, 0) && !door_near(1, 1, 0));
+        assert(door_is_go(&objs[0]) && !door_is_go(&objs[1]));
+        snprintf(objs[0].name, sizeof objs[0].name, "s_pctstart x"); assert(!door_is_go(&objs[0]));
+        assert(hover_building(3, 3) == &objs[0] && hover_building(5, 5) == &objs[1]);  // 門不受狀態限制
+        objs[1].state = 1; assert(!hover_building(5, 5));                                // 水缸用過（狀態 1）= 不能再點
+        unit_scene = saved_scene; free(ds.cells);
+    }
     // 按住走路貼牆：+y 軸（畫面 (-32,+16)）被擋時，往左下走只能滑向 −x（畫面 (-32,-16)），不能滑到 +x（右下）
     Scene sc = {.w = 6, .h = 6}; sc.cells = calloc(36, sizeof(Cell));
     for (int i = 0; i < 36; i++) sc.cells[i].walk = (i / 6) < 3 ? 1 : 0;  // y >= 3 不能走

@@ -93,6 +93,20 @@ static const char *S(intptr_t p) { return p ? (const char *)p : ""; }
 
 // 原版虛擬函式表各格的預設（CERObject 0x10023520 等）：10 死亡／刪除前 1、11 0、12 1、13 能不能離開 1、14 能不能進來 1、
 // 15 移動後、16 進房間後 1；17 人物說話 0，道具、劇情事件、建築 1
+// 寶箱基底（原版 0x100f94c0：item_init 再設路徑、名稱、別名與開箱欄位）。isbuilding 1 = 還沒開、可開（開箱規則 0x1004e680）；
+// 水缸、礦石、樹木（ITEM/赵村/…）都從它繼承，所以它們和寶箱一樣用「開」處理。
+static void chest_base(intptr_t h, Obj *o, const char *path, const char *name, const char *alias) {
+    story_set_int(h, "isbuilding", 1);
+    if (o) { snprintf(o->path, sizeof o->path, "%s", path); snprintf(o->name, sizeof o->name, "%s", name); snprintf(o->alias, sizeof o->alias, "%s", alias); }
+    story_set_str((int)h, "long", "宝箱的基类，一般不直接使用。可以被打开。");
+    story_set_str((int)h, "key", "");
+    story_set_int(h, "deletekey", 0);
+    story_set_str((int)h, "lockinfo", "箱子紧锁，无法打开。");
+    story_set_str((int)h, "openinfo", "");
+    story_set_int(h, "contain", -1);
+    story_set_int(h, "Level", 0);
+}
+
 static intptr_t slot_default(const Obj *o, int slot) {
     if (slot == 11) return 0;
     if (slot == 17) return o->kind != 1;
@@ -905,8 +919,13 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
             for (int k = 0; k < (int)(sizeof V / sizeof *V); k++) story_set_int(a[0], K[k], V[k]);
         }
         return 0;
-    case 0x1005cd60: case 0x1005cab0: case 0x1005d4a0: case 0x100f94c0: case 0x100f95b0: case 0x1005cd40:
+    case 0x1005cd60: case 0x1005cab0: case 0x1005d4a0: case 0x1005cd40:
         return 0;  // 其他基底初始化。shortcut: 基底的預設屬性還沒照原版設
+    case 0x100f94c0: chest_base(a[0], o, "秦殇/宝箱", "宝箱", "boxes"); return 0;  // 寶箱基底（原版 0x100f94c0；isbuilding 1 = 可開）
+    case 0x100f95b0:                                                         // 随机物品宝箱（先跑基底，再改名）
+        chest_base(a[0], o, "秦殇/随机物品宝箱", "随机物品宝箱", "suijiwupinbaoxiang");
+        story_set_str((int)a[0], "long", "");
+        return 0;
     // find_item(物件, 別名)：身上有這個別名的東西（原版再找隊友身上）；find_in_bag 只找身上，"#N" = 物件編號
     case 0x1003fab0: return find_in((int)a[0], S(a[1]));
     case 0x10054ed0:
@@ -1196,21 +1215,12 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
         return 0;
 
     // ---- 基底的第 1 格（衍生的寶箱、礦石類別先呼叫）----
-    case 0x100fa310:                                                         // 秦殇/NET/宝箱
-        story_set_int(a[0], "isbuilding", 1);
-        if (o) { snprintf(o->path, sizeof o->path, "秦殇/NET/宝箱"); snprintf(o->name, sizeof o->name, "宝箱"); snprintf(o->alias, sizeof o->alias, "boxes"); }
-        story_set_str((int)a[0], "long", "宝箱的基类，一般不直接使用。可以被打开。");
-        story_set_str((int)a[0], "key", "");
-        story_set_int(a[0], "deletekey", 0);
-        story_set_str((int)a[0], "lockinfo", "箱子紧锁，无法打开。");
-        story_set_str((int)a[0], "openinfo", "");
-        story_set_int(a[0], "contain", -1);
-        story_set_int(a[0], "Level", 0);
-        return 0;
+    case 0x100fa310: chest_base(a[0], o, "秦殇/NET/宝箱", "宝箱", "boxes"); return 0;  // 秦殇/NET/宝箱（同一份基底屬性）
     case 0x100f9630: case 0x100f95f0: case 0x100fa200: {                     // 随机矿石、随机木材树、NET 随机物品宝箱
         static const char *const T[3][3] = {{"秦殇/随机矿石", "矿石", "suijikuangshi"}, {"秦殇/随机木材树", "树", "random_tree"},
                                             {"秦殇/NET/随机物品宝箱", "箱子", "netsuijiwupinbaoxiang"}};
         int k = addr == 0x100f9630 ? 0 : addr == 0x100f95f0 ? 1 : 2;
+        chest_base(a[0], o, T[k][0], T[k][1], T[k][2]);
         if (o) { snprintf(o->path, sizeof o->path, "%s", T[k][0]); snprintf(o->name, sizeof o->name, "%s", T[k][1]); snprintf(o->alias, sizeof o->alias, "%s", T[k][2]); }
         story_set_str((int)a[0], "long", "");
         return 0;

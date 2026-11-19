@@ -13,6 +13,7 @@
 #include "res.h"
 #include "audio.h"
 #include "gbk.h"
+extern int debug_cells;  // viewport.c
 #ifdef STORY
 #include "story/story.h"
 #endif
@@ -4201,7 +4202,10 @@ static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
 // 13 改幀延遲、8 動作旗標、11 離地、5/7 衝過去；其他（音效、震畫面、結束、16 改目標點）照招式單位的做。回傳 0 = 不是這裡的
 static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
     Actor *a = u->owner;
-    if (t->type == 0 || t->type == 15) method_hits(a, t, tick);
+    if (t->type == 0 || t->type == 15) {
+        method_hits(a, t, tick);
+        if (t->type == 0) { hit_buildings_only = 1; unit_hits(u, t->id, tick); hit_buildings_only = 0; }  // 0x438a00 掃到的 0x80 建築（水缸）也被「使用」（hit_find）
+    }
     else if (t->type == 16 && (t->id == 0x14 || t->id == 0x16))  // 分身 ID2 個：0x14 殘影（idx 從 2 起）、0x16 環繞（idx 從 0 起）
         for (int k = 0; k < t->id2; k++) phantom_new(u, t->id == 0x14 ? 1 : 3, t->id == 0x14 ? k + 2 : k);
     else if (t->type == 2) {  // 單位自己會打中（有命中觸發或是飛行物）時，左手技能不用在放完時補結算
@@ -5676,7 +5680,21 @@ static int ground_find(int id) {
 // shortcut: 物件編號 = Scene.objects 索引（原版是帶世代的句柄）；原版呼叫的 0x405597（距離類判斷，推 0x60 = 96 單位內）、
 // 0x4017f3／0x406181（控制權／句柄有效）來源在映像外，分別當距離判斷與恆真；建築名稱載入（封包0x142，CTriBld）與
 // 開箱／使用物件（封包0x8e）尚無接收系統，只做到定位、記 interaction 與收尾。
+// 點門（命令 0x10）到位後要送的出口名（封包 0x142 的字串 = 建築名稱第 2 個分詞），由主迴圈換場景；door_cool = DAT_00663ee8（送出後 0x60 拍內不重送）
+#define BLD_TARGET 0x20000  // 命令 9 的目標欄 >= 這個值 = 建築索引 + BLD_TARGET（原版是句柄）
+static char door_go[128];
+static int door_go_due, door_cool;
 static void chest_open_object(int idx);  // 開箱（0x85 建築，封包 0x8e → 文字指令 open）
+static void door_gather_say(void);  // 訊息 0x508（伺服端 0x10069af0 收到 "null" 時說；隊友沒到齊）
+// 0x443600：(x, y) 周圍 3×3 格裡有沒有建築 idx 的 0x88 格
+static int door_near(int x, int y, int idx) {
+    for (int j = y - 1; j <= y + 1; j++)
+        for (int i = x - 1; i <= x + 1; i++) {
+            const Cell *cl = cell_at(i, j);
+            if (cl && cl->building == idx && (cl->flags & 0x88) == 0x88) return 1;
+        }
+    return 0;
+}
 static void actor_interact_tick(Actor *a) {
     int c = a->command[0], sx = ax64(a) >> 6, sy = ay64(a) >> 6;
     const Scene *sc = unit_scene;
@@ -5698,16 +5716,29 @@ static void actor_interact_tick(Actor *a) {
         talk_from = from; talk_to = to;
         actor_command_finish(a);
     } else if (c == 16) {
-        int tx = a->command[1], ty = a->command[2], idx = (unsigned short)a->command[3], near = 0;
-        for (int y = sy - 1; sc && y <= sy + 1; y++)
-            for (int x = sx - 1; x <= sx + 1; x++) {
-                const Cell *cl = cell_at(x, y);
-                if (cl && cl->building == idx && (cl->flags & 0x88) == 0x88) near = 1;
-            }
-        if (near && idx < sc->object_count && sc->objects[idx].m) {
-            a->interaction = (void *)&sc->objects[idx];
-            actor_command_finish(a);
-        } else actor_interact_approach(a, tx, ty);
+        // 命令 0x10（0x489730 case 0x10）：門點 (x, y)、建築。0x443600 = 3×3 格裡有這棟建築的 0x88 格；隊友任一人在門旁且全隊離主角 ≤ 0x180（0x406181＋0x4017f3）也算到。
+        // 到了且是 CTriBld：隊伍沒到齊（0x4017f3 假）說訊息 0x508；冷卻中（DAT_00663ee8）不重送；其餘送封包 0x142 = 名稱第 2 個分詞（go <出口> 的出口名）。沒到就走去門點。
+        int tx = a->command[1], ty = a->command[2], idx = (unsigned short)a->command[3];
+        int near = door_near(sx, sy, idx), any = near, gathered = 1;
+        for (int i = 0; i < actor_count; i++) {
+            Actor *m = &actors[i];
+            if (m == a || !m->team || !alive(m)) continue;
+            if (door_near(ax64(m) >> 6, ay64(m) >> 6, idx)) any = 1;
+            int dx = ax64(m) - ax64(a), dy = ay64(m) - ay64(a);
+            if (dx * dx + dy * dy > 0x180 * 0x180) gathered = 0;
+        }
+        const Object *o = sc && idx < sc->object_count ? &sc->objects[idx] : NULL;
+        if (!(near || (any && gathered)) || !o || !o->m || !o->tri) { actor_interact_approach(a, tx, ty); return; }
+        if (!gathered) door_gather_say();
+        else if (door_cool <= 0 && o->name[0]) {
+            const char *t = o->name + strspn(o->name, " ");
+            t += strcspn(t, " ");
+            t += strspn(t, " ");
+            snprintf(door_go, sizeof door_go, "%.*s", (int)strcspn(t, " "), t);
+            door_go_due = 1; door_cool = 0x60;
+            if (debug_cells) printf("door go %s (hero %d,%d)\n", door_go, sx, sy);
+        }
+        actor_command_finish(a);
     } else if (c == 17) {
         int g = ground_find(a->command[1]);
         if (g < 0) { actor_command_finish(a); return; }
@@ -5723,9 +5754,10 @@ static void actor_interact_tick(Actor *a) {
         if (!sc || idx < 0 || idx >= sc->object_count || !sc->objects[idx].m) { actor_command_finish(a); return; }
         const Object *o = &sc->objects[idx];
         int tx = o->x, ty = o->y;
-        int ok = c == 18 ? abs(ax64(a) - (tx * 64 + 32)) <= 0x60 && abs(ay64(a) - (ty * 64 + 32)) <= 0x60
-                         : abs(sx - tx) <= 4 && abs(sy - ty) <= 4;
-        if (ok) { if (c == 19) chest_open_object(idx); actor_command_finish(a); } else actor_interact_approach(a, tx, ty);
+        // 命令 0x12（使用物件，0x81／0x8c）：隊員離建築 < 0x60（歐氏距離，0x466bd0）→ 封包 0x8e；命令 0x13（開箱，0x85）：4 格內（IsMaxRange）→ 開
+        int dx = ax64(a) - (tx * 64 + 32), dy = ay64(a) - (ty * 64 + 32);
+        int ok = c == 18 ? dx * dx + dy * dy < 0x60 * 0x60 : abs(sx - tx) <= 4 && abs(sy - ty) <= 4;
+        if (ok) { chest_open_object(idx); actor_command_finish(a); } else actor_interact_approach(a, tx, ty);
     }
 }
 
@@ -5762,6 +5794,34 @@ static void actor_skill_command_tick(Actor *a) {
     }
     int slot = actor_skill_find(a, id);
     if (slot < 0 || !actor_can_use_skill(a, &a->skills[slot])) return;
+    if (a->command[2] >= BLD_TARGET) {  // 目標是建築（種類 10～20）：座標 = 擺放格；已不是 0／2 狀態（打過了）就放棄。被打中的是 hit_find（0x439fb0）呼叫建築使用
+        const Scene *sc = unit_scene;
+        int bi = a->command[2] - BLD_TARGET;
+        const Object *o = sc && bi < sc->object_count ? &sc->objects[bi] : NULL;
+        if (!o || !o->m || !building_available(o)) {
+            actor_dynamic_command(a, 1, 0, 0, 0);
+            actor_clear_target(a);
+            actor_cancel_command(a);
+            if (a->remembered[0] == 9) actor_forget_command(a);
+            return;
+        }
+        ActorSkill *skill = &a->skills[slot];
+        int range = actor_skill_range(a, skill);
+        if (range >= 4) --range;
+        int x = o->x, y = o->y, sx = ax64(a) >> 6, sy = ay64(a) >> 6;
+        if (debug_cells && a == &actors[0]) printf("hit bld %d: hero %d,%d bld %d,%d range %d min %d id %d inrange=%d\n", bi, sx, sy, x, y, range, skill->min, id, actor_skill_in_range(sx - x, sy - y, range, skill->min));
+        if (actor_skill_in_range(sx - x, sy - y, range, skill->min)) {
+            actor_dynamic_command(a, 1, 0, 0, 0);
+            int casted = actor_cast_at(a, id, x * 64 + 32, y * 64 + 32, NULL, 0);
+            if (debug_cells && a == &actors[0]) printf("cast at bld -> %d\n", casted);
+            if (casted) actor_cancel_command(a);
+            return;
+        }
+        if (a->dynamic_state == 11 && a->dynamic_command[0] == x && a->dynamic_command[1] == y) return;
+        if (!actor_dynamic_retry(a)) { actor_clear_target(a); actor_cancel_command(a); return; }
+        actor_command(a, 1, x, y, 0, 0, 0);  // 建築擺放格本身不能走，走到旁邊（range 0 = 走到格子為止，同 actor_interact_approach）
+        return;
+    }
     Actor *t = actor_of(a->command[2]);
     if (!t) {
         actor_dynamic_command(a, 1, 0, 0, 0);
@@ -6236,6 +6296,7 @@ static void ground_drop(const Item *it, float x, float y) {
     if (ground_n == MAX_GROUND || !it->name[0]) return;
     ground[ground_n].it = *it;
     ground[ground_n].it.pos = -1;
+    if (debug_cells) printf("ground drop %s at %.1f,%.1f\n", it->name, x, y);
     int cx = (int)x, cy = (int)y, sx = cx, sy = cy;
     if (!free_cell(&cx, &cy, 10)) return;  // CPropObj 放進場景（0x49a350）：周圍 10 圈第一個空格，沒有就不放
     ground[ground_n].x = cx + 0.5f;
@@ -7171,6 +7232,7 @@ static int chest_open_rule(int h, float cx, float cy) {
         if (!kh) { chest_say(h, "lockinfo"); return 0; }
         if (story_get_int(h, "deletekey")) story_delete(kh);
     }
+    if (debug_cells) { int n = 0, k2 = 0; for (int c = story_next(h, 0); c; c = story_next(h, c)) { n++; k2 += story_kind(c) == 2; } printf("chest children=%d items=%d\n", n, k2); }
     story_set_int(h, "isbuilding", isb == 1 ? 2 : isb == 5 ? 6 : isb);
     for (int it = story_next(h, 0); it;) {
         int next = story_next(h, it);
@@ -7192,13 +7254,29 @@ static void chest_open(int h, float cx, float cy) {
     if (lv >= 1 && lv <= 9) { chest_say(h, "lockinfo"); return; }
     chest_open_rule(h, cx, cy);
 }
-static void chest_state_sync(Scene *scene) {  // 0x10041d10 → 封包 0x523：已開（isbuilding ≠ 1、5）的箱子換成開啟狀態
+// 房間裡同名的劇情物件（ITEM：水缸A、树木A…，add_npc 數量 = BNT 同名建築數）依序對應同名的建築。
+// shortcut: 原版 0x44fd20 種類 4「依名字隨機挑一個可打壞的建築」綁定，這裡照 BNT 順序綁（結果看不出來）。
+static int object_story(const Scene *sc, int idx) {
+    const Object *o = &sc->objects[idx];
+    int n = 0;
+    for (int i = 0; i < idx; i++) if (!strcmp(sc->objects[i].name, o->name)) n++;
+    for (int h = story_next(sroom, 0); h; h = story_next(sroom, h))
+        if (!strcmp(story_alias(h), o->name) && n-- == 0) return h;
+    return 0;
+}
+// 0x10041d10 → 封包 0x523：isbuilding 是 1、5 = 還沒開（狀態 0，可操作）；其他 = 已開（客戶端 0x47d4e0 case 0x523 → 狀態 5 播互動動畫，播完回 1）。
+// animate = 0：進場景時同步已開的，直接 1（不重播動畫）。所有有劇情物件的可破壞／可使用建築（0x80～0x100 非門）都會同步，不只箱子。
+static void chest_state_sync(Scene *scene, int animate) {
     for (int i = 0; scene && i < scene->object_count; i++) {
         Object *o = &scene->objects[i];
-        if (!o->m || o->m->type != 0x85 || !o->name[0]) continue;
-        int h = story_find(sroom, o->name), isb = h ? story_get_int(h, "isbuilding") : 0;
-        int want = h && isb != 1 && isb != 5 ? 1 : 0;
-        if (o->state != want) scene_building_state(scene, i, want);
+        if (!o->m || !o->tri || o->m->type == 0x96 || !o->name[0]) continue;
+        int h = object_story(scene, i);
+        if (debug_cells) printf("sync bld %d %s story=%d isb=%d state=%d anim=%d sroom=%d\n", i, o->name, h, h ? story_get_int(h, "isbuilding") : -9, o->state, animate, sroom);
+        if (!h) continue;
+        int isb = story_get_int(h, "isbuilding");
+        if (isb == 1 || isb == 5) { if (!building_available(o)) scene_building_state(scene, i, 0); }
+        else if (animate && building_available(o)) scene_building_state(scene, i, 5);
+        else if (o->state != 1 && o->state != 5) scene_building_state(scene, i, 1);
     }
 }
 static void chest_open_object(int idx) {
@@ -7206,9 +7284,10 @@ static void chest_open_object(int idx) {
     if (!scene || idx < 0 || idx >= scene->object_count) return;
     const Object *o = &scene->objects[idx];
     story_begin();
-    chest_open(o->name[0] ? story_find(sroom, o->name) : 0, o->x + 0.5f, o->y + 0.5f);
+    if (debug_cells) printf("use bld %d %s story=%d isbuilding=%d\n", idx, o->name, object_story(scene, idx), object_story(scene, idx) ? story_get_int(object_story(scene, idx), "isbuilding") : -9);
+    chest_open(o->name[0] ? object_story(scene, idx) : 0, o->x + 0.5f, o->y + 0.5f);
     story_end();
-    chest_state_sync(scene);
+    chest_state_sync(scene, 1);
 }
 // 0x10019d70 openall：房間裡別名相符、isbuilding 是 1 或 5 的箱子全部開（逐個執行 open #代號）
 static void chest_open_all(const char *alias) {
@@ -7222,11 +7301,13 @@ static void chest_open_all(const char *alias) {
         chest_open(h, x, y);
     }
     story_end();
-    chest_state_sync((Scene *)unit_scene);
+    chest_state_sync((Scene *)unit_scene, 1);
 }
+static void door_gather_say(void) { hud_say(story_text(0x508)); }
 #else
+static void door_gather_say(void) {}
 static void chest_open_object(int idx) { (void)idx; }
-static void chest_state_sync(Scene *scene) { (void)scene; }
+static void chest_state_sync(Scene *scene, int animate) { (void)scene; (void)animate; }
 #endif
 
 
@@ -8788,7 +8869,7 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     party_protect = 0;
     input_sel_add(hero);
     input_player_add(hero);  // 0x465cf0
-    chest_state_sync(scene);
+    chest_state_sync(scene, 0);
     for (int i = 0; i < actor_count; i++) if (actors[i].role) actor_explore(&actors[i]);
     return 1;
 }
@@ -8850,13 +8931,23 @@ static Object *input_building(const Scene *s, int x, int y) {
 // 原版旗標 +0x341 第 n 個 = 身上有狀態 n；狀態 0 战斗状态 = 我們的 fight 計時
 static int in_fight(const Actor *h) { return h->fight > 0; }
 
-// 游標那格的 0x85 箱子（建築索引，沒有 -1）：同 input_cursor 找建築的方式
+// 游標那格的建築（0x454a90 的 +0x40）：格子沒資料時 0x4848c0 螺旋找；否則格子探索值 >= 2、旗標 0x88、有建築索引；
+// 可破壞種類（0x439b20：0x80～0x100 且非門 0x96）狀態不是 0／2（已用過／已破壞）就清掉，門不受狀態限制。
 static const char *openall_alias;
-static int chest_at(int cx, int cy) {
+static Object *hover_building(int cx, int cy) {
+    if (!unit_scene) return NULL;
     const Cell *bc = cell_at(cx, cy);
-    if (!unit_scene || !bc || bc->view < 2 || (bc->flags & 0x88) != 0x88 || bc->building < 0 || bc->building >= unit_scene->object_count) return -1;
-    const Object *o = &unit_scene->objects[bc->building];
-    return o->m && o->m->type == 0x85 && (!o->tri || building_available(o)) ? bc->building : -1;
+    if (!bc) return input_building(unit_scene, cx, cy);
+    if (bc->view < 2 || (bc->flags & 0x88) != 0x88 || bc->building < 0 || bc->building >= unit_scene->object_count) return NULL;
+    Object *o = (Object *)&unit_scene->objects[bc->building];
+    if (!o->m || (o->m->type >= 0x80 && o->m->type <= 0x100 && o->m->type != 0x96 && !building_available(o))) return NULL;
+    return o;
+}
+// 門（0x4831c0 → 0x482db0）：模型 0x96、名稱第一個空格分詞是 "go"（0x5ed4ec）。這種門 active = 0（不靠走進去感應），只能點門
+static int door_is_go(const Object *o) {
+    if (!o->m || o->m->type != 0x96 || !o->name[0]) return 0;
+    const char *t = o->name + strspn(o->name, " ");
+    return strcspn(t, " ") == 2 && !strncmp(t, "go", 2);
 }
 
 // 0x455d60 算游標那段：c = 游標下的角色、item = 指著的地上道具、(cx, cy) = 游標那格。
@@ -8869,16 +8960,9 @@ static int input_cursor(const Actor *h, const Actor *c, int item, int cx, int cy
         return has_status(c, 103) ? CUR_NORMAL : CUR_TALK;  // 103 无对话（目標的）
     }
     if (item >= 0) return CUR_ITEM;
-    Object *b = NULL;
-    const Cell *bc = cell_at(cx, cy);
-    if (!bc && unit_scene) b = input_building(unit_scene, cx, cy);
-    else if (bc && bc->view >= 2 && (bc->flags & 0x88) == 0x88 && bc->building >= 0 &&
-             bc->building < unit_scene->object_count) {
-        Object *o = &unit_scene->objects[bc->building];
-        if (o->m && (!o->tri || building_available(o))) b = o;
-    }
+    Object *b = hover_building(cx, cy);
     if (b) {
-        if (b->m->type == 0x8c) return CUR_ITEM;
+        if (b->m->type == 0x8c || door_is_go(b)) return CUR_ITEM;  // 門：0x455d60 → 0x457360(1)（+0xa0 = 0、+0xa8 ≠ 0）
         if (b->m->type == 0x80) return CUR_ATTACK;
         if (b->m->type == 0x81) return b->state == 2 ? CUR_OBJ : CUR_USE;
         if (b->m->type == 0x85) return CUR_CHEST;
@@ -8915,7 +8999,7 @@ static void xmouse_draw(const Anim *cur, int k, int x, int y, Uint32 tick) {
 
 // 左鍵放開（0x454f00）要給主角的指令（原版包成 0xf023 訊息送給主角和選到的隊友）。
 // 溃散（17）、盅惑人心（14）不收指令；战斗状态點誰都打（9），平常點敵人打、點其他人對話（0xf）；再來是撿道具（0x12），其他 = 走過去（1）
-// shortcut: 拖拉選人框、Ctrl 對地點出手（8）、物件（0x80 打、0x85 開、0x96 門 0x10、0x17 → 0x11）還沒做
+// Ctrl 對地點出手（8）／角色（9）、物件（0x80 打、0x81／0x8c 用、0x85 開、0x96 門 0x10）見 click_building；shortcut: Ctrl 的判斷原版是 vtable+0x60 的按鍵查詢，這裡用 SDL Ctrl 狀態
 static int click_cmd(const Actor *h, const Actor *c, int item) {
     if (has_status(h, 17) || has_status(h, 14)) return CMD_NONE;
     if (c && c != h) return in_fight(h) || is_foe(c, h) ? CMD_ATTACK : CMD_TALK;
@@ -8931,19 +9015,35 @@ static void input_team_cmd(int cmd, Actor *m, int cx, int cy) {
     }
 }
 
+// 左鍵放開、游標下有建築時（0x454f00 LAB_004551b0）：0x8c／0x81 → 命令 0x12（使用物件）；0x80 → 命令 9（打，目標是建築）；
+// 0x85 → 命令 0x13（開箱）；0x96 且是 "go" 門 → 命令 0x10（門點 x, y、建築）；0x96 其他名稱 → 走過去；
+// 其他種類（包含一般建築）原版什麼都不做（回傳 1 = 吃掉這次點擊）。回傳 0 = 照一般走路。
+// 門點（0x482dd0）：模型門偏移不是 0 才用「擺放格 − 錨點 + 門偏移」，偏移為零就維持點的那格（出口區 go east 等就是這樣）。
+static int click_building(Actor *hero, Object *b, int cx, int cy) {
+    int idx = (int)(b - unit_scene->objects), type = b->m->type;
+    int ok = 1;
+    if (debug_cells) printf("click bld %d %s type=%d state=%d at cell %d,%d hero %d,%d\n", idx, b->name, type, b->state, cx, cy, (int)hero->x, (int)hero->y);
+    if (type == 0x8c || type == 0x81) ok = actor_command(hero, 0x12, idx, 0, 0, 1, 1);
+    else if (type == 0x80) { if (hero->team || hero == &actors[0]) ok = actor_command(hero, 9, -1, BLD_TARGET + idx, 0, 1, 1); }
+    else if (type == 0x85) ok = actor_command(hero, 19, idx, 0, 0, 1, 1);
+    else if (type == 0x96) {
+        if (!b->name[0]) return 1;
+        if (!door_is_go(b)) return 0;
+        int dx = cx, dy = cy;
+        if (b->m->door_x || b->m->door_y) dx = b->door_x, dy = b->door_y;
+        ok = actor_command(hero, 0x10, dx, dy, idx, 1, 1);
+    }
+    (void)ok;
+    hero->foe = NULL; hero->want = NULL; walk_cx = -1;
+    return 1;
+}
+
 // 遊戲速度鍵（0x455d60，連線客戶端不改）：數字鍵盤 + 或 = 加快（值 −3，最小 16）、數字鍵盤 − 或 - 減慢（值 +3，最大 31），
 // 再換回速度 5 − (值 − 16) / 3 設定（0x448a70）。怪現象（照原版）：開局 21 按一次加快 → 18 → 速度 5 → 16（最快）
 static void game_speed_key(int faster) {
     int v = game_speed_ms;
     v = faster ? (v < 17 ? 16 : v - 3) : (v < 31 ? v + 3 : 31);
     game_speed_set(5 - (v - 16) / 3);
-}
-
-// 主角是否站在觸發區上：主角所在格是觸發區的感應格（占地格旗標 0x88，房屋另有門點；見 res.c trigger_hit）
-static const Trigger *trigger_at(const Scene *s, const Actor *h) {
-    for (int i = 0; i < s->trigger_count; i++)
-        if (trigger_hit(&s->triggers[i], (int)h->x, (int)h->y)) return &s->triggers[i];
-    return NULL;
 }
 
 #ifdef STORY
@@ -8954,7 +9054,7 @@ static const Trigger *trigger_at(const Scene *s, const Actor *h) {
 static void trigger_sense_tick(Scene *s) {
     for (int i = 0; i < s->trigger_count; i++) {
         Trigger *t = &s->triggers[i];
-        if (strncmp(t->event, "s_pctstart ", 11)) continue;
+        if (strncmp(t->event, "s_pctstart ", 11) || !t->m || t->m->type != 0x96) continue;  // 0x4847a0：只有 0x96 且名稱不是 go 才 active = 1
         if (t->cooldown > 0) { t->cooldown--; continue; }
         int hit = 0;
         const Model *m = t->m;  // 掃模型占地矩形（沒有模型 = 擺放格）
@@ -9298,13 +9398,15 @@ int main(int argc, char **argv) {
         snprintf(hero_to_learn + strlen(hero_to_learn), sizeof hero_to_learn - strlen(hero_to_learn), "%s %d ", key, cls);
         if (hero_learn_skill(key)) hero_skill_apply(hero);
     }
-    int room = -1, armed = 0;  // armed：離開觸發區後才會再觸發，避免一進場就被送回去
+    int room = -1;
     int monsters_due = 1;      // 進場景後等圖片都下載好，再讀房間表放怪物（網頁版開場不用等 4MB 的 DLL）
     if (at_x >= 0) actor_restore_position(hero, at_x + 0.5f, at_y + 0.5f);
     if (debug_cells) for (int i = 0; i < scene.trigger_count; i++) printf("trigger %d %s at %d,%d\n", i, scene.triggers[i].event, scene.triggers[i].x, scene.triggers[i].y);
     if (warp >= 0 && warp < scene.trigger_count) {
+        int wt_x = 0, wt_y = 0;
         {   // 站到觸發區的感應格裡（可走、離擺放格最近的那格）；找不到就站擺放格
             const Trigger *wt = &scene.triggers[warp];
+            wt_x = wt->x; wt_y = wt->y;
             int bx = wt->x, by = wt->y, best = 1 << 30;
             for (int y = wt->y - 20; y <= wt->y + 20; y++)
                 for (int x = wt->x - 20; x <= wt->x + 20; x++) {
@@ -9313,7 +9415,13 @@ int main(int argc, char **argv) {
                 }
             actor_restore_position(hero, bx + 0.5f, by + 0.5f);
         }
-        armed = 1;
+        for (int i = 0; i < scene.object_count; i++) {  // 站定後等於點了那個出口：下命令 0x10（門點 = 站的那格），到位就送 go
+            const Object *wo = &scene.objects[i];
+            if (wo->tri && wo->x == wt_x && wo->y == wt_y && wo->model == scene.triggers[warp].model && door_is_go(wo)) {
+                actor_command(hero, 0x10, (int)hero->x, (int)hero->y, i, 1, 1);
+                break;
+            }
+        }
         printf("站到觸發區 %d：%s\n", warp, scene.triggers[warp].event);
     }
 
@@ -9475,10 +9583,19 @@ int main(int argc, char **argv) {
                 zoom_point(&zx, &zy);
                 Actor *m = input_char(zx, zy, ox, oy, &scene, &cx, &cy);
                 int g = ground_at(zx, zy, ox, oy, &scene);
-                int chest = !m && g < 0 ? chest_at(cx, cy) : -1;  // 0x85 箱子：走到旁邊開（命令 19）
-                if (chest >= 0 && !has_status(hero, 17) && !has_status(hero, 14)) {
-                    actor_command(hero, 19, chest, 0, 0, 1, 1); hero->foe = NULL; hero->want = NULL; walk_cx = -1;
+                if (debug_cells) printf("mouse up %d,%d cell %d,%d actor=%p ground=%d sel_n=%d\n", zx, zy, cx, cy, (void *)m, g, sel_n);
+                // 0x454f00 Ctrl 分支：Ctrl 按著 = 對點的地方出手（命令 8，技能 -1 = 右手技能）；點到角色就對他出手（命令 9）
+                if ((SDL_GetModState() & KMOD_CTRL) && click_cmd(hero, m, g) != CMD_NONE && (input_sel_has(hero) || sel_n == 0)) {
+                    if (m && m != hero) actor_command(hero, 9, -1, m->sh ? m->sh : (int)m->object_id, 0, 1, 1);
+                    else actor_command(hero, 8, -1, cx, cy, 1, 1);
+                    hero->foe = NULL; hero->want = NULL; walk_cx = -1;
                     continue;
+                }
+                // 0x454f00 LAB_004551b0：沒點到角色、道具時看游標下的建築
+                if (!m && g < 0 && click_cmd(hero, m, g) != CMD_NONE && (input_sel_has(hero) || sel_n == 0)) {
+                    Object *b = hover_building(cx, cy);
+                    if (debug_cells) printf("click cell %d,%d hover=%s\n", cx, cy, b ? b->name : "(none)");
+                    if (b && click_building(hero, b, cx, cy)) continue;
                 }
                 int cmd = click_cmd(hero, m, g);
                 input_team_cmd(cmd, m, cx, cy);
@@ -9554,7 +9671,6 @@ int main(int argc, char **argv) {
                 hero_skill_apply(hero);
                 room = world_tried ? world_find(&world, alias) : -1;
                 monsters_due = 1;
-                armed = 0;
                 pointer_down = 0;
                 walk_cx = -1;
                 scene_music(alias, music, sizeof music);
@@ -9716,13 +9832,24 @@ int main(int argc, char **argv) {
             }
             else if (!pursue(hero)) actor_tick(hero, &scene, 0, 0, tick);
             if (debug_cells == 2 && tick % 2 == 0)
-                printf("trace t=%u hero=%.3f,%.3f cam=%d,%d moving=%d dir=%d\n", tick, hero->x, hero->y, viewport.pos.x, viewport.pos.y, hero->moving, hero->dir);
+                printf("trace t=%u hero=%.3f,%.3f cam=%d,%d moving=%d dir=%d act=%d frame=%d done=%d\n", tick, hero->x, hero->y, viewport.pos.x, viewport.pos.y, hero->moving, hero->dir, hero->act, hero->act_frame, hero->act_done);
             if (debug_cells == 2 && tick % 120 == 0)  // 除錯：列出可對話的 NPC（事件ID、格子、畫面座標），自動操作腳本用來點它們
                 for (int i = 1; i < actor_count; i++) {
                     const char *ev = actor_init_name(&actors[i]);
                     if (actors[i].mon || !ev || !*ev) continue;
                     SDL_Point sp = viewport_world_screen(&viewport, ax64(&actors[i]), ay64(&actors[i]));
                     printf("npc %s cell=%d,%d screen=%d,%d\n", ev, (int)actors[i].x, (int)actors[i].y, sp.x, sp.y);
+                }
+            if (debug_cells == 2 && tick % 120 == 0)  // 除錯：列出可互動建築（名稱、種類、狀態、格子、畫面座標），自動操作腳本點它們
+                for (int i = -1; i < scene.object_count; i++) {
+                    if (i < 0) { SDL_Point hp = viewport_world_screen(&viewport, ax64(hero), ay64(hero)); printf("bld hero screen=%d,%d vw=%d vh=%d zoom=%.3f\n", hp.x, hp.y, vw, vh, (double)zoom); continue; }
+                    const Object *o = &scene.objects[i];
+                    if (!o->tri || !o->m) continue;
+                    if (!strncmp(o->name, "s_pct", 5)) continue;
+                    SDL_Point sp = viewport_world_screen(&viewport, o->x * 64 + 32, o->y * 64 + 32);
+                    if (sp.x < -200 || sp.y < -200 || sp.x > vw + 200 || sp.y > vh + 200) continue;
+                    { SDL_Point dp = viewport_world_screen(&viewport, o->door_x * 64 + 32, o->door_y * 64 + 32);
+                    printf("bld %d %s type=%d state=%d walk=%d cell=%d,%d screen=%d,%d door=%d,%d doorscreen=%d,%d\n", i, o->name, o->m->type, o->state, scene_walkable(&scene, o->x, o->y), o->x, o->y, sp.x, sp.y, o->door_x, o->door_y, dp.x, dp.y); }
                 }
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
@@ -9758,19 +9885,17 @@ int main(int argc, char **argv) {
             sur_tick();
             bird_tick(&scene, &viewport);
             zoom_tick();
-            // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
-            const Trigger *t = rec_on ? NULL : trigger_at(&scene, hero);  // 過場中不踩出口
-            if (debug_cells == 2 && t && tick % 30 == 0) printf("trigger on: %s armed=%d\n", t->event, armed);
-            if (!t) armed = 1;
+            // 出口（原版：點門命令 0x10 走到門點 → 封包 0x142 "go <出口>"；走進感應區不會觸發 go，見 trigger_sense_tick）
+            const char *go_name = door_go_due && !rec_on ? door_go : NULL;
+            door_go_due = 0;
+            if (door_cool > 0) door_cool--;
 #ifdef STORY
-            // 原版 go（EasyRPG 0x10017e30）：出口要開著；隨機地下城出口（0x10052af0）；舊房間第 13 格、新房間第 14 格同意才進
-            else if (armed && !strncmp(t->event, "go ", 3)) {
+            if (go_name) {
                 char path[128];
                 int entry = 0, to = 0;
-                armed = 0;
-                if (!story_exit(sroom, t->event + 3, path, sizeof path, &entry)) continue;
+                if (!story_exit(sroom, go_name, path, sizeof path, &entry)) continue;
                 story_begin();
-                story_random_exit(sroom, t->event + 3, path, sizeof path, &entry);
+                story_random_exit(sroom, go_name, path, sizeof path, &entry);
                 to = story_room_by_path(path);
                 int ok = to && story_enter(to);
                 story_end();
@@ -9787,13 +9912,13 @@ int main(int argc, char **argv) {
                 }
             }
 #else
-            else if (armed && !strncmp(t->event, "go ", 3)) {
+            if (go_name) {
                 if (!world_tried) room = load_world(&world, &world_tried, alias);
-                if (room < 0) { armed = 0; continue; }
+                if (room < 0) continue;
                 const Room *r = &world.rooms[room];
                 for (int i = 0; i < r->exit_count; i++) {
                     const Exit *x = &world.exits[r->first_exit + i];
-                    if (strcmp(x->dir, t->event + 3) || x->to < 0) continue;
+                    if (strcmp(x->dir, go_name) || x->to < 0) continue;
                     js_status(-1);
                     int was_big = scene_big(&scene);
                     if (enter_scene(&scene, hero, world.rooms[x->to].alias, x->entry)) {
@@ -9806,7 +9931,6 @@ int main(int argc, char **argv) {
                             snap_due = 1;  // 穿梭場景時自动存盘（UI_C 2503）：大場景換大場景才存（0x44ce00）
                         if (opt_v[O_AUTOSAVE] && autosave_due(was_big, &scene)) save_due = 0;
                     }
-                    armed = 0;
                     break;
                 }
             }

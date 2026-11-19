@@ -163,7 +163,9 @@ static void ellipse_move(int *px, int *py, int cx, int cy, int r, int speed) {
 
 // 找範圍內的人並打（0x439fb0）：從 pt 的格子螺旋走 (r+48)/64 圈（至少 1，0x442730/0x442a80），格子上的人位置在 pt ± (r+64) 方框內的；
 // all = 0 只打第一個。招式 wManualID 1、2 打同隊（加血之類），其他打不同隊。回傳打中幾個
-// shortcut: 原版還能打可破壞物件（obj_breakable，+0x5c）、連線版的建築；人是否「接受」這次打擊（虛擬函式 0x68）這裡都當接受
+// 另：0x80 建築被打中 = 開（上面）；連線版的建築（封包 0x13b）不做。shortcut: 人是否「接受」這次打擊（虛擬函式 0x68）這裡都當接受
+static void chest_open_object(int idx);
+static int hit_buildings_only;  // 1 = 只掃建築（角色出手的命中觸發，打中的人由 method_hits 決定）
 static int hit_find(MUnit *u, int px, int py, int all, int r, Uint32 tick) {
     Actor *o = u->owner;
     if (!o) return 0;
@@ -172,6 +174,13 @@ static int hit_find(MUnit *u, int px, int py, int all, int r, Uint32 tick) {
     spiral_init(&sp, px / 64, py / 64, n < 1 ? 1 : n);
     while (spiral_next(&sp)) {
         int i = 0;
+        // 0x439fb0：普通招式（wManualID 0）掃到的格子上若是 0x80 建築（水缸之類，狀態 0／2）就「使用」它（虛擬格 +0x28 = 0x484e80 → 封包 0x8e = 開）
+        const Cell *bc = u->m && u->m->manual == 0 ? cell_at(sp.x, sp.y) : NULL;
+        if (bc && bc->building >= 0 && bc->building < unit_scene->object_count) {
+            const Object *b = &unit_scene->objects[bc->building];
+            if (b->tri && b->m && b->m->type == 0x80 && building_available(b)) chest_open_object(bc->building);
+        }
+        if (hit_buildings_only) continue;
         for (Actor *t; (t = cell_actor(sp.x, sp.y, &i)); i++) {
             int x = ax64(t), y = ay64(t);
             if (x < px - box || y < py - box || x >= px + box || y >= py + box) continue;
