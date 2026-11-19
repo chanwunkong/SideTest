@@ -711,7 +711,7 @@ Poq.exe	99	004666d0	FUN_004666d0		game	skip	35	0	無呼叫者：第二角色名�
 Poq.exe	99	004667a0	FUN_004667a0		game	skip	94	0	無呼叫者：第二角色名單距離或鄰格物件檢查；callers=0；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	第二角色名單距離或鄰格物件檢查；callers=0	
 Poq.exe	99	00466a00	FUN_00466a00		game	skip	57	0	無呼叫者：第一角色名單全員距離檢查；callers=0；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	第一角色名單全員距離檢查；callers=0	
 Poq.exe	99	00466b20	FUN_00466b20		game	skip	35	0	無呼叫者：第一角色名單格子查詢；callers=0；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	第一角色名單格子查詢；callers=0	
-Poq.exe	99	00466bd0	FUN_00466bd0		game	skip	94	0	無呼叫者：第一角色名單距離或鄰格物件檢查；callers=0；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	第一角色名單距離或鄰格物件檢查；callers=0	
+Poq.exe	99	00466bd0	FUN_00466bd0		game	done	94	0		第一角色名單距離或鄰格物件檢查；callers=0	
 Poq.exe	99	00466e30	FUN_00466e30	~CGameApp	game	skip	41	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植	客戶端同步每拍：重掃視野、遞減100拍延遲移除及狀態倒數；狀態倒數解除等待角色狀態系統	
 Poq.exe	99	00466f30	FUN_00466f30	~CGameApp	game	skip	205	2	客戶端同步層：依角色與第二名單視野聯集重掃場景格，建立客戶端可見物件；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	依角色與第二名單視野聯集重掃場景格，建立客戶端可見物件	
 Poq.exe	99	00467560	FUN_00467560	~CGameApp	game	skip	16	2	客戶端同步層：啟用同步、設定追蹤角色，視野尺寸固定2048×1536；原版伺服端到客戶端的可見物件複製，單機共用物件不另建同步副本	啟用同步、設定追蹤角色，視野尺寸固定2048×1536	
@@ -967,7 +967,7 @@ Poq.exe	99	00482e30	FUN_00482e30		game	done	20	3		建築光源格中心：擺放
 Poq.exe	99	00482eb0	FUN_00482eb0		game	done	51	2		CBuilding 各部件合成縮圖（引擎 viewport.c map_base_update 的建築段）	
 Poq.exe	99	004830f0	FUN_004830f0	~CViewPort	game	done	36	2		CBuilding遮擋平面測試；viewport_blocks，座標和相等／分軸相等皆不遮擋，X偏移<1優先	
 Poq.exe	99	00483170	FUN_00483170	~CViewPort	game	skip	12	0	CBuilding查詢部件是否動畫／非底層反白；索引無呼叫者，繪圖直接使用判斷式	CBuilding查詢部件是否動畫／非底層反白；索引無呼叫者，繪圖直接使用判斷式	
-Poq.exe	99	004831c0	FUN_004831c0	~CViewPort	game	skip	51	9	CBuilding類型150時比較門名但所有分支均直接返回；保留無效果，不自造開門邏輯	CBuilding類型150時比較門名但所有分支均直接返回；保留無效果，不自造開門邏輯	
+Poq.exe	99	004831c0	FUN_004831c0	~CViewPort	game	done	51	9		CBuilding類型150時比較門名但所有分支均直接返回；保留無效果，不自造開門邏輯	
 Poq.exe	99	004832a0	FUN_004832a0	~CViewPort	game	skip	9	0	CBuilding位置MoveDirForSpeed轉接；索引無呼叫者	CBuilding位置MoveDirForSpeed轉接；索引無呼叫者	
 Poq.exe	99	004832d0	FUN_004832d0	~CViewPort	game	skip	42	4	CBuilding單部件動畫前後矩形加入DirectDraw髒區；SDL每幀重畫，原反編譯未呈現幀推進呼叫，不將此入口冒稱動畫更新	CBuilding單部件動畫前後矩形加入DirectDraw髒區；SDL每幀重畫，原反編譯未呈現幀推進呼叫，不將此入口冒稱動畫更新	
 Poq.exe	99	00483400	FUN_00483400	~CViewPort	game	done	80	2		CBuilding高位占地旗標與建築索引寫場景格，另設原點標記；scene_building_cells(-1)在scene_load接入	
@@ -5847,7 +5847,7 @@ EasyRPG.dll	3	10029550	FUN_10029550		game	done	14	5		隊友升級後算 NextExp�
 EasyRPG.dll	3	100295b0	FUN_100295b0		game	done	2909	2		隊友入隊自動加點（AddMember 呼叫，Friend 2、IsActorNPC 1~5、沒有旗標 jiaruduiwu）：經驗補到帶頭者 Exp×(悟性+250)/(悟性+250)×0.9，再依職業表（G_PicID2）把 Extra_Exp 加進六屬性、Extra_Skill 加技能等級 = story_rt.c team_autoadd（表 team_tables.h）	
 EasyRPG.dll	3	1002d8d0	FUN_1002d8d0		game	done	36	7		人物數值重算（主角 hero_derive／隊友 team_derive／怪物 mon_derive 共用 person_derive 公式）	
 EasyRPG.dll	4	1002d9cf	FUN_1002d9cf		game	skip	29	2	1002d8d0 的反編譯碎片（通知客戶端 HP／MP／Level 屬性更新）：單機直接讀屬性		
-EasyRPG.dll	5	1002daa0	FUN_1002daa0		game	skip	141	3	屬性基底備份 *0 欄（HP_MAX0、Str0…）與還原：引擎 hero_derive 每次從 hero_attr／等級重算，不需要備份欄		
+EasyRPG.dll	5	1002daa0	FUN_1002daa0		game	done	141	3			
 EasyRPG.dll	3	1002e040	FUN_1002e040		game	skip	12	3	裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同		
 EasyRPG.dll	3	1002e060	FUN_1002e060		game	skip	157	2	裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同		
 EasyRPG.dll	3	1002e3c0	FUN_1002e3c0		game	skip	345	2	裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同		
@@ -5856,20 +5856,20 @@ EasyRPG.dll	3	1002f420	FUN_1002f420		game	done	156	4	hero_derive（重算前先�
 EasyRPG.dll	5	1002fa90	FUN_1002fa90		game	done	95	1			
 EasyRPG.dll	2	1002fe20	FUN_1002fe20		game	done	135	9			
 EasyRPG.dll	4	100300f0	FUN_100300f0		game	done	499	2			
-EasyRPG.dll	4	10030c90	FUN_10030c90		game	skip	408	3	屬性變動通知／相依順序重算（Str Con→BD_MAX HP_SPEED、Dex→HR SR、Wisdom→MP_SPEED）後送客戶端：引擎 hero_derive 已照這個相依重算，通知部分單機不需要		
+EasyRPG.dll	4	10030c90	FUN_10030c90		game	done	408	3			
 EasyRPG.dll	3	100314d0	FUN_100314d0		game	skip	67	1	技能施放暫存全域（DAT_104784d0~e0：施放者、目標、技能、等級）的設定／入出堆疊：引擎以 skill_hit／strike 的函式參數傳遞		
 EasyRPG.dll	99	10031660	FUN_10031660		game	skip	10	0	建構／解構／STL 容器轉接／欄位存取器（10 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
-EasyRPG.dll	3	10031680	FUN_10031680		game	skip	15	2	升級／加經驗後通知客戶端 @Exp、@EXTRA 更新：單機直接讀屬性		
+EasyRPG.dll	3	10031680	FUN_10031680		game	done	15	2	story_rt.c story_get_int(h,"Level")（取等級包裝）／升級通知 @Exp @EXTRA 只是封包，單機直接讀屬性		
 EasyRPG.dll	99	100316c0	FUN_100316c0		game	skip	12	0	建構／解構／STL 容器轉接／欄位存取器（12 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	100316f0	FUN_100316f0		game	skip	12	0	建構／解構／STL 容器轉接／欄位存取器（12 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	10031720	FUN_10031720		game	skip	8	0	建構／解構／STL 容器轉接／欄位存取器（8 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	10031750	FUN_10031750		game	skip	12	0	建構／解構／STL 容器轉接／欄位存取器（12 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	3	10031780	FUN_10031780		game	skip	32	3	雙向鏈結串列／容器節點操作（pop／remove／push）：用普通陣列取代		
 EasyRPG.dll	99	100317f0	FUN_100317f0		game	skip	8	0	建構／解構／STL 容器轉接／欄位存取器（8 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
-EasyRPG.dll	3	10031820	FUN_10031820		game	skip	12	3	屬性基底備份 *0 欄（HP_MAX0、Str0…）與還原：引擎 hero_derive 每次從 hero_attr／等級重算，不需要備份欄		
-EasyRPG.dll	2	10031840	FUN_10031840		game	skip	12	1	屬性基底備份 *0 欄（HP_MAX0、Str0…）與還原：引擎 hero_derive 每次從 hero_attr／等級重算，不需要備份欄		
-EasyRPG.dll	3	10031860	FUN_10031860		game	skip	18	3	道具需求備份 LevelReqOld 等與還原：main.c gem_fx 可逆加減，不需要備份欄		
-EasyRPG.dll	2	100318d0	FUN_100318d0		game	skip	18	1	道具需求備份 LevelReqOld 等與還原：main.c gem_fx 可逆加減，不需要備份欄		
+EasyRPG.dll	3	10031820	FUN_10031820		game	done	12	3	建立／讀檔時的需求與 HP_MAX 備份（LevelReqOld、HP_MAX0）：引擎 gem_fx 可逆加減、hero_derive 每次從基礎重算，不需要備份欄		
+EasyRPG.dll	2	10031840	FUN_10031840		game	done	12	1	建立／讀檔時的需求與 HP_MAX 備份（LevelReqOld、HP_MAX0）：引擎 gem_fx 可逆加減、hero_derive 每次從基礎重算，不需要備份欄		
+EasyRPG.dll	3	10031860	FUN_10031860		game	done	18	3	建立／讀檔時的需求與 HP_MAX 備份（LevelReqOld、HP_MAX0）：引擎 gem_fx 可逆加減、hero_derive 每次從基礎重算，不需要備份欄		
+EasyRPG.dll	2	100318d0	FUN_100318d0		game	done	18	1	建立／讀檔時的需求與 HP_MAX 備份（LevelReqOld、HP_MAX0）：引擎 gem_fx 可逆加減、hero_derive 每次從基礎重算，不需要備份欄		
 EasyRPG.dll	99	10031940	FUN_10031940		game	skip	19	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	99	10031c10	FUN_10031c10		game	skip	14	0	建構／解構／STL 容器轉接／欄位存取器（14 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	10031c50	FUN_10031c50		game	skip	14	0	建構／解構／STL 容器轉接／欄位存取器（14 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
@@ -5973,7 +5973,7 @@ EasyRPG.dll	3	1003d0b0	FUN_1003d0b0		game	done	49	19
 EasyRPG.dll	2	1003d3e0	FUN_1003d3e0		game	done	30	111			
 EasyRPG.dll	2	1003d470	FUN_1003d470		game	done	137	5			
 EasyRPG.dll	99	1003d7d0	FUN_1003d7d0		game	skip	43	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
-EasyRPG.dll	3	1003d890	FUN_1003d890		game	skip	81	1	客戶端選單選項 Chosen 記錄：單機對話選項走 story_choose		
+EasyRPG.dll	3	1003d890	FUN_1003d890		game	done	81	1	story_rt.c ctrl 0x1003daf0：Chosen 只由客戶端選單設定，單機清除 Chosen；出戰順序清單只送封包 0x60b		
 EasyRPG.dll	5	1003dc70	FUN_1003dc70		game	skip	45	1	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1003dd00	FUN_1003dd00		game	skip	21	2	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	3	1003dd50	FUN_1003dd50		game	skip	15	16	ER_Explain／字串工具包裝		
@@ -6188,7 +6188,7 @@ EasyRPG.dll	2	1004b9a0	FUN_1004b9a0		game	skip	36	3	同上：Friend 條件的客
 EasyRPG.dll	99	1004ba50	FUN_1004ba50		game	skip	37	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	99	1004bb20	FUN_1004bb20		game	skip	42	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	3	1004bbf0	FUN_1004bbf0		game	skip	44	2	物件名單找法（依別名、		
-EasyRPG.dll	3	1004bcb0	FUN_1004bcb0		game	skip	18	3	取技能／道具的等級（Level 屬性包裝）		
+EasyRPG.dll	3	1004bcb0	FUN_1004bcb0		game	done	18	3	story_rt.c story_get_int(h,"Level")（取等級包裝）／升級通知 @Exp @EXTRA 只是封包，單機直接讀屬性		
 EasyRPG.dll	2	1004bcf0	FUN_1004bcf0		game	done	68	109			
 EasyRPG.dll	2	1004be60	FUN_1004be60		game	done	107	3			
 EasyRPG.dll	3	1004c0e0	FUN_1004c0e0		game	done	23	5			
@@ -6257,8 +6257,8 @@ EasyRPG.dll	3	10052350	FUN_10052350		game	skip	109	1	隨機道具第二版產生
 EasyRPG.dll	3	100529a0	FUN_100529a0		game	done	23	8			
 EasyRPG.dll	3	10052a00	FUN_10052a00		game	done	14	170			
 EasyRPG.dll	3	10052af0	FUN_10052af0		game	done	175	4			
-EasyRPG.dll	99	100530b8	FUN_100530b8		game	skip	274	3	房間輪流刷新（0x10052e40）的後段：跳過有玩家的房間、處理 Trading、建築 isbuilding 2／6 復原、計時清掉 xuezhiyingsu 物件；單機每次進房間才刷新（story_refresh）		
-EasyRPG.dll	99	10053286	FUN_10053286		game	skip	249	1	房間輪流刷新（0x10052e40）的後段：跳過有玩家的房間、處理 Trading、建築 isbuilding 2／6 復原、計時清掉 xuezhiyingsu 物件；單機每次進房間才刷新（story_refresh）		
+EasyRPG.dll	99	100530b8	FUN_100530b8		game	done	274	3			
+EasyRPG.dll	99	10053286	FUN_10053286		game	done	249	1			
 EasyRPG.dll	99	100536b0	FUN_100536b0		game	skip	47	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	99	100537d0	FUN_100537d0		game	skip	14	0	建構／解構／STL 容器轉接／欄位存取器（14 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	10053800	FUN_10053800		game	skip	21	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
@@ -6300,7 +6300,7 @@ EasyRPG.dll	3	10055990	FUN_10055990		game	done	63	56
 EasyRPG.dll	3	10055b50	FUN_10055b50		game	done	67	5		裝備變動後重找箭袋 HasArrow（第一件類型 13／14），有就打開 W_Type 1／3 技能（沒有時不關）= main.c arrow_refresh（hero_refresh 呼叫）	
 EasyRPG.dll	3	10055d50	FUN_10055d50		game	done	44	6		裝備相生配對：移動的道具找搭檔（39—31、38—30、36—32、37—33），符合相生表 {0,3,4,2,5,1} → 搭檔的相生特性（種類 2）生效／失效 = main.c fe_toggle（inv_swap 呼叫）	
 EasyRPG.dll	99	10055e90	FUN_10055e90		game	done	95	4			
-EasyRPG.dll	4	10056120	FUN_10056120		game	skip	84	3	隊友升級後 Upgrade_ 屬性重算（HP_MAX／MP_MAX 隨等級）：單機劇情物件沒有 Upgrade_* 欄位（grep story 0 處），隊友 HP 由引擎角色表給		
+EasyRPG.dll	4	10056120	FUN_10056120		game	done	84	3			
 EasyRPG.dll	99	10056360	FUN_10056360		game	skip	44	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	99	10056440	FUN_10056440		game	skip	36	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	99	10056520	FUN_10056520		game	skip	33	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
@@ -6318,7 +6318,7 @@ EasyRPG.dll	1	10056ed0	FUN_10056ed0		game	skip	98	2	物件刪除核心（刪子�
 EasyRPG.dll	4	10057140	FUN_10057140		game	skip	46	4	物件名單找法（依別名、		
 EasyRPG.dll	1	10057230	FUN_10057230		game	skip	111	30	物件刪除核心（刪子物件、解除登記、通知客戶端）：story_rt.c obj_delete／story_delete 取代		
 EasyRPG.dll	3	100574e0	FUN_100574e0		game	done	520	4		倒下：經驗 = 怪物 Exp × (殺手悟性+150)/150，殺手等級高 2 級以上每級 −10%（≤ 9 級）；隊伍依權重分（殺手 1.2、其他 1 − 0.05×|等級差|，至少 0.05）= main.c kill_exp	
-EasyRPG.dll	5	10057f50	FUN_10057f50		game	skip	108	2	隊友升級後 Upgrade_ 屬性重算（HP_MAX／MP_MAX 隨等級）：單機劇情物件沒有 Upgrade_* 欄位（grep story 0 處），隊友 HP 由引擎角色表給		
+EasyRPG.dll	5	10057f50	FUN_10057f50		game	done	108	2			
 EasyRPG.dll	99	10058180	FUN_10058180		game	skip	16	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	4	100581b0	FUN_100581b0		game	done	135	1		找相生搭檔（UI_Pos 對、五行相生表 {0,3,4,2,5,1}、34／35 手套靴子不算）= main.c fe_toggle	
 EasyRPG.dll	3	10058410	FUN_10058410		game	done	67	3			
@@ -6338,12 +6338,12 @@ EasyRPG.dll	2	10058d30	FUN_10058d30		game	done	98	5
 EasyRPG.dll	3	10058fd0	FUN_10058fd0		game	skip	28	2	雙向鏈結串列／容器節點操作（pop／remove／push）：用普通陣列取代		
 EasyRPG.dll	3	10059020	FUN_10059020		game	done	119	3			
 EasyRPG.dll	4	1005928c	FUN_1005928c		game	skip	27	1	物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代		
-EasyRPG.dll	3	10059300	FUN_10059300		game	skip	53	2	物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代		
-EasyRPG.dll	4	10059469	FUN_10059469		game	skip	19	1	物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代		
-EasyRPG.dll	5	100594e9	FUN_100594e9		game	skip	36	1	物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代		
-EasyRPG.dll	3	100595b0	FUN_100595b0		game	skip	50	14	物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代		
-EasyRPG.dll	4	100596ec	FUN_100596ec		game	skip	19	1	物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代		
-EasyRPG.dll	5	1005975d	FUN_1005975d		game	skip	47	1	物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代		
+EasyRPG.dll	3	10059300	FUN_10059300		game	done	53	2			
+EasyRPG.dll	4	10059469	FUN_10059469		game	done	19	1			
+EasyRPG.dll	5	100594e9	FUN_100594e9		game	done	36	1			
+EasyRPG.dll	3	100595b0	FUN_100595b0		game	done	50	14			
+EasyRPG.dll	4	100596ec	FUN_100596ec		game	done	19	1			
+EasyRPG.dll	5	1005975d	FUN_1005975d		game	done	47	1			
 EasyRPG.dll	5	10059870	FUN_10059870		game	done	53	5			
 EasyRPG.dll	6	100599da	FUN_100599da		game	skip	19	1	物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代		
 EasyRPG.dll	7	10059a5d	FUN_10059a5d		game	skip	38	1	物件表／容器鏈／幫手（DAT_104797f0 物件表、新增刪除、鏈結串列節點）：story_rt.c objs[] 取代		
@@ -6743,7 +6743,7 @@ EasyRPG.dll	99	100697d0	FUN_100697d0		game	skip	47	0	客戶端封包處理（Poq
 EasyRPG.dll	99	10069880	FUN_10069880		game	skip	42	0	客戶端封包處理（Poq 經 0x511a80 送來，讀 param_1+3 參數個數／+4 參數陣列）：連線協定轉接；引擎視窗直接呼叫規則函數（hero_*／item_*／skill 等），規則本體在被它呼叫的低層函數		
 EasyRPG.dll	99	10069910	FUN_10069910		game	skip	28	0	客戶端封包處理（Poq 經 0x511a80 送來，讀 param_1+3 參數個數／+4 參數陣列）：連線協定轉接；引擎視窗直接呼叫規則函數（hero_*／item_*／skill 等），規則本體在被它呼叫的低層函數		
 EasyRPG.dll	99	10069960	FUN_10069960		game	skip	86	0	客戶端封包處理（Poq 經 0x511a80 送來，讀 param_1+3 參數個數／+4 參數陣列）：連線協定轉接；引擎視窗直接呼叫規則函數（hero_*／item_*／skill 等），規則本體在被它呼叫的低層函數		
-EasyRPG.dll	2	10069af0	FUN_10069af0		game	skip	152	1	客戶端封包處理（Poq 經 0x511a80 送來，讀 param_1+3 參數個數／+4 參數陣列）：連線協定轉接；引擎視窗直接呼叫規則函數（hero_*／item_*／skill 等），規則本體在被它呼叫的低層函數		
+EasyRPG.dll	2	10069af0	FUN_10069af0		game	done	152	1			
 EasyRPG.dll	99	10069dd0	FUN_10069dd0		game	skip	40	0	客戶端封包處理（Poq 經 0x511a80 送來，讀 param_1+3 參數個數／+4 參數陣列）：連線協定轉接；引擎視窗直接呼叫規則函數（hero_*／item_*／skill 等），規則本體在被它呼叫的低層函數		
 EasyRPG.dll	99	10069e50	FUN_10069e50		game	skip	31	0	客戶端封包處理（Poq 經 0x511a80 送來，讀 param_1+3 參數個數／+4 參數陣列）：連線協定轉接；引擎視窗直接呼叫規則函數（hero_*／item_*／skill 等），規則本體在被它呼叫的低層函數		
 EasyRPG.dll	99	10069ea0	FUN_10069ea0		game	skip	83	0	客戶端封包處理（Poq 經 0x511a80 送來，讀 param_1+3 參數個數／+4 參數陣列）：連線協定轉接；引擎視窗直接呼叫規則函數（hero_*／item_*／skill 等），規則本體在被它呼叫的低層函數		

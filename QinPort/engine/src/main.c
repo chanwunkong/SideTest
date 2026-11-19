@@ -1766,6 +1766,8 @@ static void status_patch(Actor *a) {
 
 // 重算數值（0x1002d8d0）：基礎值 → 固定加值 → 回復速度（0x1002fa90）→ 職業倍率（0x1002d510）→ 百分比。加點、升級、狀態變化後呼叫，不回血
 // attr 六項屬性、prof 職業序號（R 表）；equip = 主角才有的裝備特性（隊友沒有裝備模型，見 team_derive）
+// 隊友升級（原版 0x10056120 對每個 Upgrade_<屬性> 列呼叫 0x10057f50：值 = (等級 + c) × 每級 + 基礎，再 0x1002daa0 存 *0 基底）：這裡 team_sync → 本函數
+// 用同一組升級表（hp_max = 基礎 + 每級 × 等級）一次重算；0x10030c90 相依通知（Str→BD_MAX、Con→HP_SPEED、Dex→HR／SR、Wisdom→MP_SPEED）也由下面的順序涵蓋
 static void person_derive(Actor *h, const int *attr, int prof, int equip) {
     const int K = 150, lv = h->level;
     // 升級表 Upgrade_HP_MAX／MP_MAX = 基礎 每級（秦殇/主角 範本裡 0x1005f3c0 的前兩個浮點，依職業 IsActorNPC 1~5；

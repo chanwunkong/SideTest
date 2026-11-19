@@ -140,9 +140,15 @@ int story_new(const char *path, int parent) {
     o->kind = o->cls ? o->cls->kind : 2;
     snprintf(o->path, sizeof o->path, "%s", path);
     if (!o->cls) fprintf(stderr, "劇情：找不到物件 %s\n", path);
+    // 原版 newobject（0x100595b0／0x10059300）：存起進貨上限三個全域（0x10002ce0），第 1 格（創造中旗標 0x10478d40 = 1），
+    // 然後旗標 0x10478d3c = 1 立刻呼叫第 6 格（0x100596ec／0x10059469：箱子的隨機掉落、房間第一批怪），最後還原全域（0x1005975d／0x100594e9）
+    int sv_ref = refreshing, sv_max = spawn_max, sv_cnt = spawn_count, sv_lv = spawn_level;
     quiet++;
     slot_call(h, 1, 0);
     quiet--;
+    refreshing = 1;
+    slot_call(h, 6, 0);
+    refreshing = sv_ref, spawn_max = sv_max, spawn_count = sv_cnt, spawn_level = sv_lv;
     return h;
 }
 
@@ -248,7 +254,6 @@ static int load_room(const char *path) {
     if (h || !*path || !class_find(path)) return h;
     h = story_new(path, 0);
     story_set_int(h, "G_Created", 0);
-    story_set_int(h, "__fresh", 1);  // 剛產生（第 1 格放好了），第一次進去不用刷新
     return h;
 }
 // 先找、找不到再產生（劇情 API 指定房間路徑的寫法：0x1005b0d0 → 0x1004db90）
@@ -701,10 +706,20 @@ void story_plot_end(void) {
 // shortcut: 原版的週期沒算，改成每次進房間刷新一次（離開期間＝沒有玩家）
 void story_refresh(int room) {
     if (!O(room)) return;
-    if (story_get_int(room, "__fresh")) { story_set_int(room, "__fresh", 0); return; }
+    // 0x10052e40／0x100530b8／0x10053286：房間（沒玩家）第 6 格，然後每個子物件：人物 Trading 超過正在交易的玩家數就壓回（單機 0），
+    // 只有「開過的建築（道具 isbuilding 2／6）」和「Trading < 1 的人物」呼叫第 7 格（清單清空，引擎沒有對應的清單）再第 6 格；
+    // 沒開過的箱子、隊友（跟著主角，原版房間沒玩家時不在裡面）不動
     refreshing = 1;
     slot_call(room, 6, 0);
-    for (int h = story_next(room, 0); h; h = story_next(room, h)) slot_call(h, 6, 0);
+    for (int h = story_next(room, 0); h; h = story_next(room, h)) {
+        int k = objs[h].kind;
+        if (k == 1) {
+            if (h == the_player || objs[h].leader) continue;
+            if (story_get_int(h, "Trading") > 0) story_set_int(h, "Trading", 0);
+        }
+        int b = story_get_int(h, "isbuilding");
+        if ((k == 2 && (b == 2 || b == 6)) || (k == 1 && story_get_int(h, "Trading") < 1)) slot_call(h, 6, 0);
+    }
     refreshing = 0;
 }
 

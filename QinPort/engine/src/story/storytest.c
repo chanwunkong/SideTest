@@ -54,8 +54,25 @@ static int hero_test(const char *path) {
     return 0;
 }
 
+// storytest room=<房間別名>：第一次進房間（story_new 後立刻第 6 格，原版 newobject）箱子子類（礦、樹、水缸）就有隨機掉落
+static int room_test(const char *alias) {
+    story_register_all();
+    story_player();
+    int r = story_room(alias), chests = 0, filled = 0;
+    for (int h = story_next(r, 0); h; h = story_next(r, h)) {
+        if (!story_get_int(h, "isbuilding")) continue;
+        chests++;
+        if (story_next(h, 0)) filled++;
+    }
+    printf("%s 箱子 %d 有掉落 %d\n", alias, chests, filled);
+    if (!chests || !filled) return 1;
+    printf("room ok\n");
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) return 1;
+    if (!strncmp(argv[1], "room=", 5)) return room_test(argv[1] + 5);
     if (!strncmp(argv[1], "hero=", 5)) return hero_test(argv[1] + 5);
     if (!strncmp(argv[1], "team=", 5)) { story_register_all(); return team_test(argv[1] + 5, argc > 2 ? atoi(argv[2]) : 3000); }
     story_register_all();

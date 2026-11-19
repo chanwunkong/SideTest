@@ -3859,19 +3859,12 @@ EasyRPG.dll:1001be50  文字指令 s_fightstatus／s_testdir／s_testgo：伺服
 EasyRPG.dll:1001c6d0  文字指令 s_fightstatus／s_testdir／s_testgo：伺服器測試用同步指令（戰鬥狀態、方向、走路），單機沒有伺服器
 EasyRPG.dll:1001c930  文字指令 s_fightstatus／s_testdir／s_testgo：伺服器測試用同步指令（戰鬥狀態、方向、走路），單機沒有伺服器
 EasyRPG.dll:1002d9cf  1002d8d0 的反編譯碎片（通知客戶端 HP／MP／Level 屬性更新）：單機直接讀屬性
-EasyRPG.dll:1002daa0  屬性基底備份 *0 欄（HP_MAX0、Str0…）與還原：引擎 hero_derive 每次從 hero_attr／等級重算，不需要備份欄
 EasyRPG.dll:1002e040  裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同
 EasyRPG.dll:1002e060  裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同
 EasyRPG.dll:1002e3c0  裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同
 EasyRPG.dll:1002eaa0  裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同
-EasyRPG.dll:10030c90  屬性變動通知／相依順序重算（Str Con→BD_MAX HP_SPEED、Dex→HR SR、Wisdom→MP_SPEED）後送客戶端：引擎 hero_derive 已照這個相依重算，通知部分單機不需要
 EasyRPG.dll:100314d0  技能施放暫存全域（DAT_104784d0~e0：施放者、目標、技能、等級）的設定／入出堆疊：引擎以 skill_hit／strike 的函式參數傳遞
-EasyRPG.dll:10031680  升級／加經驗後通知客戶端 @Exp、@EXTRA 更新：單機直接讀屬性
 EasyRPG.dll:10031780  雙向鏈結串列／容器節點操作（pop／remove／push）：用普通陣列取代
-EasyRPG.dll:10031820  屬性基底備份 *0 欄（HP_MAX0、Str0…）與還原：引擎 hero_derive 每次從 hero_attr／等級重算，不需要備份欄
-EasyRPG.dll:10031840  屬性基底備份 *0 欄（HP_MAX0、Str0…）與還原：引擎 hero_derive 每次從 hero_attr／等級重算，不需要備份欄
-EasyRPG.dll:10031860  道具需求備份 LevelReqOld 等與還原：main.c gem_fx 可逆加減，不需要備份欄
-EasyRPG.dll:100318d0  道具需求備份 LevelReqOld 等與還原：main.c gem_fx 可逆加減，不需要備份欄
 EasyRPG.dll:10031cd0  雙向鏈結串列／容器節點操作（pop／remove／push）：用普通陣列取代
 EasyRPG.dll:10031f80  技能參數字串化／狀態條目 Status_N 字串（"%d %d %d"）的寫入：引擎 Actor.buff[] 取代
 EasyRPG.dll:10034010  Attack方式 5 開鎖、6 偷竊（lockpick／steal）：技能表沒有技能用到（main.c 註解已列），open 開箱要寶箱系統
@@ -3896,7 +3889,6 @@ EasyRPG.dll:1003b910  客戶端同步送出器（人物、道具、狀態、日�
 EasyRPG.dll:1003be30  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:1003be50  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:1003bfb0  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
-EasyRPG.dll:1003d890  客戶端選單選項 Chosen 記錄：單機對話選項走 story_choose
 EasyRPG.dll:1003dc70  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:1003dd00  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:1003dd50  ER_Explain／字串工具包裝
@@ -3928,7 +3920,6 @@ EasyRPG.dll:1004aed0  物件名單找法（依別名、#代號、名稱找、子
 EasyRPG.dll:1004af10  物件名單找法（依別名、#代號、名稱找、子物件迭代、隊伍名單）：story_rt.c story_next／story_find／leader_of／team_next 取代
 EasyRPG.dll:1004b8b0  製作費用 0x1004b8b0：mode 0 = (等級 + 10) × 5、mode 1 = 材料 ValueUn 總和（UIS_Produce）= main.c make_produce 的錢（NPC 打造費用）
 EasyRPG.dll:1004bbf0  物件名單找法（依別名、#代號、名稱找、子物件迭代、隊伍名單）：story_rt.c story_next／story_find／leader_of／team_next 取代
-EasyRPG.dll:1004bcb0  取技能／道具的等級（Level 屬性包裝）
 EasyRPG.dll:1004c690  物件名單找法（依別名、#代號、名稱找、子物件迭代、隊伍名單）：story_rt.c story_next／story_find／leader_of／team_next 取代
 EasyRPG.dll:1004c6b0  物件名單找法（依別名、#代號、名稱找、子物件迭代、隊伍名單）：story_rt.c story_next／story_find／leader_of／team_next 取代
 EasyRPG.dll:1004cab0  物件名單找法（依別名、#代號、名稱找、子物件迭代、隊伍名單）：story_rt.c story_next／story_find／leader_of／team_next 取代
@@ -3946,8 +3937,6 @@ EasyRPG.dll:100512a0  客戶端同步送出器（人物、道具、狀態、日�
 EasyRPG.dll:100512e0  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:10051480  物件名單找法（依別名、#代號、名稱找、子物件迭代、隊伍名單）：story_rt.c story_next／story_find／leader_of／team_next 取代
 EasyRPG.dll:10052350  隨機道具第二版產生器的周邊（只被死碼 0x10071910 呼叫，PE 掃描確認；表函式 0x10052350 無參照）
-EasyRPG.dll:100530b8  房間輪流刷新（0x10052e40）的後段：跳過有玩家的房間、處理 Trading、建築 isbuilding 2／6 復原、計時清掉 xuezhiyingsu 物件；單機每次進房間才刷新（story_refresh）
-EasyRPG.dll:10053286  房間輪流刷新（0x10052e40）的後段：跳過有玩家的房間、處理 Trading、建築 isbuilding 2／6 復原、計時清掉 xuezhiyingsu 物件；單機每次進房間才刷新（story_refresh）
 EasyRPG.dll:100538d0  物件名單找法（依別名、#代號、名稱找、子物件迭代、隊伍名單）：story_rt.c story_next／story_find／leader_of／team_next 取代
 EasyRPG.dll:10054390  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:100545d0  雙向鏈結串列／容器節點操作（pop／remove／push）：用普通陣列取代
@@ -3960,7 +3949,6 @@ EasyRPG.dll:10055200  客戶端同步送出器（人物、道具、狀態、日�
 EasyRPG.dll:10055450  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:100554d0  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:10055720  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
-EasyRPG.dll:10056120  隊友升級後 Upgrade_ 屬性重算（HP_MAX／MP_MAX 隨等級）：單機劇情物件沒有 Upgrade_* 欄位（grep story 0 處），隊友 HP 由引擎角色表給
 EasyRPG.dll:100565b0  newobject 包裝（只呼叫 0x100595b0 建物件），story_rt.c story_new 取代
 EasyRPG.dll:100565d0  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:100566b0  GM 指令（要權限等級 4，0x100566b0 檢查）
@@ -3969,7 +3957,6 @@ EasyRPG.dll:10056910  物件名單找法（依別名、#代號、名稱找、子
 EasyRPG.dll:10056ed0  物件刪除核心（刪子物件、解除登記、通知客戶端）：story_rt.c obj_delete／story_delete 取代
 EasyRPG.dll:10057140  物件名單找法（依別名、#代號、名稱找、子物件迭代、隊伍名單）：story_rt.c story_next／story_find／leader_of／team_next 取代
 EasyRPG.dll:10057230  物件刪除核心（刪子物件、解除登記、通知客戶端）：story_rt.c obj_delete／story_delete 取代
-EasyRPG.dll:10057f50  隊友升級後 Upgrade_ 屬性重算（HP_MAX／MP_MAX 隨等級）：單機劇情物件沒有 Upgrade_* 欄位（grep story 0 處），隊友 HP 由引擎角色表給
 EasyRPG.dll:10058550  雙向鏈結串列／容器節點操作（pop／remove／push）：用普通陣列取代
 EasyRPG.dll:10058cb0  雙向鏈結串列／容器節點操作（pop／remove／push）：用普通陣列取代
 EasyRPG.dll:10058fd0  雙向鏈結串列／容器節點操作（pop／remove／push）：用普通陣列取代

@@ -334,3 +334,16 @@
 1004b910 item_repair（修理價錢 = 原價 × 損耗 × 4 / 耐久上限，NPC ×2，main.c）
 1004b7a0 item_identify（鑑定費用 (等級+4)×10，main.c）
 1006a470 item_eat（封包 use，同文字指令 use 0x1001e660）
+10030c90  story_rt.c／main.c hero_derive：屬性變動通知／相依重算＝單機一次 hero_derive 全算，裝備需求佇列（DAT_104ba1d8）的消費者 0x1004c810／0x1004c980 是死碼，其餘為封包
+10057f50  main.c person_derive／team_sync：隊友升級後 HP_MAX／MP_MAX = 基礎 + 每級 × 等級（Upgrade_ 列），升級後 team_sync 重算
+1003d890  story_rt.c ctrl 0x1003daf0：Chosen 只由客戶端選單設定，單機清除 Chosen；出戰順序清單只送封包 0x60b
+100530b8  story_rt.c story_refresh：房間輪流刷新後段（開過的建築 isbuilding 2／6 與 Trading < 1 的人物 → 第 7、6 格）
+10053286  story_rt.c story_refresh：房間輪流刷新後段（開過的建築 isbuilding 2／6 與 Trading < 1 的人物 → 第 7、6 格）
+10056120  main.c person_derive／team_sync：隊友升級重算（Upgrade_ 列、*0 基底）等價
+1002daa0  main.c person_derive／team_sync：隊友升級重算（Upgrade_ 列、*0 基底）等價
+10031860  建立／讀檔時的需求與 HP_MAX 備份（LevelReqOld、HP_MAX0）：引擎 gem_fx 可逆加減、hero_derive 每次從基礎重算，不需要備份欄
+100318d0  建立／讀檔時的需求與 HP_MAX 備份（LevelReqOld、HP_MAX0）：引擎 gem_fx 可逆加減、hero_derive 每次從基礎重算，不需要備份欄
+10031820  建立／讀檔時的需求與 HP_MAX 備份（LevelReqOld、HP_MAX0）：引擎 gem_fx 可逆加減、hero_derive 每次從基礎重算，不需要備份欄
+10031840  建立／讀檔時的需求與 HP_MAX 備份（LevelReqOld、HP_MAX0）：引擎 gem_fx 可逆加減、hero_derive 每次從基礎重算，不需要備份欄
+1004bcb0  story_rt.c story_get_int(h,"Level")（取等級包裝）／升級通知 @Exp @EXTRA 只是封包，單機直接讀屬性
+10031680  story_rt.c story_get_int(h,"Level")（取等級包裝）／升級通知 @Exp @EXTRA 只是封包，單機直接讀屬性
