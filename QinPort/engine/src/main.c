@@ -183,15 +183,18 @@ static const Sprite *tile(Lib *tiles, uint16_t i) {
 }
 
 #ifdef __EMSCRIPTEN__
-// 網頁上方的提示：n < 0 = 正在載入場景；n > 0 = 背景還有 n 張圖在下載
-EM_JS(void, js_status, (int n), {
-    const el = document.getElementById('status');
-    if (!el) return;
-    // 操作說明只給還沒碰過畫面的人看，之後收掉，不擋原版敵人狀態（同在畫面上方）
-    el.textContent = n < 0 ? '載入場景中…' : n > 0 ? '載入中… 還有 ' + n + ' 張圖' : window.qinTouched ? "" : '按住畫面走路，點怪物攻擊';
-});
+// 網頁載入畫面（web/shell.html 的 qinProgress）：n < 0 = 正在載入場景（蓋上載入畫面）；n > 0 = 還有 n 張圖在下載（畫面顯示已下載幾張、剩幾張）；n == 0 = 好了，載入畫面消失
+EM_JS(void, js_status_raw, (int n), { if (window.qinProgress) window.qinProgress(n); });
 #else
-static void js_status(int n) { (void)n; }
+static void js_status_raw(int n) { (void)n; }
+#endif
+static int status_shown = -2;  // 最近一次送出的數字；-1（換場景）之後歸 -2，讓主迴圈下一幀一定再送一次（否則場景圖都在快取時載入畫面不會消失）
+static void js_status(int n) { status_shown = n < 0 ? -2 : n; js_status_raw(n); }
+// 觸控確認震動（iOS 沒有 navigator.vibrate 就略過）
+#ifdef __EMSCRIPTEN__
+EM_JS(void, js_vibrate, (int ms), { if (navigator.vibrate) navigator.vibrate(ms); });
+#else
+static void js_vibrate(int ms) { (void)ms; }
 #endif
 
 // 片頭／片尾影片（原版 Poq.exe 0x440830 播 movie/<名>.avi；狀態機 0x449f50：Logo1~3 → Start（PlayIntro）→ 主選單、End 在片尾）。
@@ -5191,6 +5194,8 @@ static UiDialog bar, party, enemy;
 // y 都是垂直置中再往上 50（Poq.exe 0x4ff3xx、0x5004xx、0x4feexx）。左右各一個，可以同時開
 typedef struct { UiDialog d; int open; } Win;
 static Win win_left, win_right;
+static SDL_Texture *win_tex;  // 直式觸控：側邊視窗畫在這張（800x600 同座標），再放大貼到遊戲畫面下方（touch_ui.c）
+static int win_off;       // 1 = 視窗現在畫在 win_tex，不在遊戲畫面上（遊戲畫面上的點擊不看視窗）
 
 #define JM52 "JM52_\xc8\xcb\xce\xef\xca\xf4\xd0\xd4\xbd\xe7\xc3\xe6"  // JM52_人物属性界面（GBK）
 
@@ -7945,22 +7950,8 @@ static int help_content_tap(const UiDialog *d, int ox, int oy, int x, int y) {
     return 1;
 }
 
-// 介面吃掉的點擊回 1（不再拿去走路、打怪）。shortcut: 主列只有按鈕吃點擊，主列底圖空白處還是會走路
-static int hud_tap(int x, int y) {
-    if (sys_tap(x, y)) return 1;
-    if (party_tap(x, y)) return 1;
-    if (pick_hand >= 0) {  // 快捷技能視窗開著（0x563ea0 → 0x507180：選到的技能設成該手的當前技能並關窗）：點格子換技能；點哪裡都收起來（原版 0x564140 逐格 PtInRect，沒點到格子就交給基底 0x521020 收起來）
-        int px, py;
-        pick_pos(&px, &py);
-        const UiCtrl *c = ui_button_at(&pick, px, py, x, y);
-        int i = c && !strncmp(c->name, "m_pItem[", 8) ? atoi(c->name + 8) : -1;
-        if (i >= 0 && i < pick_n) {
-            cur_skill[pick_hand] = pick_skill[i];  // 0x4599e0 右手（+0x4ff）／0x459a90 左手（+0x503），包成指令 4 給角色
-            hero_skill_apply(&actors[0]);
-        }
-        pick_hand = -1;
-        return 1;
-    }
+// 側邊視窗吃掉的點擊回 1（win_off 時視窗畫在別處，由 touch_ui.c 把放大區的座標換算回來再呼叫）
+static int win_tap(int x, int y) {
     Win *ws[2] = {&win_left, &win_right};
     for (int i = 0; i < 2; i++) {
         Win *w = ws[i];
@@ -7994,10 +7985,112 @@ static int hud_tap(int x, int y) {
         else if (c) ui_command(c->name);
         return 1;
     }
+    return 0;
+}
+
+// 介面吃掉的點擊回 1（不再拿去走路、打怪）。shortcut: 主列只有按鈕吃點擊，主列底圖空白處還是會走路
+static int hud_tap(int x, int y) {
+    if (sys_tap(x, y)) return 1;
+    if (party_tap(x, y)) return 1;
+    if (pick_hand >= 0) {  // 快捷技能視窗開著（0x563ea0 → 0x507180：選到的技能設成該手的當前技能並關窗）：點格子換技能；點哪裡都收起來（原版 0x564140 逐格 PtInRect，沒點到格子就交給基底 0x521020 收起來）
+        int px, py;
+        pick_pos(&px, &py);
+        const UiCtrl *c = ui_button_at(&pick, px, py, x, y);
+        int i = c && !strncmp(c->name, "m_pItem[", 8) ? atoi(c->name + 8) : -1;
+        if (i >= 0 && i < pick_n) {
+            cur_skill[pick_hand] = pick_skill[i];  // 0x4599e0 右手（+0x4ff）／0x459a90 左手（+0x503），包成指令 4 給角色
+            hero_skill_apply(&actors[0]);
+        }
+        pick_hand = -1;
+        return 1;
+    }
+    if (!win_off && win_tap(x, y)) return 1;
     const UiCtrl *c = bar.count ? ui_button_at(&bar, (vw - bar.w) / 2, vh - bar.h, x, y) : NULL;
     if (!c) return 0;
     ui_command(c->name);
     return 1;
+}
+
+// ---- 觸控預覽用：不動作的命中測試（touch_ui.c 的放大鏡）----
+// 回 0 = 不是介面（遊戲場景；維持立即點擊）；1 = 是介面、放開會點到某個控制項（*r = 它的框，介面座標）；2 = 是介面但那裡沒有控制項（放開 = 取消）。
+// win = 1：點在視窗（放大區換算回來的座標），只看側邊視窗。判斷順序同 hud_tap／sys_tap。
+// shortcut: 地圖、創角、選項／說明（有滑桿）、字幕、對話不套預覽（回 0，照舊立即點）；詢問框、交易製作清單的框是點附近 24 點的方塊
+static SDL_Rect ctrl_rect(const UiCtrl *c, int ox, int oy) {
+    const Sprite *s = ui_image(c->img, 0);
+    return (SDL_Rect){ox + c->x, oy + c->y, s ? s->w : 24, s ? s->h : 24};
+}
+static int ctrl_target(const UiDialog *d, int ox, int oy, int x, int y, SDL_Rect *r) {
+    const UiCtrl *c = ui_button_at(d, ox, oy, x, y);
+    if (!c) return 2;
+    *r = ctrl_rect(c, ox, oy);
+    return 1;
+}
+static int win_target(int x, int y, SDL_Rect *r) {
+    Win *ws[2] = {&win_left, &win_right};
+    for (int i = 0; i < 2; i++) {
+        Win *w = ws[i];
+        if (!w->open) continue;
+        int ox = win_x(w), oy = win_y(w);
+        if (x < ox || x >= ox + w->d.w || y < oy || y >= oy + w->d.h) continue;
+        UiCtrl *info = ui_find(&w->d, "m_pInfo");
+        Scroll sc;
+        if (info && info->flags & 9 && text_scroll(info, ox, oy, &sc)) {
+            if (in_rect(&sc.up, x, y)) { *r = sc.up; return 1; }
+            if (in_rect(&sc.down, x, y)) { *r = sc.down; return 1; }
+        }
+        int t = ctrl_target(&w->d, ox, oy, x, y, r);
+#ifdef STORY
+        if (t == 2 && !strcmp(w->d.name, JM56)) { *r = (SDL_Rect){x - 12, y - 12, 24, 24}; return 1; }  // 打造清單點列
+#endif
+        return t;
+    }
+    return 0;
+}
+static int hud_target(int x, int y, int win, SDL_Rect *r) {
+    if (win) return win_target(x, y, r);
+#ifdef STORY
+    if (dialog_open) return 0;
+#endif
+    if (map_open || new_open || opt_open || help_open || cr.open || ch.open) return 0;
+    if (diff_open) {
+        const Sprite *bg = ui_image(196, 0);
+        return ctrl_target(&diff_d, (vw - (bg ? bg->w : 0)) / 2, (vh - (bg ? bg->h : 0)) / 2, x, y, r);
+    }
+    if (quit_open) return ctrl_target(&quit_d, (vw - quit_d.w) / 2, (vh - quit_d.h) / 2, x, y, r);
+    if (ask_open) {
+        if (!ask_button(x, y)) return 2;
+        *r = (SDL_Rect){x - 20, y - 14, 40, 28};
+        return 1;
+    }
+    if (sav_mode) return ctrl_target(&sav_d, (vw - sav_d.w) / 2, (vh - sav_d.h) / 2, x, y, r);
+    if (dead_open) return ctrl_target(&dead_d, (vw - dead_d.w) / 2, (vh - dead_d.h) / 2, x, y, r);
+    if (sys_open) return ctrl_target(&sys_d, (vw - sys_d.w) / 2, (vh - sys_d.h) / 2, x, y, r);
+    {
+        int px, py;
+        party_pos(&px, &py);
+        Actor *m[PARTY_SLOTS];
+        int n = party_list(m);
+        for (int i = 0; i < n; i++) {
+            char key[32];
+            snprintf(key, sizeof key, "m_pRoleBox[%d]", i);
+            const UiCtrl *c = ui_find(&party, key);
+            const Sprite *s = c ? ui_image(c->img, 0) : NULL;
+            if (s && x >= px + c->x && x < px + c->x + s->w && y >= py + c->y && y < py + c->y + s->h) { *r = ctrl_rect(c, px, py); return 1; }
+        }
+    }
+    if (pick_hand >= 0) {
+        int px, py;
+        pick_pos(&px, &py);
+        const UiCtrl *c = ui_button_at(&pick, px, py, x, y);
+        if (!c || strncmp(c->name, "m_pItem[", 8)) return 2;
+        *r = ctrl_rect(c, px, py);
+        return 1;
+    }
+    if (!win_off) {
+        int t = win_target(x, y, r);
+        if (t) return t;
+    }
+    return bar.count && ui_button_at(&bar, (vw - bar.w) / 2, vh - bar.h, x, y) ? ctrl_target(&bar, (vw - bar.w) / 2, vh - bar.h, x, y, r) : 0;
 }
 
 // 原版文字表 UI_C.dlg 第 id 筆轉成 UTF-8，拿掉顏色標記「[數字 … ]」。shortcut: 標記裡的顏色還沒照原版上色，都用控制項的字色
@@ -8278,6 +8371,11 @@ static void hud_draw(Actor *hero) {
         party_pos(&px, &py);
         party_draw(&party, px, py);
     }
+    if (win_off && win_tex && (win_left.open || win_right.open)) {  // 直式觸控：視窗畫在另一張圖，之後放大貼到遊戲畫面下方
+        SDL_SetRenderTarget(ren, win_tex);
+        SDL_SetRenderDrawColor(ren, 16, 16, 22, 255);  // 不透明底：放大時不用處理半透明邊緣
+        SDL_RenderClear(ren);
+    }
     if (win_left.open) {
         int wx = win_x(&win_left), wy = win_y(&win_left);
         ui_draw(&win_left.d, wx, wy);
@@ -8351,6 +8449,7 @@ static void hud_draw(Actor *hero) {
             draw_text(wx + money->x + (money->w - text_width(t)) / 2, wy + money->y + (money->h - 16) / 2, t, money->w, 0xBECDCE, 1);
         }
     }
+    if (win_off && win_tex) SDL_SetRenderTarget(ren, fade_canvas);
     if (SDL_GetTicks() < toast_until) {
         int tw = text_width(toast);
         SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
@@ -9061,7 +9160,8 @@ static void screen_size(SDL_Window *win, int *w, int *h) {
 }
 
 int main(int argc, char **argv) {
-    const char *game = "game", *scn = "xianyang", *shot = NULL;
+    const char *game = "game", *scn = "xianyang", *shot = NULL, *open_win = NULL;
+    int press_x = -1, press_y = -1;
     int pos = 0, warp = -1, at_x = -1, at_y = -1, level = 1, gives = 0, money = -1;
     const char *give[8], *learn[8];
     int learns = 0, win_w = 0, win_h = 0;
@@ -9073,6 +9173,8 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--touch")) tch.forced = 1;  // 測試用：永遠顯示觸控介面
         else if (!strcmp(argv[i], "--win") && i + 1 < argc) sscanf(argv[++i], "%dx%d", &win_w, &win_h);  // 測試用：視窗大小，配 --touch --shot 看橫直式版面
+        else if (!strcmp(argv[i], "--open") && i + 1 < argc) open_win = argv[++i];  // 測試用：開側邊視窗 bag／skill／role／equip／both，配 --touch --shot 看畫面
+        else if (!strcmp(argv[i], "--press") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &press_x, &press_y);  // 測試用：假裝有一根手指按在螢幕座標 X,Y 的介面上（看放大鏡與亮框）
         else if (!strcmp(argv[i], "--movie") && i + 1 < argc) movie_play(argv[++i]);  // 測試用：只播影片（End 等）
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
@@ -9171,6 +9273,14 @@ int main(int argc, char **argv) {
     // 先以 1:1 畫在畫布上再整張放大；直接放大每塊磁磚會在接縫透出細線
     SDL_Texture *canvas = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
     fade_canvas = canvas;
+    win_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
+    if (open_win) {  // 測試用 --open：開著側邊視窗再截圖
+        if (!strcmp(open_win, "bag")) { win_toggle(&win_right, JM54); }
+        else if (!strcmp(open_win, "skill")) { skill_mode = 1; win_toggle(&win_right, JM53); }
+        else if (!strcmp(open_win, "role")) win_toggle(&win_left, JM52);
+        else if (!strcmp(open_win, "equip")) win_toggle(&win_left, JM55);
+        else if (!strcmp(open_win, "both")) { win_toggle(&win_left, JM55); win_toggle(&win_right, JM54); }
+    }
     SDL_Texture *zoom_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);  // 縮放時的暫存
     // 音量與開關照原版 ini/Config.ini（[音频] 音效、音乐、音效音量、音乐音量）
     size_t cfg_size;
@@ -9214,6 +9324,14 @@ int main(int argc, char **argv) {
                 }
                 if (kind == TK_BTN) {
                     if (e.type == SDL_FINGERDOWN) touch_button(hero, btn);
+                    continue;
+                }
+                if (kind == TK_GAME && e.type == SDL_FINGERDOWN) {  // 按在遊戲介面（視窗、選單、HUD 按鈕）上：不立刻點，改成預覽放大鏡，放開才點
+                    SDL_Rect hr;
+                    if (hud_target(fx - tch.L.game.x, fy - tch.L.game.y, 0, &hr)) { touch_set_kind(fid, TK_UI); kind = TK_UI; }
+                }
+                if (kind == TK_UI || kind == TK_WIN) {
+                    if (e.type == SDL_FINGERUP) touch_ui_release(fx, fy);  // 放開在控制項上才點；滑出介面外 = 取消
                     continue;
                 }
                 if (kind != TK_GAME) continue;
@@ -9380,19 +9498,33 @@ int main(int argc, char **argv) {
 
         if (hero->selection_pending && !hero->act && !hero->casting) hero_selected_skill_apply(hero);
         Uint64 now = SDL_GetPerformanceCounter();
-        {  // 觸控介面：對話、選單開著就整組收起來；視窗長寬比（轉向、改視窗大小）變了就重排版
-            int blocked = dead_open || sys_open || win_left.open || win_right.open || map_open || new_open || pick_hand >= 0 || ask_open || quit_open;
+        {  // 觸控介面：對話、系統選單、創角、地圖、死亡、詢問框、離開確認、交易製作視窗開著就整組收起來（背包、裝備、技能這種側邊視窗開著保留，多一顆 ✕ 關閉）；視窗長寬比（轉向、改視窗大小）或側邊視窗變了就重排版
+            int blocked = dead_open || sys_open || map_open || new_open || pick_hand >= 0 || ask_open || quit_open || sav_mode || diff_open || trade_paused();
 #ifdef STORY
-            blocked |= dialog_open;
+            blocked |= dialog_open || make_on() || store_on();
 #endif
-            if (blocked != tch.blocked) { tch.blocked = blocked; touch_release_all(); }
+            int side = (win_left.open || win_right.open) && !blocked;
+            touch_win_track();
             int ww, wh;
             screen_size(win, &ww, &wh);
-            static int last_w, last_h;
-            if (tch.L.sw == 0 || ww != last_w || wh != last_h) {
-                last_w = ww; last_h = wh;
+            SDL_Rect ws = {0};
+            if (win_left.open || win_right.open) {  // 開著的側邊視窗（遊戲座標）的聯集
+                for (int i = 0; i < 2; i++) {
+                    Win *w = i ? &win_right : &win_left;
+                    if (!w->open) continue;
+                    SDL_Rect r = {win_x(w), win_y(w), w->d.w, w->d.h}, c = {0, 0, vw, vh};
+                    SDL_IntersectRect(&r, &c, &r);
+                    if (ws.w) SDL_UnionRect(&ws, &r, &ws); else ws = r;
+                }
+            }
+            int touching = tch.forced || !tch.kbm;  // 電腦用滑鼠時視窗不搬位置
+            static int last_w, last_h, last_side, last_touching;
+            static SDL_Rect last_ws;
+            if (blocked != tch.blocked || side != last_side) { tch.blocked = blocked; touch_release_all(); }
+            if (tch.L.sw == 0 || ww != last_w || wh != last_h || side != last_side || touching != last_touching || memcmp(&ws, &last_ws, sizeof ws)) {
+                last_w = ww; last_h = wh; last_side = side; last_touching = touching; last_ws = ws;
                 int old_sw = tch.L.sw, old_sh = tch.L.sh;
-                touch_layout(&tch.L, ww, wh, vw, vh, tch.size, tch.swap);
+                touch_layout(&tch.L, ww, wh, vw, vh, tch.size, tch.swap, ws.w && touching ? &ws : NULL);
                 if (old_sw != tch.L.sw || old_sh != tch.L.sh) {
                     touch_release_all();
                     SDL_RenderSetLogicalSize(ren, tch.L.sw, tch.L.sh);
@@ -9401,6 +9533,9 @@ int main(int argc, char **argv) {
 #endif
                 }
             }
+            win_off = tch.L.ui_dst.w > 0;
+            if (press_x >= 0 && !tch.f[0].used) tch.f[0] = (TFinger){.id = 99, .used = 1, .kind = touch_in(&tch.L.ui_dst, press_x, press_y) ? TK_WIN : TK_UI, .x = press_x, .y = press_y};
+            tch.L.b[TB_CLOSE].r = side ? tch.L.b[TB_CLOSE].r : 0;  // 只有側邊視窗開著（沒被別的介面擋住）才有 ✕
         }
 
         // ---- 指令：所有輸入都變成「往畫面某方向走」----
@@ -9699,7 +9834,9 @@ int main(int argc, char **argv) {
         SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
         SDL_RenderClear(ren);
         SDL_RenderCopy(ren, canvas, NULL, &tch.L.game);
+        if (win_off && win_tex && tch.L.ui_dst.w > 0) SDL_RenderCopy(ren, win_tex, &tch.L.ui_src, &tch.L.ui_dst);  // 直式：放大的側邊視窗
         touch_draw();
+        touch_preview_draw();
         if (shot && tch.forced && tick > 3) {  // --touch --shot：存整個螢幕（含留空和按鈕）
             int sw_, sh_;
             SDL_GetRendererOutputSize(ren, &sw_, &sh_);
@@ -9711,10 +9848,8 @@ int main(int argc, char **argv) {
         SDL_RenderPresent(ren);
         res_pump();
         audio_update(res_loading() == 0);
-        static int shown = -2;  // 只在數字變了才更新網頁文字
-        int loading = res_loading();
-        if (loading != shown) js_status(loading);
-        shown = loading;
+        int loading = res_loading();  // 只在數字變了才更新網頁文字
+        if (loading != status_shown) js_status(loading);
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);  // 交還給瀏覽器（ASYNCIFY），否則網頁會卡住
 #endif

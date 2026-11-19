@@ -5,18 +5,22 @@
 // 輸入全走 SDL 手指事件（關掉觸控轉滑鼠，才能多點同時）：手指按下時決定用途（按鈕、搖桿、遊戲點擊），之後一直算那個用途。
 // shortcut: 沒有 Playwright／實機，觸控事件鏈（手指事件 → 改寫成滑鼠事件）只靠編譯與單元測試驗證；版面用 --touch --win WxH --shot 看圖。
 
-enum { TB_ATK, TB_SK0, TB_SK1, TB_SK2, TB_SK3, TB_RUN, TB_SYS, TB_BAG, TB_SIZE, TB_HAND, TB_N };
-enum { TK_NONE, TK_JOY, TK_BTN, TK_GAME, TK_PINCH };
+enum { TB_ATK, TB_SK0, TB_SK1, TB_SK2, TB_SK3, TB_RUN, TB_SYS, TB_BAG, TB_SIZE, TB_HAND, TB_CLOSE, TB_N };
+// TK_UI = 手指按在遊戲畫面裡的介面上（預覽放大鏡，放開才點）；TK_WIN = 手指按在放大顯示的側邊視窗區（直式）
+enum { TK_NONE, TK_JOY, TK_BTN, TK_GAME, TK_PINCH, TK_UI, TK_WIN };
 typedef struct { int x, y, r; } TCircle;
 typedef struct {
     int sw, sh, portrait, u;  // 螢幕邏輯尺寸、是否直式、基本單位（按鈕大小）
     SDL_Rect game, joy;       // 遊戲畫面在螢幕上的位置、搖桿可以按下的區域
+    SDL_Rect ui_src, ui_dst;  // 直式開側邊視窗：視窗在遊戲座標的範圍 → 放大後在螢幕上的範圍（ui_dst.w = 0 = 沒有放大）
+    float ui_s;               // 放大倍數
     TCircle b[TB_N];
 } TLayout;
 
 // 版面：ww×wh = 視窗（或網頁）實際大小，gw×gh = 遊戲畫面，size 0／1／2 = 小／中／大，swap = 左右手對調（搖桿換右、按鈕換左）。
+// ws = 開著的側邊視窗在遊戲座標的範圍（NULL = 沒開）：橫式只多一顆「✕ 關閉」；直式視窗放大到螢幕寬、放在遊戲畫面下方，控制鍵縮到最下面兩排。
 // 螢幕邏輯尺寸 = 遊戲畫面加上空出來的部分，邏輯 1 點 ≈ 實際 1 點（SDL 再整個縮放到視窗）
-static void touch_layout(TLayout *L, int ww, int wh, int gw, int gh, int size, int swap) {
+static void touch_layout(TLayout *L, int ww, int wh, int gw, int gh, int size, int swap, const SDL_Rect *ws) {
     if (ww < 1) ww = 1;
     if (wh < 1) wh = 1;
     memset(L, 0, sizeof *L);
@@ -64,8 +68,30 @@ static void touch_layout(TLayout *L, int ww, int wh, int gw, int gh, int size, i
         int m = L->game.x, zw = m > sw * 3 / 10 ? m : sw * 3 / 10;
         L->joy = (SDL_Rect){0, sh * 3 / 10, zw, sh - sh * 3 / 10};
     }
+    if (ws && ws->w > 0 && ws->h > 0) {
+        if (!L->portrait) b[TB_CLOSE] = (TCircle){u * 11 / 10, u * 11 / 10, u * 9 / 10};
+        else {  // 直式：下面兩排放控制（上排 ✕ 與技能、下排攻擊／跑／選單），上方整塊給視窗
+            int ch = sh - gh;
+            u = L->u = u * 85 / 100;  // 視窗開著：控制鍵縮小一點，多留空間給放大的視窗
+            if (u * 59 > ch * 6) u = L->u = ch * 6 / 59;  // 控制區要留出至少 40% 給視窗
+            ax = sw - u * 17 / 10; ay = sh - u * 19 / 10;
+            b[TB_ATK] = (TCircle){ax, ay, u * 125 / 100};
+            for (int i = 0; i < 4; i++) b[TB_SK0 + i] = (TCircle){sw - u * 12 / 10 - i * u * 19 / 10, sh - u * 47 / 10, u * 8 / 10};
+            b[TB_RUN] = (TCircle){sw - u * 40 / 10, ay, u * 65 / 100};
+            b[TB_SYS] = (TCircle){sw - u * 56 / 10, ay, u * 6 / 10};
+            b[TB_BAG].r = b[TB_SIZE].r = b[TB_HAND].r = 0;
+            b[TB_CLOSE] = (TCircle){u * 14 / 10, sh - u * 47 / 10, u};
+            L->joy = (SDL_Rect){0, sh - u * 35 / 10, sw - u * 64 / 10, u * 35 / 10};
+            int zt = sh - u * 59 / 10, avail = zt - gh;
+            float sx = (float)sw / ws->w, sy = (float)avail / ws->h, s = sx < sy ? sx : sy;
+            if (s > 3) s = 3;
+            L->ui_src = *ws;
+            L->ui_s = s;
+            L->ui_dst = (SDL_Rect){(int)((sw - ws->w * s) / 2), gh + (int)((avail - ws->h * s) / 2), (int)(ws->w * s), (int)(ws->h * s)};
+        }
+    }
     for (int i = 0; i < TB_N; i++)  // 搖桿區不能蓋到按鈕（左邊界取離搖桿區最近的按鈕左緣）
-        if (b[i].y + b[i].r > L->joy.y && b[i].x - b[i].r < L->joy.x + L->joy.w) L->joy.w = b[i].x - b[i].r > 0 ? b[i].x - b[i].r : 0;
+        if (b[i].r && b[i].y + b[i].r > L->joy.y && b[i].x - b[i].r < L->joy.x + L->joy.w) L->joy.w = b[i].x - b[i].r > 0 ? b[i].x - b[i].r : 0;
     if (swap) {
         for (int i = 0; i < TB_N; i++) b[i].x = sw - b[i].x;
         L->joy.x = sw - L->joy.w;
@@ -77,12 +103,44 @@ static int touch_hit(const TLayout *L, int x, int y) {
     int best = -1;
     long bd = 0;
     for (int i = 0; i < TB_N; i++) {
+        if (!L->b[i].r) continue;
         long dx = x - L->b[i].x, dy = y - L->b[i].y, r = L->b[i].r * 115 / 100, d = dx * dx + dy * dy;
         if (d <= r * r && (best < 0 || d < bd)) { best = i; bd = d; }
     }
     return best;
 }
 static int touch_in(const SDL_Rect *r, int x, int y) { return x >= r->x && y >= r->y && x < r->x + r->w && y < r->y + r->h; }
+
+// 螢幕座標 → 介面座標（800x600 遊戲座標）。*win = 1：點在放大的側邊視窗區（座標已換算回視窗原尺寸）；0：在遊戲畫面上。都不在回 0
+static int touch_ui_pt(const TLayout *L, int sx, int sy, int *ux, int *uy, int *win) {
+    if (L->ui_dst.w > 0 && touch_in(&L->ui_dst, sx, sy)) {
+        *ux = L->ui_src.x + (int)((sx - L->ui_dst.x) / L->ui_s);
+        *uy = L->ui_src.y + (int)((sy - L->ui_dst.y) / L->ui_s);
+        *win = 1;
+        return 1;
+    }
+    *win = 0;
+    if (!touch_in(&L->game, sx, sy)) return 0;
+    *ux = sx - L->game.x;
+    *uy = sy - L->game.y;
+    return 1;
+}
+// 介面座標的矩形 → 螢幕座標
+static SDL_Rect touch_ui_rect(const TLayout *L, int win, SDL_Rect r) {
+    if (!win || L->ui_dst.w <= 0) { r.x += L->game.x; r.y += L->game.y; return r; }
+    return (SDL_Rect){L->ui_dst.x + (int)((r.x - L->ui_src.x) * L->ui_s), L->ui_dst.y + (int)((r.y - L->ui_src.y) * L->ui_s), (int)(r.w * L->ui_s + 0.5f), (int)(r.h * L->ui_s + 0.5f)};
+}
+// 放大鏡（約 2.5 倍）的位置：手指上方；太靠上緣放不下就翻到手指下方；左右夾在螢幕內
+#define LOUPE_ZOOM 2.5f
+static SDL_Rect touch_loupe_rect(const TLayout *L, int fx, int fy) {
+    int sz = L->u * 34 / 10, gap = L->u * 13 / 10;
+    SDL_Rect r = {fx - sz / 2, fy - gap - sz, sz, sz};
+    if (r.y < 0) r.y = fy + gap;
+    if (r.x < 0) r.x = 0;
+    if (r.x + sz > L->sw) r.x = L->sw - sz;
+    if (r.y + sz > L->sh) r.y = L->sh - sz;
+    return r;
+}
 
 // 搖桿向量 → 移動方向（畫面方向，長度 100；主迴圈的 mx、my 只看方向）。死區內回 0
 static int touch_joy_vec(int dx, int dy, int dead, float *mx, float *my) {
@@ -111,6 +169,8 @@ typedef struct {
     int joy_on, joy_ox, joy_oy, joy_x, joy_y;
     int pinch_d;
     int aim;  // 瞄準中的技能鍵（TB_SK0..3），-1 = 沒有
+    SDL_Rect flash;  // 確認點擊的那個控制項（螢幕座標）閃一下
+    Uint32 flash_until;
 } Touch;
 static Touch tch = {.size = 1, .aim = -1};
 
@@ -146,6 +206,7 @@ static int touch_down(Sint64 id, int x, int y, int *btn) {
         tch.joy_on = 1; tch.joy_ox = tch.joy_x = x; tch.joy_oy = tch.joy_y = y;
         return TK_JOY;
     }
+    if (tch.L.ui_dst.w > 0 && touch_in(&tch.L.ui_dst, x, y)) { f->kind = TK_WIN; return TK_WIN; }  // 直式放大的側邊視窗（不套雙指縮放）
     if (touch_in(&tch.L.game, x, y)) {
         for (int i = 0; i < TF_MAX; i++)
             if (&tch.f[i] != f && tch.f[i].used && tch.f[i].kind == TK_GAME) {
@@ -187,6 +248,7 @@ static int touch_up(Sint64 id, int *btn) {
     return k;
 }
 static void touch_kill(Sint64 id) { TFinger *f = touch_find(id); if (f) f->kind = TK_NONE; }
+static void touch_set_kind(Sint64 id, int k) { TFinger *f = touch_find(id); if (f) f->kind = k; }
 // 搖桿目前的移動方向（沒按或在死區回 0）
 static int touch_joy(float *mx, float *my) {
     *mx = *my = 0;
@@ -237,6 +299,13 @@ static void touch_aim_cast(Actor *h, int gx, int gy, int ox, int oy, Scene *sc) 
 }
 
 static int run_on;  // 跑步旗標（R 鍵與跑步鍵共用）
+static Win *win_last;  // 最後開的側邊視窗（✕ 關閉先關它）
+static void touch_win_track(void) {
+    static int pl, pr;
+    if (win_left.open && !pl) win_last = &win_left;
+    if (win_right.open && !pr) win_last = &win_right;
+    pl = win_left.open; pr = win_right.open;
+}
 
 // 按鈕按下（只有一次，不含按住的攻擊鍵）
 static void touch_button(Actor *h, int b) {
@@ -255,6 +324,9 @@ static void touch_button(Actor *h, int b) {
     else if (b == TB_SYS) {
         if (scene_paused) { do scene_pause_count(0); while (scene_paused); }  // 同 Esc
         else sys_toggle();
+    } else if (b == TB_CLOSE) {  // 關掉最上層（最後開的）側邊視窗
+        Win *w = win_last && win_last->open ? win_last : win_left.open ? &win_left : &win_right;
+        w->open = 0;
     } else if (b == TB_BAG) win_toggle(&win_right, JM54);
     else if (b == TB_SIZE) { tch.size = (tch.size + 1) % 3; tch.L.sw = 0; }  // shortcut: 設定只在這兩顆小鍵、不存檔；原版設定視窗（JM47）沒有位置放
     else if (b == TB_HAND) { tch.swap ^= 1; tch.L.sw = 0; }                 // sw = 0 讓主迴圈重排版
@@ -296,6 +368,20 @@ static void touch_draw(void) {
     static const char *label[TB_N] = {"\xe6\x94\xbb", "1", "2", "3", "4", "\xe8\xb7\x91", "\xe9\x81\xb8", "\xe5\x8c\x85", "\xe5\xa4\xa7", "\xe6\x8f\x9b"};  // 攻 1 2 3 4 跑 選 包 大 換
     for (int i = 0; i < TB_N; i++) {
         const TCircle *c = &L->b[i];
+        if (!c->r) continue;
+        if (i == TB_CLOSE) {  // 醒目的紅色 ✕ 關閉
+            touch_ring(c->x, c->y, c->r, 0, 200, 40, 40, tch.held[i] > 0 ? 230 : 170);
+            touch_ring(c->x, c->y, c->r, c->r - 3, 255, 255, 255, 220);
+            SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+            int h = c->r * 4 / 10, oy = -c->r / 5;
+            for (int k = -h; k <= h; k++) {  // 用小方塊拼出 ✕（斜線在某些繪圖後端會不見）
+                SDL_Rect a = {c->x + k - 2, c->y + oy + k - 2, 5, 5}, b2 = {c->x + k - 2, c->y + oy - k - 2, 5, 5};
+                SDL_RenderFillRect(ren, &a);
+                SDL_RenderFillRect(ren, &b2);
+            }
+            draw_text(c->x - text_width("\xe5\x85\xb3\xe9\x97\xad") / 2, c->y + c->r / 2 - 4, "\xe5\x85\xb3\xe9\x97\xad", 64, 0xFFFFFF, 1);  // 关闭（簡體：遊戲字型只有 GBK 字）
+            continue;
+        }
         int on = tch.held[i] > 0 || tch.aim == i, k = i >= TB_SK0 && i <= TB_SK3 ? touch_skill_idx(i - TB_SK0) : -1;
         int dim = i >= TB_SK0 && i <= TB_SK3 && (k < 0 || !skill_usable(&actors[0], &hero_skill[k]));
         touch_ring(c->x, c->y, c->r, 0, on ? 255 : 0, on ? 255 : 0, on ? 255 : 0, on ? 120 : 90);
@@ -310,4 +396,61 @@ static void touch_draw(void) {
         } else touch_label(c->x, c->y, i == TB_RUN && run_on ? "\xe8\xb5\xb0" : label[i]);  // 跑步開著時顯示「走」＝再按變回走路
     }
     if (tch.aim >= 0) touch_label(L->game.x + L->game.w / 2, 24, "\xe9\xbb\x9e\xe4\xb8\x80\xe4\xb8\x8b\xe7\x9e\x84\xe6\xba\x96");  // 點一下瞄準
+}
+
+// ---- 預覽放大鏡：手指按在介面上，在手指上方放大顯示手指周圍並框出放開會點到的控制項；放開才點 ----
+static const TFinger *touch_ui_finger(void) {
+    for (int i = 0; i < TF_MAX; i++) if (tch.f[i].used && (tch.f[i].kind == TK_UI || tch.f[i].kind == TK_WIN)) return &tch.f[i];
+    return NULL;
+}
+// 放開時：手指所在位置（螢幕座標）若會點到某個控制項 → 閃一下、震動、真的點下去；滑出介面或沒有控制項 = 取消。回 1 = 有點
+static int touch_ui_release(int sx, int sy) {
+    int ux, uy, win;
+    SDL_Rect r;
+    if (!touch_ui_pt(&tch.L, sx, sy, &ux, &uy, &win) || hud_target(ux, uy, win, &r) != 1) return 0;
+    tch.flash = touch_ui_rect(&tch.L, win, r);
+    tch.flash_until = SDL_GetTicks() + 160;
+    js_vibrate(15);
+    if (win) win_tap(ux, uy); else hud_tap(ux, uy);
+    return 1;
+}
+static void touch_box(SDL_Rect r, int th, Uint8 R, Uint8 G, Uint8 B, Uint8 A) {
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, R, G, B, A);
+    for (int i = 0; i < th; i++) { SDL_Rect q = {r.x - i, r.y - i, r.w + 2 * i, r.h + 2 * i}; SDL_RenderDrawRect(ren, &q); }
+}
+static void touch_preview_draw(void) {
+    const TLayout *L = &tch.L;
+    Uint32 now = SDL_GetTicks();
+    if (now < tch.flash_until && tch.flash.w > 0) {  // 確認：該控制項短暫反白
+        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(ren, 255, 255, 255, 170);
+        SDL_RenderFillRect(ren, &tch.flash);
+    }
+    const TFinger *f = touch_ui_finger();
+    if (!f) return;
+    int ux, uy, win, hit = 0;
+    SDL_Rect hr = {0}, sr = {0};
+    if (touch_ui_pt(L, f->x, f->y, &ux, &uy, &win) && hud_target(ux, uy, win, &hr) == 1) { hit = 1; sr = touch_ui_rect(L, win, hr); }
+    if (hit) touch_box(sr, 3, 255, 230, 60, 255);  // 亮框
+    SDL_Rect lp = touch_loupe_rect(L, f->x, f->y);
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+    SDL_RenderFillRect(ren, &lp);
+    SDL_RenderSetClipRect(ren, &lp);
+    float cx = lp.x + lp.w / 2.0f, cy = lp.y + lp.h / 2.0f, m = LOUPE_ZOOM;
+#define LP(R) ((SDL_Rect){(int)(cx + ((R).x - f->x) * m), (int)(cy + ((R).y - f->y) * m), (int)((R).w * m + 0.5f), (int)((R).h * m + 0.5f)})
+    SDL_Rect g = LP(L->game);
+    SDL_RenderCopy(ren, fade_canvas, NULL, &g);
+    if (L->ui_dst.w > 0 && win_tex) {
+        SDL_Rect w = LP(L->ui_dst);
+        SDL_RenderCopy(ren, win_tex, &L->ui_src, &w);
+    }
+    if (hit) { SDL_Rect h = LP(sr); touch_box(h, 3, 255, 230, 60, 255); }
+#undef LP
+    SDL_RenderSetClipRect(ren, NULL);
+    touch_box(lp, 3, 255, 255, 255, 255);
+    SDL_SetRenderDrawColor(ren, 255, 60, 60, 255);  // 手指位置（放大鏡中心）
+    SDL_RenderDrawLine(ren, (int)cx - 8, (int)cy, (int)cx + 8, (int)cy);
+    SDL_RenderDrawLine(ren, (int)cx, (int)cy - 8, (int)cx, (int)cy + 8);
 }

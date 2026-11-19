@@ -5281,7 +5281,7 @@ int main(void) {
             for (int size = 0; size < 3; size++)
                 for (int swap = 0; swap < 2; swap++) {
                     TLayout L;
-                    touch_layout(&L, dims[i][0], dims[i][1], 800, 600, size, swap);
+                    touch_layout(&L, dims[i][0], dims[i][1], 800, 600, size, swap, NULL);
                     assert(L.game.w == 800 && L.game.h == 600 && L.sw >= 800 && L.sh >= 600);
                     assert(L.portrait == (dims[i][0] * 5 < dims[i][1] * 4));
                     // 螢幕長寬比 = 視窗長寬比（不拉伸），遊戲畫面不超出螢幕
@@ -5291,10 +5291,13 @@ int main(void) {
                     else assert(L.game.x == (L.sw - 800) / 2);
                     for (int b = 0; b < TB_N; b++) {
                         const TCircle *c = &L.b[b];
-                        assert(c->r > 0 && c->x - c->r >= 0 && c->x + c->r <= L.sw && c->y - c->r >= 0 && c->y + c->r <= L.sh);
+                        assert(b == TB_CLOSE ? c->r == 0 : c->r > 0);  // ✕ 只在側邊視窗開著才有
+                        if (!c->r) continue;
+                        assert(c->x - c->r >= 0 && c->x + c->r <= L.sw && c->y - c->r >= 0 && c->y + c->r <= L.sh);
                         if (L.portrait) assert(c->y - c->r >= 600);  // 直式：按鈕都在遊戲畫面下面的控制區
                         assert(touch_hit(&L, c->x, c->y) == b);
                         for (int o = b + 1; o < TB_N; o++) {  // 按鈕不互相重疊
+                            if (!L.b[o].r) continue;
                             long dx = c->x - L.b[o].x, dy = c->y - L.b[o].y, rr = c->r + L.b[o].r;
                             if (dx * dx + dy * dy < rr * rr) fprintf(stderr, "OVERLAP %dx%d size%d b%d o%d\n", dims[i][0], dims[i][1], size, b, o);
                             assert(dx * dx + dy * dy >= rr * rr);
@@ -5302,17 +5305,71 @@ int main(void) {
                     }
                     assert(L.joy.w > 0 && L.joy.h > 0 && L.joy.x >= 0 && L.joy.x + L.joy.w <= L.sw && L.joy.y + L.joy.h <= L.sh);
                     for (int b = 0; b < TB_N; b++)  // 搖桿區不蓋到按鈕中心
-                        assert(!(L.b[b].x >= L.joy.x && L.b[b].x < L.joy.x + L.joy.w && L.b[b].y >= L.joy.y && L.b[b].y < L.joy.y + L.joy.h));
+                        assert(!L.b[b].r || !(L.b[b].x >= L.joy.x && L.b[b].x < L.joy.x + L.joy.w && L.b[b].y >= L.joy.y && L.b[b].y < L.joy.y + L.joy.h));
                     if (!swap) assert(L.b[TB_ATK].x > L.sw / 2 && L.joy.x == 0);
                     else assert(L.b[TB_ATK].x < L.sw / 2 && L.joy.x + L.joy.w == L.sw);
                 }
+        // 側邊視窗開著：橫式多一顆 ✕（搖桿、技能鍵都還在）；直式視窗放大到遊戲畫面下方，控制鍵在最下面兩排，不蓋視窗
+        static const SDL_Rect wins[2] = {{400, 25, 276, 396}, {124, 25, 552, 396}};  // 只開背包／左右兩個都開
+        for (unsigned i = 0; i < sizeof dims / sizeof *dims; i++)
+            for (int size = 0; size < 3; size++)
+                for (int swap = 0; swap < 2; swap++)
+                    for (int wi = 0; wi < 2; wi++) {
+                        TLayout L, N;
+                        touch_layout(&N, dims[i][0], dims[i][1], 800, 600, size, swap, NULL);
+                        touch_layout(&L, dims[i][0], dims[i][1], 800, 600, size, swap, &wins[wi]);
+                        assert(L.sw == N.sw && L.sh == N.sh && L.portrait == N.portrait);  // 螢幕大小不因開視窗而變
+                        assert(L.b[TB_CLOSE].r > 0 && L.b[TB_ATK].r > 0 && L.b[TB_SK0].r > 0 && L.joy.w > 0);  // ✕、攻擊、技能、搖桿都在
+                        for (int b = 0; b < TB_N; b++) {
+                            const TCircle *c = &L.b[b];
+                            if (!c->r) continue;
+                            assert(c->x - c->r >= 0 && c->x + c->r <= L.sw && c->y - c->r >= 0 && c->y + c->r <= L.sh);
+                            assert(touch_hit(&L, c->x, c->y) == b);
+                            for (int o = b + 1; o < TB_N; o++) {
+                                long dx = c->x - L.b[o].x, dy = c->y - L.b[o].y, rr = c->r + L.b[o].r;
+                                if (L.b[o].r) assert(dx * dx + dy * dy >= rr * rr);
+                            }
+                            assert(!(c->x >= L.joy.x && c->x < L.joy.x + L.joy.w && c->y >= L.joy.y && c->y < L.joy.y + L.joy.h));
+                            if (!L.portrait || !L.ui_dst.w) continue;
+                            assert(c->y - c->r >= L.ui_dst.y + L.ui_dst.h);  // 按鈕不蓋視窗
+                        }
+                        if (!L.portrait) { assert(L.ui_dst.w == 0); continue; }
+                        const SDL_Rect *d = &L.ui_dst;
+                        assert(d->w > 0 && d->x >= 0 && d->x + d->w <= L.sw && d->y >= 600 && d->y + d->h <= L.sh && L.joy.y >= d->y + d->h);
+                        assert(L.ui_s > 0 && L.ui_s <= 3 && fabsf((float)d->w / wins[wi].w - L.ui_s) < 0.01f);
+                        if (dims[i][1] * 10 >= dims[i][0] * 18) assert(L.ui_s >= 1.25f);  // 手機直式：視窗裡 20 點的按鈕放大後 ≥ 25 點
+                        if (wins[wi].w * L.ui_s + 1 >= L.sw) assert(d->x <= 1);  // 寬度吃滿時貼滿螢幕寬
+                        // 座標換算：視窗區的點換回視窗原座標；遊戲畫面的點扣掉 game 位置；控制區（不在兩者內）= 0
+                        int ux, uy, win;
+                        assert(touch_ui_pt(&L, d->x + d->w / 2, d->y + d->h / 2, &ux, &uy, &win) && win == 1);
+                        assert(abs(ux - (wins[wi].x + wins[wi].w / 2)) <= 3 && abs(uy - (wins[wi].y + wins[wi].h / 2)) <= 3);
+                        assert(touch_ui_pt(&L, d->x, d->y, &ux, &uy, &win) && ux == wins[wi].x && uy == wins[wi].y);  // 左上角
+                        SDL_Rect r = touch_ui_rect(&L, 1, (SDL_Rect){wins[wi].x + 10, wins[wi].y + 20, 30, 40});  // 視窗裡一個按鈕的框
+                        assert(abs(r.x - (d->x + (int)(10 * L.ui_s))) <= 1 && abs(r.w - (int)(30 * L.ui_s)) <= 1 && r.y > 600);
+                        assert(touch_ui_pt(&L, 300, 300, &ux, &uy, &win) && !win && ux == 300 && uy == 300);
+                        assert(!touch_ui_pt(&L, L.b[TB_ATK].x, L.sh - 1, &ux, &uy, &win) || win == 0);
+                        SDL_Rect g = touch_ui_rect(&L, 0, (SDL_Rect){5, 6, 7, 8});
+                        assert(g.x == 5 + L.game.x && g.y == 6 && g.w == 7 && g.h == 8);
+                    }
+        {   // 放大鏡位置：在手指上方；太靠上緣翻到下方；左右夾在螢幕內；大小固定
+            TLayout L;
+            touch_layout(&L, 540, 1170, 800, 600, 1, 0, &wins[0]);
+            SDL_Rect a = touch_loupe_rect(&L, 400, 700), t = touch_loupe_rect(&L, 400, 30), l = touch_loupe_rect(&L, 2, 300), rr = touch_loupe_rect(&L, L.sw - 2, 300);
+            assert(a.y + a.h < 700 && a.x == 400 - a.w / 2);            // 上方
+            assert(t.y > 30 && t.y + t.h <= L.sh);                      // 上緣放不下 → 下方
+            assert(l.x == 0 && rr.x + rr.w == L.sw && l.w == a.w);      // 夾在左右邊
+            assert(a.y >= 0 && l.y >= 0 && a.h == a.w && a.w >= 150);
+            touch_layout(&L, 1170, 540, 800, 600, 1, 0, &wins[0]);       // 橫式也要
+            t = touch_loupe_rect(&L, 600, 5);
+            assert(t.y > 5 && touch_loupe_rect(&L, 600, 400).y + touch_loupe_rect(&L, 600, 400).h < 400);
+        }
         {
             TLayout L;
-            touch_layout(&L, 800, 600, 800, 600, 1, 0);
+            touch_layout(&L, 800, 600, 800, 600, 1, 0, NULL);
             assert(!L.portrait && L.sw == 800 && L.sh == 600 && L.game.x == 0);  // 4:3 沒有留空
-            touch_layout(&L, 1170, 540, 800, 600, 1, 0);
+            touch_layout(&L, 1170, 540, 800, 600, 1, 0, NULL);
             assert(L.sh == 600 && L.sw == 1300 && L.game.x == 250);
-            touch_layout(&L, 540, 1170, 800, 600, 1, 0);
+            touch_layout(&L, 540, 1170, 800, 600, 1, 0, NULL);
             assert(L.sw == 800 && L.sh == 1733);
         }
         float mx, my;
@@ -5325,7 +5382,7 @@ int main(void) {
         touch_joy_follow(&jx, &jy, 300, 0, 100); assert(jx == 200 && jy == 0);  // 手指拉出去：原點被拉著走
         // 手指分流：按鈕、搖桿、遊戲點擊、雙指縮放；多點同時
         memset(&tch, 0, sizeof tch); tch.size = 1; tch.aim = -1;
-        touch_layout(&tch.L, 1170, 540, 800, 600, 1, 0);
+        touch_layout(&tch.L, 1170, 540, 800, 600, 1, 0, NULL);
         int btn = -1; float dz;
         assert(touch_down(1, 60, 400, &btn) == TK_JOY && tch.joy_on);
         assert(touch_down(2, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn) == TK_BTN && btn == TB_ATK && tch.held[TB_ATK] == 1);  // 搖桿與按鈕同時
@@ -5342,6 +5399,19 @@ int main(void) {
         assert(!touch_active() && touch_down(6, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn) == TK_NONE && touch_down(7, 400, 300, &btn) == TK_GAME);
         tch.blocked = 0; tch.kbm = 1;
         assert(!touch_active()); tch.forced = 1; assert(touch_active());  // 有鍵盤滑鼠自動隱藏，--touch 強制顯示
+        // 直式開視窗：放大區的手指是 TK_WIN（不當雙指縮放、不當搖桿）；放開在外面（遊戲場景、控制區、螢幕外）沒有控制項 → 取消，不點
+        memset(&tch, 0, sizeof tch); tch.size = 1; tch.aim = -1; tch.forced = 1;
+        touch_layout(&tch.L, 540, 1170, 800, 600, 1, 0, &wins[1]);
+        const SDL_Rect dd = tch.L.ui_dst;
+        assert(touch_down(1, dd.x + 5, dd.y + 5, &btn) == TK_WIN && touch_down(2, dd.x + 50, dd.y + 50, &btn) == TK_WIN);
+        assert(touch_ui_finger() && touch_ui_finger()->kind == TK_WIN);
+        touch_move(1, dd.x + 6, dd.y + 6, &dz);
+        assert(touch_ui_finger()->x == dd.x + 6);
+        assert(touch_up(1, &btn) == TK_WIN && touch_up(2, &btn) == TK_WIN && !touch_ui_finger());
+        assert(!touch_ui_release(5, tch.L.sh - 1) && !touch_ui_release(-20, -20) && !touch_ui_release(dd.x + 5, 100));  // 外面放開 = 取消（沒有介面可點也一樣）
+        assert(tch.flash_until == 0);
+        assert(touch_down(3, 400, 100, &btn) == TK_GAME);  // 遊戲場景照舊（hud_target 判斷是不是介面由 main 做）
+        touch_set_kind(3, TK_UI); assert(touch_ui_finger() && touch_ui_finger()->kind == TK_UI);
         memset(&tch, 0, sizeof tch); tch.size = 1; tch.aim = -1;
     }
     {  // 過場播放器：Rec/User 全部 72 個檔的封包串都能走到底（長度一致），只有已知的封包種類，'@' 0 時間戳不倒退
