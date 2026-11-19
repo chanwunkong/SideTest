@@ -3326,8 +3326,11 @@ static void viewport_test(void) {
     ground_n = unit_n = 0;
     viewport_layers(&v, &sc, 0); SDL_RenderPresent(ren);
     Uint8 r, g, b, alpha;
-    SDL_GetRGBA(((Uint32 *)surf->pixels)[18 * (surf->pitch / 4) + 34], surf->format, &r, &g, &b, &alpha);
+    // 0x484170：建築錨點 = 擺放格的菱形左上角（viewport_grid_screen，沒有 +32／+16）；格 (0,0) 的部件畫在 (0,0)、格 (1,0) 在 (32,16)
+    SDL_GetRGBA(((Uint32 *)surf->pixels)[2 * (surf->pitch / 4) + 2], surf->format, &r, &g, &b, &alpha);
     assert(r == 0 && g == 0 && b == 255);
+    SDL_GetRGBA(((Uint32 *)surf->pixels)[18 * (surf->pitch / 4) + 34], surf->format, &r, &g, &b, &alpha);
+    assert(!r && !g && !b);  // 舊的 (+32, +16) 位置沒有東西
     // CBuilding 半透明只在特殊路徑；未知模式不畫；畫後恢復全域 alpha。
     Object *test = &objects[0]; models[0].parts[0].anim = 0; models[0].display = 5;
     SDL_SetRenderDrawColor(ren, 0, 0, 0, 255); SDL_RenderClear(ren);
@@ -4156,6 +4159,50 @@ static void party_test(void) {
 }
 
 // 主角死亡（0x1004f3a0 單機部分 + JM513 死亡界面）與隊友角色（team_derive、npc_selected、team 技能挑選）
+// 第一張地圖試玩修正：觸發區感應格（占地格 0x88＋房屋門點）、按住走路貼牆只往朝向手指的軸、建築錨點用菱形左上角（viewport_test）
+static void first_map_test(void) {
+    // trigger_hit：模型 3×3 占地格，原點格 (10,10)、錨點 (1,1)、grid (0,0)；只有 0x88 的格感應，0x80 不感應
+    Model m = {0}; uint16_t fp[9] = {0x88, 0x80, 0, 0, 0x88, 0, 0, 0, 0x88};
+    m.footprint = fp; m.grid_w = m.grid_h = 3; m.anchor_x = m.anchor_y = 1; m.type = 129;  // 先當非門：只有 0x88 格感應
+    Trigger t = {.x = 10, .y = 10, .m = &m};
+    // x0 = 10 - 1 + 0 = 9：格 (9,9)、(10,10)、(11,11) 感應（0x88），(10,9) 是 0x80 不感應，3×3 以外不感應
+    assert(trigger_hit(&t, 9, 9) && trigger_hit(&t, 10, 10) && trigger_hit(&t, 11, 11));
+    assert(!trigger_hit(&t, 10, 9) && !trigger_hit(&t, 12, 12) && !trigger_hit(&t, 8, 8) && !trigger_hit(&t, 11, 9));
+    m.type = 150;
+    // 房屋（類型 0x96）門點：門偏移 (2,1) → 格 (10−1+2, 10−1+1) = (11,10)；門偏移都 0 = 擺放格
+    m.door_x = 2; m.door_y = 1;
+    assert(trigger_hit(&t, 11, 10) && trigger_hit(&t, 12, 11) && !trigger_hit(&t, 9, 11) && !trigger_hit(&t, 13, 10));  // 門點周圍 3×3
+    m.door_x = m.door_y = 0; fp[4] = 0;
+    assert(trigger_hit(&t, 10, 10) && trigger_hit(&t, 11, 9) && !trigger_hit(&t, 12, 12 - 3));
+    m.type = 129; assert(!trigger_hit(&t, 10, 10));  // 非門、占地格沒 0x88 = 不感應
+    t.m = NULL; assert(trigger_hit(&t, 10, 10) && !trigger_hit(&t, 11, 10));  // 沒有模型 = 只有擺放格
+    // 按住走路貼牆：+y 軸（畫面 (-32,+16)）被擋時，往左下走只能滑向 −x（畫面 (-32,-16)），不能滑到 +x（右下）
+    Scene sc = {.w = 6, .h = 6}; sc.cells = calloc(36, sizeof(Cell));
+    for (int i = 0; i < 36; i++) sc.cells[i].walk = (i / 6) < 3 ? 1 : 0;  // y >= 3 不能走
+    Actor h; memset(&h, 0, sizeof h);
+    h.x = 3.5f; h.y = 2.9f;
+    float sdx = -0.8f, sdy = 0.6f, len = sqrtf(sdx * sdx + sdy * sdy); sdx /= len; sdy /= len;
+    float x0 = h.x;
+    assert(wall_slide(&h, &sc, sdx, sdy, 4.0f));
+    assert(h.x < x0 && h.y == 2.9f);                         // 往 −x 滑
+    h.x = 3.5f; h.y = 2.95f; sdx = -0.35f; sdy = 0.9367f;                 // 幾乎正下方：−x、+x 軸夾角都 < 0.3 = 完全擋住（不滑到反方向）
+    assert(!wall_slide(&h, &sc, sdx, sdy, 4.0f) && h.x == 3.5f);
+    // 正下方（畫面 (0,1)）：+x、+y 夾角相同；兩軸都擋 = 完全擋住
+    for (int i = 0; i < 36; i++) sc.cells[i].walk = (i / 6) < 3 && (i % 6) < 4 ? 1 : 0;
+    h.x = 3.99f; h.y = 2.99f; assert(!wall_slide(&h, &sc, 0, 1, 4.0f) && h.x == 3.99f && h.y == 2.99f);
+    free(sc.cells);
+    // 貼圖快取跨場景：磁磚封包標記依路徑，同路徑同標記、不同路徑不同標記；整批清空後從頭編
+    cache_clear();
+    int ta = tile_tag("game/Res/a.Lib"), tb = tile_tag("game/Res/b.Lib");
+    assert(ta > 0 && tb > 0 && ta != tb && tile_tag("game/Res/a.Lib") == ta && tile_tag("game/Res/b.Lib") == tb);
+    Lib la = {0}, lb = {0}; snprintf(la.path, sizeof la.path, "game/Res/a.Lib"); snprintf(lb.path, sizeof lb.path, "game/Res/b.Lib");
+    (void)tile(&la, 5); (void)tile(&lb, 5);   // 兩個封包的第 5 張磁磚不共用同一個貼圖槽（lib 沒開 = 失敗記成 w = -1，各記各的）
+    assert(slot_find(0xFF000000u | (uint32_t)ta << 16 | 5)->w == -1 && slot_find(0xFF000000u | (uint32_t)tb << 16 | 5)->w == -1 && la.tag == ta && lb.tag == tb);
+    cache_clear();
+    assert(tile_tag("game/Res/b.Lib") == 1 && tex_bytes == 0);
+    cache_clear();
+}
+
 static void death_team_test(void) {
     // 類型 61 的道具死亡時掉在腳下，別的不動
     Item saved_inv[3] = {inv[5], inv[6], inv[7]};
@@ -5458,6 +5505,7 @@ int main(void) {
             assert(r && r->seq_count > 0 && r->part_count > 0 && r->body[0]);
         }
     }
+    first_map_test();
     death_team_test();  // 用到 rand（npc_selected），放最後免得改變前面測試的亂數序列
     puts("skilltest ok");
     return 0;

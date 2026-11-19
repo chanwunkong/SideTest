@@ -72,6 +72,8 @@
   const q = new URLSearchParams(location.search);
   const args = ['game'];
   if (q.get('scene')) args.push(q.get('scene'));  // 沒指定 = 新遊戲（從原版開場房間開始）
+  if (q.get('debug') === 'cells') args.push('--debug-cells'); else if (q.get('debug') === 'trace') args.push('--debug-trace');  // 疊圖：不可走／建築占地／觸發區
+  if (q.get('bounce')) args.push('--debug-bounce', q.get('bounce'));  // 測試：進這個場景再回來，console 印耗時
   if (q.get('warp')) args.push('--warp', q.get('warp'));
   if (q.get('level')) args.push('--level', q.get('level'));
   if (q.get('prof')) args.push('--prof', q.get('prof'));

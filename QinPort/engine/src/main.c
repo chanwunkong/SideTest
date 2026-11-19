@@ -122,21 +122,38 @@ static Sprite *slot_find(uint32_t key) {
     return &slots[i].s;
 }
 
-// 換場景時清空：磁磚 key 只有序號，不同場景的磁磚封包會撞號
-static void cache_clear(void) {
+// 貼圖留著跨場景（回到剛離開的場景不用重新解碼）：一般圖的 key 是全域資源編號，不會撞；磁磚 key = 0xFF000000 | 封包標記（tile_tag，依封包路徑）<< 16 | 序號，
+// 各場景的磁磚封包不會撞號。貼圖總量超過 TEX_CAP 才整批清（換場景時檢查，enter_scene）
+static size_t tex_bytes;
+#define TEX_CAP ((size_t)160 << 20)
+static char tile_tags[255][256];
+static int tile_tag_n;
+static int tile_tag(const char *path) {
+    for (int i = 0; i < 255 && tile_tags[i][0]; i++) if (!strcmp(tile_tags[i], path)) return i + 1;
+    for (int i = 0; i < 255; i++) if (!tile_tags[i][0]) { snprintf(tile_tags[i], sizeof tile_tags[i], "%s", path); tile_tag_n = i + 1; return i + 1; }
+    return 0;  // 標記表滿了：呼叫端要整批清貼圖
+}
+static void role_surface_free(void) {
     SDL_DestroyTexture(role_surface);
     role_surface = NULL;
     role_surface_w = role_surface_h = 0;
+}
+static void cache_clear(void) {
+    role_surface_free();
     for (uint32_t i = 0; i < slot_cap; i++)
         if (slots[i].s.tex) SDL_DestroyTexture(slots[i].s.tex);
     free(slots);
     slots = NULL;
     slot_cap = slot_used = 0;
+    tex_bytes = 0;
+    memset(tile_tags, 0, sizeof tile_tags);
+    tile_tag_n = 0;
 }
 
 static const Sprite *upload(Sprite *s, uint32_t *px) {
     if (!px) { s->w = -1; return NULL; }
     s->tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, s->w, s->h);
+    tex_bytes += (size_t)s->w * s->h * 4;
     SDL_UpdateTexture(s->tex, NULL, px, s->w * 4);
     SDL_SetTextureBlendMode(s->tex, SDL_BLENDMODE_BLEND);
     free(px);
@@ -171,7 +188,8 @@ static const Sprite *ground_image(uint32_t ref) {
 }
 
 static const Sprite *tile(Lib *tiles, uint16_t i) {
-    Sprite *s = slot_find(0xFF000000u | i);
+    if (!tiles->tag) tiles->tag = tile_tag(tiles->path);
+    Sprite *s = slot_find(0xFF000000u | (uint32_t)(tiles->tag & 0xFF) << 16 | i);
     if (s->tex) return s;
     if (s->w < 0) return NULL;
     uint32_t size;
@@ -342,6 +360,7 @@ typedef struct Actor {
     unsigned char path_buf[500];    // +0xcb：250筆(x,y)反向路徑，[0]=終點、[count-1]=起點
     const Scene *bound_scene;
     int grid_x, grid_y, grid_valid, occupancy_removed, object_dead, object_kind;
+    int walk_blocked;               // 按住走路（actor_step）上一次嘗試完全走不動：站著不播走路動作
     unsigned char removal_mode;
     int corpse_visible;
     uint16_t model_type;
@@ -1068,6 +1087,25 @@ static void face(Actor *a, float sdx, float sdy) {
     a->facing = DIR_MAP[a->dir];
 }
 
+// 按住走路遇到牆時的貼牆滑動：只沿「畫面上朝向手指」的格子軸（螢幕向量與想去方向夾角 < 約 73 度）走，距離是想去方向在該軸上的投影。
+// 舊版直接用格子座標分量滑動，常常滑到手指的反方向（往右下的軸分量被當成「往下」的一部分），畫面就左右抖。
+// 沒有可滑的軸 = 完全擋住（walk_blocked）。軸 i 的畫面向量 = (±32, ±16)，長度 35.78 像素／格
+static int wall_slide(Actor *h, const Scene *s, float sdx, float sdy, float px) {
+    static const int AX[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    float dot[4]; int order[4] = {0, 1, 2, 3};
+    for (int i = 0; i < 4; i++) dot[i] = (sdx * 32 * (AX[i][0] - AX[i][1]) + sdy * 16 * (AX[i][0] + AX[i][1])) / 35.78f;  // sdx, sdy 已正規化
+    for (int i = 0; i < 3; i++) for (int j = i + 1; j < 4; j++) if (dot[order[j]] > dot[order[i]]) { int t = order[i]; order[i] = order[j]; order[j] = t; }
+    for (int k = 0; k < 4; k++) {
+        int i = order[k];
+        if (dot[i] < 0.3f) break;
+        float cells = px * dot[i] / 35.78f, nx = h->x + AX[i][0] * cells, ny = h->y + AX[i][1] * cells;
+        if (!scene_walkable(s, (int)nx, (int)ny)) continue;
+        h->x = nx; h->y = ny;
+        return 1;
+    }
+    return 0;
+}
+
 // 往畫面方向 (sdx, sdy) 走 px 個畫面像素。畫面上各方向等速（格子寬 64 高 32，若照格子等速，上下會只有左右一半快）
 static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px) {
     if (h->dynamic_state == 21 || h->dynamic_state == 22 || h->dynamic_state == 31 || h->dynamic_state == 32) return;
@@ -1078,16 +1116,18 @@ static void actor_step(Actor *h, const Scene *s, float sdx, float sdy, float px)
     // 畫面位移 → 格子位移：畫面 x = (gx - gy) * 32，畫面 y = (gx + gy) * 16
     float gx = (sdx / 64 + sdy / 32) * px, gy = (-sdx / 64 + sdy / 32) * px;
     float previous_x = h->x, previous_y = h->y;
-    // 能走就走；撞牆時試著只沿一個軸滑動
+    int moved = 1;
+    // 能走就走；撞牆時貼牆滑動（只往朝向手指的軸）
     if (scene_walkable(s, (int)(h->x + gx), (int)(h->y + gy))) { h->x += gx; h->y += gy; }
-    else if (scene_walkable(s, (int)(h->x + gx), (int)h->y)) h->x += gx;
-    else if (scene_walkable(s, (int)h->x, (int)(h->y + gy))) h->y += gy;
-    if (h->grid_valid && ((int)h->x != h->grid_x || (int)h->y != h->grid_y) && !actor_place(h, (int)h->x, (int)h->y, 0)) {
+    else moved = wall_slide(h, s, sdx, sdy, px);
+    if (moved && h->grid_valid && ((int)h->x != h->grid_x || (int)h->y != h->grid_y) && !actor_place(h, (int)h->x, (int)h->y, 0)) {
         actor_yield_request(h, (int)h->x, (int)h->y);
         h->x = previous_x; h->y = previous_y;
+        moved = 0;
     }
+    if (px > 0) h->walk_blocked = !moved;  // px = 0 的拍（速度表隔拍才走）沒有資訊，保留上次
     face(h, sdx, sdy);
-    h->moving = 1;
+    h->moving = !h->walk_blocked;
 }
 
 static int status_speed(const Actor *a);
@@ -1146,7 +1186,7 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
     a->moving = 0;
     a->path_walk = 0;
     // shortcut: 現有移動迴圈承接平常／移動狀態，跳躍等完整動態狀態仍待移植。
-    int state = mx * mx + my * my > 0.01f ? 11 : 1;
+    int state = mx * mx + my * my > 0.01f && !a->walk_blocked ? 11 : 1;
     int changed = state != a->dynamic_state;
     if (state != a->dynamic_state) {
         actor_trail_exit(a);
@@ -1154,6 +1194,7 @@ static void actor_tick(Actor *a, const Scene *s, float mx, float my, Uint32 tick
         actor_trail_enter(a);
     }
     actor_speed_update(a);
+    if (mx * mx + my * my <= 0.01f) a->walk_blocked = 0;
     if (mx * mx + my * my > 0.01f && actor_can_move(a)) {
         float px = tick % a->move_b ? 0 : a->move_a + a->move_c / 10.0f;
         actor_step(a, s, mx, my, px);
@@ -8700,8 +8741,8 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     weather_resume();
     light_clear();
     light_buildings(scene);
-    cache_clear();
-    res_cache_clear();
+    // 快取：下載好的資料與貼圖留著（回到剛離開的場景不重新下載、重新解碼），超過上限才整批清
+    if (res_cache_clear() || tex_bytes > TEX_CAP || tile_tag_n >= 250) cache_clear(); else role_surface_free();
     // 外觀快取跟著場景換：先留主角的，再重建 NPC
     hero_look();  // 範本外觀＋身上裝備（第一次進場景時還沒有）
     const RoleDef *hd = hero_def.id ? &hero_def : roledef_by_graphic(HERO_GRAPHIC);
@@ -8887,12 +8928,10 @@ static void game_speed_key(int faster) {
     game_speed_set(5 - (v - 16) / 3);
 }
 
-// 主角是否站在觸發區上（以觸發區所在格為中心 3×3 格）。shortcut: 觸發區實際形狀在 MDL 的佔地格，還沒解析
+// 主角是否站在觸發區上：主角所在格是觸發區的感應格（占地格旗標 0x88，房屋另有門點；見 res.c trigger_hit）
 static const Trigger *trigger_at(const Scene *s, const Actor *h) {
-    for (int i = 0; i < s->trigger_count; i++) {
-        const Trigger *t = &s->triggers[i];
-        if (fabsf(h->x - (t->x + 0.5f)) <= 1.5f && fabsf(h->y - (t->y + 0.5f)) <= 1.5f) return t;
-    }
+    for (int i = 0; i < s->trigger_count; i++)
+        if (trigger_hit(&s->triggers[i], (int)h->x, (int)h->y)) return &s->triggers[i];
     return NULL;
 }
 
@@ -8901,18 +8940,19 @@ static const Trigger *trigger_at(const Scene *s, const Actor *h) {
 // 就執行建築名稱的文字指令（0x482db0 取名稱；只有 "s_pctstart <劇情事件路徑>" 這一種出現在 BNT 觸發區，→ 開始劇情事件），倒數設 1000；
 // 沒人踩到倒數設 1（隔拍再掃）。動畫部分（狀態 5 播完回 1）在 res.c scene_buildings_tick。
 // 原版名稱不是 s_pctstart 時送命令 0x13d 給那個角色（接收端是連線版的指令字串，BNT 觸發區沒有這種名稱，不做）。
-// shortcut: 占地格（模型 +0xa3 的 0x88 格）沒解析觸發區形狀，用觸發區所在格 3×3（同 trigger_at），模型形狀解析後換掉。
 static void trigger_sense_tick(Scene *s) {
     for (int i = 0; i < s->trigger_count; i++) {
         Trigger *t = &s->triggers[i];
         if (strncmp(t->event, "s_pctstart ", 11)) continue;
         if (t->cooldown > 0) { t->cooldown--; continue; }
         int hit = 0;
-        for (int y = t->y - 1; y <= t->y + 1 && !hit; y++)
-            for (int x = t->x - 1; x <= t->x + 1; x++) {
+        const Model *m = t->m;  // 掃模型占地矩形（沒有模型 = 擺放格）
+        int x0 = m ? t->x - m->anchor_x + m->grid_x : t->x, y0 = m ? t->y - m->anchor_y + m->grid_y : t->y;
+        for (int y = y0; y < y0 + (m ? m->grid_h : 1) && !hit; y++)
+            for (int x = x0; x < x0 + (m ? m->grid_w : 1); x++) {
                 if (x < 0 || y < 0 || x >= s->w || y >= s->h) continue;
                 const Actor *a = s->cells[y * s->w + x].actor;
-                if (a && a->grp >= 10000 && a->grp <= 60000) { hit = 1; break; }
+                if (a && a->grp >= 10000 && a->grp <= 60000 && trigger_hit(t, x, y)) { hit = 1; break; }
             }
         if (!hit) { t->cooldown = 1; continue; }
         char path[128];
@@ -9159,6 +9199,7 @@ static void screen_size(SDL_Window *win, int *w, int *h) {
 #endif
 }
 
+static const char *bounce_alias;
 int main(int argc, char **argv) {
     const char *game = "game", *scn = "xianyang", *shot = NULL, *open_win = NULL;
     int press_x = -1, press_y = -1;
@@ -9170,6 +9211,9 @@ int main(int argc, char **argv) {
         if (!strcmp(argv[i], "--pause-deaths")) death_auto_pause = 1;
         else if (!strcmp(argv[i], "--openall") && i + 1 < argc) openall_alias = argv[++i];  // 文字指令 openall（0x10019d70）
         if (!strcmp(argv[i], "--simple-deaths")) death_keep_mode = 0;
+        else if (!strcmp(argv[i], "--debug-bounce") && i + 1 < argc) bounce_alias = argv[++i];  // 測試用：200 拍後進這個場景、420 拍後回來，印耗時
+        else if (!strcmp(argv[i], "--debug-cells")) debug_cells = 1;
+        else if (!strcmp(argv[i], "--debug-trace")) debug_cells = 2;  // 疊圖並每 2 拍印主角座標與鏡頭
         else if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--touch")) tch.forced = 1;  // 測試用：永遠顯示觸控介面
         else if (!strcmp(argv[i], "--win") && i + 1 < argc) sscanf(argv[++i], "%dx%d", &win_w, &win_h);  // 測試用：視窗大小，配 --touch --shot 看橫直式版面
@@ -9244,7 +9288,16 @@ int main(int argc, char **argv) {
     int monsters_due = 1;      // 進場景後等圖片都下載好，再讀房間表放怪物（網頁版開場不用等 4MB 的 DLL）
     if (at_x >= 0) actor_restore_position(hero, at_x + 0.5f, at_y + 0.5f);
     if (warp >= 0 && warp < scene.trigger_count) {
-        actor_restore_position(hero, scene.triggers[warp].x + 0.5f, scene.triggers[warp].y + 0.5f);
+        {   // 站到觸發區的感應格裡（可走、離擺放格最近的那格）；找不到就站擺放格
+            const Trigger *wt = &scene.triggers[warp];
+            int bx = wt->x, by = wt->y, best = 1 << 30;
+            for (int y = wt->y - 20; y <= wt->y + 20; y++)
+                for (int x = wt->x - 20; x <= wt->x + 20; x++) {
+                    int d = (x - wt->x) * (x - wt->x) + (y - wt->y) * (y - wt->y);
+                    if (d < best && scene_walkable(&scene, x, y) && trigger_hit(wt, x, y)) { best = d; bx = x; by = y; }
+                }
+            actor_restore_position(hero, bx + 0.5f, by + 0.5f);
+        }
         armed = 1;
         printf("站到觸發區 %d：%s\n", warp, scene.triggers[warp].event);
     }
@@ -9628,6 +9681,8 @@ int main(int argc, char **argv) {
                 if (hero->dynamic_state != 11) walk_cx = -1;
             }
             else if (!pursue(hero)) actor_tick(hero, &scene, 0, 0, tick);
+            if (debug_cells == 2 && tick % 2 == 0)
+                printf("trace t=%u hero=%.3f,%.3f cam=%d,%d moving=%d dir=%d\n", tick, hero->x, hero->y, viewport.pos.x, viewport.pos.y, hero->moving, hero->dir);
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
                 if (rec_on) continue;  // 過場：錄影角色只照封包動（actor_motion_tick），真角色凍結
@@ -9664,6 +9719,7 @@ int main(int argc, char **argv) {
             zoom_tick();
             // 踩到觸發區：事件 "go <出口>" 對應目前房間的出口，切到目的房間的入口
             const Trigger *t = rec_on ? NULL : trigger_at(&scene, hero);  // 過場中不踩出口
+            if (debug_cells == 2 && t && tick % 30 == 0) printf("trigger on: %s armed=%d\n", t->event, armed);
             if (!t) armed = 1;
 #ifdef STORY
             // 原版 go（EasyRPG 0x10017e30）：出口要開著；隨機地下城出口（0x10052af0）；舊房間第 13 格、新房間第 14 格同意才進
@@ -9716,6 +9772,19 @@ int main(int argc, char **argv) {
 #endif
         }
 
+        if (bounce_alias && tick > 200) {  // --debug-bounce：進 bounce_alias 再回原場景，量換場景（載入／回到快取過的場景）的時間
+            static int stage; static Uint32 t0; static char home[64];
+            if ((stage == 0 || stage == 4) && tick > (stage ? 420u : 200u) && !res_loading() && !monsters_due) {  // 等資源都齊了才離開（否則量到的是沒載完的）
+                if (!stage) snprintf(home, sizeof home, "%s", alias);
+                t0 = SDL_GetTicks(); js_status(-1);
+                if (enter_scene(&scene, hero, stage ? home : bounce_alias, -1)) { snprintf(alias, sizeof alias, "%s", stage ? home : bounce_alias); monsters_due = 1; }
+                printf("bounce: 進 %s enter_scene %u ms，下載 %u 項 %zu KB\n", alias, SDL_GetTicks() - t0, res_got_n, res_got_bytes >> 10);
+                stage++;
+            } else if ((stage == 1 || stage == 5) && !res_loading() && !monsters_due) {
+                printf("bounce: %s 資源齊了 %u ms（含 enter_scene），累計下載 %u 項 %zu KB\n", alias, SDL_GetTicks() - t0, res_got_n, res_got_bytes >> 10);
+                stage++;
+            } else if (stage == 2 || stage == 3 || stage == 6) stage++;
+        }
 #ifdef STORY
         if (actors_dirty && !monsters_due) actors_sync(&scene);
         if (monsters_due && !res_loading()) {

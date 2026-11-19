@@ -148,6 +148,8 @@ int res_waiting;  // 最近一次非阻塞讀取是因為還在下載而回 NULL
 #ifdef __EMSCRIPTEN__
 static int pending;  // 排隊中加上下載中的項目數
 #endif
+size_t res_got_bytes; unsigned res_got_n;  // 測試用：累計下載的項目數與位元組（--debug-bounce 印）
+static size_t cache_bytes;  // 留著的下載資料位元組數（含場景磁磚封包池）；超過 CACHE_CAP 換場景時整批釋放
 
 #ifdef __EMSCRIPTEN__
 // 背景批次下載：開始後立刻返回，之後每幀用 js_batch_take 收結果（不在 JS 回呼裡呼叫 C，ASYNCIFY 比較安全）
@@ -174,6 +176,9 @@ static const char *lib_rel(const Lib *lib) { return strchr(lib->path, '/') ? str
 
 static void lib_store(Lib *lib, uint32_t i, uint8_t *data, uint32_t len) {
     if (lib->state[i] == ST_QUEUED || lib->state[i] == ST_URGENT || lib->state[i] == ST_SENT) pending--;
+    if (lib->cache[i]) cache_bytes -= lib->cache_len[i];
+    cache_bytes += data ? len : 0;
+    if (data) { res_got_bytes += len; res_got_n++; }
     free(lib->cache[i]);
     lib->cache[i] = data;
     lib->cache_len[i] = len;
@@ -198,6 +203,7 @@ int lib_open(Lib *lib, const char *dir, const char *name) {
     return 1;
 #else
     uint8_t head[0x100];
+    snprintf(lib->path, sizeof lib->path, "%s/%s", dir, name);  // 貼圖快取的磁磚封包標記依路徑
     if (!(lib->f = open_ci(dir, name))) return 0;
     if (fread(head, 1, sizeof head, lib->f) != sizeof head || memcmp(head, "Lib 1.01", 8)) { lib_close(lib); return 0; }
     lib->count = u32(head + 16);
@@ -231,7 +237,10 @@ uint8_t *lib_read(Lib *lib, uint32_t i, uint32_t *size) {
 }
 
 static void lib_cache_clear(Lib *lib) {
-    for (uint32_t i = 0; lib->cache && i < lib->count; i++) { free(lib->cache[i]); lib->cache[i] = NULL; lib->state[i] = ST_NONE; }
+    for (uint32_t i = 0; lib->cache && i < lib->count; i++) {
+        if (lib->cache[i]) cache_bytes -= lib->cache_len[i];
+        free(lib->cache[i]); lib->cache[i] = NULL; lib->state[i] = ST_NONE;
+    }
 #ifdef __EMSCRIPTEN__
     pending = 0;  // 只在換場景時整批清（res_cache_clear），所以直接歸零
 #endif
@@ -507,12 +516,49 @@ static void by_lib(const uint32_t *gids, int n, void (*fn)(Lib *, const uint32_t
 void res_fetch_now(const uint32_t *gids, int n) { by_lib(gids, n, lib_fetch_now); }
 void res_want(const uint32_t *gids, int n) { by_lib(gids, n, lib_want); }
 
-void res_cache_clear(void) {
-    for (int k = 0; k < LIB_N; k++) lib_cache_clear(&libs[k]);
+// 排隊中、在路上的項目歸零（佇列與世代一起重設，這些結果會被丟掉），下載好的留著
+static void lib_cache_soft(Lib *lib) {
+    for (uint32_t i = 0; lib->state && i < lib->count; i++)
+        if (lib->state[i] != ST_NONE && lib->state[i] != ST_DONE && lib->state[i] != ST_FAIL) lib->state[i] = ST_NONE;
+}
+
+// 場景磁磚封包池：離開的場景的磁磚封包（含已下載的項目）留著，回來不用再下載；最多 3 個，滿了先關最舊的
+#define TILE_POOL 3
+static Lib tile_pool[TILE_POOL];
+static int tile_pool_n;
+#define CACHE_CAP (96u << 20)  // 下載資料上限（網頁版；解碼後的貼圖另計，見 main.c TEX_CAP）
+
+static void tile_lib_stash(Lib *lib) {
+    if (!lib->path[0] || !lib->state) { lib_close(lib); return; }  // 原生版直接讀檔，沒有東西值得留
+    lib_cache_soft(lib);
+    if (tile_pool_n == TILE_POOL) { lib_close(&tile_pool[0]); memmove(tile_pool, tile_pool + 1, (TILE_POOL - 1) * sizeof *tile_pool); tile_pool_n--; }
+    tile_pool[tile_pool_n++] = *lib;
+    memset(lib, 0, sizeof *lib);
+}
+
+static int tile_lib_take(Lib *lib, const char *dir, const char *name) {
+    char path[256];
+    snprintf(path, sizeof path, "%s/%s", dir, name);
+    for (int i = 0; i < tile_pool_n; i++) {
+        if (strcmp(tile_pool[i].path, path)) continue;
+        *lib = tile_pool[i];
+        memmove(tile_pool + i, tile_pool + i + 1, (tile_pool_n - i - 1) * sizeof *tile_pool);
+        tile_pool_n--;
+        return 1;
+    }
+    return 0;
+}
+
+int res_cache_clear(void) {
+    int full = cache_bytes > CACHE_CAP;
+    for (int k = 0; k < LIB_N; k++) { if (full) lib_cache_clear(&libs[k]); else lib_cache_soft(&libs[k]); }
+    if (full) { while (tile_pool_n) lib_close(&tile_pool[--tile_pool_n]); }
 #ifdef __EMSCRIPTEN__
     generation++;  // 還在路上的結果作廢
     urgent.head = urgent.n = background.head = background.n = 0;
+    pending = 0;
 #endif
+    return full;
 }
 
 // xbm：0x14 寬、0x18 高；0x40 起每列 u32 位移(相對 0x40)；每列交替 u16(透明 bytes / 不透明 bytes + RGB565)
@@ -640,7 +686,8 @@ static void parse_models(Scene *s, const uint8_t *d, size_t n) {
     // 模型開頭：03 00 + 名稱(非 00/CD)；部件數在 +0x2a，+0x22 是類型。
     // shortcut: 最多40部件的固定表；超出此資源上限時改為動態部件陣列。
     for (size_t a = 0; a + 0xa3 < n; a++) {
-        if (d[a] != 3 || d[a + 1] || d[a + 2] == 0 || d[a + 2] == 0xCD || d[a + 3] == 0 || d[a + 3] == 0xCD) continue;
+        // 名稱開頭 0xCD 0xCD = 未初始化填充；單個 0xCD 是合法 GBK 首位元組（陳氏…等房屋名），不能整個排除
+        if (d[a] != 3 || d[a + 1] || d[a + 2] == 0 || d[a + 3] == 0 || (d[a + 2] == 0xCD && d[a + 3] == 0xCD)) continue;
         uint16_t count = u16(d + a + 0x2a);
         if (count < 1 || count > 40) continue;
         if (s->model_count == cap) s->models = realloc(s->models, (cap = cap ? cap * 2 : 256) * sizeof(Model));
@@ -781,7 +828,7 @@ int scene_load(Scene *s, const char *scn_name) {
     snprintf(name, sizeof name, "%s", (const char *)map + 0x90);
     free(map);
     snprintf(dir, sizeof dir, "%s/Res", game_dir);
-    if (!lib_open(&s->tiles, dir, name)) return 0;
+    if (!tile_lib_take(&s->tiles, dir, name) && !lib_open(&s->tiles, dir, name)) return 0;
 
     snprintf(dir, sizeof dir, "%s/scene/Int", game_dir);
     uint8_t *bnt = read_all(dir, bnt_name, &size);
@@ -796,18 +843,20 @@ int scene_load(Scene *s, const char *scn_name) {
             if (kind == 4) {  // 觸發區：名稱後面 128 bytes 是事件文字
                 s->triggers = realloc(s->triggers, (s->trigger_count + 1) * sizeof(Trigger));
                 Trigger *t = &s->triggers[s->trigger_count++];
+                t->model = u16(bnt + p + 2);
                 t->x = u32(bnt + p + 4);
                 t->y = u32(bnt + p + 8);
                 t->cooldown = 0;
                 size_t at = p + 20 + extra;
                 snprintf(t->event, sizeof t->event, "%.*s", at + 128 <= size ? 128 : 0, (const char *)bnt + at);
             }
-            if (kind == 3) {
+            if (kind == 3 || kind == 4) {  // 兩種都是建築（0x44f4c0 同一個建構）；類型 4 另帶事件文字（= CTriBld 名稱，0x482db0 取 +0x20）和感應區
                 s->objects = realloc(s->objects, (s->object_count + 1) * sizeof(Object));
                 Object *o = &s->objects[s->object_count++];
                 *o = (Object){.model = u16(bnt + p + 2), .x = u32(bnt + p + 4), .y = u32(bnt + p + 8)};
                 // 0x482db0：原版 SInitBuilding 名稱，BNT 建築記錄轉成同一份資料。
-                if (p + 20 + extra <= size)
+                if (kind == 4) snprintf(o->name, sizeof o->name, "%s", s->triggers[s->trigger_count - 1].event);
+                else if (p + 20 + extra <= size)
                     snprintf(o->name, sizeof o->name, "%.*s", (int)(extra < sizeof o->name - 1 ? extra : sizeof o->name - 1), (const char *)bnt + p + 20);
             }
             p += 20 + extra + (kind == 4 ? 128 : 0);
@@ -852,6 +901,9 @@ int scene_load(Scene *s, const char *scn_name) {
             }
         }
     }
+    for (int i = 0; i < s->trigger_count; i++)
+        for (int j = 0; j < s->model_count; j++)
+            if (s->models[j].id == s->triggers[i].model) { s->triggers[i].m = &s->models[j]; break; }
     free(bnt);
     snprintf(dir, sizeof dir, "%s/scene/Int", game_dir);
     char *ont = (char *)read_all(dir, ont_name, &size);
@@ -965,6 +1017,20 @@ void scene_explore_decay(Scene *s) {
     }
 }
 
+// BNT 類型 4（InitBldTrigger = CTriBld）的感應格：模型占地格旗標 0x88（0x484a80 掃的就是這些格）；
+// 類型 0x96 的房屋門另外在門點（0x482dd0：門偏移都為零就是擺放格，否則擺放格 − 錨點 + 門）算踩到
+// （原版是點門 → 走到門點 → 執行 go；單機沒點門流程，shortcut: 走到門點周圍 3×3 就當點了——門點本身常是不可走格；點門做好再換）。
+// 沒有模型（檔案缺）= 只有擺放格
+int trigger_hit(const Trigger *t, int x, int y) {
+    const Model *m = t->m;
+    if (!m || !m->footprint) return x == t->x && y == t->y;
+    int fx = x - (t->x - m->anchor_x + m->grid_x), fy = y - (t->y - m->anchor_y + m->grid_y);
+    if (fx >= 0 && fy >= 0 && fx < m->grid_w && fy < m->grid_h && (m->footprint[fy * m->grid_w + fx] & 0x88) == 0x88) return 1;
+    if (m->type != 0x96) return 0;
+    int dx = m->door_x || m->door_y ? t->x - m->anchor_x + m->door_x : t->x, dy = m->door_x || m->door_y ? t->y - m->anchor_y + m->door_y : t->y;
+    return abs(x - dx) <= 1 && abs(y - dy) <= 1;
+}
+
 int scene_walkable(const Scene *s, int x, int y) {
     return x >= 0 && y >= 0 && x < s->w && y < s->h && s->cells[y * s->w + x].walk == 1;
 }
@@ -977,7 +1043,7 @@ void scene_free(Scene *s) {
     free(s->objects);
     for (int i = 0; i < s->model_count; i++) free(s->models[i].footprint);
     free(s->models);
-    lib_close(&s->tiles);
+    tile_lib_stash(&s->tiles);
 }
 
 // ---- 主角紙娃娃 ----

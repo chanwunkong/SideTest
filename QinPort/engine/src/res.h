@@ -8,7 +8,7 @@
 
 // ---- 封包：只把索引放記憶體，圖片用到才從檔案讀（R36S 只有 1GB RAM）----
 // 網頁版沒有本機檔案：path 是伺服器上的路徑，讀過的項目放在 cache，state 記下載狀態（進新場景時清掉）
-typedef struct { FILE *f; char path[256]; uint32_t count, *index; uint8_t **cache; uint32_t *cache_len; uint8_t *state; uint32_t avg; } Lib;  // avg = 網頁版估計的平均項目大小（分批用）  // index = (offset, size) * count
+typedef struct { FILE *f; char path[256]; uint32_t count, *index; uint8_t **cache; uint32_t *cache_len; uint8_t *state; uint32_t avg; int tag; } Lib;  // avg = 網頁版估計的平均項目大小（分批用）  // index = (offset, size) * count
 
 int lib_open(Lib *lib, const char *dir, const char *name);
 uint8_t *lib_read(Lib *lib, uint32_t i, uint32_t *size);  // 呼叫者 free；失敗回 NULL。網頁版會等下載
@@ -25,7 +25,10 @@ void res_want(const uint32_t *gids, int n);       // 全域編號（ref 的高 8
 void res_fetch_now(const uint32_t *gids, int n);
 void res_pump(void);                              // 每幀呼叫：收下載結果、送下一批
 int res_loading(void);                            // 還在排隊或下載中的項目數
-void res_cache_clear(void);                      // 換場景時釋放網頁版快取
+// 換場景時呼叫：已下載好的項目（含場景磁磚封包）留著，回到剛離開的場景不用重新下載；只把排隊中、在路上的項目歸零。
+// 留著的下載資料超過上限才整批釋放並回傳 1（呼叫端也要清貼圖快取）
+int res_cache_clear(void);
+extern size_t res_got_bytes; extern unsigned res_got_n;  // 累計下載（測試用）
 
 // ---- 全域資源編號（Res/Combination.ini）：編號落在哪個封包的區間 ----
 void res_init(const char *game);
@@ -70,7 +73,7 @@ typedef struct { int model, x, y; const Model *m; unsigned phase; int highlight,
 } Object;  // m 在載入時查好，可能為 NULL
 
 typedef struct { int id, x, y, dir; } Entry;          // .Scn 入口點：從入口 id 進來時站的位置與方向
-typedef struct { int x, y; char event[128]; int cooldown; } Trigger;  // BNT 類型 4：踩到就觸發事件（例如 "go east"、"s_pctstart 秦殇/赵村/PCT/桃花仙境"）；cooldown = CTriBld 感應倒數（0x484a80）
+typedef struct { int model, x, y; char event[128]; int cooldown; const Model *m; } Trigger;  // BNT 類型 4：踩到就觸發事件（例如 "go east"、"s_pctstart 秦殇/赵村/PCT/桃花仙境"）；cooldown = CTriBld 感應倒數（0x484a80）
 
 // .ONT 角色擺放。類型 = 平時邏輯：12 站立、13 範圍內閒逛、14 沿路線巡邏、15 跟隨
 #define MAX_PATH 32
@@ -112,6 +115,7 @@ void scene_buildings_tick(Scene *s);
 int building_part_tick(Object *o, int part, const Anim *a);
 int building_available(const Object *o);
 int scene_walkable(const Scene *s, int x, int y);
+int trigger_hit(const Trigger *t, int x, int y);  // 格 (x, y) 是不是這個觸發區的感應格
 
 // 格子 → 世界像素（菱形磁磚左上角）
 static inline int world_x(const Scene *s, int x, int y) { return (x - y + s->w / 2 + s->h / 2 - 1) * TILE_W / 2; }

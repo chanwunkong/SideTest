@@ -483,7 +483,7 @@ static void viewport_occlude(const ViewPort *v, const Scene *s, const ViewItem *
         const ViewItem *b = &view_buildings.items[i];
         const Object *o = &s->objects[b->index];
         SDL_Point p = viewport_grid_screen(v, o->x, o->y);
-        building_occlude_draw(o, p.x + 32, p.y + 16, tick);
+        building_occlude_draw(o, p.x, p.y, tick);
     }
     SDL_RenderSetClipRect(ren, clipped ? &old_clip : NULL);
 }
@@ -511,7 +511,7 @@ static void viewport_layers(const ViewPort *v, const Scene *s, Uint32 tick) {
         for (int i = view_buildings.n - 1; i >= 0; i--) {
             const Object *o = &s->objects[view_buildings.items[i].index];
             SDL_Point p = viewport_grid_screen(v, o->x, o->y);
-            viewport_building_draw(o, p.x + 32, p.y + 16, pass, tick);
+            viewport_building_draw(o, p.x, p.y, pass, tick);
         }
         if (!pass) {
             for (int i = 0; i < ground_n; i++) {
@@ -582,7 +582,7 @@ static void viewport_collect(ViewPort *v, const Scene *s, Uint32 tick) {
                 for (int i = view_grid.heads[y * s->w + x]; i >= 0; i = view_grid.next[i]) {
                     const Object *o = &s->objects[i];
                     SDL_Point p = viewport_grid_screen(v, o->x, o->y);
-                    SDL_Rect rect = viewport_building_rect(o, p.x + 32, p.y + 16, tick);
+                    SDL_Rect rect = viewport_building_rect(o, p.x, p.y, tick);
                     viewport_insert(&view_buildings, (ViewItem){0, i, (o->x + o->y) * 64, o->x * 64, o->y * 64, rect}, screen);
                 }
             }
@@ -596,11 +596,74 @@ static void viewport_building_hover(const ViewPort *v, Scene *s, int x, int y, i
     for (int i = 0; enabled && i < s->object_count; i++) {
         Object *o = &s->objects[i]; if (!o->m) continue;
         SDL_Point p = viewport_grid_screen(v, o->x, o->y);
-        SDL_Rect r = viewport_building_rect(o, p.x + 32, p.y + 16, tick);
+        SDL_Rect r = viewport_building_rect(o, p.x, p.y, tick);
         int d = o->x + o->y;
         if (SDL_PointInRect(&mouse, &r) && d >= depth) { hit = i; depth = d; }
     }
     for (int i = 0; i < s->object_count; i++) building_highlight(&s->objects[i], i == hit);
+}
+
+// 除錯疊圖（--debug-cells／?debug=cells）：紅 = 不可走、藍 = 建築占地（旗標高位）、綠 = 觸發區占地、黃框 = 主角格、白點 = 主角座標
+int debug_cells;
+static void debug_diamond(int sx, int sy, Uint8 r, Uint8 g, Uint8 b, Uint8 a) {  // sx, sy = 菱形左上角
+    SDL_SetRenderDrawColor(ren, r, g, b, a);
+    for (int i = 0; i < 32; i++) {
+        int half = i < 16 ? i * 2 + 2 : (31 - i) * 2 + 2;
+        SDL_RenderDrawLine(ren, sx + 32 - half, sy + i, sx + 32 + half - 1, sy + i);
+    }
+}
+static void viewport_debug_cells(const ViewPort *v, const Scene *s, const Actor *hero) {
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    for (int row = -2; row < v->h / 32 + 3; row++)
+        for (int odd = 0; odd < 2; odd++)
+            for (int col = -2; col < v->w / 64 + 3; col++) {
+                int x = v->base.x + col + odd + row, y = v->base.y - col + row;
+                if (x < 0 || y < 0 || x >= s->w || y >= s->h) continue;
+                const Cell *c = &s->cells[y * s->w + x];
+                SDL_Point p = viewport_grid_screen(v, x, y);
+                if (!c->walk) debug_diamond(p.x, p.y, 255, 0, 0, 70);
+                else if (c->flags & 128) debug_diamond(p.x, p.y, 0, 0, 255, 70);
+                for (int t = 0; t < s->trigger_count; t++)
+                    if (trigger_hit(&s->triggers[t], x, y)) { debug_diamond(p.x, p.y, 0, 255, 0, 120); break; }
+            }
+    static int dumped;
+    if (!dumped && getenv("QIN_DUMP_OBJ"))
+        for (int t = 0; t < s->trigger_count; t++) {
+            const Trigger *tr = &s->triggers[t]; const Model *m = NULL;
+            for (int j = 0; j < s->model_count; j++) if (s->models[j].id == tr->model) m = &s->models[j];
+            fprintf(stderr, "trig %d at %d,%d model %d \"%s\"", t, tr->x, tr->y, tr->model, tr->event);
+            if (m) { fprintf(stderr, " parts %d", m->part_count); for (int q = 0; q < m->part_count && q < 3; q++) { const Sprite *im = !m->parts[q].anim ? image(m->parts[q].gid) : NULL; fprintf(stderr, "[%s %d,%d %dx%d]", m->parts[q].anim ? "anim" : "img", m->parts[q].dx, m->parts[q].dy, im ? im->w : 0, im ? im->h : 0); }
+                fprintf(stderr, " type %d anchor %d,%d grid %d,%d %dx%d door %d,%d fp:", m->type, m->anchor_x, m->anchor_y, m->grid_x, m->grid_y, m->grid_w, m->grid_h, m->door_x, m->door_y);
+                for (int k = 0; k < m->grid_w * m->grid_h && k < 60; k++) fprintf(stderr, " %02x", m->footprint[k] & 255); }
+            fprintf(stderr, "\n");
+        }
+    if (!dumped && getenv("QIN_DUMP_OBJ")) {
+        int cnt[8][2] = {{0}}, tot[2] = {0}, walk0 = 0;
+        for (int i = 0; i < s->w * s->h; i++) { const Cell *c = &s->cells[i]; if (!c->walk) walk0++; if (c->flags & 128) cnt[c->flags & 7][!!c->walk]++; }
+        for (int k = 0; k < 8; k++) fprintf(stderr, "flags low %d: walk0 %d walk1 %d\n", k, cnt[k][0], cnt[k][1]);
+        fprintf(stderr, "total walk0 %d of %d\n", walk0, s->w * s->h); (void)tot;
+    }
+    if (!dumped++ && getenv("QIN_DUMP_OBJ"))
+        for (int i = 0; i < s->object_count; i++) {
+            const Object *o = &s->objects[i]; const Model *m = o->m; if (!m) continue;
+            SDL_Point p = viewport_grid_screen(v, o->x, o->y);
+            if (p.x < -100 || p.y < -100 || p.x > v->w || p.y > v->h) continue;
+            fprintf(stderr, "obj %d pos %d,%d scr %d,%d model %d type %d anchor %d,%d grid %d,%d %dx%d door %d,%d parts %d first(%d,%d) fp:", i, o->x, o->y, p.x, p.y, m->id, m->type, m->anchor_x, m->anchor_y, m->grid_x, m->grid_y, m->grid_w, m->grid_h, m->door_x, m->door_y, m->part_count, m->part_count ? m->parts[0].dx : 0, m->part_count ? m->parts[0].dy : 0);
+            for (int k = 0; m->footprint && k < m->grid_w * m->grid_h && k < 30; k++) fprintf(stderr, " %02x", m->footprint[k] & 255);
+            { const Sprite *im = m->part_count && !m->parts[0].anim ? image(m->parts[0].gid) : NULL;
+              if (im) fprintf(stderr, " | img %dx%d bottom %d cx %d", im->w, im->h, m->parts[0].dy + im->h, m->parts[0].dx + im->w / 2); }
+            fprintf(stderr, "\n");
+        }
+    if (hero) {
+        SDL_Point p = viewport_grid_screen(v, (int)hero->x, (int)hero->y);
+        SDL_SetRenderDrawColor(ren, 255, 255, 0, 255);
+        SDL_Point q[5] = {{p.x, p.y + 16}, {p.x + 32, p.y}, {p.x + 64, p.y + 16}, {p.x + 32, p.y + 32}, {p.x, p.y + 16}};
+        SDL_RenderDrawLines(ren, q, 5);
+        SDL_Point w = viewport_world_screen(v, (int)(hero->x * 64), (int)(hero->y * 64));
+        SDL_Rect dot = {w.x - 2, w.y - 2, 5, 5};
+        SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+        SDL_RenderFillRect(ren, &dot);
+    }
 }
 
 // 0x45f200：重建當幀可見名單，地表、分層背景、光照、動態物件；小地圖另等 CMapDialog。
@@ -615,6 +678,7 @@ static void viewport_draw(ViewPort *v, Scene *s, Uint32 tick) {
     viewport_dynamic(v, s, tick);
     air_draw_view();
     weather_draw(v->pos.x, v->pos.y);
+    if (debug_cells) viewport_debug_cells(v, s, &actors[0]);
 }
 
 // ---- 框選（0x454eb0 按下記位置、0x454f00 放開選人；0x46e8b0 按著時畫框）----
