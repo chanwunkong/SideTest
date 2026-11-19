@@ -5957,7 +5957,7 @@ EasyRPG.dll	2	1003b060	FUN_1003b060		game	skip	30	3	客戶端同步送出器（�
 EasyRPG.dll	2	1003b0f0	FUN_1003b0f0		game	skip	61	3	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1003b200	FUN_1003b200		game	skip	77	3	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1003b640	FUN_1003b640		game	skip	60	2	丟錢（建「秦殇/金钱」物件放腳下，圖 0x7e9／0x7ea／0x7eb 依 300／1000，訊息 3029）：單機沒有丟錢介面（客戶端封包），劇情沒用到	丟錢：身上錢扣掉、建「秦殇/金钱」物件（圖 0x7e9／0x7ea／0x7eb 依 300／1000）放在腳下，訊息 3029 錢不夠：單機沒有丟錢介面，todo	
-EasyRPG.dll	2	1003b760	FUN_1003b760		game	done	129	3			
+EasyRPG.dll	2	1003b760	FUN_1003b760		game	done	129	3		設手持類 Hand：由右手／左手道具類型（弓 11／12、箭 13／14、刀 8／10…）和 IsActorNPC 算，技能 W_Type 比對用 = main.c hand_calc、hero_hand_update	
 EasyRPG.dll	2	1003b910	FUN_1003b910		game	skip	36	3	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1003b9e0	FUN_1003b9e0		game	done	43	3			
 EasyRPG.dll	2	1003bb10	FUN_1003bb10		game	done	120	3		加屬性點：Extra_Exp > 0 時屬性 +n、點數 −n；引擎 main.c hero_attr_points	

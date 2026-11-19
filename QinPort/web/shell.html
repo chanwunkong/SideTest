@@ -20,12 +20,13 @@
   const status = document.getElementById('status');
   for (const ev of ['pointerdown', 'keydown'])
     addEventListener(ev, () => { window.qinTouched = 1; if (!status.textContent.startsWith('載入')) status.textContent = ''; }, true);
-  // 畫面固定 4:3，等比例塞滿螢幕（手機請橫放）
+  // 畫布塞滿整個可視區；遊戲畫面固定 4:3 不拉伸，橫式置中、直式貼上緣，其餘給觸控按鈕
+  // （引擎每幀讀 innerWidth／innerHeight 排版，並把畫布緩衝設成同樣長寬比，這裡只負責 CSS 塞滿）
   function fit() {
-    const s = Math.min(innerWidth / 4, innerHeight / 3);
-    canvas.style.width = 4 * s + 'px';
-    canvas.style.height = 3 * s + 'px';
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
   }
+  addEventListener('orientationchange', fit);
   addEventListener('resize', fit);
   fit();
   // 網址參數：?scene=別名&warp=N&level=N&prof=N&at=X,Y&item=T,L（測試用：站到第 N 個觸發區、主角等級、職業、站到某格、背包放道具）

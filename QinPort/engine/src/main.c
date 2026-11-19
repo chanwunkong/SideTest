@@ -1981,14 +1981,39 @@ static int skill_needs_foe(const SkillRow *r) {
     return 0;
 }
 
-// 主角拿的武器類（Hand，0x1003b760）：右手道具類型 8（刀）、左手空 → 0
-// shortcut: 只有開局的青銅彎刀，換武器、左手道具還沒做，先固定 0
-static const int hero_hand = 0;
+// 手持類（Hand，EasyRPG.dll 0x1003b760）：npc = IsActorNPC（1 人形主角、2、3）；rt／lt = 右手／左手道具類型（文字指令 c_equippos 傳來）。
+// 類 7、9 → 3；8、10、22、27 → 0（刀劍類）；11、12 = 弓；13、14 = 箭；18~20 → 6；21、23、24 → 7。
+// 有弓：有箭 人形 2／npc3 5，沒箭 人形 1／npc3 4；沒弓：右手類優先，右手沒有取左手類，都沒有依 npc 1→0、2→7、3→3。
+static int hand_calc(int npc, int rt, int lt) {
+    int c[2] = {rt, lt}, v[2] = {-1, -1}, bow = 0, arrow = 0;
+    if (npc < 1 || npc > 3) return -1;  // 原版 2 < IsActorNPC − 1U 直接 return，不改 Hand
+    for (int i = 0; i < 2; i++)
+        switch (c[i]) {
+        case 7: case 9: v[i] = 3; break;
+        case 8: case 10: case 22: case 27: v[i] = 0; break;
+        case 11: case 12: bow = 1; break;
+        case 13: case 14: arrow = 1; break;
+        case 18: case 19: case 20: v[i] = 6; break;
+        case 21: case 23: case 24: v[i] = 7; break;
+        }
+    if (bow) return arrow ? (npc == 1 ? 2 : npc == 3 ? 5 : -1) : (npc == 1 ? 1 : npc == 3 ? 4 : -1);
+    if (v[0] != -1) return v[0];
+    if (v[1] != -1) return v[1];
+    return npc == 1 ? 0 : npc == 2 ? 7 : 3;
+}
+// 主角目前的手持類：由右手（UI_Pos 32）、左手（33）道具類型算；裝備變動（hero_refresh）與技能重建時更新
+static int hero_hand;
+static void hero_hand_update(void) {
+    int h = hand_calc(1, inv[32].name[0] ? inv[32].type : 0, inv[33].name[0] ? inv[33].type : 0);
+    if (h != -1) hero_hand = h;
+}
 
 // 技能能不能用（0x1004c2a0）：等級 > 0、精气夠、武器合 W_Type（-1 不限；相同可以；0 也接受 Hand < 0、1 接受 2、4 接受 5）
 static int skill_usable(const Actor *h, const SkillRow *r) {
     int w = r->wtype;
     if (r->level < 1 || h->mp < skill_mpu(r)) return 0;
+    // shortcut: 沒箭射不出去。原版靠 Enable 旗標（箭射完關、裝箭開，arrow_spend／arrow_refresh），但沒找到開局弓技能預設是否關；這裡直接看左手有沒有箭袋
+    if (!h->mon && skill_attack_id(r) == 1 && (w == 1 || w == 3) && (!inv[33].name[0] || (inv[33].type != 13 && inv[33].type != 14))) return 0;
     return w < 0 || w == hero_hand || (w == 0 ? hero_hand < 0 : w == 1 ? hero_hand == 2 : w == 4 && hero_hand == 5);
 }
 
@@ -5171,6 +5196,7 @@ static void hero_selected_skill_apply(Actor *h) {
 // 點敵人用右手技能的招式（技能表 Attack ID）。shortcut: 手機點一下對應哪一手是自訂的
 static void hero_skill_apply(Actor *h) {
     skills_load();
+    hero_hand_update();
     int k = cur_skill[0];
     actor_skills_rebuild(h);
     // shortcut: 玩家技能列用index+1作外部識別，保留0給原模板；完整技能物件接入後換回句柄。
@@ -5791,8 +5817,23 @@ static void arrow_refresh(Actor *h) {
     for (int i = 0; i < h->skill_n; i++)
         if (h->skills[i].row && (h->skills[i].row->wtype == 1 || h->skills[i].row->wtype == 3)) h->skills[i].enabled = 1;
 }
+// 換武器後右手技能不合手持類：改選第一個能用的右手技能（拿弓 → 射箭技能；換回刀 → 刀技能）。
+// shortcut: 原版換武器時 Poq 怎麼重選右手技能還沒找到（EasyRPG 只更新 Hand），先用「第一個右手鍵位、等級 > 0、武器合的」
+static void hero_right_fit(Actor *h) {
+    int k = cur_skill[0];
+    if (k >= 0 && k < hero_skill_n && skill_usable(h, &hero_skill[k]) && hero_skill[k].hand != 1) return;
+    for (int i = 0; i < hero_skill_n; i++)
+        if (hero_skill[i].hand != 1 && hero_skill[i].wtype >= 0 && skill_usable(h, &hero_skill[i]) && !skill_manual(&hero_skill[i])) {
+            cur_skill[0] = i;
+            actor_right_skill(h, skill_attack_id(&hero_skill[i]));
+            hero_selected_skill_apply(h);
+            return;
+        }
+}
 static void hero_refresh(Actor *h) {
     arrow_refresh(h);
+    hero_hand_update();
+    if (hero_skill_n > 0) hero_right_fit(h);
     hero_derive(h);
     if (!h->role) return;  // 還沒進場景（開場）
     hero_look();
@@ -8506,17 +8547,35 @@ static int autosave_due(int was_big, const Scene *now) { return was_big && scene
 static int trade_paused(void) { return 0; }  // 沒有劇情就沒有交易視窗
 #endif
 
+#include "touch_ui.c"
+
+// 視窗（網頁 = 瀏覽器可視區）實際大小，排版用
+#ifdef __EMSCRIPTEN__
+EM_JS(int, js_inner_w, (), { return window.innerWidth; });
+EM_JS(int, js_inner_h, (), { return window.innerHeight; });
+#endif
+static void screen_size(SDL_Window *win, int *w, int *h) {
+#ifdef __EMSCRIPTEN__
+    (void)win;
+    *w = js_inner_w(); *h = js_inner_h();
+#else
+    SDL_GetWindowSize(win, w, h);
+#endif
+}
+
 int main(int argc, char **argv) {
     const char *game = "game", *scn = "xianyang", *shot = NULL;
     int pos = 0, warp = -1, at_x = -1, at_y = -1, level = 1, gives = 0, money = -1;
     const char *give[8], *learn[8];
-    int learns = 0;
+    int learns = 0, win_w = 0, win_h = 0;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--pause-traps")) trap_auto_pause = 1;
         if (!strcmp(argv[i], "--pause-deaths")) death_auto_pause = 1;
         else if (!strcmp(argv[i], "--openall") && i + 1 < argc) openall_alias = argv[++i];  // 文字指令 openall（0x10019d70）
         if (!strcmp(argv[i], "--simple-deaths")) death_keep_mode = 0;
         else if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
+        else if (!strcmp(argv[i], "--touch")) tch.forced = 1;  // 測試用：永遠顯示觸控介面
+        else if (!strcmp(argv[i], "--win") && i + 1 < argc) sscanf(argv[++i], "%dx%d", &win_w, &win_h);  // 測試用：視窗大小，配 --touch --shot 看橫直式版面
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
@@ -8595,12 +8654,17 @@ int main(int argc, char **argv) {
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER)) { fprintf(stderr, "%s\n", SDL_GetError()); return 1; }
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
-    SDL_Window *win = SDL_CreateWindow("秦殤", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, vw, vh,
+    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");  // 觸控只送手指事件，多點才分得清（遊戲畫面上的手指再改寫成滑鼠事件）
+    SDL_Window *win = SDL_CreateWindow("秦殤", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, win_w > 0 ? win_w : vw, win_h > 0 ? win_h : vh,
                                        SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!ren) ren = SDL_CreateRenderer(win, -1, 0);  // 沒有 GPU 驅動時改用軟體繪製
     if (!win || !ren) { fprintf(stderr, "%s\n", SDL_GetError()); return 1; }
-    SDL_RenderSetLogicalSize(ren, vw, vh);  // 視窗多大都等比例縮放，畫面內容固定 vw x vh
+    // 邏輯尺寸 = 遊戲畫面加上留空（touch_layout，每幀依視窗長寬比更新）；遊戲內容仍是固定 vw x vh，貼在 tch.L.game
+    SDL_RenderSetLogicalSize(ren, vw, vh);
+#ifndef __EMSCRIPTEN__
+    tch.kbm = !tch.forced;  // 電腦版預設是鍵盤滑鼠，第一個手指事件才顯示觸控介面；網頁版預設顯示，第一次按鍵／滑鼠才收起
+#endif
     // 先以 1:1 畫在畫布上再整張放大；直接放大每塊磁磚會在接縫透出細線
     SDL_Texture *canvas = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
     fade_canvas = canvas;
@@ -8628,6 +8692,52 @@ int main(int argc, char **argv) {
     while (running) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
+            // 觸控：手指事件依用途分流（搖桿、按鈕、遊戲畫面、雙指縮放）；遊戲畫面上的單指改寫成滑鼠事件走原本的點擊流程
+            if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP) {
+                tch.last_touch = SDL_GetTicks();
+                tch.kbm = 0;
+                Sint64 fid = (Sint64)e.tfinger.fingerId;
+                int fx = (int)(e.tfinger.x * tch.L.sw), fy = (int)(e.tfinger.y * tch.L.sh), btn = 0, kind;
+                float dz = 0;
+                if (e.type == SDL_FINGERDOWN) kind = touch_down(fid, fx, fy, &btn);
+                else if (e.type == SDL_FINGERMOTION) kind = touch_move(fid, fx, fy, &dz);
+                else kind = touch_up(fid, &btn);
+                if (kind == TK_PINCH) {
+                    if (e.type == SDL_FINGERDOWN) pointer_down = click_down = 0;  // 第二指落下：取消第一指的按住走路
+                    if (dz != 0) zoom_add(dz);
+                    continue;
+                }
+                if (kind == TK_BTN) {
+                    if (e.type == SDL_FINGERDOWN) touch_button(hero, btn);
+                    continue;
+                }
+                if (kind != TK_GAME) continue;
+                int gx = fx - tch.L.game.x, gy = fy - tch.L.game.y;
+                if (e.type == SDL_FINGERDOWN && tch.aim >= 0 && touch_active()) {  // 瞄準模式：這一點就是施放位置
+                    tch.aim = -1;
+                    touch_kill(fid);
+                    touch_aim_cast(hero, gx, gy, ox, oy, &scene);
+                    continue;
+                }
+                SDL_Event me;
+                memset(&me, 0, sizeof me);
+                if (e.type == SDL_FINGERMOTION) {
+                    me.type = SDL_MOUSEMOTION; me.motion.which = SDL_TOUCH_MOUSEID; me.motion.x = gx; me.motion.y = gy;
+                } else {
+                    me.type = e.type == SDL_FINGERDOWN ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP;
+                    me.button.which = SDL_TOUCH_MOUSEID; me.button.button = SDL_BUTTON_LEFT;
+                    me.button.state = e.type == SDL_FINGERDOWN ? SDL_PRESSED : SDL_RELEASED; me.button.clicks = 1;
+                    me.button.x = gx; me.button.y = gy;
+                }
+                e = me;
+            } else if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP || e.type == SDL_MOUSEMOTION || e.type == SDL_MOUSEWHEEL) {
+                if (SDL_GetTicks() - tch.last_touch < 700 && tch.last_touch) continue;  // 瀏覽器在觸控後補送的滑鼠事件，丟掉
+                if (e.type != SDL_MOUSEWHEEL) {  // 真的滑鼠：座標扣掉遊戲畫面的位置（螢幕邏輯座標 → 遊戲座標）
+                    if (e.type == SDL_MOUSEMOTION) { e.motion.x -= tch.L.game.x; e.motion.y -= tch.L.game.y; }
+                    else { e.button.x -= tch.L.game.x; e.button.y -= tch.L.game.y; }
+                }
+                if (e.type != SDL_MOUSEMOTION || e.motion.which != SDL_TOUCH_MOUSEID) tch.kbm = 1;
+            } else if (e.type == SDL_KEYDOWN) tch.kbm = 1;
             if (e.type == SDL_QUIT) running = 0;
             else if (new_open && (e.type == SDL_TEXTINPUT || e.type == SDL_KEYDOWN)) {  // 創角名字輸入框：打字、退格；其他鍵不傳給遊戲
                 if (e.type == SDL_TEXTINPUT) new_name_add(e.text.text);
@@ -8707,13 +8817,11 @@ int main(int argc, char **argv) {
             else if (e.type == SDL_KEYDOWN && (e.key.keysym.sym == SDLK_KP_PLUS || e.key.keysym.sym == SDLK_EQUALS)) game_speed_key(1);
             else if (e.type == SDL_KEYDOWN && (e.key.keysym.sym == SDLK_KP_MINUS || e.key.keysym.sym == SDLK_MINUS)) game_speed_key(0);
             // R：自己這邊全部切換跑步旗標 0x10000（0x459170 命令 3）。shortcut: 原版的切換按鈕位置沒找到，先用 R 鍵
-            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_r && !e.key.repeat) { static int run_on; input_side_command(run_on = !run_on); }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_r && !e.key.repeat) input_side_command(run_on = !run_on);
             // 空白鍵／手把 A：打最近的怪物
             else if ((e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE) ||
                      (e.type == SDL_CONTROLLERBUTTONDOWN && e.cbutton.button == SDL_CONTROLLER_BUTTON_A)) {
-                float best = hero->def ? actor_seek(hero) : 10;
-                for (int i = 1; i < actor_count; i++)
-                    if (hostile(hero, &actors[i]) && cell_dist(hero, &actors[i]) <= best) { best = cell_dist(hero, &actors[i]); actor_target_set(hero, &actors[i]); }
+                touch_attack_nearest(hero);
             }
             else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_RIGHT) {  // 右鍵：對點到的怪物放左手技能
                 int zx = e.button.x, zy = e.button.y, cx, cy;
@@ -8764,6 +8872,28 @@ int main(int argc, char **argv) {
 
         if (hero->selection_pending && !hero->act && !hero->casting) hero_selected_skill_apply(hero);
         Uint64 now = SDL_GetPerformanceCounter();
+        {  // 觸控介面：對話、選單開著就整組收起來；視窗長寬比（轉向、改視窗大小）變了就重排版
+            int blocked = sys_open || win_left.open || win_right.open || map_open || new_open || pick_hand >= 0 || ask_open || quit_open;
+#ifdef STORY
+            blocked |= dialog_open;
+#endif
+            if (blocked != tch.blocked) { tch.blocked = blocked; touch_release_all(); }
+            int ww, wh;
+            screen_size(win, &ww, &wh);
+            static int last_w, last_h;
+            if (tch.L.sw == 0 || ww != last_w || wh != last_h) {
+                last_w = ww; last_h = wh;
+                int old_sw = tch.L.sw, old_sh = tch.L.sh;
+                touch_layout(&tch.L, ww, wh, vw, vh, tch.size, tch.swap);
+                if (old_sw != tch.L.sw || old_sh != tch.L.sh) {
+                    touch_release_all();
+                    SDL_RenderSetLogicalSize(ren, tch.L.sw, tch.L.sh);
+#ifdef __EMSCRIPTEN__
+                    SDL_SetWindowSize(win, tch.L.sw, tch.L.sh);  // 網頁：畫布緩衝的長寬比跟著瀏覽器可視區，CSS 再塞滿
+#endif
+                }
+            }
+        }
 
         // ---- 指令：所有輸入都變成「往畫面某方向走」----
         const Uint8 *k = SDL_GetKeyboardState(NULL);
@@ -8781,6 +8911,11 @@ int main(int argc, char **argv) {
             mx = zx - vw / 2;
             my = zy - (vh / 2 - 40);
             if (mx * mx + my * my < 64) mx = my = 0;
+        }
+        {  // 觸控搖桿：優先於按住走路（兩個手指可以同時，一個推搖桿、一個點畫面）
+            float jx, jy;
+            if (touch_joy(&jx, &jy)) { mx = jx; my = jy; }
+            touch_frame(hero);
         }
 
         // ---- 固定節拍：跟原版一樣每 16ms 一拍，畫面多快都不影響遊戲速度 ----
@@ -9038,8 +9173,18 @@ int main(int argc, char **argv) {
             running = 0;
         }
         SDL_SetRenderTarget(ren, NULL);
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
         SDL_RenderClear(ren);
-        SDL_RenderCopy(ren, canvas, NULL, NULL);
+        SDL_RenderCopy(ren, canvas, NULL, &tch.L.game);
+        touch_draw();
+        if (shot && tch.forced && tick > 3) {  // --touch --shot：存整個螢幕（含留空和按鈕）
+            int sw_, sh_;
+            SDL_GetRendererOutputSize(ren, &sw_, &sh_);
+            SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, sw_, sh_, 32, SDL_PIXELFORMAT_ARGB8888);
+            SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, surf->pixels, surf->pitch);
+            SDL_SaveBMP(surf, shot);
+            SDL_FreeSurface(surf);
+        }
         SDL_RenderPresent(ren);
         res_pump();
         audio_update(res_loading() == 0);

@@ -4347,6 +4347,33 @@ static void instant_gem_learn_test(void) {
         arrow_refresh(&h); assert(h.skills[0].enabled && h.skills[1].enabled);  // 裝上箭 → 弓技能打開（W_Type 1／3）
         inv[33] = sv;
     }
+    // Hand 0x1003b760：刀 → 0；弓 + 箭 → 2、弓沒箭 → 1；npc 3 → 5／4；右手空取左手類；都空依 npc
+    assert(hand_calc(1, 8, 0) == 0 && hand_calc(1, 11, 13) == 2 && hand_calc(1, 12, 14) == 2 && hand_calc(1, 11, 0) == 1);
+    assert(hand_calc(3, 11, 13) == 5 && hand_calc(3, 11, 0) == 4 && hand_calc(1, 0, 8) == 0 && hand_calc(1, 0, 0) == 0);
+    assert(hand_calc(2, 0, 0) == 7 && hand_calc(3, 0, 0) == 3 && hand_calc(1, 7, 13) == 3 && hand_calc(1, 0, 11) == 1 && hand_calc(0, 8, 0) == -1);
+    // 弓技能：拿弓才能用；有箭射出（扣精气、扣箭、進施放），沒箭不射；箭射完弓技能關閉
+    {
+        Item s32 = inv[32], s33 = inv[33]; int shand = hero_hand;
+        Actor sa0 = actors[0], *hp = &actors[0];
+        *hp = (Actor){.def = &def, .skill_n = 1, .mp = 99, .mp_max = 99};
+        #define h (*hp)
+        SkillRow bow = {.wtype = 1, .level = 1, .mod_n = 1, .mod = {{.id = 10, .init = 1}}};
+        snprintf(bow.key, sizeof bow.key, "x_bow");
+        h.skills[0] = (ActorSkill){.id = 1, .enabled = 1, .row = &bow};
+        inv[32] = (Item){.name = "sword", .type = 8}; inv[33] = (Item){0};
+        hero_hand_update(); assert(hero_hand == 0 && !skill_usable(&h, &bow));
+        inv[32] = (Item){.name = "bow", .type = 11};
+        hero_hand_update(); assert(hero_hand == 1 && !skill_usable(&h, &bow));  // 有弓沒箭：Hand 1，射不出去
+        inv[33] = (Item){.name = "arrow", .type = 13, .arrows = 2};
+        hero_hand_update(); assert(hero_hand == 2 && skill_usable(&h, &bow));
+        cast_start(&h, &bow); assert(h.casting && inv[33].arrows == 1);  // 射出一支
+        h.casting = 0; h.act = 0; h.cast = NULL;
+        cast_start(&h, &bow); assert(!inv[33].name[0] && !h.skills[0].enabled);  // 最後一支
+        h.casting = 0; h.act = 0; h.cast = NULL; hero_hand_update(); assert(hero_hand == 1);
+        unit_n = 0; cast_start(&h, &bow); assert(!h.casting && !inv[33].name[0]);  // 沒箭不射
+        inv[32] = s32; inv[33] = s33; hero_hand = shand; actors[0] = sa0;
+        #undef h
+    }
     // 五行相生（0x10055d50）：飾品 39 的五行 3 → 相生表 2 = 盔甲 31 的五行 → 盔甲的相生特性（種類 2）生效；拿掉就失效；對不上不動
     {
         Item sv31 = inv[31], sv39 = inv[39], sv0 = inv[0];
@@ -5156,6 +5183,75 @@ int main(void) {
         viewport.rem = (SDL_Point){c.x + 5000, 0}; ambient_group(&sc, 2); assert(!ambient_group_on[2]);  // 太遠：停
         viewport.rem = (SDL_Point){c.x - vw / 2, c.y - vh / 2}; ambient_group(&sc, 2); assert(ambient_group_on[2]);
         sc.object_count = 0; ambient_group(&sc, 2); assert(!ambient_group_on[2]);  // 名單空：停
+    }
+    {   // 手機觸控介面（touch_ui.c）：版面、按鈕命中、搖桿向量、手指分流
+        static const int dims[][2] = {{1170, 540}, {800, 600}, {1024, 768}, {540, 1170}, {768, 1024}, {390, 844}, {2400, 1080}};
+        for (unsigned i = 0; i < sizeof dims / sizeof *dims; i++)
+            for (int size = 0; size < 3; size++)
+                for (int swap = 0; swap < 2; swap++) {
+                    TLayout L;
+                    touch_layout(&L, dims[i][0], dims[i][1], 800, 600, size, swap);
+                    assert(L.game.w == 800 && L.game.h == 600 && L.sw >= 800 && L.sh >= 600);
+                    assert(L.portrait == (dims[i][0] * 5 < dims[i][1] * 4));
+                    // 螢幕長寬比 = 視窗長寬比（不拉伸），遊戲畫面不超出螢幕
+                    assert(labs((long)L.sw * dims[i][1] - (long)L.sh * dims[i][0]) <= (long)dims[i][1] + dims[i][0] + (L.sw == 800 && L.sh == 600 ? 99999 : 0));
+                    assert(L.game.x >= 0 && L.game.y == 0 && L.game.x + L.game.w <= L.sw && L.game.y + L.game.h <= L.sh);
+                    if (L.portrait) assert(L.game.x == 0 && L.sw == 800 && L.sh > 600);
+                    else assert(L.game.x == (L.sw - 800) / 2);
+                    for (int b = 0; b < TB_N; b++) {
+                        const TCircle *c = &L.b[b];
+                        assert(c->r > 0 && c->x - c->r >= 0 && c->x + c->r <= L.sw && c->y - c->r >= 0 && c->y + c->r <= L.sh);
+                        if (L.portrait) assert(c->y - c->r >= 600);  // 直式：按鈕都在遊戲畫面下面的控制區
+                        assert(touch_hit(&L, c->x, c->y) == b);
+                        for (int o = b + 1; o < TB_N; o++) {  // 按鈕不互相重疊
+                            long dx = c->x - L.b[o].x, dy = c->y - L.b[o].y, rr = c->r + L.b[o].r;
+                            if (dx * dx + dy * dy < rr * rr) fprintf(stderr, "OVERLAP %dx%d size%d b%d o%d\n", dims[i][0], dims[i][1], size, b, o);
+                            assert(dx * dx + dy * dy >= rr * rr);
+                        }
+                    }
+                    assert(L.joy.w > 0 && L.joy.h > 0 && L.joy.x >= 0 && L.joy.x + L.joy.w <= L.sw && L.joy.y + L.joy.h <= L.sh);
+                    for (int b = 0; b < TB_N; b++)  // 搖桿區不蓋到按鈕中心
+                        assert(!(L.b[b].x >= L.joy.x && L.b[b].x < L.joy.x + L.joy.w && L.b[b].y >= L.joy.y && L.b[b].y < L.joy.y + L.joy.h));
+                    if (!swap) assert(L.b[TB_ATK].x > L.sw / 2 && L.joy.x == 0);
+                    else assert(L.b[TB_ATK].x < L.sw / 2 && L.joy.x + L.joy.w == L.sw);
+                }
+        {
+            TLayout L;
+            touch_layout(&L, 800, 600, 800, 600, 1, 0);
+            assert(!L.portrait && L.sw == 800 && L.sh == 600 && L.game.x == 0);  // 4:3 沒有留空
+            touch_layout(&L, 1170, 540, 800, 600, 1, 0);
+            assert(L.sh == 600 && L.sw == 1300 && L.game.x == 250);
+            touch_layout(&L, 540, 1170, 800, 600, 1, 0);
+            assert(L.sw == 800 && L.sh == 1733);
+        }
+        float mx, my;
+        assert(!touch_joy_vec(3, 3, 14, &mx, &my) && mx == 0 && my == 0);  // 死區
+        assert(touch_joy_vec(50, 0, 14, &mx, &my) && mx == 100 && my == 0);
+        assert(touch_joy_vec(0, -30, 14, &mx, &my) && my == -100 && mx == 0);
+        assert(touch_joy_vec(30, 30, 14, &mx, &my) && fabsf(mx - 70.7f) < 0.2f && fabsf(my - 70.7f) < 0.2f);
+        int jx = 0, jy = 0;
+        touch_joy_follow(&jx, &jy, 50, 0, 100); assert(jx == 0);  // 圈內不動
+        touch_joy_follow(&jx, &jy, 300, 0, 100); assert(jx == 200 && jy == 0);  // 手指拉出去：原點被拉著走
+        // 手指分流：按鈕、搖桿、遊戲點擊、雙指縮放；多點同時
+        memset(&tch, 0, sizeof tch); tch.size = 1; tch.aim = -1;
+        touch_layout(&tch.L, 1170, 540, 800, 600, 1, 0);
+        int btn = -1; float dz;
+        assert(touch_down(1, 60, 400, &btn) == TK_JOY && tch.joy_on);
+        assert(touch_down(2, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn) == TK_BTN && btn == TB_ATK && tch.held[TB_ATK] == 1);  // 搖桿與按鈕同時
+        assert(touch_move(1, 60 + 40, 400, &dz) == TK_JOY && touch_joy(&mx, &my) && mx == 100 && my == 0);
+        assert(touch_down(3, 600, 200, &btn) == TK_GAME);  // 第三指點遊戲畫面
+        assert(touch_down(4, 640, 200, &btn) == TK_PINCH && tch.f[2].kind == TK_PINCH);
+        assert(touch_move(4, 700, 200, &dz) == TK_PINCH && dz > 0);  // 張開 = 拉近
+        assert(touch_move(4, 660, 200, &dz) == TK_PINCH && dz < 0);
+        assert(touch_up(4, &btn) == TK_PINCH && touch_up(3, &btn) == TK_PINCH);
+        assert(touch_up(2, &btn) == TK_BTN && btn == TB_ATK && tch.held[TB_ATK] == 0);
+        assert(touch_up(1, &btn) == TK_JOY && !tch.joy_on && !touch_joy(&mx, &my));
+        assert(touch_down(5, 5, 5, &btn) == TK_NONE);  // 左上留空（不在搖桿區、不在遊戲畫面）
+        tch.blocked = 1;  // 對話或選單開著：整組收起來，點遊戲畫面照舊，搖桿區不收
+        assert(!touch_active() && touch_down(6, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn) == TK_NONE && touch_down(7, 400, 300, &btn) == TK_GAME);
+        tch.blocked = 0; tch.kbm = 1;
+        assert(!touch_active()); tch.forced = 1; assert(touch_active());  // 有鍵盤滑鼠自動隱藏，--touch 強制顯示
+        memset(&tch, 0, sizeof tch); tch.size = 1; tch.aim = -1;
     }
     puts("skilltest ok");
     return 0;

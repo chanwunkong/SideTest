@@ -1113,3 +1113,4 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 1003d270	劇情 add_exp：帶頭者的 Friend 2 隊友各加同樣經驗再加本人 = story_rt.c case 0x1003d270 + story_gain_exp
 100574e0	倒下：經驗 = 怪物 Exp × (殺手悟性+150)/150，殺手等級高 2 級以上每級 −10%（≤ 9 級）；隊伍依權重分（殺手 1.2、其他 1 − 0.05×|等級差|，至少 0.05）= main.c kill_exp
 10056d50	技能打中套狀態：Status 給施放者、EStatus 給對方，其他免疫 B_QTIMMU ≥ 100 就都不加（0x1003f590 判斷）= main.c skill_hit 的 immune
+1003b760	設手持類 Hand：由右手／左手道具類型（弓 11／12、箭 13／14、刀 8／10…）和 IsActorNPC 算，技能 W_Type 比對用 = main.c hand_calc、hero_hand_update
