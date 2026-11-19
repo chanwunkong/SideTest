@@ -229,6 +229,23 @@ static void character_skill_commands_test(void) {
     units[0]=saved_unit; unit_n=saved_n; actor_logic_tick=saved_tick;
 }
 
+// 存檔含地上道具（原版世界存檔 0x1000a8b0 存全部物件）：寫檔再讀回，目前場景與各場景暫存的地上道具都在
+static void save_ground_test(void) {
+    save_mount();
+    int sn=ground_n; static char sa[64]; snprintf(sa,sizeof sa,"%s",ground_alias);
+    Item it; assert(item_new(&it,60,-1,1,NULL)); it.amount=7;
+    ground_n=2; memset(ground,0,2*sizeof ground[0]); ground[0].it=it; ground[0].x=5.5f; ground[1].it=it; ground[1].x=6.5f;
+    snprintf(ground_alias,sizeof ground_alias,"zhaocun1");
+    snprintf(gstore[3].alias,sizeof gstore[3].alias,"xianyang"); gstore[3].n=1; gstore[3].g[0]=ground[0];
+    assert(save_write(95));
+    ground_n=0; gstore[3].n=0; gstore[3].alias[0]=0;
+    static SaveHead h; assert(save_read(95,&h));
+    assert(ground_pending && pending_n==2 && pending_ground[1].x==6.5f && pending_ground[0].it.type==60 && pending_ground[0].it.amount==7);
+    assert(!strcmp(pending_alias,"zhaocun1") && pending_gstore[3].n==1 && !strcmp(pending_gstore[3].alias,"xianyang"));
+    remove(SAVE_DIR "/qin95.sav"); ground_pending=0; ground_n=sn; snprintf(ground_alias,sizeof ground_alias,"%s",sa);
+    memset(gstore,0,sizeof gstore);
+}
+
 static void character_command_receiver_test(void) {
     int saved_units = unit_n; MUnit saved = units[0]; unit_n = 0;
     RoleDef d = {.speed=10, .hit=65535};
@@ -5672,6 +5689,7 @@ int main(void) {
     assert(prop_sound(0x7e9, 1) == 284 && prop_sound(0x7e9, 0) == 400 && prop_sound(2001, 1) == 276 && prop_sound(2006, 1) == 0xffff && prop_sound(99999, 0) == 0xffff);  // PropMdl 落地／下落聲音
     first_map_test();
     death_team_test();  // 用到 rand（npc_selected），放最後免得改變前面測試的亂數序列
+    save_ground_test();  // 讀檔會換掉背包等全域，放在最後
     puts("skilltest ok");
     return 0;
 }

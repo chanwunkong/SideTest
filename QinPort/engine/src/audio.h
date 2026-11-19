@@ -11,3 +11,4 @@ float audio_voice_seconds(void);      // 目前這句語音的長度（秒，還
 void audio_voice(int key);            // 對話語音 game/sound/<key %03d>.wav（一次一句，沒有檔 = 停掉上一句）
 void audio_loop(int id, int pct);    // 環境音循環播放（同時一個），pct = 音量 %，0 = 停
 void audio_quit(void);
+extern int audio_trace;

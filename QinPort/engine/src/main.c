@@ -2621,6 +2621,14 @@ static int owner_trig(struct MUnit *u, const Trig *t, Uint32 tick);
 // x, y = 落點格（邏輯用）；dx, dy = 畫的位置（像素，64/格，0x49a550 拋出動畫每拍累加）；t = 已飛拍數（+0x7d）、z = 高度（+0x81）
 static struct { Item it; float x, y; int id; float dx, dy, vx, vy; int t, z; } ground[MAX_GROUND];  // id：命令0x11用的物件編號（原版CPropObj句柄）
 static int ground_n, ground_next_id = 1;
+// 離開場景時各場景留下的地上道具（連同存檔：原版 CERWorld::Save 0x1000a8b0 存世界全部物件，丟在房間的道具也在內）
+static char ground_alias[64];
+static struct { char alias[64]; int n; __typeof__(ground[0]) g[MAX_GROUND]; } gstore[8];
+static int ground_pending;  // 讀檔讀到的地上道具，進場景後套用
+static char pending_alias[64];
+static __typeof__(gstore) pending_gstore;
+static int pending_n;
+static __typeof__(ground) pending_ground;
 enum { PROP_TICKS = 30, PROP_STEP = 7, PROP_SPLIT = 0 };  // DAT_0062a2e8、DAT_0062a2ec、DAT_00663f24
 static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = 沒有）
 #include "light.c"
@@ -7506,7 +7514,7 @@ static int sys_open, sav_mode, sav_page, sav_sel = -1, ask_open, quit_open;  // 
 static SaveHead *sav_head[SAVE_SLOTS];   // 開視窗時讀的各格檔頭，NULL = 空格
 static SDL_Texture *sav_tex[6];          // 這一頁的縮圖
 static uint32_t snap[THUMB_W * THUMB_H]; // 開系統選單前的畫面（原版也是先截圖，0x535ec0）
-static int snap_due, save_due = -1, load_due = -1, quit_due, dead_open;
+static int snap_due, save_due = -1, load_due = -1, quit_due, dead_open, load_arg = -1;
 static char save_alias[64], save_name[64];  // 目前場景的別名、房間名（劇情版 UTF-8、舊版 GBK）
 
 #ifdef __EMSCRIPTEN__
@@ -7597,6 +7605,10 @@ static int save_write(int slot) {
         if (b) fwrite(b, 1, n, f);
         free(b);
     }
+    {   // 地上道具尾巴：目前場景名、各場景暫存、目前地上道具
+        fwrite("GRND", 4, 1, f); fwrite(ground_alias, sizeof ground_alias, 1, f); fwrite(gstore, sizeof gstore, 1, f);
+        fwrite(&ground_n, sizeof ground_n, 1, f); fwrite(ground, sizeof ground[0], ground_n, f);
+    }
     int ok = !ferror(f);
     if (fclose(f) || !ok) { remove(p); return 0; }
     save_flush();
@@ -7631,6 +7643,13 @@ static int save_read(int slot, SaveHead *h) {
                 snprintf(explore_saved_alias, sizeof explore_saved_alias, "%s", al);
             } else { free(explore_saved); explore_saved = NULL; }
         }
+    }
+    ground_pending = 0;
+    {   // 地上道具尾巴；舊存檔沒有就算了
+        char mg[4]; int n;
+        if (fread(mg, 4, 1, f) == 1 && !memcmp(mg, "GRND", 4) && fread(pending_alias, sizeof pending_alias, 1, f) == 1 &&
+            fread(&pending_gstore, sizeof pending_gstore, 1, f) == 1 && fread(&n, sizeof n, 1, f) == 1 && n >= 0 && n <= MAX_GROUND &&
+            fread(pending_ground, sizeof pending_ground[0], n, f) == (size_t)n) { pending_n = n; ground_pending = 1; }
     }
     fclose(f);
     memcpy(inv, tmp, sizeof inv);
@@ -9173,24 +9192,22 @@ static int enter_scene(Scene *scene, Actor *hero, const char *alias, int entry_i
     actor_group(hero, story_get_int(story_player(), "G_AIGroup"));
 #endif
     spawn_npcs(scene);
-    {  // 地上的道具留在丟下它的場景（房間的物件）：離開時存起來、回來放回去。原版規則沒找到：這是依「房間物件跟著房間」的推測；存檔不含地上道具
-        static char ground_alias[64];
-        static struct { char alias[64]; int n; __typeof__(ground[0]) g[MAX_GROUND]; } store[8];
+    {  // 地上的道具留在丟下它的場景（房間的物件）：離開時存起來、回來放回去。原版世界存檔含房間物件（0x1000a8b0），存檔尾巴也存這些
         int old = -1, nw = -1, freeslot = -1;
         for (int i = 0; i < 8; i++) {
-            if (!store[i].alias[0]) { if (freeslot < 0) freeslot = i; continue; }
-            if (!strcmp(store[i].alias, ground_alias)) old = i;
-            if (!strcmp(store[i].alias, alias)) nw = i;
+            if (!gstore[i].alias[0]) { if (freeslot < 0) freeslot = i; continue; }
+            if (!strcmp(gstore[i].alias, ground_alias)) old = i;
+            if (!strcmp(gstore[i].alias, alias)) nw = i;
         }
         if (ground_alias[0] && strcmp(ground_alias, alias)) {
             if (old < 0) old = freeslot >= 0 ? freeslot : 0;  // shortcut: 超過 8 個場景就蓋掉第一格
-            snprintf(store[old].alias, sizeof store[old].alias, "%s", ground_alias);
-            store[old].n = ground_n;
-            memcpy(store[old].g, ground, sizeof(ground[0]) * ground_n);
+            snprintf(gstore[old].alias, sizeof gstore[old].alias, "%s", ground_alias);
+            gstore[old].n = ground_n;
+            memcpy(gstore[old].g, ground, sizeof(ground[0]) * ground_n);
         }
         if (strcmp(ground_alias, alias)) {
             ground_n = 0;
-            if (nw >= 0 && store[nw].n > 0) { ground_n = store[nw].n; memcpy(ground, store[nw].g, sizeof(ground[0]) * ground_n); store[nw].n = 0; }
+            if (nw >= 0 && gstore[nw].n > 0) { ground_n = gstore[nw].n; memcpy(ground, gstore[nw].g, sizeof(ground[0]) * ground_n); gstore[nw].n = 0; }
             snprintf(ground_alias, sizeof ground_alias, "%s", alias);
         }
     }
@@ -9873,7 +9890,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--debug-bounce") && i + 1 < argc) bounce_alias = argv[++i];  // 測試用：200 拍後進這個場景、420 拍後回來，印耗時
         else if (!strcmp(argv[i], "--no-autotalk")) auto_talk = 0;
         else if (!strcmp(argv[i], "--debug-cells")) debug_cells = 1;
-        else if (!strcmp(argv[i], "--debug-trace")) debug_cells = 2;  // 疊圖並每 2 拍印主角座標與鏡頭
+        else if (!strcmp(argv[i], "--debug-trace")) debug_cells = 2, audio_trace = 1;  // 疊圖並每 2 拍印主角座標與鏡頭
         else if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }
         else if (!strcmp(argv[i], "--touch")) tch.forced = 1;  // 測試用：永遠顯示觸控介面
         else if (!strcmp(argv[i], "--win") && i + 1 < argc) sscanf(argv[++i], "%dx%d", &win_w, &win_h);  // 測試用：視窗大小，配 --touch --shot 看橫直式版面
@@ -9886,6 +9903,7 @@ int main(int argc, char **argv) {
 #endif
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
+        else if (!strcmp(argv[i], "--load") && i + 1 < argc) load_arg = atoi(argv[++i]);  // 測試用：開場後讀這一格存檔
         else if (!strcmp(argv[i], "--at-mon")) at_mon = 1;  // 測試用：開場後把主角放到離最近怪物兩格的地方（怪物出生點是隨機的）
         else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--money") && i + 1 < argc) money = atoi(argv[++i]);
@@ -10234,6 +10252,7 @@ int main(int argc, char **argv) {
 #endif
             running = 0;
         }
+        if (load_arg >= 0 && tick > 60) { load_due = load_arg; load_arg = -1; }
         if (load_due >= 0) {
             static SaveHead h;
             if (save_read(load_due, &h)) {
@@ -10241,7 +10260,8 @@ int main(int argc, char **argv) {
                 int dir = hero->dir, lv = hero->level, exp = hero->exp, hp = hero->hp, mp = hero->mp;
                 js_status(-1);
                 if (enter_scene(&scene, hero, h.alias, -1)) { snprintf(alias, sizeof alias, "%s", h.alias); explore_restore(&scene, alias); }
-                ground_n = 0;  // 讀檔：地上的道具以存檔為準（存檔不含地上道具），不留讀檔前的
+                ground_n = 0;  // 讀檔：地上的道具以存檔為準，不留讀檔前的
+                if (ground_pending) { memcpy(gstore, pending_gstore, sizeof gstore); memcpy(ground, pending_ground, sizeof pending_ground[0] * pending_n); ground_n = pending_n; snprintf(ground_alias, sizeof ground_alias, "%s", pending_alias); ground_pending = 0; }
                 actor_restore_position(hero, x, y); hero->dir = dir;
                 viewport_home(&viewport, &scene, hero, 0);  // 讀檔後鏡頭回到主角（同場景讀檔時鏡頭原本留在舊位置，主角在畫面角落）
                 hero->foe = NULL; hero->want = NULL; hero->cast = NULL; hero->casting = 0; hero->act = ACT_NONE; hero->object_dead = 0; dead_open = 0;
@@ -10460,6 +10480,7 @@ int main(int argc, char **argv) {
                     if (sp.x < -200 || sp.y < -200 || sp.x > vw + 200 || sp.y > vh + 200) continue;
                     { SDL_Point dp = viewport_world_screen(&viewport, o->door_x * 64 + 32, o->door_y * 64 + 32);
                     printf("bld %d %s type=%d state=%d walk=%d cell=%d,%d screen=%d,%d door=%d,%d doorscreen=%d,%d\n", i, o->name, o->m->type, o->state, scene_walkable(&scene, o->x, o->y), o->x, o->y, sp.x, sp.y, o->door_x, o->door_y, dp.x, dp.y); }
+                    if (o->m->type >= 0x80 && o->m->type <= 0x100) { int n88 = 0, tot = 0, fx = -1, fy = -1; for (int cy2 = 0; cy2 < scene.h; cy2++) for (int cx2 = 0; cx2 < scene.w; cx2++) { const Cell *c2 = &scene.cells[cy2 * scene.w + cx2]; if (c2->building == i) { tot++; if ((c2->flags & 0x88) == 0x88) { if (!n88++) fx = cx2, fy = cy2; } } } printf("bldcells %d %s cells=%d flag88=%d first88=%d,%d\n", i, o->name, tot, n88, fx, fy); }
                 }
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];

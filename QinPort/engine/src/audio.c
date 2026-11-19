@@ -339,10 +339,12 @@ int audio_voice_state(void) {
     return 0;
 }
 
+int audio_trace;  // --debug-trace：每個音效印出編號、檔數、載入結果
 void audio_sfx(int id) {
     if (!dev || id < 0 || id >= MAX_SFX) return;
     int n = sfx_files(id);
     const Sfx *s = n > 0 ? sfx_load(sfx_def[id].file[rand() % n]) : NULL;
+    if (audio_trace) printf("sfx %d files=%d %s\n", id, n, s ? "ok" : "MISSING");
     if (!s) return;
     SDL_LockAudioDevice(dev);
     for (int i = 0; i < VOICES; i++)

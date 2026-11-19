@@ -1765,3 +1765,21 @@ skilltest 新增：刺客 Hand 5、箭消耗用 Attack方式（真資料招式 I
 - 手機直式放大鏡預覽、視窗放大沒逐項走。
 - 死亡時的 `strike` 補：原版「死亡後掉經驗、扣錢」是連線版，沒做。
 驗證：`make && make skilltest` → skilltest ok；storytest 绣女 0 1 正常；複本 make web 通過；firstmap_check.sh 全部 ok。
+
+### 實際遊玩驗證 第 4 輪（2026-11-20，headless Chrome，複本 /tmp/qb17，8657）
+測試複本 shell.html 另加 `?open=`、`?atmon=1`、`?drop=類型,等級`、`?load=格`（--load：開場 60 拍後讀這一格存檔，F9 存的是第 1 格；同一個 CDP_PORT 的 Chrome 設定檔才看得到上一次存的檔）；`--debug-trace` 現在也印每個音效（`sfx 編號 files=檔數 ok|MISSING`）與每棟建築的 0x88 格（`bldcells`）。主樹 web/shell.html 沒動。
+**重要的測試方法**：鏡頭在地圖邊會夾住，主角**不在畫面中央**（key:h 也一樣），所以點物件要用 log 裡同一拍的 `bld 編號 名稱 … screen=x,y`（那棟建築擺放格中心的畫面座標）當點擊座標；第 2 輪「水缸點擊座標對不準」的根因是測試端用主角在 400,300 去推算，不是引擎的反投影錯。
+**修了（都用瀏覽器重跑確認）**
+1. **存檔不含地上道具**（(C)）：原版 `CERWorld::Save`（EasyRPG.dll 0x1000a8b0）迴圈走世界全部物件串列（`this+4`、`this+0x40` 的分類串列）逐個呼叫 `CERObject::Save`（0x1000b600），丟在房間的道具本來就是世界物件，所以讀檔後還在；USER_Save（0x10005290）只寫帳號標頭。第 3 輪只在換場景時暫存、讀檔清空是錯的。現在存檔尾巴多一段 `GRND`（目前場景名、各場景暫存 gstore[8]、目前 ground[]），讀檔套回（舊存檔沒有這段就沒有）。瀏覽器：`?scene=zhaocun1&drop=1,1` F9 存 → 換新頁面 `?load=1`：trace 的 ground 0 → 讀檔後 1（修前讀檔必為 0）。skilltest 新增 `save_ground_test`（寫檔、讀回，目前與暫存的地上道具、場景名都對）。**沒做**：原版是「道具仍是房間的劇情物件」，我們的 ground[] 還是引擎陣列，只是存檔存它；怪物位置與狀態同樣沒存（原版存，見下「沒修」）。
+**走過且正常**
+- (A) 水缸：點 shuigang（hd_house1 4,14）→ 主角走過去、水缸破、掉 3 件地上道具（ground=3）。箱子：點 suijiwupinbaoxiang（bdj_minjua 2,15，模型 0x81）→ `click bld … use bld … chest children=3 items=3`、3 件掉在箱旁，再點地上道具撿起（ground 3 → 0）。技能鍵 2～4：`?level=20` → 主角視窗 ↑鈕（升級加點）→ 技能 + 號（斩棘 1、弯弓 2、止血回春 2）→ F9 存、`?load=1` 重進：HUD 技能鍵 1／2／3 出現圖示（斩棘披荆、弯弓射雕、止血回春）；按 3 → 進瞄準模式 → 點主角 → 主角身上出現紅色治療光環（status 動畫）。（滑鼠點視窗後觸控的 ✕ 關閉鈕第一下點不掉，只在混用滑鼠與觸控的測試腳本出現；純觸控開 ?open=role 點 ✕ 正常關。）
+- (B) 怪物同格：原版 AddObj（0x450960）→ 建 CNpc（0x490240）不找位置；找位置在 0x488a70（綁場景十圈找空格）與 0x495420（占位八圈找空格），engine/src/near.c 已照翻，`mon_make` 建好就呼叫 `actor_bind_scene`／`actor_place(relocate=1)`；劇情房間人物（0x44fd20 種類 0、G_PosX −100）每隻各自用 0x4cc9c0 隨機挑同名入口（story 路徑 main.c 7267 已是每隻挑一次）。瀏覽器 141 個場景的 trace：每拍同格怪物 1114 筆裡 7 筆同整數格，全是移動中的小數位置（例如 78.0,93.0 與 78.5,93.8），出生那拍沒有同格；第 3 輪看到的「成對的狼疊在一起」是相鄰格的大圖互相遮擋，不是同格。沒有改程式。
+- (D) 場景走查：`?scene=` 直接載入 141 個不同場景（afg_ 到 yhl_ 等，含 zhaocun1／2、yangzhou、xianyang、LISHAN、epang、handan、julu、pengcheng、peixian、hanzhong、yanmen、taishan、wancheng、fengxian、hengshan、yongxian、yingchuan、xishuicun、wuhuacun、hejiangcun、sanchuan、beidijun、YUNWUGU 與各城市室內）：**沒有 404（除了 favicon）、沒有 JS 例外、沒有 abort、截圖畫面與地圖相符**；唯一「載入失敗」的 `Map`、`Int` 是資料夾不是場景（`ls game/scene` 把它們列出來）。`net_*` 場景（連線版）會印「劇情訊息 0x4ea10（netsuijiwupinbaoxiang／netrandom_tree）還沒做」：只在連線版物件出現，單機劇情不會進（reach.tsv）。出口 `?warp=0/1/2`：yangzhou→beiyi／beidijun、xianyang→suijizhanchang2_1／9_1、handan→sanchuan、julu→handan、wancheng→suijizhanchang10_1、fengxian→suijizhanchang3 都換對場景；沒換場景的是室內門或過場觸發（s_pctstart）不是出口。firstmap_check.sh 全部 ok（老者自動對話、新遊戲過場、赵村→阳周城孔刚入隊）。只做了「載入＋出口＋第一屏」，沒有逐場景跑 NPC 對話與任務推進。
+- (E) 聲音：CDP 用 `INJECT` 包 `AudioContext`／`createScriptProcessor`（/tmp/qb17/aud.js）：進頁面 state=suspended（iOS 同樣要使用者互動），第一次點擊後 running，之後 `onaudioprocess` 持續被呼叫、輸出峰值 0.52（音樂 15% 音量）～1.0（戰鬥）；SDL2 的 emscripten 後端自己在 click／touch／keydown 時 resume，不用另外做。打鬥時 trace 的 sfx：腳步 80、普攻 25／202／208／209、命中 302、技能 516／1006、死亡 613 都 `ok`。`sfx 173 files=-1 MISSING`：snd.lib 第 173 筆資料就是 1 個變化、檔名全空（用 python 讀 0x20c+173×0x598 確認），原版也是無聲，不是 bug。
+**沒修／原版規則沒找到**
+- 音樂切換：music.txt 第 2 欄（場景音樂）有用；第 3、4 欄（战斗音乐名，如 fight1）、dead.wav、start.wav 沒用。原版 CMusic（Poq.exe 0x579df0／0x57a010／0x57a910，狀態 DAT_00649200／00649210，表 DAT_00953ad0 每列 0x18 byte）是狀態機（隨機計時 rand()%12、模式 10／0x12 音量減半、0xc 停止），戰鬥音樂何時換沒查清，**原版規則沒找到**，沒編造。
+- 日夜／天氣循環只看了 --hour／--weather 參數（第 2 輪補的），沒逐個時段截圖比較。
+- 打造真的做出道具（`make_produce` 讀碼完整：扣精氣 (等級+10)×5、材料用掉、產品進背包，只在 STORY 版有，native skilltest 編不到所以沒有單元測試，瀏覽器沒走完選配方＋放材料）、修理／鑑定按鈕、背包滿（ground_pick 回訊息 1118）、受傷狀態（中毒、冰凍）動畫、法術瞄準模式只走了治療、手機放大鏡預覽與直式視窗逐項：**沒走**。
+- 怪物位置／狀態不存檔（原版 CERWorld::Save 存全部物件，讀檔後怪物位置與血量還原）：現在讀檔重放怪物。
+- (D) 劇情主線長途走查（NPC 對話、任務日誌、過場逐章）沒做。
+驗證：`make && make skilltest` → skilltest ok；storytest 绣女 0 1 正常；複本 make web 通過；firstmap_check.sh 全部 ok。
