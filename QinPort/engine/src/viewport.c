@@ -130,7 +130,8 @@ static void viewport_follow_set(ViewPort *v, const Scene *s, const Actor *hero, 
     if (on) viewport_home(v, s, hero, 1);
 }
 
-// 進場的鏡頭部分；小地圖視窗／比例與載入仍由另一類別負責。
+// 0x460570（CViewPort 進場初始化）：世界矩形（MAP 限制矩形，小場景 ±200、標準世界矩形偏移）、設位 +(1400,500)、跟隨、四組可見串列清空；
+// 原版後段的小地圖視窗比例／載入由 mapwin.c 負責（SDL 小地圖固定比例，每幀重畫）。
 static void viewport_enter(ViewPort *v, const Scene *s, const Actor *hero) {
     viewport_grid_clear();
     memset(v, 0, sizeof *v);
@@ -657,6 +658,7 @@ static void input_box_draw(void) {  // 0x46e8b0 的框
 static void input_box_clear(void) { box_down = box_on = 0; }
 
 // ---- 小地圖底圖（Poq.exe 0x46f180 生成、0x482eb0 建築縮圖）----
+// 0x4607c0（全圖探索標記：地圖範圍內每格依探索值 == 0 在雷達標記未探索）= 下面只貼 view ≠ 0 的格子，未探索留空，小地圖每次重畫。
 // 0x46f180：每個探索過的格子把底圖、覆圖（地磚）縮成 8×4 貼上（太大的場景整體縮 sc），再把建築（格子旗標 +0x14 == 1 的原點格）
 // 各部件合成縮圖貼到建築格位置（0x482eb0：部件依序貼、尺寸 ceil 縮放）。原版畫進整張 (寬×8)×(高×4) 的圖再縮小；
 // 這裡直接畫進 512×256 的 target 貼圖（縮一次），每格只畫一次（新探索到才補畫）。
@@ -720,4 +722,35 @@ static void map_base_update(const Scene *s) {
         map_bdone[i] = 1;
     }
     SDL_SetRenderTarget(ren, old);
+}
+
+// ---- 建築環境音（CGodClient 0x468c10 開頭每 10 拍第 1 拍呼叫 0x469d70，每組一次）----
+// 組別 = 一般建築（NormalBuilding，種類 11）模型的 +0xa7（1／2／3；Model.sound），原版載入建築時加進名單
+// （0x484550 → 0x469bb0，上限 999）、卸載時移出（0x484590 → 0x469c80），名單空了就停該組音（0x480740）。0x484550／0x484590／0x469bb0／0x469c80 = 場景載入／釋放時名單隨 Scene.objects 進出。
+// 場景物件陣列隨場景載入／釋放，名單 = 現在場景裡符合的建築，所以「名單空」= 數量 0。
+// 音量：畫面中心到建築畫面位置 < 0x579 像素的取最近一座，淡出到邊緣。shortcut: 原版音量式用 Mfx 的音量範圍（DAT_0095497c／00954978，單位不明），這裡線性 100% → 0%。
+static int ambient_group_on[4], ambient_count;
+
+// 0x469d70：一組環境音。有名單：範圍內有建築就開（還沒開）或調音量，範圍外停；名單空：停。
+static void ambient_group(const Scene *s, int g) {
+    int listed = 0, best = -1;
+    for (int i = 0; s && i < s->object_count && listed < 999; i++) {
+        const Object *o = &s->objects[i];
+        if (!o->m || o->tri || o->m->sound != g) continue;
+        listed++;
+        SDL_Point p = viewport_grid_screen(&viewport, o->x, o->y);
+        int dx = p.x - vw / 2, dy = p.y - vh / 2;
+        int d = (int)sqrt((double)(dx * dx + dy * dy));
+        if (d < 0x579) {
+            int pct = 100 - d * 100 / 0x579;
+            if (pct > best) best = pct;
+        }
+    }
+    if (best > 0) { audio_loop(g, best); ambient_group_on[g] = 1; }
+    else if (ambient_group_on[g]) { audio_loop(g, 0); ambient_group_on[g] = 0; }  // 名單空（0x469c80）或離開範圍（0x469d70）才停；從沒開過的組不碰（組 1 與風聲同槽）
+}
+
+static void ambient_tick(const Scene *s) {
+    if (ambient_count++ % 10 != 1) return;
+    for (int g = 1; g <= 3; g++) ambient_group(s, g);
 }

@@ -3986,3 +3986,9 @@ EasyRPG.dll:10070080  文字指令 zanghua（髒話過濾）記帳：除錯日�
 EasyRPG.dll:10072e30  隨機道具第二版產生器的周邊（只被死碼 0x10071910 呼叫，PE 掃描確認；表函式 0x10052350 無參照）
 EasyRPG.dll:10076af0  資料表載入（experience、attribT、slevel_i 等 Data/*.txt 的 Excel 轉文字）：main.c／res.c 自己讀檔
 EasyRPG.dll:10077890  技能表（0x105601c8）依鍵名找所有列：main.c story_skill／skill_rows 的查找取代
+# 最後 13 個 todo 收尾（2026-11-19）
+00474270  建立同步物件後的客戶端套用（呼叫端只有 0x47ca00 建物件封包 0x517 與 "#CreateClient" 文字命令）：本體 0x44fd20 = main.c mon_make／actors_sync，其餘是客戶端畫面（0x4963e0／0x494ec0）、同步綁定 0x47bf50、玩家名單（0x465cf0 已在 input.c）、@playerid 通知與 0x149 封包；單機共用 Actor，沒有獨立客戶端副本
+004774d0  "#" 文字命令接收（#ObjSpeed／#CreateClient／#ADDITEM／#SETPOS 等 35 條，來源封包 0x24 文字）：整個 Poq.exe 與 EasyRPG.dll 反編譯檔 grep 這 35 個字串，只有分派本身和兩個送出端——#SETPOS 在 EasyRPG 0x10042230（客戶端同步送出器，已 skip）、#ObjSpeed 在 Poq 0x471c20（客戶端自己送給伺服器）；其餘 33 條沒有任何送出端（GM／聊天輸入用），單機劇情走 msg(0x5xx) 與 story_msgs。"$" 命令分派 0x47d4e0 已 done
+0047bb70  依編號移除物件（msg 0x518 的處理）：送出端是 EasyRPG 0x100646b0(0x518)（劇情物件離開房間的同步送出器，已 skip），單機由 actors_sync 比對房間成員差異取代；角色移除本體 0x486910 = main.c actor_remove 已 done
+00485250  CTriBld 破壞入口（虛擬函式，呼叫端是打壞建築命令）：engine 還沒有「攻擊 0x80 建築」（click_cmd shortcut 記載），Object.dead 只有讀沒有寫；要做時與命令 0x80（打建築）一起翻（以後 DLC 可用，未逐一確認劇情是否有可打壞建築）
+0056db60  存取盤單格設定五個隊員頭像（ResID1~5）：我們的存檔格式（SAVE_VER 2）沒有存隊員頭像圖號，原版頭像圖號來源（隊伍面板 JM511 頭像轉盤，已 skip）和圖庫對照沒有資料；存檔格只顯示縮圖、場景名、時間

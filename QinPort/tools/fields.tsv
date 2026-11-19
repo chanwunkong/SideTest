@@ -958,3 +958,5 @@ CUserInput	+4 目標物件編號	0x459050 放掉	input.c sel_target
 CScene	+0x20 探索衰減游標、+0x24 每拍格數（總格數 / 0x32）、+0x1c 格陣列頭、格 +0x13 探索值（1 看過、≥2 現在看得到、200 常亮）	0x4c7790	Scene.decay_pos、Cell.view
 CClient	+0x4c 進場保護倒數（250 拍；> 0 隊員有狀態 102）	0x467620／0x465cf0	input.c party_protect
 CERItem(宝箱)	屬性 isbuilding／key／deletekey／lockinfo／openinfo／openedinfo／Level／contain	0x1004e680 開箱規則	main.c chest_open_rule
+CTriBld	(+0xfa4 起名單數)	（Trigger.cooldown）感應倒數：<1 才掃占地格，命中設 1000、空掃設 1	0x484a80	res.h Trigger.cooldown
+CGodClient	+0x5028／+0x1178／+0x30d0（0x1d4／0x212c／0x4084 起各 0x1fa8 大小的名單）	建築環境音名單：數量（<999 才加）、500 格靜態鏈；組別 = 模型 +0xa7（1／2／3）	0x469bb0／0x469c80／0x469d70	viewport.c ambient_group

@@ -664,6 +664,7 @@ static void w_start_plot(const char *path) {
     snprintf(story_plot.alias, sizeof story_plot.alias, "%s", objs[h].alias);
     msg(0x52e, objs[h].alias, 0);
 }
+void story_pct_start(const char *path) { w_start_plot(path); }
 // 0x1004f2a0：第 18 格（給獎勵、寫日誌）後刪掉
 void story_plot_end(void) {
     int h = story_plot.h;

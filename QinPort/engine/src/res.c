@@ -797,6 +797,7 @@ int scene_load(Scene *s, const char *scn_name) {
                 Trigger *t = &s->triggers[s->trigger_count++];
                 t->x = u32(bnt + p + 4);
                 t->y = u32(bnt + p + 8);
+                t->cooldown = 0;
                 size_t at = p + 20 + extra;
                 snprintf(t->event, sizeof t->event, "%.*s", at + 128 <= size ? 128 : 0, (const char *)bnt + at);
             }
@@ -829,6 +830,8 @@ int scene_load(Scene *s, const char *scn_name) {
                 o->door_y = o->y - o->m->anchor_y + o->m->door_y;
             }
             scene_building_cells(s, i, -1);
+            // 0x44f4c0（SInit 建建築）：模型種類 0x80～0x100 建 CTriBld（可互動／打壞，0xb0 大）、其餘建 NormalBuilding（0xa0）；
+            // 原版再依物件種類分串列，這裡全放 Scene.objects，種類用 tri 區分。
             o->tri = o->m && o->m->type >= 0x80 && o->m->type <= 0x100;
             if (o->tri) {
                 o->state = -1;

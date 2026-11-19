@@ -124,7 +124,7 @@
 0044dbd0	開始載入畫面（速度 +100、0x4f58f0、0x502760(0, 27)）
 0044dc20	載入畫面每拍：進度 > 25 就結束（游標移到畫面中央），否則畫 2 格進度（0x5027e0）
 0044dda0	載入畫面推進 n 格
-0044f4c0	依 SInit 建建築物件：物件表 +0x22 在 0x80～0x100 建 0xb0 的（可打壞），否則 0xa0；初始化後分串列
+0044f4c0	依 SInit 建建築：模型種類 0x80～0x100 建 CTriBld（Object.tri），其餘 NormalBuilding；res.c scene_load
 0044f6d0	角色倒下留下的東西（倒下種類 1～10）：3/5/9/10 角色 +0xcc==1 且 +0xd0==2 時放招式單位 10/0x73/0xeb/0xec；4 放痕跡動畫 0x100581（+0xd0==2）或 0x10000b；6/7/8 建 CPartDeadObj 碎屍（6/7 有 CFlyPartDeadObj 飛散的版本）；其他照預設建 CPartDeadObj，先擲 0x48f0a0 留血跡
 0044fd20	劇情建物件（0x474270 呼叫）：種類 0 角色（G_PosX −100 = 用入口點名稱 0x4cc9c0 隨機挑）、1 道具、2 依名字找建築設狀態、3 陷阱、4 依名字隨機挑一個可打壞的建築
 00450b30	CBirdFast建立、格中心定位並加入場景陣列 → air.c bird_spawn
@@ -196,8 +196,8 @@
 0045f820	todo（動態主流程已接遊戲）：viewport_dynamic／viewport_units已接當幀矩形、可見旗標、角色與單位、局部遮擋及type2/3暫加128；不同類別CCharactor關聯模型來源、CDynamicObj繪圖分類／狀態尚未載入，不誤標完整虛函式分流完成
 0045fec0	todo：小地圖每5次第1次更新標籤／鏡頭框，等不同類別CMapDialog／標籤介面；鏡頭座標已接好
 00460470	容器：清空 CViewPort 四組串列並將數量歸零；C 陣列名單取代
-00460570	todo（鏡頭部分已接遊戲）：viewport_enter已讀MAP限制矩形及小場景／標準世界矩形調整；原版初始世界矩形+(1400,500)設位；小地圖比例、視窗載入及探索初始化等CMapDialog
-004607c0	todo：全圖探索標記X外圈Y內圈，等CMapDialog標記介面與CScene探索資料；正反座標換算已接鏡頭
+00460570	CViewPort 進場初始化：世界矩形、設位 +(1400,500)、跟隨；viewport.c viewport_enter（小地圖比例由 mapwin.c 取代）
+004607c0	全圖探索標記（雷達未探索格）；mapwin.c／viewport.c map_base_update 只貼 view≠0 的格子
 004ced00	viewport.c viewport_stagger：像素轉交錯格；鏡頭快取已用
 
 00460d80	CViewPort 自動跟隨開關；開啟時平滑回目前角色 → viewport_follow_set
@@ -477,7 +477,7 @@
 00473e90	固定100槽表按索引插入32位值；占用旗標等於1回傳0，否則寫值、設旗標1、數量加1並回傳1；無邊界檢查
 00473ee0	CScnGC建立CClientScreen並依入口名稱取位置，找不到用(100,100)、參數1；無呼叫者，skip
 00474030	依目的場景名查找或配置CScnGC、載入資源並建立CClientScreen；todo 等SceneResources場景表／初始化載入，不以現有scene_load冒充完整流程
-00474270	CScnGC建立劇情物件後套入口／主人／玩家資料及分支命令；todo 等CCharactor、CDynamicObj主人及狀態設定、CTriBld互動；連線模式另有速度倍率與@playerid通知
+00474270	建同步物件後客戶端套用：skip（net 同步），本體 = mon_make／actors_sync
 00474700	20角色槽鏈表插入轉接；容器工具，以C陣列代替
 00474720	100場景槽鏈表插入轉接；容器工具，以C陣列代替
 00474740	陷阱主人設定轉接；todo 等CDynamicObj陷阱主人設定入口，不能只完成空包裝
@@ -521,14 +521,14 @@
 004770c0	依目的地識別值重建操控角色、設Default並綁定客戶端；無呼叫者
 00477270	跨場景按目的地重建操控角色、設Default並重綁；無呼叫者
 00477430	接收第二byte為0xf0的角色命令並更新同步；無呼叫者
-004774d0	todo：#文字命令及$劇情命令分派；等SceneResources初始化／切換、CCharactor屬性技能與動作、CDynamicObj及CTriBld業務；不可整段當純連線略過
+004774d0	"#" 文字命令接收：skip（33 條無送出端，#SETPOS／#ObjSpeed 屬同步）
 0047b2c0	20槽移除：非零占用才清旗標、填預設值並減計數；無呼叫者，容器工具
 0047b310	100槽移除：非零占用才清旗標、填預設值並減計數；無呼叫者，容器工具
 0047b4d0	場景持有者清空生命週期：反覆解構目前場景直到計數為0，清當前全域別名
 0047b530	清空CScnGC的全部客戶端節點與三條配對鏈；無呼叫者
 0047b900	todo：依目的地移除客戶端，視本機控制狀態通知、離開、刪鏈及減全域數量；等CScnClient離場／CClientScreen完整生命週期
 0047b9d0	todo：跨場景依目的地轉接客戶端移除；同類別移除入口已核對，等CScnClient離場／CClientScreen生命週期
-0047bb70	todo：依編號找活物件，角色走CCharactor移除，種類10～29走虛擬刪除；等CCharactor移除及CDynamicObj生命週期
+0047bb70	依編號移除物件（msg 0x518）：skip，由 actors_sync 房間成員差異取代
 0047bdd0	場景回收掃描：資源判斷值低於64且無客戶端可回收；無呼叫者
 0047bf50	綁定同步角色後傳0x123場景參數及0xb23時鐘給目的客戶端；連線同步層
 0047c0a0	遍歷場景物件將有效編號且種類不在10～20者送0x136同步屬性；傳輸層，模式2不送
@@ -647,10 +647,10 @@
 004843e0	NormalBuilding解構，移除環境音後釋放部件與基底；scene_free取代，音效卸載另記todo
 00484460	NormalBuilding刪除解構；scene_free取代，環境音卸載另記todo
 00484500	NormalBuilding遍歷模型動畫部件呼叫髒區比較，無可見幀推進；SDL全重畫取代
-00484550	NormalBuilding載入：CBuilding初始化後加入環境音組；模型／占地已在scene_load，等待不同類別CGodClient建築環境音名單與句柄系統
-00484590	NormalBuilding卸載：移除環境音組後釋放部件；資源由scene_free承接，等待不同類別CGodClient建築環境音名單與句柄系統
+00484550	NormalBuilding 載入：CBuilding 載入 + 加進環境音名單；res.c scene_load + viewport.c ambient_group
+00484590	NormalBuilding 卸載：移出環境音名單 + 釋放；scene_free + viewport.c ambient_group 停組
 00469bb0	CGodClient 加入種類11建築環境音名單，依音效1/2/3分組；NormalBuilding載入已核對，待建築環境音名單與句柄系統
-00469c80	CGodClient 移除建築環境音名單、空組停音；NormalBuilding卸載已核對，待建築環境音名單與句柄系統
+00469c80	移除建築環境音名單，空組停音；viewport.c ambient_group（名單 = Scene.objects 符合的建築）
 00469d70	CGodClient 近處建築環境音最大音量（距離小於1401），沿用最後遍歷建築音效；待建築環境音名單與句柄系統
 004845c0	CTriBld建構：種類12、狀態-1、感應旗標0、倒數0、允許互動1、保留欄位0；scene_load Object生命週期承接
 00484680	CTriBld解構：場景名單移除及部件／基底釋放；scene_free承接
@@ -660,10 +660,10 @@
 004848a0	CTriBld卸載：移除名單及釋放部件；scene_free承接
 004848c0	CTriBld一圈螺旋找旗標0x88且種類128..256非150、狀態0/2的建築；input_building接離地圖游標查找
 00484a60	CTriBld狀態0或2才可操作；building_available接狀態切換及游標
-00484a80	CTriBld更新：動畫5播完回1已接scene_buildings_tick；todo 感應倒數<1掃占地0x88，首個NPC組10000..60000送s_pctstart後的0x13d命令或字串訊息，再倒數1000，空掃設1；等不同類別CCharactor命令0x13d接收端；角色查找／格子／名稱皆已有基礎
-00484e80	CTriBld使用：模型128且狀態0/2發命令0x8e，始終回1；todo 等不同類別CCharactor建築互動命令接收端，不把封包視為已完成互動
+00484a80	CTriBld 每拍：動畫 5 播完回 1（res.c scene_buildings_tick）+ 感應占地格上 NPC 組單位執行建築名稱指令（main.c trigger_sense_tick，s_pctstart → start_plot）
+00484e80	CTriBld 使用：模型 128 且狀態 0／2 送 0x8e；單機命令 18 到位收尾（接收端沒有，shortcut）
 00484ee0	CTriBld狀態切換；scene_building_state接載入／更新，原版0/2恢復序列0並清walk、1換序列2並恢復walk、5只允許門或0/2且換序列1與音效；SDL全重畫／單機共享Object承接髒區與同步
-00485250	CTriBld破壞入口：CObj死亡旗標置1、恢復walk且回1；todo 等不同類別CCharactor攻擊建築／破壞命令呼叫端，不新增僅測試呼叫的函數
+00485250	CTriBld 破壞入口：skip，等打建築命令
 00497e30	字串訊息發送器；CGodClient不存在即返回，否則走連線傳輸；單機skip
 00497e90	CObj死亡旗標+0x58置1且回1；基礎Object.dead承接，等建築破壞呼叫端
 004bcae0	分隔字元token拷貝工具；忽略連續分隔，最多容量-1，成功加NUL回1、空回0；C字串span取代
@@ -974,7 +974,7 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 0056b9f0	CPortraitDialog 確定：把選的頭像送出；等標題／新遊戲（選頭像）
 0056bb60	CPortraitDialog OnInit：讀目前頭像資料；等標題／新遊戲（選頭像）
 0056c1a0	CPortraitDialog 選頭像格；等標題／新遊戲（選頭像）
-0056db60	存取盤單格內容設定（五個隊伍頭像圖號、文字）；等頭像（HANDOFF 存檔段 shortcut：每格隊伍頭像）
+0056db60	存取盤單格五個隊員頭像：skip，存檔格式沒有頭像圖號
 0056dc90	memcpy_s 安全拷貝（執行庫等價，檢查長度後 memcpy）；C 的 memcpy 取代
 0056e1e0	CPortraitPanel 載入 5 個頭像精靈（0x1223～0x1227）；等隊伍系統（頭像轉盤）
 0056e360	CPortraitPanel 繪製（依矩形剪裁貼上頭像精靈）；等隊伍系統

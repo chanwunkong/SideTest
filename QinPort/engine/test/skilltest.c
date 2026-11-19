@@ -5144,6 +5144,19 @@ int main(void) {
         trap_owner_set(&tr, &ow); assert(tr.trap_group == 7);
         trap_owner_set(&no, &ow); assert(no.trap_group == 0);
     }
+    {   // 建築環境音（0x469d70）：一般建築 sound=組別，畫面中心附近開組、名單空才停
+        Model bm = {.sound = 2}, tm = {.sound = 2};
+        Object bo[2] = {{.m = &bm, .x = 5, .y = 5}, {.m = &tm, .x = 6, .y = 5, .tri = 1}};
+        Scene sc = {.objects = bo, .object_count = 2, .w = 20, .h = 20};
+        memset(&viewport, 0, sizeof viewport);
+        SDL_Point c = viewport_grid_screen(&viewport, 5, 5);
+        viewport.rem = (SDL_Point){c.x - vw / 2, c.y - vh / 2};
+        ambient_group(&sc, 2); assert(ambient_group_on[2]);
+        ambient_group(&sc, 3); assert(!ambient_group_on[3]);     // 沒有這組的建築：不碰
+        viewport.rem = (SDL_Point){c.x + 5000, 0}; ambient_group(&sc, 2); assert(!ambient_group_on[2]);  // 太遠：停
+        viewport.rem = (SDL_Point){c.x - vw / 2, c.y - vh / 2}; ambient_group(&sc, 2); assert(ambient_group_on[2]);
+        sc.object_count = 0; ambient_group(&sc, 2); assert(!ambient_group_on[2]);  // 名單空：停
+    }
     puts("skilltest ok");
     return 0;
 }

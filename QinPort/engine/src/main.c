@@ -5523,6 +5523,7 @@ static void actor_interact_tick(Actor *a) {
         ground_pick(g);
         actor_command_finish(a);
     } else {
+        // 0x484e80（CTriBld 使用，模型 128 且狀態 0／2 → 封包 0x8e）= 命令 18 到位後的收尾；封包 0x8e 的接收端單機沒有（見上 shortcut）
         int idx = a->command[1];
         if (!sc || idx < 0 || idx >= sc->object_count || !sc->objects[idx].m) { actor_command_finish(a); return; }
         const Object *o = &sc->objects[idx];
@@ -8458,6 +8459,35 @@ static const Trigger *trigger_at(const Scene *s, const Actor *h) {
     return NULL;
 }
 
+#ifdef STORY
+// Poq.exe 0x484a80（CTriBld 每拍）的感應：倒數 < 1 才掃占地格，格子上有 AI 組 10000..60000 的角色（0x4c78b0 取格上單位，+0x339）
+// 就執行建築名稱的文字指令（0x482db0 取名稱；只有 "s_pctstart <劇情事件路徑>" 這一種出現在 BNT 觸發區，→ 開始劇情事件），倒數設 1000；
+// 沒人踩到倒數設 1（隔拍再掃）。動畫部分（狀態 5 播完回 1）在 res.c scene_buildings_tick。
+// 原版名稱不是 s_pctstart 時送命令 0x13d 給那個角色（接收端是連線版的指令字串，BNT 觸發區沒有這種名稱，不做）。
+// shortcut: 占地格（模型 +0xa3 的 0x88 格）沒解析觸發區形狀，用觸發區所在格 3×3（同 trigger_at），模型形狀解析後換掉。
+static void trigger_sense_tick(Scene *s) {
+    for (int i = 0; i < s->trigger_count; i++) {
+        Trigger *t = &s->triggers[i];
+        if (strncmp(t->event, "s_pctstart ", 11)) continue;
+        if (t->cooldown > 0) { t->cooldown--; continue; }
+        int hit = 0;
+        for (int y = t->y - 1; y <= t->y + 1 && !hit; y++)
+            for (int x = t->x - 1; x <= t->x + 1; x++) {
+                if (x < 0 || y < 0 || x >= s->w || y >= s->h) continue;
+                const Actor *a = s->cells[y * s->w + x].actor;
+                if (a && a->grp >= 10000 && a->grp <= 60000) { hit = 1; break; }
+            }
+        if (!hit) { t->cooldown = 1; continue; }
+        char path[128];
+        gbk_utf8(t->event + 11, path, sizeof path);
+        story_begin();
+        story_pct_start(path);
+        story_end();
+        t->cooldown = 1000;
+    }
+}
+#endif
+
 // 第一次需要時才讀房間表（EasyRPG.dll），回傳目前場景的房間索引
 static int load_world(World *world, int *tried, const char *alias) {
     *tried = 1;
@@ -8831,6 +8861,10 @@ int main(int argc, char **argv) {
             scene_explore_decay(&scene);  // 0x46f100 最後一步：格子探索衰減（0x4c7790）
             clock_tick();
             weather_tick();
+            ambient_tick(&scene);
+#ifdef STORY
+            trigger_sense_tick(&scene);
+#endif
             air_tick(scene_client_actor(&scene_client));
             sur_tick();
             bird_tick(&scene, &viewport);

@@ -70,7 +70,7 @@ typedef struct { int model, x, y; const Model *m; unsigned phase; int highlight,
 } Object;  // m 在載入時查好，可能為 NULL
 
 typedef struct { int id, x, y, dir; } Entry;          // .Scn 入口點：從入口 id 進來時站的位置與方向
-typedef struct { int x, y; char event[48]; } Trigger;  // BNT 類型 4：踩到就觸發事件（例如 "go east"）
+typedef struct { int x, y; char event[128]; int cooldown; } Trigger;  // BNT 類型 4：踩到就觸發事件（例如 "go east"、"s_pctstart 秦殇/赵村/PCT/桃花仙境"）；cooldown = CTriBld 感應倒數（0x484a80）
 
 // .ONT 角色擺放。類型 = 平時邏輯：12 站立、13 範圍內閒逛、14 沿路線巡邏、15 跟隨
 #define MAX_PATH 32
