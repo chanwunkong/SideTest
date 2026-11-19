@@ -134,7 +134,7 @@ static void walk_show(void) {
 static char ex_trig_room[3000][40], ex_trig_path[3000][100]; static int ex_ntrig;
 static char ex_seen[40000][24]; static int ex_nseen;  // 對話節點簽名（NPC 路徑雜湊＋文字＋選項）
 static int ex_novel;
-static int ex_room_state[4096];  // 0 沒去過 1 去過 2 進不去
+static int ex_room_state[65536];  // 0 沒去過 1 去過 2 進不去
 static int ex_known[4096], ex_nknown;
 static void *ex_item_make(int h, int type, int level, int col, const char *alias) { (void)type; (void)level; (void)col; story_set_alias(h, alias ? alias : ""); return calloc(1, 256); }
 static unsigned ex_hash(const char *s, unsigned h) { while (*s) h = h * 131 + (unsigned char)*s++; return h; }
@@ -155,7 +155,7 @@ static void ex_flag_diff(void) {  // 旗標變化：只印新（名稱，值）�
 static int ex_enter(int r) {
     int pl = story_player(), old = story_parent(pl);
     if (old == r) return 1;
-    static int prev[4096], seen[4096], q[4096]; int qh = 0, qt = 0;
+    static int prev[65536], seen[65536], q[65536]; int qh = 0, qt = 0;
     memset(seen, 0, sizeof seen);
     q[qt++] = old; seen[old] = 1; prev[old] = 0;
     while (qh < qt && !seen[r]) {
@@ -165,7 +165,7 @@ static int ex_enter(int r) {
             if (!story_exit_nth(cur, i, &dir, &path, &entry, &on)) break;
             if (!on) continue;
             int to = story_room_by_path(path);
-            if (to && to < 4096 && !seen[to]) { seen[to] = 1; prev[to] = cur; q[qt++] = to; }
+            if (to && to < 65536 && !seen[to]) { seen[to] = 1; prev[to] = cur; q[qt++] = to; }
         }
     }
     if (!seen[r]) return 0;
@@ -250,6 +250,44 @@ static void explore_run(int maxr) {
         for (int i = 0; i < ex_nknown; i++) ex_room(ex_known[i]);
         if (!ex_novel) { printf("== 沒有新進展，停止\n"); break; }
     }
+    // 第二階段：打倒有死亡處理的人物（第 2、10、12 格被覆寫）、撿起有撿起處理的道具（第 15 格），然後再探一遍
+    for (int phase = 0; phase < 3; phase++) {
+        int did = 0;
+        for (int i = 0; i < ex_nknown; i++) {
+            int room = ex_known[i];
+            if (!ex_enter(room)) continue;
+            int pl = story_player();
+            for (int h = story_next(room, 0), nx; h; h = nx) {
+                nx = story_next(room, h);
+                if (story_kind(h) == 1 && h != pl && (story_has_slot(h, 10) || story_has_slot(h, 2) || story_has_slot(h, 12))) {
+                    snprintf(ex_ctx, sizeof ex_ctx, "打倒 %s/%s", story_room_alias(room), story_alias(h));
+                    if (story_die(h)) { printf("  打倒 %s/%s\n", story_room_alias(room), story_alias(h)); did++; walk_plot_run(); ex_flag_diff(); }
+                    if (story_parent(pl) != room) break;
+                }
+            }
+            for (int h = story_next(room, 0), nx; h; h = nx) {
+                nx = story_next(room, h);
+                for (int c = story_next(h, 0), cn; c && story_kind(h) != 1; c = cn) {
+                    cn = story_next(h, c);
+                    if (story_has_slot(c, 15)) {
+                        snprintf(ex_ctx, sizeof ex_ctx, "撿 %s/%s", story_room_alias(room), story_path(c));
+                        if (story_move_full(pl, c)) { printf("  撿起 %s/%s\n", story_room_alias(room), story_path(c)); did++; walk_plot_run(); ex_flag_diff(); }
+                    }
+                }
+                if (story_has_slot(h, 15) && story_kind(h) == 2) {
+                    snprintf(ex_ctx, sizeof ex_ctx, "撿 %s/%s", story_room_alias(room), story_path(h));
+                    if (story_move_full(pl, h)) { printf("  撿起 %s/%s\n", story_room_alias(room), story_path(h)); did++; walk_plot_run(); ex_flag_diff(); }
+                }
+            }
+        }
+        printf("== 第二階段 %d：%d 件\n", phase + 1, did);
+        for (int round = 1; round <= maxr; round++) {
+            ex_novel = 0;
+            for (int i = 0; i < ex_nknown; i++) ex_room(ex_known[i]);
+            if (!ex_novel) break;
+        }
+        if (!did) break;
+    }
     int blocked = 0, visited = 0;
     for (int i = 0; i < ex_nknown; i++) { if (ex_room_state[ex_known[i]] == 2) {
             blocked++; printf("卡住的房間 %s ←", story_room_alias(ex_known[i]));
@@ -295,6 +333,12 @@ static int walk_test(const char *file) {
             int r = story_room(tok[1]), n = 0; for (int h = story_next(r, 0); h; h = story_next(r, h)) if (strstr(story_path(h), tok[2])) n++;
             printf(n ? "  ok 房間 %s 有 %s ×%d\n" : "  FAIL 房間 %s 沒有 %s\n", tok[1], tok[2], n); if (!n) { walk_fail = 1; for (int h = story_next(r, 0); h; h = story_next(r, h)) printf("    房間裡有 %s\n", story_path(h)); }
         } else if (!strcmp(c, "money") && nt > 1) { engine_call(0x1003d3e0, (intptr_t[8]){pl, atoi(tok[1])});
+        } else if (!strcmp(c, "kill") && nt > 1) {  // 打倒房間裡別名是 tok[1] 的所有人物（引擎 story_killed 的對應：DelObject 問第 12、10 格，再第 2 格）
+            int room = walk_here(), n = 0;
+            for (int h = story_next(room, 0), nx; h; h = nx) { nx = story_next(room, h); if (story_kind(h) == 1 && !strcmp(story_alias(h), tok[1])) { n += story_die(h); walk_plot_run(); } }
+            printf(n ? "  kill %s ×%d\n" : "  FAIL 房間 %s 沒有可打倒的 %s\n", n ? tok[1] : story_room_alias(room), n ? n : 0); if (!n) { walk_fail = 1; }
+        } else if (!strcmp(c, "use") && nt > 1) {  // 使用道具（引擎 item_eat 先問物件第 11 格）：道具放到主角身上再用
+            int h = story_new(tok[1], pl); printf("  story_use = %d\n", story_use(h)); walk_plot_run();
         } else if (!strcmp(c, "pickup") && nt > 1) {  // 撿起劇情道具（引擎 ground_pick 的對應）：物件放到主角身上，補第 15 格
             int h = story_new(tok[1], pl); story_item_moved(h, pl, 0); walk_plot_run();
         } else if (!strcmp(c, "trig") && nt > 2) { if (ex_ntrig < 3000) { snprintf(ex_trig_room[ex_ntrig], 40, "%s", tok[1]); snprintf(ex_trig_path[ex_ntrig++], 100, "%s", tok[2]); }
@@ -307,6 +351,10 @@ static int walk_test(const char *file) {
             walk_show();
             for (int i = 2; i < nt; i++) {
                 int k = -1;
+                if (!strcmp(tok[i], "auto")) {  // 一直選最後一個選項，直到沒有選項（線性對話）
+                    for (int n = 0; n < 60 && story_dialog.option_count; n++) { int last = story_dialog.option_count - 1; printf("  > 選 %s\n", story_dialog.options[last].text); story_choose(last); walk_show(); walk_plot_run(); }
+                    break;
+                }
                 if (tok[i][0] >= '0' && tok[i][0] <= '9') k = atoi(tok[i]);
                 else for (int j = 0; j < story_dialog.option_count; j++) if (!strcmp(story_dialog.options[j].key, tok[i])) k = j;
                 if (k < 0 || k >= story_dialog.option_count) { printf("  > 選項 %s 不存在【選項沒有】\n", tok[i]); walk_fail = 1; break; }

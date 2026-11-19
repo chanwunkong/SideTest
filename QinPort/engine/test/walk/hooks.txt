@@ -1,0 +1,10 @@
+# 物件虛擬格回歸：第 2 格（物件被清掉：狗熊A 最後一隻死 → 旗標、萧起出現）、第 11 格（使用道具：《孙膑兵法》設旗標）、第 10 格只問一次
+start
+enter pengcheng
+plot 秦殇/彭城/PCT/初遇荆无忌
+roomhas pengcheng 狗熊A
+kill bear_a
+expect jianjiwuji=1
+roomhas pch_hs1 萧起
+use 秦殇/咸阳/ITEM/《孙膑兵法》
+expect sunbinbingfa=1

@@ -67,6 +67,9 @@ int story_load(FILE *f, size_t item_size);
 const char *story_alias(int h);
 const char *story_path(int h);
 int story_kind(int h);                          // 0 房間 1 人物 2 道具 5 技能 6 劇情事件；−1 不存在
+int story_has_slot(int h, int slot);            // 走查：物件類別有沒有覆寫虛擬格
+int story_move_full(int dest, int h);           // 走查：完整的 move
+int story_use(int h);                           // 使用道具前的物件第 11 格（原版 0x1006a58b／0x1001e814；《孙膑兵法》設旗標 sunbinbingfa）；< 0 = 不用
 int story_can_open(int h);                      // 開箱規則的「能不能開」（箱子／門物件第 17 格）
 void story_item_moved(int h, int dest, int old); // 道具換持有者（箱子掉落、撿起）後補物件第 15 格（旗標、日誌、劇情事件）
 int story_has_int(int h, const char *key);

@@ -231,6 +231,8 @@ const char *story_flag_at(int h, int i, int *val) { Obj *o = O(h); if (!o || i <
 // 開箱規則 0x1004e680 的「能不能開」：呼叫箱子（道具物件）虛擬格 0x44 = 第 17 格，鑰匙檢查過了才問。預設 1；有覆寫的箱子、門會在這裡做事
 // （薛城暗門放強盜與密道口、颖川牢房大門開劇情事件解救王岩、宛城帅府大门叫醒守衛、匈奴药箱放士兵、咸阳箱子叫居民C 說話），回 0 就不開。
 // 走查發現：以前引擎把它當恆真，這 11 個物件的第 17 格從來沒跑過
+int story_has_slot(int h, int slot) { Obj *o = O(h); for (int i = 0; o && o->cls && i < o->cls->n; i++) if (o->cls->slots[i].slot == slot) return 1; return 0; }  // 走查：物件類別有沒有覆寫這一格
+int story_use(int h) { return O(h) ? (int)slot_call(h, 11, 0) : 0; }
 int story_can_open(int h) { return O(h) ? (int)slot_call(h, 17, 0) : 0; }
 // 道具從一個持有者搬到另一個（引擎的箱子掉落、撿起）：原版 move（0x10059020）搬完呼叫物件第 15 格（目的, 舊持有者），
 // 只在「原本有持有者」時呼叫（新建的物件 give_object／add_npc 沒有，piVar7 == NULL）。走查發現：以前引擎自己搬道具（箱子掉到地上、撿進背包）
@@ -464,10 +466,14 @@ static void obj_delete(int h) {
         for (int m; (m = team_next(h, 0));) team_leave(m);
     }
     put_in(h, 0);
-    o->kind = -1;
     o->parent = -1;
+    // 原版 0x10057230（clearobject 核心）最後、DAT_10478d44 == 0（不是關世界）時呼叫第 2 格（0x100574a8）：狗熊A 最後一隻死 → 旗標 jianjiwuji、萧起出現。
+    // 走查發現以前沒呼叫，彭城「杀死了包围少女的几只狗熊」永遠不觸發
+    slot_call(h, 2, 0);
+    o->kind = -1;
 }
 void story_delete(int h) { obj_delete(h); }
+int story_move_full(int dest, int h) { return obj_move(dest, h); }  // 走查：完整的 move（查出入、第 15 格）
 
 // ---- 人物（怪物）----
 static int person_new(const char *name, int level, int tier) {  // 0x10059870 newpersonex
@@ -871,9 +877,8 @@ void story_choose(int i) {
 // 物件死亡／被打倒（引擎呼叫）：第 10 格（例如 Boss 死了開劇情），回 1 才刪
 int story_die(int h) {
     if (!O(h)) return 0;
-    if (!slot_call(h, 10, 0)) return 0;
-    obj_delete(h);
-    return 1;
+    obj_delete(h);  // 原版 0x100574e0 最後只呼叫 DelObject（它自己問第 12、10 格）；以前這裡先問一次第 10 格，Boss 的第 10 格會跑兩次
+    return !O(h);
 }
 
 // say 的格式字串最多帶 7 個參數；%s 以外都當整數

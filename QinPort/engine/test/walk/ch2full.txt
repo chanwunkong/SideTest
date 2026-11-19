@@ -1,0 +1,29 @@
+# 第二章整條（寻访异人）：explore 自動問遍、打倒有死亡處理的人物、撿有撿起處理的道具到不動點，再手動走萧起最後一段與第三章字幕
+use_triggers
+start
+explore 14
+expect jianjiwuji=0
+expect jingwujijiaru=2
+expect shuifuxiaoqi=6
+enter pch_hs1
+talk xiaoqi ask25 ask26 ask27 ask28 ask29 ask30
+expect shuifuxiaoqi=8
+expect dierzhangjieshu=1
+expect dezhitiangang=1
+enter dangshan
+expect shuifuxiaoqi=9
+# 第三章：九江／衡山城／衡山村開了，再探一遍
+explore 14
+# 第三章：衡山城乌秸（花一万文买玉佩）→ 衡山村后山山洞田纲 → disanzhangjieshu、骊山開放
+money 10000
+enter hengshan
+enter hsh_hs1
+talk wujie ask3 ask6 ask8
+expect tiangangshandong=7
+enter hengshancun
+enter hshc_cave1
+talk tiangang ask26 auto
+expect xianyanglishan=1
+expect disanzhangjieshu=1
+enter xianyang
+enter lishan

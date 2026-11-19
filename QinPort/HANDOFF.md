@@ -1827,10 +1827,27 @@ skilltest 新增：刺客 Hand 5、箭消耗用 Attack方式（真資料招式 I
 | 1～2 | NPC 對話框選項太多超出畫面 | **修好** | 根因：dialog_draw 的框貼畫面底、文字卻從框頂算起，≥3 個選項（或選項折行）最後幾個在畫面外點不到（守將 3 個選項第 3 個不見）。改成框頂為基準、超出 150 高時下方接黑底。瀏覽器截圖 3 個選項都在 |
 | 1～2 | 箱子／門的「能不能開」（虛擬格 0x44 = 第 17 格）從來沒跑 | **修好** | 原版 0x1004e680 在鑰匙檢查後呼叫，覆寫的 11 個物件會做事（薛城暗門放強盜與密道口、颖川牢房大門開劇情事件解救王岩、宛城帅府大门叫醒守衛、匈奴药箱放士兵、咸阳箱子叫居民C）；引擎以前當恆真。`story_can_open`；open17 走查 |
 | 1～2 | 任務道具從箱子掉到地上、撿起時物件第 15 格（旗標、日誌、劇情事件）從來沒跑 | **修好** | 原版 move（0x10059020）搬完呼叫第 15 格（目的, 舊持有者；新建的物件沒有舊持有者所以 give_object／add_npc 不呼叫）。箱子→房間、房間→主角各補一次（`story_item_moved`）。瀏览器：赵村猎户的家宝箱開、撿解毒药，旗標 jieduyao 1→3（以前不變）；open17 |
-| 2～3 | 寻访异人本體：三川郡田玥琳、云雾谷茵珠、鹰喙岭张良、邯郸淳于秋、颖川王岩、彭城荆无忌、萧起（shuifuxiaoqi = 8）→ 第三章 | **未解（沒走完）** | explore 到的：進得了 三川郡／颖川／鹰喙岭／邯郸／沛县／雍县／栎县／汉中；卡在要戰鬥或撿道具的環節（見 PORT_QUEUE「主線走查待續」） |
-| 3 | 第三章：砀山／泰山／九江／沛县 字幕、衡山村田纲（xianyanglishan、disanzhangjieshu） | **未解（沒走）** | 要先走完第二章 |
+| 2 | 寻访异人本體（ch2full 腳本）：explore 自動問遍＋打倒有死亡處理的人物＋撿有撿起處理的道具到不動點，173 間房間可進。沛县（地痞→刘邦家吕雉→酒铺夏侯婴）→ 砀山 pct_cylbang（刘邦）→ 彭城 pct_cyjwj → 杀狗熊 → 萧起（shuifuxiaoqi 1→2→4→6，pct_jwjjru 荆无忌加入）→ 萧起 ask25~30 → shuifuxiaoqi = 8、dierzhangjieshu = 1、dezhitiangang = 1 | **修好**（彭城狗熊） | 根因：狗熊A 的虛擬格 2（物件被清掉時呼叫，原版 0x10057230 最後 0x100574a8 `call [eax+8]`）引擎從來沒呼叫，最後一隻狗熊死了不設 jianjiwuji、不放萧起 → 第二章走到這裡斷。補在 obj_delete；hooks.txt 驗 |
+| 2 | 善翼：萧起 shuifuxiaoqi 2 → 打倒彭城善翼（第 10 格）→ 4 | 通過 | 無畫面用 story_die；瀏覽器的戰鬥沒走 |
+| 3 | 第三章字幕：萧起 8 之後進 砀山／泰山／九江／沛县 → shuifuxiaoqi 9、[章節 章=3] | 通過 | |
+| 3 | 九江→衡山城→衡山村：张铁匠打铁锤（刘京、钱四、撿起）→ tiangangshandong = 1；後山山洞田纲 | 通過 | 衡山村 s13 需 tiangangshandong ≥ 1 |
+| 3 | 衡山城乌府：乌秸（花一万文 ask3→6→8）給玉佩，玉佩第 15 格 tiangangshandong 5 → 7；田纲 ask26 … → xianyanglishan = 1、disanzhangjieshu = 1、huanglingdakai／jiujianghuqiu／changshahejiang 等 7 個路旗標 | 通過 | 乌秸另兩條路（救兒子、动手）有選項、沒走 |
+| 4 | 進咸阳（第 16 格）：disanzhangjieshu 1→2、[章節 章=4]；骊山開了 | 通過 | 咸阳 s13 要 xianyanglishan = 1 |
+| 4～5 | 骊山：开馆验尸（kaiguanyanshi，第 16 格）要有七把神剑之一（ganjiangjian／moyejian1／taiebaojian／juquejian／yuchangjian／zhanlujian／gongbujian）＋ godtoad_ball（金蟾珠，田纲 ask32：「西南苗疆」＝ 云雾谷第 15 格 journal） | **未解（沒走）** | 神剑與金蟾珠各是一條支線，見 PORT_QUEUE「主線走查待續」 |
+| 5～10 | 共 10 章（diyizhangjieshu … dishizhangjieshu）：陈城残兵A（第 25 格 diliuzhangjieshu）、丰县 pct_斩将夺城（diqizhangjieshu）、巨鹿 pct_项羽坑卒（dijiuzhangjieshu）、咸阳监狱地下二层（dibazhangjieshu）、阿房宫 pct_赵高造反（dishizhangjieshu） | **未解（沒走）** | 各章結束旗標的設定處已用 tools/flagwho.py 列出，見 PORT_QUEUE |
 
+**第 7 輪（2026-11-20）全劇情掃描，整類修正**（`python3 -I tools/flagwho.py 旗標…` 列誰讀誰設某旗標；`kill`／`use`／`talk … auto` 走查指令；explore 第二階段）
+1. **虛擬格 2（物件被清掉）從來沒呼叫**：原版 clearobject 核心 0x10057230 最後（DAT_10478d44 == 0）呼叫；story/ 只有 彭城狗熊A 覆寫。補在 `obj_delete`（`story_rt.c`）。
+2. **虛擬格 11（使用道具）從來沒呼叫**：原版 item use 0x1006a58b／0x1001e814（`<0` = 不用，其餘繼續）；story/ 只有《孙膑兵法》覆寫（設 sunbinbingfa，鬼谷子 ask12 要）。`story_use`，main.c item_eat 開頭呼叫（舊註解寫「單機劇情沒用到」是錯的）。
+3. **虛擬格 10 被問兩次**：原版 0x100574e0 最後只呼叫 DelObject（DelObject 自己問第 12、10 格）；引擎 `story_die` 先問一次第 10 格再 obj_delete 又問一次，91 個有第 10 格的人物（Boss 開劇情、設旗標）每次打倒都跑兩次。改成只呼叫 obj_delete。
+4. 掃「Ghidra 把回傳值丟掉」：1251 個第 10～17 格函數用 r2 反組譯比對 `mov eax, imm`／`xor eax, eax` 與反編譯的 `return`（`/tmp/retscan.py` 的做法：每格把反組譯的 eax 常數集合與 C 的 return 常數比），只剩已修的被摧毁的赵村第 14 格；69 個 void 格（除構造／析構）：1 個是第 14 格（已修）、67 個是劇情事件第 18 格（沒有回傳值語意）、1 個是狗熊A 第 2 格（上面第 1 項）。
+5. 引擎實際呼叫的虛擬格（EasyRPG.dll 0x10001000~0x100f9000 的 `call [reg+disp]`：偏移 0xc、0x10、0x14、0x18、0x1c、0x20、0x24、0x28、0x2c、0x30、0x3c、0x40、0x48 與 0x34／0x38／0x44）對 story/ 覆寫的格（只有 1、2、6、10～68）：第 2、11 是漏的（上面）、其餘 6、10、12～18 都有呼叫；第 3、4、5、7、8、9 沒有任何劇情物件覆寫。
+6. 無呼叫點的格子（story_orphans.py）仍是 110 個（原版沒入口，同第 6 輪）。
+7. 走查工具修正：explore 的出口廣度優先搜尋用 `to < 4096` 擋掉代號 ≥ 4096 的房間（房間代號隨產生的物件數長大），沛县的民居／酒铺／狗肉铺因此永遠「進不去」；改 65536（173 間房間可進，原本 112）。
+8. **網頁驗證發現的第四類（引擎綁定）**：`spawn_npcs` 把同名 ONT 入口（彭城 3 隻 bear_a）全配給 `story_find` 的第一個劇情物件，另兩隻劇情狗熊沒有身體、打不死，第 2 格永遠等不到「最後一隻」。改成每個入口配一個還沒有身體的同別名人物（入口比物件多時照舊配第一個）。瀏覽器（複本 8660，`?scene=pengcheng&cmd=StartPlot 秦殇/彭城/PCT/初遇荆无忌&cmd=KillAlias bear_a`）：修前 `KillAlias bear_a x1`、jianjiwuji 一直 -1；修後 `x3`、日誌「杀死了包围少女的几只狗熊。」、`flag jianjiwuji = 1`。新除錯指令 `--cmd "StartPlot 路徑"`、`--cmd "KillAlias 別名"`（等場景有同別名角色就打倒，打倒後再等 2400 拍）。
+9. **全場景 console 警告掃描完成**：450 個場景扣掉連線版 net*／lan* 共 449 個（`WARN=1 node tools/webtrig.mjs …`，複本 8660，約 33 分鐘）：0 個警告、0 個例外（偵測器用不存在的場景驗過會印 WARN）。
+**怎麼重跑第二、三章**：`sh tools/walk.sh engine/test/walk/ch2full.txt`（`make walktest` 內，約 10 秒）；`hooks.txt` 驗虛擬格 2／11；`kill 別名`、`use 道具路徑`、`talk NPC … auto`（一直選最後一個選項）是新指令。
 **原版沒入口的格子**：用「選項包裝 _w 在檔案裡出現次數 ≤ 3（宣告、定義、登記表）」找 `story/` 裡第 18 格以後定義了、卻沒有任何選項指到的格子：110 個（3614 個格子的 3%，106 個物件）。孔刚 s19／s22 用位元組搜尋 EasyRPG.dll 確認只有虛擬表（0x23f74c…）引用；原版沒有其他物件跨物件呼叫虛擬格（story/ 沒有 `(**(code **)(*…`）。判斷是原版遺留的舊對話，**原版規則沒找到**它們的呼叫點，所以沒做。完整清單：`python3 -I tools/story_orphans.py`。
-**console 警告**：`WARN=1 node tools/webtrig.mjs 網址 埠 場景…`。第一章走過的場景（赵村、民居、阳周城、衙府、监狱、北地驿站、驿站、北地郡、咸阳、桓将军府、新咸阳北郊…共 20 個）0 個警告、0 個例外；全部 450 個非連線場景的 `?scene=` 載入 0 個例外（觸發區掃描，不看警告）。全場景的 WARN 掃描跑到一半被我停掉（輸出 0 行，但不知道掃到第幾個場景），**其餘場景的警告沒記錄**：要的話 `L=$(ls game/scene | grep Scn$ | sed s/.Scn//); WARN=1 node tools/webtrig.mjs 網址 埠 "$(echo $L | tr ' ' ,)"`（約 30 分鐘）。log 裡 NPC 名字亂碼（`npc С…`）是 log 沒轉 GBK，只影響除錯輸出。
+**console 警告**（第 6 輪的記錄；第 7 輪已掃完全部，見上 9）：`WARN=1 node tools/webtrig.mjs 網址 埠 場景…`。第一章走過的場景（赵村、民居、阳周城、衙府、监狱、北地驿站、驿站、北地郡、咸阳、桓将军府、新咸阳北郊…共 20 個）0 個警告、0 個例外；全部 450 個非連線場景的 `?scene=` 載入 0 個例外（觸發區掃描，不看警告）。全場景的 WARN 掃描跑到一半被我停掉（輸出 0 行，但不知道掃到第幾個場景），**其餘場景的警告沒記錄**：要的話 `L=$(ls game/scene | grep Scn$ | sed s/.Scn//); WARN=1 node tools/webtrig.mjs 網址 埠 "$(echo $L | tr ' ' ,)"`（約 30 分鐘）。log 裡 NPC 名字亂碼（`npc С…`）是 log 沒轉 GBK，只影響除錯輸出。
 **沒做到／還沒查**：怪物掉落的劇情道具（山魈头等）不經 move、沒有第 15 格；撿道具的瀏覽器路徑只走了解毒药；城門「打開」的動畫沒截到；第二章之後見 PORT_QUEUE。
 驗證：`make`、`make skilltest` → skilltest ok；`make storytest && node build/storytest.js 秦殇/咸阳/NPC/绣女 0 1` 正常；`make walktest` → walktest ok；複本 `make web` 通過；firstmap_check.sh 全部 ok。

@@ -1547,7 +1547,16 @@ static void spawn_npcs(const Scene *s) {
         if (!actor_bind_scene(a, s) || !actor_place(a, (int)a->x, (int)a->y, 1)) a->role = NULL;
 #ifdef STORY
         const char *event = actor_init_name(a);
-        a->sh = event && *event ? story_find(sroom, event) : 0;
+        // 同名的 ONT 入口（彭城 3 隻 bear_a）各配一個還沒有角色的劇情物件：以前每個都配到第一個，其餘兩隻劇情狗熊永遠沒有身體、打不死，
+        // 第 2 格（最後一隻死了放萧起）永遠等不到。走查（網頁 KillAlias bear_a）發現
+        a->sh = 0;
+        for (int h = story_next(sroom, 0); event && *event && h && !a->sh; h = story_next(sroom, h)) {
+            if (story_kind(h) != 1 || strcmp(story_alias(h), event)) continue;
+            int used = 0;
+            for (int j = 1; j < actor_count - 1; j++) used |= actors[j].sh == h;
+            if (!used) a->sh = h;
+        }
+        if (!a->sh && event && *event) a->sh = story_find(sroom, event);  // 入口比物件多：多的還是配到第一個（原行為）
         if (a->sh) actor_person_init(a, a->sh, story_get_int);
 #endif
     }
@@ -6281,12 +6290,15 @@ static void arrow_spend(Actor *h, const SkillRow *r) {
 // shortcut: can_eat 在原版是物件模板設的，沒找到設的地方，先當食物（51）和書（49）能吃
 // 文字指令 use（0x1001e660）同一套：不看 can_eat，通用 vtable 第 11 格回 0 = 用掉，訊息 1200（把%s用掉了）；
 // 差別只在 use 多了「use X to Y」給別人（單機只有主角，沒做）和類型 49 書印說明（送客戶端的文字，沒做）
-// shortcut: 只有一個道具子類別（story 物件類別）覆寫第 11 格，單機劇情沒用到
+// 第 11 格：story_use（只有《孙膑兵法》覆寫，設旗標 sunbinbingfa，走查時發現以前沒呼叫）
 static int item_eat(Actor *h, int p, int use) {
     Item *it = &inv[p];
     if (!use && it->type != 51 && it->type != 49) return 0;
     if (!it->identify) { hud_msg(1293); return 1; }
     if (h->hp <= 0) return 1;  // Dying：原版直接 return
+#ifdef STORY
+    if (it->sh && story_use(it->sh) < 0) return 1;  // 原版 0x1006a58b：物件第 11 格先跑（《孙膑兵法》設旗標），< 0 不用
+#endif
     for (int i = 0; i < it->fx_n; i++) {
         const ItemFx *f = &it->fx[i];
         int v = (int)f->v;
@@ -9713,6 +9725,7 @@ static void flag_watch_tick(unsigned tick) {
 }
 #endif
 static int dbg_cmd_n;
+static char kill_pending[48];
 static void debug_command(const char *cmd) {
     char w[32] = "";
     int n = 0;
@@ -9722,6 +9735,11 @@ static void debug_command(const char *cmd) {
     else if (!strcasecmp(w, "SetFlag")) {  // 走查用：--cmd "SetFlag 旗標名 值" 設主角的劇情旗標（新增＋設值，等於劇情的 NewFlag／SetFlag）
         char name[48]; int v = 0;
         if (sscanf(cmd, "%*s %47s %d", name, &v) == 2) { story_begin(); ENGINE(0x1005e850, story_player(), (intptr_t)name, -1); ENGINE(0x1005f270, story_player(), (intptr_t)name, v); story_end(); printf("SetFlag %s = %d\n", name, v); }
+    }
+    else if (!strcasecmp(w, "KillAlias")) sscanf(cmd, "%*s %47s", kill_pending);  // 走查用：--cmd "KillAlias 別名"：等場景裡有劇情別名相符的怪物／NPC 就打倒（走原版倒下流程：第 10、12 格、清掉時的第 2 格）
+    else if (!strcasecmp(w, "StartPlot")) {  // 走查用：--cmd "StartPlot 劇情事件路徑"（路徑不可有空白）= 感應區的 s_pctstart
+        char path[96];
+        if (sscanf(cmd, "%*s %95s", path) == 1) { story_begin(); story_pct_start(path); story_end(); printf("StartPlot %s\n", path); }
     }
     else if (!strcasecmp(w, "WatchFlag")) {  // 走查用：--cmd "WatchFlag 旗標名" 之後每 30 拍看一次，值變了就印（沒有這個旗標 = -1）
         char name[48];
@@ -9739,6 +9757,17 @@ static void debug_command(const char *cmd) {
 static void debug_commands_apply(void) {
     for (int i = 0; i < dbg_cmd_n; i++) debug_command(dbg_cmds[i]);
     dbg_cmd_n = 0;
+#ifdef STORY
+    static int kill_tick;
+    if (kill_pending[0] && ++kill_tick % 30 == 0) {
+        int n = 0;
+        for (int i = 1; i < actor_count; i++)
+            if (actors[i].sh && !actors[i].team && actors[i].hp > 0 && !strcmp(story_alias(actors[i].sh), kill_pending)) { actors[i].hp = 0; actor_kill(&actors[i], NULL); n++; }
+        static int grace;
+        if (n) { printf("KillAlias %s x%d\n", kill_pending, n); grace = 80; }  // 同名的怪物是陸續產生的（過場中先出一隻）：打倒後再多等 80 次檢查（2400 拍）才收工
+        else if (grace && !--grace) kill_pending[0] = 0;
+    }
+#endif
 }
 static void rec_ctl(const uint8_t *b, size_t n, Scene *sc) {
     switch (b[1]) {
