@@ -390,6 +390,9 @@ typedef struct Actor {
     int display_number;           // 顯示名稱附加編號；不屬於SInit事件ID
     ActorSkill skills[MAX_ACTOR_SKILLS];
     int sel;  // 在選人名單裡（原版旗標 0x100）
+    int arrow_kind;  // +0x52d：箭種（原版預設 1；0 當 1）；技能參數 291 設、msg 0x531 設，unit_spawn 依它換飛行物
+    int team;  // 隊友（劇情的 Friend 2 隊員）：1 起的槽號，0 = 不是；屬性、職業供 team_derive 用（劇情人物的 Str／Con／Dex／Savvy／Charm／Wisdom、IsActorNPC）
+    int team_attr[6], team_prof;
     int skill_n, selected, right_id, left_id, range_adjust, selection_pending;
     int template_skill[MAX_ACTOR_SKILLS], template_skill_n;
     int candidate[4];
@@ -1670,36 +1673,43 @@ static void status_patch(Actor *a) {
 }
 
 // 重算數值（0x1002d8d0）：基礎值 → 固定加值 → 回復速度（0x1002fa90）→ 職業倍率（0x1002d510）→ 百分比。加點、升級、狀態變化後呼叫，不回血
-static void hero_derive(Actor *h) {
+// attr 六項屬性、prof 職業序號（R 表）；equip = 主角才有的裝備特性（隊友沒有裝備模型，見 team_derive）
+static void person_derive(Actor *h, const int *attr, int prof, int equip) {
     const int K = 150, lv = h->level;
     h->hp_max = 120 + 28 * lv;
     h->mp_max = 140 + 4 * lv;
     h->ap = h->ap_max = h->dp = h->hr = h->sr = h->hp_speed = h->mp_speed = 0;
     memset(h->ex, 0, sizeof h->ex);
-    item_mods(h, 0);
+    if (equip) item_mods(h, 0);
     actor_mods(h, 0);
     // 裝備、技能加的力量 27、体质 28、敏捷 29、智慧 32 也算進倍率和回復
-    const int str = hero_attr[STR] + h->ex[27], con = hero_attr[CON] + h->ex[28], dex = hero_attr[DEX] + h->ex[29], wis = hero_attr[WISDOM] + h->ex[32];
+    const int str = attr[STR] + h->ex[27], con = attr[CON] + h->ex[28], dex = attr[DEX] + h->ex[29], wis = attr[WISDOM] + h->ex[32];
     // 回復速度依職業：HP_SPEED = (Con − a) × HP_MAX × b / 100 / 分母，MP 同理用 Wisdom；分母 0 當 1
     static const int R[6][8] = {{0}, {25, 50, 25, 4, 20, 50, 10, 2}, {30, 60, 15, 2, 10, 40, 5, 2}, {20, 50, 10, 2, 20, 50, 10, 2},
                                 {25, 40, 25, 4, 35, 60, 35, 4}, {20, 40, 10, 2, 40, 60, 20, 2}};
-    const int *r = R[hero_prof];  // 分母：R[3]=2 → Con + (Lv − c)×2；R[3]=4 → Lv×2 − c + Con（原版兩種寫法）
+    const int *r = R[prof < 1 || prof > 5 ? 1 : prof];  // 分母：R[3]=2 → Con + (Lv − c)×2；R[3]=4 → Lv×2 − c + Con（原版兩種寫法）
     int hd = r[3] == 2 ? con + (lv - r[2]) * 2 : lv * 2 - r[2] + con, md = r[7] == 2 ? wis + (lv - r[6]) * 2 : lv * 2 - r[6] + wis;
     h->hp_speed = (con - r[0]) * h->hp_max * r[1] / 100 / (hd ? hd : 1);
     h->mp_speed = (wis - r[4]) * h->mp_max * r[5] / 100 / (md ? md : 1);
+    // shortcut: 隊友沒有裝備模型（劇情人物身上的武器防具特性沒接到引擎），攻擊力用等級估：2×等級 + 8（防禦、命中閃避只有屬性倍率）
+    if (!equip) h->ap = h->ap_max = 2 * lv + 8;
     h->ap = h->ap * (str + K) / K;
     h->ap_max = h->ap_max * (str + K) / K;
     h->dp = h->dp * (con + K) / K;
     // 原版鍵名 SR = 命中率、HR = 闪避率（UI_C.dlg 2116/2115 對 Poq.exe 0x54f820 的顯示順序）；這裡 hr = 命中、sr = 閃避（跟怪物表一樣）
     h->hr = (h->hr + 4 * dex) * (dex + K) / K;
     h->sr = (h->sr + 3 * dex) * (dex + K) / K;
-    item_mods(h, 1);
+    if (equip) item_mods(h, 1);
     actor_mods(h, 1);
     status_patch(h);
     actor_properties_update(h);
     if (h->hp > h->hp_max) h->hp = h->hp_max;
     if (h->mp > h->mp_max) h->mp = h->mp_max;
 }
+
+static void hero_derive(Actor *h) { person_derive(h, hero_attr, hero_prof, 1); }
+// 隊友同一個公式（0x1002d8d0 對所有人物）
+static void team_derive(Actor *h) { person_derive(h, h->team_attr, h->team_prof, 0); }
 
 // 怪物數值：表上的基礎值 → 固定加值 → 百分比（同 0x1002d8d0，沒有職業倍率）
 static void mon_derive(Actor *a) {
@@ -1739,7 +1749,7 @@ static void mon_derive(Actor *a) {
 }
 
 static void hero_derive(Actor *h);
-static void actor_derive(Actor *a) { if (a->mon) mon_derive(a); else hero_derive(a); }
+static void actor_derive(Actor *a) { if (a->team) team_derive(a); else if (a->mon) mon_derive(a); else hero_derive(a); }
 
 static void hero_stats(Actor *h, int level) {
     h->level = level;
@@ -2012,6 +2022,7 @@ static void hero_hand_update(void) {
 static int skill_usable(const Actor *h, const SkillRow *r) {
     int w = r->wtype;
     if (r->level < 1 || h->mp < skill_mpu(r)) return 0;
+    if (h->team) return 1;  // shortcut: 隊友沒有裝備，不查武器種類與箭（主角的 hero_hand、箭袋不是他們的）
     // shortcut: 沒箭射不出去。原版靠 Enable 旗標（箭射完關、裝箭開，arrow_spend／arrow_refresh），但沒找到開局弓技能預設是否關；這裡直接看左手有沒有箭袋
     if (!h->mon && skill_attack_id(r) == 1 && (w == 1 || w == 3) && (!inv[33].name[0] || (inv[33].type != 13 && inv[33].type != 14))) return 0;
     return w < 0 || w == hero_hand || (w == 0 ? hero_hand < 0 : w == 1 ? hero_hand == 2 : w == 4 && hero_hand == 5);
@@ -2151,10 +2162,13 @@ static void gem_fx(Item *w, const ItemFx *f, int sign) {
 
 // 立即生效的參數（0x10035fd0 屬性分類 1；HP／MP 的 % 版 0x10035c90／0x10035df0 = 292／293 那兩格；屬性分類函式 0x100364a0：< 20 技能自己的欄位、1 立即、2 暫存、3 道具生成，也是 0x10025160／0x100251c0／0x10025220 的施放時版本）：21 HP、22 MP 加值（百分比 = 目前值的 %），
 // 292、293 = HP_MAX、MP_MAX 的 % 加到 HP、MP；295 = 清狀態（0x1003f130）
-static int skill_instant(int id) { return id == 21 || id == 22 || id == 292 || id == 293 || id == 295; }
+static int skill_instant(int id) { return id == 21 || id == 22 || id == 291 || id == 292 || id == 293 || id == 295; }
 static void skill_now(Actor *x, const SkillMod *m, int level) {
     float v = skill_value(m->init, m->incr, level);
     if (m->id == 295) { status_clear(x, (int)v); return; }
+    // 291（0x10025120）：五行 FE = 值（施放時；DAT_1039b5dc ≠ 1 的拿掉版寫 0，這裡沒有拿掉的呼叫）並通知客戶端 0x531 → 箭種 +0x52d。
+    // shortcut: 人物的 FE 屬性沒寫（劇情人物 FE 是怪物表的五行，主角沒有）；單機技能表、attribT 沒有用到 291，DLC 才會用
+    if (m->id == 291) { x->arrow_kind = (int)v; return; }
     int *f = m->id == 21 || m->id == 292 ? &x->hp : m->id == 22 || m->id == 293 ? &x->mp : NULL;
     if (!f) return;
     int max = f == &x->hp ? x->hp_max : x->mp_max;
@@ -2326,42 +2340,60 @@ static void hero_gain_exp(Actor *h, int exp) {
 // 單機沒有別的玩家（Friend 3），人數 n = 1，總量 = n × 經驗 × 2 / (n + 1) = 經驗。隊伍（Friend 2 的隊友）依權重分：殺手 1.2，
 // 其他隊員 1 − 0.05 × |等級差|（至少 0.05）；殺手以外的帶頭者（沒有）。每人 = 權重 / 總權重 × 總量
 static int kill_exp_total(const Actor *t, const Actor *by) {
-    int e = t->exp * (hero_attr[SAVVY] + by->ex[31] + 150) / 150;
+    int e = t->exp * ((by->team ? by->team_attr[SAVVY] : hero_attr[SAVVY]) + by->ex[31] + 150) / 150;
     if (t->level + 1 < by->level) {
         int d = by->level - t->level - 1;
         e = (10 - (d > 9 ? 9 : d)) * e * 10 / 100;
     }
     return e;
 }
+#ifdef STORY
+static void team_sync(Actor *a);
+#endif
+#ifdef STORY
+static float kill_weight(int lv, int mon_lv) {  // 非殺手的隊員權重
+    int d = lv - mon_lv;
+    float x = 1.0f - (d < 0 ? -d : d) * 0.05f;
+    return x < 0.05f ? 0.05f : x;
+}
+#endif
 static void kill_exp(const Actor *t, Actor *by) {
     int total = kill_exp_total(t, by);
 #ifdef STORY
-    float w_by = 1.2f, sum = w_by, w[16];
+    // 殺手可以是隊友（by->team）：殺手 1.2，其他人（主角也是）依等級差
+    int killer = by->team ? by->sh : 0;  // 0 = 主角
+    float w_hero = killer ? kill_weight(actors[0].level, t->level) : 1.2f, sum = w_hero, w[16];
     int mem[16], n = 0;
     for (int m = story_team_next(story_player(), 0); m && n < 16; m = story_team_next(story_player(), m)) {
         if (story_get_int(m, "Friend") < 2) continue;
-        int d = story_get_int(m, "Level") - t->level;  // 原版這裡用的是怪物等級（local_1c24）
-        float x = 1.0f - (d < 0 ? -d : d) * 0.05f;
-        w[n] = x < 0.05f ? 0.05f : x;
+        w[n] = m == killer ? 1.2f : kill_weight(story_get_int(m, "Level"), t->level);  // 原版這裡用的是怪物等級（local_1c24）
         sum += w[n];
         mem[n++] = m;
     }
-    for (int i = 0; i < n; i++) story_gain_exp(mem[i], (int)(w[i] / sum * total));
-    hero_gain_exp(by, (int)(w_by / sum * total));
+    for (int i = 0; i < n; i++) {
+        story_gain_exp(mem[i], (int)(w[i] / sum * total));
+        Actor *m = actor_of(mem[i]);
+        if (m && m->team) team_sync(m);  // 升級後數值重算
+    }
+    hero_gain_exp(&actors[0], (int)(w_hero / sum * total));
 #else
-    hero_gain_exp(by, total);
+    hero_gain_exp(&actors[0], total);
 #endif
 }
 
 // 倒下（0x100574e0）：播死亡動作，被主角打死的怪物給經驗，夠了就升級
 static void actor_death_fear(Actor *a);
 static void actor_remove(Actor *a, int mode);
+// 0x1004f3a0 玩家死亡（單機的部分）：身上類型 61 的道具放回腳下；扣錢扣經驗與回復點是連線版（ER_GetNetType > 1），單機沒有。
+// 之後的畫面是 JM513 死亡界面（見 dead_show）：「游戏结束」＋读取／退出。
+static void hero_dies(void);
 static void actor_kill(Actor *t, Actor *by) {
     t->hp = 0;
     actor_remove(t, 1);
     if (t->mon) mon_loot(t);
-    if (by && !by->mon && t->mon) kill_exp(t, by);
+    if (by && !by->mon && t->mon && (by == &actors[0] || by->team)) kill_exp(t, by);
     printf("%s 倒下\n", t->mon ? "怪物" : "主角");
+    if (t == &actors[0]) hero_dies();
 #ifdef STORY
     if (t->sh) story_killed(t->sh);  // 原版 0x100574e0 最後刪掉人物；Boss 的第 10 格會開劇情
 #endif
@@ -3925,13 +3957,31 @@ static int react_tick(Actor *a, const Scene *s) {
     return a->dynamic_state == 31 || a->knock || a->stun > 0;
 }
 
+// 盾牌格擋（Poq.exe 0x48c3a0 的 0x48c4e3 段）：守方有旗標 0x40000（招式觸發 8 設的格擋姿勢）時，
+// 要是守方沒在放招（+0x4e7 = 現在的 MethodMain 沒有）、放的招不在技能鏈上、或 rand()%100 ≤ 那招的 p7（SkillUnit +0x28）− 100，
+// 就量「從攻擊來源指向守方的方向」（WhatDir8(守方, 來源)）和守方面向（+0xa7）的差（不繞圈的絕對值）：差 ≥ 2 且 ≠ 7 = 攻擊從正面半圈來，
+// 擋住：在守方腳下放單位 0x11（擋住的火花），層同守方，這一下不算打中。回 1 = 擋住
+// shortcut: 來源位置用攻擊者的格子（原版用招式單位 +0x34，箭、法術飛行時是單位當下的位置）；0x3a7 旗標與層差的前置條件（同層或來源種類 6）沒翻
+static int shield_block(Actor *a, Actor *t, Uint32 tick) {
+    if (!actor_flags(t, 0x40000)) return 0;
+    const MUnit *cur = main_of(t);
+    int i = cur && cur->m ? actor_skill_find(t, cur->m->id) : -1;
+    if (cur && i >= 0 && rand() % 100 > t->skills[i].p7 - 100) return 0;
+    int diff = abs(dir_of(ax64(a), ay64(a), ax64(t), ay64(t), 8) - t->facing);
+    if (diff == 7 || diff < 2) return 0;
+    MUnit src = {0};
+    MUnit *u = unit_new(0x11, ax64(t), ay64(t), &src, tick);
+    if (u) u->layer = t->layer;
+    return 1;
+}
+
 static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     (void)tick;
     if (!alive(t)) return;
     if (t->mon && !t->foe) actor_target_set(t, a);  // 被打的怪物會反擊
     actor_enter_fight(t);
+    if (shield_block(a, t, tick)) return;
     // 命中（Poq.exe 0x48c600，CCharactor 虛擬函式第 104 格）：千分比 = HR×1000 / (SR + HR)，夾在 100~900；HR 0 當 1
-    // shortcut: 之前還有一段盾牌格擋（0x48c4e3，看防守方 +0x4e7 的裝備和攻擊方向），沒有盾的主角用不到，還沒做
     int hr = a->hr ? a->hr : 1, chance = hr * 1000 / (t->sr + hr);
     if (rand() % 1000 >= (chance < 100 ? 100 : chance > 900 ? 900 : chance)) return;
     // 原版受擊入口：4/7先留血，其餘0/1/2/3/8在反應後留血。
@@ -4431,6 +4481,15 @@ static ActorSkill *npc_selected(Actor *a) {
     if ((a->selected < 0 || a->selected >= a->skill_n) && a->mon && npc_skill(a->mon->skill[0])) {
         const SkillRow *r = mon_pick(a);
         if (r) { a->skill = r; actor_right_skill(a, skill_attack_id(r)); }
+    }
+    if ((a->selected < 0 || a->selected >= a->skill_n) && a->team) {  // 隊友：技能表裡等級 > 0、精气夠的技能隨機挑一個（shortcut: 原版 AI 依技能 manual 旗標分組挑，沒查）
+        int ok[MAX_ACTOR_SKILLS], n = 0;
+        for (int i = 0; i < a->skill_n; i++)
+            if (a->skills[i].row && a->skills[i].enabled && skill_usable(a, a->skills[i].row) && skill_needs_foe(a->skills[i].row)) ok[n++] = i;
+        if (!n)  // 沒有能放的技能：模板的普通攻擊（沒有技能列的那招）
+            for (int i = 0; i < a->skill_n; i++)
+                if (!a->skills[i].row && a->skills[i].enabled) { ok[n++] = i; break; }
+        if (n) actor_skill_select(a, ok[rand() % n]);
     }
     return a->selected >= 0 && a->selected < a->skill_n ? &a->skills[a->selected] : NULL;
 }
@@ -6770,17 +6829,25 @@ static int story_person(int h, const char *name, int level, int tier) {
     return 1;
 }
 
-// 0x100757a0：依技能表設技能物件（陷阱 NPC 的技能用）。shortcut: 技能的效果（0x10037490）由引擎的技能表直接算，這裡只放屬性
-static int story_skill(int h, const char *key, int level) {
+// 依索引名找技能表的列（NPC 技能表加五個職業；找不到 NULL）
+static const SkillRow *skill_row_any(const char *key) {
     static SkillRow rows[512];
     static int n = -1;
     if (n < 0) {
         n = skill_rows_file("skill_npc.txt", rows, 256);
         for (int p = 1; p <= 5; p++) n += skill_rows(p, rows + n, 512 - n);
     }
-    for (int i = 0; i < n; i++) {
-        const SkillRow *r = &rows[i];
-        if (strcmp(r->key, key)) continue;
+    char g[96];
+    utf8_gbk(key, g, sizeof g);  // 劇情檔的字串是 UTF-8、技能表是 GBK：兩種寫法都認
+    for (int i = 0; i < n; i++)
+        if (!strcmp(rows[i].key, key) || !strcmp(rows[i].key, g)) return &rows[i];
+    return NULL;
+}
+
+// 0x100757a0：依技能表設技能物件（陷阱 NPC 的技能用）。shortcut: 技能的效果（0x10037490）由引擎的技能表直接算，這裡只放屬性
+static int story_skill(int h, const char *key, int level) {
+    const SkillRow *r = skill_row_any(key);
+    if (r) {
         char g[128], u[128];
         if (r->name_id >= 0 && res_dlg("name_C.dlg", r->name_id, g, sizeof g)) { gbk_utf8(g, u, sizeof u); story_set_name(h, u); }
         story_set_alias(h, key);
@@ -6799,6 +6866,79 @@ static int story_skill(int h, const char *key, int level) {
     return 0;
 }
 
+// ---- 隊友角色（單機劇情的 Friend 2 隊員：方仲、赵茜…）----
+// 隊員在劇情裡是人物物件（team_add 0x10037850，G_AIGroup 跟著主角），引擎這邊給他一個 Actor：數值走 0x1002d8d0（team_derive）、
+// 技能 = 他身上的技能物件（Level > 0）、AI = CNpc 的 npc_dispatch（跟隨邏輯 3，戰鬥走 npc_main_ai）、受傷死亡走 actor_kill（story_killed 刪人物 =
+// 0x1004f3a0 非玩家的 DelObject）、經驗等級走 kill_exp → story_gain_exp（0x10026d30）後 team_sync。
+// shortcut: 沒有裝備模型（外觀用模板圖、攻擊力用等級估）；技能挑選見 npc_selected；出生在主角旁邊空格（原版隊員在入口點／主角身邊的規則沒查）。
+#define TEAM_MAX 8
+static SkillRow team_row[TEAM_MAX][MAX_ACTOR_SKILLS];
+static NpcSpec team_spec[TEAM_MAX];
+static const char *const TEAM_ATTR[6] = {"Str", "Con", "Dex", "Savvy", "Charm", "Wisdom"};
+
+// 技能物件 → 引擎技能列（等級 > 0 的，同一個索引名只放一次）
+static void team_skills(Actor *a) {
+    SkillRow *rows = team_row[a->team - 1];
+    int n = 0;
+    actor_skills_rebuild(a);
+    for (int h = story_next(a->sh, 0); h && n < MAX_ACTOR_SKILLS; h = story_next(a->sh, h)) {
+        const SkillRow *r = story_kind(h) == 5 ? skill_row_any(story_alias(h)) : NULL;
+        if (!r || story_get_int(h, "Level") < 1) continue;
+        rows[n] = *r;
+        rows[n].level = story_get_int(h, "Level");
+        actor_skill_append(a, &rows[n], n + 1);
+        n++;
+    }
+    actor_right_skill(a, -1);
+    actor_left_skill(a, -1);
+}
+
+// 劇情人物的現值 → 角色（升級、入隊、讀檔後）：等級、屬性、技能列、數值重算；血氣不補（讀檔時由 HP／MP 屬性放回）
+static void team_sync(Actor *a) {
+    a->level = story_get_int(a->sh, "Level");
+    for (int k = 0; k < 6; k++) a->team_attr[k] = story_get_int(a->sh, TEAM_ATTR[k]);
+    a->team_prof = story_get_int(a->sh, "IsActorNPC");
+    team_skills(a);
+    team_derive(a);
+    actor_effects_recompute(a);
+}
+
+static Actor *team_make(const Scene *s, int h) {
+    int slot = 0;
+    for (; slot < TEAM_MAX; slot++) {  // 空槽 = 沒有活著的隊友角色用它
+        int used = 0;
+        for (int i = 1; i < actor_count; i++) used |= actors[i].team == slot + 1 && actors[i].role != NULL;
+        if (!used) break;
+    }
+    const RoleDef *d = roledef_find(story_get_int(h, "G_PicID"));
+    if (slot == TEAM_MAX || actor_count >= MAX_ACTORS || !d || (!atoi(d->graphic) && !d->anim)) return NULL;
+    Actor *hero = &actors[0];
+    int cx = (int)hero->x, cy = (int)hero->y;
+    if (!free_cell(&cx, &cy, 6)) return NULL;
+    Actor *a = &actors[actor_count++];
+    NpcSpec *sp = &team_spec[slot];
+    // 邏輯 3 = 跟隨（npc_idle_ai）：離主角超過 rh 格就走過去（命令 2 = 跟著走）
+    *sp = (NpcSpec){.type = 15, .logic = 3, .tmpl = d->id, .x = cx, .y = cy, .rw = 1, .rh = 3, .dir = 0};
+    memset(a, 0, sizeof *a);
+    npc_behavior_reset(a);
+    a->x = cx + 0.5f;
+    a->y = cy + 0.5f;
+    a->spec = sp;
+    a->object_kind = 31;
+    a->team = slot + 1;
+    a->sh = h;
+    actor_setup(a, d);
+    actor_group(a, story_get_int(h, "G_AIGroup"));
+    a->side = !scene_client_group(&scene_client, a->grp);
+    if (!actor_bind_scene(a, s) || !actor_place(a, cx, cy, 1)) { a->role = NULL; a->team = 0; return NULL; }
+    team_sync(a);
+    int hp = story_get_int(h, "HP"), mp = story_get_int(h, "MP");
+    a->hp = hp > 0 && hp <= a->hp_max ? hp : a->hp_max;  // 剛入隊（HP 屬性還是模板值）補滿
+    a->mp = mp > 0 && mp <= a->mp_max ? mp : a->mp_max;
+    a->follow_id = hero->object_id;
+    return a;
+}
+
 // 房間裡的人物 → 角色：還沒有角色的加上（原版用 G_PosX = −100 表示「放在入口 G_PosY」），不在房間裡的角色拿掉（倒下的播完）
 static void actors_sync(const Scene *s) {
     actors_dirty = 0;
@@ -6811,6 +6951,10 @@ static void actors_sync(const Scene *s) {
     }
     int pl = story_player(), grp = story_get_int(pl, "G_AIGroup");
     actor_group(&actors[0], grp);
+    for (int m = story_team_next(pl, 0); m; m = story_team_next(pl, m)) {  // 隊友：Friend 2、還沒有角色的補上（ONT 擺的 NPC 已有自己的角色）
+        Actor *t = actor_of(m);
+        if (!t && story_get_int(m, "Friend") >= 2 && story_parent(m) == sroom && team_make(s, m)) printf("隊友 %s 入隊\n", story_name(m));
+    }
     for (int h = story_next(sroom, 0); h && actor_count < MAX_ACTORS; h = story_next(sroom, h)) {
         if (h == pl || story_kind(h) != 1 || actor_of(h)) continue;
         const MonDef *m = mondef_find(story_get_str(h, "MonRow"));
@@ -6881,7 +7025,11 @@ static void story_msgs(void) {
             else if (m->v[1] == 1 && m->v[2] == 2) screen_effect(2, 0);
             else if (m->v[1] == 2) camera_look_at((int)m->v[2]);
             break;
-        case 0x49b70: break;  // 隊伍面板加一格：面板每幀照劇情隊伍表畫，不用通知
+        case 0x531: if (a) a->arrow_kind = (int)m->v[1]; break;  // 箭種 +0x52d（EasyRPG 0x100433e0 送 FE）
+        case 0x51e:  // 隊友離隊（RemoveMember 0x10053b40）：不再跟著主角，站著
+            if (a && a->team) { ((NpcSpec *)a->spec)->logic = 0; a->team = 0; a->follow_id = 0; a->skill_n = 0; }
+            break;
+        case 0x49b70: actors_dirty = 1; break;  // 隊伍面板加一格（面板每幀照隊伍表畫）；隊友補角色
         case 0x53a: chapter_message((int)m->v[1], (int)m->v[2]); break;     // 章節（0x4fca00）
         case 0x52c: case 0x519: break;  // 出口開關（走出口時再查）、轉向
         default: fprintf(stderr, "劇情訊息 0x%x（%s）還沒做\n", m->id, m->s); break;
@@ -6994,7 +7142,7 @@ static int sys_open, sav_mode, sav_page, sav_sel = -1, ask_open, quit_open;  // 
 static SaveHead *sav_head[SAVE_SLOTS];   // 開視窗時讀的各格檔頭，NULL = 空格
 static SDL_Texture *sav_tex[6];          // 這一頁的縮圖
 static uint32_t snap[THUMB_W * THUMB_H]; // 開系統選單前的畫面（原版也是先截圖，0x535ec0）
-static int snap_due, save_due = -1, load_due = -1, quit_due;
+static int snap_due, save_due = -1, load_due = -1, quit_due, dead_open;
 static char save_alias[64], save_name[64];  // 目前場景的別名、房間名（GBK）
 
 #ifdef __EMSCRIPTEN__
@@ -7432,6 +7580,7 @@ static void sys_button(const char *name) {
 }
 
 static void sys_toggle(void) {
+    if (dead_open) return;
     if (caption_esc()) return;
     if (map_open) { map_close(); return; }  // 0x53cc10：Esc 關地圖
     if (sys_open) { sys_open = opt_open = help_open = 0; sav_close(); quit_open = 0; return; }
@@ -7440,6 +7589,37 @@ static void sys_toggle(void) {
     if (q) q->flags |= 9;  // 單機版顯示「退出」（保存并退出 是網路版的）
     sys_open = 1;
     snap_due = 1;
+}
+
+// ---- 死亡界面 JM513（Poq.exe 0x4f5240 開窗）：背景 334、m_pGameOver「游戏结束」、m_pQuit 退出（ID 2）、單機的 m_pLoad 读取（ID 201）；
+// m_pRestart 重新加入（ID 1）是連線版重生用，單機隱藏。读取 = 開讀檔視窗（sav_open(2)），退出 = 離開遊戲（quit_due）。
+// shortcut: 原版死亡到開窗之間的等待與淡出沒查，用 180 拍；掉經驗與扣錢是連線版（0x1004f3a0 NetType > 1）不做。
+#define JM513 "JM513_\xcb\xc0\xcd\xf6\xbd\xe7\xc3\xe6"  // JM513_死亡界面
+static UiDialog dead_d;
+static void dead_show(void) {
+    if (!ui_load(JM513, &dead_d)) { quit_due = 1; return; }
+    UiCtrl *l = ui_find(&dead_d, "m_pLoad");
+    if (l) l->flags |= 9;
+    dead_open = 1;
+    sys_open = 0;
+}
+static void hero_dies(void) {
+    for (int i = 0; i < INV_N; i++)
+        if (inv[i].name[0] && inv[i].type == 61) {
+            ground_drop(&inv[i], actors[0].x, actors[0].y);
+#ifdef STORY
+            if (inv[i].sh) story_take(inv[i].sh);
+#endif
+            memset(&inv[i], 0, sizeof inv[i]);
+            inv[i].pos = -1;
+        }
+}
+static int dead_tap(int x, int y) {
+    const UiCtrl *c = ui_button_at(&dead_d, (vw - dead_d.w) / 2, (vh - dead_d.h) / 2, x, y);
+    if (!c) return 1;
+    if (!strcmp(c->name, "m_pLoad")) sav_open(2);
+    else if (!strcmp(c->name, "m_pQuit")) quit_due = 1;
+    return 1;
 }
 
 // 公用對話框（JM67 只有底圖）：文字 + 是／否。shortcut: 按鈕借 JM102 的圖，位置是自訂的
@@ -7507,6 +7687,7 @@ static int sys_tap(int x, int y) {
         }
         return 1;
     }
+    if (dead_open) return dead_tap(x, y);
     if (sys_open) {
         const UiCtrl *c = ui_button_at(&sys_d, (vw - sys_d.w) / 2, (vh - sys_d.h) / 2, x, y);
         if (c) sys_button(c->name);
@@ -7516,6 +7697,12 @@ static int sys_tap(int x, int y) {
 }
 
 static void sys_draw(void) {
+    if (dead_open) {
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+        SDL_Rect all = {0, 0, vw, vh};
+        SDL_RenderFillRect(ren, &all);
+        ui_draw(&dead_d, (vw - dead_d.w) / 2, (vh - dead_d.h) / 2);
+    }
     if (sys_open && !sav_mode) ui_draw(&sys_d, (vw - sys_d.w) / 2, (vh - sys_d.h) / 2);
     if (sav_mode) {
         int ox = (vw - sav_d.w) / 2, oy = (vh - sav_d.h) / 2;
@@ -8482,6 +8669,15 @@ static int click_cmd(const Actor *h, const Actor *c, int item) {
     if (c && c != h) return in_fight(h) || is_foe(c, h) ? CMD_ATTACK : CMD_TALK;
     return item >= 0 ? CMD_PICK : CMD_MOVE;
 }
+// 選人名單裡的隊友收左鍵命令（0x454f00 對名單每個人下命令）：移動走到格子、攻擊以點到的敵人為目標。主角照原樣在下面處理
+static void input_team_cmd(int cmd, Actor *m, int cx, int cy) {
+    for (int i = 0; i < sel_n; i++) {
+        Actor *a = sel_list[i];
+        if (!a || !a->team || !alive(a) || has_status(a, 0x11) || has_status(a, 0xe)) continue;
+        if (cmd == CMD_MOVE) { actor_command(a, 1, cx, cy, 0, 1, 1); actor_clear_target(a); }
+        else if (cmd == CMD_ATTACK && m) { actor_target_set(a, m); actor_command(a, 11, 1, 0, 0, 0, 0); }  // 入戰（同 npc_pick_target）
+    }
+}
 
 // 遊戲速度鍵（0x455d60，連線客戶端不改）：數字鍵盤 + 或 = 加快（值 −3，最小 16）、數字鍵盤 − 或 - 減慢（值 +3，最大 31），
 // 再換回速度 5 − (值 − 16) / 3 設定（0x448a70）。怪現象（照原版）：開局 21 按一次加快 → 18 → 速度 5 → 16（最快）
@@ -8656,7 +8852,11 @@ int main(int argc, char **argv) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");  // 觸控只送手指事件，多點才分得清（遊戲畫面上的手指再改寫成滑鼠事件）
     SDL_Window *win = SDL_CreateWindow("秦殤", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, win_w > 0 ? win_w : vw, win_h > 0 ? win_h : vh,
+#ifdef __EMSCRIPTEN__
+                                       SDL_WINDOW_RESIZABLE);  // 網頁不開高像素密度：直式畫布 800x1731 的 3 倍會超過手機 GPU 上限，退成軟體繪製而卡住
+#else
                                        SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+#endif
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!ren) ren = SDL_CreateRenderer(win, -1, 0);  // 沒有 GPU 驅動時改用軟體繪製
     if (!win || !ren) { fprintf(stderr, "%s\n", SDL_GetError()); return 1; }
@@ -8789,7 +8989,10 @@ int main(int argc, char **argv) {
                     actor_command(hero, 19, chest, 0, 0, 1, 1); hero->foe = NULL; hero->want = NULL; walk_cx = -1;
                     continue;
                 }
-                switch (click_cmd(hero, m, g)) {
+                int cmd = click_cmd(hero, m, g);
+                input_team_cmd(cmd, m, cx, cy);
+                if (!input_sel_has(hero) && sel_n > 0) continue;  // 主角不在選人名單（只點了隊友頭像）：只有名單裡的人動
+                switch (cmd) {
                 case CMD_ATTACK: actor_target_set(hero, m); hero->want = NULL; walk_cx = -1; break;
                 case CMD_PICK: actor_command(hero, 0x11, ground[g].id, 0, 0, 1, 1); hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
                 case CMD_MOVE:
@@ -8853,7 +9056,7 @@ int main(int argc, char **argv) {
                 js_status(-1);
                 if (enter_scene(&scene, hero, h.alias, -1)) { snprintf(alias, sizeof alias, "%s", h.alias); explore_restore(&scene, alias); }
                 actor_restore_position(hero, x, y); hero->dir = dir;
-                hero->foe = NULL; hero->want = NULL; hero->cast = NULL; hero->casting = 0; hero->act = ACT_NONE;
+                hero->foe = NULL; hero->want = NULL; hero->cast = NULL; hero->casting = 0; hero->act = ACT_NONE; hero->object_dead = 0; dead_open = 0;
                 hero->buff_n = hero->fight = hero->dead_ticks = hero->knock = hero->stun = hero->z = 0;
                 hero_stats(hero, lv);
                 hero->exp = exp; hero->hp = hp; hero->mp = mp;
@@ -8873,7 +9076,7 @@ int main(int argc, char **argv) {
         if (hero->selection_pending && !hero->act && !hero->casting) hero_selected_skill_apply(hero);
         Uint64 now = SDL_GetPerformanceCounter();
         {  // 觸控介面：對話、選單開著就整組收起來；視窗長寬比（轉向、改視窗大小）變了就重排版
-            int blocked = sys_open || win_left.open || win_right.open || map_open || new_open || pick_hand >= 0 || ask_open || quit_open;
+            int blocked = dead_open || sys_open || win_left.open || win_right.open || map_open || new_open || pick_hand >= 0 || ask_open || quit_open;
 #ifdef STORY
             blocked |= dialog_open;
 #endif
@@ -8927,7 +9130,12 @@ int main(int argc, char **argv) {
             ++tick;
             actor_logic_tick = tick;
             if (tick * TICK_MS / 1000 != (tick - 1) * TICK_MS / 1000) for (int i = 0; i < actor_count; i++)
-                    if (!i || actors[i].mon) actor_second(&actors[i]);
+                    if (!i || actors[i].mon || actors[i].team) {
+                        actor_second(&actors[i]);
+#ifdef STORY
+                        if (actors[i].team && actors[i].sh) { story_set_int(actors[i].sh, "HP", actors[i].hp); story_set_int(actors[i].sh, "MP", actors[i].mp); }  // 存檔、劇情讀得到
+#endif
+                    }
             viewport_tick(&viewport, &scene, hero);
             caption_tick();
             if (caption_music) {  // 片尾字幕放 credit，關窗回場景音樂（0x57a910／0x57ab50）
@@ -8956,8 +9164,8 @@ int main(int argc, char **argv) {
             }
 #endif
             int held = hero->act != ACT_DEAD && react_tick(hero, &scene);
-            if (hero->act == ACT_DEAD) {  // shortcut: 原版死亡後的處理（回城、掉經驗）還沒做，先 3 秒後原地復活
-                if (++hero->dead_ticks > 180) { hero->act = ACT_NONE; hero->object_dead = 0; hero->dead_ticks = 0; hero->hp = hero->hp_max; hero->mp = hero->mp_max; actor_place(hero, (int)hero->x, (int)hero->y, 1); }
+            if (hero->act == ACT_DEAD) {  // 死亡：播完倒下動作停一下（shortcut: 180 拍是自訂，原版開 JM513 的時機沒查到），開死亡界面等讀取或退出
+                if (++hero->dead_ticks > 180 && !dead_open) dead_show();
                 action_tick(hero, &scene, tick);
             } else if (hero->act) action_tick(hero, &scene, tick);
             else if (held) hero->moving = 0;

@@ -141,7 +141,7 @@ Poq.exe	99	0043b510	FUN_0043b510		game	done	54	0	main.c MethodMain 每拍（acti
 Poq.exe	99	0043b650	FUN_0043b650		game	done	13	0	unit.c 依單位表讀觸發（unit_new 的 trig）		
 Poq.exe	99	0043b690	FUN_0043b690		game	done	9	2	（基底）CHAIN 包裝		
 Poq.exe	99	0043b6a0	FUN_0043b6a0		game	done	66	4	main.c MethodMain 狀態：1 播招式動作、2 衝刺（移動狀態 6）、3 跳（10）→ owner_trig 5/7（shortcut 速度）	MethodMain 設狀態：1 播招式動作（+0x26 + 方向）、2 衝刺到目標點、3 跳到目標點	
-Poq.exe	99	0043b8c0	FUN_0043b8c0		game	done	189	3			
+Poq.exe	99	0043b8c0	FUN_0043b8c0		game	done	189	3		放單位（含 455 目標身上修正、依箭種換箭 2→5／3→0x68／4→0x67）：unit.c unit_spawn	
 Poq.exe	99	0043bee0	FUN_0043bee0		game	done	31	18			
 Poq.exe	99	0043bf50	FUN_0043bf50		game	done	198	4			
 Poq.exe	99	0043c3c0	FUN_0043c3c0		game	done	38	33	unit.c（取格子資料）	場景格子（0x15 bytes 執行期記錄，地圖檔每格 10 bytes 照抄前 10 個）	
@@ -2618,7 +2618,7 @@ Poq.exe	99	004f4e90	FUN_004f4e90		game	skip	24	12	連線版／平台層：CNetGa
 Poq.exe	99	004f4f00	FUN_004f4f00		game	skip	23	4	連線版／平台層：CNetGame、CNetItem（socket、執行緒、封包收送）、CUserInfo 伺服器使用者權限與指令（@getloadfile 等）、伺服器日誌與 CArchive 序列化；手機網頁版只做單機		
 Poq.exe	99	004f5060	FUN_004f5060		game	skip	45	3	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
 Poq.exe	99	004f5190	FUN_004f5190		game	skip	30	4	遊戲外殼層：開啟各 JM 視窗的輔助（建立對話框物件、擺位置、記遠端同步資料 GroundData／TradeData／RoleData／HangData）、連線版存檔同步與伺服器設定；引擎的 JM 視窗在 main.c 自己開關與排版，存檔在 main.c save_*；視窗內部規則照各 Dialog 類別翻		
-Poq.exe	99	004f5240	FUN_004f5240	~CGameApp	game	skip	39	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	004f5240	FUN_004f5240	~CGameApp	game	done	39	2		開 JM513_死亡界面（背景 334、m_pGameOver、m_pLoad 读取 ID 201、m_pQuit 退出 ID 2、m_pRestart 重新加入 ID 1 連線版）：main.c dead_show／dead_tap／sys_draw；读取 = 開讀檔視窗、退出 = quit_due	
 Poq.exe	99	004f5350	FUN_004f5350	~CGameApp	game	skip	111	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004f56a0	FUN_004f56a0	~CGameApp	game	skip	61	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	004f58f0	FUN_004f58f0	~CGameApp	game	skip	74	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -5801,7 +5801,7 @@ EasyRPG.dll	99	10025050	FUN_10025050		game	skip	10	0	建構／解構／STL 容�
 EasyRPG.dll	99	100250b0	FUN_100250b0		game	skip	9	0	建構／解構／STL 容器轉接／欄位存取器（9 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	100250d0	FUN_100250d0		game	skip	13	0	建構／解構／STL 容器轉接／欄位存取器（13 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
 EasyRPG.dll	99	10025100	FUN_10025100		game	skip	12	0	建構／解構／STL 容器轉接／欄位存取器（12 行，無字串、不呼叫遊戲函數；引擎用 Actor／Item 結構欄位，沒有對應的獨立函數）		
-EasyRPG.dll	99	10025120	FUN_10025120		game	skip	18	0	技能參數 291（FE 五行元素）：技能表、attribT 都沒有用到這個屬性代號，單機資料沒用；DLC 用到再做		
+EasyRPG.dll	99	10025120	FUN_10025120		game	done	18	0		技能參數 291（FE → 箭種 +0x52d，msg 0x531）：main.c skill_now 設 Actor.arrow_kind；unit_spawn 換箭用	
 EasyRPG.dll	99	10025160	FUN_10025160		game	done	15	0			
 EasyRPG.dll	99	100251c0	FUN_100251c0		game	done	15	0			
 EasyRPG.dll	99	10025220	FUN_10025220		game	done	13	0			
@@ -5845,7 +5845,7 @@ EasyRPG.dll	3	100290e0	FUN_100290e0		game	skip	141	2	說明文字：類型 49 �
 EasyRPG.dll	2	10029400	FUN_10029400		game	done	66	7			
 EasyRPG.dll	3	10029550	FUN_10029550		game	done	14	5		隊友升級後算 NextExp、學技能 = story_rt.c team_level_set	
 EasyRPG.dll	3	100295b0	FUN_100295b0		game	done	2909	2		隊友入隊自動加點（AddMember 呼叫，Friend 2、IsActorNPC 1~5、沒有旗標 jiaruduiwu）：經驗補到帶頭者 Exp×(悟性+250)/(悟性+250)×0.9，再依職業表（G_PicID2）把 Extra_Exp 加進六屬性、Extra_Skill 加技能等級 = story_rt.c team_autoadd（表 team_tables.h）	
-EasyRPG.dll	3	1002d8d0	FUN_1002d8d0		game	done	36	7			
+EasyRPG.dll	3	1002d8d0	FUN_1002d8d0		game	done	36	7		人物數值重算（主角 hero_derive／隊友 team_derive／怪物 mon_derive 共用 person_derive 公式）	
 EasyRPG.dll	4	1002d9cf	FUN_1002d9cf		game	skip	29	2	1002d8d0 的反編譯碎片（通知客戶端 HP／MP／Level 屬性更新）：單機直接讀屬性		
 EasyRPG.dll	5	1002daa0	FUN_1002daa0		game	skip	141	3	屬性基底備份 *0 欄（HP_MAX0、Str0…）與還原：引擎 hero_derive 每次從 hero_attr／等級重算，不需要備份欄		
 EasyRPG.dll	3	1002e040	FUN_1002e040		game	skip	12	3	裝備特性裝上／拿下時複製進人物屬性清單並增量重算（原版 1002e060／1002e3c0／1002eaa0）：引擎 item_mods 每次 hero_derive 從 inv 整個重算，結果相同		
@@ -6072,7 +6072,7 @@ EasyRPG.dll	3	10042ea0	FUN_10042ea0		game	skip	50	5	伺服器→客戶端同步�
 EasyRPG.dll	99	10043030	FUN_10043030		game	skip	66	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	3	100431b0	FUN_100431b0		game	skip	64	2	伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）		
 EasyRPG.dll	99	10043320	FUN_10043320		game	skip	37	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
-EasyRPG.dll	99	100433e0	FUN_100433e0		game	skip	28	1	伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）		
+EasyRPG.dll	99	100433e0	FUN_100433e0		game	done	28	1			
 EasyRPG.dll	3	10043480	FUN_10043480		game	skip	172	3	伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）		
 EasyRPG.dll	2	10043770	FUN_10043770		game	skip	217	7	伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）		
 EasyRPG.dll	3	10043dd0	FUN_10043dd0		game	skip	36	2	伺服器→客戶端同步封包送出器（0x100646b0／0x10060cd0 組封包 0x51b／0x528／0x5eb／0x5fe…，條件 Friend／本機玩家）：單機引擎直接讀 Actor／inv，沒有封包（讀過 0x10041c10／0x10042aa0／0x10043dd0／0x10045e20）		
@@ -6239,7 +6239,7 @@ EasyRPG.dll	2	1004e680	FUN_1004e680		game	done	172	5
 EasyRPG.dll	99	1004ecf0	FUN_1004ecf0		game	skip	260	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	2	1004f1a0	FUN_1004f1a0		game	done	57	80			
 EasyRPG.dll	2	1004f2a0	FUN_1004f2a0		game	done	54	4			
-EasyRPG.dll	3	1004f3a0	FUN_1004f3a0		game	skip	209	2	玩家死亡（連線版 NetType > 1 扣錢扣經驗、清座標；單機只剩 Dying 旗標，引擎 actor_kill 處理）；類型 61 物品掉落：單機劇情沒有類型 61 的道具	死亡處理：玩家 Dying=1、連線版（NetType > 1）扣錢扣經驗、清座標；單機只剩把身上 Type 61 的東西放回地上與 Dying 旗標，引擎由 actor_kill 處理	
+EasyRPG.dll	3	1004f3a0	FUN_1004f3a0		game	done	209	2		玩家死亡（單機）：Dying=1、身上類型 61 的道具放回腳下（main.c hero_dies）；扣錢扣經驗與回復點是連線版（NetType > 1）不做；非玩家 = 刪人物（隊友倒下由 actor_kill → story_killed）。之後客戶端開 JM513 死亡界面（0x4f5240）	
 EasyRPG.dll	99	1004f8c0	FUN_1004f8c0		game	skip	9	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	2	1004f8e0	FUN_1004f8e0		game	skip	43	1	客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀		
 EasyRPG.dll	2	1004f9a0	FUN_1004f9a0		game	done	121	13			

@@ -4154,6 +4154,88 @@ static void party_test(void) {
     actors[0] = saved[0]; actors[1] = saved[1]; actor_count = saved_count;
 }
 
+// 主角死亡（0x1004f3a0 單機部分 + JM513 死亡界面）與隊友角色（team_derive、npc_selected、team 技能挑選）
+static void death_team_test(void) {
+    // 類型 61 的道具死亡時掉在腳下，別的不動
+    Item saved_inv[3] = {inv[5], inv[6], inv[7]};
+    int saved_ground = ground_n;
+    memset(&inv[5], 0, sizeof inv[5]); memset(&inv[6], 0, sizeof inv[6]);
+    snprintf(inv[5].name, sizeof inv[5].name, "x61"); inv[5].type = 61; inv[5].pos = 5;
+    snprintf(inv[6].name, sizeof inv[6].name, "other"); inv[6].type = 20; inv[6].pos = 6;
+    hero_dies();
+    assert(!inv[5].name[0] && inv[6].name[0]);
+    inv[5] = saved_inv[0]; inv[6] = saved_inv[1]; inv[7] = saved_inv[2];
+    ground_n = saved_ground;
+    // JM513：只有「读取」「退出」兩顆按鈕可點（重新加入是連線版）
+    dead_open = 0; quit_due = 0; sav_mode = 0;
+    dead_show();
+    assert(dead_open && ui_find(&dead_d, "m_pLoad")->flags & 9 && ui_find(&dead_d, "m_pGameOver"));
+    assert(ui_find(&dead_d, "m_pQuit") && dead_tap(0, 0) == 1 && !quit_due);  // 點到別處也吃掉（測試環境沒載圖，點不到按鈕）
+    dead_open = 0;
+
+    // 隊友數值：同 0x1002d8d0（HP 120 + 28×等級、MP 140 + 4×等級），沒有裝備特性，攻擊力用等級估
+    Actor t = {.level = 5, .team = 1, .team_attr = {15, 25, 25, 35, 30, 35}, .team_prof = 4};
+    actor_derive(&t);
+    assert(t.hp_max == 120 + 28 * 5 && t.mp_max == 140 + 4 * 5);
+    assert(t.ap == (2 * 5 + 8) * (15 + 150) / 150 && t.dp == 0);
+    t.level = 10; actor_derive(&t);
+    assert(t.hp_max == 120 + 28 * 10);
+    // 隊友挑技能：精气夠的對敵技能才挑；都不能放就用沒有技能列的普通攻擊
+    SkillRow strike_row = {.level = 1, .attack = 1, .mpu = 5};
+    t.skill_n = 2; t.selected = -1; t.mp = 100;
+    t.skills[0] = (ActorSkill){.id = 1, .max = 4, .enabled = 1, .row = &strike_row};
+    t.skills[1] = (ActorSkill){.id = 2, .max = 1, .enabled = 1};
+    assert(npc_selected(&t) == &t.skills[0]);
+    t.selected = -1; t.mp = 0;
+    assert(npc_selected(&t) == &t.skills[1]);
+    // 455 = 對象身上加修正（單位 44：索引 4、值 10、期限 −1）：觸發位置 3 = 目標，其他 = 放的人
+    {
+        Actor owner = {.role = &empty_test_role, .object_kind = 31}, victim = owner;
+        MUnit src = {.owner = &owner, .target = &victim};
+        Trig tg = {.pos = 0};
+        unit_spawn(44, &tg, &src, 0, 0, 0, 0, 0);
+        assert(owner.modifier[4].value == 10 && !victim.modifier[4].value);
+        tg.pos = 3; unit_spawn(45, &tg, &src, 0, 0, 0, 0, 0);
+        assert(victim.modifier[4].value == 0 && owner.modifier[4].value == 10);  // 單位 45 = 索引 4、值 0
+        unit_spawn(44, &tg, &src, 0, 0, 0, 0, 0);
+        assert(victim.modifier[4].value == 10);
+        // 預設的箭（單位 0）依放的人的箭種換成單位 5／0x68／0x67
+        int n0 = unit_n;
+        const Unit *want[3] = {unit_find(5), unit_find(0x68), unit_find(0x67)};
+        assert(want[0] && want[1] && want[2] && unit_find(0)->manual == 201);
+        for (int k = 2; k <= 4; k++) {
+            owner.arrow_kind = k;
+            tg.pos = 0; src.tx = src.ty = 640;
+            unit_spawn(0, &tg, &src, 320, 320, 0, 0, 0);
+            assert(unit_n > n0 && units[n0].def == want[k - 2]);  // 第一個是換過的箭（箭身上的觸發可能再放別的）
+            unit_n = n0;
+        }
+        owner.arrow_kind = 1; unit_spawn(0, &tg, &src, 320, 320, 0, 0, 0);
+        assert(unit_n > n0 && units[n0].def->id == 0);
+        unit_n = n0;
+    }
+    // 盾牌格擋（0x48c4e3）：有 0x40000 旗標、攻擊從正面半圈來才擋；從背後來、沒旗標不擋
+    {
+        Actor att = {.role = &empty_test_role, .object_kind = 31, .x = 5.5f, .y = 5.5f}, def = att;
+        def.x = 6.5f; def.y = 5.5f;
+        int d = dir_of(ax64(&att), ay64(&att), ax64(&def), ay64(&def), 8), n0 = unit_n;
+        def.facing = (d + 4) & 7;  // 面向攻擊來源
+        assert(!shield_block(&att, &def, 0));  // 沒旗標
+        def.flags = 0x40000;
+        assert(shield_block(&att, &def, 0) && unit_n <= n0 + 1);
+        def.facing = d;  // 背對攻擊來源：差 0
+        assert(!shield_block(&att, &def, 0));
+        unit_n = n0;
+    }
+    // 隊友不查主角的武器種類與箭袋
+    SkillRow bow = {.level = 1, .wtype = 1, .attack = 1};
+    assert(skill_usable(&t, &bow));
+    // 殺怪經驗：隊友當殺手用自己的悟性（35）
+    Actor mon = {.exp = 100, .level = 5};
+    t.level = 5;
+    assert(kill_exp_total(&mon, &t) == 100 * (35 + 150) / 150);
+}
+
 // 創角名字輸入框：上限 20 位元組（中文算 2）、退格以 UTF-8 字元為單位
 static void new_name_test(void) {
     new_name[0] = 0;
@@ -5253,6 +5335,7 @@ int main(void) {
         assert(!touch_active()); tch.forced = 1; assert(touch_active());  // 有鍵盤滑鼠自動隱藏，--touch 強制顯示
         memset(&tch, 0, sizeof tch); tch.size = 1; tch.aim = -1;
     }
+    death_team_test();  // 用到 rand（npc_selected），放最後免得改變前面測試的亂數序列
     puts("skilltest ok");
     return 0;
 }

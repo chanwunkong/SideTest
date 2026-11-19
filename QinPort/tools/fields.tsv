@@ -961,3 +961,7 @@ CERItem(宝箱)	屬性 isbuilding／key／deletekey／lockinfo／openinfo／open
 CTriBld	(+0xfa4 起名單數)	（Trigger.cooldown）感應倒數：<1 才掃占地格，命中設 1000、空掃設 1	0x484a80	res.h Trigger.cooldown
 CGodClient	+0x5028／+0x1178／+0x30d0（0x1d4／0x212c／0x4084 起各 0x1fa8 大小的名單）	建築環境音名單：數量（<999 才加）、500 格靜態鏈；組別 = 模型 +0xa7（1／2／3）	0x469bb0／0x469c80／0x469d70	viewport.c ambient_group
 EasyRPG 角色（Hand）	Hand（c_equippos 右手類型／左手類型 → 0x1003b760）：-1 無、0 刀劍、1 弓沒箭、2 弓＋箭、3、4／5 npc3 的弓、6、7	0x1003b760 0x10013bb0	main.c hand_calc／hero_hand
+CCharactor	+0x52d	箭種（預設 1；2／3／4 換成單位 5／0x68／0x67）；技能參數 291（0x10025120）或 msg 0x531 設	0x43b8c0 0x10025120	main.c Actor.arrow_kind、unit.c unit_spawn
+CCharactor	+0x4e7（守方）／+0x40000 旗標	盾牌格擋：旗標 0x40000（招式觸發 8 設）＋現在的 MethodMain 招式在技能鏈上的 SkillUnit +0x28（p7）− 100 的機率或沒在放招；來源方向與面向差 ≥ 2 且 ≠ 7 擋住	0x48c3a0（0x48c4e3 段）	main.c shield_block
+EasyRPG 隊友	Friend 2 的隊員（劇情 team_add）= 引擎 Actor：team 槽號、team_attr[6]（Str Con Dex Savvy Charm Wisdom）、team_prof（IsActorNPC）、技能 = 身上技能物件 Level > 0	0x10037850 0x1002d8d0 0x10026d30	main.c team_make／team_sync／team_derive／team_skills
+Poq 死亡界面	JM513：m_pBackGround 334、m_pGameOver 5146（類型 9）、m_pRestart 5135（ID 1，隱藏）、m_pQuit 5139（ID 2）、m_pLoad 8724（ID 201，隱藏）	0x4f5240	main.c dead_show／dead_tap

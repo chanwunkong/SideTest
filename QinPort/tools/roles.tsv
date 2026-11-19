@@ -199,7 +199,6 @@
 00460570	CViewPort 進場初始化：世界矩形、設位 +(1400,500)、跟隨；viewport.c viewport_enter（小地圖比例由 mapwin.c 取代）
 004607c0	全圖探索標記（雷達未探索格）；mapwin.c／viewport.c map_base_update 只貼 view≠0 的格子
 004ced00	viewport.c viewport_stagger：像素轉交錯格；鏡頭快取已用
-
 00460d80	CViewPort 自動跟隨開關；開啟時平滑回目前角色 → viewport_follow_set
 00460e10	CViewPort 探索提升（只增不減）、背景髒矩形及小地圖更新；todo 等 CScene 探索通知／CMapDialog 小地圖表面與 CViewPort 外部介面刷新（004fa560）
 00461150	CViewPort 設定平移目標 X/Y 與步長，不清上次距離 → viewport_pan
@@ -402,7 +401,6 @@
 0046da90	工具：字串封裝成0x23、0x0a、NUL結尾內容，配置長度strlen+3；單機直接傳字串，不建傳輸封包
 0046db00	解構／容器：CContainer<int,500> 重設虛擬表並清理；一般C陣列代替
 0046db20	解構／容器：CContainer<int,500> 清理後轉基底 CStaticLinkList<int,500> 清理；一般C陣列代替
-
 0046db60	建構：CScnClient 配置輸入／天氣／鏡頭、初始化狀態；C靜態狀態與既有初始化取代
 0046de80	解構：釋放輸入／鏡頭／自有場景／天氣／小地圖與容器
 0046e010	解構：CScnClient scalar deleting destructor，依bit0釋放記憶體
@@ -783,7 +781,6 @@
 0048ec60	actor_modifier_set：期限與值門檻後保存，第5修正只有服務場景反向通知狀態100；客戶端／回放僅更新knock與動畫，不覆寫狀態byte；其餘速度／殘影／潰散分支照原版
 00496ae0	actor_move_speed：A/B/C、倒數A、浮點比例11段與每Actor走路動畫延遲；零速移動改走共用actor_dynamic_command(1,0,0,0)，保留角色殘影退出；接所有現有移動／衝刺／擊退
 004c9050	移速工具：速度夾限0..59後輸出A/B與可選C，以C靜態陣列及speed_index承接
-
 00490d10	NPC隨機台詞：有戰鬥用欄40前兩值（70拍）、平時用後兩值（50拍），槽0空且rand%255==100才抽Chat.dlg → main.c npc_chat
 00490e70	NPC每10拍同隨機台詞，回傳恆1 → main.c npc_chat_tick；原版由虛擬表第28格呼叫，來源未查，仍待接入
 004b8190	Chat.Dlg字串取值後保存在管理器暫存；以現有res_dlg及呼叫者緩衝區承接字串資源工具，不複製CString管理器
@@ -836,7 +833,6 @@
 00494a20	actor_rush_tick：有剩餘拍只做插值，末拍不退出；下拍用(1,1,0,0)強制靜止，先角色退出、清腳印而不清舊三參數，21/22不重選動畫；接所有角色固定拍
 00497cd0	actor_raise_layer：層<11轉11、12轉13、14/16轉15，其他不變；接跳躍落點計算
 004945d0	main.c actor_charge_tick：先IsExceedDest再側向地形、逐格占位、最後插值；OmUtil匯出跳表核對為任一行進軸到達即成立且含相等，非法方向回0；保留混合格／世界座標算方向、碰撞不消耗插值及末拍後一拍退出
-
 00494cb0	actor_yield_tick：靜止時按請求者到保存世界位置量距；<30且可移動且尚未偏移時保存位置、按請求者方向+2偏移20，不改占格；30..63清已偏移快取，>=64或ID失效清請求；自身ID=0保留請求；接固定拍，請求來源暫用跨格碰撞，完整路徑點掃描仍todo
 004934e0	CDynamicObj建構：250筆byte座標路徑清零、狀態及插值快取-1、方向時鐘rand()%100、身體大小0、路徑活動0；已核對作動態11基礎欄位依據，本輪不推進到此類別
 00493ad0	actor_walk_fallback：動態11目的地回掃第一合法層空格；Chebyshev距離<2直接失敗，抵達自身占格則以原目的地找六圈；已接actor_walk_destination；反編譯遺失Y軸累加器按對稱整數DDA承接，待組語核對
@@ -847,10 +843,8 @@
 00579dd0	原版空函數：NPC敵對入戰／全域選人提示呼叫無任何副作用，不等待CGameApp
 0053b0b0	todo：隊伍介面依狀態分類更新每人8槽圖示、排序及前兩圖顯示；等待隊伍介面類別，不屬角色狀態邏輯
 004ffde0	todo：隊伍介面存在時轉送角色識別／狀態／值更新圖示；等待後段隊伍介面，CCharactor狀態邏輯已完成
-
 00497310	actor_client_motion_tick：回放分派接入；靜止先讓路、22中點先下降，所有動態正剩餘拍數累加浮點位置並向零截斷，末拍不退出、不尋路
 00577d60	actor_illusion_enabled：目前群不存在回false，否則僅看首部件殘影容器非NULL；空容器亦true，接actor_draw整群殘影繪圖門檻
-
 00490430	NPC選目標：狀態0x12有目標早退、索敵圈取候選（程序第3值1優先狀態0x79）、NPC組依射程登記目標、無候選清目標離戰、最後入戰 → main.c npc_pick_target
 004909b0	NPC叫人：程序0包圍陣、0x2a群體出手，再求援 → main.c npc_alert
 00490c20	NPC求援：自己除數<1時同組除數>=1且不在戰鬥者以1/除數機率重登記目標入戰 → main.c npc_assist_call
@@ -863,7 +857,6 @@
 00493080	程序0x28守衛：記出生格、近了回出生格、中距出技能、遠了追 → main.c npc_guard
 00493320	NPC找最近人或主角當目標並入戰 → main.c npc_aggro_nearest
 00491d00	NPC status_aux(+0x579)狀態機：>2追打（150～249拍續）、2找目標試出手、1走回修正目的格 → main.c npc_aux_ai
-
 00492730	CNpc閒置AI：每100拍選目標、60拍找互動對象、被互動面向對方、邏輯0站著播兩初始態／1矩形閒逛／2路徑巡邏／3跟隨／其他走回修正格、有主人每70拍走回身邊 → main.c npc_idle_ai
 00492ed0	CNpc每拍主分派：恐懼逃跑→命令空且可重試→重設延遲→守衛→status_aux→玩家組旗標0x10→入戰主AI／閒置AI → main.c npc_dispatch（取代舊monster_think／npc_think，主迴圈直接呼叫）
 004933a0	CProtagonist建構：物件種類60（不消費重判層旗標）；未讀欄位+0x71e/+0x722/+0x726/+0x2c7不留 → main.c protagonist_new
@@ -906,7 +899,6 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 004a0ac0	XMOUSE 設游標旗標（+0x30）：只給 0x4a05e0 的換色表用，引擎沒有換色表，不實作
 004a11f0	畫面像素轉世界64分格：viewport.c viewport_screen_world，接右鍵地點施法
 004a37b0	SLightMap 建構（100 級光照色表）：light.c 以每格 RGB 倍率取代，skip
-
 004a66e0	淡入淡出重設 → main.c fade_reset（已完成）
 004a6720	淡入淡出每拍 → fade_draw 尾端（已完成）
 004d0b10	XPS_Control展開：方向表0x5f293c、格子狀態1空/2同組/3擋、成本5+3+3 → xps_expand
@@ -1098,7 +1090,7 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 100265d0	隊友學技能：入隊時（team_add 呼叫 story_rt.c team_learn）依職業技能目錄 秦殇/主角/<職業>技能 建 Level_Req ≤ 等級的技能物件放進隊友；隊友升級還沒接（原版由 0x10029550 呼叫）
 10029550	隊友升級後算下一級經驗 NextExp = 經驗表[等級] − Exp，再呼叫 0x100265d0 和 Upgrade_ 屬性（0x10056120）：隊友升級系統還沒做（隊友沒有經驗成長），todo
 1003f370	施放技能後扣精氣、弓類（Attack == 1）每發 −1 箭，用光刪箭袋、訊息 1289「箭射完了」並關掉弓技能（W_Type 1／3 的 Enable = 0）：引擎還沒有箭消耗，Attack 屬性意義未對上技能表，todo
-1004f3a0	死亡處理：玩家 Dying=1、連線版（NetType > 1）扣錢扣經驗、清座標；單機只剩把身上 Type 61 的東西放回地上與 Dying 旗標，引擎由 actor_kill 處理
+1004f3a0	玩家死亡（單機）：Dying=1、身上類型 61 的道具放回腳下（main.c hero_dies）；扣錢扣經驗與回復點是連線版（NetType > 1）不做；非玩家 = 刪人物（隊友倒下由 actor_kill → story_killed）。之後客戶端開 JM513 死亡界面（0x4f5240）
 1003b640	丟錢：身上錢扣掉、建「秦殇/金钱」物件（圖 0x7e9／0x7ea／0x7eb 依 300／1000）放在腳下，訊息 3029 錢不夠：單機沒有丟錢介面，todo
 1003ac40	銀行存提款（Bank 屬性，訊息 3098~3102）：單機劇情沒有銀行，DLC 才用，todo
 1003f370	技能施放後箭消耗：Attack == 1 時 HasArrow（左手 UI_Pos 33 的箭袋）ArrowNum −1；< 1 刪箭袋、訊息 1289、關掉 W_Type 1／3 技能 = main.c arrow_spend（精氣由施放處先扣）
@@ -1114,3 +1106,8 @@ CSurBeastie	+0x77	每拍計數（0x50 週期看人、30 週期例外、死後 50
 100574e0	倒下：經驗 = 怪物 Exp × (殺手悟性+150)/150，殺手等級高 2 級以上每級 −10%（≤ 9 級）；隊伍依權重分（殺手 1.2、其他 1 − 0.05×|等級差|，至少 0.05）= main.c kill_exp
 10056d50	技能打中套狀態：Status 給施放者、EStatus 給對方，其他免疫 B_QTIMMU ≥ 100 就都不加（0x1003f590 判斷）= main.c skill_hit 的 immune
 1003b760	設手持類 Hand：由右手／左手道具類型（弓 11／12、箭 13／14、刀 8／10…）和 IsActorNPC 算，技能 W_Type 比對用 = main.c hand_calc、hero_hand_update
+004f5240	開 JM513_死亡界面（背景 334、m_pGameOver、m_pLoad 读取 ID 201、m_pQuit 退出 ID 2、m_pRestart 重新加入 ID 1 連線版）：main.c dead_show／dead_tap／sys_draw；读取 = 開讀檔視窗、退出 = quit_due
+10025120	技能參數 291（FE → 箭種 +0x52d，msg 0x531）：main.c skill_now 設 Actor.arrow_kind；unit_spawn 換箭用
+0043b8c0	放單位（含 455 目標身上修正、依箭種換箭 2→5／3→0x68／4→0x67）：unit.c unit_spawn
+0048c4e3	盾牌格擋（0x48c3a0 內，旗標 0x40000＋面向差）：main.c shield_block（strike 開頭）
+1002d8d0	人物數值重算（主角 hero_derive／隊友 team_derive／怪物 mon_derive 共用 person_derive 公式）

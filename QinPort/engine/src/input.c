@@ -1,7 +1,6 @@
 // CUserInput 選人名單（Poq.exe 0x457a30～0x459170）。由 main.c 在 party.c 之後引入。
 // 原版名單是 60 格靜態鏈（物件編號），旗標 0x100 記在角色上；這裡直接存 Actor 指標、旗標放 Actor.sel。
-// shortcut: 隊友還沒有引擎角色（Actor），所以選人名單實際只會有主角和他的召喚物；隊友頭像點擊（0x551480）送來時
-//   找不到 Actor 就不加，隊友有 Actor 時不用改這裡。
+// 隊友有 Actor（team_make）：點頭像（party_tap）加進名單；名單裡的人收左鍵移動／攻擊（input_team_cmd）與右鍵出手（input_cast）。
 #define SEL_MAX 60
 static Actor *sel_list[SEL_MAX];
 static int sel_n, sel_changed;  // sel_changed = +0x3f0 名單變了
@@ -99,7 +98,14 @@ static void input_tick(void) {
 // 0x457be0：右鍵出手。場景就緒且名單有人才做；名單每個本機隊員（0x4585c0）、沒有狀態 0x11／0xe 的人放自己的左手技能（+0x503）。
 // 目標（點到的角色）有的話放在 foe；沒有就用 (wx, wy) 這個點。
 // shortcut: 技能表 +0x36 旗標（0 地點命令 8／1 敵人／2、4 物件／8 隊友／0x10 自己／0x20 NPC 組／0x40 沒目標也能放）引擎沒有這欄，
-//   由 hero_cast_point 用 skill_manual／skill_needs_foe 近似；隊友沒有 Actor，所以實際只有主角放（cur_skill[1] 是主角的左手技能）。
+//   由 hero_cast_point 用 skill_manual／skill_needs_foe 近似；隊友沒有左手技能欄，改放 npc_selected 挑的對敵技能（有目標用命令 9、沒有用命令 8 打地點）。
+static void team_cast_point(Actor *a, int wx, int wy, Actor *target) {
+    ActorSkill *sk = npc_selected(a);
+    if (!sk) return;
+    if (target) { actor_target_set(a, target); actor_command(a, 9, sk->id, target->sh ? target->sh : (int)target->object_id, 0, 1, 0); }
+    else actor_command(a, 8, sk->id, wx / 64, wy / 64, 1, 0);
+    actor_skill_select(a, -1);
+}
 static int input_cast(int wx, int wy, Actor *target) {
     if (!scene_client.ready || sel_n < 1) return 0;
     if (target) actor_target_set(&actors[0], target);
@@ -107,6 +113,7 @@ static int input_cast(int wx, int wy, Actor *target) {
         Actor *a = sel_list[i];
         if (!a || !input_party_has(a) || has_status(a, 0x11) || has_status(a, 0xe)) continue;
         if (a == &actors[0]) hero_cast_point(a, wx, wy);
+        else if (a->team) team_cast_point(a, wx, wy, target);
     }
     return 1;
 }

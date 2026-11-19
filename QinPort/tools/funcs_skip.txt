@@ -3513,7 +3513,6 @@ EasyRPG.dll:10054a50  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫�
 EasyRPG.dll:1005ac30  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
 EasyRPG.dll:1005ecd0  EasyRPG.dll 只被死碼（沒有參照的函數）呼叫，也是死碼，不移植
 EasyRPG.dll:10024fb0  技能參數 280（CART 載貨量）：技能表、attribT 都沒有用到這個屬性代號（掃描全部 skill_*.txt／attribT.txt），單機資料沒用；DLC 用到再做（HANDOFF「劇情沒用到」）
-EasyRPG.dll:10025120  技能參數 291（FE 五行元素）：技能表、attribT 都沒有用到這個屬性代號，單機資料沒用；DLC 用到再做
 EasyRPG.dll:10025700  CContainer<int,40> 建構（容器樣板）
 EasyRPG.dll:10025720  CContainer<CERObject*,40> 建構（容器樣板）
 EasyRPG.dll:10025770  CStack<int,40> 建構（容器樣板）
@@ -3938,7 +3937,6 @@ EasyRPG.dll:1004d240  客戶端同步送出器（人物、道具、狀態、日�
 EasyRPG.dll:1004d340  物件名單找法（依別名、#代號、名稱找、子物件迭代、隊伍名單）：story_rt.c story_next／story_find／leader_of／team_next 取代
 EasyRPG.dll:1004d450  物件名單找法（依別名、#代號、名稱找、子物件迭代、隊伍名單）：story_rt.c story_next／story_find／leader_of／team_next 取代
 EasyRPG.dll:1004d790  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
-EasyRPG.dll:1004f3a0  玩家死亡（連線版 NetType > 1 扣錢扣經驗、清座標；單機只剩 Dying 旗標，引擎 actor_kill 處理）；類型 61 物品掉落：單機劇情沒有類型 61 的道具
 EasyRPG.dll:1004f8e0  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:1004fc50  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
 EasyRPG.dll:1004fcc0  客戶端同步送出器（人物、道具、狀態、日誌、UI_Pos 通知，封包 0x…）：單機共用物件、引擎直接讀
