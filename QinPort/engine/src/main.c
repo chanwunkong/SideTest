@@ -5763,6 +5763,7 @@ static void actor_interact_approach(Actor *a, int x, int y) {
 static Actor *talk_from, *talk_to;
 // 走近自動說話（輔助，預設開；--no-autotalk／?autotalk=0 關）。shortcut: 原版沒有「主角走近 NPC 自動開口」（只有 s_pctstart 觸發區、
 // 命令 15 點 NPC、NPC 頭頂隨機台詞 npc_chat），手機很難點準 NPC 才加。主角站著時 3 格內、走動時 2 格內觸發；同一個 NPC 說過後要離開 6 格才再觸發。
+static int show_pos;
 static int auto_talk = 1;
 static int auto_stick_lock;  // 自動說話觸發後忽略搖桿直到放開
 #define AUTO_TALK_LEAVE 6
@@ -10081,6 +10082,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
         else if (!strcmp(argv[i], "--load") && i + 1 < argc) load_arg = atoi(argv[++i]);  // 測試用：開場後讀這一格存檔
+        else if (!strcmp(argv[i], "--show-pos")) show_pos = 1;  // 測試用：畫面左上顯示主角格座標（網頁 ?pos=1），請使用者回報位置用
         else if (!strcmp(argv[i], "--at-mon")) at_mon = 1;  // 測試用：開場後把主角放到離最近怪物兩格的地方（怪物出生點是隨機的）
         else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--money") && i + 1 < argc) money = atoi(argv[++i]);
@@ -10840,6 +10842,7 @@ int main(int argc, char **argv) {
         viewport_draw(&viewport, &scene, tick);
         rec_dialog_draw(vw, vh);
         journal_draw(vw, vh);
+        if (show_pos && !rec_on) { char pt[64]; snprintf(pt, sizeof pt, "%d,%d", (int)hero->x, (int)hero->y); draw_text(6, 6, pt, 200, 0xFFFF00, 1); }
         input_box_draw();  // 0x46e8b0
         fade_draw(vw, vh);  // 0x44bf00：場景畫完再淡入淡出（介面不受影響）
         if (snap_due) { snap_take(canvas); snap_due = 0; }
