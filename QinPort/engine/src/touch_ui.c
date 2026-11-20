@@ -291,7 +291,11 @@ static void touch_attack_nearest(Actor *h) {
         Object *b = hover_building(o->x, o->y);
         if (b == o) { pick = o; pcx = o->x; pcy = o->y; pd = d; }
     }
-    if (pick && click_building(h, pick, pcx, pcy)) touch_attack_building_done = 1;
+    if (pick && click_building(h, pick, pcx, pcy)) { touch_attack_building_done = 1; return; }
+    // 附近沒有建築可用：撿 4 格內最近的地上道具（原版命令 0x11 = 點地上道具）。挖礦後道具掉在身邊，常被右側隊伍欄／技能鍵蓋住點不到
+    int gb = -1; float gd = 16;
+    for (int i = 0; i < ground_n; i++) { float dx = ground[i].x - h->x, dy = ground[i].y - h->y, d = dx * dx + dy * dy; if (d <= gd) { gd = d; gb = i; } }
+    if (gb >= 0) { actor_command(h, 0x11, ground[gb].id, 0, 0, 1, 1); h->foe = NULL; h->want = NULL; touch_attack_building_done = 1; }
 }
 
 // 瞄準模式下點了畫面 (gx, gy)（遊戲畫面座標）：放左手技能。點到怪物就對牠；點空地找 3 格內最近的敵人，都沒有就對該點
@@ -426,6 +430,9 @@ static int touch_ui_release(int sx, int sy) {
     int ux, uy, win;
     SDL_Rect r, mr;
     if (!touch_ui_pt(&tch.L, sx, sy, &ux, &uy, &win)) return 0;
+#ifdef STORY
+    if (win && dialog_open) { story_begin(); dialog_tap(uy); story_end(); return 1; }  // 放大的對話框：整列選項可點
+#endif
     int side = win && !modal_rect(&mr);  // 放大的是居中小視窗（系統選單、存讀檔…）時，點擊走一般介面（hud_tap），不是側邊視窗（win_tap）
     if (hud_target(ux, uy, side, &r) != 1) return 0;
     tch.flash = touch_ui_rect(&tch.L, win, r);

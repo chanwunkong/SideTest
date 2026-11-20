@@ -513,14 +513,14 @@ static void viewport_layers(const ViewPort *v, const Scene *s, Uint32 tick) {
             SDL_Point p = viewport_grid_screen(v, o->x, o->y);
             viewport_building_draw(o, p.x, p.y, pass, tick);
         }
-        if (!pass) {
+        if (!pass) viewport_units(v, s, 1, tick);
+        if (pass == 2) {  // 地上道具畫在建築之後：掉在礦石、水缸這類建築旁時不會被建築圖蓋住看不見（原版 0x49a170 依深度排序，這裡沒有；2026-11-20 使用者實機：挖礦沒有反應）
             for (int i = 0; i < ground_n; i++) {
                 if (!viewport_cell_visible(s, (int)(ground[i].x * 64), (int)(ground[i].y * 64))) continue;
                 const Sprite *g = ground_image(ground[i].it.ground);
                 SDL_Point p = viewport_world_screen(v, (int)ground[i].dx, (int)ground[i].dy);  // 0x49a170：y 再減高度
                 if (g) draw(g, p.x - g->w / 2, p.y - g->h / 2 - ground[i].z);
             }
-            viewport_units(v, s, 1, tick);
         }
     }
 }

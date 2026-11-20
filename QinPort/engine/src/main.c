@@ -5064,6 +5064,7 @@ static void utf8_gbk(const char *in, char *out, size_t n) {
 
 // 文字放大倍率（直式手機畫面縮小時，過場對話框用來維持可讀；平常 1）
 static float text_zoom = 1;
+static int ui_portrait;  // 直式手機：對話框做窄一點，放大到下方時字才夠大（touch_layout 後更新）
 static float screen_zoom = 1;  // 邏輯畫面寬 / 實際視窗寬（> 1 = 遊戲被縮小顯示）
 // 一行字的寬度（置中用）
 static int text_width(const char *t) {
@@ -5293,32 +5294,43 @@ static UiDialog choose_ui;
 static int choose_loaded;
 
 // 對話：JM108 擺在畫面底部置中（原版 0x565330 擺位 mode 2），上方空出主列位置（HUD 這時是藏起來的）
+// 對話框（手機版自訂外觀，2026-11-20 使用者：原版 JM108 圖框在我們的排版下文字溢出、選項太小點不到）：
+// 底部滿寬的深色面板，說話者黃字、台詞自動換行、每個選項一整列大按鈕（高 ≥ 30，整列可點）。直式時整塊由 modal_rect 放大到下方。
+// 原版 JM108 的底圖與固定座標沒用（shortcut）；對話內容、選項順序、選了之後的流程都照原版（story_choose）
+static SDL_Rect dialog_box(void) {
+    const StoryDialog *d = &story_dialog;
+    int w = ui_portrait ? 400 : vw - 24, tw = w - 24;
+    int th = d->text[0] ? draw_text(0, 0, d->text, tw, 0, 0) : 0, oh = 0;
+    for (int i = 0; i < d->option_count; i++) { int h = draw_text(0, 0, d->options[i].text, tw - 24, 0, 0); oh += (h < 22 ? 22 : h) + 12; }
+    int h = 12 + 18 + (th ? th + 8 : 0) + oh + 8;
+    if (h > vh - 130) h = vh - 130;
+    return (SDL_Rect){(vw - w) / 2, vh - h - 8, w, h};
+}
 static void dialog_draw(void) {
     if (!dialog_open) return;
-    if (!choose_loaded) choose_loaded = ui_load("JM108_\xb6\xd4\xbb\xb0\xd1\xa1\xd4\xf1\xbd\xe7\xc3\xe6", &choose_ui) ? 1 : -1;
     const StoryDialog *d = &story_dialog;
-    int w = choose_ui.w ? choose_ui.w : 600, tw = 439, ow = w - 60;
-    int th = d->text[0] ? draw_text(0, 0, d->text, tw, 0, 0) : 0, oh = 0;
-    for (int i = 0; i < d->option_count; i++) oh += draw_text(0, 0, d->options[i].text, ow, 0, 0) + 4;
-    int h = choose_height(th, oh);
-    int x = (vw - w) / 2, y = vh - h - 4;
-    if (choose_loaded > 0) {
-        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(ren, 0, 0, 0, 200);
-        SDL_Rect up = {x, y + 150, w, h - 150};  // 內容超過 150 高時，框下方接一塊黑底（走查發現：以前框貼底、文字卻從框頂算起，3 個選項以上超出畫面下緣點不到）
-        if (h > 150) SDL_RenderFillRect(ren, &up);
-        ui_draw(&choose_ui, x, y);
-    }
-    int by = y;
-    draw_text(x + 27, y + 7, d->speaker, 400, 0xFFFF00, 1);
-    draw_text(x + 28, by + 26, d->text, tw, 0xBECDCE, 1);
-    int cy = by + 26 + (th > 72 ? th : 72) + 8;
-    if (d->option_count) { draw_text(x + 27, cy, "Choose\xef\xbc\x9a", 200, 0xFFFF00, 1); cy += 16; }
+    SDL_Rect r = dialog_box();
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, 10, 12, 10, 235);
+    SDL_RenderFillRect(ren, &r);
+    SDL_SetRenderDrawColor(ren, 150, 130, 80, 255);
+    SDL_RenderDrawRect(ren, &r);
+    int tw = r.w - 24, y = r.y + 8;
+    draw_text(r.x + 12, y, d->speaker, 400, 0xFFFF00, 1);
+    y += 20;
+    if (d->text[0]) y += draw_text(r.x + 12, y, d->text, tw, 0xBECDCE, 1) + 8;
     for (int i = 0; i < d->option_count; i++) {
-        opt_y0[i] = cy;
-        cy += draw_text(x + 40, cy, d->options[i].text, ow, 0x80E0FF, 1) + 4;
-        opt_y1[i] = cy;
-        draw_text(x + 27, opt_y0[i], "\xe2\x96\xb6", 20, 0x80E0FF, 1);  // ▶
+        int h = draw_text(0, 0, d->options[i].text, tw - 24, 0, 0);
+        if (h < 22) h = 22;
+        opt_y0[i] = y; opt_y1[i] = y + h + 10;
+        SDL_Rect b = {r.x + 8, y, r.w - 16, h + 10};
+        SDL_SetRenderDrawColor(ren, 40, 52, 66, 255);
+        SDL_RenderFillRect(ren, &b);
+        SDL_SetRenderDrawColor(ren, 110, 150, 190, 255);
+        SDL_RenderDrawRect(ren, &b);
+        draw_text(r.x + 20, y + 5, "\xe2\x96\xb6", 20, 0x80E0FF, 1);  // ▶
+        draw_text(r.x + 40, y + 5, d->options[i].text, tw - 24, 0xE0F4FF, 1);
+        y += h + 12;
     }
 }
 
@@ -10060,6 +10072,9 @@ static int at_mon;
 // 居中小視窗也一樣放大，不然縮在上方 290 點高的遊戲畫面裡字很小、點不準，點歪還會變成點地面走路（使用者 2026-11-20 回報）
 static int modal_rect(SDL_Rect *r) {
     int ox, oy, w = 0, h = 0;
+#ifdef STORY
+    if (dialog_open) { SDL_Rect b = dialog_box(); *r = b; return 1; }
+#endif
     if (sav_mode) { w = sav_d.w; h = sav_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2; }
     else if (opt_open || help_open) { UiDialog *d = help_open ? &help_d : &opt_d; w = d->w; h = d->h; opt_ui_pos(d, &ox, &oy); }
     else if (sys_open) { w = sys_d.w; h = sys_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2; }
@@ -10505,7 +10520,7 @@ int main(int argc, char **argv) {
                     if (ws.w) SDL_UnionRect(&ws, &r, &ws); else ws = r;
                 }
             }
-            int touching = tch.forced || !tch.kbm;  // 電腦用滑鼠時視窗不搬位置
+            int touching = tch.forced || !tch.kbm || SDL_GetNumTouchDevices() > 0;  // 有觸控裝置就算（第一次點的就是放大的視窗時，kbm 還沒清掉會漏掉）  // 電腦用滑鼠時視窗不搬位置
             static int last_w, last_h, last_side, last_touching;
             static SDL_Rect last_ws;
             if (blocked != tch.blocked || side != last_side) { tch.blocked = blocked; touch_release_all(); }
@@ -10513,6 +10528,7 @@ int main(int argc, char **argv) {
                 last_w = ww; last_h = wh; last_side = side; last_touching = touching; last_ws = ws;
                 int old_sw = tch.L.sw, old_sh = tch.L.sh;
                 touch_layout(&tch.L, ww, wh, vw, vh, tch.size, tch.swap, ws.w && touching ? &ws : NULL);
+                ui_portrait = tch.L.portrait;
                 if (old_sw != tch.L.sw || old_sh != tch.L.sh) {
                     touch_release_all();
                     SDL_RenderSetLogicalSize(ren, tch.L.sw, tch.L.sh);
