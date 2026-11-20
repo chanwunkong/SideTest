@@ -1866,3 +1866,8 @@ skilltest 新增：刺客 Hand 5、箭消耗用 Attack方式（真資料招式 I
 - 瀏覽器（`?scene=zhaocun1&at=38,107&debug=trace`，搖桿往老者方向拖）抓到：走動中觸發的自動說話 console 有印 `autotalk`，但對話永遠不開、主角繼續走過去，而且該 NPC 標記成「說過」要離開 6 格才再觸發。兩個原因：(1) 搖桿還按著，下一拍的移動取消了命令 15；(2) 命令 15 在移動中根本沒被消費（`actor_interact_tick` 沒被呼叫）。
 - 修法（engine/src/main.c）：自動說話觸發時若主角在走，直接照 `actor_interact_tick` 收尾設 `talk_from／talk_to`（雙方轉向、停步），並用 `auto_stick_lock` 忽略搖桿直到放開；站著觸發維持原路徑。驗證：skilltest ok；瀏覽器看到 `talk oldman_a npc=8` 與「老者」對話框（選項：您好，老伯！／<打量对方。>／<不打扰他，转身离开。>）。
 - 沒驗證：多個 NPC 同時靠近、鎖搖桿後對話關閉的手感、實機手指（只用 CDP 觸控模擬）。
+
+## 超重速度懲罰（2026-11-20）
+- 原版規則查到了：EasyRPG 0x10042c30 把「BD×100/BD_MAX（超過上限再 +1）」當動畫門檻送給客戶端（封包 0x528 → Poq 0x48fae0 寫入角色 +0x2e3）；Poq 0x488540（有效速度）門檻 ≥ 101 時速度減半，0x48c050 門檻 ≥ 101 時改用走路序列。引擎早就有這兩段（`actor_speed`、`speed_threshold`），**缺的只是主角的門檻從沒被設過**（恆 0）。
+- 修法：`burden_threshold(a)`（engine/src/main.c），`actor_health_sync` 對主角傳入負重百分比，跨過 101 時 `actor_speed_update`。
+- 驗證：skilltest ok；瀏覽器（/tmp 複本，負重暫時 ×3 模擬超重）印出 `bd=105 max=75 → thr=141 speed=4`（正常 speed=8）。**沒驗證**：真實超重時畫面上走路變慢與動畫序列；`?item=` 一次最多給 8 件（再多會被當成場景參數，是測試入口的毛病）。

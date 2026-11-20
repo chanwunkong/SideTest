@@ -2245,10 +2245,21 @@ static void actor_parameters(Actor *a, int hp, int threshold, int p4, int p5, in
 }
 
 // EasyRPG人物數值與客戶端角色共用Actor，以固定拍通知代替封包複製。
+static int hero_burden(void);
+static int hero_burden_max(const Actor *h);
+// 負重百分比（EasyRPG 0x10042c30 送給客戶端的 BD×100/BD_MAX，超過再 +1 → 超重 ≥ 101）：Poq 0x488540 走路速度減半、0x48c050 動畫改走路序列。
+// 以前主角的門檻從沒被設過（恆 0），所以超重沒有懲罰
+static int burden_threshold(const Actor *a) {
+    if (a != &actors[0]) return a->speed_threshold;
+    int bd = hero_burden(), mx = hero_burden_max(a), t = mx > 0 ? bd * 100 / mx : 0;
+    return mx > 0 && mx < bd ? t + 1 : t;
+}
 static void actor_health_sync(Actor *a) {
     if (!a->def || a->hp_max <= 0) return;
-    actor_parameters(a, (int)((int64_t)a->hp * 100 / a->hp_max), a->speed_threshold,
+    int old_thr = a->speed_threshold;
+    actor_parameters(a, (int)((int64_t)a->hp * 100 / a->hp_max), burden_threshold(a),
         a->behavior[0], a->behavior[1], a->behavior[3], a->behavior[2]);
+    if ((old_thr < 101) != (a->speed_threshold < 101)) actor_speed_update(a);  // 跨過超重門檻：重算走路速度
 }
 
 static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick);
@@ -6099,7 +6110,7 @@ static int bag_free(void) {
     return -1;
 }
 
-// 負重：身上道具重量合計，上限 BD_MAX = Str × 1.5 + 30。shortcut: 超重的效果還沒查
+// 負重：身上道具重量合計，上限 BD_MAX = Str × 1.5 + 30。超重效果（速度減半、改走路動畫）見 burden_threshold（2026-11-20 查到原版 0x488540／0x48c050）
 static int hero_burden(void) {
     int w = 0;
     for (int i = 0; i < INV_N; i++) w += inv[i].name[0] ? inv[i].weight : 0;
