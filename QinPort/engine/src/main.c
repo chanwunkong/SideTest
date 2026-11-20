@@ -1873,6 +1873,7 @@ static void hero_stats(Actor *h, int level) {
 }
 
 static void actor_kill(Actor *t, Actor *by);
+static void actor_kill_mode(Actor *t, Actor *by, int mode);
 static void mon_loot(const Actor *m);
 static void hit_wear(Actor *a, Actor *t, const SkillRow *sk);
 
@@ -2535,9 +2536,14 @@ static void actor_remove(Actor *a, int mode);
 // 0x1004f3a0 玩家死亡（單機的部分）：身上類型 61 的道具放回腳下；扣錢扣經驗與回復點是連線版（ER_GetNetType > 1），單機沒有。
 // 之後的畫面是 JM513 死亡界面（見 dead_show）：「游戏结束」＋读取／退出。
 static void hero_dies(void);
-static void actor_kill(Actor *t, Actor *by) {
+// 0x100574e0 的死亡方式：呼叫端傳技能的 DieMode（欄 12，預設 1）；身上有狀態 4（冰凍）→ 9，有狀態 2（石化）→ 10（後者蓋過前者）；
+// 隊友（IsActorNPC > 0）的 6／8／9（碎裂）改成 1。原版 Status_N 屬性對應引擎 state[N]
+static void actor_kill_mode(Actor *t, Actor *by, int mode) {
+    if (t->state[4]) mode = 9;
+    if (t->state[2]) mode = 10;
+    if ((mode == 6 || mode == 8 || mode == 9) && t->team) mode = 1;
     t->hp = 0;
-    actor_remove(t, 1);
+    actor_remove(t, mode);
     if (t->mon) mon_loot(t);
     if (by && !by->mon && t->mon && (by == &actors[0] || by->team)) kill_exp(t, by);
     printf("%s 倒下\n", t->mon ? "怪物" : "主角");
@@ -2546,6 +2552,7 @@ static void actor_kill(Actor *t, Actor *by) {
     if (t->sh) story_killed(t->sh);  // 原版 0x100574e0 最後刪掉人物；Boss 的第 10 格會開劇情
 #endif
 }
+static void actor_kill(Actor *t, Actor *by) { actor_kill_mode(t, by, 1); }
 
 // ---- 招式單位（觸發 type 2 → MethodUnit_Mdl.ini）：原版的特效與飛行物件，見 unit.c ----
 static int shake_left, shake_total;
@@ -4210,7 +4217,7 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     int ks = (int)((pct[20] + 100) * (a->ex[90] + add[20]) / 100);
     if (ks > 0 && t->ex[97] < 100 && rnd(100) < ks && alive(t)) buff_add(t, NULL, 17, 1, 7, 0);
     if (a->hp <= 0 && alive(a)) actor_kill(a, t);
-    if (t->hp <= 0) { actor_kill(t, a); return; }
+    if (t->hp <= 0) { actor_kill_mode(t, a, sk ? sk->die : 1); return; }
     hit_react(a, t, sk);
     if (!sk || sk->attack == 0 || sk->attack == 1 || sk->attack == 2 || sk->attack == 3 || sk->attack == 8)
         actor_blood(t, 1);

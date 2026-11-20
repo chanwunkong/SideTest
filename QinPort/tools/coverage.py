@@ -82,6 +82,7 @@ for r in rem[1:]:
         if v and i >= 2 and i < len(cols): colcnt[cols[i]] += 1
 rawuse = {'停止动画循环': 1, '速度变化': 1, '攻击不能': 1, '无敌': 1, '头上效果': 1, '身上效果': 1, '脚下效果': 1, '附加状态': 1, '声音': 1}
 section('(a4) 狀態表欄位（RoleEffectMdl.txt）', [(k, v, *st('ec:' + k, ('完整', 'status_def raw[]／trail_*') if k in rawuse else ('?', '欄位引擎有 raw[20] 保存，是否逐欄消費未逐項查'))) for k, v in colcnt.items()])
+for _k in '0123456789': S['die:' + _k] = ('完整', '欄 12 → SkillRow.die（DieMode，基底預設 1）→ strike 擊殺 actor_kill_mode（0x100574e0：狀態 4 → 9、狀態 2 → 10、隊友 6/8/9 → 1）→ actor_remove（0x486910）；沒在畫面逐種驗證')
 section('(a5) 技能死亡方式（欄 12）', [('死亡方式 %s' % k, v, *st('die:' + k, ('?', '死亡動畫選擇，未逐項查'))) for k, v in die.items() if k])
 
 # ---------- (b) 道具 ----------
@@ -213,7 +214,7 @@ for p in glob.glob(G + '/scene/*.Scn'):
     for m in re.finditer(r'^(\S+?)=', t, re.M): sc[m.group(1)] += 1
 section('(f1) 場景檔 .Scn 欄位', [(k, v, *st('scn:' + k, ('完整', 'scn_value／入口點'))) for k, v in sc.items() if not k.startswith('前場景') and k not in ('x', 'y', '角色初始方向')] , '前場景／x／y／方向為入口點，已處理。')
 mus = load(G + '/Data/music.txt')
-section('(f2) 其他場景資料', [('music.txt 場景→音樂', len(mus), '完整', 'main.c music'), ('天氣（weather.c）', len(glob.glob(G + '/scene/*.Scn')), '部分', '疾風與色調沒做（見 PORT_QUEUE）'), ('日夜（light_hour）', 1, '完整', 'light.c')])
+section('(f2) 其他場景資料', [('music.txt 場景→音樂', len(mus), '完整', 'main.c music'), ('天氣（weather.c）', len(glob.glob(G + '/scene/*.Scn')), '完整', 'weather.c：雨／雪／疾風（CGale 0x43fda0）／色調 light_mode 已做；剩 shortcut：依場景種類 G_Type 的環境音（0x468c10 後半）、小雨亮度鎖只在開始下雨設'), ('日夜（light_hour）', 1, '完整', 'light.c')])
 
 with open(ROOT + '/tools/coverage.md', 'w') as f:
     f.write('# 覆蓋矩陣（tools/coverage.py 產生，勿手改）\n\n狀態：完整＝引擎照原版處理；部分＝有但有缺；無＝沒做；?＝無法判斷。\n\n## 總表\n\n| 類別 | 項數 | 完整 | 部分 | 無 | ? |\n|---|---|---|---|---|---|\n')
