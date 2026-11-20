@@ -6077,7 +6077,14 @@ static void journal_draw(int vw_, int vh_) {
     draw_text(r.x + 8, r.y + r.h - 20, "\xe9\xbb\x9e\xe4\xbb\xbb\xe4\xbd\x95\xe5\x9c\xb0\xe6\x96\xb9\xe9\x97\x9c\xe9\x96\x89\xef\xbc\x88J \xe9\x8d\xb5\xe6\x88\x96\xe9\xbb\x9e\xe4\xb8\x8a\xe6\x96\xb9\xe6\x8f\x90\xe7\xa4\xba\xe5\xad\x97\xe5\x86\x8d\xe9\x96\x8b\xef\xbc\x89", w, 0x909080, 1);  // 點任何地方關閉（J 鍵或點上方提示字再開）
     text_zoom = 1;
 }
-static void hud_say(const char *t) { snprintf(toast, sizeof toast, "%s", t); toast_until = SDL_GetTicks() + 2500; }
+// 提示訊息顯示時間依長度加長（長的任務提示、如「一塊巨石阻住去路…」2.5 秒讀不完）：每個字多 90 毫秒，最多 9 秒
+static void hud_say(const char *t) {
+    snprintf(toast, sizeof toast, "%s", t);
+    int chars = 0;
+    for (const char *p = t; *p; p++) chars += (*p & 0xC0) != 0x80;
+    int ms = 2500 + chars * 90;
+    toast_until = SDL_GetTicks() + (ms > 9000 ? 9000 : ms);
+}
 #include "caption.c"
 #include "mapwin.c"
 #include "party.c"
