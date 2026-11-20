@@ -10053,6 +10053,21 @@ static void screen_size(SDL_Window *win, int *w, int *h) {
 
 static const char *bounce_alias;
 static int at_mon;
+// 直式手機：視窗放大用（touch_layout 的 ws）。側邊視窗（背包、裝備）原本就放大；系統選單、存讀檔、設定、說明、詢問框、地圖、難度這些整個
+// 居中小視窗也一樣放大，不然縮在上方 290 點高的遊戲畫面裡字很小、點不準，點歪還會變成點地面走路（使用者 2026-11-20 回報）
+static int modal_rect(SDL_Rect *r) {
+    int ox, oy, w = 0, h = 0;
+    if (sav_mode) { w = sav_d.w; h = sav_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2; }
+    else if (opt_open || help_open) { UiDialog *d = help_open ? &help_d : &opt_d; w = d->w; h = d->h; opt_ui_pos(d, &ox, &oy); }
+    else if (sys_open) { w = sys_d.w; h = sys_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2; }
+    else if (ask_open) { w = ask_d.w; h = ask_d.h; ask_pos(&ox, &oy); }
+    else if (quit_open) { w = quit_d.w; h = quit_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2; }
+    else if (map_open) { w = map_d.w; h = map_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2 - 0x32; }
+    else return 0;
+    if (w <= 0 || h <= 0) return 0;
+    *r = (SDL_Rect){ox, oy, w, h};
+    return 1;
+}
 int main(int argc, char **argv) {
     const char *game = "game", *scn = "xianyang", *shot = NULL, *open_win = NULL;
     int press_x = -1, press_y = -1;
@@ -10477,7 +10492,8 @@ int main(int argc, char **argv) {
             screen_size(win, &ww, &wh);
             screen_zoom = tch.L.sw > 0 && ww > 0 ? (float)tch.L.sw / ww : 1;
             SDL_Rect ws = {0};
-            if (win_left.open || win_right.open) {  // 開著的側邊視窗（遊戲座標）的聯集
+            if (modal_rect(&ws)) { SDL_Rect c = {0, 0, vw, vh}; SDL_IntersectRect(&ws, &c, &ws); }
+            else if (win_left.open || win_right.open) {  // 開著的側邊視窗（遊戲座標）的聯集
                 for (int i = 0; i < 2; i++) {
                     Win *w = i ? &win_right : &win_left;
                     if (!w->open) continue;
@@ -10915,7 +10931,8 @@ int main(int argc, char **argv) {
         SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
         SDL_RenderClear(ren);
         SDL_RenderCopy(ren, canvas, NULL, &tch.L.game);
-        if (win_off && win_tex && tch.L.ui_dst.w > 0) SDL_RenderCopy(ren, win_tex, &tch.L.ui_src, &tch.L.ui_dst);  // 直式：放大的側邊視窗
+        if (win_off && win_tex && tch.L.ui_dst.w > 0 && (win_left.open || win_right.open) && !modal_rect(&(SDL_Rect){0})) SDL_RenderCopy(ren, win_tex, &tch.L.ui_src, &tch.L.ui_dst);  // 直式：放大的側邊視窗
+        else if (tch.L.ui_dst.w > 0) SDL_RenderCopy(ren, canvas, &tch.L.ui_src, &tch.L.ui_dst);  // 直式：系統選單、存讀檔等居中小視窗（畫在遊戲畫面上）也放大，字大、點得準
         touch_draw();
         touch_preview_draw();
         if (shot && tch.forced && tick > 3) {  // --touch --shot：存整個螢幕（含留空和按鈕）

@@ -421,14 +421,17 @@ static const TFinger *touch_ui_finger(void) {
     return NULL;
 }
 // 放開時：手指所在位置（螢幕座標）若會點到某個控制項 → 閃一下、震動、真的點下去；滑出介面或沒有控制項 = 取消。回 1 = 有點
+static int modal_rect(SDL_Rect *r);
 static int touch_ui_release(int sx, int sy) {
     int ux, uy, win;
-    SDL_Rect r;
-    if (!touch_ui_pt(&tch.L, sx, sy, &ux, &uy, &win) || hud_target(ux, uy, win, &r) != 1) return 0;
+    SDL_Rect r, mr;
+    if (!touch_ui_pt(&tch.L, sx, sy, &ux, &uy, &win)) return 0;
+    int side = win && !modal_rect(&mr);  // 放大的是居中小視窗（系統選單、存讀檔…）時，點擊走一般介面（hud_tap），不是側邊視窗（win_tap）
+    if (hud_target(ux, uy, side, &r) != 1) return 0;
     tch.flash = touch_ui_rect(&tch.L, win, r);
     tch.flash_until = SDL_GetTicks() + 160;
     js_vibrate(15);
-    if (win) win_tap(ux, uy); else hud_tap(ux, uy);
+    if (side) win_tap(ux, uy); else hud_tap(ux, uy);
     return 1;
 }
 static void touch_box(SDL_Rect r, int th, Uint8 R, Uint8 G, Uint8 B, Uint8 A) {
@@ -448,7 +451,8 @@ static void touch_preview_draw(void) {
     if (!f) return;
     int ux, uy, win, hit = 0;
     SDL_Rect hr = {0}, sr = {0};
-    if (touch_ui_pt(L, f->x, f->y, &ux, &uy, &win) && hud_target(ux, uy, win, &hr) == 1) { hit = 1; sr = touch_ui_rect(L, win, hr); }
+    SDL_Rect mr_;
+    if (touch_ui_pt(L, f->x, f->y, &ux, &uy, &win) && hud_target(ux, uy, win && !modal_rect(&mr_), &hr) == 1) { hit = 1; sr = touch_ui_rect(L, win, hr); }
     if (hit) touch_box(sr, 3, 255, 230, 60, 255);  // 亮框
     SDL_Rect lp = touch_loupe_rect(L, f->x, f->y);
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
