@@ -272,10 +272,26 @@ static int touch_skill_aims(const SkillRow *r) {
 }
 
 // 攻擊鍵／空白鍵：選最近的敵人當目標（右手技能由追打放；拿弓 = 射箭）
+static Object *hover_building(int cx, int cy);
+static int click_building(Actor *h, Object *b, int cx, int cy);
+static int touch_attack_building_done;  // 這次按住已經對建築出過手（一次按住只出一次，不然每拍重送命令）
 static void touch_attack_nearest(Actor *h) {
     float best = h->def ? actor_seek(h) : 10;
+    int found = 0;
     for (int i = 1; i < actor_count; i++)
-        if (hostile(h, &actors[i]) && cell_dist(h, &actors[i]) <= best) { best = cell_dist(h, &actors[i]); actor_target_set(h, &actors[i]); }
+        if (hostile(h, &actors[i]) && cell_dist(h, &actors[i]) <= best) { best = cell_dist(h, &actors[i]); actor_target_set(h, &actors[i]); found = 1; }
+    if (found || touch_attack_building_done || !unit_scene) return;
+    // 沒有敵人：攻擊鍵 = 原版「點游標下的東西」。最近的可互動建築（樹、礦、水缸、箱子、門）8 格內，照原版點建築的做法（click_building）
+    // shortcut: 手機沒有滑鼠游標，攻擊鍵代替點擊；原版是點到哪個建築就對哪個
+    int hx = (int)h->x, hy = (int)h->y; Object *pick = NULL; int pcx = 0, pcy = 0, pd = 1 << 30;
+    for (int i = 0; i < unit_scene->object_count; i++) {
+        Object *o = (Object *)&unit_scene->objects[i];
+        int dx = o->x - hx, dy = o->y - hy, d = dx * dx + dy * dy;
+        if (d > 64 || d >= pd) continue;
+        Object *b = hover_building(o->x, o->y);
+        if (b == o) { pick = o; pcx = o->x; pcy = o->y; pd = d; }
+    }
+    if (pick && click_building(h, pick, pcx, pcy)) touch_attack_building_done = 1;
 }
 
 // 瞄準模式下點了畫面 (gx, gy)（遊戲畫面座標）：放左手技能。點到怪物就對牠；點空地找 3 格內最近的敵人，都沒有就對該點
@@ -334,6 +350,7 @@ static void touch_button(Actor *h, int b) {
 // 每幀：按住攻擊鍵就一直打最近的敵人（目標死了或沒有才重選，免得每幀換目標）
 static void touch_frame(Actor *h) {
     if (!touch_active()) return;
+    if (!tch.held[TB_ATK]) touch_attack_building_done = 0;
     if (tch.held[TB_ATK] && h->act != ACT_DEAD && !alive(h->foe)) touch_attack_nearest(h);
 }
 
