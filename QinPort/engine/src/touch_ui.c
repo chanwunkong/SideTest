@@ -5,7 +5,7 @@
 // 輸入全走 SDL 手指事件（關掉觸控轉滑鼠，才能多點同時）：手指按下時決定用途（按鈕、搖桿、遊戲點擊），之後一直算那個用途。
 // shortcut: 沒有 Playwright／實機，觸控事件鏈（手指事件 → 改寫成滑鼠事件）只靠編譯與單元測試驗證；版面用 --touch --win WxH --shot 看圖。
 
-enum { TB_ATK, TB_SK0, TB_SK1, TB_SK2, TB_SK3, TB_RUN, TB_SYS, TB_BAG, TB_SIZE, TB_HAND, TB_CLOSE, TB_N };
+enum { TB_ATK, TB_SK0, TB_SK1, TB_SK2, TB_SK3, TB_RUN, TB_SYS, TB_BAG, TB_MAP, TB_HAND, TB_EQP, TB_ROLE, TB_SKL, TB_CLOSE, TB_N };
 // TK_UI = 手指按在遊戲畫面裡的介面上（預覽放大鏡，放開才點）；TK_WIN = 手指按在放大顯示的側邊視窗區（直式）
 enum { TK_NONE, TK_JOY, TK_BTN, TK_GAME, TK_PINCH, TK_UI, TK_WIN };
 typedef struct { int x, y, r; } TCircle;
@@ -53,18 +53,16 @@ static void touch_layout(TLayout *L, int ww, int wh, int gw, int gh, int size, i
     if (L->portrait) {  // 控制區一排由右到左：選單、背包、跑步、換手、大小
         int ry = ay - u * 47 / 10;  // 靠近拇指（技能弧上方）；控制區太矮時貼著控制區上緣
         if (ry < gh + u * 9 / 10) ry = gh + u * 9 / 10;
-        b[TB_SYS] = (TCircle){sw - u * 9 / 10, ry, u * 6 / 10};
-        b[TB_BAG] = (TCircle){sw - u * 24 / 10, ry, u * 6 / 10};
-        b[TB_RUN] = (TCircle){sw - u * 39 / 10, ry, u * 6 / 10};
-        b[TB_HAND] = (TCircle){sw - u * 52 / 10, ry, u * 45 / 100};
-        b[TB_SIZE] = (TCircle){sw - u * 61 / 10, ry, u * 45 / 100};
+        // 固定的一排（由右到左）：選、包、裝、屬、技、圖、跑、換；位置不隨視窗開關改變（使用者要求固定）
+        static const int ord[8] = {TB_SYS, TB_BAG, TB_EQP, TB_ROLE, TB_SKL, TB_MAP, TB_RUN, TB_HAND};
+        int br = u * 5 / 10, step = (sw - 2 * br - 2 - u * 8 / 10 + br) / 7;  // 8 顆平均排滿寬度（最大尺寸也放得下）
+        if (step > u * 11 / 10) step = u * 11 / 10;
+        for (int i = 0; i < 8; i++) b[ord[i]] = (TCircle){sw - u * 8 / 10 - i * step, ry, br};
         L->joy = (SDL_Rect){0, gh + u * 2, sw / 2, sh - gh - u * 2};
     } else {
         b[TB_RUN] = (TCircle){sw - u * 95 / 100, ay - u * 37 / 10, u * 65 / 100};
-        b[TB_SYS] = (TCircle){sw - u * 8 / 10, u * 8 / 10, u * 6 / 10};
-        b[TB_BAG] = (TCircle){sw - u * 22 / 10, u * 8 / 10, u * 6 / 10};
-        b[TB_HAND] = (TCircle){sw - u * 34 / 10, u * 55 / 100, u * 45 / 100};
-        b[TB_SIZE] = (TCircle){sw - u * 44 / 10, u * 55 / 100, u * 45 / 100};
+        static const int ord[7] = {TB_SYS, TB_BAG, TB_EQP, TB_ROLE, TB_SKL, TB_MAP, TB_HAND};
+        for (int i = 0; i < 7; i++) b[ord[i]] = (TCircle){sw - u * (8 + 12 * i) / 10, u * 8 / 10, u * 5 / 10};
         int m = L->game.x, zw = m > sw * 3 / 10 ? m : sw * 3 / 10;
         L->joy = (SDL_Rect){0, sh * 3 / 10, zw, sh - sh * 3 / 10};
     }
@@ -79,7 +77,7 @@ static void touch_layout(TLayout *L, int ww, int wh, int gw, int gh, int size, i
             for (int i = 0; i < 4; i++) b[TB_SK0 + i] = (TCircle){sw - u * 12 / 10 - i * u * 19 / 10, sh - u * 47 / 10, u * 8 / 10};
             b[TB_RUN] = (TCircle){sw - u * 40 / 10, ay, u * 65 / 100};
             b[TB_SYS] = (TCircle){sw - u * 56 / 10, ay, u * 6 / 10};
-            b[TB_BAG].r = b[TB_SIZE].r = b[TB_HAND].r = 0;
+            b[TB_BAG].r = b[TB_MAP].r = b[TB_HAND].r = b[TB_EQP].r = b[TB_ROLE].r = b[TB_SKL].r = 0;
             b[TB_CLOSE] = (TCircle){u * 14 / 10, sh - u * 47 / 10, u};
             L->joy = (SDL_Rect){0, sh - u * 35 / 10, sw - u * 64 / 10, u * 35 / 10};
             int zt = sh - u * 59 / 10, avail = zt - gh;
@@ -348,7 +346,10 @@ static void touch_button(Actor *h, int b) {
         Win *w = win_last && win_last->open ? win_last : win_left.open ? &win_left : &win_right;
         w->open = 0;
     } else if (b == TB_BAG) win_toggle(&win_right, JM54);
-    else if (b == TB_SIZE) { tch.size = (tch.size + 1) % 3; tch.L.sw = 0; }  // shortcut: 設定只在這兩顆小鍵、不存檔；原版設定視窗（JM47）沒有位置放
+    else if (b == TB_MAP) map_show();
+    else if (b == TB_EQP) win_toggle(&win_left, JM55);
+    else if (b == TB_ROLE) win_toggle(&win_left, JM52);
+    else if (b == TB_SKL) { skill_mode = 1; win_toggle(&win_right, JM53); }
     else if (b == TB_HAND) { tch.swap ^= 1; tch.L.sw = 0; }                 // sw = 0 讓主迴圈重排版
 }
 // 每幀：按住攻擊鍵就一直打最近的敵人（目標死了或沒有才重選，免得每幀換目標）
@@ -386,7 +387,7 @@ static void touch_draw(void) {
         int cx = L->joy.x + L->joy.w / 2, cy = L->joy.y + L->joy.h - u * 22 / 10;
         touch_ring(cx, cy, u * 14 / 10, u * 13 / 10, 255, 255, 255, 50);
     }
-    static const char *label[TB_N] = {"\xe6\x94\xbb", "1", "2", "3", "4", "\xe8\xb7\x91", "\xe9\x81\xb8", "\xe5\x8c\x85", "\xe5\xa4\xa7", "\xe6\x8f\x9b"};  // 攻 1 2 3 4 跑 選 包 大 換
+    static const char *label[TB_N] = {"\xe6\x94\xbb", "1", "2", "3", "4", "\xe8\xb7\x91", "\xe9\x81\xb8", "\xe5\x8c\x85", "\xe5\x9c\x96", "\xe6\x8f\x9b", "\xe8\xa3\x9d", "\xe5\xb1\xac", "\xe6\x8a\x80"};  // 攻 1 2 3 4 跑 選 包 圖 換 裝 屬 技
     for (int i = 0; i < TB_N; i++) {
         const TCircle *c = &L->b[i];
         if (!c->r) continue;
