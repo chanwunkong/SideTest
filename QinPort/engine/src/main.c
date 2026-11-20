@@ -9923,6 +9923,9 @@ static void rec_end(Scene *s, Actor *hero) {
     {   // 第 18 格可能把主角搬進別的房間（例：pct_kgszhu 把主角放進衙府），畫面跟著載主角所在房間的場景；回到開始的房間就站回原位置
         const char *to = story_room_alias(story_parent(story_player()));
         if (!to || !*to) to = cur;
+        // 錄影在別的場景（片頭動畫場景 ptdhcj）演、第 18 格沒把主角搬走：真主角要回到開始的房間（原版錄影是場景拷貝，真主角一直留在原房間）。
+        // 以前 enter_scene(錄影場景) 的 story_place 把主角永久搬進去，過場結束就留在 ptdhcj 的 (125,117)，不是起點 (29,107)（使用者 2026-11-20 回報）
+        if (back[0] && strcasecmp(to, back) && !strcasecmp(to, cur)) { story_place(story_room(back)); to = back; }
         if (back[0] && !strcasecmp(to, back)) { hero->x = bx; hero->y = by; hero->dir = bdir; }
         if (strcasecmp(to, cur)) {
             if (!enter_scene(s, hero, to, !strcasecmp(to, back) ? -1 : 0)) fprintf(stderr, "過場結束載不進 %s\n", to);
