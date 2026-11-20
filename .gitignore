@@ -10,3 +10,4 @@ QinPort/r36s/qinport/log.txt
 QinPort/web/game/
 QinPort/web/index.*
 QinPort/tools/__pycache__/
+QinPort/web/sw.js
