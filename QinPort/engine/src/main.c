@@ -5008,7 +5008,21 @@ static SDL_Texture *glyph(uint32_t c) {
     return glyph_tex[c];
 }
 
-static uint32_t utf8_next(const char **p) {
+// 顯示用簡體 → 繁體（使用者 2026-11-20：文字儲存的遊戲提示改繁體；圖片裡的字不動）。所有畫字、量字寬都經過這裡，
+// 遊戲邏輯比對用的字串不受影響（只在解碼成要畫的字時轉）。text_trad = 0 關閉
+#include "s2t_table.h"
+static int text_trad = 1;
+static uint32_t s2t_char(uint32_t c) {
+    if (!text_trad || c < 0x4E00 || c > 0x9FFF) return c;
+    int lo = 0, hi = S2T_N - 1;
+    while (lo <= hi) {
+        int m = (lo + hi) / 2;
+        if (S2T[m][0] == c) return S2T[m][1];
+        if (S2T[m][0] < c) lo = m + 1; else hi = m - 1;
+    }
+    return c;
+}
+static uint32_t utf8_raw(const char **p) {
     const uint8_t *s = (const uint8_t *)*p;
     uint32_t c = *s++;
     if (c >= 0xE0 && s[0] && s[1]) { c = (c & 0x0F) << 12 | (s[0] & 0x3F) << 6 | (s[1] & 0x3F); s += 2; }
@@ -5016,6 +5030,7 @@ static uint32_t utf8_next(const char **p) {
     *p = (const char *)s;
     return c;
 }
+static uint32_t utf8_next(const char **p) { return s2t_char(utf8_raw(p)); }  // 顯示用（轉繁體）；比對／轉碼用 utf8_raw
 
 // 原版資料檔的 GBK 文字轉成 UTF-8（字型依 Unicode 排）
 static void gbk_utf8(const char *in, char *out, size_t n) {
@@ -5035,7 +5050,7 @@ static void gbk_utf8(const char *in, char *out, size_t n) {
 static void utf8_gbk(const char *in, char *out, size_t n) {
     size_t o = 0;
     for (const char *q = in; *q && o + 3 < n;) {
-        uint32_t c = utf8_next(&q);
+        uint32_t c = utf8_raw(&q);
         if (c < 0x80) { out[o++] = (char)c; continue; }
         int k = 0;
         while (k < 126 * 191 && gbk_uni[k] != c) k++;
