@@ -48,10 +48,12 @@ go shihuangling
 go neicheng
 go didao1
 kill jiguanshou_a
+keyis goodbox_a -
 pickup 秦殇/骊山/ITEM/阳文虎符
 go out
 go didao2
 kill jiguanshou_b
+keyis goodbox_b -
 pickup 秦殇/骊山/ITEM/阴文虎符
 go out
 go neimu

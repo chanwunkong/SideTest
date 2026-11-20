@@ -344,6 +344,12 @@ static int walk_test(const char *file) {
         } else if (!strcmp(c, "trig") && nt > 2) { if (ex_ntrig < 3000) { snprintf(ex_trig_room[ex_ntrig], 40, "%s", tok[1]); snprintf(ex_trig_path[ex_ntrig++], 100, "%s", tok[2]); }
         } else if (!strcmp(c, "explore")) { explore_run(nt > 1 ? atoi(tok[1]) : 12);
         } else if (!strcmp(c, "plot") && nt > 1) { story_pct_start(tok[1]); if (!story_plot.h) printf("  劇情事件沒有開始（第 17 格不同意）\n"); walk_plot_run(); }
+        else if (!strcmp(c, "keyis") && nt > 2) {  // 目前房間裡別名是 tok[1] 的物件，字串欄位 key 要等於 tok[2]（"-" = 空字串）
+            int room = walk_here(), h = story_find(room, tok[1]); const char *k = h ? story_get_str(h, "key") : NULL;
+            if (!h) { printf("  FAIL 房間 %s 沒有 %s\n", story_room_alias(room), tok[1]); walk_fail = 1; }
+            else if (strcmp(k ? k : "", strcmp(tok[2], "-") ? tok[2] : "")) { printf("  FAIL %s 的 key = \"%s\"（要 %s）\n", tok[1], k ? k : "", tok[2]); walk_fail = 1; }
+            else printf("  ok %s 的 key = \"%s\"\n", tok[1], k ? k : "");
+        }
         else if (!strcmp(c, "exits")) {  // 目前房間的出口（名稱、通往、開不開）：寫走查腳本時查 go 用
             int room = walk_here();
             for (int e = 0; ; e++) { const char *dir, *path; int entry, on; if (!story_exit_nth(room, e, &dir, &path, &entry, &on)) break; printf("  出口 %s → %s%s\n", dir, path, on ? "" : "（關）"); }
