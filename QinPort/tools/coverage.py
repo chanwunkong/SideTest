@@ -80,7 +80,7 @@ colcnt = collections.Counter()
 for r in rem[1:]:
     for i, v in enumerate(r):
         if v and i >= 2 and i < len(cols): colcnt[cols[i]] += 1
-rawuse = {'停止动画循环': 1, '速度变化': 1, '攻击不能': 1, '无敌': 1, '头上效果': 1, '身上效果': 1, '脚下效果': 1, '附加状态': 1, '声音': 1}
+rawuse = {'停止动画循环': 1, '速度变化': 1, '攻击不能': 1, '无敌': 1, '头上效果': 1, '身上效果': 1, '脚下效果': 1, '附加状态': 1, '声音': 1, '旋转': 1, '幻影移动': 1, '幻影攻击': 1, '全身变色': 1, '武器变色': 1, '盾变色': 1, '头变色': 1, '缩放': 1}  # 旋转 flags 0x400、幻影 actor_trail_effect、变色／缩放 actor_modifier_set（main.c actor_effect v[10..17]）；剩 temp（欄 20，raw 只存 0~19）與 不发送到Client（欄 18，單機沒查到作用）
 section('(a4) 狀態表欄位（RoleEffectMdl.txt）', [(k, v, *st('ec:' + k, ('完整', 'status_def raw[]／trail_*') if k in rawuse else ('?', '欄位引擎有 raw[20] 保存，是否逐欄消費未逐項查'))) for k, v in colcnt.items()])
 for _k in '0123456789': S['die:' + _k] = ('完整', '欄 12 → SkillRow.die（DieMode，基底預設 1）→ strike 擊殺 actor_kill_mode（0x100574e0：狀態 4 → 9、狀態 2 → 10、隊友 6/8/9 → 1）→ actor_remove（0x486910）；沒在畫面逐種驗證')
 section('(a5) 技能死亡方式（欄 12）', [('死亡方式 %s' % k, v, *st('die:' + k, ('?', '死亡動畫選擇，未逐項查'))) for k, v in die.items() if k])
