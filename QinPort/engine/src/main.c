@@ -6020,6 +6020,48 @@ static int item_sel = -1;  // 背包選中的格子（UI_Pos）
 static char toast[128];    // 系統訊息（原版 0x1004e560 秀在畫面上）
 static Uint32 toast_until;
 // shortcut: 原版訊息的字串表（0x10060280 的編號）還沒對，先用自訂的中文
+// ---- 任務日誌（自訂，手機版；原版 JM61 日誌界面沒做）----
+// 劇情 journal（0x1004dcc0）以前只 printf，玩家從來看不到任務提示（新手進遊戲不知道要做什麼的根因，2026-11-20）。
+// 存起來（顏色標記 [0名] 拿掉），有新的就自動開日誌視窗；J 鍵、點畫面上方提示字再開；點任何地方關。shortcut: 只顯示最新幾則，沒有捲動
+#define JOURNAL_MAX 60
+static char journal_txt[JOURNAL_MAX][768];
+static int journal_n, journal_open, journal_pop;
+static void journal_add(const char *t) {
+    char *o = journal_txt[journal_n % JOURNAL_MAX];
+    size_t k = 0;
+    for (const char *p = t; *p && k < sizeof journal_txt[0] - 1; p++) {
+        if (*p == '[' && p[1] >= '0' && p[1] <= '9') { p++; continue; }  // [0xxx] → xxx
+        if (*p == ']') continue;
+        o[k++] = *p;
+    }
+    o[k] = 0;
+    journal_n++;
+    journal_pop = 1;
+}
+static void journal_draw(int vw_, int vh_) {
+    if (!journal_open) return;
+    text_zoom = screen_zoom > 2 ? 2 : screen_zoom < 1 ? 1 : screen_zoom;
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, 8, 8, 8, 225);
+    SDL_Rect r = {20, 20, vw_ - 40, vh_ - 110};  // 下方留給操作列
+    SDL_RenderFillRect(ren, &r);
+    SDL_SetRenderDrawColor(ren, 190, 160, 90, 255);
+    SDL_RenderDrawRect(ren, &r);
+    int y = r.y + 8, w = r.w - 16;
+    draw_text(r.x + 8, y, "\xe4\xbb\xbb\xe5\x8b\x99\xe6\x97\xa5\xe8\xaa\x8c", w, 0xE8D890, 1);  // 任務日誌
+    y += 26 * (int)(text_zoom + 0.5f) / 1;
+    int shown = 0;
+    for (int i = journal_n - 1; i >= 0 && i >= journal_n - JOURNAL_MAX; i--) {  // 最新在上
+        const char *t = journal_txt[i % JOURNAL_MAX];
+        int h = draw_text(0, 0, t, w, 0, 0);
+        if (y + h > r.y + r.h - 24 && shown) break;
+        draw_text(r.x + 8, y, t, w, shown ? 0xA8A898 : 0xFFFFFF, 1);
+        y += h + 10; shown++;
+    }
+    if (!journal_n) draw_text(r.x + 8, y, "\xef\xbc\x88\xe9\x82\x84\xe6\xb2\x92\xe6\x9c\x89\xe6\x97\xa5\xe8\xaa\x8c\xef\xbc\x89", w, 0xA8A898, 1);  // （還沒有日誌）
+    draw_text(r.x + 8, r.y + r.h - 20, "\xe9\xbb\x9e\xe4\xbb\xbb\xe4\xbd\x95\xe5\x9c\xb0\xe6\x96\xb9\xe9\x97\x9c\xe9\x96\x89\xef\xbc\x88J \xe9\x8d\xb5\xe6\x88\x96\xe9\xbb\x9e\xe4\xb8\x8a\xe6\x96\xb9\xe6\x8f\x90\xe7\xa4\xba\xe5\xad\x97\xe5\x86\x8d\xe9\x96\x8b\xef\xbc\x89", w, 0x909080, 1);  // 點任何地方關閉（J 鍵或點上方提示字再開）
+    text_zoom = 1;
+}
 static void hud_say(const char *t) { snprintf(toast, sizeof toast, "%s", t); toast_until = SDL_GetTicks() + 2500; }
 #include "caption.c"
 #include "mapwin.c"
@@ -10054,6 +10096,7 @@ int main(int argc, char **argv) {
     story_item_make = story_item_new;
     story_on_exp = story_exp;
     story_on_log = story_log;
+    story_on_journal = journal_add;
     story_on_person = story_person;
     story_on_skill = story_skill;
     story_on_msg = story_msg;
@@ -10233,6 +10276,10 @@ int main(int argc, char **argv) {
             } else if (e.type == SDL_KEYDOWN) tch.kbm = 1;
             if (e.type == SDL_MOUSEMOTION && drag_src >= 0) { drag_x = e.motion.x; drag_y = e.motion.y; }
             if (e.type == SDL_QUIT) running = 0;
+            else if (journal_open && (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_KEYDOWN)) { journal_open = 0; pointer_down = 0; continue; }  // 日誌開著：點任何地方或按鍵關閉
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_j && !e.key.repeat && !new_open && !sys_open && !mny.open && !diff_open && !dialog_open) journal_open = 1;
+            else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT && e.button.y < 36 && e.button.x > vw / 4 && e.button.x < vw * 3 / 4 &&
+                     !new_open && !sys_open && !mny.open && !diff_open && !dialog_open && !rec_on && journal_n) { journal_open = 1; continue; }  // 點畫面上方提示字開日誌（手機沒有 J 鍵）
             else if (mny.open && (e.type == SDL_TEXTINPUT || e.type == SDL_KEYDOWN)) {  // 丟錢／銀行輸入框：數字、退格、Enter 確定、Esc 取消
                 if (e.type == SDL_TEXTINPUT) money_text(e.text.text);
                 else if (e.key.keysym.sym == SDLK_BACKSPACE) money_back();
@@ -10390,10 +10437,13 @@ int main(int argc, char **argv) {
             load_due = -1;
         }
 
+        if (journal_pop && !rec_on && !dialog_open && !journal_open && !(dead_open || sys_open || map_open || new_open || ask_open || quit_open || sav_mode || diff_open || trade_paused())) {
+            journal_open = 1; journal_pop = 0; pointer_down = 0;  // 新日誌：等過場／對話結束才自動打開
+        }
         if (hero->selection_pending && !hero->act && !hero->casting) hero_selected_skill_apply(hero);
         Uint64 now = SDL_GetPerformanceCounter();
         {  // 觸控介面：對話、系統選單、創角、地圖、死亡、詢問框、離開確認、交易製作視窗開著就整組收起來（背包、裝備、技能這種側邊視窗開著保留，多一顆 ✕ 關閉）；視窗長寬比（轉向、改視窗大小）或側邊視窗變了就重排版
-            int blocked = dead_open || sys_open || map_open || new_open || pick_hand >= 0 || ask_open || quit_open || sav_mode || diff_open || trade_paused();
+            int blocked = journal_open || dead_open || sys_open || map_open || new_open || pick_hand >= 0 || ask_open || quit_open || sav_mode || diff_open || trade_paused();
 #ifdef STORY
             blocked |= dialog_open || make_on() || store_on();
 #endif
@@ -10759,6 +10809,7 @@ int main(int argc, char **argv) {
         }
         viewport_draw(&viewport, &scene, tick);
         rec_dialog_draw(vw, vh);
+        journal_draw(vw, vh);
         input_box_draw();  // 0x46e8b0
         fade_draw(vw, vh);  // 0x44bf00：場景畫完再淡入淡出（介面不受影響）
         if (snap_due) { snap_take(canvas); snap_due = 0; }
