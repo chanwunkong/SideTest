@@ -2546,7 +2546,7 @@ static void actor_kill_mode(Actor *t, Actor *by, int mode) {
     actor_remove(t, mode);
     if (t->mon) mon_loot(t);
     if (by && !by->mon && t->mon && (by == &actors[0] || by->team)) kill_exp(t, by);
-    printf("%s 倒下\n", t->mon ? "怪物" : "主角");
+    printf("%s 倒下 死亡方式=%d\n", t->mon ? "怪物" : "主角", t->removal_mode);
     if (t == &actors[0]) hero_dies();
 #ifdef STORY
     if (t->sh) story_killed(t->sh);  // 原版 0x100574e0 最後刪掉人物；Boss 的第 10 格會開劇情
