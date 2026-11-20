@@ -65,8 +65,8 @@ def movie_mp4(name):
         d = open(src, 'rb').read()
         fixed = os.path.join(MOVIE_CACHE, name.lower() + '.avi')
         open(fixed, 'wb').write(b'R' + d[1:] if d[:4] != b'RIFF' else d)
-        h264 = b'H264' in d[:4096] or b'h264' in d[:4096] or b'X264' in d[:4096]
-        v = ['-c:v', 'copy'] if h264 else ['-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p']
+        # 一律重新編碼：H.264 直接從 AVI 搬進 mp4 時間戳不穩、碼率又高（Start.avi 45MB），手機上會卡；CRF 26 約縮成 1/3
+        v = ['-fflags', '+genpts', '-c:v', 'libx264', '-profile:v', 'main', '-preset', 'veryfast', '-crf', '26', '-pix_fmt', 'yuv420p', '-g', '48']
         tmp = out + '.part.mp4'
         r = subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', fixed, *v, '-c:a', 'aac', '-movflags', '+faststart', tmp])
         os.remove(fixed)
@@ -91,21 +91,29 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def send_movie(self, path):
-        data, rng = open(path, 'rb').read(), self.headers.get('Range', '')
-        a, b = 0, len(data) - 1
+        size, rng = os.path.getsize(path), self.headers.get('Range', '')
+        a, b = 0, size - 1
         if rng.startswith('bytes='):  # iOS Safari 的 <video> 一定要 Range
             lo, _, hi = rng[6:].partition('-')
             a = int(lo or 0)
             b = int(hi) if hi else b
             self.send_response(206)
-            self.send_header('Content-Range', f'bytes {a}-{b}/{len(data)}')
+            self.send_header('Content-Range', f'bytes {a}-{b}/{size}')
         else:
             self.send_response(200)
         self.send_header('Content-Type', 'video/mp4')
         self.send_header('Accept-Ranges', 'bytes')
         self.send_header('Content-Length', str(b - a + 1))
         self.end_headers()
-        self.wfile.write(data[a:b + 1])
+        with open(path, 'rb') as f:  # 只讀要的片段（以前每個 Range 請求都整檔讀進記憶體）
+            f.seek(a)
+            left = b - a + 1
+            while left > 0:
+                chunk = f.read(min(1 << 20, left))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                left -= len(chunk)
 
     def do_GET(self):
         if self.path.startswith('/movie/') and self.path.split('?')[0].endswith('.mp4'):
