@@ -10537,6 +10537,14 @@ int main(int argc, char **argv) {
         while (now_ms - logic_ms >= TICK_MS) {
             logic_ms += TICK_MS;
             if (scene_paused || trade_paused()) continue;
+            // 過場等圖片下載好才往下播（網頁圖片是邊畫邊下載；手機網路慢時過場在黑畫面上播完，玩家什麼都沒看到，2026-11-20 使用者回報）。
+            // 最多等 30 秒，之後照播（有張圖一直下載失敗也不會卡死）。原版啟動時資源都在本機，沒有這問題
+            static Uint32 rec_wait_from;
+            if (rec_on && res_loading() > 0) {
+                Uint32 nowm = SDL_GetTicks();
+                if (!rec_wait_from) rec_wait_from = nowm;
+                if (nowm - rec_wait_from < 30000) continue;
+            } else rec_wait_from = 0;
             ++tick;
             actor_logic_tick = tick;
 #ifdef STORY
