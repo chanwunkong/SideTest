@@ -9081,6 +9081,40 @@ static void hud_draw(Actor *hero) {
 
 static void air_draw_view(void);
 #include "viewport.c"
+// ---- 附近的人提示（自訂，手機版）----
+// 起始地圖大、NPC 零散，玩家走來走去看不到任何能互動的東西（2026-11-20 使用者實機回報）。畫面上沒有可互動的人時，
+// 在畫面邊緣畫一個指向最近 NPC 的箭頭與名字、格數；走近到畫面看得到就消失。shortcut: 不管這個 NPC 說過話沒有（沒有「已說過」記錄）
+#ifdef STORY
+static void npc_hint_draw(const ViewPort *v, const Actor *hero, int vw_, int vh_) {
+    const Actor *best = NULL;
+    int bd = 1 << 30, visible = 0, play_h = vh_ - 90;  // 下方 90 是操作列
+    for (int i = 1; i < actor_count; i++) {
+        const Actor *n = &actors[i];
+        const char *ev = actor_init_name(n);
+        if (n->mon || !n->role || !n->sh || n->act == ACT_DEAD || !ev || !*ev || is_foe(n, hero)) continue;
+        SDL_Point sp = viewport_world_screen(v, ax64(n), ay64(n));
+        if (sp.x > 0 && sp.x < vw_ && sp.y > 0 && sp.y < play_h) { visible = 1; break; }
+        int dx = (int)(n->x - hero->x), dy = (int)(n->y - hero->y), d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; best = n; }
+    }
+    if (visible || !best) return;
+    SDL_Point sp = viewport_world_screen(v, ax64(best), ay64(best));
+    float cx = vw_ / 2.0f, cy = play_h / 2.0f, dx = sp.x - cx, dy = sp.y - cy;
+    float k = fabsf(dx) * (play_h / 2.0f - 20) > fabsf(dy) * (vw_ / 2.0f - 40) ? (vw_ / 2.0f - 40) / fabsf(dx) : (play_h / 2.0f - 20) / (fabsf(dy) > 0.01f ? fabsf(dy) : 0.01f);
+    int ex = (int)(cx + dx * k), ey = (int)(cy + dy * k);
+    float len = sqrtf(dx * dx + dy * dy); if (len < 1) len = 1;
+    float ux = dx / len, uy = dy / len;
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, 232, 208, 120, 230);
+    SDL_Vertex tri[3] = {{{ex + ux * 14, ey + uy * 14}, {232, 208, 120, 230}, {0, 0}}, {{ex - uy * 9 - ux * 6, ey + ux * 9 - uy * 6}, {232, 208, 120, 230}, {0, 0}}, {{ex + uy * 9 - ux * 6, ey - ux * 9 - uy * 6}, {232, 208, 120, 230}, {0, 0}}};
+    SDL_RenderGeometry(ren, NULL, tri, 3, NULL, 0);
+    char t[96];
+    snprintf(t, sizeof t, "%s %d", story_name(best->sh), (int)sqrtf((float)bd));
+    int tw = text_width(t), tx = ex - tw / 2, ty = ey + (uy > 0 ? -34 : 20);
+    if (tx < 2) tx = 2; if (tx + tw > vw_ - 2) tx = vw_ - 2 - tw;
+    draw_text(tx, ty, t, tw + 4, 0xE8D078, 1);
+}
+#endif
 
 static void camera_to_cell(int x, int y) { viewport_center_at(&viewport, unit_scene, x, y); }  // 0x461530
 
@@ -10832,6 +10866,10 @@ int main(int argc, char **argv) {
         viewport_draw(&viewport, &scene, tick);
         rec_dialog_draw(vw, vh);
         journal_draw(vw, vh);
+#ifdef STORY
+        if (!journal_open && !dialog_open && !rec_on && !(dead_open || sys_open || map_open || new_open || ask_open || quit_open || sav_mode || diff_open) && hero->act != ACT_DEAD)
+            npc_hint_draw(&viewport, hero, vw, vh);
+#endif
         input_box_draw();  // 0x46e8b0
         fade_draw(vw, vh);  // 0x44bf00：場景畫完再淡入淡出（介面不受影響）
         if (snap_due) { snap_take(canvas); snap_due = 0; }
