@@ -5738,6 +5738,7 @@ static Actor *talk_from, *talk_to;
 // 走近自動說話（輔助，預設開；--no-autotalk／?autotalk=0 關）。shortcut: 原版沒有「主角走近 NPC 自動開口」（只有 s_pctstart 觸發區、
 // 命令 15 點 NPC、NPC 頭頂隨機台詞 npc_chat），手機很難點準 NPC 才加。主角站著時 3 格內、走動時 2 格內觸發；同一個 NPC 說過後要離開 6 格才再觸發。
 static int auto_talk = 1;
+static int auto_stick_lock;  // 自動說話觸發後忽略搖桿直到放開
 #define AUTO_TALK_LEAVE 6
 static int auto_talk_step(int dist, int still, unsigned char *done) {
     if (dist > AUTO_TALK_LEAVE) *done = 0;
@@ -10438,6 +10439,9 @@ int main(int argc, char **argv) {
             if (touch_joy(&jx, &jy)) { mx = jx; my = jy; }
             touch_frame(hero);
         }
+        // 走近自動說話觸發時搖桿還按著：不鎖的話下一拍的移動會取消「走過去說話」命令，主角直接走開、對話永遠不開（2026-11-20 瀏覽器實測抓到）。
+        // 鎖住到搖桿放開為止（auto_stick_lock 在自動說話那段設）
+        if (auto_stick_lock) { if (mx * mx + my * my <= 0.01f) auto_stick_lock = 0; else mx = my = 0; }
 
         // ---- 固定節拍：跟原版一樣每 16ms 一拍，畫面多快都不影響遊戲速度 ----
         Uint32 now_ms = SDL_GetTicks();
@@ -10511,8 +10515,14 @@ int main(int argc, char **argv) {
                     if (!auto_talk_step(d, !hero->moving && mx * mx + my * my <= 0.01f, &n->auto_talked)) continue;
                     if (!line_clear(hsx, hsy, nx, ny, 3, 3) || !story_find(story_room(alias), ev)) { n->auto_talked = 0; continue; }
                     if (debug_cells == 2) printf("autotalk %s\n", ev);
+                    if (hero->moving && !has_status(n, 0x67)) {  // 走動中觸發：命令 15 在移動中不會被消費（瀏覽器實測 autotalk 有印、對話沒開），這裡照 actor_interact_tick 的收尾直接開口
+                        actor_direction_set(n, dir_of(ax64(hero), ay64(hero), ax64(n), ay64(n), 8)); actor_body_apply(n, -1);
+                        actor_direction_set(hero, dir_of(ax64(n), ay64(n), ax64(hero), ay64(hero), 8)); actor_body_apply(hero, -1);
+                        talk_from = hero; talk_to = n; hero->moving = 0;
+                    } else
                     actor_command(hero, 0xf, n->sh ? n->sh : (int)n->object_id, 0, 0, 1, 1);
                     hero->foe = NULL; hero->want = NULL; walk_cx = -1;
+                    auto_stick_lock = 1;
                     break;
                 }
             }
