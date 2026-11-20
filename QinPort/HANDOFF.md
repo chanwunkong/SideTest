@@ -1851,3 +1851,8 @@ skilltest 新增：刺客 Hand 5、箭消耗用 Attack方式（真資料招式 I
 **console 警告**（第 6 輪的記錄；第 7 輪已掃完全部，見上 9）：`WARN=1 node tools/webtrig.mjs 網址 埠 場景…`。第一章走過的場景（赵村、民居、阳周城、衙府、监狱、北地驿站、驿站、北地郡、咸阳、桓将军府、新咸阳北郊…共 20 個）0 個警告、0 個例外；全部 450 個非連線場景的 `?scene=` 載入 0 個例外（觸發區掃描，不看警告）。全場景的 WARN 掃描跑到一半被我停掉（輸出 0 行，但不知道掃到第幾個場景），**其餘場景的警告沒記錄**：要的話 `L=$(ls game/scene | grep Scn$ | sed s/.Scn//); WARN=1 node tools/webtrig.mjs 網址 埠 "$(echo $L | tr ' ' ,)"`（約 30 分鐘）。log 裡 NPC 名字亂碼（`npc С…`）是 log 沒轉 GBK，只影響除錯輸出。
 **沒做到／還沒查**：怪物掉落的劇情道具（山魈头等）不經 move、沒有第 15 格；撿道具的瀏覽器路徑只走了解毒药；城門「打開」的動畫沒截到；第二章之後見 PORT_QUEUE。
 驗證：`make`、`make skilltest` → skilltest ok；`make storytest && node build/storytest.js 秦殇/咸阳/NPC/绣女 0 1` 正常；`make walktest` → walktest ok；複本 `make web` 通過；firstmap_check.sh 全部 ok。
+
+## 資料驅動補齊第 1 項：Rec 對話框（'@' 4）框色與字色（2026-11-20）
+- 原版畫法在 0x5950a0（reach.tsv 誤標成 ~CToolTip 解構的 thunk，其實是 CToolTip 的繪製）：框貼圖組 +0x260 = DAT_00662860 全程式沒有寫入（恆 0）→ **沒有邊框**；底色 DAT_0064b2c4／0x64b324 = 0x0421／0x0861 = RGB(8,8,8)；字色 DAT_0064b3b4／0x64b49c = 0x6737／0xce77 = RGB(205,205,189)（兩種像素格式是同一個顏色）。引擎 `rec_dialog_draw` 改成這三項（拿掉金色邊框、字色 0xcdcdbd、底 8,8,8）。
+- **沒驗證**：skilltest ok、make web 編得過；用 headless Chrome 跑 `?scene=xy_taizifu&rec=pct_aqyshu` 約 2.5 分鐘的截圖沒有看到對話框出現（過場有在跑），所以**畫面上的框色字色沒親眼看到**；先前記載的截圖測試這次沒重現，原因沒查（可能時間點或語音下載）。
+- 沒查到：底色是不透明還是半透明（UI 管理物件 DAT_00955b88 +0x2d8 的預設值；半透明走圖案 0x93dcc8 等級 4）。目前仍用 alpha 200。

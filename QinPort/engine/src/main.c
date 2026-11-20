@@ -9862,7 +9862,8 @@ static void rec_dialog_tick(void) {
 }
 
 // 0x4722f0 + 0x538f50 + 0x5963e0：文字框置中在說話者頭頂（x = 角色 x，下緣 = 角色 y − 頭高 − 10），超出畫面就推回來（0x5962e0 後段的 OffsetRect 夾邊）
-// shortcut: 原版框色是 16 位元全域 DAT_0064b3b4／0x64b49c，字色參數 0，沒查到值；先用半透明黑底白字。原版 Rec 對話沒有說話者名與頭像（case 4 只存文字）
+// 原版畫法 0x5950a0（~CToolTip 的 thunk 其實是 Draw）：框貼圖組 +0x260 = DAT_00662860 全程式沒寫入（恆 0）→ 沒有邊框；底色 DAT_0064b2c4／0x64b324 = 0x0421／0x0861 = RGB(8,8,8)；字色 DAT_0064b3b4／0x64b49c = 0x6737／0xce77 = RGB(205,205,189)。
+// shortcut: 底色用 UI 管理物件 +0x2d8 判斷不透明（填滿）或半透明（圖案 0x93dcc8 等級 4），沒查到預設值；先用 alpha 200。原版 Rec 對話沒有說話者名與頭像（case 4 只存文字）
 static void rec_dialog_draw(int vw, int vh) {
     if (!rec_on || rec.dlg_t < 0 || !rec.dlg_text[0]) return;
     // 直式手機：遊戲畫面被縮小顯示，文字照比例放大才看得清
@@ -9881,12 +9882,10 @@ static void rec_dialog_draw(int vw, int vh) {
     if (y + bh > vh) y = vh - bh;
     if (y < 0) y = 0;
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(ren, 0, 0, 0, 200);
+    SDL_SetRenderDrawColor(ren, 8, 8, 8, 200);
     SDL_Rect r = {x, y, bw, bh};
     SDL_RenderFillRect(ren, &r);
-    SDL_SetRenderDrawColor(ren, 220, 200, 140, 255);
-    SDL_RenderDrawRect(ren, &r);
-    draw_text(x + 4, y + 2, rec.dlg_text, w, 0xffffff, 1);
+    draw_text(x + 4, y + 2, rec.dlg_text, w, 0xcdcdbd, 1);
     text_zoom = 1;
 }
 static void rec_dialog_note(const Actor *a, int sx, int sy) {
