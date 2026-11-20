@@ -667,6 +667,37 @@ static void viewport_debug_cells(const ViewPort *v, const Scene *s, const Actor 
 }
 
 // 0x45f200：重建當幀可見名單，地表、分層背景、光照、動態物件；小地圖另等 CMapDialog。
+// 視野黑幕：原版 0x45b2b0 逐格看探索值（Cell.view）：>= 2 看得見不遮；0 沒去過整格黑；1 去過但現在看不見 → 依 8 鄰格算邊緣型（0x4c7a00，查表 0x639628）
+// 從遮罩圖集裁 64×32 蓋上去。shortcut: 遮罩圖集沒找到資源（原版在程式裡生成），這裡用純黑菱形代替：沒去過 alpha 255、去過但看不見 alpha 150，
+// 沒有 16 種邊緣型的柔邊（階梯狀菱形邊緣）；畫在人物、天氣之前，所以黑區裡的人物看不到（原版伺服端本來就不送看不見的人）
+static void viewport_fog(const ViewPort *v, const Scene *s) {
+    if (!s->cells) return;
+    enum { MAXV = 6 * 1800 };
+    static SDL_Vertex vt[MAXV];
+    int n = 0;
+    SDL_Point start = viewport_screen_grid(v, 0, 0);
+    start.x--;
+    SDL_Point pixel = viewport_grid_screen(v, start.x, start.y);
+    for (int row = 0; row < v->h / 32 + 3; row++)
+        for (int odd = 0; odd < 2; odd++)
+            for (int col = 0; col < v->w / 64 + 3; col++) {
+                int x = start.x + row + odd + col, y = start.y + row - col;
+                if (x < 0 || y < 0 || x >= s->w || y >= s->h) continue;
+                int view = s->cells[y * s->w + x].view;
+                if (view >= 2 || n + 6 > MAXV) continue;
+                int sx = pixel.x + odd * 32 + col * 64, sy = pixel.y + row * 32 + odd * 16;
+                SDL_Color c = {0, 0, 0, view ? 150 : 255};
+                float l = sx, r = sx + 64, t = sy, b = sy + 32, mx = sx + 32, my = sy + 16;
+                // 地磚菱形（64×32）：上、右、下、左四個頂點
+                SDL_Vertex a = {{mx, t}, c, {0, 0}}, rr = {{r, my}, c, {0, 0}}, d = {{mx, b}, c, {0, 0}}, ll = {{l, my}, c, {0, 0}};
+                vt[n++] = a; vt[n++] = rr; vt[n++] = d; vt[n++] = a; vt[n++] = d; vt[n++] = ll;
+            }
+    if (n) {
+        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+        SDL_RenderGeometry(ren, NULL, vt, n, NULL, 0);
+    }
+}
+
 static void viewport_draw(ViewPort *v, Scene *s, Uint32 tick) {
     actor_draw_tick = tick;
     if (v->w != vw || v->h != vh) viewport_resize(v, s, vw, vh);
@@ -677,6 +708,7 @@ static void viewport_draw(ViewPort *v, Scene *s, Uint32 tick) {
     light_draw(world_x(s, 0, 0) - origin.x, world_y(s, 0, 0) - origin.y);
     viewport_dynamic(v, s, tick);
     air_draw_view();
+    if (!getenv("QIN_NOFOG")) viewport_fog(v, s);
     weather_draw(v->pos.x, v->pos.y);
     if (debug_cells) viewport_debug_cells(v, s, &actors[0]);
 }
