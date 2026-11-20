@@ -42,25 +42,6 @@ has 湛卢剑
 enter lishan
 expect disizhangjieshu=1
 
-# 骊山：开馆验尸（plot 开馆验尸 → 胡亥玉佩、章=6、diwuzhangjieshu）→ 回到骊山，方仲出現
-plot 秦殇/骊山/PCT/开馆验尸
-expect kaiguanyanshi=2
-expect diwuzhangjieshu=1
-has 玉佩
-enter xianyang
-enter lishan
-roomhas lishan 方仲
-# 方仲：你好→误会→不认识赵霸→…→帮他（刺客與秦将出現）→打倒→伙伴方仲→ask12~15 → 结伴同行
-talk fangzhong1 ask1 ask4 ask5 auto
-expect fangzhongjiaru=0
-roomhas lishan 刺客
-kill cike_a
-kill cike_b
-kill qinjiang_a
-talk fangzhong ask12 ask13 ask14 ask15 ask3
-expect fangzhongjiaru=1
-talk fangzhong ask16 auto
-expect fangzhongjiaru=2
 # 始皇陵：外城→内城；机关兽A阵亡（进地道11，第 16 格清掉宝箱A 的 key）→ 阳文虎符；机关兽B 同理 → 阴文虎符 → 墓门开
 enter lishan
 go shihuangling
@@ -74,3 +55,27 @@ kill jiguanshou_b
 pickup 秦殇/骊山/ITEM/阴文虎符
 go out
 go neimu
+# 进墓室第 16 格自动开 开馆验尸：胡亥玉佩、章=6、回到骊山
+expect kaiguanyanshi=2
+expect diwuzhangjieshu=1
+has 玉佩
+roomhas lishan 方仲
+# 方仲：从墓室回到骊山（骊山第 16 格 kaiguanyanshi=1 → 放方仲）
+roomhas lishan 方仲
+# 方仲：你好→误会→不认识赵霸→…→帮他（刺客與秦将出現）→打倒→伙伴方仲→ask12~15 → 结伴同行
+talk fangzhong1 ask1 ask4 ask5 auto
+expect fangzhongjiaru=0
+roomhas lishan 刺客
+kill cike_a
+kill cike_b
+kill qinjiang_a
+talk fangzhong ask12 ask13 ask14 ask15 ask3
+expect fangzhongjiaru=1
+talk fangzhong ask16 auto
+expect fangzhongjiaru=2
+# 第六章：回咸阳找桓峰（密室）→ 惊晓秘密：jingxiaomimi = 1、kaiguanyanshi = 3
+enter xianyang
+enter xy_hjjf
+talk huanfeng ask5 auto
+expect jingxiaomimi=1
+expect kaiguanyanshi=3
