@@ -3200,7 +3200,7 @@ Poq.exe	99	005351a0	FUN_005351a0	CSystemDialog	game	skip	8	2	介面類別樣板�
 Poq.exe	99	005351b0	FUN_005351b0	CSystemDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	005351c0	FUN_005351c0	CSystemDialog	game	skip	13	2	CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則		
 Poq.exe	99	005351f0	FUN_005351f0	CSystemDialog	game	skip	15	2	CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則		
-Poq.exe	99	00535250	FUN_00535250	CSystemDialog	game	skip	19	2	CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則		
+Poq.exe	99	00535250	FUN_00535250	CSystemDialog	game	done	19	2			
 Poq.exe	99	00535300	FUN_00535300	CSystemDialog	game	skip	12	2	CSystemDialog／CTitleDialog／連線加入視窗殼（擺位、開子視窗、連線版）：無單機規則		
 Poq.exe	99	00535330	FUN_00535330	CSystemDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00535340	FUN_00535340		game	skip	16	7	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
@@ -3516,7 +3516,7 @@ Poq.exe	99	00547aa0	FUN_00547aa0	CDeadDialog	game	skip	8	2	介面類別樣板：
 Poq.exe	99	00547ab0	FUN_00547ab0	CDeadDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00547ac0	FUN_00547ac0	CDeadDialog	game	skip	8	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00547ad0	FUN_00547ad0	CDeadDialog	game	skip	13	2	連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有		
-Poq.exe	99	00547b00	FUN_00547b00	CDeadDialog	game	skip	338	2	連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有		
+Poq.exe	99	00547b00	FUN_00547b00	CDeadDialog	game	done	338	2			
 Poq.exe	99	00548260	FUN_00548260	CDeadDialog	game	skip	9	2	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00548270	FUN_00548270	CDeadDialog	game	skip	33	2	連線版介面：死亡後等伺服器復活（JM106 交談輸出、計時重連）、玩家聊天管道、玩家對玩家交換、玩家列表；單機沒有		
 Poq.exe	99	00548330	FUN_00548330		game	skip	30	0	CGameOptionDialog／CMessageDialog／CPauseDialog／CPropDialog 殼：建構、開關、取控制項、擺位、容器節點；無遊戲規則		
@@ -3581,9 +3581,9 @@ Poq.exe	99	0054e430	FUN_0054e430	CPropDialog	game	skip	103	3	介面→本機伺�
 Poq.exe	99	0054e890	FUN_0054e890		game	skip	115	4	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054eac0	FUN_0054eac0		game	skip	69	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
 Poq.exe	99	0054ec50	FUN_0054ec50		game	skip	22	2	按鈕按下／放開的音效與按鈕幀轉接（音效 0x630／0x1141 + 按鈕狀態）：引擎 ui_button 的按下反應屬畫面細節（HANDOFF「按鈕按下的反應」），無遊戲規則		
-Poq.exe	99	0054ed10	FUN_0054ed10		game	skip	111	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
+Poq.exe	99	0054ed10	FUN_0054ed10		game	done	111	3			
 Poq.exe	99	0054efa0	FUN_0054efa0		game	skip	55	0	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
-Poq.exe	99	0054f190	FUN_0054f190		game	skip	214	3	介面→本機伺服器訊息層：界面動作經 FUN_00511a80 送封包、讀伺服器資料表（RoleData／PropData／TradeData…）、開關視窗；規則本體在 EasyRPG.dll 端（已移植到引擎的 hero_*／item_*／trade_*），引擎的 JM 視窗直接呼叫規則，不經封包		
+Poq.exe	99	0054f190	FUN_0054f190		game	done	214	3			
 Poq.exe	99	0054f6c0	FUN_0054f6c0		game	skip	13	8	設定視窗位置欄位後重畫（FUN_00550120／FUN_005567f0 重填）：引擎視窗每幀依 win_x／win_y 重畫		
 Poq.exe	99	0054f700	FUN_0054f700		game	skip	44	8	道具／技能說明字串組合：UI_C.dlg 2127／2126 格式 + 提示文字送工具提示（FUN_00596730），引擎 JM54 左邊說明已用同一份 dlg 字串		
 Poq.exe	99	0054f820	FUN_0054f820		game	done	334	6			
@@ -4240,14 +4240,14 @@ Poq.exe	99	00579ba0	FUN_00579ba0	~CGameApp	game	skip	68	0	解構函數（物件�
 Poq.exe	99	00579ce0	FUN_00579ce0	~CGameApp	game	skip	24	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00579dd0	FUN_00579dd0	~CGameApp	game	done	8	24		原版空函數：NPC敵對入戰／全域選人提示呼叫無任何副作用，不等待CGameApp	
 Poq.exe	99	00579de0	FUN_00579de0	~CGameApp	game	skip	8	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	00579df0	FUN_00579df0	~CGameApp	game	skip	108	3	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	0057a010	FUN_0057a010	~CGameApp	game	skip	130	9	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	00579df0	FUN_00579df0	~CGameApp	game	done	108	3			
+Poq.exe	99	0057a010	FUN_0057a010	~CGameApp	game	done	130	9			
 Poq.exe	99	0057a380	FUN_0057a380	~CGameApp	game	skip	8	5	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057a390	FUN_0057a390	~CGameApp	game	skip	87	0	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057a5a0	FUN_0057a5a0	~CGameApp	game	skip	9	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057a5d0	FUN_0057a5d0	~CGameApp	game	skip	32	6	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057a6b0	FUN_0057a6b0	~CGameApp	game	done	18	6			
-Poq.exe	99	0057a720	FUN_0057a720	~CGameApp	game	skip	17	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	0057a720	FUN_0057a720	~CGameApp	game	done	17	4			
 Poq.exe	99	0057a780	FUN_0057a780	~CGameApp	game	skip	29	15	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057a8d0	FUN_0057a8d0	~CGameApp	game	skip	15	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057a910	FUN_0057a910		game	done	94	10			
@@ -4288,7 +4288,7 @@ Poq.exe	99	0057cf00	FUN_0057cf00	~CGameApp	game	skip	43	3	解構函數（物件�
 Poq.exe	99	0057cfd0	FUN_0057cfd0	~CGameApp	game	skip	33	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057d040	FUN_0057d040	~CGameApp	game	skip	33	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057d0b0	FUN_0057d0b0	~CGameApp	game	skip	32	17	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	0057d1b0	FUN_0057d1b0	~CGameApp	game	skip	12	4	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	0057d1b0	FUN_0057d1b0	~CGameApp	game	done	12	4			
 Poq.exe	99	0057d1f0	FUN_0057d1f0	~CGameApp	game	skip	42	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057d260	FUN_0057d260	~CGameApp	game	skip	85	5	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	0057d400	FUN_0057d400	~CGameApp	game	skip	10	13	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -4694,7 +4694,7 @@ Poq.exe	99	00593fa0	FUN_00593fa0	~CToolTip	game	skip	35	0	解構函數（物件�
 Poq.exe	99	00594020	FUN_00594020	CToolTip	game	skip	11	5	介面類別樣板：虛擬函式表轉接／空函式／訊息表取址／建構時只設 vftable（引擎 JM 視窗不經 MFC 式物件，無遊戲規則）		
 Poq.exe	99	00594060	FUN_00594060	~CToolTip	game	skip	230	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00594890	FUN_00594890	~CToolTip	game	skip	236	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
-Poq.exe	99	005950a0	FUN_005950a0	~CToolTip	game	skip	200	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
+Poq.exe	99	005950a0	FUN_005950a0	~CToolTip	game	done	200	2			
 Poq.exe	99	005957a0	FUN_005957a0	CToolTip	game	skip	36	5	介面控制項工具箱（按鈕、輸入框、下拉、列舉框、捲軸、進度、靜態字、提示、視窗管理、動畫控制項）：引擎的 JM 視窗在 main.c 以自己的 widget 繪製／點擊，行為由各 Dialog 類別的規則決定，不逐控制項翻		
 Poq.exe	99	00595890	FUN_00595890	~CToolTip	game	skip	38	2	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
 Poq.exe	99	00595930	FUN_00595930	~CToolTip	game	skip	21	3	解構函數（物件清理；C 版由 free／引擎生命週期取代）：不移植		
@@ -5239,7 +5239,7 @@ EasyRPG.dll	99	1000a4f0	FUN_1000a4f0		game	skip	37	0	用戶帳號／存檔檔案
 EasyRPG.dll	99	1000a5a0	FUN_1000a5a0		game	skip	29	0	用戶帳號／存檔檔案／幫派／對話編輯器／字串檔案工具（連線版或原版工具程式，單機沒有；存檔走 engine 自己的格式）		
 EasyRPG.dll	99	1000a630	FUN_1000a630		game	skip	46	0	用戶帳號／存檔檔案／幫派／對話編輯器／字串檔案工具（連線版或原版工具程式，單機沒有；存檔走 engine 自己的格式）		
 EasyRPG.dll	99	1000a6d0	FUN_1000a6d0		game	skip	97	0	用戶帳號／存檔檔案／幫派／對話編輯器／字串檔案工具（連線版或原版工具程式，單機沒有；存檔走 engine 自己的格式）		
-EasyRPG.dll	99	1000a8b0	FUN_1000a8b0		game	skip	538	0	用戶帳號／存檔檔案／幫派／對話編輯器／字串檔案工具（連線版或原版工具程式，單機沒有；存檔走 engine 自己的格式）		
+EasyRPG.dll	99	1000a8b0	FUN_1000a8b0		game	done	538	0			
 EasyRPG.dll	99	1000b600	FUN_1000b600		game	skip	195	1	用戶帳號／存檔檔案／幫派／對話編輯器／字串檔案工具（連線版或原版工具程式，單機沒有；存檔走 engine 自己的格式）		
 EasyRPG.dll	99	1000b9e0	FUN_1000b9e0		game	skip	9	0	用戶帳號／存檔檔案／幫派／對話編輯器／字串檔案工具（連線版或原版工具程式，單機沒有；存檔走 engine 自己的格式）		
 EasyRPG.dll	2	1000b9f0	FUN_1000b9f0		game	skip	17	4	用戶帳號／存檔檔案／幫派／對話編輯器／字串檔案工具（連線版或原版工具程式，單機沒有；存檔走 engine 自己的格式）		
@@ -6316,7 +6316,7 @@ EasyRPG.dll	4	10056d50	FUN_10056d50		game	done	27	1		技能打中套狀態：Sta
 EasyRPG.dll	99	10056e00	FUN_10056e00		game	skip	36	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
 EasyRPG.dll	1	10056ed0	FUN_10056ed0		game	skip	98	2	物件刪除核心（刪子物件、解除登記、通知客戶端）：story_rt.c obj_delete／story_delete 取代		
 EasyRPG.dll	4	10057140	FUN_10057140		game	skip	46	4	物件名單找法（依別名、		
-EasyRPG.dll	1	10057230	FUN_10057230		game	skip	111	30	物件刪除核心（刪子物件、解除登記、通知客戶端）：story_rt.c obj_delete／story_delete 取代		
+EasyRPG.dll	1	10057230	FUN_10057230		game	done	111	30			
 EasyRPG.dll	3	100574e0	FUN_100574e0		game	done	520	4		倒下：經驗 = 怪物 Exp × (殺手悟性+150)/150，殺手等級高 2 級以上每級 −10%（≤ 9 級）；隊伍依權重分（殺手 1.2、其他 1 − 0.05×|等級差|，至少 0.05）= main.c kill_exp	
 EasyRPG.dll	5	10057f50	FUN_10057f50		game	done	108	2			
 EasyRPG.dll	99	10058180	FUN_10058180		game	skip	16	0	EasyRPG.dll 沒有呼叫者（FUN 呼叫、.data 函式表、.text 位址立即值都沒有參照，掃描 PE 映像確認），死碼不移植		
