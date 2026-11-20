@@ -8635,10 +8635,15 @@ static void hero_info(const Actor *h, char *out, size_t cap) {
                                   2113, 2156, 2157, 2158, 2159, 2160, 2114, 2121, 2122, 2123, 2124, 2125};
     int next = h->level < exp_levels ? exp_table[h->level] - h->exp : 0;
     // 數值：經驗、下一級、聲望、生命、精氣、力量、體質、敏捷、悟性、魅力、智慧、命中、閃避、攻擊、五行攻擊 ×5、防禦、五行防禦 ×5
-    // shortcut: 聲望、五行攻防還沒有，先 0
-    int v[25][2] = {{h->exp}, {next}, {0}, {h->hp, h->hp_max}, {h->mp, h->mp_max}, {hero_attr[STR]}, {hero_attr[CON]}, {hero_attr[DEX]},
+    // 聲望 = 劇情主角物件的 Fame 屬性（劇情用 set_attr 改，殺人 -1 等）；五行攻擊 MAP1~5 = ex[43+2i]～ex[44+2i]、五行防禦 MDP1~5 = ex[54+i]（同 strike）
+    int fame = 0;
+#ifdef STORY
+    fame = story_get_int(story_player(), "Fame");
+#endif
+    int v[25][2] = {{h->exp}, {next}, {fame}, {h->hp, h->hp_max}, {h->mp, h->mp_max}, {hero_attr[STR]}, {hero_attr[CON]}, {hero_attr[DEX]},
                     {hero_attr[SAVVY]}, {hero_attr[CHARM]}, {hero_attr[WISDOM]}, {h->hr}, {h->sr}, {h->ap, h->ap_max},
-                    {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {h->dp}};
+                    {h->ex[43], h->ex[44]}, {h->ex[45], h->ex[46]}, {h->ex[47], h->ex[48]}, {h->ex[49], h->ex[50]}, {h->ex[51], h->ex[52]}, {h->dp},
+                    {h->ex[54]}, {h->ex[55]}, {h->ex[56]}, {h->ex[57]}, {h->ex[58]}};
     static const unsigned pair = 1 << 3 | 1 << 4 | 1 << 13 | 1 << 14 | 1 << 15 | 1 << 16 | 1 << 17 | 1 << 18;  // 「%d/%d」的行
     size_t k = 0;
     out[0] = 0;
