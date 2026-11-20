@@ -344,6 +344,10 @@ static int walk_test(const char *file) {
         } else if (!strcmp(c, "trig") && nt > 2) { if (ex_ntrig < 3000) { snprintf(ex_trig_room[ex_ntrig], 40, "%s", tok[1]); snprintf(ex_trig_path[ex_ntrig++], 100, "%s", tok[2]); }
         } else if (!strcmp(c, "explore")) { explore_run(nt > 1 ? atoi(tok[1]) : 12);
         } else if (!strcmp(c, "plot") && nt > 1) { story_pct_start(tok[1]); if (!story_plot.h) printf("  劇情事件沒有開始（第 17 格不同意）\n"); walk_plot_run(); }
+        else if (!strcmp(c, "exits")) {  // 目前房間的出口（名稱、通往、開不開）：寫走查腳本時查 go 用
+            int room = walk_here();
+            for (int e = 0; ; e++) { const char *dir, *path; int entry, on; if (!story_exit_nth(room, e, &dir, &path, &entry, &on)) break; printf("  出口 %s → %s%s\n", dir, path, on ? "" : "（關）"); }
+        }
         else if (!strcmp(c, "talk") && nt > 1) {
             int room = walk_here(), npc = story_find(room, tok[1]);
             if (!npc) { printf("  房間 %s 裡找不到 NPC %s 【NPC 不在】\n", story_room_alias(room), tok[1]); walk_fail = 1; continue; }

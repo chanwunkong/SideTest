@@ -1833,7 +1833,7 @@ skilltest 新增：刺客 Hand 5、箭消耗用 Attack方式（真資料招式 I
 | 3 | 九江→衡山城→衡山村：张铁匠打铁锤（刘京、钱四、撿起）→ tiangangshandong = 1；後山山洞田纲 | 通過 | 衡山村 s13 需 tiangangshandong ≥ 1 |
 | 3 | 衡山城乌府：乌秸（花一万文 ask3→6→8）給玉佩，玉佩第 15 格 tiangangshandong 5 → 7；田纲 ask26 … → xianyanglishan = 1、disanzhangjieshu = 1、huanglingdakai／jiujianghuqiu／changshahejiang 等 7 個路旗標 | 通過 | 乌秸另兩條路（救兒子、动手）有選項、沒走 |
 | 4 | 進咸阳（第 16 格）：disanzhangjieshu 1→2、[章節 章=4]；骊山開了 | 通過 | 咸阳 s13 要 xianyanglishan = 1 |
-| 4～5 | 骊山：开馆验尸（kaiguanyanshi，第 16 格）要有七把神剑之一（ganjiangjian／moyejian1／taiebaojian／juquejian／yuchangjian／zhanlujian／gongbujian）＋ godtoad_ball（金蟾珠，田纲 ask32：「西南苗疆」＝ 云雾谷第 15 格 journal） | **未解（沒走）** | 神剑與金蟾珠各是一條支線，見 PORT_QUEUE「主線走查待續」 |
+| 4～5 | 骊山：开馆验尸（kaiguanyanshi，第 16 格）要有七把神剑之一（ganjiangjian／moyejian1／taiebaojian／juquejian／yuchangjian／zhanlujian／gongbujian）＋ godtoad_ball（金蟾珠，田纲 ask32：「西南苗疆」＝ 云雾谷第 15 格 journal） | 通過到 方仲加入（`ch4.txt`）：金蟾珠＋湛卢剑 → 开馆验尸 plot → 胡亥玉佩、章=6、diwuzhangjieshu → 方仲（ask1→4→5→…→11 帮他 → 打倒刺客／秦将 → 伙伴方仲 ask12~15 → ask16）fangzhongjiaru = 2 | 下一站 始皇陵内城 → 内城地道1 机关兽A 阵亡 → 地道11 宝箱A（阳文虎符）。**已解**：进 内城地道11／22 时房间第 16 格把宝箱 A／B 的 key 设成空字串（`内城地道11.c`／`22.c` s16；之前误以为要有 shajgsha 道具），机关兽 A／B 阵亡 → 虎符 → 内城 s13 合并虎符 → 始皇墓室（`ch4.txt` 走到 kaiguandonghua）。引擎开箱走 `chest_open_rule`，宝箱真的掉虎符没在画面验证（走查用 `pickup` 代替）。ch4 的顺序是先跑 开馆验尸 plot 再进墓室，原版触发点（墓室内）没对 |
 | 5～10 | 共 10 章（diyizhangjieshu … dishizhangjieshu）：陈城残兵A（第 25 格 diliuzhangjieshu）、丰县 pct_斩将夺城（diqizhangjieshu）、巨鹿 pct_项羽坑卒（dijiuzhangjieshu）、咸阳监狱地下二层（dibazhangjieshu）、阿房宫 pct_赵高造反（dishizhangjieshu） | **未解（沒走）** | 各章結束旗標的設定處已用 tools/flagwho.py 列出，見 PORT_QUEUE |
 
 **第 7 輪（2026-11-20）全劇情掃描，整類修正**（`python3 -I tools/flagwho.py 旗標…` 列誰讀誰設某旗標；`kill`／`use`／`talk … auto` 走查指令；explore 第二階段）

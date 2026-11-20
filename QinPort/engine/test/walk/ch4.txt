@@ -61,3 +61,16 @@ talk fangzhong ask12 ask13 ask14 ask15 ask3
 expect fangzhongjiaru=1
 talk fangzhong ask16 auto
 expect fangzhongjiaru=2
+# 始皇陵：外城→内城；机关兽A阵亡（进地道11，第 16 格清掉宝箱A 的 key）→ 阳文虎符；机关兽B 同理 → 阴文虎符 → 墓门开
+enter lishan
+go shihuangling
+go neicheng
+go didao1
+kill jiguanshou_a
+pickup 秦殇/骊山/ITEM/阳文虎符
+go out
+go didao2
+kill jiguanshou_b
+pickup 秦殇/骊山/ITEM/阴文虎符
+go out
+go neimu
