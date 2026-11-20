@@ -5303,6 +5303,7 @@ static SDL_Rect dialog_box(void) {
     int th = d->text[0] ? draw_text(0, 0, d->text, tw, 0, 0) : 0, oh = 0;
     for (int i = 0; i < d->option_count; i++) { int h = draw_text(0, 0, d->options[i].text, tw - 24, 0, 0); oh += (h < 22 ? 22 : h) + 12; }
     int h = 12 + 18 + (th ? th + 8 : 0) + oh + 8;
+    if (h < 200) h = 200;  // 固定最小高度：台詞長短不同也不會忽大忽小（內容超過才加高）
     if (h > vh - 130) h = vh - 130;
     return (SDL_Rect){(vw - w) / 2, vh - h - 8, w, h};
 }
