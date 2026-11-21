@@ -8714,7 +8714,13 @@ static int hud_target(int x, int y, int win, SDL_Rect *r) {
 #ifdef STORY
     if (dialog_open) return 0;
 #endif
-    if (map_open || new_open || opt_open || help_open || cr.open || ch.open) return 0;
+    if (map_open) {  // 地圖：點到控制項就是控制項（可吸附）；點在地圖框裡沒控制項 = 回 0，照一般點擊（選地點／移鏡頭）
+        int ox = (vw - map_d.w) / 2, oy = (vh - map_d.h) / 2 - 0x32;
+        const UiCtrl *c = ui_button_at(&map_d, ox, oy, x, y);
+        if (c) { *r = ctrl_rect(c, ox, oy); return 1; }
+        return 0;
+    }
+    if (new_open || opt_open || help_open || cr.open || ch.open) return 0;
     if (mny.open) return 2;
     if (diff_open) {
         const Sprite *bg = ui_image(196, 0);
@@ -10412,7 +10418,8 @@ int main(int argc, char **argv) {
                 }
                 if (kind == TK_GAME && e.type == SDL_FINGERDOWN) {  // 按在遊戲介面（視窗、選單、HUD 按鈕）上：不立刻點，改成預覽放大鏡，放開才點
                     SDL_Rect hr;
-                    if (hud_target(fx - tch.L.game.x, fy - tch.L.game.y, 0, &hr)) { touch_set_kind(fid, TK_UI); kind = TK_UI; }
+                    int snx = fx - tch.L.game.x, sny = fy - tch.L.game.y;
+                    if (hud_target(snx, sny, 0, &hr) || touch_snap(&snx, &sny, 0, 0)) { touch_set_kind(fid, TK_UI); kind = TK_UI; }  // 按在控制項上，或附近有控制項（吸附）= 介面點擊
                 }
                 if (kind == TK_UI || kind == TK_WIN) {
                     int dux, duy, dwin;

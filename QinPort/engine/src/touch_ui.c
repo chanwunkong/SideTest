@@ -459,6 +459,21 @@ static const TFinger *touch_ui_finger(void) {
 }
 // 放開時：手指所在位置（螢幕座標）若會點到某個控制項 → 閃一下、震動、真的點下去；滑出介面或沒有控制項 = 取消。回 1 = 有點
 static int modal_rect(SDL_Rect *r);
+// 點偏了也吸附到附近的控制項：手指點在視窗內、沒點到控制項時，在半徑約 0.45 個單位（螢幕座標）內找最近的控制項，把點移過去
+// （原版視窗在手機寬度下控制項只有約 14 點寬，手指點不準；不放大視窗、視窗不會跑）
+static int touch_snap(int *ux, int *uy, int win, int side) {
+    SDL_Rect r;
+    if (hud_target(*ux, *uy, side, &r) == 1) return 1;
+    float sc = win && tch.L.ui_s > 0 ? tch.L.ui_s : 1.0f;
+    int maxr = (int)(tch.L.u * 45 / 100 / sc);
+    for (int rad = 4; rad <= maxr; rad += 4)
+        for (int k = 0; k < 16; k++) {
+            double a = k * 3.14159265358979 / 8;
+            int px = *ux + (int)lround(rad * cos(a)), py = *uy + (int)lround(rad * sin(a));
+            if (hud_target(px, py, side, &r) == 1) { *ux = px; *uy = py; return 1; }
+        }
+    return 0;
+}
 static int touch_ui_release(int sx, int sy) {
     int ux, uy, win;
     SDL_Rect r, mr;
@@ -467,7 +482,8 @@ static int touch_ui_release(int sx, int sy) {
     if (win && dialog_open) { story_begin(); dialog_tap(uy); story_end(); return 1; }  // 放大的對話框：整列選項可點
 #endif
     int side = win && !modal_rect(&mr);  // 放大的是居中小視窗（系統選單、存讀檔…）時，點擊走一般介面（hud_tap），不是側邊視窗（win_tap）
-    int tg = hud_target(ux, uy, side, &r);
+    int tg = touch_snap(&ux, &uy, win, side) ? 1 : hud_target(ux, uy, side, &r);
+    if (tg == 1) hud_target(ux, uy, side, &r);  // 吸附後的點的控制項框（亮框用）
     if (tg == 0 && !side && modal_rect(&mr)) { js_vibrate(15); hud_tap(ux, uy); return 1; }  // 地圖、選項／說明、創角不套預覽（hud_target 回 0）：放大顯示時放開就當一般點擊（2026-11-21 前直式點不到）
     if (tg != 1) return 0;
     tch.flash = touch_ui_rect(&tch.L, win, r);
@@ -494,7 +510,7 @@ static void touch_preview_draw(void) {
     int ux, uy, win, hit = 0;
     SDL_Rect hr = {0}, sr = {0};
     SDL_Rect mr_;
-    if (touch_ui_pt(L, f->x, f->y, &ux, &uy, &win) && hud_target(ux, uy, win && !modal_rect(&mr_), &hr) == 1) { hit = 1; sr = touch_ui_rect(L, win, hr); }
+    if (touch_ui_pt(L, f->x, f->y, &ux, &uy, &win) && touch_snap(&ux, &uy, win, win && !modal_rect(&mr_)) && hud_target(ux, uy, win && !modal_rect(&mr_), &hr) == 1) { hit = 1; sr = touch_ui_rect(L, win, hr); }
     if (hit) touch_box(sr, 3, 255, 230, 60, 255);  // 亮框
     SDL_Rect lp = touch_loupe_rect(L, f->x, f->y);
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
