@@ -5669,6 +5669,14 @@ int main(void) {
         assert(dst.cloned && dst.skill_n == 2 && dst.skills[0].row->level == 9 && dst.skills[1].row->level == 5);
         assert(rs[0].level == 12);  // 施放者自己的技能不受影響
     }
+    {  // 分身用人物公式 + 施放者裝備：同等級的主角與分身 hp_max／ap 相同，怪物表的移動速度（ex[64]）保留
+        static Actor c; static MonDef cm; memset(&c, 0, sizeof c); c.mon = &cm;
+        c.level = actors[0].level = 10; c.clone_equip = 1; c.ex[64] = 7; c.ex[93] = 55;
+        memcpy(c.team_attr, hero_attr, sizeof c.team_attr); c.team_prof = hero_prof;
+        actor_derive(&c); hero_derive(&actors[0]);
+        assert(c.hp_max == actors[0].hp_max && c.ap == actors[0].ap && c.ap_max == actors[0].ap_max && c.dp == actors[0].dp);
+        assert(c.ex[64] == 7 && c.ex[93] == 55);
+    }
     {  // 銀行 0x1003ac40、丟錢 0x1003b640／0x10054830、Money 加減 0x1003d3e0
         hero_money = 1000; hero_bank = 0;
         assert(bank_op(1, 300) && hero_money == 700 && hero_bank == 300);

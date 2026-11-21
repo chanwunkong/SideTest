@@ -453,6 +453,7 @@ typedef struct Actor {
     int rec;   // 過場播放器建的角色（rec_on 時只有它們動、被畫）
     int team;  // 隊友（劇情的 Friend 2 隊員）：1 起的槽號，0 = 不是；屬性、職業供 team_derive 用（劇情人物的 Str／Con／Dex／Savvy／Charm／Wisdom、IsActorNPC）
     int team_attr[6], team_prof;
+    int clone_equip;  // 分身（0x1003df00 複製施放者的裝備與技能）：1 = 施放者是主角，數值照主角裝備算；2 = 隊友施放（沒有裝備模型）
     int skill_n, selected, right_id, left_id, range_adjust, selection_pending;
     int template_skill[MAX_ACTOR_SKILLS], template_skill_n;
     int candidate[4];
@@ -1863,7 +1864,18 @@ static void mon_derive(Actor *a) {
 }
 
 static void hero_derive(Actor *h);
-static void actor_derive(Actor *a) { if (a->team) team_derive(a); else if (a->mon) mon_derive(a); else hero_derive(a); }
+static void actor_derive(Actor *a) {
+    if (a->team) team_derive(a);
+    else if (a->mon && a->clone_equip) {  // 分身：人物公式 + 施放者的裝備；移動／出手速度、視距、免疫是怪物表的（人物公式會清 ex），算完還回去
+        int keep[100];
+        memcpy(keep, a->ex, sizeof keep);
+        person_derive(a, a->team_attr, a->team_prof, a->clone_equip == 1);
+        for (int k = 64; k <= 66; k++) a->ex[k] = keep[k];
+        for (int k = 92; k < 99; k++) a->ex[k] = keep[k];
+    }
+    else if (a->mon) mon_derive(a);
+    else hero_derive(a);
+}
 
 static void hero_stats(Actor *h, int level) {
     h->level = level;
@@ -2449,7 +2461,15 @@ static void clone(Actor *a) {
     for (int i = 0; i < actor_count; i++)
         if (alive(&actors[i]) && actors[i].owner == a && !strncmp(actors[i].mon->name, "\xbf\xcb\xc2\xa1", 4)) return;
     Actor *c = make_beside(a, hero_hand == 2 || hero_hand == 5 ? "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb9\xad" : "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb5\xb6");
-    if (c) clone_skills(c, a);
+    if (!c) return;
+    clone_skills(c, a);
+    // 複製施放者的裝備（0x1003df00 第一段）：分身改用人物公式，主角施放時帶主角全身裝備；隊友沒有裝備模型，用隊友屬性與職業
+    c->clone_equip = a == &actors[0] ? 1 : 2;
+    memcpy(c->team_attr, a == &actors[0] ? hero_attr : a->team_attr, sizeof c->team_attr);
+    c->team_prof = a == &actors[0] ? hero_prof : a->team_prof;
+    actor_derive(c);
+    c->hp = c->hp_max;
+    c->mp = c->mp_max;
 }
 
 static void skill_open_lock(Actor *a, const SkillRow *r);
@@ -6423,11 +6443,31 @@ static int hero_skill_level(const char *name) {
     return 0;
 }
 
+// 界面技能（G_IsUISkill）的施展者：主角有就是主角，否則隊伍裡學了這個技能的隊友（原版隊友學到 G_IsUISkill 技能時 0x1004d240 登記 UIS_P、
+// 0x5fa／0x606 把「誰有什麼界面技能、幾級」送給客戶端，客戶端挑施展者）。回傳施展者，*lv = 技能等級（0 = 沒人會）。
+// shortcut: 多人都會時取主角、其次依隊伍順序第一個；客戶端挑選規則（MakeData 的順序、0x543810）沒完全對照
+static Actor *ui_skill_actor(const char *gbk, const char *utf8, int *lv) {
+    *lv = hero_skill_level(gbk);
+    if (*lv > 0) return &actors[0];
+#ifdef STORY
+    for (int i = 1; i < actor_count; i++) {
+        Actor *a = &actors[i];
+        if (!a->team || !alive(a) || !a->sh) continue;
+        for (int c = story_next(a->sh, 0); c; c = story_next(a->sh, c))
+            if (story_kind(c) == 5 && !strcmp(story_name(c), utf8) && story_get_int(c, "Level") > 0) { *lv = story_get_int(c, "Level"); return a; }
+    }
+#else
+    (void)utf8;
+#endif
+    return &actors[0];
+}
+
 // 修理（0x10054090）：自己的修缮之术，道具等級 ≤ 技能等級 × 3；價錢 = 原價 × 損耗 × 4 / 耐久上限（找 NPC 修 ×2）。
 // 箭 13、14，29、30 和 7~34 以外的不能修。shortcut: NPC 修理要商店介面，還沒做
 static void item_repair(int p) {
     Item *it = &inv[p];
-    int lv = hero_skill_level("\xd0\xde\xc9\xc6\xd6\xae\xca\xf5");  // 修缮之术（GBK）
+    int lv;
+    ui_skill_actor("\xd0\xde\xc9\xc6\xd6\xae\xca\xf5", "修缮之术", &lv);  // 修缮之术（GBK）；隊友學了也算
     if (it->type < 7 || it->type > 34 || it->type == 13 || it->type == 14 || it->type == 29 || it->type == 30) { hud_say("這個不能修理"); return; }
     if (it->hp_max <= 0 || it->hp >= it->hp_max) { hud_say("不需要修理"); return; }
     if (it->level > lv * 3) { hud_say(lv ? "修缮之术等級不夠" : "需要修缮之术"); return; }
@@ -6442,11 +6482,13 @@ static void item_repair(int p) {
 // 鑑定（0x1004be60）：自己的慧眼识金，道具等級 ≤ 技能等級 × 3，花 (等級 + 4) × 10 精氣。shortcut: NPC 鑑定（花原價的錢）要商店介面，還沒做
 static void item_identify(Actor *h, int p) {
     Item *it = &inv[p];
-    int lv = hero_skill_level("\xbb\xdb\xd1\xdb\xca\xb6\xbd\xf0"), mp = (it->level + 4) * 10;  // 慧眼识金（GBK）
+    int lv, mp = (it->level + 4) * 10;
+    Actor *who = ui_skill_actor("\xbb\xdb\xd1\xdb\xca\xb6\xbd\xf0", "慧眼识金", &lv);  // 慧眼识金（GBK）；施展者的精氣
+    (void)h;
     if (it->identify) { hud_say("不需要鑑定"); return; }
     if (it->level > lv * 3) { hud_say(lv ? "慧眼识金等級不夠" : "需要慧眼识金"); return; }
-    if (h->mp < mp) { hud_say("精氣不足"); return; }
-    h->mp -= mp;
+    if (who->mp < mp) { hud_say("精氣不足"); return; }
+    who->mp -= mp;
     it->identify = 1;
     hud_say("鑑定完成");
 }
@@ -6904,7 +6946,9 @@ static void fx_merge(ItemFx *list, int *n, const ItemFx *f) {
 static void make_produce(void) {
     const Recipe *r = make_recipe();
     if (!r || !recipe_ready(r, make_mat)) return;  // 材料還沒放齊（原版打造鈕是灰的）
-    int self_lv = make_self ? hero_skill_level("\xb4\xf2\xd4\xec\xd6\xae\xca\xf5") : 0;  // 打造之术（GBK）
+    int self_lv = 0;
+    Actor *maker = &actors[0];
+    if (make_self) maker = ui_skill_actor("\xb4\xf2\xd4\xec\xd6\xae\xca\xf5", "打造之术", &self_lv);  // 打造之术（GBK）；隊友學了也算
     if (make_self && self_lv < 1) return;  // 0x541c50：沒有技能、也沒商人等級，不送封包
     int cost = 0, first = -1;
     for (int c = 0; c < 5; c++)
@@ -6915,11 +6959,11 @@ static void make_produce(void) {
         }
     if (r->main >= 1 && r->main <= 5) first = make_mat[r->main - 1];
     int mp_cost = (self_lv + 10) * 5;
-    if (make_self ? actors[0].mp < mp_cost : hero_money < cost) { hud_msg(make_self ? 3024 : 3025); return; }
+    if (make_self ? maker->mp < mp_cost : hero_money < cost) { hud_msg(make_self ? 3024 : 3025); return; }
     Item out;
     int level = make_self ? self_lv : story_get_int(shop_npc, "UIS_Produce");
     if (!item_new(&out, r->type, level > 0 ? level : 1, -1, NULL)) { hud_msg(3014, r->type); return; }
-    if (make_self) actors[0].mp -= mp_cost; else hero_money -= cost;
+    if (make_self) maker->mp -= mp_cost; else hero_money -= cost;
     if (out.type >= 7 && out.type <= 34) {
         out.fe = first >= 0 && inv[first].type == r->main ? inv[first].fe : -1;  // 原版 FE 一律設（沒有主材 = −1）
         for (int i = 0; i < out.fx_n;) {  // 產品自己的五行特性依 FE 換算，沒有五行就拿掉

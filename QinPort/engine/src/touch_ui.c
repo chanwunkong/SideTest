@@ -455,7 +455,9 @@ static int touch_ui_release(int sx, int sy) {
     if (win && dialog_open) { story_begin(); dialog_tap(uy); story_end(); return 1; }  // 放大的對話框：整列選項可點
 #endif
     int side = win && !modal_rect(&mr);  // 放大的是居中小視窗（系統選單、存讀檔…）時，點擊走一般介面（hud_tap），不是側邊視窗（win_tap）
-    if (hud_target(ux, uy, side, &r) != 1) return 0;
+    int tg = hud_target(ux, uy, side, &r);
+    if (tg == 0 && !side && modal_rect(&mr)) { js_vibrate(15); hud_tap(ux, uy); return 1; }  // 地圖、選項／說明、創角不套預覽（hud_target 回 0）：放大顯示時放開就當一般點擊（2026-11-21 前直式點不到）
+    if (tg != 1) return 0;
     tch.flash = touch_ui_rect(&tch.L, win, r);
     tch.flash_until = SDL_GetTicks() + 160;
     js_vibrate(15);
