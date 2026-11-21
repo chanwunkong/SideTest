@@ -2759,7 +2759,10 @@ static int actor_interpolate(Actor *a, int cx, int cy, int speed) {
     int x = ax64(a), y = ay64(a), tx = cx * 64 + 32, ty = cy * 64 + 32;
     int distance = dist_of(x, y, tx, ty);
     if (distance < 1) { a->interpolation_left = 0; return 1; }
-    if (gate < 1 || !a->move_remaining) return 1;
+    // shortcut: 原版 0x4967d0 在 A（速度表每拍整數步）= 0 時不插值（速度 2 的小雞 A=0、只有 C=7 的 0.7 像素／拍，結果永遠站在原地），
+    // 但這些小雞的資料是閒逛（邏輯 1、矩形 4×4）、單機看起來是 9 隻釘在地上，使用者回報不合理，所以 A=0 但 C>0 時照 C 的小數步走
+    int slow = speed == -1 && a->move_c > 0;
+    if ((gate < 1 && !slow) || (!a->move_remaining && !slow)) return 1;
     float steps = (float)distance / amount;
     a->interpolation_left = (int)steps;
     if (a->interpolation_left < 1) return 1;
