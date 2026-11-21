@@ -453,6 +453,7 @@ typedef struct Actor {
     int rec;   // 過場播放器建的角色（rec_on 時只有它們動、被畫）
     int team;  // 隊友（劇情的 Friend 2 隊員）：1 起的槽號，0 = 不是；屬性、職業供 team_derive 用（劇情人物的 Str／Con／Dex／Savvy／Charm／Wisdom、IsActorNPC）
     int team_attr[6], team_prof;
+    void *eq;  // 隊友身上的裝備（Item[INV_N]，story 子物件 UI_Pos 30~40 的道具；NULL = 沒有裝備資料）
     int clone_equip;  // 分身（0x1003df00 複製施放者的裝備與技能）：1 = 施放者是主角，數值照主角裝備算；2 = 隊友施放（沒有裝備模型）
     int skill_n, selected, right_id, left_id, range_adjust, selection_pending;
     int template_skill[MAX_ACTOR_SKILLS], template_skill_n;
@@ -1765,9 +1766,10 @@ static void actor_mods(Actor *h, int pct) {
 
 // 身上裝備的特性（穿上時 0x1002fe20 複製到人身上，重算 0x100300f0 只算生效的）：固定值、百分比分兩輪，跟技能參數同一套屬性
 static void item_mods(Actor *h, int pct) {
+    const Item *list = h != &actors[0] && h->eq ? (const Item *)h->eq : inv;  // 隊友用自己的裝備表
     for (int s = INV_BAG; s < INV_N; s++)
-        for (int i = 0; inv[s].name[0] && i < inv[s].fx_n; i++) {
-            const ItemFx *f = &inv[s].fx[i];
+        for (int i = 0; list[s].name[0] && i < list[s].fx_n; i++) {
+            const ItemFx *f = &list[s].fx[i];
             int *p = f->on && (f->pct > 0) == pct ? stat_ptr(h, f->id) : NULL;
             if (p) *p += (int)(pct ? *p * f->v / 100 : f->v);
         }
@@ -1806,7 +1808,7 @@ static void person_derive(Actor *h, const int *attr, int prof, int equip) {
     int hd = r[3] == 2 ? con + (lv - r[2]) * 2 : lv * 2 - r[2] + con, md = r[7] == 2 ? wis + (lv - r[6]) * 2 : lv * 2 - r[6] + wis;
     h->hp_speed = (con - r[0]) * h->hp_max * r[1] / 100 / (hd ? hd : 1);
     h->mp_speed = (wis - r[4]) * h->mp_max * r[5] / 100 / (md ? md : 1);
-    // shortcut: 隊友沒有裝備模型（劇情人物身上的武器防具特性沒接到引擎），攻擊力用等級估：2×等級 + 8（防禦、命中閃避只有屬性倍率）
+    // 隊友的裝備由 team_equip_load 從劇情人物身上的道具物件取（equip = 1）；沒有任何裝備資料才用等級估：2×等級 + 8（2026-11-22 更新，以前一律估）
     if (!equip) h->ap = h->ap_max = 2 * lv + 8;
     h->ap = h->ap * (str + K) / K;
     h->ap_max = h->ap_max * (str + K) / K;
@@ -1824,7 +1826,7 @@ static void person_derive(Actor *h, const int *attr, int prof, int equip) {
 
 static void hero_derive(Actor *h) { person_derive(h, hero_attr, hero_prof, 1); }
 // 隊友同一個公式（0x1002d8d0 對所有人物）
-static void team_derive(Actor *h) { person_derive(h, h->team_attr, h->team_prof, 0); }
+static void team_derive(Actor *h) { person_derive(h, h->team_attr, h->team_prof, h->eq != NULL); }
 
 // 怪物數值：表上的基礎值 → 固定加值 → 百分比（同 0x1002d8d0，沒有職業倍率）
 static void mon_derive(Actor *a) {
@@ -2150,8 +2152,8 @@ static void hero_hand_update(void) {
 static int skill_usable(const Actor *h, const SkillRow *r) {
     int w = r->wtype;
     if (r->level < 1 || h->mp < skill_mpu(r)) return 0;
-    if (h->team) return 1;  // shortcut: 隊友沒有裝備，不查武器種類與箭（主角的 hero_hand、箭袋不是他們的）
-    // shortcut: 沒箭射不出去。原版靠 Enable 旗標（箭射完關、裝箭開，arrow_spend／arrow_refresh），但沒找到開局弓技能預設是否關；這裡直接看左手有沒有箭袋
+    if (h->team) return 1;  // 隊友不查手持類與箭（Enable 規則 0x1004c2a0 用的 Hand／箭袋是主角的欄位，隊友的手持類沒有對應資料）
+    // Enable 規則已對照 0x1004c2a0（等級 > 0、精氣 ≥ MPU、W_Type 與 Hand 的對應；下面 return 那行逐項相同）；原版沒箭靠 Enable 旗標（箭射完關 0x1003f370、裝箭開 0x10055b50），這裡直接看左手箭袋，效果等價
     if (!h->mon && r->attack == 1 && (w == 1 || w == 3) && (!inv[33].name[0] || (inv[33].type != 13 && inv[33].type != 14))) return 0;
     return w < 0 || w == hero_hand || (w == 0 ? hero_hand < 0 : w == 1 ? hero_hand == 2 : w == 4 && hero_hand == 5);
 }
@@ -6242,7 +6244,7 @@ static void hud_msg_hero(int id) {
     toast_until = SDL_GetTicks() + 2500;
 }
 // 東西搬進身上（UI_Pos 從 200~299 倉庫／地上 → <200，0x1004cb00）：加進去前不超重、加完超重 → 訊息 3026「%s的東西太多走不動了」（一次，之後 BD > BD_MAX 不再提醒）。
-// BD 加減本身 = hero_burden 即時加總，不必存。shortcut: 超重的效果（原版另在角色屬性重算 0x1002d8d0 一帶，沒找到速度懲罰）沒做
+// BD 加減本身 = hero_burden 即時加總，不必存。超重的速度懲罰見 burden_threshold（speed_threshold ≥ 101 時速度減半）
 static void burden_warn(const Item *it) {
     int bd = hero_burden(), mx = hero_burden_max(&actors[0]);
     if (bd <= mx && bd + it->weight > mx) hud_msg_hero(3026);
@@ -7393,7 +7395,22 @@ static void team_skills(Actor *a) {
 }
 
 // 劇情人物的現值 → 角色（升級、入隊、讀檔後）：等級、屬性、技能列、數值重算；血氣不補（讀檔時由 HP／MP 屬性放回）
+static Item team_eq[TEAM_MAX][INV_N];
+// 隊友的裝備：劇情人物身上 UI_Pos 30~40 的道具物件（原版隊友模板 add_item 給的武器、護甲，例如刺客赵茜 = 赵茜武器1／2、皮甲），
+// 數值照主角同一套（item_mods）算；沒有任何裝備就維持「2×等級 + 8」的估計（person_derive 的 !equip 分支）
+static void team_equip_load(Actor *a) {
+    Item *eq = team_eq[a->team - 1];
+    memset(eq, 0, sizeof team_eq[0]);
+    int n = 0;
+    for (int h = story_next(a->sh, 0); h; h = story_next(a->sh, h)) {
+        const Item *it = story_item(h);
+        int p = story_get_int(h, "UI_Pos");
+        if (it && p >= INV_BAG && p < INV_N && !eq[p].name[0]) { eq[p] = *it; eq[p].pos = p; n++; }
+    }
+    a->eq = n ? eq : NULL;
+}
 static void team_sync(Actor *a) {
+    team_equip_load(a);
     a->level = story_get_int(a->sh, "Level");
     for (int k = 0; k < 6; k++) a->team_attr[k] = story_get_int(a->sh, TEAM_ATTR[k]);
     a->team_prof = story_get_int(a->sh, "IsActorNPC");
