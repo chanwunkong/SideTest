@@ -10188,6 +10188,7 @@ static int modal_rect(SDL_Rect *r) {
     else if (ask_open) { w = ask_d.w; h = ask_d.h; ask_pos(&ox, &oy); }
     else if (quit_open) { w = quit_d.w; h = quit_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2; }
     else if (map_open) { w = map_d.w; h = map_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2 - 0x32; }
+    else if (diff_open) { const Sprite *bg = ui_image(196, 0); w = bg ? bg->w : 0; h = bg ? bg->h : 0; ox = (vw - w) / 2; oy = (vh - h) / 2; }  // 選難度（新遊戲第一個畫面）：小，直式要放大才點得到
     else return 0;
     if (w <= 0 || h <= 0) return 0;
     {  // 視窗實際畫出來的範圍可能比 UiDialog 的 w／h 大（地圖視窗右邊的按鈕欄在 w 之外）：放大區要包含全部，不然右邊被切掉
