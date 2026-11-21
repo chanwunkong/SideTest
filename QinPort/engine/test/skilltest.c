@@ -5669,6 +5669,18 @@ int main(void) {
         assert(dst.cloned && dst.skill_n == 2 && dst.skills[0].row->level == 9 && dst.skills[1].row->level == 5);
         assert(rs[0].level == 12);  // 施放者自己的技能不受影響
     }
+    {  // 小動物被踩死（0x49b160）：有死亡序列（序列數 > 24）的小雞會被移動中的 NPC 組角色踩死；母雞（24 個序列）、玩家組、站著的都不會
+        static Actor ch, hen, mon; memset(&ch, 0, sizeof ch); memset(&hen, 0, sizeof hen); memset(&mon, 0, sizeof mon);
+        ch.def = roledef_find(1007); hen.def = roledef_find(1006);
+        assert(ch.def && hen.def && ch.def->beast && hen.def->beast);
+        ch.x = hen.x = mon.x = 10.5f; ch.y = hen.y = mon.y = 10.5f;
+        mon.grp = 10000; mon.dynamic_state = 11;
+        assert(beast_trampled(&ch, &mon, 7) && !beast_trampled(&hen, &mon, 7));  // 小雞會死、母雞不會
+        assert(!beast_trampled(&ch, &mon, 30));                                   // 每 30 拍的餘數 = 0 那拍不判
+        mon.dynamic_state = 1; assert(!beast_trampled(&ch, &mon, 7));              // 站著不動的不算踩
+        mon.dynamic_state = 11; mon.grp = 2; assert(!beast_trampled(&ch, &mon, 7)); // 玩家組（村民、主角）踩不死
+        mon.grp = 10000; mon.x = 12.5f; assert(!beast_trampled(&ch, &mon, 7));     // 30 像素以外不會
+    }
     {  // 分身用人物公式 + 施放者裝備：同等級的主角與分身 hp_max／ap 相同，怪物表的移動速度（ex[64]）保留
         static Actor c; static MonDef cm; memset(&c, 0, sizeof c); c.mon = &cm;
         c.level = actors[0].level = 10; c.clone_equip = 1; c.ex[64] = 7; c.ex[93] = 55;

@@ -2585,6 +2585,9 @@ static void actor_kill_mode(Actor *t, Actor *by, int mode) {
 }
 static void actor_kill(Actor *t, Actor *by) { actor_kill_mode(t, by, 1); }
 
+static int beast_trampled(const Actor *a, const Actor *t, unsigned tick);
+// 小動物被踩死（原版 0x49b160 後半）：圖形序列數 > 0x18（有死亡序列）、每 30 拍的餘數 ≠ 0、NPC 組角色 t 靠到 0x1e（30 像素）內且 t 不是站著（動態狀態 ≠ 1）
+
 // ---- 招式單位（觸發 type 2 → MethodUnit_Mdl.ini）：原版的特效與飛行物件，見 unit.c ----
 static int shake_left, shake_total;
 
@@ -2684,6 +2687,12 @@ static int walk_cx = -1, walk_cy;       // 點地面要走去的格子（-1 = �
 #include "light.c"
 #define scene (*unit_scene)
 #include "unit.c"
+static int beast_trampled(const Actor *a, const Actor *t, unsigned tick) {
+    if (!a->def || !a->def->beast || !a->def->anim || !grp_npc(t->grp) || t->dynamic_state == 1 || tick % 30 == 0) return 0;
+    const Anim *an = anim_get(a->def->anim);
+    long dx = ax64(a) - ax64(t), dy = ay64(a) - ay64(t);
+    return an && an->count > 0x18 && dx * dx + dy * dy <= 30L * 30;
+}
 
 static int actor_has_method(const Actor *a) { return main_of(a) != NULL; }
 #undef scene
@@ -10839,30 +10848,44 @@ int main(int argc, char **argv) {
                 else if (a->object_kind == 24) trap_tick(a);
                 else npc_dispatch(a);
             }
-            // 小動物（BeastieMdl，原版 CSurBeastie 0x49b160）：不是 CCharactor，不受自動鎖定、不被主角打；
-            // 「對人反應 = 1」每 80 拍找 7 格（0x1c0 像素）內 NPC 組（10000~60000）的角色，有就往反方向逃；NPC 組角色靠到 30 像素內就死（踩死）。
-            // 玩家組（主角、隊友、村民）都不會嚇到牠、也踩不死牠。shortcut: 原版死亡還要看 +0x8b > 0x18 與每 30 拍的餘數（意義沒查），這裡一靠近就死
+            // 小動物（BeastieMdl，原版 CSurBeastie：每拍 0x49b160、逃跑 0x49b6e0、移動 0x49b2d0）。不是 CCharactor：不受自動鎖定、主角打不到。
+            //  ①「對人反應 = 1」且不在逃（狀態 ≠ 2）：每 80 拍找 0x1c0 像素（7 格）內 NPC 組（10000~60000）的角色 → 逃（高速、往反方向）。
+            //  ② 逃到目的地（0x49b2d0）：0x200 像素（8 格）內還有任何角色（不分組，含主角）→ 再逃一次；沒有 → 回到慢走。
+            //  ③ 死亡：圖形序列數 > 0x18（有死亡序列：小鸡、1001 有，公鸡、母鸡 24 個沒有 = 不會死）、每 30 拍的餘數 ≠ 0（原版 +0x77 計數，這裡用全域拍數近似）、
+            //     NPC 組角色靠到 0x1e（30 像素）內且該角色不是站著（動態狀態 ≠ 1）→ 死（狀態 3，播死亡聲音，500 拍後消失）。玩家組（主角、隊友、村民組 2）只有 ② 會讓牠逃，踩不死牠。
+            // shortcut: 逃跑目的地用「反方向 5 格」代替 GetFleePos／路徑點最遠點；高速用旗標 0x10000（速度 ×3/2）代替 BeastieMdl 高速；死亡不播專用聲音
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
                 if (!a->role || !a->def || !a->def->beast || a->act == ACT_DEAD || rec_on) continue;
-                if (a->dynamic_state == 1 && actor_flags(a, 0x10000)) actor_set_flags(a, 0x10000, 0);  // 逃完了，回到慢走
+                Actor *npc_near = NULL, *any_near = NULL;
+                long npc_d2 = 0, any_d2 = 0;
                 for (int j = 1; j < actor_count; j++) {
                     Actor *t = &actors[j];
-                    if (t == a || !alive(t) || (t->def && t->def->beast) || !grp_npc(t->grp)) continue;
+                    if (t == a || !alive(t) || (t->def && t->def->beast)) continue;
                     long dx = ax64(a) - ax64(t), dy = ay64(a) - ay64(t), d2 = dx * dx + dy * dy;
-                    if (d2 <= 30L * 30) { actor_kill(a, NULL); break; }
-                    if (a->def->reaction == 1 && tick % 80 == 1 && d2 <= 448L * 448 && a->dynamic_state == 1 && d2 > 0) {
-                        double d = sqrt((double)d2);
-                        int tx = (ax64(a) + (int)(dx * 5.0 * 64 / d)) >> 6, ty = (ay64(a) + (int)(dy * 5.0 * 64 / d)) >> 6;
-                        if (tx < 0) tx = 0;
-                        if (ty < 0) ty = 0;
-                        if (tx >= scene.w) tx = scene.w - 1;
-                        if (ty >= scene.h) ty = scene.h - 1;
-                        actor_set_flags(a, 0x10000, 1);  // 逃跑用高速（BeastieMdl 高速）
-                        actor_command(a, 1, tx, ty, 0, 1, 0);
-                        break;
-                    }
+                    if (beast_trampled(a, t, tick)) { actor_kill(a, NULL); npc_near = NULL; any_near = NULL; break; }
+                    if (grp_npc(t->grp) && (!npc_near || d2 < npc_d2)) { npc_near = t; npc_d2 = d2; }
+                    if (!any_near || d2 < any_d2) { any_near = t; any_d2 = d2; }
                 }
+                if (a->act == ACT_DEAD || a->def->reaction != 1) continue;
+                int fleeing = actor_flags(a, 0x10000);
+                Actor *from = NULL;
+                if (!fleeing && tick % 80 == 1 && npc_near && npc_d2 <= 448L * 448) from = npc_near;
+                else if (fleeing && a->dynamic_state == 1) {
+                    if (any_near && any_d2 <= 512L * 512) from = any_near;
+                    else actor_set_flags(a, 0x10000, 0);  // 逃完了，回到慢走
+                }
+                if (!from) continue;
+                long dx = ax64(a) - ax64(from), dy = ay64(a) - ay64(from), d2 = dx * dx + dy * dy;
+                if (d2 <= 0) { dx = 64; dy = 0; d2 = 64L * 64; }
+                double d = sqrt((double)d2);
+                int tx = (ax64(a) + (int)(dx * 5.0 * 64 / d)) >> 6, ty = (ay64(a) + (int)(dy * 5.0 * 64 / d)) >> 6;
+                if (tx < 0) tx = 0;
+                if (ty < 0) ty = 0;
+                if (tx >= scene.w) tx = scene.w - 1;
+                if (ty >= scene.h) ty = scene.h - 1;
+                actor_set_flags(a, 0x10000, 1);
+                actor_command(a, 1, tx, ty, 0, 1, 0);
             }
             for (int i = 0; i < actor_count; i++) {
                 actor_near_reactions(&actors[i]);
