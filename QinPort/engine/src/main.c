@@ -9784,7 +9784,14 @@ static void rec_attr(const uint8_t *b, Actor *a) {
     case 0x34: actor_dynamic_command(a, b[5], 0, 0, 0); break;                // 0x496550
     case 0x35: a->layer = b[5]; break;                                         // CCharactor +0x66
     case 0x36: { char base[256]; snprintf(base, sizeof base, "%s", actor_name(a)); char *p = strrchr(base, '('); if (p) *p = 0; actor_display_name_set(a, base, b[5], 1); break; }  // 0x48e820
-    case 0x66: actor_animation_select(a, (int)rec_u16(b + 5)); break;          // 0x48c190
+    case 0x66: {  // 0x48c190
+        int id = (int)rec_u16(b + 5);
+        // 錄影角色放過招（#9）後動作狀態不會自己結束（錄影模式不跑動作計時），一直播招式動畫：下一個明確指定的動畫序列（走路、站立）要把它結束，
+        // 不然主角打完敵人離開時一邊走一邊轉圈（2026-11-21 使用者回報；位置 t=1008 起有走、body_seq 卻一直是招式序列）
+        if (a->act && id / 8 != a->act_seq / 8) { MUnit *u = main_of(a); if (u) unit_die(u, SDL_GetTicks()); act_end(a); a->act = ACT_NONE; a->casting = 0; a->body_ready = 0; }
+        actor_animation_select(a, id);
+        break;
+    }
     case 0x65: actor_group(a, 20000 + (int)rec_u16(b + 5)); break;             // 0x48e6e0
     case 0x67: actor_health_percent(a, (int)rec_u16(b + 5)); break;            // 0x48e8f0
     case 0x33: actor_remove(a, b[5]); break;                                   // 0x486910
