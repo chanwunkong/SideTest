@@ -453,6 +453,7 @@ typedef struct Actor {
     int rec;   // 過場播放器建的角色（rec_on 時只有它們動、被畫）
     int team;  // 隊友（劇情的 Friend 2 隊員）：1 起的槽號，0 = 不是；屬性、職業供 team_derive 用（劇情人物的 Str／Con／Dex／Savvy／Charm／Wisdom、IsActorNPC）
     int team_attr[6], team_prof;
+    const void *good_role; int good_seq, good_frame;  // 最後一次整幀圖都齊的（序列、幀）：圖還在下載時沿用它，人不會消失
     float pvx, pvy;  // 上一拍的位置（畫面補間用，見主迴圈 ‘畫面補間’）
     void *eq;  // 隊友身上的裝備（Item[INV_N]，story 子物件 UI_Pos 30~40 的道具；NULL = 沒有裝備資料）
     int clone_equip;  // 分身（0x1003df00 複製施放者的裝備與技能）：1 = 施放者是主角，數值照主角裝備算；2 = 隊友施放（沒有裝備模型）
@@ -1022,6 +1023,33 @@ static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy, Uint32 tick)
 
 // Poq.exe 0x4872e0 CCharactor繪圖：隱身／顯示50早退、影子、腳圈、腳／身／頭附加精靈、殘影、
 // 部件覆色（+0x45f RH+LH、+0x467 SD、+0x46f HD）、狀態60八副本、頭上標記、8槽浮字、診斷矩形（+0x57d）。
+// 這一幀（所有部件的本體與影子圖）是不是都能畫。網頁版圖片邊畫邊下載，沒好的整個人會不見（使用者手機「缺」數字一直增加）
+static int anim_frame_ready(const Anim *an, int seq, int frame) {
+    if (!an) return 1;
+    if (seq < 0 || seq >= an->count || !an->seqs[seq].count) return 1;  // 沒有這個序列：本來就不畫，不算缺
+    const Frame *f = &an->seqs[seq].frames[frame % an->seqs[seq].count];
+    return image(f->ref) != NULL;
+}
+static int role_frame_ready(const Role *r, int seq, int frame) {
+    if (!r || seq < 0 || seq >= r->seq_count || !r->frames || !r->frames[seq]) return 1;
+    for (int i = 0; i < r->part_count; i++)
+        if (!anim_frame_ready(r->body[i], seq, frame) || !anim_frame_ready(r->shadow[i], seq, frame)) return 0;
+    return 1;
+}
+// 角色目前該畫的（序列、幀）：新的一幀圖還沒齊就沿用最後一個齊的；畫與算畫面矩形（viewport.c）共用，不然矩形是空的會被整個剔除
+static void actor_visual(const Actor *ca, int *seq, int *frame) {
+    Actor *a = (Actor *)ca;
+    *seq = actor_seq(a);
+    *frame = actor_frame(a, *seq);
+    const Role *r = a->role;
+    if (!r || a->object_kind == 24) return;
+    if (a->good_role != (const void *)r) { a->good_role = r; a->good_seq = -1; }
+    if (*seq >= 0 && *seq < r->seq_count && r->frames && r->frames[*seq]) {
+        int fr = *frame % r->frames[*seq];
+        if (role_frame_ready(r, *seq, fr)) { a->good_seq = *seq; a->good_frame = fr; }
+        else if (a->good_seq >= 0 && a->good_seq < r->seq_count && r->frames[a->good_seq]) { *seq = a->good_seq; *frame = a->good_frame; }
+    }
+}
 static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
     const Role *r = a->role;
     if (!r || (a->object_dead && !a->corpse_visible) || !actor_draw_visible(a)) return;
@@ -1035,9 +1063,10 @@ static void actor_draw(Actor *a, int sx, int sy, Uint32 tick) {
         draw_alpha = saved;
         return;
     }
-    int seq = actor_seq(a);
+    int seq, frame;
+    actor_visual(a, &seq, &frame);
     if (seq < 0 || seq >= r->seq_count || !r->frames[seq]) return;
-    int frame = actor_frame(a, seq) % r->frames[seq];
+    frame %= r->frames[seq];
     role_hide = a->part_hide;
     // 影子：光照模式單機固定2，大小≤3且全域0x639f38（選項，單機未設）才用色表9；其餘0
     role_palette_set(r, NULL, 0);

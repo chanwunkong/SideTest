@@ -246,7 +246,8 @@ static void viewport_union_frame(SDL_Rect *rect, const Anim *a, int seq, int fra
 
 // Poq.exe 0x48ef40（CPartDeadObj 屍體畫面矩形 0x499af0 同法；CTrapBase 矩形 0x49c510 = 當前幀矩形，陷阱也走這裡）：本體矩形只上移頂緣，接影子後才縮放，腳圈最後加入且不縮放。
 static SDL_Rect viewport_actor_rect(const Actor *a, int sx, int sy, Uint32 tick) {
-    int seq = actor_seq(a), frame = actor_frame(a, seq);
+    int seq, frame;
+    actor_visual(a, &seq, &frame);
     SDL_Rect r = role_rect(a->role, seq, frame, sx, sy, 0);
     r.y -= a->z;
     SDL_Rect shadow = role_rect(a->role, seq, frame, sx, sy, 1);
