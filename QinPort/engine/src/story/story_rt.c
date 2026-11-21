@@ -846,6 +846,7 @@ int story_random_exit(int room, const char *dir, char *path, int cap, int *entry
 
 // ---- 對話：原版用 0x5dd 訊息把說話者、台詞、選項送給畫面 ----
 StoryDialog story_dialog;
+int story_no_shuffle;  // 測試用：走查腳本要固定順序，storytest 設 1
 
 static void dialog_line(const char *s) {
     size_t n = strlen(story_dialog.text);
@@ -860,6 +861,25 @@ void story_talk(int npc) {
     if (story_kind(npc) == 1) msg(0x519, NULL, 2, npc, the_player);
     snprintf(story_dialog.speaker, sizeof story_dialog.speaker, "%s", story_name(npc));
     if (!slot_call(npc, 17, 1)) return;
+    // 排列問答（0x100569f0）：SortInquiry 沒設（原版取不到 = −1）或 < 0 時，每個選項隨機（rand()%100 < 50 放最前、否則放最後）插進雙向串列，
+    // 再從串列尾往前送 = 順序亂數；SortInquiry >= 0（商人 UIS_Repair／Produce／Addgem 那組設 1）照登記順序
+    {
+        KV *si = O(npc) ? kv_find(O(npc)->ints, O(npc)->nints, "SortInquiry") : NULL;
+        int n = story_dialog.option_count;
+        if ((!si || si->val < 0) && n > 1 && !story_no_shuffle) {
+            StoryOption tmp[STORY_MAX_OPTIONS];
+            int head, tail;  // 以 buf 中間為起點向兩側長
+            StoryOption buf[2 * STORY_MAX_OPTIONS + 1];
+            head = tail = STORY_MAX_OPTIONS;
+            for (int i = 0; i < n; i++) {
+                if (i == 0) { buf[head] = story_dialog.options[0]; continue; }
+                if (rand() % 100 < 50) buf[--head] = story_dialog.options[i];
+                else buf[++tail] = story_dialog.options[i];
+            }
+            for (int i = 0; i < n; i++) tmp[i] = buf[tail - i];  // 從尾往頭送
+            memcpy(story_dialog.options, tmp, sizeof tmp[0] * n);
+        }
+    }
     int act = story_get_int(npc, "G_NPCActive");
     if (act != 10 && act > 0) w_set_attr(npc, "G_NPCActive", -1);  // SetAttr 是加上去：少一
 }

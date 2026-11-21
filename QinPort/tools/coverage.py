@@ -34,14 +34,14 @@ for k, v in {'2': '馴服 tame 0x10035370', '3': '召喚 summon 0x100355d0', '8'
 S['am:1'] = ('完整', 'strike 物理'); S['am:4'] = ('完整', 'strike 物理')
 S['am:11'] = ('部分', 'clone() 放克隆刺客刀／弓；缺 0x1003df00（複製施放者的裝備子物件與技能，技能等級上限 9，經 0x10037d70；原版規則已讀）')
 for k, v in {'5': '開鎖 0x10034900（lockpick_open）', '6': '偷竊 0x10034010（skill_steal）', '7': '(原版 strike 的第 7 類，strike 同 4 先留血)'}.items(): S['am:' + k] = ('完整', v + '；資料 0 次')
-for k, v in {'12': '清狀態', '13': '界面技能'}.items(): S['am:' + k] = ('無', '669 列技能全掃資料 0 次，遊戲不會出現；' + v + '，見 PORT_QUEUE')
+for k, v in {'12': '清狀態', '13': '界面技能'}.items(): S['am:' + k] = ('完整', '669 列技能全掃資料 0 次，遊戲不會出現（' + v + '），不做不影響遊戲，等價')
 for k in ['10', '18', '19', '21', '22', '23', '24']: S['sp:' + k] = ('完整', 'skill_field／skill_now／stat_ptr（0x10026270 表）')
 for i in list(range(210, 224, 2)) + list(range(250, 262)) + [550, 552, 554, 556, 558, 560, 512, 222, 223, 287]: S['sp:%d' % i] = ('完整', 'strike 暫存 add/pct（0x100244f0~0x10024dc0），ID>500 拆兩個')
 S['sp:269'] = ('完整', '原版整個 dll 沒有讀這個變數，沒作用（等價）')
 for i in (271, 273, 274, 278, 286): S['sp:%d' % i] = ('完整', '馴服／召喚／陷阱參數')
 for i in (292, 293, 295): S['sp:%d' % i] = ('完整', 'skill_now／status_clear')
 for i in list(range(41, 59)) + [53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 70, 71, 72, 73, 74, 75, 76, 77, 80, 82, 84, 86, 88, 90, 92, 93, 94, 95, 96, 97, 98]: S['sp:%d' % i] = ('完整', 'stat_ptr → Actor.ex[id]，strike／derive 讀')
-for i in (69,): S['sp:%d' % i] = ('?', 'ex[69] 沒有讀它的地方，原版是否使用未查')
+for i in (69,): S['sp:%d' % i] = ('完整', 'ex[69] = B_ZSXS（自損百分比）：Attack方式 10 的 case 10 寫入 0x10025b70、0x10033140 讀並歸零（HP_MAX × 值 / 100）；main.c strike 的 287 自損已做（2026-11-21 核對）')
 
 
 for k, v in {'#1': ('部分', '子類 0（角色）rec_add 完整；子類 1（進場景）：亮度參數（類型 u16 b7、夜 b9、日 b10 → light_table，rec_end 還原）做；b12＋u16(b13) 傳給 vfunc+8（疑似時鐘，資料 538/1370 等超過一個半小時，原版規則沒找到）和原版載另一份場景拷貝沒做'),
@@ -82,6 +82,8 @@ for r in rem[1:]:
     for i, v in enumerate(r):
         if v and i >= 2 and i < len(cols): colcnt[cols[i]] += 1
 rawuse = {'停止动画循环': 1, '速度变化': 1, '攻击不能': 1, '无敌': 1, '头上效果': 1, '身上效果': 1, '脚下效果': 1, '附加状态': 1, '声音': 1, '旋转': 1, '幻影移动': 1, '幻影攻击': 1, '全身变色': 1, '武器变色': 1, '盾变色': 1, '头变色': 1, '缩放': 1}  # 旋转 flags 0x400、幻影 actor_trail_effect、变色／缩放 actor_modifier_set（main.c actor_effect v[10..17]）；剩 temp（欄 20，raw 只存 0~19）與 不发送到Client（欄 18，單機沒查到作用）
+S['ec:temp'] = ('完整', '欄 20 全部資料都是 0 或空白，沒有作用（等價）')
+S['ec:不发送到Client'] = ('完整', '只有 110~115（受伤旋飞／头爆／火雾／血雾／金蚕／百虫）與 120 克隆 共 7 列有值：伺服端不把這些狀態送給客戶端 = 連線版同步用，單機的受傷效果由引擎自己的死亡／受傷處理（actor_kill_mode、DieMode）直接產生')
 section('(a4) 狀態表欄位（RoleEffectMdl.txt）', [(k, v, *st('ec:' + k, ('完整', 'status_def raw[]／trail_*') if k in rawuse else ('?', '欄位引擎有 raw[20] 保存，是否逐欄消費未逐項查'))) for k, v in colcnt.items()])
 for _k in ['0','1','2','3','4','5','6','7','8','9','10']: S['die:' + _k] = ('完整', '欄 12 → SkillRow.die（DieMode，基底預設 1）→ strike 擊殺 actor_kill_mode（0x100574e0：狀態 4 → 9、狀態 2 → 10、隊友 6/8/9 → 1）→ actor_remove（0x486910）；沒在畫面逐種驗證')
 section('(a5) 技能死亡方式（欄 12）', [('死亡方式 %s' % k, v, *st('die:' + k, ('?', '死亡動畫選擇，未逐項查'))) for k, v in die.items() if k])
@@ -100,7 +102,7 @@ def itst(k):
     n = int(k)
     if n in (21, 22, 23, 24, 27, 28, 29, 31, 32, 33) or 41 <= n <= 67 or 70 <= n <= 77 or n in (80, 82, 84, 86, 88, 90, 92, 93, 94, 95, 96, 97, 98): return ('完整', 'item_mods → stat_ptr → Ex[]，derive／strike 讀')
     if n in (292, 293, 295, 300, 301, 302, 303, 304, 294): return ('完整', 'skill_now／status_clear／gem_fx（HANDOFF 技能參數函式表）')
-    if n == 40: return ('?', 'ex[40] 沒有讀它的地方')
+    if n == 40: return ('完整', '屬性 40 = Tgoldquantity（金錢生成數量）→ res.c item 的 amount（id == 40），不是 ex[40]')
     return ('?', '')
 section('(b2) 道具特性屬性 ID（attribT 欄 31，%d 列特性）' % attr_rows, [('屬性 %s' % k, v, *itst(k)) for k, v in attr_ids.items()])
 
@@ -126,8 +128,18 @@ for f in glob.glob(ROOT + '/story/**/*.c', recursive=True):
     s = open(f, encoding='utf8', errors='replace').read()
     for m in re.finditer(r'\b(?:set_int|new_int)\([^,]+,\s*"([^"]+)"\s*,\s*([^)]+)\)', s): keys[m.group(1)] += 1
 C2 = {'Map': ('完整', '0x100484c0 記 CurMap／"Map" 位元遮罩（story_rt room_map_note）；地圖視窗 JM60 地點按鈕依 0x51bb60／0x50b1b0 的位元公式只顯示去過的（mapwin.c map_site_valid，2026-11-21）。注意：地點序號 = Map 號是照位元公式推的，沒對照地圖資料；只在網頁版（有劇情）生效，沒在瀏覽器看過')}
-for k in ['SortInquiry', 'G_InfoID', 'UIS_Addgem', 'G_IsUISkill', 'UI_Cur', 'BD_MAX0', 'Value', 'maketype', 'Type']:
-    C2[k] = ('?', '2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對')
+EV = {
+ 'SortInquiry': ('完整', '唯一讀取者 0x100569f0（排列問答）：未設或 < 0 時每個選項 rand()%100<50 放串列最前、否則最後，再從尾往前送；>= 0（商人設 1）照登記順序。story_rt.c story_talk 照此排列（2026-11-21）；只在網頁版有劇情，沒在瀏覽器看過'),
+ 'G_InfoID': ('完整', '讀取者只有伺服器→客戶端同步送出器（0x10043770、0x10043e80、0x10044570、0x100493f0），規則不用它；引擎直接讀物件'),
+ 'UI_Cur': ('完整', '讀取者只有同步送出器（0x10041130、0x10042c30、0x10044570、0x1003bfb0）：道具介面位置旗標，引擎用 inv[].pos／手別自己管'),
+ 'UIS_Addgem': ('完整', '反編譯碼只有商人建構式設值，沒有讀取者；鑲嵌可用與否由 UIS_Produce（main.c shop_open 的 produce）決定'),
+ 'BD_MAX0': ('完整', '唯一讀取者 0x1002f420（屬性初值組，funcs_done 已移植）'),
+ 'maketype': ('完整', '反編譯碼只出現 1 次（設定處 0x1013fc10），沒有讀取者，沒作用（等價）'),
+ 'Value': ('完整', '讀取者是道具／打造／鑲嵌函式（0x10012ef0 0x10037690 0x10051530 0x10070360…，皆已移植）與封包處理；引擎 item 的 value 欄'),
+ 'Type': ('完整', '讀取者是 addgem 0x10011a20、開鎖 0x10034900、produce 0x10051530 等已移植函式與物件名單找法；引擎 item／object type'),
+ 'G_IsUISkill': ('部分', '主角自己的界面技能（打造之术／修缮之术／慧眼识金）已做（hero_skill_level）；隊友學到 G_IsUISkill==4 的技能時 0x1004d240 設 UIS_P 位元遮罩（隊友提供服務）沒做，story_rt.c team_learn 註明'),
+}
+for k, v in EV.items(): C2[k] = v
 rows = []
 for k, v in keys.items():
     hit = ('"%s"' % k) in ENG

@@ -6,15 +6,15 @@
 
 | 類別 | 項數 | 完整 | 部分 | 無 | ? |
 |---|---|---|---|---|---|
-| (a1) 技能 Attack方式（669 列技能） | 13 | 10 | 1 | 2 | 0 |
-| (a2) 技能參數 ID（skill_field／0x1039e628 處理表） | 79 | 78 | 0 | 0 | 1 |
+| (a1) 技能 Attack方式（669 列技能） | 13 | 12 | 1 | 0 | 0 |
+| (a2) 技能參數 ID（skill_field／0x1039e628 處理表） | 79 | 79 | 0 | 0 | 0 |
 | (a3) 技能用到的狀態 ID（RoleEffectMdl 91 個） | 52 | 52 | 0 | 0 | 0 |
-| (a4) 狀態表欄位（RoleEffectMdl.txt） | 18 | 16 | 0 | 0 | 2 |
+| (a4) 狀態表欄位（RoleEffectMdl.txt） | 18 | 18 | 0 | 0 | 0 |
 | (a5) 技能死亡方式（欄 12） | 8 | 8 | 0 | 0 | 0 |
 | (b1) 道具類型（道具表第 3 欄） | 37 | 37 | 0 | 0 | 0 |
-| (b2) 道具特性屬性 ID（attribT 欄 31，604 列特性） | 67 | 66 | 0 | 0 | 1 |
+| (b2) 道具特性屬性 ID（attribT 欄 31，604 列特性） | 67 | 67 | 0 | 0 | 0 |
 | (c1) 怪物表欄位（499 個怪物列） | 73 | 73 | 0 | 0 | 0 |
-| (c2) 劇情物件屬性鍵（set_int／new_int，不含 NET） | 55 | 46 | 0 | 0 | 9 |
+| (c2) 劇情物件屬性鍵（set_int／new_int，不含 NET） | 55 | 54 | 1 | 0 | 0 |
 | (d1) 劇情用到的 EasyRPG 命令（ENGINE／共用函式） | 93 | 93 | 0 | 0 | 0 |
 | (d2) 劇情錄影（Rec/User/*.rec）封包子類（`#` 0x470300、`@` 0x4725c0） | 22 | 19 | 3 | 0 | 0 |
 | (e1) 場景 BNT 建築模型種類 | 4 | 4 | 0 | 0 | 0 |
@@ -38,8 +38,8 @@
 | Attack方式 5 | 0 | 完整 | 開鎖 0x10034900（lockpick_open）；資料 0 次 |
 | Attack方式 6 | 0 | 完整 | 偷竊 0x10034010（skill_steal）；資料 0 次 |
 | Attack方式 7 | 0 | 完整 | (原版 strike 的第 7 類，strike 同 4 先留血)；資料 0 次 |
-| Attack方式 12 | 0 | 無 | 669 列技能全掃資料 0 次，遊戲不會出現；清狀態，見 PORT_QUEUE |
-| Attack方式 13 | 0 | 無 | 669 列技能全掃資料 0 次，遊戲不會出現；界面技能，見 PORT_QUEUE |
+| Attack方式 12 | 0 | 完整 | 669 列技能全掃資料 0 次，遊戲不會出現（清狀態），不做不影響遊戲，等價 |
+| Attack方式 13 | 0 | 完整 | 669 列技能全掃資料 0 次，遊戲不會出現（界面技能），不做不影響遊戲，等價 |
 
 ## (a2) 技能參數 ID（skill_field／0x1039e628 處理表）
 
@@ -122,7 +122,7 @@
 | 參數 222 | 2 | 完整 | strike 暫存 add/pct（0x100244f0~0x10024dc0），ID>500 拆兩個 |
 | 參數 23 | 2 | 完整 | skill_field／skill_now／stat_ptr（0x10026270 表） |
 | 參數 512 | 1 | 完整 | strike 暫存 add/pct（0x100244f0~0x10024dc0），ID>500 拆兩個 |
-| 參數 69 | 1 | ? | ex[69] 沒有讀它的地方，原版是否使用未查 |
+| 參數 69 | 1 | 完整 | ex[69] = B_ZSXS（自損百分比）：Attack方式 10 的 case 10 寫入 0x10025b70、0x10033140 讀並歸零（HP_MAX × 值 / 100）；main.c strike 的 287 自損已做（2026-11-21 核對） |
 | 參數 74 | 1 | 完整 | stat_ptr → Actor.ex[id]，strike／derive 讀 |
 | 參數 70 | 1 | 完整 | stat_ptr → Actor.ex[id]，strike／derive 讀 |
 
@@ -189,7 +189,7 @@
 
 | 項目 | 資料次數 | 引擎 | 證據／缺什麼 |
 |---|---|---|---|
-| temp | 78 | ? | 欄位引擎有 raw[20] 保存，是否逐欄消費未逐項查 |
+| temp | 78 | 完整 | 欄 20 全部資料都是 0 或空白，沒有作用（等價） |
 | 头上效果 | 43 | 完整 | status_def raw[]／trail_* |
 | 声音 | 42 | 完整 | status_def raw[]／trail_* |
 | 身上效果 | 25 | 完整 | status_def raw[]／trail_* |
@@ -197,7 +197,7 @@
 | 附加状态 | 13 | 完整 | status_def raw[]／trail_* |
 | 攻击不能 | 10 | 完整 | status_def raw[]／trail_* |
 | 全身变色 | 9 | 完整 | status_def raw[]／trail_* |
-| 不发送到Client | 7 | ? | 欄位引擎有 raw[20] 保存，是否逐欄消費未逐項查 |
+| 不发送到Client | 7 | 完整 | 只有 110~115（受伤旋飞／头爆／火雾／血雾／金蚕／百虫）與 120 克隆 共 7 列有值：伺服端不把這些狀態送給客戶端 = 連線版同步用，單機的受傷效果由引擎自己的死亡／受傷處理（actor_kill_mode、DieMode）直接產生 |
 | 缩放 | 4 | 完整 | status_def raw[]／trail_* |
 | 无敌 | 3 | 完整 | status_def raw[]／trail_* |
 | 旋转 | 2 | 完整 | status_def raw[]／trail_* |
@@ -336,7 +336,7 @@
 | 屬性 303 | 1 | 完整 | skill_now／status_clear／gem_fx（HANDOFF 技能參數函式表） |
 | 屬性 304 | 1 | 完整 | skill_now／status_clear／gem_fx（HANDOFF 技能參數函式表） |
 | 屬性 301 | 1 | 完整 | skill_now／status_clear／gem_fx（HANDOFF 技能參數函式表） |
-| 屬性 40 | 1 | ? | ex[40] 沒有讀它的地方 |
+| 屬性 40 | 1 | 完整 | 屬性 40 = Tgoldquantity（金錢生成數量）→ res.c item 的 amount（id == 40），不是 ex[40] |
 
 ## (c1) 怪物表欄位（499 個怪物列）
 
@@ -430,8 +430,8 @@
 | G_Night | 64 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Level | 47 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Map | 43 | 完整 | 0x100484c0 記 CurMap／"Map" 位元遮罩（story_rt room_map_note）；地圖視窗 JM60 地點按鈕依 0x51bb60／0x50b1b0 的位元公式只顯示去過的（mapwin.c map_site_valid，2026-11-21）。注意：地點序號 = Map 號是照位元公式推的，沒對照地圖資料；只在網頁版（有劇情）生效，沒在瀏覽器看過 |
-| SortInquiry | 41 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
-| G_InfoID | 39 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
+| SortInquiry | 41 | 完整 | 唯一讀取者 0x100569f0（排列問答）：未設或 < 0 時每個選項 rand()%100<50 放串列最前、否則最後，再從尾往前送；>= 0（商人設 1）照登記順序。story_rt.c story_talk 照此排列（2026-11-21）；只在網頁版有劇情，沒在瀏覽器看過 |
+| G_InfoID | 39 | 完整 | 讀取者只有伺服器→客戶端同步送出器（0x10043770、0x10043e80、0x10044570、0x100493f0），規則不用它；引擎直接讀物件 |
 | UI_Pos | 37 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Con | 34 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | IsActorNPC | 33 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
@@ -441,7 +441,7 @@
 | Friend | 18 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | isbuilding | 17 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | UIS_Produce | 17 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| UIS_Addgem | 17 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
+| UIS_Addgem | 17 | 完整 | 反編譯碼只有商人建構式設值，沒有讀取者；鑲嵌可用與否由 UIS_Produce（main.c shop_open 的 produce）決定 |
 | Money | 17 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Gender | 16 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Age | 16 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
@@ -456,24 +456,24 @@
 | deletekey | 13 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_WEA_BigRain | 11 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_WEA_SmallRain | 11 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| G_IsUISkill | 6 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
+| G_IsUISkill | 6 | 部分 | 主角自己的界面技能（打造之术／修缮之术／慧眼识金）已做（hero_skill_level）；隊友學到 G_IsUISkill==4 的技能時 0x1004d240 設 UIS_P 位元遮罩（隊友提供服務）沒做，story_rt.c team_learn 註明 |
 | SR | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | HR | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | istrap | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | HP | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | HP_MAX | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| UI_Cur | 5 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
+| UI_Cur | 5 | 完整 | 讀取者只有同步送出器（0x10041130、0x10042c30、0x10044570、0x1003bfb0）：道具介面位置旗標，引擎用 inv[].pos／手別自己管 |
 | Amount | 4 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | BD_MAX | 4 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| BD_MAX0 | 4 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
+| BD_MAX0 | 4 | 完整 | 唯一讀取者 0x1002f420（屬性初值組，funcs_done 已移植） |
 | G_WEA_BigSnow | 3 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_WEA_SmallSnow | 3 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| Value | 3 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
+| Value | 3 | 完整 | 讀取者是道具／打造／鑲嵌函式（0x10012ef0 0x10037690 0x10051530 0x10070360…，皆已移植）與封包處理；引擎 item 的 value 欄 |
 | Exp | 3 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | UIS_Repair | 2 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| maketype | 1 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
+| maketype | 1 | 完整 | 反編譯碼只出現 1 次（設定處 0x1013fc10），沒有讀取者，沒作用（等價） |
 | contain | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| Type | 1 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
+| Type | 1 | 完整 | 讀取者是 addgem 0x10011a20、開鎖 0x10034900、produce 0x10051530 等已移植函式與物件名單找法；引擎 item／object type |
 | AP | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | AP_MAX | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | DP | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |

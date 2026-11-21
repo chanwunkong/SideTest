@@ -385,7 +385,9 @@ static int walk_test(const char *file) {
     return walk_fail;
 }
 
+extern int story_no_shuffle;
 int main(int argc, char **argv) {
+    story_no_shuffle = 1;
     if (argc < 2) return 1;
     if (!strncmp(argv[1], "walk=", 5)) return walk_test(argv[1] + 5);
     if (!strncmp(argv[1], "aigroup=", 8)) return aigroup_test(argv[1] + 8);
