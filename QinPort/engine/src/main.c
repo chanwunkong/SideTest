@@ -10839,6 +10839,31 @@ int main(int argc, char **argv) {
                 else if (a->object_kind == 24) trap_tick(a);
                 else npc_dispatch(a);
             }
+            // 小動物（BeastieMdl，原版 CSurBeastie 0x49b160）：不是 CCharactor，不受自動鎖定、不被主角打；
+            // 「對人反應 = 1」每 80 拍找 7 格（0x1c0 像素）內 NPC 組（10000~60000）的角色，有就往反方向逃；NPC 組角色靠到 30 像素內就死（踩死）。
+            // 玩家組（主角、隊友、村民）都不會嚇到牠、也踩不死牠。shortcut: 原版死亡還要看 +0x8b > 0x18 與每 30 拍的餘數（意義沒查），這裡一靠近就死
+            for (int i = 1; i < actor_count; i++) {
+                Actor *a = &actors[i];
+                if (!a->role || !a->def || !a->def->beast || a->act == ACT_DEAD || rec_on) continue;
+                if (a->dynamic_state == 1 && actor_flags(a, 0x10000)) actor_set_flags(a, 0x10000, 0);  // 逃完了，回到慢走
+                for (int j = 1; j < actor_count; j++) {
+                    Actor *t = &actors[j];
+                    if (t == a || !alive(t) || (t->def && t->def->beast) || !grp_npc(t->grp)) continue;
+                    long dx = ax64(a) - ax64(t), dy = ay64(a) - ay64(t), d2 = dx * dx + dy * dy;
+                    if (d2 <= 30L * 30) { actor_kill(a, NULL); break; }
+                    if (a->def->reaction == 1 && tick % 80 == 1 && d2 <= 448L * 448 && a->dynamic_state == 1 && d2 > 0) {
+                        double d = sqrt((double)d2);
+                        int tx = (ax64(a) + (int)(dx * 5.0 * 64 / d)) >> 6, ty = (ay64(a) + (int)(dy * 5.0 * 64 / d)) >> 6;
+                        if (tx < 0) tx = 0;
+                        if (ty < 0) ty = 0;
+                        if (tx >= scene.w) tx = scene.w - 1;
+                        if (ty >= scene.h) ty = scene.h - 1;
+                        actor_set_flags(a, 0x10000, 1);  // 逃跑用高速（BeastieMdl 高速）
+                        actor_command(a, 1, tx, ty, 0, 1, 0);
+                        break;
+                    }
+                }
+            }
             for (int i = 0; i < actor_count; i++) {
                 actor_near_reactions(&actors[i]);
                 walk_fx(&actors[i], &scene, tick);
