@@ -5774,10 +5774,10 @@ static void actor_interact_approach(Actor *a, int x, int y) {
 
 // 原版封包0x75（說話）／0x68（撿道具）的單機接收端。
 static Actor *talk_from, *talk_to;
-// 走近自動說話（輔助，預設開；--no-autotalk／?autotalk=0 關）。shortcut: 原版沒有「主角走近 NPC 自動開口」（只有 s_pctstart 觸發區、
+// 走近自動說話（輔助，預設關，2026-11-21 使用者反映離很遠就突然開口；--autotalk／?autotalk=1 開）。shortcut: 原版沒有「主角走近 NPC 自動開口」（只有 s_pctstart 觸發區、
 // 命令 15 點 NPC、NPC 頭頂隨機台詞 npc_chat），手機很難點準 NPC 才加。主角站著時 3 格內、走動時 2 格內觸發；同一個 NPC 說過後要離開 6 格才再觸發。
 static int show_pos, show_perf;
-static int auto_talk = 1;
+static int auto_talk = 0;
 static int auto_stick_lock;  // 自動說話觸發後忽略搖桿直到放開
 #define AUTO_TALK_LEAVE 6
 static int auto_talk_step(int dist, int still, unsigned char *done) {
@@ -6593,6 +6593,7 @@ static void ground_pick(int g) {
         burden_warn(it);
         inv[b] = *it;
         inv[b].pos = b;
+        char got[96]; snprintf(got, sizeof got, "撿起 %s", it->name); hud_say(got);  // shortcut: 提示文字是自訂（原版撿起沒有找到訊息）
     }
     ground[g] = ground[--ground_n];
 #ifdef STORY
@@ -10100,7 +10101,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--openall") && i + 1 < argc) openall_alias = argv[++i];  // 文字指令 openall（0x10019d70）
         if (!strcmp(argv[i], "--simple-deaths")) death_keep_mode = 0;
         else if (!strcmp(argv[i], "--debug-bounce") && i + 1 < argc) bounce_alias = argv[++i];  // 測試用：200 拍後進這個場景、420 拍後回來，印耗時
-        else if (!strcmp(argv[i], "--no-autotalk")) auto_talk = 0;
+        else if (!strcmp(argv[i], "--autotalk")) auto_talk = 1;
         else if (!strcmp(argv[i], "--debug-cells")) debug_cells = 1;
         else if (!strcmp(argv[i], "--debug-trace")) debug_cells = 2, audio_trace = 1;  // 疊圖並每 2 拍印主角座標與鏡頭
         else if (!strcmp(argv[i], "--640")) { vw = 640; vh = 480; }

@@ -287,16 +287,32 @@ static void touch_attack_nearest(Actor *h) {
     int hx = (int)h->x, hy = (int)h->y; Object *pick = NULL; int pcx = 0, pcy = 0, pd = 1 << 30;
     for (int i = 0; i < unit_scene->object_count; i++) {
         Object *o = (Object *)&unit_scene->objects[i];
-        int dx = o->x - hx, dy = o->y - hy, d = dx * dx + dy * dy;
-        if (d > 64 || d >= pd) continue;
-        Object *b = hover_building(o->x, o->y);
-        if (b == o) { pick = o; pcx = o->x; pcy = o->y; pd = d; }
+        if (!o->m) continue;
+        // 建築占的是一塊格子（錨點格不一定是它的格子，門尤其如此）：掃占地格，取離主角最近、游標會選到它的那格
+        int x0 = o->x - o->m->anchor_x + o->m->grid_x, y0 = o->y - o->m->anchor_y + o->m->grid_y, w = o->m->grid_w > 0 ? o->m->grid_w : 1, h2 = o->m->grid_h > 0 ? o->m->grid_h : 1;
+        for (int y = y0; y < y0 + h2; y++)
+            for (int x = x0; x < x0 + w; x++) {
+                int dx = x - hx, dy = y - hy, d = dx * dx + dy * dy;
+                if (d > 64 || hover_building(x, y) != o) continue;
+                if (door_is_go(o)) d /= 4;  // 門優先（不然站在樹旁永遠進不了屋）
+                if (d >= pd) continue;
+                pick = o; pcx = x; pcy = y; pd = d;
+            }
     }
     if (pick && click_building(h, pick, pcx, pcy)) { touch_attack_building_done = 1; return; }
     // 附近沒有建築可用：撿 4 格內最近的地上道具（原版命令 0x11 = 點地上道具）。挖礦後道具掉在身邊，常被右側隊伍欄／技能鍵蓋住點不到
     int gb = -1; float gd = 16;
     for (int i = 0; i < ground_n; i++) { float dx = ground[i].x - h->x, dy = ground[i].y - h->y, d = dx * dx + dy * dy; if (d <= gd) { gd = d; gb = i; } }
-    if (gb >= 0) { actor_command(h, 0x11, ground[gb].id, 0, 0, 1, 1); h->foe = NULL; h->want = NULL; touch_attack_building_done = 1; }
+    if (gb >= 0) { actor_command(h, 0x11, ground[gb].id, 0, 0, 1, 1); h->foe = NULL; h->want = NULL; touch_attack_building_done = 1; return; }
+    // 最後：3 格內最近的人 = 點人說話（原版命令 0xf）
+    Actor *np = NULL; float nd = 9;
+    for (int i = 1; i < actor_count; i++) {
+        Actor *n = &actors[i];
+        if (n->mon || !n->role || n->act == ACT_DEAD || n->team || is_foe(n, h) || has_status(n, 103)) continue;
+        float dx = n->x - h->x, dy = n->y - h->y, d = dx * dx + dy * dy;
+        if (d <= nd) { nd = d; np = n; }
+    }
+    if (np) { actor_command(h, 0xf, np->sh ? np->sh : (int)np->object_id, 0, 0, 1, 1); h->foe = NULL; h->want = NULL; touch_attack_building_done = 1; }
 }
 
 // 瞄準模式下點了畫面 (gx, gy)（遊戲畫面座標）：放左手技能。點到怪物就對牠；點空地找 3 格內最近的敵人，都沒有就對該點

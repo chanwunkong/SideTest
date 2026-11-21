@@ -88,7 +88,7 @@
   if (q.get('scene')) args.push(q.get('scene'));  // 沒指定 = 新遊戲（從原版開場房間開始）
   if (q.get('debug') === 'cells') args.push('--debug-cells'); else if (q.get('debug') === 'trace') args.push('--debug-trace');  // 疊圖：不可走／建築占地／觸發區
   if (q.get('bounce')) args.push('--debug-bounce', q.get('bounce'));  // 測試：進這個場景再回來，console 印耗時
-  if (q.get('autotalk') === '0') args.push('--no-autotalk');  // 關閉走近自動說話
+  if (q.get('autotalk') === '1') args.push('--autotalk');  // 開啟走近自動說話（原版沒有，預設關）
   if (q.get('perf')) args.push('--perf');  // 左上顯示 FPS／最慢一幀／待載圖片數
   if (q.get('pos')) args.push('--show-pos');  // 左上顯示主角格座標（回報位置用）
   if (q.get('warp')) args.push('--warp', q.get('warp'));
