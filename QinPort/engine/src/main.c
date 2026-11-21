@@ -6803,6 +6803,7 @@ static int make_on(void);
 static int make_bag_act(int p);
 static void ui_text(int id, char *out, size_t cap);
 static void item_icon(UiDialog *d, const char *key, int wx, int wy, const Item *it);
+static void item_icon_fit(UiDialog *d, const char *key, int wx, int wy, const Item *it);
 static int shop_bag_act(int p) {
     if ((shop_npc || make_self) && p >= 0 && p < INV_BAG && inv[p].name[0] && make_on()) return make_bag_act(p);
     if (!shop_npc || p < 0 || p >= INV_BAG || !inv[p].name[0]) return 0;
@@ -8745,6 +8746,22 @@ static void item_icon(UiDialog *d, const char *key, int wx, int wy, const Item *
     SDL_SetTextureColorMod(s->tex, 255, 255, 255);
 }
 
+// 裝備欄：圖示放大填滿欄位（等比），黑底用加亮混合去掉（圖沒有透明通道）。shortcut: 原版裝備欄怎麼畫（0x556000）沒細查，樣子照使用者記憶
+static void item_icon_fit(UiDialog *d, const char *key, int wx, int wy, const Item *it) {
+    UiCtrl *c = ui_find(d, key);
+    const Sprite *bg = c ? ui_image(c->img, 0) : NULL, *s = c && it->name[0] && it->icon ? ui_image(it->icon, 0) : NULL;
+    if (!s || !bg || s->w < 1 || s->h < 1) return;
+    int bw = bg->w - 6, bh = bg->h - 6;
+    float k = (float)bw / s->w < (float)bh / s->h ? (float)bw / s->w : (float)bh / s->h;
+    SDL_Rect r = {wx + c->x + (bg->w - (int)(s->w * k)) / 2, wy + c->y + (bg->h - (int)(s->h * k)) / 2, (int)(s->w * k), (int)(s->h * k)};
+    int broken = it->hp == 0 && it->hp_max > 0;
+    if (broken || !it->identify) SDL_SetTextureColorMod(s->tex, 255, broken ? 90 : 160, broken ? 90 : 160);
+    SDL_SetTextureBlendMode(s->tex, SDL_BLENDMODE_ADD);
+    SDL_RenderCopy(ren, s->tex, NULL, &r);
+    SDL_SetTextureBlendMode(s->tex, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureColorMod(s->tex, 255, 255, 255);
+}
+
 // 道具說明：名稱、等級、攻防、耐久、需求、重量、價格、特性。
 // shortcut: 原版的說明文字（0x100279b0，619 行、UI_C.dlg 的格式字串）還沒翻，特性名稱先用屬性表的中文
 static void item_describe(const Item *it, char *out, size_t cap) {
@@ -9031,7 +9048,7 @@ static void hud_draw(Actor *hero) {
         for (int i = INV_BAG; !strcmp(win_left.d.name, JM55) && i < INV_N; i++) {
             char slot[16];
             snprintf(slot, sizeof slot, "m_pItem[%d]", i - INV_BAG);
-            item_icon(&win_left.d, slot, wx, wy, &inv[i]);
+            item_icon_fit(&win_left.d, slot, wx, wy, &inv[i]);
         }
         if (!strcmp(win_left.d.name, JM52) && role_mode == 0) {  // 加點面板：m_pAttrib[i] =「%s[2%d]」標籤 + 數值（Poq.exe 0x554d66 起）
             static const int label[6] = {2110, 2111, 2112, 2117, 2118, 2119};
