@@ -88,12 +88,13 @@ static void touch_layout(TLayout *L, int ww, int wh, int gw, int gh, int size, i
             }
             b[TB_CLOSE] = (TCircle){u * 14 / 10, sh - u * 47 / 10, u};
             L->joy = (SDL_Rect){0, sh - u * 35 / 10, sw - u * 64 / 10, u * 35 / 10};
-            int zt = sh - u * 76 / 10, avail = zt - gh;
+            // 放大的視窗蓋在整個遊戲畫面上（原版視窗就是畫在主畫面上，以前縮在控制區上面只剩一小塊）：從螢幕上緣到控制鍵上方都可以用
+            int zt = sh - u * 76 / 10, avail = zt;
             float sx = (float)sw / ws->w, sy = (float)avail / ws->h, s = sx < sy ? sx : sy;
             if (s > 3) s = 3;
             L->ui_src = *ws;
             L->ui_s = s;
-            L->ui_dst = (SDL_Rect){(int)((sw - ws->w * s) / 2), gh + (int)((avail - ws->h * s) / 2), (int)(ws->w * s), (int)(ws->h * s)};
+            L->ui_dst = (SDL_Rect){(int)((sw - ws->w * s) / 2), (int)((avail - ws->h * s) / 2), (int)(ws->w * s), (int)(ws->h * s)};
         }
     }
     for (int i = 0; i < TB_N; i++)  // 搖桿區不能蓋到按鈕（左邊界取離搖桿區最近的按鈕左緣）

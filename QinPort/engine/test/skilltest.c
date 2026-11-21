@@ -5479,7 +5479,7 @@ int main(void) {
                         }
                         if (!L.portrait) { assert(L.ui_dst.w == 0); continue; }
                         const SDL_Rect *d = &L.ui_dst;
-                        assert(d->w > 0 && d->x >= 0 && d->x + d->w <= L.sw && d->y >= 600 && d->y + d->h <= L.sh && L.joy.y >= d->y + d->h);
+                        assert(d->w > 0 && d->x >= 0 && d->x + d->w <= L.sw && d->y >= 0 && d->y + d->h <= L.sh && L.joy.y >= d->y + d->h);
                         assert(L.ui_s > 0 && L.ui_s <= 3 && fabsf((float)d->w / wins[wi].w - L.ui_s) < 0.01f);
                         if (dims[i][1] * 10 >= dims[i][0] * 18) assert(L.ui_s >= 1.25f);  // 手機直式：視窗裡 20 點的按鈕放大後 ≥ 25 點
                         if (wins[wi].w * L.ui_s + 1 >= L.sw) assert(d->x <= 1);  // 寬度吃滿時貼滿螢幕寬
@@ -5489,8 +5489,8 @@ int main(void) {
                         assert(abs(ux - (wins[wi].x + wins[wi].w / 2)) <= 3 && abs(uy - (wins[wi].y + wins[wi].h / 2)) <= 3);
                         assert(touch_ui_pt(&L, d->x, d->y, &ux, &uy, &win) && ux == wins[wi].x && uy == wins[wi].y);  // 左上角
                         SDL_Rect r = touch_ui_rect(&L, 1, (SDL_Rect){wins[wi].x + 10, wins[wi].y + 20, 30, 40});  // 視窗裡一個按鈕的框
-                        assert(abs(r.x - (d->x + (int)(10 * L.ui_s))) <= 1 && abs(r.w - (int)(30 * L.ui_s)) <= 1 && r.y > 600);
-                        assert(touch_ui_pt(&L, 300, 300, &ux, &uy, &win) && !win && ux == 300 && uy == 300);
+                        assert(abs(r.x - (d->x + (int)(10 * L.ui_s))) <= 1 && abs(r.w - (int)(30 * L.ui_s)) <= 1 && r.y > 0);
+                        if (!touch_in(&L.ui_dst, 300, 300)) assert(touch_ui_pt(&L, 300, 300, &ux, &uy, &win) && !win && ux == 300 && uy == 300);  // 視窗現在蓋在遊戲畫面上，點在視窗外才是遊戲點
                         assert(!touch_ui_pt(&L, L.b[TB_ATK].x, L.sh - 1, &ux, &uy, &win) || win == 0);
                         SDL_Rect g = touch_ui_rect(&L, 0, (SDL_Rect){5, 6, 7, 8});
                         assert(g.x == 5 + L.game.x && g.y == 6 && g.w == 7 && g.h == 8);

@@ -255,6 +255,8 @@ static int grp_npc(int g) { return (unsigned)(g - 10000) < 50001; }  // NPC 組 
 // 怪現象（照原版）：a 是 NPC 組就只查 a 那組的名單，所以 B 記了 A 為敵人時 is_foe(B, A) 成立、is_foe(A, B) 不一定
 static int is_foe(const Actor *a, const Actor *b) {
     if (!a || !b || a->grp == b->grp) return 0;
+    // 小動物（BeastieMdl：雞、鳥、蟲…）不是戰鬥對象：資料沒有組別（= 0），照 0x443560 的字面會被玩家組當成敵人而自動攻擊、一靠近就被打死（2026-11-21 使用者回報）
+    if ((a->def && a->def->beast) || (b->def && b->def->beast)) return 0;
     if ((unsigned)a->grp < 100 || (unsigned)b->grp < 100) return 1;
     if (grp_npc(a->grp)) return grp_is_enemy(a->grp, b->grp);
     return grp_npc(b->grp) && grp_is_enemy(b->grp, a->grp);
