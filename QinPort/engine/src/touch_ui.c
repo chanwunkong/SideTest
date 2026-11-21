@@ -287,7 +287,8 @@ static void touch_attack_nearest(Actor *h) {
     int hx = (int)h->x, hy = (int)h->y; Object *pick = NULL; int pcx = 0, pcy = 0, pd = 1 << 30;
     for (int i = 0; i < unit_scene->object_count; i++) {
         Object *o = (Object *)&unit_scene->objects[i];
-        if (!o->m) continue;
+        int ty = o->m ? o->m->type : 0;
+        if (!(ty == 0x8c || ty == 0x81 || ty == 0x80 || ty == 0x85 || door_is_go(o))) continue;  // 只挑點了會有動作的（click_building 對一般建築什麼都不做卻回 1，會擋住後面的撿東西／說話）
         // 建築占的是一塊格子（錨點格不一定是它的格子，門尤其如此）：掃占地格，取離主角最近、游標會選到它的那格
         int x0 = o->x - o->m->anchor_x + o->m->grid_x, y0 = o->y - o->m->anchor_y + o->m->grid_y, w = o->m->grid_w > 0 ? o->m->grid_w : 1, h2 = o->m->grid_h > 0 ? o->m->grid_h : 1;
         for (int y = y0; y < y0 + h2; y++)
