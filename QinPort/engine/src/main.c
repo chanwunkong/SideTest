@@ -6640,7 +6640,7 @@ static void ground_pick(int g) {
         burden_warn(it);
         inv[b] = *it;
         inv[b].pos = b;
-        char got[96]; snprintf(got, sizeof got, "撿起 %s", it->name); hud_say(got);  // shortcut: 提示文字是自訂（原版撿起沒有找到訊息）
+        char nm[96], got[128]; gbk_utf8(it->name, nm, sizeof nm); snprintf(got, sizeof got, "撿起 %s", nm); hud_say(got);  // shortcut: 提示文字是自訂（原版撿起沒有找到訊息）
     }
     ground[g] = ground[--ground_n];
 #ifdef STORY
