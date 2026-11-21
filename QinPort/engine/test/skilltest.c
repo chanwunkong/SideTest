@@ -5528,9 +5528,9 @@ int main(void) {
         memset(&tch, 0, sizeof tch); tch.size = 1; tch.aim = -1;
         touch_layout(&tch.L, 1170, 540, 800, 600, 1, 0, NULL);
         int btn = -1; float dz;
-        assert(touch_down(1, 60, 400, &btn) == TK_JOY && tch.joy_on);
+        assert(touch_down(1, tch.L.jc.x - 20, tch.L.jc.y, &btn) == TK_JOY && tch.joy_on && tch.joy_ox == tch.L.jc.x && tch.L.jc.r == tch.L.b[TB_ATK].r && tch.L.jc.x == tch.L.sw - tch.L.b[TB_ATK].x && tch.L.jc.y == tch.L.b[TB_ATK].y);  // 固定在攻擊鍵的鏡像位置、一樣大
         assert(touch_down(2, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn) == TK_BTN && btn == TB_ATK && tch.held[TB_ATK] == 1);  // 搖桿與按鈕同時
-        assert(touch_move(1, 60 + 40, 400, &dz) == TK_JOY && touch_joy(&mx, &my) && mx == 100 && my == 0);
+        assert(touch_move(1, tch.L.jc.x + 40, tch.L.jc.y, &dz) == TK_JOY && touch_joy(&mx, &my) && mx == 100 && my == 0);
         assert(touch_down(3, 600, 200, &btn) == TK_GAME);  // 第三指點遊戲畫面
         assert(touch_down(4, 640, 200, &btn) == TK_PINCH && tch.f[2].kind == TK_PINCH);
         assert(touch_move(4, 700, 200, &dz) == TK_PINCH && dz > 0);  // 張開 = 拉近
