@@ -505,9 +505,9 @@ static void touch_preview_draw(void) {
 #define LP(R) ((SDL_Rect){(int)(cx + ((R).x - f->x) * m), (int)(cy + ((R).y - f->y) * m), (int)((R).w * m + 0.5f), (int)((R).h * m + 0.5f)})
     SDL_Rect g = LP(L->game);
     SDL_RenderCopy(ren, fade_canvas, NULL, &g);
-    if (L->ui_dst.w > 0 && win_tex) {
+    if (L->ui_dst.w > 0 && (modal_cleared || win_tex)) {  // 放大區的來源：居中小視窗畫在 modal_tex（不在 canvas 上，放大鏡以前只抄 canvas 所以一片黑），側邊視窗畫在 win_tex
         SDL_Rect w = LP(L->ui_dst);
-        SDL_RenderCopy(ren, win_tex, &L->ui_src, &w);
+        SDL_RenderCopy(ren, modal_cleared ? modal_tex : win_tex, &L->ui_src, &w);
     }
     if (hit) { SDL_Rect h = LP(sr); touch_box(h, 3, 255, 230, 60, 255); }
 #undef LP

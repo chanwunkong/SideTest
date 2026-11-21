@@ -11123,9 +11123,9 @@ int main(int argc, char **argv) {
         SDL_RenderCopy(ren, canvas, NULL, &tch.L.game);
         if (win_off && win_tex && tch.L.ui_dst.w > 0 && (win_left.open || win_right.open) && !modal_rect(&(SDL_Rect){0})) SDL_RenderCopy(ren, win_tex, &tch.L.ui_src, &tch.L.ui_dst);  // 直式：放大的側邊視窗
         else if (tch.L.ui_dst.w > 0) SDL_RenderCopy(ren, modal_cleared ? modal_tex : canvas, &tch.L.ui_src, &tch.L.ui_dst);  // 直式：系統選單、存讀檔等居中小視窗（畫在遊戲畫面上）也放大，字大、點得準
-        modal_cleared = 0; modal_on = 0;
         touch_draw();
         touch_preview_draw();
+        modal_cleared = 0; modal_on = 0;
         if (shot && tch.forced && tick > 3) {  // --touch --shot：存整個螢幕（含留空和按鈕）
             int sw_, sh_;
             SDL_GetRendererOutputSize(ren, &sw_, &sh_);
