@@ -293,15 +293,16 @@ static void touch_attack_nearest(Actor *h) {
         for (int y = y0; y < y0 + h2; y++)
             for (int x = x0; x < x0 + w; x++) {
                 int dx = x - hx, dy = y - hy, d = dx * dx + dy * dy;
-                if (d > 64 || hover_building(x, y) != o) continue;
-                if (door_is_go(o)) d /= 4;  // 門優先（不然站在樹旁永遠進不了屋）
+                if (d > 25 || hover_building(x, y) != o) continue;
+                if (door_is_go(o)) d /= 4;  // 門優先（不然站在樹旁永遠進不了屋）；門 5 格內、其他東西只認 2 格內（不要被遠處的罐子拉過去）
+                else if (d > 4) continue;
                 if (d >= pd) continue;
                 pick = o; pcx = x; pcy = y; pd = d;
             }
     }
     if (pick && click_building(h, pick, pcx, pcy)) { touch_attack_building_done = 1; return; }
-    // 附近沒有建築可用：撿 4 格內最近的地上道具（原版命令 0x11 = 點地上道具）。挖礦後道具掉在身邊，常被右側隊伍欄／技能鍵蓋住點不到
-    int gb = -1; float gd = 16;
+    // 附近沒有建築可用：撿 3 格內最近的地上道具（原版命令 0x11 = 點地上道具）。挖礦後道具掉在身邊，常被右側隊伍欄／技能鍵蓋住點不到
+    int gb = -1; float gd = 9;
     for (int i = 0; i < ground_n; i++) { float dx = ground[i].x - h->x, dy = ground[i].y - h->y, d = dx * dx + dy * dy; if (d <= gd) { gd = d; gb = i; } }
     if (gb >= 0) { actor_command(h, 0x11, ground[gb].id, 0, 0, 1, 1); h->foe = NULL; h->want = NULL; touch_attack_building_done = 1; return; }
     // 最後：3 格內最近的人 = 點人說話（原版命令 0xf）
