@@ -71,16 +71,19 @@ static void touch_layout(TLayout *L, int ww, int wh, int gw, int gh, int size, i
         else {  // 直式：下面兩排放控制（上排 ✕ 與技能、下排攻擊／跑／選單），上方整塊給視窗
             int ch = sh - gh;
             u = L->u = u * 85 / 100;  // 視窗開著：控制鍵縮小一點，多留空間給放大的視窗
-            if (u * 59 > ch * 6) u = L->u = ch * 6 / 59;  // 控制區要留出至少 40% 給視窗
+            if (u * 82 > ch * 6) u = L->u = ch * 6 / 82;  // 控制區要留出至少 40% 給視窗
             ax = sw - u * 17 / 10; ay = sh - u * 19 / 10;
             b[TB_ATK] = (TCircle){ax, ay, u * 125 / 100};
             for (int i = 0; i < 4; i++) b[TB_SK0 + i] = (TCircle){sw - u * 12 / 10 - i * u * 19 / 10, sh - u * 47 / 10, u * 8 / 10};
-            b[TB_RUN] = (TCircle){sw - u * 40 / 10, ay, u * 65 / 100};
-            b[TB_SYS] = (TCircle){sw - u * 56 / 10, ay, u * 6 / 10};
-            b[TB_BAG].r = b[TB_MAP].r = b[TB_HAND].r = b[TB_EQP].r = b[TB_ROLE].r = b[TB_SKL].r = 0;
+            {  // 固定那一排八顆照樣顯示（放在技能列上方，與視窗關閉時順序相同）
+                static const int ord[8] = {TB_SYS, TB_BAG, TB_EQP, TB_ROLE, TB_SKL, TB_MAP, TB_RUN, TB_HAND};
+                int br = u * 5 / 10, step = (sw - 2 * br - 2 - u * 8 / 10 + br) / 7;
+                if (step > u * 11 / 10) step = u * 11 / 10;
+                for (int i = 0; i < 8; i++) b[ord[i]] = (TCircle){sw - u * 8 / 10 - i * step, sh - u * 69 / 10, br};
+            }
             b[TB_CLOSE] = (TCircle){u * 14 / 10, sh - u * 47 / 10, u};
             L->joy = (SDL_Rect){0, sh - u * 35 / 10, sw - u * 64 / 10, u * 35 / 10};
-            int zt = sh - u * 59 / 10, avail = zt - gh;
+            int zt = sh - u * 76 / 10, avail = zt - gh;
             float sx = (float)sw / ws->w, sy = (float)avail / ws->h, s = sx < sy ? sx : sy;
             if (s > 3) s = 3;
             L->ui_src = *ws;
