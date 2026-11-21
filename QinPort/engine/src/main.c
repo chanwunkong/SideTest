@@ -5776,7 +5776,7 @@ static void actor_interact_approach(Actor *a, int x, int y) {
 static Actor *talk_from, *talk_to;
 // 走近自動說話（輔助，預設開；--no-autotalk／?autotalk=0 關）。shortcut: 原版沒有「主角走近 NPC 自動開口」（只有 s_pctstart 觸發區、
 // 命令 15 點 NPC、NPC 頭頂隨機台詞 npc_chat），手機很難點準 NPC 才加。主角站著時 3 格內、走動時 2 格內觸發；同一個 NPC 說過後要離開 6 格才再觸發。
-static int show_pos;
+static int show_pos, show_perf;
 static int auto_talk = 1;
 static int auto_stick_lock;  // 自動說話觸發後忽略搖桿直到放開
 #define AUTO_TALK_LEAVE 6
@@ -10116,6 +10116,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
         else if (!strcmp(argv[i], "--load") && i + 1 < argc) load_arg = atoi(argv[++i]);  // 測試用：開場後讀這一格存檔
+        else if (!strcmp(argv[i], "--perf")) show_perf = 1;  // 測試用：畫面左上顯示 FPS、最長一幀毫秒、還在下載的圖片數（網頁 ?perf=1）
         else if (!strcmp(argv[i], "--show-pos")) show_pos = 1;  // 測試用：畫面左上顯示主角格座標（網頁 ?pos=1），請使用者回報位置用
         else if (!strcmp(argv[i], "--at-mon")) at_mon = 1;  // 測試用：開場後把主角放到離最近怪物兩格的地方（怪物出生點是隨機的）
         else if (!strcmp(argv[i], "--level") && i + 1 < argc) level = atoi(argv[++i]);
@@ -10878,6 +10879,16 @@ int main(int argc, char **argv) {
         viewport_draw(&viewport, &scene, tick);
         rec_dialog_draw(vw, vh);
         journal_draw(vw, vh);
+        if (show_perf) {
+            static Uint32 last, worst, frames, shown_fps, shown_worst;
+            Uint32 nowp = SDL_GetTicks();
+            if (last) { Uint32 dt = nowp - last; if (dt > worst) worst = dt; }
+            last = nowp; frames++;
+            static Uint32 t0; if (!t0) t0 = nowp;
+            if (nowp - t0 >= 1000) { shown_fps = frames * 1000 / (nowp - t0); shown_worst = worst; frames = worst = 0; t0 = nowp; }
+            char pf[96]; snprintf(pf, sizeof pf, "FPS %u 最慢%ums 待載圖%d", shown_fps, shown_worst, res_loading());
+            draw_text(6, 24, pf, 300, 0x80FF80, 1);
+        }
         if (show_pos && !rec_on) { char pt[64]; snprintf(pt, sizeof pt, "%d,%d", (int)hero->x, (int)hero->y); draw_text(6, 6, pt, 200, 0xFFFF00, 1); }
         input_box_draw();  // 0x46e8b0
         fade_draw(vw, vh);  // 0x44bf00：場景畫完再淡入淡出（介面不受影響）
