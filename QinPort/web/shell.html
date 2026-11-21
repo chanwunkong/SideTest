@@ -91,6 +91,7 @@
   if (q.get('autotalk') === '1') args.push('--autotalk');  // 開啟走近自動說話（原版沒有，預設關）
   if (q.get('perf')) args.push('--perf');  // 左上顯示 FPS／最慢一幀／待載圖片數
   if (q.get('pos')) args.push('--show-pos');  // 左上顯示主角格座標（回報位置用）
+  if (q.get('rec')) args.push('--rec', q.get('rec'));  // 測試：進場景就播這個過場
   if (q.get('warp')) args.push('--warp', q.get('warp'));
   if (q.get('level')) args.push('--level', q.get('level'));
   if (q.get('prof')) args.push('--prof', q.get('prof'));

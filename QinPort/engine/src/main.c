@@ -5375,6 +5375,11 @@ static UiDialog bar, party, enemy;
 // y 都是垂直置中再往上 50（Poq.exe 0x4ff3xx、0x5004xx、0x4feexx）。左右各一個，可以同時開
 typedef struct { UiDialog d; int open; } Win;
 static Win win_left, win_right;
+static SDL_Texture *modal_tex;  // 直式放大顯示的居中視窗（地圖、系統選單、對話框…）畫在這張，不再同時留在遊戲畫面上（2026-11-21：以前上面一份、下面放大一份）
+static int modal_on, modal_cleared;
+static int modal_rect(SDL_Rect *r);
+static void modal_begin(void);
+static void modal_end(void);
 static SDL_Texture *win_tex;  // 直式觸控：側邊視窗畫在這張（800x600 同座標），再放大貼到遊戲畫面下方（touch_ui.c）
 static int win_off;       // 1 = 視窗現在畫在 win_tex，不在遊戲畫面上（遊戲畫面上的點擊不看視窗）
 
@@ -9144,7 +9149,9 @@ static void hud_draw(Actor *hero) {
         SDL_RenderFillRect(ren, &r);
         draw_text((vw - tw) / 2, 59, toast, tw + 1, 0xFFE080, 1);
     }
+    modal_begin();
     sys_draw();
+    modal_end();
     if (pick_hand >= 0) {
         int px, py;
         pick_pos(&px, &py);
@@ -9697,7 +9704,7 @@ typedef struct {
     int hold_n;
     int skip;
     // 對話框（CScnClientRecord +0x1fd4 文字、+0x1fd8 說話者、+0x1fec 剩餘拍、+0x1ff0 有語音）
-    int dlg_id, dlg_voice, dlg_played, dlg_t, dlg_n6;  // dlg_t < 0 = 沒顯示
+    int dlg_id, dlg_voice, dlg_played, dlg_t, dlg_n6, dlg_hold;  // dlg_t < 0 = 沒顯示；dlg_hold = 這句已經讓時間軸等了幾拍
     char dlg_text[512];
     int sv_wx, sv_wleft, wx_set;       // #1 子類 1 的天氣（vfunc+8 = 0x4697b0 換天氣）蓋掉前的天氣，rec_end 還原
     int gid[32], gid_n;                // #6 放的地上道具編號（ground[].id），rec_end 移除
@@ -10065,7 +10072,12 @@ static void rec_dialog_note(const Actor *a, int sx, int sy) {
 // 每拍（0x472f50）：處理戳 == 目前拍的封包
 static void rec_tick(Scene *s, Actor *hero) {
     if (!rec_on) return;
-    while (!rec.skip && rec.p + 4 <= rec.n) {
+    // 一句對白（含語音）還在播／還沒下載好：錄影時間軸等它播完才往下（錄影的時間戳是錄影端的拍數，下一句常常比上一句語音還早 20~60 拍，
+    // 不等的話上一句語音被切掉、字也只出現一兩個字就換句；2026-11-21 用 pct_cyzqian 的語音長度對時間戳量出來）。
+    // 等太久（語音裝置沒在跑）最多等 n6×2 + 120 拍就放行，避免卡死
+    int hold = rec.dlg_t >= 0 && rec.dlg_hold < (rec.dlg_n6 ? rec.dlg_n6 * 2 + 120 : 1500);
+    if (hold) rec.dlg_hold++;
+    while (!hold && !rec.skip && rec.p + 4 <= rec.n) {
         size_t len = rec_u32(rec.d + rec.p), q = rec.p + 4;
         if (len < 2 || q + len > rec.n) { rec.p = rec.n; break; }
         const uint8_t *b = rec.d + q;
@@ -10075,9 +10087,10 @@ static void rec_tick(Scene *s, Actor *hero) {
         else if (b[0] == '@') rec_ctl(b, len, s);
     }
     rec_dialog_tick();
+    if (rec.dlg_t < 0) rec.dlg_hold = 0;
     if (rec.follow) { Actor *f = rec_actor((unsigned)rec.follow); if (f) viewport_center_actor(&viewport, s, f, 1); }
-    rec.tick++;
-    if (rec.skip || rec.p + 4 > rec.n) rec_end(s, hero);
+    if (!hold) rec.tick++;
+    if (rec.skip || (!hold && rec.p + 4 > rec.n)) rec_end(s, hero);
 }
 
 // 開始播放（訊息 0x52e）：找不到檔、場景不對就不播，直接收尾
@@ -10136,6 +10149,15 @@ static const char *bounce_alias;
 static int at_mon;
 // 直式手機：視窗放大用（touch_layout 的 ws）。側邊視窗（背包、裝備）原本就放大；系統選單、存讀檔、設定、說明、詢問框、地圖、難度這些整個
 // 居中小視窗也一樣放大，不然縮在上方 290 點高的遊戲畫面裡字很小、點不準，點歪還會變成點地面走路（使用者 2026-11-20 回報）
+static void modal_begin(void) {
+    if (!(tch.L.ui_dst.w > 0 && modal_tex && modal_rect(&(SDL_Rect){0}))) return;
+    SDL_SetRenderTarget(ren, modal_tex);
+    if (!modal_cleared) { SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); modal_cleared = 1; }
+    modal_on = 2;  // 2 = 目前正畫在 modal_tex（modal_end 要切回去）；最後貼圖用 modal_cleared
+}
+static void modal_end(void) {
+    if (modal_on == 2) { SDL_SetRenderTarget(ren, fade_canvas); modal_on = 1; }
+}
 static int modal_rect(SDL_Rect *r) {
     int ox, oy, w = 0, h = 0;
 #ifdef STORY
@@ -10149,6 +10171,15 @@ static int modal_rect(SDL_Rect *r) {
     else if (map_open) { w = map_d.w; h = map_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2 - 0x32; }
     else return 0;
     if (w <= 0 || h <= 0) return 0;
+    {  // 視窗實際畫出來的範圍可能比 UiDialog 的 w／h 大（地圖視窗右邊的按鈕欄在 w 之外）：放大區要包含全部，不然右邊被切掉
+        const UiDialog *d = map_open ? &map_d : sys_open ? &sys_d : (opt_open || help_open) ? (help_open ? &help_d : &opt_d) : NULL;
+        for (int i = 0; d && i < d->count; i++) {
+            const UiCtrl *c = &d->c[i];
+            const Sprite *sp = c->img ? ui_image(c->img, 0) : NULL;
+            if (sp && c->x + sp->w > w && c->x >= 0 && c->x < w + 200) w = c->x + sp->w;
+            if (sp && c->y + sp->h > h && c->y >= 0 && c->y < h + 200) h = c->y + sp->h;
+        }
+    }
     *r = (SDL_Rect){ox, oy, w, h};
     return 1;
 }
@@ -10307,6 +10338,8 @@ int main(int argc, char **argv) {
     SDL_Texture *canvas = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
     fade_canvas = canvas;
     win_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
+    modal_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
+    if (modal_tex) SDL_SetTextureBlendMode(modal_tex, SDL_BLENDMODE_BLEND);
     if (open_win) {  // 測試用 --open：開著側邊視窗再截圖
         if (!strcmp(open_win, "bag")) { win_toggle(&win_right, JM54); }
         else if (!strcmp(open_win, "skill")) { skill_mode = 1; win_toggle(&win_right, JM53); }
@@ -10982,7 +11015,9 @@ int main(int argc, char **argv) {
         viewport_ground_labels_draw();
         hud_draw(hero);
 #ifdef STORY
+        modal_begin();
         dialog_draw();
+        modal_end();
 #endif
         if (mouse_seen) {  // 觸控沒有游標
             const Anim *cur = anim_get(0x100011);
@@ -11028,7 +11063,8 @@ int main(int argc, char **argv) {
         SDL_RenderClear(ren);
         SDL_RenderCopy(ren, canvas, NULL, &tch.L.game);
         if (win_off && win_tex && tch.L.ui_dst.w > 0 && (win_left.open || win_right.open) && !modal_rect(&(SDL_Rect){0})) SDL_RenderCopy(ren, win_tex, &tch.L.ui_src, &tch.L.ui_dst);  // 直式：放大的側邊視窗
-        else if (tch.L.ui_dst.w > 0) SDL_RenderCopy(ren, canvas, &tch.L.ui_src, &tch.L.ui_dst);  // 直式：系統選單、存讀檔等居中小視窗（畫在遊戲畫面上）也放大，字大、點得準
+        else if (tch.L.ui_dst.w > 0) SDL_RenderCopy(ren, modal_cleared ? modal_tex : canvas, &tch.L.ui_src, &tch.L.ui_dst);  // 直式：系統選單、存讀檔等居中小視窗（畫在遊戲畫面上）也放大，字大、點得準
+        modal_cleared = 0; modal_on = 0;
         touch_draw();
         touch_preview_draw();
         if (shot && tch.forced && tick > 3) {  // --touch --shot：存整個螢幕（含留空和按鈕）
