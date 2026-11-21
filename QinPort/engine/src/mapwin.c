@@ -5,7 +5,7 @@
 // 場景地圖 = 512×256 的小地圖（原版生成函數：每格畫成 8×4 的菱形，沒探索的格子不畫；格子太大就縮小並置中），上面疊人物（m_pCharacter）與地點標記（m_pLocus）。
 // 探索程度來自格子的 view（actor_explore 0x4608xx 提升）。
 // shortcut: 小地圖用單色格（可走暗綠、不可走灰）取代原版的地磚／建築縮圖（原版小地圖生成函數與建築縮圖函數都還沒翻，所以不標位址）；
-//   地點按鈕全部顯示（原版 MapData 由伺服器給哪些去過）；自定義標記（m_pLable／m_pShowLable／m_pHideLable／m_pDrag）、目的地（m_pDestiation）、
+//   地點按鈕只顯示去過的（map_site_valid）；自定義標記（m_pLable／m_pShowLable／m_pHideLable／m_pDrag）、目的地（m_pDestiation）、
 // 點場景地圖 = 鏡頭移到那一格（原版 0x53cc60 的點圖定位分支；它的另一支是伺服器 MapData 的標記提示，不做）。
 //   隊友位置（伺服器 MapData 的 PosX／PosY）、地點標記的滑鼠提示（伺服器 MapData 的 ShowLable／MapIndex）沒做；
 //   原版重畫用髒矩形、探索標記格（0x200×0x100 的 MapData 格）和門檻分段（沒有呼叫者）都沒有對應，見 funcs_skip.txt。
@@ -17,6 +17,20 @@ static int map_nx, map_ny;  // 全國地圖在地圖框裡的偏移（0 或負�
 static int map_open, map_all, map_chars = 1, map_marks = 1, map_site = -1, map_age;
 static SDL_Texture *map_tex;
 static uint32_t map_px[MAP_W * MAP_H];
+
+// 地點 i 有沒有去過：客戶端 0x51bb60 對 36 個地點各問 0x50b1b0(遮罩, i) = 遮罩第 i/7 個位元組的第 i%7 位（與伺服端 0x100484c0 寫入同公式，直接 i = Map 號）。
+// 遮罩是玩家的 "Map" 字串（C 字串，超過字串尾的位元組當 0）。沒有劇情時沒有遮罩，全部顯示。
+// shortcut: 原版遮罩是伺服器在 0x603 訊息送來的（登入、換場景時），單機改成每次畫的時候直接讀玩家的 "Map"；地點序號 = Map 號是照位元公式推的，沒對照地圖資料。
+static int map_site_valid(int i) {
+#ifdef STORY
+    const char *m = story_get_str(story_player(), "Map");
+    size_t n = m ? strlen(m) : 0;
+    return (size_t)(i / 7) < n && ((unsigned char)m[i / 7] >> (i % 7)) & 1;
+#else
+    (void)i;
+    return 1;
+#endif
+}
 
 static void map_close(void) { map_open = 0; }  // 0x53c960
 
@@ -100,7 +114,7 @@ static void map_draw(void) {
         if (nat) draw(ui_image(nat->img, 0), clip.x + map_nx, clip.y + map_ny);
         for (int i = 0; i < map_d.count; i++) {
             const UiCtrl *c = &map_d.c[i];
-            if (!strncmp(c->name, "m_pSite[", 8) && c->img) draw(ui_image(c->img, 0), clip.x + map_nx + c->x, clip.y + map_ny + c->y);  // 地點座標是全國地圖圖上的
+            if (!strncmp(c->name, "m_pSite[", 8) && c->img && map_site_valid(atoi(c->name + 8))) draw(ui_image(c->img, 0), clip.x + map_nx + c->x, clip.y + map_ny + c->y);  // 地點座標是全國地圖圖上的
         }
         SDL_RenderSetClipRect(ren, NULL);
         const UiCtrl *nm = ui_find(&map_d, "m_pSiteName");
@@ -132,7 +146,7 @@ static int map_tap(int x, int y) {
         int hit = 0;
         for (int i = 0; i < map_d.count; i++) {
             const UiCtrl *s = &map_d.c[i];
-            const Sprite *sp = !strncmp(s->name, "m_pSite[", 8) ? ui_image(s->img, 0) : NULL;
+            const Sprite *sp = !strncmp(s->name, "m_pSite[", 8) && map_site_valid(atoi(s->name + 8)) ? ui_image(s->img, 0) : NULL;
             int sx = ox + 29 + map_nx + s->x, sy = oy + 22 + map_ny + s->y;
             if (sp && x >= sx && x < sx + sp->w && y >= sy && y < sy + sp->h) map_site = atoi(s->name + 8), hit = 1;
         }

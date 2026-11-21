@@ -125,9 +125,9 @@ for f in glob.glob(ROOT + '/story/**/*.c', recursive=True):
     if '/NET/' in f or '/_' in f: continue
     s = open(f, encoding='utf8', errors='replace').read()
     for m in re.finditer(r'\b(?:set_int|new_int)\([^,]+,\s*"([^"]+)"\s*,\s*([^)]+)\)', s): keys[m.group(1)] += 1
-C2 = {'Map': ('部分', '0x100484c0：玩家進房間記 CurMap／"Map" 已去過位元遮罩／Place（story_rt room_map_note，本輪）；地圖視窗 JM60 的地點按鈕還是全部顯示，沒用這份遮罩（site 序號 ↔ Map 號對照沒查）')}
+C2 = {'Map': ('完整', '0x100484c0 記 CurMap／"Map" 位元遮罩（story_rt room_map_note）；地圖視窗 JM60 地點按鈕依 0x51bb60／0x50b1b0 的位元公式只顯示去過的（mapwin.c map_site_valid，2026-11-21）。注意：地點序號 = Map 號是照位元公式推的，沒對照地圖資料；只在網頁版（有劇情）生效，沒在瀏覽器看過')}
 for k in ['SortInquiry', 'G_InfoID', 'UIS_Addgem', 'G_IsUISkill', 'UI_Cur', 'BD_MAX0', 'Value', 'maketype', 'Type']:
-    C2[k] = ('無', 'EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用')
+    C2[k] = ('?', '2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對')
 rows = []
 for k, v in keys.items():
     hit = ('"%s"' % k) in ENG

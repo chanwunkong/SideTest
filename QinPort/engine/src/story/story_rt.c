@@ -975,7 +975,7 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
             v[0] = t;
         }
         return 0;
-    case 0x1005e490: if (o) story_set_int(a[0], "__4b4", (int)a[1]); return 0;  // 人物 +0x4b4（shortcut: 用途還沒查）
+    case 0x1005e490: if (o) story_set_int(a[0], "__4b4", (int)a[1]); return 0;  // 房間 +0x4b4 = 開場房間分級碼：只有 0x100032c0（玩家登入選開場房間）經 0x1003f7d0 依碼找房間；單機 ER_GetNetType < 2 → 碼 1 = 赵村（唯一設 1 的房間，0x101c9250）= 引擎的 start 房間，已等價；0x65~0x69 是連線版 NET 房間
     case 0x1005d790: return 0;                                               // 房間的解構（基底第 2 格），不用做
     case 0x1005d390:                                                         // room_init：房間的預設屬性（白天亮度 15、夜晚 0…）
         if (o) {

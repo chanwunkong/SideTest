@@ -14,8 +14,8 @@
 | (b1) 道具類型（道具表第 3 欄） | 37 | 37 | 0 | 0 | 0 |
 | (b2) 道具特性屬性 ID（attribT 欄 31，604 列特性） | 67 | 66 | 0 | 0 | 1 |
 | (c1) 怪物表欄位（499 個怪物列） | 73 | 73 | 0 | 0 | 0 |
-| (c2) 劇情物件屬性鍵（set_int／new_int，不含 NET） | 55 | 45 | 1 | 9 | 0 |
-| (d1) 劇情用到的 EasyRPG 命令（ENGINE／共用函式） | 93 | 92 | 1 | 0 | 0 |
+| (c2) 劇情物件屬性鍵（set_int／new_int，不含 NET） | 55 | 46 | 0 | 0 | 9 |
+| (d1) 劇情用到的 EasyRPG 命令（ENGINE／共用函式） | 93 | 93 | 0 | 0 | 0 |
 | (d2) 劇情錄影（Rec/User/*.rec）封包子類（`#` 0x470300、`@` 0x4725c0） | 22 | 19 | 3 | 0 | 0 |
 | (e1) 場景 BNT 建築模型種類 | 4 | 4 | 0 | 0 | 0 |
 | (e2) BNT 事件文字／物件名稱第一詞 | 242 | 242 | 0 | 0 | 0 |
@@ -429,9 +429,9 @@
 | G_Day | 66 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_Night | 64 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Level | 47 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| Map | 43 | 部分 | 0x100484c0：玩家進房間記 CurMap／"Map" 已去過位元遮罩／Place（story_rt room_map_note，本輪）；地圖視窗 JM60 的地點按鈕還是全部顯示，沒用這份遮罩（site 序號 ↔ Map 號對照沒查） |
-| SortInquiry | 41 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
-| G_InfoID | 39 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
+| Map | 43 | 完整 | 0x100484c0 記 CurMap／"Map" 位元遮罩（story_rt room_map_note）；地圖視窗 JM60 地點按鈕依 0x51bb60／0x50b1b0 的位元公式只顯示去過的（mapwin.c map_site_valid，2026-11-21）。注意：地點序號 = Map 號是照位元公式推的，沒對照地圖資料；只在網頁版（有劇情）生效，沒在瀏覽器看過 |
+| SortInquiry | 41 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
+| G_InfoID | 39 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
 | UI_Pos | 37 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Con | 34 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | IsActorNPC | 33 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
@@ -441,7 +441,7 @@
 | Friend | 18 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | isbuilding | 17 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | UIS_Produce | 17 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| UIS_Addgem | 17 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
+| UIS_Addgem | 17 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
 | Money | 17 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Gender | 16 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | Age | 16 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
@@ -456,24 +456,24 @@
 | deletekey | 13 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_WEA_BigRain | 11 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_WEA_SmallRain | 11 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| G_IsUISkill | 6 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
+| G_IsUISkill | 6 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
 | SR | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | HR | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | istrap | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | HP | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | HP_MAX | 6 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| UI_Cur | 5 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
+| UI_Cur | 5 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
 | Amount | 4 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | BD_MAX | 4 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| BD_MAX0 | 4 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
+| BD_MAX0 | 4 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
 | G_WEA_BigSnow | 3 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | G_WEA_SmallSnow | 3 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| Value | 3 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
+| Value | 3 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
 | Exp | 3 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | UIS_Repair | 2 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| maketype | 1 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
+| maketype | 1 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
 | contain | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
-| Type | 1 | 無 | EasyRPG.dll 位元組搜尋只出現 1 次（0x1007f810 登記屬性名），沒有以名稱讀取；是否以索引讀取沒證明；界面技能／連線用 |
+| Type | 1 | ? | 2026-11-21 更正：先前寫「只出現 1 次」是錯的，反編譯碼裡有多處以名稱讀寫（SortInquiry 62 個函式、G_InfoID 73、UIS_Addgem 26、G_IsUISkill 18、UI_Cur 16、BD_MAX0 7、maketype 1、Value 17、Type 38，其中多數是房間／NPC 建構式設初值）；引擎有沒有對應規則沒逐一核對 |
 | AP | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | AP_MAX | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
 | DP | 1 | 完整 | 引擎 literal 有讀／寫（story_rt／main） |
@@ -558,7 +558,7 @@
 |  0x1013da60 | 2 | 完整 | 共用劇情函式，已翻成 C（story/_shared.c） |
 |  0x1003c510 | 2 | 完整 | story_rt.c case |
 |  0x1003f2c0 | 1 | 完整 | story_rt.c case |
-|  0x1005e490 | 1 | 部分 | story_rt.c case（註解含 shortcut／沒做） |
+|  0x1005e490 | 1 | 完整 | story_rt.c case |
 |  0x1003d380 | 1 | 完整 | story_rt.c case |
 |  0x10022ac0 | 1 | 完整 | story_rt.c case |
 |  0x1013dc00 | 1 | 完整 | 共用劇情函式，已翻成 C（story/_shared.c） |
