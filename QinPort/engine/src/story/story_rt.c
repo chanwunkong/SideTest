@@ -554,7 +554,7 @@ static int spawn_exact(int room, const char *name, int n, int level, int tier, i
 
 // 隊友依職業技能樹學技能（0x100265d0，原版由升級和入隊自動加點函數呼叫；這裡只在入隊時呼叫，隊友升級和自動加點還沒做）：Friend >= 2、IsActorNPC 1~5（游侠、力士、刺客、术士、巫师）；
 // 技能目錄 秦殇/主角/<職業>技能 下還沒學的，先建暫時物件看 Level_Req，高於等級就丟掉，否則放進隊友身上。
-// shortcut: 只做單機目錄（原版連線版改用 秦殇/NET/…）；AddSkill 的技能效果和 G_IsUISkill == 4 的介面登記沒做，隊友用引擎的技能表出招
+// shortcut: 只做單機目錄（原版連線版改用 秦殇/NET/…）；AddSkill 的技能效果沒做（隊友用引擎的技能表出招）；G_IsUISkill 技能（打造之术、修缮之术、慧眼识金）隊友學到後，main.c ui_skill_actor 會讓隊友施展（UIS_P 位元遮罩只給客戶端同步用，沒有規則讀它）
 static void team_learn(int h, int level) {
     static const char *const CLS[5] = {"游侠", "力士", "刺客", "术士", "巫师"};
     int actor = story_get_int(h, "IsActorNPC") - 1;
