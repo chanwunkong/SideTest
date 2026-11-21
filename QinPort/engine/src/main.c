@@ -6702,10 +6702,13 @@ static void ui_show(UiDialog *d, const char *name, int on) {
     if (c) c->flags = on ? c->flags | 9 : c->flags & ~9;
 }
 
-// 買賣價（EasyRPG 0x10029400）：沒鑑定的用 ValueUn。c = 主角魅力、m = 隊伍平均魅力（只算 Friend > 1 的隊友，現在只有主角）。
+// 買賣價（EasyRPG 0x10029400）：沒鑑定的用 ValueUn。c = 主角魅力、m = 隊伍平均魅力（整數除法；主角加上 Friend > 1 的隊友 = 隊員，2026-11-21 補上隊友）。
 // 賣 = 價 × (c+20) × (m+20) / (c+50) / (m+50)；買 = 價 × (c+50) × (m+50) / (c+20) / (m+20)，沒鑑定的買價再 ×10；上限 99999999
 static int trade_price(const Item *it, int buy) {
-    float c = (float)(hero_attr[CHARM] + actors[0].ex[33]), m = c, v = (float)(it->identify ? it->value : it->value_un);
+    int hc = hero_attr[CHARM] + actors[0].ex[33], sum = hc, cnt = 1;
+    for (int i = 1; i < actor_count; i++)
+        if (actors[i].role && actors[i].team && alive(&actors[i])) { sum += actors[i].team_attr[CHARM] + actors[i].ex[33]; cnt++; }
+    float c = (float)hc, m = (float)(sum / cnt), v = (float)(it->identify ? it->value : it->value_un);
     int p = buy ? (int)((c + 50) * v * (m + 50) / (c + 20) / (m + 20)) : (int)((c + 20) * v * (m + 20) / (c + 50) / (m + 50));
     if (buy && !it->identify) p *= 10;
     return p < 0 || p > 99999999 ? 99999999 : p;
