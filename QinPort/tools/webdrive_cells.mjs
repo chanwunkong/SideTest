@@ -25,6 +25,7 @@ await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceSc
 await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
 await send('Page.addScriptToEvaluateOnNewDocument', { source: "localStorage.setItem('qinIntro','1');" + (process.env.INJECT || '') });
 if (process.env.THROTTLE) await send('Network.enable'), await send('Network.emulateNetworkConditions', { offline: false, latency: 100, downloadThroughput: 500000, uploadThroughput: 250000 });  // THROTTLE=1：模擬 4G（4Mbps、延遲 100ms）
+if (process.env.CPU_THROTTLE) await send('Emulation.setCPUThrottlingRate', { rate: +process.env.CPU_THROTTLE });  // CPU_THROTTLE=4：模擬較慢的手機
 await send('Page.navigate', { url });
 const touch = (type, x, y) => send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
 let shots = 0;

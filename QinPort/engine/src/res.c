@@ -23,9 +23,8 @@ EM_ASYNC_JS(uint8_t *, js_get, (const char *path, int *size), {
 });
 
 EM_ASYNC_JS(uint8_t *, js_batch, (const char *json, int *size), {
-    const r = await fetch('batch', { method: 'POST', body: UTF8ToString(json) });
-    if (!r.ok) { HEAP32[size >> 2] = 0; return 0; }
-    const b = new Uint8Array(await r.arrayBuffer());
+    const b = await window.qinBatch(UTF8ToString(json));  // shell.html：先查 IndexedDB 永久快取，沒有的才下載
+    if (!b.length) { HEAP32[size >> 2] = 0; return 0; }
     const p = _malloc(b.length + 1);
     HEAPU8.set(b, p);
     HEAP32[size >> 2] = b.length;
@@ -156,9 +155,8 @@ static size_t cache_bytes;  // 留著的下載資料位元組數（含場景磁�
 EM_JS(void, js_batch_start, (int id, const char *json), {
     Module.qinBatch = Module.qinBatch || {};
     Module.qinBatch[id] = null;
-    fetch('batch', { method: 'POST', body: UTF8ToString(json) })
-        .then(r => r.ok ? r.arrayBuffer() : new ArrayBuffer(0))
-        .then(b => { Module.qinBatch[id] = new Uint8Array(b); })
+    window.qinBatch(UTF8ToString(json))
+        .then(b => { Module.qinBatch[id] = b; })
         .catch(() => { Module.qinBatch[id] = new Uint8Array(0); });
 });
 

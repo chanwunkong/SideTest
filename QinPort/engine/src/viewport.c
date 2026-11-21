@@ -528,6 +528,7 @@ static void viewport_layers(const ViewPort *v, const Scene *s, Uint32 tick) {
 // 動態角色重建矩形、排序後畫，套用局部遮擋；飛行物/其他單位最後畫。
 // 關聯模型 type2/3 暫加128；只改當幀繪圖座標，角色世界座標自然保留。
 // shortcut: 關聯模型欄位來源等 CCharactor 模型關聯載入，目前一般角色為0。
+static int perf_missing;
 static void viewport_dynamic(const ViewPort *v, const Scene *s, Uint32 tick) {
     SDL_Rect screen = {0, 0, v->w, v->h};
     view_dynamic.n = 0;
@@ -538,6 +539,7 @@ static void viewport_dynamic(const ViewPort *v, const Scene *s, Uint32 tick) {
         int x = (int)(a->x * 64) + shift, y = (int)(a->y * 64) + shift;
         SDL_Point p = viewport_world_screen(v, x, y);
         SDL_Rect rect = viewport_actor_rect(a, p.x, p.y, tick);
+        if (a->role && rect.w == 0 && p.x > 0 && p.y > 0 && p.x < v->w && p.y < v->h) perf_missing++;  // 在畫面內卻沒有矩形（圖還沒好）= 這一幀人不見
         viewport_visible_insert(&view_dynamic, s, (ViewItem){1, i, x + y, x, y, rect}, screen);
     }
     for (int i = view_dynamic.n - 1; i >= 0; i--) {

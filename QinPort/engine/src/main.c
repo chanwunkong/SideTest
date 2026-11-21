@@ -453,6 +453,7 @@ typedef struct Actor {
     int rec;   // 過場播放器建的角色（rec_on 時只有它們動、被畫）
     int team;  // 隊友（劇情的 Friend 2 隊員）：1 起的槽號，0 = 不是；屬性、職業供 team_derive 用（劇情人物的 Str／Con／Dex／Savvy／Charm／Wisdom、IsActorNPC）
     int team_attr[6], team_prof;
+    float pvx, pvy;  // 上一拍的位置（畫面補間用，見主迴圈 ‘畫面補間’）
     void *eq;  // 隊友身上的裝備（Item[INV_N]，story 子物件 UI_Pos 30~40 的道具；NULL = 沒有裝備資料）
     int clone_equip;  // 分身（0x1003df00 複製施放者的裝備與技能）：1 = 施放者是主角，數值照主角裝備算；2 = 隊友施放（沒有裝備模型）
     int skill_n, selected, right_id, left_id, range_adjust, selection_pending;
@@ -1414,7 +1415,28 @@ static void npc_behavior_reset(Actor *a);
 static uint32_t next_actor_object_id = 0x80000000u;
 
 // Poq.exe 0x4862e0：套用角色模板；狀態103先啟用，再寫模型種類、組別、光源、占位與探索。
+// 新角色一建立就把它的圖叫進來（怪物群、隊友、劇情中途出現的人以前沒有預載，網頁版第一次看到才開始下載，下載好之前整個人不見）。
+// 同一個角色表列只叫一次；場景進入時的 preload_roles 會一次叫齊場景裡的人，這裡補其他途徑建立的
+static void role_prefetch(const RoleDef *d) {
+    static const RoleDef *done[1024];
+    static int n;
+    if (!d) return;
+    for (int i = 0; i < n; i++) if (done[i] == d) return;
+    if (n < 1024) done[n++] = d;
+    uint32_t g[MAX_ROLE_PARTS * 2 + 1];
+    int m = 0;
+    if (d->anim) g[m++] = d->anim;
+    else if (d->graphic[0]) {
+        char name[24];
+        const char *list[1] = {name};
+        snprintf(name, sizeof name, "%.8s_%03d.PLI", d->graphic, d->pli);
+        res_preload("PLI", list, 1);
+        m = role_anim_ids(d->graphic, d->pli, d->styles, g, MAX_ROLE_PARTS * 2);
+    }
+    if (m > 0) res_fetch_now(g, m);
+}
 static void actor_setup(Actor *a, const RoleDef *d) {
+    if (!a->def) role_prefetch(d);
     // 新角色的候選初值屬於建構；重套模板不可先清掉既有候選。
     if (!a->def) {
         if (!a->object_id) a->object_id = next_actor_object_id++;
@@ -5815,7 +5837,7 @@ static void actor_interact_approach(Actor *a, int x, int y) {
 static Actor *talk_from, *talk_to;
 // 走近自動說話（輔助，預設關，2026-11-21 使用者反映離很遠就突然開口；--autotalk／?autotalk=1 開）。shortcut: 原版沒有「主角走近 NPC 自動開口」（只有 s_pctstart 觸發區、
 // 命令 15 點 NPC、NPC 頭頂隨機台詞 npc_chat），手機很難點準 NPC 才加。主角站著時 3 格內、走動時 2 格內觸發；同一個 NPC 說過後要離開 6 格才再觸發。
-static int show_pos, show_perf;
+static int show_pos, show_perf, no_interp;
 static int auto_talk = 0;
 static int auto_stick_lock;  // 自動說話觸發後忽略搖桿直到放開
 #define AUTO_TALK_LEAVE 6
@@ -10255,6 +10277,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warp = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &at_x, &at_y);
         else if (!strcmp(argv[i], "--load") && i + 1 < argc) load_arg = atoi(argv[++i]);  // 測試用：開場後讀這一格存檔
+        else if (!strcmp(argv[i], "--no-interp")) no_interp = 1;  // 測試用：關閉畫面補間（比較順暢度）
         else if (!strcmp(argv[i], "--perf")) show_perf = 1;  // 測試用：畫面左上顯示 FPS、最長一幀毫秒、還在下載的圖片數（網頁 ?perf=1）
         else if (!strcmp(argv[i], "--show-pos")) show_pos = 1;  // 測試用：畫面左上顯示主角格座標（網頁 ?pos=1），請使用者回報位置用
         else if (!strcmp(argv[i], "--at-mon")) at_mon = 1;  // 測試用：開場後把主角放到離最近怪物兩格的地方（怪物出生點是隨機的）
@@ -10406,6 +10429,7 @@ int main(int argc, char **argv) {
 
     Uint64 fps_t = SDL_GetPerformanceCounter();
     Uint32 logic_ms = SDL_GetTicks(), tick = 0;
+    SDL_Point vp_prev = {0, 0};  // 畫面補間：鏡頭上一拍的位置
     int frames = 0, running = 1, pointer_down = 0, click_down = 0, px = 0, py = 0, ox = 0, oy = 0, mouse_seen = 0;
     SDL_ShowCursor(SDL_DISABLE);  // 0x433dc0：關掉系統游標，畫原版游標動畫 0x100011
 
@@ -10717,6 +10741,8 @@ int main(int argc, char **argv) {
         if (now_ms - logic_ms > 250) logic_ms = now_ms - TICK_MS;  // 卡頓或切到背景後不要一次補太多拍
         while (now_ms - logic_ms >= TICK_MS) {
             logic_ms += TICK_MS;
+            for (int i = 0; i < actor_count; i++) { actors[i].pvx = actors[i].x; actors[i].pvy = actors[i].y; }  // 畫面補間：記下這一拍之前的位置
+            vp_prev = viewport.pos;
             if (scene_paused || trade_paused()) continue;
             // 過場等圖片下載好才往下播（網頁圖片是邊畫邊下載；手機網路慢時過場在黑畫面上播完，玩家什麼都沒看到，2026-11-20 使用者回報）。
             // 最多等 30 秒，之後照播（有張圖一直下載失敗也不會卡死）。原版啟動時資源都在本機，沒有這問題
@@ -11057,7 +11083,27 @@ int main(int argc, char **argv) {
             actor_hover_set(c, mouse_seen);
             viewport_building_hover(&viewport, &scene, hx, hy, mouse_seen && !c && !win_left.open && !win_right.open, tick);
         }
-        viewport_draw(&viewport, &scene, tick);
+        {   // 畫面補間：邏輯固定 62.5 拍／秒，手機畫面 48~60 FPS 時每個畫面吃到 1 或 2 拍（有時 0 拍），走路看起來一頓一頓；
+            // 畫的時候把角色與鏡頭位置放在「上一拍 → 這一拍」之間（依這個畫面離拍界線多遠），畫完還原（邏輯、點擊判斷用真實位置）。
+            // 瞬移（超過 2 格）不補。延遲最多 1 拍（16ms）
+            float al = no_interp ? 1.0f : (float)(now_ms - logic_ms) / TICK_MS;
+            if (al < 0) al = 0;
+            if (al > 1) al = 1;
+            static float sx_[MAX_ACTORS], sy_[MAX_ACTORS];
+            for (int i = 0; i < actor_count; i++) {
+                Actor *a = &actors[i];
+                sx_[i] = a->x; sy_[i] = a->y;
+                if (fabsf(a->x - a->pvx) < 2 && fabsf(a->y - a->pvy) < 2) { a->x = a->pvx + (a->x - a->pvx) * al; a->y = a->pvy + (a->y - a->pvy) * al; }
+            }
+            SDL_Point vp_cur = viewport.pos;
+            if (abs(vp_cur.x - vp_prev.x) < 200 && abs(vp_cur.y - vp_prev.y) < 200) {
+                viewport.pos.x = vp_prev.x + (int)((vp_cur.x - vp_prev.x) * al);
+                viewport.pos.y = vp_prev.y + (int)((vp_cur.y - vp_prev.y) * al);
+            }
+            viewport_draw(&viewport, &scene, tick);
+            viewport.pos = vp_cur;
+            for (int i = 0; i < actor_count; i++) { actors[i].x = sx_[i]; actors[i].y = sy_[i]; }
+        }
         rec_dialog_draw(vw, vh);
         journal_draw(vw, vh);
         if (show_perf) {
@@ -11067,7 +11113,13 @@ int main(int argc, char **argv) {
             last = nowp; frames++;
             static Uint32 t0; if (!t0) t0 = nowp;
             if (nowp - t0 >= 1000) { shown_fps = frames * 1000 / (nowp - t0); shown_worst = worst; frames = worst = 0; t0 = nowp; }
-            char pf[96]; snprintf(pf, sizeof pf, "FPS %u 最慢%ums 待載圖%d", shown_fps, shown_worst, res_loading());
+            static int lpx, lpy; static double sum_d, sum_d2; static int n_d, shown_j;
+            int ddx = viewport.pos.x - lpx, ddy = viewport.pos.y - lpy; lpx = viewport.pos.x; lpy = viewport.pos.y;
+            double dd = sqrt((double)(ddx * ddx + ddy * ddy));
+            if (dd > 0.5 && dd < 60) { sum_d += dd; sum_d2 += dd * dd; n_d++; }
+            if (nowp - t0 < 20 && n_d > 5) { double m = sum_d / n_d, var = sum_d2 / n_d - m * m; shown_j = (int)(sqrt(var > 0 ? var : 0) * 100 / (m > 0 ? m : 1)); sum_d = sum_d2 = 0; n_d = 0; }
+            char pf[96]; static int miss_total; miss_total += perf_missing; perf_missing = 0;
+            snprintf(pf, sizeof pf, "FPS %u 最慢%ums 待載圖%d 抖%d%% 缺%d", shown_fps, shown_worst, res_loading(), shown_j, miss_total);
             draw_text(6, 24, pf, 300, 0x80FF80, 1);
         }
         if (show_pos && !rec_on) { char pt[64]; snprintf(pt, sizeof pt, "%d,%d", (int)hero->x, (int)hero->y); draw_text(6, 6, pt, 200, 0xFFFF00, 1); }

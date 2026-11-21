@@ -34,6 +34,56 @@
 <div id="loader"><div id="ltitle">秦殤</div><div id="lbar"><div id="lfill"></div></div><div id="lsub">正在下載遊戲程式…</div><div id="lcount"></div><div id="lerr"></div></div>
 <div id="status"></div>
 <script>
+// 遊戲資源的永久快取（IndexedDB）：/batch 是 POST，瀏覽器不會快取，手機每次開都重抓同一批圖（4G 上人物、怪物一出現要等下載、下載好之前整個人不見）。
+// 這裡把每一項（檔名、位移、長度）存進 IndexedDB，第二次開就不用再下載。回傳格式與伺服器相同（每項 4 位元組長度 + 內容）。
+window.qinBatch = (function () {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise(res => {
+    try {
+      const r = indexedDB.open('qinres', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('i');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => res(null);
+    } catch (e) { res(null); }
+  }));
+  const getAll = (db, keys) => new Promise(res => {
+    if (!db) return res(keys.map(() => undefined));
+    const out = new Array(keys.length), tx = db.transaction('i', 'readonly'), st = tx.objectStore('i');
+    let left = keys.length;
+    if (!left) return res(out);
+    keys.forEach((k, i) => { const g = st.get(k); g.onsuccess = () => { out[i] = g.result; if (!--left) res(out); }; g.onerror = () => { if (!--left) res(out); }; });
+  });
+  const putAll = (db, pairs) => { if (!db || !pairs.length) return; try { const tx = db.transaction('i', 'readwrite'), st = tx.objectStore('i'); for (const [k, v] of pairs) st.put(v, k); } catch (e) {} };
+  return async function (json) {
+    const reqs = JSON.parse(json), db = await open();
+    const keys = reqs.map(r => r[0] + '|' + r[1] + '|' + r[2]);
+    const have = await getAll(db, keys);
+    const miss = [];
+    reqs.forEach((r, i) => { if (!have[i]) miss.push(i); });
+    if (miss.length) {
+      const r = await fetch('batch', { method: 'POST', body: JSON.stringify(miss.map(i => reqs[i])) });
+      if (!r.ok) return new Uint8Array(0);
+      const b = new Uint8Array(await r.arrayBuffer()), dv = new DataView(b.buffer), pairs = [];
+      let p = 0;
+      for (const i of miss) {
+        if (p + 4 > b.length) return new Uint8Array(0);
+        const l = dv.getUint32(p, true); p += 4;
+        const part = b.slice(p, p + l); p += l;
+        have[i] = part;
+        if (l) pairs.push([keys[i], part]);
+      }
+      putAll(db, pairs);
+    }
+    let total = 0;
+    for (const h of have) total += 4 + h.length;
+    const out = new Uint8Array(total), odv = new DataView(out.buffer);
+    let o = 0;
+    for (const h of have) { odv.setUint32(o, h.length, true); o += 4; out.set(h, o); o += h.length; }
+    return out;
+  };
+})();
+</script>
+<script>
   const canvas = document.getElementById('canvas');
   const status = document.getElementById('status');
   // 手機上看不到主控台：出錯就直接顯示在畫面上方，方便回報
@@ -89,6 +139,7 @@
   if (q.get('debug') === 'cells') args.push('--debug-cells'); else if (q.get('debug') === 'trace') args.push('--debug-trace');  // 疊圖：不可走／建築占地／觸發區
   if (q.get('bounce')) args.push('--debug-bounce', q.get('bounce'));  // 測試：進這個場景再回來，console 印耗時
   if (q.get('autotalk') === '1') args.push('--autotalk');  // 開啟走近自動說話（原版沒有，預設關）
+  if (q.get('nointerp')) args.push('--no-interp');  // 測試：關閉畫面補間
   if (q.get('perf')) args.push('--perf');  // 左上顯示 FPS／最慢一幀／待載圖片數
   if (q.get('pos')) args.push('--show-pos');  // 左上顯示主角格座標（回報位置用）
   if (q.get('rec')) args.push('--rec', q.get('rec'));  // 測試：進場景就播這個過場
