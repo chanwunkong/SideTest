@@ -58,7 +58,8 @@ static void touch_layout(TLayout *L, int ww, int wh, int gw, int gh, int size, i
         int br = u * 5 / 10, step = (sw - 2 * br - 2 - u * 8 / 10 + br) / 7;  // 8 顆平均排滿寬度（最大尺寸也放得下）
         if (step > u * 11 / 10) step = u * 11 / 10;
         for (int i = 0; i < 8; i++) b[ord[i]] = (TCircle){sw - u * 8 / 10 - i * step, ry, br};
-        L->joy = (SDL_Rect){0, gh + u * 2, sw / 2, sh - gh - u * 2};
+        int jy = ry + br + u / 4;  // 搖桿區在那一排按鈕下面（以前蓋到那排，被按鈕切成只剩左邊窄窄一條，往左右推不對稱）
+        L->joy = (SDL_Rect){0, jy, sw / 2, sh - jy};
     } else {
         b[TB_RUN] = (TCircle){sw - u * 95 / 100, ay - u * 37 / 10, u * 65 / 100};
         static const int ord[7] = {TB_SYS, TB_BAG, TB_EQP, TB_ROLE, TB_SKL, TB_MAP, TB_HAND};
@@ -159,6 +160,12 @@ static void touch_joy_follow(int *ox, int *oy, int x, int y, int maxr) {
     *oy = y - (int)(dy * maxr / d);
 }
 
+// 搖桿半徑：1.4 個單位；搖桿區太窄放不下就縮到區寬的一半（左右對稱、圈不被切掉）
+static int touch_joy_r(const TLayout *L) {
+    int r = L->u * 14 / 10;
+    if (L->joy.w > 0 && r * 2 > L->joy.w) r = L->joy.w / 2;
+    return r > 8 ? r : 8;
+}
 #define TF_MAX 6
 typedef struct { Sint64 id; int used, kind, btn, x, y; } TFinger;
 typedef struct {
@@ -204,7 +211,12 @@ static int touch_down(Sint64 id, int x, int y, int *btn) {
     if (b >= 0) { f->kind = TK_BTN; f->btn = b; tch.held[b]++; *btn = b; return TK_BTN; }
     if (touch_active() && !tch.joy_on && touch_in(&tch.L.joy, x, y)) {
         f->kind = TK_JOY;
-        tch.joy_on = 1; tch.joy_ox = tch.joy_x = x; tch.joy_oy = tch.joy_y = y;
+        // 原點不能貼著搖桿區邊緣：左右都要留得下一整個半徑，不然靠邊按下時往邊的那一邊推不動（左右不對稱）
+        int R = touch_joy_r(&tch.L), ox = x, oy = y;
+        const SDL_Rect *jz = &tch.L.joy;
+        if (jz->w >= 2 * R) { if (ox < jz->x + R) ox = jz->x + R; if (ox > jz->x + jz->w - R) ox = jz->x + jz->w - R; } else ox = jz->x + jz->w / 2;
+        if (jz->h >= 2 * R) { if (oy < jz->y + R) oy = jz->y + R; if (oy > jz->y + jz->h - R) oy = jz->y + jz->h - R; } else oy = jz->y + jz->h / 2;
+        tch.joy_on = 1; tch.joy_ox = ox; tch.joy_oy = oy; tch.joy_x = x; tch.joy_y = y;
         return TK_JOY;
     }
     if (tch.L.ui_dst.w > 0 && touch_in(&tch.L.ui_dst, x, y)) { f->kind = TK_WIN; return TK_WIN; }  // 直式放大的側邊視窗（不套雙指縮放）
@@ -229,7 +241,7 @@ static int touch_move(Sint64 id, int x, int y, float *zoom) {
     f->x = x; f->y = y;
     if (f->kind == TK_JOY) {
         tch.joy_x = x; tch.joy_y = y;
-        touch_joy_follow(&tch.joy_ox, &tch.joy_oy, x, y, tch.L.u * 14 / 10);
+        touch_joy_follow(&tch.joy_ox, &tch.joy_oy, x, y, touch_joy_r(&tch.L));
     } else if (f->kind == TK_PINCH) {
         int d;
         touch_pinch_dist(&d);
@@ -400,13 +412,13 @@ static void touch_draw(void) {
     const TLayout *L = &tch.L;
     int u = L->u;
     if (tch.joy_on) {
-        touch_ring(tch.joy_ox, tch.joy_oy, u * 14 / 10, u * 13 / 10, 255, 255, 255, 110);
-        touch_ring(tch.joy_ox, tch.joy_oy, u * 14 / 10, 0, 0, 0, 0, 50);
+        touch_ring(tch.joy_ox, tch.joy_oy, touch_joy_r(L), touch_joy_r(L) * 13 / 14, 255, 255, 255, 110);
+        touch_ring(tch.joy_ox, tch.joy_oy, touch_joy_r(L), 0, 0, 0, 0, 50);
         int dx = tch.joy_x - tch.joy_ox, dy = tch.joy_y - tch.joy_oy;
         touch_ring(tch.joy_ox + dx, tch.joy_oy + dy, u * 6 / 10, 0, 255, 255, 255, 120);
     } else {  // 沒按時畫一圈淡淡的提示，告訴玩家搖桿在這一帶
-        int cx = L->joy.x + L->joy.w / 2, cy = L->joy.y + L->joy.h - u * 22 / 10;
-        touch_ring(cx, cy, u * 14 / 10, u * 13 / 10, 255, 255, 255, 50);
+        int cx = L->joy.x + L->joy.w / 2, cy = L->joy.y + L->joy.h - touch_joy_r(L) - u / 2;  // 提示圈放在搖桿區正中間（左右對稱，不被螢幕邊切掉）
+        touch_ring(cx, cy, touch_joy_r(L), touch_joy_r(L) * 13 / 14, 255, 255, 255, 50);
     }
     static const char *label[TB_N] = {"\xe6\x94\xbb", "1", "2", "3", "4", "\xe8\xb7\x91", "\xe9\x81\xb8", "\xe5\x8c\x85", "\xe5\x9c\x96", "\xe6\x8f\x9b", "\xe8\xa3\x9d", "\xe5\xb1\xac", "\xe6\x8a\x80"};  // 攻 1 2 3 4 跑 選 包 圖 換 裝 屬 技
     for (int i = 0; i < TB_N; i++) {
