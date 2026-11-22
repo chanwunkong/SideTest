@@ -5,9 +5,13 @@
 // 解除拿掉第一個相同的），由大到小排序，只顯示最前面兩個（m_pRoleStatus[0][0]／[0][1] 的圖幀 = 組號）。
 // 0x551480／0x551560／0x551590：點／指著成員頭像 → 敵人狀態框（0x459ce0）顯示那個人，放開（離開）就關。
 // shortcut: 隊伍名單原版是玩家的角色清單（全域 0x940184 鏈），這裡改讀劇情的隊伍表（主角帶頭，最多 5 個）、隊友要有角色才列出；
-//   頭像（m_pRole 的圖）原版依角色圖號，這裡沒有隊友頭像資源對應，只畫鈕底；手機沒有「指著」，改成點頭像框顯示 3 秒；點頭像切換選人名單（0x457a30／0x458fc0），名單裡的隊友收移動／攻擊／右鍵出手命令。
+//   頭像：0x539fa0（RoleData 的 PortraitID）→ 0x50b220(PortraitID, 2)＝表 0x63b6d8 第 2 列（每列 24 格）→ 設成 m_pRole[槽] 的圖；
+//   PortraitID = G_PicID2 = 4×職業序號+外貌（EasyRPG.dll 0x100493f0 送訊息 0x5e5 的欄位；創角頭像表 new_pic 是同一張表的第 0 列）；手機沒有「指著」，改成點頭像框顯示 3 秒；點頭像切換選人名單（0x457a30／0x458fc0），名單裡的隊友收移動／攻擊／右鍵出手命令。
 //   隊友是引擎角色（main.c team_make，hp／mp 條讀角色）。
 #define PARTY_SLOTS 5
+// 表 0x63b6d8 第 2 列（小頭像圖號），索引 = G_PicID2（4~23；0 = 沒有這個外貌）
+static const int party_face[24] = {0, 0, 0, 0, 4657, 8212, 8491, 0, 5447, 8210, 8493, 0, 5448, 8208, 8495, 0, 8497, 8487, 5449, 8501, 8148, 8499, 8489, 0};
+static int party_pic2[PARTY_SLOTS];  // party_list 同時填：每格的 G_PicID2
 static Actor *party_show;       // 點到的成員（敵人狀態框顯示他）
 static Uint32 party_show_until;
 
@@ -42,8 +46,11 @@ static int party_list(Actor **out) {
 #ifdef STORY
     for (int m = story_team_next(story_player(), 0); m && n < PARTY_SLOTS; m = story_team_next(story_player(), m)) {
         Actor *a = character_of(m);
-        if (a && a != &actors[0] && alive(a)) out[n++] = a;
+        if (a && a != &actors[0] && alive(a)) { party_pic2[n] = story_get_int(m, "G_PicID2"); out[n++] = a; }
     }
+    party_pic2[0] = story_get_int(story_player(), "G_PicID2");
+#else
+    party_pic2[0] = 4 * hero_prof;  // shortcut: 沒劇情時看不到外貌選擇，用第 0 個外貌
 #endif
     return n;
 }
@@ -67,7 +74,9 @@ static void party_draw(UiDialog *d, int px, int py) {
         for (int k = 0; k < 2; k++) {
             snprintf(key, sizeof key, kinds[k], i);
             const UiCtrl *c = ui_find(d, key);
-            if (c && c->img) draw(ui_image(c->img, 0), px + c->x, py + c->y);
+            int img = c ? c->img : 0;
+            if (k == 0 && party_pic2[i] >= 4 && party_pic2[i] < 24 && party_face[party_pic2[i]]) img = party_face[party_pic2[i]];  // 0x539fa0：頭像換掉鈕底
+            if (img) draw(ui_image(img, 0), px + c->x, py + c->y);
         }
         snprintf(key, sizeof key, "m_pRoleHP[%d]", i);
         UiCtrl *hp = ui_find(d, key);

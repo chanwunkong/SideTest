@@ -505,6 +505,7 @@ static int input_party_fighting(void);
 static int input_side_command(int p0);
 static void scene_ready_set(int on);
 static void actor_direction_set(Actor *a, int dir);
+static void actor_body_apply(Actor *a, int seq);
 // Poq.exe 0x48ec60：期限-1可覆寫任何值；其他期限只接受不短於現有期限。
 // 回傳暫存器原版混合了被呼叫函數結果與輸入索引；遊戲呼叫端均不消費，以void承接。
 static void actor_modifier_set(Actor *a, int index, int value, int time) {
@@ -3144,6 +3145,16 @@ static void actor_dynamic_enter(Actor *a) {
 // 靜止不寫三參數；21/22只在p0非零時強制打斷。失敗後保留進入時刻與結果。
 static void actor_dynamic_command(Actor *a, int state, int p0, int p1, int p2) {
     int flag = actor_flags(a, 0x10000);
+    if (scene_record_mode == 2) {  // 回放（DAT_00663804 == 0 的客戶端分支）：只換狀態；不存參數、不尋路、不選序列（序列由錄影的 #3 0x66 給）
+        if (a->dynamic_state != state || a->dynamic_command[0] != p0 || a->dynamic_command[1] != p1 ||
+            a->dynamic_command[2] != p2 || a->dynamic_flag_snapshot != flag) {
+            actor_trail_exit(a);
+            a->dynamic_state = state;
+            if (state == 22) { actor_set_flags(a, 0x200, 1); actor_jump_phase(a, 1); }  // 跳躍：離地旗標、半程與垂直速度（shortcut: 層號改 1 的檢查要用命令座標，客戶端沒存，略）
+        }
+        a->dynamic_flag_snapshot = flag;
+        return;
+    }
     if (a->dynamic_state != state || a->dynamic_command[0] != p0 ||
         a->dynamic_command[1] != p1 || a->dynamic_command[2] != p2 ||
         a->dynamic_flag_snapshot != flag) {
@@ -9945,8 +9956,11 @@ static void rec_net(const uint8_t *b, size_t n, Scene *s) {
     case 3: if (a && n >= 6) rec_attr(b, a); break;
     case 4:   // 0x496260：位置修正（離太遠 > 127 像素才改）、占格換到 (b8, b10)、0x4967d0 插值走過去（回放模式 2 靠逐拍插值推進）
         if (a && n >= 13) {
+            // 0x496260：+0xaf（每拍步長 A）= 封包第 12 byte（伺服端當時的速度，插值用它、不是角色自己的速度表），離封包位置超過 127 像素才直接改世界位置
+            // （歐氏距離，之前拿 command_world 比而且從來沒移動角色，落後的人永遠追不回來）。shortcut: 層號重算（0x4c7d60）用 actor_place 的
             int px = rec_u16(b + 4), py = rec_u16(b + 6);
-            if (llabs((long long)a->command_world_x - px) + llabs((long long)a->command_world_y - py) > 127) { a->command_world_x = px; a->command_world_y = py; }
+            a->move_a = a->move_remaining = b[12];
+            if (dist_of(ax64(a), ay64(a), px, py) > 127) { a->x = px / 64.0f; a->y = py / 64.0f; }
             actor_place(a, (int)rec_u16(b + 8), (int)rec_u16(b + 10), 1);
             actor_interpolate(a, -1, -1, -1);
         }

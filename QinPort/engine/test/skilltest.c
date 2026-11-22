@@ -852,6 +852,39 @@ static void character_animation_test(void) {
 
 }
 
+// 招式開始（0x43acb0）：出手者先面向目標點（0x4963e0）、序列 = 招式序列 + 方向，再直接切本體；跳躍的方向 = 面向，不可用舊面向往旁邊跳
+static void method_start_facing_test(void) {
+    const Scene *saved_scene = unit_scene; int saved_count = actor_count, saved_units = unit_n;
+    Cell cells[400];
+    for (int i = 0; i < 400; i++) cells[i] = (Cell){.walk = 1, .layer = 1};
+    Scene s = {.w = 20, .h = 20, .cells = cells}; unit_scene = &s; actor_count = 0; unit_n = 0;
+    const Method *jump = method_find(102);   // 狼的撲咬：type 7 跳躍
+    assert(jump && jump->trig_count);
+    RoleDef d = {0};
+    static const float tx[4] = {10.5f, 5.5f, 1.5f, 5.5f}, ty[4] = {5.5f, 10.5f, 5.5f, 1.5f};  // 世界 +x／+y／−x／−y
+    static const int want[4] = {7, 5, 3, 1};                                                   // 畫面：右下、左下、左上、右上
+    for (int k = 0; k < 4; k++) {
+        Actor foe = {.role = &empty_test_role, .def = &d, .hp = 10, .hp_max = 10, .x = tx[k], .y = ty[k], .object_kind = 31};
+        Actor a = {.def = &d, .role = &empty_test_role, .speed = 10, .layer = 1, .body_size = 1, .object_kind = 40, .x = 5.5f, .y = 5.5f, .foe = &foe, .atk = jump};
+        a.dir = (k + 3) % 8; a.facing = DIR_MAP[a.dir];   // 先面向別處（走過來的最後一步）
+        start_act(&a, ACT_ATTACK, jump->seq);
+        main_new(&a);
+        assert(a.facing == want[k] && DIR_MAP[a.dir] == want[k]);
+        assert(a.animation_target == jump->seq + want[k] && a.shown_seq == jump->seq + want[k] && actor_seq(&a) == jump->seq + want[k]);
+        assert(main_of(&a) && main_of(&a)->dir == want[k]);
+        unit_n = 0;
+    }
+    {  // 目標貼身（不到一格）：目標點 = 出手者往方向走一格；完全重疊用目前面向（0x43af50）
+        Actor a = {.def = &d, .role = &empty_test_role, .speed = 10, .layer = 1, .body_size = 1, .object_kind = 40, .x = 5.5f, .y = 5.5f, .atk = jump};
+        a.dir = 2; a.facing = DIR_MAP[a.dir];
+        start_act(&a, ACT_ATTACK, jump->seq);
+        main_new(&a);
+        MUnit *u = main_of(&a);
+        assert(u && a.facing == DIR_MAP[2] && abs(u->tx - ax64(&a)) + abs(u->ty - ay64(&a)) >= 64 - 1);
+    }
+    unit_scene = saved_scene; actor_count = saved_count; unit_n = saved_units;
+}
+
 static void character_rush_test(void) {
     const Scene *saved_unit_scene = unit_scene;
     int saved_count = actor_count;
@@ -4703,6 +4736,7 @@ int main(void) {
     character_yield_test();
     character_dynamic_exit_test();
     character_rush_test();
+    method_start_facing_test();
     character_knock_test();
     character_charge_test();
     character_client_motion_test();
@@ -5631,7 +5665,8 @@ int main(void) {
     {  // 過場角色的身體方向：72 個錄影檔逐包走一遍（#1 建角色、#3 子碼 0x66 動畫序列、#4 位置），引擎選的身體序列 % 8 必須等於錄影的序列 % 8，
        // 而且錄影的序列方向要和位置移動的八方向（dir_of）相符（走 ≥ 半格的步；位置與序列更新差一拍的少數轉彎不算，要求 ≥ 90% 相符）
         DIR *dir = opendir("../../game/Rec/User");
-        int steps = 0, agree = 0, bodies = 0;
+        int steps = 0, agree = 0, bodies = 0, near1 = 0, wlk = 0;
+        scene_record_mode = 2;  // 回放：0x496550 走客戶端分支
         for (struct dirent *de; (de = readdir(dir));) {
             if (!strcasestr(de->d_name, ".rec")) continue;
             size_t n = 0;
@@ -5658,11 +5693,20 @@ int main(void) {
                     rec_attr(b, &ra[k]);
                     assert(actor_requested_seq(&ra[k]) % 8 == (int)rec_u16(b + 5) % 8);   // 引擎的身體方向 = 錄影的
                     bodies++; seen[k] = 1;
+                } else if (k < rc && b[1] == 3 && len >= 6 && b[4] == 0x34) {
+                    // 動態狀態包（0x496550 回放分支只換狀態）：不可把錄影給的身體序列洗掉（以前走伺服端分支，0x48c190(-1) 依模板重選成 idle／walk）
+                    int before = actor_requested_seq(&ra[k]);
+                    rec_attr(b, &ra[k]);
+                    assert(actor_requested_seq(&ra[k]) == before && ra[k].dynamic_state == b[5]);
                 } else if (k < rc && b[1] == 4 && len >= 13) {
                     int px = (int)rec_u16(b + 4), py = (int)rec_u16(b + 6), dx = px - rx[k], dy = py - ry[k];
                     if (dx * dx + dy * dy >= 32 * 32 && seen[k]) {
                         steps++;
-                        agree += actor_requested_seq(&ra[k]) % 8 == dir_of(rx[k], ry[k], px, py, 8);
+                        int sq = actor_requested_seq(&ra[k]), od = dir_of(rx[k], ry[k], px, py, 8), df = abs(sq % 8 - od);
+                        agree += sq % 8 == od;
+                        near1 += df == 0 || df == 1 || df == 7;   // 直線走位會用相鄰兩方向交替的格子（伺服端 0x4959d0 的 straight 分支），面向取中間那個
+                        const RoleDef *wd = ra[k].def;
+                        wlk += sq / 8 * 8 == wd->walk || sq / 8 * 8 == wd->run_seq || sq / 8 * 8 == wd->fight_walk;  // 走路中顯示的是走路／跑步／戰鬥走路序列，不是站立或招式
                     }
                     rx[k] = px; ry[k] = py;
                 }
@@ -5670,8 +5714,10 @@ int main(void) {
             free(d);
         }
         closedir(dir);
-        printf("rec 身體方向：%d 個 0x66 全部照錄影；%d 步移動中 %d 步方向相符\n", bodies, steps, agree);
+        printf("rec 身體方向：%d 個 0x66 全部照錄影；%d 步移動中 %d 步方向相符、%d 步差不到一格方向、%d 步是走路序列\n", bodies, steps, agree, near1, wlk);
         assert(bodies > 500 && steps > 1000 && agree * 10 >= steps * 9);
+        scene_record_mode = 0;
+        assert(near1 * 100 >= steps * 97 && wlk * 100 >= steps * 95);
     }
     {  // 過場對話框（0x4725c0 case 4／6、0x472e70）、建築狀態 #7、@8／@10／@12、#3 子碼 0x35／0x67
         Scene sc = {0};
