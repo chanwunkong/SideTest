@@ -5210,8 +5210,8 @@ int main(void) {
         int saved = actor_count;
         RoleDef rd = {0};
         MonDef wolf = {.istrap = 10}, mine = {.istrap = 1};
-        assert(mon_make(&wolf, &rd, 3, 3, 3, 3, 1)->object_kind == 40);
-        assert(mon_make(&mine, &rd, 3, 3, 3, 3, 1)->object_kind == 24);
+        assert(mon_make(&wolf, &rd, 3, 3, 1)->object_kind == 40);
+        assert(mon_make(&mine, &rd, 3, 3, 1)->object_kind == 24);
         actor_count = saved;
     }
     // 耐久：每 40 次 HitPoint 扣 1

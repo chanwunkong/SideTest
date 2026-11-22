@@ -1481,6 +1481,7 @@ static void actor_setup(Actor *a, const RoleDef *d) {
         if (!a->object_kind) a->object_kind = 31;
         for (int i = 0; i < 20; i++) a->modifier[i].time = -1;
         a->hp_percent = 100;
+        a->battle_return = 1;  // 0x485270 建構：[0x148] = 1，npc_pick_target 沒候選時才退戰
         a->effect_speed = 100;
         a->display_number = -1;
         a->npc_home_x = a->npc_home_y = -1;
@@ -1619,7 +1620,6 @@ static void spawn_npcs(const Scene *s) {
 }
 
 // 房間的怪物群（EasyRPG.dll 0x10052550）：每群挑一個「前场景名称 = 區域」的入口點，整群出現在附近
-#define MON_WANDER 4  // shortcut: 怪物閒逛半徑（格）是自訂的，原版 AI 還沒拆
 static NpcSpec mon_specs[MAX_ACTORS];
 
 static void mon_derive(Actor *a);
@@ -1636,12 +1636,12 @@ static const SkillRow *npc_skill(const char *key) {
     return NULL;
 }
 
-// 放一隻怪物在 (x, y)，閒逛範圍以 (cx, cy) 為中心
-static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int cx, int cy, int lv) {
+// 放一隻怪物在 (x, y)。原版 0x44f580 建 SInitCha（0x44eec0 初值：行走休息 0、範圍 0）後只把平時邏輯設 10：
+// 不閒逛，只會在偏離出生格時走回去（0x492730 的「其他」分支）；原版沒有固定閒逛半徑。
+static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int lv) {
     Actor *a = &actors[actor_count];
     NpcSpec *sp = &mon_specs[actor_count++];
-    *sp = (NpcSpec){.type = 13, .logic = 1, .tmpl = d->id, .x = x, .y = y, .rx = cx - MON_WANDER, .ry = cy - MON_WANDER,
-                    .rw = MON_WANDER * 2 + 1, .rh = MON_WANDER * 2 + 1};
+    *sp = (NpcSpec){.type = 13, .logic = 10, .tmpl = d->id, .x = x, .y = y};
     memset(a, 0, sizeof *a);
     npc_behavior_reset(a);
     a->x = x + 0.5f;
@@ -1683,14 +1683,14 @@ static void spawn_monsters(const Scene *s, const World *w, int room) {
             int x = en->x, y = en->y;
             int lv = mg->level, tier = mg->tier;
             if (lv < 0) lv = tier * 5 - rand() % 5;
-            Actor *a = mon_make(m, d, x, y, en->x, en->y, lv);
+            Actor *a = mon_make(m, d, x, y, lv);
             printf("怪物 %s Lv%d HP%d 在 (%d,%d)\n", m->name, a->level, a->hp, x, y);
         }
     }
 }
 
 // ---- 戰鬥 ----
-#define FIGHT_TICKS 300  // shortcut: 打完多久收起戰鬥姿態是自訂的（約 5 秒）
+#define FIGHT_TICKS 300  // shortcut: 只給玩家組（主角／隊友）：原版其退戰由伺服端送狀態0（Poq 0x522，伺服端程式不在 Poq／EasyRPG.dll），時長查不到；NPC組走 npc_pick_target（0x490430）
 static int exp_table[100], exp_levels;  // Data/experience.txt：第 n 列 = 升到 n+1 級要的經驗
 
 static int alive(const Actor *a) { return a && a->role && !a->object_dead && a->act != ACT_DEAD; }
@@ -2403,7 +2403,7 @@ static void summon(Actor *a, const SkillRow *r) {
     const MonDef *m = mondef_pick(N[k]);
     const RoleDef *d = m ? roledef_find(m->role) : NULL;
     if (!d || actor_count >= MAX_ACTORS) return;
-    Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, (int)a->x, (int)a->y, a->level);
+    Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, a->level);
     actor_owner_set(s, a);
     s->side = a->side;
     actor_group(s, a->grp);
@@ -2434,7 +2434,7 @@ static Actor *make_beside(Actor *a, const char *name) {
     const MonDef *m = mondef_find(name);
     const RoleDef *d = m ? roledef_find(m->role) : NULL;
     if (!d || actor_count >= MAX_ACTORS) return NULL;
-    Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, (int)a->x, (int)a->y, a->level);
+    Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, a->level);
     join(s, a);
     s->exp = 0;
     printf("放出 %s\n", m->name);
@@ -5544,8 +5544,16 @@ static void skills_load(void) {
 }
 
 // 主列的右手、左手技能（原版 SkillData 的 CurRSkillID、CurLSkillID）：hero_skill 的第幾個，-1 = 空。
-// shortcut: 開局兩手都是斩棘披荆（第 0 個，左右鍵位 2）是猜的，原版開新遊戲怎麼設還沒找到
+// 開局哪手拿哪招：原版技能物件的 UI_Cur 位元（1 右手、2 左手）在加技能時（Poq 0x485f80 的 hand 低兩位，封包 0x524 由 EasyRPG.dll 0x10041130 送出）
+// 決定。story/skill/主角/*技能/ 裡只有各職業第一招 UI_Cur = 3（兩手），其餘 0；所以開局兩手都是那一招，不是猜的。
 static int cur_skill[2];
+static void hero_default_hands(void) {
+    static const char *const UI_CUR[5] = {"\xd3\xce\xcf\xc0_\xd5\xb6\xbc\xac\xc5\xfb\xbe\xa3", "\xc1\xa6\xca\xbf_\xbb\xa2\xd7\xa6\xc0\xc7\xd1\xc0", "\xb4\xcc\xbf\xcd_\xc1\xf7\xd0\xc7\xbc\xfd\xd3\xb0", "\xca\xf5\xca\xbf_\xc5\xad\xbd\xa3\xbf\xaa\xc9\xbd", "\xce\xd7\xca\xa6_\xba\xe1\xc9\xa8\xc7\xa7\xbe\xfc"};  // GBK：游侠_斩棘披荆、力士_虎爪狼牙、刺客_流星箭影、术士_怒剑开山、巫师_横扫千军
+    skills_load();
+    cur_skill[0] = cur_skill[1] = -1;
+    for (int i = 0; i < hero_skill_n && hero_prof >= 1 && hero_prof <= 5; i++)
+        if (!strcmp(hero_skill[i].key, UI_CUR[hero_prof - 1])) cur_skill[0] = cur_skill[1] = i;
+}
 
 // 原版鍵盤分派的五組索引：Alt單獨按不換組；Ctrl+Alt優先於Shift。
 static int skill_key_index(SDL_Keycode key, SDL_Keymod mod) {
@@ -7546,7 +7554,7 @@ static void actors_sync(const Scene *s) {
         if (pick < 0) continue;
         const Entry *en = &s->entries[pick];
         int x = en->x, y = en->y;
-        Actor *a = mon_make(m, d, x, y, en->x, en->y, story_get_int(h, "Level"));
+        Actor *a = mon_make(m, d, x, y, story_get_int(h, "Level"));
         a->sh = h;
         actor_person_init(a, h, story_get_int);
         for (int k = 0; k < 8; k++)
@@ -8262,7 +8270,7 @@ static void new_done(void) {
     story_player_choose(path);
     hero_from_story(1);
     hero_skill_n = -1;  // 技能表依新職業重讀
-    cur_skill[0] = cur_skill[1] = 0;
+    hero_default_hands();
     story_begin(); story_start(sroom); story_end();  // 開場房間的進房間檢查（赵村：亡命天涯）
 #endif
     SDL_StopTextInput();
@@ -10830,7 +10838,7 @@ int main(int argc, char **argv) {
                 actor_health_sync(&actors[i]);
                 if (actors[i].role) actor_maintenance_tick(&actors[i]);
                 if (actors[i].role && actors[i].act != ACT_DEAD) actor_skill_command_tick(&actors[i]);
-                if (actors[i].fight > 0 && !actors[i].foe && !--actors[i].fight)
+                if (actors[i].fight > 0 && !actors[i].foe && !grp_npc(actors[i].grp) && !--actors[i].fight)
                     actor_status_notify(&actors[i], 0, 0, -1);
             }
 #ifdef STORY
