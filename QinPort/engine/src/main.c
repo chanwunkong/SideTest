@@ -788,6 +788,9 @@ static int actor_requested_seq(const Actor *a) {
     // 靜態SInit的初始態是明確選定的目標序列，不能每拍用休息序列覆蓋。
     if (!a->act && a->spec && !a->spec->logic && a->dynamic_state == 1)
         return a->animation_target;
+    // 回放（Poq.exe 0x4963e0：DAT_00663804 == 0 的客戶端不自己選序列）：身體序列就是錄影 #3 子碼 0x66 送來的目標序列（0x48c190 存的 +0x8b），
+    // 方向跟著錄影、不跟 a->dir（錄影角色的 a->dir 從建立後沒人改，走路一直面向同一邊）
+    if (a->rec && !a->act) return a->animation_target;
     return a->act ? a->act_seq + DIR_MAP[a->dir] : actor_animation_target(a, DIR_MAP[a->dir]);
 }
 
@@ -5341,16 +5344,23 @@ static UiCtrl *ui_find(UiDialog *d, const char *name) {
 }
 
 // 進度條（種類 6，原版 Poq.exe CProgress 第 12 格 0x401690）：旗標 0x4000 = 直的、由下往上；否則橫的、從左往右
-static void ui_bar(const UiCtrl *c, int ox, int oy, int value, int max) {
+static void ui_bar_ex(const UiCtrl *c, int ox, int oy, int value, int max, int from_right, int backdrop) {
     const Sprite *s = ui_image(c->img, 0);
     if (!s || max <= 0) return;
     int v = value < 0 ? 0 : value > max ? max : value;
+    if (backdrop) {  // 0x5972f0：旗標 0x10 沒設 → 先把整張圖當底畫一次（原版第 0x20(0) 模式的暗化沒查，這裡用降色）
+        SDL_Rect all = {ox + c->x, oy + c->y, s->w, s->h};
+        SDL_SetTextureColorMod(s->tex, 80, 80, 80);
+        SDL_RenderCopy(ren, s->tex, NULL, &all);
+        SDL_SetTextureColorMod(s->tex, 255, 255, 255);
+    }
     SDL_Rect src = {0, 0, s->w, s->h};
     if (c->flags & 0x4000) { src.y = s->h - s->h * v / max; src.h = s->h - src.y; }
-    else src.w = s->w * v / max;
+    else { src.w = s->w * v / max; if (from_right) src.x = s->w - src.w; }
     SDL_Rect dst = {ox + c->x + src.x, oy + c->y + src.y, src.w, src.h};
     SDL_RenderCopy(ren, s->tex, &src, &dst);
 }
+static void ui_bar(const UiCtrl *c, int ox, int oy, int value, int max) { ui_bar_ex(c, ox, oy, value, max, 0, 0); }
 
 // 畫整個介面（進度條另外畫）；(ox, oy) = 介面左上角
 static void ui_draw(UiDialog *d, int ox, int oy) {
@@ -9128,14 +9138,15 @@ static void hud_draw(Actor *hero) {
             actor_title(t, u, sizeof u);
             draw_text(ex + nm->x + (nm->w - text_width(u)) / 2, ey + nm->y + 3, u, nm->w, 0xBECDCE, 1);
         }
-        if (bl) ui_bar(bl, ex, ey, t->hp, t->hp_max);
+        if (bl) ui_bar_ex(bl, ex, ey, t->hp, t->hp_max, 0, !(bl->flags & 0x10));
     }
     if (!bar.count) return;
     int ox = (vw - bar.w) / 2, oy = vh - bar.h;
     ui_draw(&bar, ox, oy);
     UiCtrl *red = ui_find(&bar, "m_pRed"), *blue = ui_find(&bar, "m_pBlue");
-    if (red) ui_bar(red, ox, oy, hero->hp, hero->hp_max);
-    if (blue) ui_bar(blue, ox, oy, hero->mp, hero->mp_max);
+    // 左管（紅）貼右、右管（藍）貼左：兩條都由外側往中間空掉
+    if (red) ui_bar_ex(red, ox, oy, hero->hp, hero->hp_max, 1, 0);
+    if (blue) ui_bar_ex(blue, ox, oy, hero->mp, hero->mp_max, 0, 0);
     for (int i = 0; i < 2; i++) {
         char key[16];
         snprintf(key, sizeof key, "m_pSkill[%d]", i);

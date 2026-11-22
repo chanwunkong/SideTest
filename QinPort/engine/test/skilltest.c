@@ -5588,6 +5588,51 @@ int main(void) {
         rec_look(&lk, "001*CA_002_001*TK_003_001");
         assert(lk.pli == 1 && strstr(lk.styles, "003") && strstr(lk.styles, "002"));
     }
+    {  // 過場角色的身體方向：72 個錄影檔逐包走一遍（#1 建角色、#3 子碼 0x66 動畫序列、#4 位置），引擎選的身體序列 % 8 必須等於錄影的序列 % 8，
+       // 而且錄影的序列方向要和位置移動的八方向（dir_of）相符（走 ≥ 半格的步；位置與序列更新差一拍的少數轉彎不算，要求 ≥ 90% 相符）
+        DIR *dir = opendir("../../game/Rec/User");
+        int steps = 0, agree = 0, bodies = 0;
+        for (struct dirent *de; (de = readdir(dir));) {
+            if (!strcasestr(de->d_name, ".rec")) continue;
+            size_t n = 0;
+            uint8_t *d = res_file("Rec/User", de->d_name, &n);
+            static Actor ra[96]; static int rid[96], rx[96], ry[96], seen[96]; int rc = 0;
+            memset(&rec, 0, sizeof rec);
+            for (size_t p = 0x80; p + 4 <= n;) {
+                size_t len = rec_u32(d + p);
+                const uint8_t *b = d + p + 4;
+                p += 4 + len;
+                if (b[0] != '#') continue;
+                unsigned id = rec_u16(b + 2);
+                int k = 0;
+                while (k < rc && rid[k] != (int)id) k++;
+                if (b[1] == 1 && len >= 13 && b[4] == 0 && k == rc && rc < 96) {
+                    const RoleDef *rd = roledef_find((int)rec_u16(b + 5));
+                    if (!rd) continue;
+                    memset(&ra[k], 0, sizeof ra[k]);
+                    ra[k].rec = 1; ra[k].def = rd; ra[k].object_kind = 40; ra[k].dynamic_state = 1;
+                    actor_direction_set(&ra[k], 0);
+                    actor_animation_select(&ra[k], -1);
+                    rid[k] = (int)id; rx[k] = (int)rec_u16(b + 7); ry[k] = (int)rec_u16(b + 9); seen[k] = 0; rc++;
+                } else if (k < rc && b[1] == 3 && len >= 7 && b[4] == 0x66) {
+                    rec_attr(b, &ra[k]);
+                    assert(actor_requested_seq(&ra[k]) % 8 == (int)rec_u16(b + 5) % 8);   // 引擎的身體方向 = 錄影的
+                    bodies++; seen[k] = 1;
+                } else if (k < rc && b[1] == 4 && len >= 13) {
+                    int px = (int)rec_u16(b + 4), py = (int)rec_u16(b + 6), dx = px - rx[k], dy = py - ry[k];
+                    if (dx * dx + dy * dy >= 32 * 32 && seen[k]) {
+                        steps++;
+                        agree += actor_requested_seq(&ra[k]) % 8 == dir_of(rx[k], ry[k], px, py, 8);
+                    }
+                    rx[k] = px; ry[k] = py;
+                }
+            }
+            free(d);
+        }
+        closedir(dir);
+        printf("rec 身體方向：%d 個 0x66 全部照錄影；%d 步移動中 %d 步方向相符\n", bodies, steps, agree);
+        assert(bodies > 500 && steps > 1000 && agree * 10 >= steps * 9);
+    }
     {  // 過場對話框（0x4725c0 case 4／6、0x472e70）、建築狀態 #7、@8／@10／@12、#3 子碼 0x35／0x67
         Scene sc = {0};
         Model mdl = {.type = 0x96};
