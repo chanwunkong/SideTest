@@ -5823,6 +5823,23 @@ int main(void) {
     death_team_test();  // 用到 rand（npc_selected），放最後免得改變前面測試的亂數序列
     music_state_test();
     save_ground_test();  // 讀檔會換掉背包等全域，放在最後
+    {   // 2026-11-23：裝備規則（Poq 0x50bb30／0x508c60／0x50c390）、右鍵目標檢查（0x457be0）
+        assert(prof_can_use(1, 11) && !prof_can_use(1, 18) && prof_can_use(2, 18) && prof_can_use(1, 26) && prof_can_use(9, 18));
+        Item it = {.type = 3 + 8, .part = 3}, ar = {.type = 13, .part = 3};
+        assert(equip_slot(&it) == 32 && equip_slot(&(Item){.type = 16, .part = 10}) == 33 && equip_slot(&(Item){.type = 32, .part = 11}) == 39);
+        memset(&inv[32], 0, sizeof inv[32]); memset(&inv[33], 0, sizeof inv[33]);
+        snprintf(inv[32].name, sizeof inv[32].name, "bow"); inv[32].type = 11;
+        assert(equip_route(32, &ar) == 33 && equip_route(33, &ar) == 33);
+        inv[32].type = 8; assert(equip_route(32, &ar) == 32);
+        memset(&inv[32], 0, sizeof inv[32]);
+        Method m = {0}; Actor aa = {0}, tt = {0};
+        tt.object_kind = 40; tt.grp = 5000;
+        assert(cast_target_check(&aa, &m, &tt) == 2);
+        m.r4 = 0x40; assert(cast_target_check(&aa, &m, NULL) == 2);
+        m.r4 = 4; assert(cast_target_check(&aa, &m, NULL) == 0);
+        tt.object_kind = 22; assert(cast_target_check(&aa, &m, &tt) == 1);
+        m.r4 = 2; assert(cast_target_check(&aa, &m, &tt) == 0);
+    }
     puts("skilltest ok");
     return 0;
 }

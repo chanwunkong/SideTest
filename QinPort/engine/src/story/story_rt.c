@@ -577,9 +577,28 @@ static void team_learn(int h, int level) {
 int (*story_exp_for)(int level);  // 升到 level+1 要的累計經驗（引擎的 Data/experience.txt，原版 DAT_104784e8[level]）；沒設 = 不升級
 int story_exp_max;                // 最高等級（原版 DAT_1039b5e8）
 
+// 升級後的 Upgrade_ 重算（0x10056120 對每個 Upgrade_<屬性> 呼叫 0x10057f50）：值 f(L) = (int)((L + c) × 每級 + 基礎)；
+// 若升級前等級 ≠ 1，原本 *0 基底與 f(舊等級) 的差保留（iVar9），新 *0 基底 = f(新等級) + 差。HP_MAX、MP_MAX 兩列；基礎值來自模板的 0x1005f3c0（HP 在偏移 0x20），
+// 每級值反編譯漏掉浮點參數，取引擎同一張表（main.c person_derive 的 UP，機碼核對），c = 0。
+// shortcut: 原版接著 0x1002d8d0 全重算（加裝備、狀態的修正），這裡 HP_MAX／MP_MAX 只放基底值；裝備加成在引擎的隊友角色（team_derive）上
+static void team_upgrade(int h, int oldlv, int lv) {
+    static const int UP[5][4] = {{120, 28, 140, 4}, {150, 38, 120, 3}, {105, 24, 130, 4}, {110, 22, 180, 5}, {100, 20, 200, 6}};
+    int base = story_get_int(h, "Upgrade_32"), k = -1;
+    for (int i = 0; i < 5; i++) if (UP[i][0] == base) k = i;
+    if (k < 0) return;
+    for (int m = 0; m < 2; m++) {
+        const char *key = m ? "MP_MAX" : "HP_MAX";
+        char k0[16];
+        snprintf(k0, sizeof k0, "%s0", key);
+        int b = UP[k][m * 2], per = UP[k][m * 2 + 1], carry = 0;
+        if (oldlv > 0 && oldlv != 1 && story_has_int(h, k0)) carry = story_get_int(h, k0) - (b + per * oldlv);
+        story_set_int(h, k0, b + per * lv + carry);
+        story_set_int(h, key, b + per * lv + carry);
+    }
+}
+
 // 隊友（非玩家人物）加經驗（0x10026d30）：Exp、CurExp 加上去，夠了連升幾級，每級 Extra_Exp +10、Extra_Skill +1；
-// 升級後學新技能（0x100265d0 = team_learn）、訊息 0x44e。shortcut: 升級後的 Upgrade_ 屬性重算（HP_MAX／MP_MAX 隨等級）沒做：單機劇情物件上沒有 Upgrade_* 欄位，
-// 隊友的 HP_MAX 等等有隊友角色（引擎）時再算
+// 升級後 Upgrade_ 重算（team_upgrade）、學新技能（0x100265d0 = team_learn）、訊息 0x44e
 void story_gain_exp(int h, int exp) {
     if (!O(h)) return;
     story_set_int(h, "Exp", story_get_int(h, "Exp") + exp);
@@ -595,6 +614,7 @@ void story_gain_exp(int h, int exp) {
     if (gain < 1) return;
     story_set_int(h, "Extra_Exp", (story_get_int(h, "Extra_Exp") < 0 ? 0 : story_get_int(h, "Extra_Exp")) + gain * 10);
     story_set_int(h, "Extra_Skill", (story_get_int(h, "Extra_Skill") < 0 ? 0 : story_get_int(h, "Extra_Skill")) + gain);
+    team_upgrade(h, lv, nl);
     team_learn(h, nl);
     if (story_on_text && story_on_log) {
         char s[256];
@@ -604,7 +624,6 @@ void story_gain_exp(int h, int exp) {
 }
 
 // 0x10029550：升級後算下一級經驗（NextExp = 經驗表[等級] − Exp）、學技能（0x100265d0）
-// shortcut: 之後原版做 Upgrade_ 屬性重算，同 story_gain_exp 沒做
 static void team_level_set(int h, int level) {
     if (story_exp_for) story_set_int(h, "NextExp", story_exp_for(level) - story_get_int(h, "Exp"));
     team_learn(h, level);
@@ -934,6 +953,43 @@ static int count_alias(int owner, const char *alias) {
     return n;
 }
 
+// 基底類別建構的預設屬性（EasyRPG.dll 0x1005cd60 人物、0x1005cab0 道具、0x1005d4a0 技能、0x1005cd40 劇情事件）：模板的第 1 格先呼叫它，再改自己的值。
+// 整數 { 名稱, 值 }；字串預設空。與先前「沒設 = 0」的差別：人物 HP／MP 40／100、BD_MAX 10、Money 100、Age 19、HR／SR 1、G_AIGroup 100、Friend／Hand／G_NPCActive／B_XYRATE −1…
+typedef struct { const char *k; int v; } BaseInt;
+static void base_init(intptr_t h, unsigned addr) {
+    static const BaseInt P[] = {{"StatusCount", 0}, {"Gender", 0}, {"Age", 19}, {"Invincible", 0}, {"Level", 1}, {"Exp", 0}, {"NextExp", 0}, {"CurExp", 0}, {"Fame", 0},
+        {"Money", 100}, {"HP", 40}, {"HP_MAX", 40}, {"MP", 100}, {"MP_MAX", 100}, {"BD", 0}, {"BD_MAX", 10}, {"Str", 0}, {"Con", 0}, {"Dex", 0}, {"Potential", 0},
+        {"Savvy", 0}, {"Charm", 0}, {"Wisdom", 0}, {"AP", 0}, {"AP_MAX", 0}, {"MAP1", 0}, {"MAP1_MAX", 0}, {"MAP2", 0}, {"MAP2_MAX", 0}, {"MAP3", 0}, {"MAP3_MAX", 0},
+        {"MAP4", 0}, {"MAP4_MAX", 0}, {"MAP5", 0}, {"MAP5_MAX", 0}, {"DP", 0}, {"MDP1", 0}, {"MDP2", 0}, {"MDP3", 0}, {"MDP4", 0}, {"MDP5", 0}, {"HR", 1}, {"SR", 1}, {"FE", 0},
+        {"G_PosX", -1}, {"G_PosY", -1}, {"G_ScnInitID", -1}, {"G_PicID", -1}, {"G_AIGroup", 100}, {"G_AIGroup_Save", 0}, {"G_PicID2", 1}, {"G_InfoID", -1},
+        {"G_NPCActive", -1}, {"Friend", -1}, {"Hand", -1}, {"HP_TMP", 0}, {"MP_TMP", 0}, {"HP_SPEED", 0}, {"MP_SPEED", 0}, {"B_C_MOVE_SPEED", 0}, {"B_C_FIGHT_SPEED", 0},
+        {"B_C_VRANGE", 0}, {"B_C_SRANGE", 0}, {"B_FJXS", 0}, {"B_ZSXS", 0}, {"B_XQSM", 0}, {"B_XQMF", 0}, {"B_C_ZMYJ", 0}, {"B_C_HXYJ", 0}, {"B_C_JDR", 0}, {"B_C_DJHF", 0},
+        {"B_JSWL", 0}, {"B_JSMF", 0}, {"B_ARRUP", 0}, {"B_XYRATE", -1}, {"B_ZDRATE", 0}, {"B_BDRATE", 0}, {"B_SMRATE", 0}, {"B_SHRATE", 0}, {"B_KSRATE", 0},
+        {"B_XYIMMU", 0}, {"B_ZDIMMU", 0}, {"B_BDIMMU", 0}, {"B_SMIMMU", 0}, {"B_SHIMMU", 0}, {"B_KSIMMU", 0}, {"B_QTIMMU", 0}, {"KillPlayerCount", 0}, {"LingXing", 0}, {"Bank", 0}};
+    static const BaseInt I[] = {{"Value", 0}, {"ValueUn", 0}, {"Weight", 0}, {"Type", -1}, {"Level", 1}, {"HP", 100}, {"HP_MAX", 100}, {"HitPoint", 0}, {"Part", -1},
+        {"Identify", 1}, {"Random", 0}, {"can_get", 1}, {"can_eat", 0}, {"EffectCount", 0}, {"Status", -1}, {"EStatus", -1}, {"SlotMax", 0}, {"G_PosX", -1}, {"G_PosY", -1},
+        {"G_ScnInitID", -1}, {"G_PicID", -1}, {"G_AIGroup", 0}, {"G_AIGroup_Save", 0}, {"G_PicID2", 0x26d}, {"G_InfoID", -1}, {"UI_Pos", -1}, {"UI_PosOld", -1},
+        {"LevelReq", 0}, {"StrReq", 0}, {"DexReq", 0}, {"ConReq", 0}, {"Enable", 0}, {"NormalEffectCount", 0}, {"FE", -1}, {"Timer", 0}};
+    static const BaseInt K[] = {{"G_PicID2", 0x26d}, {"UI_Pos", -1}, {"UI_Cur", 0}, {"G_InfoID", -1}, {"G_InfoID2", -1}, {"G_IsUISkill", 0}, {"Level_Req", 0}, {"Level", 0},
+        {"Level_Max", 9}, {"Level_Add", 0}, {"Operator", 2}, {"Enable", 0}, {"AttackID", -1}, {"SUR", 100}, {"RangeMin", 0}, {"RangeMax", 1}, {"Time", 5}, {"MPU", 0},
+        {"Speed", 0}, {"EDR", 10}, {"B_C_JDR", 0}, {"B_C_DJHF", 0}, {"EffectCount", 0}, {"Degree", 0}, {"Status", -1}, {"EStatus", -1}, {"DieMode", 1}, {"Attack", 1},
+        {"W_Type", -1}, {"S_Class", -1}, {"S_SPU", -1}, {"S_TLimit", -1}, {"S_SLimit", -1}, {"UI_Default", -1}};
+    const BaseInt *t = addr == 0x1005cd60 ? P : addr == 0x1005cab0 ? I : addr == 0x1005d4a0 ? K : NULL;
+    int n = addr == 0x1005cd60 ? (int)(sizeof P / sizeof *P) : addr == 0x1005cab0 ? (int)(sizeof I / sizeof *I) : addr == 0x1005d4a0 ? (int)(sizeof K / sizeof *K) : 0;
+    for (int i = 0; i < n; i++) story_set_int((int)h, t[i].k, t[i].v);
+    static const char *const PS[] = {"info", "Prof", "G_EquipStr1", "G_EquipStr2", "G_EquipStr3", "G_EquipStr4", "G_EquipStr5", "Place"};
+    static const char *const IS[] = {"info", "G_EquipStr0", "G_EquipStr1", "G_EquipStr2", "G_EquipStr3", "G_EquipStr4", "G_EquipStr5", "G_Info", "G_Info2", "G_Info3"};
+    static const char *const KS[] = {"G_Info", "G_Info2", "G_Info3"};
+    const char *const *ss = addr == 0x1005cd60 ? PS : addr == 0x1005cab0 ? IS : addr == 0x1005d4a0 ? KS : NULL;
+    int ns = addr == 0x1005cd60 ? 8 : addr == 0x1005cab0 ? 10 : addr == 0x1005d4a0 ? 3 : 0;
+    for (int i = 0; i < ns; i++) story_set_str((int)h, ss[i], "");
+    if (addr == 0x1005cd60) {
+        story_set_name((int)h, "人");
+        story_set_str((int)h, "long", "这个人英姿飒爽，站立不动。");
+        story_set_str((int)h, "UIS_P", "\x80\x80\x80\x80\x80\x80\x80\x80");
+    } else if (addr == 0x1005cd40) story_set_str((int)h, "File", "");
+}
+
 intptr_t engine_call(uint32_t addr, intptr_t *a) {
     static int trace = -1;
     if (trace < 0) trace = getenv("STORY_TRACE") != NULL;
@@ -1006,8 +1062,9 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
             for (int k = 0; k < (int)(sizeof V / sizeof *V); k++) story_set_int(a[0], K[k], V[k]);
         }
         return 0;
-    case 0x1005cd60: case 0x1005cab0: case 0x1005d4a0: case 0x1005cd40:
-        return 0;  // 其他基底初始化。shortcut: 基底的預設屬性還沒照原版設
+    case 0x1005cd60: case 0x1005cab0: case 0x1005d4a0: case 0x1005cd40:  // 基底初始化（人物／道具／技能／劇情事件），預設值逐項照反編譯
+        base_init(a[0], (uint32_t)(addr));
+        return 0;
     case 0x100f94c0: chest_base(a[0], o, "秦殇/宝箱", "宝箱", "boxes"); return 0;  // 寶箱基底（原版 0x100f94c0；isbuilding 1 = 可開）
     case 0x100f95b0:                                                         // 随机物品宝箱（先跑基底，再改名）
         chest_base(a[0], o, "秦殇/随机物品宝箱", "随机物品宝箱", "suijiwupinbaoxiang");
@@ -1042,7 +1099,7 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
         return 0;
     case 0x1005f3c0:                                                         // 升級參數 Upgrade_<+偏移>
         if (o) { char k[32]; snprintf(k, sizeof k, "Upgrade_%d", (int)a[1]); story_set_int(a[0], k, (int)a[2]); }  // 浮點傳進來已轉成整數
-        return 0;  // shortcut: 原版依偏移存進數值表（0x20 = HP_MAX、0x24 = MP_MAX），只有主角用；主角數值引擎自己算
+        return 0;  // 原版 0x10038180 存字串屬性 "Upgrade_<名>" = "基礎 每級 c"；這裡只存基礎（偏移 0x20 = HP_MAX、0x24 = MP_MAX），每級值見 team_upgrade
     case 0x1004dcc0: printf("【日誌】%s\n", S(a[2])); if (story_on_journal) story_on_journal(S(a[2])); return 0;                 // journal
     case 0x10070360:                                                         // item_new(道具, 類型, 等級, SLevel 欄, 別名)
         if (o && story_item_make) o->item = story_item_make(a[0], a[1], a[2], a[3], S(a[4]));
