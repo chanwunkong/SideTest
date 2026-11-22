@@ -40,7 +40,8 @@ def _mk_iterm(check):
     b += bytes.fromhex('85C07506') if check else bytes.fromhex('90909090')
     b += bytes.fromhex('83C604EBEB31C05F5EC3')
     # 位移：jae(12)→done(31)；jz(18)→next(26)；jnz(24)→done_ret(33)；jmp(29)→loop(10)
-    b[13] = 17; b[19] = 6; b[25] = 7; b[30] = 0xEB
+    b[13] = 17; b[19] = 6; b[30] = 0xEB
+    if check: b[25] = 7   # 非檢查版此處是 nop，不可改成 0x07（= pop es）
     return bytes(b)
 CODE_AT = {}
 def code_stub(name):
@@ -137,6 +138,7 @@ def api(dll, name, nargs, cdecl=False):
         API[(dll.lower(), name)] = (nargs, cdecl, fn); return fn
     return d
 
+seen_unknown = set()
 last_error = [0]
 tls_slots = {}
 trace = []
@@ -153,7 +155,9 @@ def on_stub(uc_, addr, size, ud):
         # api-ms-win-crt-* 與 ucrtbase 同名函式共用處理
         h = API.get(('crt', name))
     if not h:
-        unknown.append((dll, name, ret)); print('!! 未實作', dll, name, 'from', hex(ret)); uc.emu_stop(); return
+        if (dll, name) not in seen_unknown:
+            seen_unknown.add((dll, name)); unknown.append((dll, name, ret)); print('!! 未實作(回傳0繼續)', dll, name, 'from', hex(ret))
+        uc.reg_write(UC_X86_REG_EAX, 0); return
     nargs, cdecl, fn = h
     args = [u32(esp + 4 + 4 * i) for i in range(nargs)]
     if len(trace) < MAXLOG: trace.append((dll, name, [hex(a) for a in args]))
@@ -161,6 +165,25 @@ def on_stub(uc_, addr, size, ud):
     uc.reg_write(UC_X86_REG_EAX, (r or 0) & 0xffffffff)   # 返回由 stub 位址上的 ret／ret N 機器碼完成（finalize_stubs 依參數個數寫入）
 
 uc.hook_add(UC_HOOK_CODE, on_stub, begin=STUB_BASE, end=STUB_BASE + STUB_SIZE)
+
+# 除錯：保留最近 24 條指令，出錯時反組譯列出
+import collections
+from capstone import Cs, CS_ARCH_X86, CS_MODE_32
+_cs = Cs(CS_ARCH_X86, CS_MODE_32)
+ring = collections.deque(maxlen=70)
+def _ring(uc_, addr, size, ud):
+    ring.append((addr, size))
+uc.hook_add(UC_HOOK_CODE, _ring)
+def _it(uc_, addr, size, ud):
+    esp = uc.reg_read(UC_X86_REG_ESP)
+    print('   [initterm@%x] esp=%x ret=%x a=%x b=%x' % (addr, esp, u32(esp), u32(esp+4), u32(esp+8)))
+for _v in (STUB_BASE + 0x100000, STUB_BASE + 0x100040): uc.hook_add(UC_HOOK_CODE, _it, begin=_v, end=_v)
+def dump_ring():
+    for a, sz in ring:
+        try:
+            ins = next(_cs.disasm(bytes(uc.mem_read(a, sz)), a)); print('     %08x  %s %s' % (a, ins.mnemonic, ins.op_str))
+        except Exception: print('     %08x  ??' % a)
+
 
 def crt(name, nargs, cdecl=True):
     def d(fn):
@@ -235,6 +258,20 @@ def _(ms): pass
 def _(): return 0x1000
 @api(K, 'HeapCreate', 3)
 def _(a, b, c): return 0x1000
+@api(K, 'SetErrorMode', 1)
+def _(m): return 0
+@api(K, 'LocalAlloc', 2)
+def _(f, n): return alloc(n)
+@api(K, 'LocalFree', 1)
+def _(p): return 0
+@api(K, 'GlobalAlloc', 2)
+def _(f, n): return alloc(n)
+@api(K, 'GlobalFree', 1)
+def _(p): return 0
+@api(K, 'GlobalLock', 1)
+def _(p): return p
+@api(K, 'GlobalUnlock', 1)
+def _(p): return 1
 @api(K, 'HeapAlloc', 3)
 def _(h, flags, n): return alloc(n)
 @api(K, 'HeapFree', 3)
@@ -475,14 +512,14 @@ for d in order:
         r = call(m['base'] + ep, [m['base'], 1, 0])
         print('   → eax', r)
     except UcError as e:
-        print('   !! UcError', e, 'eip', hex(uc.reg_read(UC_X86_REG_EIP)), 'esp', hex(uc.reg_read(UC_X86_REG_ESP)), 'esi', hex(uc.reg_read(UC_X86_REG_ESI)), 'edi', hex(uc.reg_read(UC_X86_REG_EDI))); break
-    if unknown: break
-if not unknown:
-    ep = mods['poq.exe']['base'] + mods['poq.exe']['pe'].OPTIONAL_HEADER.AddressOfEntryPoint
+        dump_ring(); print('   !! UcError', e, 'eip', hex(uc.reg_read(UC_X86_REG_EIP)), 'esp', hex(uc.reg_read(UC_X86_REG_ESP)), 'esi', hex(uc.reg_read(UC_X86_REG_ESI)), 'edi', hex(uc.reg_read(UC_X86_REG_EDI))); break
+if True:
+    # 檔頭進入點 0x9c9310 在 .bind（加密外殼）；改從真正的 CRT 啟動 (__scrt_common_main_seh 的跳板) 開始
+    ep = 0x401834
     print('Poq 進入點', hex(ep)); sys.stdout.flush()
     try:
         call(ep, [])
     except UcError as e:
-        print('!! UcError', e, 'eip', hex(uc.reg_read(UC_X86_REG_EIP)))
+        dump_ring(); print('!! UcError', e, 'eip', hex(uc.reg_read(UC_X86_REG_EIP)))
 print('耗時 %.1f 秒；呼叫過 %d 種主機函式；未實作：%s' % (_t.time() - t0, len(calls), unknown[:3]))
 for t in trace[:MAXLOG]: print('  ', t)

@@ -15,3 +15,10 @@
 - 遊戲資料夾沒有 msvcp140.dll、vcruntime140.dll、ucrtbase（api-ms-win-crt-*）、d3dx9_43.dll；要自己實作或取得微軟再發行版。
 - mfc140.dll 會再呼叫約 800 個 user32／gdi32／ole32 函式，需要一個視窗管理員與繪圖子集的主機端實作。
 - Gfx3D 用 DirectDraw 7（CDD）＋ Direct3D 9，需要 COM 物件（vtable）的主機端實作。
+
+## 2026-11-22 進度
+- 修正自寫 `_initterm` 機器碼（非檢查版誤把 nop 改成 0x07 = `pop es`，導致跳進 .rdata）；**OmUtil.dll 的 DllMain 已能完整跑完**（回傳 1）。
+- 新增 capstone 反組譯的「最近 70 條指令」環，出錯時自動列出。
+- 未實作的系統函式改為「記錄並回傳 0 繼續」（注意：stdcall 引數個數未知時堆疊會歪，仍需逐個補實作）。
+- **發現**：`Poq.exe` 檔頭進入點 0x9c9310 位於 `.bind` 區段（熵 7.98，加密外殼，會用 int3/SEH 反除錯）；真正的 CRT 啟動在 0x401834（跳到 `__scrt_common_main_seh` 0x5a7a43）。loader 已改從這裡起跑，略過外殼。
+- 現況：`mfc140.dll` 的 DllMain 跑到呼叫 `vcruntime140.dll` 內部函式 `__vcrt_InitializeCriticalSectionEx`（遊戲資料夾沒有 vcruntime140，需自己實作整批 `__vcrt_*`／msvcp140）。尚未到視窗建立、尚未量到檔案讀取模式。
