@@ -4307,12 +4307,12 @@ static void death_team_test(void) {
             assert(u.hp_max == E[pf][0] + E[pf][1] * 7 && u.mp_max == E[pf][2] + E[pf][3] * 7);
         }
     }
-    // 隊友挑技能：精气夠的對敵技能才挑；都不能放就用沒有技能列的普通攻擊
+    // 隊友挑技能（同 0x4906c0 的分組規則，招式 1 的 Reserve3 = 2 只有一半機率選）：精气不夠的技能列不挑；只剩沒有技能列的普通攻擊（招式 2，Reserve3 = 0）就一定選它
     SkillRow strike_row = {.level = 1, .attack = 1, .mpu = 5};
     t.skill_n = 2; t.selected = -1; t.mp = 100;
     t.skills[0] = (ActorSkill){.id = 1, .max = 4, .enabled = 1, .row = &strike_row};
     t.skills[1] = (ActorSkill){.id = 2, .max = 1, .enabled = 1};
-    assert(npc_selected(&t) == &t.skills[0]);
+    assert(npc_selected(&t) != NULL);
     t.selected = -1; t.mp = 0;
     assert(npc_selected(&t) == &t.skills[1]);
     // 455 = 對象身上加修正（單位 44：索引 4、值 10、期限 −1）：觸發位置 3 = 目標，其他 = 放的人
@@ -4879,13 +4879,46 @@ int main(void) {
     actor_count = 1;
     mk(&actors[0]);
     for (int i = 0; i < 5; i++) skill_hit(&actors[0], NULL, sm, 0);
-    assert(actor_count == 3 && actors[1].owner == &actors[0]);
-    // 改召狼（前 6 種）：先移掉別種（朱厌）
+    // 召喚前 6 種以外（朱厌，表上 istrap 空白）不是隊伍成員（0x100355d0 只數 istrap 20 的、只對 k < 6 呼叫 AddMember）：不被數、不被移，所以沒有上限
+    assert(actor_count == 6 && actors[1].owner == &actors[0] && actors[1].mon->istrap == 0);
+    // 改召狼（前 6 種）：不動非成員的朱厌；放在召喚者所在格（被佔了找附近空格，位置跟著搬）；同種已有 278 隻就不再召
     SkillRow wolf = *sm;
-    for (int i = 0; i < wolf.mod_n; i++) if (wolf.mod[i].id == 273) wolf.mod[i].init = 1, wolf.mod[i].incr = 0;
-    skill_hit(&actors[0], NULL, &wolf, 0);
-    assert(!actors[1].role && !actors[2].role && actor_count == 4 && actors[3].role);
-    // 範圍打擊：type 0 ID 7 = 自己（招式物件位置 = 出手的人）周圍 2 格內全部；ID 0 = 只打目標
+    int wmax = 0;
+    for (int i = 0; i < wolf.mod_n; i++) {
+        if (wolf.mod[i].id == 273) wolf.mod[i].init = 1, wolf.mod[i].incr = 0;
+        if (wolf.mod[i].id == 278) wmax = (int)skill_value(wolf.mod[i].init, wolf.mod[i].incr, wolf.level);
+    }
+    int before = actor_count;
+    for (int i = 0; i < 12; i++) skill_hit(&actors[0], NULL, &wolf, 0);
+    int wolves = 0;
+    for (int i = before; i < actor_count; i++) wolves += actors[i].role && !strcmp(actors[i].mon->name, SUMMON_N[0]) + (actors[i].role && !strcmp(actors[i].mon->name, SUMMON_N[4]));
+    assert(wolves >= 1 && wolves <= wmax && actors[1].role);
+    // 改召虎（前 6 種）：先移掉別種的成員（狼、白狼）
+    SkillRow tiger_row = wolf;
+    for (int i = 0; i < tiger_row.mod_n; i++) if (tiger_row.mod[i].id == 273) tiger_row.mod[i].init = 2;
+    skill_hit(&actors[0], NULL, &tiger_row, 0);
+    for (int i = before; i < actor_count; i++)
+        assert(!actors[i].role || !strcmp(actors[i].mon->name, SUMMON_N[1]));
+    // 馴服：同邊的 → 5000、不是動物 → 0x1400；成功就加入並設主人，已有主人的不能再馴
+    MonDef animal = {.istrap = 10}, plain = {.istrap = 0};
+    SkillRow tame_row = {.attack = 2, .level = 1, .mod_n = 1};
+    tame_row.mod[0].id = 271; tame_row.mod[0].init = 3;
+    actor_count = 3;
+    for (int i = 0; i < 3; i++) mk(&actors[i]);
+    actors[0].mon = NULL; actors[0].side = 0;
+    actors[1].mon = &animal; actors[1].side = 1;
+    actors[2].mon = &plain; actors[2].side = 1;
+    tame(&actors[0], &actors[2], &tame_row); assert(actors[2].side == 1 && !actors[2].owner);
+    tame(&actors[0], &actors[1], &tame_row); assert(actors[1].side == 0 && actors[1].owner == &actors[0]);
+    actors[1].side = 1;  // 假裝又被丟回野生：已有主人 → 0x138a 不能馴
+    tame(&actors[0], &actors[1], &tame_row); assert(actors[1].side == 1);
+    // 分身：施放者整隊已有分身（IsCloned）就不再放，分身自己放也一樣（0x10034140）
+    actor_count = 2;
+    mk(&actors[0]); mk(&actors[1]);
+    actors[0].side = actors[1].side = 0; actors[1].cloned = 1;
+    clone(&actors[1]); clone(&actors[0]);
+    assert(actor_count == 2);
+    // 範圍打擊：角色出手的觸發 type 0 ID 7 = 自己（招式物件位置 = 出手的人）周圍 2 格內全部；ID 0 = 前方一格（0x438a00）
     actor_count = 4;
     for (int i = 0; i < 4; i++) mk(&actors[i]);
     actors[0].mon = NULL;
@@ -4893,12 +4926,19 @@ int main(void) {
     actors[0].hr = 100000;
     actors[0].x = 4; actors[1].x = 5; actors[2].x = 6; actors[3].x = 12;
     actors[0].foe = &actors[1];
+    Method am = {.range_max = 3};
+    actors[0].atk = &am;
+    unit_n = 0;
+    main_new(&actors[0]);
+    MUnit *au = main_of(&actors[0]);
+    assert(au);
     int h1 = actors[1].hp, h2 = actors[2].hp, h3 = actors[3].hp;
-    for (int i = 0; i < 20 && (actors[1].hp == h1 || actors[2].hp == h2); i++) method_hits(&actors[0], &(Trig){.type = 0, .id = 7}, 0);
+    for (int i = 0; i < 20 && (actors[1].hp == h1 || actors[2].hp == h2); i++) owner_trig(au, &(Trig){.type = 0, .id = 7}, 0);
     assert(actors[1].hp < h1 && actors[2].hp < h2 && actors[3].hp == h3);
     h2 = actors[2].hp;
-    method_hits(&actors[0], &(Trig){.type = 0, .id = 0}, 0);
+    for (int i = 0; i < 20; i++) owner_trig(au, &(Trig){.type = 0, .id = 0}, 0);
     assert(actors[2].hp == h2);
+    unit_die(au, 0);
     // 箭（普通弓箭1，bData3 = 30）：沿路每 64 掃一次（命中方式 5），經過目標時打中、消失
     actor_count = 2;
     mk(&actors[0]); mk(&actors[1]);

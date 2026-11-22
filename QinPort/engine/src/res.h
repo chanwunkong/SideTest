@@ -237,10 +237,10 @@ void styles_equip(char *styles, size_t n, const char *graphic, int pli_no, const
 // ---- 招式 ObjMdl/MethodMdl.ini：動作序列、攻擊距離、各幀觸發（type 0 = 命中、1 = 音效、2 = 特效；flag 1 = 打中對方時）----
 typedef struct { int flag, frame, type, id, id2, pos; } Trig;  // pos：特效位置，0 = 自己、1 = 對方
 #define MAX_TRIG 24
-// manual = wManualID、ai = Reserve3（怪物選招用，Poq.exe 0x4906c0）
+// manual = wManualID、ai = Reserve3（+0x34，怪物選招用，Poq.exe 0x4906c0）、r4 = Reserve4（+0x36 目標旗標：4 = 可打物件／陷阱，種類 0x15~0x1d；Poq.exe 0x4911b0）
 // effect = wEffect（+0x2c：1 路徑上的人跟著繞、7 亂飄）、quality = wQuality（+0x2e：3 連鎖、6/7 扇形放單位、8 自動找目標）、
 // r1 = Reserve1（+0x30：連鎖次數／扇形個數）、r2 = Reserve2（+0x32：1 = 目標點不超過攻擊距離）
-typedef struct { int id, manual, ai, seq, range_min, range_max, effect, quality, r1, r2, trig_count, interruptible; Trig trig[MAX_TRIG]; } Method;
+typedef struct { int id, manual, ai, r4, seq, range_min, range_max, effect, quality, r1, r2, trig_count, interruptible; Trig trig[MAX_TRIG]; } Method;
 const Method *method_find(int auto_id);  // 依 wAutoID 找；第一次呼叫時載入
 // 招式單位 ObjMdl/MethodUnit_Mdl.ini：wManualID 201 = 飛行物（Poq.exe 0x450700 依 dData2 分類，2 = CARROW），
 // dData0 = Res00 動畫、bData3 = 每拍飛幾像素（0x4368c0）；觸發 flag 1 = 打中時、5 = 放出時

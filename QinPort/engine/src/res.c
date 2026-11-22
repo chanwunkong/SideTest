@@ -1682,6 +1682,7 @@ const Method *method_find(int auto_id) {
             else if (!strcmp(k, "wSprIndex")) m->seq = v;
             else if (!strcmp(k, "wManualID")) m->manual = v;
             else if (!strcmp(k, "Reserve3")) m->ai = v;
+            else if (!strcmp(k, "Reserve4")) m->r4 = v;
             else if (!strcmp(k, "wEffect")) m->effect = v;
             else if (!strcmp(k, "wQuality")) m->quality = v;
             else if (!strcmp(k, "Reserve1")) m->r1 = v;

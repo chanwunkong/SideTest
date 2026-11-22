@@ -1663,6 +1663,7 @@ static Actor *mon_make(const MonDef *m, const RoleDef *d, int x, int y, int lv) 
     a->trap_group = a->grp;
     if (unit_scene && m->istrap != 1 && (!actor_bind_scene(a, unit_scene) ||
         !actor_place(a, (int)a->x, (int)a->y, 1))) a->role = NULL;
+    else if (a->grid_valid) a->x = a->grid_x + 0.5f, a->y = a->grid_y + 0.5f;  // actor_place 換了空格就跟著搬
     return a;
 }
 
@@ -2375,11 +2376,17 @@ static void skill_now(Actor *x, const SkillMod *m, int level) {
 static int rnd(int n) { return n > 1 ? rand() % n : 0; }
 
 // 召喚（Attack方式 3，0x100355d0）：參數 273 選召喚兽（1 狼、2 老虎、3 熊、4 鸟、5 白狼、6 木偶、7 狗、8 虎蛟、9 狍鸮、10 朱厌；
-// 原版表上第 11 個善翼超出檢查範圍，不會召出來），278 = 最多幾隻；選狼時 rand()%100 是 3 的倍數就換白狼。等級同召喚者，跟召喚者同一邊
-// 數量：同種的（選狼時狼和白狼一起算）已有 278 隻就不召；召前 6 種時先移掉別種的召喚兽（狼、白狼互不移）。
-// shortcut: 放在召喚者旁邊（原版放在攻擊位置）；原版數的是整隊的召喚兽（istrap 20），這裡只數這個召喚者的
+// 原版表上第 11 個善翼超出檢查範圍，不會召出來），278 = 最多幾隻；選狼時 rand()%100 是 3 的倍數就換白狼。等級同召喚者（FUN_10056120），
+// 放在攻擊位置（G_PosX/Y，角色出手的結算點 = 出手者所在格，被佔了由 actor_place 找附近空格），跟召喚者同一邊。
+// 數量與移除看的是召喚者整隊（FUN_1004af10）istrap 20 的成員，但只有前 6 種（k < 6）會被加進隊伍（FUN_10037850）：
+// 同種的（選狼時狼和白狼一起算）已有 278 隻就不召；召前 6 種時先移掉別種的召喚兽（狼、白狼互不移）；後 4 種不是成員，不被數也不被移。
+static const char *const SUMMON_N[10] = {"\xd5\xd9\xbb\xbd\xca\xde\xc0\xc7", "\xd5\xd9\xbb\xbd\xca\xde\xc0\xcf\xbb\xa2", "\xd5\xd9\xbb\xbd\xca\xde\xd0\xdc", "\xd5\xd9\xbb\xbd\xca\xde\xc4\xf1", "\xd5\xd9\xbb\xbd\xca\xde\xb0\xd7\xc0\xc7", "\xd5\xd9\xbb\xbd\xca\xde\xc4\xbe\xc5\xbc", "\xd5\xd9\xbb\xbd\xca\xde\xb9\xb7", "\xd5\xd9\xbb\xbd\xca\xde\xbb\xa2\xf2\xd4", "\xd5\xd9\xbb\xbd\xca\xde\xe1\xf3\xfb\x5e", "\xd5\xd9\xbb\xbd\xca\xde\xd6\xec\xd1\xe1"};
+static int summon_member(const Actor *a, const Actor *e) {  // 召喚者隊伍裡的召喚兽成員（種類序號 0~5）；回傳序號，不是成員 -1
+    if (!alive(e) || e->side != a->side || !e->mon || e->mon->istrap != 20) return -1;
+    for (int j = 0; j < 6; j++) if (!strcmp(e->mon->name, SUMMON_N[j])) return j;
+    return -1;
+}
 static void summon(Actor *a, const SkillRow *r) {
-    static const char *N[10] = {"\xd5\xd9\xbb\xbd\xca\xde\xc0\xc7", "\xd5\xd9\xbb\xbd\xca\xde\xc0\xcf\xbb\xa2", "\xd5\xd9\xbb\xbd\xca\xde\xd0\xdc", "\xd5\xd9\xbb\xbd\xca\xde\xc4\xf1", "\xd5\xd9\xbb\xbd\xca\xde\xb0\xd7\xc0\xc7", "\xd5\xd9\xbb\xbd\xca\xde\xc4\xbe\xc5\xbc", "\xd5\xd9\xbb\xbd\xca\xde\xb9\xb7", "\xd5\xd9\xbb\xbd\xca\xde\xbb\xa2\xf2\xd4", "\xd5\xd9\xbb\xbd\xca\xde\xe1\xf3\xfb\x5e", "\xd5\xd9\xbb\xbd\xca\xde\xd6\xec\xd1\xe1"};
     int k = -1, max = 0;
     for (int i = 0; i < r->mod_n; i++) {
         int v = (int)skill_value(r->mod[i].init, r->mod[i].incr, r->level);
@@ -2389,26 +2396,24 @@ static void summon(Actor *a, const SkillRow *r) {
     if (k < 0 || k > 9 || max > 9) return;
     int n = 0;
     for (int i = 0; i < actor_count; i++) {
-        const Actor *e = &actors[i];
-        if (e->owner == a && alive(e)) n += !strcmp(e->mon->name, N[k]) || (k == 0 && !strcmp(e->mon->name, N[4]));
+        int j = summon_member(a, &actors[i]);
+        n += j >= 0 && (j == k || (k == 0 && j == 4));
     }
     if (n >= max) return;
     for (int i = 0; k < 6 && i < actor_count; i++) {
         Actor *e = &actors[i];
-        if (e->owner == a && alive(e) && strcmp(e->mon->name, N[k]) && !(k == 0 && !strcmp(e->mon->name, N[4]))) {
-            actor_unoccupy(e); e->role = NULL;
-        }
+        int j = summon_member(a, e);
+        if (j >= 0 && j != k && !(k == 0 && j == 4)) { actor_unoccupy(e); e->role = NULL; }
     }
     if (k == 0 && rnd(100) % 3 == 0) k = 4;
-    const MonDef *m = mondef_pick(N[k]);
+    const MonDef *m = mondef_pick(SUMMON_N[k]);
     const RoleDef *d = m ? roledef_find(m->role) : NULL;
     if (!d || actor_count >= MAX_ACTORS) return;
-    Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, a->level);
+    Actor *s = mon_make(m, d, (int)a->x, (int)a->y, a->level);
     actor_owner_set(s, a);
     s->side = a->side;
     actor_group(s, a->grp);
     s->foe = a->foe;
-    printf("召喚 %s\n", m->name);
 }
 
 // 技能參數 id 的值（沒有 = -1）
@@ -2428,28 +2433,33 @@ static void join(Actor *t, Actor *a) {
         if (actors[i].foe == t && actors[i].side == t->side) actors[i].foe = NULL;
 }
 
-// 在 a 旁邊放一隻怪物表上叫 name 的，加入 a 的隊伍
-// shortcut: 原版放在攻擊位置（G_PosX/Y）、等級用表上的（FUN_10059870 沒設），這裡放在旁邊、等級跟放的人一樣
+// 在 a 的位置放一隻怪物表上叫 name 的，加入 a 的隊伍
+// 原版放在攻擊位置（G_PosX/Y，角色出手的結算點 = 出手者所在格；被佔了由 actor_place 找附近空格）；
+// shortcut: 等級用放的人的（原版 FUN_10059870 不設等級，陷阱／分身的初始等級來源沒查到）
 static Actor *make_beside(Actor *a, const char *name) {
     const MonDef *m = mondef_find(name);
     const RoleDef *d = m ? roledef_find(m->role) : NULL;
     if (!d || actor_count >= MAX_ACTORS) return NULL;
-    Actor *s = mon_make(m, d, (int)a->x + rnd(3) - 1, (int)a->y + rnd(3) - 1, a->level);
+    Actor *s = mon_make(m, d, (int)a->x, (int)a->y, a->level);
     join(s, a);
     s->exp = 0;
-    printf("放出 %s\n", m->name);
     return s;
 }
 
-// 馴服（Attack方式 2，0x10035370）：只對 istrap 10 的動物，隊上 istrap 10 的已有參數 271 隻就不行；成功就加入隊伍
-// shortcut: 原版還看 Friend ≥ 4（敵對的）、失敗會出提示字（5000、0x138a、0x1400），這裡只看是不是別隊的、不出字
+// 馴服（Attack方式 2，0x10035370）：目標 Friend < 4（同隊的）→ 訊息 5000；不是 istrap 10 的動物 → 0x1400；
+// 隊上 istrap 10 的已有參數 271 隻 → 0x1389（5001）；目標已經屬於某個隊伍（FUN_1004aed0）→ 0x138a；成功 → Friend 1、加入隊伍。
+// 訊息只給玩家看（原版單機直接顯示，連線版送給施放的玩家）。Friend ≥ 4 在這裡 = 不同邊（side）
+static void hud_msg(int id, ...);
 static void tame(Actor *a, Actor *t, const SkillRow *r) {
-    if (!t || !alive(t) || t->side == a->side || !t->mon || t->mon->istrap != 10) return;
+    int say = a == &actors[0];
+    if (!t || !alive(t) || !t->mon) return;
+    if (t->side == a->side) { if (say) hud_msg(5000); return; }
+    if (t->mon->istrap != 10) { if (say) hud_msg(0x1400); return; }
     int n = 0;
     for (int i = 0; i < actor_count; i++) n += alive(&actors[i]) && actors[i].side == a->side && actors[i].mon && actors[i].mon->istrap == 10;
-    if (n >= skill_param(r, 271)) return;
+    if (n >= skill_param(r, 271)) { if (say) hud_msg(0x1389); return; }
+    if (t->owner) { if (say) hud_msg(0x138a); return; }
     join(t, a);
-    printf("馴服 %s\n", t->mon->name);
 }
 
 // 陷阱（Attack方式 8，0x10034cb0）：參數 286 選 1 猎杀陷阱、2 引蜂术、3 捆仙之索、4 陷地毒签、5 无情箭阱；自己的陷阱超過 7 個不放。
@@ -2484,8 +2494,9 @@ static void disarm(Actor *a, Actor *t, const SkillRow *r) {
     if (t && alive(t) && t->mon && t->mon->istrap == 1 && r->level - t->level / 5 >= 0) actor_kill(t, NULL);
 }
 
-// 分身（Attack方式 11，0x10034140）：已有分身就不放；拿弓（Hand 2、5）放克隆刺客弓，否則克隆刺客刀
-// shortcut: 原版把放的人的裝備（G_EquipStr3 → 分身的 G_EquipStr1）給分身，換裝還沒做
+// 分身（Attack方式 11，0x10034140）：施放者整隊（FUN_1004af10）已有 IsCloned 的就不放（訊息 0x1394，分身自己放也一樣被擋）；
+// 拿弓（Hand 2、5）放克隆刺客弓，否則克隆刺客刀；放在攻擊位置、Friend 1、加入隊伍（不設 G_AIGroup、不設主人）
+// shortcut: 原版把放的人的裝備（G_EquipStr3 → 分身的 G_EquipStr1）給分身，這裡用 clone_equip 照施放者裝備算數值；Hand 只有主角有（hero_hand），隊友施放當刀
 // 0x1003df00：放完後把施放者的每個技能（等級 > 0）複製給分身，等級上限 9（0x10037d70 加進技能列）
 #define CLONE_MAX 4
 static SkillRow clone_row[CLONE_MAX][MAX_ACTOR_SKILLS];
@@ -2513,10 +2524,9 @@ static void clone_skills(Actor *c, const Actor *src) {
     c->mp = c->mp_max;
 }
 static void clone(Actor *a) {
-    if (a->cloned) return;  // shortcut: 原版 0x10034140 只查施放者隊伍的 IsCloned；分身自己放分身的情況沒查，這裡不遞迴
     for (int i = 0; i < actor_count; i++)
-        if (alive(&actors[i]) && actors[i].owner == a && !strncmp(actors[i].mon->name, "\xbf\xcb\xc2\xa1", 4)) return;
-    Actor *c = make_beside(a, hero_hand == 2 || hero_hand == 5 ? "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb9\xad" : "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb5\xb6");
+        if (alive(&actors[i]) && actors[i].side == a->side && actors[i].cloned) { if (a == &actors[0]) hud_msg(0x1394); return; }
+    Actor *c = make_beside(a, a == &actors[0] && (hero_hand == 2 || hero_hand == 5) ? "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb9\xad" : "\xbf\xcb\xc2\xa1\xb4\xcc\xbf\xcd\xb5\xb6");
     if (!c) return;
     clone_skills(c, a);
     // 複製施放者的裝備（0x1003df00 第一段）：分身改用人物公式，主角施放時帶主角全身裝備；隊友沒有裝備模型，用隊友屬性與職業
@@ -4325,46 +4335,13 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
 // 敵對：不同隊伍的
 static int hostile(const Actor *a, const Actor *e) { return e != a && alive(e) && e->side != a->side; }
 
-// 招式打中的對象（Poq.exe 0x43c4f0 → 0x438a00 依 iTriID，0x439fb0 找範圍內的、模式 0 只打第一個）：
-// 6~10 = 招式物件位置（角色出手時 = 出手的人，0x43af50）周圍 64~320（1~5 格）內全部；12 = 目標周圍 0xc0（3 格）內全部（中心 0x4395f0 = 目標，沒有就目標點）；
-// 5、11、13 = 目標點附近第一個；30 = 直接打目標；0、2、3、0x14 = 前方第一個。單一的這裡都打攻擊目標。
-// type 16：0x16 = 向四周放 ID2 個單位（疾風掃落葉 8 個），0x14 = 向前放 ID2 個（穿心一擊）
-// shortcut: 16 的單位打到誰用技能作用範圍最大估：四周 = 範圍內全部，向前 = 朝目標方向寬 1 格的直線上
-static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
+// 招式打中的對象（Poq.exe 0x43c4f0 → 0x438a00 依 iTriID）：觸發 0 的 id 30 = 直接打攻擊目標（原版 case 0x1e：目標是人就呼叫中心物件虛擬函式 0x68，不看位置），
+// 觸發 15（結算，目標 −1）= 對自己放（原版封包 0x13b 沒有目標）；兩者在這裡。其他 id（0、2、3、5~13、0x14）照 0x438a00 掃格子，在 unit_hits／hit_find（unit.c）
+static void method_hits(Actor *a, Uint32 tick) {
     const SkillRow *sk = a->casting ? a->cast : a->skill;
-    Actor *foe = a->foe;
-    float cx = a->x, cy = a->y, r = -1, ux = 0, uy = 0;
-    if (t->type == 0 && t->id >= 6 && t->id <= 10) r = t->id - 5;
-    else if (t->type == 0 && t->id == 12) {
-        if (!alive(foe)) return;
-        cx = foe->x;
-        cy = foe->y;
-        r = 3;
-    }
-    else if (t->type == 16) {
-        r = sk ? skill_range_max(sk) : 1;
-        if (t->id == 0x14) {
-            if (!alive(foe)) return;
-            float len = cell_dist(a, foe);
-            ux = (foe->x - a->x) / (len > 0 ? len : 1);
-            uy = (foe->y - a->y) / (len > 0 ? len : 1);
-        }
-    }
-    if (r < 0) {
-        Actor *t1 = a->casting && a->cast && !skill_needs_foe(a->cast) ? a : foe;
-        skill_hit(a, t1, sk, tick);
-        if (t1 && t1 != a) main_hit(a, t1, tick);
-    } else {
-        if (sk && sk->status > 0) skill_hit(a, NULL, sk, tick);  // 自己的狀態只加一次
-        for (int i = 0; i < actor_count; i++) {
-            Actor *e = &actors[i];
-            float dx = e->x - cx, dy = e->y - cy, along = dx * ux + dy * uy;
-            if (!hostile(a, e)) continue;
-            if (ux || uy ? along < 0 || along > r + 0.5f || fabsf(dx * uy - dy * ux) > 1 : sqrtf(dx * dx + dy * dy) > r + 0.5f) continue;
-            skill_hit(a, e, sk, tick);
-            main_hit(a, e, tick);
-        }
-    }
+    Actor *t1 = a->casting && a->cast && !skill_needs_foe(a->cast) ? a : a->foe;
+    skill_hit(a, t1, sk, tick);
+    if (t1 && t1 != a) main_hit(a, t1, tick);
     if (a->casting) a->casting = 2;
 }
 
@@ -4372,9 +4349,13 @@ static void method_hits(Actor *a, const Trig *t, Uint32 tick) {
 // 13 改幀延遲、8 動作旗標、11 離地、5/7 衝過去；其他（音效、震畫面、結束、16 改目標點）照招式單位的做。回傳 0 = 不是這裡的
 static int owner_trig(MUnit *u, const Trig *t, Uint32 tick) {
     Actor *a = u->owner;
-    if (t->type == 0 || t->type == 15) {
-        method_hits(a, t, tick);
-        if (t->type == 0) { hit_buildings_only = 1; unit_hits(u, t->id, tick); hit_buildings_only = 0; }  // 0x438a00 掃到的 0x80 建築（水缸）也被「使用」（hit_find）
+    if (t->type == 0 && t->id != 30) {  // 0x438a00：掃格子找人打，沿途的 0x80 建築（水缸）也被「使用」（hit_find）
+        unit_hits(u, t->id, tick);
+        if (a->casting) a->casting = 2;
+    }
+    else if (t->type == 0 || t->type == 15) {
+        method_hits(a, tick);
+        if (t->type == 0) { hit_buildings_only = 1; unit_hits(u, t->id, tick); hit_buildings_only = 0; }
     }
     else if (t->type == 16 && (t->id == 0x14 || t->id == 0x16))  // 分身 ID2 個：0x14 殘影（idx 從 2 起）、0x16 環繞（idx 從 0 起）
         for (int k = 0; k < t->id2; k++) phantom_new(u, t->id == 0x14 ? 1 : 3, t->id == 0x14 ? k + 2 : k);
@@ -4524,6 +4505,32 @@ static const SkillRow *mon_pick(const Actor *a) {
     return pick;
 }
 
+// 隊友與分身的選招（Poq.exe 0x4906c0 本體走的是角色技能鏈，怪物也一樣；規則同 mon_pick）：技能列 + 模板普通攻擊（沒有技能列的節點）。
+// shortcut: 原版節點 Enable 由伺服端依精氣更新（0x1004c2a0），這裡用 skill_usable 代替；回傳節點索引，沒有 −1
+static int chain_pick(const Actor *a) {
+    int pick = -1, n = 1;
+    for (int i = 0; i < a->skill_n; i++) {
+        const ActorSkill *s = &a->skills[i];
+        const SkillRow *r = s->row;
+        const Method *m = method_find(s->id);
+        if (!m || !(a->def ? actor_skill_enabled(a, s) : s->enabled) || (r && !skill_usable(a, r)) || (a->def && !actor_can_use_id(a, s->id))) continue;
+        if ((m->manual == 0 || m->manual == 3) && m->ai == 1) {
+            if (rand() % 2 && alive(a->foe)) {
+                int range = actor_skill_range(a, s), d = (int)(fabsf(a->x - a->foe->x) + fabsf(a->y - a->foe->y));
+                if (range < 3 ? cell_dist(a, a->foe) <= range + 0.5f : d >= range && r != a->last_skill) return i;
+            }
+            continue;
+        }
+        if (m->manual != 0 && m->manual != 1 && m->manual != 3 && m->manual != 4) continue;
+        if (!m->ai) n++;
+        if (pick >= 0 && rand() % n) continue;
+        if (m->ai == 0 || (m->ai == 2 && rand() % 2 && r != a->last_skill) || (m->ai == 3 && rand() % 3 == 1 && r != a->last_skill) ||
+            (m->ai == 5 && a->hp * 100 < a->hp_max * 40))
+            pick = i;
+    }
+    return pick;
+}
+
 static void cast_start(Actor *h, const SkillRow *r);
 
 static void actor_skill_command_tick(Actor *a);
@@ -4645,10 +4652,11 @@ LATER static int npc_chat_tick(Actor *a) {
     return 1;
 }
 
-// 往foe的反方向逃一步的點（GetFleePos）。shortcut: 原版隱藏步長在呼叫點，npc先用3格；取得組語後核對。
-static void npc_flee_pos(const Actor *a, const Actor *foe, int *x, int *y) {
+// 往foe的反方向逃 step 格的點（GetFleePos）。步長是呼叫點的隱藏參數（機碼核對）：0x490fc0 恐懼逃跑 = 精氣視野修正/3 + 1；
+// 0x491af0 退開 = 呼叫端傳的 dist；0x4911b0 射程退一步 = 技能射程 − 距離 − 2
+static void npc_flee_pos(const Actor *a, const Actor *foe, int *x, int *y, int step) {
     *x = actor_init_x(a); *y = actor_init_y(a);
-    move_dir(x, y, dir_of(actor_init_x(foe), actor_init_y(foe), *x, *y, 8), 3);
+    move_dir(x, y, dir_of(actor_init_x(foe), actor_init_y(foe), *x, *y, 8), step);
 }
 
 // Poq.exe 0x490fc0：狀態0x11（恐懼）逃跑。無敵人時隨機走開並解除，有敵人時往反方向逃；逃不掉有1/15機率解除。
@@ -4662,7 +4670,7 @@ static int npc_flee(Actor *a) {
             open_dir(&x, &y, actor_init_x(a), actor_init_y(a), a->seek_adjust / 3 + 1);
             actor_command(a, 2, x, y, 2, 1, 0);
         } else {
-            npc_flee_pos(a, foe, &x, &y);
+            npc_flee_pos(a, foe, &x, &y, a->seek_adjust / 3 + 1);
             if (actor_command(a, 1, x, y, 2, 1, 0) && a->def->panic > 0 && rand() % 15 == 0)
                 actor_status_notify(a, 0x11, 0, -1);
         }
@@ -4683,7 +4691,7 @@ LATER static void npc_move_away(Actor *a, Actor *foe, int dist) {
             actor_command(a, 11, 0, 0, 0, 0, 0);
         }
     } else {
-        npc_flee_pos(a, foe, &x, &y);
+        npc_flee_pos(a, foe, &x, &y, dist);
         if (actor_command(a, 1, x, y, 0, 0, 0)) actor_clear_target(a);
     }
 }
@@ -4755,14 +4763,9 @@ static ActorSkill *npc_selected(Actor *a) {
         const SkillRow *r = mon_pick(a);
         if (r) { a->skill = r; actor_right_skill(a, skill_attack_id(r)); }
     }
-    if ((a->selected < 0 || a->selected >= a->skill_n) && (a->team || a->cloned)) {  // 隊友與分身：技能表裡等級 > 0、精气夠的技能隨機挑一個（shortcut: 原版 AI 依技能 manual 旗標分組挑，沒查）
-        int ok[MAX_ACTOR_SKILLS], n = 0;
-        for (int i = 0; i < a->skill_n; i++)
-            if (a->skills[i].row && a->skills[i].enabled && skill_usable(a, a->skills[i].row) && skill_needs_foe(a->skills[i].row)) ok[n++] = i;
-        if (!n)  // 沒有能放的技能：模板的普通攻擊（沒有技能列的那招）
-            for (int i = 0; i < a->skill_n; i++)
-                if (!a->skills[i].row && a->skills[i].enabled) { ok[n++] = i; break; }
-        if (n) actor_skill_select(a, ok[rand() % n]);
+    if ((a->selected < 0 || a->selected >= a->skill_n) && (a->team || a->cloned)) {  // 隊友與分身：同一個選招（0x4906c0），走技能鏈
+        int k = chain_pick(a);
+        if (k >= 0) actor_skill_select(a, k);
     }
     return a->selected >= 0 && a->selected < a->skill_n ? &a->skills[a->selected] : NULL;
 }
@@ -4846,7 +4849,7 @@ static int npc_aux_ai(Actor *a) {
 // Poq.exe 0x4911b0：CNpc完整主AI（有技能鏈的戰鬥一拍）。回傳1表示本拍到此為止。
 // 取目標→（NPC組）每20拍／（其他組）30或400拍重選→出生格距離與追擊界限→計攻擊間隔→選招→
 // 太近退一步、到間隔且目標站著才出手（射程內直線過得去用命令9，否則走近到射程-1）。
-// shortcut: 打物件（目標種類21..29）原版要招式旗標0x4才可，旗標來源沒找到，一律視為可打；
+// 打物件（目標種類21..29）要招式的 Reserve4（Method +0x36）& 4，否則清目標與命令；
 // 連線客戶端（DAT_00942f28==2）分支單機沒有；vtable+0x48(1,1)的清除副作用因此也不做。
 static int npc_main_ai(Actor *a) {
     Actor *t = actor_target(a);
@@ -4929,11 +4932,17 @@ static int npc_main_ai(Actor *a) {
         return 0;
     }
     const Method *method = method_find(sk->id);
+    if (method && (unsigned)(t->object_kind - 0x15) < 9u && !(method->r4 & 4)) {  // 0x4911b0
+        actor_clear_target(a);
+        actor_cancel_command(a);
+        actor_dynamic_command(a, 1, 0, 0, 0);
+        return 0;
+    }
     int dist = dist_of(sx, sy, tx, ty);
     if (a->direction_clock % 0x3d == 2 && !(method && method->manual == 1)) {
         if (sk->max - dist - 2 > 1) {  // 比射程近太多：退一步（IsMaxRange必然成立）
             int fx, fy;
-            npc_flee_pos(a, t, &fx, &fy);
+            npc_flee_pos(a, t, &fx, &fy, sk->max - dist - 2);
             actor_command(a, 1, fx, fy, 0, 0, 0);
         }
     } else if (a->npc_wait < 0 || t->dynamic_state != 1) {
@@ -10952,7 +10961,7 @@ int main(int argc, char **argv) {
             //  ② 逃到目的地（0x49b2d0）：0x200 像素（8 格）內還有任何角色（不分組，含主角）→ 再逃一次；沒有 → 回到慢走。
             //  ③ 死亡：圖形序列數 > 0x18（有死亡序列：小鸡、1001 有，公鸡、母鸡 24 個沒有 = 不會死）、每 30 拍的餘數 ≠ 0（原版 +0x77 計數，這裡用全域拍數近似）、
             //     NPC 組角色靠到 0x1e（30 像素）內且該角色不是站著（動態狀態 ≠ 1）→ 死（狀態 3，播死亡聲音，500 拍後消失）。玩家組（主角、隊友、村民組 2）只有 ② 會讓牠逃，踩不死牠。
-            // shortcut: 逃跑目的地用「反方向 5 格」代替 GetFleePos／路徑點最遠點；高速用旗標 0x10000（速度 ×3/2）代替 BeastieMdl 高速；死亡不播專用聲音
+            // 逃跑目的地照 0x49b6e0（見下）；shortcut: 高速用旗標 0x10000（速度 ×3/2）代替 BeastieMdl 高速；死亡不播專用聲音
             for (int i = 1; i < actor_count; i++) {
                 Actor *a = &actors[i];
                 if (!a->role || !a->def || !a->def->beast || a->act == ACT_DEAD || rec_on) continue;
@@ -10975,15 +10984,26 @@ int main(int argc, char **argv) {
                     else actor_set_flags(a, 0x10000, 0);  // 逃完了，回到慢走
                 }
                 if (!from) continue;
-                long dx = ax64(a) - ax64(from), dy = ay64(a) - ay64(from), d2 = dx * dx + dy * dy;
-                if (d2 <= 0) { dx = 64; dy = 0; d2 = 64L * 64; }
-                double d = sqrt((double)d2);
-                int tx = (ax64(a) + (int)(dx * 5.0 * 64 / d)) >> 6, ty = (ay64(a) + (int)(dy * 5.0 * 64 / d)) >> 6;
+                // 0x49b6e0：logic 1 往威脅的反方向（WhatDir8 → GetFleePos，隱藏步長 5，air.c 由呼叫點機碼確認）跑 5 格；其他 logic 跑到離威脅最遠的路點，沒路線就保持原目標
+                const NpcSpec *sp = a->spec;
+                int tx = (int)a->x, ty = (int)a->y;
+                if (sp && sp->logic != 1) {
+                    int best = -1, far = 0;
+                    for (int k = 0; k < sp->path_n; k++) {
+                        int d = abs((int)from->y - sp->path[k][1]) + abs((int)from->x - sp->path[k][0]);
+                        if (d > far) { far = d; best = k; }
+                    }
+                    actor_set_flags(a, 0x10000, 1);
+                    if (sp->path_n) tx = sp->path[best < 0 ? 0 : best][0], ty = sp->path[best < 0 ? 0 : best][1];
+                    else continue;
+                } else {
+                    move_dir(&tx, &ty, dir_of((int)from->x, (int)from->y, tx, ty, 8), 5);
+                    actor_set_flags(a, 0x10000, 1);
+                }
                 if (tx < 0) tx = 0;
                 if (ty < 0) ty = 0;
                 if (tx >= scene.w) tx = scene.w - 1;
                 if (ty >= scene.h) ty = scene.h - 1;
-                actor_set_flags(a, 0x10000, 1);
                 actor_command(a, 1, tx, ty, 0, 1, 0);
             }
             for (int i = 0; i < actor_count; i++) {
