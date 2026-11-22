@@ -45,8 +45,15 @@ def _mk_iterm(check):
     b[13] = 17; b[19] = 6; b[30] = 0xEB
     if check: b[25] = 7   # 非檢查版此處是 nop，不可改成 0x07（= pop es）
     return bytes(b)
+RAW = {'EnterCriticalSection': b'\xc2\x04\x00', 'LeaveCriticalSection': b'\xc2\x04\x00', 'InitializeCriticalSection': b'\xc2\x04\x00', 'DeleteCriticalSection': b'\xc2\x04\x00',
+       'TryEnterCriticalSection': b'\xb8\x01\x00\x00\x00\xc2\x04\x00', 'InitializeCriticalSectionAndSpinCount': b'\xb8\x01\x00\x00\x00\xc2\x08\x00',
+       'InitializeCriticalSectionEx': b'\xb8\x01\x00\x00\x00\xc2\x0c\x00'}   # 單執行緒：臨界區是空操作，用機器碼而非 Python 回呼（省下大量時間）
 CODE_AT = {}
 def code_stub(name):
+    if name in RAW:
+        if name not in CODE_AT:
+            va = STUB_BASE + 0x140000 + 0x20 * len(CODE_AT); CODE_AT[name] = va; uc.mem_write(va, RAW[name])
+        return CODE_AT[name]
     if name in ('_initterm', '_initterm_e'):
         if name not in CODE_AT:
             va = STUB_BASE + 0x100000 + 0x40 * len(CODE_AT); CODE_AT[name] = va
@@ -228,6 +235,8 @@ def on_stub(uc_, addr, size, ud):
     if not k: return
     dll, name = k
     calls[k] += 1
+    TICK[0] += 1
+    if TICK[0] % 300000 == 0: print('   [狀態] 主機呼叫 %d 次, 檔案事件 %d, 階段 %s, 畫格 %d, %.0fs, 最常呼叫 %s' % (TICK[0], FCOUNT[0], PHASE[0], len(FRAMES), time.time() - T0, [(n, c) for (d_, n), c in calls.most_common(4)]), flush=True)
     esp = uc.reg_read(UC_X86_REG_ESP)
     ret = u32(esp)
     h = resolve(k)
@@ -244,8 +253,8 @@ def on_stub(uc_, addr, size, ud):
     if isinstance(r, types.GeneratorType): drive(r, addr); return
     uc.reg_write(UC_X86_REG_EAX, (r or 0) & 0xffffffff)
 
-seen_default = set(); defaults = []
-uc.hook_add(UC_HOOK_CODE, on_stub, begin=STUB_BASE, end=STUB_BASE + STUB_SIZE)
+seen_default = set(); defaults = []; TICK = [0]; T0 = time.time()
+uc.hook_add(UC_HOOK_CODE, on_stub, begin=STUB_BASE, end=STUB_BASE + 0xFFFFF)
 
 # 除錯：保留最近 24 條指令，出錯時反組譯列出
 import collections
@@ -254,11 +263,11 @@ _cs = Cs(CS_ARCH_X86, CS_MODE_32)
 ring = collections.deque(maxlen=400)
 def _ring(uc_, addr, size, ud):
     ring.append((addr, size))
-uc.hook_add(UC_HOOK_CODE, _ring)
+if os.environ.get('RING'): uc.hook_add(UC_HOOK_CODE, _ring)   # 逐指令記錄很慢，預設關閉
 def _it(uc_, addr, size, ud):
     esp = uc.reg_read(UC_X86_REG_ESP)
     print('   [initterm@%x] esp=%x ret=%x a=%x b=%x' % (addr, esp, u32(esp), u32(esp+4), u32(esp+8)))
-for _v in (STUB_BASE + 0x100000, STUB_BASE + 0x100040): uc.hook_add(UC_HOOK_CODE, _it, begin=_v, end=_v)
+
 def dump_ring():
     for a, sz in ring:
         try:
@@ -570,7 +579,16 @@ def hostpath(p):
                 if x.lower() == f.lower(): return os.path.join(d, x)
     except Exception: pass
     return q
-def flog(act, name, off=0, n=0): FILELOG.append((len(FILELOG), PHASE[0], act, name, off, n))
+FSTAT = collections.OrderedDict()   # (階段, 檔名) → dict(reads, bytes, seeks, opens, minoff, maxoff, first, samples)
+FCOUNT = [0]
+def flog(act, name, off=0, n=0):
+    FCOUNT[0] += 1
+    if len(FILELOG) < 3000: FILELOG.append((FCOUNT[0], PHASE[0], act, name, off, n))
+    d = FSTAT.setdefault((PHASE[0], name), dict(reads=0, bytes=0, seeks=0, opens=0, lo=1 << 62, hi=0, first=FCOUNT[0], samples=[]))
+    if act in ('read', 'fread', '_read'): d['reads'] += 1; d['bytes'] += n; d['lo'] = min(d['lo'], off); d['hi'] = max(d['hi'], off + n)
+    elif 'seek' in act: d['seeks'] += 1
+    elif act.startswith(('open', 'fopen', 'create')): d['opens'] += 1
+    if len(d['samples']) < 24 and act != 'close': d['samples'].append((act, off, n))
 @api(K, 'CreateFileA', 7)
 def _(name, acc, share, sec, disp, flags, tmpl):
     nm = cstr(name); hp = hostpath(nm)
@@ -2096,7 +2114,7 @@ for _alias in ('IDirectDraw', 'IDirectDraw2', 'IDirectDraw4'): com_vt[_alias] = 
 def _lock(o, this, rect, desc, fl, ev):
     uc.mem_write(desc + 8, struct.pack('<II', o['h'], o['w'])); w32(desc + 16, o['pitch']); w32(desc + 36, o['mem']); w32(desc + 4, u32(desc + 4) | 0x1 | 0x2 | 0x4 | 0x8 | 0x1000); return 0
 com_define('IDirectDrawSurface7', _std([D('AddAttachedSurface', 1), D('AddOverlayDirtyRect', 1), D('Blt', 5), D('BltBatch', 3), D('BltFast', 5), D('DeleteAttachedSurface', 2), D('EnumAttachedSurfaces', 2), D('EnumOverlayZOrders', 3),
-    D('Flip', 2), D('GetAttachedSurface', 2, lambda o, t, caps, pp: (w32(pp, com_new('IDirectDrawSurface7', **{k: v for k, v in o.items() if k not in ('iface', 'ref', 'addr')})), 0)[1]),
+    D('Flip', 2, lambda o, t, a, b: (frame_mark('dd-flip'), 0)[1]), D('GetAttachedSurface', 2, lambda o, t, caps, pp: (w32(pp, com_new('IDirectDrawSurface7', **{k: v for k, v in o.items() if k not in ('iface', 'ref', 'addr')})), 0)[1]),
     D('GetBltStatus', 1), D('GetCaps', 1, lambda o, t, p: (w32(p, o['caps']), 0)[1]), D('GetClipper', 1), D('GetColorKey', 2), D('GetDC', 1, lambda o, t, p: (w32(p, newh('dc', None)), 0)[1]), D('GetFlipStatus', 1), D('GetOverlayPosition', 2),
     D('GetPalette', 1), D('GetPixelFormat', 1, lambda o, t, p: (uc.mem_write(p, struct.pack('<8I', 32, 0x40, 0, o['bpp'], 0xf800 if o['bpp'] == 16 else 0xff0000, 0x7e0 if o['bpp'] == 16 else 0xff00, 0x1f if o['bpp'] == 16 else 0xff, 0)), 0)[1]),
     D('GetSurfaceDesc', 1, lambda o, t, p: (uc.mem_write(p, struct.pack('<IIII', 124, 0x7, o['h'], o['w']) + struct.pack('<I', o['pitch'])), 0)[1]), D('Initialize', 2), D('IsLost', 0), D('Lock', 4, _lock), D('ReleaseDC', 1),
@@ -2220,6 +2238,246 @@ def _(a, b): return 1
 @api(K, 'GetConsoleMode', 2)
 def _(h, p): return 0
 
+
+# ================= Direct3D 9 + D3DX9 假實作（只記帳，不繪圖）=================
+def _res_methods():
+    return [D('GetDevice', 1, lambda o, t, p: (w32(p, o.get('dev', 0)), 0)[1]), D('SetPrivateData', 4), D('GetPrivateData', 3), D('FreePrivateData', 1), D('SetPriority', 1), D('GetPriority', 0), D('PreLoad', 0), D('GetType', 0)]
+def _bpp(fmt): return {21: 4, 22: 4, 23: 2, 25: 2, 26: 2, 28: 1, 50: 1, 35: 4, 31: 4}.get(fmt, 4)
+def _lockrect(o, this, *a):
+    lv, pl = (a[0], a[1]) if len(a) == 4 else (0, a[0])
+    if not o.get('mem'): o['pitch'] = max(o['w'] * _bpp(o['fmt']), 4); o['mem'] = alloc(o['pitch'] * max(o['h'], 1) + 64)
+    w32(pl, o['pitch']); w32(pl + 4, o['mem']); return 0
+def _surf_of(o, tex_dev=None): return com_new('IDirect3DSurface9', w=o['w'], h=o['h'], fmt=o['fmt'], dev=o.get('dev', 0), mem=0, pitch=0)
+com_define('IDirect3DTexture9', _std(_res_methods() + [D('SetLOD', 1), D('GetLOD', 0), D('GetLevelCount', 0, lambda o, t: o.get('levels', 1) or 1), D('SetAutoGenFilterType', 1), D('GetAutoGenFilterType', 0), D('GenerateMipSubLevels', 0),
+    D('GetLevelDesc', 2, lambda o, t, lv, p: (uc.mem_write(p, struct.pack('<7I', o['fmt'], 3, 0, 0, 0, 0, 0) + struct.pack('<II', o['w'], o['h'])), 0)[1]),
+    D('GetSurfaceLevel', 2, lambda o, t, lv, pp: (w32(pp, _surf_of(o)), 0)[1]), D('LockRect', 4, _lockrect), D('UnlockRect', 1), D('AddDirtyRect', 1)]))
+com_define('IDirect3DSurface9', _std(_res_methods() + [D('GetContainer', 2), D('GetDesc', 1, lambda o, t, p: (uc.mem_write(p, struct.pack('<7I', o['fmt'], 1, 0, 0, 0, 0, 0) + struct.pack('<II', o['w'], o['h'])), 0)[1]),
+    D('LockRect', 3, _lockrect), D('UnlockRect', 0), D('GetDC', 1, lambda o, t, p: (w32(p, newh('dc', None)), 0)[1]), D('ReleaseDC', 1)]))
+def _buf_lock(o, this, off, size, ppdata, fl):
+    if not o.get('mem'): o['mem'] = alloc(o['len'] + 64)
+    w32(ppdata, o['mem'] + off); return 0
+for _b in ('IDirect3DVertexBuffer9', 'IDirect3DIndexBuffer9'):
+    com_define(_b, _std(_res_methods() + [D('Lock', 4, _buf_lock), D('Unlock', 0), D('GetDesc', 1)]))
+com_define('IDirect3DGeneric9', _std([D('m%d' % i, 0) for i in range(30)]))
+_dev_log = collections.Counter()
+def _mkres(iface, **kw): return lambda o, t, *a: _mkres_(iface, o, a, kw)
+def _mkres_(iface, o, a, kw): raise NotImplementedError
+def _tex(o, t, w, h, lv, us, fmt, pool, pp, sh):
+    WLOG.append(('D3D CreateTexture', w, h, lv, fmt)); w32(pp, com_new('IDirect3DTexture9', w=w, h=h, fmt=fmt, levels=lv, dev=t, mem=0, pitch=0)); return 0
+def _vb(o, t, ln, us, fvf, pool, pp, sh): w32(pp, com_new('IDirect3DVertexBuffer9', len=ln, dev=t, mem=0)); return 0
+def _ib(o, t, ln, us, fmt, pool, pp, sh): w32(pp, com_new('IDirect3DIndexBuffer9', len=ln, dev=t, mem=0)); return 0
+def _surfmk(o, t, w, h, fmt, *rest): pp = rest[-2]; w32(pp, com_new('IDirect3DSurface9', w=w, h=h, fmt=fmt, dev=t, mem=0, pitch=0)); return 0
+def _gen(n): return lambda o, t, *a: (w32(a[n], com_new('IDirect3DGeneric9')), 0)[1]
+def _bb(o, t, sc, idx, ty, pp): w32(pp, com_new('IDirect3DSurface9', w=o['w'], h=o['h'], fmt=22, dev=t, mem=0, pitch=0)); return 0
+def _present(o, t, *a): frame_mark('d3d-present'); o['frames'] = o.get('frames', 0) + 1; WLOG.append(('D3D Present', o['frames'])) if o['frames'] <= 3 else 0; return 0
+_Z = lambda name, n: D(name, n)
+dev_methods = [D('TestCooperativeLevel', 0), D('GetAvailableTextureMem', 0, lambda o, t: 512 << 20), _Z('EvictManagedResources', 0), D('GetDirect3D', 1), D('GetDeviceCaps', 1, lambda o, t, p: _fillcaps(p)),
+    D('GetDisplayMode', 2, lambda o, t, sc, p: (uc.mem_write(p, struct.pack('<4I', 1920, 1080, 60, 22)), 0)[1]), D('GetCreationParameters', 1), _Z('SetCursorProperties', 3), _Z('SetCursorPosition', 3), _Z('ShowCursor', 1),
+    D('CreateAdditionalSwapChain', 2, _gen(1)), D('GetSwapChain', 2, _gen(1)), D('GetNumberOfSwapChains', 0, lambda o, t: 1), _Z('Reset', 1), D('Present', 4, _present), D('GetBackBuffer', 4, _bb), _Z('GetRasterStatus', 2),
+    _Z('SetDialogBoxMode', 1), _Z('SetGammaRamp', 3), _Z('GetGammaRamp', 2), D('CreateTexture', 8, _tex), D('CreateVolumeTexture', 9, _gen(7)), D('CreateCubeTexture', 7, _gen(5)), D('CreateVertexBuffer', 6, _vb), D('CreateIndexBuffer', 6, _ib),
+    D('CreateRenderTarget', 8, _surfmk), D('CreateDepthStencilSurface', 8, _surfmk), _Z('UpdateSurface', 4), _Z('UpdateTexture', 2), _Z('GetRenderTargetData', 2), _Z('GetFrontBufferData', 2), _Z('StretchRect', 5), _Z('ColorFill', 3),
+    D('CreateOffscreenPlainSurface', 6, _surfmk), _Z('SetRenderTarget', 2), D('GetRenderTarget', 2, _gen(1)), _Z('SetDepthStencilSurface', 1), D('GetDepthStencilSurface', 1, _gen(0)), _Z('BeginScene', 0), _Z('EndScene', 0), _Z('Clear', 6),
+    _Z('SetTransform', 2), _Z('GetTransform', 2), _Z('MultiplyTransform', 2), _Z('SetViewport', 1), _Z('GetViewport', 1), _Z('SetMaterial', 1), _Z('GetMaterial', 1), _Z('SetLight', 2), _Z('GetLight', 2), _Z('LightEnable', 2), _Z('GetLightEnable', 2),
+    _Z('SetClipPlane', 2), _Z('GetClipPlane', 2), _Z('SetRenderState', 2), _Z('GetRenderState', 2), D('CreateStateBlock', 2, _gen(1)), _Z('BeginStateBlock', 0), D('EndStateBlock', 1, _gen(0)), _Z('SetClipStatus', 1), _Z('GetClipStatus', 1),
+    D('GetTexture', 2, lambda o, t, st, pp: (w32(pp, 0), 0)[1]), _Z('SetTexture', 2), _Z('GetTextureStageState', 3), _Z('SetTextureStageState', 3), _Z('GetSamplerState', 3), _Z('SetSamplerState', 3), _Z('ValidateDevice', 1),
+    _Z('SetPaletteEntries', 2), _Z('GetPaletteEntries', 2), _Z('SetCurrentTexturePalette', 1), _Z('GetCurrentTexturePalette', 1), _Z('SetScissorRect', 1), _Z('GetScissorRect', 1), _Z('SetSoftwareVertexProcessing', 1), _Z('GetSoftwareVertexProcessing', 0),
+    _Z('SetNPatchMode', 1), _Z('GetNPatchMode', 0), _Z('DrawPrimitive', 3), _Z('DrawIndexedPrimitive', 6), _Z('DrawPrimitiveUP', 4), _Z('DrawIndexedPrimitiveUP', 8), _Z('ProcessVertices', 6), D('CreateVertexDeclaration', 2, _gen(1)),
+    _Z('SetVertexDeclaration', 1), D('GetVertexDeclaration', 1, _gen(0)), _Z('SetFVF', 1), _Z('GetFVF', 1), D('CreateVertexShader', 2, _gen(1)), _Z('SetVertexShader', 1), D('GetVertexShader', 1, _gen(0)),
+    _Z('SetVertexShaderConstantF', 3), _Z('GetVertexShaderConstantF', 3), _Z('SetVertexShaderConstantI', 3), _Z('GetVertexShaderConstantI', 3), _Z('SetVertexShaderConstantB', 3), _Z('GetVertexShaderConstantB', 3),
+    _Z('SetStreamSource', 4), D('GetStreamSource', 4), _Z('SetStreamSourceFreq', 2), _Z('GetStreamSourceFreq', 2), _Z('SetIndices', 1), D('GetIndices', 1, _gen(0)), D('CreatePixelShader', 2, _gen(1)), _Z('SetPixelShader', 1),
+    D('GetPixelShader', 1, _gen(0)), _Z('SetPixelShaderConstantF', 3), _Z('GetPixelShaderConstantF', 3), _Z('SetPixelShaderConstantI', 3), _Z('GetPixelShaderConstantI', 3), _Z('SetPixelShaderConstantB', 3), _Z('GetPixelShaderConstantB', 3),
+    _Z('DrawRectPatch', 3), _Z('DrawTriPatch', 3), _Z('DeletePatch', 1), D('CreateQuery', 2, _gen(1))]
+assert len(dev_methods) == 116, len(dev_methods)
+def _fillcaps(p):
+    b = bytearray(b'\xff' * 304); struct.pack_into('<II', b, 0, 1, 0)
+    for off, v in ((88, 4096), (92, 4096), (96, 2048), (100, 8192), (104, 4096), (108, 16)): struct.pack_into('<I', b, off, v)
+    for off in (112, 116, 120, 124, 128): struct.pack_into('<f', b, off, 1e10)
+    for off in (132, 136, 140, 144, 148, 152, 156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204, 208): struct.pack_into('<I', b, off, 8)
+    uc.mem_write(p, bytes(b)); return 0
+com_define('IDirect3DDevice9', _std(dev_methods[:]))
+def _cd(o, t, adapter, dtype, hwnd, beh, pp, ppdev):
+    w, h = struct.unpack('<II', rd(pp, 8)); WLOG.append(('D3D CreateDevice', hex(hwnd), w, h, hex(beh), 'windowed=%d' % u32(pp + 32))); w32(ppdev, com_new('IDirect3DDevice9', w=w or 800, h=h or 600, d3d=t)); return 0
+com_define('IDirect3D9', _std([D('RegisterSoftwareDevice', 1), D('GetAdapterCount', 0, lambda o, t: 1), D('GetAdapterIdentifier', 3, lambda o, t, a, f, p: (uc.mem_write(p, b'Emu\0' + b'\0' * 1200), 0)[1]), D('GetAdapterModeCount', 2, lambda o, t, a, f: 1),
+    D('EnumAdapterModes', 4, lambda o, t, a, f, i, p: (uc.mem_write(p, struct.pack('<4I', 1920, 1080, 60, 22)), 0)[1]), D('GetAdapterDisplayMode', 2, lambda o, t, a, p: (uc.mem_write(p, struct.pack('<4I', 1920, 1080, 60, 22)), 0)[1]),
+    D('CheckDeviceType', 5), D('CheckDeviceFormat', 6), D('CheckDeviceMultiSampleType', 6), D('CheckDepthStencilMatch', 5), D('CheckDeviceFormatConversion', 4), D('GetDeviceCaps', 3, lambda o, t, a, ty, p: _fillcaps(p)),
+    D('GetAdapterMonitor', 1, lambda o, t, a: 0x70001), D('CreateDevice', 6, _cd)]))
+@api('d3d9.dll', 'Direct3DCreate9', 1)
+def _(ver): WLOG.append(('Direct3DCreate9', ver)); return com_new('IDirect3D9')
+# ---- D3DX9（浮點引數是堆疊上的 IEEE single）----
+DX = 'd3dx9_43.dll'
+def _f(v): return struct.unpack('<f', struct.pack('<I', v))[0]
+def _rm(p): return list(struct.unpack('<16f', rd(p, 64)))
+def _wm(p, m): uc.mem_write(p, struct.pack('<16f', *m)); return p
+def _rv(p, n=3): return list(struct.unpack('<%df' % n, rd(p, 4 * n)))
+def _wv(p, v): uc.mem_write(p, struct.pack('<%df' % len(v), *v)); return p
+def _mmul(a, b): return [sum(a[r * 4 + k] * b[k * 4 + c] for k in range(4)) for r in range(4) for c in range(4)]
+def _inv(m):
+    n = 4; a = [m[i * 4:(i + 1) * 4] + [1.0 if i == j else 0.0 for j in range(4)] for i in range(4)]
+    for c in range(n):
+        p = max(range(c, n), key=lambda r: abs(a[r][c]))
+        if abs(a[p][c]) < 1e-12: return None
+        a[c], a[p] = a[p], a[c]; pv = a[c][c]; a[c] = [x / pv for x in a[c]]
+        for r in range(n):
+            if r != c: f = a[r][c]; a[r] = [x - f * y for x, y in zip(a[r], a[c])]
+    return [a[i][4 + j] for i in range(4) for j in range(4)]
+def _norm(v):
+    l = math.sqrt(sum(x * x for x in v)) or 1.0; return [x / l for x in v]
+def _cross(a, b): return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+def _dot(a, b): return sum(x * y for x, y in zip(a, b))
+@api(DX, 'D3DXMatrixMultiply', 3)
+def _(o, a, b): return _wm(o, _mmul(_rm(a), _rm(b)))
+@api(DX, 'D3DXMatrixTranspose', 2)
+def _(o, a): m = _rm(a); return _wm(o, [m[c * 4 + r] for r in range(4) for c in range(4)])
+@api(DX, 'D3DXMatrixInverse', 3)
+def _(o, pdet, a):
+    r = _inv(_rm(a))
+    if r is None: return 0
+    if pdet: w32(pdet, struct.unpack('<I', struct.pack('<f', 1.0))[0])
+    return _wm(o, r)
+@api(DX, 'D3DXMatrixTranslation', 4)
+def _(o, x, y, z): return _wm(o, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, _f(x), _f(y), _f(z), 1])
+@api(DX, 'D3DXMatrixLookAtLH', 4)
+def _(o, eye, at, up):
+    e, a, u = _rv(eye), _rv(at), _rv(up); z = _norm([a[i] - e[i] for i in range(3)]); x = _norm(_cross(u, z)); y = _cross(z, x)
+    return _wm(o, [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -_dot(x, e), -_dot(y, e), -_dot(z, e), 1])
+@api(DX, 'D3DXMatrixPerspectiveFovLH', 5)
+def _(o, fovy, asp, zn, zf):
+    fovy, asp, zn, zf = _f(fovy), _f(asp), _f(zn), _f(zf); ys = 1 / math.tan(fovy / 2); xs = ys / asp
+    return _wm(o, [xs, 0, 0, 0, 0, ys, 0, 0, 0, 0, zf / (zf - zn), 1, 0, 0, -zn * zf / (zf - zn), 0])
+@api(DX, 'D3DXMatrixRotationQuaternion', 2)
+def _(o, q):
+    x, y, z, w = _rv(q, 4)
+    return _wm(o, [1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w), 0, 2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w), 0, 2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y), 0, 0, 0, 0, 1])
+@api(DX, 'D3DXQuaternionMultiply', 3)
+def _(o, a, b):
+    x1, y1, z1, w1 = _rv(a, 4); x2, y2, z2, w2 = _rv(b, 4)
+    return _wv(o, [w2 * x1 + x2 * w1 + y2 * z1 - z2 * y1, w2 * y1 + y2 * w1 + z2 * x1 - x2 * z1, w2 * z1 + z2 * w1 + x2 * y1 - y2 * x1, w2 * w1 - x2 * x1 - y2 * y1 - z2 * z1])
+@api(DX, 'D3DXQuaternionRotationAxis', 3)
+def _(o, ax, ang):
+    v = _norm(_rv(ax)); h = _f(ang) / 2; s = math.sin(h); return _wv(o, [v[0] * s, v[1] * s, v[2] * s, math.cos(h)])
+@api(DX, 'D3DXVec3Normalize', 2)
+def _(o, v): return _wv(o, _norm(_rv(v)))
+@api(DX, 'D3DXAssembleShaderFromFileA', 6)
+def _(f, d, i, fl, ps, pe): flog('d3dx-shader', S(f)); return 0x80004005
+@api(DX, 'D3DXCreateTextureFromFileExA', 14)
+def _(dev, f, w, h, mip, us, fmt, pool, flt, mflt, ck, info, pal, pp):
+    nm = S(f); hp = hostpath(nm); flog('d3dx-texture', nm, 0, os.path.getsize(hp) if os.path.isfile(hp) else 0)
+    if not os.path.isfile(hp): return 0x8876086c
+    w = w if w not in (0, 0xffffffff, 0xfffffffe) else 256; h = h if h not in (0, 0xffffffff, 0xfffffffe) else 256
+    w32(pp, com_new('IDirect3DTexture9', w=w, h=h, fmt=21, levels=1, dev=dev, mem=0, pitch=0)); return 0
+
+# ================= DirectInput8（鍵盤／滑鼠假裝置）=================
+com_define('IDirectInputDevice8', _std([D('GetCapabilities', 1), D('EnumObjects', 3), D('GetProperty', 2), D('SetProperty', 2), D('Acquire', 0), D('Unacquire', 0), D('GetDeviceState', 2, lambda o, t, n, p: (uc.mem_write(p, b'\0' * n), 0)[1]),
+    D('GetDeviceData', 4, lambda o, t, sz, buf, pn, fl: (w32(pn, 0), 0)[1]), D('SetDataFormat', 1), D('SetEventNotification', 1), D('SetCooperativeLevel', 2), D('GetObjectInfo', 3), D('GetDeviceInfo', 1), D('RunControlPanel', 2),
+    D('Initialize', 3), D('CreateEffect', 4), D('EnumEffects', 3), D('GetEffectInfo', 2), D('GetForceFeedbackState', 1), D('SendForceFeedbackCommand', 1), D('EnumCreatedEffectObjects', 3), D('Escape', 1), D('Poll', 0),
+    D('SendDeviceData', 4), D('EnumEffectsInFile', 4), D('WriteEffectToFile', 4), D('BuildActionMap', 3), D('SetActionMap', 3), D('GetImageInfo', 1)]))
+com_define('IDirectInput8', _std([D('CreateDevice', 3, lambda o, t, g, pp, ou: (w32(pp, com_new('IDirectInputDevice8')), 0)[1]), D('EnumDevices', 4), D('GetDeviceStatus', 1), D('RunControlPanel', 2), D('Initialize', 2), D('FindDevice', 3), D('EnumDevicesBySemantics', 5), D('ConfigureDevices', 4)]))
+@api('dinput8.dll', 'DirectInput8Create', 5)
+def _(inst, ver, iid, pp, ou): WLOG.append(('DirectInput8Create',)); w32(pp, com_new('IDirectInput8')); return 0
+
+
+# BNNet（線上模組，簽章不明，先當 0 引數回 0；實際被呼叫時要回頭校正）
+for _n in ('#1', '#2', '#6', '#7', '#9', '#10', '#11', '#12', '#15', '#18', '#19', '#23', '?PlayerLogout@@YAHPADK@Z'): SIG[('bnnet.dll', _n)] = 0
+API[(K, 'TryEnterCriticalSection')] = (1, False, lambda p: 1)
+API[(K, 'GetNativeSystemInfo')] = (1, False, lambda p: API[(K, 'GetSystemInfo')][2](p))
+API[(K, 'SwitchToThread')] = (0, False, lambda: 0)
+
+# ================= DirectSound 8（假裝置，緩衝區有記憶體）=================
+def _dsb_create(o, t, desc, pp, ou):
+    sz, fl, nbytes = struct.unpack('<III', rd(desc, 12)); WLOG.append(('DSound CreateSoundBuffer', hex(fl), nbytes))
+    w32(pp, com_new('IDirectSoundBuffer8', len=nbytes, mem=alloc(nbytes + 64) if nbytes else 0)); return 0
+def _dsb_lock(o, t, off, n, p1, l1, p2, l2, fl):
+    w32(p1, o['mem'] + off); w32(l1, n)
+    if p2: w32(p2, 0)
+    if l2: w32(l2, 0)
+    return 0
+com_define('IDirectSound8', _std([D('CreateSoundBuffer', 3, _dsb_create), D('GetCaps', 1), D('DuplicateSoundBuffer', 2, lambda o, t, b, pp: (w32(pp, com_new('IDirectSoundBuffer8', len=0, mem=0)), 0)[1]), D('SetCooperativeLevel', 2),
+    D('Compact', 0), D('GetSpeakerConfig', 1), D('SetSpeakerConfig', 1), D('Initialize', 1), D('VerifyCertification', 1)]))
+com_define('IDirectSoundBuffer8', _std([D('GetCaps', 1), D('GetCurrentPosition', 2), D('GetFormat', 4), D('GetVolume', 1), D('GetPan', 1), D('GetFrequency', 1), D('GetStatus', 1, lambda o, t, p: (w32(p, 0), 0)[1]), D('Initialize', 2),
+    D('Lock', 8, _dsb_lock), D('Play', 3), D('SetCurrentPosition', 1), D('SetFormat', 1), D('SetVolume', 1), D('SetPan', 1), D('SetFrequency', 1), D('Stop', 0), D('Unlock', 4), D('Restore', 0), D('SetFX', 3), D('AcquireResources', 4), D('GetObjectInPath', 4)]))
+@api('dsound.dll', '#11', 3)
+def _(g, pp, ou): WLOG.append(('DirectSoundCreate8',)); w32(pp, com_new('IDirectSound8')); return 0
+
+# ================= 畫格標記與指令計數（COUNT=1 才開，會變慢）=================
+INS = [0]; FRAMES = []; LOOPLOG = []
+_blk = {}
+def _blockhook(uc_, addr, size, ud):
+        n = _blk.get(addr)
+        if n is None:
+            n = _blk[addr] = sum(1 for _ in _cs.disasm(bytes(uc.mem_read(addr, size)), addr))
+        INS[0] += n
+if os.environ.get('COUNT') == '1': uc.hook_add(UC_HOOK_BLOCK, _blockhook)
+def frame_mark(kind):
+    if PHASE[0] != 'loop' and os.environ.get('COUNT') == 'lazy':   # 進主迴圈才開始計指令（啟動期太長，全程計數會慢一倍）
+        uc.hook_add(UC_HOOK_BLOCK, _blockhook); uc.ctl_flush_tb()
+    if PHASE[0] != 'loop': PHASE[0] = 'loop'; print('   [進入遊戲主迴圈：第一個畫格標記 %s，累計指令 %d]' % (kind, INS[0]))
+    FRAMES.append((time.time(), INS[0], kind))
+_oldflog = flog
+def flog(act, name, off=0, n=0):
+    _oldflog(act, name, off, n)
+    if PHASE[0] == 'loop' and len(LOOPLOG) < 40000: LOOPLOG.append((len(FRAMES), act, name, off, n))
+
+# ================= 輸入注入／訊息迴圈驅動 =================
+# INJECT="tick:key:13,tick:click:400:300,..."；tick = 畫格數（尚無畫格標記時用 PeekMessage 空轉次數）
+keys_down = set(); mouse = [400, 300, 0]    # x, y, 按鍵遮罩
+PEEKS = [0]; INJ = []; INJ_DONE = [0]
+for _t in filter(None, os.environ.get('INJECT', '').split(',')):
+    p_ = _t.split(':'); INJ.append((int(p_[0]), p_[1], [int(x) for x in p_[2:]]))
+VK2DIK = {13: 0x1c, 27: 1, 32: 0x39, 37: 0xcb, 38: 0xc8, 39: 0xcd, 40: 0xd0, 65: 0x1e, 90: 0x2c, 88: 0x2d}
+def main_hwnd(): return next(iter(wins), 0)
+def inject_tick():
+    tick = len(FRAMES) if FRAMES else PEEKS[0]
+    while INJ_DONE[0] < len(INJ) and INJ[INJ_DONE[0]][0] <= tick:
+        _, kind, a = INJ[INJ_DONE[0]]; INJ_DONE[0] += 1; h = main_hwnd(); print('   [注入 %s %s 於 tick %d]' % (kind, a, tick))
+        if kind == 'key':
+            keys_down.add(a[0]); msgq.append((h, 0x100, a[0], 1)); msgq.append((h, 0x102, a[0], 1)); inj_later.append((tick + 2, h, 0x101, a[0], 0xc0000001, a[0]))
+        elif kind == 'click':
+            mouse[0], mouse[1], mouse[2] = a[0], a[1], 1; lp = (a[1] << 16) | a[0]
+            msgq.append((h, 0x200, 0, lp)); msgq.append((h, 0x201, 1, lp)); inj_later.append((tick + 2, h, 0x202, 0, lp, -1))
+inj_later = []
+def inject_later():
+    tick = len(FRAMES) if FRAMES else PEEKS[0]
+    for it in list(inj_later):
+        if it[0] <= tick:
+            inj_later.remove(it); _, h, m, w, l, k = it; msgq.append((h, m, w, l))
+            if k >= 0: keys_down.discard(k)
+            else: mouse[2] = 0
+@api(U, 'PeekMessageA', 5)
+def _(p, h, a, b, rm):
+    PEEKS[0] += 1
+    if PEEKS[0] % 2000 == 0 and PEEKS[0] > 0 and not FRAMES: pass
+    inject_tick(); inject_later()
+    if not msgq:
+        # 閒置：偶爾送 WM_PAINT 給主視窗，讓 MFC 的 OnIdle／遊戲自己的 idle 迴圈照常前進
+        return 0
+    m = msgq[0]
+    if rm & 1: msgq.pop(0)
+    _putmsg(p, m); return 1
+@api(U, 'GetCursorPos', 1)
+def _(p): w32(p, mouse[0]); w32(p + 4, mouse[1]); return 1
+@api(U, 'GetAsyncKeyState', 1)
+def _(k): return 0x8000 if (k in keys_down or (k == 1 and mouse[2])) else 0
+@api(U, 'GetKeyState', 1)
+def _(k): return 0x8000 if (k in keys_down or (k == 1 and mouse[2])) else 0
+def _di_state(o, t, n, p):
+    kind = o.get('kind')
+    if kind == 'kbd':
+        b = bytearray(n)
+        for vk in keys_down:
+            d = VK2DIK.get(vk)
+            if d is not None and d < n: b[d & 0x7f if d < 0x80 else d] = 0x80
+        uc.mem_write(p, bytes(b))
+    elif kind == 'mouse':
+        uc.mem_write(p, struct.pack('<iii', 0, 0, 0) + bytes([0x80 if mouse[2] else 0, 0, 0, 0]) + b'\0' * max(n - 16, 0))
+    else: uc.mem_write(p, b'\0' * n)
+    return 0
+def _di_create(o, t, g, pp, ou):
+    k = {0x6f1d2b61: 'kbd', 0x6f1d2b60: 'mouse'}.get(u32(g)); WLOG.append(('DInput CreateDevice', k or hex(u32(g)))); w32(pp, com_new('IDirectInputDevice8', kind=k)); return 0
+com_define('IDirectInputDevice8', _std([D('GetCapabilities', 1), D('EnumObjects', 3), D('GetProperty', 2), D('SetProperty', 2), D('Acquire', 0), D('Unacquire', 0), D('GetDeviceState', 2, _di_state),
+    D('GetDeviceData', 4, lambda o, t, sz, buf, pn, fl: (w32(pn, 0), 0)[1]), D('SetDataFormat', 1), D('SetEventNotification', 1), D('SetCooperativeLevel', 2), D('GetObjectInfo', 3), D('GetDeviceInfo', 1), D('RunControlPanel', 2),
+    D('Initialize', 3), D('CreateEffect', 4), D('EnumEffects', 3), D('GetEffectInfo', 2), D('GetForceFeedbackState', 1), D('SendForceFeedbackCommand', 1), D('EnumCreatedEffectObjects', 3), D('Escape', 1), D('Poll', 0),
+    D('SendDeviceData', 4), D('EnumEffectsInFile', 4), D('WriteEffectToFile', 4), D('BuildActionMap', 3), D('SetActionMap', 3), D('GetImageInfo', 1)]))
+com_define('IDirectInput8', _std([D('CreateDevice', 3, _di_create), D('EnumDevices', 4), D('GetDeviceStatus', 1), D('RunControlPanel', 2), D('Initialize', 2), D('FindDevice', 3), D('EnumDevicesBySemantics', 5), D('ConfigureDevices', 4)]))
 def finalize_one(va, k):
     h = resolve(k)
     if h and not h[1] and h[0]: uc.mem_write(va, b'\xc2' + struct.pack('<H', 4 * h[0]))
@@ -2234,7 +2492,7 @@ def call(addr, args, cdecl=False):
         sp -= 4; w32(sp, a)
     sp -= 4; w32(sp, SENT)
     uc.reg_write(UC_X86_REG_ESP, sp)
-    uc.emu_start(addr, SENT, count=int(os.environ.get('MAXINS', '60000000')))
+    uc.emu_start(addr, SENT, timeout=int(float(os.environ.get('MAXSEC', '0')) * 1000000), count=int(os.environ.get('MAXINS', '60000000')))
     r = uc.reg_read(UC_X86_REG_EAX)
     uc.reg_write(UC_X86_REG_ESP, esp)
     return r
@@ -2266,7 +2524,7 @@ if True:
     try:
         r = call(ep, []); print('Poq call 返回 eax', hex(r), 'eip', hex(uc.reg_read(UC_X86_REG_EIP))); [print('    ', hex(a), ' '.join(str(x) for x in next(_cs.disasm(bytes(uc.mem_read(a, sz)), a), None) and [next(_cs.disasm(bytes(uc.mem_read(a, sz)), a)).mnemonic, next(_cs.disasm(bytes(uc.mem_read(a, sz)), a)).op_str])) for a, sz in list(ring)[-16:]]
     except UcError as e:
-        dump_ring(); print('!! UcError', e, 'eip', hex(uc.reg_read(UC_X86_REG_EIP)))
+        dump_ring(); print('!! UcError', e, 'eip', hex(uc.reg_read(UC_X86_REG_EIP)), {r: hex(uc.reg_read(g)) for r, g in (('eax', UC_X86_REG_EAX), ('ecx', UC_X86_REG_ECX), ('edx', UC_X86_REG_EDX), ('ebx', UC_X86_REG_EBX), ('esi', UC_X86_REG_ESI), ('edi', UC_X86_REG_EDI), ('ebp', UC_X86_REG_EBP), ('esp', UC_X86_REG_ESP))}); _e = uc.reg_read(UC_X86_REG_EIP); print([f'{i.address:x} {i.mnemonic} {i.op_str}' for i in list(_cs.disasm(bytes(uc.mem_read(_e - 24, 48)), _e - 24))]); _bp = uc.reg_read(UC_X86_REG_EBP); print('ebp chain', [hex(u32(_bp + 4 + 0)) ] if True else 0)
 print('耗時 %.1f 秒；呼叫過 %d 種主機函式；未實作：%s' % (_t.time() - t0, len(calls), unknown[:3]))
 print('只用「預設回傳 0」的函式（沒有真實作）：', [(d, n, calls[(d, n)]) for d, n in defaults if (d, n) in calls][:80])
 for t in trace[:MAXLOG]: print('  ', t)
@@ -2274,11 +2532,15 @@ for t in trace[:MAXLOG]: print('  ', t)
 # ---- 結尾摘要：視窗事件、檔案存取 ----
 print('\n== 視窗事件（前 40）==')
 for w in WLOG[:40]: print('  ', w)
-print('\n== 檔案存取（共 %d 筆，前 120）==' % len(FILELOG))
-for r in FILELOG[:120]: print('  %4d [%s] %-9s %s off=%d n=%d' % r)
-import collections as _c
-print('\n== 依檔案統計 ==')
-_st = _c.OrderedDict()
-for r in FILELOG:
-    d = _st.setdefault(r[3], [0, 0, 0]); d[0] += 1 if r[2] in ('read', 'fread', '_read') else 0; d[1] += r[5] if r[2] in ('read', 'fread', '_read') else 0; d[2] += 1 if 'seek' in r[2] else 0
-for n, (c, b, sk) in list(_st.items())[:60]: print('  %-48s 讀取 %d 次 %d bytes，seek %d 次' % (n, c, b, sk))
+print('\n== 檔案存取（共 %d 筆事件；依「階段/檔案」統計）==' % FCOUNT[0])
+for (ph, nm), d in FSTAT.items():
+    print('  [%s] %-44s opens=%d reads=%d bytes=%d seeks=%d range=[%d,%d) 第一次事件#%d' % (ph, nm, d['opens'], d['reads'], d['bytes'], d['seeks'], d['lo'] if d['reads'] else 0, d['hi'], d['first']))
+for (ph, nm), d in FSTAT.items():
+    if d['reads'] > 200: print('  樣本', nm, d['samples'][:24])
+
+print('\n== 畫格 ==  標記次數', len(FRAMES), '累計指令', INS[0])
+if len(FRAMES) > 1:
+    d = [FRAMES[i + 1][1] - FRAMES[i][1] for i in range(len(FRAMES) - 1)]; tt = [FRAMES[i + 1][0] - FRAMES[i][0] for i in range(len(FRAMES) - 1)]
+    print('每畫格指令數：最小 %d 平均 %d 最大 %d；每畫格牆鐘 %.3fs' % (min(d), sum(d) // len(d), max(d), sum(tt) / len(tt)))
+print('主迴圈期間檔案事件（前 60）：')
+for r in LOOPLOG[:60]: print('  畫格%d %s %s off=%d n=%d' % r)

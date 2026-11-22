@@ -53,3 +53,17 @@
 1. 把 `_ring` 指令 hook 改成可關閉，並加 `MAXINS` 提高到數十億，讓索引掃描跑完，量「進主迴圈後、每場景」的檔案讀取（Range 清單）。
 2. 補 `Direct3DCreate9`→IDirect3D9/IDirect3DDevice9/Texture9 COM 假物件（vtable 序已知）與 D3DX 12 個函式，讓 Gfx3D 初始化完成。
 3. 實作訊息迴圈驅動（WM_TIMER／WM_PAINT／滑鼠鍵盤注入）與 DirectInput8，進入遊戲第一個場景並記錄場景載入的檔案區段。
+
+## 2026-11-23 第三輪：啟動期完整檔案讀取順序、D3D9／DirectInput／DirectSound 假物件
+**新增**：`RING=1` 才開逐指令記錄（預設關，速度約 7～10M 指令/秒；開了約 2M/秒）；`MAXSEC`（牆鐘上限）、`COUNT=lazy`（進主迴圈後才開區塊指令計數）、`INJECT="tick:key:13,tick:click:x:y"`（注入按鍵/點擊）；Direct3D9（IDirect3D9 17 + IDirect3DDevice9 116＋3 個方法、Texture/Surface/VB/IB 物件，D3DX9 12 個函式，`D3DXCreateTextureFromFileExA` 會記錄檔案）、DirectInput8（鍵盤/滑鼠假裝置，可由 INJECT 驅動）、DirectSound8（`dsound #11` = DirectSoundCreate8，3 個參數）；臨界區改成機器碼空操作。啟動期檔案事件改成「依階段/檔案」彙總（`FSTAT`），不再逐筆存。
+
+**啟動期（視窗建好後、第一個畫格之前）完整檔案順序**（事件編號 = 第一次出現）：
+1. `Data/music.txt`（整檔 3250 B）、`Res/Combination.json`（887 B）。
+2. 封包索引掃描：`ResUI.lib`、`Res00..Res08.lib`、`ResUI2..5.lib`。每個封包：開檔→ seek 到**檔尾索引**（例 ResUI 90037046、Res01 184140759、Res07 130492144）→ 回頭從 0 讀 4096 B → 之後以大量「seek 到同一位置」（std::ifstream 每次都 seekoff）加小讀取解析索引。全部 Res 封包索引合計約 1,400 次讀取／數 MB，但 seek 事件 60 萬次。**本體資源此時一個 byte 都沒讀**。
+3. 設定檔：`POQ.ini`、`ini/UIInfo.ini`、`Ini/DialogInfo.ini`（200 KB，54 次讀取）、`font/13Point.fnt`（1.8 MB 整檔）、`font/16Point.fnt`（2.2 MB 整檔）、`ini/Config.ini`、`ObjMdl/MakeMdl.txt`。
+4. `Dlg/UI.Dlg`、`Dlg/Info9.Dlg`：結構化對話資源，約 3.2k／3.7k 次 512 B～4 KB 隨機讀（索引表 + 區段）。
+5. **`snd.lib`（28.8 MB）**：讀 524 B 檔頭 + 1432 B，然後 seek 到 2864524 開始每筆 268 B 的記錄表，**重複掃描同一段 [2.86 MB, 3.67 MB)**：1,319,001 次讀取、355 MB 總量、263 萬次 seek（約 12 個完整「來回」——疑似音效名稱查找是 O(n²)）。這一段在模擬器裡占了約 50 分鐘，是啟動期最大的成本；原版機器碼本身就這樣做（不是模擬器造成的），在瀏覽器版必須用「預先建好的音效索引」取代。
+6. 模型資料：`data/experience.txt`、`ObjMdl/MethodMdl.ini`（380 KB）、`MethodUnit_Mdl.ini`、`RoleMdl.txt/.rmd`、`BeastieMdl.txt`、`PropMdl.txt`、`RoleEffectMdl.txt`、`TriBldMdl.txt`，接著第一個場景檔 **`Pli/0000_001.PLI`**（137 KB，40 次讀取）。
+7. 之後進入 UI 配置迴圈（`PtInRect` 200 萬次、`SetRect` 170 萬次、HeapAlloc 138 萬次），尚未出現 `Present`／`Flip`。
+
+**效能數據**：Unicorn（Python 綁定，hook 少時）約 7.5M 指令/秒（2.5B 指令 335 s）。啟動期到 snd.lib 掃完約 1.0e10 指令量級。每畫格指令數的實測見下節（若有）。
