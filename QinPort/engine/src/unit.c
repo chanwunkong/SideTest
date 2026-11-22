@@ -836,12 +836,22 @@ static void main_new(Actor *a) {
     }
     u->dir = dir_of(u->x, u->y, u->tx, u->ty, 8);
     int dist = dist_of(u->x, u->y, u->tx, u->ty);
+    if (dist < 64) {  // 0x43af50：目標點離出手者不到一格 → 目標點 = 出手者位置往 dir 走一格（貼到零距離時 dir = 出手者目前面向）
+        if (dist < 1) u->dir = a->facing;
+        u->tx = u->x, u->ty = u->y;
+        move_dir(&u->tx, &u->ty, u->dir, 64);
+        dist = dist_of(u->x, u->y, u->tx, u->ty);
+    }
     if (dist > 0 && (u->m->r2 != 1 || u->range * 64 < dist)) {
         float k = (float)(u->range * 64) / dist;
         u->tx = u->x + (int)((u->tx - u->x) * k);
         u->ty = u->y + (int)((u->ty - u->y) * k);
     }
     u->sx = u->tx, u->sy = u->ty;
+    // 0x43acb0：出手者先面向目標（0x4963e0）、動作序列 = 招式序列 + 方向，再直接切本體（0x494ec0）；不先轉就會用舊面向放招（跳躍變成往旁邊跳）
+    actor_direction_set(a, u->dir);
+    actor_animation_select(a, a->atk->seq + u->dir);
+    actor_body_apply(a, -1);
     actor_method_bound(a, 1);
 }
 
