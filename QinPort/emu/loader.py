@@ -2040,6 +2040,186 @@ API[('libvlc.dll', 'libvlc_media_player_will_play')] = (0, True, lambda: 0)
 for _n in ('alcOpenDevice', 'alcCreateContext', 'alcGetCurrentContext', 'alcGetContextsDevice'):
     API[('openal32.dll', _n)] = (0, True, lambda: newh('al'))
 
+
+# ================= COM 主機物件（DirectDraw 7 / Direct3D 9）=================
+com_vt = {}       # 介面名 → vtable 位址
+com_obj = {}      # 物件位址 → dict(iface, ref, ...)
+COMLOG = collections.Counter()
+GUIDS = {0x15e65ec0: 'IDirectDraw7', 0x6c14db80: 'IDirectDraw', 0xb3a6f3e0: 'IDirectDraw2', 0x9c59509a: 'IDirectDraw4', 0x06675a80: 'IDirectDrawSurface7', 0x1c7ce4d1: 'IDirectDrawSurface7'}
+def guid_name(p):
+    if not p: return None
+    return GUIDS.get(u32(p))
+def com_define(iface, methods):
+    """methods：依 vtable 順序的 [(名稱, 引數個數(不含 this), 實作 或 None)]；預設實作回傳 0（S_OK）。"""
+    vt = alloc(4 * len(methods)); com_vt[iface] = vt
+    for i, (m, n, fn) in enumerate(methods):
+        k = ('com:' + iface, m)
+        def mk(fn, m):
+            def h(this, *a):
+                COMLOG[(iface, m)] += 1
+                o = com_obj.get(this)
+                if fn is None: return 0
+                return fn(o, this, *a)
+            return h
+        API[k] = (n + 1, False, mk(fn, m))
+        w32(vt + 4 * i, stub_for(*k))
+    return vt
+def com_new(iface, **st):
+    o = alloc(16); w32(o, com_vt[iface]); com_obj[o] = dict(iface=iface, ref=1, addr=o, **st); return o
+def _qi(o, this, riid, ppv):
+    nm = guid_name(riid)
+    if nm and nm in com_vt:
+        n = com_new(nm, **{k: v for k, v in o.items() if k not in ('iface', 'ref', 'addr')}); w32(ppv, n); return 0
+    print('   [COM QueryInterface 不認識的 IID]', o['iface'], rd(riid, 16).hex() if riid else None); w32(ppv, 0); return 0x80004002
+def _addref(o, this): o['ref'] += 1; return o['ref']
+def _release(o, this): o['ref'] -= 1; return max(o['ref'], 0)
+def _std(extra): return [('QueryInterface', 2, _qi), ('AddRef', 0, _addref), ('Release', 0, _release)] + extra
+D = lambda name, n, fn=None: (name, n, fn)
+# --- DirectDraw 7 ---
+def _dd_createsurface(o, this, desc, ppsurf, outer):
+    sz = rd(desc, 124); fl = struct.unpack('<I', sz[4:8])[0]; h, w = struct.unpack('<II', sz[8:16]); caps = struct.unpack('<I', sz[104:108])[0]
+    bpp = struct.unpack('<I', sz[84:88])[0] if fl & 0x1000 else 32
+    if caps & 0x200: w, h = 800, 600       # PRIMARYSURFACE：用視窗大小
+    st = dict(w=w, h=h, bpp=bpp or 32, caps=caps, mem=0, pitch=0)
+    if w and h: st['pitch'] = (w * ((bpp or 32) // 8) + 3) & ~3; st['mem'] = alloc(st['pitch'] * h + 64)
+    s_ = com_new('IDirectDrawSurface7', **st); w32(ppsurf, s_)
+    WLOG.append(('DDraw CreateSurface', w, h, bpp, hex(caps), hex(fl))); return 0
+com_define('IDirectDraw7', _std([D('Compact', 0), D('CreateClipper', 3, lambda o, t, f, pp, ou: (w32(pp, com_new('IDirectDrawClipper')), 0)[1]), D('CreatePalette', 4, lambda o, t, f, e, pp, ou: (w32(pp, com_new('IDirectDrawPalette')), 0)[1]),
+    D('CreateSurface', 3, _dd_createsurface), D('DuplicateSurface', 2), D('EnumDisplayModes', 4), D('EnumSurfaces', 4), D('FlipToGDISurface', 0), D('GetCaps', 2),
+    D('GetDisplayMode', 1, lambda o, t, p: (uc.mem_write(p, struct.pack('<IIII', 124, 0x1006 if False else 0x6, 600, 800) + struct.pack('<I', 3200) + b'\0' * 100), 0)[1]),
+    D('GetFourCCCodes', 2), D('GetGDISurface', 1), D('GetMonitorFrequency', 1, lambda o, t, p: (w32(p, 60), 0)[1]), D('GetScanLine', 1), D('GetVerticalBlankStatus', 1, lambda o, t, p: (w32(p, 1), 0)[1]),
+    D('Initialize', 1), D('RestoreDisplayMode', 0), D('SetCooperativeLevel', 2, lambda o, t, h, fl: (WLOG.append(('DDraw SetCooperativeLevel', hex(h), hex(fl))), 0)[1]),
+    D('SetDisplayMode', 5, lambda o, t, w, h, b, r, f: (WLOG.append(('DDraw SetDisplayMode', w, h, b, r)), 0)[1]), D('WaitForVerticalBlank', 2),
+    D('GetAvailableVidMem', 3, lambda o, t, caps, tot, free: ((w32(tot, 256 << 20) if tot else 0), (w32(free, 200 << 20) if free else 0), 0)[2]),
+    D('GetSurfaceFromDC', 2), D('RestoreAllSurfaces', 0), D('TestCooperativeLevel', 0), D('GetDeviceIdentifier', 2), D('StartModeTest', 3), D('EvaluateMode', 2)]))
+for _alias in ('IDirectDraw', 'IDirectDraw2', 'IDirectDraw4'): com_vt[_alias] = com_vt['IDirectDraw7']
+def _lock(o, this, rect, desc, fl, ev):
+    uc.mem_write(desc + 8, struct.pack('<II', o['h'], o['w'])); w32(desc + 16, o['pitch']); w32(desc + 36, o['mem']); w32(desc + 4, u32(desc + 4) | 0x1 | 0x2 | 0x4 | 0x8 | 0x1000); return 0
+com_define('IDirectDrawSurface7', _std([D('AddAttachedSurface', 1), D('AddOverlayDirtyRect', 1), D('Blt', 5), D('BltBatch', 3), D('BltFast', 5), D('DeleteAttachedSurface', 2), D('EnumAttachedSurfaces', 2), D('EnumOverlayZOrders', 3),
+    D('Flip', 2), D('GetAttachedSurface', 2, lambda o, t, caps, pp: (w32(pp, com_new('IDirectDrawSurface7', **{k: v for k, v in o.items() if k not in ('iface', 'ref', 'addr')})), 0)[1]),
+    D('GetBltStatus', 1), D('GetCaps', 1, lambda o, t, p: (w32(p, o['caps']), 0)[1]), D('GetClipper', 1), D('GetColorKey', 2), D('GetDC', 1, lambda o, t, p: (w32(p, newh('dc', None)), 0)[1]), D('GetFlipStatus', 1), D('GetOverlayPosition', 2),
+    D('GetPalette', 1), D('GetPixelFormat', 1, lambda o, t, p: (uc.mem_write(p, struct.pack('<8I', 32, 0x40, 0, o['bpp'], 0xf800 if o['bpp'] == 16 else 0xff0000, 0x7e0 if o['bpp'] == 16 else 0xff00, 0x1f if o['bpp'] == 16 else 0xff, 0)), 0)[1]),
+    D('GetSurfaceDesc', 1, lambda o, t, p: (uc.mem_write(p, struct.pack('<IIII', 124, 0x7, o['h'], o['w']) + struct.pack('<I', o['pitch'])), 0)[1]), D('Initialize', 2), D('IsLost', 0), D('Lock', 4, _lock), D('ReleaseDC', 1),
+    D('Restore', 0), D('SetClipper', 1), D('SetColorKey', 2), D('SetOverlayPosition', 2), D('SetPalette', 1), D('Unlock', 1), D('UpdateOverlay', 5), D('UpdateOverlayDisplay', 1), D('UpdateOverlayZOrder', 2),
+    D('GetDDInterface', 1, lambda o, t, p: (w32(p, com_new('IDirectDraw7')), 0)[1]), D('PageLock', 1), D('PageUnlock', 1), D('SetSurfaceDesc', 2), D('SetPrivateData', 4), D('GetPrivateData', 3), D('FreePrivateData', 1),
+    D('GetUniquenessValue', 1), D('ChangeUniquenessValue', 0), D('SetPriority', 1), D('GetPriority', 1), D('SetLOD', 1), D('GetLOD', 1)]))
+com_define('IDirectDrawClipper', _std([D('GetClipList', 3), D('GetHWnd', 1), D('Initialize', 2), D('IsClipListChanged', 1), D('SetClipList', 2), D('SetHWnd', 2)]))
+com_define('IDirectDrawPalette', _std([D('GetCaps', 1), D('GetEntries', 4), D('Initialize', 3), D('SetEntries', 4)]))
+@api('ddraw.dll', 'DirectDrawCreate', 3)
+def _(guid, pp, outer): WLOG.append(('DirectDrawCreate',)); w32(pp, com_new('IDirectDraw7')); return 0
+API[('ddraw.dll', 'DirectDrawCreateEx')] = (4, False, lambda g, pp, iid, outer: (w32(pp, com_new('IDirectDraw7')), 0)[1])
+
+
+# ---- 寬字元／Ex 檔案 API（真 ucrtbase 的 fopen/_wfopen 走這些）----
+def _wpath(p): return wstr(p, 1024)
+@api(K, 'AreFileApisANSI', 0)
+def _(): return 1
+@api(K, 'CreateFileW', 7)
+def _(name, acc, share, sec, disp, flags, tmpl):
+    nm = _wpath(name); hp = hostpath(nm)
+    if acc & 0x40000000 or disp in (1, 2, 4):
+        f = io.BytesIO(open(hp, 'rb').read() if os.path.exists(hp) and disp != 2 else b''); flog('create-w', nm); return newh('file', [f, nm, True])
+    if not os.path.isfile(hp): last_error[0] = 2; flog('open-miss', nm); return 0xffffffff
+    flog('open', nm); return newh('file', [open(hp, 'rb'), nm, False])
+@api(K, 'SetFilePointerEx', 5)
+def _(h, lo, hi, pnew, meth):
+    o = handles.get(h)
+    if not o or o[0] != 'file': return 0
+    f, nm, _w = o[1]; v = lo | (hi << 32); v = v - (1 << 64) if v >= 1 << 63 else v
+    f.seek(v, meth); flog('seek', nm, f.tell(), 0)
+    if pnew: w32(pnew, f.tell() & 0xffffffff); w32(pnew + 4, f.tell() >> 32)
+    return 1
+@api(K, 'GetFileInformationByHandle', 2)
+def _(h, p):
+    o = handles.get(h)
+    if not o: return 0
+    n = API[(K, 'GetFileSize')][2](h, 0); uc.mem_write(p, b'\0' * 52); w32(p, 0x80); w32(p + 32, n); w32(p + 40, 1); return 1
+@api(K, 'GetFileType', 1)
+def _(h): return 1 if handles.get(h, ('',))[0] == 'file' else 2
+@api(K, 'GetFileAttributesExW', 3)
+def _(p, lvl, out):
+    hp = hostpath(_wpath(p)); flog('attr', _wpath(p))
+    if not os.path.exists(hp): last_error[0] = 2; return 0
+    uc.mem_write(out, b'\0' * 36); w32(out, 0x10 if os.path.isdir(hp) else 0x80); w32(out + 28, os.path.getsize(hp) if os.path.isfile(hp) else 0); return 1
+@api(K, 'GetFullPathNameW', 4)
+def _(n, sz, b, pf):
+    t = _wpath(n); t = t if ':' in t else 'Z:\\game\\' + t; wput(b, t); return len(t)
+@api(K, 'GetCurrentDirectoryW', 2)
+def _(n, p): wput(p, 'Z:\\game'); return 7
+@api(K, 'SetCurrentDirectoryW', 1)
+def _(p): return 1
+@api(K, 'GetTempPathW', 2)
+def _(n, p): wput(p, 'C:\\TEMP\\'); return 8
+@api(K, 'FindFirstFileExW', 6)
+def _(pat, lvl, out, op, sp, fl):
+    import glob; hp = hostpath(_wpath(pat)); flog('find', _wpath(pat)); l = sorted(glob.glob(hp))
+    if not l: last_error[0] = 2; return 0xffffffff
+    h = newh('find', [l, 0, out]); _findnextw(h, out); return h
+def _findnextw(h, out):
+    o = handles.get(h)
+    if not o: return 0
+    l, i, _ = o[1]
+    if i >= len(l): last_error[0] = 18; return 0
+    p = l[i]; uc.mem_write(out, b'\0' * 592); w32(out, 0x10 if os.path.isdir(p) else 0x80); w32(out + 32, os.path.getsize(p) if os.path.isfile(p) else 0)
+    uc.mem_write(out + 44, os.path.basename(p).encode('utf-16-le')[:518] + b'\0\0'); o[1][1] = i + 1; return 1
+API[(K, 'FindNextFileW')] = (2, False, lambda h, out: _findnextw(h, out))
+for _n, _a in (('DeleteFileW', 1), ('CreateDirectoryW', 2), ('RemoveDirectoryW', 1), ('SetFileAttributesW', 2), ('MoveFileExW', 3), ('GetDiskFreeSpaceW', 5), ('GetDriveTypeW', 1), ('LockFileEx', 6), ('UnlockFileEx', 5), ('SetEndOfFile', 1), ('SetFileTime', 4), ('FlushFileBuffers', 1)):
+    API[(K, _n)] = (_a, False, lambda *a: 1)
+for _n, _a in (('GetConsoleCP', 0), ('GetConsoleMode', 2), ('SetConsoleMode', 2), ('SetConsoleCtrlHandler', 2), ('GetNumberOfConsoleInputEvents', 2), ('PeekConsoleInputA', 4), ('ReadConsoleInputA', 4), ('ReadConsoleInputW', 4), ('ReadConsoleW', 5), ('WriteConsoleW', 5), ('PeekNamedPipe', 6), ('CreatePipe', 4), ('Beep', 2), ('SetStdHandle', 2), ('GetLogicalDrives', 0), ('SetEnvironmentVariableA', 2), ('SetEnvironmentVariableW', 2), ('SetLocalTime', 1), ('GetExitCodeProcess', 2), ('TzSpecificLocalTimeToSystemTime', 3), ('IsValidCodePage', 1), ('IsValidLocale', 2), ('GetUserDefaultLCID', 0), ('GetDateFormatW', 6), ('GetTimeFormatW', 6), ('EnumSystemLocalesW', 2), ('CompareStringW', 6), ('CompareStringEx', 9), ('GetLocaleInfoEx', 4), ('LCMapStringEx', 9), ('LCMapStringW', 6), ('GetStringTypeW', 5), ('GetTimeZoneInformation', 1), ('VirtualAlloc', 4), ('VirtualQuery', 3), ('InterlockedFlushSList', 1), ('InterlockedPushEntrySList', 2), ('QueryDepthSList', 1), ('FindActCtxSectionStringW', 5), ('GetSystemTimePreciseAsFileTime', 1), ('ExitProcess', 1), ('ExitThread', 1), ('FreeLibraryAndExitThread', 2), ('CreateProcessA', 10), ('CreateProcessW', 10), ('FindFirstFileExA', 6), ('GetModuleHandleExA', 3)):
+    if (K, _n) not in API: SIG[(K, _n)] = _a
+@api(K, 'VirtualAlloc', 4)
+def _(a, n, t, p): return a or alloc(n)
+@api(K, 'GetSystemTimePreciseAsFileTime', 1)
+def _(p): return API[(K, 'GetSystemTimeAsFileTime')][2](p)
+@api(K, 'GetStringTypeW', 4)
+def _(t, s, n, out):
+    n = n if n != 0xffffffff else len(wstr(s, 1 << 16)) + 1
+    for i in range(n):
+        c = chr(u32(s + 2 * i) & 0xffff) if True else ''
+        v = (1 if c.isupper() else 0) | (2 if c.islower() else 0) | (4 if c.isdigit() else 0) | (8 if c.isspace() else 0) | (0x10 if c in '.,;:!?' else 0) | (0x80 if c.isalpha() else 0)
+        uc.mem_write(out + 2 * i, struct.pack('<H', v))
+    return 1
+@api(K, 'LCMapStringW', 6)
+def _(loc, fl, s, n, d, dn):
+    t = wstr(s, n if n != 0xffffffff else 1 << 16); t = t.upper() if fl & 0x200 else t.lower() if fl & 0x100 else t
+    if dn: uc.mem_write(d, t.encode('utf-16-le')[:dn * 2])
+    return len(t)
+@api(K, 'LCMapStringEx', 9)
+def _(nm, fl, s, n, d, dn, a, b, c): return API[(K, 'LCMapStringW')][2](0, fl, s, n, d, dn)
+@api(K, 'CompareStringW', 6)
+def _(loc, fl, a, na, b, nb):
+    x, y = wstr(a, na if na != 0xffffffff else 1 << 16), wstr(b, nb if nb != 0xffffffff else 1 << 16)
+    if fl & 1: x, y = x.lower(), y.lower()
+    return 2 + ((x > y) - (x < y))
+@api(K, 'CompareStringEx', 9)
+def _(nm, fl, a, na, b, nb, x, y, z): return API[(K, 'CompareStringW')][2](0, fl, a, na, b, nb)
+@api(K, 'GetLocaleInfoW', 4)
+def _(loc, ty, buf, n):
+    t = {0x1004: '950', 0x1: '886', 0x1001: 'Chinese', 0x1002: 'zh', 0x2: 'Taiwan'}.get(ty & 0xffff, '0') + '\0'
+    if ty & 0x20000000: w32(buf, int(t[:-1]) if t[:-1].isdigit() else 0); return 2
+    if n: wput(buf, t[:-1][:n - 1])
+    return len(t)
+@api(K, 'GetLocaleInfoEx', 4)
+def _(nm, ty, buf, n): return API[(K, 'GetLocaleInfoW')][2](0x404, ty, buf, n)
+@api(K, 'EnumSystemLocalesW', 2)
+def _(fn, fl): return 1
+@api(K, 'GetTimeZoneInformation', 1)
+def _(p): uc.mem_write(p, b'\0' * 172); return 0
+@api(K, 'InterlockedFlushSList', 1)
+def _(h): p = u32(h); w32(h, 0); return p
+@api(K, 'InterlockedPushEntrySList', 2)
+def _(h, e): old = u32(h); w32(e, old); w32(h, e); return old
+@api(K, 'ExitProcess', 1)
+def _(c): print('ExitProcess', c); uc.emu_stop()
+@api(K, 'GetModuleHandleExA', 3)
+def _(fl, n, out): return 0
+@api(K, 'IsValidCodePage', 1)
+def _(c): return 1
+@api(K, 'IsValidLocale', 2)
+def _(a, b): return 1
+@api(K, 'GetConsoleMode', 2)
+def _(h, p): return 0
+
 def finalize_one(va, k):
     h = resolve(k)
     if h and not h[1] and h[0]: uc.mem_write(va, b'\xc2' + struct.pack('<H', 4 * h[0]))
@@ -2084,9 +2264,21 @@ if True:
     ep = 0x5a7dc7
     print('Poq 進入點', hex(ep)); sys.stdout.flush()
     try:
-        r = call(ep, []); print('Poq call 返回 eax', hex(r), 'eip', hex(uc.reg_read(UC_X86_REG_EIP))); [print('    ', hex(a)) for a, _ in list(ring)[-12:]]
+        r = call(ep, []); print('Poq call 返回 eax', hex(r), 'eip', hex(uc.reg_read(UC_X86_REG_EIP))); [print('    ', hex(a), ' '.join(str(x) for x in next(_cs.disasm(bytes(uc.mem_read(a, sz)), a), None) and [next(_cs.disasm(bytes(uc.mem_read(a, sz)), a)).mnemonic, next(_cs.disasm(bytes(uc.mem_read(a, sz)), a)).op_str])) for a, sz in list(ring)[-16:]]
     except UcError as e:
         dump_ring(); print('!! UcError', e, 'eip', hex(uc.reg_read(UC_X86_REG_EIP)))
 print('耗時 %.1f 秒；呼叫過 %d 種主機函式；未實作：%s' % (_t.time() - t0, len(calls), unknown[:3]))
 print('只用「預設回傳 0」的函式（沒有真實作）：', [(d, n, calls[(d, n)]) for d, n in defaults if (d, n) in calls][:80])
 for t in trace[:MAXLOG]: print('  ', t)
+
+# ---- 結尾摘要：視窗事件、檔案存取 ----
+print('\n== 視窗事件（前 40）==')
+for w in WLOG[:40]: print('  ', w)
+print('\n== 檔案存取（共 %d 筆，前 120）==' % len(FILELOG))
+for r in FILELOG[:120]: print('  %4d [%s] %-9s %s off=%d n=%d' % r)
+import collections as _c
+print('\n== 依檔案統計 ==')
+_st = _c.OrderedDict()
+for r in FILELOG:
+    d = _st.setdefault(r[3], [0, 0, 0]); d[0] += 1 if r[2] in ('read', 'fread', '_read') else 0; d[1] += r[5] if r[2] in ('read', 'fread', '_read') else 0; d[2] += 1 if 'seek' in r[2] else 0
+for n, (c, b, sk) in list(_st.items())[:60]: print('  %-48s 讀取 %d 次 %d bytes，seek %d 次' % (n, c, b, sk))
