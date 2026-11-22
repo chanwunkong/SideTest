@@ -83,6 +83,8 @@ typedef struct {
     uint16_t initial_state[2]; // 初始态同名鍵依次讀取，外觀初始化只用第一值
     int rx, ry, rw, rh;           // 類型 13 的閒逛範圍（格）
     int path_n, path[MAX_PATH][2];  // 類型 14 的巡邏路線（格）
+    int ont;                      // 1 = 從 .ONT 讀的記錄（SInit 名單上的，連結查找只找這些）
+    int fol_a, fol_mode, fol_dist, link, link_x, link_y;  // SInitChaFollow（類型 15，鍵 a、s、d、x、y）：+0x7c、+0x80 跟隨模式（0 走 1 跑）、+0x84 保持距離、+0x88／+0x8c 連結的 SInit 座標（link = 有連結，原版 +0x88 ≠ −1）
     char event[64];               // SInitCha +0x38：事件 ID（對話、劇情用），原始容量0x40
 } NpcSpec;
 

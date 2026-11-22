@@ -4960,8 +4960,9 @@ static int npc_main_ai(Actor *a) {
 // Poq.exe 0x492730：CNpc閒置AI。每100拍選目標（入戰就結束）；有關聯識別每60拍找人互動；
 // 沒主人時依記錄邏輯：0站著（播兩個初始態序列，每5拍抽1次換）、1矩形閒逛、2路徑巡邏、3跟隨、
 // 其他偶爾走回修正格；被互動（修正7）時面向對方；有主人（召喚）則每70拍走回主人身邊。
-// shortcut: 記錄+0x88（連結的SInit，ONT跟隨參數沒解析）恆視為-1；跟隨參數沿用矩形鍵（ry／rw／rh = +0x7c／+0x80／+0x84），
-// 模式0與非0原版只看得到命令2的參數，命令1的參數反編譯沒帶出，兩者都用（對象格、距離）；遠距主人消失（0x497d00）改清owner。
+// 跟隨（logic 3）：ONT 類型 15 的鍵 a、s、d、x、y = SInitChaFollow +0x7c／+0x80（模式 0 走／1 跑）／+0x84（距離）／+0x88、+0x8c（連結的 SInit 座標，res.c 解析）；
+// 有連結時目標 = 座標相符的 SInit 的角色（0x46a260），沒有連結才找附近同組（actor_near_begin 3,6）。
+// shortcut: 模式0與非0原版只看得到命令2的參數，命令1的參數反編譯沒帶出，兩者都用（對象格、距離）；遠距主人消失（0x497d00）改清owner。
 static void npc_idle_ai(Actor *a) {
     const NpcSpec *sp = a->spec;
     if (a->direction_clock % 100 == 1) {
@@ -5023,13 +5024,25 @@ static void npc_idle_ai(Actor *a) {
                         actor_command(a, 1, sp->path[i][0], sp->path[i][1], 0, 1, 0);
                     }
                 } else if (!a->follow_id) {
-                    Actor *p = actor_near_begin(a, 3, 6);
-                    if (p) { a->follow_id = p->sh ? p->sh : (int)p->object_id; a->npc_timer = 100; }
+                    if (!sp->link) {
+                        Actor *p = actor_near_begin(a, 3, 6);
+                        if (p) { a->follow_id = p->sh ? p->sh : (int)p->object_id; a->npc_timer = 100; }
+                    } else {  // 0x46a260 找座標相符的 SInit（種類 10~16），再由它找角色；找不到 → 休息值改 4（原地不動）
+                        for (int i = 1; i < actor_count; i++) {
+                            const NpcSpec *o = actors[i].spec;
+                            if (o && o->ont && o->type >= 10 && o->type <= 16 && o->x == sp->link_x && o->y == sp->link_y && actors[i].role) {
+                                a->follow_id = actors[i].sh ? actors[i].sh : (int)actors[i].object_id;
+                                break;
+                            }
+                        }
+                        if (!a->follow_id) a->npc_rest_stop = 1;
+                    }
                 } else {
                     Actor *p = actor_of(a->follow_id);
-                    if (!p || is_foe(a, p)) a->follow_id = 0;
-                    else if (sp->rh < dist_of(actor_init_x(p), actor_init_y(p), cx, cy))
-                        actor_command(a, sp->rw ? 2 : 1, actor_init_x(p), actor_init_y(p), sp->rh, 1, 0);
+                    if (!p) { if (!sp->link) a->follow_id = 0; else a->npc_rest_stop = 1; }
+                    else if (is_foe(a, p)) a->follow_id = 0;
+                    else if (sp->fol_dist < dist_of(actor_init_x(p), actor_init_y(p), cx, cy))
+                        actor_command(a, sp->fol_mode ? 2 : 1, actor_init_x(p), actor_init_y(p), sp->fol_dist, 1, 0);
                 }
             }
         }
@@ -6371,32 +6384,55 @@ static void hero_refresh(Actor *h) {
     actor_look_set(h, &hero_def);
 }
 
-// 能不能穿（0x1004c0e0）：等級、力量、體質、敏捷夠，耐久不是 0，已鑑定
-static int item_can_equip(const Actor *h, const Item *it) {
-    return it->part > 0 && h->level >= it->lv_req && hero_attr[STR] + h->ex[27] >= it->str_req && hero_attr[CON] + h->ex[28] >= it->con_req &&
-           hero_attr[DEX] + h->ex[29] >= it->dex_req && it->hp != 0 && it->identify;
+// 能不能穿（EasyRPG.dll 0x1004c0e0，回傳值反編譯漏掉，由機碼核對）：回「差哪幾項」的位元，0 = 可以穿（伺服端設進道具 Enable，客戶端依此畫紅字）：
+// 1 等級 < LevelReq、2 Str < StrReq、4 Con < ConReq、8 Dex < DexReq、0x10 道具 HP == 0（壞了）、0x20 沒鑑定。數值是人物目前的 Level／Str／Con／Dex 屬性
+static int item_equip_flags(const Actor *h, const Item *it) {
+    return (h->level < it->lv_req) | (hero_attr[STR] + h->ex[27] < it->str_req) << 1 | (hero_attr[CON] + h->ex[28] < it->con_req) << 2 |
+           (hero_attr[DEX] + h->ex[29] < it->dex_req) << 3 | (it->hp == 0) << 4 | !it->identify << 5;
 }
+// 客戶端穿裝前的檢查（Poq.exe 0x50bb30）：類型 7~24、27、33、34（武器、盾）要在職業可用表（0x63b490，每職業 6 格）裡；
+// 其他類型不限。職業序號 1~5 以外原版會讀到別的表（隊友用），這裡不限
+static int prof_can_use(int prof, int type) {
+    static const int W[5][6] = {{8, 10, 22, 11, 13, 27}, {18, 19, 20, 21, 23, 24}, {7, 9, 11, 12, 13, 14}, {15, 17, 33, 34, 0, 0}, {15, 16, 33, 34, 0, 0}};
+    if (!((type >= 7 && type <= 24) || type == 27 || type == 33 || type == 34) || prof < 1 || prof > 5) return 1;
+    for (int i = 0; i < 6; i++) if (W[prof - 1][i] == type) return 1;
+    return 0;
+}
+static int item_can_equip(const Actor *h, const Item *it) { return it->part > 0 && !item_equip_flags(h, it) && prof_can_use(hero_prof, it->type); }
 
-// 部位 → 裝備欄：1 頭盔、2 盔甲、3 單手（箭 13、14 放左手）、4 盾 = 左手、5 護腕、6 靴子、7 戒指（右手空著放右手）、8 項鍊、10 雙手 = 右手、11 腰帶
+// 部位 → 裝備欄（Poq.exe 0x508c60 的 EquipPos 轉換，EquipPos = 道具 Part）：1~7 → 30~36、8 項鍊 → 38、9 → 34、10 雙手 → 33（左手）、11 腰帶 → 39；
+// 再依 0x50c390 的放法調整（equip_route）。類型要在 7~34
 static int equip_slot(const Item *it) {
-    switch (it->part) {
-    case 1: return 30;
-    case 2: return 31;
-    case 3: return it->type == 13 || it->type == 14 ? 33 : 32;
-    case 4: return 33;
-    case 5: return 34;
-    case 6: return 35;
-    case 7: return inv[36].name[0] && !inv[37].name[0] ? 37 : 36;
-    case 8: return 38;
-    case 10: return 32;
-    case 11: return 39;
+    static const int M[12] = {-1, 30, 31, 32, 33, 34, 35, 36, 38, 34, 33, 39};
+    return it->type >= 7 && it->type <= 34 && it->part >= 1 && it->part <= 11 ? M[it->part] : -1;
+}
+// 放法調整（Poq.exe 0x50c390 的 0x50d0xx 一段）：目標是手（32、33）且已有東西、新道具類型 7~24 或 27：
+// 弓 11 放在箭 13 上、箭 13 放在弓 11 上、弩 12 與矢 14 同理、類型 <11 或 22 放在盾 27 上、盾放在類型 7~10 或 22 上、
+// 類型 21／23／24 放在 21／23／24 上 → 改放另一隻手；目標是戒指（36、37）且已有、類型 30、另一枚戒指欄是空的 → 放另一欄。其他照目標欄放（互換）。
+// 原版這段要一個旗標參數 param_7 非 0 才做，呼叫點沒有解出，這裡一律做
+static int equip_route(int s, const Item *it) {
+    int t = it->type;
+    if ((s == 32 || s == 33) && inv[s].name[0] && ((t >= 7 && t <= 24) || t == 27)) {
+        int e = inv[s].type, sw = 0;
+        if (t == 11) sw = e == 13;
+        else if (t == 13) sw = e == 11;
+        else if (t == 12) sw = e == 14;
+        else if (t == 14) sw = e == 12;
+        else if ((t < 11 || t == 22) && e == 27) sw = 1;
+        else if (t == 27) sw = (e >= 7 && e <= 10) || e == 22;
+        else if ((t == 21 || t == 23 || t == 24) && (e == 21 || e == 23 || e == 24)) sw = 1;
+        if (sw) return s == 32 ? 33 : 32;
     }
-    return -1;
+    if ((s == 36 || s == 37) && t == 30 && inv[s].name[0] && !inv[s == 36 ? 37 : 36].name[0]) return s == 36 ? 37 : 36;
+    return s;
 }
 
 // 成套武装（EasyRPG.dll 0x1001eaa0 把各件裝備移進一件「秦殇/道具/成套武装」放 UI_Pos 40，裡面的道具保留原本的 UI_Pos）。
-// shortcut: 這裡不真的搬進容器，件留在 30~39、inv[40] 只記是哪幾格（set_mask）；穿著時數值照原樣算（原版套裝內道具怎麼算還沒查）。
-// 成員欄一有變動就拆掉套裝（原版拖放規則還沒拆）。套裝本身不能放進背包，點它 = 拆開
+// 原版對照（2026-11-23）：組套（0x1001eaa0 多參數版）只把各件 FUN_1004df20 掛進容器、各件 UI_Pos 不動，沒有走 0x1004cb00，所以不重算數值——
+// 套裝沒有額外加成，各件的特性在穿上時早已複製進人物（0x1002fe20）；拆套（兩參數版）= 刪掉容器，0x1003e920 把內容物掛回持有者、UI_Pos 仍在 30~39。
+// 所以「成員照單件算」就是原版。引擎不搬進容器，inv[40] 只記是哪幾格（set_mask）。
+// 沒移植：容器本身的模板屬性（秦殇/道具/成套武装 不在 story 抽出檔內）、客戶端對容器成員數的鏡像（Poq 0x50c390 的 MemberCount／HangData）；
+// 成員欄一有變動就拆掉套裝是簡化（原版容器仍包著，成員被搬走時只改該件 UI_Pos）。套裝本身不能放進背包，點它 = 拆開
 static void set_asunder(void) {  // Poq.exe 0x5554c0 「weaponset #主角 #套裝」→ EasyRPG.dll 0x1001eaa0 的兩參數版：把套裝拆回各件
     if (!inv[40].name[0]) { hud_msg(1207); return; }
     memset(&inv[40], 0, sizeof inv[40]);
@@ -6465,19 +6501,22 @@ static int item_unequip(Actor *h, int s) {
     return 1;
 }
 
-// 穿上背包 p 的道具，原來那格的換回背包。雙手武器要空出左手（箭除外），左手放東西時右手不能是雙手武器
-// shortcut: 原版 Poq.exe 拖放裝備的檢查（哪些部位能互放、弓配箭）還沒拆，照部位表推的
+// 穿上背包 p 的道具，原來那格的換回背包。檢查與放法照原版客戶端（item_can_equip／equip_slot／equip_route）：
+// 原版沒有「雙手武器要空出左手」「左手有東西右手不能是雙手」的規則——雙手武器（Part 10）本來就放左手欄 33，與盾、箭互換
 static void item_equip_slot(Actor *h, int p, int want) {
     Item *it = &inv[p];
     int s = equip_slot(it);
     if (s < 0) return;
-    if (want >= 0 && want != s) {  // 拖放到指定格：只有該部位本來能放的格（戒指兩格都行）
-        if (!(it->part == 7 && (want == 36 || want == 37))) { hud_say("這件裝備不能放在這一格"); return; }
+    if (want >= 0 && want != s) {  // 拖放到指定格：只有該部位本來能放的格（戒指兩格、手兩格都行）
+        if (!((it->part == 7 && (want == 36 || want == 37)) || ((s == 32 || s == 33) && (want == 32 || want == 33)))) { hud_say("這件裝備不能放在這一格"); return; }
         s = want;
     }
-    if (!item_can_equip(h, it)) { hud_say(!it->identify ? "需要先鑑定" : it->hp == 0 ? "已經損壞，需要修理" : "條件不足，不能裝備"); return; }
-    if (s == 32 && it->part == 10 && inv[33].name[0] && inv[33].type != 13 && inv[33].type != 14 && !item_unequip(h, 33)) return;
-    if (s == 33 && inv[32].name[0] && inv[32].part == 10 && !(it->type == 13 || it->type == 14) && !item_unequip(h, 32)) return;
+    int fl = item_equip_flags(h, it);
+    if (it->part <= 0 || fl || !prof_can_use(hero_prof, it->type)) {
+        hud_say(fl & 0x20 ? "需要先鑑定" : fl & 0x10 ? "已經損壞，需要修理" : fl ? "條件不足，不能裝備" : "這個職業不能用");
+        return;
+    }
+    s = equip_route(s, it);
     inv_swap(p, s);
     item_sel = -1;
     hero_refresh(h);
@@ -7512,7 +7551,7 @@ static Actor *team_make(const Scene *s, int h) {
     Actor *a = &actors[actor_count++];
     NpcSpec *sp = &team_spec[slot];
     // 邏輯 3 = 跟隨（npc_idle_ai）：離主角超過 rh 格就走過去（命令 2 = 跟著走）
-    *sp = (NpcSpec){.type = 15, .logic = 3, .tmpl = d->id, .x = cx, .y = cy, .rw = 1, .rh = 3, .dir = 0};
+    *sp = (NpcSpec){.type = 15, .logic = 3, .tmpl = d->id, .x = cx, .y = cy, .fol_mode = 1, .fol_dist = 3, .dir = 0};
     memset(a, 0, sizeof *a);
     npc_behavior_reset(a);
     a->x = cx + 0.5f;

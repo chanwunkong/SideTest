@@ -757,6 +757,7 @@ static void parse_ont(Scene *s, char *text) {
             memset(n, 0, sizeof *n);
             initial_count = 0;
             n->type = iv;
+            n->ont = 1;
             n->logic = iv == 13 ? 1 : iv == 14 ? 2 : iv == 15 ? 3 : 0;
         } else if (!n) {
             continue;
@@ -769,6 +770,11 @@ static void parse_ont(Scene *s, char *text) {
         else if (!strcmp(k, "\xd0\xd0\xd7\xdf\xd0\xdd\xcf\xa2")) n->rest = iv; // 行走休息
         else if (!strcmp(k, "\xb3\xf5\xca\xbc\xcc\xac") && initial_count < 2)
             n->initial_state[initial_count++] = (uint16_t)iv; // 初始态，原版同名鍵連讀兩次
+        else if (n->type == 15 && !strcmp(k, "a")) n->fol_a = iv;                      // SInitChaFollow +0x7c
+        else if (n->type == 15 && !strcmp(k, "s")) n->fol_mode = iv;                   // +0x80
+        else if (n->type == 15 && !strcmp(k, "d")) n->fol_dist = iv;                   // +0x84
+        else if (n->type == 15 && !strcmp(k, "x")) { n->rx = iv; n->link = 1; n->link_x = iv; }  // 跟隨：x、y = +0x88／+0x8c 連結的 SInit 座標
+        else if (n->type == 15 && !strcmp(k, "y")) { n->ry = iv; n->link_y = iv; }
         else if ((!strcmp(k, "x") || !strcmp(k, "A_x"))) n->rx = iv;
         else if ((!strcmp(k, "y") || !strcmp(k, "A_y"))) n->ry = iv;
         else if ((!strcmp(k, "cx") || !strcmp(k, "A_cx"))) n->rw = iv;

@@ -97,8 +97,7 @@ static void input_tick(void) {
 
 // 0x457be0：右鍵出手。場景就緒且名單有人才做；名單每個本機隊員（0x4585c0）、沒有狀態 0x11／0xe 的人放自己的左手技能（+0x503）。
 // 目標（點到的角色）有的話放在 foe；沒有就用 (wx, wy) 這個點。
-// shortcut: 技能表 +0x36 旗標（0 地點命令 8／1 敵人／2、4 物件／8 隊友／0x10 自己／0x20 NPC 組／0x40 沒目標也能放）引擎沒有這欄，
-//   由 hero_cast_point 用 skill_manual／skill_needs_foe 近似；隊友沒有左手技能欄，改放 npc_selected 挑的對敵技能（有目標用命令 9、沒有用命令 8 打地點）。
+// 目標檢查照 Reserve4（cast_target_check）。shortcut: 主角出手後的命令 8／9 仍由 hero_cast_point 用 skill_manual／skill_needs_foe 決定；隊友沒有左手技能欄，改放 npc_selected 挑的對敵技能（有目標用命令 9、沒有用命令 8 打地點）。
 static void team_cast_point(Actor *a, int wx, int wy, Actor *target) {
     ActorSkill *sk = npc_selected(a);
     if (!sk) return;
@@ -106,14 +105,42 @@ static void team_cast_point(Actor *a, int wx, int wy, Actor *target) {
     else actor_command(a, 8, sk->id, wx / 64, wy / 64, 1, 0);
     actor_skill_select(a, -1);
 }
+// 0x457be0 的目標檢查（技能表 Reserve4 = Method +0x36 的位元）：回 0 = 這個人不出手，1 = 照目標出手（命令 9），2 = 對地點出手（命令 8）。
+// r4 == 0 → 一律對地點；沒點到東西 → 要 0x40 才對地點；目標是角色（種類 30~100）：敵人要 1、隊上別人要 8、自己要 0x10（隊上 = 本機隊員且組 10000~60000）、
+// 組 100~8899 的 NPC 要 0x20；目標是物件：種類 10~20 要 2、21~29 要 4，其他種類不限。
+static int cast_target_check(const Actor *a, const Method *m, const Actor *t) {
+    unsigned r4 = (unsigned)m->r4 & 0xffff;
+    if (!r4) return 2;
+    if (!t) return r4 & 0x40 ? 2 : 0;
+    if ((unsigned)(t->object_kind - 30) < 71u) {
+        unsigned g = (unsigned)(t->grp - 10000);
+        if (is_foe(a, t) && !(r4 & 1)) return 0;
+        if (g < 0xc351 && input_party_has(t) && t != a && !(r4 & 8)) return 0;
+        if (g < 0xc351 && input_party_has(t) && t == a && !(r4 & 0x10)) return 0;
+        if ((unsigned)(t->grp - 100) < 0x22c4 && !(r4 & 0x20)) return 0;
+        return 1;
+    }
+    unsigned k = (unsigned)(t->object_kind - 10);
+    return (k > 10 || (r4 & 2)) && ((unsigned)(t->object_kind - 0x15) > 8 || (r4 & 4)) ? 1 : 0;
+}
 static int input_cast(int wx, int wy, Actor *target) {
     if (!scene_client.ready || sel_n < 1) return 0;
     if (target) actor_target_set(&actors[0], target);
     for (int i = 0; i < sel_n; i++) {
         Actor *a = sel_list[i];
         if (!a || !input_party_has(a) || has_status(a, 0x11) || has_status(a, 0xe)) continue;
+        // 左手技能的招式（hero：cur_skill[1]；隊友：npc_selected）；查不到招式表就不檢查（舊行為）
+        const Method *m = NULL;
+        if (a == &actors[0]) { int k = cur_skill[1]; if (k >= 0 && k < hero_skill_n) m = method_find(skill_attack_id(&hero_skill[k])); }
+        else if (a->team) { ActorSkill *sk = npc_selected(a); if (sk) m = method_find(sk->id); }
+        Actor *tg = target;
+        if (m) {
+            int c = cast_target_check(a, m, target);
+            if (!c) continue;
+            if (c == 2) tg = NULL;
+        }
         if (a == &actors[0]) hero_cast_point(a, wx, wy);
-        else if (a->team) team_cast_point(a, wx, wy, target);
+        else if (a->team) team_cast_point(a, wx, wy, tg);
     }
     return 1;
 }
