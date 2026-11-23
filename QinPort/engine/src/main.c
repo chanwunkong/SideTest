@@ -9163,6 +9163,10 @@ static void skill_draw(UiDialog *d, int wx, int wy) {
 // shortcut: 隊伍多選名單與指著非角色物件的標示，等對應介面接入；角色腳圈已接繪製。
 // 手機沒有指著，先用攻擊目標；死掉的不顯示（原版只看種類）
 
+// 血條數值：原版 0x459ce0 每拍把角色的生命百分比（+0x507，由 0x48fae0 同步）交給進度條（0x4fa4c0），不是即時 HP；
+// 所以受擊那一拍的血條下一拍才降，而且只有整數百分比。
+static int enemy_bar_pct(const Actor *t) { return t->hp_percent; }
+
 static Actor *status_target(Actor *h, Actor *hover, int mouse) {
     Actor *t = mouse ? hover : actor_target(h);
     return t && t->act != ACT_DEAD ? t : NULL;
@@ -9205,7 +9209,7 @@ static void hud_draw(Actor *hero) {
             actor_title(t, u, sizeof u);
             draw_text(ex + nm->x + (nm->w - text_width(u)) / 2, ey + nm->y + 3, u, nm->w, 0xBECDCE, 1);
         }
-        if (bl) ui_bar_ex(bl, ex, ey, t->hp, t->hp_max, 0, !(bl->flags & 0x10));
+        if (bl) ui_bar_ex(bl, ex, ey, enemy_bar_pct(t), 100, 0, !(bl->flags & 0x10));
     }
     if (!bar.count) return;
     int ox = (vw - bar.w) / 2, oy = vh - bar.h;

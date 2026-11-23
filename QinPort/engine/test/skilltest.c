@@ -4711,6 +4711,74 @@ static void instant_gem_learn_test(void) {
     }
 }
 
+// 主角真實揮刀（真資料：主角角色表、招式表、狼）跑固定拍：傷害落在招式觸發幀、揮擊週期 = 動作拍數 + 出手間隔（Poq 0x48d330）、
+// 敵人血條（0x459ce0 的生命百分比）在受擊後一拍內等於真實 HP。fs = B_C_FIGHT_SPEED 原始值（攻速）。
+static void attack_timing_run(int fs) {
+    Cell cells[20*20];
+    for (int i=0;i<400;i++) cells[i]=(Cell){.walk=1,.layer=1};
+    Scene sc={.w=20,.h=20,.cells=cells}; const Scene *saved_scene=unit_scene; unit_scene=&sc;
+    Actor saved0=actors[0], saved1=actors[1]; int saved_count=actor_count, saved_unit_n=unit_n;
+    hero_look(); skills_load(); hero_default_hands();
+    Actor *h=&actors[0]; memset(h,0,sizeof *h);
+    h->x=5.5f; h->y=5.5f; h->layer=1; h->level=1;
+    actor_setup(h,&hero_def); hero_derive(h); h->hp=h->hp_max=100000; h->hr=100000; actor_look_set(h,&hero_def);
+    actor_group(h,0); hero_skill_apply(h); h->ex[65]=fs;
+    actor_count=1; unit_n=0;
+    assert(mondefs_load());
+    const MonDef *m=mondef_pick("\xd5\xd9\xbb\xbd\xca\xde\xc0\xc7");  // 召唤兽狼
+    assert(m);
+    Actor *t=mon_make(m,roledef_find(m->role),6,5,20);
+    t->hp=t->hp_max=300; t->sr=0; t->object_id=0x80000702u;  // 300 HP、保底傷 3 = 每下 1%
+    const Method *hm=h->atk; assert(hm);
+    const Seq *q=role_seq(h->role,hm->seq+DIR_MAP[h->dir]); assert(q && q->count);
+    int hf=-1;  // 招式的命中幀（觸發 type 0、flag 0）
+    for (int i=0;i<hm->trig_count;i++) if (hm->trig[i].flag==0 && hm->trig[i].type==0) hf=hm->trig[i].frame;
+    assert(hf>0 && hf<q->count);
+    // 獨立算（Poq 0x48d330）：縮短 = 總拍 − trunc(總拍×倍率)；每幀延遲 −(縮短/幀數)，有餘數再 −1
+    int total=0; for (int i=0;i<q->count;i++) total+=q->frames[i].delay;
+    float v=(float)fs; if (v>0) v=v*120.0f/(v+120.0f);
+    int cut=total-(int)((float)total*(100.0f/(v+100.0f))), adj=-(cut/q->count);
+    if (cut%q->count && cut>=1) adj--;
+    int swing=0, before_hit=0;
+    for (int i=0;i<q->count;i++) { int d=q->frames[i].delay+adj; d=d<1?1:d; swing+=d; if (i<hf) before_hit+=d; }
+    int delay=h->def->atk_delay; assert(delay>0);
+    srand(5);
+    int starts=0, hits=0, start_cool=0, extra=0, last_hp=t->hp, hit_at=-1; Uint32 start=0; unsigned serial=h->action_serial;
+    int n=30000, first_start=0, last_start=0;
+    for (Uint32 tick=1; tick<=(Uint32)n; tick++) {
+        actor_logic_tick=tick;
+        for (int i=0;i<2;i++) { actor_motion_tick(&actors[i]); actor_health_sync(&actors[i]); }
+        actor_maintenance_tick(h); actor_skill_command_tick(h);
+        int prev_pct=enemy_bar_pct(t);
+        if (!h->foe) hero_attack(h,t);
+        if (h->act) action_tick(h,&sc,tick);
+        units_tick(tick);
+        if (h->action_serial!=serial) {
+            if (starts) assert((int)(tick-start)==start_cool+swing);  // 下一揮 = 動作拍數 + 綁定時裝的冷卻（冷卻在動作期間不遞減）
+            start_cool=h->cool; extra=h->extra>0?h->extra:0;
+            assert(start_cool>=delay+extra && start_cool<=2*delay-1+extra);  // 間隔 = delay + rand%delay，加攻速餘拍
+            serial=h->action_serial; start=tick; hit_at=-1; if (!starts++) first_start=tick; last_start=tick; }
+        if (t->hp!=last_hp) {  // 打中的那一拍：落在命中幀第一次被取樣的拍（動作開始的下一拍起算）
+            assert(tick==start+1+before_hit && hit_at<0); hit_at=tick; hits++; last_hp=t->hp;
+            assert(enemy_bar_pct(t)==prev_pct);
+        } else if (hit_at>=0 && (int)tick==hit_at+1) {  // 下一拍同步後 = 真實 HP 的整數百分比
+            assert(enemy_bar_pct(t)==t->hp*100/t->hp_max);
+        }
+        assert(enemy_bar_pct(t)==t->hp_percent);
+        if (t->hp<150) t->hp=last_hp=300;  // 不讓牠死（死亡另有流程）
+    }
+    // 揮擊週期 = 動作拍數 + 動作結束到下一次出手：間隔 delay + rand%delay（平均 delay + (delay−1)/2）加攻速餘拍
+    double cycle=(double)(last_start-first_start)/(starts-1), expect=swing+delay+(delay-1)/2.0+extra;
+    assert(fabs(cycle-expect)<expect*0.04);
+    assert(hits>=starts*8/10 && hits<=starts);  // 命中率上限 90%
+    actors[0]=saved0; actors[1]=saved1; actor_count=saved_count; unit_n=saved_unit_n; unit_scene=saved_scene;
+}
+static void attack_timing_test(void) {
+    roledefs_load();
+    attack_timing_run(0);
+    attack_timing_run(60);   // 有攻速加成：每幀延遲縮短、命中幀跟著提前
+}
+
 int main(void) {
     weaponset_test();
     newchar_opt_test();
@@ -5948,6 +6016,7 @@ int main(void) {
         tt.object_kind = 22; assert(cast_target_check(&aa, &m, &tt) == 1);
         m.r4 = 2; assert(cast_target_check(&aa, &m, &tt) == 0);
     }
+    attack_timing_test();
     puts("skilltest ok");
     return 0;
 }
