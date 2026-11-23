@@ -4322,6 +4322,55 @@ static void npc_ai_test(void) {
 
 // 對話視窗 JM108 高度：底圖 150 起跳，台詞／選項放不下就加高；difficulty 預設普通
 // 地圖視窗 JM60：開窗、m_pAll 切換、m_pCClose 關、小地圖格座標（每格 8×4 菱形，64×64 剛好 512×256）
+// 範圍稽核（tools/range_audit.md）：觸控攻擊鍵在「沒有敵人」時代替點擊挑目標的距離（觸控適配），裡面不到才動、剛好外面不動
+static void touch_pick_range_test(void) {
+    RoleDef d = {.speed = 10, .hit = 65535};
+    Actor save0 = actors[0], save1 = actors[1]; int save_n = actor_count, save_g = ground_n;
+    const Scene *save_scene = unit_scene;
+    Cell cells[64 * 3] = {0}; uint16_t fp[] = {0x88};
+    Model dm = {.type = 0x96, .part_count = 1, .grid_w = 1, .grid_h = 1, .footprint = fp};
+    Object door = {.m = &dm, .tri = 1, .state = 0, .x = 0, .y = 1};
+    snprintf(door.name, sizeof door.name, "go east");
+    Scene sc = {.w = 64, .h = 3, .cells = cells, .objects = &door, .object_count = 1};
+    unit_scene = &sc; ground_n = 0;
+    for (int dx = 2; dx <= 4; dx++) {  // 門：3 格內挑、4 格不挑（舊值 5 格）
+        for (int i = 0; i < 64 * 3; i++) cells[i] = (Cell){0};
+        door.x = 10 + dx; door.y = 1;
+        Cell *c = &cells[1 * 64 + door.x]; c->flags = 0x88; c->view = 2; c->building = 0; c->walk = 1;
+        actors[0] = (Actor){.def = &d, .role = &empty_test_role, .dynamic_state = 1, .speed = 10, .selected = -1, .right_id = -1, .left_id = -1, .x = 10.5f, .y = 1.5f};
+        actors[0].command[0] = actors[0].remembered[0] = -1;
+        actor_count = 1; touch_attack_building_done = touch_hold_fought = 0;
+        touch_attack_nearest(&actors[0]);
+        assert(touch_attack_building_done == (dx <= TOUCH_PICK_DOOR2 / 3 ? 1 : 0));  // dx 3 = 9 → 挑，4 = 16 → 不挑
+    }
+    unit_scene = save_scene;
+    for (int dx = 2; dx <= 3; dx++) {  // 地上道具：2 格內撿、3 格不撿
+        Item it = {0};
+        ground_n = 1; memset(ground, 0, sizeof ground[0]); ground[0].it = it; ground[0].x = 10.5f + dx; ground[0].y = 1.5f; ground[0].id = 77;
+        actors[0] = (Actor){.def = &d, .role = &empty_test_role, .dynamic_state = 1, .speed = 10, .selected = -1, .right_id = -1, .left_id = -1, .x = 10.5f, .y = 1.5f};
+        actors[0].command[0] = actors[0].remembered[0] = -1;
+        unit_scene = &sc; sc.object_count = 0; actor_count = 1; touch_attack_building_done = touch_hold_fought = 0;
+        touch_attack_nearest(&actors[0]);
+        assert(touch_attack_building_done == (dx <= 2));
+        sc.object_count = 1;
+    }
+    ground_n = 0;
+    for (int dx = 2; dx <= 3; dx++) {  // 人：2 格內說話、3 格不說（原版點人 3 格內才開口，這裡更保守）
+        actors[0] = (Actor){.def = &d, .role = &empty_test_role, .dynamic_state = 1, .speed = 10, .selected = -1, .right_id = -1, .left_id = -1, .x = 10.5f, .y = 1.5f};
+        actors[0].command[0] = actors[0].remembered[0] = -1;
+        actors[1] = (Actor){.def = &d, .role = &empty_test_role, .dynamic_state = 1, .speed = 10, .grp = 0, .sh = 9, .x = 10.5f + dx, .y = 1.5f};
+        sc.object_count = 0; actor_count = 2; touch_attack_building_done = touch_hold_fought = 0;
+        touch_attack_nearest(&actors[0]);
+        assert(touch_attack_building_done == (dx <= 2));
+    }
+    // 按住中已經打過敵人 → 不再改成撿／說話／開門
+    actors[0].x = 10.5f; actors[1].x = 12.5f; touch_hold_fought = 1; touch_attack_building_done = 0;
+    touch_attack_nearest(&actors[0]);
+    assert(!touch_attack_building_done);
+    touch_hold_fought = 0;
+    actors[0] = save0; actors[1] = save1; actor_count = save_n; ground_n = save_g; unit_scene = save_scene;
+}
+
 static void map_test(void) {
     map_open = 0; map_show();
     assert(map_open && ui_find(&map_d, "m_pSite[35]") && !(ui_find(&map_d, "m_pDestiation")->flags & 9));
@@ -5109,6 +5158,7 @@ static void attack_timing_test(void) {
 }
 
 int main(void) {
+    touch_pick_range_test();
     weaponset_test();
     newchar_opt_test();
     shake_left = 0;

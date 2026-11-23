@@ -300,6 +300,11 @@ static int touch_skill_aims(const SkillRow *r) {
 static Object *hover_building(int cx, int cy);
 static int click_building(Actor *h, Object *b, int cx, int cy);
 static int touch_attack_building_done;  // 這次按住已經對建築出過手（一次按住只出一次，不然每拍重送命令）
+static int touch_hold_fought;  // 這次按住已經打過敵人：之後不再改成開門／撿東西／說話（打完怪還按著不放會突然進場景）
+// 觸控適配：攻擊鍵在沒有敵人時代替「點一下」挑目標，只在這些格距內挑（歐氏距離平方，主角格到目標格）；
+// 挑到後的實際範圍照原版命令（0x10 門點旁 3×3、0x11 2 格、0x12 < 0x60 px、0x13 4 格、0xf 3 格內且通視）走過去才動作。
+// 原版是點到哪個才動作，所以這裡比原版任何點擊都保守：門 3 格、其他東西 2 格、地上道具 2 格、人 2 格。
+enum { TOUCH_PICK_DOOR2 = 9, TOUCH_PICK_OBJ2 = 4, TOUCH_PICK_ITEM2 = 4, TOUCH_PICK_NPC2 = 4 };
 static Actor *touch_nearest_foe(Actor *h) {
     float best = h->def ? actor_seek(h) : 10;
     Actor *found = NULL;
@@ -309,8 +314,9 @@ static Actor *touch_nearest_foe(Actor *h) {
 }
 static void touch_attack_nearest(Actor *h) {
     Actor *found = touch_nearest_foe(h);
+    if (found) touch_hold_fought = 1;
     if (found) { if (touch_active()) hero_attack_touch(h, found, -1); else hero_attack(h, found); }  // 觸控適配：攻擊自動轉向／自動追蹤目標
-    if (found || touch_attack_building_done || !unit_scene) return;
+    if (found || touch_attack_building_done || touch_hold_fought || !unit_scene) return;
     // 沒有敵人：攻擊鍵 = 原版「點游標下的東西」。最近的可互動建築（樹、礦、水缸、箱子、門）8 格內，照原版點建築的做法（click_building）
     // shortcut: 手機沒有滑鼠游標，攻擊鍵代替點擊；原版是點到哪個建築就對哪個
     int hx = (int)h->x, hy = (int)h->y; Object *pick = NULL; int pcx = 0, pcy = 0, pd = 1 << 30;
@@ -323,20 +329,20 @@ static void touch_attack_nearest(Actor *h) {
         for (int y = y0; y < y0 + h2; y++)
             for (int x = x0; x < x0 + w; x++) {
                 int dx = x - hx, dy = y - hy, d = dx * dx + dy * dy;
-                if (d > 25 || hover_building(x, y) != o) continue;
-                if (door_is_go(o)) d /= 4;  // 門優先（不然站在樹旁永遠進不了屋）；門 5 格內、其他東西只認 2 格內（不要被遠處的罐子拉過去）
-                else if (d > 4) continue;
+                if (d > TOUCH_PICK_DOOR2 || hover_building(x, y) != o) continue;
+                if (door_is_go(o)) d /= 4;  // 門優先（不然站在樹旁永遠進不了屋）；門 3 格內、其他東西只認 2 格內（不要被遠處的罐子拉過去）
+                else if (d > TOUCH_PICK_OBJ2) continue;
                 if (d >= pd) continue;
                 pick = o; pcx = x; pcy = y; pd = d;
             }
     }
     if (pick && click_building(h, pick, pcx, pcy)) { touch_attack_building_done = 1; return; }
-    // 附近沒有建築可用：撿 3 格內最近的地上道具（原版命令 0x11 = 點地上道具）。挖礦後道具掉在身邊，常被右側隊伍欄／技能鍵蓋住點不到
-    int gb = -1; float gd = 9;
+    // 附近沒有建築可用：撿 2 格內最近的地上道具（原版命令 0x11 = 點地上道具）。挖礦後道具掉在身邊，常被右側隊伍欄／技能鍵蓋住點不到
+    int gb = -1; float gd = TOUCH_PICK_ITEM2;
     for (int i = 0; i < ground_n; i++) { float dx = ground[i].x - h->x, dy = ground[i].y - h->y, d = dx * dx + dy * dy; if (d <= gd) { gd = d; gb = i; } }
     if (gb >= 0) { actor_command(h, 0x11, ground[gb].id, 0, 0, 1, 1); h->foe = NULL; h->want = NULL; touch_attack_building_done = 1; return; }
-    // 最後：3 格內最近的人 = 點人說話（原版命令 0xf）
-    Actor *np = NULL; float nd = 9;
+    // 最後：2 格內最近的人 = 點人說話（原版命令 0xf）
+    Actor *np = NULL; float nd = TOUCH_PICK_NPC2;
     for (int i = 1; i < actor_count; i++) {
         Actor *n = &actors[i];
         if (n->mon || !n->role || n->act == ACT_DEAD || n->team || is_foe(n, h) || has_status(n, 103)) continue;
@@ -409,8 +415,8 @@ static void touch_button(Actor *h, int b) {
 // 每幀：按住攻擊鍵就一直打最近的敵人（目標死了或沒有才重選，免得每幀換目標）
 static void touch_frame(Actor *h) {
     touch_sync();
+    if (!tch.held[TB_ATK]) touch_attack_building_done = touch_hold_fought = 0;  // 鍵盤空白鍵也走 touch_attack_nearest：放開（沒按住）就重置
     if (!touch_active()) return;
-    if (!tch.held[TB_ATK]) touch_attack_building_done = 0;
     if (tch.held[TB_ATK] && h->act != ACT_DEAD && (!alive(h->foe) || !opt_chase)) touch_attack_nearest(h);  // 追蹤 OFF：命令 8 不記住，按住就每幀重送（冷卻中不會出手）
 }
 
