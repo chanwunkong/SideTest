@@ -94,7 +94,7 @@ static const uint8_t SPEED_C[60] = {0,0,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,3,7,0,
 // 畫面方向(0=上，順時針每 45°) → 動畫方向編號。動畫方向從「右」開始逆時針排（手機實測校正）
 static const int DIR_MAP[8] = {2, 1, 0, 7, 6, 5, 4, 3};
 
-typedef struct { SDL_Texture *tex; int w, h; } Sprite;
+typedef struct { SDL_Texture *tex; int w, h, alpha; } Sprite;  // alpha = xbm 帶逐像素 alpha（猜 = 原版 SBMP +0x52）
 
 static SDL_Renderer *ren;
 static int vw = 800, vh = 600;
@@ -173,7 +173,9 @@ static const Sprite *image(uint32_t ref) {
     if (s->tex) return s;
     if (s->w < 0) return NULL;
     res_waiting = 0;
-    return upload_or_wait(s, res_image(ref, &s->w, &s->h));
+    uint32_t *px = res_image(ref, &s->w, &s->h);
+    s->alpha = px && xbm_last_alpha;
+    return upload_or_wait(s, px);
 }
 
 // 地上道具圖（ResUI 28×28 不透明、黑底）：黑色當透明。shortcut: 原版地上道具怎麼畫還沒查，看到原版畫法再改
@@ -8143,8 +8145,20 @@ enum { O_TRANS, O_GORE, O_AUTOSAVE, O_PAUSE1, O_PAUSE2, O_PAUSE3, O_PAUSE4, O_SO
 static const char *const opt_name[O_N] = {"m_pTransparent", "m_pGore", "m_pAutoSave", "m_pAutoPause1", "m_pAutoPause2", "m_pAutoPause3",
                                           "m_pAutoPause4", "m_pSound", "m_pMusic", "m_pSpeed", "m_pGamma", "m_pLight", "m_pResolution"};
 static const int opt_max[O_N] = {1, 1, 1, 1, 1, 1, 1, 100, 100, 5, 100, 1, 2};  // 光影 2 種（0x5470f0 取 &1）、解析度 3 種（0x5471b0 取 %3）
-static const int opt_def[O_N] = {0, 1, 1, 0, 0, 0, 0, 100, 15, 3, 50, 0, 0};
+static int opt_def[O_N] = {0, 1, 1, 0, 0, 0, 0, 100, 15, 3, 50, 0, 0};
 static int opt_v[O_N] = {0, 1, 1, 0, 0, 0, 0, 100, 15, 3, 50, 0, 0}, opt_bak[O_N];
+// 觸控適配：觸控／網頁版「透明效果」預設開（原版 Config.ini 預設 0；使用者要樹／屋頂半透明），勾選存 localStorage qinTransOpt（-1 = 沒存過 → 預設開）；
+// 電腦版照 Config.ini、不存檔。「預設值」鍵也回到這個預設。shortcut: --touch 的電腦版也預設開，但不存。
+static int trans_resolve(int touch, int stored, int ini) { return touch ? (stored < 0 ? 1 : stored != 0) : ini != 0; }
+#ifdef __EMSCRIPTEN__
+EM_JS(int, js_trans_opt_get, (void), { var v = localStorage.getItem('qinTransOpt'); return v === null ? -1 : parseInt(v); });
+EM_JS(void, js_trans_opt_set, (int v), { localStorage.setItem('qinTransOpt', '' + v); });
+#endif
+static void trans_save(void) {
+#ifdef __EMSCRIPTEN__
+    js_trans_opt_set(opt_v[O_TRANS]);
+#endif
+}
 static UiDialog opt_d, help_d;
 static int opt_open, help_open, help_tab;
 
@@ -8206,14 +8220,14 @@ static int opt_tap(int x, int y) {
     const UiCtrl *c = ui_button_at(&opt_d, ox, oy, x, y);
     if (c) {
         int k = opt_ctrl(c->name);
-        if (k >= 0 && k < O_SOUND) opt_v[k] ^= 1;
+        if (k >= 0 && k < O_SOUND) { opt_v[k] ^= 1; if (k == O_TRANS) trans_save(); }
         else if (!strcmp(c->name, "m_pLight") || !strcmp(c->name, "m_pNextLight")) opt_v[O_LIGHT] = (opt_v[O_LIGHT] + 1) & 1;  // 0x5470f0
         else if (!strcmp(c->name, "m_pPrevLight")) opt_v[O_LIGHT] = opt_v[O_LIGHT] == 0 ? 1 : opt_v[O_LIGHT] - 1;  // 0x547080
         else if (!strcmp(c->name, "m_pNextResolution")) opt_v[O_RES] = (opt_v[O_RES] + 1) % 3;  // 0x5471b0
         else if (!strcmp(c->name, "m_pPrevResolution")) opt_v[O_RES] = opt_v[O_RES] == 0 ? 2 : opt_v[O_RES] - 1;  // 0x547160
-        else if (!strcmp(c->name, "m_pDefaults")) { memcpy(opt_v, opt_def, sizeof opt_v); opt_apply(); opt_turn = 1; opt_chase = 0; touch_opt_save(); }
+        else if (!strcmp(c->name, "m_pDefaults")) { memcpy(opt_v, opt_def, sizeof opt_v); opt_apply(); trans_save(); opt_turn = 1; opt_chase = 0; touch_opt_save(); }
         else if (!strcmp(c->name, "m_pOK")) opt_open = 0;
-        else if (!strcmp(c->name, "m_pCancel")) { memcpy(opt_v, opt_bak, sizeof opt_v); opt_apply(); opt_open = 0; }
+        else if (!strcmp(c->name, "m_pCancel")) { memcpy(opt_v, opt_bak, sizeof opt_v); opt_apply(); opt_open = 0; trans_save(); }
         return 1;
     }
     for (int k = O_SOUND; k <= O_GAMMA; k++) {  // 滑桿／亮度條：點的位置換算成值
@@ -10508,6 +10522,13 @@ static int rec_begin(const char *name, Scene *s, Actor *hero, const char *room) 
 
 
 #include "touch_ui.c"
+static int trans_touch(void) {
+#ifdef __EMSCRIPTEN__
+    return 1;
+#else
+    return tch.forced;
+#endif
+}
 
 // 視窗（網頁 = 瀏覽器可視區）實際大小，排版用
 #ifdef __EMSCRIPTEN__
@@ -10738,7 +10759,13 @@ int main(int argc, char **argv) {
     uint8_t *cfg = res_file("ini", "Config.ini", &cfg_size);
     if (cfg) res_unxor(cfg, cfg_size);
     const char *cfg_text = cfg ? (const char *)cfg : "";
-    opt_v[O_TRANS] = ini_int(cfg_text, "\xcd\xb8\xc3\xf7\xd0\xa7\xb9\xfb=", 0) != 0;  // 透明效果（0x547280 的 0x1af → 0x639f38）：遮擋重畫半透明
+    int trans_ini = ini_int(cfg_text, "\xcd\xb8\xc3\xf7\xd0\xa7\xb9\xfb=", 0) != 0;
+    int trans_stored = -1;
+#ifdef __EMSCRIPTEN__
+    trans_stored = js_trans_opt_get();
+#endif
+    opt_def[O_TRANS] = trans_resolve(trans_touch(), -1, trans_ini);  // 觸控適配：預設值鍵回到這個
+    opt_v[O_TRANS] = trans_resolve(trans_touch(), trans_stored, trans_ini);  // 透明效果（0x547280 的 0x1af → 0x639f38）：遮擋重畫半透明
     audio_init(ini_int(cfg_text, "\xd2\xf4\xc0\xd6=", 1) ? ini_int(cfg_text, "\xd2\xf4\xc0\xd6\xd2\xf4\xc1\xbf=", 15) : 0,   // 音乐、音乐音量
                ini_int(cfg_text, "\xd2\xf4\xd0\xa7=", 1) ? ini_int(cfg_text, "\xd2\xf4\xd0\xa7\xd2\xf4\xc1\xbf=", 100) : 0);  // 音效、音效音量
     free(cfg);

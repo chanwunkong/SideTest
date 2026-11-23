@@ -315,6 +315,7 @@ static SDL_Rect viewport_building_rect(const Object *o, int sx, int sy, Uint32 t
 // 0x4823d0 / 0x4825c0：普通／半透明／反白；未知顯示方式不畫。
 // shortcut: SDL RGBA 取代原版色表與 SBMP +0x52 分支；反白以加亮混色，
 // 待逐像素色表及原始表面旗標接入後還原調色／透明表面細節。
+static int part_filter;  // 觸控適配：0 全畫；1 略過帶 alpha 的圖；2 只畫帶 alpha 的圖（遮擋重畫分兩段，見 viewport_occlude_draw）
 static void building_part_draw(const Object *o, int part, int sx, int sy, Uint32 tick, int force_special) {
     const Part *pt = &o->m->parts[part];
     const Anim *a = pt->anim ? anim_get(pt->gid) : NULL;
@@ -325,6 +326,7 @@ static void building_part_draw(const Object *o, int part, int sx, int sy, Uint32
         im = image(f->ref); x -= f->dx; y -= f->dy;
     } else if (!pt->anim) im = image(pt->gid);
     if (!im || !im->tex) return;
+    if (part_filter && (part_filter == 2) != !!im->alpha) return;
     int mode = force_special || building_special(o, part) ? building_display(o) : 1;
     if (mode != 0 && mode != 1 && mode != 5 && mode != 15) return;
     Uint8 old = draw_alpha;
@@ -473,8 +475,9 @@ static int viewport_occlusion_start(const ViewList *l, const Scene *s, const Vie
 // 0x45ec50：裁切後面積小於20001；從遮擋起點起依序重畫所有較近的前景。
 // 原版先把前景畫到透明暫存層（0xd4／0xdc）再整層貼回，貼回旗標 = 全域0x639f38（設定視窗「透明」，Config.ini 透明效果）開 ? 0x80 : 0；
 // 開 = 樹／屋頂半透明，被擋的角色透出來；關 = 不透明（原版預設）。
-// shortcut: 旗標0x80 當 SDL alpha 128（Gfx3D.dll Paint 未拆，實際混色式未核對）；帶 SBMP 半透明旗標(+0x52)的部件原版走 0x483980 直接畫、不受選項影響，
-// 這裡沒有該旗標，會跟著被減半；關閉時沿用直接重畫（等同原版不透明貼回）。
+// shortcut: 旗標0x80 當 SDL alpha 128（Gfx3D.dll Paint 未拆，實際混色式未核對）；關閉時沿用直接重畫（等同原版不透明貼回）。
+// 觸控適配：帶 SBMP 半透明旗標(+0x52)的部件原版走 0x483980 直接畫、不受選項影響；這裡用 xbm 帶逐像素 alpha（0x24 旗標）當該旗標（猜的，沒對 SBMP 載入碼），
+// 開選項時這些部件不進暫存層（避免減半兩次），整層貼回後再直接畫。
 static Uint8 viewport_occlude_alpha(int on) { return on ? 128 : 255; }
 static SDL_Texture *occlude_layer;
 static void viewport_occlude_draw(const ViewPort *v, const Scene *s, int first, SDL_Rect clip, Uint32 tick, Uint8 alpha) {
@@ -507,7 +510,9 @@ static void viewport_occlude_draw(const ViewPort *v, const Scene *s, int first, 
             const ViewItem *it = &view_buildings.items[i];
             const Object *o = &s->objects[it->index];
             SDL_Point p = viewport_grid_screen(v, o->x, o->y);
+            part_filter = 1;
             building_occlude_draw(o, p.x, p.y, tick);
+            part_filter = 0;
         }
         SDL_SetRenderTarget(ren, target);
         SDL_RenderSetScale(ren, sx, sy);
@@ -515,6 +520,14 @@ static void viewport_occlude_draw(const ViewPort *v, const Scene *s, int first, 
         SDL_RenderSetClipRect(ren, &clip);
         SDL_SetTextureAlphaMod(occlude_layer, alpha);
         SDL_RenderCopy(ren, occlude_layer, &clip, &clip);
+        part_filter = 2;
+        for (int i = first; i >= 0; i--) {
+            const ViewItem *it = &view_buildings.items[i];
+            const Object *o = &s->objects[it->index];
+            SDL_Point p = viewport_grid_screen(v, o->x, o->y);
+            building_occlude_draw(o, p.x, p.y, tick);
+        }
+        part_filter = 0;
         return;
     }
     SDL_RenderSetClipRect(ren, &clip);

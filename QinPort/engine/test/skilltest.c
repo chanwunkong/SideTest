@@ -3483,8 +3483,20 @@ static void viewport_test(void) {
         const Uint8 bg[3] = {200, 100, 50};
         for (int c = 0; c < 3; c++) assert(abs(half[c] - (full[c] + bg[c]) / 2) <= 1);
         assert(draw_alpha == 255);
+        {   // 帶 alpha 的部件（SBMP +0x52 猜）不進暫存層：整層貼回後直接畫 → 開選項時仍是實色，不減半兩次
+            slot_find(keys[1])->alpha = 1;
+            SDL_SetRenderDrawColor(ren, 200, 100, 50, 255); SDL_RenderClear(ren);
+            viewport_occlude_draw(&v, &sc, view_buildings.n - 1, clip, 0, viewport_occlude_alpha(1));
+            SDL_RenderPresent(ren);
+            SDL_GetRGBA(((Uint32 *)surf->pixels)[2 * (surf->pitch / 4) + 2], surf->format, &r, &g, &b, &alpha);
+            assert(r == 0 && g == 255 && b == 0 && part_filter == 0);
+            slot_find(keys[1])->alpha = 0;
+        }
         if (occlude_layer) { SDL_DestroyTexture(occlude_layer); occlude_layer = NULL; }
     }
+    // 透明效果預設值邏輯：觸控沒存過 = 開、存過照存；電腦版照 Config.ini，不看存值
+    assert(trans_resolve(1, -1, 0) == 1 && trans_resolve(1, 0, 0) == 0 && trans_resolve(1, 1, 0) == 1 && trans_resolve(1, -1, 1) == 1);
+    assert(trans_resolve(0, -1, 0) == 0 && trans_resolve(0, 1, 0) == 0 && trans_resolve(0, -1, 1) == 1);
     ground_n = saved_ground; unit_n = saved_units;
     cache_clear(); SDL_DestroyRenderer(ren); ren = NULL; SDL_FreeSurface(surf);
     {   // 桓府過場後畫面兩處閃爍：過期的平移目標與跟隨互拉，兩拍一輪永不停（viewport_tick 只偵測與上一拍相同的距離）。

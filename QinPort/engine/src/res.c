@@ -562,7 +562,9 @@ int res_cache_clear(void) {
 
 // xbm：0x14 寬、0x18 高；0x40 起每列 u32 位移(相對 0x40)；每列交替 u16(透明 bytes / 不透明 bytes + RGB565)
 // 0x24 = 1 的是半透明圖（特效、部分建築）：0x40 起先是 w×h bytes 的 alpha（長度在 0x28），列位移表接在後面
+int xbm_last_alpha;  // 觸控適配：最近一次 xbm_decode 的圖帶不帶逐像素 alpha（0x24 旗標），給遮擋重畫分流用
 uint32_t *xbm_decode(const uint8_t *x, uint32_t size, int *w, int *h) {
+    xbm_last_alpha = 0;
     if (!x || size < 0x40 || memcmp(x, "xbm", 3)) return NULL;
     *w = u32(x + 0x14);
     *h = u32(x + 0x18);
@@ -591,6 +593,7 @@ uint32_t *xbm_decode(const uint8_t *x, uint32_t size, int *w, int *h) {
         base += alen;
     }
     if (base + (uint32_t)*h * 4 > size) { free(unpacked); return NULL; }
+    xbm_last_alpha = alpha != NULL;
     uint32_t *px = calloc((size_t)*w * *h, 4);
     for (int y = 0; y < *h; y++) {
         uint32_t p = base + u32(x + base + y * 4);

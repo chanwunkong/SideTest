@@ -48,6 +48,7 @@ uint8_t *res_read(uint32_t gid, uint32_t *size);
 // 圖片：xbm 直接解；xbmgroup 用 ref 高 8 位當幀號(從 1 起)。回傳 RGBA32，呼叫者 free。
 // 網頁版不等下載：還沒到就回 NULL 並設 res_waiting
 uint32_t *res_image(uint32_t ref, int *w, int *h);
+extern int xbm_last_alpha;
 uint32_t *xbm_decode(const uint8_t *xbm, uint32_t size, int *w, int *h);
 
 // ---- 動畫(Res00)：序列 = 動作*8 + 方向，每幀 = 圖片 ref + 停留拍數 + 腳底位移 ----

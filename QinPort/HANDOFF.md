@@ -2083,6 +2083,7 @@ skilltest 新增：刺客 Hand 5、箭消耗用 Attack方式（真資料招式 I
 - 原版流程（Poq.exe 0x45ec50，角色畫完後，每個角色／單位各一次）：角色矩形與畫面相交且面積 < 20001 → 找遮擋起點（0x4830f0 遮擋平面＋格子旗標 0x82 的建築，已在 `viewport_occlusion_start`）→ 較近的建築前景（底層以上全部部件）用 0x483b80 畫到透明暫存層（0x4611b0 先把暫存層矩形清成色鍵）→ **整層貼回，旗標 = `-(0x639f38 != 0) & 0x80`**，也就是選項開 0x80、關 0 → 最後 0x483980 把帶 SBMP 半透明旗標（+0x52）的部件直接畫（不受選項影響）。沒有時間淡入淡出、沒有逐物件旗標；判定只有「遮擋平面／格子 0x82」+ 面積門檻，所有角色（含主角）同樣處理。同一全域另影響：飛行物（CARROW 0x4356a0／CFireDeadMan 0x435b40／CFlyEffectNormal 0x437390）畫圖旗標 0x80，角色影子（0x4872e0）色表 9（光照開時、大小≤3）——這兩項**沒做**。
 - 引擎：`viewport.c viewport_occlude_draw`：選項開 → 前景畫到螢幕大小的暫存層（RGBA 目標紋理）再用 alpha 128 一次貼回裁切區（整層混一次，不是逐棟疊加）；關 → 原本直接重畫（= 不透明貼回）。`main.c` 設定視窗 `opt_v[O_TRANS]` 接上，預設與「預設值」鍵 = 0（Config.ini），啟動讀 Config.ini 透明效果。
 - shortcut：旗標 0x80 當 SDL alpha 128（Gfx3D.dll Paint 沒拆，混色式未核對；Gfx3D 沒反編譯進 decomp）；半透明建築部件（+0x52）沒有旗標，開選項時被連帶減半；選項值不跨次啟動保存（每次開遊戲照 Config.ini，要在設定視窗再勾）；飛行物／影子兩項同選項效果沒做。
+- **觸控適配（2026-11-23 後續）**：觸控／網頁版 `透明效果` 預設**開**（使用者要樹／屋頂半透明），勾選存 localStorage `qinTransOpt`（-1／沒存 = 預設開；`main.c trans_resolve`、`js_trans_opt_get/set`，模式同 `qinTouchOpt`），設定視窗勾選、「預設值」（回到觸控預設開）、「取消」都會寫入；電腦版照 Config.ini（預設 0）、不存檔（`--touch` 的電腦版預設開但不存）。**「半透明部件減半兩次」已修**：`Sprite.alpha`（`xbm_decode` 設 `xbm_last_alpha` = 圖帶逐像素 alpha，0x24 旗標）當原版 SBMP +0x52（**猜的，沒對 SBMP 載入碼**），開選項時這些部件不進暫存層，整層貼回後再直接畫（對應原版最後 0x483980）；`viewport.c part_filter`。
 - 驗證：make、make skilltest（新增 occlude 像素測試：選項關 = 最上棟實色，開 = 與底色各通道平均 ±1，裁切外不變）、make walktest、make web 通過；**瀏覽器裡沒親眼看**。
 
 ## 任務日誌 JM61（2026-11-23，使用者：手機上打不開任務畫面）
