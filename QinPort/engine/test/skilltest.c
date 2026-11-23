@@ -5747,6 +5747,37 @@ int main(void) {
         viewport.rem = (SDL_Point){c.x - vw / 2, c.y - vh / 2}; ambient_group(&sc, 2); assert(ambient_group_on[2]);
         sc.object_count = 0; ambient_group(&sc, 2); assert(!ambient_group_on[2]);  // 名單空：停
     }
+    {   // 任務日誌 JM61：劇情 journal → 資料 → 視窗清單；觸控「誌」鈕與主列 m_pLog 都能開
+        jn_reset(); journal_open = 0;
+        jn_story(0, 0, "\xe8\xae\xb0\xe4\xba\x8b[0\xe7\x94\xb2]\xe3\x80\x82");        // journal(0,0,"记事[0甲]。")：id < 1 = 章節記事
+        jn_story(7, 0, "\xe6\x8e\xa5[1\xe5\x92\xb8\xe9\x98\xb3]\xe3\x80\x82");        // journal(7,0,…)：接受任務 7
+        jn_story(7, 0, "\xe9\x87\x8d\xe5\xa4\x8d");                                      // 同編號再接：不動
+        jn_story(0, 0, "\xe8\xae\xb0\xe4\xba\x8b[0\xe7\x94\xb2]\xe3\x80\x82");        // 同一章同文字：不重複
+        assert(jn_pop && jn_mn == 1 && !jn_m[0].fin && !strstr(jn_m[0].un, "["));
+        assert(strstr(jn_log[1], "\xe8\xae\xb0\xe4\xba\x8b\xe7\x94\xb2") && strstr(jn_log[1], "\xe3\x80\x82\n\n") && strstr(jn_log[1], "-") && strstr(jn_log[1], ":"));
+        char tl[JN_LOGSZ];
+        jn_list(0, tl, sizeof tl); assert(strstr(tl, "\xe6\x8e\xa5\xe5\x92\xb8\xe9\x98\xb3"));
+        jn_list(1, tl, sizeof tl); assert(!tl[0]);
+        vw = 800; vh = 600;
+        TLayout L;
+        touch_layout(&L, 1170, 540, 800, 600, 1, 0, NULL);
+        assert(L.b[TB_LOG].r > 0 && touch_hit(&L, L.b[TB_LOG].x, L.b[TB_LOG].y) == TB_LOG);
+        touch_button(&actors[0], TB_LOG);                                  // 觸控列「誌」
+        assert(journal_open && jn_d.count > 0 && jn_view == jn_chap && !jn_page);
+        int ox = (vw - jn_d.w) / 2, oy = (vh - jn_d.h) / 2 - 0x32;
+        assert(ui_find(&jn_d, "m_pMission") && ui_find(&jn_d, "m_pCClose") && ui_find(&jn_d, "m_pLogList"));
+        jn_page = 1;  // 頁籤按鈕要圖才點得到（無畫面測試沒有 renderer），點擊在瀏覽器驗；這裡直接切頁
+        static char b0[JN_LOGSZ], b1[JN_LOGSZ];
+        const char *nm[2]; int ix[2]; char *tx[2];
+        assert(jn_lists(nm, ix, tx, b0, b1, sizeof b0) == 2 && strstr(tx[0], "\xe6\x8e\xa5\xe5\x92\xb8\xe9\x98\xb3") && !tx[1][0]);
+        jn_story(7, 1, "\xe5\xae\x8c\xe6\x88\x90\xe4\xba\x86");                     // journal(7,1,…)：完成任務 7 → 移到完成清單
+        assert(jn_lists(nm, ix, tx, b0, b1, sizeof b0) == 2 && !tx[0][0] && strstr(tx[1], "\xe5\xae\x8c\xe6\x88\x90\xe4\xba\x86"));
+        assert(journal_tap(ox + 1, oy + 1) && journal_open);  // 點在視窗上沒控制項：吃掉、不關
+        jn_page = 0; journal_open = 0;
+        ui_command("m_pLog"); assert(journal_open);                         // 主列 m_pLog
+        ui_command("m_pLog"); assert(!journal_open);
+        jn_reset(); journal_open = 0;
+    }
     {   // 手機觸控介面（touch_ui.c）：版面、按鈕命中、搖桿向量、手指分流
         static const int dims[][2] = {{1170, 540}, {800, 600}, {1024, 768}, {540, 1170}, {768, 1024}, {390, 844}, {2400, 1080}};
         for (unsigned i = 0; i < sizeof dims / sizeof *dims; i++)

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "qinstory.h"
+#include "../journal.c"  // 任務日誌資料（引擎的日誌視窗 JM61 讀同一份）
 
 static void show(void) {
     printf("【%s】%s\n", story_dialog.speaker, story_dialog.text);
@@ -303,6 +304,7 @@ static void explore_run(int maxr) {
 
 static int walk_test(const char *file) {
     story_register_all();
+    jn_reset(); story_on_journal = jn_story;
     story_on_log = walk_log; story_on_msg = walk_msg; story_on_text = walk_text; story_on_skill = skill_stub;
     story_exp_for = exp_for; story_exp_max = 40;
     int pl = story_player();
@@ -380,6 +382,14 @@ static int walk_test(const char *file) {
         else if (!strcmp(c, "flag") && nt > 1) { char *v = strchr(tok[1], '='); if (v) { *v++ = 0; engine_call(0x1005e850, (intptr_t[8]){pl, (intptr_t)tok[1], atoi(v)}); engine_call(0x1005f270, (intptr_t[8]){pl, (intptr_t)tok[1], atoi(v)}); } }
         else if (!strcmp(c, "expect") && nt > 1) { char *v = strchr(tok[1], '='); if (v) { *v++ = 0; int g = walk_flag(tok[1]); if (g != atoi(v)) { printf("  FAIL 旗標 %s = %d（要 %s）\n", tok[1], g, v); walk_fail = 1; } else printf("  ok 旗標 %s = %s\n", tok[1], v); } }
         else if (!strcmp(c, "has") && nt > 1) { int found = 0; for (int h = story_next(pl, 0); h; h = story_next(pl, h)) if (!strcmp(story_name(h), tok[1]) || strstr(story_path(h), tok[1])) found++; /* 道具名字由引擎的道具表設，無畫面時只有路徑 */ printf(found ? "  ok 有 %s ×%d\n" : "  FAIL 沒有 %s\n", tok[1], found); if (!found) walk_fail = 1; }
+        else if (!strcmp(c, "jrn") && nt > 2) {  // jrn log|quest|done 文字：日誌視窗的章節記事／接受中任務／完成任務清單裡要有這段文字
+            static char buf[JN_LOGSZ * 4]; buf[0] = 0;
+            if (!strcmp(tok[1], "log")) for (int i = 1; i <= JN_CHAP; i++) strncat(buf, jn_log[i], sizeof buf - strlen(buf) - 1);
+            else jn_list(!strcmp(tok[1], "done"), buf, sizeof buf);
+            int ok = strstr(buf, tok[2]) != NULL;
+            printf(ok ? "  ok 日誌 %s 有 %s\n" : "  FAIL 日誌 %s 沒有 %s\n", tok[1], tok[2]);
+            if (!ok) walk_fail = 1;
+        }
         else { printf("  不認得的指令\n"); walk_fail = 1; }
         walk_flag_diff();
         { static int last; int r = walk_here(); if (r != last) { printf("  （現在在 %s）\n", story_room_alias(r)); last = r; } }

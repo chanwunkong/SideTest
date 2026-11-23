@@ -14,7 +14,7 @@
 | 0x5e5、0x5e6 | 0x513a30、0x516860 | 隊伍成員 | party.c | ✓ |
 | 0x5e7、0x5e8 | 0x514270、0x516ea0 | 技能表、快捷技能 | 技能視窗／pick | ✓ |
 | 0x5e9、0x60c | 0x520350、0x5201b0 | 技能可升級（CanUpgrade） | 技能升級 | △ |
-| 0x5ea | 0x51a8e0 | 章節、日誌、任務（ChapterData、LogData、MissionData） | chapter_message、journal | ✓ 日誌；章節視窗 JM69 △ |
+| 0x5ea | 0x51a8e0 | 章節、日誌、任務（ChapterData、LogData、MissionData） | chapter_message、journal（journal.c／logwin.c JM61） | ✓ 日誌＋任務清單（2026-11-23 照 0x51a8e0）；章節視窗 JM69 △ |
 | 0x5eb | 0x514ed0 | 裝備 | equip（JM55） | ✓ 網頁看過 |
 | 0x5ed | 0x5188b0 | 存檔列表 | sav_d | ✓ |
 | 0x5ee、0x5f0、0x5f1、0x5f2 | 0x51d310、0x520910、0x51da20、0x5111a0 | 組隊邀請／接受（TeamAsk、TeamAccept） | — | — 產生者 0x10047270／47440／47520／474b0 只被文字指令與同步轉接呼叫，單機劇情用 add_member 直接入隊 |

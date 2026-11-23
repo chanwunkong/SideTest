@@ -1,8 +1,11 @@
 # ===== 第一章主線（無畫面走查）：赵村 → 阳周城 → 监狱 =====
 start
 expect kaishiyouxi=1
+jrn quest 重返京城咸阳。
+jrn log 蓬头垢面
 plot 秦殇/赵村/PCT/初遇赵茜
 expect chuyuzhaoqian=1
+jrn log 身手不凡的女猎手
 has ITEM/麦饼
 go eastsouth
 expect konggangsuizhu=1

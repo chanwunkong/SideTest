@@ -175,7 +175,7 @@ int story_kind(int h) { return O(h) ? O(h)->kind : -1; }
 
 void (*story_on_exp)(int h, int exp);
 void (*story_on_log)(int h, int kind, const char *text);
-void (*story_on_journal)(const char *text);  // 劇情日誌 0x1004dcc0（任務提示、章節旁白）
+void (*story_on_journal)(int id, int flag, const char *text);  // 劇情日誌 0x1004dcc0(任務編號, 旗標, 文字)：編號 < 1 = 記事；旗標 1 = 完成任務、其他 = 接受任務
 void *(*story_item_make)(int h, int type, int level, int col, const char *alias);
 int (*story_on_person)(int h, const char *name, int level, int tier);
 int (*story_on_skill)(int h, const char *key, int level);
@@ -1100,7 +1100,7 @@ intptr_t engine_call(uint32_t addr, intptr_t *a) {
     case 0x1005f3c0:                                                         // 升級參數 Upgrade_<+偏移>
         if (o) { char k[32]; snprintf(k, sizeof k, "Upgrade_%d", (int)a[1]); story_set_int(a[0], k, (int)a[2]); }  // 浮點傳進來已轉成整數
         return 0;  // 原版 0x10038180 存字串屬性 "Upgrade_<名>" = "基礎 每級 c"；這裡只存基礎（偏移 0x20 = HP_MAX、0x24 = MP_MAX），每級值見 team_upgrade
-    case 0x1004dcc0: printf("【日誌】%s\n", S(a[2])); if (story_on_journal) story_on_journal(S(a[2])); return 0;                 // journal
+    case 0x1004dcc0: printf("【日誌】%s\n", S(a[2])); if (story_on_journal) story_on_journal((int)a[0], (int)a[1], S(a[2])); return 0;                 // journal
     case 0x10070360:                                                         // item_new(道具, 類型, 等級, SLevel 欄, 別名)
         if (o && story_item_make) o->item = story_item_make(a[0], a[1], a[2], a[3], S(a[4]));
         return 0;

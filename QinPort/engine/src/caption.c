@@ -129,6 +129,12 @@ static void chapter_message(int chap, int section) {
         if (-chap < 8) ch_open(ch_group_page(-chap), -chap);
         return;
     }
+    if (chap > jn_chap && chap <= JN_CHAP) {  // 日誌的章（ChapterData.Chapter）：進到第 N 章
+        jn_chap = chap;
+#ifdef STORY
+        story_set_int(story_player(), "Chapter", chap);
+#endif
+    }
     char t[128];
     ui_text(0x5ef + chap, t, sizeof t);
     printf("章節 %d 節 %d：%s\n", chap, section, t);

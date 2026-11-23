@@ -50,7 +50,7 @@ extern int (*story_exp_for)(int level);  // 升到 level+1 要的累計經驗（
 extern int story_exp_max;                // 最高等級
 void story_gain_exp(int h, int exp);     // 隊友（非玩家人物）加經驗，連升級（0x10026d30）
 extern void (*story_on_log)(int h, int kind, const char *text);
-extern void (*story_on_journal)(const char *text);
+extern void (*story_on_journal)(int id, int flag, const char *text);
 // 主角身上的道具在引擎的 inv：物件留著（別名、屬性給劇情找），item 交給引擎（held）
 void story_hold(int h);
 void story_set_item(int h, void *item);     // 道具回到物件身上（不再 held）
