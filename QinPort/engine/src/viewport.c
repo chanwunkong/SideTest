@@ -471,7 +471,60 @@ static int viewport_occlusion_start(const ViewList *l, const Scene *s, const Vie
     return i;
 }
 // 0x45ec50：裁切後面積小於20001；從遮擋起點起依序重畫所有較近的前景。
-// SDL 直接在裁切區重畫，取代透明暫存表面與尾端連續去重名單。
+// 原版先把前景畫到透明暫存層（0xd4／0xdc）再整層貼回，貼回旗標 = 全域0x639f38（設定視窗「透明」，Config.ini 透明效果）開 ? 0x80 : 0；
+// 開 = 樹／屋頂半透明，被擋的角色透出來；關 = 不透明（原版預設）。
+// shortcut: 旗標0x80 當 SDL alpha 128（Gfx3D.dll Paint 未拆，實際混色式未核對）；帶 SBMP 半透明旗標(+0x52)的部件原版走 0x483980 直接畫、不受選項影響，
+// 這裡沒有該旗標，會跟著被減半；關閉時沿用直接重畫（等同原版不透明貼回）。
+static Uint8 viewport_occlude_alpha(int on) { return on ? 128 : 255; }
+static SDL_Texture *occlude_layer;
+static void viewport_occlude_draw(const ViewPort *v, const Scene *s, int first, SDL_Rect clip, Uint32 tick, Uint8 alpha) {
+    int w = 0, h = 0;
+    if (alpha != 255 && occlude_layer) SDL_QueryTexture(occlude_layer, NULL, NULL, &w, &h);
+    if (alpha != 255 && (w != vw || h != vh)) {
+        if (occlude_layer) SDL_DestroyTexture(occlude_layer);
+        occlude_layer = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, vw, vh);
+        if (occlude_layer) SDL_SetTextureBlendMode(occlude_layer, SDL_BLENDMODE_BLEND);
+    }
+    SDL_Texture *target = SDL_GetRenderTarget(ren);
+    SDL_Rect view;
+    SDL_RenderGetViewport(ren, &view);
+    float sx, sy;
+    SDL_RenderGetScale(ren, &sx, &sy);
+    if (alpha != 255 && occlude_layer && SDL_SetRenderTarget(ren, occlude_layer) == 0) {
+        SDL_RenderSetScale(ren, 1, 1);
+        SDL_RenderSetViewport(ren, NULL);
+        SDL_RenderSetClipRect(ren, &clip);
+        Uint8 r, g, b, a;
+        SDL_BlendMode bm;
+        SDL_GetRenderDrawColor(ren, &r, &g, &b, &a);
+        SDL_GetRenderDrawBlendMode(ren, &bm);
+        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, 0);
+        SDL_RenderFillRect(ren, &clip);
+        SDL_SetRenderDrawBlendMode(ren, bm);
+        SDL_SetRenderDrawColor(ren, r, g, b, a);
+        for (int i = first; i >= 0; i--) {
+            const ViewItem *it = &view_buildings.items[i];
+            const Object *o = &s->objects[it->index];
+            SDL_Point p = viewport_grid_screen(v, o->x, o->y);
+            building_occlude_draw(o, p.x, p.y, tick);
+        }
+        SDL_SetRenderTarget(ren, target);
+        SDL_RenderSetScale(ren, sx, sy);
+        SDL_RenderSetViewport(ren, &view);
+        SDL_RenderSetClipRect(ren, &clip);
+        SDL_SetTextureAlphaMod(occlude_layer, alpha);
+        SDL_RenderCopy(ren, occlude_layer, &clip, &clip);
+        return;
+    }
+    SDL_RenderSetClipRect(ren, &clip);
+    for (int i = first; i >= 0; i--) {
+        const ViewItem *it = &view_buildings.items[i];
+        const Object *o = &s->objects[it->index];
+        SDL_Point p = viewport_grid_screen(v, o->x, o->y);
+        building_occlude_draw(o, p.x, p.y, tick);
+    }
+}
 static void viewport_occlude(const ViewPort *v, const Scene *s, const ViewItem *item, Uint32 tick) {
     SDL_Rect clip, old_clip, screen = {0, 0, v->w, v->h};
     if (!SDL_IntersectRect(&item->rect, &screen, &clip) || (int64_t)clip.w * clip.h >= 20001) return;
@@ -479,13 +532,7 @@ static void viewport_occlude(const ViewPort *v, const Scene *s, const ViewItem *
     int first = viewport_occlusion_start(&view_buildings, s, item, clip);
     SDL_bool clipped = SDL_RenderIsClipEnabled(ren);
     SDL_RenderGetClipRect(ren, &old_clip);
-    SDL_RenderSetClipRect(ren, &clip);
-    for (int i = first; i >= 0; i--) {
-        const ViewItem *b = &view_buildings.items[i];
-        const Object *o = &s->objects[b->index];
-        SDL_Point p = viewport_grid_screen(v, o->x, o->y);
-        building_occlude_draw(o, p.x, p.y, tick);
-    }
+    viewport_occlude_draw(v, s, first, clip, tick, viewport_occlude_alpha(opt_v[O_TRANS]));
     SDL_RenderSetClipRect(ren, clipped ? &old_clip : NULL);
 }
 

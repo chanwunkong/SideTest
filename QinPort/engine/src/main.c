@@ -8141,14 +8141,15 @@ static void ui_say(int id) { char t[256]; ui_text(id, t, sizeof t); hud_say(t); 
 
 // ---- 遊戲設定 JM31（Poq.exe CGameOptionDialog：開窗 0x571790、滑桿改值 0x5474a0、初始 0x547500、關閉 0x547460）、遊戲說明 JM36（CHelpDialog 開窗 0x571860）----
 // 值依控制項名：勾選（透明、血腥、自动存盘、自动暂停 1~4）、滑桿（音效、音乐 0~100、速度 0~5，種類 8：軌道 = 第 10 欄、滑塊 = 第 13 欄）、亮度（進度條 0~100）、光影前後
-// shortcut: 預設值與勾選圖的幀（0 關、1 開）沒對原版；速度、亮度、光影、解析度、透明、血腥、自动暂停只存值還沒有作用；滑桿只能點、不能拖；
+// 透明（m_pTransparent）= 原版全域 0x639f38，預設照 Config.ini 透明效果=0，開 = 遮擋重畫半透明（viewport.c viewport_occlude）。
+// shortcut: 其餘預設值與勾選圖的幀（0 關、1 開）沒對原版；速度、亮度、光影、解析度、血腥、自动暂停只存值還沒有作用；滑桿只能點、不能拖；
 // 說明視窗只有分頁鈕，內文（建立後讀的檔）沒在遊戲資料裡找到
 enum { O_TRANS, O_GORE, O_AUTOSAVE, O_PAUSE1, O_PAUSE2, O_PAUSE3, O_PAUSE4, O_SOUND, O_MUSIC, O_SPEED, O_GAMMA, O_LIGHT, O_RES, O_N };
 static const char *const opt_name[O_N] = {"m_pTransparent", "m_pGore", "m_pAutoSave", "m_pAutoPause1", "m_pAutoPause2", "m_pAutoPause3",
                                           "m_pAutoPause4", "m_pSound", "m_pMusic", "m_pSpeed", "m_pGamma", "m_pLight", "m_pResolution"};
 static const int opt_max[O_N] = {1, 1, 1, 1, 1, 1, 1, 100, 100, 5, 100, 1, 2};  // 光影 2 種（0x5470f0 取 &1）、解析度 3 種（0x5471b0 取 %3）
-static const int opt_def[O_N] = {1, 1, 1, 0, 0, 0, 0, 100, 15, 3, 50, 0, 0};
-static int opt_v[O_N] = {1, 1, 1, 0, 0, 0, 0, 100, 15, 3, 50, 0, 0}, opt_bak[O_N];
+static const int opt_def[O_N] = {0, 1, 1, 0, 0, 0, 0, 100, 15, 3, 50, 0, 0};
+static int opt_v[O_N] = {0, 1, 1, 0, 0, 0, 0, 100, 15, 3, 50, 0, 0}, opt_bak[O_N];
 static UiDialog opt_d, help_d;
 static int opt_open, help_open, help_tab;
 
@@ -10729,6 +10730,7 @@ int main(int argc, char **argv) {
     uint8_t *cfg = res_file("ini", "Config.ini", &cfg_size);
     if (cfg) res_unxor(cfg, cfg_size);
     const char *cfg_text = cfg ? (const char *)cfg : "";
+    opt_v[O_TRANS] = ini_int(cfg_text, "\xcd\xb8\xc3\xf7\xd0\xa7\xb9\xfb=", 0) != 0;  // 透明效果（0x547280 的 0x1af → 0x639f38）：遮擋重畫半透明
     audio_init(ini_int(cfg_text, "\xd2\xf4\xc0\xd6=", 1) ? ini_int(cfg_text, "\xd2\xf4\xc0\xd6\xd2\xf4\xc1\xbf=", 15) : 0,   // 音乐、音乐音量
                ini_int(cfg_text, "\xd2\xf4\xd0\xa7=", 1) ? ini_int(cfg_text, "\xd2\xf4\xd0\xa7\xd2\xf4\xc1\xbf=", 100) : 0);  // 音效、音效音量
     free(cfg);

@@ -3466,6 +3466,25 @@ static void viewport_test(void) {
     building_part_draw(test, 0, 32, 16, 0, 1); SDL_RenderPresent(ren);
     SDL_GetRGBA(((Uint32 *)surf->pixels)[18 * (surf->pitch / 4) + 34], surf->format, &r, &g, &b, &alpha);
     assert(!r && !g && !b);
+    {   // 0x45ec50 遮擋重畫：透明選項（0x639f38）關 = 不透明貼回，開 = 整層一次 alpha 128 貼回（不是逐棟疊加）
+        assert(viewport_occlude_alpha(0) == 255 && viewport_occlude_alpha(1) == 128);
+        Uint8 full[3], half[3], outside[3];
+        SDL_Rect clip = {0, 0, 4, 4};
+        for (int on = 0; on < 2; on++) {
+            SDL_SetRenderDrawColor(ren, 200, 100, 50, 255); SDL_RenderClear(ren);
+            viewport_occlude_draw(&v, &sc, view_buildings.n - 1, clip, 0, viewport_occlude_alpha(on));
+            SDL_RenderPresent(ren);
+            Uint8 *d = on ? half : full;
+            SDL_GetRGBA(((Uint32 *)surf->pixels)[2 * (surf->pitch / 4) + 2], surf->format, &d[0], &d[1], &d[2], &alpha);
+            SDL_GetRGBA(((Uint32 *)surf->pixels)[6 * (surf->pitch / 4) + 6], surf->format, &outside[0], &outside[1], &outside[2], &alpha);
+            assert(outside[0] == 200 && outside[1] == 100 && outside[2] == 50);  // 裁切外不動
+        }
+        assert(full[0] + full[1] + full[2] == 255 && (full[0] == 255 || full[1] == 255 || full[2] == 255));  // 不透明 = 最上面那棟的色
+        const Uint8 bg[3] = {200, 100, 50};
+        for (int c = 0; c < 3; c++) assert(abs(half[c] - (full[c] + bg[c]) / 2) <= 1);
+        assert(draw_alpha == 255);
+        if (occlude_layer) { SDL_DestroyTexture(occlude_layer); occlude_layer = NULL; }
+    }
     ground_n = saved_ground; unit_n = saved_units;
     cache_clear(); SDL_DestroyRenderer(ren); ren = NULL; SDL_FreeSurface(surf);
     {   // 桓府過場後畫面兩處閃爍：過期的平移目標與跟隨互拉，兩拍一輪永不停（viewport_tick 只偵測與上一拍相同的距離）。
