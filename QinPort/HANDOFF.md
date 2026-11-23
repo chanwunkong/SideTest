@@ -1474,7 +1474,7 @@ if ([+0x2e3] > 100) s /= 2                            // 推測是負重過重
 
 ## 存檔（原版 JM50_内部主界面 → JM62_存取盘界面）
 
-- 主列 m_pSystem 或 Esc 開系統選單（JM50）：保存、读取 → JM62；返回游戏、关闭；退出 → JM102 確認（還沒有標題畫面：網頁重新整理、電腦版關掉）。设置、帮助還沒做。
+- 主列 m_pSystem 或 Esc 開系統選單（JM50）：保存、读取 → JM62；返回游戏、关闭；退出 → JM102 確認（退出 = 網頁重新整理回標題、電腦版關掉）。设置、帮助還沒做。
 - JM62（Poq.exe CLoadDialog 0x56c400，畫 0x56ce20，換頁 0x56cce0）：一頁 6 格、最多 16 頁，m_pTitle 第 0 幀保存、第 1 幀读取，m_pScene 的「秦殇」圖是空格、有檔換成縮圖（開系統選單時截圖，原版 0x535ec0 也是先截）。第 0 頁前兩格 = 自动存盘（每次走出口存，原版只在大場景之間）、快速存盘（F9）。覆蓋問 UI_C 1535、刪除問 1534（JM67 底圖 + 借 JM102 是／否）；战斗中不能存 1507、打造視窗開著不能存 1533。
 - 檔案是自己的格式（原版是整個 EasyRPG 世界序列化）：SaveHead（場景別名、房間名、時間、等級、128×96 縮圖）+ SaveHero（位置、等級、經驗、HP/MP、六屬性、點數、錢、職業、兩手技能、技能等級）+ inv + store + story_save（所有劇情物件依代號順序：類別路徑、名稱、別名、parent、held、ints/flags/strs、道具整塊）。網頁版放 IndexedDB（IDBFS 掛 /save，存完 syncfs），電腦版 ./save/。
 - 讀檔在主迴圈做（load_due）：換掉主角、背包、劇情 → 進存檔的場景 → 放回位置、數值 → 重找房間、重放怪物。
@@ -1788,7 +1788,7 @@ skilltest 新增：刺客 Hand 5、箭消耗用 Attack方式（真資料招式 I
 **(A) 音樂（已做，瀏覽器證明）**：原版 CMusic（Poq 0x579df0 換場景、0x57a010 每拍、0x57a720 音量、0x57a910 特殊曲、0x57ab50 還原、0x57a8d0）讀過反組譯：
 - **原版沒有戰鬥曲、日夜曲、淡入淡出**。music.txt 第 3 欄（战斗音乐名）只被 0x57a010 拿來判斷「這首播完要不要隔 rand()%12 拍再播」（非空隔、空馬上）；第 4 欄與 fight*.wav 沒有任何讀取（r2 搜 0x953ad8／0x953adc 位址無參照）。
 - 換場景只改「下一首」：0x57a010 先看 isPlaying（0x57d1b0），播放中就不動，所以現在這首播完才換（OpenAL 播放中不能換緩衝）。場景種類 G_Type（房間 +0x1c）：12（山洞，33 間）= 播完就停、不再播；10／0x12 = 不重選曲，10 音量減半；其他照名稱選曲，找不到別名用第 1 列（normal1）。
-- dead.wav 是連線版 CDeadDialog（0x547b00）、start.wav 是標題選單（0x535250），單機流程沒有觸發點（引擎也沒有標題畫面）；credit.wav 片尾（0x568310）開、0x5682c0 關還原。
+- dead.wav 是連線版 CDeadDialog（0x547b00）、start.wav 是標題主選單（0x535250 → 0x57a910(1)），已接到標題畫面（見「標題畫面」）；credit.wav 片尾（0x568310）開、0x5682c0 關還原。
 - 做在 audio.c（audio_scene_music／audio_music_tick／audio_music_special／audio_music_pop），main.c scene_music_enter 以 lt.type 呼叫、主迴圈每拍 tick；不再循環。shortcut：特殊曲與還原直接換曲（原版沒先停，OpenAL 會失敗，是意圖不是行為）；別名比對不分大小寫。skilltest 新增 music_state_test。瀏覽器 --debug-trace：赵村 `music normal1`、阳周→beiyi 只印一次 `music city`（舊曲還在播，沒換）、山洞 bdj_cave1 完全沒有 music 行。
 **(B) 0x4ea10**：EasyRPG 0x1004ea10（isbuilding 2→1、6→5，建築重生）的 109 處呼叫全在 story/room/NET/（連線版），單機房間、NPC、任務沒有呼叫、也沒有單機房間的出口通到 NET，所以單機不會觸發，沒做（net_* 場景仍印訊息）。
 **(C) 主線逐章走查：本輪沒做**（上下文用在 A、D）；留在 PORT_QUEUE。
@@ -2069,3 +2069,12 @@ skilltest 新增：刺客 Hand 5、箭消耗用 Attack方式（真資料招式 I
 - skilltest：8 種觸控組合都斷言 `status_target(a,NULL,0)==t`，並斷言目標死後為 NULL。
 - `--perf`／`?perf=1` 本來就預設關（`show_perf` 預設 0，shell.html 只有帶參數才傳 `--perf`），沒改程式；計數照常收集。若手機仍看到綠字，多半是網址帶了 `?perf=1` 或舊快取（sw 版本）。
 - 驗證層級：編譯＋skilltest＋walktest＋make web 通過；**沒有在瀏覽器／手機實機看過**血條。
+
+## 標題畫面（2026-11-23）：開機先到封面／主選單，讀檔不必等開場劇情
+- **原版**（Poq.exe 程式模式機 0x448ab0，模式存在 +0xc）：模式 1 = 開機，0x44d470 → 0x4f5350(0) 開 **JM011_扉頁**（封面，底圖 4364，無音樂；Enter／Esc／空白（0x534190）、點一下（0x5341c0／d0）或 0xc9 拍（0x5341f0，約 3.2 秒）後關）；關閉後進模式 2：0x44d3d0 → 0x4f5b00 開 **JM01_外部主界面**（底圖 310＋ 9 個動畫 m_Wu／Hu／Long／Que（img 55／78／101／124，14 幀每幀 2 拍）與 m_Jin／Mu／Shui／Huo／Tu（583／440／481／542／399，序列 0 有 20 幀每幀 4 拍，另有序列 1）＋按鈕 m_SinglePlayer 100／m_MultiPlayer 101／m_Option 102／m_Credits 103／m_QuitGame 104；虛擬函式 0x535250 呼叫 0x57a910(1) = Music/start.wav）。按單人遊戲 → **JM02_单人游戏界面**（底圖 311，m_NewGame 200／m_LoadGame 201／m_Cancel 2）。模式 3 = 進遊戲，5 = 死亡（JM513），8~0xb 片頭影片，0xc 片尾，0xd 另一個模式。原版先片頭影片（logo1、第一次再 Start.avi，見「片頭影片」）才進模式 1。0x4493a0／0x448d20 是切解析度，不是模式。
+- **引擎**（main.c「標題畫面」一段，`title_st`：TS_COVER／TS_MAIN／TS_SINGLE／TS_OFF）：沒指定場景（網址沒有 `scene=`、命令列沒有場景或 `--shot`）時 `main()` 準備好開場房間後 `title_go(TS_COVER)`；標題開著遊戲拍凍結（主迴圈拍改走 `title_tick`：封面計時、制作群字幕、音樂），開場劇情（`rec_pending`）等標題關了才播。五行動畫每幀 `frame_at(序列 0, SDL_GetTicks()/16)`。新游戏 → `title_leave()`＋`new_show()`（創角 JM09 → 難度 JM21 → 開場劇情，原本的路徑沒動）；读取游戏 → `sav_open(2)`（原本的讀檔視窗疊在標題上；確定後 `load_due`，主迴圈 `save_read` 成功才 `title_leave()` 並進存檔場景，失敗留在標題）；设置 → `opt_show()`（JM31）；制作群 → `credits_start()`（JM33，點一下或 Esc 關）；退出 → JM102 確認；取消／Esc → 回主選單。**讀檔因此不再依賴開場劇情**（存檔本身含劇情世界、主角、背包，`save_read` 全部換掉）。`--load N`（測試）、`?scene=`、`--shot` 不經標題；`--title 1|2|3` 強制顯示（封面、主選單、單人遊戲）配 `--shot` 看畫面。
+- **觸控**：位置照原版固定；按鈕點擊範圍比圖大 14 點（`TITLE_PAD`）；`hud_target` 接標題（觸控預覽放大鏡）；直式手機 `modal_rect` 整張標題放大到下方視窗區（**直式實機沒驗證**，只看過原生 400×800 的截圖）。
+- **跳過／換成單機版的**：m_MultiPlayer（連線版）不顯示不能點；Poq.exe 0x4f5350 的連線分支（JM05 創建網絡遊戲、BattleNet、帳號／伺服器）不做；JM04_多人游戏界面（創建／加入網絡遊戲、帳號密碼）不做；JM02 的 m_Animate／m_AnimateShadow（ID 5001~5012，旗標 0x10000000，按鈕指著時的亮光）沒做。
+- **測試**：skilltest `title_flow_test`（封面→主選單→單人遊戲→新游戏／读取、Esc、設定／制作群、多人遊戲隱藏、封面超時、讀檔不經創角，不開視窗）；`make walktest` 不涉及；瀏覽器（Chrome headless，CDP 腳本類似 tools/webdrive_example.mjs，**滑鼠事件前要先送 mouseMoved**，SDL 網頁版按鈕座標取自最近一次移動）看過：封面 → 主選單（五行動畫在轉、音樂 start 沒聽）→ 單人遊戲 → 读取（空存檔視窗，開場劇情前就開得到）→ Esc → 新游戏 → 創角畫面。**沒實機驗證**：觸控手指、直式、實際讀一個存檔從標題進場景（沒有存檔檔可用，只測到 `sav_ok` → `load_due`）、start.wav 聲音。
+- **shortcut／沒做**：五行 JM01 動畫 序列 1（Jin／Mu／Shui／Huo／Tu 有第 2 個序列，觸發點沒查，疑似指著按鈕時的亮光）；按鈕沒有指著／按下的幀（原版按鈕圖各幀 = 平常／指著／按下）；JM02（新游戏／读取）背景是原版的 311，沒有五行（原版只有 JM01 有）；封面計時用 SDL_GetTicks；沒有 JM05／連線流程。
+

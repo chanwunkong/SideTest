@@ -4553,6 +4553,43 @@ static void choose_height_test(void) {
     assert(difficulty == 2);
 }
 
+// 標題畫面狀態機（開機模式 1 → 2；Poq.exe 0x448ab0）：封面 → 主選單 → 單人遊戲 → 新游戏／读取，不經過開場劇情
+static void title_flow_test(void) {
+    title_go(TS_COVER);
+    assert(title_st == TS_COVER && !title_music && !strcmp(audio_music_now(), ""));  // 封面沒有音樂
+    assert(title_tap(0, 0) && title_st == TS_MAIN && title_music && !strcmp(audio_music_now(), "start"));  // 點一下跳過封面；主選單放 start.wav
+    title_go(TS_COVER); title_esc(); assert(title_st == TS_MAIN);  // Esc 也能跳過
+    const UiDialog *m = &title_d[TS_MAIN - 1];
+    int five = 0;
+    for (int i = 0; i < m->count; i++) if (m->c[i].type == 9 && m->c[i].flags & 9) five++;
+    assert(five == 9);  // 金木水火土＋四象 9 個動畫
+    const UiCtrl *mp = ui_find((UiDialog *)m, "m_MultiPlayer");
+    assert(mp && !(mp->flags & 9));  // 連線版按鈕不顯示
+    title_press("m_SinglePlayer"); assert(title_st == TS_SINGLE);
+    title_esc(); assert(title_st == TS_MAIN);  // 取消回主選單
+    title_press("m_Option"); assert(opt_open && title_st == TS_MAIN); title_esc(); assert(!opt_open);
+    title_press("m_Credits"); assert(cr.open); title_esc(); assert(!cr.open); caption_music = 0;
+    title_press("m_SinglePlayer");
+    // 讀檔：讀檔視窗疊在標題上，選格子確定 → load_due；標題要等主迴圈讀成功才離開（title_leave）
+    title_press("m_LoadGame");
+    assert(sav_mode == 2 && title_st == TS_SINGLE && load_due < 0 && !new_open);
+    sav_head[0] = calloc(1, sizeof *sav_head[0]); sav_sel = 0;
+    sav_ok(0);
+    assert(load_due == 0 && !sav_mode && title_st == TS_SINGLE);
+    load_due = -1; free(sav_head[0]); sav_head[0] = NULL;
+    title_leave();
+    assert(title_st == TS_OFF && !title_music);
+    // 新游戲：離開標題、開創角（JM09），之後走原本的難度與開場劇情
+    title_go(TS_SINGLE);
+    title_press("m_NewGame");
+    assert(title_st == TS_OFF && new_open && load_due < 0);
+    new_open = 0; SDL_StopTextInput();
+    // 標題開著時遊戲凍結：主迴圈的拍改走 title_tick，不碰 rec_pending；封面超時自動進主選單
+    title_go(TS_COVER); title_t0 -= TITLE_COVER_MS;
+    title_tick(); assert(title_st == TS_MAIN && title_ticks > 0);
+    title_leave();
+}
+
 // 五行換算 0x10058900：fe < 1 去掉五行特性；fe ≥ 1 依 fe 選組（43~52 兩個一組、54~58 一個）
 static void fe_conv_test(void) {
     assert(fe_conv(0, 43) == -1 && fe_conv(-1, 52) == -1 && fe_conv(0, 54) == -1 && fe_conv(0, 41) == 41 && fe_conv(0, 59) == 59);
@@ -6075,6 +6112,7 @@ int main(void) {
         unit_scene = sv; free(sc.cells);
     }
     assert(prop_sound(0x7e9, 1) == 284 && prop_sound(0x7e9, 0) == 400 && prop_sound(2001, 1) == 276 && prop_sound(2006, 1) == 0xffff && prop_sound(99999, 0) == 0xffff);  // PropMdl 落地／下落聲音
+    title_flow_test();
     first_map_test();
     chapter2_rec_test();
     death_team_test();  // 用到 rand（npc_selected），放最後免得改變前面測試的亂數序列

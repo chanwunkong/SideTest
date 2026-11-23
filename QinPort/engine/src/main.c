@@ -8487,6 +8487,109 @@ static void new_draw(void) {
     }
 }
 
+// ---- 標題畫面（原版開機模式 1 → 2，Poq.exe 0x448ab0 切模式、0x44d470 進模式 1、0x44d3d0 進模式 2；日誌見 HANDOFF「標題畫面」）----
+// 模式 1：JM011_扉頁（封面，底圖 4364，無音樂；Enter／Esc／空白／點一下，或 0xc9 拍後自己關：0x534190／0x5341f0）→ 模式 2：JM01_外部主界面
+// （底圖 310＋金木水火土與四象 9 個動畫 55／78／101／124／583／440／481／542／399＋5 個按鈕；音樂 start.wav = 0x57a910(1)）。
+// 單人遊戲（ID 100）→ JM02_单人游戏界面（底圖 311：新游戏 200／读取游戏 201／取消 2）；设置 102 → JM31、制作群 103 → JM33 片尾字幕、退出 104 → JM102。
+// 多人游戏（ID 101）是連線版：不顯示、不能點。shortcut: JM02 的 m_Animate／m_AnimateShadow（ID 5001~5012，旗標 0x10000000）是按鈕指著時的亮光，沒做；
+// 封面計時用 SDL_GetTicks（202 × 16ms），不依遊戲拍數（標題時遊戲拍數凍結）。
+static SDL_Rect ctrl_rect(const UiCtrl *c, int ox, int oy);
+enum { TS_OFF, TS_COVER, TS_MAIN, TS_SINGLE };
+static int title_st, title_t0, title_music, title_ticks;
+static UiDialog title_d[3];
+static const char *const TITLE_SEC[3] = {"JM011_\xec\xe9\xd2\xb3", "JM01_\xcd\xe2\xb2\xbf\xd6\xf7\xbd\xe7\xc3\xe6", "JM02_\xb5\xa5\xc8\xcb\xd3\xce\xcf\xb7\xbd\xe7\xc3\xe6"};
+#define TITLE_COVER_MS ((0xc9 + 1) * 16)
+#define TITLE_PAD 14  // 觸控：按鈕點擊範圍比圖大一圈
+
+static void title_go(int st) {
+    for (int i = 0; i < 3; i++)
+        if (!title_d[i].count && ui_load(TITLE_SEC[i], &title_d[i])) {
+            for (int j = 0; j < title_d[i].count; j++) {
+                UiCtrl *c = &title_d[i].c[j];
+                if (!strcmp(c->name, "m_MultiPlayer") || (c->type == 9 && c->flags & 0x10000000)) c->flags &= ~9;  // 連線版按鈕、按鈕亮光：不顯示
+            }
+        }
+    title_st = st;
+    if (st == TS_COVER) { title_t0 = (int)SDL_GetTicks(); audio_music(""); }  // 封面沒有音樂
+    else if (st == TS_MAIN && !title_music) { audio_music_special("start"); title_music = 1; }
+}
+static void title_leave(void) {  // 離開標題：還原場景音樂（讀檔成功時主迴圈再依新場景換曲）
+    if (title_music) { audio_music_pop(); title_music = 0; }
+    title_st = TS_OFF;
+}
+static int title_hit(const UiDialog *d, int x, int y, const UiCtrl **out) {
+    int ox = (vw - d->w) / 2, oy = (vh - d->h) / 2;
+    for (int i = 0; i < d->count; i++) {
+        const UiCtrl *c = &d->c[i];
+        if (c->type != 2 || !c->img || !(c->flags & 9)) continue;
+        const Sprite *s = ui_image(c->img, 0);
+        if (s && x >= ox + c->x - TITLE_PAD && x < ox + c->x + s->w + TITLE_PAD && y >= oy + c->y - TITLE_PAD && y < oy + c->y + s->h + TITLE_PAD) { *out = c; return 1; }
+    }
+    return 0;
+}
+static void title_press(const char *n) {  // 按鈕 → 狀態轉換（測試也走這裡）
+    if (!strcmp(n, "m_SinglePlayer")) title_go(TS_SINGLE);
+    else if (!strcmp(n, "m_Option")) opt_show();
+    else if (!strcmp(n, "m_Credits")) credits_start();
+    else if (!strcmp(n, "m_QuitGame")) quit_open = ui_load(JM102, &quit_d) > 0;
+    else if (!strcmp(n, "m_NewGame")) { title_leave(); new_show(); }  // 創角 JM09 → 難度 JM21 → 開場劇情（原版 0x570820 同順序）
+    else if (!strcmp(n, "m_LoadGame")) sav_open(2);  // 讀檔視窗疊在標題上；選定後 load_due，主迴圈讀成功才離開標題
+    else if (!strcmp(n, "m_Cancel")) title_go(TS_MAIN);
+}
+static int title_tap(int x, int y) {
+    if (!title_st) return 0;
+    if (title_st == TS_COVER) { title_go(TS_MAIN); return 1; }
+    const UiCtrl *c;
+    if (title_hit(&title_d[title_st - 1], x, y, &c)) title_press(c->name);
+    return 1;
+}
+static void title_esc(void) {  // Esc：關上層視窗；單人遊戲 = 取消；封面 = 跳過
+    if (cr.open) credits_close();
+    else if (quit_open) quit_open = 0;
+    else if (ask_open) ask_open = 0;
+    else if (sav_mode) sav_close();
+    else if (help_open) help_open = 0;
+    else if (opt_open) opt_open = 0;
+    else if (title_st == TS_SINGLE) title_go(TS_MAIN);
+    else if (title_st == TS_COVER) title_go(TS_MAIN);
+}
+static int title_target(int x, int y, SDL_Rect *r) {  // 觸控預覽用（hud_target）
+    const UiCtrl *c;
+    if (title_st == TS_COVER) return 2;
+    if (!title_hit(&title_d[title_st - 1], x, y, &c)) return 2;
+    *r = ctrl_rect(c, (vw - title_d[title_st - 1].w) / 2, (vh - title_d[title_st - 1].h) / 2);
+    return 1;
+}
+static void title_tick(void) {  // 標題時取代遊戲拍（遊戲凍結）
+    title_ticks++;
+    if (title_st == TS_COVER && (int)SDL_GetTicks() - title_t0 >= TITLE_COVER_MS) title_go(TS_MAIN);
+    caption_tick();  // 制作群字幕
+    audio_music_tick(0);
+    if (caption_music) {
+        if (caption_music == 1) audio_music_special("credit"); else audio_music_pop();
+        caption_music = 0;
+    }
+}
+static void title_draw(void) {
+    if (!title_st) return;
+    UiDialog *d = &title_d[title_st - 1];
+    int ox = (vw - d->w) / 2, oy = (vh - d->h) / 2;
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+    SDL_RenderFillRect(ren, NULL);
+    UiCtrl *bg = ui_find(d, "m_pBackGround");
+    if (bg) draw(ui_image(bg->img, 0), ox + bg->x, oy + bg->y);  // 底圖旗標是 0，ui_draw 不畫
+    Uint32 t = SDL_GetTicks() / 16;
+    for (int i = 0; i < d->count; i++) {
+        const UiCtrl *c = &d->c[i];
+        if (!c->img || !(c->flags & 9)) continue;
+        if (c->type == 9) {  // 五行動畫：第 0 序列循環（每幀停留 delay 拍）
+            const Anim *a = anim_get((uint32_t)c->img);
+            if (a && a->count && a->seqs[0].count) draw(image(a->seqs[0].frames[frame_at(&a->seqs[0], t)].ref), ox + c->x, oy + c->y);
+        } else if (c->type == 2) draw(ui_image(c->img, 0), ox + c->x, oy + c->y);
+    }
+}
+
 static void sys_button(const char *name) {
     if (!strcmp(name, "m_pSave")) {
         if (actors[0].fight > 0) { ui_say(1507); return; }  // 战斗时不能够保存进度
@@ -8502,6 +8605,7 @@ static void sys_button(const char *name) {
 }
 
 static void sys_toggle(void) {
+    if (title_st) { title_esc(); return; }
     if (dead_open) return;
     if (caption_esc()) return;
     if (map_open) { map_close(); return; }  // 0x53cc10：Esc 關地圖
@@ -8559,6 +8663,7 @@ static int ask_button(int x, int y) {  // 1 是、2 否、0 沒點到
 
 // 系統選單、存取盘、確認框是蓋在畫面上的（點哪裡都吃掉）
 static int sys_tap(int x, int y) {
+    if (title_st && cr.open) { credits_close(); return 1; }  // 標題的制作群：點一下關（手機沒有 Esc）
     if (caption_tap(x, y)) return 1;
     if (map_tap(x, y)) return 1;
     if (new_tap(x, y)) return 1;
@@ -8616,10 +8721,11 @@ static int sys_tap(int x, int y) {
         if (c) sys_button(c->name);
         return 1;
     }
-    return 0;
+    return title_tap(x, y);
 }
 
 static void sys_draw(void) {
+    title_draw();
     if (dead_open) {
         SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
         SDL_Rect all = {0, 0, vw, vh};
@@ -8962,6 +9068,7 @@ static int hud_target(int x, int y, int win, SDL_Rect *r) {
         return 1;
     }
     if (sav_mode) return ctrl_target(&sav_d, (vw - sav_d.w) / 2, (vh - sav_d.h) / 2, x, y, r);
+    if (title_st) return title_target(x, y, r);
     if (dead_open) return ctrl_target(&dead_d, (vw - dead_d.w) / 2, (vh - dead_d.h) / 2, x, y, r);
     if (sys_open) return ctrl_target(&sys_d, (vw - sys_d.w) / 2, (vh - sys_d.h) / 2, x, y, r);
     {
@@ -10432,6 +10539,7 @@ static int modal_rect(SDL_Rect *r) {
     else if (ask_open) { w = ask_d.w; h = ask_d.h; ask_pos(&ox, &oy); }
     else if (quit_open) { w = quit_d.w; h = quit_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2; }
     else if (map_open) { w = map_d.w; h = map_d.h; ox = (vw - w) / 2; oy = (vh - h) / 2 - 0x32; }
+    else if (title_st) { w = vw; h = vh; ox = oy = 0; }  // 標題整張放大（直式手機）
     else if (diff_open) { const Sprite *bg = ui_image(196, 0); w = bg ? bg->w : 0; h = bg ? bg->h : 0; ox = (vw - w) / 2; oy = (vh - h) / 2; }  // 選難度（新遊戲第一個畫面）：小，直式要放大才點得到
     else return 0;
     if (w <= 0 || h <= 0) return 0;
@@ -10454,7 +10562,7 @@ int main(int argc, char **argv) {
     int pos = 0, warp = -1, at_x = -1, at_y = -1, level = 1, gives = 0, money = -1;
     const char *give[8], *learn[8];
     int give_eq[8], drop_t = -1, drop_lv = 1;
-    int learns = 0, win_w = 0, win_h = 0;
+    int learns = 0, win_w = 0, win_h = 0, force_title = 0;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--pause-traps")) trap_auto_pause = 1;
         if (!strcmp(argv[i], "--pause-deaths")) death_auto_pause = 1;
@@ -10471,6 +10579,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--press") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &press_x, &press_y);  // 測試用：假裝有一根手指按在螢幕座標 X,Y 的介面上（看放大鏡與亮框）
         else if (!strcmp(argv[i], "--movie") && i + 1 < argc) movie_play(argv[++i]);  // 測試用：只播影片（End 等）
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
+        else if (!strcmp(argv[i], "--title") && i + 1 < argc) force_title = atoi(argv[++i]);  // 測試用：指定場景或 --shot 時也先顯示標題畫面；1 封面、2 主選單、3 單人遊戲
 #ifdef STORY
         else if (!strcmp(argv[i], "--rec") && i + 1 < argc) snprintf(rec_pending, sizeof rec_pending, "%s", argv[++i]);  // 測試用：進場景就播這個過場
 #endif
@@ -10499,7 +10608,7 @@ int main(int argc, char **argv) {
     save_mount();
 #ifdef STORY
     story_register_all();
-    if (pos < 2 && story_start_room()) { scn = story_start_room(); new_show(); }  // 沒指定場景 = 新遊戲，從原版的開場房間開始，先創角（JM09）再選難度
+    if (pos < 2 && story_start_room()) scn = story_start_room();  // 沒指定場景 = 從原版的開場房間開始；標題的「新游戏」才創角（JM09）再選難度
 #endif
 
     if (pos < 2 && !shot) { movie_play("logo1"); if (intro_wanted()) movie_play("Start"); }  // 0x449f50 狀態 8~0xb
@@ -10624,6 +10733,7 @@ int main(int argc, char **argv) {
                ini_int(cfg_text, "\xd2\xf4\xd0\xa7=", 1) ? ini_int(cfg_text, "\xd2\xf4\xd0\xa7\xd2\xf4\xc1\xbf=", 100) : 0);  // 音效、音效音量
     free(cfg);
     scene_music_enter(alias);
+    if (((pos < 2 && !shot) || force_title) && load_arg < 0) title_go(force_title >= TS_COVER && force_title <= TS_SINGLE ? force_title : TS_COVER);  // 開機先到標題（原版模式 1）；--load 測試、指定場景、--shot 直接進遊戲
     SDL_GameController *pad = NULL;
     for (int i = 0; i < SDL_NumJoysticks() && !pad; i++)
         if (SDL_IsGameController(i)) pad = SDL_GameControllerOpen(i);
@@ -10704,6 +10814,10 @@ int main(int argc, char **argv) {
             if (e.type == SDL_MOUSEMOTION && drag_src >= 0) { drag_x = e.motion.x; drag_y = e.motion.y; }
             if (e.type == SDL_QUIT) running = 0;
             else if (journal_open && (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_KEYDOWN)) { journal_open = 0; pointer_down = 0; continue; }  // 日誌開著：點任何地方或按鍵關閉
+            else if (title_st && e.type == SDL_KEYDOWN) {  // 標題：Esc 取消／跳過封面，Enter、空白跳過封面，其他鍵不傳給遊戲
+                if (e.key.keysym.sym == SDLK_ESCAPE) title_esc();
+                else if (title_st == TS_COVER && (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER || e.key.keysym.sym == SDLK_SPACE)) title_go(TS_MAIN);
+            }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_j && !e.key.repeat && !new_open && !sys_open && !mny.open && !diff_open && !dialog_open) journal_open = 1;
             else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT && e.button.y < 36 && e.button.x > vw / 4 && e.button.x < vw * 3 / 4 &&
                      !new_open && !sys_open && !mny.open && !diff_open && !dialog_open && !rec_on && journal_n) { journal_open = 1; continue; }  // 點畫面上方提示字開日誌（手機沒有 J 鍵）
@@ -10846,6 +10960,7 @@ int main(int argc, char **argv) {
         if (load_due >= 0) {
             static SaveHead h;
             if (save_read(load_due, &h)) {
+                title_leave();  // 從標題讀檔：先離開標題（還原音樂），下面進場景再換成存檔場景的曲
                 float x = hero->x, y = hero->y;
                 int dir = hero->dir, lv = hero->level, exp = hero->exp, hp = hero->hp, mp = hero->mp;
                 js_status(-1);
@@ -10875,7 +10990,7 @@ int main(int argc, char **argv) {
         if (hero->selection_pending && !hero->act && !hero->casting) hero_selected_skill_apply(hero);
         Uint64 now = SDL_GetPerformanceCounter();
         {  // 觸控介面：對話、系統選單、創角、地圖、死亡、詢問框、離開確認、交易製作視窗開著就整組收起來（背包、裝備、技能這種側邊視窗開著保留，多一顆 ✕ 關閉）；視窗長寬比（轉向、改視窗大小）或側邊視窗變了就重排版
-            int blocked = journal_open || dead_open || sys_open || map_open || new_open || pick_hand >= 0 || ask_open || quit_open || sav_mode || diff_open || trade_paused();
+            int blocked = title_st || journal_open || dead_open || sys_open || map_open || new_open || pick_hand >= 0 || ask_open || quit_open || sav_mode || diff_open || trade_paused();
 #ifdef STORY
             blocked |= dialog_open || make_on() || store_on();
 #endif
@@ -10950,6 +11065,7 @@ int main(int argc, char **argv) {
             logic_ms += TICK_MS;
             for (int i = 0; i < actor_count; i++) { actors[i].pvx = actors[i].x; actors[i].pvy = actors[i].y; }  // 畫面補間：記下這一拍之前的位置
             vp_prev = viewport.pos;
+            if (title_st) { title_tick(); continue; }  // 標題：遊戲凍結
             if (scene_paused || trade_paused()) continue;
             // 過場等圖片下載好才往下播（網頁圖片是邊畫邊下載；手機網路慢時過場在黑畫面上播完，玩家什麼都沒看到，2026-11-20 使用者回報）。
             // 最多等 30 秒，之後照播（有張圖一直下載失敗也不會卡死）。原版啟動時資源都在本機，沒有這問題
@@ -10964,7 +11080,7 @@ int main(int argc, char **argv) {
 #ifdef STORY
             // 劇情事件的過場（新遊戲要等難度選完才開演；NPC 對話還開著也要等關掉：選項「好的，前面帶路」那一點會被當成跳過，
             // 過場一瞬間就收掉，桓峰／第二章開場實測）
-            if (rec_pending[0] && !diff_open && !dialog_open) {  // 沒檔、場景載不進去就直接收尾
+            if (rec_pending[0] && !diff_open && !dialog_open && !title_st) {  // 沒檔、場景載不進去就直接收尾
                 if (!rec_begin(rec_pending, &scene, hero, story_room_alias(sroom))) { story_begin(); story_plot_end(); story_end(); }
                 rec_pending[0] = 0;
             }
@@ -11406,7 +11522,7 @@ int main(int argc, char **argv) {
                 SDL_RenderFillRect(ren, NULL);
             }
         }
-        if (shot && tick > 3) {
+        if (shot && (tick > 3 || (title_st && title_ticks > 3))) {
             SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, vw, vh, 32, SDL_PIXELFORMAT_ARGB8888);
             SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, surf->pixels, surf->pitch);
             SDL_SaveBMP(surf, shot);
@@ -11422,7 +11538,7 @@ int main(int argc, char **argv) {
         touch_draw();
         touch_preview_draw();
         modal_cleared = 0; modal_on = 0;
-        if (shot && tch.forced && tick > 3) {  // --touch --shot：存整個螢幕（含留空和按鈕）
+        if (shot && tch.forced && (tick > 3 || (title_st && title_ticks > 3))) {  // --touch --shot：存整個螢幕（含留空和按鈕）
             int sw_, sh_;
             SDL_GetRendererOutputSize(ren, &sw_, &sh_);
             SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormat(0, sw_, sh_, 32, SDL_PIXELFORMAT_ARGB8888);
