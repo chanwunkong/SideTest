@@ -4269,6 +4269,7 @@ static void strike(Actor *a, Actor *t, const SkillRow *sk, Uint32 tick) {
     (void)tick;
     if (!alive(t)) return;
     if (t->mon && !t->foe) actor_target_set(t, a);  // 被打的怪物會反擊
+    if (t == &actors[0] && a->mon && !t->foe) actor_target_set(t, a);  // 主角被打且沒目標：選打人的怪，血條才會顯示
     actor_enter_fight(t);
     if (shield_block(a, t, tick)) return;
     // 命中（Poq.exe 0x48c600，CCharactor 虛擬函式第 104 格）：千分比 = HR×1000 / (SR + HR)，夾在 100~900；HR 0 當 1
@@ -6142,6 +6143,7 @@ static int hero_in_reach(Actor *a, const Actor *t, int id) {
 }
 static void hero_attack_touch(Actor *h, Actor *t, int id) {
     touch_opt_load();
+    actor_target_set(h, t);  // 敵人血條（0x459ce0）看主角的目標：不論追蹤開關，打誰就選誰
     int reach = hero_in_reach(h, t, id);
     if (opt_chase && !(reach && !opt_turn)) {
         actor_command(h, 9, id, t->sh ? t->sh : (int)t->object_id, 0, 1, 1);

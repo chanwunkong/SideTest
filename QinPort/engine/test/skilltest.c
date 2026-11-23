@@ -212,7 +212,9 @@ static void character_skill_commands_test(void) {
         for (int far=0; far<2; far++) for (int turn=0; turn<2; turn++) for (int chase=0; chase<2; chase++) {
             *a=base; a->skills[0].min=0; t->x=far?14.5f:6.5f; t->hp=100; unit_n=0;
             actor_direction_set(a,away); opt_turn=turn; opt_chase=chase;
-            hero_attack_touch(a,t,-1); actor_skill_command_tick(a);
+            a->foe=NULL; hero_attack_touch(a,t,-1);
+            assert(status_target(a,NULL,0)==t && actor_target(a)==t);  // 任何選項組合：血條目標 = 被攻擊的怪
+            actor_skill_command_tick(a);
             int walk=a->dynamic_state==11, swung=unit_n==1;
             if (far && chase) { assert(a->command[0]==9 && a->remembered[0]==9 && walk && !swung); continue; }  // 遠 + 追：命令 9 追過去
             if (!far && chase && !turn) { assert(swung && !walk && a->remembered[0]==-1 && units[0].dir==away); }  // 近、追 ON、轉向 OFF：照面向揮，沒追
@@ -230,6 +232,7 @@ static void character_skill_commands_test(void) {
             else assert(t->hp==100);
             unit_n=0;
         }
+        a->foe=t; t->act=ACT_DEAD; assert(!status_target(a,NULL,0)); t->act=0;  // 目標死了血條就收
         t->side=0; t->x=6.5f; unit_n=0; *a=base;
     }
     // 缺少Method時保留地點命令；不是按下輸入就丟棄。
