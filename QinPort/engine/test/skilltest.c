@@ -6272,6 +6272,40 @@ int main(void) {
         assert(money_drop(5000) == 800 && hero_money == 0 && ground_n == g0 + 1);   // 不夠就丟全部（3029）
         assert(ground[g0].it.type == 60 && ground[g0].it.amount == 800 && ground[g0].it.ground == 0x7ea);
         assert(money_drop(10) == 0 && ground_n == g0 + 1);                    // 沒錢不丟
+    // 觸控適配：點背包道具只選取、不使用；使用／丟棄走按鈕，丟棄要確認，放不下就留著
+    {
+        Item sv = inv[3]; int g1 = ground_n; int hp0 = actors[0].hp, hm0 = actors[0].hp_max;
+        actors[0].hp = 50; actors[0].hp_max = 100;
+        inv[3] = (Item){.name = "x", .type = 20, .identify = 1, .fx_n = 1, .weight = 3};
+        inv[3].fx[0].id = 21; inv[3].fx[0].v = 20;
+        item_sel = -1;
+        bag_button("m_pItem[3]");
+        assert(item_sel == 3 && inv[3].name[0] && actors[0].hp == 50);  // 一點：選取，沒用掉
+        bag_button("m_pItem[3]");
+        bag_button("m_pItem[3]");
+        assert(item_sel == 3 && inv[3].name[0] && actors[0].hp == 50 && ground_n == g1);  // 再點（雙擊）也不用
+        { char d[256]; item_describe(&inv[3], d, sizeof d); assert(d[0]); }  // 說明面板有內容
+        bag_button("m_pReject");
+        assert(ask_open == 3 && inv[3].name[0] && ground_n == g1);  // 丟棄先問，還沒丟
+        ask_open = 0;
+        assert(inv[3].name[0] && ground_n == g1);  // 否 = 不丟
+        bag_button("m_pUse");
+        assert(!inv[3].name[0] && actors[0].hp == 70);  // 使用鈕：剛好用一個
+        inv[3] = (Item){.name = "y", .type = 20, .weight = 3};
+        item_sel = 3;
+        bag_button("m_pReject");
+        assert(ask_open == 3);
+        bag_drop_do(); ask_open = 0;
+        assert(!inv[3].name[0] && ground_n == g1 + 1 && !strcmp(ground[g1].it.name, "y") && ground[g1].it.pos == -1);  // 是 = 丟到腳下
+        ground_n = g1;
+        inv[3] = (Item){.name = "z", .type = 20, .weight = 3};
+        item_sel = 3;
+        bag_button("m_pReject");
+        { int gs = ground_n; ground_n = MAX_GROUND; bag_drop_do(); ground_n = gs; }  // 放不下：拒絕，道具留著
+        assert(inv[3].name[0] && strstr(toast, "\xe4\xb8\x8d\xe8\x83\xbd\xe4\xb8\x9f\xe6\xa3\x84"));
+        ask_open = 0;
+        inv[3] = sv; actors[0].hp = hp0; actors[0].hp_max = hm0; item_sel = -1;
+    }
         ground_n = g0; hero_bank = 0;
     }
     {  // 偷竊 0x10034900：技能等級 < 目標等級 / 9 → 5129；成功率 100 時有主人的目標 → 5130；沒錢沒東西 → 5009

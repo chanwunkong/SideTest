@@ -6695,13 +6695,13 @@ static void hit_wear(Actor *a, Actor *t, const SkillRow *sk) {
 
 // ---- 地上的道具（宣告在 unit.c 之前，near.c 要看格子上有沒有道具）----
 
-static void ground_drop(const Item *it, float x, float y) {
-    if (ground_n == MAX_GROUND || !it->name[0]) return;
+static int ground_drop(const Item *it, float x, float y) {  // 回 1 = 放下了；0 = 沒位置（呼叫端要把道具留著）
+    if (ground_n == MAX_GROUND || !it->name[0]) return 0;
     ground[ground_n].it = *it;
     ground[ground_n].it.pos = -1;
     if (debug_cells) printf("ground drop %s at %.1f,%.1f\n", it->name, x, y);
     int cx = (int)x, cy = (int)y, sx = cx, sy = cy;
-    if (!free_cell(&cx, &cy, 10)) return;  // CPropObj 放進場景（0x49a350）：周圍 10 圈第一個空格，沒有就不放
+    if (!free_cell(&cx, &cy, 10)) return 0;  // CPropObj 放進場景（0x49a350）：周圍 10 圈第一個空格，沒有就不放
     ground[ground_n].x = cx + 0.5f;
     ground[ground_n].id = ground_next_id++;
     ground[ground_n].y = cy + 0.5f;
@@ -6713,6 +6713,7 @@ static void ground_drop(const Item *it, float x, float y) {
     ground[ground_n].vx = (int)dist < 1 ? 0 : (tx - ground[ground_n].dx) / PROP_TICKS;
     ground[ground_n].vy = (int)dist < 1 ? 0 : (ty - ground[ground_n].dy) / PROP_TICKS;
     ground_n++;
+    return 1;
 }
 
 // 每拍（CPropObj 0x49a550）：前 PROP_TICKS-1 拍沿直線飛，高度 +PROP_STEP 到 PROP_SPLIT 拍、之後落回 0；最後一拍高度歸零。
@@ -6830,10 +6831,10 @@ static int ground_at(int px, int py, int ox, int oy, const Scene *s) {
     return -1;
 }
 
-// 道具視窗（JM54）的格子和按鈕。點道具 = 選取，再點一次 = 使用／裝備；選了以後點空格 = 移過去
+// 道具視窗（JM54）的格子和按鈕。觸控適配：點道具 = 只選取並顯示說明（不使用）；使用／裝備按 m_pUse、丟棄按 m_pReject（會問）；選了以後點空格 = 移過去
 // shortcut: 原版用滑鼠拖放、右鍵使用，手機改成點選；打造（m_pMake）、镶嵌（m_pEnchase）、查看（m_LookOver）另外的系統，還沒做
 #ifdef STORY
-static int shop_bag_act(int p);
+static int shop_bag_tap(int p);
 static int store_bag_act(int p);
 static int make_self;  // 打造介面是從背包（JM54 的 m_pMake／m_pEnchase，Poq.exe 0x54af70／0x54b620）開的 = 用自己的技能，不是商人
 static void make_open(int mode);
@@ -6853,14 +6854,20 @@ static void bag_use(int p) {
     if (inv[p].part > 0) item_equip(&actors[0], p);
     else if (!item_eat(&actors[0], p, 0) && !(inv[p].fx_n && item_eat(&actors[0], p, 1))) hud_say("不能使用");  // shortcut: 原版 use 連沒特性的道具也會用掉，這裡只讓有特性的用
 }
+// 丟棄（觸控適配：加確認框，原版 drop 0x10016920 → move 0x1004df20 沒有確認）：道具放到主角腳下（CPropObj 0x49a350，周圍 10 圈找空格）。
+// 原版 move 失敗（沒空格、地上滿）道具留在身上；單機資料裡沒找到「不可丟」旗標，所以唯一拒絕的情況就是放不下
+// shortcut: 劇情道具物件的第 15 格（旗標、日誌）丟下時沒呼叫，跟原本的丟棄一樣
+static void bag_drop_ask(int p);
+static void bag_drop_do(void);
 static void bag_button(const char *name) {
     int p = !strncmp(name, "m_pItem[", 8) ? atoi(name + 8) : !strncmp(name, "m_pShortcutItem[", 16) ? 24 + atoi(name + 16) : -1;
     int sel = item_sel >= 0 && inv[item_sel].name[0] ? item_sel : -1;
     if (p >= 0) {
 #ifdef STORY
-        if (p == sel && (shop_bag_act(p) || store_bag_act(p))) return;
+        if (p == sel && (shop_bag_tap(p) || store_bag_act(p))) return;  // 只有可還原的搬動（放進打造台、寄存箱）；賣、修理、鑑定要按鈕
 #endif
-        if (p == sel) bag_use(p);
+        // 觸控適配：點格子只選取並顯示說明，不使用、不丟、不賣（原版是滑鼠游標／右鍵，手機容易誤觸）；使用／裝備、丟棄走 m_pUse、m_pReject 按鈕
+        if (p == sel) return;
         else if (inv[p].name[0]) { if (sel >= 0) arrow_merge(p, sel); item_sel = p; }  // 選中箭堆再點另一堆 = 合併（c_arrow）
         else if (sel >= 0) { inv_swap(sel, p); item_sel = p; }
     } else if (!strcmp(name, "m_pNeaten")) bag_neaten();
@@ -6871,11 +6878,8 @@ static void bag_button(const char *name) {
     else if (!strcmp(name, "m_pUse")) bag_use(sel);
     else if (!strcmp(name, "m_pRepair")) item_repair(sel);
     else if (!strcmp(name, "m_pIdentify")) item_identify(&actors[0], sel);
-    else if (!strcmp(name, "m_pReject")) {  // 丢弃：放到主角腳下
-        ground_drop(&inv[sel], actors[0].x, actors[0].y);
-        inv[sel].name[0] = 0;
-        item_sel = -1;
-    } else ui_command(name);
+    else if (!strcmp(name, "m_pReject")) bag_drop_ask(sel);
+    else ui_command(name);
 }
 
 #ifdef STORY
@@ -7013,8 +7017,10 @@ static int make_bag_act(int p);
 static void ui_text(int id, char *out, size_t cap);
 static void item_icon(UiDialog *d, const char *key, int wx, int wy, const Item *it);
 static void item_icon_fit(UiDialog *d, const char *key, int wx, int wy, const Item *it);
+static int shop_bag_tap(int p) {  // 點已選的背包道具：只有打造台會收（可取回）
+    return (shop_npc || make_self) && p >= 0 && p < INV_BAG && inv[p].name[0] && make_on() ? make_bag_act(p) : 0;
+}
 static int shop_bag_act(int p) {
-    if ((shop_npc || make_self) && p >= 0 && p < INV_BAG && inv[p].name[0] && make_on()) return make_bag_act(p);
     if (!shop_npc || p < 0 || p >= INV_BAG || !inv[p].name[0]) return 0;
     if (shop_mode == SHOP_SELL) shop_sell(p);
     else if (shop_mode == SHOP_REPAIR) shop_repair(p);
@@ -7023,7 +7029,7 @@ static int shop_bag_act(int p) {
     return 1;
 }
 
-// JM63 的按鈕。shortcut: 原版游標模式點一下就做；手機改成點第一下選取、看價格，再點一下（或按該模式的按鈕）才做
+// JM63 的按鈕。觸控適配：原版游標模式點一下就做；手機改成點選取、看價格，再按該模式的按鈕（買、賣、修理、鑑定）才做
 static void shop_button(const char *name) {
     static const struct { const char *n; int tab; } tabs[] = {{"m_pWeapons", 3}, {"m_pShield", 2}, {"m_pLeechdom", 1}, {"m_pOther", 0}};
     for (int i = 0; i < 4; i++)
@@ -7031,16 +7037,15 @@ static void shop_button(const char *name) {
     int sel = item_sel >= 0 && item_sel < INV_BAG && inv[item_sel].name[0] ? item_sel : -1;
     if (!strncmp(name, "m_pItem[", 8)) {
         int i = atoi(name + 8);
-        if (i < shop_n && (i == shop_sel || shop_mode == SHOP_BUY)) shop_buy(i);
-        else shop_sel = i < shop_n ? i : -1;
+        shop_sel = i < shop_n ? i : -1;  // 觸控適配：點商品只選取、看價格；買要按 m_pBuy
     } else if (!strcmp(name, "m_pBuy")) {
         if (shop_sel >= 0) shop_buy(shop_sel);
-        else { shop_mode = SHOP_BUY; hud_say("買：點商品"); }
+        else hud_say("買：先點商品，再按買");
     } else if (!strcmp(name, "m_pSell") || !strcmp(name, "m_pRepair") || !strcmp(name, "m_pIdentify")) {
         shop_mode = name[3] == 'S' ? SHOP_SELL : name[3] == 'R' ? SHOP_REPAIR : SHOP_IDENTIFY;
         shop_sel = -1;
         if (sel >= 0) shop_bag_act(sel);
-        else hud_say(shop_mode == SHOP_SELL ? "賣：點背包的道具" : shop_mode == SHOP_REPAIR ? "修理：點背包的道具" : "鑑定：點背包的道具");
+        else hud_say(shop_mode == SHOP_SELL ? "賣：先點背包的道具，再按賣" : shop_mode == SHOP_REPAIR ? "修理：先點背包的道具，再按修理" : "鑑定：先點背包的道具，再按鑑定");
     } else if (!strcmp(name, "m_pMake") || !strcmp(name, "m_pEnchase")) { make_self = 0; make_open(name[3] == 'M' ? -1 : 1); }
     else if (!strcmp(name, "m_pCClose")) shop_close();
 }
@@ -8094,6 +8099,21 @@ static void sav_open(int mode) {
     sav_refresh();
 }
 
+static int drop_p = -1;  // 丟棄確認框（ask_open == 3）要丟的背包格
+static void bag_drop_ask(int p) {
+    if (p < 0 || p >= INV_BAG || !inv[p].name[0]) return;
+    drop_p = p;
+    ask_open = 3;
+    ui_load(JM67, &ask_d);
+}
+static void bag_drop_do(void) {
+    int p = drop_p;
+    drop_p = -1;
+    if (p < 0 || !inv[p].name[0]) return;
+    if (!ground_drop(&inv[p], actors[0].x, actors[0].y)) { hud_say("這裡沒有空位，不能丟棄"); return; }
+    inv[p].name[0] = 0;
+    item_sel = -1;
+}
 static void sav_close(void) { sav_mode = 0; ask_open = 0; }
 
 // 確定：保存 → 有檔就先問要不要覆蓋（UI_C 1535）；读取 → 空格不動
@@ -8665,7 +8685,8 @@ static int sys_tap(int x, int y) {
     }
     if (ask_open) {
         int b = ask_button(x, y);
-        if (b == 1 && ask_open == 2) {  // 刪除（UI_C 1534 存盘将被删除，确定吗？）
+        if (b == 1 && ask_open == 3) bag_drop_do();
+        else if (b == 1 && ask_open == 2) {  // 刪除（UI_C 1534 存盘将被删除，确定吗？）
             char p[64];
             save_path(sav_sel, p, sizeof p);
             remove(p);
@@ -8775,7 +8796,8 @@ static void sys_draw(void) {
         ask_pos(&ox, &oy);
         ui_draw(&ask_d, ox, oy);
         char t[128];
-        ui_text(ask_open == 2 ? 1534 : 1535, t, sizeof t);  // 存盘将被删除／覆盖，确定吗？
+        if (ask_open == 3) { char nm[96]; gbk_utf8(drop_p >= 0 ? inv[drop_p].name : "", nm, sizeof nm); snprintf(t, sizeof t, "確定要丟棄「%s」嗎？", nm); }  // 觸控適配
+        else ui_text(ask_open == 2 ? 1534 : 1535, t, sizeof t);  // 存盘将被删除／覆盖，确定吗？
         draw_text(ox + (ask_d.w - text_width(t)) / 2, oy + 36, t, ask_d.w, 0xBECDCE, 1);
         for (int b = 0; b < 2; b++) {
             const Sprite *s = ui_image(b ? 1522 : 1526, 0);
