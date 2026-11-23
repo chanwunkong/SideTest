@@ -5381,11 +5381,11 @@ static void ui_bar_ex(const UiCtrl *c, int ox, int oy, int value, int max, int f
     const Sprite *s = ui_image(c->img, 0);
     if (!s || max <= 0) return;
     int v = value < 0 ? 0 : value > max ? max : value;
-    if (backdrop) {  // 0x5972f0：旗標 0x10 沒設 → 先把整張圖當底畫一次（原版第 0x20(0) 模式的暗化沒查，這裡用降色）
+    if (backdrop) {  // 0x5972f0：旗標 0x10 沒設 → 虛擬 +0x20(0) 選第 0 組動作（底圖）畫整張，再 +0x20(1) 選第 1 組動作（填色）。+0x20 = 設動作序號（0x40443f 寫圖組 +0xc、幀歸零），不是暗化
         SDL_Rect all = {ox + c->x, oy + c->y, s->w, s->h};
-        SDL_SetTextureColorMod(s->tex, 80, 80, 80);
         SDL_RenderCopy(ren, s->tex, NULL, &all);
-        SDL_SetTextureColorMod(s->tex, 255, 255, 255);
+        const Anim *an = anim_get((uint32_t)c->img);
+        if (an && an->count >= 2 && an->seqs[1].count) { const Sprite *f = ui_image(c->img, an->seqs[0].count); if (f) s = f; }
     }
     SDL_Rect src = {0, 0, s->w, s->h};
     if (c->flags & 0x4000) { src.y = s->h - s->h * v / max; src.h = s->h - src.y; }
