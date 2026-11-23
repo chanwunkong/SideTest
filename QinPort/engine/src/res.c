@@ -397,6 +397,7 @@ static const struct { const char *name; uint32_t base; } LIBS[] = {
     {"Res07.Lib", 0x800000}, {"Res08.Lib", 0x900000}, {"ResUI2.Lib", 0xA00000}, {"ResUI5.Lib", 0xA80000},
     {"ResUI3.Lib", 0xB00000}, {"ResUI4.Lib", 0xC00000},
     {"ResRole12Spr.Lib", 0xD00000},  // 蝙蝠、骷髏、蜘蛛（BIANFU1／2、SKULLBOW／DAO、ZHIZHU 的 TK 與影子 TKS；0000_001.PLI 的 13631488~13631497）
+    {"ResRole12.Lib", 0xE00000},     // 上面五個角色動畫的幀圖（動畫 ref 0xE00000~0xE00727，1832 張）；沒登記時動畫解得到但每幀圖都載不到
 };
 #define LIB_N (int)(sizeof LIBS / sizeof LIBS[0])
 static Lib libs[LIB_N];
@@ -1098,7 +1099,8 @@ int role_load(Role *r, const char *graphic, int pli_no, const char *styles) {
     char *defs = (char *)read_all(dir, "0000_001.PLI", &dsize);
     snprintf(name, sizeof name, "%.8s_%03d.PLI", graphic, pli_no);
     uint8_t *p = read_all(dir, name, &size);
-    if (!defs || !p || size < 0xb8 || memcmp(p, "PLI", 3)) { free(defs); free(p); return 0; }
+    // 最小的合法 PLI 只有 132 bytes（1 個部件、8 個單幀序列：1005／9997 等靜態角色），所以長度門檻是「檔頭＋部件表＋序列表標頭」，不是固定 0xb8
+    if (!defs || !p || size < 0x2a || memcmp(p, "PLI", 3) || (size_t)0x28 + p[0x22] * 10 + 0x20 + 2 > size) { free(defs); free(p); return 0; }
     // 0x22 部件數；0x28 起每筆 (部件名[5], 款式[5])；角色表的「屬性」依序覆蓋款式
     r->part_count = p[0x22] < MAX_ROLE_PARTS ? p[0x22] : MAX_ROLE_PARTS;
     uint32_t want[MAX_ROLE_PARTS * 2];

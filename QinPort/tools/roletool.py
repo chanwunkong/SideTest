@@ -14,7 +14,7 @@ from libtool import decode_xbm, png
 
 LIBS = [('ResUI', 0), ('Res00', 0x100000), ('Res01', 0x200000), ('Res02', 0x300000), ('Res03', 0x400000),
         ('Res04', 0x500000), ('Res05', 0x600000), ('Res06', 0x700000), ('Res07', 0x800000),
-        ('Res08', 0x900000), ('ResUI2', 0xA00000), ('ResUI5', 0xA80000), ('ResUI3', 0xB00000), ('ResUI4', 0xC00000)]
+        ('Res08', 0x900000), ('ResUI2', 0xA00000), ('ResUI5', 0xA80000), ('ResUI3', 0xB00000), ('ResUI4', 0xC00000), ('ResRole12Spr', 0xD00000), ('ResRole12', 0xE00000)]
 
 
 class Res:

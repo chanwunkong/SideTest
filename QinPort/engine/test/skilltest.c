@@ -4916,12 +4916,14 @@ static void attack_facing_test(void) {
 // 期望：索敵 > 0 且在範圍內 → 立刻選主角為目標、入戰姿勢；有招式（技能鏈）就在 2400 拍內出手；範圍外、索敵 0、同組（100）、
 // 不是玩家組也不是 NPC 組的 G_AIGroup（102，食人怪）→ 完全不反應。
 typedef struct { int tgt, fight, atk; } Aggro;
+static int aggro_stubs;  // 整個測試中換成空角色的次數（應為 0）
 static int aggro_stub;  // 最近一次 aggro_run 用的是空角色（本機缺圖）
 static Aggro aggro_run(NpcSpec *spec, const MonDef *m, const RoleDef *d, int grp, int dist, int ticks, int *skills, int *seek) {
     static Cell cells[40*40];
     for (int i=0;i<1600;i++) cells[i]=(Cell){.walk=1,.layer=1};
     Scene sc={.w=40,.h=40,.cells=cells,.npcs=spec,.npc_count=spec?1:0};
     const Scene *saved_scene=unit_scene; unit_scene=&sc; unit_n=0;
+    roles_clear();  // 外觀快取每場景最多 64 種（MAX_ROLES）；測試一路換怪不清的話後面的怪（狗熊 25 等）會載入失敗被換成空角色
     Actor *h=&actors[0]; memset(h,0,sizeof *h);
     h->x=10.5f; h->y=20.5f; h->layer=1; h->level=1;
     actor_setup(h,&hero_def); hero_derive(h); h->hp=h->hp_max=100000; actor_look_set(h,&hero_def);
@@ -4932,7 +4934,8 @@ static Aggro aggro_run(NpcSpec *spec, const MonDef *m, const RoleDef *d, int grp
     if (spec) { spec->x=10+dist; spec->y=20; spec->type=12; spec->logic=0; spec->rest=4; spawn_npcs(&sc);  /* 站立型：閒逛／巡邏會自己走進索敵圈，不是這裡要測的 */ assert(actor_count==2); t=&actors[1]; }
     else t=mon_make(m,d,10+dist,20,10);
     aggro_stub=!t->role;
-    if (!t->role) {  // 本機的遊戲檔缺這個角色的圖：換成空角色（AI 不看圖；單機版網頁版圖是執行時抓的）
+    if (!t->role) {  // 圖形載不到：換成空角色（AI 不看圖）；每種角色在 role_coverage 都有資料，所以這裡應該不會發生
+        aggro_stubs++;
         t->role=&empty_test_role;
         assert(actor_bind_scene(t,&sc) && actor_place(t,10+dist,20,1));
         t->x=10.5f+dist; t->y=20.5f;
@@ -5048,8 +5051,10 @@ static void monster_aggro_test(void) {
     }
     printf("%d monster kinds: %d attack proactively, %d never (no skills / seek 0)\n",kinds,attackers,passive);
     assert(kinds>20 && attackers>20);
+    assert(aggro_stubs==0);  // 沒有任何角色因載不到圖而換成空角色
     world_free(&w);
     actors[0]=saved0; actors[1]=saved1; actor_count=saved_count; unit_n=saved_unit_n;
+    roles_clear(); actor_look_set(&actors[0],&hero_def);  // 上面清了外觀快取：主角外觀重載
 }
 
 static void attack_timing_test(void) {

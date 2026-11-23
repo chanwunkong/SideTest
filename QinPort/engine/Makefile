@@ -10,6 +10,10 @@ qin: src/main.c src/viewport.c src/air.c src/unit.c src/near.c src/weather.c src
 skilltest: test/skilltest.c src/main.c src/viewport.c src/air.c src/unit.c src/near.c src/weather.c src/light.c src/caption.c src/mapwin.c src/journal.c src/logwin.c src/party.c src/input.c src/touch_ui.c src/res.c src/res.h src/audio.c src/audio.h
 	$(CC) $(CFLAGS) -Wno-unused-function -o build/skilltest test/skilltest.c src/res.c src/audio.c $(LDLIBS) && cd test && ../build/skilltest
 
+# 角色圖形覆蓋表（有資料卻解不到會失敗）
+rolecov:
+	python3 -I ../tools/role_coverage.py ../game
+
 clean:
 	rm -rf qin build storytest
 
