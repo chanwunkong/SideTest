@@ -4208,6 +4208,28 @@ static void party_test(void) {
 
 // 主角死亡（0x1004f3a0 單機部分 + JM513 死亡界面）與隊友角色（team_derive、npc_selected、team 技能挑選）
 // 第一張地圖試玩修正：觸發區感應格（占地格 0x88＋房屋門點）、按住走路貼牆只往朝向手指的軸、建築錨點用菱形左上角（viewport_test）
+// 第二章開場過場（桓峰 pct_jyhfeng、赵村被毁 pct_zcbhui）：錄影從頭播到最後一包、場景（地圖大小）全程與結束後都不變，不會在房間與別的地圖間來回載
+static void chapter2_rec_test(void) {
+    static const struct { const char *rec, *room; unsigned ticks; } T[] = {{"pct_jyhfeng", "xy_hjjf", 738}, {"pct_zcbhui", "zhaocun2", 1547}};
+    for (int k = 0; k < 2; k++) {
+        Scene sc = {0};
+        Actor *hero = &actors[0];
+        actor_count = 1; memset(hero, 0, sizeof *hero);
+        hero->dir = 4;
+        protagonist_new(hero);
+        assert(enter_scene(&sc, hero, T[k].room, -1));
+        int w = sc.w, h = sc.h;
+        assert(rec_begin(T[k].rec, &sc, hero, T[k].room));
+        assert(!rec.back[0] && !strcasecmp(rec.cur, T[k].room));  // 錄影場景 = 目前房間，不換場景
+        unsigned n = 0;
+        while (rec_on && n < 20000) { rec_tick(&sc, hero); assert(sc.w == w && sc.h == h); n++; if (rec.dlg_t > 0 && rec.dlg_t < 1 << 30) rec.dlg_t = 1; }
+        assert(!rec_on && !rec_scene_moved);            // 播到底自己收尾（不是被跳過）
+        assert(n >= T[k].ticks && n < T[k].ticks + 40);  // 時間軸全部走完
+        assert(sc.w == w && sc.h == h && hero->x >= 0);
+        scene_free(&sc);
+    }
+}
+
 static void first_map_test(void) {
     // trigger_hit：模型 3×3 占地格，原點格 (10,10)、錨點 (1,1)、grid (0,0)；只有 0x88 的格感應，0x80 不感應
     Model m = {0}; uint16_t fp[9] = {0x88, 0x80, 0, 0, 0x88, 0, 0, 0, 0x88};
@@ -5820,6 +5842,7 @@ int main(void) {
     }
     assert(prop_sound(0x7e9, 1) == 284 && prop_sound(0x7e9, 0) == 400 && prop_sound(2001, 1) == 276 && prop_sound(2006, 1) == 0xffff && prop_sound(99999, 0) == 0xffff);  // PropMdl 落地／下落聲音
     first_map_test();
+    chapter2_rec_test();
     death_team_test();  // 用到 rand（npc_selected），放最後免得改變前面測試的亂數序列
     music_state_test();
     save_ground_test();  // 讀檔會換掉背包等全域，放在最後
