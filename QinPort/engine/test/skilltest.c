@@ -4773,6 +4773,58 @@ static void attack_timing_run(int fs) {
     assert(hits>=starts*8/10 && hits<=starts);  // 命中率上限 90%
     actors[0]=saved0; actors[1]=saved1; actor_count=saved_count; unit_n=saved_unit_n; unit_scene=saved_scene;
 }
+
+// 出手方向（0x43acb0 → 0x4963e0 → 0x494ec0）：出手那一刻直接轉向目標（dir_of 目標點，不是慢慢轉 0x488dd0）、動作序列 = 招式序列 + 該方向，
+// 命中 = 目標方向前一格（0x438a00 id 0，半徑 0x30 方框），所以不論主角原本面向哪裡（背對也是），貼身的怪（8 方向）都挨得到，開始拍和命中拍都一樣。
+// 主角 8 面向 × 怪 8 方向 = 64 例，每例打到第一下命中為止（命中率上限 90%，最多 40 揮）；印 8×8 表（行 = 主角面向，列 = 怪方向，值 = 命中拍數／開始拍數）。
+static void attack_facing_test(void) {
+    Cell cells[20*20];
+    for (int i=0;i<400;i++) cells[i]=(Cell){.walk=1,.layer=1};
+    Scene sc={.w=20,.h=20,.cells=cells}; const Scene *saved_scene=unit_scene; unit_scene=&sc;
+    Actor saved0=actors[0], saved1=actors[1]; int saved_count=actor_count, saved_unit_n=unit_n;
+    roledefs_load(); hero_look(); skills_load(); hero_default_hands();
+    assert(mondefs_load());
+    const MonDef *m=mondef_pick("\xd5\xd9\xbb\xbd\xca\xde\xc0\xc7");
+    assert(m);
+    int ref_start=-1, ref_hit=-1;
+    printf("attack facing table (rows hero facing 0..7, cols monster dir 0..7): hit_ticks_after_start/start_tick\n");
+    for (int f=0;f<8;f++) {
+        for (int d=0;d<8;d++) {
+            for (int i=0;i<400;i++) cells[i]=(Cell){.walk=1,.layer=1};  // 清掉上一例留在格子上的占位
+            Actor *h=&actors[0]; memset(h,0,sizeof *h);
+            h->x=5.5f; h->y=5.5f; h->layer=1; h->level=1;
+            actor_setup(h,&hero_def); hero_derive(h); h->hp=h->hp_max=100000; h->hr=100000; actor_look_set(h,&hero_def);
+            actor_group(h,0); hero_skill_apply(h);
+            actor_count=1; unit_n=0;
+            actor_direction_set(h,f);
+            Actor *t=mon_make(m,roledef_find(m->role),5+GRID_X[d],5+GRID_Y[d],20);
+            t->hp=t->hp_max=300; t->sr=0; t->object_id=0x80000702u;
+            srand(5 + f*8 + d);
+            unsigned serial=h->action_serial; int start=0, hit=0, swings=0;
+            for (Uint32 tick=1; tick<=3000 && !hit; tick++) {
+                actor_logic_tick=tick;
+                for (int i=0;i<2;i++) { actor_motion_tick(&actors[i]); actor_health_sync(&actors[i]); }
+                actor_maintenance_tick(h); actor_skill_command_tick(h);
+                if (!h->foe) hero_attack(h,t);
+                if (h->act) action_tick(h,&sc,tick);
+                units_tick(tick);
+                if (h->action_serial!=serial) {
+                    serial=h->action_serial; start=tick; swings++;
+                    assert(h->facing==d && h->dir<8 && DIR_MAP[h->dir]==d);  // 出手那拍已面向目標，不管原本面向
+                    if (swings==1) { if (ref_start<0) ref_start=start; assert(start==ref_start); }
+                }
+                if (t->hp<300) hit=tick;
+            }
+            assert(hit && swings<=40);  // 8 個方向都挨得到（含背對）
+            if (ref_hit<0) ref_hit=hit-start;
+            assert(hit-start==ref_hit);  // 揮出到命中的拍數與面向、方向都無關
+            printf(" %3d/%-2d%s", hit-start, start, swings==1?" ":"*");
+            if (d==7) printf("\n");
+        }
+    }
+    printf("(* = earlier swing(s) missed by the 90%% hit cap; start tick is that of the hitting swing)\n");
+    actors[0]=saved0; actors[1]=saved1; actor_count=saved_count; unit_n=saved_unit_n; unit_scene=saved_scene;
+}
 static void attack_timing_test(void) {
     roledefs_load();
     attack_timing_run(0);
@@ -6017,6 +6069,7 @@ int main(void) {
         m.r4 = 2; assert(cast_target_check(&aa, &m, &tt) == 0);
     }
     attack_timing_test();
+    attack_facing_test();
     puts("skilltest ok");
     return 0;
 }
