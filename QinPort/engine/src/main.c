@@ -4756,7 +4756,9 @@ static ActorSkill *npc_selected(Actor *a) {
         const SkillRow *r = mon_pick(a);
         if (r) { a->skill = r; actor_right_skill(a, skill_attack_id(r)); }
     }
-    if ((a->selected < 0 || a->selected >= a->skill_n) && (a->team || a->cloned)) {  // 隊友與分身：同一個選招（0x4906c0），走技能鏈
+    // 隊友、分身、還有 ONT 擺的劇情怪（沒有怪物表列，如彭城／赵村的狗熊）：同一個選招（0x4906c0 一律走技能鏈）。
+    // 以前 ONT 怪沒有選招 → npc_main_ai 走 npc_move_away，站在主角旁邊從不出手還往後退（使用者回報：黑熊不主動攻擊）
+    if ((a->selected < 0 || a->selected >= a->skill_n) && (a->team || a->cloned || !a->mon)) {
         int k = chain_pick(a);
         if (k >= 0) actor_skill_select(a, k);
     }

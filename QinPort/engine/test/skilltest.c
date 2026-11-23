@@ -4910,6 +4910,148 @@ static void attack_facing_test(void) {
     printf("(* = earlier swing(s) missed by the 90%% hit cap; start tick is that of the hitting swing)\n");
     actors[0]=saved0; actors[1]=saved1; actor_count=saved_count; unit_n=saved_unit_n; unit_scene=saved_scene;
 }
+// 怪物主動攻擊的判定（Poq 0x48f560 靠近反應／0x490430 選目標／0x4911b0 主 AI）：閒置的主角（組 100）旁放一隻劇情組 0 的怪，
+// 照每一種怪各自的索敵（RoleMdl 欄 24）跑真實的 CNpc 每拍。兩種來源都要走同一套：mon_make（房間怪物群、有怪物表列）與
+// spawn_npcs（ONT 擺的劇情怪，沒有怪物表列：彭城／赵村狗熊）。ONT 怪以前沒有選招 → 站著不出手還往後退。
+// 期望：索敵 > 0 且在範圍內 → 立刻選主角為目標、入戰姿勢；有招式（技能鏈）就在 2400 拍內出手；範圍外、索敵 0、同組（100）、
+// 不是玩家組也不是 NPC 組的 G_AIGroup（102，食人怪）→ 完全不反應。
+typedef struct { int tgt, fight, atk; } Aggro;
+static int aggro_stub;  // 最近一次 aggro_run 用的是空角色（本機缺圖）
+static Aggro aggro_run(NpcSpec *spec, const MonDef *m, const RoleDef *d, int grp, int dist, int ticks, int *skills, int *seek) {
+    static Cell cells[40*40];
+    for (int i=0;i<1600;i++) cells[i]=(Cell){.walk=1,.layer=1};
+    Scene sc={.w=40,.h=40,.cells=cells,.npcs=spec,.npc_count=spec?1:0};
+    const Scene *saved_scene=unit_scene; unit_scene=&sc; unit_n=0;
+    Actor *h=&actors[0]; memset(h,0,sizeof *h);
+    h->x=10.5f; h->y=20.5f; h->layer=1; h->level=1;
+    actor_setup(h,&hero_def); hero_derive(h); h->hp=h->hp_max=100000; actor_look_set(h,&hero_def);
+    actor_group(h,100); hero_skill_apply(h);
+    assert(actor_bind_scene(h,&sc) && actor_place(h,10,20,1));
+    actor_count=1;
+    Actor *t;
+    if (spec) { spec->x=10+dist; spec->y=20; spec->type=12; spec->logic=0; spec->rest=4; spawn_npcs(&sc);  /* 站立型：閒逛／巡邏會自己走進索敵圈，不是這裡要測的 */ assert(actor_count==2); t=&actors[1]; }
+    else t=mon_make(m,d,10+dist,20,10);
+    aggro_stub=!t->role;
+    if (!t->role) {  // 本機的遊戲檔缺這個角色的圖：換成空角色（AI 不看圖；單機版網頁版圖是執行時抓的）
+        t->role=&empty_test_role;
+        assert(actor_bind_scene(t,&sc) && actor_place(t,10+dist,20,1));
+        t->x=10.5f+dist; t->y=20.5f;
+    }
+    assert(t->role && t->grid_valid && t->x==10.5f+dist);
+    actor_group(t,grp); t->side=1;
+    *skills=0;  // 能主動打人的招式數：招式 manual 0/1（打敵人）、3/4 也算（選招 0x4906c0 認的）
+    for (int i=0;i<t->skill_n;i++) { const Method *mm=method_find(t->skills[i].id); if (mm && (mm->manual==0||mm->manual==1||mm->manual==3||mm->manual==4)) (*skills)++; }
+    *seek=actor_seek(t);
+    srand(7);
+    Aggro r={-1,-1,-1};
+    for (Uint32 tick=1; tick<=(Uint32)ticks; tick++) {
+        actor_logic_tick=tick;
+        for (int i=0;i<actor_count;i++) {
+            if (actors[i].role) actor_motion_tick(&actors[i]);
+            actor_health_sync(&actors[i]);
+            if (actors[i].role) actor_maintenance_tick(&actors[i]);
+            if (actors[i].role && actors[i].act != ACT_DEAD) actor_skill_command_tick(&actors[i]);
+        }
+        if (h->act) action_tick(h,&sc,tick); else hero_idle_tick(h,&sc,tick);
+        Actor *a=t;
+        if (a->role && a->act!=ACT_DEAD) {
+            if (react_tick(a,&sc) && !a->act) a->moving=0;
+            else if (a->act) action_tick(a,&sc,tick);
+            else npc_dispatch(a);
+        }
+        for (int i=0;i<actor_count;i++) actor_near_reactions(&actors[i]);
+        units_tick(tick);
+        if (t->foe==h && r.tgt<0) r.tgt=tick;
+        if (t->foe==h && npc_in_fight(t) && r.fight<0) r.fight=tick;
+        if (t->act==ACT_ATTACK || h->hp<h->hp_max) { r.atk=tick; break; }
+    }
+    actor_unoccupy(t); actor_unoccupy(h); actor_count=1; unit_n=0; unit_scene=saved_scene;
+    return r;
+}
+
+static void monster_aggro_test(void) {
+    Actor saved0=actors[0], saved1=actors[1]; int saved_count=actor_count, saved_unit_n=unit_n;
+    roledefs_load(); hero_look(); skills_load(); hero_default_hands();
+    assert(mondefs_load());
+    const char *tmpl_seen[1024]; int nseen=0;  // 依名稱去重
+    printf("monster aggro table (hero idle, group 100; monster group 0). near = seek-1 cells, far = seek+3\n");
+    printf("%-4s %-22s %5s %5s %6s | %-24s | far same102\n","src","kind","seek","chase","atkskl","near: target/fight/attack tick");
+    int kinds=0, attackers=0, passive=0;
+    // A. 房間怪物群（非連線房間，World 資料）→ mon_make
+    World w; assert(world_load(&w));
+    // B. ONT 擺的怪（非連線場景）→ spawn_npcs；先收集（場景釋放後 NpcSpec 就沒了，所以複本）
+    static NpcSpec ont[600]; int nont=0;
+    DIR *dd=opendir("../../game/scene"); assert(dd);
+    for (struct dirent *e; (e=readdir(dd));) {
+        const char *nm=e->d_name; size_t L=strlen(nm);
+        if (L<5 || strcmp(nm+L-4,".Scn") || !strncasecmp(nm,"net_",4)) continue;
+        Scene s; if (!scene_load(&s,nm)) continue;
+        for (int i=0;i<s.npc_count && nont<600;i++) {
+            const RoleDef *d=roledef_find(s.npcs[i].tmpl);
+            if (!d || !role_drawable(d) || (d->beast && d->air) || (d->seek<1 && d->legs<3) || (!d->skill_count && d->legs<3)) continue;
+            int dup=0; for (int k=0;k<nont;k++) dup|=ont[k].tmpl==s.npcs[i].tmpl;
+            if (!dup) ont[nont++]=s.npcs[i];
+        }
+        scene_free(&s);
+    }
+    closedir(dd);
+    static const MonDef *wmon[2000]; int nw=0;
+    for (int r=0;r<w.room_count;r++) {
+        if (strstr(w.rooms[r].path,"/NET/")) continue;  // 連線版房間：單機沒有
+        for (int g=0;g<w.rooms[r].group_count && nw<2000;g++) {
+            const MonDef *m=mondef_pick(w.groups[w.rooms[r].first_group+g].name);
+            if (m) wmon[nw++]=m;
+        }
+    }
+    for (int pass=0;pass<2;pass++) for (int i=0;i<(pass?nont:nw);i++) {
+        const MonDef *m=NULL; NpcSpec *spec=NULL; const RoleDef *d;
+        char kind[64];
+        if (pass) { spec=&ont[i]; d=roledef_find(spec->tmpl); snprintf(kind,sizeof kind,"role%d",d->id); }
+        else {
+            m=wmon[i];
+            d=roledef_find(m->role); if (!d || !role_drawable(d) || d->beast) continue;
+            snprintf(kind,sizeof kind,"%s",m->name);
+        }
+        int dup=0; for (int k=0;k<nseen;k++) dup|=!strcmp(tmpl_seen[k],kind);
+        if (dup || nseen>=1024) continue;
+        tmpl_seen[nseen]=strdup(kind); nseen++;
+        int sk, sk2, seek;
+        int near_d=d->seek-1<1?1:d->seek-1;
+        if (spec && d->seek+3>36) continue;  // 太遠放不進測試場景
+        NpcSpec cp; if (spec) cp=*spec;
+        Aggro near=aggro_run(spec?&cp:NULL,m,d,0,near_d,2400,&sk,&seek);
+        int stub=aggro_stub;
+        int adj=0;  // 本機缺圖的角色換成空角色走不動：邊緣沒打到的，貼近（2 格）再試一次，確認不是選招／AI 的問題
+        if (near.atk<0 && sk>0 && near_d>2) { if (spec) cp=*spec; Aggro n2=aggro_run(spec?&cp:NULL,m,d,0,2,2400,&sk,&seek); near.atk=n2.atk; adj=n2.atk>=1; }
+        if (spec) cp=*spec;
+        Aggro far=aggro_run(spec?&cp:NULL,m,d,0,seek+3,700,&sk2,&seek);
+        if (spec) cp=*spec;
+        Aggro same=aggro_run(spec?&cp:NULL,m,d,100,near_d,700,&sk2,&seek);
+        if (spec) cp=*spec;
+        Aggro g102=aggro_run(spec?&cp:NULL,m,d,102,near_d,700,&sk2,&seek);
+        kinds++;
+        char kb[64]; gbk_utf8(kind,kb,sizeof kb);
+        printf("%-4s %-22s %5d %5d %6d | %6d/%6d/%6d%s | %s %s %s\n",spec?"ONT":"mon",kb,d->seek,d->chase,sk,near.tgt,near.fight,near.atk,
+               d->seek<1?" passive(seek 0)":adj?" (attack at 2 cells)":stub&&near.atk<0?" (no graphics here: attack not checked)":"", far.tgt<0&&far.atk<0?"none":"REACTS", same.tgt<0&&same.atk<0?"none":"REACTS", g102.tgt<0&&g102.atk<0?"none":"REACTS");
+        // 斷言：有索敵就在範圍內立刻選主角、入戰；有招就出手；範圍外／同組／非玩家非NPC組完全不理
+        if (d->seek>=1) {
+            int tmax=d->seek<3?200:40;  // 索敵 1～2 格：走 0x48f560 的嚴格方框碰不到，靠 NPC 每 100 拍的 0x490430 選目標
+            assert(near.tgt>=1 && near.tgt<=tmax && near.fight>=1);
+            // ONT 人形（村民、獵戶…）只有 1～2 個模板招式的不強制出手（如赵四招式 70 放不出去，與選招無關）；怪物與野獸一律要出手
+            // 空角色（本機缺圖）走不動／放不出要靠動畫的招：出手只在有真圖時強制，決策（目標、入戰）一律強制
+            int must=(!spec || d->legs>=3 || sk>=4) && !stub;
+            if (sk>0 && must) { assert(near.atk>=1); attackers++; }
+            else if (sk>0) { if (near.atk>=1) attackers++; }
+            else { assert(near.atk<0); passive++; }
+        } else { assert(near.tgt<0 && near.atk<0); passive++; }
+        assert(far.tgt<0 && far.atk<0 && same.tgt<0 && same.atk<0 && g102.tgt<0 && g102.atk<0);
+    }
+    printf("%d monster kinds: %d attack proactively, %d never (no skills / seek 0)\n",kinds,attackers,passive);
+    assert(kinds>20 && attackers>20);
+    world_free(&w);
+    actors[0]=saved0; actors[1]=saved1; actor_count=saved_count; unit_n=saved_unit_n;
+}
+
 static void attack_timing_test(void) {
     roledefs_load();
     attack_timing_run(0);
@@ -6187,6 +6329,7 @@ int main(void) {
     }
     attack_timing_test();
     attack_facing_test();
+    monster_aggro_test();
     puts("skilltest ok");
     return 0;
 }
