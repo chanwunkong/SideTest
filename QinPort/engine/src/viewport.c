@@ -91,9 +91,9 @@ static SDL_Point viewport_project(const Scene *s, int x64, int y64) {
 
 static void viewport_grid_clear(void);
 
-// 0x461150：設定平移目標與步長；不重設上一拍的平方距離。
+// 0x461150：設定平移目標與步長；新平移要重設「上一拍距離」，不然上一次平移留下的小距離會讓新平移第一拍就停。
 static void viewport_pan(ViewPort *v, int x, int y, int step) {
-    v->target = (SDL_Point){x, y}; v->pan = step;
+    v->target = (SDL_Point){x, y}; v->pan = step; v->last_distance = INT_MAX;
 }
 
 // 0x4cebf0：交錯格點轉像素，負奇列也按位元判斷。
@@ -142,7 +142,7 @@ static void viewport_enter(ViewPort *v, const Scene *s, const Actor *hero) {
         s->view_w == half * 32 && s->view_h == half * 16) {
         v->world.x += 128; v->world.w -= 224;
     }
-    v->last_actor = (SDL_Point){-1, -1}; v->last_distance = -1;
+    v->last_actor = (SDL_Point){-1, -1}; v->last_distance = INT_MAX;
     viewport_window(v, s, v->pos.x, v->pos.y, vw, vh);
     viewport_set(v, s, v->world.x + 1400, v->world.y + 500);
     viewport_follow_set(v, s, hero, 1);
@@ -191,13 +191,16 @@ static void viewport_follow(ViewPort *v, const Scene *s, const Actor *a) {
     v->last_actor = actor;
 }
 
-// 0x45bc50：平方距離直接比較步長；震動是累積捲動，每5拍才移動。
+// 0x45bc50：震動是累積捲動，每5拍才移動。
+// 原版拿「平方距離」直接跟步長比，剩下的距離比步長小但平方大於步長時會走過頭、下一拍又走回來，
+// 兩拍一輪永不停（整個畫面左右閃）。改成真正的距離 <= 步長就直接到目標並結束平移；距離沒比上一拍小（原版只比「相等」）也結束，
+// 否則目標被邊界夾住時會跟死區跟隨互拉、兩拍一輪永不停。
 static void viewport_tick(ViewPort *v, const Scene *s, const Actor *a) {
     if (v->pan) {
         int dx = v->target.x - v->pos.x, dy = v->target.y - v->pos.y;
         int d = dx * dx + dy * dy;
         SDL_Point p = v->target;
-        if (d < v->pan || d == v->last_distance) v->pan = 0;
+        if (d <= v->pan * v->pan || d >= v->last_distance) v->pan = 0;  // 距離沒變小 = 目標到不了（被邊界夾住）或被跟隨拉回：停，交給跟隨
         else {
             v->last_distance = d;
             float length = sqrtf((float)d);

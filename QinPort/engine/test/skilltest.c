@@ -3355,9 +3355,8 @@ static void viewport_test(void) {
     viewport_scroll(&v, &sc, 5); assert(v.pos.y == 202);
     // 平移用平方距離，走過頭後距離重複即到目標；震動只在5的倍數捲動。
     Actor a = {.x = 20, .y = 20, .speed = 8};
-    v.follow = 0; v.pan = 20; v.target = (SDL_Point){110, 202}; v.last_distance = -1;
-    viewport_tick(&v, &sc, &a); assert(v.pos.x == 120 && v.pan == 20);
-    viewport_tick(&v, &sc, &a); assert(v.pos.x == 110 && v.pan == 0);
+    v.follow = 0; v.pan = 20; v.target = (SDL_Point){110, 202}; v.last_distance = INT_MAX;
+    viewport_tick(&v, &sc, &a); assert(v.pos.x == 110 && v.pan == 0); // 剩10 <= 步長20：直接到，不走過頭
     shake_left = shake_total = 10; int sy = v.pos.y;
     viewport_tick(&v, &sc, &a); assert(v.pos.y == sy - 26 && shake_left == 9);
     sy = v.pos.y; viewport_tick(&v, &sc, &a); assert(v.pos.y == sy && shake_left == 8);
@@ -3379,7 +3378,7 @@ static void viewport_test(void) {
     assert(!v.follow && v.pan == 17); // 關閉跟隨不取消平移
     v.last_distance = 123;
     viewport_pan(&v, 200, 300, 7);
-    assert(v.target.x == 200 && v.target.y == 300 && v.pan == 7 && v.last_distance == 123);
+    assert(v.target.x == 200 && v.target.y == 300 && v.pan == 7 && v.last_distance == INT_MAX);
     viewport_home(&v, &sc, NULL, 1); assert(v.pan == 7);
     a.x = 20.5f; a.y = 20.5f;
     viewport_home(&v, &sc, &a, 0);
@@ -3509,11 +3508,45 @@ static void viewport_test(void) {
             viewport_home(&v, &sc, &hero, 1);
             SDL_Point last = v.pos; int moved = 0;
             for (int i = 0; i < 500; i++) { viewport_tick(&v, &sc, &hero); if (i >= 490 && (v.pos.x != last.x || v.pos.y != last.y)) moved++; last = v.pos; }
-            assert(fixed ? !moved : moved > 0);
+            assert(!moved);
         }
     }
     free(l.items); free(cells);
     view_buildings.n = view_dynamic.n = 0;
+    vw = old_w; vh = old_h;
+}
+
+
+// 進場後鏡頭必須落定：主角站在任何格，進場（含平滑置中）後鏡頭不准兩拍來回或一直動（村莊閃爍）。
+static void viewport_settle_test(void) {
+    int old_w = vw, old_h = vh, bad = 0, cases = 0;
+    int sizes[][2] = {{800, 600}, {640, 480}, {960, 432}, {540, 960}}, maps[][2] = {{20, 20}, {33, 40}, {64, 64}, {96, 80}, {128, 128}};
+    for (int si = 0; si < 4; si++) for (int mi = 0; mi < 5; mi++) for (int std = 0; std < 2; std++) {
+        vw = sizes[si][0]; vh = sizes[si][1];
+        int mw = maps[mi][0], mh = maps[mi][1], half = mw / 2 + mh / 2;
+        Cell *cells = calloc((size_t)mw * mh, sizeof *cells);
+        Scene sc = {.w = mw, .h = mh, .cells = cells, .view_x = half * 16, .view_y = half * 8, .view_w = half * 32, .view_h = half * 16};
+        if (!std) { sc.view_x = 0; sc.view_y = 0; sc.view_w = mw * 32 + 600; sc.view_h = mh * 16 + 300; }
+        int stepx = mw / 9 + 1, stepy = mh / 9 + 1;
+        for (int cy = 0; cy < mh; cy += stepy) for (int cx = 0; cx < mw; cx += stepx) {
+            Actor hero = {.x = cx + 0.5f, .y = cy + 0.5f, .speed = 8};
+            ViewPort v; viewport_enter(&v, &sc, &hero);
+            SDL_Point seen[2] = {{0, 0}, {0, 0}}; int moved = 0, settled = -1;
+            for (int t = 0; t < 400; t++) {
+                SDL_Point before = v.pos;
+                viewport_tick(&v, &sc, &hero);
+                if (v.pos.x != before.x || v.pos.y != before.y) { moved++; settled = t; }
+                seen[t & 1] = v.pos;
+            }
+            cases++;
+            if (settled >= 300) {
+                if (bad++ < 12) fprintf(stderr, "viewport unsettled: view %dx%d map %dx%d std=%d hero %d,%d settled@%d pos %d,%d / %d,%d\n", vw, vh, mw, mh, std, cx, cy, settled, seen[0].x, seen[0].y, seen[1].x, seen[1].y);
+            }
+        }
+        free(cells);
+    }
+    fprintf(stderr, "viewport settle: %d cases, %d bad\n", cases, bad);
+    assert(!bad);
     vw = old_w; vh = old_h;
 }
 
@@ -5170,6 +5203,7 @@ int main(void) {
     character_names_owner_test();
     scene_client_test();
     viewport_test();
+    viewport_settle_test();
     building_test();
     tribuilding_test();
     ground_labels_test();
