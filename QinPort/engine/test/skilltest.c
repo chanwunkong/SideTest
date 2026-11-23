@@ -183,13 +183,29 @@ static void character_skill_commands_test(void) {
     a->dynamic_active=1; actor_skill_command_tick(a);
     assert(unit_n==1 && actor_command_idle(a) && a->aim_x==12*64+32 && a->aim_y==13*64+32);
     assert(a->remembered[0]==-1); unit_n=0;
-    // 一般追打也只排隊，下一拍才用共用消費端出手；模板招式無SkillRow也可收尾。
+    // 玩家點擊／攻擊鍵（hero_attack）只排隊，下一拍才用共用消費端出手；模板招式無SkillRow也可收尾。
     *a=base; t->x=9.5f; a->foe=t;
-    assert(pursue(a) && a->command[0]==9 && !unit_n);
+    hero_attack(a,t); assert(a->command[0]==9 && !unit_n);
     actor_skill_command_tick(a);
     assert(unit_n==1 && actor_command_idle(a) && units[0].target==t);
     action_tick(a,&sc,1000); assert(a->act==ACT_NONE && !a->casting);
     unit_n=0;
+    {   // 主角閒置站在敵對怪旁（狼群）：原版 0x48f560 只選目標＋入戰姿勢，沒有玩家命令就絕不出手
+        Actor tsave=*t; d.seek=8; t->grp=10001; t->x=7.5f; t->y=5.5f;
+        *a=base;
+        int noticed=0;
+        for (Uint32 tick=0; tick<900; tick++) {
+            for (int i=0;i<actor_count;i++) { if (actors[i].role) actor_motion_tick(&actors[i]); if (actors[i].role) actor_skill_command_tick(&actors[i]); }
+            actor_near_reactions(a);
+            hero_idle_tick(a,&sc,tick);
+            if (a->foe==t) noticed=1;
+            int atk_units=0; for (int u=0;u<unit_n;u++) if (units[u].m && !units[u].dead) atk_units++;  // 腳下灰塵（0x10）不算招式
+            assert(actor_command_idle(a) && a->remembered[0]==-1 && !atk_units && !a->act && !a->casting && t->hp==100);
+        }
+        assert(noticed);  // 沒選到目標就等於沒測到
+        hero_attack(a,t); assert(a->command[0]==9 && a->remembered[0]==9);  // 玩家明確下令才打，並記住續打
+        *t=tsave; d.seek=0; unit_n=0;
+    }
     // 缺少Method時保留地點命令；不是按下輸入就丟棄。
     *a=base; a->skills[0].id=65534; a->right_id=65534; a->template_skill[0]=65534;
     actor_queue_command(a,8,65534,12,13); actor_skill_command_tick(a);
@@ -2741,8 +2757,6 @@ static void character_target_display_test(void) {
     assert(actor_target(&a) == &actors[0]); // 死亡仍存在。
     actors[0].flags = 0x10;
     assert(!actor_target(&a) && a.foe == &actors[0]);
-    Scene sc = {0};
-    assert(!pursue(&a) && a.foe == &actors[0]);
     actors[0].flags = 0;
     assert(actor_target(&a) == &actors[0]); // 移除旗標即可重現，不需重設目標。
     MonDef trap = {.istrap = 1};
@@ -5647,6 +5661,18 @@ int main(void) {
         assert(touch_up(4, &btn) == TK_PINCH && touch_up(3, &btn) == TK_PINCH);
         assert(touch_up(2, &btn) == TK_BTN && btn == TB_ATK && tch.held[TB_ATK] == 0);
         assert(touch_up(1, &btn) == TK_JOY && !tch.joy_on && !touch_joy(&mx, &my));
+        {   // 按鈕不能卡住：重複落下（漏了放開）、放開、全部放開、換用途後按住計數都回 0
+            assert(touch_down(8, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn) == TK_BTN && tch.held[TB_ATK] == 1);
+            assert(touch_down(8, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn) == TK_BTN && tch.held[TB_ATK] == 1);  // 同一指再落下 = 先放開再按
+            assert(touch_up(8, &btn) == TK_BTN && tch.held[TB_ATK] == 0);
+            assert(touch_up(8, &btn) == TK_NONE && tch.held[TB_ATK] == 0);  // 多餘的放開無害
+            touch_down(8, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn); touch_down(9, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn);
+            assert(tch.held[TB_ATK] == 2); touch_up(8, &btn); assert(tch.held[TB_ATK] == 1); touch_up(9, &btn); assert(tch.held[TB_ATK] == 0);
+            touch_down(8, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn); touch_release_all();  // 失焦／換版面
+            assert(tch.held[TB_ATK] == 0 && !touch_find(8));
+            touch_down(8, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn); memset(tch.f, 0, sizeof tch.f);
+            touch_frame(&actors[0]); assert(tch.held[TB_ATK] == 0);  // 手指沒了，按住狀態每幀對齊，不會卡
+        }
         assert(touch_down(5, 5, 5, &btn) == TK_NONE);  // 左上留空（不在搖桿區、不在遊戲畫面）
         tch.blocked = 1;  // 對話或選單開著：整組收起來，點遊戲畫面照舊，搖桿區不收
         assert(!touch_active() && touch_down(6, tch.L.b[TB_ATK].x, tch.L.b[TB_ATK].y, &btn) == TK_NONE && touch_down(7, 400, 300, &btn) == TK_GAME);

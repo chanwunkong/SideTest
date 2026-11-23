@@ -189,6 +189,11 @@ static TFinger *touch_find(Sint64 id) {
     for (int i = 0; i < TF_MAX; i++) if (tch.f[i].used && tch.f[i].id == id) return &tch.f[i];
     return NULL;
 }
+// 按住狀態一律由還在按的手指推出來（不用加減計數：重複落下、漏掉放開都不會卡住）
+static void touch_sync(void) {
+    memset(tch.held, 0, sizeof tch.held);
+    for (int i = 0; i < TF_MAX; i++) if (tch.f[i].used && tch.f[i].kind == TK_BTN) tch.held[tch.f[i].btn]++;
+}
 // 全部放開（選單打開、換版面時）
 static void touch_release_all(void) {
     memset(tch.f, 0, sizeof tch.f);
@@ -205,12 +210,14 @@ static void touch_pinch_dist(int *d) {
 
 // 手指按下（螢幕邏輯座標）：決定用途。回 TK_BTN 時 *btn = 按鈕；TK_PINCH = 第二根手指落在遊戲畫面上，雙指縮放開始（第一根改為縮放用，呼叫端要取消按住走路）
 static int touch_down(Sint64 id, int x, int y, int *btn) {
-    TFinger *f = NULL;
+    TFinger *f = touch_find(id);
+    if (f) { if (f->kind == TK_JOY) tch.joy_on = 0; f->used = 0; }  // 同一指重複落下（漏了放開）：先當放開
+    f = NULL;
     for (int i = 0; i < TF_MAX && !f; i++) if (!tch.f[i].used) f = &tch.f[i];
     if (!f) return TK_NONE;
     *f = (TFinger){.id = id, .used = 1, .x = x, .y = y};
     int b = touch_active() ? touch_hit(&tch.L, x, y) : -1;
-    if (b >= 0) { f->kind = TK_BTN; f->btn = b; tch.held[b]++; *btn = b; return TK_BTN; }
+    if (b >= 0) { f->kind = TK_BTN; f->btn = b; touch_sync(); *btn = b; return TK_BTN; }
     if (touch_active() && !tch.joy_on && touch_in(&tch.L.joy, x, y)) {
         f->kind = TK_JOY;
         // 固定位置的搖桿：原點 = 搖桿圈中心（與攻擊鍵鏡像），手指在區內哪裡按都從圈心算，左右推的距離一樣
@@ -255,11 +262,11 @@ static int touch_up(Sint64 id, int *btn) {
     int k = f->kind;
     *btn = f->btn;
     if (k == TK_JOY) tch.joy_on = 0;
-    if (k == TK_BTN && tch.held[f->btn] > 0) tch.held[f->btn]--;
     f->used = 0;
+    touch_sync();
     return k;
 }
-static void touch_kill(Sint64 id) { TFinger *f = touch_find(id); if (f) f->kind = TK_NONE; }
+static void touch_kill(Sint64 id) { TFinger *f = touch_find(id); if (f) f->kind = TK_NONE; touch_sync(); }
 static void touch_set_kind(Sint64 id, int k) { TFinger *f = touch_find(id); if (f) f->kind = k; }
 // 搖桿目前的移動方向（沒按或在死區回 0）
 static int touch_joy(float *mx, float *my) {
@@ -289,9 +296,10 @@ static int click_building(Actor *h, Object *b, int cx, int cy);
 static int touch_attack_building_done;  // 這次按住已經對建築出過手（一次按住只出一次，不然每拍重送命令）
 static void touch_attack_nearest(Actor *h) {
     float best = h->def ? actor_seek(h) : 10;
-    int found = 0;
+    Actor *found = NULL;
     for (int i = 1; i < actor_count; i++)
-        if (hostile(h, &actors[i]) && cell_dist(h, &actors[i]) <= best) { best = cell_dist(h, &actors[i]); actor_target_set(h, &actors[i]); found = 1; }
+        if (hostile(h, &actors[i]) && cell_dist(h, &actors[i]) <= best) { best = cell_dist(h, &actors[i]); found = &actors[i]; }
+    if (found) hero_attack(h, found);
     if (found || touch_attack_building_done || !unit_scene) return;
     // 沒有敵人：攻擊鍵 = 原版「點游標下的東西」。最近的可互動建築（樹、礦、水缸、箱子、門）8 格內，照原版點建築的做法（click_building）
     // shortcut: 手機沒有滑鼠游標，攻擊鍵代替點擊；原版是點到哪個建築就對哪個
@@ -386,6 +394,7 @@ static void touch_button(Actor *h, int b) {
 }
 // 每幀：按住攻擊鍵就一直打最近的敵人（目標死了或沒有才重選，免得每幀換目標）
 static void touch_frame(Actor *h) {
+    touch_sync();
     if (!touch_active()) return;
     if (!tch.held[TB_ATK]) touch_attack_building_done = 0;
     if (tch.held[TB_ATK] && h->act != ACT_DEAD && !alive(h->foe)) touch_attack_nearest(h);

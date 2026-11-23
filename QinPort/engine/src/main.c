@@ -4546,25 +4546,6 @@ static void cast_start(Actor *h, const SkillRow *r);
 
 static void actor_skill_command_tick(Actor *a);
 
-// 追打只提交目標技能命令；範圍、追近、退避和施法統一由角色命令消費端處理。
-// shortcut: 只供主角點選目標；NPC／怪物改走npc_dispatch，陷阱走 trap_tick。
-static int pursue(Actor *a) {
-    Actor *t = actor_target(a);
-    if (!t) return 0;
-    if (!alive(t)) { actor_clear_target(a); return 0; }
-    if (main_of(a)) return 1;
-    if (a->mon && !a->skill && npc_skill(a->mon->skill[0])) {
-        if (!(a->skill = mon_pick(a))) { a->moving = 0; return 1; }
-        actor_right_skill(a, skill_attack_id(a->skill));
-    }
-    if (actor_command_idle(a)) {
-        int id = a->want ? skill_attack_id(a->want) : a->skill ? skill_attack_id(a->skill) : -1;
-        actor_command(a, 9, id, t->sh ? t->sh : (int)t->object_id, 0, 0, 1);
-        a->want = NULL;
-    }
-    return 1;
-}
-
 static void gbk_utf8(const char *in, char *out, size_t n);
 static void actor_overhead(Actor *a, const char *text, unsigned char duration, unsigned char floating);
 // ---- CNpc（Poq.exe 0x490240～0x493320）----
@@ -6143,6 +6124,14 @@ static void hero_cast_point(Actor *h, int x, int y) {
 }
 
 static void hero_cast(Actor *h) { hero_cast_point(h, ax64(h), ay64(h)); }
+
+// 玩家明確要打 t（點擊、攻擊鍵）：命令 9、右手技能（-1），記住；目標選取本身不會出手
+// 主角沒有任何命令的一拍：原版沒有自動出手（0x48f560 只選目標＋入戰姿勢命令 11），攻擊只來自玩家的命令 9（點擊／攻擊鍵），由記住的命令續打
+static void hero_idle_tick(Actor *h, const Scene *s, Uint32 tick) {
+    if (h->foe && !alive(h->foe)) actor_clear_target(h);
+    actor_tick(h, s, 0, 0, tick);
+}
+static void hero_attack(Actor *h, Actor *t) { actor_command(h, 9, -1, t->sh ? t->sh : (int)t->object_id, 0, 1, 1); }
 
 // 快捷技能視窗（Poq.exe 0x504d90 開 JM514 = 右手、0x504b40 開 JM515 = 左手；0x564360 填格子）：
 // 依序放進左右鍵位等於這隻手或 2（兩手都行）、等級 > 0 的技能，第 n 個放 m_pItem[n]。
@@ -10559,6 +10548,7 @@ int main(int argc, char **argv) {
     while (running) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) { touch_release_all(); pointer_down = click_down = 0; }  // 失焦收不到放開事件：全部放開，免得按鍵卡住
             if (rec_on && (e.type == SDL_KEYDOWN || e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_FINGERDOWN)) { rec.skip = 1; continue; }  // 按任一鍵／點一下跳過
             if (rec_on && (e.type == SDL_KEYUP || e.type == SDL_MOUSEBUTTONUP || e.type == SDL_MOUSEMOTION || e.type == SDL_MOUSEWHEEL || e.type == SDL_FINGERUP || e.type == SDL_FINGERMOTION || e.type == SDL_TEXTINPUT)) continue;
             // 觸控：手指事件依用途分流（搖桿、按鈕、遊戲畫面、雙指縮放）；遊戲畫面上的單指改寫成滑鼠事件走原本的點擊流程
@@ -10703,7 +10693,7 @@ int main(int argc, char **argv) {
                 input_team_cmd(cmd, m, cx, cy);
                 if (!input_sel_has(hero) && sel_n > 0) continue;  // 主角不在選人名單（只點了隊友頭像）：只有名單裡的人動
                 switch (cmd) {
-                case CMD_ATTACK: actor_target_set(hero, m); hero->want = NULL; walk_cx = -1; break;
+                case CMD_ATTACK: hero_attack(hero, m); hero->want = NULL; walk_cx = -1; break;
                 case CMD_PICK: actor_command(hero, 0x11, ground[g].id, 0, 0, 1, 1); hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
                 case CMD_MOVE:
                     if (!actor_command(hero, 1, cx, cy, 0, 1, 1)) break;
@@ -10971,7 +10961,7 @@ int main(int argc, char **argv) {
             else if (walk_cx >= 0 && !hero->foe) {
                 if (hero->dynamic_state != 11) walk_cx = -1;
             }
-            else if (!pursue(hero)) actor_tick(hero, &scene, 0, 0, tick);
+            else hero_idle_tick(hero, &scene, tick);
             if (debug_cells == 2 && tick % 2 == 0)
                 printf("trace t=%u hero=%.3f,%.3f cam=%d,%d moving=%d dir=%d act=%d frame=%d done=%d hp=%d/%d mp=%d lv=%d exp=%d arrows=%d money=%d foe=%d ground=%d hand=%d rs=%d ls=%d inv32=%d/%d rsk=%d/%d/%d use=%d\n", tick, hero->x, hero->y, viewport.pos.x, viewport.pos.y, hero->moving, hero->dir, hero->act, hero->act_frame, hero->act_done, hero->hp, hero->hp_max, hero->mp, hero->level, hero->exp, inv[33].name[0] ? inv[33].arrows : -1, hero_money, hero->foe ? hero->foe->hp : -1, ground_n, hero_hand, cur_skill[0], cur_skill[1], inv[32].name[0] ? inv[32].type : -1, inv[33].name[0] ? inv[33].type : -1, hero_skill_n > 0 ? hero_skill[0].wtype : -9, hero_skill_n > 0 ? hero_skill[0].level : -9, hero_skill_n > 0 ? skill_attack_id(&hero_skill[0]) : -9, hero_skill_n > 0 ? skill_usable(hero, &hero_skill[0]) : -9);
             if (debug_cells == 2 && tick % 120 == 0)  // 除錯：列出可對話的 NPC（事件ID、格子、畫面座標），自動操作腳本用來點它們
