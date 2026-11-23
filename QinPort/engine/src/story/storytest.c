@@ -373,7 +373,11 @@ static int walk_test(const char *file) {
                 walk_show();
                 walk_plot_run();
             }
-        } else if (!strcmp(c, "flag") && nt > 1) { char *v = strchr(tok[1], '='); if (v) { *v++ = 0; engine_call(0x1005e850, (intptr_t[8]){pl, (intptr_t)tok[1], atoi(v)}); engine_call(0x1005f270, (intptr_t[8]){pl, (intptr_t)tok[1], atoi(v)}); } }
+        } else if (!strcmp(c, "inroom") && nt > 1) {  // 主角要在這個房間（劇情事件不能把主角換到別的房間：桓府過場後畫面來回閃的回歸）
+            const char *here = story_room_alias(walk_here());
+            if (strcmp(here, tok[1])) { printf("  FAIL 主角在 %s（要 %s）\n", here, tok[1]); walk_fail = 1; } else printf("  ok 主角在 %s\n", here);
+        }
+        else if (!strcmp(c, "flag") && nt > 1) { char *v = strchr(tok[1], '='); if (v) { *v++ = 0; engine_call(0x1005e850, (intptr_t[8]){pl, (intptr_t)tok[1], atoi(v)}); engine_call(0x1005f270, (intptr_t[8]){pl, (intptr_t)tok[1], atoi(v)}); } }
         else if (!strcmp(c, "expect") && nt > 1) { char *v = strchr(tok[1], '='); if (v) { *v++ = 0; int g = walk_flag(tok[1]); if (g != atoi(v)) { printf("  FAIL 旗標 %s = %d（要 %s）\n", tok[1], g, v); walk_fail = 1; } else printf("  ok 旗標 %s = %s\n", tok[1], v); } }
         else if (!strcmp(c, "has") && nt > 1) { int found = 0; for (int h = story_next(pl, 0); h; h = story_next(pl, h)) if (!strcmp(story_name(h), tok[1]) || strstr(story_path(h), tok[1])) found++; /* 道具名字由引擎的道具表設，無畫面時只有路徑 */ printf(found ? "  ok 有 %s ×%d\n" : "  FAIL 沒有 %s\n", tok[1], found); if (!found) walk_fail = 1; }
         else { printf("  不認得的指令\n"); walk_fail = 1; }

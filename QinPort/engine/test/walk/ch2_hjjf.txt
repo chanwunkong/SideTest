@@ -1,0 +1,42 @@
+# 桓府（xy_hjjf）回歸：從開頭走到咸阳、進桓府、談完 pct_jyhfeng，主角要一直在桓府
+# ===== 第一章主線（無畫面走查）：赵村 → 阳周城 → 监狱 =====
+start
+expect kaishiyouxi=1
+plot 秦殇/赵村/PCT/初遇赵茜
+expect chuyuzhaoqian=1
+has ITEM/麦饼
+go eastsouth
+expect konggangsuizhu=1
+talk konggang ask1
+expect konggangsuizhu=2
+go out
+talk greengrocer ask1 ask3 ask4 ask5
+expect tanshimengtian=1
+talk xiaowei_a ask1 ask3
+expect dakaijianyu=1
+go jianyu
+go down
+talk prison_caption ask2 ask10 ask11 ask12 ask13
+expect menghunguoguan=3
+expect tanshimengtian=3
+plot 秦殇/阳周城/PCT/探视蒙恬
+expect dakaijianyu=2
+go south
+go dak
+talk yishi ask1 ask5 ask6 ask7
+has 公文
+go out
+go sorth
+talk shoujiang ask2 ask8
+expect beiditongxing=1
+go south
+# ===== 咸阳 =====
+talk old_servant ask1 ask3 ask4 ask6
+expect quhuiyaoshi=1
+has 钥匙
+go hjjf
+inroom xy_hjjf
+talk huanfeng ask1 ask3
+expect diyizhangjieshu=1
+# 桓峰劇情事件（第 18 格把主角搬到 (12,19)）做完主角仍在桓府；劇情世界不會自己出門（換場景只有點門命令 0x10 → go）。畫面鏡頭的回歸在 skilltest（viewport_test）
+inroom xy_hjjf

@@ -10205,6 +10205,7 @@ static void rec_end(Scene *s, Actor *hero) {
 #else
     if (back[0] && !enter_scene(s, hero, back, -1)) fprintf(stderr, "過場結束載不回 %s\n", back);
 #endif
+    viewport.pan = 0;  // 過場的鏡頭平移（case 9）或搬位前的舊目標若留著，會與跟隨各拉一邊，兩拍一輪閃爍（桓府）
     viewport_follow_set(&viewport, s, hero, 1);
 }
 
@@ -10501,6 +10502,7 @@ int main(int argc, char **argv) {
     }
 
     if (at_x >= 0 || warp >= 0) {
+        viewport.pan = 0;
         viewport_home(&viewport, &scene, hero, 0);
     }
 
@@ -10878,7 +10880,8 @@ int main(int argc, char **argv) {
 #ifdef STORY
             // 劇情事件的過場（新遊戲要等難度選完才開演；NPC 對話還開著也要等關掉：選項「好的，前面帶路」那一點會被當成跳過，
             // 過場一瞬間就收掉，桓峰／第二章開場實測）
-            if (rec_pending[0] && !diff_open && !dialog_open) {  // 沒檔、場景載不進去就直接收尾                if (!rec_begin(rec_pending, &scene, hero, story_room_alias(sroom))) { story_begin(); story_plot_end(); story_end(); }
+            if (rec_pending[0] && !diff_open && !dialog_open) {  // 沒檔、場景載不進去就直接收尾
+                if (!rec_begin(rec_pending, &scene, hero, story_room_alias(sroom))) { story_begin(); story_plot_end(); story_end(); }
                 rec_pending[0] = 0;
             }
 #endif

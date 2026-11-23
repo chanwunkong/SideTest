@@ -3425,6 +3425,19 @@ static void viewport_test(void) {
     assert(!r && !g && !b);
     ground_n = saved_ground; unit_n = saved_units;
     cache_clear(); SDL_DestroyRenderer(ren); ren = NULL; SDL_FreeSurface(surf);
+    {   // 桓府過場後畫面兩處閃爍：過期的平移目標與跟隨互拉，兩拍一輪永不停（viewport_tick 只偵測與上一拍相同的距離）。
+        // 主角在中心、舊平移還在：回家鏡頭保留它（原版 0x4618a0 如此）→ 會晃；main.c 在 rec_end／0x532／--at 先把 pan 清 0 → 鏡頭要停住
+        for (int fixed = 0; fixed < 2; fixed++) {
+            Actor hero = {.x = 40.5f, .y = 40.5f};
+            v.follow = 1; viewport_center_actor(&v, &sc, &hero, 0);
+            viewport_pan(&v, v.pos.x + 300, v.pos.y - 30, 28);
+            if (fixed) v.pan = 0;
+            viewport_home(&v, &sc, &hero, 1);
+            SDL_Point last = v.pos; int moved = 0;
+            for (int i = 0; i < 500; i++) { viewport_tick(&v, &sc, &hero); if (i >= 490 && (v.pos.x != last.x || v.pos.y != last.y)) moved++; last = v.pos; }
+            assert(fixed ? !moved : moved > 0);
+        }
+    }
     free(l.items); free(cells);
     view_buildings.n = view_dynamic.n = 0;
     vw = old_w; vh = old_h;
