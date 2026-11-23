@@ -7674,6 +7674,17 @@ static void story_msgs(void) {
             break;
         case 0x49b70: actors_dirty = 1; break;  // 隊伍面板加一格（面板每幀照隊伍表畫）；隊友補角色
         case 0x53a: chapter_message((int)m->v[1], (int)m->v[2]); break;     // 章節（0x4fca00）
+        case 0x532:  // 人物位置（Poq 0x47e6xx 0x532；EasyRPG 0x1004e200 的 a1 = 格 x、a2 = 格 y、a3 = 面向、a4 ≠ 0）：清移動目標／命令，0x496e30 放到格中央，0x4963e0 設面向。
+            // a4 == 0 的分支是鏡頭（虛擬 +0x54(1, …)），劇情資料全都 a4 = 1，沒做
+            if (!a && (int)m->v[0] == story_player()) a = &actors[0];  // 主角的角色沒有劇情代號，用玩家代號認
+            if (a && m->v[4]) {
+                a->foe = NULL; a->want = NULL; a->moving = 0;
+                if (actor_restore_position(a, (int)m->v[1] + 0.5f, (int)m->v[2] + 0.5f)) {
+                    a->pvx = a->x; a->pvy = a->y;
+                    actor_direction_set(a, (int)m->v[3] & 7);
+                }
+            }
+            break;
         case 0x52c: case 0x519: break;  // 出口開關（走出口時再查）、轉向
         default: fprintf(stderr, "劇情訊息 0x%x（%s）還沒做\n", m->id, m->s); break;
         }
@@ -10865,8 +10876,9 @@ int main(int argc, char **argv) {
             ++tick;
             actor_logic_tick = tick;
 #ifdef STORY
-            if (rec_pending[0] && !diff_open) {  // 劇情事件的過場（新遊戲要等難度選完才開演）：沒檔、場景載不進去就直接收尾
-                if (!rec_begin(rec_pending, &scene, hero, story_room_alias(sroom))) { story_begin(); story_plot_end(); story_end(); }
+            // 劇情事件的過場（新遊戲要等難度選完才開演；NPC 對話還開著也要等關掉：選項「好的，前面帶路」那一點會被當成跳過，
+            // 過場一瞬間就收掉，桓峰／第二章開場實測）
+            if (rec_pending[0] && !diff_open && !dialog_open) {  // 沒檔、場景載不進去就直接收尾                if (!rec_begin(rec_pending, &scene, hero, story_room_alias(sroom))) { story_begin(); story_plot_end(); story_end(); }
                 rec_pending[0] = 0;
             }
 #endif
