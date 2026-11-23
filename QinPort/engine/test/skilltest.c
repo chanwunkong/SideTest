@@ -206,6 +206,32 @@ static void character_skill_commands_test(void) {
         hero_attack(a,t); assert(a->command[0]==9 && a->remembered[0]==9);  // 玩家明確下令才打，並記住續打
         *t=tsave; d.seek=0; unit_n=0;
     }
+    {   // 觸控適配（攻擊自動轉向 A × 自動追蹤目標 B）：主角背對怪物，按攻擊鍵 hero_attack_touch；看轉向、移動、有沒有打到
+        t->side=1; opt_touch_loaded=1;
+        int D=dir_of(5*64+32,5*64+32,6*64+32,5*64+32,8), away=(D+4)&7;
+        for (int far=0; far<2; far++) for (int turn=0; turn<2; turn++) for (int chase=0; chase<2; chase++) {
+            *a=base; a->skills[0].min=0; t->x=far?14.5f:6.5f; t->hp=100; unit_n=0;
+            actor_direction_set(a,away); opt_turn=turn; opt_chase=chase;
+            hero_attack_touch(a,t,-1); actor_skill_command_tick(a);
+            int walk=a->dynamic_state==11, swung=unit_n==1;
+            if (far && chase) { assert(a->command[0]==9 && a->remembered[0]==9 && walk && !swung); continue; }  // 遠 + 追：命令 9 追過去
+            if (!far && chase && !turn) { assert(swung && !walk && a->remembered[0]==-1 && units[0].dir==away); }  // 近、追 ON、轉向 OFF：照面向揮，沒追
+            if (!far && chase && turn) { assert(swung && !walk); }  // 近、追 + 轉：原版點擊
+            if (!chase) assert(swung && !walk && a->remembered[0]==-1 && a->x==5.5f);  // 追 OFF：絕不移動、不記住（不會自己續打）
+            assert(!(swung && !far && chase && turn) || units[0].dir==D);
+            if (!swung) continue;
+            assert(a->facing==(turn ? D : away) || (!turn && a->facing==away));
+            if (turn && !chase) assert(units[0].dir==D && a->facing==D);  // 遠近都會轉向目標（原版立即轉向）
+            if (!turn) assert(units[0].dir==away && a->facing==away);
+            unit_hits(&units[0],0,1000);  // 觸發 0：前方一格；背對時打不到，轉向後打得到（近的）
+            int landed=units[0].hit_n==1;
+            assert(landed==(!far && (turn || (chase && 0))));
+            if (landed) assert(t->hp<100);
+            else assert(t->hp==100);
+            unit_n=0;
+        }
+        t->side=0; t->x=6.5f; unit_n=0; *a=base;
+    }
     // 缺少Method時保留地點命令；不是按下輸入就丟棄。
     *a=base; a->skills[0].id=65534; a->right_id=65534; a->template_skill[0]=65534;
     actor_queue_command(a,8,65534,12,13); actor_skill_command_tick(a);

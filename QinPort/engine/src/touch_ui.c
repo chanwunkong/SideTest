@@ -294,12 +294,16 @@ static int touch_skill_aims(const SkillRow *r) {
 static Object *hover_building(int cx, int cy);
 static int click_building(Actor *h, Object *b, int cx, int cy);
 static int touch_attack_building_done;  // 這次按住已經對建築出過手（一次按住只出一次，不然每拍重送命令）
-static void touch_attack_nearest(Actor *h) {
+static Actor *touch_nearest_foe(Actor *h) {
     float best = h->def ? actor_seek(h) : 10;
     Actor *found = NULL;
     for (int i = 1; i < actor_count; i++)
         if (hostile(h, &actors[i]) && cell_dist(h, &actors[i]) <= best) { best = cell_dist(h, &actors[i]); found = &actors[i]; }
-    if (found) hero_attack(h, found);
+    return found;
+}
+static void touch_attack_nearest(Actor *h) {
+    Actor *found = touch_nearest_foe(h);
+    if (found) { if (touch_active()) hero_attack_touch(h, found, -1); else hero_attack(h, found); }  // 觸控適配：攻擊自動轉向／自動追蹤目標
     if (found || touch_attack_building_done || !unit_scene) return;
     // 沒有敵人：攻擊鍵 = 原版「點游標下的東西」。最近的可互動建築（樹、礦、水缸、箱子、門）8 格內，照原版點建築的做法（click_building）
     // shortcut: 手機沒有滑鼠游標，攻擊鍵代替點擊；原版是點到哪個建築就對哪個
@@ -375,6 +379,9 @@ static void touch_button(Actor *h, int b) {
         if (cur_skill[1] != k) { cur_skill[1] = k; hero_skill_apply(h); }
         const SkillRow *r = &hero_skill[k];
         int m = skill_manual(r);
+        // 觸控適配（攻擊自動轉向 ON）：要敵人的技能沒有目標時，自動選最近的敵人，免得還要再點一下
+        touch_opt_load();
+        if (opt_turn && skill_needs_foe(r) && m != 2 && m != 3 && m != 5 && !alive(h->foe)) { Actor *f = touch_nearest_foe(h); if (f) actor_target_set(h, f); }
         // 已經有目標、單體技能：直接對目標放，不用再點
         if (touch_skill_aims(r) && !(skill_needs_foe(r) && alive(h->foe) && m != 2 && m != 3 && m != 5)) tch.aim = b;
         else hero_cast(h);
@@ -397,7 +404,7 @@ static void touch_frame(Actor *h) {
     touch_sync();
     if (!touch_active()) return;
     if (!tch.held[TB_ATK]) touch_attack_building_done = 0;
-    if (tch.held[TB_ATK] && h->act != ACT_DEAD && !alive(h->foe)) touch_attack_nearest(h);
+    if (tch.held[TB_ATK] && h->act != ACT_DEAD && (!alive(h->foe) || !opt_chase)) touch_attack_nearest(h);  // 追蹤 OFF：命令 8 不記住，按住就每幀重送（冷卻中不會出手）
 }
 
 // ---- 繪圖（螢幕座標，在遊戲畫面貼好之後畫）----

@@ -6108,6 +6108,57 @@ static void actor_skill_command_tick(Actor *a) {
     }
 }
 
+// ---- 觸控適配（不是原版規則）：攻擊自動轉向／自動追蹤目標 兩個使用者選項 ----
+// 原版靠滑鼠點怪：點下去主角立刻轉向目標（0x43acb0／0x4963e0）並走過去打（命令 9 + 記住）。手機的面向由搖桿決定、點怪又容易誤觸，所以拆成兩個開關，存 localStorage（網頁版）。
+// 轉向 ON：出手對著目標（原版的轉向照舊）；OFF：對著目前面向前方出手。追蹤 ON：目標不在射程就走過去持續打（命令 9）；OFF：絕不因攻擊而移動，原地揮。
+// 轉向 OFF + 追蹤 ON：目標已在射程 → 照面向揮；不在射程 → 命令 9 追過去（走近、出手時原版會轉向）。命令 8 不記住，所以不會自己續打。
+// shortcut: 原地揮的「前方點」取前方 3 格（超出場景截到邊），只靠 8 方向面向；網頁版以外（桌面）不存檔，預設值每次重來
+static int opt_turn = 1, opt_chase = 0, opt_touch_loaded;
+#ifdef __EMSCRIPTEN__
+EM_JS(int, js_touch_opt_get, (void), { var v = localStorage.getItem('qinTouchOpt'); return v === null ? -1 : parseInt(v); });
+EM_JS(void, js_touch_opt_set, (int v), { localStorage.setItem('qinTouchOpt', '' + v); });
+#endif
+static void touch_opt_load(void) {
+    if (opt_touch_loaded) return;
+    opt_touch_loaded = 1;
+#ifdef __EMSCRIPTEN__
+    int v = js_touch_opt_get();
+    if (v >= 0) { opt_turn = v & 1; opt_chase = v >> 1 & 1; }
+#endif
+}
+static void touch_opt_save(void) {
+#ifdef __EMSCRIPTEN__
+    js_touch_opt_set(opt_turn | opt_chase << 1);
+#endif
+}
+static int hero_in_reach(Actor *a, const Actor *t, int id) {
+    int slot = actor_skill_find(a, id == -1 ? a->right_id : id);
+    if (slot < 0) return 0;
+    const ActorSkill *s = &a->skills[slot];
+    int range = actor_skill_range(a, s);
+    if (range >= 4) --range;  // 同 actor_skill_command_tick 的射程算法
+    range += t->body_size / 2;
+    return actor_skill_in_range((ax64(a) >> 6) - (ax64(t) >> 6), (ay64(a) >> 6) - (ay64(t) >> 6), range, s->min);
+}
+static void hero_attack_touch(Actor *h, Actor *t, int id) {
+    touch_opt_load();
+    int reach = hero_in_reach(h, t, id);
+    if (opt_chase && !(reach && !opt_turn)) {
+        actor_command(h, 9, id, t->sh ? t->sh : (int)t->object_id, 0, 1, 1);
+        return;
+    }
+    int x, y;
+    if (opt_turn) { x = ax64(t) >> 6; y = ay64(t) >> 6; }
+    else {
+        x = ax64(h); y = ay64(h);
+        move_dir(&x, &y, DIR_MAP[h->dir & 7], 192);
+        x >>= 6; y >>= 6;
+        if (unit_scene) { x = x < 0 ? 0 : x >= unit_scene->w ? unit_scene->w - 1 : x; y = y < 0 ? 0 : y >= unit_scene->h ? unit_scene->h - 1 : y; }
+    }
+    actor_command(h, 8, id, x, y, 1, 0);
+}
+static int touch_active(void);
+
 static void hero_cast_point(Actor *h, int x, int y) {
     int k = cur_skill[1];
     if (k < 0 || k >= hero_skill_n || h->act || h->casting) return;
@@ -6120,6 +6171,7 @@ static void hero_cast_point(Actor *h, int x, int y) {
     }
     if (!skill_needs_foe(r)) { cast_start(h, r); return; }
     if (!alive(h->foe) || !skill_usable(h, r)) return;
+    if (touch_active()) { hero_attack_touch(h, h->foe, skill_attack_id(r)); return; }  // 觸控適配
     actor_command(h, 9, skill_attack_id(r), h->foe->sh ? h->foe->sh : (int)h->foe->object_id, 0, 1, 1);
 }
 
@@ -8122,6 +8174,17 @@ static int opt_ctrl(const char *name) {
     return -1;
 }
 
+// 觸控適配：設定視窗下方（放不下就貼在視窗底部內側）兩個整列大按鈕，點一下切換；不是原版控制項
+static int opt_row(int i, int *x, int *y, int *w, int *h) {
+    int ox, oy;
+    opt_ui_pos(&opt_d, &ox, &oy);
+    *h = 34; *w = opt_d.w;
+    *x = ox;
+    *y = oy + opt_d.h + 6 + i * (*h + 4);
+    if (*y + *h > vh) *y = oy + opt_d.h - 2 * (*h + 4) - 4 + i * (*h + 4);
+    return 1;
+}
+static const char *const opt_row_text[2] = {"攻擊自動轉向", "自動追蹤目標"};
 static int opt_tap(int x, int y) {
     int ox, oy;
     if (help_open) {
@@ -8135,6 +8198,12 @@ static int opt_tap(int x, int y) {
         return 1;
     }
     if (!opt_open) return 0;
+    touch_opt_load();
+    for (int i = 0; i < 2; i++) {
+        int rx, ry, rw, rh;
+        opt_row(i, &rx, &ry, &rw, &rh);
+        if (x >= rx && x < rx + rw && y >= ry && y < ry + rh) { if (i) opt_chase ^= 1; else opt_turn ^= 1; touch_opt_save(); return 1; }
+    }
     opt_ui_pos(&opt_d, &ox, &oy);
     const UiCtrl *c = ui_button_at(&opt_d, ox, oy, x, y);
     if (c) {
@@ -8144,7 +8213,7 @@ static int opt_tap(int x, int y) {
         else if (!strcmp(c->name, "m_pPrevLight")) opt_v[O_LIGHT] = opt_v[O_LIGHT] == 0 ? 1 : opt_v[O_LIGHT] - 1;  // 0x547080
         else if (!strcmp(c->name, "m_pNextResolution")) opt_v[O_RES] = (opt_v[O_RES] + 1) % 3;  // 0x5471b0
         else if (!strcmp(c->name, "m_pPrevResolution")) opt_v[O_RES] = opt_v[O_RES] == 0 ? 2 : opt_v[O_RES] - 1;  // 0x547160
-        else if (!strcmp(c->name, "m_pDefaults")) { memcpy(opt_v, opt_def, sizeof opt_v); opt_apply(); }
+        else if (!strcmp(c->name, "m_pDefaults")) { memcpy(opt_v, opt_def, sizeof opt_v); opt_apply(); opt_turn = 1; opt_chase = 0; touch_opt_save(); }
         else if (!strcmp(c->name, "m_pOK")) opt_open = 0;
         else if (!strcmp(c->name, "m_pCancel")) { memcpy(opt_v, opt_bak, sizeof opt_v); opt_apply(); opt_open = 0; }
         return 1;
@@ -8169,6 +8238,19 @@ static void opt_draw(void) {
     UiCtrl *bg = ui_find(d, "m_pBackGround");
     if (bg) draw(ui_image(bg->img, 0), ox + bg->x, oy + bg->y);  // 底圖旗標是 0，ui_draw 不畫
     ui_draw(d, ox, oy);
+    if (opt_open && !help_open) {
+        touch_opt_load();
+        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+        for (int i = 0; i < 2; i++) {
+            int rx, ry, rw, rh, on = i ? opt_chase : opt_turn;
+            opt_row(i, &rx, &ry, &rw, &rh);
+            SDL_Rect r = {rx, ry, rw, rh};
+            SDL_SetRenderDrawColor(ren, 20, 20, 20, 220); SDL_RenderFillRect(ren, &r);
+            SDL_SetRenderDrawColor(ren, 190, 205, 206, 255); SDL_RenderDrawRect(ren, &r);
+            draw_text(rx + 12, ry + 9, opt_row_text[i], rw, 0xBECDCE, 1);
+            draw_text(rx + rw - 12 - text_width(on ? "開" : "關"), ry + 9, on ? "開" : "關", 40, on ? 0x80FF80 : 0xFF8080, 1);
+        }
+    }
     if (help_open) {
         static const char *const tab[5] = {"m_pGeneral", "m_pControl", "m_pProp", "m_pFight", "m_pNetwork"};
         UiCtrl *t = ui_find(d, tab[help_tab]);
@@ -10360,6 +10442,7 @@ static int modal_rect(SDL_Rect *r) {
             if (sp && c->y + sp->h > h && c->y >= 0 && c->y < h + 200) h = c->y + sp->h;
         }
     }
+    if (opt_open && !help_open) { int rx, ry, rw, rh; opt_row(1, &rx, &ry, &rw, &rh); if (ry + rh - oy > h) h = ry + rh - oy; }  // 觸控適配的兩列開關（設定視窗下方）也要在放大區裡
     *r = (SDL_Rect){ox, oy, w, h};
     return 1;
 }
@@ -10697,7 +10780,12 @@ int main(int argc, char **argv) {
                 input_team_cmd(cmd, m, cx, cy);
                 if (!input_sel_has(hero) && sel_n > 0) continue;  // 主角不在選人名單（只點了隊友頭像）：只有名單裡的人動
                 switch (cmd) {
-                case CMD_ATTACK: hero_attack(hero, m); hero->want = NULL; walk_cx = -1; break;
+                case CMD_ATTACK:
+                    // 觸控適配：自動追蹤目標 OFF 時點怪只選取（不走、不打）；ON 照原版點擊（命令 9 追打）
+                    touch_opt_load();
+                    if (touch_active() && !opt_chase) actor_target_set(hero, m);
+                    else { hero_attack(hero, m); hero->want = NULL; walk_cx = -1; }
+                    break;
                 case CMD_PICK: actor_command(hero, 0x11, ground[g].id, 0, 0, 1, 1); hero->foe = NULL; hero->want = NULL; walk_cx = -1; break;
                 case CMD_MOVE:
                     if (!actor_command(hero, 1, cx, cy, 0, 1, 1)) break;
